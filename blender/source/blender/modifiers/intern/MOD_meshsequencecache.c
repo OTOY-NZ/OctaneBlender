@@ -235,6 +235,11 @@ static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *
     result->oct_enable_octane_sphere_attribute = org_mesh->oct_enable_octane_sphere_attribute;
     result->oct_hide_original_mesh = org_mesh->oct_hide_original_mesh;
     result->oct_use_randomized_radius = org_mesh->oct_use_randomized_radius;
+    result->oct_enable_subd = org_mesh->oct_enable_subd;
+    result->oct_subd_level = org_mesh->oct_subd_level;
+    result->oct_open_subd_scheme = org_mesh->oct_open_subd_scheme;
+    result->oct_open_subd_bound_interp = org_mesh->oct_open_subd_bound_interp;
+    result->oct_open_subd_sharpness = org_mesh->oct_open_subd_sharpness;
   }
 
   switch (cache_file->type) {

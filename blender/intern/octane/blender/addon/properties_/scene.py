@@ -4,7 +4,7 @@ from bpy.props import IntProperty, FloatProperty, BoolProperty, StringProperty, 
 from bpy.utils import register_class, unregister_class
 from octane.properties_ import common
 from octane.utils import consts, ocio, utility
-
+from octane import core
 
 rotation_orders = (
     ('0', "XYZ", ""),
@@ -604,10 +604,10 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
 # OCTANE COMMON
 # ################################################################################################
     addon_dev_enabled: BoolProperty(
-        default=False,
+        default=core.ENABLE_OCTANE_ADDON_CLIENT,
     )
     legacy_mode_enabled: BoolProperty(
-        default=True,
+        default=not core.ENABLE_OCTANE_ADDON_CLIENT,
     )    
     viewport_hide: BoolProperty(
         name="Viewport hide priority",

@@ -276,12 +276,11 @@ class OctaneUniversalCameraDistortionTexture(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraDistortionTexture"
     bl_label="Distortion texture"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type="OctaneRGBColor"
+    octane_default_node_type=""
     octane_pin_id: IntProperty(name="Octane Pin ID", default=540)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
-    default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=None, description="The distortion texture map", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
-    octane_hide_value=False
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
     octane_deprecated=False
@@ -590,12 +589,11 @@ class OctaneUniversalCameraCustomAperture(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraCustomAperture"
     bl_label="Custom aperture"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type="OctaneRGBColor"
+    octane_default_node_type=""
     octane_pin_id: IntProperty(name="Octane Pin ID", default=552)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
-    default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=None, description="The custom aperture opacity map. The projection type must be set to \"Mesh UV\"", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
-    octane_hide_value=False
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
     octane_deprecated=False

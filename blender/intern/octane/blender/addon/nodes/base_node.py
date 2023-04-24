@@ -246,7 +246,7 @@ class OctaneBaseOutputNode(OctaneBaseNode):
         if node_tree:
             OctaneBaseNodeTree.update_active_output_name(node_tree, context, output_node.name, output_node.active)
 
-    use_custom_color=True
+    use_custom_color=False
     active: BoolProperty(name="Active", default=True, update=update_output_node_active)
 
     def set_active(self, context, active):

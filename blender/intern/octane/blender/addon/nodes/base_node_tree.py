@@ -386,6 +386,7 @@ class NodeTreeHandler:
     @staticmethod
     def on_material_new(scene):
         from octane.nodes import base_output_node
+        from octane.utils import utility
         if len(bpy.data.materials) > NodeTreeHandler.material_node_tree_count:            
             active_object = bpy.context.active_object
             active_material = None
@@ -396,14 +397,15 @@ class NodeTreeHandler:
                 node_tree = active_material.node_tree
             if node_tree and NodeTreeHandler.MATERIAL_OUTPUT_NODE_NAME in node_tree.nodes:
                 blender_output = node_tree.nodes[NodeTreeHandler.MATERIAL_OUTPUT_NODE_NAME]
+                material_node_bl_idname = utility.get_default_material_node_bl_idname()
                 if core.ENABLE_OCTANE_ADDON_CLIENT:                    
                     output = node_tree.nodes.new("OctaneEditorMaterialOutputNode")
                     output.location = blender_output.location
-                    NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, blender_output, output, NodeTreeHandler.SURFACE_INPUT_NAME, NodeTreeHandler.SURFACE_INPUT_NAME, "OctaneUniversalMaterial")
+                    NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, blender_output, output, NodeTreeHandler.SURFACE_INPUT_NAME, NodeTreeHandler.SURFACE_INPUT_NAME, material_node_bl_idname)
                     NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, blender_output, output, NodeTreeHandler.VOLUME_INPUT_NAME, NodeTreeHandler.VOLUME_INPUT_NAME, "OctaneVolumeMedium")
                     node_tree.nodes.remove(blender_output)
                 else:
-                    NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, blender_output, blender_output, NodeTreeHandler.SURFACE_INPUT_NAME, NodeTreeHandler.SURFACE_INPUT_NAME, "OctaneUniversalMaterial")
+                    NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, blender_output, blender_output, NodeTreeHandler.SURFACE_INPUT_NAME, NodeTreeHandler.SURFACE_INPUT_NAME, material_node_bl_idname)
                     NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, blender_output, blender_output, NodeTreeHandler.VOLUME_INPUT_NAME, NodeTreeHandler.VOLUME_INPUT_NAME, "OctaneVolumeMedium")                    
 
         NodeTreeHandler.material_node_tree_count = len(bpy.data.materials)

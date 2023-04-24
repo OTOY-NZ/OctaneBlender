@@ -1104,13 +1104,22 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
 #undef ADD_OCTANE_PIN_DTO
       }
     }
-    if (bl_idname == "OctaneNodeOcioColorSpace") {
-      char char_array[512];
-      RNA_string_get(&b_node.ptr, "formatted_ocio_color_space", char_array);
+    if (bl_idname == "OctaneOCIOColorSpace") {      
+      OctaneDataTransferObject::OctaneNodeBase *cur_node =
+          OctaneDataTransferObject::GlobalOctaneNodeFactory.CreateOctaneNode(
+          "OctaneOCIOColorSpace");
+	  cur_node->sName = node->oct_node->sName;
+      delete node->oct_node;
+      node->oct_node = cur_node;
+	  char char_array[512];
+      RNA_string_get(&b_node.ptr, "formatted_ocio_color_space_name", char_array);
       ::OctaneDataTransferObject::OctaneOcioColorSpace *octane_node =
           (::OctaneDataTransferObject::OctaneOcioColorSpace *)(node->oct_node);
       octane_node->sOcioName.sVal = char_array;
     }
+	if (bl_idname == "OctaneVertexDisplacement") {
+      graph->need_subdivision = true;
+	}
   }
   else if (b_node.is_a(&RNA_ShaderNodeOctLayeredMat)) {
     int layer_number = RNA_enum_get(&b_node.ptr, "layer_number");

@@ -36,8 +36,9 @@ class OctaneUniversalMaterialTransmissionType(OctaneBaseSocket):
         ("Specular", "Specular", "", 0),
         ("Diffuse", "Diffuse", "", 1),
         ("Thin wall", "Thin wall", "", 2),
+        ("Thin wall (diffuse)", "Thin wall (diffuse)", "", 3),
     ]
-    default_value: EnumProperty(default="Specular", update=None, description="Transmission type (Specular, Diffuse, Thin wall)", items=items)
+    default_value: EnumProperty(default="Specular", update=None, description="- Specular: Behaves the same as transmission of the specular material, i.e. taking IOR and roughness into account.\n- Diffuse: Behaves the same as transmission of the diffuse material, i.e. not taking IOR into account and roughness has the same meaning as in the diffuse material. If additional layers are used, the layer ordering is dependent on the side the incident ray comes from.\n- Thin wall: Behaves the same as mode \"Specular\" but with no refraction and no roughness for transmission. Also the medium is not applied either.\n- Thin wall (diffuse): Behaves the same as mode \"Diffuse\" with the exception that the layer ordering is independent of which side the incident ray comes from. Can be used with a coating layer for foliages and leaves.\n", items=items)
     octane_hide_value=False
     octane_min_version=6000006
     octane_end_version=4294967295

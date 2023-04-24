@@ -52,18 +52,20 @@ rotation_orders = (
 )
 
 default_material_orders = (
-    ('0', "Diffuse", '', 0),
-    ('1', "Glossy", '', 1),
-    ('2', "Specular", '', 2),
-    ('3', "Mix", '', 3), 
-    ('4', "Portal", '', 4), 
-    ('5', "Toon", '', 5),
-    ('6', "Metal", '', 6),
-    ('7', "Universal", '', 7), 
-    ('8', "ShadowCatcher", '', 8), 
-    ('9', "Layered", '', 9), 
-    ('10', "Composite", '', 10), 
-    ('11', "Hair", '', 11),     
+    ("0", "Diffuse", "OctaneDiffuseMaterial", 0),
+    ("1", "Glossy", "OctaneGlossyMaterial", 1),
+    ("2", "Specular", "OctaneSpecularMaterial", 2),
+    ("3", "Mix", "OctaneMixMaterial", 3), 
+    ("4", "Portal", "OctanePortalMaterial", 4), 
+    ("5", "Toon", "OctaneToonMaterial", 5),
+    ("6", "Metal", "OctaneMetallicMaterial", 6),
+    ("7", "Universal", "OctaneUniversalMaterial", 7), 
+    ("8", "ShadowCatcher", "OctaneShadowCatcherMaterial", 8), 
+    ("9", "Layered", "OctaneLayeredMaterial", 9), 
+    ("10", "Composite", "OctaneCompositeMaterial", 10), 
+    ("11", "Hair", "OctaneHairMaterial", 11),
+    ("12", "Clipping", "OctaneClippingMaterial", 12),
+    ("13", "Null", "OctaneNullMaterial", 13),
     )
 
 texture_node_layouts = (
@@ -603,35 +605,48 @@ class OctaneMeshSettings(bpy.types.PropertyGroup):
             name="TessFace in Preview",
             description="Enable tessfaces(if available) in interactive rendering mode",
             default=False,
-            )        
+            )
+    def update_open_subd_settings(self, context):
+        oct_mesh = self
+        mesh = self.id_data
+        mesh.oct_enable_subd = int(oct_mesh.open_subd_enable)
+        mesh.oct_subd_level = oct_mesh.open_subd_level
+        mesh.oct_open_subd_scheme = int(oct_mesh.open_subd_scheme)
+        mesh.oct_open_subd_bound_interp = int(oct_mesh.open_subd_bound_interp)
+        mesh.oct_open_subd_sharpness = oct_mesh.open_subd_sharpness
     open_subd_enable: BoolProperty(
             name="Enable OpenSubDiv",
             description="Subdivide mesh before rendering",
             default=False,
+            update=update_open_subd_settings,
             )
     open_subd_scheme: EnumProperty(
             name="Scheme",
             description="",
             items=subd_scheme,
             default='1',
+            update=update_open_subd_settings,
             )
     open_subd_level: IntProperty(
             name="Subd level",
             description="",
             min=0, max=10,
             default=0,
+            update=update_open_subd_settings,
             )
     open_subd_sharpness: FloatProperty(
             name="Sharpness",
             description="",
             min=0.0, max=11.0, soft_max=11.0,
             default=0.0,
+            update=update_open_subd_settings,
             )
     open_subd_bound_interp: EnumProperty(
             name="Boundary interp.",
             description="",
             items=bound_interp,
             default='3',
+            update=update_open_subd_settings,
             )
     vis_general: FloatProperty(
             name="General visibility",

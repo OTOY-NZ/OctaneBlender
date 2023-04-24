@@ -3,6 +3,7 @@ import numpy as np
 import time
 import collections
 import _thread
+import threading
 import queue
 from octane.utils import consts, utility
 from octane.core.caches import OctaneNodeCache, ObjectCache, ImageCache, MaterialCache, WorldCache, CompositeCache, RenderAOVCache, KernelCache, OctaneRenderTargetCache, SceneCache
@@ -27,6 +28,8 @@ class RenderResult(object):
         self.render_result_node.set_name(self.RENDER_RESULT)
         self.render_result_node.set_node_type(consts.NodeType.NT_BLENDER_NODE_GET_RENDER_RESULT)
         self.viewport_float_pixel_array = None
+        self.mutex = threading.Lock()
+        self.index = 0
 
     def clear(self):
         self.render_result_node = None
@@ -37,23 +40,38 @@ class RenderResult(object):
         self.render_result_node.set_blender_attribute(self.BLENDER_ATTRIBUTE_RESOLUTION, consts.AttributeType.AT_INT2, self.resolution)
         self.render_result_node.set_blender_attribute(self.BLENDER_ATTRIBUTE_RENDER_PASS_ID, consts.AttributeType.AT_INT, render_pass_id)                
 
+    def lock_render_result(self):
+        self.mutex.acquire()
+
+    def unlock_render_result(self):
+        self.mutex.release()
+
     def update_pixel_array(self, width=None, height=None, render_pass_id=None):
+        self.lock_render_result()
         current_time = time.time()
-        if current_time - self.last_update_time < self.MIN_UPDATE_INTERVAL:            
+        if current_time - self.last_update_time < self.MIN_UPDATE_INTERVAL:
+            self.unlock_render_result()
             return
         if width is not None and height is not None and render_pass_id is not None:
             self.setup(width, height, render_pass_id)
-        self.render_result_node.release_reply_c_array(CArray.UINT8)
         reply_body = OctaneClient().process_octane_node(self.render_result_node)
         uint8_pixel_array = self.render_result_node.get_reply_c_array(CArray.UINT8)
-        self.viewport_float_pixel_array = uint8_pixel_array.astype(np.float32, copy=True) / 255.0
+        if len(uint8_pixel_array):
+            pixel_array = uint8_pixel_array.astype(np.float32, copy=True) / 255.0
+            self.viewport_float_pixel_array = pixel_array            
         self.last_update_time = current_time
+        self.unlock_render_result()
 
 
 def start_session(session, engine):
     while True:
-        if engine:
-            session.grab_render_result(engine)
+        if _current_render_session is not None:            
+            _current_render_session.update_node_to_server()
+        try:
+            if engine:
+                session.grab_render_result(engine)
+        except:
+            pass
         time.sleep(0.03)
 
 
@@ -204,13 +222,12 @@ class RenderSession(object):
         region = context.region
         scene = depsgraph.scene
         self.scene_cache.update_camera(engine, context, depsgraph)
-        # self.render_result.update_pixel_array(region.width, region.height, 0)
+        self.render_result.update_pixel_array(region.width, region.height, 0)
 
     def grab_render_result(self, engine):
         if self.render_result:
-            pass
-            # self.render_result.update_pixel_array()
-            # engine.tag_redraw()
+            self.render_result.update_pixel_array()
+            engine.tag_redraw()
             # engine.draw_render_result(self.render_result)
 
     def _update_node_tree(self, context, node_tree, owner_type, active_output_node, active_input_name, root_name, node_tree_attributes):

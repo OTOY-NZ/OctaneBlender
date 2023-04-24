@@ -686,15 +686,13 @@ class OCTANE_RENDER_PT_passes_beauty(OctaneRenderPassesPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-        layout.use_property_split = True
-        layout.use_property_decorate = False
 
         scene = context.scene
         rd = scene.render
         view_layer = context.view_layer
         octane_view_layer = view_layer.octane
 
-        flow = layout.grid_flow(row_major=True, columns=0, even_columns=True, even_rows=False, align=False)
+        flow = layout.grid_flow(row_major=True, columns=2, even_columns=True, even_rows=False, align=False)
         col = flow.column()
         col.prop(view_layer, "use_pass_oct_beauty")
         col = flow.column()
@@ -768,15 +766,13 @@ class OCTANE_RENDER_PT_passes_denoiser(OctaneRenderPassesPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-        layout.use_property_split = True
-        layout.use_property_decorate = False
 
         scene = context.scene
         rd = scene.render
         view_layer = context.view_layer
         octane_view_layer = view_layer.octane
 
-        flow = layout.grid_flow(row_major=True, columns=0, even_columns=True, even_rows=False, align=False)
+        flow = layout.grid_flow(row_major=True, columns=2, even_columns=True, even_rows=False, align=False)
         col = flow.column()
         col.prop(view_layer, "use_pass_oct_denoise_beauty", text="Beauty")
         col = flow.column()
@@ -806,15 +802,13 @@ class OCTANE_RENDER_PT_passes_postprocessing(OctaneRenderPassesPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-        layout.use_property_split = True
-        layout.use_property_decorate = False
 
         scene = context.scene
         rd = scene.render
         view_layer = context.view_layer
         octane_view_layer = view_layer.octane
 
-        flow = layout.grid_flow(row_major=True, columns=0, even_columns=True, even_rows=False, align=False)
+        flow = layout.grid_flow(row_major=True, columns=2, even_columns=True, even_rows=False, align=False)
         col = flow.column()
         col.prop(view_layer, "use_pass_oct_postprocess", text="Post processing")
         col = flow.column()
@@ -829,15 +823,13 @@ class OCTANE_RENDER_PT_passes_render_layer(OctaneRenderPassesPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-        layout.use_property_split = True
-        layout.use_property_decorate = False
 
         scene = context.scene
         rd = scene.render
         view_layer = context.view_layer
         octane_view_layer = view_layer.octane
 
-        flow = layout.grid_flow(row_major=True, columns=3, even_columns=True, even_rows=False, align=False)
+        flow = layout.grid_flow(row_major=True, columns=2, even_columns=True, even_rows=True, align=False)
         col = flow.column()
         col.prop(view_layer, "use_pass_oct_layer_shadows", text="Shadow")
         col = flow.column()
@@ -854,15 +846,13 @@ class OCTANE_RENDER_PT_passes_lighting(OctaneRenderPassesPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-        layout.use_property_split = True
-        layout.use_property_decorate = False
 
         scene = context.scene
         rd = scene.render
         view_layer = context.view_layer
         octane_view_layer = view_layer.octane
 
-        flow = layout.grid_flow(row_major=True, columns=3, even_columns=True, even_rows=False, align=False)
+        flow = layout.grid_flow(row_major=True, columns=3, even_columns=True, even_rows=True, align=False)
         col = flow.column()
         col.prop(view_layer, "use_pass_oct_ambient_light", text="Ambient")
         col = flow.column()
@@ -933,15 +923,13 @@ class OCTANE_RENDER_PT_passes_cryptomatte(OctaneRenderPassesPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-        layout.use_property_split = True
-        layout.use_property_decorate = False
 
         scene = context.scene
         rd = scene.render
         view_layer = context.view_layer
         octane_view_layer = view_layer.octane
 
-        flow = layout.grid_flow(row_major=True, columns=0, even_columns=True, even_rows=False, align=False)
+        flow = layout.grid_flow(row_major=True, columns=2, even_columns=True, even_rows=False, align=False)
         col = flow.column()
         col.prop(view_layer, "use_pass_oct_crypto_instance_id", text="InstanceID")
         col = flow.column()
@@ -978,15 +966,13 @@ class OCTANE_RENDER_PT_passes_info(OctaneRenderPassesPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-        layout.use_property_split = True
-        layout.use_property_decorate = False
 
         scene = context.scene
         rd = scene.render
         view_layer = context.view_layer
         octane_view_layer = view_layer.octane
 
-        flow = layout.grid_flow(row_major=True, columns=0, even_columns=True, even_rows=False, align=False)
+        flow = layout.grid_flow(row_major=True, columns=2, even_columns=True, even_rows=False, align=False)
         col = flow.column()
         col.prop(view_layer, "use_pass_oct_info_z_depth")
         col = flow.column()
@@ -1054,15 +1040,13 @@ class OCTANE_RENDER_PT_passes_material(OctaneRenderPassesPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-        layout.use_property_split = True
-        layout.use_property_decorate = False
 
         scene = context.scene
         rd = scene.render
         view_layer = context.view_layer
         octane_view_layer = view_layer.octane
 
-        flow = layout.grid_flow(row_major=True, columns=0, even_columns=True, even_rows=False, align=False)
+        flow = layout.grid_flow(row_major=True, columns=2, even_columns=True, even_rows=False, align=False)
         col = flow.column()
         col.prop(view_layer, "use_pass_oct_mat_opacity")
         col = flow.column()

@@ -64,7 +64,7 @@ class OctaneNode(object):
         return OctaneClient().build_scene_data(self.scene_data_identifier, scene_data_type, dict_args)
 
     def get_reply_c_array_identifier(self):
-        return "REPLY_ARRAY_DATA[%d]" % id(self)
+        return "REPLY_ARRAY_DATA[%s][%d]" % (self.name, id(self))
 
     def get_reply_c_array(self, array_type):
         from octane.core.client import OctaneClient 

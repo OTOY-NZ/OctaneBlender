@@ -4805,7 +4805,7 @@ namespace OctaneDataTransferObject {
 		)
 
 		OctaneOcioColorSpace() :
-			OctaneNodeBase(Octane::NT_OCIO_COLOR_SPACE, "OctaneNodeOcioColorSpace")
+			OctaneNodeBase(Octane::NT_OCIO_COLOR_SPACE, "OctaneOCIOColorSpace")
 		{
 		}
 		OCTANE_NODE_SERIALIZARION_FUNCTIONS

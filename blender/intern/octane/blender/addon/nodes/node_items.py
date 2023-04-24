@@ -265,14 +265,26 @@ _octane_node_items = {
                 OctaneNodeItem("OctaneKernelOutputNode", poll=kernel_poll),
             ]
         ),
+    ] if core.ENABLE_OCTANE_ADDON_CLIENT else [
+        OctaneOutputNodeCategory("OCTANE_OUTPUT", "Octane Output", 
+            octane_pin_type=consts.PinType.PT_BLENDER_OUTPUT,
+            items=[
+                OctaneNodeItem("OctaneAOVOutputGroupOutputNode", poll=composite_poll),
+                OctaneNodeItem("OctaneRenderAOVsOutputNode", poll=render_aov_poll),
+            ]
+        ),    
     ],
     "OCTANE_TOOL": [
         OctaneGeneralNodeCategory("OCTANE_TOOL", "Octane Advanced Tools", 
             octane_pin_type=consts.PinType.PT_BLENDER_UTILITY,
             items=[
                 OctaneNodeItem("OctaneProxy"),
-                OctaneNodeItem("OctaneObjectData" if core.ENABLE_OCTANE_ADDON_CLIENT else "ShaderNodeOctObjectData"),
-                OctaneNodeItem("OctaneCameraData" if core.ENABLE_OCTANE_ADDON_CLIENT else "ShaderNodeCameraData"),                
+                OctaneNodeItem("OctaneObjectData"),
+                OctaneNodeItem("OctaneCameraData"),
+            ] if core.ENABLE_OCTANE_ADDON_CLIENT else [
+                OctaneNodeItem("OctaneProxy"),
+                OctaneNodeItem("ShaderNodeOctObjectData", poll=render_aov_and_composite_poll),
+                OctaneNodeItem("ShaderNodeCameraData", poll=render_aov_and_composite_poll),                
             ]
         ),
     ],
@@ -319,7 +331,7 @@ _octane_node_items = {
                 OctaneNodeItem("OctaneMatCap"),
                 OctaneNodeItem("OctaneMeshUVProjection"),
                 OctaneNodeItem("OctaneOSLDelayedUV"),
-                OctaneNodeItem("OctaneOSLProjection"),
+                OctaneNodeItem("OctaneOSLProjection" if core.ENABLE_OCTANE_ADDON_CLIENT else "ShaderNodeOctOSLProjection"),
                 OctaneNodeItem("OctanePerspective"),
                 OctaneNodeItem("OctaneSamplePosToUV"),
                 OctaneNodeItem("OctaneSpherical"),
@@ -567,10 +579,8 @@ _octane_node_items = {
         OctaneShaderNodeCategory("OCTANE_CAMERA", "Octane Camera", 
             octane_pin_type=consts.PinType.PT_CAMERA,
             items=[
-                OctaneNodeItem("OctaneOSLCamera"),
-                OctaneNodeItem("OctaneOSLBakingCamera"),
-                # OctaneNodeItem("ShaderNodeOctOSLCamera"),
-                # OctaneNodeItem("ShaderNodeOctOSLBakingCamera"),
+                OctaneNodeItem("OctaneOSLCamera" if core.ENABLE_OCTANE_ADDON_CLIENT else "ShaderNodeOctOSLCamera"),
+                OctaneNodeItem("OctaneOSLBakingCamera" if core.ENABLE_OCTANE_ADDON_CLIENT else "ShaderNodeOctOSLBakingCamera"),
             ]  
         ),
     ],
@@ -586,7 +596,7 @@ _octane_node_items = {
         OctaneShaderNodeCategory("OCTANE_GEOMETRY", "Octane Geometry", 
             octane_pin_type=consts.PinType.PT_GEOMETRY,
             items=[
-                OctaneNodeItem("OctaneVectron"),
+                OctaneNodeItem("OctaneVectron" if core.ENABLE_OCTANE_ADDON_CLIENT else "ShaderNodeOctVectron"),
                 OctaneNodeItem("OctaneScatterInVolume"),
                 OctaneNodeItem("OctaneScatterOnSurface"),
             ]
@@ -598,7 +608,7 @@ _octane_node_items = {
             items=[
                 OctaneNodeItem("OctaneGaussianSpectrum"),
                 OctaneNodeItem("OctaneGreyscaleColor"),
-                OctaneNodeItem("OctaneOSLTexture"),
+                OctaneNodeItem("OctaneOSLTexture" if core.ENABLE_OCTANE_ADDON_CLIENT else "ShaderNodeOctOSLTex"),
                 OctaneNodeItem("OctaneRGBColor"),
                 OctaneTextureNodeCategory("OCTANE_TEXTURE_CONVERTERS", "Converters", 
                     octane_pin_type=consts.PinType.PT_TEXTURE,

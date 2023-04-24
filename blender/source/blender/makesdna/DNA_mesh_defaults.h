@@ -42,6 +42,11 @@
     .oct_sphere_radius = 0.1f, \
     .oct_randomized_radius_min = 0.1f, \
     .oct_randomized_radius_max = 0.1f, \
+    .oct_enable_subd = 0, \
+    .oct_subd_level = 0, \
+    .oct_open_subd_scheme = 1, \
+    .oct_open_subd_bound_interp = 3, \
+    .oct_open_subd_sharpness = 0.0f, \
     .editflag = ME_EDIT_MIRROR_VERTEX_GROUPS \
   }
 

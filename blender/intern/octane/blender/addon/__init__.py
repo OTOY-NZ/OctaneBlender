@@ -19,9 +19,9 @@
 # <pep8 compliant>
 
 bl_info = {
-    "name": "OctaneRender Engine (v. 25.2)",
+    "name": "OctaneRender Engine (v. 25.3)",
     "author": "OTOY Inc.",
-    "blender": (2, 93, 1),
+    "blender": (3, 0, 1),
     "location": "Info header, render engine menu",
     "description": "OctaneRender Engine integration",
     "warning": "",
@@ -216,10 +216,13 @@ class OctaneDrawData(object):
         pixel_size = width * height * 4
         if width != render_result.resolution[0] or height != render_result.resolution[1]:
             return
+        render_result.lock_render_result()
         if render_result.viewport_float_pixel_array is None or len(render_result.viewport_float_pixel_array) != pixel_size:
+            render_result.unlock_render_result() 
             return
-        pixels = gpu.types.Buffer('FLOAT', pixel_size, render_result.viewport_float_pixel_array)
+        pixels = gpu.types.Buffer('FLOAT', pixel_size, render_result.viewport_float_pixel_array)        
         self.texture = gpu.types.GPUTexture((width, height), format='RGBA16F', data=pixels)
+        render_result.unlock_render_result()        
 
     def draw(self):
         draw_texture_2d(self.texture, (0, 0), self.texture.width, self.texture.height)

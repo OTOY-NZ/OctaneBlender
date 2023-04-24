@@ -172,28 +172,46 @@ class AddPresetImager(AddPresetBase, Operator):
     preset_menu = "OCTANE_MT_imager_presets"
 
     preset_defines = [
-        "octane = bpy.context.camera.octane"
+        "octane = bpy.context.camera.octane.imager"
     ]
 
     preset_values = [
-        "octane.camera_imager_order",
-        "octane.response_type",
-        "octane.white_balance",
         "octane.exposure",
-        "octane.gamma",
+        "octane.hotpixel_removal",
         "octane.vignetting",
+        "octane.white_balance",
         "octane.saturation",
-        "octane.white_saturation",
-        "octane.hot_pix",
-        "octane.min_display_samples",
-        "octane.highlight_compression",
-        "octane.max_tonemap_interval",
-        "octane.dithering",
         "octane.premultiplied_alpha",
-        "octane.neutral_response",        
         "octane.disable_partial_alpha",
+        "octane.dithering",
+        "octane.min_display_samples",
+        "octane.max_tonemap_interval",
+        "octane.ocio_view",
+        "octane.ocio_view_display_name",
+        "octane.ocio_view_display_view_name",
+        "octane.ocio_look",
+        "octane.force_tone_mapping",
+        "octane.highlight_compression",
+        "octane.saturate_to_white",
+        "octane.order",
+        "octane.response",
+        "octane.viewport_response_type",
+        "octane.camera_response_type",
+        "octane.neutral_response",
+        "octane.gamma",
         "octane.custom_lut",
-        "octane.lut_strength"
+        "octane.lut_strength",
+        "octane.denoiser",
+        "octane.denoise_volume",
+        "octane.denoise_once",
+        "octane.min_denoise_samples",
+        "octane.max_denoise_interval",
+        "octane.denoiser_original_blend",
+        "octane.up_sample_mode",
+        "octane.enable_ai_up_sampling",
+        "octane.up_sampling_on_completion",
+        "octane.min_up_sampler_samples",
+        "octane.max_up_sampler_interval",
     ]
 
     preset_subdir = "octane/imager_presets"
@@ -205,28 +223,46 @@ class AddPreset3dImager(AddPresetBase, Operator):
     preset_menu = "OCTANE_MT_3dimager_presets"
 
     preset_defines = [
-        "octane = bpy.context.scene.oct_view_cam"
+        "octane = bpy.context.scene.oct_view_cam.imager"
     ]
 
     preset_values = [
-        "octane.camera_imager_order",
-        "octane.response_type",
-        "octane.white_balance",
-        "octane.exposure",        
-        "octane.gamma",
+        "octane.exposure",
+        "octane.hotpixel_removal",
         "octane.vignetting",
+        "octane.white_balance",
         "octane.saturation",
-        "octane.white_saturation",
-        "octane.hot_pix",
-        "octane.min_display_samples",
-        "octane.highlight_compression",
-        "octane.max_tonemap_interval",
-        "octane.dithering",
         "octane.premultiplied_alpha",
-        "octane.neutral_response",        
         "octane.disable_partial_alpha",
+        "octane.dithering",
+        "octane.min_display_samples",
+        "octane.max_tonemap_interval",
+        "octane.ocio_view",
+        "octane.ocio_view_display_name",
+        "octane.ocio_view_display_view_name",
+        "octane.ocio_look",
+        "octane.force_tone_mapping",
+        "octane.highlight_compression",
+        "octane.saturate_to_white",
+        "octane.order",
+        "octane.response",
+        "octane.viewport_response_type",
+        "octane.camera_response_type",
+        "octane.neutral_response",
+        "octane.gamma",
         "octane.custom_lut",
-        "octane.lut_strength"        
+        "octane.lut_strength",
+        "octane.denoiser",
+        "octane.denoise_volume",
+        "octane.denoise_once",
+        "octane.min_denoise_samples",
+        "octane.max_denoise_interval",
+        "octane.denoiser_original_blend",
+        "octane.up_sample_mode",
+        "octane.enable_ai_up_sampling",
+        "octane.up_sampling_on_completion",
+        "octane.min_up_sampler_samples",
+        "octane.max_up_sampler_interval",
     ]
 
     preset_subdir = "octane/3dimager_presets"

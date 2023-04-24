@@ -617,7 +617,7 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
 {
   BL::ID b_ob_data = b_ob.data();
   bool is_instance = (b_ob == b_ob_instance);
-  BL::ID key = (BKE_object_is_modified(b_ob) && !is_instance) ? b_ob_instance : b_ob_data;
+  BL::ID key = (BKE_object_is_modified(b_ob) && !is_instance) ? b_ob_data : b_ob_instance;
   BL::Material material_override = view_layer.material_override;
 
   /* find shader indices */
@@ -674,7 +674,20 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
 
   bool is_mesh_data_updated = mesh_map.sync(&octane_mesh, key);
   std::string new_mesh_tag = generate_mesh_tag(b_depsgraph, b_ob, used_shaders);
+
+  std::string new_octane_prop_tag = "";
+  if (b_ob.type() == BL::Object::type_MESH) {
+    BL::Mesh b_mesh = BL::Mesh(b_ob.data());
+    std::string subd_mesh_setting_tag = std::to_string(b_mesh.oct_enable_subd()) +
+                                        std::to_string(b_mesh.oct_subd_level()) +
+                                        std::to_string(b_mesh.oct_open_subd_scheme()) +
+                                        std::to_string(b_mesh.oct_open_subd_bound_interp()) +
+                                        std::to_string(b_mesh.oct_open_subd_sharpness());
+    new_octane_prop_tag += ("|" + subd_mesh_setting_tag);
+  }
+
   bool is_mesh_tag_data_updated = octane_mesh->mesh_tag != new_mesh_tag;
+  bool is_octane_property_update = octane_mesh->octane_property_tag != new_octane_prop_tag;
 
   octane_mesh->is_volume_to_mesh = false;
   octane_mesh->is_mesh_to_volume = false;
@@ -733,6 +746,7 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
     octane_mesh->last_vdb_frame = current_frame;
     octane_mesh->used_shaders = used_shaders;
     octane_mesh->mesh_tag = new_mesh_tag;
+    octane_mesh->octane_property_tag = new_octane_prop_tag;
     octane_mesh->octane_mesh.bInfinitePlane = false;
     octane_mesh->octane_mesh.oMeshVolumeSDF.Clear();
     std::string selected_grid_name;
@@ -866,10 +880,11 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
   bool octane_vdb_force_update_flag = RNA_boolean_get(&oct_mesh, "octane_vdb_helper") &&
                                       octane_mesh &&
                                       octane_mesh->last_vdb_frame != b_scene.frame_current();
-  bool octane_subdivision_need_update = use_octane_vertex_displacement_subdvision &&
-                                        !octane_mesh->is_subdivision();
+  bool octane_subdivision_need_update = (use_octane_vertex_displacement_subdvision &&
+                                         !octane_mesh->is_subdivision());
   bool need_update = preview ? (is_mesh_data_updated || is_mesh_tag_data_updated ||
-                                octane_vdb_force_update_flag || octane_subdivision_need_update) :
+                                octane_vdb_force_update_flag || octane_subdivision_need_update ||
+                                is_octane_property_update) :
                                is_octane_geometry_required(
                                    mesh_name, b_ob.type(), oct_mesh, octane_mesh, mesh_type);
   bool need_recreate_mesh = false;
@@ -940,6 +955,7 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
   octane_mesh->clear();
   octane_mesh->used_shaders = used_shaders;
   octane_mesh->mesh_tag = new_mesh_tag;
+  octane_mesh->octane_property_tag = new_octane_prop_tag;
 
   octane_mesh->enable_offset_transform = RNA_boolean_get(&oct_mesh,
                                                          "enable_octane_offset_transform");
@@ -952,17 +968,6 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
     RNA_float_get_array(&oct_mesh, "octane_offset_scale", reinterpret_cast<float *>(&scale));
     octane_mesh->offset_transform = make_transform(translate, euler, mode, scale);
   }
-
-  octane_mesh->octane_mesh.oMeshOpenSubdivision.bOpenSubdEnable =
-      RNA_boolean_get(&oct_mesh, "open_subd_enable") || use_octane_vertex_displacement_subdvision;
-  octane_mesh->octane_mesh.oMeshOpenSubdivision.iOpenSubdScheme = RNA_enum_get(&oct_mesh,
-                                                                               "open_subd_scheme");
-  octane_mesh->octane_mesh.oMeshOpenSubdivision.iOpenSubdLevel = RNA_int_get(&oct_mesh,
-                                                                             "open_subd_level");
-  octane_mesh->octane_mesh.oMeshOpenSubdivision.fOpenSubdSharpness = RNA_float_get(
-      &oct_mesh, "open_subd_sharpness");
-  octane_mesh->octane_mesh.oMeshOpenSubdivision.iOpenSubdBoundInterp = RNA_enum_get(
-      &oct_mesh, "open_subd_bound_interp");
   octane_mesh->octane_mesh.oObjectLayer = object_layer;
   octane_mesh->octane_mesh.bInfinitePlane = RNA_boolean_get(&oct_mesh, "infinite_plane");
   octane_mesh->octane_mesh.oMeshVolumeSDF.bEnable = RNA_boolean_get(&oct_mesh,
@@ -1006,6 +1011,15 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
         b_mesh.octane_sphere_randomized_radius_min();
     octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.fMaxRandomizedRadius =
         b_mesh.octane_sphere_randomized_radius_max();
+
+    octane_mesh->octane_mesh.oMeshOpenSubdivision.bOpenSubdEnable =
+        b_mesh.oct_enable_subd() || use_octane_vertex_displacement_subdvision;
+    octane_mesh->octane_mesh.oMeshOpenSubdivision.iOpenSubdScheme = b_mesh.oct_open_subd_scheme();
+    octane_mesh->octane_mesh.oMeshOpenSubdivision.iOpenSubdLevel = b_mesh.oct_subd_level();
+    octane_mesh->octane_mesh.oMeshOpenSubdivision.fOpenSubdSharpness =
+        b_mesh.oct_open_subd_sharpness();
+    octane_mesh->octane_mesh.oMeshOpenSubdivision.iOpenSubdBoundInterp =
+        b_mesh.oct_open_subd_bound_interp();
   }
   else {
     octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.bEnable = false;
@@ -1013,6 +1027,11 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
     octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.iRandomSeed = -1;
     octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.fMinRandomizedRadius = 0.f;
     octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.fMaxRandomizedRadius = 0.f;
+    octane_mesh->octane_mesh.oMeshOpenSubdivision.bOpenSubdEnable = false;
+    octane_mesh->octane_mesh.oMeshOpenSubdivision.iOpenSubdScheme = 1;
+    octane_mesh->octane_mesh.oMeshOpenSubdivision.iOpenSubdLevel = 0;
+    octane_mesh->octane_mesh.oMeshOpenSubdivision.fOpenSubdSharpness = 0;
+    octane_mesh->octane_mesh.oMeshOpenSubdivision.iOpenSubdBoundInterp = 3;
   }
 
   bool is_octane_vdb = RNA_boolean_get(&oct_mesh, "is_octane_vdb");
@@ -1029,8 +1048,7 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
   }
 
   bool use_octane_subdivision = use_octane_vertex_displacement_subdvision ||
-                                (octane_mesh->octane_mesh.oMeshOpenSubdivision.bOpenSubdEnable &&
-                                 octane_mesh->octane_mesh.oMeshOpenSubdivision.iOpenSubdLevel > 0);
+                                (octane_mesh->octane_mesh.oMeshOpenSubdivision.bOpenSubdEnable);
 
   if (need_recreate_mesh) {
 
@@ -1074,7 +1092,7 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
           create_mesh(scene, b_ob, octane_mesh, b_mesh, octane_mesh->used_shaders, winding_order);
         }
         /* mesh fluid motion mantaflow */
-        sync_mesh_fluid_motion(b_ob, scene, b_mesh, octane_mesh);        
+        sync_mesh_fluid_motion(b_ob, scene, b_mesh, octane_mesh);
         if (!octane_mesh->empty) {
           sync_hair(octane_mesh, b_mesh, b_ob, false);
         }
@@ -1097,7 +1115,8 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
   }
   else {
     octane_mesh->octane_mesh.oMeshData.bUpdate = false;
-    octane_mesh->octane_mesh.oMeshOpenSubdivision.bUpdate = false;
+    octane_mesh->octane_mesh.oMeshOpenSubdivision.bUpdate =
+        octane_mesh->octane_mesh.oMeshOpenSubdivision.bOpenSubdEnable;
   }
 
   octane_mesh->octane_mesh.iHairWsSize =

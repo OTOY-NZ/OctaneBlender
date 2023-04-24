@@ -243,10 +243,15 @@ typedef struct Mesh {
   float oct_sphere_radius;
   float oct_randomized_radius_min;
   float oct_randomized_radius_max;
+  float oct_open_subd_sharpness;
   short oct_enable_octane_sphere_attribute;
   short oct_hide_original_mesh;
   short oct_use_randomized_radius;
-  char _pad4[2];
+  short oct_enable_subd;
+  short oct_subd_level;
+  short oct_open_subd_scheme;
+  short oct_open_subd_bound_interp;
+  char _pad4[6];
 } Mesh;
 
 /* deprecated by MTFace, only here for file reading */

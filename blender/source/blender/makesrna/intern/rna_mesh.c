@@ -3519,6 +3519,26 @@ static void rna_def_mesh(BlenderRNA *brna)
       prop, "Max Radius", "The max randomized radius of the sphere primitive");
   RNA_def_property_update(prop, 0, "rna_Mesh_update_data_legacy_deg_tag_all");
 
+  prop = RNA_def_property(srna, "oct_enable_subd", PROP_INT, PROP_UNSIGNED);
+  RNA_def_property_int_sdna(prop, NULL, "oct_enable_subd");
+  RNA_def_property_update(prop, 0, "rna_Mesh_update_data_legacy_deg_tag_all");
+
+  prop = RNA_def_property(srna, "oct_subd_level", PROP_INT, PROP_UNSIGNED);
+  RNA_def_property_int_sdna(prop, NULL, "oct_subd_level");
+  RNA_def_property_update(prop, 0, "rna_Mesh_update_data_legacy_deg_tag_all");
+
+  prop = RNA_def_property(srna, "oct_open_subd_scheme", PROP_INT, PROP_UNSIGNED);
+  RNA_def_property_int_sdna(prop, NULL, "oct_open_subd_scheme");
+  RNA_def_property_update(prop, 0, "rna_Mesh_update_data_legacy_deg_tag_all");
+
+  prop = RNA_def_property(srna, "oct_open_subd_bound_interp", PROP_INT, PROP_UNSIGNED);
+  RNA_def_property_int_sdna(prop, NULL, "oct_open_subd_bound_interp");
+  RNA_def_property_update(prop, 0, "rna_Mesh_update_data_legacy_deg_tag_all");
+
+  prop = RNA_def_property(srna, "oct_open_subd_sharpness", PROP_FLOAT, PROP_UNSIGNED);
+  RNA_def_property_float_sdna(prop, NULL, "oct_open_subd_sharpness");
+  RNA_def_property_update(prop, 0, "rna_Mesh_update_data_legacy_deg_tag_all");
+
   /* pointers */
   rna_def_animdata_common(srna);
   rna_def_texmat_common(srna, "rna_Mesh_texspace_editable");

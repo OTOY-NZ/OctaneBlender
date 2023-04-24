@@ -45,6 +45,7 @@ Mesh::Mesh()
   need_update = false;
   final_visibility = true;
   mesh_tag = "";
+  octane_property_tag = "";
   volume_modifier_tag = "";
   is_volume_to_mesh = false;
   is_mesh_to_volume = false;
@@ -173,6 +174,8 @@ void MeshManager::server_update_mesh(::OctaneEngine::OctaneClient *server,
   if (local_mesh_collections.size() && !progress.get_cancel()) {
     int local_mesh_count = local_mesh_collections.size();
     OctaneDataTransferObject::OctaneMeshes octaneMeshes;
+    std::vector<OctaneDataTransferObject::OctaneMeshes> octaneLocalMeshesList;
+    size_t local_mesh_index = 0;
     for (auto mesh : local_mesh_collections) {
       progress.set_status("Loading Meshes to render-server", mesh->nice_name.c_str());
       for (size_t n = 0; n < mesh->used_shaders.size(); ++n) {
@@ -237,9 +240,15 @@ void MeshManager::server_update_mesh(::OctaneEngine::OctaneClient *server,
         }
       }
       mesh->need_update = false;
-      octaneMeshes.oMeshes.emplace_back(mesh->octane_mesh);
-      octaneMeshes.oMeshes[octaneMeshes.oMeshes.size() - 1].oMeshData.bShowVertexData =
-          mesh->octane_mesh.oMeshData.bShowVertexData;
+      // octaneMeshes.oMeshes.emplace_back(mesh->octane_mesh);
+      // octaneMeshes.oMeshes[octaneMeshes.oMeshes.size() - 1].oMeshData.bShowVertexData =
+      //    mesh->octane_mesh.oMeshData.bShowVertexData;
+
+      octaneLocalMeshesList.emplace_back(OctaneDataTransferObject::OctaneMeshes());
+      OctaneDataTransferObject::OctaneMeshes &meshes =
+          octaneLocalMeshesList[octaneLocalMeshesList.size() - 1];
+      meshes.oMeshes.emplace_back(mesh->octane_mesh);
+      meshes.oMeshes[0].oMeshData.bShowVertexData = mesh->octane_mesh.oMeshData.bShowVertexData;
 
       if (progress.get_cancel()) {
         break;
@@ -251,6 +260,16 @@ void MeshManager::server_update_mesh(::OctaneEngine::OctaneClient *server,
       octaneMeshes.iCurrentFrameIdx = frame_idx;
       octaneMeshes.iTotalFrameIdx = total_frames;
       server->uploadOctaneMesh(octaneMeshes);
+    }
+    for (auto &meshes : octaneLocalMeshesList) {
+      if (meshes.oMeshes.size() && !progress.get_cancel()) {
+        std::string status_msg = "Transferring " + meshes.oMeshes[0].sMeshName + "...";
+        progress.set_status("Loading Meshes to render-server", status_msg);
+        meshes.bGlobal = false;
+        meshes.iCurrentFrameIdx = frame_idx;
+        meshes.iTotalFrameIdx = total_frames;
+        server->uploadOctaneMesh(meshes);
+      }
     }
   }
 

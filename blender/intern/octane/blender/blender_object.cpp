@@ -474,7 +474,13 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
     object_name = b_ob.name_full() + OBJECT_TAG;
   }
   else {
-    object_name = parent_name + b_ob.name_full() + instance_tag + OBJECT_TAG;
+    if (use_geometry_node_modifier && is_instance) {
+      object_name = parent_name + b_ob.name_full() + "_" + b_ob.data().name_full() +
+                    instance_tag + OBJECT_TAG;
+	}
+    else {
+      object_name = parent_name + b_ob.name_full() + instance_tag + OBJECT_TAG;
+    }
   }
 
   /* test if we need to sync */

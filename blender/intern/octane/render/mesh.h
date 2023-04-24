@@ -85,7 +85,8 @@ class Mesh {
 
   std::vector<Shader *> used_shaders;
   std::string volume_modifier_tag;
-  std::string mesh_tag;  
+  std::string mesh_tag;
+  std::string octane_property_tag;
   bool is_volume_to_mesh;
   bool is_mesh_to_volume;
   bool enable_offset_transform;

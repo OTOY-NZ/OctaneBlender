@@ -18,7 +18,7 @@
 
 # <pep8 compliant>
 
-OCTANE_BLENDER_VERSION='25.0'
+OCTANE_BLENDER_VERSION='25.2'
 
 import bpy
 import math
@@ -30,6 +30,7 @@ from bpy.app.handlers import persistent
 @persistent
 def do_versions(self):        
     file_version = get_current_version()
+    check_compatibility_octane_mesh(file_version)
     check_compatibility_octane_object(file_version)
     check_compatibility_octane_pariticle(file_version)
     check_compatibility_octane_world(file_version)
@@ -448,6 +449,22 @@ def check_compatibility_octane_world_24_3(file_version):
     for world in bpy.data.worlds:
         if world.node_tree and world.use_nodes and len(world.node_tree.nodes):
             world.node_tree.nodes[0].width = world.node_tree.nodes[0].width
+
+# mesh
+def check_compatibility_octane_mesh(file_version):
+    check_compatibility_octane_mesh_25_2(file_version)
+
+def check_compatibility_octane_mesh_25_2(file_version):
+    UPDATE_VERSION = '25.2'
+    if not check_update(file_version, UPDATE_VERSION):
+        return    
+    for mesh in bpy.data.meshes:
+        oct_mesh = mesh.octane
+        mesh.oct_enable_subd = int(oct_mesh.open_subd_enable)
+        mesh.oct_subd_level = oct_mesh.open_subd_level
+        mesh.oct_open_subd_scheme = int(oct_mesh.open_subd_scheme)
+        mesh.oct_open_subd_bound_interp = int(oct_mesh.open_subd_bound_interp)
+        mesh.oct_open_subd_sharpness = oct_mesh.open_subd_sharpness
 
 # object
 def check_compatibility_octane_object(file_version):

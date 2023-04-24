@@ -128,6 +128,14 @@ def convert_octane_color_to_rgba(color):
 def get_preferences():
     return bpy.context.preferences.addons[consts.ADDON_NAME].preferences
 
+def get_default_material_node_bl_idname():
+    preferences = get_preferences()
+    default_material_id = int(preferences.default_material_id)
+    from octane import properties
+    for data in properties.default_material_orders:
+        if default_material_id == data[3]:
+            return data[2]
+
 ##### Properties #####
 
 def get_enum_value(data, property_name, default_value):
@@ -502,7 +510,7 @@ def _panel_ui_node_view(context, layout, node_tree, output_node):
         return
     is_octane_new_style_node = hasattr(output_node, "octane_node_type")
     if not is_octane_new_style_node:
-        layout.template_node_view(node_tree, output_node, None)
+        layout.column().template_node_view(node_tree, output_node, None)
         return    
     column = layout.column()
     column.use_property_split = True
@@ -605,7 +613,11 @@ def node_input_quick_operator(node_tree, node, socket, node_bl_idname):
             new_node = node_tree.nodes.new(node_bl_idname)            
             node_tree.links.new(new_node.outputs[0], socket)               
             if current_linked_node:
-                new_node.location = current_linked_node.location
+                new_node.location = current_linked_node.location                
+                for _input in current_linked_node.inputs:
+                    if len(_input.links) > 0 and _input.name in new_node.inputs:
+                        for link in _input.links:
+                            node_tree.links.new(link.from_socket, new_node.inputs[_input.name])
                 node_tree.nodes.remove(current_linked_node)
             else:
                 new_node.location = (node.location.x + NEW_NODE_X_OFFSET, node.location.y) 

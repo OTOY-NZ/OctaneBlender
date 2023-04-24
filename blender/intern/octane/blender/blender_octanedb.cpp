@@ -34,12 +34,14 @@ void link_node(std::string linked_name,
     bNode *node_from = blenderNodes[from_node_idx];
     bNodeSocket *socket_from = (bNodeSocket *)node_from->outputs.first;
     bNodeSocket *socket_to = (bNodeSocket *)(input_sock.ptr.data);
-    std::string socket_from_name = socket_from->name;
-    std::string socket_to_name = socket_to->name;
-    // Do not link OCIO Color Context
-    if (!(socket_from_name == "OutColorSpace" && socket_to_name == "Color space")) {
-      nodeAddLink(bnode_tree, node_from, socket_from, bnode, socket_to);
-	}
+    if (socket_from != NULL && socket_to != NULL) {
+      std::string socket_from_name = socket_from->name;
+      std::string socket_to_name = socket_to->name;
+      // Do not link OCIO Color Context
+      if (!(socket_from_name == "OutColorSpace" && socket_to_name == "Color space")) {
+        nodeAddLink(bnode_tree, node_from, socket_from, bnode, socket_to);
+      }
+    }
     int currentNodeLevel = blenderNodeLevels[bnode];
     blenderNodeLevels[node_from] = std::max(blenderNodeLevels[node_from], currentNodeLevel + 1);
   }
@@ -171,7 +173,7 @@ bool BlenderOctaneDb::generate_blender_material_from_octanedb(
   if (blenderNodes.size() && node_output) {
     bNode *node_from = blenderNodes[0];
     bNodeSocket *socket_from = (bNodeSocket *)node_from->outputs.first;
-	output_link = nodeAddLink(node_tree, node_from, socket_from, node_output, sock_output);
+    output_link = nodeAddLink(node_tree, node_from, socket_from, node_output, sock_output);
   }
   for (int i = 0; i < blenderNodes.size(); ++i) {
     BNodeSocketSetter setter(blenderNodes[i], node_tree, bmain, blenderNodes, blenderNodeLevels);

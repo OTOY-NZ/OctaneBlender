@@ -254,6 +254,10 @@ class OCTANE_CAMERA_PT_imager(common.OctanePropertyPanel, Panel):
         self.layout.prop(context.scene.octane, "hdr_tonemap_render_enable", text="")
 
     def draw(self, context):
+        row = self.layout.row(align=True)
+        row.menu("OCTANE_MT_imager_presets", text=OCTANE_MT_imager_presets.bl_label)
+        row.operator("render.octane_imager_preset_add", text="", icon="ADD")
+        row.operator("render.octane_imager_preset_add", text="", icon="REMOVE").remove_active = True        
         context.camera.octane.imager.draw(context, self.layout, False)
 
 
@@ -287,9 +291,13 @@ class OCTANE_VIEW3D_PT_imager(common.OctanePropertyPanel, Panel):
     def draw_header(self, context):
         self.layout.prop(context.scene.octane, "hdr_tonemap_preview_enable", text="")
 
-    def draw(self, context):
+    def draw(self, context):        
         camera_data, camera_name = utility.find_active_imager_data(context)
         self.layout.active = (camera_name == "VIEW_3D")
+        row = self.layout.row(align=True)
+        row.menu("OCTANE_MT_3dimager_presets", text=OCTANE_MT_3dimager_presets.bl_label)
+        row.operator("render.octane_3dimager_preset_add", text="", icon="ADD")
+        row.operator("render.octane_3dimager_preset_add", text="", icon="REMOVE").remove_active = True        
         col = self.layout.column(align=True)
         col.prop(context.scene.octane, "use_preview_setting_for_camera_imager")
         oct_cam = context.scene.oct_view_cam
