@@ -60,16 +60,17 @@ static void init_dualcon_mesh(DualConInput *input, Mesh *mesh)
 {
   memset(input, 0, sizeof(DualConInput));
 
-  input->co = (void *)BKE_mesh_verts(mesh);
+  input->co = (void *)mesh->mvert;
   input->co_stride = sizeof(MVert);
   input->totco = mesh->totvert;
 
-  input->mloop = (void *)BKE_mesh_loops(mesh);
+  input->mloop = (void *)mesh->mloop;
   input->loop_stride = sizeof(MLoop);
 
-  input->looptri = (void *)BKE_mesh_runtime_looptri_ensure(mesh);
+  BKE_mesh_runtime_looptri_ensure(mesh);
+  input->looptri = (void *)mesh->runtime.looptris.array;
   input->tri_stride = sizeof(MLoopTri);
-  input->tottri = BKE_mesh_runtime_looptri_len(mesh);
+  input->tottri = mesh->runtime.looptris.len;
 
   INIT_MINMAX(input->min, input->max);
   BKE_mesh_minmax(mesh, input->min, input->max);
@@ -79,9 +80,6 @@ static void init_dualcon_mesh(DualConInput *input, Mesh *mesh)
  * keep track of the current elements */
 typedef struct {
   Mesh *mesh;
-  MVert *verts;
-  MPoly *polys;
-  MLoop *loops;
   int curvert, curface;
 } DualConOutput;
 
@@ -95,20 +93,17 @@ static void *dualcon_alloc_output(int totvert, int totquad)
   }
 
   output->mesh = BKE_mesh_new_nomain(totvert, 0, 0, 4 * totquad, totquad);
-  output->verts = BKE_mesh_verts_for_write(output->mesh);
-  output->polys = BKE_mesh_polys_for_write(output->mesh);
-  output->loops = BKE_mesh_loops_for_write(output->mesh);
-
   return output;
 }
 
 static void dualcon_add_vert(void *output_v, const float co[3])
 {
   DualConOutput *output = output_v;
+  Mesh *mesh = output->mesh;
 
-  BLI_assert(output->curvert < output->mesh->totvert);
+  BLI_assert(output->curvert < mesh->totvert);
 
-  copy_v3_v3(output->verts[output->curvert].co, co);
+  copy_v3_v3(mesh->mvert[output->curvert].co, co);
   output->curvert++;
 }
 
@@ -116,13 +111,14 @@ static void dualcon_add_quad(void *output_v, const int vert_indices[4])
 {
   DualConOutput *output = output_v;
   Mesh *mesh = output->mesh;
+  MLoop *mloop;
+  MPoly *cur_poly;
   int i;
 
   BLI_assert(output->curface < mesh->totpoly);
-  UNUSED_VARS_NDEBUG(mesh);
 
-  MLoop *mloop = output->loops;
-  MPoly *cur_poly = &output->polys[output->curface];
+  mloop = mesh->mloop;
+  cur_poly = &mesh->mpoly[output->curface];
 
   cur_poly->loopstart = output->curface * 4;
   cur_poly->totloop = 4;
@@ -199,7 +195,7 @@ static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *UNUSED(ctx)
   }
 
   if (rmd->flag & MOD_REMESH_SMOOTH_SHADING) {
-    MPoly *mpoly = BKE_mesh_polys_for_write(result);
+    MPoly *mpoly = result->mpoly;
     int i, totpoly = result->totpoly;
 
     /* Apply smooth shading to output faces */

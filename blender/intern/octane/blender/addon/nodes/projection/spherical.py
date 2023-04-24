@@ -15,12 +15,13 @@ class OctaneSphericalTransform(OctaneBaseSocket):
     bl_idname="OctaneSphericalTransform"
     bl_label="Sphere transformation"
     color=consts.OctanePinColor.Transform
-    octane_default_node_type=67
+    octane_default_node_type=consts.NodeType.NT_TRANSFORM_VALUE
     octane_default_node_name="OctaneTransformValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=243)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="transform")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TRANSFORM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_TRANSFORM
+    octane_pin_name="transform"
+    octane_pin_type=consts.PinType.PT_TRANSFORM
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -30,12 +31,13 @@ class OctaneSphericalPositionType(OctaneBaseSocket):
     bl_idname="OctaneSphericalPositionType"
     bl_label="Coordinate space"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type=57
+    octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=135)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="positionType")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
+    octane_pin_id=consts.PinID.P_POSITION_TYPE
+    octane_pin_name="positionType"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=1
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("World space", "World space", "", 1),
         ("Object space", "Object space", "", 3),
@@ -56,13 +58,13 @@ class OctaneSpherical(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneSphericalTransform,OctaneSphericalPositionType,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=77)
-    octane_socket_list: StringProperty(name="Socket List", default="Sphere transformation;Coordinate space;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=2)
+    octane_node_type=consts.NodeType.NT_PROJ_SPHERICAL
+    octane_socket_list=["Sphere transformation", "Coordinate space", ]
+    octane_attribute_list=[]
+    octane_attribute_config={}
+    octane_static_pin_count=2
 
     def init(self, context):
         self.inputs.new("OctaneSphericalTransform", OctaneSphericalTransform.bl_label).init()

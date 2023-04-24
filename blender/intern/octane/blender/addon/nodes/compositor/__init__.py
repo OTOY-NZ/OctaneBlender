@@ -7,6 +7,7 @@ from . import image_aov_output
 from . import render_aov_output
 from . import color_aov_output
 from . import composite_aov_output_layer
+from . import cryptomatte_mask_aov_output
 from . import color_correction_aov_output
 from . import clamp_aov_output
 from . import map_range_aov_output
@@ -19,6 +20,7 @@ def register():
     render_aov_output.register()
     color_aov_output.register()
     composite_aov_output_layer.register()
+    cryptomatte_mask_aov_output.register()
     color_correction_aov_output.register()
     clamp_aov_output.register()
     map_range_aov_output.register()
@@ -31,6 +33,7 @@ def unregister():
     render_aov_output.unregister()
     color_aov_output.unregister()
     composite_aov_output_layer.unregister()
+    cryptomatte_mask_aov_output.unregister()
     color_correction_aov_output.unregister()
     clamp_aov_output.unregister()
     map_range_aov_output.unregister()

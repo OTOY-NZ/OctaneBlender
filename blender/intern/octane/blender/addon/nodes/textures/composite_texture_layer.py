@@ -15,12 +15,13 @@ class OctaneCompositeTextureLayerInput(OctaneBaseSocket):
     bl_idname="OctaneCompositeTextureLayerInput"
     bl_label="Input"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=0
+    octane_default_node_type=consts.NodeType.NT_UNKNOWN
     octane_default_node_name=""
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=82)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="input")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_INPUT
+    octane_pin_name="input"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -30,13 +31,14 @@ class OctaneCompositeTextureLayerOpacity(OctaneBaseSocket):
     bl_idname="OctaneCompositeTextureLayerOpacity"
     bl_label="Opacity"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=31
+    octane_default_node_type=consts.NodeType.NT_TEX_FLOAT
     octane_default_node_name="OctaneGreyscaleColor"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=125)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="opacity")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="The opacity channel used to control the transparency of this layer", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
+    octane_pin_id=consts.PinID.P_OPACITY
+    octane_pin_name="opacity"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=1
+    octane_socket_type=consts.SocketType.ST_FLOAT
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="The opacity channel used to control the transparency of this layer", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -46,12 +48,13 @@ class OctaneCompositeTextureLayerBlendMode(OctaneBaseSocket):
     bl_idname="OctaneCompositeTextureLayerBlendMode"
     bl_label="Blend mode"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type=57
+    octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=636)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="blendMode")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
+    octane_pin_id=consts.PinID.P_BLEND_MODE
+    octane_pin_name="blendMode"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=2
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("Mix|Normal", "Mix|Normal", "", 16),
         ("Mix|Average", "Mix|Average", "", 1),
@@ -79,6 +82,7 @@ class OctaneCompositeTextureLayerBlendMode(OctaneBaseSocket):
         ("Translucent|Hard mix", "Translucent|Hard mix", "", 9),
         ("Arithmetic|Subtract", "Arithmetic|Subtract", "", 23),
         ("Arithmetic|Divide", "Arithmetic|Divide", "", 30),
+        ("Arithmetic|Ratio", "Arithmetic|Ratio", "", 52),
         ("Arithmetic|Difference", "Arithmetic|Difference", "", 5),
         ("Arithmetic|Exclusion", "Arithmetic|Exclusion", "", 6),
         ("Arithmetic|Negation", "Arithmetic|Negation", "", 15),
@@ -133,12 +137,13 @@ class OctaneCompositeTextureLayerCompositeOperation(OctaneBaseSocket):
     bl_idname="OctaneCompositeTextureLayerCompositeOperation"
     bl_label="Overlay mode"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type=57
+    octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=637)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="compositeOperation")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
+    octane_pin_id=consts.PinID.P_COMPOSITE_OPERATION
+    octane_pin_name="compositeOperation"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=3
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("Source", "Source", "", 0),
         ("Source over", "Source over", "", 1),
@@ -168,12 +173,13 @@ class OctaneCompositeTextureLayerAlphaOperation(OctaneBaseSocket):
     bl_idname="OctaneCompositeTextureLayerAlphaOperation"
     bl_label="Alpha operation"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type=57
+    octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=638)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="alphaOperation")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
+    octane_pin_id=consts.PinID.P_ALPHA_OPERATION
+    octane_pin_name="alphaOperation"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=4
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("Blend mode", "Blend mode", "", 0),
         ("Alpha compositing", "Alpha compositing", "", 1),
@@ -197,13 +203,13 @@ class OctaneCompositeTextureLayer(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneCompositeTextureLayerInput,OctaneCompositeTextureLayerOpacity,OctaneCompositeTextureLayerBlendMode,OctaneCompositeTextureLayerCompositeOperation,OctaneCompositeTextureLayerAlphaOperation,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=318)
-    octane_socket_list: StringProperty(name="Socket List", default="Input;Opacity;Blend mode;Overlay mode;Alpha operation;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=5)
+    octane_node_type=consts.NodeType.NT_TEX_COMPOSITE_LAYER
+    octane_socket_list=["Input", "Opacity", "Blend mode", "Overlay mode", "Alpha operation", ]
+    octane_attribute_list=[]
+    octane_attribute_config={}
+    octane_static_pin_count=5
 
     def init(self, context):
         self.inputs.new("OctaneCompositeTextureLayerInput", OctaneCompositeTextureLayerInput.bl_label).init()

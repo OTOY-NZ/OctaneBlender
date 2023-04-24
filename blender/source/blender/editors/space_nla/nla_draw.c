@@ -22,7 +22,6 @@
 #include "BLI_range.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_action.h"
 #include "BKE_context.h"
 #include "BKE_fcurve.h"
 #include "BKE_nla.h"
@@ -102,7 +101,7 @@ static void nla_action_draw_keyframes(
   GPUVertFormat *format = immVertexFormat();
   uint pos_id = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
 
-  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+  immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
 
   immUniformColor4fv(color);
 
@@ -179,7 +178,7 @@ static void nla_actionclip_draw_markers(
   const uint shdr_pos = GPU_vertformat_attr_add(
       immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
   if (dashed) {
-    immBindBuiltinProgram(GPU_SHADER_3D_LINE_DASHED_UNIFORM_COLOR);
+    immBindBuiltinProgram(GPU_SHADER_2D_LINE_DASHED_UNIFORM_COLOR);
 
     float viewport_size[4];
     GPU_viewport_size_get_f(viewport_size);
@@ -190,7 +189,7 @@ static void nla_actionclip_draw_markers(
     immUniform1f("dash_factor", 0.5f);
   }
   else {
-    immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+    immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
   }
   immUniformThemeColorShade(TH_STRIP_SELECT, shade);
 
@@ -378,7 +377,7 @@ static uint nla_draw_use_dashed_outlines(const float color[4], bool muted)
   /* Note that we use dashed shader here, and make it draw solid lines if not muted... */
   uint shdr_pos = GPU_vertformat_attr_add(
       immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-  immBindBuiltinProgram(GPU_SHADER_3D_LINE_DASHED_UNIFORM_COLOR);
+  immBindBuiltinProgram(GPU_SHADER_2D_LINE_DASHED_UNIFORM_COLOR);
 
   float viewport_size[4];
   GPU_viewport_size_get_f(viewport_size);
@@ -442,7 +441,7 @@ static void nla_draw_strip(SpaceNla *snla,
   nla_strip_get_color_inside(adt, strip, color);
 
   shdr_pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+  immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
 
   /* draw extrapolation info first (as backdrop)
    * - but this should only be drawn if track has some contribution
@@ -503,7 +502,7 @@ static void nla_draw_strip(SpaceNla *snla,
 
     /* restore current vertex format & program (roundbox trashes it) */
     shdr_pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-    immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+    immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
   }
   else {
     /* strip is in disabled track - make less visible */
@@ -855,11 +854,10 @@ void draw_nla_main_data(bAnimContext *ac, SpaceNla *snla, ARegion *region)
 
           uint pos = GPU_vertformat_attr_add(
               immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-          immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+          immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
 
-          /* just draw a semi-shaded rect spanning the width of the viewable area, based on if
-           * there's data and the action's extrapolation mode. Draw a second darker rect within
-           * which we draw keyframe indicator dots if there's data.
+          /* just draw a semi-shaded rect spanning the width of the viewable area if there's data,
+           * and a second darker rect within which we draw keyframe indicator dots if there's data
            */
           GPU_blend(GPU_BLEND_ALPHA);
 
@@ -871,26 +869,8 @@ void draw_nla_main_data(bAnimContext *ac, SpaceNla *snla, ARegion *region)
           /* draw slightly shifted up for greater separation from standard channels,
            * but also slightly shorter for some more contrast when viewing the strips
            */
-          switch (adt->act_extendmode) {
-            case NLASTRIP_EXTEND_HOLD: {
-              immRectf(pos,
-                       v2d->cur.xmin,
-                       ymin + NLACHANNEL_SKIP,
-                       v2d->cur.xmax,
-                       ymax - NLACHANNEL_SKIP);
-              break;
-            }
-            case NLASTRIP_EXTEND_HOLD_FORWARD: {
-              float r_start;
-              float r_end;
-              BKE_action_get_frame_range(ale->data, &r_start, &r_end);
-
-              immRectf(pos, r_end, ymin + NLACHANNEL_SKIP, v2d->cur.xmax, ymax - NLACHANNEL_SKIP);
-              break;
-            }
-            case NLASTRIP_EXTEND_NOTHING:
-              break;
-          }
+          immRectf(
+              pos, v2d->cur.xmin, ymin + NLACHANNEL_SKIP, v2d->cur.xmax, ymax - NLACHANNEL_SKIP);
 
           immUnbindProgram();
 
@@ -905,7 +885,7 @@ void draw_nla_main_data(bAnimContext *ac, SpaceNla *snla, ARegion *region)
     }
   }
 
-  /* Free temporary channels. */
+  /* free tempolary channels */
   ANIM_animdata_freelist(&anim_data);
 }
 

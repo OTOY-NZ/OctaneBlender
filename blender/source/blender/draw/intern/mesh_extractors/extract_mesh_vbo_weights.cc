@@ -8,7 +8,6 @@
 #include "MEM_guardedalloc.h"
 
 #include "BKE_deform.h"
-#include "BKE_mesh.h"
 
 #include "draw_subdivision.h"
 #include "extract_mesh.hh"
@@ -106,14 +105,14 @@ static void extract_weights_init(const MeshRenderData *mr,
     data->cd_ofs = CustomData_get_offset(&mr->bm->vdata, CD_MDEFORMVERT);
   }
   else {
-    data->dvert = mr->me->deform_verts().data();
+    data->dvert = (const MDeformVert *)CustomData_get_layer(&mr->me->vdata, CD_MDEFORMVERT);
     data->cd_ofs = -1;
   }
 }
 
-static void extract_weights_iter_poly_bm(const MeshRenderData * /*mr*/,
+static void extract_weights_iter_poly_bm(const MeshRenderData *UNUSED(mr),
                                          const BMFace *f,
-                                         const int /*f_index*/,
+                                         const int UNUSED(f_index),
                                          void *_data)
 {
   MeshExtract_Weight_Data *data = static_cast<MeshExtract_Weight_Data *>(_data);
@@ -134,7 +133,7 @@ static void extract_weights_iter_poly_bm(const MeshRenderData * /*mr*/,
 
 static void extract_weights_iter_poly_mesh(const MeshRenderData *mr,
                                            const MPoly *mp,
-                                           const int /*mp_index*/,
+                                           const int UNUSED(mp_index),
                                            void *_data)
 {
   MeshExtract_Weight_Data *data = static_cast<MeshExtract_Weight_Data *>(_data);
@@ -172,9 +171,8 @@ static void extract_weights_init_subdiv(const DRWSubdivCache *subdiv_cache,
   extract_weights_init(mr, cache, coarse_weights, _data);
 
   if (mr->extract_type != MR_EXTRACT_BMESH) {
-    const Span<MPoly> coarse_polys = coarse_mesh->polys();
-    for (const int i : coarse_polys.index_range()) {
-      const MPoly *mpoly = &coarse_polys[i];
+    for (int i = 0; i < coarse_mesh->totpoly; i++) {
+      const MPoly *mpoly = &coarse_mesh->mpoly[i];
       extract_weights_iter_poly_mesh(mr, mpoly, i, _data);
     }
   }
@@ -187,7 +185,7 @@ static void extract_weights_init_subdiv(const DRWSubdivCache *subdiv_cache,
     }
   }
 
-  draw_subdiv_interp_custom_data(subdiv_cache, coarse_weights, vbo, GPU_COMP_F32, 1, 0);
+  draw_subdiv_interp_custom_data(subdiv_cache, coarse_weights, vbo, 1, 0, false);
 
   GPU_vertbuf_discard(coarse_weights);
 }

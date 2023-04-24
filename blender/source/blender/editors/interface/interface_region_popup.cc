@@ -31,7 +31,7 @@
 #include "ED_screen.h"
 
 #include "interface_intern.h"
-#include "interface_regions_intern.hh"
+#include "interface_regions_intern.h"
 
 /* -------------------------------------------------------------------- */
 /** \name Utility Functions
@@ -69,6 +69,7 @@ static void ui_popup_block_position(wmWindow *window,
   /* Compute button position in window coordinates using the source
    * button region/block, to position the popup attached to it. */
   rctf butrct;
+
   if (!handle->refresh) {
     ui_block_to_window_rctf(butregion, but->block, &butrct, &but->rect);
 
@@ -164,10 +165,10 @@ static void ui_popup_block_position(wmWindow *window,
       dir1 &= (UI_DIR_UP | UI_DIR_DOWN);
     }
 
-    if ((dir2 == 0) && ELEM(dir1, UI_DIR_LEFT, UI_DIR_RIGHT)) {
+    if ((dir2 == 0) && (ELEM(dir1, UI_DIR_LEFT, UI_DIR_RIGHT))) {
       dir2 = UI_DIR_DOWN;
     }
-    if ((dir2 == 0) && ELEM(dir1, UI_DIR_UP, UI_DIR_DOWN)) {
+    if ((dir2 == 0) && (ELEM(dir1, UI_DIR_UP, UI_DIR_DOWN))) {
       dir2 = UI_DIR_LEFT;
     }
 
@@ -396,7 +397,7 @@ static void ui_block_region_draw(const bContext *C, ARegion *region)
 static void ui_block_region_popup_window_listener(const wmRegionListenerParams *params)
 {
   ARegion *region = params->region;
-  const wmNotifier *wmn = params->notifier;
+  wmNotifier *wmn = params->notifier;
 
   switch (wmn->category) {
     case NC_WINDOW: {
@@ -416,13 +417,14 @@ static void ui_popup_block_clip(wmWindow *window, uiBlock *block)
 {
   const float xmin_orig = block->rect.xmin;
   const int margin = UI_SCREEN_MARGIN;
+  int winx, winy;
 
   if (block->flag & UI_BLOCK_NO_WIN_CLIP) {
     return;
   }
 
-  const int winx = WM_window_pixels_x(window);
-  const int winy = WM_window_pixels_y(window);
+  winx = WM_window_pixels_x(window);
+  winy = WM_window_pixels_y(window);
 
   /* shift to left if outside of view */
   if (block->rect.xmax > winx - margin) {
@@ -547,6 +549,7 @@ uiBlock *ui_popup_block_refresh(bContext *C,
   void *arg = handle->popup_create_vars.arg;
 
   uiBlock *block_old = static_cast<uiBlock *>(region->uiblocks.first);
+  uiBlock *block;
 
   handle->refresh = (block_old != nullptr);
 
@@ -558,7 +561,6 @@ uiBlock *ui_popup_block_refresh(bContext *C,
 #endif
 
   /* create ui block */
-  uiBlock *block;
   if (create_func) {
     block = create_func(C, region, arg);
   }
@@ -616,14 +618,16 @@ uiBlock *ui_popup_block_refresh(bContext *C,
 
   if (block->flag & UI_BLOCK_RADIAL) {
     const int win_width = UI_SCREEN_MARGIN;
+    int winx, winy;
 
-    const int winx = WM_window_pixels_x(window);
-    const int winy = WM_window_pixels_y(window);
+    int x_offset = 0, y_offset = 0;
+
+    winx = WM_window_pixels_x(window);
+    winy = WM_window_pixels_y(window);
 
     copy_v2_v2(block->pie_data.pie_center_init, block->pie_data.pie_center_spawned);
 
     /* only try translation if area is large enough */
-    int x_offset = 0;
     if (BLI_rctf_size_x(&block->rect) < winx - (2.0f * win_width)) {
       if (block->rect.xmin < win_width) {
         x_offset += win_width - block->rect.xmin;
@@ -633,7 +637,6 @@ uiBlock *ui_popup_block_refresh(bContext *C,
       }
     }
 
-    int y_offset = 0;
     if (BLI_rctf_size_y(&block->rect) < winy - (2.0f * win_width)) {
       if (block->rect.ymin < win_width) {
         y_offset += win_width - block->rect.ymin;
@@ -753,6 +756,9 @@ uiPopupBlockHandle *ui_popup_block_create(bContext *C,
 {
   wmWindow *window = CTX_wm_window(C);
   uiBut *activebut = UI_context_active_but_get(C);
+  static ARegionType type;
+  ARegion *region;
+  uiBlock *block;
 
   /* disable tooltips from buttons below */
   if (activebut) {
@@ -781,10 +787,9 @@ uiPopupBlockHandle *ui_popup_block_create(bContext *C,
   handle->can_refresh = false;
 
   /* create area region */
-  ARegion *region = ui_region_temp_add(CTX_wm_screen(C));
+  region = ui_region_temp_add(CTX_wm_screen(C));
   handle->region = region;
 
-  static ARegionType type;
   memset(&type, 0, sizeof(ARegionType));
   type.draw = ui_block_region_draw;
   type.layout = ui_block_region_refresh;
@@ -793,7 +798,7 @@ uiPopupBlockHandle *ui_popup_block_create(bContext *C,
 
   UI_region_handlers_add(&region->handlers);
 
-  uiBlock *block = ui_popup_block_refresh(C, handle, butregion, but);
+  block = ui_popup_block_refresh(C, handle, butregion, but);
   handle = block->handle;
 
   /* keep centered on window resizing */

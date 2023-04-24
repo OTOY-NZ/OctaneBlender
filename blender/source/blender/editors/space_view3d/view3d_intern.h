@@ -9,10 +9,6 @@
 
 #include "ED_view3d.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /* internal exports only */
 
 struct ARegion;
@@ -87,7 +83,7 @@ void view3d_depths_rect_create(struct ARegion *region, struct rcti *rect, struct
  */
 float view3d_depth_near(struct ViewDepths *d);
 
-/* view3d_select.cc */
+/* view3d_select.c */
 
 void VIEW3D_OT_select(struct wmOperatorType *ot);
 void VIEW3D_OT_select_circle(struct wmOperatorType *ot);
@@ -206,7 +202,7 @@ void VIEW3D_OT_snap_cursor_to_active(struct wmOperatorType *ot);
 
 void VIEW3D_OT_interactive_add(struct wmOperatorType *ot);
 
-/* space_view3d.cc */
+/* space_view3d.c */
 
 extern const char *view3d_context_dir[]; /* doc access */
 
@@ -244,8 +240,4 @@ void VIEW3D_GGT_placement(struct wmGizmoGroupType *gzgt);
 #ifdef VIEW3D_CAMERA_BORDER_HACK
 extern uchar view3d_camera_border_hack_col[3];
 extern bool view3d_camera_border_hack_test;
-#endif
-
-#ifdef __cplusplus
-}
 #endif

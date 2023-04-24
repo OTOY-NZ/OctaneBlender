@@ -548,6 +548,7 @@ set(INC
   ../python/intern
   ../render
   ../render/intern
+  ../../../extern/glew/include
   ../../../intern/guardedalloc
 
   # RNA_prototypes.h
@@ -560,10 +561,6 @@ set(INC_SYS
 )
 
 add_definitions(-DWITH_FREESTYLE)
-
-if(WITH_PYTHON_MODULE)
-  add_definitions(-DPy_ENABLE_SHARED)
-endif()
 
 if(WITH_PYTHON_SAFETY)
   # For bpy_rna.h access.

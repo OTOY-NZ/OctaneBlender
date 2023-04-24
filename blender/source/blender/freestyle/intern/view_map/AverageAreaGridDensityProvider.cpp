@@ -7,8 +7,6 @@
 
 #include "AverageAreaGridDensityProvider.h"
 
-#include "BLI_sys_types.h"
-
 #include "BKE_global.h"
 
 namespace Freestyle {
@@ -50,7 +48,7 @@ void AverageAreaGridDensityProvider::initialize(const real proscenium[4], real s
   float prosceniumHeight = (proscenium[3] - proscenium[2]);
 
   real cellArea = 0.0;
-  uint numFaces = 0;
+  unsigned numFaces = 0;
   for (source.begin(); source.isValid(); source.next()) {
     Polygon3r &poly(source.getGridSpacePolygon());
     Vec3r min, max;
@@ -68,7 +66,7 @@ void AverageAreaGridDensityProvider::initialize(const real proscenium[4], real s
   }
 
   _cellSize = sqrt(cellArea);
-  uint maxCells = 931;  // * 1.1 = 1024
+  unsigned maxCells = 931;  // * 1.1 = 1024
   if (std::max(prosceniumWidth, prosceniumHeight) / _cellSize > maxCells) {
     if (G.debug & G_DEBUG_FREESTYLE) {
       cout << "Scene-dependent cell size (" << _cellSize << " square) is too small." << endl;

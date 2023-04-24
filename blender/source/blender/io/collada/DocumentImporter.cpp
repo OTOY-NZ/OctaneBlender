@@ -90,12 +90,8 @@ DocumentImporter::DocumentImporter(bContext *C, const ImportSettings *import_set
                         CTX_data_scene(C),
                         view_layer,
                         import_settings),
-      mesh_importer(&unit_converter,
-                    import_settings->custom_normals,
-                    &armature_importer,
-                    CTX_data_main(C),
-                    CTX_data_scene(C),
-                    view_layer),
+      mesh_importer(
+          &unit_converter, &armature_importer, CTX_data_main(C), CTX_data_scene(C), view_layer),
       anim_importer(C, &unit_converter, &armature_importer, CTX_data_scene(C))
 {
 }
@@ -120,7 +116,7 @@ bool DocumentImporter::import()
   loader.registerExtraDataCallbackHandler(ehandler);
 
   /* deselect all to select new objects */
-  BKE_view_layer_base_deselect_all(CTX_data_scene(mContext), view_layer);
+  BKE_view_layer_base_deselect_all(view_layer);
 
   std::string mFilename = std::string(this->import_settings->filepath);
   const std::string encodedFilename = bc_url_encode(mFilename);
@@ -213,7 +209,7 @@ void DocumentImporter::finish()
     /* Write nodes to scene */
     fprintf(stderr, "+-- Import Scene --------\n");
     const COLLADAFW::NodePointerArray &roots = (*sit)->getRootNodes();
-    for (uint i = 0; i < roots.getCount(); i++) {
+    for (unsigned int i = 0; i < roots.getCount(); i++) {
       std::vector<Object *> *objects_done = write_node(roots[i], nullptr, sce, nullptr, false);
       objects_to_scale->insert(
           objects_to_scale->end(), objects_done->begin(), objects_done->end());
@@ -234,14 +230,14 @@ void DocumentImporter::finish()
   for (const COLLADAFW::VisualScene *vscene : vscenes) {
     const COLLADAFW::NodePointerArray &roots = vscene->getRootNodes();
 
-    for (uint i = 0; i < roots.getCount(); i++) {
+    for (unsigned int i = 0; i < roots.getCount(); i++) {
       translate_anim_recursive(roots[i], nullptr, nullptr);
     }
   }
 
   if (!libnode_ob.empty()) {
 
-    fprintf(stderr, "| Cleanup: free %d library nodes\n", int(libnode_ob.size()));
+    fprintf(stderr, "| Cleanup: free %d library nodes\n", (int)libnode_ob.size());
     /* free all library_nodes */
     std::vector<Object *>::iterator it;
     for (it = libnode_ob.begin(); it != libnode_ob.end(); it++) {
@@ -292,7 +288,7 @@ void DocumentImporter::translate_anim_recursive(COLLADAFW::Node *node,
 
   Object *ob;
 #endif
-  uint i;
+  unsigned int i;
 
   if (node->getType() == COLLADAFW::Node::JOINT && par == nullptr) {
     /* For Skeletons without root node we have to simulate the
@@ -412,8 +408,8 @@ Object *DocumentImporter::create_instance_node(Object *source_ob,
         }
       }
       /* calc new matrix and apply */
-      mul_m4_m4m4(obn->object_to_world, obn->object_to_world, mat);
-      BKE_object_apply_mat4(obn, obn->object_to_world, false, false);
+      mul_m4_m4m4(obn->obmat, obn->obmat, mat);
+      BKE_object_apply_mat4(obn, obn->obmat, false, false);
     }
   }
   else {
@@ -424,7 +420,7 @@ Object *DocumentImporter::create_instance_node(Object *source_ob,
 
   COLLADAFW::NodePointerArray &children = source_node->getChildNodes();
   if (children.getCount()) {
-    for (uint i = 0; i < children.getCount(); i++) {
+    for (unsigned int i = 0; i < children.getCount(); i++) {
       COLLADAFW::Node *child_node = children[i];
       const COLLADAFW::UniqueId &child_id = child_node->getUniqueId();
       if (object_map.find(child_id) == object_map.end()) {
@@ -434,7 +430,7 @@ Object *DocumentImporter::create_instance_node(Object *source_ob,
       Object *new_child = nullptr;
       if (inodes.getCount()) { /* \todo loop through instance nodes */
         const COLLADAFW::UniqueId &id = inodes[0]->getInstanciatedObjectId();
-        fprintf(stderr, "Doing %d child nodes\n", int(node_map.count(id)));
+        fprintf(stderr, "Doing %d child nodes\n", (int)node_map.count(id));
         new_child = create_instance_node(
             object_map.find(id)->second, node_map[id], child_node, sce, is_library_node);
       }
@@ -675,7 +671,7 @@ std::vector<Object *> *DocumentImporter::write_node(COLLADAFW::Node *node,
     ob = *objects_done->begin();
   }
 
-  for (uint i = 0; i < child_nodes.getCount(); i++) {
+  for (unsigned int i = 0; i < child_nodes.getCount(); i++) {
     std::vector<Object *> *child_objects;
     child_objects = write_node(child_nodes[i], node, sce, ob, is_library_node);
     delete child_objects;
@@ -720,7 +716,7 @@ bool DocumentImporter::writeLibraryNodes(const COLLADAFW::LibraryNodes *libraryN
   const COLLADAFW::NodePointerArray &nodes = libraryNodes->getNodes();
 
   fprintf(stderr, "+-- Read Library nodes ----------\n");
-  for (uint i = 0; i < nodes.getCount(); i++) {
+  for (unsigned int i = 0; i < nodes.getCount(); i++) {
     std::vector<Object *> *child_objects;
     child_objects = write_node(nodes[i], nullptr, sce, nullptr, true);
     delete child_objects;
@@ -869,7 +865,7 @@ bool DocumentImporter::writeCamera(const COLLADAFW::Camera *camera)
           double ymag = 2 * camera->getYMag().getValue();
           double aspect = camera->getAspectRatio().getValue();
           double xmag = aspect * ymag;
-          cam->ortho_scale = float(xmag);
+          cam->ortho_scale = (float)xmag;
         } break;
         case CAM_PERSP:
         default: {
@@ -890,7 +886,7 @@ bool DocumentImporter::writeCamera(const COLLADAFW::Camera *camera)
     case COLLADAFW::Camera::X_AND_Y: {
       switch (cam->type) {
         case CAM_ORTHO:
-          cam->ortho_scale = float(camera->getXMag().getValue()) * 2;
+          cam->ortho_scale = (float)camera->getXMag().getValue() * 2;
           break;
         case CAM_PERSP:
         default: {
@@ -903,7 +899,7 @@ bool DocumentImporter::writeCamera(const COLLADAFW::Camera *camera)
     case COLLADAFW::Camera::SINGLE_Y: {
       switch (cam->type) {
         case CAM_ORTHO:
-          cam->ortho_scale = float(camera->getYMag().getValue());
+          cam->ortho_scale = (float)camera->getYMag().getValue();
           break;
         case CAM_PERSP:
         default: {
@@ -937,7 +933,7 @@ bool DocumentImporter::writeImage(const COLLADAFW::Image *image)
   const char *workpath;
 
   BLI_split_dir_part(this->import_settings->filepath, dir, sizeof(dir));
-  BLI_path_join(absolute_path, sizeof(absolute_path), dir, imagepath.c_str());
+  BLI_join_dirfile(absolute_path, sizeof(absolute_path), dir, imagepath.c_str());
   if (BLI_exists(absolute_path)) {
     workpath = absolute_path;
   }
@@ -1182,7 +1178,7 @@ bool DocumentImporter::addExtraTags(const COLLADAFW::UniqueId &uid, ExtraTags *e
 bool DocumentImporter::is_armature(COLLADAFW::Node *node)
 {
   COLLADAFW::NodePointerArray &child_nodes = node->getChildNodes();
-  for (uint i = 0; i < child_nodes.getCount(); i++) {
+  for (unsigned int i = 0; i < child_nodes.getCount(); i++) {
     if (child_nodes[i]->getType() == COLLADAFW::Node::JOINT) {
       return true;
     }

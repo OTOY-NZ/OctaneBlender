@@ -15,12 +15,13 @@ class OctaneMotionVectorAOVEnabled(OctaneBaseSocket):
     bl_idname="OctaneMotionVectorAOVEnabled"
     bl_label="Enabled"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type=11
+    octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=42)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="enabled")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
+    octane_pin_id=consts.PinID.P_ENABLED
+    octane_pin_name="enabled"
+    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Enables the render AOV")
     octane_hide_value=False
     octane_min_version=0
@@ -31,12 +32,13 @@ class OctaneMotionVectorAOVMaxSpeed(OctaneBaseSocket):
     bl_idname="OctaneMotionVectorAOVMaxSpeed"
     bl_label="Max speed"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=109)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="maxSpeed")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_MAX_SPEED
+    octane_pin_name="maxSpeed"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=1
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Upper limit of the motion vector which will become 1, when the motion vector pass is imaged. The unit of the motion vector is pixels", min=0.000010, max=10000.000000, soft_min=0.000010, soft_max=10000.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
@@ -52,13 +54,13 @@ class OctaneMotionVectorAOV(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name="MV"
     octane_render_pass_description="Renders the motion vectors as 2D vectors in screen space.\nThe X coordinate (stored in the red channel) is the motion to the right in pixels.\nThe Y coordinate (stored in the green channel) is the motion up in pixels.\nWhen enabled, rendering of motion blur is disabled"
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneMotionVectorAOVEnabled,OctaneMotionVectorAOVMaxSpeed,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=211)
-    octane_socket_list: StringProperty(name="Socket List", default="Enabled;Max speed;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=2)
+    octane_node_type=consts.NodeType.NT_AOV_MOTION_VECTOR
+    octane_socket_list=["Enabled", "Max speed", ]
+    octane_attribute_list=[]
+    octane_attribute_config={}
+    octane_static_pin_count=2
 
     def init(self, context):
         self.inputs.new("OctaneMotionVectorAOVEnabled", OctaneMotionVectorAOVEnabled.bl_label).init()

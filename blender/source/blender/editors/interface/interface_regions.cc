@@ -21,7 +21,7 @@
 
 #include "ED_screen.h"
 
-#include "interface_regions_intern.hh"
+#include "interface_regions_intern.h"
 
 ARegion *ui_region_temp_add(bScreen *screen)
 {
@@ -45,6 +45,6 @@ void ui_region_temp_remove(bContext *C, bScreen *screen, ARegion *region)
   }
 
   ED_region_exit(C, region);
-  BKE_area_region_free(nullptr, region); /* nullptr: no space-type. */
+  BKE_area_region_free(nullptr, region); /* nullptr: no spacetype */
   BLI_freelinkN(&screen->regionbase, region);
 }

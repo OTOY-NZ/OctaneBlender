@@ -124,11 +124,6 @@ static void rna_MaterialLineArt_update(Main *UNUSED(bmain), Scene *UNUSED(scene)
   WM_main_add_notifier(NC_MATERIAL | ND_SHADING_DRAW, ma);
 }
 
-static char *rna_MaterialLineArt_path(const PointerRNA *UNUSED(ptr))
-{
-  return BLI_strdup("lineart");
-}
-
 static void rna_Material_draw_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
 {
   Material *ma = (Material *)ptr->owner_id;
@@ -372,13 +367,13 @@ static char *rna_GpencilColorData_path(const PointerRNA *UNUSED(ptr))
   return BLI_strdup("grease_pencil");
 }
 
-static bool rna_GpencilColorData_is_stroke_visible_get(PointerRNA *ptr)
+static int rna_GpencilColorData_is_stroke_visible_get(PointerRNA *ptr)
 {
   MaterialGPencilStyle *pcolor = ptr->data;
   return (pcolor->stroke_rgba[3] > GPENCIL_ALPHA_OPACITY_THRESH);
 }
 
-static bool rna_GpencilColorData_is_fill_visible_get(PointerRNA *ptr)
+static int rna_GpencilColorData_is_fill_visible_get(PointerRNA *ptr)
 {
   MaterialGPencilStyle *pcolor = (MaterialGPencilStyle *)ptr->data;
   return ((pcolor->fill_rgba[3] > GPENCIL_ALPHA_OPACITY_THRESH) || (pcolor->fill_style > 0));
@@ -736,7 +731,6 @@ static void rna_def_material_lineart(BlenderRNA *brna)
   srna = RNA_def_struct(brna, "MaterialLineArt", NULL);
   RNA_def_struct_sdna(srna, "MaterialLineArt");
   RNA_def_struct_ui_text(srna, "Material Line Art", "");
-  RNA_def_struct_path_func(srna, "rna_MaterialLineArt_path");
 
   prop = RNA_def_property(srna, "use_material_mask", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_default(prop, 0);

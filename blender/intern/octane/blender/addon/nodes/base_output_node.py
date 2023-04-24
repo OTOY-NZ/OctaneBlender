@@ -330,6 +330,7 @@ class OctaneCompositeAOVLayerSocket(OctaneBaseSocket):
 class OctaneBoolOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneBoolOutputNode"
     bl_label="Bool Output"
+    octane_node_type=consts.NodeType.NT_OUT_BOOL
     octane_color=consts.OctanePinColor.Bool
     use_custom_color=True
     bl_width_default=200
@@ -342,6 +343,7 @@ class OctaneBoolOutputNode(bpy.types.Node, OctaneBaseOutputNode):
 class OctaneFloatOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneFloatOutputNode"
     bl_label="Float Output"
+    octane_node_type=consts.NodeType.NT_OUT_FLOAT
     octane_color=consts.OctanePinColor.Float
     use_custom_color=True
     bl_width_default=200
@@ -354,6 +356,7 @@ class OctaneFloatOutputNode(bpy.types.Node, OctaneBaseOutputNode):
 class OctaneIntOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneIntOutputNode"
     bl_label="Int Output"
+    octane_node_type=consts.NodeType.NT_OUT_INT
     octane_color=consts.OctanePinColor.Int
     use_custom_color=True
     bl_width_default=200
@@ -366,6 +369,7 @@ class OctaneIntOutputNode(bpy.types.Node, OctaneBaseOutputNode):
 class OctaneTransformOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneTransformOutputNode"
     bl_label="Transform Output"
+    octane_node_type=consts.NodeType.NT_OUT_TRANSFORM
     octane_color=consts.OctanePinColor.Transform
     use_custom_color=True
     bl_width_default=200
@@ -378,6 +382,7 @@ class OctaneTransformOutputNode(bpy.types.Node, OctaneBaseOutputNode):
 class OctaneTextureOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneTextureOutputNode"
     bl_label="Texture Output"
+    octane_node_type=consts.NodeType.NT_OUT_TEXTURE
     octane_color=consts.OctanePinColor.Texture
     use_custom_color=True
     bl_width_default=200
@@ -390,6 +395,7 @@ class OctaneTextureOutputNode(bpy.types.Node, OctaneBaseOutputNode):
 class OctaneEmissionOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneEmissionOutputNode"
     bl_label="Emission Output"
+    octane_node_type=consts.NodeType.NT_OUT_EMISSION
     octane_color=consts.OctanePinColor.Emission
     use_custom_color=True
     bl_width_default=200
@@ -402,6 +408,7 @@ class OctaneEmissionOutputNode(bpy.types.Node, OctaneBaseOutputNode):
 class OctaneMaterialOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneMaterialOutputNode"
     bl_label="Material Output"
+    octane_node_type=consts.NodeType.NT_OUT_MATERIAL
     octane_color=consts.OctanePinColor.Material
     use_custom_color=True
     bl_width_default=200
@@ -414,6 +421,7 @@ class OctaneMaterialOutputNode(bpy.types.Node, OctaneBaseOutputNode):
 class OctaneCameraOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneCameraOutputNode"
     bl_label="Camera Output"
+    octane_node_type=consts.NodeType.NT_OUT_CAMERA
     octane_color=consts.OctanePinColor.Camera
     use_custom_color=True
     bl_width_default=200
@@ -426,6 +434,7 @@ class OctaneCameraOutputNode(bpy.types.Node, OctaneBaseOutputNode):
 class OctaneEnvironmentOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneEnvironmentOutputNode"
     bl_label="Environment Output"
+    octane_node_type=consts.NodeType.NT_OUT_ENVIRONMENT
     octane_color=consts.OctanePinColor.Environment
     use_custom_color=True
     bl_width_default=200
@@ -438,6 +447,7 @@ class OctaneEnvironmentOutputNode(bpy.types.Node, OctaneBaseOutputNode):
 class OctaneImagerOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneImagerOutputNode"
     bl_label="Imager Output"
+    octane_node_type=consts.NodeType.NT_OUT_IMAGER
     octane_color=consts.OctanePinColor.Imager
     use_custom_color=True
     bl_width_default=200
@@ -450,6 +460,7 @@ class OctaneImagerOutputNode(bpy.types.Node, OctaneBaseOutputNode):
 class OctaneKernelOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneKernelOutputNode"
     bl_label="Kernel Output"
+    octane_node_type=consts.NodeType.NT_OUT_KERNEL
     octane_color=consts.OctanePinColor.Kernel
     use_custom_color=True
     bl_width_default=200
@@ -462,6 +473,7 @@ class OctaneKernelOutputNode(bpy.types.Node, OctaneBaseOutputNode):
 class OctaneGeometryOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneGeometryOutputNode"
     bl_label="Geometry Output"
+    octane_node_type=consts.NodeType.NT_OUT_GEOMETRY
     octane_color=consts.OctanePinColor.Geometry
     use_custom_color=True
     bl_width_default=200
@@ -474,6 +486,7 @@ class OctaneGeometryOutputNode(bpy.types.Node, OctaneBaseOutputNode):
 class OctaneMediumOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneMediumOutputNode"
     bl_label="Medium Output"
+    octane_node_type=consts.NodeType.NT_OUT_MEDIUM
     octane_color=consts.OctanePinColor.Medium
     use_custom_color=True
     bl_width_default=200
@@ -486,6 +499,7 @@ class OctaneMediumOutputNode(bpy.types.Node, OctaneBaseOutputNode):
 class OctanePhaseFunctionOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctanePhaseFunctionOutputNode"
     bl_label="Phase function Output"
+    octane_node_type=consts.NodeType.NT_OUT_PHASEFUNCTION
     octane_color=consts.OctanePinColor.PhaseFunction
     use_custom_color=True
     bl_width_default=200
@@ -498,6 +512,7 @@ class OctanePhaseFunctionOutputNode(bpy.types.Node, OctaneBaseOutputNode):
 class OctaneFilmSettingsOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneFilmSettingsOutputNode"
     bl_label="Film settings Output"
+    octane_node_type=consts.NodeType.NT_OUT_FILM_SETTINGS
     octane_color=consts.OctanePinColor.FilmSettings
     use_custom_color=True
     bl_width_default=200
@@ -510,6 +525,7 @@ class OctaneFilmSettingsOutputNode(bpy.types.Node, OctaneBaseOutputNode):
 class OctaneEnumOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneEnumOutputNode"
     bl_label="Enum Output"
+    octane_node_type=consts.NodeType.NT_OUT_ENUM
     octane_color=consts.OctanePinColor.Enum
     use_custom_color=True
     bl_width_default=200
@@ -522,6 +538,7 @@ class OctaneEnumOutputNode(bpy.types.Node, OctaneBaseOutputNode):
 class OctaneObjectLayerOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneObjectLayerOutputNode"
     bl_label="Object layer Output"
+    octane_node_type=consts.NodeType.NT_OUT_OBJECTLAYER
     octane_color=consts.OctanePinColor.ObjectLayer
     use_custom_color=True
     bl_width_default=200
@@ -534,6 +551,7 @@ class OctaneObjectLayerOutputNode(bpy.types.Node, OctaneBaseOutputNode):
 class OctanePostProcessingOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctanePostProcessingOutputNode"
     bl_label="Post processing Output"
+    octane_node_type=consts.NodeType.NT_OUT_POSTPROCESSING
     octane_color=consts.OctanePinColor.PostProcessing
     use_custom_color=True
     bl_width_default=200
@@ -546,6 +564,7 @@ class OctanePostProcessingOutputNode(bpy.types.Node, OctaneBaseOutputNode):
 class OctaneRenderTargetOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneRenderTargetOutputNode"
     bl_label="Render target Output"
+    octane_node_type=consts.NodeType.NT_OUT_RENDERTARGET
     octane_color=consts.OctanePinColor.RenderTarget
     use_custom_color=True
     bl_width_default=200
@@ -558,6 +577,7 @@ class OctaneRenderTargetOutputNode(bpy.types.Node, OctaneBaseOutputNode):
 class OctaneWorkPaneOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneWorkPaneOutputNode"
     bl_label="Work Pane Output"
+    octane_node_type=consts.NodeType.NT_UNKNOWN
     octane_color=consts.OctanePinColor.WorkPane
     use_custom_color=True
     bl_width_default=200
@@ -570,6 +590,7 @@ class OctaneWorkPaneOutputNode(bpy.types.Node, OctaneBaseOutputNode):
 class OctaneProjectionOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneProjectionOutputNode"
     bl_label="Projection Output"
+    octane_node_type=consts.NodeType.NT_OUT_PROJECTION
     octane_color=consts.OctanePinColor.Projection
     use_custom_color=True
     bl_width_default=200
@@ -582,6 +603,7 @@ class OctaneProjectionOutputNode(bpy.types.Node, OctaneBaseOutputNode):
 class OctaneDisplacementOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneDisplacementOutputNode"
     bl_label="Displacement Output"
+    octane_node_type=consts.NodeType.NT_OUT_DISPLACEMENT
     octane_color=consts.OctanePinColor.Displacement
     use_custom_color=True
     bl_width_default=200
@@ -594,6 +616,7 @@ class OctaneDisplacementOutputNode(bpy.types.Node, OctaneBaseOutputNode):
 class OctaneStringOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneStringOutputNode"
     bl_label="String Output"
+    octane_node_type=consts.NodeType.NT_OUT_STRING
     octane_color=consts.OctanePinColor.String
     use_custom_color=True
     bl_width_default=200
@@ -606,6 +629,7 @@ class OctaneStringOutputNode(bpy.types.Node, OctaneBaseOutputNode):
 class OctaneRenderAOVsOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneRenderAOVsOutputNode"
     bl_label="Render AOVs Output"
+    octane_node_type=consts.NodeType.NT_OUT_RENDER_PASSES
     octane_color=consts.OctanePinColor.RenderAOVs
     use_custom_color=True
     bl_width_default=200
@@ -618,6 +642,7 @@ class OctaneRenderAOVsOutputNode(bpy.types.Node, OctaneBaseOutputNode):
 class OctaneRenderLayerOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneRenderLayerOutputNode"
     bl_label="Render layer Output"
+    octane_node_type=consts.NodeType.NT_OUT_RENDER_LAYER
     octane_color=consts.OctanePinColor.RenderLayer
     use_custom_color=True
     bl_width_default=200
@@ -630,6 +655,7 @@ class OctaneRenderLayerOutputNode(bpy.types.Node, OctaneBaseOutputNode):
 class OctaneVolumeRampOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneVolumeRampOutputNode"
     bl_label="Volume ramp Output"
+    octane_node_type=consts.NodeType.NT_OUT_VOLUME_RAMP
     octane_color=consts.OctanePinColor.VolumeRamp
     use_custom_color=True
     bl_width_default=200
@@ -642,6 +668,7 @@ class OctaneVolumeRampOutputNode(bpy.types.Node, OctaneBaseOutputNode):
 class OctaneAnimationSettingsOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneAnimationSettingsOutputNode"
     bl_label="Animation settings Output"
+    octane_node_type=consts.NodeType.NT_OUT_ANIMATION_SETTINGS
     octane_color=consts.OctanePinColor.AnimationSettings
     use_custom_color=True
     bl_width_default=200
@@ -654,6 +681,7 @@ class OctaneAnimationSettingsOutputNode(bpy.types.Node, OctaneBaseOutputNode):
 class OctaneLUTOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneLUTOutputNode"
     bl_label="LUT Output"
+    octane_node_type=consts.NodeType.NT_OUT_LUT
     octane_color=consts.OctanePinColor.LUT
     use_custom_color=True
     bl_width_default=200
@@ -666,6 +694,7 @@ class OctaneLUTOutputNode(bpy.types.Node, OctaneBaseOutputNode):
 class OctaneRenderJobOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneRenderJobOutputNode"
     bl_label="Render job Output"
+    octane_node_type=consts.NodeType.NT_OUT_RENDER_JOB
     octane_color=consts.OctanePinColor.RenderJob
     use_custom_color=True
     bl_width_default=200
@@ -678,6 +707,7 @@ class OctaneRenderJobOutputNode(bpy.types.Node, OctaneBaseOutputNode):
 class OctaneToonRampOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneToonRampOutputNode"
     bl_label="Toon ramp Output"
+    octane_node_type=consts.NodeType.NT_OUT_TOON_RAMP
     octane_color=consts.OctanePinColor.ToonRamp
     use_custom_color=True
     bl_width_default=200
@@ -690,6 +720,7 @@ class OctaneToonRampOutputNode(bpy.types.Node, OctaneBaseOutputNode):
 class OctaneBitMaskOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneBitMaskOutputNode"
     bl_label="BitMask Output"
+    octane_node_type=consts.NodeType.NT_OUT_BIT_MASK
     octane_color=consts.OctanePinColor.BitMask
     use_custom_color=True
     bl_width_default=200
@@ -702,6 +733,7 @@ class OctaneBitMaskOutputNode(bpy.types.Node, OctaneBaseOutputNode):
 class OctaneRoundEdgesOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneRoundEdgesOutputNode"
     bl_label="Round edges Output"
+    octane_node_type=consts.NodeType.NT_OUT_ROUND_EDGES
     octane_color=consts.OctanePinColor.RoundEdges
     use_custom_color=True
     bl_width_default=200
@@ -714,6 +746,7 @@ class OctaneRoundEdgesOutputNode(bpy.types.Node, OctaneBaseOutputNode):
 class OctaneMaterialLayerOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneMaterialLayerOutputNode"
     bl_label="Material layer Output"
+    octane_node_type=consts.NodeType.NT_OUT_MATERIAL_LAYER
     octane_color=consts.OctanePinColor.MaterialLayer
     use_custom_color=True
     bl_width_default=200
@@ -726,6 +759,7 @@ class OctaneMaterialLayerOutputNode(bpy.types.Node, OctaneBaseOutputNode):
 class OctaneOCIOViewOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneOCIOViewOutputNode"
     bl_label="OCIO view Output"
+    octane_node_type=consts.NodeType.NT_OUT_OCIO_VIEW
     octane_color=consts.OctanePinColor.OCIOView
     use_custom_color=True
     bl_width_default=200
@@ -738,6 +772,7 @@ class OctaneOCIOViewOutputNode(bpy.types.Node, OctaneBaseOutputNode):
 class OctaneOCIOLookOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneOCIOLookOutputNode"
     bl_label="OCIO look Output"
+    octane_node_type=consts.NodeType.NT_OUT_OCIO_LOOK
     octane_color=consts.OctanePinColor.OCIOLook
     use_custom_color=True
     bl_width_default=200
@@ -750,6 +785,7 @@ class OctaneOCIOLookOutputNode(bpy.types.Node, OctaneBaseOutputNode):
 class OctaneOCIOColorSpaceOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneOCIOColorSpaceOutputNode"
     bl_label="OCIO color space Output"
+    octane_node_type=consts.NodeType.NT_OUT_OCIO_COLOR_SPACE
     octane_color=consts.OctanePinColor.OCIOColorSpace
     use_custom_color=True
     bl_width_default=200
@@ -761,7 +797,8 @@ class OctaneOCIOColorSpaceOutputNode(bpy.types.Node, OctaneBaseOutputNode):
 
 class OctaneAOVOutputGroupOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneAOVOutputGroupOutputNode"
-    bl_label="AOV output group Output"
+    bl_label="Output AOV group Output"
+    octane_node_type=consts.NodeType.NT_OUT_OUTPUT_AOV_GROUP
     octane_color=consts.OctanePinColor.AOVOutputGroup
     use_custom_color=True
     bl_width_default=200
@@ -773,7 +810,8 @@ class OctaneAOVOutputGroupOutputNode(bpy.types.Node, OctaneBaseOutputNode):
 
 class OctaneAOVOutputOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneAOVOutputOutputNode"
-    bl_label="AOV output Output"
+    bl_label="Output AOV Output"
+    octane_node_type=consts.NodeType.NT_OUT_OUTPUT_AOV
     octane_color=consts.OctanePinColor.AOVOutput
     use_custom_color=True
     bl_width_default=200
@@ -786,6 +824,7 @@ class OctaneAOVOutputOutputNode(bpy.types.Node, OctaneBaseOutputNode):
 class OctaneCompositeTextureLayerOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneCompositeTextureLayerOutputNode"
     bl_label="Composite texture layer Output"
+    octane_node_type=consts.NodeType.NT_OUT_TEX_COMPOSITE_LAYER
     octane_color=consts.OctanePinColor.CompositeTextureLayer
     use_custom_color=True
     bl_width_default=200
@@ -798,6 +837,7 @@ class OctaneCompositeTextureLayerOutputNode(bpy.types.Node, OctaneBaseOutputNode
 class OctaneCompositeAOVLayerOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneCompositeAOVLayerOutputNode"
     bl_label="Composite AOV layer Output"
+    octane_node_type=consts.NodeType.NT_OUT_COMPOSITE_AOV_LAYER
     octane_color=consts.OctanePinColor.CompositeAOVLayer
     use_custom_color=True
     bl_width_default=200
@@ -965,6 +1005,7 @@ OctaneAOVOutputGroupSocket.octane_default_node_name="OctaneAOVOutputGroup"
 class OctaneRenderAOVsOutputNode_Override_RenderPassItems:
     render_pass_configs = {}
     render_pass_enums = []
+    LEGACY_STYLE_PASS_NAME_TO_RENDER_ID = {}
     RENDER_ID_TO_LEGACY_STYLE_PASS_NAME = {
         0: "OctBeauty",
         1: "Emit",
@@ -1147,9 +1188,9 @@ class OctaneRenderAOVsOutputNode_Override(OctaneRenderAOVsOutputNode):
         row = layout.row()
         row.prop(self, "preview_render_pass") 
 
-    def generate_aov_output_pass_configs(self, context, current_render_pass_configs):
+    def generate_aov_output_pass_configs(self, view_layer, current_render_pass_configs):
         RENDER_PASS_OUTPUT_AOV_IDS_OFFSET = 10000
-        max_aov_output_count = utility.scene_max_aov_output_count(context)
+        max_aov_output_count = utility.scene_max_aov_output_count(view_layer)
         for aov_output_index in range(1, max_aov_output_count + 1):
             aov_output_pass_id = RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + aov_output_index - 1
             aov_output_pass_short_name = "AOV Output %d" % aov_output_index
@@ -1176,12 +1217,12 @@ class OctaneRenderAOVsOutputNode_Override(OctaneRenderAOVsOutputNode):
                 if _link.from_node.is_octane_aov_render_node() and _link.from_node.is_octane_aov_render_node_enabled():
                     self.generate_render_pass_configs(_link.from_node, current_render_pass_configs)
 
-    def enum_preview_render_pass_items(self, context):        
+    def enum_preview_render_pass_items(self, view_layer):        
         new_render_pass_configs = {
             0: ("Beauty", "Beauty pass"), 
             43: ("Denoise Beauty", "Denoise beauty pass")
         }
-        self.generate_aov_output_pass_configs(context, new_render_pass_configs)
+        self.generate_aov_output_pass_configs(view_layer, new_render_pass_configs)
         self.generate_render_pass_configs(self, new_render_pass_configs)
         render_pass_enums = OctaneRenderAOVsOutputNode_Override_RenderPassItems.render_pass_enums
         render_pass_configs = OctaneRenderAOVsOutputNode_Override_RenderPassItems.render_pass_configs
@@ -1195,11 +1236,28 @@ class OctaneRenderAOVsOutputNode_Override(OctaneRenderAOVsOutputNode):
                 render_pass_enums.append(item)
         return render_pass_enums
 
-    def check_preview_render_pass_validity(self):
-        for item in self.enum_preview_render_pass_items(bpy.context):
+    def check_preview_render_pass_validity(self, context):
+        for item in self.enum_preview_render_pass_items(context.view_layer):
             if item[0] == self.preview_render_pass:
                 break
-        utility.update_render_passes(None, bpy.context)           
+        utility.update_render_passes(None, context)
+
+    def get_current_preview_render_pass_id(self, view_layer):
+        render_pass_id = consts.RenderPassId.BEAUTY
+        self.enum_preview_render_pass_items(view_layer)
+        for enum_item in OctaneRenderAOVsOutputNode_Override_RenderPassItems.render_pass_enums:
+            if self.preview_render_pass == enum_item[0]:
+                render_pass_id = enum_item[3]
+                break
+        return render_pass_id
+
+    def get_enabled_render_pass_ids(self, view_layer):
+        render_pass_ids = [consts.RenderPassId.BEAUTY, ]
+        self.enum_preview_render_pass_items(view_layer)
+        for enum_item in OctaneRenderAOVsOutputNode_Override_RenderPassItems.render_pass_enums:
+            if enum_item[3] not in render_pass_ids:
+                render_pass_ids.append(enum_item[3])
+        return render_pass_ids
 
 
 utility.override_class(_CLASSES, OctaneRenderAOVsOutputNode, OctaneRenderAOVsOutputNode_Override)

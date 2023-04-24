@@ -2,7 +2,6 @@
 
 #include "BKE_collection.h"
 #include "BKE_geometry_set_instances.hh"
-#include "BKE_instances.hh"
 #include "BKE_material.h"
 #include "BKE_mesh.h"
 #include "BKE_mesh_wrapper.h"
@@ -14,6 +13,7 @@
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
+#include "DNA_pointcloud_types.h"
 
 namespace blender::bke {
 
@@ -63,11 +63,12 @@ GeometrySet object_get_evaluated_geometry_set(const Object &object)
     return geometry_set;
   }
   if (object.type == OB_EMPTY && object.instance_collection != nullptr) {
+    GeometrySet geometry_set;
     Collection &collection = *object.instance_collection;
-    std::unique_ptr<Instances> instances = std::make_unique<Instances>();
-    const int handle = instances->add_reference(collection);
-    instances->add_instance(handle, float4x4::identity());
-    return GeometrySet::create_with_instances(instances.release());
+    InstancesComponent &instances = geometry_set.get_component_for_write<InstancesComponent>();
+    const int handle = instances.add_reference(collection);
+    instances.add_instance(handle, float4x4::identity());
+    return geometry_set;
   }
 
   /* Return by value since there is not always an existing geometry set owned elsewhere to use. */
@@ -98,7 +99,7 @@ static void geometry_set_collect_recursive_collection(const Collection &collecti
   LISTBASE_FOREACH (const CollectionObject *, collection_object, &collection.gobject) {
     BLI_assert(collection_object->ob != nullptr);
     const Object &object = *collection_object->ob;
-    const float4x4 object_transform = transform * object.object_to_world;
+    const float4x4 object_transform = transform * object.obmat;
     geometry_set_collect_recursive_object(object, object_transform, r_sets);
   }
   LISTBASE_FOREACH (const CollectionChild *, collection_child, &collection.children) {
@@ -115,11 +116,12 @@ static void geometry_set_collect_recursive(const GeometrySet &geometry_set,
   r_sets.append({geometry_set, {transform}});
 
   if (geometry_set.has_instances()) {
-    const Instances &instances = *geometry_set.get_instances_for_read();
+    const InstancesComponent &instances_component =
+        *geometry_set.get_component_for_read<InstancesComponent>();
 
-    Span<float4x4> transforms = instances.transforms();
-    Span<int> handles = instances.reference_handles();
-    Span<InstanceReference> references = instances.references();
+    Span<float4x4> transforms = instances_component.instance_transforms();
+    Span<int> handles = instances_component.instance_reference_handles();
+    Span<InstanceReference> references = instances_component.references();
     for (const int i : transforms.index_range()) {
       const InstanceReference &reference = references[handles[i]];
       const float4x4 instance_transform = transform * transforms[i];
@@ -155,7 +157,9 @@ void geometry_set_gather_instances(const GeometrySet &geometry_set,
   geometry_set_collect_recursive(geometry_set, float4x4::identity(), r_instance_groups);
 }
 
-void Instances::foreach_referenced_geometry(
+}  // namespace blender::bke
+
+void InstancesComponent::foreach_referenced_geometry(
     blender::FunctionRef<void(const GeometrySet &geometry_set)> callback) const
 {
   using namespace blender::bke;
@@ -188,7 +192,7 @@ void Instances::foreach_referenced_geometry(
   }
 }
 
-void Instances::ensure_geometry_instances()
+void InstancesComponent::ensure_geometry_instances()
 {
   using namespace blender;
   using namespace blender::bke;
@@ -208,7 +212,9 @@ void Instances::ensure_geometry_instances()
         const Object &object = reference.object();
         GeometrySet object_geometry_set = object_get_evaluated_geometry_set(object);
         if (object_geometry_set.has_instances()) {
-          object_geometry_set.get_instances_for_write()->ensure_geometry_instances();
+          InstancesComponent &component =
+              object_geometry_set.get_component_for_write<InstancesComponent>();
+          component.ensure_geometry_instances();
         }
         new_references.add_new(std::move(object_geometry_set));
         break;
@@ -216,22 +222,22 @@ void Instances::ensure_geometry_instances()
       case InstanceReference::Type::Collection: {
         /* Create a new reference that contains a geometry set that contains all objects from the
          * collection as instances. */
-        std::unique_ptr<Instances> instances = std::make_unique<Instances>();
+        GeometrySet collection_geometry_set;
+        InstancesComponent &component =
+            collection_geometry_set.get_component_for_write<InstancesComponent>();
         Collection &collection = reference.collection();
         FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (&collection, object) {
-          const int handle = instances->add_reference(*object);
-          instances->add_instance(handle, object->object_to_world);
-          float4x4 &transform = instances->transforms().last();
+          const int handle = component.add_reference(*object);
+          component.add_instance(handle, object->obmat);
+          float4x4 &transform = component.instance_transforms().last();
           sub_v3_v3(transform.values[3], collection.instance_offset);
         }
         FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
-        instances->ensure_geometry_instances();
-        new_references.add_new(GeometrySet::create_with_instances(instances.release()));
+        component.ensure_geometry_instances();
+        new_references.add_new(std::move(collection_geometry_set));
         break;
       }
     }
   }
   references_ = std::move(new_references);
 }
-
-}  // namespace blender::bke

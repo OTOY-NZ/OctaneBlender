@@ -2,7 +2,6 @@
  * Copyright 2022 Blender Foundation. All rights reserved. */
 
 #include "BKE_customdata.h"
-#include "BKE_mesh.h"
 #include "BKE_mesh_mapping.h"
 #include "BKE_pbvh.h"
 #include "BKE_pbvh_pixels.hh"
@@ -114,7 +113,7 @@ struct EncodePixelsUserData {
 
 static void do_encode_pixels(void *__restrict userdata,
                              const int n,
-                             const TaskParallelTLS *__restrict /*tls*/)
+                             const TaskParallelTLS *__restrict UNUSED(tls))
 {
   EncodePixelsUserData *data = static_cast<EncodePixelsUserData *>(userdata);
   Image *image = data->image;
@@ -292,8 +291,7 @@ static void update_pixels(PBVH *pbvh, Mesh *mesh, Image *image, ImageUser *image
 
   for (PBVHNode *node : nodes_to_update) {
     NodeData *node_data = static_cast<NodeData *>(node->pixels.node_data);
-    const Span<MLoop> loops = mesh->loops();
-    init_triangles(pbvh, node, node_data, loops.data());
+    init_triangles(pbvh, node, node_data, mesh->mloop);
   }
 
   EncodePixelsUserData user_data;

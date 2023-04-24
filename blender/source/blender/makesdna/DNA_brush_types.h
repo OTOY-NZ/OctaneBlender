@@ -58,10 +58,11 @@ typedef struct BrushGpencilSettings {
 
   /** Factor for transparency. */
   float fill_threshold;
-  char _pad2[2];
+  /** Number of pixel to consider the leak is too small (x 2). */
+  short fill_leak;
   /* Type of caps: eGPDstroke_Caps. */
   int8_t caps_type;
-  char _pad[5];
+  char _pad;
 
   int flag2;
 
@@ -69,8 +70,6 @@ typedef struct BrushGpencilSettings {
   int fill_simplylvl;
   /** Type of control lines drawing mode. */
   int fill_draw_mode;
-  /** Type of gap filling extension to use. */
-  int fill_extend_mode;
   /** Icon identifier. */
   int icon_id;
 
@@ -133,15 +132,9 @@ typedef struct BrushGpencilSettings {
   struct CurveMapping *curve_rand_saturation;
   struct CurveMapping *curve_rand_value;
 
-  /** Factor for external line thickness conversion to outline. */
-  float outline_fac;
-  char _pad1[4];
-
   /* optional link of material to replace default in context */
   /** Material. */
   struct Material *material;
-  /** Material Alternative for secondary operations. */
-  struct Material *material_alt;
 } BrushGpencilSettings;
 
 typedef struct BrushCurvesSculptSettings {
@@ -388,11 +381,6 @@ typedef struct Brush {
 
   struct BrushGpencilSettings *gpencil_settings;
   struct BrushCurvesSculptSettings *curves_sculpt_settings;
-
-  int automasking_cavity_blur_steps;
-  float automasking_cavity_factor;
-
-  struct CurveMapping *automasking_cavity_curve;
 } Brush;
 
 /* Struct to hold palette colors for sorting. */

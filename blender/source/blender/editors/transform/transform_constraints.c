@@ -177,7 +177,7 @@ static void axisProjection(const TransInfo *t,
                            const float in[3],
                            float out[3])
 {
-  float vec[3], factor, angle;
+  float norm[3], vec[3], factor, angle;
   float t_con_center[3];
 
   if (is_zero_v3(in)) {
@@ -214,7 +214,7 @@ static void axisProjection(const TransInfo *t,
   }
   else {
     float v[3];
-    float norm[3], norm_center[3];
+    float norm_center[3];
     float plane[3];
 
     view_vector_calc(t, t_con_center, norm_center);
@@ -337,20 +337,25 @@ static bool isPlaneProjectionViewAligned(const TransInfo *t, const float plane[4
   return fabsf(factor) < eps;
 }
 
-static void planeProjection(const TransInfo *t,
-                            const float plane[4],
-                            const float in[3],
-                            float out[3])
+static void planeProjection(const TransInfo *t, const float in[3], float out[3])
 {
+  float vec[3], factor, norm[3];
 
-  float pos[3], view_vec[3], factor;
+  add_v3_v3v3(vec, in, t->center_global);
+  view_vector_calc(t, vec, norm);
 
-  add_v3_v3v3(pos, in, t->center_global);
-  view_vector_calc(t, pos, view_vec);
+  sub_v3_v3v3(vec, out, in);
 
-  if (isect_ray_plane_v3(pos, view_vec, plane, &factor, false)) {
-    madd_v3_v3v3fl(out, in, view_vec, factor);
+  factor = dot_v3v3(vec, norm);
+  if (factor == 0.0f) {
+    return; /* prevent divide by zero */
   }
+  factor = dot_v3v3(vec, vec) / factor;
+
+  copy_v3_v3(vec, norm);
+  mul_v3_fl(vec, factor);
+
+  add_v3_v3v3(out, in, vec);
 }
 
 static short transform_orientation_or_default(const TransInfo *t)
@@ -392,6 +397,7 @@ static void applyAxisConstraintVec(const TransInfo *t,
   copy_v3_v3(out, in);
   if (!td && t->con.mode & CON_APPLY) {
     bool is_snap_to_point = false, is_snap_to_edge = false, is_snap_to_face = false;
+    mul_m3_v3(t->con.pmtx, out);
 
     if (activeSnap(t)) {
       if (validSnap(t)) {
@@ -404,13 +410,8 @@ static void applyAxisConstraintVec(const TransInfo *t,
       }
     }
 
-    /* Fallback for when axes are aligned. */
-    mul_m3_v3(t->con.pmtx, out);
-
-    if (is_snap_to_point) {
-      /* Pass. With snap points, a projection is alright, no adjustments needed. */
-    }
-    else {
+    /* With snap points, a projection is alright, no adjustments needed. */
+    if (!is_snap_to_point || is_snap_to_edge || is_snap_to_face) {
       const int dims = getConstraintSpaceDimension(t);
       if (dims == 2) {
         if (!is_zero_v3(out)) {
@@ -424,9 +425,11 @@ static void applyAxisConstraintVec(const TransInfo *t,
             /* Disabled, as it has not proven to be really useful. (See T82386). */
             // constraint_snap_plane_to_face(t, plane, out);
           }
-          else if (!isPlaneProjectionViewAligned(t, plane)) {
+          else {
             /* View alignment correction. */
-            planeProjection(t, plane, in, out);
+            if (!isPlaneProjectionViewAligned(t, plane)) {
+              planeProjection(t, in, out);
+            }
           }
         }
       }
@@ -698,12 +701,12 @@ void setLocalConstraint(TransInfo *t, int mode, const char text[])
   }
 }
 
-void setUserConstraint(TransInfo *t, int mode, const char text_[])
+void setUserConstraint(TransInfo *t, int mode, const char ftext[])
 {
   char text[256];
   const short orientation = transform_orientation_or_default(t);
   const char *spacename = transform_orientations_spacename_get(t, orientation);
-  BLI_snprintf(text, sizeof(text), text_, spacename);
+  BLI_snprintf(text, sizeof(text), ftext, spacename);
 
   switch (orientation) {
     case V3D_ORIENT_LOCAL:

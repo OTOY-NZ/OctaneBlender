@@ -54,7 +54,9 @@ static void initData(ModifierData *md)
   MEMCPY_STRUCT_AFTER(dmd, DNA_struct_default_get(DecimateModifierData), modifier);
 }
 
-static void requiredDataMask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
+static void requiredDataMask(Object *UNUSED(ob),
+                             ModifierData *md,
+                             CustomData_MeshMasks *r_cddata_masks)
 {
   DecimateModifierData *dmd = (DecimateModifierData *)md;
 
@@ -133,7 +135,7 @@ static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *
 
   if (dmd->mode == MOD_DECIM_MODE_COLLAPSE) {
     if (dmd->defgrp_name[0] && (dmd->defgrp_factor > 0.0f)) {
-      const MDeformVert *dvert;
+      MDeformVert *dvert;
       int defgrp_index;
 
       MOD_get_vgroup(ctx->object, mesh, dmd->defgrp_name, &dvert, &defgrp_index);
@@ -199,10 +201,10 @@ static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *
 
   updateFaceCount(ctx, dmd, bm->totface);
 
+  result = BKE_mesh_from_bmesh_for_eval_nomain(bm, NULL, mesh);
   /* make sure we never alloc'd these */
   BLI_assert(bm->vtoolflagpool == NULL && bm->etoolflagpool == NULL && bm->ftoolflagpool == NULL);
-
-  result = BKE_mesh_from_bmesh_for_eval_nomain(bm, NULL, mesh);
+  BLI_assert(bm->vtable == NULL && bm->etable == NULL && bm->ftable == NULL);
 
   BM_mesh_free(bm);
 

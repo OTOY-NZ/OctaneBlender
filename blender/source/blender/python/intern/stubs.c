@@ -25,7 +25,7 @@ void BPY_pyconstraint_exec(struct bPythonConstraint *con,
 void BPY_pyconstraint_target(struct bPythonConstraint *con, struct bConstraintTarget *ct)
 {
 }
-bool BPY_is_pyconstraint(struct Text *text)
+int BPY_is_pyconstraint(struct Text *text)
 {
   return 0;
 }

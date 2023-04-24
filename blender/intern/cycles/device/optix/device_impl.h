@@ -103,7 +103,7 @@ class OptiXDevice : public CUDADevice {
  private:
   BVHLayoutMask get_bvh_layout_mask() const override;
 
-  string compile_kernel_get_common_cflags(const uint kernel_features);
+  string compile_kernel_get_common_cflags(const uint kernel_features) override;
 
   bool load_kernels(const uint kernel_features) override;
 

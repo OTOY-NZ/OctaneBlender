@@ -13,14 +13,15 @@ from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, O
 
 class OctaneChannelMergerTexture1(OctaneBaseSocket):
     bl_idname="OctaneChannelMergerTexture1"
-    bl_label="Red channel"
+    bl_label="First channel"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=0
+    octane_default_node_type=consts.NodeType.NT_UNKNOWN
     octane_default_node_name=""
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=238)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="texture1")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_TEXTURE1
+    octane_pin_name="texture1"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -28,14 +29,15 @@ class OctaneChannelMergerTexture1(OctaneBaseSocket):
 
 class OctaneChannelMergerTexture2(OctaneBaseSocket):
     bl_idname="OctaneChannelMergerTexture2"
-    bl_label="Green channel"
+    bl_label="Second channel"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=0
+    octane_default_node_type=consts.NodeType.NT_UNKNOWN
     octane_default_node_name=""
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=239)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="texture2")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_TEXTURE2
+    octane_pin_name="texture2"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=1
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -43,16 +45,45 @@ class OctaneChannelMergerTexture2(OctaneBaseSocket):
 
 class OctaneChannelMergerTexture3(OctaneBaseSocket):
     bl_idname="OctaneChannelMergerTexture3"
-    bl_label="Blue channel"
+    bl_label="Third channel"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=0
+    octane_default_node_type=consts.NodeType.NT_UNKNOWN
     octane_default_node_name=""
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=337)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="texture3")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_TEXTURE3
+    octane_pin_name="texture3"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=2
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
+    octane_end_version=4294967295
+    octane_deprecated=False
+
+class OctaneChannelMergerColorSpaceConversion(OctaneBaseSocket):
+    bl_idname="OctaneChannelMergerColorSpaceConversion"
+    bl_label="Conversion"
+    color=consts.OctanePinColor.Enum
+    octane_default_node_type=consts.NodeType.NT_ENUM
+    octane_default_node_name="OctaneEnumValue"
+    octane_pin_id=consts.PinID.P_COLOR_SPACE_CONVERSION
+    octane_pin_name="colorSpaceConversion"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=3
+    octane_socket_type=consts.SocketType.ST_ENUM
+    items = [
+        ("No conversion", "No conversion", "", 0),
+        ("HSL|RGB to HSL", "HSL|RGB to HSL", "", 3),
+        ("HSL|HSL to RGB", "HSL|HSL to RGB", "", 4),
+        ("HSV|RGB to HSV", "HSV|RGB to HSV", "", 1),
+        ("HSV|HSV to RGB", "HSV|HSV to RGB", "", 2),
+        ("xyY|RGB to xyY", "xyY|RGB to xyY", "", 7),
+        ("xyY|xyY to RGB", "xyY|xyY to RGB", "", 8),
+        ("XYZ|RGB to XYZ", "XYZ|RGB to XYZ", "", 9),
+        ("XYZ|XYZ to RGB", "XYZ|XYZ to RGB", "", 10),
+    ]
+    default_value: EnumProperty(default="No conversion", update=OctaneBaseSocket.update_node_tree, description="Color space conversion applied to the input texture", items=items)
+    octane_hide_value=False
+    octane_min_version=12000005
     octane_end_version=4294967295
     octane_deprecated=False
 
@@ -65,18 +96,19 @@ class OctaneChannelMerger(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneChannelMergerTexture1,OctaneChannelMergerTexture2,OctaneChannelMergerTexture3,OctaneChannelMergerColorSpaceConversion,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=172)
-    octane_socket_list: StringProperty(name="Socket List", default="Red channel;Green channel;Blue channel;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=3)
+    octane_node_type=consts.NodeType.NT_TEX_CHANNEL_MERGE
+    octane_socket_list=["First channel", "Second channel", "Third channel", "Conversion", ]
+    octane_attribute_list=[]
+    octane_attribute_config={}
+    octane_static_pin_count=4
 
     def init(self, context):
         self.inputs.new("OctaneChannelMergerTexture1", OctaneChannelMergerTexture1.bl_label).init()
         self.inputs.new("OctaneChannelMergerTexture2", OctaneChannelMergerTexture2.bl_label).init()
         self.inputs.new("OctaneChannelMergerTexture3", OctaneChannelMergerTexture3.bl_label).init()
+        self.inputs.new("OctaneChannelMergerColorSpaceConversion", OctaneChannelMergerColorSpaceConversion.bl_label).init()
         self.outputs.new("OctaneTextureOutSocket", "Texture out").init()
 
 
@@ -84,6 +116,7 @@ _CLASSES=[
     OctaneChannelMergerTexture1,
     OctaneChannelMergerTexture2,
     OctaneChannelMergerTexture3,
+    OctaneChannelMergerColorSpaceConversion,
     OctaneChannelMerger,
 ]
 

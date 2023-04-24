@@ -15,12 +15,13 @@ class OctaneScatterInVolumeInput1(OctaneBaseSocket):
     bl_idname="OctaneScatterInVolumeInput1"
     bl_label="Scattered object 1"
     color=consts.OctanePinColor.Geometry
-    octane_default_node_type=0
+    octane_default_node_type=consts.NodeType.NT_UNKNOWN
     octane_default_node_name=""
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=527)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="input1")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_GEOMETRY)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_INPUT1
+    octane_pin_name="input1"
+    octane_pin_type=consts.PinType.PT_GEOMETRY
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -30,12 +31,13 @@ class OctaneScatterInVolumeInput2(OctaneBaseSocket):
     bl_idname="OctaneScatterInVolumeInput2"
     bl_label="Scattered object 2"
     color=consts.OctanePinColor.Geometry
-    octane_default_node_type=0
+    octane_default_node_type=consts.NodeType.NT_UNKNOWN
     octane_default_node_name=""
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=528)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="input2")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_GEOMETRY)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_INPUT2
+    octane_pin_name="input2"
+    octane_pin_type=consts.PinType.PT_GEOMETRY
+    octane_pin_index=1
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -45,12 +47,13 @@ class OctaneScatterInVolumeInput3(OctaneBaseSocket):
     bl_idname="OctaneScatterInVolumeInput3"
     bl_label="Scattered object 3"
     color=consts.OctanePinColor.Geometry
-    octane_default_node_type=0
+    octane_default_node_type=consts.NodeType.NT_UNKNOWN
     octane_default_node_name=""
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=573)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="input3")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_GEOMETRY)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_INPUT3
+    octane_pin_name="input3"
+    octane_pin_type=consts.PinType.PT_GEOMETRY
+    octane_pin_index=2
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -60,12 +63,13 @@ class OctaneScatterInVolumeInput4(OctaneBaseSocket):
     bl_idname="OctaneScatterInVolumeInput4"
     bl_label="Scattered object 4"
     color=consts.OctanePinColor.Geometry
-    octane_default_node_type=0
+    octane_default_node_type=consts.NodeType.NT_UNKNOWN
     octane_default_node_name=""
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=574)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="input4")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_GEOMETRY)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_INPUT4
+    octane_pin_name="input4"
+    octane_pin_type=consts.PinType.PT_GEOMETRY
+    octane_pin_index=3
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -75,12 +79,13 @@ class OctaneScatterInVolumeInputSelectionMethod(OctaneBaseSocket):
     bl_idname="OctaneScatterInVolumeInputSelectionMethod"
     bl_label="Object selection method"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type=57
+    octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=575)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="inputSelectionMethod")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
+    octane_pin_id=consts.PinID.P_INPUT_SELECTION_METHOD
+    octane_pin_name="inputSelectionMethod"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=4
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("Sequential", "Sequential", "", 0),
         ("Random", "Random", "", 1),
@@ -96,12 +101,13 @@ class OctaneScatterInVolumeInputSelectionSeed(OctaneBaseSocket):
     bl_idname="OctaneScatterInVolumeInputSelectionSeed"
     bl_label="Object selection seed"
     color=consts.OctanePinColor.Int
-    octane_default_node_type=9
+    octane_default_node_type=consts.NodeType.NT_INT
     octane_default_node_name="OctaneIntValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=576)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="inputSelectionSeed")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
+    octane_pin_id=consts.PinID.P_INPUT_SELECTION_SEED
+    octane_pin_name="inputSelectionSeed"
+    octane_pin_type=consts.PinType.PT_INT
+    octane_pin_index=5
+    octane_socket_type=consts.SocketType.ST_INT
     default_value: IntProperty(default=0, update=OctaneBaseSocket.update_node_tree, description="Seed used to randomize the selection of source objects", min=0, max=2147483647, soft_min=0, soft_max=2147483647, step=1, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
@@ -112,12 +118,13 @@ class OctaneScatterInVolumeInputSelectionMap(OctaneBaseSocket):
     bl_idname="OctaneScatterInVolumeInputSelectionMap"
     bl_label="Object selection map"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=0
+    octane_default_node_type=consts.NodeType.NT_UNKNOWN
     octane_default_node_name=""
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=577)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="inputSelectionMap")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_INPUT_SELECTION_MAP
+    octane_pin_name="inputSelectionMap"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=6
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -127,12 +134,13 @@ class OctaneScatterInVolumeDimensions(OctaneBaseSocket):
     bl_idname="OctaneScatterInVolumeDimensions"
     bl_label="Dimension"
     color=consts.OctanePinColor.Int
-    octane_default_node_type=9
+    octane_default_node_type=consts.NodeType.NT_INT
     octane_default_node_name="OctaneIntValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=31)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="dimensions")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT3)
+    octane_pin_id=consts.PinID.P_DIMENSIONS
+    octane_pin_name="dimensions"
+    octane_pin_type=consts.PinType.PT_INT
+    octane_pin_index=7
+    octane_socket_type=consts.SocketType.ST_INT3
     default_value: IntVectorProperty(default=(3, 3, 3), update=OctaneBaseSocket.update_node_tree, description="Number of instances along each dimension", min=1, max=1000, soft_min=1, soft_max=1000, step=1, subtype="NONE", size=3)
     octane_hide_value=False
     octane_min_version=0
@@ -143,12 +151,13 @@ class OctaneScatterInVolumeOffset(OctaneBaseSocket):
     bl_idname="OctaneScatterInVolumeOffset"
     bl_label="Offsets"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=122)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="offset")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
+    octane_pin_id=consts.PinID.P_OFFSET
+    octane_pin_name="offset"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=8
+    octane_socket_type=consts.SocketType.ST_FLOAT3
     default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="Offset between instances along each dimension", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=0
@@ -159,12 +168,13 @@ class OctaneScatterInVolumeShape(OctaneBaseSocket):
     bl_idname="OctaneScatterInVolumeShape"
     bl_label="Shape"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type=57
+    octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=608)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="shape")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
+    octane_pin_id=consts.PinID.P_SHAPE
+    octane_pin_name="shape"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=9
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("Box", "Box", "", 0),
         ("Sphere", "Sphere", "", 1),
@@ -181,12 +191,13 @@ class OctaneScatterInVolumeInstanceCullingMap(OctaneBaseSocket):
     bl_idname="OctaneScatterInVolumeInstanceCullingMap"
     bl_label="Culling map"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=0
+    octane_default_node_type=consts.NodeType.NT_UNKNOWN
     octane_default_node_name=""
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=583)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="instanceCullingMap")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_INSTANCE_CULLING_MAP
+    octane_pin_name="instanceCullingMap"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=10
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -196,12 +207,13 @@ class OctaneScatterInVolumeInstanceCullingValueMin(OctaneBaseSocket):
     bl_idname="OctaneScatterInVolumeInstanceCullingValueMin"
     bl_label="Culling min"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=584)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="instanceCullingValueMin")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_INSTANCE_CULLING_VALUE_MIN
+    octane_pin_name="instanceCullingValueMin"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=11
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="All instances in areas of the map that have a value below this threshold are removed", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
@@ -212,12 +224,13 @@ class OctaneScatterInVolumeInstanceCullingValueMax(OctaneBaseSocket):
     bl_idname="OctaneScatterInVolumeInstanceCullingValueMax"
     bl_label="Culling max"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=585)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="instanceCullingValueMax")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_INSTANCE_CULLING_VALUE_MAX
+    octane_pin_name="instanceCullingValueMax"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=12
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="All instances in areas of the map that have a value above this threshold are removed", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
@@ -228,12 +241,13 @@ class OctaneScatterInVolumeInstanceOrientationPriority(OctaneBaseSocket):
     bl_idname="OctaneScatterInVolumeInstanceOrientationPriority"
     bl_label="Orientation priority"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type=57
+    octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=589)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="instanceOrientationPriority")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
+    octane_pin_id=consts.PinID.P_INSTANCE_ORIENTATION_PRIORITY
+    octane_pin_name="instanceOrientationPriority"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=13
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("Up", "Up", "", 0),
         ("Front", "Front", "", 1),
@@ -248,12 +262,13 @@ class OctaneScatterInVolumeInstanceUpMode(OctaneBaseSocket):
     bl_idname="OctaneScatterInVolumeInstanceUpMode"
     bl_label="Up direction mode"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type=57
+    octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=590)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="instanceUpMode")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
+    octane_pin_id=consts.PinID.P_INSTANCE_UP_MODE
+    octane_pin_name="instanceUpMode"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=14
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("Direction", "Direction", "", 0),
         ("Point", "Point", "", 1),
@@ -268,12 +283,13 @@ class OctaneScatterInVolumeInstanceUpDirection(OctaneBaseSocket):
     bl_idname="OctaneScatterInVolumeInstanceUpDirection"
     bl_label="Reference up direction"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=591)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="instanceUpDirection")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
+    octane_pin_id=consts.PinID.P_INSTANCE_UP_DIRECTION
+    octane_pin_name="instanceUpDirection"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=15
+    octane_socket_type=consts.SocketType.ST_FLOAT3
     default_value: FloatVectorProperty(default=(0.000000, 1.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="When up mode is set to Direction, the reference up vector will point in this direction", min=-1.000000, max=1.000000, soft_min=-1.000000, soft_max=1.000000, step=1, subtype="DIRECTION", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=0
@@ -284,12 +300,13 @@ class OctaneScatterInVolumeInstanceUpPoint(OctaneBaseSocket):
     bl_idname="OctaneScatterInVolumeInstanceUpPoint"
     bl_label="Reference up point"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=592)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="instanceUpPoint")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
+    octane_pin_id=consts.PinID.P_INSTANCE_UP_POINT
+    octane_pin_name="instanceUpPoint"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=16
+    octane_socket_type=consts.SocketType.ST_FLOAT3
     default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="When up mode is set to Point, the reference up vector will point towards this location", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=0
@@ -300,12 +317,13 @@ class OctaneScatterInVolumeInstanceFrontMode(OctaneBaseSocket):
     bl_idname="OctaneScatterInVolumeInstanceFrontMode"
     bl_label="Front direction mode"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type=57
+    octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=593)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="instanceFrontMode")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
+    octane_pin_id=consts.PinID.P_INSTANCE_FRONT_MODE
+    octane_pin_name="instanceFrontMode"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=17
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("Direction", "Direction", "", 0),
         ("Point", "Point", "", 1),
@@ -320,12 +338,13 @@ class OctaneScatterInVolumeInstanceFrontDirection(OctaneBaseSocket):
     bl_idname="OctaneScatterInVolumeInstanceFrontDirection"
     bl_label="Reference front direction"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=594)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="instanceFrontDirection")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
+    octane_pin_id=consts.PinID.P_INSTANCE_FRONT_DIRECTION
+    octane_pin_name="instanceFrontDirection"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=18
+    octane_socket_type=consts.SocketType.ST_FLOAT3
     default_value: FloatVectorProperty(default=(0.000000, 0.000000, 1.000000), update=OctaneBaseSocket.update_node_tree, description="When front mode is set to Direction, the reference front vector will point in this direction", min=-1.000000, max=1.000000, soft_min=-1.000000, soft_max=1.000000, step=1, subtype="DIRECTION", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=0
@@ -336,12 +355,13 @@ class OctaneScatterInVolumeInstanceFrontPoint(OctaneBaseSocket):
     bl_idname="OctaneScatterInVolumeInstanceFrontPoint"
     bl_label="Reference front point"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=595)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="instanceFrontPoint")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
+    octane_pin_id=consts.PinID.P_INSTANCE_FRONT_POINT
+    octane_pin_name="instanceFrontPoint"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=19
+    octane_socket_type=consts.SocketType.ST_FLOAT3
     default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="When front mode is set to Point, the reference front vector will point towards this location", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=0
@@ -352,12 +372,13 @@ class OctaneScatterInVolumeInstanceRotationMode(OctaneBaseSocket):
     bl_idname="OctaneScatterInVolumeInstanceRotationMode"
     bl_label="Rotation mode"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type=57
+    octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=596)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="instanceRotationMode")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
+    octane_pin_id=consts.PinID.P_INSTANCE_ROTATION_MODE
+    octane_pin_name="instanceRotationMode"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=20
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("Fixed", "Fixed", "", 0),
         ("Randomized with independent axes", "Randomized with independent axes", "", 1),
@@ -374,12 +395,13 @@ class OctaneScatterInVolumeInstanceRotationMin(OctaneBaseSocket):
     bl_idname="OctaneScatterInVolumeInstanceRotationMin"
     bl_label="Rotation min"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=597)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="instanceRotationMin")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
+    octane_pin_id=consts.PinID.P_INSTANCE_ROTATION_MIN
+    octane_pin_name="instanceRotationMin"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=21
+    octane_socket_type=consts.SocketType.ST_FLOAT3
     default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="Minimum rotation of the instance", min=-360.000000, max=360.000000, soft_min=-360.000000, soft_max=360.000000, step=1, subtype="NONE", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=0
@@ -390,12 +412,13 @@ class OctaneScatterInVolumeInstanceRotationMax(OctaneBaseSocket):
     bl_idname="OctaneScatterInVolumeInstanceRotationMax"
     bl_label="Rotation max"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=598)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="instanceRotationMax")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
+    octane_pin_id=consts.PinID.P_INSTANCE_ROTATION_MAX
+    octane_pin_name="instanceRotationMax"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=22
+    octane_socket_type=consts.SocketType.ST_FLOAT3
     default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="Maximum rotation of the instance", min=-360.000000, max=360.000000, soft_min=-360.000000, soft_max=360.000000, step=1, subtype="NONE", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=0
@@ -406,12 +429,13 @@ class OctaneScatterInVolumeInstanceRotationStep(OctaneBaseSocket):
     bl_idname="OctaneScatterInVolumeInstanceRotationStep"
     bl_label="Rotation step"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=609)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="instanceRotationStep")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_INSTANCE_ROTATION_STEP
+    octane_pin_name="instanceRotationStep"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=23
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="When the rotation mode is random or map and this value is different from zero the values will be aliased to the nearest step", min=0.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
@@ -422,12 +446,13 @@ class OctaneScatterInVolumeInstanceRotationMap(OctaneBaseSocket):
     bl_idname="OctaneScatterInVolumeInstanceRotationMap"
     bl_label="Rotation map"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=0
+    octane_default_node_type=consts.NodeType.NT_UNKNOWN
     octane_default_node_name=""
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=599)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="instanceRotationMap")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_INSTANCE_ROTATION_MAP
+    octane_pin_name="instanceRotationMap"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=24
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -437,12 +462,13 @@ class OctaneScatterInVolumeInstanceScaleMode(OctaneBaseSocket):
     bl_idname="OctaneScatterInVolumeInstanceScaleMode"
     bl_label="Scale mode"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type=57
+    octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=600)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="instanceScaleMode")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
+    octane_pin_id=consts.PinID.P_INSTANCE_SCALE_MODE
+    octane_pin_name="instanceScaleMode"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=25
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("Fixed", "Fixed", "", 0),
         ("Randomized with independent axes", "Randomized with independent axes", "", 1),
@@ -459,12 +485,13 @@ class OctaneScatterInVolumeInstanceScaleMin(OctaneBaseSocket):
     bl_idname="OctaneScatterInVolumeInstanceScaleMin"
     bl_label="Scale min"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=601)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="instanceScaleMin")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
+    octane_pin_id=consts.PinID.P_INSTANCE_SCALE_MIN
+    octane_pin_name="instanceScaleMin"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=26
+    octane_socket_type=consts.SocketType.ST_FLOAT3
     default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=OctaneBaseSocket.update_node_tree, description="Minimum scale of the instance", min=0.001000, max=1000.000000, soft_min=0.001000, soft_max=1000.000000, step=1, subtype="NONE", precision=3, size=3)
     octane_hide_value=False
     octane_min_version=0
@@ -475,12 +502,13 @@ class OctaneScatterInVolumeInstanceScaleMax(OctaneBaseSocket):
     bl_idname="OctaneScatterInVolumeInstanceScaleMax"
     bl_label="Scale max"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=602)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="instanceScaleMax")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
+    octane_pin_id=consts.PinID.P_INSTANCE_SCALE_MAX
+    octane_pin_name="instanceScaleMax"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=27
+    octane_socket_type=consts.SocketType.ST_FLOAT3
     default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=OctaneBaseSocket.update_node_tree, description="Maximum scale of the instance", min=0.001000, max=1000.000000, soft_min=0.001000, soft_max=1000.000000, step=1, subtype="NONE", precision=3, size=3)
     octane_hide_value=False
     octane_min_version=0
@@ -491,12 +519,13 @@ class OctaneScatterInVolumeInstanceScaleStep(OctaneBaseSocket):
     bl_idname="OctaneScatterInVolumeInstanceScaleStep"
     bl_label="Scale step"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=610)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="instanceScaleStep")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_INSTANCE_SCALE_STEP
+    octane_pin_name="instanceScaleStep"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=28
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="When the scale mode is random or map and this value is different from zero the values will be aliased to the nearest step", min=0.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
@@ -507,12 +536,13 @@ class OctaneScatterInVolumeInstanceScaleMap(OctaneBaseSocket):
     bl_idname="OctaneScatterInVolumeInstanceScaleMap"
     bl_label="Scale map"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=0
+    octane_default_node_type=consts.NodeType.NT_UNKNOWN
     octane_default_node_name=""
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=603)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="instanceScaleMap")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_INSTANCE_SCALE_MAP
+    octane_pin_name="instanceScaleMap"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=29
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -522,12 +552,13 @@ class OctaneScatterInVolumeInstanceTranslationMode(OctaneBaseSocket):
     bl_idname="OctaneScatterInVolumeInstanceTranslationMode"
     bl_label="Translation mode"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type=57
+    octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=604)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="instanceTranslationMode")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
+    octane_pin_id=consts.PinID.P_INSTANCE_TRANSLATION_MODE
+    octane_pin_name="instanceTranslationMode"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=30
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("Fixed", "Fixed", "", 0),
         ("Randomized with independent axes", "Randomized with independent axes", "", 1),
@@ -544,12 +575,13 @@ class OctaneScatterInVolumeInstanceTranslationMin(OctaneBaseSocket):
     bl_idname="OctaneScatterInVolumeInstanceTranslationMin"
     bl_label="Translation min"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=605)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="instanceTranslationMin")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
+    octane_pin_id=consts.PinID.P_INSTANCE_TRANSLATION_MIN
+    octane_pin_name="instanceTranslationMin"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=31
+    octane_socket_type=consts.SocketType.ST_FLOAT3
     default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="Minimum translation of the instance", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=0
@@ -560,12 +592,13 @@ class OctaneScatterInVolumeInstanceTranslationMax(OctaneBaseSocket):
     bl_idname="OctaneScatterInVolumeInstanceTranslationMax"
     bl_label="Translation max"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=606)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="instanceTranslationMax")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
+    octane_pin_id=consts.PinID.P_INSTANCE_TRANSLATION_MAX
+    octane_pin_name="instanceTranslationMax"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=32
+    octane_socket_type=consts.SocketType.ST_FLOAT3
     default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="Maximum translation of the instance", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=0
@@ -576,12 +609,13 @@ class OctaneScatterInVolumeInstanceTranslationStep(OctaneBaseSocket):
     bl_idname="OctaneScatterInVolumeInstanceTranslationStep"
     bl_label="Translation step"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=611)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="instanceTranslationStep")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_INSTANCE_TRANSLATION_STEP
+    octane_pin_name="instanceTranslationStep"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=33
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="When the translation mode is random or map and this value is different from zero the values will be aliased to the nearest step", min=0.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
@@ -592,12 +626,13 @@ class OctaneScatterInVolumeInstanceTranslationMap(OctaneBaseSocket):
     bl_idname="OctaneScatterInVolumeInstanceTranslationMap"
     bl_label="Translation map"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=0
+    octane_default_node_type=consts.NodeType.NT_UNKNOWN
     octane_default_node_name=""
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=607)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="instanceTranslationMap")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_INSTANCE_TRANSLATION_MAP
+    octane_pin_name="instanceTranslationMap"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=34
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -637,15 +672,13 @@ class OctaneScatterInVolume(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneScatterInVolumeGroupObjects,OctaneScatterInVolumeInput1,OctaneScatterInVolumeInput2,OctaneScatterInVolumeInput3,OctaneScatterInVolumeInput4,OctaneScatterInVolumeInputSelectionMethod,OctaneScatterInVolumeInputSelectionSeed,OctaneScatterInVolumeInputSelectionMap,OctaneScatterInVolumeGroupGrid,OctaneScatterInVolumeDimensions,OctaneScatterInVolumeOffset,OctaneScatterInVolumeGroupShape,OctaneScatterInVolumeShape,OctaneScatterInVolumeInstanceCullingMap,OctaneScatterInVolumeInstanceCullingValueMin,OctaneScatterInVolumeInstanceCullingValueMax,OctaneScatterInVolumeGroupInstanceOrientation,OctaneScatterInVolumeInstanceOrientationPriority,OctaneScatterInVolumeInstanceUpMode,OctaneScatterInVolumeInstanceUpDirection,OctaneScatterInVolumeInstanceUpPoint,OctaneScatterInVolumeInstanceFrontMode,OctaneScatterInVolumeInstanceFrontDirection,OctaneScatterInVolumeInstanceFrontPoint,OctaneScatterInVolumeGroupInstanceTransform,OctaneScatterInVolumeInstanceRotationMode,OctaneScatterInVolumeInstanceRotationMin,OctaneScatterInVolumeInstanceRotationMax,OctaneScatterInVolumeInstanceRotationStep,OctaneScatterInVolumeInstanceRotationMap,OctaneScatterInVolumeInstanceScaleMode,OctaneScatterInVolumeInstanceScaleMin,OctaneScatterInVolumeInstanceScaleMax,OctaneScatterInVolumeInstanceScaleStep,OctaneScatterInVolumeInstanceScaleMap,OctaneScatterInVolumeInstanceTranslationMode,OctaneScatterInVolumeInstanceTranslationMin,OctaneScatterInVolumeInstanceTranslationMax,OctaneScatterInVolumeInstanceTranslationStep,OctaneScatterInVolumeInstanceTranslationMap,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=165)
-    octane_socket_list: StringProperty(name="Socket List", default="Scattered object 1;Scattered object 2;Scattered object 3;Scattered object 4;Object selection method;Object selection seed;Object selection map;Dimension;Offsets;Shape;Culling map;Culling min;Culling max;Orientation priority;Up direction mode;Reference up direction;Reference up point;Front direction mode;Reference front direction;Reference front point;Rotation mode;Rotation min;Rotation max;Rotation step;Rotation map;Scale mode;Scale min;Scale max;Scale step;Scale map;Translation mode;Translation min;Translation max;Translation step;Translation map;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="a_module_graph_storage;")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="moduleGraphStorage;")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="10;")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=35)
-
-    a_module_graph_storage: StringProperty(name="Module graph storage", default="", update=OctaneBaseNode.update_node_tree, description="Data stored by the wrapped module node graph. Will be updated after every evaluation of the graph")
+    octane_node_type=consts.NodeType.NT_SCATTER_VOLUME
+    octane_socket_list=["Scattered object 1", "Scattered object 2", "Scattered object 3", "Scattered object 4", "Object selection method", "Object selection seed", "Object selection map", "Dimension", "Offsets", "Shape", "Culling map", "Culling min", "Culling max", "Orientation priority", "Up direction mode", "Reference up direction", "Reference up point", "Front direction mode", "Reference front direction", "Reference front point", "Rotation mode", "Rotation min", "Rotation max", "Rotation step", "Rotation map", "Scale mode", "Scale min", "Scale max", "Scale step", "Scale map", "Translation mode", "Translation min", "Translation max", "Translation step", "Translation map", ]
+    octane_attribute_list=[]
+    octane_attribute_config={}
+    octane_static_pin_count=35
 
     def init(self, context):
         self.inputs.new("OctaneScatterInVolumeGroupObjects", OctaneScatterInVolumeGroupObjects.bl_label).init()

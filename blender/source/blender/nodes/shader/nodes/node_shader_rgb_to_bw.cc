@@ -19,7 +19,7 @@ static void sh_node_rgbtobw_declare(NodeDeclarationBuilder &b)
 
 static int gpu_shader_rgbtobw(GPUMaterial *mat,
                               bNode *node,
-                              bNodeExecData * /*execdata*/,
+                              bNodeExecData *UNUSED(execdata),
                               GPUNodeStack *in,
                               GPUNodeStack *out)
 {

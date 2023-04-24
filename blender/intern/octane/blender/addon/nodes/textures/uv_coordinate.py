@@ -15,12 +15,13 @@ class OctaneUVCoordinateProjection(OctaneBaseSocket):
     bl_idname="OctaneUVCoordinateProjection"
     bl_label="Projection"
     color=consts.OctanePinColor.Projection
-    octane_default_node_type=78
+    octane_default_node_type=consts.NodeType.NT_PROJ_UVW
     octane_default_node_name="OctaneMeshUVProjection"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=141)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="projection")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_PROJECTION)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_PROJECTION
+    octane_pin_name="projection"
+    octane_pin_type=consts.PinType.PT_PROJECTION
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -30,12 +31,13 @@ class OctaneUVCoordinateUVMax(OctaneBaseSocket):
     bl_idname="OctaneUVCoordinateUVMax"
     bl_label="UV max"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=250)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="UV_max")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_UV_MAX
+    octane_pin_name="UV_max"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=1
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="UV coordinate value mapped to maximum intensity", min=0.000010, max=1000.000000, soft_min=0.000010, soft_max=1000.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
@@ -51,13 +53,13 @@ class OctaneUVCoordinate(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneUVCoordinateProjection,OctaneUVCoordinateUVMax,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=330)
-    octane_socket_list: StringProperty(name="Socket List", default="Projection;UV max;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=2)
+    octane_node_type=consts.NodeType.NT_TEX_UV
+    octane_socket_list=["Projection", "UV max", ]
+    octane_attribute_list=[]
+    octane_attribute_config={}
+    octane_static_pin_count=2
 
     def init(self, context):
         self.inputs.new("OctaneUVCoordinateProjection", OctaneUVCoordinateProjection.bl_label).init()

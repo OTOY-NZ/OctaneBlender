@@ -15,12 +15,13 @@ class OctaneMaterialMapGeometry(OctaneBaseSocket):
     bl_idname="OctaneMaterialMapGeometry"
     bl_label="Geometry"
     color=consts.OctanePinColor.Geometry
-    octane_default_node_type=0
+    octane_default_node_type=consts.NodeType.NT_UNKNOWN
     octane_default_node_name=""
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=59)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="geometry")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_GEOMETRY)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_GEOMETRY
+    octane_pin_name="geometry"
+    octane_pin_type=consts.PinType.PT_GEOMETRY
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -35,13 +36,13 @@ class OctaneMaterialMap(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneMaterialMapGeometry,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=2)
-    octane_socket_list: StringProperty(name="Socket List", default="Geometry;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="a_user_instance_id;")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="userInstanceId;")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="2;")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=1)
+    octane_node_type=consts.NodeType.NT_MAT_MAP
+    octane_socket_list=["Geometry", ]
+    octane_attribute_list=["a_user_instance_id", ]
+    octane_attribute_config={"a_user_instance_id": [consts.AttributeID.A_USER_INSTANCE_ID, "userInstanceId", consts.AttributeType.AT_INT], }
+    octane_static_pin_count=1
 
     a_user_instance_id: IntProperty(name="User instance id", default=-1, update=OctaneBaseNode.update_node_tree, description="The user ID of this geometry node. A valid ID should be a non-negative number. It's a non-unique ID attribute, multiple geometry nodes can have same ID, so it's a user responsibility to set unique ID if needed. In a tree hierarchy, the ID of current node will override the input geometry node's ID")
 

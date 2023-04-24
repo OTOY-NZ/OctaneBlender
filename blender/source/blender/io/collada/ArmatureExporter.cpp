@@ -76,7 +76,7 @@ bool ArmatureExporter::add_instance_controller(Object *ob)
   ins.setUrl(COLLADASW::URI(COLLADABU::Utils::EMPTY_STRING, controller_id));
 
   Mesh *me = (Mesh *)ob->data;
-  if (BKE_mesh_deform_verts(me) == nullptr) {
+  if (!me->dvert) {
     return false;
   }
 

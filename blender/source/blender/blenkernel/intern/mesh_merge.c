@@ -32,9 +32,9 @@
  * and may be called again with direct_reverse=-1 for reverse order.
  * \return 1 if polys are identical,  0 if polys are different.
  */
-static int cddm_poly_compare(const MLoop *mloop_array,
-                             const MPoly *mpoly_source,
-                             const MPoly *mpoly_target,
+static int cddm_poly_compare(MLoop *mloop_array,
+                             MPoly *mpoly_source,
+                             MPoly *mpoly_target,
                              const int *vtargetmap,
                              const int direct_reverse)
 {
@@ -44,7 +44,7 @@ static int cddm_poly_compare(const MLoop *mloop_array,
   bool compare_completed = false;
   bool same_loops = false;
 
-  const MLoop *mloop_source, *mloop_target;
+  MLoop *mloop_source, *mloop_target;
 
   BLI_assert(ELEM(direct_reverse, 1, -1));
 
@@ -203,15 +203,10 @@ Mesh *BKE_mesh_merge_verts(Mesh *mesh,
   const int totedge = mesh->totedge;
   const int totloop = mesh->totloop;
   const int totpoly = mesh->totpoly;
-  const MVert *src_verts = BKE_mesh_verts(mesh);
-  const MEdge *src_edges = BKE_mesh_edges(mesh);
-  const MPoly *src_polys = BKE_mesh_polys(mesh);
-  const MLoop *src_loops = BKE_mesh_loops(mesh);
 
   const int totvert_final = totvert - tot_vtargetmap;
 
-  const MVert *mv;
-  MVert *mvert = MEM_malloc_arrayN(totvert_final, sizeof(*mvert), __func__);
+  MVert *mv, *mvert = MEM_malloc_arrayN(totvert_final, sizeof(*mvert), __func__);
   int *oldv = MEM_malloc_arrayN(totvert_final, sizeof(*oldv), __func__);
   int *newv = MEM_malloc_arrayN(totvert, sizeof(*newv), __func__);
   STACK_DECLARE(mvert);
@@ -220,15 +215,13 @@ Mesh *BKE_mesh_merge_verts(Mesh *mesh,
   /* NOTE: create (totedge + totloop) elements because partially invalid polys due to merge may
    * require generating new edges, and while in 99% cases we'll still end with less final edges
    * than totedge, cases can be forged that would end requiring more. */
-  const MEdge *med;
-  MEdge *medge = MEM_malloc_arrayN((totedge + totloop), sizeof(*medge), __func__);
+  MEdge *med, *medge = MEM_malloc_arrayN((totedge + totloop), sizeof(*medge), __func__);
   int *olde = MEM_malloc_arrayN((totedge + totloop), sizeof(*olde), __func__);
   int *newe = MEM_malloc_arrayN((totedge + totloop), sizeof(*newe), __func__);
   STACK_DECLARE(medge);
   STACK_DECLARE(olde);
 
-  const MLoop *ml;
-  MLoop *mloop = MEM_malloc_arrayN(totloop, sizeof(*mloop), __func__);
+  MLoop *ml, *mloop = MEM_malloc_arrayN(totloop, sizeof(*mloop), __func__);
   int *oldl = MEM_malloc_arrayN(totloop, sizeof(*oldl), __func__);
 #ifdef USE_LOOPS
   int *newl = MEM_malloc_arrayN(totloop, sizeof(*newl), __func__);
@@ -236,8 +229,7 @@ Mesh *BKE_mesh_merge_verts(Mesh *mesh,
   STACK_DECLARE(mloop);
   STACK_DECLARE(oldl);
 
-  const MPoly *mp;
-  MPoly *mpoly = MEM_malloc_arrayN(totpoly, sizeof(*medge), __func__);
+  MPoly *mp, *mpoly = MEM_malloc_arrayN(totpoly, sizeof(*medge), __func__);
   int *oldp = MEM_malloc_arrayN(totpoly, sizeof(*oldp), __func__);
   STACK_DECLARE(mpoly);
   STACK_DECLARE(oldp);
@@ -262,7 +254,7 @@ Mesh *BKE_mesh_merge_verts(Mesh *mesh,
   STACK_INIT(mpoly, totpoly);
 
   /* fill newv with destination vertex indices */
-  mv = src_verts;
+  mv = mesh->mvert;
   c = 0;
   for (i = 0; i < totvert; i++, mv++) {
     if (vtargetmap[i] == -1) {
@@ -289,7 +281,7 @@ Mesh *BKE_mesh_merge_verts(Mesh *mesh,
    */
 
   /* now go through and fix edges and faces */
-  med = src_edges;
+  med = mesh->medge;
   c = 0;
   for (i = 0; i < totedge; i++, med++) {
     const uint v1 = (vtargetmap[med->v1] != -1) ? vtargetmap[med->v1] : med->v1;
@@ -324,12 +316,12 @@ Mesh *BKE_mesh_merge_verts(Mesh *mesh,
     /* Duplicates allowed because our compare function is not pure equality */
     BLI_gset_flag_set(poly_gset, GHASH_FLAG_ALLOW_DUPES);
 
-    mp = src_polys;
+    mp = mesh->mpoly;
     mpgh = poly_keys;
     for (i = 0; i < totpoly; i++, mp++, mpgh++) {
       mpgh->poly_index = i;
       mpgh->totloops = mp->totloop;
-      ml = src_loops + mp->loopstart;
+      ml = mesh->mloop + mp->loopstart;
       mpgh->hash_sum = mpgh->hash_xor = 0;
       for (j = 0; j < mp->totloop; j++, ml++) {
         mpgh->hash_sum += ml->v;
@@ -341,24 +333,24 @@ Mesh *BKE_mesh_merge_verts(Mesh *mesh,
     /* Can we optimize by reusing an old `pmap`? How do we know an old `pmap` is stale? */
     /* When called by `MOD_array.c` the `cddm` has just been created, so it has no valid `pmap`. */
     BKE_mesh_vert_poly_map_create(
-        &poly_map, &poly_map_mem, src_polys, src_loops, totvert, totpoly, totloop);
+        &poly_map, &poly_map_mem, mesh->mpoly, mesh->mloop, totvert, totpoly, totloop);
   } /* done preparing for fast poly compare */
 
   BLI_bitmap *vert_tag = BLI_BITMAP_NEW(mesh->totvert, __func__);
 
-  mp = src_polys;
-  mv = src_verts;
+  mp = mesh->mpoly;
+  mv = mesh->mvert;
   for (i = 0; i < totpoly; i++, mp++) {
     MPoly *mp_new;
 
-    ml = src_loops + mp->loopstart;
+    ml = mesh->mloop + mp->loopstart;
 
     /* check faces with all vertices merged */
-    bool all_verts_merged = true;
+    bool all_vertices_merged = true;
 
     for (j = 0; j < mp->totloop; j++, ml++) {
       if (vtargetmap[ml->v] == -1) {
-        all_verts_merged = false;
+        all_vertices_merged = false;
         /* This will be used to check for poly using several time the same vert. */
         BLI_BITMAP_DISABLE(vert_tag, ml->v);
       }
@@ -368,7 +360,7 @@ Mesh *BKE_mesh_merge_verts(Mesh *mesh,
       }
     }
 
-    if (UNLIKELY(all_verts_merged)) {
+    if (UNLIKELY(all_vertices_merged)) {
       if (merge_mode == MESH_MERGE_VERTS_DUMP_IF_MAPPED) {
         /* In this mode, all vertices merged is enough to dump face */
         continue;
@@ -384,7 +376,7 @@ Mesh *BKE_mesh_merge_verts(Mesh *mesh,
 
         /* Use poly_gset for fast (although not 100% certain) identification of same poly */
         /* First, make up a poly_summary structure */
-        ml = src_loops + mp->loopstart;
+        ml = mesh->mloop + mp->loopstart;
         pkey.hash_sum = pkey.hash_xor = 0;
         pkey.totloops = 0;
         for (j = 0; j < mp->totloop; j++, ml++) {
@@ -402,17 +394,17 @@ Mesh *BKE_mesh_merge_verts(Mesh *mesh,
            */
 
           /* Consider current loop again */
-          ml = src_loops + mp->loopstart;
+          ml = mesh->mloop + mp->loopstart;
           /* Consider the target of the loop's first vert */
           v_target = vtargetmap[ml->v];
           /* Now see if v_target belongs to a poly that shares all vertices with source poly,
            * in same order, or reverse order */
 
           for (i_poly = 0; i_poly < poly_map[v_target].count; i_poly++) {
-            const MPoly *target_poly = src_polys + *(poly_map[v_target].indices + i_poly);
+            MPoly *target_poly = mesh->mpoly + *(poly_map[v_target].indices + i_poly);
 
-            if (cddm_poly_compare(src_loops, mp, target_poly, vtargetmap, +1) ||
-                cddm_poly_compare(src_loops, mp, target_poly, vtargetmap, -1)) {
+            if (cddm_poly_compare(mesh->mloop, mp, target_poly, vtargetmap, +1) ||
+                cddm_poly_compare(mesh->mloop, mp, target_poly, vtargetmap, -1)) {
               found = true;
               break;
             }
@@ -430,7 +422,7 @@ Mesh *BKE_mesh_merge_verts(Mesh *mesh,
      * or they were all merged, but targets do not make up an identical poly,
      * the poly is retained.
      */
-    ml = src_loops + mp->loopstart;
+    ml = mesh->mloop + mp->loopstart;
 
     c = 0;
     MLoop *last_valid_ml = NULL;
@@ -442,9 +434,9 @@ Mesh *BKE_mesh_merge_verts(Mesh *mesh,
       const uint mlv = (vtargetmap[ml->v] != -1) ? vtargetmap[ml->v] : ml->v;
 #ifndef NDEBUG
       {
-        const MLoop *next_ml = src_loops + mp->loopstart + ((j + 1) % mp->totloop);
+        MLoop *next_ml = mesh->mloop + mp->loopstart + ((j + 1) % mp->totloop);
         uint next_mlv = (vtargetmap[next_ml->v] != -1) ? vtargetmap[next_ml->v] : next_ml->v;
-        med = src_edges + ml->e;
+        med = mesh->medge + ml->e;
         uint v1 = (vtargetmap[med->v1] != -1) ? vtargetmap[med->v1] : med->v1;
         uint v2 = (vtargetmap[med->v2] != -1) ? vtargetmap[med->v2] : med->v2;
         BLI_assert((mlv == v1 && next_mlv == v2) || (mlv == v2 && next_mlv == v1));
@@ -469,7 +461,7 @@ Mesh *BKE_mesh_merge_verts(Mesh *mesh,
           else {
             const int new_eidx = STACK_SIZE(medge);
             STACK_PUSH(olde, olde[last_valid_ml->e]);
-            STACK_PUSH(medge, src_edges[last_valid_ml->e]);
+            STACK_PUSH(medge, mesh->medge[last_valid_ml->e]);
             medge[new_eidx].v1 = last_valid_ml->v;
             medge[new_eidx].v2 = ml->v;
             /* DO NOT change newe mapping,
@@ -523,7 +515,7 @@ Mesh *BKE_mesh_merge_verts(Mesh *mesh,
       else {
         const int new_eidx = STACK_SIZE(medge);
         STACK_PUSH(olde, olde[last_valid_ml->e]);
-        STACK_PUSH(medge, src_edges[last_valid_ml->e]);
+        STACK_PUSH(medge, mesh->medge[last_valid_ml->e]);
         medge[new_eidx].v1 = last_valid_ml->v;
         medge[new_eidx].v2 = first_valid_ml->v;
         /* DO NOT change newe mapping,
@@ -574,25 +566,25 @@ Mesh *BKE_mesh_merge_verts(Mesh *mesh,
       mesh, STACK_SIZE(mvert), STACK_SIZE(medge), 0, STACK_SIZE(mloop), STACK_SIZE(mpoly));
 
   /* Update edge indices and copy customdata. */
-  MEdge *new_med = medge;
-  for (i = 0; i < result->totedge; i++, new_med++) {
-    BLI_assert(newv[new_med->v1] != -1);
-    new_med->v1 = newv[new_med->v1];
-    BLI_assert(newv[new_med->v2] != -1);
-    new_med->v2 = newv[new_med->v2];
+  med = medge;
+  for (i = 0; i < result->totedge; i++, med++) {
+    BLI_assert(newv[med->v1] != -1);
+    med->v1 = newv[med->v1];
+    BLI_assert(newv[med->v2] != -1);
+    med->v2 = newv[med->v2];
 
     /* Can happen in case vtargetmap contains some double chains, we do not support that. */
-    BLI_assert(new_med->v1 != new_med->v2);
+    BLI_assert(med->v1 != med->v2);
 
     CustomData_copy_data(&mesh->edata, &result->edata, olde[i], i, 1);
   }
 
   /* Update loop indices and copy customdata. */
-  MLoop *new_ml = mloop;
-  for (i = 0; i < result->totloop; i++, new_ml++) {
+  ml = mloop;
+  for (i = 0; i < result->totloop; i++, ml++) {
     /* Edge remapping has already be done in main loop handling part above. */
-    BLI_assert(newv[new_ml->v] != -1);
-    new_ml->v = newv[new_ml->v];
+    BLI_assert(newv[ml->v] != -1);
+    ml->v = newv[ml->v];
 
     CustomData_copy_data(&mesh->ldata, &result->ldata, oldl[i], i, 1);
   }
@@ -611,16 +603,16 @@ Mesh *BKE_mesh_merge_verts(Mesh *mesh,
 
   /* Copy over data. #CustomData_add_layer can do this, need to look it up. */
   if (STACK_SIZE(mvert)) {
-    memcpy(BKE_mesh_verts_for_write(result), mvert, sizeof(MVert) * STACK_SIZE(mvert));
+    memcpy(result->mvert, mvert, sizeof(MVert) * STACK_SIZE(mvert));
   }
   if (STACK_SIZE(medge)) {
-    memcpy(BKE_mesh_edges_for_write(result), medge, sizeof(MEdge) * STACK_SIZE(medge));
+    memcpy(result->medge, medge, sizeof(MEdge) * STACK_SIZE(medge));
   }
   if (STACK_SIZE(mloop)) {
-    memcpy(BKE_mesh_loops_for_write(result), mloop, sizeof(MLoop) * STACK_SIZE(mloop));
+    memcpy(result->mloop, mloop, sizeof(MLoop) * STACK_SIZE(mloop));
   }
   if (STACK_SIZE(mpoly)) {
-    memcpy(BKE_mesh_polys_for_write(result), mpoly, sizeof(MPoly) * STACK_SIZE(mpoly));
+    memcpy(result->mpoly, mpoly, sizeof(MPoly) * STACK_SIZE(mpoly));
   }
 
   MEM_freeN(mvert);

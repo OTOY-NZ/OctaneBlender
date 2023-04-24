@@ -1288,14 +1288,16 @@ namespace OctaneDataTransferObject {
 		std::string					sOCIOColorSpaceName;
 		std::string					sOCIOLookName;
 		bool						bForceToneMapping;
+		bool						bPremultipleAlpha;
 		int							iExportType;
 		int							iImageType;
 		int							iExrCompressionType;
+		int							iDWACompressionLevel;
 		OctaneSaveImage() : OctaneNodeBase(Octane::ENT_SAVE_IMAGES, "OctaneSaveImage") {}
 
 		OCTANE_NODE_SERIALIZARION_FUNCTIONS
 		OCTANE_NODE_POST_UPDATE_FUNCTIONS
-		MSGPACK_DEFINE(sPath, sFileName, sOctaneTag, sPassNames, iPasses, sOCIOColorSpaceName, sOCIOLookName, bForceToneMapping, iExportType, iImageType, iExrCompressionType, MSGPACK_BASE(OctaneNodeBase));
+		MSGPACK_DEFINE(sPath, sFileName, sOctaneTag, sPassNames, iPasses, sOCIOColorSpaceName, sOCIOLookName, bForceToneMapping, bPremultipleAlpha, iExportType, iImageType, iExrCompressionType, iDWACompressionLevel, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneCameraData : public OctaneNodeBase {
@@ -1459,6 +1461,7 @@ namespace OctaneDataTransferObject {
 		(OctaneDTORGB)		fSheen,
 		(OctaneDTOFloat)	fSheenRoughness,
 		(OctaneDTOFloat)	fIndexOfReflection,		
+		(OctaneDTOBool)		bAllowCaustics,
 		(OctaneDTOShader)	sBump,
 		(OctaneDTOShader)	tNormal,
 		(OctaneDTOShader)	tDisplacement,
@@ -1484,6 +1487,7 @@ namespace OctaneDataTransferObject {
 			fSheen("Sheen"),
 			fSheenRoughness("Sheen Roughness"),
 			fIndexOfReflection("Index"),
+			bAllowCaustics("Allow caustics"),
 			sBump("Bump"),
 			tNormal("Normal"),
 			tDisplacement("Displacement"),
@@ -1503,7 +1507,7 @@ namespace OctaneDataTransferObject {
 		OCTANE_NODE_SERIALIZARION_FUNCTIONS
 		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(fDiffuse, fSpecular, iBRDFModel, fRoughness, 
-			fAnisotropy, fRotation, fSheen, fSheenRoughness, fIndexOfReflection, 
+			fAnisotropy, fRotation, fSheen, fSheenRoughness, fIndexOfReflection, bAllowCaustics,
 			sBump, tNormal, tDisplacement, fOpacity, bSmooth, bSmoothShadowTerminator, iPriority, fRoundedEdgeRadius,
 			fFilmWidth, fFilmIndex, iCustomAOV, iCustomAOVChannel, tMaterialLayer, MSGPACK_BASE(OctaneNodeBase));
 	}; //struct OctaneGlossyMaterial
@@ -1518,6 +1522,7 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOFloat)	fAnisotropy,
 		(OctaneDTOFloat)	fRotation,
 		(OctaneDTOFloat)	fIndexOfReflection,
+		(OctaneDTOBool)		bAllowCaustics,
 		(OctaneDTOFloat)	fDispersionCoef,
 		(OctaneDTOShader)	sBump,
 		(OctaneDTOShader)	tNormal,
@@ -1546,6 +1551,7 @@ namespace OctaneDataTransferObject {
 			fAnisotropy("Anisotropy"),
 			fRotation("Rotation"),
 			fIndexOfReflection("Index"),
+			bAllowCaustics("Allow caustics"),
 			fDispersionCoef("Dispersion Coef."),
 			sBump("Bump"),
 			tNormal("Normal"),
@@ -1570,7 +1576,7 @@ namespace OctaneDataTransferObject {
 		OCTANE_NODE_SERIALIZARION_FUNCTIONS
 		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(fReflection, fTransmission, iBRDFModel, fRoughness, 
-			fAnisotropy, fRotation, fIndexOfReflection, fDispersionCoef, 
+			fAnisotropy, fRotation, fIndexOfReflection, bAllowCaustics, fDispersionCoef,
 			sBump, tNormal, tDisplacement, fOpacity, bSmooth, bSmoothShadowTerminator, iPriority,
 			fRoundedEdgeRadius, tMedium, bFakeShadows, bAffectAplha, bThinWall,
 			fFilmWidth, fFilmIndex, iCustomAOV, iCustomAOVChannel, tMaterialLayer, MSGPACK_BASE(OctaneNodeBase));
@@ -1643,6 +1649,7 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOFloat2)	fIndexOfReflection,
 		(OctaneDTOFloat2)	fIndexOfReflectionGreen,
 		(OctaneDTOFloat2)	fIndexOfReflectionBlue,
+		(OctaneDTOBool)		bAllowCaustics,
 		(OctaneDTOShader)	tBump,
 		(OctaneDTOShader)	tNormal,
 		(OctaneDTOShader)	tDisplacement,
@@ -1672,6 +1679,7 @@ namespace OctaneDataTransferObject {
 			fIndexOfReflection("IOR"),
 			fIndexOfReflectionGreen("IOR(green)"),
 			fIndexOfReflectionBlue("IOR(blue)"),
+			bAllowCaustics("Allow caustics"),
 			tBump("Bump"),
 			tNormal("Normal"),
 			tDisplacement("Displacement"),
@@ -1692,7 +1700,7 @@ namespace OctaneDataTransferObject {
 		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(tDiffuse, fSpecular, tSpecularMap, iBRDFModel, fRoughness, 
 			fAnisotropy, fRotation, fSheen, fSheenRoughness, iIORModel, fIndexOfReflection, 
-			fIndexOfReflectionGreen, fIndexOfReflectionBlue, tBump, tNormal, 
+			fIndexOfReflectionGreen, fIndexOfReflectionBlue, bAllowCaustics, tBump, tNormal,
 			tDisplacement, fOpacity, bSmooth, bSmoothShadowTerminator, iPriority, fRoundedEdgeRadius,
 			fFilmWidth, fFilmIndex, iCustomAOV, iCustomAOVChannel, tMaterialLayer, MSGPACK_BASE(OctaneNodeBase));
 	}; //struct OctaneMetalMaterial
@@ -1705,13 +1713,14 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOEnum)		iIORModel,
 		(OctaneDTOFloat2)	fIOR,
 		(OctaneDTOFloat2)	fIORGreen,
-		(OctaneDTOFloat2)	fIORBlue
+		(OctaneDTOFloat2)	fIORBlue,
+		(OctaneDTOBool)		bAllowCaustics
         )
 
 		OctaneUniversalIOR() : OctaneNodeBase(Octane::NT_UNKNOWN, "") {}
 		OCTANE_NODE_SERIALIZARION_FUNCTIONS
 		OCTANE_NODE_VISIT_FUNCTIONS
-		MSGPACK_DEFINE(fBaseIOR, tBaseIORMap, iIORModel, fIOR, fIORGreen, fIORBlue, MSGPACK_BASE(OctaneNodeBase));
+		MSGPACK_DEFINE(fBaseIOR, tBaseIORMap, iIORModel, fIOR, fIORGreen, fIORBlue, bAllowCaustics, MSGPACK_BASE(OctaneNodeBase));
     };
 
 	struct OctaneUniversalCoating : public OctaneNodeBase {
@@ -1768,6 +1777,7 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOFloat2)	fIndexOfReflection,
 		(OctaneDTOFloat2)	fIndexOfReflectionGreen,
 		(OctaneDTOFloat2)	fIndexOfReflectionBlue,
+		(OctaneDTOBool)		bAllowCaustics,
 		//Coating Layer
 		(OctaneDTORGB)		fCoating,
 		(OctaneDTOFloat)	fCoatingRoughness,
@@ -1827,6 +1837,7 @@ namespace OctaneDataTransferObject {
 			fIndexOfReflection("Metallic IOR"),
 			fIndexOfReflectionGreen("Metallic IOR(green)"),
 			fIndexOfReflectionBlue("Metallic IOR(blue)"),
+			bAllowCaustics("Allow caustics"),
 			//Coating Layer
 			fCoating("Coating"),
 			fCoatingRoughness("Coating Roughness"),
@@ -1871,6 +1882,7 @@ namespace OctaneDataTransferObject {
 			oOctaneUniversalIOR.fIOR = fIndexOfReflection;
 			oOctaneUniversalIOR.fIORGreen = fIndexOfReflectionGreen;
 			oOctaneUniversalIOR.fIORBlue = fIndexOfReflectionBlue;
+			oOctaneUniversalIOR.bAllowCaustics = bAllowCaustics;
 
 			oOctaneUniversalCoating.fCoating = fCoating;
 			oOctaneUniversalCoating.fCoatingRoughness = fCoatingRoughness;
@@ -1891,6 +1903,7 @@ namespace OctaneDataTransferObject {
 			fIndexOfReflection = oOctaneUniversalIOR.fIOR;
 			fIndexOfReflectionGreen = oOctaneUniversalIOR.fIORGreen;
 			fIndexOfReflectionBlue = oOctaneUniversalIOR.fIORBlue;
+			bAllowCaustics = oOctaneUniversalIOR.bAllowCaustics;
 
 			fCoating = oOctaneUniversalCoating.fCoating;
 			fCoatingRoughness = oOctaneUniversalCoating.fCoatingRoughness;
@@ -2125,6 +2138,7 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOFloat2)	fIndexOfReflection,
 		(OctaneDTOFloat2)	fIndexOfReflectionGreen,
 		(OctaneDTOFloat2)	fIndexOfReflectionBlue,
+		(OctaneDTOBool)		bAllowCaustics,
 		(OctaneDTOFloat)	fFilmWidth,
 		(OctaneDTOFloat)	fFilmIndex,
 		(OctaneDTOShader)	tBump,
@@ -2142,6 +2156,7 @@ namespace OctaneDataTransferObject {
 			fIndexOfReflection("IOR"),
 			fIndexOfReflectionGreen("IOR(green)"),
 			fIndexOfReflectionBlue("IOR(blue)"),
+			bAllowCaustics("Allow caustics"),
 			fFilmWidth("Film Width"),
 			fFilmIndex("Film Index"),
 			tBump("Bump"),
@@ -2154,7 +2169,7 @@ namespace OctaneDataTransferObject {
 		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(fSpecular, iBRDFModel, 
 			fRoughness, fAnisotropy, fRotation, 
-			iIORModel, fIndexOfReflection, fIndexOfReflectionGreen, fIndexOfReflectionBlue,
+			iIORModel, fIndexOfReflection, fIndexOfReflectionGreen, fIndexOfReflectionBlue, bAllowCaustics,
 			fFilmWidth, fFilmIndex,
 			tBump, tNormal,
 			fLayerOpacity, MSGPACK_BASE(OctaneNodeBase));
@@ -2197,6 +2212,7 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOFloat)	fAnisotropy,
 		(OctaneDTOFloat)	fRotation,
 		(OctaneDTOFloat)	fIOR,
+		(OctaneDTOBool)		bAllowCaustics,
 		(OctaneDTOShader)	tIORMap,
 		(OctaneDTOFloat)	fFilmWidth,
 		(OctaneDTOFloat)	fFilmIndex,
@@ -2216,6 +2232,7 @@ namespace OctaneDataTransferObject {
 			fAnisotropy("Anisotropy"),
 			fRotation("Rotation"),
 			fIOR("IOR"),
+			bAllowCaustics("Allow caustics"),
 			tIORMap("1|IOR map"),
 			fFilmWidth("Film Width"),
 			fFilmIndex("Film Index"),
@@ -2231,7 +2248,7 @@ namespace OctaneDataTransferObject {
 		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(fSpecular, fTransmission, iBRDFModel,
 			fRoughness, fAffectRoughness, fAnisotropy, fRotation,
-			fIOR, tIORMap,
+			fIOR, bAllowCaustics, tIORMap,
 			fFilmWidth, fFilmIndex,
 			bThinLayer,
 			tBump, tNormal, 
@@ -2856,7 +2873,8 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOBool)		bLinearSpaceInvert,
 		(OctaneDTOShader)	tTransform,
 		(OctaneDTOShader)	tProjection,
-		(OctaneDTOEnum)		iBorderMode
+		(OctaneDTOEnum)		iBorderModeU,
+		(OctaneDTOEnum)		iBorderModeV
 		)
 
 		OctaneImageTexture() :
@@ -2867,13 +2885,14 @@ namespace OctaneDataTransferObject {
 			bLinearSpaceInvert("Linear space invert"),
 			tTransform("Transform"),
 			tProjection("Projection"),
-			iBorderMode("border_mode", false),
+			iBorderModeU("border_mode_u", false),
+			iBorderModeV("border_mode_v", false),
 			OctaneBaseImageNode(Octane::NT_TEX_IMAGE, "ShaderNodeOctImageTex")
 		{
 		}
 		OCTANE_NODE_SERIALIZARION_FUNCTIONS
 		OCTANE_NODE_VISIT_FUNCTIONS
-		MSGPACK_DEFINE(fPower, fGamma, sColorSpace, bInvert, bLinearSpaceInvert, tTransform, tProjection, iBorderMode, MSGPACK_BASE(OctaneBaseImageNode));
+		MSGPACK_DEFINE(fPower, fGamma, sColorSpace, bInvert, bLinearSpaceInvert, tTransform, tProjection, iBorderModeU, iBorderModeV, MSGPACK_BASE(OctaneBaseImageNode));
 	}; 
 
 	struct OctaneImageTileTexture : public OctaneNodeBase {
@@ -2885,6 +2904,7 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOInt)		iStart,
 		(OctaneDTOInt)		iDigits,
 		(OctaneDTOFloat)	fPower,
+		(OctaneDTOShader)	sColorSpace,
 		(OctaneDTOFloat)	fGamma,
 		(OctaneDTOBool)		bInvert,
 		(OctaneDTOBool)		bLinearSpaceInvert,
@@ -2904,6 +2924,7 @@ namespace OctaneDataTransferObject {
 			fPower("Power"),
 			fGamma("Gamma"),
 			bInvert("Invert"),
+			sColorSpace("Color space"),
 			bLinearSpaceInvert("Linear space invert"),
 			tTransform("Transform"),
 			tProjection("Projection"),
@@ -2914,7 +2935,7 @@ namespace OctaneDataTransferObject {
 		OCTANE_NODE_SERIALIZARION_FUNCTIONS
 		OCTANE_NODE_VISIT_FUNCTIONS
 		OCTANE_NODE_PRE_UPDATE_FUNCTIONS
-		MSGPACK_DEFINE(iHDRDepthType, iGridSizeX, iGridSizeY, iStart, iDigits, fPower, fGamma, bInvert, bLinearSpaceInvert, tTransform, tProjection, fEmptyTileColor, iGridSize, sFiles, MSGPACK_BASE(OctaneNodeBase));
+		MSGPACK_DEFINE(iHDRDepthType, iGridSizeX, iGridSizeY, iStart, iDigits, fPower, sColorSpace, fGamma, bInvert, bLinearSpaceInvert, tTransform, tProjection, fEmptyTileColor, iGridSize, sFiles, MSGPACK_BASE(OctaneNodeBase));
 	}; //struct OctaneImageTileTexture
 
 	struct OctaneFloatVertexAttributeTexture : public OctaneNodeBase {
@@ -2955,6 +2976,7 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOFloat)	fPower,
 		(OctaneDTOFloat)	fGamma,
 		(OctaneDTOBool)		bInvert,
+		(OctaneDTOShader)	sColorSpace,
 		(OctaneDTOBool)		bLinearSpaceInvert
 		)
 
@@ -2962,13 +2984,14 @@ namespace OctaneDataTransferObject {
 			fPower("Power"),
 			fGamma("Gamma"),
 			bInvert("Invert"),
+			sColorSpace("Color space"),
 			bLinearSpaceInvert("Linear space invert"),
 			OctaneBaseImageNode(Octane::NT_TEX_INSTANCE_COLOR, "ShaderNodeOctInstanceColorTex")
 		{
 		}
 		OCTANE_NODE_SERIALIZARION_FUNCTIONS
 		OCTANE_NODE_VISIT_FUNCTIONS
-		MSGPACK_DEFINE(fPower, fGamma, bInvert, bLinearSpaceInvert, MSGPACK_BASE(OctaneBaseImageNode));
+		MSGPACK_DEFINE(fPower, fGamma, sColorSpace, bInvert, bLinearSpaceInvert, MSGPACK_BASE(OctaneBaseImageNode));
 	}; 
 
 	struct OSLNodeInfo : public OctaneNodeBase
@@ -3029,26 +3052,30 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOFloat)	fPower,
 		(OctaneDTOFloat)	fGamma,
 		(OctaneDTOBool)		bInvert,
+		(OctaneDTOShader)	sColorSpace,
 		(OctaneDTOBool)		bLinearSpaceInvert,
 		(OctaneDTOShader)	tTransform,
 		(OctaneDTOShader)	tProjection,
-		(OctaneDTOEnum)		iBorderMode
+		(OctaneDTOEnum)		iBorderModeU,
+		(OctaneDTOEnum)		iBorderModeV
 		)
 
 		OctaneFloatImageTexture() :
 			fPower("Power"),
 			fGamma("Gamma"),
 			bInvert("Invert"),
+			sColorSpace("Color space"),
 			bLinearSpaceInvert("Linear space invert"),
 			tTransform("Transform"),
 			tProjection("Projection"),
-			iBorderMode("border_mode", false),
+			iBorderModeU("border_mode_u", false),
+			iBorderModeV("border_mode_v", false),
 			OctaneBaseImageNode(Octane::NT_TEX_FLOATIMAGE, "ShaderNodeOctFloatImageTex")
 		{
 		}
 		OCTANE_NODE_SERIALIZARION_FUNCTIONS
 		OCTANE_NODE_VISIT_FUNCTIONS
-		MSGPACK_DEFINE(fPower, fGamma, bInvert, bLinearSpaceInvert, tTransform, tProjection, iBorderMode, MSGPACK_BASE(OctaneBaseImageNode));
+		MSGPACK_DEFINE(fPower, fGamma, bInvert, sColorSpace, bLinearSpaceInvert, tTransform, tProjection, iBorderModeU, iBorderModeV, MSGPACK_BASE(OctaneBaseImageNode));
 	}; 
 
 	struct OctaneAlphaImageTexture : public OctaneBaseImageNode {
@@ -3057,26 +3084,30 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOFloat)	fPower,
 		(OctaneDTOFloat)	fGamma,
 		(OctaneDTOBool)		bInvert,
+		(OctaneDTOShader)	sColorSpace,
 		(OctaneDTOBool)		bLinearSpaceInvert,
 		(OctaneDTOShader)	tTransform,
 		(OctaneDTOShader)	tProjection,
-		(OctaneDTOEnum)		iBorderMode
+		(OctaneDTOEnum)		iBorderModeU,
+		(OctaneDTOEnum)		iBorderModeV
 		)
 
 		OctaneAlphaImageTexture() :
 			fPower("Power"),
 			fGamma("Gamma"),
 			bInvert("Invert"),
+			sColorSpace("Color space"),
 			bLinearSpaceInvert("Linear space invert"),
 			tTransform("Transform"),
 			tProjection("Projection"),
-			iBorderMode("border_mode", false),
+			iBorderModeU("border_mode_u", false),
+			iBorderModeV("border_mode_v", false),
 			OctaneBaseImageNode(Octane::NT_TEX_ALPHAIMAGE, "ShaderNodeOctAlphaImageTex")
 		{
 		}
 		OCTANE_NODE_SERIALIZARION_FUNCTIONS
 		OCTANE_NODE_VISIT_FUNCTIONS
-		MSGPACK_DEFINE(fPower, fGamma, bInvert, bLinearSpaceInvert, tTransform, tProjection, iBorderMode, MSGPACK_BASE(OctaneBaseImageNode));
+		MSGPACK_DEFINE(fPower, fGamma, sColorSpace, bInvert, bLinearSpaceInvert, tTransform, tProjection, iBorderModeU, iBorderModeV, MSGPACK_BASE(OctaneBaseImageNode));
 	}; 
 
 	struct OctaneDirtTexture : public OctaneNodeBase {
@@ -3534,7 +3565,8 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOBool)		bInvert,
 		(OctaneDTOShader)	tTransform,
 		(OctaneDTOShader)	tProjection,
-		(OctaneDTOEnum)		iBorderMode
+		(OctaneDTOEnum)		iBorderModeU,
+		(OctaneDTOEnum)		iBorderModeV
 		)
 
 		OctaneBakingTexture() :
@@ -3550,7 +3582,8 @@ namespace OctaneDataTransferObject {
 			bInvert("Invert"),
 			tTransform("Transform"),
 			tProjection("Projection"),
-			iBorderMode("border_mode", false),
+			iBorderModeU("border_mode_u", false),
+			iBorderModeV("border_mode_v", false),
 			OctaneNodeBase(Octane::NT_TEX_BAKED_IMAGE, "ShaderNodeOctBakingTex")
 		{
 		}
@@ -3562,7 +3595,7 @@ namespace OctaneDataTransferObject {
 
 		OCTANE_NODE_SERIALIZARION_FUNCTIONS
 		OCTANE_NODE_VISIT_FUNCTIONS
-		MSGPACK_DEFINE(fTexture, bEnableBaking, iResolution, iResolutionX, iResolutionY, iSamplePerPixel, iTextureType, bRGBBaking, fPower, fGamma, bInvert, tTransform, tProjection, iBorderMode, MSGPACK_BASE(OctaneNodeBase));
+		MSGPACK_DEFINE(fTexture, bEnableBaking, iResolution, iResolutionX, iResolutionY, iSamplePerPixel, iTextureType, bRGBBaking, fPower, fGamma, bInvert, tTransform, tProjection, iBorderModeU, iBorderModeV, MSGPACK_BASE(OctaneNodeBase));
 	}; 
 
 	struct OctaneUVWTransformTexture : public OctaneNodeBase {
@@ -4661,7 +4694,8 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOFloat)	fScaleLightID7,
 		(OctaneDTOBool)		bEnableLightID8,
 		(OctaneDTOFloat3)	f3TintLightID8,
-		(OctaneDTOFloat)	fScaleLightID8
+		(OctaneDTOFloat)	fScaleLightID8,
+		(OctaneDTOInt)		iEnableLightIDMask
 		)
 
 		OctaneLightMixingAovOutput() :
@@ -4700,19 +4734,43 @@ namespace OctaneDataTransferObject {
 			OctaneNodeBase(Octane::NT_OUTPUT_AOV_LIGHT_MIXING, "ShaderNodeOctLightMixingAovOutput")
 		{
 		}
+		
+		void PackAttributes() {
+			iEnableLightIDMask.iVal |= ((bEnableLightID1.bVal ? 1 : 0) << 1);
+			iEnableLightIDMask.iVal |= ((bEnableLightID2.bVal ? 1 : 0) << 2);
+			iEnableLightIDMask.iVal |= ((bEnableLightID3.bVal ? 1 : 0) << 3);
+			iEnableLightIDMask.iVal |= ((bEnableLightID4.bVal ? 1 : 0) << 4);
+			iEnableLightIDMask.iVal |= ((bEnableLightID5.bVal ? 1 : 0) << 5);
+			iEnableLightIDMask.iVal |= ((bEnableLightID6.bVal ? 1 : 0) << 6);
+			iEnableLightIDMask.iVal |= ((bEnableLightID7.bVal ? 1 : 0) << 7);
+			iEnableLightIDMask.iVal |= ((bEnableLightID8.bVal ? 1 : 0) << 8);
+		}
+
+		void UnpackAttributes() {
+			bEnableLightID1 = iEnableLightIDMask.iVal & (1 << 1);
+			bEnableLightID2 = iEnableLightIDMask.iVal & (1 << 2);
+			bEnableLightID3 = iEnableLightIDMask.iVal & (1 << 3);
+			bEnableLightID4 = iEnableLightIDMask.iVal & (1 << 4);
+			bEnableLightID5 = iEnableLightIDMask.iVal & (1 << 5);
+			bEnableLightID6 = iEnableLightIDMask.iVal & (1 << 6);
+			bEnableLightID7 = iEnableLightIDMask.iVal & (1 << 7);
+			bEnableLightID8 = iEnableLightIDMask.iVal & (1 << 8);
+		}
+			
 		OCTANE_NODE_SERIALIZARION_FUNCTIONS
 		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(bEnableImager, bEnablePostFX, 
 			bEnableSunlight, f3TintSunlight, fScaleSunlight, 
 			bEnableEnvironment, f3TintEnvironment, fScaleEnvironment,
-			bEnableLightID1, f3TintLightID1, fScaleLightID1,
-			bEnableLightID2, f3TintLightID2, fScaleLightID2,
-			bEnableLightID3, f3TintLightID3, fScaleLightID3,
-			bEnableLightID4, f3TintLightID4, fScaleLightID4,
-			bEnableLightID5, f3TintLightID5, fScaleLightID5,
-			bEnableLightID6, f3TintLightID6, fScaleLightID6,
-			bEnableLightID7, f3TintLightID7, fScaleLightID7,
-			bEnableLightID8, f3TintLightID8, fScaleLightID8,
+			f3TintLightID1, fScaleLightID1,
+			f3TintLightID2, fScaleLightID2,
+			f3TintLightID3, fScaleLightID3,
+			f3TintLightID4, fScaleLightID4,
+			f3TintLightID5, fScaleLightID5,
+			f3TintLightID6, fScaleLightID6,
+			f3TintLightID7, fScaleLightID7,
+			f3TintLightID8, fScaleLightID8,
+			iEnableLightIDMask,
 			MSGPACK_BASE(OctaneNodeBase));
 	}; //struct OctaneLightMixingAovOutput
 

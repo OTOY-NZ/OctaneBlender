@@ -5,7 +5,6 @@ set(INC
   ../../blenfont
   ../../blenkernel
   ../../blenlib
-  ../../blenloader
   ../../blentranslation
   ../../compositor
   ../../depsgraph
@@ -18,18 +17,14 @@ set(INC
   ../../nodes
   ../../render
   ../../windowmanager
+  ../../../../intern/glew-mx
   ../../../../intern/guardedalloc
-
-  # dna_type_offsets.h
-  ${CMAKE_CURRENT_BINARY_DIR}/../../makesdna/intern
   # RNA_prototypes.h
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
 
 set(SRC
-  add_node_search.cc
-  add_menu_assets.cc
   drawnode.cc
   link_drag_search.cc
   node_add.cc
@@ -55,8 +50,8 @@ set(LIB
   bf_editor_screen
 )
 
-if(WITH_COMPOSITOR_CPU)
-  add_definitions(-DWITH_COMPOSITOR_CPU)
+if(WITH_COMPOSITOR)
+  add_definitions(-DWITH_COMPOSITOR)
 endif()
 
 if(WITH_OPENIMAGEDENOISE)
@@ -85,5 +80,5 @@ endif()
 
 blender_add_lib(bf_editor_space_node "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
-# RNA_prototypes.h dna_type_offsets.h
+# RNA_prototypes.h
 add_dependencies(bf_editor_space_node bf_rna)

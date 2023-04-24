@@ -6,7 +6,6 @@
 #include "BKE_curve.h"
 #include "BKE_curve_legacy_convert.hh"
 #include "BKE_curves.hh"
-#include "BKE_instances.hh"
 #include "BKE_vfont.h"
 
 #include "BLI_hash.h"
@@ -77,7 +76,7 @@ static void node_layout(uiLayout *layout, struct bContext *C, PointerRNA *ptr)
   uiItemR(layout, ptr, "pivot_mode", 0, IFACE_("Pivot Point"), ICON_NONE);
 }
 
-static void node_init(bNodeTree * /*tree*/, bNode *node)
+static void node_init(bNodeTree *UNUSED(ntree), bNode *node)
 {
   NodeGeometryStringToCurves *data = MEM_cnew<NodeGeometryStringToCurves>(__func__);
 
@@ -86,7 +85,7 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
   data->align_y = GEO_NODE_STRING_TO_CURVES_ALIGN_Y_TOP_BASELINE;
   data->pivot_mode = GEO_NODE_STRING_TO_CURVES_PIVOT_MODE_BOTTOM_LEFT;
   node->storage = data;
-  node->id = reinterpret_cast<ID *>(BKE_vfont_builtin_get());
+  node->id = (ID *)BKE_vfont_builtin_get();
 }
 
 static void node_update(bNodeTree *ntree, bNode *node)
@@ -94,11 +93,11 @@ static void node_update(bNodeTree *ntree, bNode *node)
   const NodeGeometryStringToCurves &storage = node_storage(*node);
   const GeometryNodeStringToCurvesOverflowMode overflow = (GeometryNodeStringToCurvesOverflowMode)
                                                               storage.overflow;
-  bNodeSocket *socket_remainder = static_cast<bNodeSocket *>(node->outputs.first)->next;
+  bNodeSocket *socket_remainder = ((bNodeSocket *)node->outputs.first)->next;
   nodeSetSocketAvailability(
       ntree, socket_remainder, overflow == GEO_NODE_STRING_TO_CURVES_MODE_TRUNCATE);
 
-  bNodeSocket *height_socket = static_cast<bNodeSocket *>(node->inputs.last);
+  bNodeSocket *height_socket = (bNodeSocket *)node->inputs.last;
   nodeSetSocketAvailability(
       ntree, height_socket, overflow != GEO_NODE_STRING_TO_CURVES_MODE_OVERFLOW);
 }
@@ -204,7 +203,7 @@ static std::optional<TextLayout> get_text_layout(GeoNodeExecParams &params)
   cu.linedist = line_spacing;
   cu.vfont = vfont;
   cu.overflow = overflow;
-  cu.tb = static_cast<TextBox *>(MEM_calloc_arrayN(MAXTEXTBOX, sizeof(TextBox), __func__));
+  cu.tb = (TextBox *)MEM_calloc_arrayN(MAXTEXTBOX, sizeof(TextBox), __func__);
   cu.tb->w = textbox_w;
   cu.tb->h = textbox_h;
   cu.totbox = 1;
@@ -214,8 +213,8 @@ static std::optional<TextLayout> get_text_layout(GeoNodeExecParams &params)
   cu.len = len_bytes;
   cu.pos = len_chars;
   /* The reason for the additional character here is unknown, but reflects other code elsewhere. */
-  cu.str = static_cast<char *>(MEM_mallocN(len_bytes + sizeof(char32_t), __func__));
-  cu.strinfo = static_cast<CharInfo *>(MEM_callocN((len_chars + 1) * sizeof(CharInfo), __func__));
+  cu.str = (char *)MEM_mallocN(len_bytes + sizeof(char32_t), __func__);
+  cu.strinfo = (CharInfo *)MEM_callocN((len_chars + 1) * sizeof(CharInfo), __func__);
   BLI_strncpy(cu.str, layout.text.c_str(), len_bytes + 1);
 
   struct CharTrans *chartransdata = nullptr;
@@ -227,7 +226,7 @@ static std::optional<TextLayout> get_text_layout(GeoNodeExecParams &params)
       nullptr, &cu, FO_DUPLI, nullptr, &r_text, &text_len, &text_free, &chartransdata);
 
   if (text_free) {
-    MEM_freeN(const_cast<char32_t *>(r_text));
+    MEM_freeN((void *)r_text);
   }
 
   Span<CharInfo> info{cu.strinfo, text_len};
@@ -271,9 +270,9 @@ static std::optional<TextLayout> get_text_layout(GeoNodeExecParams &params)
 /* Returns a mapping of UTF-32 character code to instance handle. */
 static Map<int, int> create_curve_instances(GeoNodeExecParams &params,
                                             TextLayout &layout,
-                                            bke::Instances &instances)
+                                            InstancesComponent &instances)
 {
-  VFont *vfont = reinterpret_cast<VFont *>(params.node().id);
+  VFont *vfont = (VFont *)params.node().id;
   Map<int, int> handles;
   bool pivot_required = params.output_is_required("Pivot Point");
 
@@ -316,13 +315,13 @@ static Map<int, int> create_curve_instances(GeoNodeExecParams &params,
   return handles;
 }
 
-static void add_instances_from_handles(bke::Instances &instances,
+static void add_instances_from_handles(InstancesComponent &instances,
                                        const Map<int, int> &char_handles,
                                        const TextLayout &layout)
 {
   instances.resize(layout.positions.size());
-  MutableSpan<int> handles = instances.reference_handles();
-  MutableSpan<float4x4> transforms = instances.transforms();
+  MutableSpan<int> handles = instances.instance_reference_handles();
+  MutableSpan<float4x4> transforms = instances.instance_transforms();
 
   threading::parallel_for(IndexRange(layout.positions.size()), 256, [&](IndexRange range) {
     for (const int i : range) {
@@ -334,9 +333,9 @@ static void add_instances_from_handles(bke::Instances &instances,
 
 static void create_attributes(GeoNodeExecParams &params,
                               const TextLayout &layout,
-                              bke::Instances &instances)
+                              InstancesComponent &instances)
 {
-  MutableAttributeAccessor attributes = instances.attributes_for_write();
+  MutableAttributeAccessor attributes = *instances.attributes_for_write();
 
   if (params.output_is_required("Line")) {
     StrongAnonymousAttributeID line_id = StrongAnonymousAttributeID("Line");
@@ -386,12 +385,13 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   /* Create and add instances. */
-  std::unique_ptr<bke::Instances> instances = std::make_unique<bke::Instances>();
-  Map<int, int> char_handles = create_curve_instances(params, *layout, *instances);
-  add_instances_from_handles(*instances, char_handles, *layout);
-  create_attributes(params, *layout, *instances);
+  GeometrySet geometry_set_out;
+  InstancesComponent &instances = geometry_set_out.get_component_for_write<InstancesComponent>();
+  Map<int, int> char_handles = create_curve_instances(params, *layout, instances);
+  add_instances_from_handles(instances, char_handles, *layout);
+  create_attributes(params, *layout, instances);
 
-  params.set_output("Curve Instances", GeometrySet::create_with_instances(instances.release()));
+  params.set_output("Curve Instances", std::move(geometry_set_out));
 }
 
 }  // namespace blender::nodes::node_geo_string_to_curves_cc

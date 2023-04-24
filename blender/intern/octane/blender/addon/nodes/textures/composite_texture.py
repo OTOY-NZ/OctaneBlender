@@ -15,12 +15,13 @@ class OctaneCompositeTextureClamp(OctaneBaseSocket):
     bl_idname="OctaneCompositeTextureClamp"
     bl_label="Clamp"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type=11
+    octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=628)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="clamp")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
+    octane_pin_id=consts.PinID.P_CLAMP
+    octane_pin_name="clamp"
+    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Clamp the result of blending each layer to [0,1] (ignored when used as a normal map)")
     octane_hide_value=False
     octane_min_version=10020600
@@ -36,13 +37,13 @@ class OctaneCompositeTexture(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneCompositeTextureClamp,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=176)
-    octane_socket_list: StringProperty(name="Socket List", default="Clamp;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="a_layer_count;")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="layerCount;")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="2;")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=1)
+    octane_node_type=consts.NodeType.NT_TEX_COMPOSITE
+    octane_socket_list=["Clamp", ]
+    octane_attribute_list=["a_layer_count", ]
+    octane_attribute_config={"a_layer_count": [consts.AttributeID.A_LAYER_COUNT, "layerCount", consts.AttributeType.AT_INT], "a_input_action": [consts.AttributeID.A_INPUT_ACTION, "inputAction", consts.AttributeType.AT_INT2], }
+    octane_static_pin_count=1
 
     a_layer_count: IntProperty(name="Layer count", default=0, update=OctaneBaseNode.update_node_tree, description="The number of layers. Changing this value and evaluating the node will update the number of layers. New layers will be added to the front of the dynamic pin list")
 
@@ -68,7 +69,7 @@ def unregister():
 
 ##### END OCTANE GENERATED CODE BLOCK #####
 
-from ...utils import utility
+from octane.utils import utility
 
 
 class OctaneCompositeTextureMovableTextureLayerInput(OctaneMovableInput):
@@ -79,7 +80,8 @@ class OctaneCompositeTextureMovableTextureLayerInput(OctaneMovableInput):
     octane_input_format_pattern="Layer {}"
     octane_reversed_input_sockets=True
     color=consts.OctanePinColor.CompositeTextureLayer
-    octane_default_node_type="OctaneCompositeTextureLayer"
+    octane_default_node_type=consts.NodeType.NT_TEX_COMPOSITE_LAYER
+    octane_default_node_name="OctaneCompositeTextureLayer"    
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEX_COMPOSITE_LAYER)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)    
 

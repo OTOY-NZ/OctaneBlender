@@ -20,13 +20,13 @@ class OctaneIntValue(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=9)
-    octane_socket_list: StringProperty(name="Socket List", default="")
-    octane_attribute_list: StringProperty(name="Attribute List", default="a_value;")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="value;")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="4;")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=0)
+    octane_node_type=consts.NodeType.NT_INT
+    octane_socket_list=[]
+    octane_attribute_list=["a_value", ]
+    octane_attribute_config={"a_value": [consts.AttributeID.A_VALUE, "value", consts.AttributeType.AT_INT3], }
+    octane_static_pin_count=0
 
     a_value: IntVectorProperty(name="Value", default=(0, 0, 0), size=3, update=OctaneBaseNode.update_node_tree, description="The value of the int node")
 
@@ -49,8 +49,6 @@ def unregister():
     utility.octane_unregister_class(reversed(_CLASSES))
 
 ##### END OCTANE GENERATED CODE BLOCK #####
-
-from ...utils import utility
 
 class OctaneIntValue_Override(OctaneIntValue):
     def draw_buttons(self, context, layout):

@@ -7,10 +7,6 @@
 
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /**
  * Size of the sphere being dragged for trackball rotation within the view bounds.
  * also affects speed (smaller is faster).
@@ -270,12 +266,12 @@ void ED_view3d_smooth_view(struct bContext *C,
  * or when calling #ED_view3d_smooth_view_ex.
  * Otherwise pass in #V3D_SmoothParams.undo_str so an undo step is pushed as needed.
  */
-void ED_view3d_smooth_view_undo_begin(struct bContext *C, const struct ScrArea *area);
+void ED_view3d_smooth_view_undo_begin(struct bContext *C, struct ScrArea *area);
 /**
  * Run after multiple smooth-view operations have run to push undo as needed.
  */
 void ED_view3d_smooth_view_undo_end(struct bContext *C,
-                                    const struct ScrArea *area,
+                                    struct ScrArea *area,
                                     const char *undo_str,
                                     bool undo_grouped);
 
@@ -302,7 +298,3 @@ void VIEW3D_OT_zoom(struct wmOperatorType *ot);
 /* view3d_navigate_zoom_border.c */
 
 void VIEW3D_OT_zoom_border(struct wmOperatorType *ot);
-
-#ifdef __cplusplus
-}
-#endif

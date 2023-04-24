@@ -974,6 +974,7 @@ void BlenderSync::update_octane_camera_properties(Camera *cam,
     cam->oct_node.sOcioLook = ocio;
     resolve_octane_ocio_look_params(cam->oct_node.sOcioLook);
     cam->oct_node.bForceToneMapping = RNA_boolean_get(&imager, "force_tone_mapping");
+    cam->oct_node.bACESToneMapping = RNA_boolean_get(&imager, "aces_tone_mapping");
     cam->oct_node.fHighlightCompression = RNA_float_get(&imager, "highlight_compression");
     cam->oct_node.fWhiteSaturation = RNA_float_get(&imager, "saturate_to_white");
     cam->oct_node.iCameraImagerOrder = RNA_enum_get(&imager, "order");

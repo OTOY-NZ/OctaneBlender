@@ -181,13 +181,13 @@ static int armature_click_extrude_exec(bContext *C, wmOperator *UNUSED(op))
 
     const View3DCursor *curs = &scene->cursor;
     copy_v3_v3(newbone->tail, curs->location);
-    sub_v3_v3v3(newbone->tail, newbone->tail, obedit->object_to_world[3]);
+    sub_v3_v3v3(newbone->tail, newbone->tail, obedit->obmat[3]);
 
     if (a == 1) {
       newbone->tail[0] = -newbone->tail[0];
     }
 
-    copy_m3_m4(mat, obedit->object_to_world);
+    copy_m3_m4(mat, obedit->obmat);
     invert_m3_m3(imat, mat);
     mul_m3_v3(imat, newbone->tail);
 
@@ -541,7 +541,7 @@ static void updateDuplicateActionConstraintSettings(
   }
   BLI_freelistN(&ani_curves);
 
-  /* Make depsgraph aware of our changes. */
+  /* Make deps graph aware of our changes */
   DEG_id_tag_update(&act->id, ID_RECALC_ANIMATION_NO_FLUSH);
 }
 
@@ -920,7 +920,6 @@ EditBone *duplicateEditBone(EditBone *cur_bone, const char *name, ListBase *edit
 
 static int armature_duplicate_selected_exec(bContext *C, wmOperator *op)
 {
-  const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   const bool do_flip_names = RNA_boolean_get(op->ptr, "do_flip_names");
 
@@ -931,7 +930,7 @@ static int armature_duplicate_selected_exec(bContext *C, wmOperator *op)
 
   uint objects_len = 0;
   Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C), &objects_len);
+      view_layer, CTX_wm_view3d(C), &objects_len);
   for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
     EditBone *ebone_iter;
     /* The beginning of the duplicated bones in the edbo list */
@@ -1095,7 +1094,6 @@ static EditBone *get_symmetrized_bone(bArmature *arm, EditBone *bone)
  */
 static int armature_symmetrize_exec(bContext *C, wmOperator *op)
 {
-  const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   const int direction = RNA_enum_get(op->ptr, "direction");
   const int axis = 0;
@@ -1107,7 +1105,7 @@ static int armature_symmetrize_exec(bContext *C, wmOperator *op)
 
   uint objects_len = 0;
   Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C), &objects_len);
+      view_layer, CTX_wm_view3d(C), &objects_len);
   for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
     Object *obedit = objects[ob_index];
     bArmature *arm = obedit->data;
@@ -1351,14 +1349,13 @@ void ARMATURE_OT_symmetrize(wmOperatorType *ot)
 /* if forked && mirror-edit: makes two bones with flipped names */
 static int armature_extrude_exec(bContext *C, wmOperator *op)
 {
-  const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   const bool forked = RNA_boolean_get(op->ptr, "forked");
   bool changed_multi = false;
 
   uint objects_len = 0;
   Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C), &objects_len);
+      view_layer, CTX_wm_view3d(C), &objects_len);
   for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
     Object *ob = objects[ob_index];
     bArmature *arm = ob->data;
@@ -1569,8 +1566,8 @@ static int armature_bone_primitive_add_exec(bContext *C, wmOperator *op)
   copy_v3_v3(curs, CTX_data_scene(C)->cursor.location);
 
   /* Get inverse point for head and orientation for tail */
-  invert_m4_m4(obedit->world_to_object, obedit->object_to_world);
-  mul_m4_v3(obedit->world_to_object, curs);
+  invert_m4_m4(obedit->imat, obedit->obmat);
+  mul_m4_v3(obedit->imat, curs);
 
   if (rv3d && (U.flag & USER_ADD_VIEWALIGNED)) {
     copy_m3_m4(obmat, rv3d->viewmat);
@@ -1579,7 +1576,7 @@ static int armature_bone_primitive_add_exec(bContext *C, wmOperator *op)
     unit_m3(obmat);
   }
 
-  copy_m3_m4(viewmat, obedit->object_to_world);
+  copy_m3_m4(viewmat, obedit->obmat);
   mul_m3_m3m3(totmat, obmat, viewmat);
   invert_m3_m3(imat, totmat);
 

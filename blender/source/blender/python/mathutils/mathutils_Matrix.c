@@ -725,7 +725,7 @@ static PyObject *C_Matrix_Rotation(PyObject *cls, PyObject *args)
                     "cannot create a 2x2 rotation matrix around arbitrary axis");
     return NULL;
   }
-  if (ELEM(matSize, 3, 4) && (axis == NULL) && (vec == NULL)) {
+  if ((ELEM(matSize, 3, 4)) && (axis == NULL) && (vec == NULL)) {
     PyErr_SetString(PyExc_ValueError,
                     "Matrix.Rotation(): "
                     "axis of rotation for 3d and 4d matrices is required");
@@ -1243,12 +1243,19 @@ static PyObject *Matrix_to_quaternion(MatrixObject *self)
                     "inappropriate matrix size - expects 3x3 or 4x4 matrix");
     return NULL;
   }
+  float mat3[3][3];
   if (self->row_num == 3) {
-    mat3_to_quat(quat, (const float(*)[3])self->matrix);
+    copy_m3_m3(mat3, (const float(*)[3])self->matrix);
   }
   else {
-    mat4_to_quat(quat, (const float(*)[4])self->matrix);
+    copy_m3_m4(mat3, (const float(*)[4])self->matrix);
   }
+  normalize_m3(mat3);
+  if (is_negative_m3(mat3)) {
+    /* Without this, the results are invalid, see: T94231. */
+    negate_m3(mat3);
+  }
+  mat3_normalized_to_quat(quat, mat3);
   return Quaternion_CreatePyObject(quat, NULL);
 }
 
@@ -1887,7 +1894,7 @@ static PyObject *Matrix_decompose(MatrixObject *self)
   }
 
   mat4_to_loc_rot_size(loc, rot, size, (const float(*)[4])self->matrix);
-  mat3_normalized_to_quat_fast(quat, rot);
+  mat3_to_quat(quat, rot);
 
   ret = PyTuple_New(3);
   PyTuple_SET_ITEMS(ret,
@@ -2379,7 +2386,7 @@ static Py_hash_t Matrix_hash(MatrixObject *self)
  * \{ */
 
 /** Sequence length: `len(object)`. */
-static Py_ssize_t Matrix_len(MatrixObject *self)
+static int Matrix_len(MatrixObject *self)
 {
   return self->row_num;
 }
@@ -2388,7 +2395,7 @@ static Py_ssize_t Matrix_len(MatrixObject *self)
  * Sequence accessor (get): `x = object[i]`.
  * \note the wrapped vector gives direct access to the matrix data.
  */
-static PyObject *Matrix_item_row(MatrixObject *self, Py_ssize_t row)
+static PyObject *Matrix_item_row(MatrixObject *self, int row)
 {
   if (BaseMath_ReadCallback_ForWrite(self) == -1) {
     return NULL;
@@ -2407,7 +2414,7 @@ static PyObject *Matrix_item_row(MatrixObject *self, Py_ssize_t row)
  * Sequence accessor (get): `x = object.col[i]`.
  * \note the wrapped vector gives direct access to the matrix data.
  */
-static PyObject *Matrix_item_col(MatrixObject *self, Py_ssize_t col)
+static PyObject *Matrix_item_col(MatrixObject *self, int col)
 {
   if (BaseMath_ReadCallback_ForWrite(self) == -1) {
     return NULL;
@@ -3321,7 +3328,8 @@ PyDoc_STRVAR(
     "   This object gives access to Matrices in Blender, supporting square and rectangular\n"
     "   matrices from 2x2 up to 4x4.\n"
     "\n"
-    "   :arg rows: Sequence of rows. When omitted, a 4x4 identity matrix is constructed.\n"
+    "   :param rows: Sequence of rows.\n"
+    "      When omitted, a 4x4 identity matrix is constructed.\n"
     "   :type rows: 2d number sequence\n");
 PyTypeObject matrix_Type = {
     PyVarObject_HEAD_INIT(NULL, 0) "Matrix", /*tp_name*/
@@ -3366,7 +3374,7 @@ PyTypeObject matrix_Type = {
     NULL,                                                          /*tp_alloc*/
     Matrix_new,                                                    /*tp_new*/
     NULL,                                                          /*tp_free*/
-    (inquiry)BaseMathObject_is_gc,                                 /*tp_is_gc*/
+    NULL,                                                          /*tp_is_gc*/
     NULL,                                                          /*tp_bases*/
     NULL,                                                          /*tp_mro*/
     NULL,                                                          /*tp_cache*/
@@ -3474,7 +3482,6 @@ PyObject *Matrix_CreatePyObject_cb(
     self->cb_user = cb_user;
     self->cb_type = cb_type;
     self->cb_subtype = cb_subtype;
-    BLI_assert(!PyObject_GC_IsTracked((PyObject *)self));
     PyObject_GC_Track(self);
   }
   return (PyObject *)self;
@@ -3625,15 +3632,15 @@ static int MatrixAccess_len(MatrixAccessObject *self)
   return (self->type == MAT_ACCESS_ROW) ? self->matrix_user->row_num : self->matrix_user->col_num;
 }
 
-static PyObject *MatrixAccess_slice(MatrixAccessObject *self, Py_ssize_t begin, Py_ssize_t end)
+static PyObject *MatrixAccess_slice(MatrixAccessObject *self, int begin, int end)
 {
   PyObject *tuple;
-  Py_ssize_t count;
+  int count;
 
   /* row/col access */
   MatrixObject *matrix_user = self->matrix_user;
   int matrix_access_len;
-  PyObject *(*Matrix_item_new)(MatrixObject *, Py_ssize_t);
+  PyObject *(*Matrix_item_new)(MatrixObject *, int);
 
   if (self->type == MAT_ACCESS_ROW) {
     matrix_access_len = matrix_user->row_num;

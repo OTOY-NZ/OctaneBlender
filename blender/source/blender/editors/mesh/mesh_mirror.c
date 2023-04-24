@@ -55,9 +55,11 @@ void ED_mesh_mirror_spatial_table_begin(Object *ob, BMEditMesh *em, Mesh *me_eva
     }
   }
   else {
-    const MVert *verts = BKE_mesh_verts(me_eval ? me_eval : me);
-    for (int i = 0; i < totvert; i++) {
-      BLI_kdtree_3d_insert(MirrKdStore.tree, i, verts[i].co);
+    MVert *mvert = me_eval ? me_eval->mvert : me->mvert;
+    int i;
+
+    for (i = 0; i < totvert; i++, mvert++) {
+      BLI_kdtree_3d_insert(MirrKdStore.tree, i, mvert->co);
     }
   }
 
@@ -162,7 +164,7 @@ void ED_mesh_mirrtopo_init(BMEditMesh *em,
     BLI_assert(me == NULL);
   }
   const bool is_editmode = (em != NULL);
-  const MEdge *medge = NULL, *med;
+  MEdge *medge = NULL, *med;
 
   /* Edit-mode variables. */
   BMEdge *eed;
@@ -208,7 +210,8 @@ void ED_mesh_mirrtopo_init(BMEditMesh *em,
   }
   else {
     totedge = me->totedge;
-    medge = BKE_mesh_edges(me);
+    medge = me->medge;
+
     for (a = 0, med = medge; a < totedge; a++, med++) {
       const uint i1 = med->v1, i2 = med->v2;
       topo_hash[i1]++;

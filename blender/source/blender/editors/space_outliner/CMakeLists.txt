@@ -4,7 +4,6 @@ set(INC
   ../include
   ../../blenkernel
   ../../blenlib
-  ../../blenloader
   ../../blentranslation
   ../../depsgraph
   ../../gpu
@@ -14,10 +13,8 @@ set(INC
   ../../sequencer
   ../../windowmanager
   ../../../../intern/clog
+  ../../../../intern/glew-mx
   ../../../../intern/guardedalloc
-
-  # dna_type_offsets.h
-  ${CMAKE_CURRENT_BINARY_DIR}/../../makesdna/intern
   # RNA_prototypes.h
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
@@ -51,11 +48,11 @@ set(SRC
   tree/tree_element_anim_data.cc
   tree/tree_element_collection.cc
   tree/tree_element_driver.cc
+  tree/tree_element_label.cc
   tree/tree_element_gpencil_layer.cc
   tree/tree_element_id.cc
   tree/tree_element_id_library.cc
   tree/tree_element_id_scene.cc
-  tree/tree_element_label.cc
   tree/tree_element_nla.cc
   tree/tree_element_overrides.cc
   tree/tree_element_rna.cc
@@ -71,11 +68,11 @@ set(SRC
   tree/tree_element_anim_data.hh
   tree/tree_element_collection.hh
   tree/tree_element_driver.hh
+  tree/tree_element_label.hh
   tree/tree_element_gpencil_layer.hh
   tree/tree_element_id.hh
   tree/tree_element_id_library.hh
   tree/tree_element_id_scene.hh
-  tree/tree_element_label.hh
   tree/tree_element_nla.hh
   tree/tree_element_overrides.hh
   tree/tree_element_rna.hh
@@ -94,5 +91,5 @@ set(LIB
 
 blender_add_lib(bf_editor_space_outliner "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
-# RNA_prototypes.h dna_type_offsets.h
+# RNA_prototypes.h
 add_dependencies(bf_editor_space_outliner bf_rna)

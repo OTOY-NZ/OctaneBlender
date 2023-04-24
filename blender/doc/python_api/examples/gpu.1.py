@@ -134,6 +134,7 @@ batch = batch_for_shader(shader, 'LINES', {"pos": coords})
 
 
 def draw():
+    shader.bind()
     shader.uniform_float("color", (1, 1, 0, 1))
     batch.draw(shader)
 

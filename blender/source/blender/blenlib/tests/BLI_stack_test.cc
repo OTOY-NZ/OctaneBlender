@@ -28,7 +28,7 @@ TEST(stack, Empty)
 TEST(stack, One)
 {
   BLI_Stack *stack;
-  uint in = -1, out = 1;
+  unsigned int in = -1, out = 1;
 
   stack = BLI_stack_new(sizeof(in), __func__);
 

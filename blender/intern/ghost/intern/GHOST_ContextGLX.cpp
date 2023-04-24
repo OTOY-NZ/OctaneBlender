@@ -95,6 +95,11 @@ GHOST_TSuccess GHOST_ContextGLX::releaseDrawingContext()
   return ::glXMakeCurrent(m_display, None, nullptr) ? GHOST_kSuccess : GHOST_kFailure;
 }
 
+void GHOST_ContextGLX::initContextGLXEW()
+{
+  initContextGLEW();
+}
+
 GHOST_TSuccess GHOST_ContextGLX::initializeDrawingContext()
 {
   GHOST_X11_ERROR_HANDLERS_OVERRIDE(handler_store);
@@ -140,7 +145,7 @@ GHOST_TSuccess GHOST_ContextGLX::initializeDrawingContext()
   /* End Inline GLEW. */
   /* -------------------------------------------------------------------- */
 #else
-  /* Important to initialize only GLXEW (_not_ GLEW),
+  /* Important to initialize only glxew (_not_ GLEW),
    * since this breaks w/ Mesa's `swrast`, see: T46431. */
   glxewInit();
 #endif /* USE_GLXEW_INIT_WORKAROUND */
@@ -264,7 +269,7 @@ GHOST_TSuccess GHOST_ContextGLX::initializeDrawingContext()
   GHOST_TSuccess success;
 
   if (m_context != nullptr) {
-    const uchar *version;
+    const unsigned char *version;
 
     if (!s_sharedContext) {
       s_sharedContext = m_context;
@@ -273,10 +278,17 @@ GHOST_TSuccess GHOST_ContextGLX::initializeDrawingContext()
 
     glXMakeCurrent(m_display, m_window, m_context);
 
+    /* Seems that this has to be called after #glXMakeCurrent,
+     * which means we cannot use `glX` extensions until after we create a context. */
+    initContextGLXEW();
+
     if (m_window) {
       initClearGL();
       ::glXSwapBuffers(m_display, m_window);
     }
+
+    /* re initialize to get the extensions properly */
+    initContextGLXEW();
 
     version = glGetString(GL_VERSION);
 
@@ -306,7 +318,7 @@ GHOST_TSuccess GHOST_ContextGLX::releaseNativeHandles()
 
 GHOST_TSuccess GHOST_ContextGLX::setSwapInterval(int interval)
 {
-  if (epoxy_has_glx_extension(m_display, DefaultScreen(m_display), "GLX_EXT_swap_control")) {
+  if (!GLXEW_EXT_swap_control) {
     ::glXSwapIntervalEXT(m_display, m_window, interval);
     return GHOST_kSuccess;
   }
@@ -315,12 +327,12 @@ GHOST_TSuccess GHOST_ContextGLX::setSwapInterval(int interval)
 
 GHOST_TSuccess GHOST_ContextGLX::getSwapInterval(int &intervalOut)
 {
-  if (epoxy_has_glx_extension(m_display, DefaultScreen(m_display), "GLX_EXT_swap_control")) {
-    uint interval = 0;
+  if (GLXEW_EXT_swap_control) {
+    unsigned int interval = 0;
 
     ::glXQueryDrawable(m_display, m_window, GLX_SWAP_INTERVAL_EXT, &interval);
 
-    intervalOut = int(interval);
+    intervalOut = static_cast<int>(interval);
 
     return GHOST_kSuccess;
   }

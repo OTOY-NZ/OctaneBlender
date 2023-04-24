@@ -34,8 +34,6 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE. */
 
-#include <BLI_sys_types.h> /* For `uint`. */
-
 #include <BlockDXT.h>
 #include <ColorBlock.h>
 #include <Common.h>
@@ -578,7 +576,7 @@ void mem_read(Stream &mem, BlockDXT1 &block)
 
 void mem_read(Stream &mem, AlphaBlockDXT3 &block)
 {
-  for (ushort &alpha : block.row) {
+  for (unsigned short &alpha : block.row) {
     mem_read(mem, alpha);
   }
 }

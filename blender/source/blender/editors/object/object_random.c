@@ -9,7 +9,6 @@
 
 #include "DNA_layer_types.h"
 #include "DNA_object_types.h"
-#include "DNA_scene_types.h"
 
 #include "BLI_math.h"
 #include "BLI_rand.h"
@@ -78,7 +77,6 @@ static bool object_rand_transverts(TransVertStore *tvs,
 
 static int object_rand_verts_exec(bContext *C, wmOperator *op)
 {
-  const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   Object *ob_active = CTX_data_edit_object(C);
   const int ob_mode = ob_active->mode;
@@ -91,7 +89,7 @@ static int object_rand_verts_exec(bContext *C, wmOperator *op)
   bool changed_multi = false;
   uint objects_len = 0;
   Object **objects = BKE_view_layer_array_from_objects_in_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C), &objects_len, ob_mode);
+      view_layer, CTX_wm_view3d(C), &objects_len, ob_mode);
   for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
     Object *ob_iter = objects[ob_index];
 

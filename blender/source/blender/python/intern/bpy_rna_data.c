@@ -86,7 +86,7 @@ static PyTypeObject bpy_rna_data_context_Type = {
     NULL, /* ternaryfunc tp_call; */
     NULL, /* reprfunc tp_str; */
 
-    /* Will only use these if this is a sub-type of a Python class. */
+    /* will only use these if this is a subtype of a py class */
     NULL, /* getattrofunc tp_getattro; */
     NULL, /* setattrofunc tp_setattro; */
 
@@ -183,7 +183,6 @@ static PyObject *bpy_rna_data_context_enter(BPy_DataContext *self)
 
   self->data_rna = (BPy_StructRNA *)pyrna_struct_CreatePyObject(&ptr);
 
-  BLI_assert(!PyObject_GC_IsTracked((PyObject *)self));
   PyObject_GC_Track(self);
 
   return (PyObject *)self->data_rna;

@@ -20,13 +20,13 @@ class OctaneNote(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=68)
-    octane_socket_list: StringProperty(name="Socket List", default="")
-    octane_attribute_list: StringProperty(name="Attribute List", default="a_value;a_color;a_size;")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="value;color;size;")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="10;8;3;")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=0)
+    octane_node_type=consts.NodeType.NT_ANNOTATION
+    octane_socket_list=[]
+    octane_attribute_list=["a_value", "a_color", "a_size", ]
+    octane_attribute_config={"a_value": [consts.AttributeID.A_VALUE, "value", consts.AttributeType.AT_STRING], "a_color": [consts.AttributeID.A_COLOR, "color", consts.AttributeType.AT_FLOAT3], "a_size": [consts.AttributeID.A_SIZE, "size", consts.AttributeType.AT_INT2], }
+    octane_static_pin_count=0
 
     a_value: StringProperty(name="Value", default="", update=OctaneBaseNode.update_node_tree, description="Annotation text")
     a_color: FloatVectorProperty(name="Color", default=(0.500000, 0.500000, 0.500000), size=3, update=OctaneBaseNode.update_node_tree, description="Node's color in the GUI")

@@ -15,12 +15,13 @@ class OctaneAmbientOcclusionAOVEnabled(OctaneBaseSocket):
     bl_idname="OctaneAmbientOcclusionAOVEnabled"
     bl_label="Enabled"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type=11
+    octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=42)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="enabled")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
+    octane_pin_id=consts.PinID.P_ENABLED
+    octane_pin_name="enabled"
+    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Enables the render AOV")
     octane_hide_value=False
     octane_min_version=0
@@ -31,12 +32,13 @@ class OctaneAmbientOcclusionAOVAodist(OctaneBaseSocket):
     bl_idname="OctaneAmbientOcclusionAOVAodist"
     bl_label="AO distance"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=7)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="aodist")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_AO_DISTANCE
+    octane_pin_name="aodist"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=1
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=3.000000, update=OctaneBaseSocket.update_node_tree, description="The maximum distance for which the occlusion should be tested", min=0.010000, max=1024.000000, soft_min=0.010000, soft_max=1024.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
@@ -47,12 +49,13 @@ class OctaneAmbientOcclusionAOVAoAlphaShadows(OctaneBaseSocket):
     bl_idname="OctaneAmbientOcclusionAOVAoAlphaShadows"
     bl_label="AO alpha shadows"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type=11
+    octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=258)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="aoAlphaShadows")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
+    octane_pin_id=consts.PinID.P_AO_ALPHA_SHADOWS
+    octane_pin_name="aoAlphaShadows"
+    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_index=2
+    octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Take alpha maps into account when calculating ambient occlusion")
     octane_hide_value=False
     octane_min_version=0
@@ -63,12 +66,13 @@ class OctaneAmbientOcclusionAOVBump(OctaneBaseSocket):
     bl_idname="OctaneAmbientOcclusionAOVBump"
     bl_label="Bump and normal mapping"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type=11
+    octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=18)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="bump")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
+    octane_pin_id=consts.PinID.P_BUMP
+    octane_pin_name="bump"
+    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_index=3
+    octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Take bump and normal mapping into account for ambient occlusion")
     octane_hide_value=False
     octane_min_version=11000500
@@ -84,13 +88,13 @@ class OctaneAmbientOcclusionAOV(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name="AO"
     octane_render_pass_description="Assigns a color to the camera ray's hit point proportional to the amount of occlusion by other geometry"
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneAmbientOcclusionAOVEnabled,OctaneAmbientOcclusionAOVAodist,OctaneAmbientOcclusionAOVAoAlphaShadows,OctaneAmbientOcclusionAOVBump,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=183)
-    octane_socket_list: StringProperty(name="Socket List", default="Enabled;AO distance;AO alpha shadows;Bump and normal mapping;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=4)
+    octane_node_type=consts.NodeType.NT_AOV_AMBIENT_OCCLUSION
+    octane_socket_list=["Enabled", "AO distance", "AO alpha shadows", "Bump and normal mapping", ]
+    octane_attribute_list=[]
+    octane_attribute_config={}
+    octane_static_pin_count=4
 
     def init(self, context):
         self.inputs.new("OctaneAmbientOcclusionAOVEnabled", OctaneAmbientOcclusionAOVEnabled.bl_label).init()

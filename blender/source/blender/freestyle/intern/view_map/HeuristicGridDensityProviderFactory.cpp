@@ -7,12 +7,10 @@
 
 #include "HeuristicGridDensityProviderFactory.h"
 
-#include "BLI_sys_types.h"
-
 namespace Freestyle {
 
 HeuristicGridDensityProviderFactory::HeuristicGridDensityProviderFactory(real sizeFactor,
-                                                                         uint numFaces)
+                                                                         unsigned numFaces)
     : sizeFactor(sizeFactor), numFaces(numFaces)
 {
 }

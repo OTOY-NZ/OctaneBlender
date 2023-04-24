@@ -432,7 +432,7 @@ static void utile_decref(UndoImageTile *utile)
 /** \name Image Undo Buffer
  * \{ */
 
-struct UndoImageBuf {
+typedef struct UndoImageBuf {
   struct UndoImageBuf *next, *prev;
 
   /**
@@ -454,8 +454,10 @@ struct UndoImageBuf {
   struct {
     short source;
     bool use_float;
+    char gen_type;
   } image_state;
-};
+
+} UndoImageBuf;
 
 static UndoImageBuf *ubuf_from_image_no_tiles(Image *image, const ImBuf *ibuf)
 {
@@ -472,6 +474,7 @@ static UndoImageBuf *ubuf_from_image_no_tiles(Image *image, const ImBuf *ibuf)
       MEM_callocN(sizeof(*ubuf->tiles) * ubuf->tiles_len, __func__));
 
   BLI_strncpy(ubuf->ibuf_name, ibuf->name, sizeof(ubuf->ibuf_name));
+  ubuf->image_state.gen_type = image->gen_type;
   ubuf->image_state.source = image->source;
   ubuf->image_state.use_float = ibuf->rect_float != nullptr;
 
@@ -549,7 +552,7 @@ static void ubuf_free(UndoImageBuf *ubuf)
 /** \name Image Undo Handle
  * \{ */
 
-struct UndoImageHandle {
+typedef struct UndoImageHandle {
   struct UndoImageHandle *next, *prev;
 
   /** Each undo handle refers to a single image which may have multiple buffers. */
@@ -564,7 +567,8 @@ struct UndoImageHandle {
    * List of #UndoImageBuf's to support multiple buffers per image.
    */
   ListBase buffers;
-};
+
+} UndoImageHandle;
 
 static void uhandle_restore_list(ListBase *undo_handles, bool use_init)
 {
@@ -637,7 +641,7 @@ static void uhandle_free_list(ListBase *undo_handles)
 /** #UndoImageHandle utilities */
 
 static UndoImageBuf *uhandle_lookup_ubuf(UndoImageHandle *uh,
-                                         const Image * /*image*/,
+                                         const Image *UNUSED(image),
                                          const char *ibuf_name)
 {
   LISTBASE_FOREACH (UndoImageBuf *, ubuf, &uh->buffers) {
@@ -775,7 +779,7 @@ static bool image_undosys_poll(bContext *C)
   return false;
 }
 
-static void image_undosys_step_encode_init(struct bContext * /*C*/, UndoStep *us_p)
+static void image_undosys_step_encode_init(struct bContext *UNUSED(C), UndoStep *us_p)
 {
   ImageUndoStep *us = reinterpret_cast<ImageUndoStep *>(us_p);
   /* dummy, memory is cleared anyway. */
@@ -784,7 +788,9 @@ static void image_undosys_step_encode_init(struct bContext * /*C*/, UndoStep *us
   us->paint_tile_map = MEM_new<PaintTileMap>(__func__);
 }
 
-static bool image_undosys_step_encode(struct bContext *C, struct Main * /*bmain*/, UndoStep *us_p)
+static bool image_undosys_step_encode(struct bContext *C,
+                                      struct Main *UNUSED(bmain),
+                                      UndoStep *us_p)
 {
   /* Encoding is done along the way by adding tiles
    * to the current 'ImageUndoStep' added by encode_init.

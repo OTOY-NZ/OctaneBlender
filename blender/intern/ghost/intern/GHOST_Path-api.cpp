@@ -49,10 +49,10 @@ const char *GHOST_getBinaryDir()
   return systemPaths ? systemPaths->getBinaryDir() : nullptr;
 }
 
-void GHOST_addToSystemRecentFiles(const char *filepath)
+void GHOST_addToSystemRecentFiles(const char *filename)
 {
   GHOST_ISystemPaths *systemPaths = GHOST_ISystemPaths::get();
   if (systemPaths) {
-    systemPaths->addToSystemRecentFiles(filepath);
+    systemPaths->addToSystemRecentFiles(filename);
   }
 }

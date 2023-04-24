@@ -94,7 +94,7 @@ class BlenderSession {
   void tag_update();
 
   bool export_localdb(BL::Material b_material);
-
+  static bool connect_to_render_server(::OctaneEngine::OctaneClient *server);
   static bool connect_to_server(std::string server_address,
                                 int server_port,
                                 ::OctaneEngine::OctaneClient *server);

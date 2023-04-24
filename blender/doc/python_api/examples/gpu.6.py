@@ -56,6 +56,7 @@ batch = batch_for_shader(
 
 
 def draw():
+    shader.bind()
     shader.uniform_sampler("image", texture)
     batch.draw(shader)
 

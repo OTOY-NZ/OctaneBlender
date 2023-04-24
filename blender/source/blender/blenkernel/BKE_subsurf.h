@@ -11,7 +11,6 @@
 
 /* Thread sync primitives used directly. */
 #include "BLI_threads.h"
-#include "BLI_utildefines.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -33,7 +32,7 @@ struct SubsurfModifierData;
 
 /**************************** External *****************************/
 
-typedef enum SubsurfFlags {
+typedef enum {
   SUBSURF_USE_RENDER_PARAMS = 1,
   SUBSURF_IS_FINAL_CALC = 2,
   SUBSURF_FOR_EDIT_MODE = 4,
@@ -42,7 +41,6 @@ typedef enum SubsurfFlags {
   SUBSURF_USE_GPU_BACKEND = 32,
   SUBSURF_IGNORE_SIMPLIFY = 64,
 } SubsurfFlags;
-ENUM_OPERATORS(SubsurfFlags, SUBSURF_IGNORE_SIMPLIFY);
 
 struct DerivedMesh *subsurf_make_derived_from_derived(struct DerivedMesh *dm,
                                                       struct SubsurfModifierData *smd,

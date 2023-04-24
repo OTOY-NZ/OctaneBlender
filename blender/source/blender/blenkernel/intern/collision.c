@@ -67,7 +67,7 @@ void collision_move_object(CollisionModifierData *collmd,
                            const float prevstep,
                            const bool moving_bvh)
 {
-  uint i = 0;
+  unsigned int i = 0;
 
   /* the collider doesn't move this frame */
   if (collmd->is_static) {
@@ -1216,7 +1216,10 @@ static void hair_collision(void *__restrict userdata,
   }
 }
 
-static void add_collision_object(ListBase *relations, Object *ob, int level, uint modifier_type)
+static void add_collision_object(ListBase *relations,
+                                 Object *ob,
+                                 int level,
+                                 unsigned int modifier_type)
 {
   /* only get objects with collision modifier */
   ModifierData *cmd = BKE_modifiers_findby_type(ob, modifier_type);
@@ -1243,11 +1246,10 @@ static void add_collision_object(ListBase *relations, Object *ob, int level, uin
 
 ListBase *BKE_collision_relations_create(Depsgraph *depsgraph,
                                          Collection *collection,
-                                         uint modifier_type)
+                                         unsigned int modifier_type)
 {
-  const Scene *scene = DEG_get_input_scene(depsgraph);
   ViewLayer *view_layer = DEG_get_input_view_layer(depsgraph);
-  Base *base = BKE_collection_or_layer_objects(scene, view_layer, collection);
+  Base *base = BKE_collection_or_layer_objects(view_layer, collection);
   const bool for_render = (DEG_get_mode(depsgraph) == DAG_EVAL_RENDER);
   const int base_flag = (for_render) ? BASE_ENABLED_RENDER : BASE_ENABLED_VIEWPORT;
 
@@ -1273,8 +1275,8 @@ void BKE_collision_relations_free(ListBase *relations)
 Object **BKE_collision_objects_create(Depsgraph *depsgraph,
                                       Object *self,
                                       Collection *collection,
-                                      uint *numcollobj,
-                                      uint modifier_type)
+                                      unsigned int *numcollobj,
+                                      unsigned int modifier_type)
 {
   ListBase *relations = DEG_get_collision_relations(depsgraph, collection, modifier_type);
 
@@ -1546,7 +1548,7 @@ int cloth_bvh_collision(
   ClothVertex *verts = NULL;
   int ret = 0, ret2 = 0;
   Object **collobjs = NULL;
-  uint numcollobj = 0;
+  unsigned int numcollobj = 0;
   uint *coll_counts_obj = NULL;
   BVHTreeOverlap **overlap_obj = NULL;
   uint coll_count_self = 0;

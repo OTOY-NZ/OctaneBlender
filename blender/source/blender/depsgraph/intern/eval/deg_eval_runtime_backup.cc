@@ -62,7 +62,6 @@ void RuntimeBackup::init_from_id(ID *id)
       break;
     case ID_GD:
       gpencil_backup.init_from_gpencil(reinterpret_cast<bGPdata *>(id));
-      break;
     default:
       break;
   }
@@ -105,7 +104,6 @@ void RuntimeBackup::restore_to_id(ID *id)
       break;
     case ID_GD:
       gpencil_backup.restore_to_gpencil(reinterpret_cast<bGPdata *>(id));
-      break;
     default:
       break;
   }

@@ -20,11 +20,12 @@ set(INC
 set(INC_SYS
 	${PYTHON_INCLUDE_DIRS}
 	${BOOST_INCLUDE_DIR}
-  ${Epoxy_INCLUDE_DIRS}
+	${GLEW_INCLUDE_DIR}
 )
 
 set(SRC
 	blender_python.cpp
+	blender_client.cpp
 	blender_session.cpp
 	blender_sync.cpp
 	blender_camera.cpp
@@ -37,6 +38,7 @@ set(SRC
 	blender_octanedb.h
 	blender_sync.h
 	blender_session.h
+	blender_client.h
 	blender_util.h
 	OCT_api.h
 	
@@ -94,22 +96,30 @@ set(ADDON_CORE_FILES
   addon/core/client.py
   addon/core/session.py
   addon/core/caches.py
+  addon/core/object_cache.py
   addon/core/octane_node.py
+  addon/core/octane_info.py
+  addon/core/octanedb.py
 )
 
 set(ADDON_UI_FILES
   addon/uis/__init__.py
-  addon/uis/common.py
-  addon/uis/scene.py
+  addon/uis/_object.py
   addon/uis/camera.py
+  addon/uis/common.py
+  addon/uis/light.py
+  addon/uis/mesh.py
+  addon/uis/scene.py
   addon/uis/world.py
 )
 
 set(ADDON_PROPERTY_FILES
   addon/properties_/__init__.py
-  addon/properties_/common.py
-  addon/properties_/scene.py
+  addon/properties_/_object.py
   addon/properties_/camera.py
+  addon/properties_/common.py
+  addon/properties_/mesh.py
+  addon/properties_/scene.py
   addon/properties_/world.py
 )
 
@@ -150,6 +160,7 @@ set(ADDON_NODES_COMPOSITOR_FILES
     addon/nodes/compositor/render_aov_output.py
     addon/nodes/compositor/color_aov_output.py
     addon/nodes/compositor/composite_aov_output_layer.py
+    addon/nodes/compositor/cryptomatte_mask_aov_output.py
     addon/nodes/compositor/color_correction_aov_output.py
     addon/nodes/compositor/clamp_aov_output.py
     addon/nodes/compositor/map_range_aov_output.py
@@ -167,8 +178,6 @@ set(ADDON_NODES_EMISSION_FILES
     addon/nodes/emission/__init__.py
     addon/nodes/emission/black_body_emission.py
     addon/nodes/emission/texture_emission.py
-    addon/nodes/emission/toon_point_light.py
-    addon/nodes/emission/toon_directional_light.py
 )
 
 set(ADDON_NODES_ENVIRONMENTS_FILES
@@ -197,6 +206,21 @@ set(ADDON_NODES_GEOMETRY_FILES
     addon/nodes/geometry/scatter_on_surface.py
     addon/nodes/geometry/scatter_in_volume.py
     addon/nodes/geometry/mesh_volume_sdf.py
+    addon/nodes/geometry/mesh_volume.py
+    addon/nodes/geometry/domain_transform.py
+    addon/nodes/geometry/unit_volume.py
+    addon/nodes/geometry/box.py
+    addon/nodes/geometry/capsule.py
+    addon/nodes/geometry/cylinder.py
+    addon/nodes/geometry/prism.py
+    addon/nodes/geometry/sphere.py
+    addon/nodes/geometry/torus.py
+    addon/nodes/geometry/tube.py
+    addon/nodes/geometry/ink.py
+    addon/nodes/geometry/inset.py
+    addon/nodes/geometry/intersect.py
+    addon/nodes/geometry/clip.py
+    addon/nodes/geometry/offset.py
 )
 
 set(ADDON_NODES_KERNELS_FILES
@@ -205,10 +229,13 @@ set(ADDON_NODES_KERNELS_FILES
     addon/nodes/kernels/direct_lighting_kernel.py
     addon/nodes/kernels/path_tracing_kernel.py
     addon/nodes/kernels/info_channels_kernel.py
+    addon/nodes/kernels/photon_tracing_kernel.py
 )
 
 set(ADDON_NODES_LIGHTS_FILES
     addon/nodes/lights/__init__.py
+    addon/nodes/lights/toon_point_light.py
+    addon/nodes/lights/toon_directional_light.py
     addon/nodes/lights/quad_light.py
     addon/nodes/lights/sphere_light.py
     addon/nodes/lights/volumetric_spotlight.py
@@ -240,6 +267,7 @@ set(ADDON_NODES_MATERIALS_FILES
     addon/nodes/materials/hair_material.py
     addon/nodes/materials/null_material.py
     addon/nodes/materials/clipping_material.py
+    addon/nodes/materials/standard_surface_material.py
 )
 
 set(ADDON_NODES_MEDIUM_FILES
@@ -250,6 +278,7 @@ set(ADDON_NODES_MEDIUM_FILES
     addon/nodes/medium/volume_gradient.py
     addon/nodes/medium/volume_medium.py
     addon/nodes/medium/random_walk.py
+    addon/nodes/medium/standard_volume_medium.py
 )
 
 set(ADDON_NODES_OBJECT_LAYER_FILES
@@ -275,6 +304,7 @@ set(ADDON_NODES_PROJECTION_FILES
     addon/nodes/projection/osl_projection.py
     addon/nodes/projection/osl_delayed_uv.py
     addon/nodes/projection/color_to_uvw.py
+    addon/nodes/projection/instance_position.py
     addon/nodes/projection/sample_pos_to_uv.py
     addon/nodes/projection/distorted_mesh_uv.py
     addon/nodes/projection/matcap.py
@@ -423,6 +453,7 @@ set(ADDON_NODES_TEXTURES_FILES
     addon/nodes/textures/ray_switch.py
     addon/nodes/textures/channel_inverter.py
     addon/nodes/textures/channel_mapper.py
+    addon/nodes/textures/composite_texture.py
     addon/nodes/textures/iridescent.py
     addon/nodes/textures/volume_to_texture.py
     addon/nodes/textures/smooth_voronoi_contours.py
@@ -433,17 +464,24 @@ set(ADDON_NODES_TEXTURES_FILES
     addon/nodes/textures/color_squares.py
     addon/nodes/textures/stripes.py
     addon/nodes/textures/flakes.py
-    addon/nodes/textures/fractal.py
     addon/nodes/textures/hagelslag.py
     addon/nodes/textures/glowing_circle.py
     addon/nodes/textures/curvature_texture.py
     addon/nodes/textures/cell_noise.py
-    addon/nodes/textures/composite_texture.py
+    addon/nodes/textures/angular_field.py
+    addon/nodes/textures/planar_field.py
+    addon/nodes/textures/shape_field.py
+    addon/nodes/textures/spherical_field.py
+    addon/nodes/textures/pixel_flow.py
+    addon/nodes/textures/rain_bump.py
+    addon/nodes/textures/scratches.py
+    addon/nodes/textures/snow_effect.py
     addon/nodes/textures/composite_texture_layer.py
     addon/nodes/textures/floats_to_color.py
     addon/nodes/textures/float3_to_color.py
     addon/nodes/textures/capture_to_custom_aov.py
     addon/nodes/textures/float_to_greyscale.py
+    addon/nodes/textures/circle_spiral.py
     addon/nodes/textures/ray_direction.py
     addon/nodes/textures/normal.py
     addon/nodes/textures/position.py
@@ -458,6 +496,27 @@ set(ADDON_NODES_TEXTURES_FILES
     addon/nodes/textures/sample_position.py
     addon/nodes/textures/binary_math_operation.py
     addon/nodes/textures/unary_math_operation.py
+    addon/nodes/textures/fan_spiral.py
+    addon/nodes/textures/tripper.py
+    addon/nodes/textures/woodgrain.py
+    addon/nodes/textures/fbm_flow_noise.py
+    addon/nodes/textures/fbm_noise.py
+    addon/nodes/textures/fractal_flow_noise.py
+    addon/nodes/textures/fractal_noise.py
+    addon/nodes/textures/volume_cloud.py
+    addon/nodes/textures/mandelbulb.py
+    addon/nodes/textures/wave_pattern.py
+    addon/nodes/textures/rot_fractal.py
+    addon/nodes/textures/sine_wave_fan.py
+    addon/nodes/textures/matrix_effect.py
+    addon/nodes/textures/color_key.py
+    addon/nodes/textures/image_adjustment.py
+    addon/nodes/textures/jittered_color_correction.py
+    addon/nodes/textures/object_layer_color.py
+    addon/nodes/textures/color_space_conversion.py
+    addon/nodes/textures/instance_highlight.py
+    addon/nodes/textures/star_field.py
+    addon/nodes/textures/digits.py
 )
 
 set(ADDON_NODES_TRANSFORMS_FILES
@@ -467,6 +526,7 @@ set(ADDON_NODES_TRANSFORMS_FILES
     addon/nodes/transforms/rotation.py
     addon/nodes/transforms/_2d_transformation.py
     addon/nodes/transforms/transform_value.py
+    addon/nodes/transforms/look_at_transform.py
 )
 
 set(ADDON_NODES_VALUES_FILES
@@ -481,6 +541,21 @@ set(ADDON_NODES_VALUES_FILES
     addon/nodes/values/file_name.py
     addon/nodes/values/directory_name.py
     addon/nodes/values/bit_value.py
+    addon/nodes/values/float_if.py
+    addon/nodes/values/int_if.py
+    addon/nodes/values/float_to_int.py
+    addon/nodes/values/int_to_float.py
+    addon/nodes/values/float_merger.py
+    addon/nodes/values/float_component_picker.py
+    addon/nodes/values/int_merger.py
+    addon/nodes/values/int_component_picker.py
+    addon/nodes/values/boolean_logic_operator.py
+    addon/nodes/values/float_relational_operator.py
+    addon/nodes/values/int_relational_operator.py
+    addon/nodes/values/binary_math_operation.py
+    addon/nodes/values/unary_math_operation.py
+    addon/nodes/values/range.py
+    addon/nodes/values/rotate.py
 )
 
 set(ADDON_NODES_TOOLS_FILES
@@ -503,6 +578,8 @@ set(ADDON_NODES_UTIL_FILES
   addon/utils/utility.py
   addon/utils/consts.py
   addon/utils/ocio.py
+  addon/utils/octaneid.py
+  addon/utils/legacy_octane_node.py
 )
 
 set(STARTUP_FILES

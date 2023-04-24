@@ -10,7 +10,6 @@ set(INC
   ../../makesrna
   ../../windowmanager
   ../../../../intern/guardedalloc
-  ../../bmesh
 )
 
 set(INC_SYS

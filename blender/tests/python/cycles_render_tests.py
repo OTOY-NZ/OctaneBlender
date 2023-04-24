@@ -33,7 +33,7 @@ BLACKLIST_OPTIX = [
 ]
 
 BLACKLIST_METAL = [
-    # MNEE only works on Metal with macOS >= 13
+    # No MNEE for Metal currently
     "underwater_caustics.blend",
 ]
 
@@ -56,8 +56,6 @@ BLACKLIST_GPU = [
     # Inconsistent handling of overlapping objects.
     "T41143.blend",
     "visibility_particles.blend",
-    # No path guiding on GPU.
-    "guiding*.blend",
 ]
 
 

@@ -10,8 +10,6 @@
 #include "IndexedFaceSet.h"
 #include "ScenePrettyPrinter.h"
 
-#include "BLI_sys_types.h"
-
 namespace Freestyle {
 
 #define VISIT(CLASS) \
@@ -27,42 +25,42 @@ VISIT(NodeLight)
 VISIT(NodeDrawingStyle)
 VISIT(NodeTransform)
 
-void ScenePrettyPrinter::visitNodeShapeBefore(NodeShape & /*shape*/)
+void ScenePrettyPrinter::visitNodeShapeBefore(NodeShape &UNUSED(shape))
 {
   increaseSpace();
 }
 
-void ScenePrettyPrinter::visitNodeShapeAfter(NodeShape & /*shape*/)
+void ScenePrettyPrinter::visitNodeShapeAfter(NodeShape &UNUSED(shape))
 {
   decreaseSpace();
 }
 
-void ScenePrettyPrinter::visitNodeGroupBefore(NodeGroup & /*group*/)
+void ScenePrettyPrinter::visitNodeGroupBefore(NodeGroup &UNUSED(group))
 {
   increaseSpace();
 }
 
-void ScenePrettyPrinter::visitNodeGroupAfter(NodeGroup & /*group*/)
+void ScenePrettyPrinter::visitNodeGroupAfter(NodeGroup &UNUSED(group))
 {
   decreaseSpace();
 }
 
-void ScenePrettyPrinter::visitNodeDrawingStyleBefore(NodeDrawingStyle & /*style*/)
+void ScenePrettyPrinter::visitNodeDrawingStyleBefore(NodeDrawingStyle &UNUSED(style))
 {
   increaseSpace();
 }
 
-void ScenePrettyPrinter::visitNodeDrawingStyleAfter(NodeDrawingStyle & /*style*/)
+void ScenePrettyPrinter::visitNodeDrawingStyleAfter(NodeDrawingStyle &UNUSED(style))
 {
   decreaseSpace();
 }
 
-void ScenePrettyPrinter::visitNodeTransformBefore(NodeTransform & /*transform*/)
+void ScenePrettyPrinter::visitNodeTransformBefore(NodeTransform &UNUSED(transform))
 {
   increaseSpace();
 }
 
-void ScenePrettyPrinter::visitNodeTransformAfter(NodeTransform & /*transform*/)
+void ScenePrettyPrinter::visitNodeTransformAfter(NodeTransform &UNUSED(transform))
 {
   decreaseSpace();
 }
@@ -75,11 +73,11 @@ VISIT(VertexRep)
 void ScenePrettyPrinter::visitIndexedFaceSet(IndexedFaceSet &ifs)
 {
   const float *vertices = ifs.vertices();
-  uint vsize = ifs.vsize();
+  unsigned vsize = ifs.vsize();
 
   _ofs << _space << "IndexedFaceSet" << endl;
   const float *p = vertices;
-  for (uint i = 0; i < vsize / 3; i++) {
+  for (unsigned int i = 0; i < vsize / 3; i++) {
     _ofs << _space << "  " << setw(3) << setfill('0') << i << ": " << p[0] << ", " << p[1] << ", "
          << p[2] << endl;
     p += 3;

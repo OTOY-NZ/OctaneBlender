@@ -77,6 +77,7 @@ void bmo_contextual_create_exec(BMesh *bm, BMOperator *op)
    * |        .
    * |        .
    * +........+ <-- starts out free standing.
+   *
    */
 
   /* Here we check for consistency and create 2 edges */

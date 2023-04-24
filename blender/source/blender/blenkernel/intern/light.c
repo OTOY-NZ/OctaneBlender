@@ -80,7 +80,6 @@ static void light_copy_data(Main *bmain, ID *id_dst, const ID *id_src, const int
       BKE_id_copy_ex(
           bmain, (ID *)la_src->nodetree, (ID **)&la_dst->nodetree, flag_private_id_data);
     }
-    la_dst->nodetree->owner_id = &la_dst->id;
   }
 
   if ((flag & LIB_ID_COPY_NO_PREVIEW) == 0) {
@@ -189,7 +188,7 @@ IDTypeInfo IDType_ID_LA = {
     .foreach_id = light_foreach_id,
     .foreach_cache = NULL,
     .foreach_path = NULL,
-    .owner_pointer_get = NULL,
+    .owner_get = NULL,
 
     .blend_write = light_blend_write,
     .blend_read_data = light_blend_read_data,

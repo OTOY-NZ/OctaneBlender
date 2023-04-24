@@ -15,12 +15,13 @@ class OctanePlaneUvTransform(OctaneBaseSocket):
     bl_idname="OctanePlaneUvTransform"
     bl_label="UV transform"
     color=consts.OctanePinColor.Transform
-    octane_default_node_type=67
+    octane_default_node_type=consts.NodeType.NT_TRANSFORM_VALUE
     octane_default_node_name="OctaneTransformValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=362)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="uvTransform")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TRANSFORM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_UV_TRANSFORM
+    octane_pin_name="uvTransform"
+    octane_pin_type=consts.PinType.PT_TRANSFORM
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=3070002
     octane_end_version=4294967295
@@ -30,12 +31,13 @@ class OctanePlaneGroundColor(OctaneBaseSocket):
     bl_idname="OctanePlaneGroundColor"
     bl_label="Plane material"
     color=consts.OctanePinColor.Material
-    octane_default_node_type=17
+    octane_default_node_type=consts.NodeType.NT_MAT_DIFFUSE
     octane_default_node_name="OctaneDiffuseMaterial"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=331)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="groundColor")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_MATERIAL)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_GROUND_COLOR
+    octane_pin_name="groundColor"
+    octane_pin_type=consts.PinType.PT_MATERIAL
+    octane_pin_index=1
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -45,12 +47,13 @@ class OctanePlaneObjectLayer(OctaneBaseSocket):
     bl_idname="OctanePlaneObjectLayer"
     bl_label="Object layer"
     color=consts.OctanePinColor.ObjectLayer
-    octane_default_node_type=65
+    octane_default_node_type=consts.NodeType.NT_OBJECTLAYER
     octane_default_node_name="OctaneObjectLayer"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=328)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="objectLayer")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_OBJECTLAYER)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_OBJECT_LAYER
+    octane_pin_name="objectLayer"
+    octane_pin_type=consts.PinType.PT_OBJECTLAYER
+    octane_pin_index=2
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -65,13 +68,13 @@ class OctanePlane(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctanePlaneUvTransform,OctanePlaneGroundColor,OctanePlaneObjectLayer,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=110)
-    octane_socket_list: StringProperty(name="Socket List", default="UV transform;Plane material;Object layer;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="a_user_instance_id;")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="userInstanceId;")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="2;")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=3)
+    octane_node_type=consts.NodeType.NT_GEO_PLANE
+    octane_socket_list=["UV transform", "Plane material", "Object layer", ]
+    octane_attribute_list=["a_user_instance_id", ]
+    octane_attribute_config={"a_user_instance_id": [consts.AttributeID.A_USER_INSTANCE_ID, "userInstanceId", consts.AttributeType.AT_INT], }
+    octane_static_pin_count=3
 
     a_user_instance_id: IntProperty(name="User instance id", default=-1, update=OctaneBaseNode.update_node_tree, description="The user ID of this geometry node. A valid ID should be a non-negative number. It's a non-unique ID attribute, multiple geometry nodes can have same ID, so it's a user responsibility to set unique ID if needed. In a tree hierarchy, the ID of current node will override the input geometry node's ID")
 

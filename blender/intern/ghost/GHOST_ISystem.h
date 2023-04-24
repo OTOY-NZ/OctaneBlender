@@ -117,13 +117,9 @@ class GHOST_ISystem {
  public:
   /**
    * Creates the one and only system.
-   * \param verbose: report back-ends that were attempted no back-end could be loaded.
-   * \param background: loading the system for background rendering (no visible windows).
    * \return An indication of success.
    */
-
-  static GHOST_TSuccess createSystem(bool verbose, bool background);
-  static GHOST_TSuccess createSystemBackground();
+  static GHOST_TSuccess createSystem();
 
   /**
    * Disposes the one and only system.
@@ -136,15 +132,6 @@ class GHOST_ISystem {
    * \return A pointer to the system.
    */
   static GHOST_ISystem *getSystem();
-  /**
-   * Return an identifier for the one and only system.
-   * \warning while it may be tempting this should never be used to check for supported features,
-   * in that case, the GHOST API should be extended to query capabilities.
-   * This is needed for X11/WAYLAND on Unix, without this - there is no convenient way for users to
-   * check if WAYLAND or XWAYLAND are in use since they are dynamically selected at startup.
-   * When dynamically switching between X11/WAYLAND is removed, this function can go too.
-   */
-  static const char *getSystemBackend();
 
   static GHOST_TBacktraceFn getBacktraceFn();
   static void setBacktraceFn(GHOST_TBacktraceFn backtrace_fn);
@@ -234,6 +221,7 @@ class GHOST_ISystem {
    * \param width: The width the window.
    * \param height: The height the window.
    * \param state: The state of the window when opened.
+   * \param type: The type of drawing context installed in this window.
    * \param glSettings: Misc OpenGL settings.
    * \param exclusive: Use to show the window on top and ignore others (used full-screen).
    * \param is_dialog: Stay on top of parent window, no icon in taskbar, can't be minimized.
@@ -246,6 +234,7 @@ class GHOST_ISystem {
                                       uint32_t width,
                                       uint32_t height,
                                       GHOST_TWindowState state,
+                                      GHOST_TDrawingContextType type,
                                       GHOST_GLSettings glSettings,
                                       const bool exclusive = false,
                                       const bool is_dialog = false,
@@ -288,10 +277,11 @@ class GHOST_ISystem {
    */
   virtual GHOST_TSuccess beginFullScreen(const GHOST_DisplaySetting &setting,
                                          GHOST_IWindow **window,
-                                         const bool stereoVisual) = 0;
+                                         const bool stereoVisual,
+                                         const bool alphaBackground = 0) = 0;
 
   /**
-   * Updates the resolution while in full-screen mode.
+   * Updates the resolution while in fullscreen mode.
    * \param setting: The new setting of the display.
    * \param window: Window displayed in full screen.
    *
@@ -431,7 +421,7 @@ class GHOST_ISystem {
   virtual GHOST_TSuccess getButtonState(GHOST_TButton mask, bool &isDown) const = 0;
 
   /**
-   * Enable multi-touch gestures if supported.
+   * Enable multitouch gestures if supported.
    * \param use: Enable or disable.
    */
   virtual void setMultitouchGestures(const bool use) = 0;
@@ -453,9 +443,9 @@ class GHOST_ISystem {
   /**
    * Set the Console State
    * \param action: console state
-   * \return current status (true: visible, 0: hidden)
+   * \return current status (1 -visible, 0 - hidden)
    */
-  virtual bool setConsoleWindowState(GHOST_TConsoleWindowState action) = 0;
+  virtual int setConsoleWindowState(GHOST_TConsoleWindowState action) = 0;
 
   /***************************************************************************************
    * Access to clipboard.
@@ -524,7 +514,6 @@ class GHOST_ISystem {
 
   /** The one and only system */
   static GHOST_ISystem *m_system;
-  static const char *m_system_backend_id;
 
   /** Function to call that sets the back-trace. */
   static GHOST_TBacktraceFn m_backtrace_fn;

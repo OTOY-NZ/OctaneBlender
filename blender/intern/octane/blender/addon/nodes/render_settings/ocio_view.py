@@ -20,13 +20,13 @@ class OctaneOCIOView(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=160)
-    octane_socket_list: StringProperty(name="Socket List", default="")
-    octane_attribute_list: StringProperty(name="Attribute List", default="a_ocio_display_name;a_ocio_view_name;")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="ocioDisplayName;ocioViewName;")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="10;10;")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=0)
+    octane_node_type=consts.NodeType.NT_OCIO_VIEW
+    octane_socket_list=[]
+    octane_attribute_list=["a_ocio_display_name", "a_ocio_view_name", ]
+    octane_attribute_config={"a_ocio_display_name": [consts.AttributeID.A_OCIO_DISPLAY_NAME, "ocioDisplayName", consts.AttributeType.AT_STRING], "a_ocio_view_name": [consts.AttributeID.A_OCIO_VIEW_NAME, "ocioViewName", consts.AttributeType.AT_STRING], }
+    octane_static_pin_count=0
 
     a_ocio_display_name: StringProperty(name="Ocio display name", default="", update=OctaneBaseNode.update_node_tree, description="The name of the OCIO display containing the selected OCIO view, or empty to not use an OCIO view")
     a_ocio_view_name: StringProperty(name="Ocio view name", default="", update=OctaneBaseNode.update_node_tree, description="The name of the selected OCIO view, or empty to not use an OCIO view")

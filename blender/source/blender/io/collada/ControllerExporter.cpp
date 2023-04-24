@@ -63,7 +63,7 @@ bool ControllerExporter::add_instance_controller(Object *ob)
   ins.setUrl(COLLADASW::URI(COLLADABU::Utils::EMPTY_STRING, controller_id));
 
   Mesh *me = (Mesh *)ob->data;
-  if (BKE_mesh_deform_verts(me) == nullptr) {
+  if (!me->dvert) {
     return false;
   }
 
@@ -160,7 +160,7 @@ void ControllerExporter::export_skin_controller(Object *ob, Object *ob_arm)
   bool use_instantiation = this->export_settings.get_use_object_instantiation();
   Mesh *me;
 
-  if (BKE_mesh_deform_verts((Mesh *)ob->data) == nullptr) {
+  if (((Mesh *)ob->data)->dvert == nullptr) {
     return;
   }
 
@@ -203,10 +203,9 @@ void ControllerExporter::export_skin_controller(Object *ob, Object *ob_arm)
       }
     }
 
-    const MDeformVert *dvert = BKE_mesh_deform_verts(me);
     int oob_counter = 0;
     for (i = 0; i < me->totvert; i++) {
-      const MDeformVert *vert = &dvert[i];
+      MDeformVert *vert = &me->dvert[i];
       std::map<int, float> jw;
 
       /* We're normalizing the weights later */
@@ -406,7 +405,7 @@ void ControllerExporter::add_bind_shape_mat(Object *ob)
     bc_add_global_transform(f_obmat, export_settings.get_global_transform());
   }
 
-  // UnitConverter::mat4_to_dae_double(bind_mat, ob->object_to_world);
+  // UnitConverter::mat4_to_dae_double(bind_mat, ob->obmat);
   UnitConverter::mat4_to_dae_double(bind_mat, f_obmat);
   if (this->export_settings.get_limit_precision()) {
     BCMatrix::sanitize(bind_mat, LIMITTED_PRECISION);
@@ -523,7 +522,7 @@ std::string ControllerExporter::add_inv_bind_mats_source(Object *ob_arm,
       }
 
       /* make world-space matrix (bind_mat is armature-space) */
-      mul_m4_m4m4(world, ob_arm->object_to_world, bind_mat);
+      mul_m4_m4m4(world, ob_arm->obmat, bind_mat);
 
       if (!has_bindmat) {
         if (export_settings.get_apply_global_orientation()) {

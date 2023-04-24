@@ -15,7 +15,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static int node_shader_gpu_volume_absorption(GPUMaterial *mat,
                                              bNode *node,
-                                             bNodeExecData * /*execdata*/,
+                                             bNodeExecData *UNUSED(execdata),
                                              GPUNodeStack *in,
                                              GPUNodeStack *out)
 {

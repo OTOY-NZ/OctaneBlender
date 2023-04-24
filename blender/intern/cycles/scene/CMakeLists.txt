@@ -39,6 +39,7 @@ set(SRC
   shader.cpp
   shader_graph.cpp
   shader_nodes.cpp
+  sobol.cpp
   stats.cpp
   svm.cpp
   tables.cpp
@@ -76,6 +77,7 @@ set(SRC_HEADERS
   shader.h
   shader_graph.h
   shader_nodes.h
+  sobol.h
   stats.h
   svm.h
   tables.h
@@ -101,7 +103,7 @@ if(WITH_CYCLES_OSL)
     cycles_kernel_osl
   )
 
-  set_property(SOURCE osl.cpp PROPERTY COMPILE_FLAGS ${RTTI_DISABLE_FLAGS})
+  SET_PROPERTY(SOURCE osl.cpp PROPERTY COMPILE_FLAGS ${RTTI_DISABLE_FLAGS})
 endif()
 
 if(WITH_OPENCOLORIO)
@@ -145,5 +147,7 @@ endif()
 
 include_directories(${INC})
 include_directories(SYSTEM ${INC_SYS})
+
+add_definitions(${GL_DEFINITIONS})
 
 cycles_add_library(cycles_scene "${LIB}" ${SRC} ${SRC_HEADERS})

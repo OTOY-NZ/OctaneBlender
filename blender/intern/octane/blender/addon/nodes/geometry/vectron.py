@@ -15,12 +15,13 @@ class OctaneVectronMaterial1(OctaneBaseSocket):
     bl_idname="OctaneVectronMaterial1"
     bl_label="Geometry material"
     color=consts.OctanePinColor.Material
-    octane_default_node_type=17
+    octane_default_node_type=consts.NodeType.NT_MAT_DIFFUSE
     octane_default_node_name="OctaneDiffuseMaterial"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=100)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="material1")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_MATERIAL)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_MATERIAL1
+    octane_pin_name="material1"
+    octane_pin_type=consts.PinType.PT_MATERIAL
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -30,12 +31,13 @@ class OctaneVectronSize(OctaneBaseSocket):
     bl_idname="OctaneVectronSize"
     bl_label="Bounds"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=216)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="size")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
+    octane_pin_id=consts.PinID.P_SIZE
+    octane_pin_name="size"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=1
+    octane_socket_type=consts.SocketType.ST_FLOAT3
     default_value: FloatVectorProperty(default=(10.000000, 10.000000, 10.000000), update=OctaneBaseSocket.update_node_tree, description="Bounds of the geometry in meters", min=0.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=4000009
@@ -51,13 +53,13 @@ class OctaneVectron(bpy.types.Node, OctaneScriptNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneVectronMaterial1,OctaneVectronSize,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=133)
-    octane_socket_list: StringProperty(name="Socket List", default="Geometry material;Bounds;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="a_filename;a_reload;a_shader_code;a_result;")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="filename;reload;shaderCode;result;")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="11;1;10;2;")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=2)
+    octane_node_type=consts.NodeType.NT_GEO_OSL
+    octane_socket_list=["Geometry material", "Bounds", ]
+    octane_attribute_list=["a_filename", "a_reload", "a_shader_code", "a_result", ]
+    octane_attribute_config={"a_package": [consts.AttributeID.A_PACKAGE, "package", consts.AttributeType.AT_FILENAME], "a_filename": [consts.AttributeID.A_FILENAME, "filename", consts.AttributeType.AT_FILENAME], "a_reload": [consts.AttributeID.A_RELOAD, "reload", consts.AttributeType.AT_BOOL], "a_shader_code": [consts.AttributeID.A_SHADER_CODE, "shaderCode", consts.AttributeType.AT_STRING], "a_errors": [consts.AttributeID.A_ERRORS, "errors", consts.AttributeType.AT_STRING], "a_result": [consts.AttributeID.A_RESULT, "result", consts.AttributeType.AT_INT], }
+    octane_static_pin_count=2
 
     a_filename: StringProperty(name="Filename", default="", update=OctaneBaseNode.update_node_tree, description="The file where the OSL shader is stored. If set, A_SHADER_CODE will be replaced with the content of the file", subtype="FILE_PATH")
     a_reload: BoolProperty(name="Reload", default=False, update=OctaneBaseNode.update_node_tree, description="Set it to TRUE if the file needs a reload. After the node was evaluated the attribute will be false again")

@@ -15,12 +15,13 @@ class OctaneScaleScale(OctaneBaseSocket):
     bl_idname="OctaneScaleScale"
     bl_label="Scale"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=209)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="scale")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
+    octane_pin_id=consts.PinID.P_SCALE
+    octane_pin_name="scale"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_FLOAT3
     default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=OctaneBaseSocket.update_node_tree, description="The scale factors for the X/Y/Z axis provided as a XYZ vector", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.001000, soft_max=1000.000000, step=1, subtype="NONE", precision=3, size=3)
     octane_hide_value=False
     octane_min_version=0
@@ -36,13 +37,13 @@ class OctaneScale(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneScaleScale,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=28)
-    octane_socket_list: StringProperty(name="Socket List", default="Scale;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=1)
+    octane_node_type=consts.NodeType.NT_TRANSFORM_SCALE
+    octane_socket_list=["Scale", ]
+    octane_attribute_list=[]
+    octane_attribute_config={"a_transform": [consts.AttributeID.A_TRANSFORM, "transform", consts.AttributeType.AT_MATRIX], }
+    octane_static_pin_count=1
 
     def init(self, context):
         self.inputs.new("OctaneScaleScale", OctaneScaleScale.bl_label).init()

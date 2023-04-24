@@ -15,12 +15,13 @@ class OctaneRandomColorTextureRandomSeed(OctaneBaseSocket):
     bl_idname="OctaneRandomColorTextureRandomSeed"
     bl_label="Random seed"
     color=consts.OctanePinColor.Int
-    octane_default_node_type=9
+    octane_default_node_type=consts.NodeType.NT_INT
     octane_default_node_name="OctaneIntValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=143)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="randomSeed")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
+    octane_pin_id=consts.PinID.P_RANDOM_SEED
+    octane_pin_name="randomSeed"
+    octane_pin_type=consts.PinType.PT_INT
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_INT
     default_value: IntProperty(default=0, update=OctaneBaseSocket.update_node_tree, description="Random seed", min=0, max=65535, soft_min=0, soft_max=65535, step=1, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
@@ -36,13 +37,13 @@ class OctaneRandomColorTexture(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneRandomColorTextureRandomSeed,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=81)
-    octane_socket_list: StringProperty(name="Socket List", default="Random seed;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=1)
+    octane_node_type=consts.NodeType.NT_TEX_RANDOMCOLOR
+    octane_socket_list=["Random seed", ]
+    octane_attribute_list=[]
+    octane_attribute_config={}
+    octane_static_pin_count=1
 
     def init(self, context):
         self.inputs.new("OctaneRandomColorTextureRandomSeed", OctaneRandomColorTextureRandomSeed.bl_label).init()

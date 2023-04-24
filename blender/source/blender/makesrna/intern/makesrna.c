@@ -564,7 +564,7 @@ static int rna_enum_bitmask(PropertyRNA *prop)
 
 static int rna_color_quantize(PropertyRNA *prop, PropertyDefRNA *dp)
 {
-  return ((prop->type == PROP_FLOAT) && ELEM(prop->subtype, PROP_COLOR, PROP_COLOR_GAMMA) &&
+  return ((prop->type == PROP_FLOAT) && (ELEM(prop->subtype, PROP_COLOR, PROP_COLOR_GAMMA)) &&
           (IS_DNATYPE_FLOAT_COMPAT(dp->dnatype) == 0));
 }
 
@@ -826,23 +826,7 @@ static char *rna_def_property_get_func(
         fprintf(f, "{\n");
 
         if (manualfunc) {
-          /* Assign `fn` to ensure function signatures match. */
-          if (prop->type == PROP_BOOLEAN) {
-            fprintf(f, "    PropBooleanArrayGetFunc fn = %s;\n", manualfunc);
-            fprintf(f, "    fn(ptr, values);\n");
-          }
-          else if (prop->type == PROP_INT) {
-            fprintf(f, "    PropIntArrayGetFunc fn = %s;\n", manualfunc);
-            fprintf(f, "    fn(ptr, values);\n");
-          }
-          else if (prop->type == PROP_FLOAT) {
-            fprintf(f, "    PropFloatArrayGetFunc fn = %s;\n", manualfunc);
-            fprintf(f, "    fn(ptr, values);\n");
-          }
-          else {
-            BLI_assert_unreachable(); /* Valid but should be handled by type checks. */
-            fprintf(f, "    %s(ptr, values);\n", manualfunc);
-          }
+          fprintf(f, "    %s(ptr, values);\n", manualfunc);
         }
         else {
           rna_print_data_get(f, dp);
@@ -918,27 +902,7 @@ static char *rna_def_property_get_func(
         fprintf(f, "{\n");
 
         if (manualfunc) {
-          /* Assign `fn` to ensure function signatures match. */
-          if (prop->type == PROP_BOOLEAN) {
-            fprintf(f, "    PropBooleanGetFunc fn = %s;\n", manualfunc);
-            fprintf(f, "    return fn(ptr);\n");
-          }
-          else if (prop->type == PROP_INT) {
-            fprintf(f, "    PropIntGetFunc fn = %s;\n", manualfunc);
-            fprintf(f, "    return fn(ptr);\n");
-          }
-          else if (prop->type == PROP_FLOAT) {
-            fprintf(f, "    PropFloatGetFunc fn = %s;\n", manualfunc);
-            fprintf(f, "    return fn(ptr);\n");
-          }
-          else if (prop->type == PROP_ENUM) {
-            fprintf(f, "    PropEnumGetFunc fn = %s;\n", manualfunc);
-            fprintf(f, "    return fn(ptr);\n");
-          }
-          else {
-            BLI_assert_unreachable(); /* Valid but should be handled by type checks. */
-            fprintf(f, "    return %s(ptr);\n", manualfunc);
-          }
+          fprintf(f, "    return %s(ptr);\n", manualfunc);
         }
         else {
           rna_print_data_get(f, dp);
@@ -1233,23 +1197,7 @@ static char *rna_def_property_set_func(
         fprintf(f, "{\n");
 
         if (manualfunc) {
-          /* Assign `fn` to ensure function signatures match. */
-          if (prop->type == PROP_BOOLEAN) {
-            fprintf(f, "    PropBooleanArraySetFunc fn = %s;\n", manualfunc);
-            fprintf(f, "    fn(ptr, values);\n");
-          }
-          else if (prop->type == PROP_INT) {
-            fprintf(f, "    PropIntArraySetFunc fn = %s;\n", manualfunc);
-            fprintf(f, "    fn(ptr, values);\n");
-          }
-          else if (prop->type == PROP_FLOAT) {
-            fprintf(f, "    PropFloatArraySetFunc fn = %s;\n", manualfunc);
-            fprintf(f, "    fn(ptr, values);\n");
-          }
-          else {
-            BLI_assert_unreachable(); /* Valid but should be handled by type checks. */
-            fprintf(f, "    %s(ptr, values);\n", manualfunc);
-          }
+          fprintf(f, "    %s(ptr, values);\n", manualfunc);
         }
         else {
           rna_print_data_get(f, dp);
@@ -1341,27 +1289,7 @@ static char *rna_def_property_set_func(
         fprintf(f, "{\n");
 
         if (manualfunc) {
-          /* Assign `fn` to ensure function signatures match. */
-          if (prop->type == PROP_BOOLEAN) {
-            fprintf(f, "    PropBooleanSetFunc fn = %s;\n", manualfunc);
-            fprintf(f, "    fn(ptr, value);\n");
-          }
-          else if (prop->type == PROP_INT) {
-            fprintf(f, "    PropIntSetFunc fn = %s;\n", manualfunc);
-            fprintf(f, "    fn(ptr, value);\n");
-          }
-          else if (prop->type == PROP_FLOAT) {
-            fprintf(f, "    PropFloatSetFunc fn = %s;\n", manualfunc);
-            fprintf(f, "    fn(ptr, value);\n");
-          }
-          else if (prop->type == PROP_ENUM) {
-            fprintf(f, "    PropEnumSetFunc fn = %s;\n", manualfunc);
-            fprintf(f, "    fn(ptr, value);\n");
-          }
-          else {
-            BLI_assert_unreachable(); /* Valid but should be handled by type checks. */
-            fprintf(f, "    %s(ptr, value);\n", manualfunc);
-          }
+          fprintf(f, "    %s(ptr, value);\n", manualfunc);
         }
         else {
           rna_print_data_get(f, dp);
@@ -3904,7 +3832,7 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
     }
     case PROP_BOOLEAN: {
       BoolPropertyRNA *bprop = (BoolPropertyRNA *)prop;
-      uint i;
+      unsigned int i;
 
       if (prop->arraydimension && prop->totarraylength) {
         fprintf(f,
@@ -3932,7 +3860,7 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
     }
     case PROP_INT: {
       IntPropertyRNA *iprop = (IntPropertyRNA *)prop;
-      uint i;
+      unsigned int i;
 
       if (prop->arraydimension && prop->totarraylength) {
         fprintf(f,
@@ -3960,7 +3888,7 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
     }
     case PROP_FLOAT: {
       FloatPropertyRNA *fprop = (FloatPropertyRNA *)prop;
-      uint i;
+      unsigned int i;
 
       if (prop->arraydimension && prop->totarraylength) {
         fprintf(f,

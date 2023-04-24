@@ -104,7 +104,7 @@ PyDoc_STRVAR(ViewEdgeIterator_object_doc,
              "\n"
              ":type: :class:`ViewEdge`");
 
-static PyObject *ViewEdgeIterator_object_get(BPy_ViewEdgeIterator *self, void * /*closure*/)
+static PyObject *ViewEdgeIterator_object_get(BPy_ViewEdgeIterator *self, void *UNUSED(closure))
 {
   if (!self->ve_it->isEnd()) {
     PyErr_SetString(PyExc_RuntimeError, "iteration has stopped");
@@ -122,7 +122,8 @@ PyDoc_STRVAR(ViewEdgeIterator_current_edge_doc,
              "\n"
              ":type: :class:`ViewEdge`");
 
-static PyObject *ViewEdgeIterator_current_edge_get(BPy_ViewEdgeIterator *self, void * /*closure*/)
+static PyObject *ViewEdgeIterator_current_edge_get(BPy_ViewEdgeIterator *self,
+                                                   void *UNUSED(closure))
 {
   ViewEdge *ve = self->ve_it->getCurrentEdge();
   if (ve) {
@@ -133,7 +134,7 @@ static PyObject *ViewEdgeIterator_current_edge_get(BPy_ViewEdgeIterator *self, v
 
 static int ViewEdgeIterator_current_edge_set(BPy_ViewEdgeIterator *self,
                                              PyObject *value,
-                                             void * /*closure*/)
+                                             void *UNUSED(closure))
 {
   if (!BPy_ViewEdge_Check(value)) {
     PyErr_SetString(PyExc_TypeError, "value must be a ViewEdge");
@@ -152,14 +153,15 @@ PyDoc_STRVAR(ViewEdgeIterator_orientation_doc,
              "\n"
              ":type: bool");
 
-static PyObject *ViewEdgeIterator_orientation_get(BPy_ViewEdgeIterator *self, void * /*closure*/)
+static PyObject *ViewEdgeIterator_orientation_get(BPy_ViewEdgeIterator *self,
+                                                  void *UNUSED(closure))
 {
   return PyBool_from_bool(self->ve_it->getOrientation());
 }
 
 static int ViewEdgeIterator_orientation_set(BPy_ViewEdgeIterator *self,
                                             PyObject *value,
-                                            void * /*closure*/)
+                                            void *UNUSED(closure))
 {
   if (!PyBool_Check(value)) {
     PyErr_SetString(PyExc_TypeError, "value must be a boolean");
@@ -174,7 +176,7 @@ PyDoc_STRVAR(ViewEdgeIterator_begin_doc,
              "\n"
              ":type: :class:`ViewEdge`");
 
-static PyObject *ViewEdgeIterator_begin_get(BPy_ViewEdgeIterator *self, void * /*closure*/)
+static PyObject *ViewEdgeIterator_begin_get(BPy_ViewEdgeIterator *self, void *UNUSED(closure))
 {
   ViewEdge *ve = self->ve_it->getBegin();
   if (ve) {
@@ -185,7 +187,7 @@ static PyObject *ViewEdgeIterator_begin_get(BPy_ViewEdgeIterator *self, void * /
 
 static int ViewEdgeIterator_begin_set(BPy_ViewEdgeIterator *self,
                                       PyObject *value,
-                                      void * /*closure*/)
+                                      void *UNUSED(closure))
 {
   if (!BPy_ViewEdge_Check(value)) {
     PyErr_SetString(PyExc_TypeError, "value must be a ViewEdge");

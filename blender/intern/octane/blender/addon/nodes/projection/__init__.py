@@ -11,6 +11,7 @@ from . import triplanar
 from . import osl_projection
 from . import osl_delayed_uv
 from . import color_to_uvw
+from . import instance_position
 from . import sample_pos_to_uv
 from . import distorted_mesh_uv
 from . import matcap
@@ -26,6 +27,7 @@ def register():
     osl_projection.register()
     osl_delayed_uv.register()
     color_to_uvw.register()
+    instance_position.register()
     sample_pos_to_uv.register()
     distorted_mesh_uv.register()
     matcap.register()
@@ -41,6 +43,7 @@ def unregister():
     osl_projection.unregister()
     osl_delayed_uv.unregister()
     color_to_uvw.unregister()
+    instance_position.unregister()
     sample_pos_to_uv.unregister()
     distorted_mesh_uv.unregister()
     matcap.unregister()

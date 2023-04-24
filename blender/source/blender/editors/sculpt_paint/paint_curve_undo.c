@@ -9,6 +9,9 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_brush_types.h"
+#include "DNA_space_types.h"
+
+#include "BLI_array_utils.h"
 
 #include "BKE_context.h"
 #include "BKE_paint.h"
@@ -20,10 +23,6 @@
 #include "WM_api.h"
 
 #include "paint_intern.h"
-
-#ifndef NDEBUG
-#  include "BLI_array_utils.h" /* #BLI_array_is_zeroed */
-#endif
 
 /* -------------------------------------------------------------------- */
 /** \name Undo Conversion

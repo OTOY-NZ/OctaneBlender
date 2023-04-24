@@ -59,7 +59,9 @@ static void initData(ModifierData *md)
   MEMCPY_STRUCT_AFTER(dmd, DNA_struct_default_get(DisplaceModifierData), modifier);
 }
 
-static void requiredDataMask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
+static void requiredDataMask(Object *UNUSED(ob),
+                             ModifierData *md,
+                             CustomData_MeshMasks *r_cddata_masks)
 {
   DisplaceModifierData *dmd = (DisplaceModifierData *)md;
 
@@ -140,7 +142,7 @@ static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphConte
   }
 
   if (need_transform_relation) {
-    DEG_add_depends_on_transform_relation(ctx->node, "Displace Modifier");
+    DEG_add_modifier_to_transform_relation(ctx->node, "Displace Modifier");
   }
 }
 
@@ -148,7 +150,7 @@ typedef struct DisplaceUserdata {
   /*const*/ DisplaceModifierData *dmd;
   struct Scene *scene;
   struct ImagePool *pool;
-  const MDeformVert *dvert;
+  MDeformVert *dvert;
   float weight;
   int defgrp_index;
   int direction;
@@ -168,7 +170,7 @@ static void displaceModifier_do_task(void *__restrict userdata,
 {
   DisplaceUserdata *data = (DisplaceUserdata *)userdata;
   DisplaceModifierData *dmd = data->dmd;
-  const MDeformVert *dvert = data->dvert;
+  MDeformVert *dvert = data->dvert;
   const bool invert_vgroup = (dmd->flag & MOD_DISP_INVERT_VGROUP) != 0;
   float weight = data->weight;
   int defgrp_index = data->defgrp_index;
@@ -268,7 +270,7 @@ static void displaceModifier_do(DisplaceModifierData *dmd,
 {
   Object *ob = ctx->object;
   MVert *mvert;
-  const MDeformVert *dvert;
+  MDeformVert *dvert;
   int direction = dmd->direction;
   int defgrp_index;
   float(*tex_co)[3];
@@ -284,7 +286,7 @@ static void displaceModifier_do(DisplaceModifierData *dmd,
     return;
   }
 
-  mvert = BKE_mesh_verts_for_write(mesh);
+  mvert = mesh->mvert;
   MOD_get_vgroup(ob, mesh, dmd->defgrp_name, &dvert, &defgrp_index);
 
   if (defgrp_index >= 0 && dvert == NULL) {
@@ -314,7 +316,7 @@ static void displaceModifier_do(DisplaceModifierData *dmd,
       float(*clnors)[3] = CustomData_get_layer(ldata, CD_NORMAL);
       vert_clnors = MEM_malloc_arrayN(verts_num, sizeof(*vert_clnors), __func__);
       BKE_mesh_normals_loop_to_vertex(
-          verts_num, BKE_mesh_loops(mesh), mesh->totloop, (const float(*)[3])clnors, vert_clnors);
+          verts_num, mesh->mloop, mesh->totloop, (const float(*)[3])clnors, vert_clnors);
     }
     else {
       direction = MOD_DISP_DIR_NOR;
@@ -322,7 +324,7 @@ static void displaceModifier_do(DisplaceModifierData *dmd,
   }
   else if (ELEM(direction, MOD_DISP_DIR_X, MOD_DISP_DIR_Y, MOD_DISP_DIR_Z, MOD_DISP_DIR_RGB_XYZ) &&
            use_global_direction) {
-    copy_m4_m4(local_mat, ob->object_to_world);
+    copy_m4_m4(local_mat, ob->obmat);
   }
 
   DisplaceUserdata data = {NULL};
@@ -370,7 +372,8 @@ static void deformVerts(ModifierData *md,
                         float (*vertexCos)[3],
                         int verts_num)
 {
-  Mesh *mesh_src = MOD_deform_mesh_eval_get(ctx->object, NULL, mesh, NULL, verts_num, false);
+  Mesh *mesh_src = MOD_deform_mesh_eval_get(
+      ctx->object, NULL, mesh, NULL, verts_num, false, false);
 
   displaceModifier_do((DisplaceModifierData *)md, ctx, mesh_src, vertexCos, verts_num);
 
@@ -386,9 +389,10 @@ static void deformVertsEM(ModifierData *md,
                           float (*vertexCos)[3],
                           int verts_num)
 {
-  Mesh *mesh_src = MOD_deform_mesh_eval_get(ctx->object, editData, mesh, NULL, verts_num, false);
+  Mesh *mesh_src = MOD_deform_mesh_eval_get(
+      ctx->object, editData, mesh, NULL, verts_num, false, false);
 
-  /* TODO(@campbellbarton): use edit-mode data only (remove this line). */
+  /* TODO(Campbell): use edit-mode data only (remove this line). */
   if (mesh_src != NULL) {
     BKE_mesh_wrapper_ensure_mdata(mesh_src);
   }

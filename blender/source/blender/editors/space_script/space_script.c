@@ -24,8 +24,6 @@
 #include "UI_resources.h"
 #include "UI_view2d.h"
 
-#include "BLO_read_write.h"
-
 #ifdef WITH_PYTHON
 #endif
 
@@ -148,32 +146,13 @@ static void script_main_region_listener(const wmRegionListenerParams *UNUSED(par
 #endif
 }
 
-static void script_blend_read_lib(BlendLibReader *reader, ID *parent_id, SpaceLink *sl)
-{
-  SpaceScript *scpt = (SpaceScript *)sl;
-  /*scpt->script = NULL; - 2.45 set to null, better re-run the script */
-  if (scpt->script) {
-    BLO_read_id_address(reader, parent_id->lib, &scpt->script);
-    if (scpt->script) {
-      SCRIPT_SET_NULL(scpt->script);
-    }
-  }
-}
-
-static void script_blend_write(BlendWriter *writer, SpaceLink *sl)
-{
-  SpaceScript *scr = (SpaceScript *)sl;
-  scr->but_refs = NULL;
-  BLO_write_struct(writer, SpaceScript, sl);
-}
-
 void ED_spacetype_script(void)
 {
   SpaceType *st = MEM_callocN(sizeof(SpaceType), "spacetype script");
   ARegionType *art;
 
   st->spaceid = SPACE_SCRIPT;
-  STRNCPY(st->name, "Script");
+  strncpy(st->name, "Script", BKE_ST_MAXNAME);
 
   st->create = script_create;
   st->free = script_free;
@@ -181,8 +160,6 @@ void ED_spacetype_script(void)
   st->duplicate = script_duplicate;
   st->operatortypes = script_operatortypes;
   st->keymap = script_keymap;
-  st->blend_read_lib = script_blend_read_lib;
-  st->blend_write = script_blend_write;
 
   /* regions: main window */
   art = MEM_callocN(sizeof(ARegionType), "spacetype script region");

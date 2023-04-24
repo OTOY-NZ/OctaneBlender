@@ -10,7 +10,6 @@
 #pragma once
 
 #include "BLI_iterator.h"
-#include "BLI_utildefines.h"
 
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_build.h"
@@ -27,7 +26,6 @@ struct ListBase;
 struct PointerRNA;
 struct Scene;
 struct ViewLayer;
-struct ViewerPath;
 
 #ifdef __cplusplus
 extern "C" {
@@ -134,51 +132,21 @@ bool DEG_is_fully_evaluated(const struct Depsgraph *depsgraph);
 /** \name DEG object iterators
  * \{ */
 
-typedef enum DegIterFlag {
+enum {
   DEG_ITER_OBJECT_FLAG_LINKED_DIRECTLY = (1 << 0),
   DEG_ITER_OBJECT_FLAG_LINKED_INDIRECTLY = (1 << 1),
   DEG_ITER_OBJECT_FLAG_LINKED_VIA_SET = (1 << 2),
   DEG_ITER_OBJECT_FLAG_VISIBLE = (1 << 3),
   DEG_ITER_OBJECT_FLAG_DUPLI = (1 << 4),
-} DegIterFlag;
-ENUM_OPERATORS(DegIterFlag, DEG_ITER_OBJECT_FLAG_DUPLI)
-
-typedef struct DEGObjectIterSettings {
-  struct Depsgraph *depsgraph;
-  /**
-   * Bit-field of the #DegIterFlag.
-   *
-   * NOTE: Be careful with #DEG_ITER_OBJECT_FLAG_LINKED_INDIRECTLY objects.
-   * Although they are available they have no overrides (collection_properties)
-   * and will crash if you try to access it.
-   */
-  uint32_t flags;
-
-  /**
-   * When set, the final evaluated geometry of the corresponding object is omitted. Instead the
-   * geometry for the viewer path included in the iterator.
-   */
-  const struct ViewerPath *viewer_path;
-} DEGObjectIterSettings;
-
-/**
- * Flags to to get objects for draw manager and final render.
- */
-#define DEG_OBJECT_ITER_FOR_RENDER_ENGINE_FLAGS \
-  DEG_ITER_OBJECT_FLAG_LINKED_DIRECTLY | DEG_ITER_OBJECT_FLAG_LINKED_VIA_SET | \
-      DEG_ITER_OBJECT_FLAG_VISIBLE | DEG_ITER_OBJECT_FLAG_DUPLI
+};
 
 typedef struct DEGObjectIterData {
-  DEGObjectIterSettings *settings;
   struct Depsgraph *graph;
   int flag;
 
   struct Scene *scene;
 
   eEvaluationMode eval_mode;
-
-  /** Object whose preview instead of evaluated geometry should be part of the iterator. */
-  struct Object *object_orig_with_preview;
 
   struct Object *next_object;
 
@@ -206,12 +174,16 @@ void DEG_iterator_objects_begin(struct BLI_Iterator *iter, DEGObjectIterData *da
 void DEG_iterator_objects_next(struct BLI_Iterator *iter);
 void DEG_iterator_objects_end(struct BLI_Iterator *iter);
 
-#define DEG_OBJECT_ITER_BEGIN(settings_, instance_) \
+/**
+ * NOTE: Be careful with DEG_ITER_OBJECT_FLAG_LINKED_INDIRECTLY objects.
+ * Although they are available they have no overrides (collection_properties)
+ * and will crash if you try to access it.
+ */
+#define DEG_OBJECT_ITER_BEGIN(graph_, instance_, flag_) \
   { \
     DEGObjectIterData data_ = { \
-        (settings_), \
-        (settings_)->depsgraph, \
-        (int)(settings_)->flags, \
+        graph_, \
+        flag_, \
     }; \
 \
     ITER_BEGIN (DEG_iterator_objects_begin, \
@@ -225,6 +197,18 @@ void DEG_iterator_objects_end(struct BLI_Iterator *iter);
   ITER_END; \
   } \
   ((void)0)
+
+/**
+ * Depsgraph objects iterator for draw manager and final render
+ */
+#define DEG_OBJECT_ITER_FOR_RENDER_ENGINE_BEGIN(graph_, instance_) \
+  DEG_OBJECT_ITER_BEGIN (graph_, \
+                         instance_, \
+                         DEG_ITER_OBJECT_FLAG_LINKED_DIRECTLY | \
+                             DEG_ITER_OBJECT_FLAG_LINKED_VIA_SET | DEG_ITER_OBJECT_FLAG_VISIBLE | \
+                             DEG_ITER_OBJECT_FLAG_DUPLI)
+
+#define DEG_OBJECT_ITER_FOR_RENDER_ENGINE_END DEG_OBJECT_ITER_END
 
 /** \} */
 

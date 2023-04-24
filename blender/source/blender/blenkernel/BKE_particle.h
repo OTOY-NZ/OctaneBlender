@@ -291,11 +291,7 @@ void psys_set_current_num(struct Object *ob, int index);
 /* UNUSED */
 // struct Object *psys_find_object(struct Scene *scene, struct ParticleSystem *psys);
 
-/**
- * Initialize/free data for particle simulation evaluation.
- */
-void psys_sim_data_init(struct ParticleSimulationData *sim);
-void psys_sim_data_free(struct ParticleSimulationData *sim);
+struct LatticeDeformData *psys_create_lattice_deform_data(struct ParticleSimulationData *sim);
 
 /**
  * For a given evaluated particle system get its original.
@@ -420,7 +416,7 @@ void psys_get_particle_on_path(struct ParticleSimulationData *sim,
                                struct ParticleKey *state,
                                bool vel);
 /**
- * Gets particle's state at a time. Must call psys_sim_data_init before this.
+ * Gets particle's state at a time.
  * \return true if particle exists and can be seen and false if not.
  */
 bool psys_get_particle_state(struct ParticleSimulationData *sim,
@@ -583,7 +579,7 @@ void psys_get_texture(struct ParticleSimulationData *sim,
  * Interpolate a location on a face based on face coordinates.
  */
 void psys_interpolate_face(struct Mesh *mesh,
-                           const struct MVert *mvert,
+                           struct MVert *mvert,
                            const float (*vert_normals)[3],
                            struct MFace *mface,
                            struct MTFace *tface,

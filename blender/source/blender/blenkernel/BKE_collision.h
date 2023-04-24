@@ -17,7 +17,6 @@ struct Depsgraph;
 struct MVert;
 struct MVertTri;
 struct Object;
-struct Scene;
 
 ////////////////////////////////////////
 // used for collisions in collision.c
@@ -85,7 +84,7 @@ typedef struct FaceCollPair {
 /////////////////////////////////////////////////
 
 /////////////////////////////////////////////////
-// used in modifier.cc from collision.c
+// used in modifier.c from collision.c
 /////////////////////////////////////////////////
 
 struct BVHTree *bvhtree_build_from_mvert(const struct MVert *mvert,

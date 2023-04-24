@@ -40,28 +40,25 @@ class Film {
  private:
   Instance &inst_;
 
-  /** Incoming combined buffer with post FX applied (motion blur + depth of field). */
-  GPUTexture *combined_final_tx_ = nullptr;
-
-  /**
-   * Main accumulation textures containing every render-pass except depth, cryptomatte and
-   * combined.
-   */
+  /** Main accumulation textures containing every render-pass except depth and combined. */
   Texture color_accum_tx_;
   Texture value_accum_tx_;
   /** Depth accumulation texture. Separated because using a different format. */
   Texture depth_tx_;
-  /** Cryptomatte texture. Separated because it requires full floats. */
-  Texture cryptomatte_tx_;
   /** Combined "Color" buffer. Double buffered to allow re-projection. */
   SwapChain<Texture, 2> combined_tx_;
+  /** Static reference as SwapChain does not actually move the objects when swapping. */
+  GPUTexture *combined_src_tx_ = nullptr;
+  GPUTexture *combined_dst_tx_ = nullptr;
   /** Weight buffers. Double buffered to allow updating it during accumulation. */
   SwapChain<Texture, 2> weight_tx_;
+  /** Static reference as SwapChain does not actually move the objects when swapping. */
+  GPUTexture *weight_src_tx_ = nullptr;
+  GPUTexture *weight_dst_tx_ = nullptr;
   /** User setting to disable reprojection. Useful for debugging or have a more precise render. */
   bool force_disable_reprojection_ = false;
 
-  PassSimple accumulate_ps_ = {"Film.Accumulate"};
-  PassSimple cryptomatte_post_ps_ = {"Film.Cryptomatte.Post"};
+  DRWPass *accumulate_ps_ = nullptr;
 
   FilmDataBuf data_;
 
@@ -77,18 +74,14 @@ class Film {
   void end_sync();
 
   /** Accumulate the newly rendered sample contained in #RenderBuffers and blit to display. */
-  void accumulate(const DRWView *view, GPUTexture *combined_final_tx);
-
-  /** Sort and normalize cryptomatte samples. */
-  void cryptomatte_sort();
+  void accumulate(const DRWView *view);
 
   /** Blit to display. No rendered sample needed. */
   void display();
 
-  float *read_pass(eViewLayerEEVEEPassType pass_type, int layer_offset);
+  float *read_pass(eViewLayerEEVEEPassType pass_type);
   float *read_aov(ViewLayerAOV *aov);
 
-  /** Returns shading views internal resolution. */
   int2 render_extent_get() const
   {
     return data_.render_extent;
@@ -102,23 +95,17 @@ class Film {
   }
 
   eViewLayerEEVEEPassType enabled_passes_get() const;
-  int cryptomatte_layer_max_get() const;
-  int cryptomatte_layer_len_get() const;
 
-  static ePassStorageType pass_storage_type(eViewLayerEEVEEPassType pass_type)
+  static bool pass_is_value(eViewLayerEEVEEPassType pass_type)
   {
     switch (pass_type) {
       case EEVEE_RENDER_PASS_Z:
       case EEVEE_RENDER_PASS_MIST:
       case EEVEE_RENDER_PASS_SHADOW:
       case EEVEE_RENDER_PASS_AO:
-        return PASS_STORAGE_VALUE;
-      case EEVEE_RENDER_PASS_CRYPTOMATTE_OBJECT:
-      case EEVEE_RENDER_PASS_CRYPTOMATTE_ASSET:
-      case EEVEE_RENDER_PASS_CRYPTOMATTE_MATERIAL:
-        return PASS_STORAGE_CRYPTOMATTE;
+        return true;
       default:
-        return PASS_STORAGE_COLOR;
+        return false;
     }
   }
 
@@ -169,12 +156,8 @@ class Film {
         return data_.shadow_id;
       case EEVEE_RENDER_PASS_AO:
         return data_.ambient_occlusion_id;
-      case EEVEE_RENDER_PASS_CRYPTOMATTE_OBJECT:
-        return data_.cryptomatte_object_id;
-      case EEVEE_RENDER_PASS_CRYPTOMATTE_ASSET:
-        return data_.cryptomatte_asset_id;
-      case EEVEE_RENDER_PASS_CRYPTOMATTE_MATERIAL:
-        return data_.cryptomatte_material_id;
+      case EEVEE_RENDER_PASS_CRYPTOMATTE:
+        return -1; /* TODO */
       case EEVEE_RENDER_PASS_VECTOR:
         return data_.vector_id;
       default:
@@ -182,80 +165,44 @@ class Film {
     }
   }
 
-  static const Vector<std::string> pass_to_render_pass_names(eViewLayerEEVEEPassType pass_type,
-                                                             const ViewLayer *view_layer)
+  static const char *pass_to_render_pass_name(eViewLayerEEVEEPassType pass_type)
   {
-    Vector<std::string> result;
-
-    auto build_cryptomatte_passes = [&](const char *pass_name) {
-      const int num_cryptomatte_passes = (view_layer->cryptomatte_levels + 1) / 2;
-      for (int pass = 0; pass < num_cryptomatte_passes; pass++) {
-        std::stringstream ss;
-        ss.fill('0');
-        ss << pass_name;
-        ss.width(2);
-        ss << pass;
-        result.append(ss.str());
-      }
-    };
-
     switch (pass_type) {
       case EEVEE_RENDER_PASS_COMBINED:
-        result.append(RE_PASSNAME_COMBINED);
-        break;
+        return RE_PASSNAME_COMBINED;
       case EEVEE_RENDER_PASS_Z:
-        result.append(RE_PASSNAME_Z);
-        break;
+        return RE_PASSNAME_Z;
       case EEVEE_RENDER_PASS_MIST:
-        result.append(RE_PASSNAME_MIST);
-        break;
+        return RE_PASSNAME_MIST;
       case EEVEE_RENDER_PASS_NORMAL:
-        result.append(RE_PASSNAME_NORMAL);
-        break;
+        return RE_PASSNAME_NORMAL;
       case EEVEE_RENDER_PASS_DIFFUSE_LIGHT:
-        result.append(RE_PASSNAME_DIFFUSE_DIRECT);
-        break;
+        return RE_PASSNAME_DIFFUSE_DIRECT;
       case EEVEE_RENDER_PASS_DIFFUSE_COLOR:
-        result.append(RE_PASSNAME_DIFFUSE_COLOR);
-        break;
+        return RE_PASSNAME_DIFFUSE_COLOR;
       case EEVEE_RENDER_PASS_SPECULAR_LIGHT:
-        result.append(RE_PASSNAME_GLOSSY_DIRECT);
-        break;
+        return RE_PASSNAME_GLOSSY_DIRECT;
       case EEVEE_RENDER_PASS_SPECULAR_COLOR:
-        result.append(RE_PASSNAME_GLOSSY_COLOR);
-        break;
+        return RE_PASSNAME_GLOSSY_COLOR;
       case EEVEE_RENDER_PASS_VOLUME_LIGHT:
-        result.append(RE_PASSNAME_VOLUME_LIGHT);
-        break;
+        return RE_PASSNAME_VOLUME_LIGHT;
       case EEVEE_RENDER_PASS_EMIT:
-        result.append(RE_PASSNAME_EMIT);
-        break;
+        return RE_PASSNAME_EMIT;
       case EEVEE_RENDER_PASS_ENVIRONMENT:
-        result.append(RE_PASSNAME_ENVIRONMENT);
-        break;
+        return RE_PASSNAME_ENVIRONMENT;
       case EEVEE_RENDER_PASS_SHADOW:
-        result.append(RE_PASSNAME_SHADOW);
-        break;
+        return RE_PASSNAME_SHADOW;
       case EEVEE_RENDER_PASS_AO:
-        result.append(RE_PASSNAME_AO);
-        break;
-      case EEVEE_RENDER_PASS_CRYPTOMATTE_OBJECT:
-        build_cryptomatte_passes(RE_PASSNAME_CRYPTOMATTE_OBJECT);
-        break;
-      case EEVEE_RENDER_PASS_CRYPTOMATTE_ASSET:
-        build_cryptomatte_passes(RE_PASSNAME_CRYPTOMATTE_ASSET);
-        break;
-      case EEVEE_RENDER_PASS_CRYPTOMATTE_MATERIAL:
-        build_cryptomatte_passes(RE_PASSNAME_CRYPTOMATTE_MATERIAL);
-        break;
+        return RE_PASSNAME_AO;
+      case EEVEE_RENDER_PASS_CRYPTOMATTE:
+        BLI_assert_msg(0, "Cryptomatte is not implemented yet.");
+        return ""; /* TODO */
       case EEVEE_RENDER_PASS_VECTOR:
-        result.append(RE_PASSNAME_VECTOR);
-        break;
+        return RE_PASSNAME_VECTOR;
       default:
         BLI_assert(0);
-        break;
+        return "";
     }
-    return result;
   }
 
  private:

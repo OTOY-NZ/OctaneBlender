@@ -42,8 +42,6 @@
 #include "ED_space_api.h"
 #include "ED_time_scrub_ui.h"
 
-#include "BLO_read_write.h"
-
 #include "action_intern.h" /* own include */
 
 /* ******************** default callbacks for action space ***************** */
@@ -309,7 +307,7 @@ static void action_header_region_draw(const bContext *C, ARegion *region)
 static void action_channel_region_listener(const wmRegionListenerParams *params)
 {
   ARegion *region = params->region;
-  const wmNotifier *wmn = params->notifier;
+  wmNotifier *wmn = params->notifier;
 
   /* context changes */
   switch (wmn->category) {
@@ -403,7 +401,7 @@ static void saction_channel_region_message_subscribe(const wmRegionMessageSubscr
 static void action_main_region_listener(const wmRegionListenerParams *params)
 {
   ARegion *region = params->region;
-  const wmNotifier *wmn = params->notifier;
+  wmNotifier *wmn = params->notifier;
 
   /* context changes */
   switch (wmn->category) {
@@ -501,7 +499,7 @@ static void saction_main_region_message_subscribe(const wmRegionMessageSubscribe
 static void action_listener(const wmSpaceTypeListenerParams *params)
 {
   ScrArea *area = params->area;
-  const wmNotifier *wmn = params->notifier;
+  wmNotifier *wmn = params->notifier;
   SpaceAction *saction = (SpaceAction *)area->spacedata.first;
 
   /* context changes */
@@ -655,7 +653,7 @@ static void action_header_region_listener(const wmRegionListenerParams *params)
 {
   ScrArea *area = params->area;
   ARegion *region = params->region;
-  const wmNotifier *wmn = params->notifier;
+  wmNotifier *wmn = params->notifier;
   SpaceAction *saction = (SpaceAction *)area->spacedata.first;
 
   /* context changes */
@@ -730,7 +728,7 @@ static void action_buttons_area_draw(const bContext *C, ARegion *region)
 static void action_region_listener(const wmRegionListenerParams *params)
 {
   ARegion *region = params->region;
-  const wmNotifier *wmn = params->notifier;
+  wmNotifier *wmn = params->notifier;
 
   /* context changes */
   switch (wmn->category) {
@@ -836,37 +834,13 @@ static void action_space_subtype_item_extend(bContext *UNUSED(C),
   RNA_enum_items_add(item, totitem, rna_enum_space_action_mode_items);
 }
 
-static void action_blend_read_data(BlendDataReader *UNUSED(reader), SpaceLink *sl)
-{
-  SpaceAction *saction = (SpaceAction *)sl;
-  memset(&saction->runtime, 0x0, sizeof(saction->runtime));
-}
-
-static void action_blend_read_lib(BlendLibReader *reader, ID *parent_id, SpaceLink *sl)
-{
-  SpaceAction *saction = (SpaceAction *)sl;
-  bDopeSheet *ads = &saction->ads;
-
-  if (ads) {
-    BLO_read_id_address(reader, parent_id->lib, &ads->source);
-    BLO_read_id_address(reader, parent_id->lib, &ads->filter_grp);
-  }
-
-  BLO_read_id_address(reader, parent_id->lib, &saction->action);
-}
-
-static void action_blend_write(BlendWriter *writer, SpaceLink *sl)
-{
-  BLO_write_struct(writer, SpaceAction, sl);
-}
-
 void ED_spacetype_action(void)
 {
   SpaceType *st = MEM_callocN(sizeof(SpaceType), "spacetype action");
   ARegionType *art;
 
   st->spaceid = SPACE_ACTION;
-  STRNCPY(st->name, "Action");
+  strncpy(st->name, "Action", BKE_ST_MAXNAME);
 
   st->create = action_create;
   st->free = action_free;
@@ -880,9 +854,6 @@ void ED_spacetype_action(void)
   st->space_subtype_item_extend = action_space_subtype_item_extend;
   st->space_subtype_get = action_space_subtype_get;
   st->space_subtype_set = action_space_subtype_set;
-  st->blend_read_data = action_blend_read_data;
-  st->blend_read_lib = action_blend_read_lib;
-  st->blend_write = action_blend_write;
 
   /* regions: main window */
   art = MEM_callocN(sizeof(ARegionType), "spacetype action region");
@@ -933,9 +904,6 @@ void ED_spacetype_action(void)
   BLI_addhead(&st->regiontypes, art);
 
   action_buttons_register(art);
-
-  art = ED_area_type_hud(st->spaceid);
-  BLI_addhead(&st->regiontypes, art);
 
   BKE_spacetype_register(st);
 }

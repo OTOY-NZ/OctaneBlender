@@ -92,14 +92,8 @@ typedef struct ImageTile {
 
   struct ImageTile_Runtime runtime;
 
+  char _pad[4];
   int tile_number;
-
-  /* for generated images */
-  int gen_x, gen_y;
-  char gen_type, gen_flag;
-  short gen_depth;
-  float gen_color[4];
-
   char label[64];
 } ImageTile;
 
@@ -173,10 +167,10 @@ typedef struct Image {
   int lastused;
 
   /* for generated images */
-  int gen_x DNA_DEPRECATED, gen_y DNA_DEPRECATED;
-  char gen_type DNA_DEPRECATED, gen_flag DNA_DEPRECATED;
-  short gen_depth DNA_DEPRECATED;
-  float gen_color[4] DNA_DEPRECATED;
+  int gen_x, gen_y;
+  char gen_type, gen_flag;
+  short gen_depth;
+  float gen_color[4];
 
   /* display aspect - for UV editing images resized for faster openGL display */
   float aspx, aspy;
@@ -268,8 +262,7 @@ enum {
 
 /** #Image.gen_flag */
 enum {
-  IMA_GEN_FLOAT = (1 << 0),
-  IMA_GEN_TILE = (1 << 1),
+  IMA_GEN_FLOAT = 1,
 };
 
 /** #Image.alpha_mode */

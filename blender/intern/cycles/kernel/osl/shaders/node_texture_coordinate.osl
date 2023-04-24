@@ -4,6 +4,7 @@
 #include "stdcycles.h"
 
 shader node_texture_coordinate(
+    normal NormalIn = N,
     int is_background = 0,
     int is_volume = 0,
     int from_dupli = 0,
@@ -26,7 +27,7 @@ shader node_texture_coordinate(
     point Pcam = transform("camera", "world", point(0, 0, 0));
     Camera = transform("camera", P + Pcam);
     getattribute("NDC", Window);
-    Normal = N;
+    Normal = NormalIn;
     Reflection = I;
   }
   else {
@@ -58,8 +59,8 @@ shader node_texture_coordinate(
     }
     Camera = transform("camera", P);
     Window = transform("NDC", P);
-    Normal = transform("world", "object", N);
-    Reflection = -reflect(I, N);
+    Normal = transform("world", "object", NormalIn);
+    Reflection = -reflect(I, NormalIn);
   }
 
   if (bump_offset == "dx") {

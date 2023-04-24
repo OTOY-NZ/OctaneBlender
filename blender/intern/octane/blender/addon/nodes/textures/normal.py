@@ -15,12 +15,13 @@ class OctaneNormalNormalType(OctaneBaseSocket):
     bl_idname="OctaneNormalNormalType"
     bl_label="Normal type"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type=57
+    octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=649)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="normalType")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
+    octane_pin_id=consts.PinID.P_NORMAL_TYPE
+    octane_pin_name="normalType"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("Geometric", "Geometric", "", 0),
         ("Smooth", "Smooth", "", 1),
@@ -36,12 +37,13 @@ class OctaneNormalCoordinateSystem(OctaneBaseSocket):
     bl_idname="OctaneNormalCoordinateSystem"
     bl_label="Coordinate system"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type=57
+    octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=645)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="coordinateSystem")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
+    octane_pin_id=consts.PinID.P_COORDINATE_SYSTEM
+    octane_pin_name="coordinateSystem"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=1
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("World", "World", "", 0),
         ("Camera", "Camera", "", 1),
@@ -58,12 +60,13 @@ class OctaneNormalNormalize(OctaneBaseSocket):
     bl_idname="OctaneNormalNormalize"
     bl_label="Normalize result"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type=11
+    octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=118)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="normalize")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
+    octane_pin_id=consts.PinID.P_NORMALIZE
+    octane_pin_name="normalize"
+    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_index=2
+    octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Whether to remap the result to the [0..1] range or leave it in the [-1..+1] range")
     octane_hide_value=False
     octane_min_version=11000004
@@ -79,13 +82,13 @@ class OctaneNormal(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneNormalNormalType,OctaneNormalCoordinateSystem,OctaneNormalNormalize,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=327)
-    octane_socket_list: StringProperty(name="Socket List", default="Normal type;Coordinate system;Normalize result;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=3)
+    octane_node_type=consts.NodeType.NT_TEX_NORMAL
+    octane_socket_list=["Normal type", "Coordinate system", "Normalize result", ]
+    octane_attribute_list=[]
+    octane_attribute_config={}
+    octane_static_pin_count=3
 
     def init(self, context):
         self.inputs.new("OctaneNormalNormalType", OctaneNormalNormalType.bl_label).init()

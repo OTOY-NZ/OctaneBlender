@@ -31,10 +31,6 @@
  *   discarding all data inside it.
  *   Data can be accessed using the [] operator.
  *
- * `draw::StorageVectorBuffer<T, len>`
- *   Same as `StorageArrayBuffer` but has a length counter and act like a `blender::Vector` you can
- *   clear and append to.
- *
  * `draw::StorageBuffer<T>`
  *   A storage buffer object class inheriting from T.
  *   Data can be accessed just like a normal T object.
@@ -54,13 +50,13 @@
  *
  * `draw::Framebuffer`
  *   Simple wrapper to #GPUFramebuffer that can be moved.
+ *
  */
 
 #include "DRW_render.h"
 
 #include "MEM_guardedalloc.h"
 
-#include "draw_manager.h"
 #include "draw_texture_pool.h"
 
 #include "BLI_math_vec_types.hh"
@@ -186,7 +182,7 @@ class UniformCommon : public DataBuffer<T, len, false>, NonMovable, NonCopyable 
     GPU_uniformbuf_free(ubo_);
   }
 
-  void push_update()
+  void push_update(void)
   {
     GPU_uniformbuf_update(ubo_, this->data_);
   }
@@ -231,20 +227,10 @@ class StorageCommon : public DataBuffer<T, len, false>, NonMovable, NonCopyable 
     GPU_storagebuf_free(ssbo_);
   }
 
-  void push_update()
+  void push_update(void)
   {
     BLI_assert(device_only == false);
     GPU_storagebuf_update(ssbo_, this->data_);
-  }
-
-  void clear_to_zero()
-  {
-    GPU_storagebuf_clear_to_zero(ssbo_);
-  }
-
-  void read()
-  {
-    GPU_storagebuf_read(ssbo_, this->data_);
   }
 
   operator GPUStorageBuf *() const
@@ -317,8 +303,8 @@ class UniformBuffer : public T, public detail::UniformCommon<T, 1, false> {
 template<
     /** Type of the values stored in this uniform buffer. */
     typename T,
-    /** The number of values that can be stored in this storage buffer at creation. */
-    int64_t len = 16u / sizeof(T),
+    /** The number of values that can be stored in this uniform buffer. */
+    int64_t len,
     /** True if created on device and no memory host memory is allocated. */
     bool device_only = false>
 class StorageArrayBuffer : public detail::StorageCommon<T, len, device_only> {
@@ -333,7 +319,6 @@ class StorageArrayBuffer : public detail::StorageCommon<T, len, device_only> {
     MEM_freeN(this->data_);
   }
 
-  /* Resize to \a new_size elements. */
   void resize(int64_t new_size)
   {
     BLI_assert(new_size > 0);
@@ -361,71 +346,6 @@ class StorageArrayBuffer : public detail::StorageCommon<T, len, device_only> {
     }
     return this->data_[index];
   }
-
-  int64_t size() const
-  {
-    return this->len_;
-  }
-};
-
-template<
-    /** Type of the values stored in this uniform buffer. */
-    typename T,
-    /** The number of values that can be stored in this storage buffer at creation. */
-    int64_t len = 16u / sizeof(T)>
-class StorageVectorBuffer : public StorageArrayBuffer<T, len, false> {
- private:
-  /* Number of items, not the allocated length. */
-  int64_t item_len_ = 0;
-
- public:
-  StorageVectorBuffer(const char *name = nullptr) : StorageArrayBuffer<T, len, false>(name){};
-  ~StorageVectorBuffer(){};
-
-  /**
-   * Set item count to zero but does not free memory or resize the buffer.
-   */
-  void clear()
-  {
-    item_len_ = 0;
-  }
-
-  /**
-   * Insert a new element at the end of the vector.
-   * This might cause a reallocation with the capacity is exceeded.
-   *
-   * This is similar to std::vector::push_back.
-   */
-  void append(const T &value)
-  {
-    this->append_as(value);
-  }
-  void append(T &&value)
-  {
-    this->append_as(std::move(value));
-  }
-  template<typename... ForwardT> void append_as(ForwardT &&...value)
-  {
-    if (item_len_ >= this->len_) {
-      size_t size = power_of_2_max_u(item_len_ + 1);
-      this->resize(size);
-    }
-    T *ptr = &this->data_[item_len_++];
-    new (ptr) T(std::forward<ForwardT>(value)...);
-  }
-
-  int64_t size() const
-  {
-    return item_len_;
-  }
-
-  bool is_empty() const
-  {
-    return this->size() == 0;
-  }
-
-  /* Avoid confusion with the other clear. */
-  void clear_to_zero() = delete;
 };
 
 template<
@@ -641,11 +561,6 @@ class Texture : NonCopyable {
     return mip_views_[miplvl];
   }
 
-  int mip_count() const
-  {
-    return GPU_texture_mip_count(tx_);
-  }
-
   /**
    * Ensure the availability of mipmap views.
    * Layer views covers all layers of array textures.
@@ -686,47 +601,42 @@ class Texture : NonCopyable {
   /**
    * Returns true if the texture has been allocated or acquired from the pool.
    */
-  bool is_valid() const
+  bool is_valid(void) const
   {
     return tx_ != nullptr;
   }
 
-  int width() const
+  int width(void) const
   {
     return GPU_texture_width(tx_);
   }
 
-  int height() const
+  int height(void) const
   {
     return GPU_texture_height(tx_);
   }
 
-  int pixel_count() const
-  {
-    return GPU_texture_width(tx_) * GPU_texture_height(tx_);
-  }
-
-  bool depth() const
+  bool depth(void) const
   {
     return GPU_texture_depth(tx_);
   }
 
-  bool is_stencil() const
+  bool is_stencil(void) const
   {
     return GPU_texture_stencil(tx_);
   }
 
-  bool is_integer() const
+  bool is_integer(void) const
   {
     return GPU_texture_integer(tx_);
   }
 
-  bool is_cube() const
+  bool is_cube(void) const
   {
     return GPU_texture_cube(tx_);
   }
 
-  bool is_array() const
+  bool is_array(void) const
   {
     return GPU_texture_array(tx_);
   }
@@ -818,7 +728,7 @@ class Texture : NonCopyable {
       int3 size = this->size();
       if (size != int3(w, h, d) || GPU_texture_format(tx_) != format ||
           GPU_texture_cube(tx_) != cubemap || GPU_texture_array(tx_) != layered) {
-        free();
+        GPU_TEXTURE_FREE_SAFE(tx_);
       }
     }
     if (tx_ == nullptr) {
@@ -868,45 +778,50 @@ class Texture : NonCopyable {
 };
 
 class TextureFromPool : public Texture, NonMovable {
+ private:
+  GPUTexture *tx_tmp_saved_ = nullptr;
+
  public:
   TextureFromPool(const char *name = "gpu::Texture") : Texture(name){};
 
-  /* Always use `release()` after rendering. */
-  void acquire(int2 extent, eGPUTextureFormat format)
+  /* Always use `release()` after rendering and `sync()` in sync phase. */
+  void acquire(int2 extent, eGPUTextureFormat format, void *owner_)
   {
     BLI_assert(this->tx_ == nullptr);
-
-    this->tx_ = DRW_texture_pool_texture_acquire(
-        DST.vmempool->texture_pool, UNPACK2(extent), format);
-  }
-
-  void release()
-  {
-    /* Allows multiple release. */
-    if (this->tx_ == nullptr) {
+    if (this->tx_ != nullptr) {
       return;
     }
-    DRW_texture_pool_texture_release(DST.vmempool->texture_pool, this->tx_);
-    this->tx_ = nullptr;
+    if (tx_tmp_saved_ != nullptr) {
+      if (GPU_texture_width(tx_tmp_saved_) != extent.x ||
+          GPU_texture_height(tx_tmp_saved_) != extent.y ||
+          GPU_texture_format(tx_tmp_saved_) != format) {
+        this->tx_tmp_saved_ = nullptr;
+      }
+      else {
+        this->tx_ = tx_tmp_saved_;
+        return;
+      }
+    }
+    DrawEngineType *owner = (DrawEngineType *)owner_;
+    this->tx_ = DRW_texture_pool_query_2d(UNPACK2(extent), format, owner);
+  }
+
+  void release(void)
+  {
+    /* Allows multiple release. */
+    if (this->tx_ != nullptr) {
+      tx_tmp_saved_ = this->tx_;
+      this->tx_ = nullptr;
+    }
   }
 
   /**
-   * Swap the content of the two textures.
-   * Also change ownership accordingly if needed.
+   * Clears any reference. Workaround for pool texture not being able to release on demand.
+   * Needs to be called at during the sync phase.
    */
-  static void swap(TextureFromPool &a, Texture &b)
+  void sync(void)
   {
-    Texture::swap(a, b);
-    DRW_texture_pool_give_texture_ownership(DST.vmempool->texture_pool, a);
-    DRW_texture_pool_take_texture_ownership(DST.vmempool->texture_pool, b);
-  }
-  static void swap(Texture &a, TextureFromPool &b)
-  {
-    swap(b, a);
-  }
-  static void swap(TextureFromPool &a, TextureFromPool &b)
-  {
-    Texture::swap(a, b);
+    tx_tmp_saved_ = nullptr;
   }
 
   /** Remove methods that are forbidden with this type of textures. */
@@ -923,62 +838,6 @@ class TextureFromPool : public Texture, NonMovable {
   GPUTexture *layer_view(int) = delete;
   GPUTexture *stencil_view() = delete;
 };
-
-class TextureRef : public Texture {
- public:
-  TextureRef() = default;
-
-  ~TextureRef()
-  {
-    this->tx_ = nullptr;
-  }
-
-  void wrap(GPUTexture *tex)
-  {
-    this->tx_ = tex;
-  }
-
-  /** Remove methods that are forbidden with this type of textures. */
-  bool ensure_1d(int, int, eGPUTextureFormat, float *) = delete;
-  bool ensure_1d_array(int, int, int, eGPUTextureFormat, float *) = delete;
-  bool ensure_2d(int, int, int, eGPUTextureFormat, float *) = delete;
-  bool ensure_2d_array(int, int, int, int, eGPUTextureFormat, float *) = delete;
-  bool ensure_3d(int, int, int, int, eGPUTextureFormat, float *) = delete;
-  bool ensure_cube(int, int, eGPUTextureFormat, float *) = delete;
-  bool ensure_cube_array(int, int, int, eGPUTextureFormat, float *) = delete;
-  void filter_mode(bool) = delete;
-  void free() = delete;
-  GPUTexture *mip_view(int) = delete;
-  GPUTexture *layer_view(int) = delete;
-  GPUTexture *stencil_view() = delete;
-};
-
-/**
- * Dummy type to bind texture as image.
- * It is just a GPUTexture in disguise.
- */
-class Image {
-};
-
-static inline Image *as_image(GPUTexture *tex)
-{
-  return reinterpret_cast<Image *>(tex);
-}
-
-static inline Image **as_image(GPUTexture **tex)
-{
-  return reinterpret_cast<Image **>(tex);
-}
-
-static inline GPUTexture *as_texture(Image *img)
-{
-  return reinterpret_cast<GPUTexture *>(img);
-}
-
-static inline GPUTexture **as_texture(Image **img)
-{
-  return reinterpret_cast<GPUTexture **>(img);
-}
 
 /** \} */
 
@@ -1049,47 +908,45 @@ class Framebuffer : NonCopyable {
 
 template<typename T, int64_t len> class SwapChain {
  private:
-  BLI_STATIC_ASSERT(len > 1, "A swap-chain needs more than 1 unit in length.");
   std::array<T, len> chain_;
+  int64_t index_ = 0;
 
  public:
   void swap()
   {
-    for (auto i : IndexRange(len - 1)) {
-      T::swap(chain_[i], chain_[(i + 1) % len]);
-    }
+    index_ = (index_ + 1) % len;
   }
 
   T &current()
   {
-    return chain_[0];
+    return chain_[index_];
   }
 
   T &previous()
   {
     /* Avoid modulo operation with negative numbers. */
-    return chain_[(0 + len - 1) % len];
+    return chain_[(index_ + len - 1) % len];
   }
 
   T &next()
   {
-    return chain_[(0 + 1) % len];
+    return chain_[(index_ + 1) % len];
   }
 
   const T &current() const
   {
-    return chain_[0];
+    return chain_[index_];
   }
 
   const T &previous() const
   {
     /* Avoid modulo operation with negative numbers. */
-    return chain_[(0 + len - 1) % len];
+    return chain_[(index_ + len - 1) % len];
   }
 
   const T &next() const
   {
-    return chain_[(0 + 1) % len];
+    return chain_[(index_ + 1) % len];
   }
 };
 

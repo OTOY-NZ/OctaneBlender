@@ -3,10 +3,8 @@
 
 layout(std430, binding = 1) readonly restrict buffer sourceBuffer
 {
-#if defined(GPU_COMP_U16)
+#ifdef GPU_FETCH_U16_TO_FLOAT
   uint src_data[];
-#elif defined(GPU_COMP_I32)
-  int src_data[];
 #else
   float src_data[];
 #endif
@@ -29,10 +27,8 @@ layout(std430, binding = 4) readonly restrict buffer extraCoarseFaceData
 
 layout(std430, binding = 5) writeonly restrict buffer destBuffer
 {
-#if defined(GPU_COMP_U16)
+#ifdef GPU_FETCH_U16_TO_FLOAT
   uint dst_data[];
-#elif defined(GPU_COMP_I32)
-  int dst_data[];
 #else
   float dst_data[];
 #endif
@@ -52,7 +48,7 @@ void clear(inout Vertex v)
 Vertex read_vertex(uint index)
 {
   Vertex result;
-#if defined(GPU_COMP_U16)
+#ifdef GPU_FETCH_U16_TO_FLOAT
   uint base_index = index * 2;
   if (DIMENSIONS == 4) {
     uint xy = src_data[base_index];
@@ -72,11 +68,6 @@ Vertex read_vertex(uint index)
     /* This case is unsupported for now. */
     clear(result);
   }
-#elif defined(GPU_COMP_I32)
-  uint base_index = index * DIMENSIONS;
-  for (int i = 0; i < DIMENSIONS; i++) {
-    result.vertex_data[i] = float(src_data[base_index + i]);
-  }
 #else
   uint base_index = index * DIMENSIONS;
   for (int i = 0; i < DIMENSIONS; i++) {
@@ -88,7 +79,7 @@ Vertex read_vertex(uint index)
 
 void write_vertex(uint index, Vertex v)
 {
-#if defined(GPU_COMP_U16)
+#ifdef GPU_FETCH_U16_TO_FLOAT
   uint base_index = dst_offset + index * 2;
   if (DIMENSIONS == 4) {
     uint x = uint(v.vertex_data[0] * 65535.0);
@@ -105,11 +96,6 @@ void write_vertex(uint index, Vertex v)
   else {
     /* This case is unsupported for now. */
     dst_data[base_index] = 0;
-  }
-#elif defined(GPU_COMP_I32)
-  uint base_index = dst_offset + index * DIMENSIONS;
-  for (int i = 0; i < DIMENSIONS; i++) {
-    dst_data[base_index + i] = int(round(v.vertex_data[i]));
   }
 #else
   uint base_index = dst_offset + index * DIMENSIONS;

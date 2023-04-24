@@ -54,149 +54,6 @@ class OctaneButtonsPanel():
     def poll(cls, context):
         return context.engine in cls.COMPAT_ENGINES
 
-class OctaneRenderPassesPanel(OctaneButtonsPanel):
-
-    @classmethod
-    def poll(cls, context):
-        if not OctaneButtonsPanel.poll(context):
-            return False
-        view_layer = context.view_layer
-        octane_view_layer = view_layer.octane
-        return octane_view_layer.render_pass_style == "RENDER_PASSES"
-
-class OctaneRenderAOVNodeGraphPanel(OctaneButtonsPanel):
-
-    @classmethod
-    def poll(cls, context):
-        if not OctaneButtonsPanel.poll(context):
-            return False
-        view_layer = context.view_layer
-        octane_view_layer = view_layer.octane
-        return octane_view_layer.render_pass_style == "RENDER_AOV_GRAPH"           
-
-
-class OCTANE_RENDER_PT_server(OctaneButtonsPanel, Panel):
-    bl_label = "Octane Server"
-
-    def draw(self, context):
-        layout = self.layout
-
-        scene = context.scene
-        oct_scene = scene.octane
-
-        box = layout.box()
-        box.label(text="Octane Resource Cache")
-        sub = box.row()
-        sub.active = not engine.IS_RENDERING
-        sub.prop(oct_scene, "resource_cache_type")
-        sub = box.row()
-        sub.prop(oct_scene, "dirty_resource_detection_strategy_type")
-        sub.operator("octane.clear_resource_cache", text="Clear")
-
-        if core.ENABLE_OCTANE_ADDON_CLIENT:
-            box = layout.box()
-            box.label(text="Octane Addon Test Settings:")
-            sub = box.row()
-            sub.prop(oct_scene, "addon_dev_enabled")
-            sub = box.row()
-            sub.prop(oct_scene, "legacy_mode_enabled")
-
-        box = layout.box()
-        box.label(text="Octane Settings:")
-        sub = box.row()
-        sub.prop(oct_scene, "priority_mode")        
-        sub = box.row()
-        sub.active = not engine.IS_RENDERING
-        sub.prop(oct_scene, "prefer_tonemap")     
-        sub = box.row()
-        sub.active = not engine.IS_RENDERING
-        sub.prop(oct_scene, "meshes_type")   
-        sub = box.row()
-        sub.active = not engine.IS_RENDERING
-        sub.prop(oct_scene, "maximize_instancing")                    
-        sub = box.row()
-        sub.prop(oct_scene, "subsample_mode")                
-        sub = box.row()
-        sub.operator("octane.show_octane_node_graph", text="Show Octane Node Graph")
-        sub = box.row()
-        sub.operator("octane.show_octane_log", text="Show Octane Log")
-        sub = box.row()
-        sub.operator("octane.show_octane_viewport", text="Show Octane Viewport")
-        sub = box.row()
-        sub.operator("octane.stop_render", text="Stop Render")
-        sub = box.row()
-        sub.operator("octane.show_octane_device_setting", text="Device Preferences")
-        sub.operator("octane.show_octane_network_preference", text="Network Preferences")
-        sub = box.row()
-        sub.operator("octane.activate", text="Activation state")
-
-class OCTANE_RENDER_PT_out_of_core(OctaneButtonsPanel, Panel):
-    bl_label = "Octane Out Of Core"
-    bl_options = {'DEFAULT_CLOSED'}
-
-    def draw_header(self, context):
-        self.layout.prop(context.scene.octane, "out_of_core_enable", text="")
-
-    def draw(self, context):
-        layout = self.layout
-
-        scene = context.scene
-        octane = scene.octane
-
-        col = layout.column()
-        col.prop(octane, "out_of_core_limit")
-        col.prop(octane, "out_of_core_gpu_headroom")
-
-
-class OCTANE_RENDER_PT_motion_blur(OctaneButtonsPanel, Panel):
-    bl_label = "Motion Blur"
-    bl_options = {'DEFAULT_CLOSED'}
-
-    def draw_header(self, context):
-        rd = context.scene.render
-        self.layout.prop(rd, "use_motion_blur", text="")
-
-    def draw(self, context):
-        layout = self.layout
-
-        rd = context.scene.render
-        layout.active = rd.use_motion_blur
-
-        row = layout.row()
-        row.prop(context.scene.octane, "mb_direction")
-        row = layout.row()
-        row.prop(context.scene.octane, "shutter_time")
-        row = layout.row()
-        row.prop(context.scene.octane, "subframe_start")
-        row = layout.row()
-        row.prop(context.scene.octane, "subframe_end")
-
-
-class OCTANE_PT_curve_properties(OctaneButtonsPanel, Panel):
-    bl_label = "Octane properties"
-    bl_context = "data"
-
-    @classmethod
-    def poll(cls, context):
-        if OctaneButtonsPanel.poll(context):
-            if context.curve:
-                return True
-        return False
-
-    def draw(self, context):
-        layout = self.layout
-        curve = context.curve
-        cdata = curve.octane
-
-        box = layout.box()
-        box.label(text="Hair properties:")
-        sub = box.column(align=True)
-        sub.prop(cdata, "render_curve_as_octane_hair")
-        if cdata.render_curve_as_octane_hair:
-            sub = box.column(align=True)
-            sub.prop(cdata, "hair_root_width")            
-            sub.prop(cdata, "hair_tip_width")
-
 
 class OCTANE_PT_mesh_properties(OctaneButtonsPanel, Panel):
     bl_label = "Octane properties"
@@ -205,7 +62,7 @@ class OCTANE_PT_mesh_properties(OctaneButtonsPanel, Panel):
     @classmethod
     def poll(cls, context):
         if OctaneButtonsPanel.poll(context):
-            if context.mesh or context.meta_ball:
+            if context.mesh or context.curve or context.meta_ball:
                 return True
 
         return False
@@ -363,7 +220,7 @@ class OCTANE_PT_mesh_properties(OctaneButtonsPanel, Panel):
         osl_node_draw(box, str(cdata.octane_geo_node_collections.node_graph_tree), str(cdata.octane_geo_node_collections.osl_geo_node))
 
         box = layout.box()
-        box.label(text="Orbx properties:")
+        box.label(text="Orbx properties:")   
         sub = box.column(align=True)     
         sub.prop(cdata, "imported_orbx_file_path")
         sub = box.row(align=True)
@@ -467,35 +324,6 @@ class OCTANE_PT_volume_properties(OctaneButtonsPanel, Panel):
         sub.prop(cdata, "octane_offset_rotation")
         sub = box.row(align=True)
         sub.prop(cdata, "octane_offset_scale")
-
-
-class OCTANE_RENDER_PT_HairSettings(OctaneButtonsPanel, Panel):
-    bl_label = "Octane Hair Settings"
-    bl_context = "particle"
-
-    @classmethod
-    def poll(cls, context):
-        psys = context.particle_system
-        return psys and OctaneButtonsPanel.poll(context) and psys.settings.type == 'HAIR'
-
-    def draw(self, context):
-        layout = self.layout
-
-        psys = context.particle_settings
-        opsys = psys.octane
-
-        row = layout.row()
-        row.prop(psys, "octane_min_curvature")
-
-        layout.label(text="Thickness:")
-        row = layout.row(align=True)
-        row.prop(psys, "octane_root_width")
-        row.prop(psys, "octane_tip_width")        
-
-        layout.label(text="W coordinate:")
-        row = layout.row(align=True)  
-        row.prop(psys, "octane_w_min")
-        row.prop(psys, "octane_w_max")            
 
 
 class OCTANE_RENDER_PT_SpherePrimitiveSettings(OctaneButtonsPanel, Panel):
@@ -659,558 +487,6 @@ class OCTANE_MATERIAL_PT_converters(OctaneButtonsPanel, Panel):
         row.operator("octane.convert_to_octane_material", text="Convert To Octane Materials")
 
 
-class OCTANE_RENDER_PT_AOV_node_graph(OctaneRenderAOVNodeGraphPanel, Panel):
-    bl_label = "Render AOV Node Graph"
-    bl_context = "view_layer"
-
-    def draw(self, context):
-        view_layer = context.view_layer
-        octane_view_layer = view_layer.octane
-
-        layout = self.layout
-        row = layout.row()
-        row.prop(octane_view_layer, "render_pass_style")  
-
-        row = layout.row()
-        render_aov_node_graph_property = octane_view_layer.render_aov_node_graph_property
-        row.prop(render_aov_node_graph_property, "node_tree", text="AOV Node Tree", icon='NODETREE')
-        utility.panel_ui_node_tree_view(context, layout, render_aov_node_graph_property.node_tree, consts.OctaneNodeTreeIDName.RENDER_AOV)
-
-
-class OCTANE_RENDER_PT_passes(OctaneRenderPassesPanel, Panel):
-    bl_label = "Passes"
-    bl_context = "view_layer"
-
-    def draw(self, context):
-        view_layer = context.view_layer
-        octane_view_layer = view_layer.octane
-
-        layout = self.layout
-        row = layout.row()
-        row.prop(octane_view_layer, "render_pass_style")        
-        row = layout.row()
-        row.prop(octane_view_layer, "current_preview_pass_type")
-        if octane_view_layer.current_preview_pass_type == '10000':
-            row = layout.row()
-            row.prop(octane_view_layer, "current_aov_output_id")
-            octane_aov_out_number = 0
-            composite_node_graph_property = octane_view_layer.composite_node_graph_property
-            if composite_node_graph_property.node_tree is not None:
-                octane_aov_out_number = composite_node_graph_property.node_tree.max_aov_output_count
-            if octane_aov_out_number < octane_view_layer.current_aov_output_id:                
-                row = layout.row(align=True)
-                row.label(text="Beauty pass output will be used as no valid results for the assigned index", icon='INFO')
-                row = layout.row(align=True)
-                row.label(text="Please set Octane AOV Outputs in the 'Octane Composite Editor'", icon='INFO')
-
-
-class OCTANE_RENDER_PT_passes_beauty(OctaneRenderPassesPanel, Panel):
-    bl_label = "Beauty"
-    bl_context = "view_layer"
-    bl_parent_id = "OCTANE_RENDER_PT_passes"
-    bl_options = {'DEFAULT_CLOSED'}
-
-    def draw(self, context):
-        layout = self.layout
-
-        scene = context.scene
-        rd = scene.render
-        view_layer = context.view_layer
-        octane_view_layer = view_layer.octane
-
-        flow = layout.grid_flow(row_major=True, columns=2, even_columns=True, even_rows=False, align=False)
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_beauty")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_emitters")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_env")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_sss")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_shadow")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_irradiance")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_light_dir")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_noise")      
-        
-        layout.row().separator()
-        
-        split = layout.split(factor=1)
-        split.use_property_split = False
-        row = split.row(align=True)
-        row.prop(view_layer, "use_pass_oct_diff", text="Diffuse", toggle=True)
-        row.prop(view_layer, "use_pass_oct_diff_dir", text="Direct", toggle=True)
-        row.prop(view_layer, "use_pass_oct_diff_indir", text="Indirect", toggle=True)        
-        row.prop(view_layer, "use_pass_oct_diff_filter", text="Filter", toggle=True)         
-
-        layout.row().separator()
-
-        split = layout.split(factor=1)
-        split.use_property_split = False
-        row = split.row(align=True)
-        row.prop(view_layer, "use_pass_oct_reflect", text="Reflection", toggle=True)
-        row.prop(view_layer, "use_pass_oct_reflect_dir", text="Direct", toggle=True)
-        row.prop(view_layer, "use_pass_oct_reflect_indir", text="Indirect", toggle=True)        
-        row.prop(view_layer, "use_pass_oct_reflect_filter", text="Filter", toggle=True)     
-
-        layout.row().separator()
-
-        split = layout.split(factor=1)
-        split.use_property_split = False
-        row = split.row(align=True)
-        row.prop(view_layer, "use_pass_oct_refract", text="Refraction", toggle=True)
-        row.prop(view_layer, "use_pass_oct_refract_filter", text="Refract Filter", toggle=True)
-
-        layout.row().separator()
-
-        split = layout.split(factor=1)
-        split.use_property_split = False
-        row = split.row(align=True)
-        row.prop(view_layer, "use_pass_oct_transm", text="Transmission", toggle=True)
-        row.prop(view_layer, "use_pass_oct_transm_filter", text="Transm Filter", toggle=True)        
-
-        layout.row().separator()
-
-        split = layout.split(factor=1)
-        split.use_property_split = False
-        row = split.row(align=True)
-        row.prop(view_layer, "use_pass_oct_volume", text="Volume", toggle=True)
-        row.prop(view_layer, "use_pass_oct_vol_mask", text="Mask", toggle=True)
-        row.prop(view_layer, "use_pass_oct_vol_emission", text="Emission", toggle=True)        
-        row.prop(view_layer, "use_pass_oct_vol_z_front", text="ZFront", toggle=True)
-        row.prop(view_layer, "use_pass_oct_vol_z_back", text="ZBack", toggle=True)
-
-
-class OCTANE_RENDER_PT_passes_denoiser(OctaneRenderPassesPanel, Panel):
-    bl_label = "Denoiser"
-    bl_context = "view_layer"
-    bl_parent_id = "OCTANE_RENDER_PT_passes"
-    bl_options = {'DEFAULT_CLOSED'}
-
-    def draw(self, context):
-        layout = self.layout
-
-        scene = context.scene
-        rd = scene.render
-        view_layer = context.view_layer
-        octane_view_layer = view_layer.octane
-
-        flow = layout.grid_flow(row_major=True, columns=2, even_columns=True, even_rows=False, align=False)
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_denoise_beauty", text="Beauty")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_denoise_diff_dir", text="DiffDir")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_denoise_diff_indir", text="DiffIndir")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_denoise_reflect_dir", text="ReflectDir")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_denoise_reflect_indir", text="ReflectIndir")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_denoise_emission", text="Emission")
-        col = flow.column()        
-        col.prop(view_layer, "use_pass_oct_denoise_remainder", text="Refraction")
-        # col.prop(view_layer, "use_pass_oct_denoise_remainder", text="Remainder")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_denoise_vol", text="Volume")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_denoise_vol_emission", text="VolEmission")
-
-
-class OCTANE_RENDER_PT_passes_postprocessing(OctaneRenderPassesPanel, Panel):
-    bl_label = "Post processing"
-    bl_context = "view_layer"
-    bl_parent_id = "OCTANE_RENDER_PT_passes"
-    bl_options = {'DEFAULT_CLOSED'}
-
-    def draw(self, context):
-        layout = self.layout
-
-        scene = context.scene
-        rd = scene.render
-        view_layer = context.view_layer
-        octane_view_layer = view_layer.octane
-
-        flow = layout.grid_flow(row_major=True, columns=2, even_columns=True, even_rows=False, align=False)
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_postprocess", text="Post processing")
-        col = flow.column()
-        col.prop(octane_view_layer, "pass_pp_env")
-
-
-class OCTANE_RENDER_PT_passes_render_layer(OctaneRenderPassesPanel, Panel):
-    bl_label = "Render layer"
-    bl_context = "view_layer"
-    bl_parent_id = "OCTANE_RENDER_PT_passes"
-    bl_options = {'DEFAULT_CLOSED'}
-
-    def draw(self, context):
-        layout = self.layout
-
-        scene = context.scene
-        rd = scene.render
-        view_layer = context.view_layer
-        octane_view_layer = view_layer.octane
-
-        flow = layout.grid_flow(row_major=True, columns=2, even_columns=True, even_rows=True, align=False)
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_layer_shadows", text="Shadow")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_layer_black_shadow", text="BlackShadow")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_layer_reflections", text="Reflections")
-
-
-class OCTANE_RENDER_PT_passes_lighting(OctaneRenderPassesPanel, Panel):
-    bl_label = "Lighting"
-    bl_context = "view_layer"
-    bl_parent_id = "OCTANE_RENDER_PT_passes"
-    bl_options = {'DEFAULT_CLOSED'}
-
-    def draw(self, context):
-        layout = self.layout
-
-        scene = context.scene
-        rd = scene.render
-        view_layer = context.view_layer
-        octane_view_layer = view_layer.octane
-
-        flow = layout.grid_flow(row_major=True, columns=3, even_columns=True, even_rows=True, align=False)
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_ambient_light", text="Ambient")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_ambient_light_dir", text="Direct")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_ambient_light_indir", text="Indirect")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_sunlight", text="Sunlight")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_sunlight_dir", text="Direct")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_sunlight_indir", text="Indirect")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_light_pass_1", text="Light Pass 1")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_light_dir_pass_1", text="Direct")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_light_indir_pass_1", text="Indirect")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_light_pass_2", text="Light Pass 2")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_light_dir_pass_2", text="Direct")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_light_indir_pass_2", text="Indirect")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_light_pass_3", text="Light Pass 3")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_light_dir_pass_3", text="Direct")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_light_indir_pass_3", text="Indirect")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_light_pass_4", text="Light Pass 4")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_light_dir_pass_4", text="Direct")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_light_indir_pass_4", text="Indirect")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_light_pass_5", text="Light Pass 5")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_light_dir_pass_5", text="Direct")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_light_indir_pass_5", text="Indirect")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_light_pass_6", text="Light Pass 6")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_light_dir_pass_6", text="Direct")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_light_indir_pass_6", text="Indirect")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_light_pass_7", text="Light Pass 7")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_light_dir_pass_7", text="Direct")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_light_indir_pass_7", text="Indirect")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_light_pass_8", text="Light Pass 8")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_light_dir_pass_8", text="Direct")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_light_indir_pass_8", text="Indirect")
-
-
-class OCTANE_RENDER_PT_passes_cryptomatte(OctaneRenderPassesPanel, Panel):
-    bl_label = "Cryptomatte"
-    bl_context = "view_layer"
-    bl_parent_id = "OCTANE_RENDER_PT_passes"
-    bl_options = {'DEFAULT_CLOSED'}
-
-    def draw(self, context):
-        layout = self.layout
-
-        scene = context.scene
-        rd = scene.render
-        view_layer = context.view_layer
-        octane_view_layer = view_layer.octane
-
-        flow = layout.grid_flow(row_major=True, columns=2, even_columns=True, even_rows=False, align=False)
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_crypto_instance_id", text="InstanceID")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_crypto_mat_node_name", text="MatNodeName")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_crypto_mat_node", text="MatNode")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_crypto_mat_pin_node", text="MatPinNode")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_crypto_obj_node_name", text="ObjNodeName")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_crypto_obj_node", text="ObjNode")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_crypto_obj_pin_node", text="ObjPinNode")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_crypto_render_layer", text="RenderLayer")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_crypto_geometry_node_name", text="GeoNodeName")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_crypto_user_instance_id", text="UserInstanceID")
-
-        layout.row().separator()
-        row = layout.row(align=True)
-        row.prop(octane_view_layer, "cryptomatte_pass_channels")
-        row = layout.row(align=True)
-        row.prop(octane_view_layer, "cryptomatte_seed_factor")
-
-
-class OCTANE_RENDER_PT_passes_info(OctaneRenderPassesPanel, Panel):
-    bl_label = "Info"
-    bl_context = "view_layer"
-    bl_parent_id = "OCTANE_RENDER_PT_passes"
-    bl_options = {'DEFAULT_CLOSED'}
-
-    def draw(self, context):
-        layout = self.layout
-
-        scene = context.scene
-        rd = scene.render
-        view_layer = context.view_layer
-        octane_view_layer = view_layer.octane
-
-        flow = layout.grid_flow(row_major=True, columns=2, even_columns=True, even_rows=False, align=False)
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_info_z_depth")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_info_position")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_info_uv")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_info_tex_tangent")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_info_motion_vector")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_info_mat_id")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_info_obj_id")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_info_obj_layer_color")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_info_baking_group_id")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_info_light_pass_id")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_info_render_layer_id")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_info_render_layer_mask")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_info_wireframe")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_info_ao")
-
-        layout.row().separator()
-
-        split = layout.split(factor=0.15)
-        split.use_property_split = False
-        split.label(text="Normal")
-        row = split.row(align=True)       
-        row.prop(view_layer, "use_pass_oct_info_geo_normal", text="Geometric", toggle=True)         
-        row.prop(view_layer, "use_pass_oct_info_smooth_normal", text="Smooth", toggle=True)
-        row.prop(view_layer, "use_pass_oct_info_shading_normal", text="Shading", toggle=True)
-        row.prop(view_layer, "use_pass_oct_info_tangent_normal", text="Tangent", toggle=True)
-
-        layout.row().separator()
-        row = layout.row(align=True)
-        row.prop(octane_view_layer, "info_pass_max_samples")
-        row = layout.row(align=True)
-        row.prop(octane_view_layer, "info_pass_sampling_mode")
-        row = layout.row(align=True)
-        row.prop(octane_view_layer, "info_pass_z_depth_max")
-        row = layout.row(align=True)
-        row.prop(octane_view_layer, "info_pass_uv_max")
-        row = layout.row(align=True)
-        row.prop(octane_view_layer, "info_pass_uv_coordinate_selection")
-        row = layout.row(align=True)
-        row.prop(octane_view_layer, "info_pass_max_speed")
-        row = layout.row(align=True)
-        row.prop(octane_view_layer, "info_pass_ao_distance")                        
-        row = layout.row(align=True)
-        row.prop(octane_view_layer, "info_pass_alpha_shadows")       
-
-
-class OCTANE_RENDER_PT_passes_material(OctaneRenderPassesPanel, Panel):
-    bl_label = "Material"
-    bl_context = "view_layer"
-    bl_parent_id = "OCTANE_RENDER_PT_passes"
-    bl_options = {'DEFAULT_CLOSED'}
-
-    def draw(self, context):
-        layout = self.layout
-
-        scene = context.scene
-        rd = scene.render
-        view_layer = context.view_layer
-        octane_view_layer = view_layer.octane
-
-        flow = layout.grid_flow(row_major=True, columns=2, even_columns=True, even_rows=False, align=False)
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_mat_opacity")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_mat_roughness")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_mat_ior")
-
-        layout.row().separator()
-
-        split = layout.split(factor=0.15)
-        split.use_property_split = False
-        split.label(text="Filter")
-        row = split.row(align=True)       
-        row.prop(view_layer, "use_pass_oct_mat_diff_filter_info", text="Diffuse", toggle=True)         
-        row.prop(view_layer, "use_pass_oct_mat_reflect_filter_info", text="Reflection", toggle=True)
-        row.prop(view_layer, "use_pass_oct_mat_refract_filter_info", text="Refraction", toggle=True)
-        row.prop(view_layer, "use_pass_oct_mat_transm_filter_info", text="Transmission", toggle=True)
-
-
-class OCTANE_RENDER_PT_AOV_Output_node_graph(OctaneButtonsPanel, Panel):
-    bl_label = "Render AOV Output"
-    bl_context = "view_layer"
-    bl_options = {'DEFAULT_CLOSED'}
-
-    def draw(self, context):
-        view_layer = context.view_layer
-        octane_view_layer = view_layer.octane
-
-        layout = self.layout
-        row = layout.row()
-        composite_node_graph_property = octane_view_layer.composite_node_graph_property
-        row.prop(composite_node_graph_property, "node_tree", text="AOV Output Node Tree", icon='NODETREE')
-        utility.panel_ui_node_tree_view(context, layout, composite_node_graph_property.node_tree, consts.OctaneNodeTreeIDName.COMPOSITE)
-
-
-class OCTANE_RENDER_PT_octane_layers(OctaneButtonsPanel, Panel):
-    bl_label = "Octane render layers(Global)"
-    bl_context = "view_layer"
-    bl_options = {'DEFAULT_CLOSED'}
-
-    def draw_header(self, context):
-        self.layout.prop(context.scene.octane, "layers_enable", text="")
-
-    def draw(self, context):
-        layout = self.layout
-
-        scene = context.scene
-        octane = scene.octane
-
-        col = layout.column()
-        col.prop(octane, "layers_mode")
-        col.prop(octane, "layers_current")
-        col.prop(octane, "layers_invert")
-
-class OCTANE_RENDER_PT_override(OctaneButtonsPanel, Panel):
-    bl_label = "Override"
-    bl_options = {'DEFAULT_CLOSED'}
-    bl_context = "view_layer"
-
-    def draw(self, context):
-        layout = self.layout
-        layout.use_property_split = True
-        layout.use_property_decorate = False
-
-        view_layer = context.view_layer
-
-        layout.prop(view_layer, "material_override")
-
-
-class OCTANE_LIGHT_PT_light(OctaneButtonsPanel, Panel):
-    bl_label = "Light"
-    bl_context = "data"
-
-    @classmethod
-    def poll(cls, context):
-        return context.light and OctaneButtonsPanel.poll(context)
-
-    def draw(self, context):
-        layout = self.layout
-
-        light = context.light
-        oct_light = light.octane
-
-        layout.use_property_split = True
-        layout.use_property_decorate = False
-
-        col = layout.column()
-
-        if light.type == 'SPOT':
-            layout.label(text="Not supported.")
-            return
-
-        if light.type == 'SUN':
-            layout.label(text="Used as Toon Directional Light.")                 
-            return                    
-
-        if light.type == 'POINT':
-            layout.label(text="Used as Toon Point Light.")           
-            return                         
-
-        if light.type == 'AREA':
-            col.prop(light, "shape", text="Shape")
-            sub = col.column(align=True)
-
-            if light.shape in {'SQUARE', 'DISK'}:
-                sub.prop(light, "size")
-            elif light.shape in {'RECTANGLE', 'ELLIPSE'}:
-                sub.prop(light, "size", text="Size X")
-                sub.prop(light, "size_y", text="Y")
-            return
-
-        if light.type == 'MESH':            
-            col.prop(oct_light, "light_mesh")
-            col.prop(oct_light, "use_external_mesh")
-            col.prop(oct_light, "external_mesh_file")
-            return                                
-
-        if light.type == 'SPHERE':
-            col.prop(light, "sphere_radius", text="Radius")       
-            return              
-
-
-class OCTANE_LIGHT_PT_nodes(OctaneButtonsPanel, Panel):
-    bl_label = "Nodes"
-    bl_context = "data"
-
-    @classmethod
-    def poll(cls, context):
-        return context.light and context.light.type in ('POINT', 'SUN', 'AREA', 'MESH', 'SPHERE') and \
-            OctaneButtonsPanel.poll(context)
-
-    def draw(self, context):
-        layout = self.layout
-        light = context.light
-        if not light:
-            return
-        utility.panel_ui_node_view(context, layout, light, consts.OctaneOutputNodeSocketNames.SURFACE)
-
 class OCTANE_OBJECT_PT_octane_settings(OctaneButtonsPanel, Panel):
     bl_label = "Octane Settings"
     bl_context = "object"
@@ -1230,7 +506,7 @@ class OCTANE_OBJECT_PT_octane_settings(OctaneButtonsPanel, Panel):
         
         if ob and ob.type not in ('FONT',):
             sub = layout.row(align=True)
-            sub.active = not engine.IS_RENDERING
+            sub.active = not utility.is_viewport_rendering()
             sub.prop(octane_object, "object_mesh_type")
 
 
@@ -1266,6 +542,7 @@ class OCTANE_OBJECT_PT_octane_settings_object_layer(OctaneButtonsPanel, Panel):
         sub.prop(octane_object, "camera_visibility")
         sub.prop(octane_object, "shadow_visibility")
         sub.prop(octane_object, "dirt_visibility")
+        sub.prop(octane_object, "curvature_visibility")
 
         split = layout.split(factor=0.15)
         split.use_property_split = False
@@ -1314,49 +591,6 @@ class OCTANE_OBJECT_PT_octane_settings_baking_settings(OctaneButtonsPanel, Panel
         sub.prop(octane_object, "baking_uv_transform_ty")                 
 
 
-class OCTANE_OBJECT_PT_motion_blur(OctaneButtonsPanel, Panel):
-    bl_label = "Motion Blur"
-    bl_context = "object"
-    bl_options = {'DEFAULT_CLOSED'}
-
-    @classmethod
-    def poll(cls, context):
-        ob = context.object
-        if OctaneButtonsPanel.poll(context) and ob:
-            if ob.type in {'MESH', 'CURVE', 'CURVE', 'SURFACE', 'FONT', 'META', 'CAMERA', 'LIGHT'}:
-                return True
-            if ob.instance_type == 'COLLECTION' and ob.instance_collection:
-                return True
-        return False
-
-    def draw_header(self, context):
-        layout = self.layout
-
-        rd = context.scene.render
-        # scene = context.scene
-
-        layout.active = rd.use_motion_blur
-
-        ob = context.object
-
-        layout.prop(ob.octane, "use_motion_blur", text="")
-
-    def draw(self, context):
-        layout = self.layout
-
-        rd = context.scene.render
-        # scene = context.scene
-
-        ob = context.object
-
-        layout.active = (rd.use_motion_blur and ob.octane.use_motion_blur)
-
-        row = layout.row()
-        if ob.type != 'CAMERA':
-            row.prop(ob.octane, "use_deform_motion", text="Deformation")
-        row.prop(ob.octane, "motion_steps", text="Steps")
-
-
 class OCTANE_RENDER_PT_output(OctaneButtonsPanel, Panel):
     bl_label = "Octane Output"
     bl_context = "output"
@@ -1385,6 +619,7 @@ class OCTANE_RENDER_PT_output(OctaneButtonsPanel, Panel):
         oct_scene = context.scene.octane
         preferences = bpy.context.preferences.addons['octane'].preferences
         is_png_format = image_settings.octane_image_save_format in ('OCT_IMAGE_SAVE_FORMAT_PNG_8', 'OCT_IMAGE_SAVE_FORMAT_PNG_16')
+        is_dwa_format = image_settings.octane_exr_compression_type in ('DWAA_LOSSY', 'DWAB_LOSSY')
         ocio_export_color_space_configs = "ocio_export_png_color_space_configs" if is_png_format else "ocio_export_exr_color_space_configs" 
         sub = layout.row(align=True)
         sub.prop_search(oct_scene, "gui_octane_export_ocio_color_space_name", preferences, ocio_export_color_space_configs)
@@ -1394,12 +629,22 @@ class OCTANE_RENDER_PT_output(OctaneButtonsPanel, Panel):
                 sub.prop_search(oct_scene, "gui_octane_export_ocio_look", preferences, "ocio_export_look_configs")
                 sub = layout.row(align=True)
                 sub.prop(oct_scene, "octane_export_force_use_tone_map")
+                sub = layout.row(align=True)
+                sub.prop(oct_scene, "octane_export_premultiplied_alpha")
+                if is_dwa_format:
+                    sub = layout.row(align=True)
+                    sub.prop(oct_scene, "octane_export_dwa_compression_level")
         else:
             if oct_scene.gui_octane_export_ocio_color_space_name not in (' Linear sRGB(default) ', ' ACES2065-1 ', ' ACEScg ', ''):
                 sub = layout.row(align=True)
                 sub.prop_search(oct_scene, "gui_octane_export_ocio_look", preferences, "ocio_export_look_configs")
             sub = layout.row(align=True)
             sub.prop(oct_scene, "octane_export_force_use_tone_map")
+            sub = layout.row(align=True)
+            sub.prop(oct_scene, "octane_export_premultiplied_alpha")
+            if is_dwa_format:
+                sub = layout.row(align=True)
+                sub.prop(oct_scene, "octane_export_dwa_compression_level")
 
 
 def get_panels():
@@ -1418,17 +663,11 @@ def get_panels():
     return panels
 
 
-classes = (   
-    OCTANE_RENDER_PT_server,
-    OCTANE_RENDER_PT_out_of_core,
-    OCTANE_RENDER_PT_motion_blur,
-
+classes = (
     OCTANE_RENDER_PT_output,
 
-    OCTANE_PT_curve_properties,
     OCTANE_PT_mesh_properties,
     OCTANE_PT_volume_properties,
-    OCTANE_RENDER_PT_HairSettings,
     OCTANE_RENDER_PT_SpherePrimitiveSettings,
     OCTANE_PT_context_material,
     OCTANE_MATERIAL_PT_surface,
@@ -1436,27 +675,9 @@ classes = (
     OCTANE_MATERIAL_PT_settings,
     OCTANE_MATERIAL_PT_converters,
 
-    OCTANE_RENDER_PT_AOV_node_graph,    
-    OCTANE_RENDER_PT_passes,
-    OCTANE_RENDER_PT_passes_beauty,
-    OCTANE_RENDER_PT_passes_denoiser,
-    OCTANE_RENDER_PT_passes_postprocessing,
-    OCTANE_RENDER_PT_passes_render_layer,
-    OCTANE_RENDER_PT_passes_lighting,
-    OCTANE_RENDER_PT_passes_cryptomatte,
-    OCTANE_RENDER_PT_passes_info,
-    OCTANE_RENDER_PT_passes_material,
-    OCTANE_RENDER_PT_AOV_Output_node_graph,
-    OCTANE_RENDER_PT_octane_layers,
-    OCTANE_RENDER_PT_override,
-
-    OCTANE_LIGHT_PT_light,
-    OCTANE_LIGHT_PT_nodes,
-
     OCTANE_OBJECT_PT_octane_settings,
     OCTANE_OBJECT_PT_octane_settings_object_layer,
     OCTANE_OBJECT_PT_octane_settings_baking_settings,
-    OCTANE_OBJECT_PT_motion_blur,
 )
 
 

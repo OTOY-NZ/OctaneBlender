@@ -21,6 +21,7 @@ set(INC
   ../../shader_fx
   ../../windowmanager
   ../../../../intern/clog
+  ../../../../intern/glew-mx
   ../../../../intern/guardedalloc
 
   # dna_type_offsets.h in BLO_read_write.h
@@ -52,7 +53,7 @@ set(SRC
   object_shapekey.c
   object_transform.cc
   object_utils.c
-  object_vgroup.cc
+  object_vgroup.c
   object_volume.c
   object_warp.c
 

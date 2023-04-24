@@ -93,7 +93,7 @@ static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphConte
   }
 
   if (need_transform_dependency) {
-    DEG_add_depends_on_transform_relation(ctx->node, "Array Modifier");
+    DEG_add_modifier_to_transform_relation(ctx->node, "Array Modifier");
   }
 }
 
@@ -279,20 +279,18 @@ static void mesh_merge_transform(Mesh *result,
   MEdge *me;
   MLoop *ml;
   MPoly *mp;
-  MVert *result_verts = BKE_mesh_verts_for_write(result);
-  MEdge *result_edges = BKE_mesh_edges_for_write(result);
-  MPoly *result_polys = BKE_mesh_polys_for_write(result);
-  MLoop *result_loops = BKE_mesh_loops_for_write(result);
 
   CustomData_copy_data(&cap_mesh->vdata, &result->vdata, 0, cap_verts_index, cap_nverts);
   CustomData_copy_data(&cap_mesh->edata, &result->edata, 0, cap_edges_index, cap_nedges);
   CustomData_copy_data(&cap_mesh->ldata, &result->ldata, 0, cap_loops_index, cap_nloops);
   CustomData_copy_data(&cap_mesh->pdata, &result->pdata, 0, cap_polys_index, cap_npolys);
 
-  mv = result_verts + cap_verts_index;
+  mv = result->mvert + cap_verts_index;
 
   for (i = 0; i < cap_nverts; i++, mv++) {
     mul_m4_v3(cap_offset, mv->co);
+    /* Reset MVert flags for caps */
+    mv->flag = mv->bweight = 0;
   }
 
   /* We have to correct normals too, if we do not tag them as dirty later! */
@@ -305,26 +303,26 @@ static void mesh_merge_transform(Mesh *result,
   }
 
   /* remap the vertex groups if necessary */
-  if (BKE_mesh_deform_verts(result) != NULL) {
-    MDeformVert *dvert = BKE_mesh_deform_verts_for_write(result);
-    BKE_object_defgroup_index_map_apply(&dvert[cap_verts_index], cap_nverts, remap, remap_len);
+  if (result->dvert != NULL) {
+    BKE_object_defgroup_index_map_apply(
+        &result->dvert[cap_verts_index], cap_nverts, remap, remap_len);
   }
 
   /* adjust cap edge vertex indices */
-  me = result_edges + cap_edges_index;
+  me = result->medge + cap_edges_index;
   for (i = 0; i < cap_nedges; i++, me++) {
     me->v1 += cap_verts_index;
     me->v2 += cap_verts_index;
   }
 
   /* adjust cap poly loopstart indices */
-  mp = result_polys + cap_polys_index;
+  mp = result->mpoly + cap_polys_index;
   for (i = 0; i < cap_npolys; i++, mp++) {
     mp->loopstart += cap_loops_index;
   }
 
   /* adjust cap loop vertex and edge indices */
-  ml = result_loops + cap_loops_index;
+  ml = result->mloop + cap_loops_index;
   for (i = 0; i < cap_nloops; i++, ml++) {
     ml->v += cap_verts_index;
     ml->e += cap_edges_index;
@@ -354,8 +352,11 @@ static void mesh_merge_transform(Mesh *result,
 
 static Mesh *arrayModifier_doArray(ArrayModifierData *amd,
                                    const ModifierEvalContext *ctx,
-                                   const Mesh *mesh)
+                                   Mesh *mesh)
 {
+  const MVert *src_mvert;
+  MVert *result_dm_verts;
+
   MEdge *me;
   MLoop *ml;
   MPoly *mp;
@@ -428,10 +429,7 @@ static Mesh *arrayModifier_doArray(ArrayModifierData *amd,
   /* Build up offset array, accumulating all settings options. */
 
   unit_m4(offset);
-  const MVert *src_verts = BKE_mesh_verts(mesh);
-  const MEdge *src_edges = BKE_mesh_edges(mesh);
-  const MPoly *src_polys = BKE_mesh_polys(mesh);
-  const MLoop *src_loops = BKE_mesh_loops(mesh);
+  src_mvert = mesh->mvert;
 
   if (amd->offset_type & MOD_ARR_OFF_CONST) {
     add_v3_v3(offset[3], amd->offset);
@@ -442,7 +440,7 @@ static Mesh *arrayModifier_doArray(ArrayModifierData *amd,
     const MVert *src_mv;
 
     INIT_MINMAX(min, max);
-    for (src_mv = src_verts, j = chunk_nverts; j--; src_mv++) {
+    for (src_mv = src_mvert, j = chunk_nverts; j--; src_mv++) {
       minmax_v3v3_v3(min, max, src_mv->co);
     }
 
@@ -456,13 +454,13 @@ static Mesh *arrayModifier_doArray(ArrayModifierData *amd,
     float result_mat[4][4];
 
     if (ctx->object) {
-      invert_m4_m4(obinv, ctx->object->object_to_world);
+      invert_m4_m4(obinv, ctx->object->obmat);
     }
     else {
       unit_m4(obinv);
     }
 
-    mul_m4_series(result_mat, offset, obinv, amd->offset_ob->object_to_world);
+    mul_m4_series(result_mat, offset, obinv, amd->offset_ob->obmat);
     copy_m4_m4(offset, result_mat);
   }
 
@@ -474,13 +472,13 @@ static Mesh *arrayModifier_doArray(ArrayModifierData *amd,
     Object *curve_ob = amd->curve_ob;
     CurveCache *curve_cache = curve_ob->runtime.curve_cache;
     if (curve_cache != NULL && curve_cache->anim_path_accum_length != NULL) {
-      float scale_fac = mat4_to_scale(curve_ob->object_to_world);
+      float scale_fac = mat4_to_scale(curve_ob->obmat);
       length = scale_fac * BKE_anim_path_get_length(curve_cache);
     }
   }
 
   /* About 67 million vertices max seems a decent limit for now. */
-  const size_t max_verts_num = 1 << 26;
+  const size_t max_vertices_num = 1 << 26;
 
   /* calculate the maximum number of copies which will fit within the
    * prescribed length */
@@ -498,7 +496,7 @@ static Mesh *arrayModifier_doArray(ArrayModifierData *amd,
        * vertices.
        */
       if (((size_t)count * (size_t)chunk_nverts + (size_t)start_cap_nverts +
-           (size_t)end_cap_nverts) > max_verts_num) {
+           (size_t)end_cap_nverts) > max_vertices_num) {
         count = 1;
         offset_is_too_small = true;
       }
@@ -520,7 +518,7 @@ static Mesh *arrayModifier_doArray(ArrayModifierData *amd,
    * vertices.
    */
   else if (((size_t)count * (size_t)chunk_nverts + (size_t)start_cap_nverts +
-            (size_t)end_cap_nverts) > max_verts_num) {
+            (size_t)end_cap_nverts) > max_vertices_num) {
     count = 1;
     BKE_modifier_set_error(ctx->object,
                            &amd->modifier,
@@ -541,10 +539,7 @@ static Mesh *arrayModifier_doArray(ArrayModifierData *amd,
   /* Initialize a result dm */
   result = BKE_mesh_new_nomain_from_template(
       mesh, result_nverts, result_nedges, 0, result_nloops, result_npolys);
-  MVert *result_verts = BKE_mesh_verts_for_write(result);
-  MEdge *result_edges = BKE_mesh_edges_for_write(result);
-  MPoly *result_polys = BKE_mesh_polys_for_write(result);
-  MLoop *result_loops = BKE_mesh_loops_for_write(result);
+  result_dm_verts = result->mvert;
 
   if (use_merge) {
     /* Will need full_doubles_map for handling merge */
@@ -558,17 +553,17 @@ static Mesh *arrayModifier_doArray(ArrayModifierData *amd,
   CustomData_copy_data(&mesh->ldata, &result->ldata, 0, 0, chunk_nloops);
   CustomData_copy_data(&mesh->pdata, &result->pdata, 0, 0, chunk_npolys);
 
-  /* Subdivision-surface for eg won't have mesh data in the custom-data arrays.
-   * Now add #MVert/#MEdge/#MPoly layers. */
+  /* Subsurf for eg won't have mesh data in the custom data arrays.
+   * now add mvert/medge/mpoly layers. */
   if (!CustomData_has_layer(&mesh->vdata, CD_MVERT)) {
-    memcpy(result_verts, src_verts, sizeof(MVert) * mesh->totvert);
+    memcpy(result->mvert, mesh->mvert, sizeof(*result->mvert) * mesh->totvert);
   }
   if (!CustomData_has_layer(&mesh->edata, CD_MEDGE)) {
-    memcpy(result_edges, src_edges, sizeof(MEdge) * mesh->totedge);
+    memcpy(result->medge, mesh->medge, sizeof(*result->medge) * mesh->totedge);
   }
   if (!CustomData_has_layer(&mesh->pdata, CD_MPOLY)) {
-    memcpy(result_loops, src_loops, sizeof(MLoop) * mesh->totloop);
-    memcpy(result_polys, src_polys, sizeof(MPoly) * mesh->totpoly);
+    memcpy(result->mloop, mesh->mloop, sizeof(*result->mloop) * mesh->totloop);
+    memcpy(result->mpoly, mesh->mpoly, sizeof(*result->mpoly) * mesh->totpoly);
   }
 
   /* Remember first chunk, in case of cap merge */
@@ -599,7 +594,7 @@ static Mesh *arrayModifier_doArray(ArrayModifierData *amd,
     /* apply offset to all new verts */
     for (i = 0; i < chunk_nverts; i++) {
       const int i_dst = vert_offset + i;
-      mul_m4_v3(current_offset, result_verts[i_dst].co);
+      mul_m4_v3(current_offset, result_dm_verts[i_dst].co);
 
       /* We have to correct normals too, if we do not tag them as dirty! */
       if (!use_recalc_normals) {
@@ -610,19 +605,19 @@ static Mesh *arrayModifier_doArray(ArrayModifierData *amd,
     }
 
     /* adjust edge vertex indices */
-    me = result_edges + c * chunk_nedges;
+    me = result->medge + c * chunk_nedges;
     for (i = 0; i < chunk_nedges; i++, me++) {
       me->v1 += c * chunk_nverts;
       me->v2 += c * chunk_nverts;
     }
 
-    mp = result_polys + c * chunk_npolys;
+    mp = result->mpoly + c * chunk_npolys;
     for (i = 0; i < chunk_npolys; i++, mp++) {
       mp->loopstart += c * chunk_nloops;
     }
 
     /* adjust loop vertex and edge indices */
-    ml = result_loops + c * chunk_nloops;
+    ml = result->mloop + c * chunk_nloops;
     for (i = 0; i < chunk_nloops; i++, ml++) {
       ml->v += c * chunk_nverts;
       ml->e += c * chunk_nedges;
@@ -643,8 +638,8 @@ static Mesh *arrayModifier_doArray(ArrayModifierData *amd,
             while (target != -1 && !ELEM(full_doubles_map[target], -1, target)) {
               /* If target is already mapped, we only follow that mapping if final target remains
                * close enough from current vert (otherwise no mapping at all). */
-              if (compare_len_v3v3(result_verts[this_chunk_index].co,
-                                   result_verts[full_doubles_map[target]].co,
+              if (compare_len_v3v3(result_dm_verts[this_chunk_index].co,
+                                   result_dm_verts[full_doubles_map[target]].co,
                                    amd->merge_dist)) {
                 target = full_doubles_map[target];
               }
@@ -658,7 +653,7 @@ static Mesh *arrayModifier_doArray(ArrayModifierData *amd,
       }
       else {
         dm_mvert_map_doubles(full_doubles_map,
-                             result_verts,
+                             result_dm_verts,
                              (c - 1) * chunk_nverts,
                              chunk_nverts,
                              c * chunk_nverts,
@@ -696,7 +691,7 @@ static Mesh *arrayModifier_doArray(ArrayModifierData *amd,
   if (use_merge && (amd->flags & MOD_ARR_MERGEFINAL) && (count > 1)) {
     /* Merge first and last copies */
     dm_mvert_map_doubles(full_doubles_map,
-                         result_verts,
+                         result_dm_verts,
                          last_chunk_start,
                          last_chunk_nverts,
                          first_chunk_start,
@@ -726,7 +721,7 @@ static Mesh *arrayModifier_doArray(ArrayModifierData *amd,
     /* Identify doubles with first chunk */
     if (use_merge) {
       dm_mvert_map_doubles(full_doubles_map,
-                           result_verts,
+                           result_dm_verts,
                            first_chunk_start,
                            first_chunk_nverts,
                            start_cap_start,
@@ -756,7 +751,7 @@ static Mesh *arrayModifier_doArray(ArrayModifierData *amd,
     /* Identify doubles with last chunk */
     if (use_merge) {
       dm_mvert_map_doubles(full_doubles_map,
-                           result_verts,
+                           result_dm_verts,
                            last_chunk_start,
                            last_chunk_nverts,
                            end_cap_start,

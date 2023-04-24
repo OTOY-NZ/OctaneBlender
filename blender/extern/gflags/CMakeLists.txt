@@ -3,7 +3,9 @@
 
 # Too noisy for code we don't maintain.
 if(CMAKE_COMPILER_IS_GNUCC)
-  add_cxx_flag("-Wno-cast-function-type")
+  if(NOT "${CMAKE_CXX_COMPILER_VERSION}" VERSION_LESS "8.0")
+    add_cxx_flag("-Wno-cast-function-type")
+  endif()
 endif()
 
 set(INC

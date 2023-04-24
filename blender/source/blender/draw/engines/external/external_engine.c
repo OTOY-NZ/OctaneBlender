@@ -239,11 +239,7 @@ static void external_draw_scene_do_v3d(void *vedata)
   RegionView3D *rv3d = draw_ctx->rv3d;
   ARegion *region = draw_ctx->region;
 
-  DRW_state_reset_ex(DRW_STATE_WRITE_COLOR);
-
-  /* The external engine can use the OpenGL rendering API directly, so make sure the state is
-   * already applied. */
-  GPU_apply_state();
+  DRW_state_reset_ex(DRW_STATE_DEFAULT & ~DRW_STATE_DEPTH_LESS_EQUAL);
 
   /* Create render engine. */
   if (!rv3d->render_engine) {
@@ -338,12 +334,6 @@ static void external_draw_scene_do_image(void *UNUSED(vedata))
   /* Is tested before enabling the drawing engine. */
   BLI_assert(re != NULL);
   BLI_assert(engine != NULL);
-
-  DRW_state_reset_ex(DRW_STATE_WRITE_COLOR);
-
-  /* The external engine can use the OpenGL rendering API directly, so make sure the state is
-   * already applied. */
-  GPU_apply_state();
 
   const DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
 

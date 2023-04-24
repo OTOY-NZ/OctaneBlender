@@ -26,5 +26,4 @@ DynamicLibrary dynamic_library_open_array_with_error(const char **paths,
 /** Find a symbol, printing an error when the symbol isn't found. */
 void *dynamic_library_find_with_error(DynamicLibrary lib,
                                       const char *symbol,
-                                      const char *path_lib,
-                                      bool verbose);
+                                      const char *path_lib);

@@ -43,6 +43,10 @@
 extern "C" {
 size_t BLI_timecode_string_from_time_simple(char *str, size_t maxlen, double time_seconds);
 void BLI_split_dir_part(const char *string, char *dir, const size_t dirlen);
+void BLI_join_dirfile(char *__restrict string,
+                      const size_t maxlen,
+                      const char *__restrict dir,
+                      const char *__restrict file);
 bool BLI_path_frame(char *path, int frame, int digits);
 const char *BLI_path_extension(const char *filepath);
 void BKE_image_user_frame_calc(void *ima, void *iuser, int cfra);
@@ -169,7 +173,11 @@ static std::string generate_mesh_tag(BL::Depsgraph &b_depsgraph,
         b_ob.to_mesh_clear();
       }
     }
-    ss << me->flag << "|";
+    if (me->totpoly > 1) {
+      if (me->mpoly) {
+        ss << me->mpoly[0].flag << "|";
+      }
+    }
     result = ss.str();
   }
   for (int i = 0; i < shaders.size(); ++i) {
@@ -318,7 +326,9 @@ static inline string image_user_file_path(BL::ImageUser &iuser,
                                           bool load_tiled)
 {
   char filepath[1024];
-  iuser.tile(0);
+  if (!load_tiled) {
+    iuser.tile(0);
+  }  
   BKE_image_user_frame_calc(ima.ptr.data, iuser.ptr.data, cfra);
   BKE_image_user_file_path(iuser.ptr.data, ima.ptr.data, filepath);
 
@@ -328,9 +338,9 @@ static inline string image_user_file_path(BL::ImageUser &iuser,
     filepath_str = ensure_abs_path(ima.filepath_raw(), filepath_str);
   }
 #endif
-  if (load_tiled && ima.source() == BL::Image::source_TILED) {
-    string_replace(filepath_str, "1001", "<UDIM>");
-  }
+  //if (load_tiled && ima.source() == BL::Image::source_TILED) {
+  //  string_replace(filepath_str, "1001", "<UDIM>");
+  //}
   return filepath_str;
 }
 
@@ -752,22 +762,6 @@ static inline BL::FluidDomainSettings object_fluid_domain_find(BL::Object &b_ob)
   return BL::FluidDomainSettings(PointerRNA_NULL);
 }
 
-static inline BL::FluidDomainSettings object_fluid_gas_domain_find(BL::Object &b_ob)
-{
-  for (BL::Modifier &b_mod : b_ob.modifiers) {
-    if (b_mod.is_a(&RNA_FluidModifier)) {
-      BL::FluidModifier b_mmd(b_mod);
-
-      if (b_mmd.fluid_type() == BL::FluidModifier::fluid_type_DOMAIN &&
-          b_mmd.domain_settings().domain_type() == BL::FluidDomainSettings::domain_type_GAS) {
-        return b_mmd.domain_settings();
-      }
-    }
-  }
-
-  return BL::FluidDomainSettings(PointerRNA_NULL);
-}
-
 static inline Mesh::SubdivisionType object_subdivision_type(BL::Object &b_ob,
                                                             bool preview,
                                                             bool experimental)
@@ -1079,7 +1073,10 @@ static inline bool set_blender_node(::OctaneDataTransferObject::OctaneDTOBase *b
                           "default_value" :
                           base_dto_ptr->sName.c_str());
   if (is_custom_node) {
-    name = "default_value";
+    PropertyRNA *prop = RNA_struct_find_property(&ptr, name);
+    if (!prop) {
+      name = "default_value";
+    }
   }
   switch (base_dto_ptr->type) {
     case OctaneDataTransferObject::DTO_ENUM:
@@ -1138,14 +1135,19 @@ static inline bool need_upgrade_float_to_color(
     ::OctaneDataTransferObject::OctaneDTOBase *base_dto_ptr,
     PointerRNA &ptr,
     float4 &color,
-    bool is_socket = false)
+    bool is_socket = false,
+    int32_t addon_data_type = -1)
 {
   if (!base_dto_ptr || !ptr.data)
     return false;
-  const char *name = ((is_socket && base_dto_ptr->type != OctaneDataTransferObject::DTO_ENUM) ?
+  int32_t dto_type = base_dto_ptr->type;
+  if (addon_data_type != -1) {
+    dto_type = addon_data_type;
+  }
+  const char *name = ((is_socket && dto_type != OctaneDataTransferObject::DTO_ENUM) ?
                           "default_value" :
                           base_dto_ptr->sName.c_str());
-  if (base_dto_ptr->type == OctaneDataTransferObject::DTO_FLOAT) {
+  if (dto_type == OctaneDataTransferObject::DTO_FLOAT) {
     PropertyRNA *prop = RNA_struct_find_property(&ptr, name);
     bool is_array = (prop != NULL) && RNA_property_array_check(prop);
     if (is_array) {
@@ -1159,7 +1161,8 @@ static inline bool need_upgrade_float_to_color(
 static inline bool set_octane_data_transfer_object(
     ::OctaneDataTransferObject::OctaneDTOBase *base_dto_ptr,
     PointerRNA &ptr,
-    bool is_socket = false)
+    bool is_socket = false,
+    int32_t addon_data_type = -1)
 {
   if (!base_dto_ptr || !ptr.data)
     return false;
@@ -1167,10 +1170,14 @@ static inline bool set_octane_data_transfer_object(
   int4 i;
   float4 f;
   PropertyRNA *prop;
-  const char *name = ((is_socket && base_dto_ptr->type != OctaneDataTransferObject::DTO_ENUM) ?
+  int32_t dto_type = base_dto_ptr->type;
+  if (addon_data_type != -1) {
+    dto_type = addon_data_type;
+  }
+  const char *name = ((is_socket && dto_type != OctaneDataTransferObject::DTO_ENUM) ?
                           "default_value" :
                           base_dto_ptr->sName.c_str());
-  switch (base_dto_ptr->type) {
+  switch (dto_type) {
     case OctaneDataTransferObject::DTO_ENUM:
       prop = RNA_struct_find_property(&ptr, name);
       if (prop != NULL) {
@@ -1325,7 +1332,9 @@ static inline std::string split_dir_part(std::string path)
 
 static inline std::string join_dir_file(std::string dir, std::string file)
 {
-  return path_join(dir, file);
+  char path[256];
+  BLI_join_dirfile(path, sizeof(path), dir.c_str(), file.c_str());
+  return std::string(path);
 }
 
 static std::string resolve_octane_vdb_path(PointerRNA &oct_mesh,

@@ -5,8 +5,7 @@ import numpy as np
 import xml.etree.ElementTree as ET
 from bpy.props import IntProperty, FloatProperty, BoolProperty, StringProperty, EnumProperty, PointerProperty, FloatVectorProperty, IntVectorProperty
 from bpy.utils import register_class, unregister_class
-from octane.core.octane_node import OctaneNode, CArray, OctaneNodeType
-from octane.core.client import OctaneClient
+from octane.core.octane_node import OctaneNode, CArray
 from octane.utils import utility, consts
 from octane.nodes import base_node, base_socket
 from octane.nodes.base_node import OctaneBaseNode
@@ -32,33 +31,35 @@ class OctaneBaseImageNode(OctaneBaseNode):
     AUTOMATIC_CHANNEL_FORMAT_VALUE = -1    
     IMAGE_DATA_C_ARRAY_IDENTIFIER = "IMAGE_DATA"
     BLENDER_ATTRIBUTE_IMAGE_DATA_UPDATE = "IMAGE_DATA_UPDATE"
-    OCTANE_IMAGE_HELPER = "OCTANE_TEXTURE_PAINT_HELPER[ShaderNodeTexImage]"
+    OCTANE_IMAGE_HELPER = "OCTANE_TEXTURE_HELPER[ShaderNodeTexImage]"
     OCTANE_TEXTURE_PAINT_HELPER = "OCTANE_TEXTURE_PAINT_HELPER[ShaderNodeTexImage]"
 
     support_udim=False
 
-    frame_current: IntProperty(name="Current Frame", default=0, min=-1048574, max=1048574, description="Current frame number in image sequence or movie")
-    frame_duration: IntProperty(name="Frame Duration", default=0, min=0, max=1048574, description="Number of images of a movie to use")
-    frame_offset: IntProperty(name="Offset", default=0, min=-2147483647, max=2147483647, description="Offset the number of the frame to use in the animation")
-    frame_start: IntProperty(name="Start Frame", default=0, min=-1048574, max=1048574, description="Global starting frame of the movie/sequence, assuming first picture has a #1")
-    tile: IntProperty(name="Tile", default=0, min=0, max=2147483647, description="Tile in tiled image")
-    use_auto_refresh: BoolProperty(name="Auto Refresh", default=False, description="Always refresh image on frame changes")
-    use_cyclic: BoolProperty(name="Cyclic", default=False, description="Cycle the images in the movie")
+    def update_image(self, context):
+        self.get_octane_image_helper()
+        last_image = bpy.data.images.get(self.last_image_name)
+        if self.image != last_image:
+            self.last_image_name = self.image.name if self.image else ""
+            self.update_image_info()
+        self.update_node_tree(context)
+
+    frame_current: IntProperty(name="Current Frame", default=0, min=-1048574, max=1048574, update=update_image, description="Current frame number in image sequence or movie")
+    frame_duration: IntProperty(name="Frame Duration", default=0, min=0, max=1048574, update=update_image, description="Number of images of a movie to use")
+    frame_offset: IntProperty(name="Offset", default=0, min=-2147483647, max=2147483647, update=update_image, description="Offset the number of the frame to use in the animation")
+    frame_start: IntProperty(name="Start Frame", default=0, min=-1048574, max=1048574, update=update_image, description="Global starting frame of the movie/sequence, assuming first picture has a #1")
+    tile: IntProperty(name="Tile", default=0, min=0, max=2147483647, update=update_image, description="Tile in tiled image")
+    use_auto_refresh: BoolProperty(name="Auto Refresh", default=False, update=update_image, description="Always refresh image on frame changes")
+    use_cyclic: BoolProperty(name="Cyclic", default=False, update=update_image, description="Cycle the images in the movie")
     last_image_name: StringProperty()
     ies_items = [
         ("IES_MAX_1", "Normalize maximum value to 1.0", "", 1),
         ("IES_COMPENSATE_LUMINANCE", "Normalize using lamp luminance", "", 2),
         ("IES_CANDELA_ABSOLUTE", "Absolute photometric", "", 3),
     ]
-    a_ies_photometry_mode: EnumProperty(name="IES scaling", default="IES_MAX_1", description="How to normalize data from IES files", items=ies_items)
+    a_ies_photometry_mode: EnumProperty(name="IES scaling", default="IES_MAX_1", update=update_image, description="How to normalize data from IES files", items=ies_items)
     a_channel_format_enum_items_str: StringProperty()
     a_channel_format_enum_items_container = {}
-
-    def update_image(self, context):
-        last_image = bpy.data.images.get(self.last_image_name)
-        if self.image != last_image:
-            self.last_image_name = self.image.name if self.image else ""
-            self.update_image_info()
     
     image: PointerProperty(type=bpy.types.Image, update=update_image)
 
@@ -87,12 +88,17 @@ class OctaneBaseImageNode(OctaneBaseNode):
         return OctaneBaseImageNode.a_channel_format_enum_items_container[self.a_channel_format_enum_items_str]
 
     a_channel_format: EnumProperty(name="Import format", update=update_image, description="", items=get_a_channel_format_enum_items)
-    
+
+    @classmethod
+    def update_node_definition(cls):
+        utility.remove_attribute_list(cls, ["a_channel_format", "a_filename", "a_grid_size", "a_type", "a_image_file_type", "a_can_wrap_x", "a_can_wrap_y", "a_image_flip", "a_source_info", "a_image_layer_names", "a_image_chosen_layer_name", "a_size", "a_reload"])
+        utility.add_attribute_list(cls, ["a_ies_photometry_mode", "a_channel_format"])
+
     def init_image_attributes(self):
-        utility.remove_attribute_list(self, "a_filename;a_grid_size;a_type;a_image_file_type;a_can_wrap_x;a_can_wrap_y;a_image_flip;a_source_info;a_image_layer_names;a_image_chosen_layer_name;")        
-        utility.add_attribute_list(self, "a_ies_photometry_mode;a_channel_format", "iesPhotometryMode;channelFormat", "2;2;")
         self.a_ies_photometry_mode = "IES_MAX_1"
         self.a_channel_format = "Automatic"
+        if "Legacy gamma" in self.inputs:
+            self.inputs["Legacy gamma"].default_value = 2.2
 
     def get_octane_texture_paint_helper(self):        
         node_tree = self.id_data
@@ -116,24 +122,26 @@ class OctaneBaseImageNode(OctaneBaseNode):
         else:
             filepath = ""
         if len(filepath):
-            octane_node = OctaneNode(OctaneNodeType.SYNC_NODE)
-            octane_node.set_name("QueryImageInfo")
-            octane_node.set_node_type(consts.NodeType.NT_BLENDER_NODE_IMAGE_INFO)
-            octane_node.set_attribute("a_filename", consts.AttributeType.AT_FILENAME, filepath)
-            self.a_channel_format_enum_items_str = OctaneClient().process_octane_node(octane_node)
+            from octane.core.client import OctaneBlender
+            response = OctaneBlender().utils_function(consts.UtilsFunctionType.FETCH_IMAGE_INFO, filepath)
+            if len(response):
+                self.a_channel_format_enum_items_str = ET.fromstring(response).get("content")
         else:
             self.a_channel_format_enum_items_str = ""
         if self.a_channel_format == "":
             self.a_channel_format = "Automatic"
 
     def auto_refresh(self):
-        return self.image and self.image.source in ("SEQUENCE", "MOVIE") and self.use_auto_refresh
+        if self.image and self.image.source in ("SEQUENCE", "MOVIE") and self.use_auto_refresh:
+            return consts.AutoRereshStrategy.FRAME_CHANGE
+        else:
+            return consts.AutoRereshStrategy.DISABLE
     
     def is_octane_image_node(self):
         return True    
 
     def refresh_image_data(self, frame_current):
-        if not self.auto_refresh():
+        if self.auto_refresh() == consts.AutoRereshStrategy.DISABLE:
             return
         if self.image.source == "MOVIE":
             self.image.gl_free()
@@ -171,11 +179,7 @@ class OctaneBaseImageNode(OctaneBaseNode):
         return md5
 
     def release_image_c_array(self, octane_node):
-        c_array = octane_node.get_c_array(self.IMAGE_DATA_C_ARRAY_IDENTIFIER, CArray.FLOAT)
-        if c_array is not None:
-            octane_node.release_c_array(self.IMAGE_DATA_C_ARRAY_IDENTIFIER, CArray.FLOAT)
-            return True
-        return False
+        octane_node.delete_array_data(self.IMAGE_DATA_C_ARRAY_IDENTIFIER)
 
     def _update_image_filepath(self, octane_node, scene_frame_current):
         filepath = ""
@@ -186,60 +190,67 @@ class OctaneBaseImageNode(OctaneBaseNode):
                 filepath = self.image.filepath_from_user(image_user=cycles_image_helper.image_user)
             else:
                 filepath = self.image.filepath_from_user()        
-        result = octane_node.set_attribute("a_filename", consts.AttributeType.AT_FILENAME, filepath)
+        result = octane_node.set_attribute_blender_name("a_filename", consts.AttributeType.AT_FILENAME, filepath)        
         return result
     
     def _update_pixel_image(self, octane_node, scene_frame_current):
+        result = False
         # Refresh the movie data
         if self.image and self.image.source == "MOVIE":
             self.refresh_image_data(self.get_frame(scene_frame_current))
-        c_array = octane_node.get_c_array(self.IMAGE_DATA_C_ARRAY_IDENTIFIER, CArray.FLOAT)
+        c_array = octane_node.get_array_data(self.IMAGE_DATA_C_ARRAY_IDENTIFIER)
         # The empty image cases
-        if not self.image or self.image.source not in ("MOVIE", "GENERATED", ) or len(self.image.pixels) == 0:
-            octane_node.set_attribute("a_size", consts.AttributeType.AT_INT2, [0, 0])
-            return self.release_image_c_array(octane_node)            
+        if not self.image or len(self.image.pixels) == 0:
+            octane_node.set_attribute_blender_name("a_size", consts.AttributeType.AT_INT2, [0, 0])
+            return octane_node.delete_array_data(self.IMAGE_DATA_C_ARRAY_IDENTIFIER)
         # The non-empty image cases
-        octane_node.set_attribute("a_size", consts.AttributeType.AT_INT2, self.image.size)
-        md5_hash = self.calculate_image_md5()
-        if c_array is None or c_array.size != len(self.image.pixels):
+        octane_node.set_attribute_blender_name("a_size", consts.AttributeType.AT_INT2, self.image.size)
+        # md5_hash = self.calculate_image_md5()
+        # current_colorspace_name = self.image.colorspace_settings.name
+        #  self.image.colorspace_settings.is_data = True
+        float_size = len(self.image.pixels)
+        if c_array is None or len(c_array) != float_size:
             # Create or Re-create the CArray when size is changed
-            self.release_image_c_array(octane_node)
-            if octane_node.create_c_array(len(self.image.pixels), self.IMAGE_DATA_C_ARRAY_IDENTIFIER, CArray.FLOAT):
-                c_array = octane_node.get_c_array(self.IMAGE_DATA_C_ARRAY_IDENTIFIER, CArray.FLOAT)
-                c_array.hash_id = md5_hash
-                self.image.pixels.foreach_get(c_array.array)
-                return True
-            return False
+            octane_node.delete_array_data(self.IMAGE_DATA_C_ARRAY_IDENTIFIER)
+            if octane_node.new_array_data(self.IMAGE_DATA_C_ARRAY_IDENTIFIER, CArray.FLOAT, float_size, 4):
+                c_array = octane_node.get_array_data(self.IMAGE_DATA_C_ARRAY_IDENTIFIER)
+                self.image.pixels.foreach_get(c_array)
+                result = True
         else:
-            # Compare the hash id
-            if c_array.hash_id == md5_hash:
-                return False
-            else:
-                c_array.hash_id = md5_hash
-                self.image.pixels.foreach_get(c_array.array)
-                return True
+            self.image.pixels.foreach_get(c_array)
+            result = True
+        # self.image.colorspace_settings.name = current_colorspace_name
+        return result
     
-    def sync_custom_data(self, octane_node, octane_graph_node_data, owner_type, scene, is_viewport):
-        super().sync_custom_data(octane_node, octane_graph_node_data, owner_type, scene, is_viewport)
+    def sync_custom_data(self, octane_node, octane_graph_node_data, depsgraph):
+        super().sync_custom_data(octane_node, octane_graph_node_data, depsgraph)        
+        scene = depsgraph.scene_eval
         is_data_updated = False
         if self.image:
             scene_frame_current = scene.frame_current if scene else 0
-            if self.image.source in ("FILE", "SEQUENCE", ):
+            if self.image.source in ("FILE", "SEQUENCE", ) and self.image.packed_file is None:
                 is_data_updated |= self._update_image_filepath(octane_node, scene_frame_current)
-                self.release_image_c_array(octane_node)
-            elif self.image.source in ("MOVIE", "GENERATED"):
+                octane_node.delete_array_data(self.IMAGE_DATA_C_ARRAY_IDENTIFIER)
+            elif self.image.packed_file is not None or len(self.image.pixels) > 0:
                 is_data_updated |= self._update_pixel_image(octane_node, scene_frame_current)
-                is_data_updated |= octane_node.set_attribute("a_filename", consts.AttributeType.AT_FILENAME, "")
-                c_array = octane_node.get_c_array(self.IMAGE_DATA_C_ARRAY_IDENTIFIER, CArray.FLOAT)
-                if c_array is not None:
-                    c_array.need_update = is_data_updated
+                is_data_updated |= octane_node.set_attribute_blender_name("a_filename", consts.AttributeType.AT_FILENAME, "")
         else:
-            is_data_updated |= octane_node.set_attribute("a_filename", consts.AttributeType.AT_FILENAME, "")
-            c_array = octane_node.get_c_array(self.IMAGE_DATA_C_ARRAY_IDENTIFIER, CArray.FLOAT)
+            is_data_updated |= octane_node.set_attribute_blender_name("a_filename", consts.AttributeType.AT_FILENAME, "")
+            c_array = octane_node.get_array_data(self.IMAGE_DATA_C_ARRAY_IDENTIFIER)
             if c_array is not None:
-                self.release_image_c_array(octane_node)
+                octane_node.delete_array_data(self.IMAGE_DATA_C_ARRAY_IDENTIFIER)
                 is_data_updated = True
-        octane_node.set_blender_attribute(self.BLENDER_ATTRIBUTE_IMAGE_DATA_UPDATE, consts.AttributeType.AT_BOOL, is_data_updated)
+        octane_node.set_attribute_blender_name(self.BLENDER_ATTRIBUTE_IMAGE_DATA_UPDATE, consts.AttributeType.AT_BOOL, is_data_updated)
+
+    def load_custom_ocs_data(self, creator, ocs_element_tree):
+        image_name = ocs_element_tree.get("name", "OctaneDB Image")
+        for attr_et in ocs_element_tree.findall("attr"):
+            if attr_et.get("name", "") == "filename":
+                try:
+                    asset_filepath = creator.get_asset_filepath(attr_et.text) if attr_et.text is not None else ""
+                    self.image = bpy.data.images.load(asset_filepath)
+                except:
+                    pass
 
     def get_attribute_value(self, attribute_name, attribute_type):
         if attribute_name == "a_channel_format":

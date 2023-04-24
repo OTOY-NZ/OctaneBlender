@@ -9,13 +9,11 @@
 
 #include "DNA_defs.h"
 
-/* XXX(@campbellbarton): temp feature. */
+/* XXX(campbell): temp feature. */
 #define DURIAN_CAMERA_SWITCH
 
-/**
- * Check for cyclic set-scene.
- * Libraries can cause this case which is normally prevented, see (T42009).
- */
+/* check for cyclic set-scene,
+ * libs can cause this case which is normally prevented, see (T#####) */
 #define USE_SETSCENE_CHECK
 
 #include "DNA_ID.h"
@@ -306,10 +304,6 @@ typedef enum eScenePassType {
 #define RE_PASSNAME_BLOOM "BloomCol"
 #define RE_PASSNAME_VOLUME_LIGHT "VolumeDir"
 
-#define RE_PASSNAME_CRYPTOMATTE_OBJECT "CryptoObject"
-#define RE_PASSNAME_CRYPTOMATTE_ASSET "CryptoAsset"
-#define RE_PASSNAME_CRYPTOMATTE_MATERIAL "CryptoMaterial"
-
 /** View - MultiView. */
 typedef struct SceneRenderView {
   struct SceneRenderView *next, *prev;
@@ -403,12 +397,12 @@ typedef struct ImageFormatData {
 
   /** R_IMF_PLANES_BW, R_IMF_PLANES_RGB, R_IMF_PLANES_RGBA. */
   char planes;
-  /** Generic options for all image types, alpha Z-buffer. */
+  /** Generic options for all image types, alpha zbuffer. */
   char flag;
 
-  /** (0 - 100), eg: JPEG quality. */
+  /** (0 - 100), eg: jpeg quality. */
   char quality;
-  /** (0 - 100), eg: PNG compression. */
+  /** (0 - 100), eg: png compression. */
   char compress;
 
   /* --- format specific --- */
@@ -481,7 +475,6 @@ typedef struct ImageFormatData {
 #define R_IMF_IMTYPE_THEORA 33
 #define R_IMF_IMTYPE_PSD 34
 #define R_IMF_IMTYPE_WEBP 35
-#define R_IMF_IMTYPE_AV1 36
 
 #define R_IMF_IMTYPE_INVALID 255
 
@@ -569,8 +562,7 @@ typedef struct BakeData {
   char target;
   char save_mode;
   char margin_type;
-  char view_from;
-  char _pad[4];
+  char _pad[5];
 
   struct Object *cage_object;
 } BakeData;
@@ -602,12 +594,6 @@ typedef enum eBakeSaveMode {
   R_BAKE_SAVE_INTERNAL = 0,
   R_BAKE_SAVE_EXTERNAL = 1,
 } eBakeSaveMode;
-
-/** #BakeData.view_from (char) */
-typedef enum eBakeViewFrom {
-  R_BAKE_VIEW_FROM_ABOVE_SURFACE = 0,
-  R_BAKE_VIEW_FROM_ACTIVE_CAMERA = 1,
-} eBakeViewFrom;
 
 /** #BakeData.pass_filter */
 typedef enum eBakePassFilter {
@@ -846,7 +832,6 @@ typedef struct RenderProfile {
 /** #ToolSettings.uv_relax_method */
 #define UV_SCULPT_TOOL_RELAX_LAPLACIAN 1
 #define UV_SCULPT_TOOL_RELAX_HC 2
-#define UV_SCULPT_TOOL_RELAX_COTAN 3
 
 /* Stereo Flags */
 #define STEREO_RIGHT_NAME "right"
@@ -1041,15 +1026,8 @@ typedef struct Sculpt {
   float constant_detail;
   float detail_percent;
 
-  int automasking_cavity_blur_steps;
-  float automasking_cavity_factor;
   char _pad[4];
 
-  float automasking_start_normal_limit, automasking_start_normal_falloff;
-  float automasking_view_normal_limit, automasking_view_normal_falloff;
-
-  struct CurveMapping *automasking_cavity_curve;
-  struct CurveMapping *automasking_cavity_curve_op; /* For use by operators */
   struct Object *gravity_object;
 } Sculpt;
 
@@ -1529,12 +1507,12 @@ typedef struct ToolSettings {
   /* Transform */
   char transform_pivot_point;
   char transform_flag;
-  /** Snap elements (per space-type), #eSnapMode. */
+  /** Snap elements (per spacetype), #eSnapMode. */
   char _pad1[1];
   short snap_mode;
   char snap_node_mode;
   char snap_uv_mode;
-  /** Generic flags (per space-type), #eSnapFlag. */
+  /** Generic flags (per spacetype), #eSnapFlag. */
   short snap_flag;
   short snap_flag_node;
   short snap_flag_seq;
@@ -1774,8 +1752,6 @@ typedef struct Scene {
   ID id;
   /** Animation data (must be immediately after id for utilities to use it). */
   struct AnimData *adt;
-  /* runtime (must be immediately after id for utilities to use it). */
-  DrawDataList drawdata;
 
   struct Object *camera;
   struct World *world;
@@ -2074,10 +2050,18 @@ extern const char *RE_engine_id_OCTANE;
   (BASE_EDITABLE(v3d, base) && (((base)->flag & BASE_SELECTED) != 0))
 
 /* deprecate this! */
+#define FIRSTBASE(_view_layer) ((_view_layer)->object_bases.first)
+#define LASTBASE(_view_layer) ((_view_layer)->object_bases.last)
+#define BASACT(_view_layer) ((_view_layer)->basact)
+#define OBACT(_view_layer) (BASACT(_view_layer) ? BASACT(_view_layer)->object : NULL)
+
+#define OBEDIT_FROM_WORKSPACE(workspace, _view_layer) \
+  (((workspace)->object_mode & OD_MODE_EDIT) ? OBACT(_view_layer) : NULL)
 #define OBEDIT_FROM_OBACT(ob) ((ob) ? (((ob)->mode & OB_MODE_EDIT) ? ob : NULL) : NULL)
 #define OBPOSE_FROM_OBACT(ob) ((ob) ? (((ob)->mode & OB_MODE_POSE) ? ob : NULL) : NULL)
 #define OBWEIGHTPAINT_FROM_OBACT(ob) \
   ((ob) ? (((ob)->mode & OB_MODE_WEIGHT_PAINT) ? ob : NULL) : NULL)
+#define OBEDIT_FROM_VIEW_LAYER(view_layer) OBEDIT_FROM_OBACT(OBACT(view_layer))
 
 #define V3D_CAMERA_LOCAL(v3d) ((!(v3d)->scenelock && (v3d)->camera) ? (v3d)->camera : NULL)
 #define V3D_CAMERA_SCENE(scene, v3d) \
@@ -2238,7 +2222,7 @@ enum {
   OB_DRAW_GROUPUSER_ALL = 2,
 };
 
-/* object_vgroup.cc */
+/* object_vgroup.c */
 
 /** #ToolSettings.vgroupsubset */
 typedef enum eVGroupSelect {

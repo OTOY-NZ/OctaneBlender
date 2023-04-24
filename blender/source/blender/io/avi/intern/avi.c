@@ -38,14 +38,14 @@ static char DEBUG_FCC[4];
   (void)0
 
 /* local functions */
-char *fcc_to_char(uint fcc);
-char *tcc_to_char(uint tcc);
+char *fcc_to_char(unsigned int fcc);
+char *tcc_to_char(unsigned int tcc);
 
 /* implementation */
 
-uint GET_FCC(FILE *fp)
+unsigned int GET_FCC(FILE *fp)
 {
-  uchar tmp[4];
+  unsigned char tmp[4];
 
   tmp[0] = getc(fp);
   tmp[1] = getc(fp);
@@ -55,7 +55,7 @@ uint GET_FCC(FILE *fp)
   return FCC(tmp);
 }
 
-uint GET_TCC(FILE *fp)
+unsigned int GET_TCC(FILE *fp)
 {
   char tmp[5];
 
@@ -67,7 +67,7 @@ uint GET_TCC(FILE *fp)
   return FCC(tmp);
 }
 
-char *fcc_to_char(uint fcc)
+char *fcc_to_char(unsigned int fcc)
 {
   DEBUG_FCC[0] = (fcc)&127;
   DEBUG_FCC[1] = (fcc >> 8) & 127;
@@ -77,7 +77,7 @@ char *fcc_to_char(uint fcc)
   return DEBUG_FCC;
 }
 
-char *tcc_to_char(uint tcc)
+char *tcc_to_char(unsigned int tcc)
 {
   DEBUG_FCC[0] = (tcc)&127;
   DEBUG_FCC[1] = (tcc >> 8) & 127;
@@ -129,7 +129,7 @@ static bool fcc_is_data(int fcc)
   fccs[2] = fcc >> 16;
   fccs[3] = fcc >> 24;
 
-  if (!isdigit(fccs[0]) || !isdigit(fccs[1]) || !ELEM(fccs[2], 'd', 'w')) {
+  if (!isdigit(fccs[0]) || !isdigit(fccs[1]) || (!ELEM(fccs[2], 'd', 'w'))) {
     return 0;
   }
   if (!ELEM(fccs[3], 'b', 'c')) {
@@ -917,7 +917,7 @@ AviError AVI_write_frame(AviMovie *movie, int frame_num, ...)
   va_start(ap, frame_num);
 
   for (stream = 0; stream < movie->header->Streams; stream++) {
-    uint tbuf = 0;
+    unsigned int tbuf = 0;
 
     format = va_arg(ap, AviFormat);
     buffer = va_arg(ap, void *);

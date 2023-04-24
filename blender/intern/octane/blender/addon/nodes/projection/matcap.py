@@ -20,13 +20,13 @@ class OctaneMatCap(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=338)
-    octane_socket_list: StringProperty(name="Socket List", default="")
-    octane_attribute_list: StringProperty(name="Attribute List", default="")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=0)
+    octane_node_type=consts.NodeType.NT_PROJ_MATCAP
+    octane_socket_list=[]
+    octane_attribute_list=[]
+    octane_attribute_config={}
+    octane_static_pin_count=0
 
     def init(self, context):
         self.outputs.new("OctaneProjectionOutSocket", "Projection out").init()

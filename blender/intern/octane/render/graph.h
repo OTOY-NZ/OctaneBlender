@@ -59,6 +59,11 @@ enum ShaderGraphType {
   SHADER_GRAPH_RENDER_AOV = 5
 };
 
+enum DependentIDType {
+  DEPENDENT_ID_OBJECT = 0,
+  DEPENDENT_ID_COLLECTION = 1
+};
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Input
 // Input socket for a shader node. May be linked to an output or not. If not
@@ -146,27 +151,32 @@ class ShaderGraph {
     type = SHADER_GRAPH_MATERIAL;
     need_subdivision = false;
     has_object_dependency = false;
-    dependent_ids.clear();
+    has_ramp_node = false;
+    dependent_names.clear();
   };
   ShaderGraph(ShaderGraphType graphType)
   {
     type = graphType;
     need_subdivision = false;
     has_object_dependency = false;
-    dependent_ids.clear();
+    has_ramp_node = false;
+    dependent_names.clear();
   };
   ~ShaderGraph();
 
   ShaderNode *add(ShaderNode *node);
   ShaderNode *output();
   bool is_builtin_image_updated(ShaderGraph &graph);
+  static std::string generate_dependent_name(std::string name, DependentIDType dependent_id_type);
+  void add_dependent_name(std::string name, DependentIDType dependent_id_type);
 
   list<ShaderNode *> nodes;
 
   ShaderGraphType type;
   bool need_subdivision;
   bool has_object_dependency;
-  std::unordered_set<void *> dependent_ids;
+  bool has_ramp_node;
+  std::unordered_set<std::string> dependent_names;
 
  protected:
 };  // ShaderGraph

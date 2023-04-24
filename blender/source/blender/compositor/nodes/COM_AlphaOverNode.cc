@@ -14,10 +14,10 @@ void AlphaOverNode::convert_to_operations(NodeConverter &converter,
 {
   NodeInput *color1Socket = this->get_input_socket(1);
   NodeInput *color2Socket = this->get_input_socket(2);
-  const bNode *editor_node = this->get_bnode();
+  bNode *editor_node = this->get_bnode();
 
   MixBaseOperation *convert_prog;
-  const NodeTwoFloats *ntf = (const NodeTwoFloats *)editor_node->storage;
+  NodeTwoFloats *ntf = (NodeTwoFloats *)editor_node->storage;
   if (ntf->x != 0.0f) {
     AlphaOverMixedOperation *mix_operation = new AlphaOverMixedOperation();
     mix_operation->setX(ntf->x);

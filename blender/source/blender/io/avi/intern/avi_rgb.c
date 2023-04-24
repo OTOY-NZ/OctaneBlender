@@ -21,9 +21,12 @@
 
 /* implementation */
 
-void *avi_converter_from_avi_rgb(AviMovie *movie, int stream, uchar *buffer, const size_t *size)
+void *avi_converter_from_avi_rgb(AviMovie *movie,
+                                 int stream,
+                                 unsigned char *buffer,
+                                 const size_t *size)
 {
-  uchar *buf;
+  unsigned char *buf;
   AviBitmapInfoHeader *bi;
   short bits = 32;
 
@@ -35,24 +38,24 @@ void *avi_converter_from_avi_rgb(AviMovie *movie, int stream, uchar *buffer, con
   }
 
   if (bits == 16) {
-    ushort *pxl;
-    uchar *to;
+    unsigned short *pxl;
+    unsigned char *to;
 #ifdef __BIG_ENDIAN__
-    uchar *pxla;
+    unsigned char *pxla;
 #endif
 
     buf = imb_alloc_pixels(
-        movie->header->Height, movie->header->Width, 3, sizeof(uchar), "fromavirgbbuf");
+        movie->header->Height, movie->header->Width, 3, sizeof(unsigned char), "fromavirgbbuf");
 
     if (buf) {
       size_t y = movie->header->Height;
       to = buf;
 
       while (y--) {
-        pxl = (ushort *)(buffer + y * movie->header->Width * 2);
+        pxl = (unsigned short *)(buffer + y * movie->header->Width * 2);
 
 #ifdef __BIG_ENDIAN__
-        pxla = (uchar *)pxl;
+        pxla = (unsigned char *)pxl;
 #endif
 
         size_t x = movie->header->Width;
@@ -79,7 +82,7 @@ void *avi_converter_from_avi_rgb(AviMovie *movie, int stream, uchar *buffer, con
   }
 
   buf = imb_alloc_pixels(
-      movie->header->Height, movie->header->Width, 3, sizeof(uchar), "fromavirgbbuf");
+      movie->header->Height, movie->header->Width, 3, sizeof(unsigned char), "fromavirgbbuf");
 
   if (buf) {
     size_t rowstride = movie->header->Width * 3;
@@ -107,9 +110,9 @@ void *avi_converter_from_avi_rgb(AviMovie *movie, int stream, uchar *buffer, con
   return buf;
 }
 
-void *avi_converter_to_avi_rgb(AviMovie *movie, int stream, uchar *buffer, size_t *size)
+void *avi_converter_to_avi_rgb(AviMovie *movie, int stream, unsigned char *buffer, size_t *size)
 {
-  uchar *buf;
+  unsigned char *buf;
 
   (void)stream; /* unused */
 

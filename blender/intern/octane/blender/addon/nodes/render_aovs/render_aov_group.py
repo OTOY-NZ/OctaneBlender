@@ -15,12 +15,13 @@ class OctaneRenderAOVGroupEnabled(OctaneBaseSocket):
     bl_idname="OctaneRenderAOVGroupEnabled"
     bl_label="Enabled"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type=11
+    octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=42)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="enabled")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
+    octane_pin_id=consts.PinID.P_ENABLED
+    octane_pin_name="enabled"
+    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Enables/disables all AOVs of this group")
     octane_hide_value=False
     octane_min_version=0
@@ -31,12 +32,13 @@ class OctaneRenderAOVGroupRenderPassesRaw(OctaneBaseSocket):
     bl_idname="OctaneRenderAOVGroupRenderPassesRaw"
     bl_label="Raw"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type=11
+    octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=277)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="renderPassesRaw")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
+    octane_pin_id=consts.PinID.P_RENDER_PASSES_RAW
+    octane_pin_name="renderPassesRaw"
+    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_index=1
+    octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Convert the beauty AOVs to raw AOVs by factoring out the color of the BxDF of the surface hit by the camera ray")
     octane_hide_value=False
     octane_min_version=0
@@ -47,12 +49,13 @@ class OctaneRenderAOVGroupRenderPassCryptomatteCount(OctaneBaseSocket):
     bl_idname="OctaneRenderAOVGroupRenderPassCryptomatteCount"
     bl_label="Cryptomatte bins"
     color=consts.OctanePinColor.Int
-    octane_default_node_type=9
+    octane_default_node_type=consts.NodeType.NT_INT
     octane_default_node_name="OctaneIntValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=456)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="renderPassCryptomatteCount")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
+    octane_pin_id=consts.PinID.P_RENDER_PASS_CRYPTOMATTE_COUNT
+    octane_pin_name="renderPassCryptomatteCount"
+    octane_pin_type=consts.PinType.PT_INT
+    octane_pin_index=2
+    octane_socket_type=consts.SocketType.ST_INT
     default_value: IntProperty(default=6, update=OctaneBaseSocket.update_node_tree, description="Amount of cryptomatte bins to render", min=2, max=10, soft_min=2, soft_max=10, step=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
@@ -63,12 +66,13 @@ class OctaneRenderAOVGroupRenderPassCryptomatteSeedFactor(OctaneBaseSocket):
     bl_idname="OctaneRenderAOVGroupRenderPassCryptomatteSeedFactor"
     bl_label="Cryptomatte seed factor"
     color=consts.OctanePinColor.Int
-    octane_default_node_type=9
+    octane_default_node_type=consts.NodeType.NT_INT
     octane_default_node_name="OctaneIntValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=472)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="renderPassCryptomatteSeedFactor")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
+    octane_pin_id=consts.PinID.P_RENDER_PASS_CRYPTOMATTE_SEED_FACTOR
+    octane_pin_name="renderPassCryptomatteSeedFactor"
+    octane_pin_type=consts.PinType.PT_INT
+    octane_pin_index=3
+    octane_socket_type=consts.SocketType.ST_INT
     default_value: IntProperty(default=10, update=OctaneBaseSocket.update_node_tree, description="Amount of samples to use for seeding cryptomatte. This gets multiplied with the amount of bins.\nLow values result in pitting artefacts at feathered edges, while large values the values can result in artefacts in places with coverage for lots of different IDs", min=4, max=25, soft_min=4, soft_max=25, step=1, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
@@ -79,12 +83,13 @@ class OctaneRenderAOVGroupRenderPassInfoMaxSamples(OctaneBaseSocket):
     bl_idname="OctaneRenderAOVGroupRenderPassInfoMaxSamples"
     bl_label="Max info samples"
     color=consts.OctanePinColor.Int
-    octane_default_node_type=9
+    octane_default_node_type=consts.NodeType.NT_INT
     octane_default_node_name="OctaneIntValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=161)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="renderPassInfoMaxSamples")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
+    octane_pin_id=consts.PinID.P_RENDER_PASS_INFO_MAX_SAMPLES
+    octane_pin_name="renderPassInfoMaxSamples"
+    octane_pin_type=consts.PinType.PT_INT
+    octane_pin_index=4
+    octane_socket_type=consts.SocketType.ST_INT
     default_value: IntProperty(default=128, update=OctaneBaseSocket.update_node_tree, description="The maximum number of samples for the info passes", min=1, max=1024, soft_min=1, soft_max=1024, step=1, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
@@ -95,12 +100,13 @@ class OctaneRenderAOVGroupSamplingMode(OctaneBaseSocket):
     bl_idname="OctaneRenderAOVGroupSamplingMode"
     bl_label="Info sampling mode"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type=57
+    octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=329)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="samplingMode")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
+    octane_pin_id=consts.PinID.P_INFOCHANNEL_SAMPLING_MODE
+    octane_pin_name="samplingMode"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=5
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("Distributed rays", "Distributed rays", "", 0),
         ("Non-distributed with pixel filtering", "Non-distributed with pixel filtering", "", 1),
@@ -116,12 +122,13 @@ class OctaneRenderAOVGroupOpacityThreshold(OctaneBaseSocket):
     bl_idname="OctaneRenderAOVGroupOpacityThreshold"
     bl_label="Info opacity threshold"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=630)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="opacityThreshold")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_OPACITY_THRESHOLD
+    octane_pin_name="opacityThreshold"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=6
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Geometry with an opacity higher or equal to this value is treated as totally opaque", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
@@ -142,13 +149,13 @@ class OctaneRenderAOVGroup(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneRenderAOVGroupEnabled,OctaneRenderAOVGroupGroupOptions,OctaneRenderAOVGroupRenderPassesRaw,OctaneRenderAOVGroupRenderPassCryptomatteCount,OctaneRenderAOVGroupRenderPassCryptomatteSeedFactor,OctaneRenderAOVGroupRenderPassInfoMaxSamples,OctaneRenderAOVGroupSamplingMode,OctaneRenderAOVGroupOpacityThreshold,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=179)
-    octane_socket_list: StringProperty(name="Socket List", default="Enabled;Raw;Cryptomatte bins;Cryptomatte seed factor;Max info samples;Info sampling mode;Info opacity threshold;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="a_aov_count;")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="aovCount;")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="2;")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=7)
+    octane_node_type=consts.NodeType.NT_RENDER_AOV_GROUP
+    octane_socket_list=["Enabled", "Raw", "Cryptomatte bins", "Cryptomatte seed factor", "Max info samples", "Info sampling mode", "Info opacity threshold", ]
+    octane_attribute_list=["a_aov_count", ]
+    octane_attribute_config={"a_aov_count": [consts.AttributeID.A_AOV_COUNT, "aovCount", consts.AttributeType.AT_INT], "a_input_action": [consts.AttributeID.A_INPUT_ACTION, "inputAction", consts.AttributeType.AT_INT2], }
+    octane_static_pin_count=7
 
     a_aov_count: IntProperty(name="Aov count", default=0, update=OctaneBaseNode.update_node_tree, description="The number of render AOV inputs. Changing this value and evaluating the node will update the number of render AOV inputs")
 
@@ -198,8 +205,8 @@ class OctaneRenderAOVGroupAOVInput(OctaneMovableInput):
     octane_input_pattern=r"AOV \d+"
     octane_input_format_pattern="AOV {}"
     color=consts.OctanePinColor.RenderAOVs
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_RENDER_PASSES)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_type=consts.PinType.PT_RENDER_PASSES
+    octane_socket_type=consts.SocketType.ST_LINK
 
 
 class OctaneRenderAOVGroupGroupAOVs(OctaneGroupTitleMovableInputs):

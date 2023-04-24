@@ -41,8 +41,6 @@
 #include "MOD_modifiertypes.h"
 #include "MOD_ui_common.h"
 
-#include "BLI_strict_flags.h"
-
 static void initData(ModifierData *md)
 {
   ScrewModifierData *ltmd = (ScrewModifierData *)md;
@@ -52,16 +50,14 @@ static void initData(ModifierData *md)
   MEMCPY_STRUCT_AFTER(ltmd, DNA_struct_default_get(ScrewModifierData), modifier);
 }
 
-/** Used for gathering edge connectivity. */
+#include "BLI_strict_flags.h"
+
+/* used for gathering edge connectivity */
 typedef struct ScrewVertConnect {
-  /** Distance from the center axis. */
-  float dist_sq;
-  /** Location relative to the transformed axis. */
-  float co[3];
-  /** 2 verts on either side of this one. */
-  uint v[2];
-  /** Edges on either side, a bit of a waste since each edge ref's 2 edges. */
-  MEdge *e[2];
+  float dist;  /* distance from the center axis */
+  float co[3]; /* location relative to the transformed axis */
+  uint v[2];   /* 2  verts on either side of this one */
+  MEdge *e[2]; /* edges on either side, a bit of a waste since each edge ref's 2 edges */
   char flag;
 } ScrewVertConnect;
 
@@ -180,7 +176,7 @@ static Mesh *mesh_remove_doubles_on_axis(Mesh *result,
 
 static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *meshData)
 {
-  const Mesh *mesh = meshData;
+  Mesh *mesh = meshData;
   Mesh *result;
   ScrewModifierData *ltmd = (ScrewModifierData *)md;
   const bool use_render_params = (ctx->flag & MOD_APPLY_RENDER) != 0;
@@ -239,11 +235,11 @@ static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *
 
   uint edge_offset;
 
-  MPoly *mp_new;
-  MLoop *ml_new;
-  MEdge *med_new, *med_new_firstloop;
-  MVert *mv_new, *mv_new_base;
-  const MVert *mv_orig;
+  MPoly *mpoly_orig, *mpoly_new, *mp_new;
+  MLoop *mloop_orig, *mloop_new, *ml_new;
+  MEdge *medge_orig, *med_orig, *med_new, *med_new_firstloop, *medge_new;
+  MVert *mvert_new, *mvert_orig, *mv_orig, *mv_new, *mv_new_base;
+
   Object *ob_axis = ltmd->ob_axis;
 
   ScrewVertConnect *vc, *vc_tmp, *vert_connect = NULL;
@@ -273,18 +269,18 @@ static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *
   axis_vec[ltmd->axis] = 1.0f;
 
   if (ob_axis != NULL) {
-    /* Calculate the matrix relative to the axis object. */
-    invert_m4_m4(mtx_tmp_a, ctx->object->object_to_world);
-    copy_m4_m4(mtx_tx_inv, ob_axis->object_to_world);
+    /* calc the matrix relative to the axis object */
+    invert_m4_m4(mtx_tmp_a, ctx->object->obmat);
+    copy_m4_m4(mtx_tx_inv, ob_axis->obmat);
     mul_m4_m4m4(mtx_tx, mtx_tmp_a, mtx_tx_inv);
 
-    /* Calculate the axis vector. */
+    /* calc the axis vec */
     mul_mat3_m4_v3(mtx_tx, axis_vec); /* only rotation component */
     normalize_v3(axis_vec);
 
     /* screw */
     if (ltmd->flag & MOD_SCREW_OBJECT_OFFSET) {
-      /* Find the offset along this axis relative to this objects matrix. */
+      /* find the offset along this axis relative to this objects matrix */
       float totlen = len_v3(mtx_tx[3]);
 
       if (totlen != 0.0f) {
@@ -333,7 +329,7 @@ static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *
   else {
     axis_char = (char)(axis_char + ltmd->axis); /* 'X' + axis */
 
-    /* Useful to be able to use the axis vector in some cases still. */
+    /* useful to be able to use the axis vec in some cases still */
     zero_v3(axis_vec);
     axis_vec[ltmd->axis] = 1.0f;
   }
@@ -383,18 +379,17 @@ static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *
   result = BKE_mesh_new_nomain_from_template(
       mesh, (int)maxVerts, (int)maxEdges, 0, (int)maxPolys * 4, (int)maxPolys);
 
-  const MVert *mvert_orig = BKE_mesh_verts(mesh);
-  const MEdge *medge_orig = BKE_mesh_edges(mesh);
-  const MPoly *mpoly_orig = BKE_mesh_polys(mesh);
-  const MLoop *mloop_orig = BKE_mesh_loops(mesh);
+  /* copy verts from mesh */
+  mvert_orig = mesh->mvert;
+  medge_orig = mesh->medge;
 
-  MVert *mvert_new = BKE_mesh_verts_for_write(result);
-  MEdge *medge_new = BKE_mesh_edges_for_write(result);
-  MPoly *mpoly_new = BKE_mesh_polys_for_write(result);
-  MLoop *mloop_new = BKE_mesh_loops_for_write(result);
+  mvert_new = result->mvert;
+  mpoly_new = result->mpoly;
+  mloop_new = result->mloop;
+  medge_new = result->medge;
 
   if (!CustomData_has_layer(&result->pdata, CD_ORIGINDEX)) {
-    CustomData_add_layer(&result->pdata, CD_ORIGINDEX, CD_SET_DEFAULT, NULL, (int)maxPolys);
+    CustomData_add_layer(&result->pdata, CD_ORIGINDEX, CD_CALLOC, NULL, (int)maxPolys);
   }
 
   int *origindex = CustomData_get_layer(&result->pdata, CD_ORIGINDEX);
@@ -434,22 +429,25 @@ static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *
   BLI_bitmap *vert_tag = BLI_BITMAP_NEW(totvert, __func__);
 
   /* Copy the first set of edges */
-  const MEdge *med_orig = medge_orig;
+  med_orig = medge_orig;
   med_new = medge_new;
   for (i = 0; i < totedge; i++, med_orig++, med_new++) {
     med_new->v1 = med_orig->v1;
     med_new->v2 = med_orig->v2;
+    med_new->crease = med_orig->crease;
     med_new->flag = med_orig->flag & ~ME_LOOSEEDGE;
 
-    /* Tag #MVert as not loose. */
+    /* Tag mvert as not loose. */
     BLI_BITMAP_ENABLE(vert_tag, med_orig->v1);
     BLI_BITMAP_ENABLE(vert_tag, med_orig->v2);
   }
 
   /* build polygon -> edge map */
   if (totpoly) {
-    const MPoly *mp_orig;
+    MPoly *mp_orig;
 
+    mpoly_orig = mesh->mpoly;
+    mloop_orig = mesh->mloop;
     edge_poly_map = MEM_malloc_arrayN(totedge, sizeof(*edge_poly_map), __func__);
     memset(edge_poly_map, 0xff, sizeof(*edge_poly_map) * totedge);
 
@@ -460,7 +458,7 @@ static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *
       uint loopstart = (uint)mp_orig->loopstart;
       uint loopend = loopstart + (uint)mp_orig->totloop;
 
-      const MLoop *ml_orig = &mloop_orig[loopstart];
+      MLoop *ml_orig = &mloop_orig[loopstart];
       uint k;
       for (k = loopstart; k < loopend; k++, ml_orig++) {
         edge_poly_map[ml_orig->e] = i;
@@ -476,7 +474,8 @@ static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *
 
   if (ltmd->flag & MOD_SCREW_NORMAL_CALC) {
 
-    /* Normal Calculation (for face flipping)
+    /*
+     * Normal Calculation (for face flipping)
      * Sort edge verts for correct face flipping
      * NOT REALLY NEEDED but face flipping is nice. */
 
@@ -484,19 +483,19 @@ static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *
      *
      * Since we are only ordering the edges here it can avoid mallocing the
      * extra space by abusing the vert array before its filled with new verts.
-     * The new array for vert_connect must be at least `sizeof(ScrewVertConnect) * totvert`
-     * and the size of our resulting meshes array is `sizeof(MVert) * totvert * 3`
-     * so its safe to use the second 2 thirds of #MVert the array for vert_connect,
-     * just make sure #ScrewVertConnect struct is no more than twice as big as #MVert,
+     * The new array for vert_connect must be at least sizeof(ScrewVertConnect) * totvert
+     * and the size of our resulting meshes array is sizeof(MVert) * totvert * 3
+     * so its safe to use the second 2 thirds of MVert the array for vert_connect,
+     * just make sure ScrewVertConnect struct is no more than twice as big as MVert,
      * at the moment there is no chance of that being a problem,
-     * unless #MVert becomes half its current size.
+     * unless MVert becomes half its current size.
      *
      * once the edges are ordered, vert_connect is not needed and it can be used for verts
      *
-     * This makes the modifier faster with one less allocate.
+     * This makes the modifier faster with one less alloc.
      */
 
-    vert_connect = MEM_malloc_arrayN(totvert, sizeof(ScrewVertConnect), __func__);
+    vert_connect = MEM_malloc_arrayN(totvert, sizeof(ScrewVertConnect), "ScrewVertConnect");
     /* skip the first slice of verts. */
     // vert_connect = (ScrewVertConnect *) &medge_new[totvert];
     vc = vert_connect;
@@ -520,11 +519,11 @@ static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *
           vc->v[0] = vc->v[1] = SV_UNUSED;
 
           mul_m4_v3(mtx_tx, vc->co);
-          /* Length in 2D, don't `sqrt` because this is only for comparison. */
-          vc->dist_sq = vc->co[other_axis_1] * vc->co[other_axis_1] +
-                        vc->co[other_axis_2] * vc->co[other_axis_2];
+          /* length in 2d, don't sqrt because this is only for comparison */
+          vc->dist = vc->co[other_axis_1] * vc->co[other_axis_1] +
+                     vc->co[other_axis_2] * vc->co[other_axis_2];
 
-          // printf("location %f %f %f -- %f\n", vc->co[0], vc->co[1], vc->co[2], vc->dist_sq);
+          // printf("location %f %f %f -- %f\n", vc->co[0], vc->co[1], vc->co[2], vc->dist);
         }
       }
       else {
@@ -537,11 +536,11 @@ static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *
           vc->e[0] = vc->e[1] = NULL;
           vc->v[0] = vc->v[1] = SV_UNUSED;
 
-          /* Length in 2D, don't sqrt because this is only for comparison. */
-          vc->dist_sq = vc->co[other_axis_1] * vc->co[other_axis_1] +
-                        vc->co[other_axis_2] * vc->co[other_axis_2];
+          /* length in 2d, don't sqrt because this is only for comparison */
+          vc->dist = vc->co[other_axis_1] * vc->co[other_axis_1] +
+                     vc->co[other_axis_2] * vc->co[other_axis_2];
 
-          // printf("location %f %f %f -- %f\n", vc->co[0], vc->co[1], vc->co[2], vc->dist_sq);
+          // printf("location %f %f %f -- %f\n", vc->co[0], vc->co[1], vc->co[2], vc->dist);
         }
       }
 
@@ -609,9 +608,9 @@ static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *
               }
               lt_iter.v_poin->flag = 1;
               vc_tot_linked++;
-              // printf("Testing 2 floats %f : %f\n", fl, lt_iter.v_poin->dist_sq);
-              if (fl <= lt_iter.v_poin->dist_sq) {
-                fl = lt_iter.v_poin->dist_sq;
+              // printf("Testing 2 floats %f : %f\n", fl, lt_iter.v_poin->dist);
+              if (fl <= lt_iter.v_poin->dist) {
+                fl = lt_iter.v_poin->dist;
                 v_best = lt_iter.v;
                 // printf("\t\t\tVERT BEST: %i\n", v_best);
               }
@@ -850,9 +849,6 @@ static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *
   /* more of an offset in this case */
   edge_offset = totedge + (totvert * (step_tot - (close ? 0 : 1)));
 
-  const int *src_material_index = BKE_mesh_material_indices(mesh);
-  int *dst_material_index = BKE_mesh_material_indices_for_write(result);
-
   for (i = 0; i < totedge; i++, med_new_firstloop++) {
     const uint step_last = step_tot - (close ? 1 : 2);
     const uint mpoly_index_orig = totpoly ? edge_poly_map[i] : UINT_MAX;
@@ -865,14 +861,14 @@ static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *
     };
     const bool has_mloop_orig = mloop_index_orig[0] != UINT_MAX;
 
-    int mat_nr;
+    short mat_nr;
 
     /* for each edge, make a cylinder of quads */
     i1 = med_new_firstloop->v1;
     i2 = med_new_firstloop->v2;
 
     if (has_mpoly_orig) {
-      mat_nr = src_material_index == NULL ? 0 : src_material_index[mpoly_index_orig];
+      mat_nr = mpoly_orig[mpoly_index_orig].mat_nr;
     }
     else {
       mat_nr = 0;
@@ -898,8 +894,8 @@ static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *
       }
       else {
         origindex[mpoly_index] = ORIGINDEX_NONE;
-        dst_material_index[mpoly_index] = mat_nr;
         mp_new->flag = mpoly_flag;
+        mp_new->mat_nr = mat_nr;
       }
       mp_new->loopstart = mpoly_index * 4;
       mp_new->totloop = 4;
@@ -968,6 +964,7 @@ static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *
           med_new->v1 = i1;
           med_new->v2 = i2;
           med_new->flag = med_new_firstloop->flag;
+          med_new->crease = med_new_firstloop->crease;
           med_new++;
         }
         i1 += totvert;
@@ -995,6 +992,7 @@ static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *
     med_new->v1 = i1;
     med_new->v2 = i2;
     med_new->flag = med_new_firstloop->flag & ~ME_LOOSEEDGE;
+    med_new->crease = med_new_firstloop->crease;
     med_new++;
   }
 
@@ -1053,7 +1051,7 @@ static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphConte
   ScrewModifierData *ltmd = (ScrewModifierData *)md;
   if (ltmd->ob_axis != NULL) {
     DEG_add_object_relation(ctx->node, ltmd->ob_axis, DEG_OB_COMP_TRANSFORM, "Screw Modifier");
-    DEG_add_depends_on_transform_relation(ctx->node, "Screw Modifier");
+    DEG_add_modifier_to_transform_relation(ctx->node, "Screw Modifier");
   }
 }
 

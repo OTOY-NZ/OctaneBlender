@@ -9,7 +9,6 @@ from bpy.props import (
     FloatProperty,
     IntProperty,
 )
-from bpy.app.translations import pgettext_tip as tip_
 
 
 def object_ensure_material(obj, mat_name):
@@ -177,8 +176,8 @@ class QuickExplode(ObjectModeOperator, Operator):
         for obj in mesh_objects:
             if obj.particle_systems:
                 self.report({'ERROR'},
-                            tip_("Object %r already has a "
-                                 "particle system") % obj.name)
+                            "Object %r already has a "
+                            "particle system" % obj.name)
 
                 return {'CANCELLED'}
 

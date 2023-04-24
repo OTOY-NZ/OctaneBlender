@@ -11,7 +11,6 @@
 
 #include "outliner_intern.hh"
 
-namespace blender::ed::outliner {
 /* -------------------------------------------------------------------- */
 /** \name Registration
  * \{ */
@@ -104,5 +103,3 @@ void outliner_keymap(wmKeyConfig *keyconf)
 }
 
 /** \} */
-
-}  // namespace blender::ed::outliner

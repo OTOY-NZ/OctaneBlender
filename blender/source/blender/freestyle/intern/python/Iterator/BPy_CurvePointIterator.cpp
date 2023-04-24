@@ -76,7 +76,7 @@ PyDoc_STRVAR(CurvePointIterator_object_doc,
              "\n"
              ":type: :class:`CurvePoint`");
 
-static PyObject *CurvePointIterator_object_get(BPy_CurvePointIterator *self, void * /*closure*/)
+static PyObject *CurvePointIterator_object_get(BPy_CurvePointIterator *self, void *UNUSED(closure))
 {
   if (self->cp_it->isEnd()) {
     PyErr_SetString(PyExc_RuntimeError, "iteration has stopped");
@@ -90,7 +90,7 @@ PyDoc_STRVAR(CurvePointIterator_t_doc,
              "\n"
              ":type: float");
 
-static PyObject *CurvePointIterator_t_get(BPy_CurvePointIterator *self, void * /*closure*/)
+static PyObject *CurvePointIterator_t_get(BPy_CurvePointIterator *self, void *UNUSED(closure))
 {
   return PyFloat_FromDouble(self->cp_it->t());
 }
@@ -100,7 +100,7 @@ PyDoc_STRVAR(CurvePointIterator_u_doc,
              "\n"
              ":type: float");
 
-static PyObject *CurvePointIterator_u_get(BPy_CurvePointIterator *self, void * /*closure*/)
+static PyObject *CurvePointIterator_u_get(BPy_CurvePointIterator *self, void *UNUSED(closure))
 {
   return PyFloat_FromDouble(self->cp_it->u());
 }

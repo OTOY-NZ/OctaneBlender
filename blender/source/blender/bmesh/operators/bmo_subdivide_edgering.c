@@ -42,8 +42,7 @@
 #define FACE_IN_STACK (1 << 2)
 
 /* -------------------------------------------------------------------- */
-/** \name Specialized Utility Functions
- * \{ */
+/* Specialized Utility Funcs */
 
 #ifndef NDEBUG
 static uint bm_verts_tag_count(BMesh *bm)
@@ -184,13 +183,9 @@ finally:
   return has_overlap;
 }
 
-/** \} */
-
 /* -------------------------------------------------------------------- */
-/** \name Edge Loop Pairs
- *
- * key (ordered loop pointers).
- * \{ */
+/* Edge Loop Pairs */
+/* key (ordered loop pointers) */
 static GSet *bm_edgering_pair_calc(BMesh *bm, ListBase *eloops_rim)
 {
   /**
@@ -263,11 +258,8 @@ static GSet *bm_edgering_pair_calc(BMesh *bm, ListBase *eloops_rim)
   return eloop_pair_gs;
 }
 
-/** \} */
-
 /* -------------------------------------------------------------------- */
-/** \name Subdivide an edge 'n' times and return an open edgeloop
- * \{ */
+/* Subdivide an edge 'n' times and return an open edgeloop */
 
 static void bm_edge_subdiv_as_loop(
     BMesh *bm, ListBase *eloops, BMEdge *e, BMVert *v_a, const int cuts)
@@ -298,11 +290,8 @@ static void bm_edge_subdiv_as_loop(
   BLI_addtail(eloops, eloop);
 }
 
-/** \} */
-
 /* -------------------------------------------------------------------- */
-/** \name Loop Pair Cache (struct and utilities functions)
- * \{ */
+/* LoopPair Cache (struct and util funcs) */
 
 /**
  * Use for finding spline handle direction from surrounding faces.
@@ -521,11 +510,8 @@ static void bm_edgering_pair_store_free(LoopPairStore *lpair, const int interp_m
   MEM_freeN(lpair);
 }
 
-/** \} */
-
 /* -------------------------------------------------------------------- */
-/** \name Interpolation Function
- * \{ */
+/* Interpolation Function */
 
 static void bm_edgering_pair_interpolate(BMesh *bm,
                                          LoopPairStore *lpair,
@@ -1230,5 +1216,3 @@ cleanup:
     BMO_slot_buffer_from_enabled_flag(bm, op, op->slots_out, "faces.out", BM_FACE, FACE_OUT);
   }
 }
-
-/** \} */

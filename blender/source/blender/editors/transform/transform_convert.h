@@ -10,10 +10,6 @@
 
 #include "RE_engine.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct BMEditMesh;
 struct BMesh;
 struct BezTriple;
@@ -226,6 +222,8 @@ void transform_convert_mesh_crazyspace_transdata_set(const float mtx[3][3],
                                                      struct TransData *r_td);
 void transform_convert_mesh_crazyspace_free(struct TransMeshDataCrazySpace *r_crazyspace_data);
 
+void special_aftertrans_update__mesh(bContext *C, TransInfo *t);
+
 /* transform_convert_mesh_edge.c */
 
 extern TransConvertTypeInfo TransConvertType_MeshEdge;
@@ -246,7 +244,7 @@ extern TransConvertTypeInfo TransConvertType_MeshVertCData;
 
 extern TransConvertTypeInfo TransConvertType_NLA;
 
-/* transform_convert_node.cc */
+/* transform_convert_node.c */
 
 extern TransConvertTypeInfo TransConvertType_Node;
 
@@ -281,7 +279,3 @@ extern TransConvertTypeInfo TransConvertType_SequencerImage;
 /* transform_convert_tracking.c */
 
 extern TransConvertTypeInfo TransConvertType_Tracking;
-
-#ifdef __cplusplus
-}
-#endif

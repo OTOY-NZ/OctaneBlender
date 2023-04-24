@@ -6,9 +6,6 @@
  */
 
 #include "WXEdge.h"
-
-#include "BLI_sys_types.h"
-
 #include "BKE_global.h"
 
 namespace Freestyle {
@@ -21,7 +18,7 @@ namespace Freestyle {
  *                                *
  **********************************/
 
-uint WXFaceLayer::Get0VertexIndex() const
+unsigned int WXFaceLayer::Get0VertexIndex() const
 {
   int i = 0;
   int nEdges = _pWXFace->numberOfEdges();
@@ -32,7 +29,7 @@ uint WXFaceLayer::Get0VertexIndex() const
   }
   return -1;
 }
-uint WXFaceLayer::GetSmoothEdgeIndex() const
+unsigned int WXFaceLayer::GetSmoothEdgeIndex() const
 {
   int i = 0;
   int nEdges = _pWXFace->numberOfEdges();
@@ -67,7 +64,7 @@ WXSmoothEdge *WXFaceLayer::BuildSmoothEdge()
   bool ok = false;
   vector<int> cuspEdgesIndices;
   int indexStart, indexEnd;
-  uint nedges = _pWXFace->numberOfEdges();
+  unsigned nedges = _pWXFace->numberOfEdges();
   if (_nNullDotP == nedges) {
     _pSmoothEdge = nullptr;
     return _pSmoothEdge;
@@ -121,8 +118,8 @@ WXSmoothEdge *WXFaceLayer::BuildSmoothEdge()
       _pSmoothEdge = nullptr;
       return nullptr;
     }
-    uint index0 = Get0VertexIndex();  // retrieve the 0 vertex index
-    uint nedges = _pWXFace->numberOfEdges();
+    unsigned index0 = Get0VertexIndex();  // retrieve the 0 vertex index
+    unsigned nedges = _pWXFace->numberOfEdges();
     if (_DotP[cuspEdgesIndices[0]] > 0.0f) {
       woea = _pWXFace->GetOEdge(cuspEdgesIndices[0]);
       woeb = _pWXFace->GetOEdge(index0);
@@ -246,7 +243,7 @@ void WXFace::ComputeCenter()
        ++wv) {
     center += (*wv)->GetVertex();
   }
-  center /= float(iVertexList.size());
+  center /= (float)iVertexList.size();
   setCenter(center);
 }
 
@@ -260,7 +257,7 @@ void WXFace::ComputeCenter()
 
 WFace *WXShape::MakeFace(vector<WVertex *> &iVertexList,
                          vector<bool> &iFaceEdgeMarksList,
-                         uint iMaterialIndex)
+                         unsigned iMaterialIndex)
 {
   WFace *face = WShape::MakeFace(iVertexList, iFaceEdgeMarksList, iMaterialIndex);
   if (!face) {
@@ -273,7 +270,7 @@ WFace *WXShape::MakeFace(vector<WVertex *> &iVertexList,
        ++wv) {
     center += (*wv)->GetVertex();
   }
-  center /= float(iVertexList.size());
+  center /= (float)iVertexList.size();
   ((WXFace *)face)->setCenter(center);
 
   return face;
@@ -283,7 +280,7 @@ WFace *WXShape::MakeFace(vector<WVertex *> &iVertexList,
                          vector<Vec3f> &iNormalsList,
                          vector<Vec2f> &iTexCoordsList,
                          vector<bool> &iFaceEdgeMarksList,
-                         uint iMaterialIndex)
+                         unsigned iMaterialIndex)
 {
   WFace *face = WShape::MakeFace(
       iVertexList, iNormalsList, iTexCoordsList, iFaceEdgeMarksList, iMaterialIndex);

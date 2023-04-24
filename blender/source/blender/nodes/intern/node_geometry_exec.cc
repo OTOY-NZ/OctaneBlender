@@ -11,31 +11,34 @@
 
 #include "node_geometry_util.hh"
 
+using blender::nodes::geometry_nodes_eval_log::LocalGeoLogger;
+
 namespace blender::nodes {
 
-void GeoNodeExecParams::error_message_add(const NodeWarningType type,
-                                          const StringRef message) const
+void GeoNodeExecParams::error_message_add(const NodeWarningType type, std::string message) const
 {
-  if (geo_eval_log::GeoTreeLogger *tree_logger = this->get_local_tree_logger()) {
-    tree_logger->node_warnings.append({tree_logger->allocator->copy_string(node_.name),
-                                       {type, tree_logger->allocator->copy_string(message)}});
+  if (provider_->logger == nullptr) {
+    return;
   }
+  LocalGeoLogger &local_logger = provider_->logger->local();
+  local_logger.log_node_warning(provider_->dnode, type, std::move(message));
 }
 
-void GeoNodeExecParams::used_named_attribute(const StringRef attribute_name,
-                                             const NamedAttributeUsage usage)
+void GeoNodeExecParams::used_named_attribute(std::string attribute_name,
+                                             const eNamedAttrUsage usage)
 {
-  if (geo_eval_log::GeoTreeLogger *tree_logger = this->get_local_tree_logger()) {
-    tree_logger->used_named_attributes.append({tree_logger->allocator->copy_string(node_.name),
-                                               tree_logger->allocator->copy_string(attribute_name),
-                                               usage});
+  if (provider_->logger == nullptr) {
+    return;
   }
+  LocalGeoLogger &local_logger = provider_->logger->local();
+  local_logger.log_used_named_attribute(provider_->dnode, std::move(attribute_name), usage);
 }
 
 void GeoNodeExecParams::check_input_geometry_set(StringRef identifier,
                                                  const GeometrySet &geometry_set) const
 {
-  const SocketDeclaration &decl = *node_.input_by_identifier(identifier).runtime->declaration;
+  const SocketDeclaration &decl =
+      *provider_->dnode->input_by_identifier(identifier).bsocket()->runtime->declaration;
   const decl::Geometry *geo_decl = dynamic_cast<const decl::Geometry *>(&decl);
   if (geo_decl == nullptr) {
     return;
@@ -115,9 +118,9 @@ void GeoNodeExecParams::check_output_geometry_set(const GeometrySet &geometry_se
 
 const bNodeSocket *GeoNodeExecParams::find_available_socket(const StringRef name) const
 {
-  for (const bNodeSocket *socket : node_.input_sockets()) {
-    if (socket->is_available() && socket->name == name) {
-      return socket;
+  for (const InputSocketRef *socket : provider_->dnode->inputs()) {
+    if (socket->is_available() && socket->name() == name) {
+      return socket->bsocket();
     }
   }
 
@@ -126,21 +129,21 @@ const bNodeSocket *GeoNodeExecParams::find_available_socket(const StringRef name
 
 std::string GeoNodeExecParams::attribute_producer_name() const
 {
-  return node_.label_or_name() + TIP_(" node");
+  return provider_->dnode->label_or_name() + TIP_(" node");
 }
 
 void GeoNodeExecParams::set_default_remaining_outputs()
 {
-  params_.set_default_remaining_outputs();
+  provider_->set_default_remaining_outputs();
 }
 
 void GeoNodeExecParams::check_input_access(StringRef identifier,
                                            const CPPType *requested_type) const
 {
-  const bNodeSocket *found_socket = nullptr;
-  for (const bNodeSocket *socket : node_.input_sockets()) {
-    if (socket->identifier == identifier) {
-      found_socket = socket;
+  bNodeSocket *found_socket = nullptr;
+  for (const InputSocketRef *socket : provider_->dnode->inputs()) {
+    if (socket->identifier() == identifier) {
+      found_socket = socket->bsocket();
       break;
     }
   }
@@ -148,9 +151,9 @@ void GeoNodeExecParams::check_input_access(StringRef identifier,
   if (found_socket == nullptr) {
     std::cout << "Did not find an input socket with the identifier '" << identifier << "'.\n";
     std::cout << "Possible identifiers are: ";
-    for (const bNodeSocket *socket : node_.input_sockets()) {
+    for (const InputSocketRef *socket : provider_->dnode->inputs()) {
       if (socket->is_available()) {
-        std::cout << "'" << socket->identifier << "', ";
+        std::cout << "'" << socket->identifier() << "', ";
       }
     }
     std::cout << "\n";
@@ -161,7 +164,13 @@ void GeoNodeExecParams::check_input_access(StringRef identifier,
               << "' is disabled.\n";
     BLI_assert_unreachable();
   }
-  else if (requested_type != nullptr && (found_socket->flag & SOCK_MULTI_INPUT) == 0) {
+  else if (!provider_->can_get_input(identifier)) {
+    std::cout << "The identifier '" << identifier
+              << "' is valid, but there is no value for it anymore.\n";
+    std::cout << "Most likely it has been extracted before.\n";
+    BLI_assert_unreachable();
+  }
+  else if (requested_type != nullptr) {
     const CPPType &expected_type = *found_socket->typeinfo->geometry_nodes_cpp_type;
     if (*requested_type != expected_type) {
       std::cout << "The requested type '" << requested_type->name() << "' is incorrect. Expected '"
@@ -173,10 +182,10 @@ void GeoNodeExecParams::check_input_access(StringRef identifier,
 
 void GeoNodeExecParams::check_output_access(StringRef identifier, const CPPType &value_type) const
 {
-  const bNodeSocket *found_socket = nullptr;
-  for (const bNodeSocket *socket : node_.output_sockets()) {
-    if (socket->identifier == identifier) {
-      found_socket = socket;
+  bNodeSocket *found_socket = nullptr;
+  for (const OutputSocketRef *socket : provider_->dnode->outputs()) {
+    if (socket->identifier() == identifier) {
+      found_socket = socket->bsocket();
       break;
     }
   }
@@ -184,9 +193,9 @@ void GeoNodeExecParams::check_output_access(StringRef identifier, const CPPType 
   if (found_socket == nullptr) {
     std::cout << "Did not find an output socket with the identifier '" << identifier << "'.\n";
     std::cout << "Possible identifiers are: ";
-    for (const bNodeSocket *socket : node_.output_sockets()) {
+    for (const OutputSocketRef *socket : provider_->dnode->outputs()) {
       if (socket->is_available()) {
-        std::cout << "'" << socket->identifier << "', ";
+        std::cout << "'" << socket->identifier() << "', ";
       }
     }
     std::cout << "\n";
@@ -197,7 +206,7 @@ void GeoNodeExecParams::check_output_access(StringRef identifier, const CPPType 
               << "' is disabled.\n";
     BLI_assert_unreachable();
   }
-  else if (params_.output_was_set(this->get_output_index(identifier))) {
+  else if (!provider_->can_set_output(identifier)) {
     std::cout << "The identifier '" << identifier << "' has been set already.\n";
     BLI_assert_unreachable();
   }

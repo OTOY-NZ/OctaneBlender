@@ -212,10 +212,10 @@ static void rna_ParticleHairKey_location_object_get(PointerRNA *ptr, float *valu
 
   if (pa) {
     Mesh *hair_mesh = (psmd->psys->flag & PSYS_HAIR_DYNAMICS) ? psmd->psys->hair_out_mesh : NULL;
-    const MVert *verts = BKE_mesh_verts(hair_mesh);
+
     if (hair_mesh) {
-      const MVert *mv = &verts[pa->hair_index + (hkey - pa->hair)];
-      copy_v3_v3(values, mv->co);
+      MVert *mvert = &hair_mesh->mvert[pa->hair_index + (hkey - pa->hair)];
+      copy_v3_v3(values, mvert->co);
     }
     else {
       float hairmat[4][4];
@@ -279,9 +279,9 @@ static void hair_key_location_object_set(HairKey *hair_key,
     if (hair_key_index == -1) {
       return;
     }
-    MVert *verts = BKE_mesh_verts_for_write(hair_mesh);
-    MVert *mv = &verts[particle->hair_index + (hair_key_index)];
-    copy_v3_v3(mv->co, src_co);
+
+    MVert *mvert = &hair_mesh->mvert[particle->hair_index + (hair_key_index)];
+    copy_v3_v3(mvert->co, src_co);
     return;
   }
 
@@ -324,9 +324,8 @@ static void rna_ParticleHairKey_co_object(HairKey *hairkey,
                                                                   NULL;
   if (particle) {
     if (hair_mesh) {
-      const MVert *verts = BKE_mesh_verts(hair_mesh);
-      const MVert *mv = &verts[particle->hair_index + (hairkey - particle->hair)];
-      copy_v3_v3(n_co, mv->co);
+      MVert *mvert = &hair_mesh->mvert[particle->hair_index + (hairkey - particle->hair)];
+      copy_v3_v3(n_co, mvert->co);
     }
     else {
       float hairmat[4][4];
@@ -403,8 +402,8 @@ static void rna_Particle_uv_on_emitter(ParticleData *particle,
     MFace *mface;
     MTFace *mtface;
 
-    mface = CustomData_get_layer(&modifier->mesh_final->fdata, CD_MFACE);
-    mtface = CustomData_get_layer(&modifier->mesh_final->fdata, CD_MTFACE);
+    mface = modifier->mesh_final->mface;
+    mtface = modifier->mesh_final->mtface;
 
     if (mface && mtface) {
       mtface += num;
@@ -471,7 +470,7 @@ static void rna_ParticleSystem_co_hair(
   if (step >= 0 && step <= max_k) {
     copy_v3_v3(n_co, (cache + step)->co);
     mul_m4_v3(particlesystem->imat, n_co);
-    mul_m4_v3(object->object_to_world, n_co);
+    mul_m4_v3(object->obmat, n_co);
   }
 }
 
@@ -568,7 +567,7 @@ static int rna_ParticleSystem_tessfaceidx_on_emitter(ParticleSystem *particlesys
     }
     else if (part->from == PART_FROM_VERT) {
       if (num != DMCACHE_NOTFOUND && num < totvert) {
-        MFace *mface = CustomData_get_layer(&modifier->mesh_final->fdata, CD_MFACE);
+        MFace *mface = modifier->mesh_final->mface;
 
         *r_fuv = &particle->fuv;
 
@@ -611,7 +610,7 @@ static int rna_ParticleSystem_tessfaceidx_on_emitter(ParticleSystem *particlesys
       }
       else if (part->from == PART_FROM_VERT) {
         if (num != DMCACHE_NOTFOUND && num < totvert) {
-          MFace *mface = CustomData_get_layer(&modifier->mesh_final->fdata, CD_MFACE);
+          MFace *mface = modifier->mesh_final->mface;
 
           *r_fuv = &parent->fuv;
 
@@ -661,8 +660,7 @@ static void rna_ParticleSystem_uv_on_emitter(ParticleSystem *particlesystem,
       zero_v2(r_uv);
     }
     else {
-      MFace *mfaces = CustomData_get_layer(&modifier->mesh_final->fdata, CD_MFACE);
-      MFace *mface = &mfaces[num];
+      MFace *mface = &modifier->mesh_final->mface[num];
       const MTFace *mtface = (const MTFace *)CustomData_get_layer_n(
           &modifier->mesh_final->fdata, CD_MTFACE, uv_no);
 
@@ -696,8 +694,7 @@ static void rna_ParticleSystem_mcol_on_emitter(ParticleSystem *particlesystem,
       zero_v3(r_mcol);
     }
     else {
-      MFace *mfaces = CustomData_get_layer(&modifier->mesh_final->fdata, CD_MFACE);
-      MFace *mface = &mfaces[num];
+      MFace *mface = &modifier->mesh_final->mface[num];
       const MCol *mc = (const MCol *)CustomData_get_layer_n(
           &modifier->mesh_final->fdata, CD_MCOL, vcol_no);
       MCol mcol;
@@ -1047,7 +1044,7 @@ static float rna_PartSetting_linelenhead_get(struct PointerRNA *ptr)
   return settings->draw_line[1];
 }
 
-static bool rna_PartSettings_is_fluid_get(PointerRNA *ptr)
+static int rna_PartSettings_is_fluid_get(PointerRNA *ptr)
 {
   ParticleSettings *part = ptr->data;
   return (ELEM(part->type,
@@ -1188,7 +1185,7 @@ static void rna_ParticleTarget_name_get(PointerRNA *ptr, char *str)
 
     if (psys) {
       if (pt->ob) {
-        BLI_sprintf(str, "%s: %s", pt->ob->id.name + 2, psys->name);
+        sprintf(str, "%s: %s", pt->ob->id.name + 2, psys->name);
       }
       else {
         strcpy(str, psys->name);
@@ -1315,7 +1312,7 @@ static void rna_ParticleDupliWeight_name_get(PointerRNA *ptr, char *str)
   ParticleDupliWeight *dw = ptr->data;
 
   if (dw->ob) {
-    BLI_sprintf(str, "%s: %i", dw->ob->id.name + 2, dw->count);
+    sprintf(str, "%s: %i", dw->ob->id.name + 2, dw->count);
   }
   else {
     strcpy(str, "No object");
@@ -3431,7 +3428,7 @@ static void rna_def_particle_settings(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Loop Count", "Number of times the keys are looped");
   RNA_def_property_update(prop, 0, "rna_Particle_redo");
 
-  /* Evaluated mesh support. */
+  /* modified dm support */
   prop = RNA_def_property(srna, "use_modifier_stack", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "use_modifier_stack", 0);
   RNA_def_property_ui_text(

@@ -66,6 +66,8 @@ struct BLaplacianSystem {
 };
 typedef struct BLaplacianSystem LaplacianSystem;
 
+static void required_data_mask(Object *ob, ModifierData *md, CustomData_MeshMasks *r_cddata_masks);
+static bool is_disabled(const struct Scene *scene, ModifierData *md, bool useRenderParams);
 static float compute_volume(const float center[3],
                             float (*vertexCos)[3],
                             const MPoly *mpoly,
@@ -374,8 +376,8 @@ static void laplaciansmoothModifier_do(
     LaplacianSmoothModifierData *smd, Object *ob, Mesh *mesh, float (*vertexCos)[3], int verts_num)
 {
   LaplacianSystem *sys;
-  const MDeformVert *dvert = NULL;
-  const MDeformVert *dv = NULL;
+  MDeformVert *dvert = NULL;
+  MDeformVert *dv = NULL;
   float w, wpaint;
   int i, iter;
   int defgrp_index;
@@ -386,9 +388,9 @@ static void laplaciansmoothModifier_do(
     return;
   }
 
-  sys->mpoly = BKE_mesh_polys(mesh);
-  sys->mloop = BKE_mesh_loops(mesh);
-  sys->medges = BKE_mesh_edges(mesh);
+  sys->mpoly = mesh->mpoly;
+  sys->mloop = mesh->mloop;
+  sys->medges = mesh->medge;
   sys->vertexCos = vertexCos;
   sys->min_area = 0.00001f;
   MOD_get_vgroup(ob, mesh, smd->defgrp_name, &dvert, &defgrp_index);
@@ -509,7 +511,9 @@ static bool is_disabled(const struct Scene *UNUSED(scene),
   return 0;
 }
 
-static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
+static void required_data_mask(Object *UNUSED(ob),
+                               ModifierData *md,
+                               CustomData_MeshMasks *r_cddata_masks)
 {
   LaplacianSmoothModifierData *smd = (LaplacianSmoothModifierData *)md;
 
@@ -531,7 +535,7 @@ static void deformVerts(ModifierData *md,
     return;
   }
 
-  mesh_src = MOD_deform_mesh_eval_get(ctx->object, NULL, mesh, NULL, verts_num, false);
+  mesh_src = MOD_deform_mesh_eval_get(ctx->object, NULL, mesh, NULL, verts_num, false, false);
 
   laplaciansmoothModifier_do(
       (LaplacianSmoothModifierData *)md, ctx->object, mesh_src, vertexCos, verts_num);
@@ -554,9 +558,9 @@ static void deformVertsEM(ModifierData *md,
     return;
   }
 
-  mesh_src = MOD_deform_mesh_eval_get(ctx->object, editData, mesh, NULL, verts_num, false);
+  mesh_src = MOD_deform_mesh_eval_get(ctx->object, editData, mesh, NULL, verts_num, false, false);
 
-  /* TODO(@campbellbarton): use edit-mode data only (remove this line). */
+  /* TODO(Campbell): use edit-mode data only (remove this line). */
   if (mesh_src != NULL) {
     BKE_mesh_wrapper_ensure_mdata(mesh_src);
   }

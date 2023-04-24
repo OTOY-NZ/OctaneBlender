@@ -15,12 +15,13 @@ class OctaneTextureDisplacementTexture(OctaneBaseSocket):
     bl_idname="OctaneTextureDisplacementTexture"
     bl_label="Texture"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=0
+    octane_default_node_type=consts.NodeType.NT_UNKNOWN
     octane_default_node_name=""
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=240)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="texture")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_TEXTURE
+    octane_pin_name="texture"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -30,12 +31,13 @@ class OctaneTextureDisplacementBlackLevel(OctaneBaseSocket):
     bl_idname="OctaneTextureDisplacementBlackLevel"
     bl_label="Mid level"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=13)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="black_level")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_BLACK_LEVEL
+    octane_pin_name="black_level"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=1
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="The value in the image which corresponds to zero displacement. The range is always normalized to [0, 1]", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=3000000
@@ -46,12 +48,13 @@ class OctaneTextureDisplacementLevelOfDetail(OctaneBaseSocket):
     bl_idname="OctaneTextureDisplacementLevelOfDetail"
     bl_label="Level of detail"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type=57
+    octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=96)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="levelOfDetail")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
+    octane_pin_id=consts.PinID.P_LEVEL_OF_DETAIL
+    octane_pin_name="levelOfDetail"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=2
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("256x256", "256x256", "", 8),
         ("512x512", "512x512", "", 9),
@@ -70,12 +73,13 @@ class OctaneTextureDisplacementAmount(OctaneBaseSocket):
     bl_idname="OctaneTextureDisplacementAmount"
     bl_label="Height"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=6)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="amount")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_AMOUNT
+    octane_pin_name="amount"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=3
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.001000, update=OctaneBaseSocket.update_node_tree, description="The displacement height in meters", min=0.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, precision=3, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
@@ -86,12 +90,13 @@ class OctaneTextureDisplacementDisplacementDirection(OctaneBaseSocket):
     bl_idname="OctaneTextureDisplacementDisplacementDirection"
     bl_label="Displacement direction"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type=57
+    octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=371)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="displacementDirection")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
+    octane_pin_id=consts.PinID.P_DISPLACEMENT_DIRECTION
+    octane_pin_name="displacementDirection"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=4
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("Follow geometric normal", "Follow geometric normal", "", 2),
         ("Follow vertex normal", "Follow vertex normal", "", 1),
@@ -107,12 +112,13 @@ class OctaneTextureDisplacementFilterType(OctaneBaseSocket):
     bl_idname="OctaneTextureDisplacementFilterType"
     bl_label="Filter type"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type=57
+    octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=336)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="filterType")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
+    octane_pin_id=consts.PinID.P_FILTER_TYPE
+    octane_pin_name="filterType"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=5
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("None", "None", "", 0),
         ("Box", "Box", "", 1),
@@ -128,12 +134,13 @@ class OctaneTextureDisplacementFiltersize(OctaneBaseSocket):
     bl_idname="OctaneTextureDisplacementFiltersize"
     bl_label="Filter radius"
     color=consts.OctanePinColor.Int
-    octane_default_node_type=9
+    octane_default_node_type=consts.NodeType.NT_INT
     octane_default_node_name="OctaneIntValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=50)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="filtersize")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
+    octane_pin_id=consts.PinID.P_FILTERSIZE
+    octane_pin_name="filtersize"
+    octane_pin_type=consts.PinType.PT_INT
+    octane_pin_index=6
+    octane_socket_type=consts.SocketType.ST_INT
     default_value: IntProperty(default=2, update=OctaneBaseSocket.update_node_tree, description="Number of nearest pixels to use for filtering. The higher the value the smoother the displacement map. Only valid if a filter is enabled", min=1, max=20, soft_min=1, soft_max=20, step=1, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=3060000
@@ -144,12 +151,13 @@ class OctaneTextureDisplacementShift(OctaneBaseSocket):
     bl_idname="OctaneTextureDisplacementShift"
     bl_label="Offset"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=214)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="shift")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_SHIFT
+    octane_pin_name="shift"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=7
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Additional offset applied to allow moving the displaced surface", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
@@ -165,13 +173,13 @@ class OctaneTextureDisplacement(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneTextureDisplacementTexture,OctaneTextureDisplacementBlackLevel,OctaneTextureDisplacementLevelOfDetail,OctaneTextureDisplacementAmount,OctaneTextureDisplacementDisplacementDirection,OctaneTextureDisplacementFilterType,OctaneTextureDisplacementFiltersize,OctaneTextureDisplacementShift,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=80)
-    octane_socket_list: StringProperty(name="Socket List", default="Texture;Mid level;Level of detail;Height;Displacement direction;Filter type;Filter radius;Offset;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=8)
+    octane_node_type=consts.NodeType.NT_DISPLACEMENT
+    octane_socket_list=["Texture", "Mid level", "Level of detail", "Height", "Displacement direction", "Filter type", "Filter radius", "Offset", ]
+    octane_attribute_list=[]
+    octane_attribute_config={}
+    octane_static_pin_count=7
 
     def init(self, context):
         self.inputs.new("OctaneTextureDisplacementTexture", OctaneTextureDisplacementTexture.bl_label).init()

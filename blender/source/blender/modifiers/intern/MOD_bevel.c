@@ -64,17 +64,15 @@ static void copyData(const ModifierData *md_src, ModifierData *md_dst, const int
   bmd_dst->custom_profile = BKE_curveprofile_copy(bmd_src->custom_profile);
 }
 
-static void requiredDataMask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
+static void requiredDataMask(Object *UNUSED(ob),
+                             ModifierData *md,
+                             CustomData_MeshMasks *r_cddata_masks)
 {
   BevelModifierData *bmd = (BevelModifierData *)md;
 
   /* ask for vertexgroups if we need them */
   if (bmd->defgrp_name[0] != '\0') {
     r_cddata_masks->vmask |= CD_MASK_MDEFORMVERT;
-  }
-  if (bmd->lim_flags & MOD_BEVEL_WEIGHT) {
-    r_cddata_masks->vmask |= CD_MASK_BWEIGHT;
-    r_cddata_masks->emask |= CD_MASK_BWEIGHT;
   }
 }
 
@@ -90,7 +88,7 @@ static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *
   BMVert *v;
   float weight, weight2;
   int vgroup = -1;
-  const MDeformVert *dvert = NULL;
+  MDeformVert *dvert = NULL;
   BevelModifierData *bmd = (BevelModifierData *)md;
   const float threshold = cosf(bmd->bevel_angle + 0.000000175f);
   const bool do_clamp = !(bmd->flags & MOD_BEVEL_OVERLAP_OK);

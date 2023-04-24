@@ -4,7 +4,7 @@
 /** \file
  * \ingroup imbcineon
  *
- * DPX image file format library routines.
+ * Dpx image file format library routines.
  */
 
 #include "dpxlib.h"
@@ -18,7 +18,6 @@
 #include <time.h>
 
 #include "BLI_fileops.h"
-#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "MEM_guardedalloc.h"
@@ -61,12 +60,14 @@ static void fillDpxMainHeader(LogImageFile *dpx,
   header->fileHeader.ind_hdr_size = swap_uint(sizeof(DpxFilmHeader) + sizeof(DpxTelevisionHeader),
                                               dpx->isMSB);
   header->fileHeader.user_data_size = DPX_UNDEFINED_U32;
-  STRNCPY(header->fileHeader.file_name, filename);
+  strncpy(header->fileHeader.file_name, filename, 99);
+  header->fileHeader.file_name[99] = 0;
   fileClock = time(NULL);
   fileTime = localtime(&fileClock);
   strftime(header->fileHeader.creation_date, 24, "%Y:%m:%d:%H:%M:%S%Z", fileTime);
   header->fileHeader.creation_date[23] = 0;
-  STRNCPY(header->fileHeader.creator, creator);
+  strncpy(header->fileHeader.creator, creator, 99);
+  header->fileHeader.creator[99] = 0;
   header->fileHeader.project[0] = 0;
   header->fileHeader.copyright[0] = 0;
   header->fileHeader.key = 0xFFFFFFFF;
@@ -119,7 +120,7 @@ static void fillDpxMainHeader(LogImageFile *dpx,
   header->televisionHeader.integration_times = swap_float(DPX_UNDEFINED_R32, dpx->isMSB);
 }
 
-LogImageFile *dpxOpen(const uchar *byteStuff, int fromMemory, size_t bufferSize)
+LogImageFile *dpxOpen(const unsigned char *byteStuff, int fromMemory, size_t bufferSize)
 {
   DpxMainHeader header;
   LogImageFile *dpx = (LogImageFile *)MEM_mallocN(sizeof(LogImageFile), __func__);
@@ -155,8 +156,8 @@ LogImageFile *dpxOpen(const uchar *byteStuff, int fromMemory, size_t bufferSize)
     dpx->memBufferSize = 0;
   }
   else {
-    dpx->memBuffer = (uchar *)byteStuff;
-    dpx->memCursor = (uchar *)byteStuff;
+    dpx->memBuffer = (unsigned char *)byteStuff;
+    dpx->memCursor = (unsigned char *)byteStuff;
     dpx->memBufferSize = bufferSize;
   }
 
@@ -320,7 +321,7 @@ LogImageFile *dpxOpen(const uchar *byteStuff, int fromMemory, size_t bufferSize)
         }
 
         if (dpx->element[i].refHighData == DPX_UNDEFINED_U32) {
-          dpx->element[i].refHighData = (uint)dpx->element[i].maxValue;
+          dpx->element[i].refHighData = (unsigned int)dpx->element[i].maxValue;
         }
 
         if (IS_DPX_UNDEFINED_R32(dpx->element[i].refLowQuantity)) {
@@ -418,7 +419,7 @@ LogImageFile *dpxCreate(const char *filepath,
 {
   DpxMainHeader header;
   const char *shortFilename = NULL;
-  uchar pad[6044];
+  unsigned char pad[6044];
 
   LogImageFile *dpx = (LogImageFile *)MEM_mallocN(sizeof(LogImageFile), __func__);
   if (dpx == NULL) {

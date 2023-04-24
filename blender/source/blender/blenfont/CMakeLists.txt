@@ -10,6 +10,7 @@ set(INC
   ../imbuf
   ../makesdna
   ../makesrna
+  ../../../intern/glew-mx
   ../../../intern/guardedalloc
 )
 

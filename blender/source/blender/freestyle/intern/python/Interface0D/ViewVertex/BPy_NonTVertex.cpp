@@ -63,7 +63,7 @@ PyDoc_STRVAR(NonTVertex_svertex_doc,
              "\n"
              ":type: :class:`SVertex`");
 
-static PyObject *NonTVertex_svertex_get(BPy_NonTVertex *self, void * /*closure*/)
+static PyObject *NonTVertex_svertex_get(BPy_NonTVertex *self, void *UNUSED(closure))
 {
   SVertex *v = self->ntv->svertex();
   if (v) {
@@ -72,7 +72,7 @@ static PyObject *NonTVertex_svertex_get(BPy_NonTVertex *self, void * /*closure*/
   Py_RETURN_NONE;
 }
 
-static int NonTVertex_svertex_set(BPy_NonTVertex *self, PyObject *value, void * /*closure*/)
+static int NonTVertex_svertex_set(BPy_NonTVertex *self, PyObject *value, void *UNUSED(closure))
 {
   if (!BPy_SVertex_Check(value)) {
     PyErr_SetString(PyExc_TypeError, "value must be an SVertex");

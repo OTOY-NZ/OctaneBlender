@@ -37,7 +37,7 @@ if(WITH_CYCLES_NATIVE_ONLY)
   )
 
   if(NOT MSVC)
-    add_check_cxx_compiler_flag(CMAKE_CXX_FLAGS _has_march_native "-march=native")
+    ADD_CHECK_CXX_COMPILER_FLAG(CMAKE_CXX_FLAGS _has_march_native "-march=native")
     if(_has_march_native)
       set(CYCLES_KERNEL_FLAGS "-march=native")
     else()
@@ -46,18 +46,18 @@ if(WITH_CYCLES_NATIVE_ONLY)
     unset(_has_march_native)
   else()
     if(NOT MSVC_NATIVE_ARCH_FLAGS)
-      try_run(
-        arch_run_result
-        arch_compile_result
-        ${CMAKE_CURRENT_BINARY_DIR}/
-        ${CMAKE_CURRENT_SOURCE_DIR}/cmake/msvc_arch_flags.c
-        COMPILE_OUTPUT_VARIABLE arch_compile_output
-        RUN_OUTPUT_VARIABLE arch_run_output
-      )
-      if(arch_compile_result AND "${arch_run_result}" EQUAL "0")
-        string(STRIP ${arch_run_output} arch_run_output)
-        set(MSVC_NATIVE_ARCH_FLAGS ${arch_run_output} CACHE STRING "MSVC Native architecture flags")
-      endif()
+        TRY_RUN(
+            arch_run_result
+            arch_compile_result
+            ${CMAKE_CURRENT_BINARY_DIR}/
+            ${CMAKE_CURRENT_SOURCE_DIR}/cmake/msvc_arch_flags.c
+            COMPILE_OUTPUT_VARIABLE arch_compile_output
+            RUN_OUTPUT_VARIABLE arch_run_output
+        )
+        if(arch_compile_result AND "${arch_run_result}" EQUAL "0")
+            string(STRIP ${arch_run_output} arch_run_output)
+            set(MSVC_NATIVE_ARCH_FLAGS ${arch_run_output} CACHE STRING "MSVC Native architecture flags")
+        endif()
     endif()
     set(CYCLES_KERNEL_FLAGS "${MSVC_NATIVE_ARCH_FLAGS}")
   endif()
@@ -264,7 +264,8 @@ if(WITH_CYCLES_DEVICE_OPTIX)
       ${OPTIX_INCLUDE_DIR}
       )
   else()
-    set_and_warn_library_found("OptiX" OPTIX_FOUND WITH_CYCLES_DEVICE_OPTIX)
+    message(STATUS "OptiX not found, disabling it from Cycles")
+    set(WITH_CYCLES_DEVICE_OPTIX OFF)
   endif()
 endif()
 
@@ -347,24 +348,6 @@ if(WITH_OPENCOLORIO)
   )
 endif()
 
-if(WITH_CYCLES_PATH_GUIDING)
-  add_definitions(-DWITH_PATH_GUIDING)
-
-  # The level of the guiding integration.
-  # Different levels can be selected to measure the overhead of different stages.
-  # 1 = recording the path segments
-  # 2 = 1 + generating (not storing) sample data from the segments
-  # 3 = 2 + storing the generates sample data
-  # 4 = 3 + training the guiding fields
-  # 5 = 4 + querying the trained guiding for sampling (full path guiding)
-  add_definitions(-DPATH_GUIDING_LEVEL=5)
-
-  include_directories(
-    SYSTEM
-    ${OPENPGL_INCLUDE_DIR}
-  )
-endif()
-
 # NaN debugging
 if(WITH_CYCLES_DEBUG_NAN)
   add_definitions(-DWITH_CYCLES_DEBUG_NAN)
@@ -382,18 +365,19 @@ endif()
 
 # Warnings
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_C_COMPILER_ID MATCHES "Clang")
-  add_check_cxx_compiler_flag(CMAKE_CXX_FLAGS _has_no_error_unused_macros "-Wno-error=unused-macros")
+  ADD_CHECK_CXX_COMPILER_FLAG(CMAKE_CXX_FLAGS _has_no_error_unused_macros "-Wno-error=unused-macros")
   unset(_has_no_error_unused_macros)
 endif()
 
 if(WITH_CYCLES_HYDRA_RENDER_DELEGATE AND (NOT WITH_USD))
-  set_and_warn_library_found("USD" WITH_USD WITH_CYCLES_HYDRA_RENDER_DELEGATE)
+  message(STATUS "USD not found, disabling WITH_CYCLES_HYDRA_RENDER_DELEGATE")
+  set(WITH_CYCLES_HYDRA_RENDER_DELEGATE OFF)
 endif()
 if(WITH_CYCLES_HYDRA_RENDER_DELEGATE AND (NOT WITH_BLENDER) AND (NOT WITH_CYCLES_STANDALONE))
   set(CYCLES_INSTALL_PATH ${CYCLES_INSTALL_PATH}/hdCycles/resources)
 endif()
 
-if(WITH_CYCLES_CUDA_BINARIES)
+if(WITH_CYCLES_CUDA_BINARIES AND (NOT WITH_CYCLES_CUBIN_COMPILER))
   if(MSVC)
     set(MAX_MSVC 1800)
     if(${CUDA_VERSION} EQUAL "8.0")
@@ -405,7 +389,24 @@ if(WITH_CYCLES_CUDA_BINARIES)
     elseif(${CUDA_VERSION} VERSION_GREATER_EQUAL 10.0)
       set(MAX_MSVC 1999)
     endif()
+    if(NOT MSVC_VERSION LESS ${MAX_MSVC} OR CMAKE_C_COMPILER_ID MATCHES "Clang")
+      message(STATUS "nvcc not supported for this compiler version, using cycles_cubin_cc instead.")
+      set(WITH_CYCLES_CUBIN_COMPILER ON)
+    endif()
     unset(MAX_MSVC)
+  elseif(APPLE)
+    if(NOT (${XCODE_VERSION} VERSION_LESS 10.0))
+      message(STATUS "nvcc not supported for this compiler version, using cycles_cubin_cc instead.")
+      set(WITH_CYCLES_CUBIN_COMPILER ON)
+    endif()
+  endif()
+endif()
+
+# NVRTC gives wrong rendering result in CUDA 10.0, so we must use NVCC.
+if(WITH_CYCLES_CUDA_BINARIES AND WITH_CYCLES_CUBIN_COMPILER AND NOT WITH_CYCLES_CUBIN_COMPILER_OVERRRIDE)
+  if(NOT (${CUDA_VERSION} VERSION_LESS 10.0))
+    message(STATUS "cycles_cubin_cc not supported for CUDA 10.0+, using nvcc instead.")
+    set(WITH_CYCLES_CUBIN_COMPILER OFF)
   endif()
 endif()
 

@@ -50,8 +50,9 @@ class OctaneFractal(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneFractalTransform,OctaneFractalProjection,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=268)
+    octane_node_type=268
     octane_socket_list: StringProperty(name="Socket List", default="UV transform;Projection;")
     octane_attribute_list: StringProperty(name="Attribute List", default="")
     octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")

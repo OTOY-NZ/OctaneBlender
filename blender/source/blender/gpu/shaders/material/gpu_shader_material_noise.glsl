@@ -13,6 +13,7 @@
  *  +         +       |
  *  @ + + + + @       @------> x
  * v0          v1
+ *
  */
 float bi_mix(float v0, float v1, float v2, float v3, float x, float y)
 {

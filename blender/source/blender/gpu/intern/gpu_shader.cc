@@ -7,7 +7,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_math_matrix.h"
 #include "BLI_string_utils.h"
 
 #include "GPU_capabilities.h"
@@ -94,9 +93,6 @@ static void standard_defines(Vector<const char *> &sources)
   switch (backend) {
     case GPU_BACKEND_OPENGL:
       sources.append("#define GPU_OPENGL\n");
-      break;
-    case GPU_BACKEND_METAL:
-      sources.append("#define GPU_METAL\n");
       break;
     default:
       BLI_assert(false && "Invalid GPU Backend Type");
@@ -386,8 +382,6 @@ GPUShader *GPU_shader_create_from_info(const GPUShaderCreateInfo *_info)
     sources.append(resources.c_str());
     sources.append(layout.c_str());
     sources.extend(code);
-    sources.extend(info.dependencies_generated);
-    sources.append(info.compute_source_generated.c_str());
 
     shader->compute_shader_from_glsl(sources);
   }
@@ -581,12 +575,6 @@ int GPU_shader_get_builtin_block(GPUShader *shader, int builtin)
   return interface->ubo_builtin((GPUUniformBlockBuiltin)builtin);
 }
 
-int GPU_shader_get_builtin_ssbo(GPUShader *shader, int builtin)
-{
-  ShaderInterface *interface = unwrap(shader)->interface;
-  return interface->ssbo_builtin((GPUStorageBufferBuiltin)builtin);
-}
-
 int GPU_shader_get_ssbo(GPUShader *shader, const char *name)
 {
   ShaderInterface *interface = unwrap(shader)->interface;
@@ -615,34 +603,11 @@ int GPU_shader_get_texture_binding(GPUShader *shader, const char *name)
   return tex ? tex->binding : -1;
 }
 
-uint GPU_shader_get_attribute_len(const GPUShader *shader)
-{
-  ShaderInterface *interface = unwrap(shader)->interface;
-  return interface->attr_len_;
-}
-
 int GPU_shader_get_attribute(GPUShader *shader, const char *name)
 {
   ShaderInterface *interface = unwrap(shader)->interface;
   const ShaderInput *attr = interface->attr_get(name);
   return attr ? attr->location : -1;
-}
-
-bool GPU_shader_get_attribute_info(const GPUShader *shader,
-                                   int attr_location,
-                                   char r_name[256],
-                                   int *r_type)
-{
-  ShaderInterface *interface = unwrap(shader)->interface;
-
-  const ShaderInput *attr = interface->attr_get(attr_location);
-  if (!attr) {
-    return false;
-  }
-
-  BLI_strncpy(r_name, interface->input_name_get(attr), 256);
-  *r_type = attr->location != -1 ? interface->attr_types_[attr->location] : -1;
-  return true;
 }
 
 /** \} */
@@ -737,23 +702,10 @@ void GPU_shader_uniform_4fv(GPUShader *sh, const char *name, const float data[4]
   GPU_shader_uniform_vector(sh, loc, 4, 1, data);
 }
 
-void GPU_shader_uniform_2iv(GPUShader *sh, const char *name, const int data[2])
-{
-  const int loc = GPU_shader_get_uniform(sh, name);
-  GPU_shader_uniform_vector_int(sh, loc, 2, 1, data);
-}
-
 void GPU_shader_uniform_mat4(GPUShader *sh, const char *name, const float data[4][4])
 {
   const int loc = GPU_shader_get_uniform(sh, name);
   GPU_shader_uniform_vector(sh, loc, 16, 1, (const float *)data);
-}
-
-void GPU_shader_uniform_mat3_as_mat4(GPUShader *sh, const char *name, const float data[3][3])
-{
-  float matrix[4][4];
-  copy_m4_m3(matrix, data);
-  GPU_shader_uniform_mat4(sh, name, matrix);
 }
 
 void GPU_shader_uniform_2fv_array(GPUShader *sh, const char *name, int len, const float (*val)[2])

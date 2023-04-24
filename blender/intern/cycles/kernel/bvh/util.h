@@ -190,8 +190,10 @@ ccl_device_inline int intersection_find_attribute(KernelGlobals kg,
 /* Cut-off value to stop transparent shadow tracing when practically opaque. */
 #define CURVE_SHADOW_TRANSPARENCY_CUTOFF 0.001f
 
-ccl_device_inline float intersection_curve_shadow_transparency(
-    KernelGlobals kg, const int object, const int prim, const int type, const float u)
+ccl_device_inline float intersection_curve_shadow_transparency(KernelGlobals kg,
+                                                               const int object,
+                                                               const int prim,
+                                                               const float u)
 {
   /* Find attribute. */
   const int offset = intersection_find_attribute(kg, object, ATTR_STD_SHADOW_TRANSPARENCY);
@@ -202,7 +204,7 @@ ccl_device_inline float intersection_curve_shadow_transparency(
 
   /* Interpolate transparency between curve keys. */
   const KernelCurve kcurve = kernel_data_fetch(curves, prim);
-  const int k0 = kcurve.first_key + PRIMITIVE_UNPACK_SEGMENT(type);
+  const int k0 = kcurve.first_key + PRIMITIVE_UNPACK_SEGMENT(kcurve.type);
   const int k1 = k0 + 1;
 
   const float f0 = kernel_data_fetch(attributes_float, offset + k0);

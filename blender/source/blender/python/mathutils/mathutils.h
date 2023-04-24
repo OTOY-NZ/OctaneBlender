@@ -6,7 +6,7 @@
  * \ingroup pymathutils
  */
 
-/* Can cast different mathutils types to this, use for generic functions. */
+/* Can cast different mathutils types to this, use for generic funcs */
 
 #include "BLI_compiler_attrs.h"
 
@@ -17,12 +17,11 @@ extern char BaseMathObject_is_frozen_doc[];
 extern char BaseMathObject_is_valid_doc[];
 extern char BaseMathObject_owner_doc[];
 
-PyObject *_BaseMathObject_new_impl(PyTypeObject *root_type, PyTypeObject *base_type);
-
 #define BASE_MATH_NEW(struct_name, root_type, base_type) \
-  ((struct_name *)_BaseMathObject_new_impl(&root_type, base_type))
+  ((struct_name *)((base_type ? (base_type)->tp_alloc(base_type, 0) : \
+                                _PyObject_GC_New(&(root_type)))))
 
-/** #BaseMathObject.flag */
+/** BaseMathObject.flag */
 enum {
   /**
    * Do not own the memory used in this vector,
@@ -44,9 +43,9 @@ enum {
   float *_data; \
   /** If this vector references another object, otherwise NULL, *Note* this owns its reference */ \
   PyObject *cb_user; \
-  /** Which user functions do we adhere to, RNA, etc */ \
+  /** Which user funcs do we adhere to, RNA, etc */ \
   unsigned char cb_type; \
-  /** Sub-type: location, rotation... \
+  /** Subtype: location, rotation... \ \ \ \
    * to avoid defining many new functions for every attribute of the same type */ \
   unsigned char cb_subtype; \
   /** Wrapped data type. */ \
@@ -77,7 +76,6 @@ PyObject *BaseMathObject_freeze(BaseMathObject *self);
 int BaseMathObject_traverse(BaseMathObject *self, visitproc visit, void *arg);
 int BaseMathObject_clear(BaseMathObject *self);
 void BaseMathObject_dealloc(BaseMathObject *self);
-int BaseMathObject_is_gc(BaseMathObject *self);
 
 PyMODINIT_FUNC PyInit_mathutils(void);
 

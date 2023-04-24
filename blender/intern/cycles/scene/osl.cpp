@@ -17,6 +17,7 @@
 
 #  include "kernel/osl/globals.h"
 #  include "kernel/osl/services.h"
+#  include "kernel/osl/shader.h"
 
 #  include "util/aligned_malloc.h"
 #  include "util/foreach.h"
@@ -75,18 +76,6 @@ void OSLShaderManager::reset(Scene * /*scene*/)
 {
   shading_system_free();
   shading_system_init();
-}
-
-uint64_t OSLShaderManager::get_attribute_id(ustring name)
-{
-  return name.hash();
-}
-
-uint64_t OSLShaderManager::get_attribute_id(AttributeStandard std)
-{
-  /* if standard attribute, use geom: name convention */
-  ustring stdname(string("geom:") + string(Attribute::standard_name(std)));
-  return stdname.hash();
 }
 
 void OSLShaderManager::device_update_specific(Device *device,
@@ -297,7 +286,7 @@ void OSLShaderManager::shading_system_init()
     const int nraytypes = sizeof(raytypes) / sizeof(raytypes[0]);
     ss_shared->attribute("raytypes", TypeDesc(TypeDesc::STRING, nraytypes), raytypes);
 
-    OSLRenderServices::register_closures(ss_shared);
+    OSLShader::register_closures((OSLShadingSystem *)ss_shared);
 
     loaded_shaders.clear();
   }
@@ -525,7 +514,6 @@ OSLNode *OSLShaderManager::osl_node(ShaderGraph *graph,
 
     SocketType::Type socket_type;
 
-    /* Read type and default value. */
     if (param->isclosure) {
       socket_type = SocketType::CLOSURE;
     }
@@ -580,21 +568,7 @@ OSLNode *OSLShaderManager::osl_node(ShaderGraph *graph,
       node->add_output(param->name, socket_type);
     }
     else {
-      /* Detect if we should leave parameter initialization to OSL, either though
-       * not constant default or widget metadata. */
-      int socket_flags = 0;
-      if (!param->validdefault) {
-        socket_flags |= SocketType::LINK_OSL_INITIALIZER;
-      }
-      for (const OSL::OSLQuery::Parameter &metadata : param->metadata) {
-        if (metadata.type == TypeDesc::STRING) {
-          if (metadata.name == "widget" && metadata.sdefault[0] == "null") {
-            socket_flags |= SocketType::LINK_OSL_INITIALIZER;
-          }
-        }
-      }
-
-      node->add_input(param->name, socket_type, socket_flags);
+      node->add_input(param->name, socket_type);
     }
   }
 
@@ -717,12 +691,8 @@ void OSLCompiler::add(ShaderNode *node, const char *name, bool isfilepath)
   foreach (ShaderInput *input, node->inputs) {
     if (!input->link) {
       /* checks to untangle graphs */
-      if (node_skip_input(node, input)) {
+      if (node_skip_input(node, input))
         continue;
-      }
-      if ((input->flags() & SocketType::LINK_OSL_INITIALIZER) && !(input->constant_folded_in)) {
-        continue;
-      }
 
       string param_name = compatible_name(node, input);
       const SocketType &socket = input->socket_type;

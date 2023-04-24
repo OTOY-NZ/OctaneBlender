@@ -6,6 +6,7 @@ from . import scale
 from . import rotation
 from . import _2d_transformation
 from . import transform_value
+from . import look_at_transform
 
 def register():
     _3d_transformation.register()
@@ -13,6 +14,7 @@ def register():
     rotation.register()
     _2d_transformation.register()
     transform_value.register()
+    look_at_transform.register()
 
 def unregister():
     _3d_transformation.unregister()
@@ -20,5 +22,6 @@ def unregister():
     rotation.unregister()
     _2d_transformation.unregister()
     transform_value.unregister()
+    look_at_transform.unregister()
 
 ##### END OCTANE GENERATED CODE BLOCK #####

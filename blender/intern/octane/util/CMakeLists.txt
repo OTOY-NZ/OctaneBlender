@@ -1,10 +1,11 @@
 
 set(INC
 	..
+	../../glew-mx
 )
 
 set(INC_SYS
-  ${Epoxy_INCLUDE_DIRS}
+	${GLEW_INCLUDE_DIR}
 )
 
 set(SRC

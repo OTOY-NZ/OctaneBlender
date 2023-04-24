@@ -16,13 +16,12 @@ static void sh_node_value_declare(NodeDeclarationBuilder &b)
 
 static int gpu_shader_value(GPUMaterial *mat,
                             bNode *node,
-                            bNodeExecData * /*execdata*/,
-                            GPUNodeStack * /*in*/,
+                            bNodeExecData *UNUSED(execdata),
+                            GPUNodeStack *in,
                             GPUNodeStack *out)
 {
-  const bNodeSocket *socket = static_cast<bNodeSocket *>(node->outputs.first);
-  float value = static_cast<bNodeSocketValueFloat *>(socket->default_value)->value;
-  return GPU_link(mat, "set_value", GPU_uniform(&value), &out->link);
+  GPUNodeLink *link = GPU_uniformbuf_link_out(mat, node, out, 0);
+  return GPU_stack_link(mat, node, "set_value", in, out, link);
 }
 
 static void sh_node_value_build_multi_function(NodeMultiFunctionBuilder &builder)

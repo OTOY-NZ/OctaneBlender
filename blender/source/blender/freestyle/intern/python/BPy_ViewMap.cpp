@@ -141,12 +141,12 @@ PyDoc_STRVAR(ViewMap_scene_bbox_doc,
              "\n"
              ":type: :class:`BBox`");
 
-static PyObject *ViewMap_scene_bbox_get(BPy_ViewMap *self, void * /*closure*/)
+static PyObject *ViewMap_scene_bbox_get(BPy_ViewMap *self, void *UNUSED(closure))
 {
   return BPy_BBox_from_BBox(self->vm->getScene3dBBox());
 }
 
-static int ViewMap_scene_bbox_set(BPy_ViewMap *self, PyObject *value, void * /*closure*/)
+static int ViewMap_scene_bbox_set(BPy_ViewMap *self, PyObject *value, void *UNUSED(closure))
 {
   if (!BPy_BBox_Check(value)) {
     PyErr_SetString(PyExc_TypeError, "value must be a BBox");

@@ -365,6 +365,7 @@ static void seq_update_meta_disp_range(Scene *scene)
     /* Update meta strip endpoints. */
     SEQ_time_left_handle_frame_set(scene, ms->parseq, ms->disp_range[0]);
     SEQ_time_right_handle_frame_set(scene, ms->parseq, ms->disp_range[1]);
+    SEQ_transform_fix_single_image_seq_offsets(scene, ms->parseq);
 
     /* Recalculate effects using meta strip. */
     LISTBASE_FOREACH (Sequence *, seq, ms->oldbasep) {
@@ -831,21 +832,21 @@ void blo_do_versions_290(FileData *fd, Library *UNUSED(lib), Main *bmain)
   if (MAIN_VERSION_ATLEAST(bmain, 290, 2) && MAIN_VERSION_OLDER(bmain, 291, 1)) {
     /* In this range, the extrude manifold could generate meshes with degenerated face. */
     LISTBASE_FOREACH (Mesh *, me, &bmain->meshes) {
-      for (const MPoly *mp = BKE_mesh_polys(me), *mp_end = mp + me->totpoly; mp < mp_end; mp++) {
+      for (MPoly *mp = me->mpoly, *mp_end = mp + me->totpoly; mp < mp_end; mp++) {
         if (mp->totloop == 2) {
           bool changed;
           BKE_mesh_validate_arrays(me,
-                                   BKE_mesh_verts_for_write(me),
+                                   me->mvert,
                                    me->totvert,
-                                   BKE_mesh_edges_for_write(me),
+                                   me->medge,
                                    me->totedge,
-                                   (MFace *)CustomData_get_layer(&me->fdata, CD_MFACE),
+                                   me->mface,
                                    me->totface,
-                                   BKE_mesh_loops_for_write(me),
+                                   me->mloop,
                                    me->totloop,
-                                   BKE_mesh_polys_for_write(me),
+                                   me->mpoly,
                                    me->totpoly,
-                                   BKE_mesh_deform_verts_for_write(me),
+                                   me->dvert,
                                    false,
                                    true,
                                    &changed);
@@ -938,7 +939,7 @@ void blo_do_versions_290(FileData *fd, Library *UNUSED(lib), Main *bmain)
       for (Object *object = bmain->objects.first; object != NULL; object = object->id.next) {
         LISTBASE_FOREACH (ModifierData *, md, &object->modifiers) {
           if (md->mode & eModifierMode_Expanded_DEPRECATED) {
-            md->ui_expand_flag = UI_PANEL_DATA_EXPAND_ROOT;
+            md->ui_expand_flag = 1;
           }
           else {
             md->ui_expand_flag = 0;
@@ -966,7 +967,7 @@ void blo_do_versions_290(FileData *fd, Library *UNUSED(lib), Main *bmain)
       for (Object *object = bmain->objects.first; object != NULL; object = object->id.next) {
         LISTBASE_FOREACH (bConstraint *, con, &object->constraints) {
           if (con->flag & CONSTRAINT_EXPAND_DEPRECATED) {
-            con->ui_expand_flag = UI_PANEL_DATA_EXPAND_ROOT;
+            con->ui_expand_flag = 1;
           }
           else {
             con->ui_expand_flag = 0;
@@ -980,7 +981,7 @@ void blo_do_versions_290(FileData *fd, Library *UNUSED(lib), Main *bmain)
       for (Object *object = bmain->objects.first; object != NULL; object = object->id.next) {
         LISTBASE_FOREACH (GpencilModifierData *, md, &object->greasepencil_modifiers) {
           if (md->mode & eGpencilModifierMode_Expanded_DEPRECATED) {
-            md->ui_expand_flag = UI_PANEL_DATA_EXPAND_ROOT;
+            md->ui_expand_flag = 1;
           }
           else {
             md->ui_expand_flag = 0;
@@ -994,7 +995,7 @@ void blo_do_versions_290(FileData *fd, Library *UNUSED(lib), Main *bmain)
       for (Object *object = bmain->objects.first; object != NULL; object = object->id.next) {
         LISTBASE_FOREACH (ShaderFxData *, fx, &object->shader_fx) {
           if (fx->mode & eShaderFxMode_Expanded_DEPRECATED) {
-            fx->ui_expand_flag = UI_PANEL_DATA_EXPAND_ROOT;
+            fx->ui_expand_flag = 1;
           }
           else {
             fx->ui_expand_flag = 0;
@@ -1622,8 +1623,8 @@ void blo_do_versions_290(FileData *fd, Library *UNUSED(lib), Main *bmain)
     }
   }
 
-  if (!MAIN_VERSION_ATLEAST(bmain, 292, 14) ||
-      ((bmain->versionfile == 293) && !MAIN_VERSION_ATLEAST(bmain, 293, 1))) {
+  if ((!MAIN_VERSION_ATLEAST(bmain, 292, 14)) ||
+      ((bmain->versionfile == 293) && (!MAIN_VERSION_ATLEAST(bmain, 293, 1)))) {
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
       if (ntree->type != NTREE_GEOMETRY) {
         continue;

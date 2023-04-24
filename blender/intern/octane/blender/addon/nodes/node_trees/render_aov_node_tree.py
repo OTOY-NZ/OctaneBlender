@@ -15,9 +15,19 @@ class OctaneRenderAovNodeTree(OctaneBaseNodeTree, bpy.types.NodeTree):
 
     def update(self):
         if self.active_output_node:
-            self.active_output_node.check_preview_render_pass_validity()
+            self.active_output_node.check_preview_render_pass_validity(bpy.context)
         super().update()
         self.update_viewport()
+
+    def get_current_preview_render_pass_id(self, view_layer):        
+        if self.active_output_node:
+            return self.active_output_node.get_current_preview_render_pass_id(view_layer)
+        return consts.RenderPassId.BEAUTY
+
+    def get_enabled_render_pass_ids(self, view_layer):
+        if self.active_output_node:
+            return self.active_output_node.get_enabled_render_pass_ids(view_layer)
+        return [consts.RenderPassId.BEAUTY, ]
 
 
 def register(): 

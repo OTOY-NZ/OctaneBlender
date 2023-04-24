@@ -15,7 +15,7 @@ struct wmOperatorType;
 /* console_draw.c */
 
 void console_textview_main(struct SpaceConsole *sc, const struct ARegion *region);
-/* Needed to calculate the scroll-bar. */
+/* needed to calculate the scrollbar */
 int console_textview_height(struct SpaceConsole *sc, const struct ARegion *region);
 int console_char_pick(struct SpaceConsole *sc, const struct ARegion *region, const int mval[2]);
 

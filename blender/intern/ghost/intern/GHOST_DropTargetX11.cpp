@@ -7,7 +7,6 @@
 
 #include "GHOST_DropTargetX11.h"
 #include "GHOST_Debug.h"
-#include "GHOST_PathUtils.h"
 #include "GHOST_utildefines.h"
 
 #include <cassert>
@@ -98,23 +97,102 @@ GHOST_DropTargetX11::~GHOST_DropTargetX11()
   }
 }
 
+/* Based on: https://stackoverflow.com/a/2766963/432509 */
+
+using DecodeState_e = enum DecodeState_e {
+  /** Searching for an ampersand to convert. */
+  STATE_SEARCH = 0,
+  /** Convert the two proceeding characters from hex. */
+  STATE_CONVERTING
+};
+
+void GHOST_DropTargetX11::UrlDecode(char *decodedOut, int bufferSize, const char *encodedIn)
+{
+  unsigned int i;
+  unsigned int len = strlen(encodedIn);
+  DecodeState_e state = STATE_SEARCH;
+  int j;
+  unsigned int asciiCharacter;
+  char tempNumBuf[3] = {0};
+  bool bothDigits = true;
+
+  memset(decodedOut, 0, bufferSize);
+
+  for (i = 0; i < len; ++i) {
+    switch (state) {
+      case STATE_SEARCH:
+        if (encodedIn[i] != '%') {
+          strncat(decodedOut, &encodedIn[i], 1);
+          assert((int)strlen(decodedOut) < bufferSize);
+          break;
+        }
+
+        /* We are now converting */
+        state = STATE_CONVERTING;
+        break;
+
+      case STATE_CONVERTING:
+        bothDigits = true;
+
+        /* Create a buffer to hold the hex. For example, if %20, this
+         * buffer would hold 20 (in ASCII) */
+        memset(tempNumBuf, 0, sizeof(tempNumBuf));
+
+        /* Conversion complete (i.e. don't convert again next iter) */
+        state = STATE_SEARCH;
+
+        strncpy(tempNumBuf, &encodedIn[i], 2);
+
+        /* Ensure both characters are hexadecimal */
+
+        for (j = 0; j < 2; ++j) {
+          if (!isxdigit(tempNumBuf[j])) {
+            bothDigits = false;
+          }
+        }
+
+        if (!bothDigits) {
+          break;
+        }
+        /* Convert two hexadecimal characters into one character */
+        sscanf(tempNumBuf, "%x", &asciiCharacter);
+
+        /* Ensure we aren't going to overflow */
+        assert((int)strlen(decodedOut) < bufferSize);
+
+        /* Concatenate this character onto the output */
+        strncat(decodedOut, (char *)&asciiCharacter, 1);
+
+        /* Skip the next character */
+        i++;
+        break;
+    }
+  }
+}
+
 char *GHOST_DropTargetX11::FileUrlDecode(char *fileUrl)
 {
   if (strncmp(fileUrl, "file://", 7) == 0) {
-    return GHOST_URL_decode_alloc(fileUrl + 7);
+    /* assume one character of encoded URL can be expanded to 4 chars max */
+    int decodedSize = 4 * strlen(fileUrl) + 1;
+    char *decodedPath = (char *)malloc(decodedSize);
+
+    UrlDecode(decodedPath, decodedSize, fileUrl + 7);
+
+    return decodedPath;
   }
 
   return nullptr;
 }
 
-void *GHOST_DropTargetX11::getURIListGhostData(uchar *dropBuffer, int dropBufferSize)
+void *GHOST_DropTargetX11::getURIListGhostData(unsigned char *dropBuffer, int dropBufferSize)
 {
   GHOST_TStringArray *strArray = nullptr;
   int totPaths = 0, curLength = 0;
 
   /* Count total number of file paths in buffer. */
   for (int i = 0; i <= dropBufferSize; i++) {
-    if (ELEM(dropBuffer[i], 0, '\n', '\r')) {
+    if (dropBuffer[i] == 0 || dropBuffer[i] == '\n' || dropBuffer[i] == '\r') {
       if (curLength) {
         totPaths++;
         curLength = 0;
@@ -131,7 +209,7 @@ void *GHOST_DropTargetX11::getURIListGhostData(uchar *dropBuffer, int dropBuffer
 
   curLength = 0;
   for (int i = 0; i <= dropBufferSize; i++) {
-    if (ELEM(dropBuffer[i], 0, '\n', '\r')) {
+    if (dropBuffer[i] == 0 || dropBuffer[i] == '\n' || dropBuffer[i] == '\r') {
       if (curLength) {
         char *curPath = (char *)malloc(curLength + 1);
         char *decodedPath;
@@ -157,10 +235,12 @@ void *GHOST_DropTargetX11::getURIListGhostData(uchar *dropBuffer, int dropBuffer
   return strArray;
 }
 
-void *GHOST_DropTargetX11::getGhostData(Atom dropType, uchar *dropBuffer, int dropBufferSize)
+void *GHOST_DropTargetX11::getGhostData(Atom dropType,
+                                        unsigned char *dropBuffer,
+                                        int dropBufferSize)
 {
   void *data = nullptr;
-  uchar *tmpBuffer = (uchar *)malloc(dropBufferSize + 1);
+  unsigned char *tmpBuffer = (unsigned char *)malloc(dropBufferSize + 1);
   bool needsFree = true;
 
   /* Ensure nil-terminator. */
@@ -180,7 +260,7 @@ void *GHOST_DropTargetX11::getGhostData(Atom dropType, uchar *dropBuffer, int dr
       data = decodedPath;
     }
   }
-  else if (ELEM(dropType, dndTypePlainText, dndTypeOctetStream)) {
+  else if (dropType == dndTypePlainText || dropType == dndTypeOctetStream) {
     m_draggedObjectType = GHOST_kDragnDropTypeString;
     data = tmpBuffer;
     needsFree = false;
@@ -199,7 +279,7 @@ void *GHOST_DropTargetX11::getGhostData(Atom dropType, uchar *dropBuffer, int dr
 bool GHOST_DropTargetX11::GHOST_HandleClientMessage(XEvent *event)
 {
   Atom dropType;
-  uchar *dropBuffer;
+  unsigned char *dropBuffer;
   int dropBufferSize, dropX, dropY;
 
   if (xdnd_get_drop(m_system->getXDisplay(),

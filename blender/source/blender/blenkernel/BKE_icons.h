@@ -20,8 +20,6 @@ extern "C" {
 
 #include "BLI_compiler_attrs.h"
 
-#include "DNA_ID_enums.h"
-
 typedef void (*DrawInfoFreeFP)(void *drawinfo);
 
 enum {
@@ -78,6 +76,8 @@ struct ImBuf;
 struct PreviewImage;
 struct StudioLight;
 struct bGPDlayer;
+
+enum eIconSizes;
 
 void BKE_icons_init(int first_dyn_id);
 

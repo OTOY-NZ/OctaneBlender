@@ -39,9 +39,8 @@ static float is_left(const float p0[2], const float p1[2], const float p2[2])
   return (p1[0] - p0[0]) * (p2[1] - p0[1]) - (p2[0] - p0[0]) * (p1[1] - p0[1]);
 }
 
-static int BLI_convexhull_2d_sorted(const float (*points)[2], const int n, int r_points[])
+int BLI_convexhull_2d_sorted(const float (*points)[2], const int n, int r_points[])
 {
-  BLI_assert(n >= 2); /* Doesn't handle trivial cases. */
   /* the output array r_points[] will be used as the stack */
   int bot = 0;
   int top = -1; /* indices for bottom and top of the stack */
@@ -67,7 +66,6 @@ static int BLI_convexhull_2d_sorted(const float (*points)[2], const int n, int r
       r_points[++top] = minmax;
     }
     r_points[++top] = minmin; /* add polygon endpoint */
-    BLI_assert(top + 1 <= n);
     return top + 1;
   }
 
@@ -124,18 +122,16 @@ static int BLI_convexhull_2d_sorted(const float (*points)[2], const int n, int r
     }
 
     if (points[i][0] == points[r_points[0]][0] && points[i][1] == points[r_points[0]][1]) {
-      BLI_assert(top + 1 <= n);
       return top + 1; /* special case (mgomes) */
     }
 
     r_points[++top] = i; /* push points[i] onto stack */
   }
 
-  if (minmax != minmin && r_points[0] != minmin) {
+  if (minmax != minmin) {
     r_points[++top] = minmin; /* push joining endpoint onto stack */
   }
 
-  BLI_assert(top + 1 <= n);
   return top + 1;
 }
 
@@ -166,38 +162,35 @@ static int pointref_cmp_yx(const void *a_, const void *b_)
 
 int BLI_convexhull_2d(const float (*points)[2], const int n, int r_points[])
 {
-  BLI_assert(n >= 0);
-  if (n < 2) {
-    if (n == 1) {
-      r_points[0] = 0;
-    }
-    return n;
-  }
   struct PointRef *points_ref = MEM_mallocN(sizeof(*points_ref) * (size_t)n, __func__);
   float(*points_sort)[2] = MEM_mallocN(sizeof(*points_sort) * (size_t)n, __func__);
+  int *points_map;
+  int points_hull_num, i;
 
-  for (int i = 0; i < n; i++) {
+  for (i = 0; i < n; i++) {
     points_ref[i].pt = points[i];
   }
 
-  /* Sort the points by X, then by Y. */
+  /* Sort the points by X, then by Y (required by the algorithm) */
   qsort(points_ref, (size_t)n, sizeof(struct PointRef), pointref_cmp_yx);
 
-  for (int i = 0; i < n; i++) {
+  for (i = 0; i < n; i++) {
     memcpy(points_sort[i], points_ref[i].pt, sizeof(float[2]));
   }
 
-  int points_hull_num = BLI_convexhull_2d_sorted(points_sort, n, r_points);
+  points_hull_num = BLI_convexhull_2d_sorted(points_sort, n, r_points);
 
-  /* Map back to the unsorted index values. */
-  for (int i = 0; i < points_hull_num; i++) {
-    r_points[i] = (int)((const float(*)[2])points_ref[r_points[i]].pt - points);
+  /* map back to the original index values */
+  points_map = (int *)points_sort; /* abuse float array for temp storage */
+  for (i = 0; i < points_hull_num; i++) {
+    points_map[i] = (int)((const float(*)[2])points_ref[r_points[i]].pt - points);
   }
+
+  memcpy(r_points, points_map, (size_t)points_hull_num * sizeof(*points_map));
 
   MEM_freeN(points_ref);
   MEM_freeN(points_sort);
 
-  BLI_assert(points_hull_num <= n);
   return points_hull_num;
 }
 
@@ -209,13 +202,14 @@ int BLI_convexhull_2d(const float (*points)[2], const int n, int r_points[])
 /** \name Utility Convex-Hull Functions
  * \{ */
 
-static float BLI_convexhull_aabb_fit_hull_2d(const float (*points_hull)[2], int n)
+float BLI_convexhull_aabb_fit_hull_2d(const float (*points_hull)[2], unsigned int n)
 {
+  unsigned int i, i_prev;
   float area_best = FLT_MAX;
   float dvec_best[2]; /* best angle, delay atan2 */
 
-  int i_prev = n - 1;
-  for (int i = 0; i < n; i++) {
+  i_prev = n - 1;
+  for (i = 0; i < n; i++) {
     const float *ev_a = points_hull[i];
     const float *ev_b = points_hull[i_prev];
     float dvec[2]; /* 2d rotation matrix */
@@ -224,9 +218,10 @@ static float BLI_convexhull_aabb_fit_hull_2d(const float (*points_hull)[2], int 
     if (normalize_v2(dvec) != 0.0f) {
       /* rotation matrix */
       float min[2] = {FLT_MAX, FLT_MAX}, max[2] = {-FLT_MAX, -FLT_MAX};
+      unsigned int j;
       float area;
 
-      for (int j = 0; j < n; j++) {
+      for (j = 0; j < n; j++) {
         float tvec[2];
         mul_v2_v2_cw(tvec, dvec, points_hull[j]);
 
@@ -254,23 +249,31 @@ static float BLI_convexhull_aabb_fit_hull_2d(const float (*points_hull)[2], int 
   return (area_best != FLT_MAX) ? atan2f(dvec_best[0], dvec_best[1]) : 0.0f;
 }
 
-float BLI_convexhull_aabb_fit_points_2d(const float (*points)[2], int n)
+float BLI_convexhull_aabb_fit_points_2d(const float (*points)[2], unsigned int n)
 {
-  BLI_assert(n >= 0);
-  float angle = 0.0f;
+  int *index_map;
+  int points_hull_num;
 
-  int *index_map = MEM_mallocN(sizeof(*index_map) * (size_t)n, __func__);
+  float angle;
 
-  int points_hull_num = BLI_convexhull_2d(points, n, index_map);
+  index_map = MEM_mallocN(sizeof(*index_map) * n * 2, __func__);
 
-  if (points_hull_num > 1) {
-    float(*points_hull)[2] = MEM_mallocN(sizeof(*points_hull) * (size_t)points_hull_num, __func__);
-    for (int j = 0; j < points_hull_num; j++) {
+  points_hull_num = BLI_convexhull_2d(points, (int)n, index_map);
+
+  if (points_hull_num) {
+    float(*points_hull)[2];
+    int j;
+
+    points_hull = MEM_mallocN(sizeof(*points_hull) * (size_t)points_hull_num, __func__);
+    for (j = 0; j < points_hull_num; j++) {
       copy_v2_v2(points_hull[j], points[index_map[j]]);
     }
 
-    angle = BLI_convexhull_aabb_fit_hull_2d(points_hull, points_hull_num);
+    angle = BLI_convexhull_aabb_fit_hull_2d(points_hull, (unsigned int)points_hull_num);
     MEM_freeN(points_hull);
+  }
+  else {
+    angle = 0.0f;
   }
 
   MEM_freeN(index_map);

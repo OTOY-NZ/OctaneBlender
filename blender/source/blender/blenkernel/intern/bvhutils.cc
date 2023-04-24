@@ -15,7 +15,6 @@
 
 #include "BLI_linklist.h"
 #include "BLI_math.h"
-#include "BLI_span.hh"
 #include "BLI_task.h"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
@@ -27,9 +26,6 @@
 #include "BKE_mesh_runtime.h"
 
 #include "MEM_guardedalloc.h"
-
-using blender::Span;
-using blender::VArray;
 
 /* -------------------------------------------------------------------- */
 /** \name BVHCache
@@ -51,13 +47,13 @@ struct BVHCache {
  * When the `r_locked` is filled and the tree could not be found the caches mutex will be
  * locked. This mutex can be unlocked by calling `bvhcache_unlock`.
  *
- * When `r_locked` is used the `mesh_eval_mutex` must contain the `MeshRuntime.eval_mutex`.
+ * When `r_locked` is used the `mesh_eval_mutex` must contain the `Mesh_Runtime.eval_mutex`.
  */
 static bool bvhcache_find(BVHCache **bvh_cache_p,
                           BVHCacheType type,
                           BVHTree **r_tree,
                           bool *r_locked,
-                          std::mutex *mesh_eval_mutex)
+                          ThreadMutex *mesh_eval_mutex)
 {
   bool do_lock = r_locked;
   if (r_locked) {
@@ -69,10 +65,11 @@ static bool bvhcache_find(BVHCache **bvh_cache_p,
       return false;
     }
     /* Lazy initialization of the bvh_cache using the `mesh_eval_mutex`. */
-    std::lock_guard lock{*mesh_eval_mutex};
+    BLI_mutex_lock(mesh_eval_mutex);
     if (*bvh_cache_p == nullptr) {
       *bvh_cache_p = bvhcache_init();
     }
+    BLI_mutex_unlock(mesh_eval_mutex);
   }
   BVHCache *bvh_cache = *bvh_cache_p;
 
@@ -177,7 +174,7 @@ static void bvhtree_balance(BVHTree *tree, const bool isolate)
 /* Math stuff for ray casting on mesh faces and for nearest surface */
 
 float bvhtree_ray_tri_intersection(const BVHTreeRay *ray,
-                                   const float /*m_dist*/,
+                                   const float UNUSED(m_dist),
                                    const float v0[3],
                                    const float v1[3],
                                    const float v2[3])
@@ -1135,7 +1132,7 @@ BVHTree *bvhtree_from_mesh_looptri_ex(BVHTreeFromMesh *data,
 
 static BLI_bitmap *loose_verts_map_get(const MEdge *medge,
                                        int edges_num,
-                                       const MVert * /*mvert*/,
+                                       const MVert *UNUSED(mvert),
                                        int verts_num,
                                        int *r_loose_vert_num)
 {
@@ -1184,13 +1181,9 @@ static BLI_bitmap *loose_edges_map_get(const MEdge *medge,
 }
 
 static BLI_bitmap *looptri_no_hidden_map_get(const MPoly *mpoly,
-                                             const VArray<bool> &hide_poly,
                                              const int looptri_len,
                                              int *r_looptri_active_len)
 {
-  if (hide_poly.is_single() && !hide_poly.get_internal_single()) {
-    return nullptr;
-  }
   BLI_bitmap *looptri_mask = BLI_BITMAP_NEW(looptri_len, __func__);
 
   int looptri_no_hidden_len = 0;
@@ -1198,7 +1191,8 @@ static BLI_bitmap *looptri_no_hidden_map_get(const MPoly *mpoly,
   int i_poly = 0;
   while (looptri_iter != looptri_len) {
     int mp_totlooptri = mpoly[i_poly].totloop - 2;
-    if (hide_poly[i_poly]) {
+    const MPoly &mp = mpoly[i_poly];
+    if (mp.flag & ME_HIDE) {
       looptri_iter += mp_totlooptri;
     }
     else {
@@ -1221,7 +1215,8 @@ BVHTree *BKE_bvhtree_from_mesh_get(struct BVHTreeFromMesh *data,
                                    const BVHCacheType bvh_cache_type,
                                    const int tree_type)
 {
-  BVHCache **bvh_cache_p = (BVHCache **)&mesh->runtime->bvh_cache;
+  BVHCache **bvh_cache_p = (BVHCache **)&mesh->runtime.bvh_cache;
+  ThreadMutex *mesh_eval_mutex = (ThreadMutex *)mesh->runtime.eval_mutex;
 
   const MLoopTri *looptri = nullptr;
   int looptri_len = 0;
@@ -1229,24 +1224,21 @@ BVHTree *BKE_bvhtree_from_mesh_get(struct BVHTreeFromMesh *data,
     looptri = BKE_mesh_runtime_looptri_ensure(mesh);
     looptri_len = BKE_mesh_runtime_looptri_len(mesh);
   }
-  const Span<MVert> verts = mesh->verts();
-  const Span<MEdge> edges = mesh->edges();
-  const Span<MLoop> loops = mesh->loops();
 
   /* Setup BVHTreeFromMesh */
   bvhtree_from_mesh_setup_data(nullptr,
                                bvh_cache_type,
-                               verts.data(),
-                               edges.data(),
-                               (const MFace *)CustomData_get_layer(&mesh->fdata, CD_MFACE),
-                               loops.data(),
+                               mesh->mvert,
+                               mesh->medge,
+                               mesh->mface,
+                               mesh->mloop,
                                looptri,
                                BKE_mesh_vertex_normals_ensure(mesh),
                                data);
 
   bool lock_started = false;
   data->cached = bvhcache_find(
-      bvh_cache_p, bvh_cache_type, &data->tree, &lock_started, &mesh->runtime->eval_mutex);
+      bvh_cache_p, bvh_cache_type, &data->tree, &lock_started, mesh_eval_mutex);
 
   if (data->cached) {
     BLI_assert(lock_started == false);
@@ -1263,49 +1255,36 @@ BVHTree *BKE_bvhtree_from_mesh_get(struct BVHTreeFromMesh *data,
   switch (bvh_cache_type) {
     case BVHTREE_FROM_LOOSEVERTS:
       mask = loose_verts_map_get(
-          edges.data(), mesh->totedge, verts.data(), mesh->totvert, &mask_bits_act_len);
+          mesh->medge, mesh->totedge, mesh->mvert, mesh->totvert, &mask_bits_act_len);
       ATTR_FALLTHROUGH;
     case BVHTREE_FROM_VERTS:
       data->tree = bvhtree_from_mesh_verts_create_tree(
-          0.0f, tree_type, 6, verts.data(), mesh->totvert, mask, mask_bits_act_len);
+          0.0f, tree_type, 6, mesh->mvert, mesh->totvert, mask, mask_bits_act_len);
       break;
 
     case BVHTREE_FROM_LOOSEEDGES:
-      mask = loose_edges_map_get(edges.data(), mesh->totedge, &mask_bits_act_len);
+      mask = loose_edges_map_get(mesh->medge, mesh->totedge, &mask_bits_act_len);
       ATTR_FALLTHROUGH;
     case BVHTREE_FROM_EDGES:
       data->tree = bvhtree_from_mesh_edges_create_tree(
-          verts.data(), edges.data(), mesh->totedge, mask, mask_bits_act_len, 0.0f, tree_type, 6);
+          mesh->mvert, mesh->medge, mesh->totedge, mask, mask_bits_act_len, 0.0f, tree_type, 6);
       break;
 
     case BVHTREE_FROM_FACES:
       BLI_assert(!(mesh->totface == 0 && mesh->totpoly != 0));
       data->tree = bvhtree_from_mesh_faces_create_tree(
-          0.0f,
-          tree_type,
-          6,
-          verts.data(),
-          (const MFace *)CustomData_get_layer(&mesh->fdata, CD_MFACE),
-          mesh->totface,
-          nullptr,
-          -1);
+          0.0f, tree_type, 6, mesh->mvert, mesh->mface, mesh->totface, nullptr, -1);
       break;
 
-    case BVHTREE_FROM_LOOPTRI_NO_HIDDEN: {
-      blender::bke::AttributeAccessor attributes = mesh->attributes();
-      mask = looptri_no_hidden_map_get(
-          mesh->polys().data(),
-          attributes.lookup_or_default(".hide_poly", ATTR_DOMAIN_FACE, false),
-          looptri_len,
-          &mask_bits_act_len);
+    case BVHTREE_FROM_LOOPTRI_NO_HIDDEN:
+      mask = looptri_no_hidden_map_get(mesh->mpoly, looptri_len, &mask_bits_act_len);
       ATTR_FALLTHROUGH;
-    }
     case BVHTREE_FROM_LOOPTRI:
       data->tree = bvhtree_from_mesh_looptri_create_tree(0.0f,
                                                          tree_type,
                                                          6,
-                                                         verts.data(),
-                                                         loops.data(),
+                                                         mesh->mvert,
+                                                         mesh->mloop,
                                                          looptri,
                                                          looptri_len,
                                                          mask,
@@ -1350,7 +1329,7 @@ BVHTree *BKE_bvhtree_from_editmesh_get(BVHTreeFromEditMesh *data,
                                        const int tree_type,
                                        const BVHCacheType bvh_cache_type,
                                        BVHCache **bvh_cache_p,
-                                       std::mutex *mesh_eval_mutex)
+                                       ThreadMutex *mesh_eval_mutex)
 {
   bool lock_started = false;
 
@@ -1452,7 +1431,7 @@ BVHTree *BKE_bvhtree_from_pointcloud_get(BVHTreeFromPointCloud *data,
     return nullptr;
   }
 
-  blender::bke::AttributeAccessor attributes = pointcloud->attributes();
+  blender::bke::AttributeAccessor attributes = blender::bke::pointcloud_attributes(*pointcloud);
   blender::VArraySpan<blender::float3> positions = attributes.lookup_or_default<blender::float3>(
       "position", ATTR_DOMAIN_POINT, blender::float3(0));
 

@@ -9,7 +9,7 @@
 
 #include "GHOST_Context.h"
 
-#include <epoxy/glx.h>
+#include <GL/glxew.h>
 
 #ifndef GHOST_OPENGL_GLX_CONTEXT_FLAGS
 /* leave as convenience define for the future */
@@ -89,6 +89,8 @@ class GHOST_ContextGLX : public GHOST_Context {
   GHOST_TSuccess getSwapInterval(int &intervalOut);
 
  private:
+  void initContextGLXEW();
+
   Display *m_display;
   GLXFBConfig m_fbconfig;
   Window m_window;

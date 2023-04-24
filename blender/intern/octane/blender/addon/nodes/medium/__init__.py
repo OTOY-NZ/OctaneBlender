@@ -7,6 +7,7 @@ from . import schlick
 from . import volume_gradient
 from . import volume_medium
 from . import random_walk
+from . import standard_volume_medium
 
 def register():
     absorption.register()
@@ -15,6 +16,7 @@ def register():
     volume_gradient.register()
     volume_medium.register()
     random_walk.register()
+    standard_volume_medium.register()
 
 def unregister():
     absorption.unregister()
@@ -23,5 +25,6 @@ def unregister():
     volume_gradient.unregister()
     volume_medium.unregister()
     random_walk.unregister()
+    standard_volume_medium.unregister()
 
 ##### END OCTANE GENERATED CODE BLOCK #####

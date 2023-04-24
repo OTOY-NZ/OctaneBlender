@@ -92,7 +92,6 @@ def find_node_to_target_input(node_tree, node, input_name):
 
 def _convert_color_input(cur_node, cur_input, octane_node, octane_input, cur_node_tree, octane_node_tree):
     if cur_input.type == 'RGBA' and not cur_input.is_linked and octane_input.type != 'RGBA':
-        print(cur_input.name, octane_input.name)
         octane_color_node = None
         if cur_input.name == "Emission" and octane_input.name == "Emission":
             octane_emission_node = octane_node_tree.nodes.new("ShaderNodeOctTextureEmission")

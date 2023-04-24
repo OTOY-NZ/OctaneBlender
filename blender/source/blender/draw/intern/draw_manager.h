@@ -188,7 +188,6 @@ typedef enum {
   DRW_CMD_DRAW_INSTANCE = 2,
   DRW_CMD_DRAW_INSTANCE_RANGE = 3,
   DRW_CMD_DRAW_PROCEDURAL = 4,
-  DRW_CMD_DRAW_INDIRECT = 5,
 
   /* Compute Commands. */
   DRW_CMD_COMPUTE = 8,
@@ -204,7 +203,7 @@ typedef enum {
   /* Needs to fit in 4bits */
 } eDRWCommandType;
 
-#define DRW_MAX_DRAW_CMD_TYPE DRW_CMD_DRAW_INDIRECT
+#define DRW_MAX_DRAW_CMD_TYPE DRW_CMD_DRAW_PROCEDURAL
 
 typedef struct DRWCommandDraw {
   GPUBatch *batch;
@@ -232,12 +231,6 @@ typedef struct DRWCommandDrawInstanceRange {
   uint inst_first;
   uint inst_count;
 } DRWCommandDrawInstanceRange;
-
-typedef struct DRWCommandDrawIndirect {
-  GPUBatch *batch;
-  DRWResourceHandle handle;
-  GPUStorageBuf *indirect_buf;
-} DRWCommandDrawIndirect;
 
 typedef struct DRWCommandCompute {
   int groups_x_len;
@@ -293,7 +286,6 @@ typedef union DRWCommand {
   DRWCommandDrawInstance instance;
   DRWCommandDrawInstanceRange instance_range;
   DRWCommandDrawProcedural procedural;
-  DRWCommandDrawIndirect draw_indirect;
   DRWCommandCompute compute;
   DRWCommandComputeRef compute_ref;
   DRWCommandComputeIndirect compute_indirect;
@@ -335,7 +327,6 @@ typedef enum {
   DRW_UNIFORM_BLOCK_OBMATS,
   DRW_UNIFORM_BLOCK_OBINFOS,
   DRW_UNIFORM_BLOCK_OBATTRS,
-  DRW_UNIFORM_BLOCK_VLATTRS,
   DRW_UNIFORM_RESOURCE_CHUNK,
   DRW_UNIFORM_RESOURCE_ID,
   /** Legacy / Fallback */
@@ -378,7 +369,7 @@ struct DRWUniform {
     /* DRW_UNIFORM_INT_COPY */
     int ivalue[4];
     /* DRW_UNIFORM_BLOCK_OBATTRS */
-    const struct GPUUniformAttrList *uniform_attrs;
+    struct GPUUniformAttrList *uniform_attrs;
   };
   int location;      /* Uniform location or binding point for textures and UBO's. */
   uint8_t type;      /* #DRWUniformType */
@@ -404,7 +395,7 @@ struct DRWShadingGroup {
       DRWResourceHandle pass_handle; /* Memblock key to parent pass. */
 
       /* Set of uniform attributes used by this shader. */
-      const struct GPUUniformAttrList *uniform_attrs;
+      struct GPUUniformAttrList *uniform_attrs;
     };
     /* This struct is used after cache populate if using the Z sorting.
      * It will not conflict with the above struct. */
@@ -442,12 +433,7 @@ struct DRWView {
   /** Parent view if this is a sub view. NULL otherwise. */
   struct DRWView *parent;
 
-  ViewMatrices storage;
-
-  float4 clip_planes[6];
-
-  float4x4 persmat;
-  float4x4 persinv;
+  ViewInfos storage;
   /** Number of active clip planes. */
   int clip_planes_len;
   /** Does culling result needs to be updated. */
@@ -507,6 +493,20 @@ typedef struct DRWCommandSmallChunk {
 BLI_STATIC_ASSERT_ALIGN(DRWCommandChunk, 16);
 #endif
 
+/* ------------- DRAW DEBUG ------------ */
+
+typedef struct DRWDebugLine {
+  struct DRWDebugLine *next; /* linked list */
+  float pos[2][3];
+  float color[4];
+} DRWDebugLine;
+
+typedef struct DRWDebugSphere {
+  struct DRWDebugSphere *next; /* linked list */
+  float mat[4][4];
+  float color[4];
+} DRWDebugSphere;
+
 /* ------------- Memory Pools ------------ */
 
 /* Contains memory pools information */
@@ -528,11 +528,6 @@ typedef struct DRWData {
   struct GPUUniformBuf **matrices_ubo;
   struct GPUUniformBuf **obinfos_ubo;
   struct GHash *obattrs_ubo_pool;
-  struct GHash *vlattrs_name_cache;
-  struct ListBase vlattrs_name_list;
-  struct LayerAttribute *vlattrs_buf;
-  struct GPUUniformBuf *vlattrs_ubo;
-  bool vlattrs_ubo_ready;
   uint ubo_len;
   /** Per draw-call volume object data. */
   void *volume_grids_ubos; /* VolumeUniformBufPool */
@@ -604,6 +599,7 @@ typedef struct DRWManager {
   struct GPUFrameBuffer *default_framebuffer;
   float size[2];
   float inv_size[2];
+  float screenvecs[2][3];
   float pixsize;
 
   struct {
@@ -630,7 +626,7 @@ typedef struct DRWManager {
   uint primary_view_num;
   /** TODO(@fclem): Remove this. Only here to support
    * shaders without common_view_lib.glsl */
-  ViewMatrices view_storage_cpy;
+  ViewInfos view_storage_cpy;
 
 #ifdef USE_GPU_SELECT
   uint select_id;
@@ -652,7 +648,11 @@ typedef struct DRWManager {
 
   GPUDrawList *draw_list;
 
-  DRWDebugModule *debug;
+  struct {
+    /* TODO(@fclem): optimize: use chunks. */
+    DRWDebugLine *lines;
+    DRWDebugSphere *spheres;
+  } debug;
 } DRWManager;
 
 extern DRWManager DST; /* TODO: get rid of this and allow multi-threaded rendering. */
@@ -667,9 +667,6 @@ void drw_state_set(DRWState state);
 
 void drw_debug_draw(void);
 void drw_debug_init(void);
-void drw_debug_module_free(DRWDebugModule *module);
-GPUStorageBuf *drw_debug_gpu_draw_buf_get(void);
-GPUStorageBuf *drw_debug_gpu_print_buf_get(void);
 
 eDRWCommandType command_type_get(const uint64_t *command_type_bits, int index);
 
@@ -688,16 +685,13 @@ void drw_resource_buffer_finish(DRWData *vmempool);
 GPUBatch *drw_cache_procedural_points_get(void);
 GPUBatch *drw_cache_procedural_lines_get(void);
 GPUBatch *drw_cache_procedural_triangles_get(void);
-GPUBatch *drw_cache_procedural_triangle_strips_get(void);
 
 void drw_uniform_attrs_pool_update(struct GHash *table,
-                                   const struct GPUUniformAttrList *key,
+                                   struct GPUUniformAttrList *key,
                                    DRWResourceHandle *handle,
                                    struct Object *ob,
                                    struct Object *dupli_parent,
                                    struct DupliObject *dupli_source);
-
-GPUUniformBuf *drw_ensure_layer_attribute_buffer(void);
 
 double *drw_engine_data_cache_time_get(GPUViewport *viewport);
 void *drw_engine_data_engine_data_create(GPUViewport *viewport, void *engine_type);
@@ -705,19 +699,6 @@ void *drw_engine_data_engine_data_get(GPUViewport *viewport, void *engine_handle
 bool drw_engine_data_engines_data_validate(GPUViewport *viewport, void **engine_handle_array);
 void drw_engine_data_cache_release(GPUViewport *viewport);
 void drw_engine_data_free(GPUViewport *viewport);
-
-struct DRW_Attributes;
-struct DRW_MeshCDMask;
-struct GPUMaterial;
-void DRW_mesh_get_attributes(struct Object *object,
-                             struct Mesh *me,
-                             struct GPUMaterial **gpumat_array,
-                             int gpumat_array_len,
-                             struct DRW_Attributes *r_attrs,
-                             struct DRW_MeshCDMask *r_cd_needed);
-
-void DRW_manager_begin_sync(void);
-void DRW_manager_end_sync(void);
 
 #ifdef __cplusplus
 }

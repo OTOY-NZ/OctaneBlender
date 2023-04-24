@@ -3,12 +3,10 @@ import hashlib
 import xml.etree.ElementTree as ET
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
-from octane.core.client import OctaneClient
 from octane.utils import utility, consts
 from octane.nodes import base_node, base_socket
 from octane.nodes.base_node import OctaneBaseNode
 from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
-from octane.core.octane_node import OctaneNode, OctaneNodeType
 
 OCTANE_ADDON_LOADED = False
 
@@ -105,33 +103,17 @@ class OctaneProxy(bpy.types.Node, OctaneBaseNode):
         self._build_proxy_node(proxy_graph_data_et, report, False)
 
     def open_proxy_node_graph(self, report=None):
+        import _octane
         import sys
         octane_node = OctaneNode(OctaneNodeType.SYNC_NODE)
         octane_node.set_name("OpenProxyNodeGraph[%s]" % self.name)
         octane_node.set_node_type(self.octane_node_type)
         octane_node.set_blender_attribute(self.BLENDER_ATTRIBUTE_EDIT_NODE_GRAPH_DATA, consts.AttributeType.AT_BOOL, True)
         self.sync_data(octane_node, None, consts.OctaneNodeTreeIDName.GENERAL)
-        from octane import core
-        if core.ENABLE_OCTANE_ADDON_CLIENT:
-            reply_data = OctaneClient().process_octane_node(octane_node)
-        elif sys.platform == "win32":            
-            from octane.bin import octane_blender_client
-            global OCTANE_ADDON_LOADED
-            if not OCTANE_ADDON_LOADED:
-                OCTANE_ADDON_LOADED = True
-                octane_blender_client.start()
-                octane_server_address = str(bpy.context.preferences.addons['octane'].preferences.octane_server_address)
-                octane_blender_client.connect_server(octane_server_address)                
-            request_node = octane_node        
-            reply_xml = octane_blender_client.process_octane_node(request_node.rpc_type, request_node.get_xml_data(), request_node.get_c_array_identifier_list(), request_node.get_scene_data_identifier(), request_node.get_reply_c_array_identifier())
-            if len(reply_xml):
-                reply_octane_node = OctaneNode(request_node.rpc_type)
-                reply_octane_node.set_xml_data(reply_xml)
-                error = reply_octane_node.get_error()
-                if error:
-                    self.console(error, "ERROR", None)
-            reply_data = reply_xml
-        root = ET.fromstring(reply_data)
+        header_data = "[COMMAND]OPEN_PROXY_NODE_GRAPH"        
+        body_data = octane_node.get_xml_data()
+        response_data = _octane.update_octane_custom_node(header_data, body_data)        
+        root = ET.fromstring(response_data)
         custom_data_et = root.find("custom_data")
         self.a_data = custom_data_et.findtext("proxy_graph_data")
         proxy_graph_data_et = custom_data_et.find("proxy_graph_data")

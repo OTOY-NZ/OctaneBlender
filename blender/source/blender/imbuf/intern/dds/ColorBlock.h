@@ -21,9 +21,9 @@
 /** Uncompressed 4x4 color block. */
 struct ColorBlock {
   ColorBlock() = default;
-  /** Initialize the color block from an array of colors. */
+  /** Init the color block from an array of colors. */
   ColorBlock(const uint *linearImage);
-  /** Initialize the color block with the contents of the given block. */
+  /** Init the color block with the contents of the given block. */
   ColorBlock(const ColorBlock &block);
   /** Initialize this color block. */
   ColorBlock(const Image *img, uint x, uint y);

@@ -76,8 +76,6 @@ class OSLRenderServices : public OSL::RendererServices {
   OSLRenderServices(OSL::TextureSystem *texture_system);
   ~OSLRenderServices();
 
-  static void register_closures(OSL::ShadingSystem *ss);
-
   bool get_matrix(OSL::ShaderGlobals *sg,
                   OSL::Matrix44 &result,
                   OSL::TransformationPtr xform,
@@ -323,6 +321,7 @@ class OSLRenderServices : public OSL::RendererServices {
    * globals to be shared between different render sessions. This saves memory,
    * and is required because texture handles are cached as part of the shared
    * shading system. */
+  OSL::TextureSystem *texture_system;
   OSLTextureHandleMap textures;
 };
 

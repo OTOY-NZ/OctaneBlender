@@ -6,10 +6,6 @@
 
 #pragma once
 
-#ifdef __cplusplus
-#  include "BLI_map.hh"
-#endif
-
 struct ARegion;
 struct ListBase;
 struct Main;
@@ -96,11 +92,4 @@ ARegion *do_versions_add_region(int regiontype, const char *name);
 
 #ifdef __cplusplus
 }
-#endif
-
-#ifdef __cplusplus
-void node_tree_relink_with_socket_id_map(bNodeTree &ntree,
-                                         bNode &old_node,
-                                         bNode &new_node,
-                                         const blender::Map<std::string, std::string> &map);
 #endif

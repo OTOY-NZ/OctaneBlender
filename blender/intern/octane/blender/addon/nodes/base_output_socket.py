@@ -287,7 +287,7 @@ class OctaneOCIOColorSpaceOutSocket(OctaneBaseSocket):
 
 class OctaneAOVOutputGroupOutSocket(OctaneBaseSocket):
     bl_idname="OctaneAOVOutputGroupOutSocket"
-    bl_label="AOV output group out"
+    bl_label="Output AOV group out"
     color=consts.OctanePinColor.AOVOutputGroup
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_OUTPUT_AOV_GROUP)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_OUTPUT)
@@ -295,7 +295,7 @@ class OctaneAOVOutputGroupOutSocket(OctaneBaseSocket):
 
 class OctaneAOVOutputOutSocket(OctaneBaseSocket):
     bl_idname="OctaneAOVOutputOutSocket"
-    bl_label="AOV output out"
+    bl_label="Output AOV out"
     color=consts.OctanePinColor.AOVOutput
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_OUTPUT_AOV)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_OUTPUT)

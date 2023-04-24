@@ -96,35 +96,27 @@ static eStrCursorDelimType cursor_delim_type_utf8(const char *ch_utf8,
   return cursor_delim_type_unicode(uch);
 }
 
-/* Keep in sync with BLI_str_cursor_step_next_utf32. */
 bool BLI_str_cursor_step_next_utf8(const char *str, size_t maxlen, int *pos)
 {
-  if ((*pos) >= (int)maxlen) {
-    return false;
-  }
   const char *str_end = str + (maxlen + 1);
   const char *str_pos = str + (*pos);
-  const char *str_next = str_pos;
-  do {
-    str_next = BLI_str_find_next_char_utf8(str_next, str_end);
-  } while (str_next < str_end && str_next[0] != 0 && BLI_str_utf8_char_width(str_next) < 1);
-  (*pos) += (str_next - str_pos);
-  if ((*pos) > (int)maxlen) {
-    (*pos) = (int)maxlen;
+  const char *str_next = BLI_str_find_next_char_utf8(str_pos, str_end);
+  if (str_next != str_end) {
+    (*pos) += (str_next - str_pos);
+    if ((*pos) > (int)maxlen) {
+      (*pos) = (int)maxlen;
+    }
+    return true;
   }
 
-  return true;
+  return false;
 }
 
-/* Keep in sync with BLI_str_cursor_step_prev_utf32. */
-bool BLI_str_cursor_step_prev_utf8(const char *str, size_t maxlen, int *pos)
+bool BLI_str_cursor_step_prev_utf8(const char *str, size_t UNUSED(maxlen), int *pos)
 {
-  if ((*pos) > 0 && (*pos) <= maxlen) {
+  if ((*pos) > 0) {
     const char *str_pos = str + (*pos);
-    const char *str_prev = str_pos;
-    do {
-      str_prev = BLI_str_find_prev_char_utf8(str_prev, str);
-    } while (str_prev > str && BLI_str_utf8_char_width(str_prev) == 0);
+    const char *str_prev = BLI_str_find_prev_char_utf8(str_pos, str);
     (*pos) -= (str_pos - str_prev);
     return true;
   }
@@ -210,29 +202,26 @@ void BLI_str_cursor_step_utf8(const char *str,
   }
 }
 
-/* Keep in sync with BLI_str_cursor_step_next_utf8. */
-bool BLI_str_cursor_step_next_utf32(const char32_t *str, size_t maxlen, int *pos)
+/* UTF32 version of BLI_str_cursor_step_utf8 (keep in sync!)
+ * less complex since it doesn't need to do multi-byte stepping.
+ */
+
+/* helper funcs so we can match BLI_str_cursor_step_utf8 */
+static bool cursor_step_next_utf32(const char32_t *UNUSED(str), size_t maxlen, int *pos)
 {
   if ((*pos) >= (int)maxlen) {
     return false;
   }
-  do {
-    (*pos)++;
-  } while (*pos < (int)maxlen && str[*pos] != 0 && BLI_wcwidth(str[*pos]) == 0);
-
+  (*pos)++;
   return true;
 }
 
-/* Keep in sync with BLI_str_cursor_step_prev_utf8. */
-bool BLI_str_cursor_step_prev_utf32(const char32_t *str, size_t UNUSED(maxlen), int *pos)
+static bool cursor_step_prev_utf32(const char32_t *UNUSED(str), size_t UNUSED(maxlen), int *pos)
 {
   if ((*pos) <= 0) {
     return false;
   }
-  do {
-    (*pos)--;
-  } while (*pos > 0 && BLI_wcwidth(str[*pos]) == 0);
-
+  (*pos)--;
   return true;
 }
 
@@ -247,7 +236,7 @@ void BLI_str_cursor_step_utf32(const char32_t *str,
 
   if (direction == STRCUR_DIR_NEXT) {
     if (use_init_step) {
-      BLI_str_cursor_step_next_utf32(str, maxlen, pos);
+      cursor_step_next_utf32(str, maxlen, pos);
     }
     else {
       BLI_assert(jump == STRCUR_JUMP_DELIM);
@@ -261,7 +250,7 @@ void BLI_str_cursor_step_utf32(const char32_t *str,
        * look at function cursor_delim_type_unicode() for complete
        * list of special character, ctr -> */
       while ((*pos) < maxlen) {
-        if (BLI_str_cursor_step_next_utf32(str, maxlen, pos)) {
+        if (cursor_step_next_utf32(str, maxlen, pos)) {
           if ((jump != STRCUR_JUMP_ALL) &&
               (delim_type != cursor_delim_type_unicode((uint)str[*pos]))) {
             break;
@@ -275,7 +264,7 @@ void BLI_str_cursor_step_utf32(const char32_t *str,
   }
   else if (direction == STRCUR_DIR_PREV) {
     if (use_init_step) {
-      BLI_str_cursor_step_prev_utf32(str, maxlen, pos);
+      cursor_step_prev_utf32(str, maxlen, pos);
     }
     else {
       BLI_assert(jump == STRCUR_JUMP_DELIM);
@@ -290,7 +279,7 @@ void BLI_str_cursor_step_utf32(const char32_t *str,
        * list of special character, ctr -> */
       while ((*pos) > 0) {
         const int pos_prev = *pos;
-        if (BLI_str_cursor_step_prev_utf32(str, maxlen, pos)) {
+        if (cursor_step_prev_utf32(str, maxlen, pos)) {
           if ((jump != STRCUR_JUMP_ALL) &&
               (delim_type != cursor_delim_type_unicode((uint)str[*pos]))) {
             /* left only: compensate for index/change in direction */

@@ -119,7 +119,9 @@ static void copyData(const ModifierData *md, ModifierData *target, const int fla
   }
 }
 
-static void requiredDataMask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
+static void requiredDataMask(Object *UNUSED(ob),
+                             ModifierData *md,
+                             CustomData_MeshMasks *r_cddata_masks)
 {
   MeshDeformModifierData *mmd = (MeshDeformModifierData *)md;
 
@@ -158,7 +160,7 @@ static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphConte
     DEG_add_object_relation(ctx->node, mmd->object, DEG_OB_COMP_GEOMETRY, "Mesh Deform Modifier");
   }
   /* We need own transformation as well. */
-  DEG_add_depends_on_transform_relation(ctx->node, "Mesh Deform Modifier");
+  DEG_add_modifier_to_transform_relation(ctx->node, "Mesh Deform Modifier");
 }
 
 static float meshdeform_dynamic_bind(MeshDeformModifierData *mmd, float (*dco)[3], float vec[3])
@@ -328,7 +330,7 @@ static void meshdeformModifier_do(ModifierData *md,
   Object *ob = ctx->object;
 
   Mesh *cagemesh;
-  const MDeformVert *dvert = NULL;
+  MDeformVert *dvert = NULL;
   float imat[4][4], cagemat[4][4], iobmat[4][4], icagemat[3][3], cmat[4][4];
   float(*dco)[3] = NULL, (*bindcagecos)[3];
   int a, cage_verts_num, defgrp_index;
@@ -358,8 +360,8 @@ static void meshdeformModifier_do(ModifierData *md,
   }
 
   /* compute matrices to go in and out of cage object space */
-  invert_m4_m4(imat, ob_target->object_to_world);
-  mul_m4_m4m4(cagemat, imat, ob->object_to_world);
+  invert_m4_m4(imat, ob_target->obmat);
+  mul_m4_m4m4(cagemat, imat, ob->obmat);
   mul_m4_m4m4(cmat, mmd->bindmat, cagemat);
   invert_m4_m4(iobmat, cmat);
   copy_m3_m4(icagemat, iobmat);
@@ -442,7 +444,8 @@ static void deformVerts(ModifierData *md,
                         float (*vertexCos)[3],
                         int verts_num)
 {
-  Mesh *mesh_src = MOD_deform_mesh_eval_get(ctx->object, NULL, mesh, NULL, verts_num, false);
+  Mesh *mesh_src = MOD_deform_mesh_eval_get(
+      ctx->object, NULL, mesh, NULL, verts_num, false, false);
 
   MOD_previous_vcos_store(md, vertexCos); /* if next modifier needs original vertices */
 
@@ -460,9 +463,10 @@ static void deformVertsEM(ModifierData *md,
                           float (*vertexCos)[3],
                           int verts_num)
 {
-  Mesh *mesh_src = MOD_deform_mesh_eval_get(ctx->object, editData, mesh, NULL, verts_num, false);
+  Mesh *mesh_src = MOD_deform_mesh_eval_get(
+      ctx->object, editData, mesh, NULL, verts_num, false, false);
 
-  /* TODO(@campbellbarton): use edit-mode data only (remove this line). */
+  /* TODO(Campbell): use edit-mode data only (remove this line). */
   if (mesh_src != NULL) {
     BKE_mesh_wrapper_ensure_mdata(mesh_src);
   }

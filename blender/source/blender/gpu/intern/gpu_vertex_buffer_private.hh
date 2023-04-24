@@ -31,11 +31,6 @@ class VertBuf {
   /** NULL indicates data in VRAM (unmapped) */
   uchar *data = nullptr;
 
-#ifndef NDEBUG
-  /** Usage including extended usage flags. */
-  GPUUsageType extended_usage_ = GPU_USAGE_STATIC;
-#endif
-
  protected:
   /** Usage hint for GL optimization. */
   GPUUsageType usage_ = GPU_USAGE_STATIC;
@@ -86,11 +81,6 @@ class VertBuf {
     if (handle_refcount_ == 0) {
       delete this;
     }
-  }
-
-  GPUUsageType get_usage_type() const
-  {
-    return usage_;
   }
 
   virtual void update_sub(uint start, uint len, const void *data) = 0;

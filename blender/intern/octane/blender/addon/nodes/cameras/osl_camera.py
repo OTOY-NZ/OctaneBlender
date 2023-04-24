@@ -15,12 +15,13 @@ class OctaneOSLCameraPos(OctaneBaseSocket):
     bl_idname="OctaneOSLCameraPos"
     bl_label="Position"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=133)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="pos")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
+    octane_pin_id=consts.PinID.P_POSITION
+    octane_pin_name="pos"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_FLOAT3
     default_value: FloatVectorProperty(default=(0.000000, 0.500000, 1.000000), update=OctaneBaseSocket.update_node_tree, description="The position of the camera", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=0
@@ -31,12 +32,13 @@ class OctaneOSLCameraTarget(OctaneBaseSocket):
     bl_idname="OctaneOSLCameraTarget"
     bl_label="Target"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=235)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="target")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
+    octane_pin_id=consts.PinID.P_TARGET
+    octane_pin_name="target"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=1
+    octane_socket_type=consts.SocketType.ST_FLOAT3
     default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="The target position,i.e. the point the camera looks at", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=0
@@ -47,12 +49,13 @@ class OctaneOSLCameraUp(OctaneBaseSocket):
     bl_idname="OctaneOSLCameraUp"
     bl_label="Up-vector"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=248)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="up")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
+    octane_pin_id=consts.PinID.P_UP
+    octane_pin_name="up"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=2
+    octane_socket_type=consts.SocketType.ST_FLOAT3
     default_value: FloatVectorProperty(default=(0.000000, 1.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="The up-vector, i.e. the vector that defines where is up", min=-1.000000, max=1.000000, soft_min=-1.000000, soft_max=1.000000, step=1, subtype="NONE", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=0
@@ -63,12 +66,13 @@ class OctaneOSLCameraStereoOutput(OctaneBaseSocket):
     bl_idname="OctaneOSLCameraStereoOutput"
     bl_label="Stereo output"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type=57
+    octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=228)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="stereoOutput")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
+    octane_pin_id=consts.PinID.P_STEREO_OUTPUT
+    octane_pin_name="stereoOutput"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=3
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("Disabled", "Disabled", "", 0),
         ("Left", "Left", "", 1),
@@ -87,12 +91,13 @@ class OctaneOSLCameraStereoMode(OctaneBaseSocket):
     bl_idname="OctaneOSLCameraStereoMode"
     bl_label="Stereo mode"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type=57
+    octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=227)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="stereoMode")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
+    octane_pin_id=consts.PinID.P_STEREO_MODE
+    octane_pin_name="stereoMode"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=4
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("Off-axis", "Off-axis", "", 1),
         ("Parallel", "Parallel", "", 2),
@@ -107,12 +112,13 @@ class OctaneOSLCameraStereodist(OctaneBaseSocket):
     bl_idname="OctaneOSLCameraStereodist"
     bl_label="Eye distance"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=224)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="stereodist")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_STEREO_DIST
+    octane_pin_name="stereodist"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=5
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.065000, update=OctaneBaseSocket.update_node_tree, description="Distance between the left and right eye in stereo mode [m]", min=0.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=3, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
@@ -123,12 +129,13 @@ class OctaneOSLCameraStereoSwitchEyes(OctaneBaseSocket):
     bl_idname="OctaneOSLCameraStereoSwitchEyes"
     bl_label="Swap eyes"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type=11
+    octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=316)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="stereoSwitchEyes")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
+    octane_pin_id=consts.PinID.P_STEREO_SWAP_EYES
+    octane_pin_name="stereoSwitchEyes"
+    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_index=6
+    octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Swaps left and right eye positions when stereo mode is showing both")
     octane_hide_value=False
     octane_min_version=0
@@ -139,12 +146,13 @@ class OctaneOSLCameraLeftFilter(OctaneBaseSocket):
     bl_idname="OctaneOSLCameraLeftFilter"
     bl_label="Left stereo filter"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=33
+    octane_default_node_type=consts.NodeType.NT_TEX_RGB
     octane_default_node_name="OctaneRGBColor"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=93)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="leftFilter")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
+    octane_pin_id=consts.PinID.P_LEFT_FILTER
+    octane_pin_name="leftFilter"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=7
+    octane_socket_type=consts.SocketType.ST_RGBA
     default_value: FloatVectorProperty(default=(1.000000, 0.000000, 0.812000), update=OctaneBaseSocket.update_node_tree, description="Left eye filter color", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
     octane_hide_value=False
     octane_min_version=0
@@ -155,12 +163,13 @@ class OctaneOSLCameraRightFilter(OctaneBaseSocket):
     bl_idname="OctaneOSLCameraRightFilter"
     bl_label="Right stereo filter"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=33
+    octane_default_node_type=consts.NodeType.NT_TEX_RGB
     octane_default_node_name="OctaneRGBColor"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=200)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="rightFilter")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
+    octane_pin_id=consts.PinID.P_RIGHT_FILTER
+    octane_pin_name="rightFilter"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=8
+    octane_socket_type=consts.SocketType.ST_RGBA
     default_value: FloatVectorProperty(default=(0.000000, 1.000000, 0.188000), update=OctaneBaseSocket.update_node_tree, description="Right eye filter color", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
     octane_hide_value=False
     octane_min_version=0
@@ -186,13 +195,13 @@ class OctaneOSLCamera(bpy.types.Node, OctaneScriptNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneOSLCameraGroupPosition,OctaneOSLCameraPos,OctaneOSLCameraTarget,OctaneOSLCameraUp,OctaneOSLCameraGroupStereo,OctaneOSLCameraStereoOutput,OctaneOSLCameraStereoMode,OctaneOSLCameraStereodist,OctaneOSLCameraStereoSwitchEyes,OctaneOSLCameraLeftFilter,OctaneOSLCameraRightFilter,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=126)
-    octane_socket_list: StringProperty(name="Socket List", default="Position;Target;Up-vector;Stereo output;Stereo mode;Eye distance;Swap eyes;Left stereo filter;Right stereo filter;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="a_filename;a_reload;a_shader_code;a_result;a_load_initial_state;a_save_initial_state;")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="filename;reload;shaderCode;result;loadInitialState;saveInitialState;")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="11;1;10;2;1;1;")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=9)
+    octane_node_type=consts.NodeType.NT_CAM_OSL
+    octane_socket_list=["Position", "Target", "Up-vector", "Stereo output", "Stereo mode", "Eye distance", "Swap eyes", "Left stereo filter", "Right stereo filter", ]
+    octane_attribute_list=["a_filename", "a_reload", "a_shader_code", "a_result", "a_load_initial_state", "a_save_initial_state", ]
+    octane_attribute_config={"a_package": [consts.AttributeID.A_PACKAGE, "package", consts.AttributeType.AT_FILENAME], "a_filename": [consts.AttributeID.A_FILENAME, "filename", consts.AttributeType.AT_FILENAME], "a_reload": [consts.AttributeID.A_RELOAD, "reload", consts.AttributeType.AT_BOOL], "a_shader_code": [consts.AttributeID.A_SHADER_CODE, "shaderCode", consts.AttributeType.AT_STRING], "a_errors": [consts.AttributeID.A_ERRORS, "errors", consts.AttributeType.AT_STRING], "a_result": [consts.AttributeID.A_RESULT, "result", consts.AttributeType.AT_INT], "a_load_initial_state": [consts.AttributeID.A_LOAD_INITIAL_STATE, "loadInitialState", consts.AttributeType.AT_BOOL], "a_save_initial_state": [consts.AttributeID.A_SAVE_INITIAL_STATE, "saveInitialState", consts.AttributeType.AT_BOOL], }
+    octane_static_pin_count=9
 
     a_filename: StringProperty(name="Filename", default="", update=OctaneBaseNode.update_node_tree, description="The file where the OSL shader is stored. If set, A_SHADER_CODE will be replaced with the content of the file", subtype="FILE_PATH")
     a_reload: BoolProperty(name="Reload", default=False, update=OctaneBaseNode.update_node_tree, description="Set it to TRUE if the file needs a reload. After the node was evaluated the attribute will be false again")

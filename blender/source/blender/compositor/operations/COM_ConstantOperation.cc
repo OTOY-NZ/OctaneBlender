@@ -19,7 +19,7 @@ bool ConstantOperation::can_get_constant_elem() const
 
 void ConstantOperation::update_memory_buffer(MemoryBuffer *output,
                                              const rcti &area,
-                                             Span<MemoryBuffer *> /*inputs*/)
+                                             Span<MemoryBuffer *> UNUSED(inputs))
 {
   BLI_assert(output->is_a_single_elem());
   const float *constant = get_constant_elem();

@@ -31,7 +31,7 @@ class Node {
   /**
    * \brief stores the reference to the SDNA bNode struct
    */
-  const bNode *editor_node_;
+  bNode *editor_node_;
 
   /**
    * \brief Is this node part of the active group
@@ -61,7 +61,7 @@ class Node {
   /**
    * \brief get the reference to the SDNA bNode struct
    */
-  const bNode *get_bnode() const
+  bNode *get_bnode() const
   {
     return editor_node_;
   }

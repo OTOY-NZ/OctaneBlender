@@ -23,7 +23,7 @@ class USDVolumeReader : public USDXformReader {
 
   bool valid() const override
   {
-    return bool(volume_);
+    return static_cast<bool>(volume_);
   }
 
   void create_object(Main *bmain, double motionSampleTime) override;

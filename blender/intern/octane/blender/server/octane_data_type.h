@@ -234,6 +234,7 @@ struct Camera {
   int32_t iMinDisplaySamples;
   bool bDithering;
   float fWhiteSaturation;
+  bool bACESToneMapping;
   float fHighlightCompression;
   int32_t iMaxTonemapInterval;
   bool bNeutralResponse;
@@ -318,6 +319,7 @@ struct Camera {
         fGamma != otherCam.fGamma || fVignetting != otherCam.fVignetting ||
         fSaturation != otherCam.fSaturation || fHotPixelFilter != otherCam.fHotPixelFilter ||
         bPremultipliedAlpha != otherCam.bPremultipliedAlpha ||
+        bACESToneMapping != otherCam.bACESToneMapping ||
         iMinDisplaySamples != otherCam.iMinDisplaySamples || bDithering != otherCam.bDithering ||
         fWhiteSaturation != otherCam.fWhiteSaturation ||
         fHighlightCompression != otherCam.fHighlightCompression ||
@@ -453,6 +455,7 @@ struct Camera {
         fGamma == otherCam.fGamma && fVignetting == otherCam.fVignetting &&
         fSaturation == otherCam.fSaturation && fHotPixelFilter == otherCam.fHotPixelFilter &&
         bPremultipliedAlpha == otherCam.bPremultipliedAlpha &&
+        bACESToneMapping == otherCam.bACESToneMapping &&
         iMinDisplaySamples == otherCam.iMinDisplaySamples && bDithering == otherCam.bDithering &&
         fWhiteSaturation == otherCam.fWhiteSaturation &&
         fHighlightCompression == otherCam.fHighlightCompression &&
@@ -679,6 +682,8 @@ struct Camera {
       fHotPixelFilter = otherCam.fHotPixelFilter;
     if (bPremultipliedAlpha != otherCam.bPremultipliedAlpha)
       bPremultipliedAlpha = otherCam.bPremultipliedAlpha;
+    if (bACESToneMapping != otherCam.bACESToneMapping)
+      bACESToneMapping = otherCam.bACESToneMapping;
     if (iMinDisplaySamples != otherCam.iMinDisplaySamples)
       iMinDisplaySamples = otherCam.iMinDisplaySamples;
     if (bDithering != otherCam.bDithering)
@@ -1361,7 +1366,15 @@ struct Passes {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /// The structure holding a kernel data that is going to be uploaded to the Octane server.
 struct Kernel {
-  enum KernelType { DEFAULT = 0, DIRECT_LIGHT, PATH_TRACE, PMC, INFO_CHANNEL, NONE };
+  enum KernelType {
+    DEFAULT = 0,
+    DIRECT_LIGHT,
+    PATH_TRACE,
+    PMC,
+    INFO_CHANNEL,
+    PHOTON_TRACING,
+    NONE
+  };
   enum DirectLightMode {
     GI_NONE,
     GI_AMBIENT,
@@ -1462,6 +1475,14 @@ struct Kernel {
   bool bBumpNormalMapping;
   bool bBkFaceHighlight;
 
+  // PHOTON TRACING
+  int32_t iPhotonDepth;
+  bool bAccurateColors;
+  float fPhotonGatherRadius;
+  float fPhotonGatherMultiplier;
+  int iPhotonGatherSamples;
+  float fExplorationStrength;
+
   // Object layers
   bool bLayersEnable;
   int32_t iLayersCurrent;
@@ -1535,6 +1556,13 @@ struct Kernel {
         && fExploration == otherKernel.fExploration &&
         fDLImportance == otherKernel.fDLImportance && iMaxRejects == otherKernel.iMaxRejects &&
         iParallelism == otherKernel.iParallelism && iWorkChunkSize == otherKernel.iWorkChunkSize
+
+        && iPhotonDepth == otherKernel.iPhotonDepth &&
+        bAccurateColors == otherKernel.bAccurateColors &&
+        fPhotonGatherRadius == otherKernel.fPhotonGatherRadius &&
+        fPhotonGatherMultiplier == otherKernel.fPhotonGatherMultiplier &&
+        iPhotonGatherSamples == otherKernel.iPhotonGatherSamples &&
+        fExplorationStrength == otherKernel.fExplorationStrength
 
         && infoChannelType == otherKernel.infoChannelType &&
         fZdepthMax == otherKernel.fZdepthMax && fUVMax == otherKernel.fUVMax &&
@@ -1673,6 +1701,19 @@ struct Kernel {
       iParallelism = otherKernel.iParallelism;
     if (iWorkChunkSize != otherKernel.iWorkChunkSize)
       iWorkChunkSize = otherKernel.iWorkChunkSize;
+
+    if (iPhotonDepth != otherKernel.iPhotonDepth)
+      iPhotonDepth = otherKernel.iPhotonDepth;
+    if (bAccurateColors != otherKernel.bAccurateColors)
+      bAccurateColors = otherKernel.bAccurateColors;
+    if (fPhotonGatherRadius != otherKernel.fPhotonGatherRadius)
+      fPhotonGatherRadius = otherKernel.fPhotonGatherRadius;
+    if (fPhotonGatherMultiplier != otherKernel.fPhotonGatherMultiplier)
+      fPhotonGatherMultiplier = otherKernel.fPhotonGatherMultiplier;
+    if (iPhotonGatherSamples != otherKernel.iPhotonGatherSamples)
+      iPhotonGatherSamples = otherKernel.iPhotonGatherSamples;
+    if (fExplorationStrength != otherKernel.fExplorationStrength)
+      fExplorationStrength = otherKernel.fExplorationStrength;
 
     if (infoChannelType != otherKernel.infoChannelType)
       infoChannelType = otherKernel.infoChannelType;

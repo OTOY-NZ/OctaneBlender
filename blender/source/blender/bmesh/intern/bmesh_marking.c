@@ -1020,7 +1020,7 @@ static BMEditSelection *bm_select_history_create(BMHeader *ele)
   return ese;
 }
 
-/* --- Macro wrapped functions. --- */
+/* --- macro wrapped funcs --- */
 
 bool _bm_select_history_check(BMesh *bm, const BMHeader *ele)
 {
@@ -1075,7 +1075,7 @@ void _bm_select_history_store_after(BMesh *bm, BMEditSelection *ese_ref, BMHeade
     BM_select_history_store_after_notest(bm, ese_ref, (BMElem *)ele);
   }
 }
-/* --- End macro wrapped functions --- */
+/* --- end macro wrapped funcs --- */
 
 void BM_select_history_clear(BMesh *bm)
 {

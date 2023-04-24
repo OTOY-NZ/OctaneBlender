@@ -9,8 +9,6 @@
 
 #include "../geometry/GridHelpers.h"
 
-#include "BLI_sys_types.h"
-
 #include "BKE_global.h"
 
 namespace Freestyle {
@@ -58,7 +56,7 @@ bool CulledOccluderSource::next()
 
 void CulledOccluderSource::getOccluderProscenium(real proscenium[4])
 {
-  for (uint i = 0; i < 4; ++i) {
+  for (unsigned int i = 0; i < 4; ++i) {
     proscenium[i] = gridSpaceOccluderProscenium[i];
   }
 }

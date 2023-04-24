@@ -84,15 +84,11 @@ static void createTransMeshVertCData(bContext *UNUSED(C), TransInfo *t)
 
     int cd_offset = -1;
     if (t->mode == TFM_BWEIGHT) {
-      if (!CustomData_has_layer(&bm->vdata, CD_BWEIGHT)) {
-        BM_data_layer_add(bm, &bm->vdata, CD_BWEIGHT);
-      }
+      BM_mesh_cd_flag_ensure(bm, me, ME_CDFLAG_VERT_BWEIGHT);
       cd_offset = CustomData_get_offset(&bm->vdata, CD_BWEIGHT);
     }
     else {
-      if (!CustomData_has_layer(&bm->vdata, CD_CREASE)) {
-        BM_data_layer_add(bm, &bm->vdata, CD_CREASE);
-      }
+      BM_mesh_cd_flag_ensure(bm, me, ME_CDFLAG_VERT_CREASE);
       cd_offset = CustomData_get_offset(&bm->vdata, CD_CREASE);
     }
 
@@ -131,7 +127,7 @@ static void createTransMeshVertCData(bContext *UNUSED(C), TransInfo *t)
           em, calc_single_islands, calc_island_center, calc_island_axismtx, &island_data);
     }
 
-    copy_m3_m4(mtx, tc->obedit->object_to_world);
+    copy_m3_m4(mtx, tc->obedit->obmat);
     /* we use a pseudo-inverse so that when one of the axes is scaled to 0,
      * matrix inversion still works and we can still moving along the other */
     pseudoinverse_m3_m3(smtx, mtx, PSEUDOINVERSE_EPSILON);

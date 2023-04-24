@@ -100,8 +100,6 @@ const char *nodeTypeAsString(NodeType type)
       return "SIMULATION";
     case NodeType::NTREE_OUTPUT:
       return "NTREE_OUTPUT";
-    case NodeType::NTREE_GEOMETRY_PREPROCESS:
-      return "NTREE_GEOMETRY_PREPROCESS";
 
     /* Total number of meaningful node types. */
     case NodeType::NUM_TYPES:
@@ -160,7 +158,6 @@ eDepsSceneComponentType nodeTypeToSceneComponent(NodeType type)
     case NodeType::CACHE:
     case NodeType::SIMULATION:
     case NodeType::NTREE_OUTPUT:
-    case NodeType::NTREE_GEOMETRY_PREPROCESS:
       return DEG_SCENE_COMP_PARAMETERS;
 
     case NodeType::VISIBILITY:
@@ -235,7 +232,6 @@ eDepsObjectComponentType nodeTypeToObjectComponent(NodeType type)
     case NodeType::SYNCHRONIZATION:
     case NodeType::SIMULATION:
     case NodeType::NTREE_OUTPUT:
-    case NodeType::NTREE_GEOMETRY_PREPROCESS:
     case NodeType::UNDEFINED:
     case NodeType::NUM_TYPES:
       return DEG_OB_COMP_PARAMETERS;

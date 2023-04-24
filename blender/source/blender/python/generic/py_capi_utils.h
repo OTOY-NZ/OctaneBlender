@@ -215,6 +215,7 @@ int PyC_CheckArgs_DeepCopy(PyObject *args);
 
 /* Integer parsing (with overflow checks), -1 on error. */
 /**
+ *
  * Comparison with #PyObject_IsTrue
  * ================================
  *
@@ -275,8 +276,8 @@ bool PyC_StructFmt_type_is_int_any(char format);
 bool PyC_StructFmt_type_is_byte(char format);
 bool PyC_StructFmt_type_is_bool(char format);
 
+#endif /* __PY_CAPI_UTILS_H__ */
+
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __PY_CAPI_UTILS_H__ */

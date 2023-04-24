@@ -21,7 +21,7 @@ from . import emission
 from . import environments
 from . import geometry
 from . import kernels
-# from . import lights
+from . import lights
 from . import material_layers
 from . import materials
 from . import medium
@@ -59,7 +59,7 @@ def register():
 	environments.register()
 	geometry.register()
 	kernels.register()
-	# lights.register()
+	lights.register()
 	material_layers.register()
 	materials.register()
 	medium.register()
@@ -84,7 +84,7 @@ def unregister():
 	environments.unregister()
 	geometry.unregister()
 	kernels.unregister()
-	# lights.unregister()
+	lights.unregister()
 	material_layers.unregister()
 	materials.unregister()
 	medium.unregister()

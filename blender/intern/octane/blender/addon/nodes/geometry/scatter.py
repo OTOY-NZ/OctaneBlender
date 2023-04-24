@@ -15,12 +15,13 @@ class OctaneScatterGeometry(OctaneBaseSocket):
     bl_idname="OctaneScatterGeometry"
     bl_label="Geometry"
     color=consts.OctanePinColor.Geometry
-    octane_default_node_type=0
+    octane_default_node_type=consts.NodeType.NT_UNKNOWN
     octane_default_node_name=""
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=59)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="geometry")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_GEOMETRY)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_GEOMETRY
+    octane_pin_name="geometry"
+    octane_pin_type=consts.PinType.PT_GEOMETRY
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -35,13 +36,13 @@ class OctaneScatter(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneScatterGeometry,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=5)
-    octane_socket_list: StringProperty(name="Socket List", default="Geometry;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="a_filename;a_reload;a_geoimp_scale_unit;a_inherit;a_user_instance_ids;")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="filename;reload;scaleUnitType;inherit;userInstanceIds;")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="11;1;2;1;2;")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=1)
+    octane_node_type=consts.NodeType.NT_GEO_SCATTER
+    octane_socket_list=["Geometry", ]
+    octane_attribute_list=["a_filename", "a_reload", "a_geoimp_scale_unit", "a_inherit", "a_user_instance_ids", ]
+    octane_attribute_config={"a_package": [consts.AttributeID.A_PACKAGE, "package", consts.AttributeType.AT_FILENAME], "a_filename": [consts.AttributeID.A_FILENAME, "filename", consts.AttributeType.AT_FILENAME], "a_reload": [consts.AttributeID.A_RELOAD, "reload", consts.AttributeType.AT_BOOL], "a_geoimp_scale_unit": [consts.AttributeID.A_GEOIMP_SCALE_UNIT, "scaleUnitType", consts.AttributeType.AT_INT], "a_transforms": [consts.AttributeID.A_TRANSFORMS, "transforms", consts.AttributeType.AT_MATRIX], "a_inherit": [consts.AttributeID.A_INHERIT, "inherit", consts.AttributeType.AT_BOOL], "a_user_instance_ids": [consts.AttributeID.A_USER_INSTANCE_IDS, "userInstanceIds", consts.AttributeType.AT_INT], }
+    octane_static_pin_count=1
 
     a_filename: StringProperty(name="Filename", default="", update=OctaneBaseNode.update_node_tree, description="Stores the CSV file to load the transforms from. After loading successfully the A_TRANSFORMS and A_USER_INSTANCE_IDS attributes will be replaced by the file contents, otherwise the A_TRANSFORMS and AT_FILENAME and A_USER_INSTANCE_IDS attributes are reverted to their original value", subtype="FILE_PATH")
     a_reload: BoolProperty(name="Reload", default=False, update=OctaneBaseNode.update_node_tree, description="Set it to TRUE if the file needs a reload. After the node was evaluated the attribute will be false again")

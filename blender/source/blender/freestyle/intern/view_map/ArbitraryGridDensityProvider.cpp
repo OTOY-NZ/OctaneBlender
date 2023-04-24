@@ -7,15 +7,13 @@
 
 #include "ArbitraryGridDensityProvider.h"
 
-#include "BLI_sys_types.h"
-
 #include "BKE_global.h"
 
 namespace Freestyle {
 
 ArbitraryGridDensityProvider::ArbitraryGridDensityProvider(OccluderSource &source,
                                                            const real proscenium[4],
-                                                           uint numCells)
+                                                           unsigned numCells)
     : GridDensityProvider(source), numCells(numCells)
 {
   initialize(proscenium);
@@ -24,7 +22,7 @@ ArbitraryGridDensityProvider::ArbitraryGridDensityProvider(OccluderSource &sourc
 ArbitraryGridDensityProvider::ArbitraryGridDensityProvider(OccluderSource &source,
                                                            const BBox<Vec3r> &bbox,
                                                            const GridHelpers::Transform &transform,
-                                                           uint numCells)
+                                                           unsigned numCells)
     : GridDensityProvider(source), numCells(numCells)
 {
   real proscenium[4];
@@ -33,7 +31,8 @@ ArbitraryGridDensityProvider::ArbitraryGridDensityProvider(OccluderSource &sourc
   initialize(proscenium);
 }
 
-ArbitraryGridDensityProvider::ArbitraryGridDensityProvider(OccluderSource &source, uint numCells)
+ArbitraryGridDensityProvider::ArbitraryGridDensityProvider(OccluderSource &source,
+                                                           unsigned numCells)
     : GridDensityProvider(source), numCells(numCells)
 {
   real proscenium[4];
@@ -77,7 +76,7 @@ void ArbitraryGridDensityProvider::initialize(const real proscenium[4])
   _cellOrigin[1] = ((proscenium[2] + proscenium[3]) / 2.0) - (_cellsY / 2.0) * _cellSize;
 }
 
-ArbitraryGridDensityProviderFactory::ArbitraryGridDensityProviderFactory(uint numCells)
+ArbitraryGridDensityProviderFactory::ArbitraryGridDensityProviderFactory(unsigned numCells)
     : numCells(numCells)
 {
 }

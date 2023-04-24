@@ -15,12 +15,13 @@ class OctaneWireframeAOVEnabled(OctaneBaseSocket):
     bl_idname="OctaneWireframeAOVEnabled"
     bl_label="Enabled"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type=11
+    octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=42)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="enabled")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
+    octane_pin_id=consts.PinID.P_ENABLED
+    octane_pin_name="enabled"
+    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Enables the render AOV")
     octane_hide_value=False
     octane_min_version=0
@@ -31,12 +32,13 @@ class OctaneWireframeAOVShadingEnabled(OctaneBaseSocket):
     bl_idname="OctaneWireframeAOVShadingEnabled"
     bl_label="Enable shading"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type=11
+    octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=736)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="shadingEnabled")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
+    octane_pin_id=consts.PinID.P_SHADING_ENABLED
+    octane_pin_name="shadingEnabled"
+    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_index=1
+    octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="If enabled, the wireframe will be rendered on slightly shaded objects")
     octane_hide_value=False
     octane_min_version=11000013
@@ -47,12 +49,13 @@ class OctaneWireframeAOVBump(OctaneBaseSocket):
     bl_idname="OctaneWireframeAOVBump"
     bl_label="Bump and normal mapping"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type=11
+    octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=18)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="bump")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
+    octane_pin_id=consts.PinID.P_BUMP
+    octane_pin_name="bump"
+    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_index=2
+    octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Take bump and normal mapping into account for wireframe shading (if shading is enabled)")
     octane_hide_value=False
     octane_min_version=0
@@ -63,12 +66,13 @@ class OctaneWireframeAOVHighlightBackfaces(OctaneBaseSocket):
     bl_idname="OctaneWireframeAOVHighlightBackfaces"
     bl_label="Highlight backfaces"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type=11
+    octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=72)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="highlightBackfaces")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
+    octane_pin_id=consts.PinID.P_HIGHLIGHT_BACKFACES
+    octane_pin_name="highlightBackfaces"
+    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_index=3
+    octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="If enabled, the backfaces will be tinted red")
     octane_hide_value=False
     octane_min_version=11000013
@@ -84,13 +88,13 @@ class OctaneWireframeAOV(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name="Wire"
     octane_render_pass_description="Wireframe display of the geometry"
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneWireframeAOVEnabled,OctaneWireframeAOVShadingEnabled,OctaneWireframeAOVBump,OctaneWireframeAOVHighlightBackfaces,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=254)
-    octane_socket_list: StringProperty(name="Socket List", default="Enabled;Enable shading;Bump and normal mapping;Highlight backfaces;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=4)
+    octane_node_type=consts.NodeType.NT_AOV_WIREFRAME
+    octane_socket_list=["Enabled", "Enable shading", "Bump and normal mapping", "Highlight backfaces", ]
+    octane_attribute_list=[]
+    octane_attribute_config={}
+    octane_static_pin_count=4
 
     def init(self, context):
         self.inputs.new("OctaneWireframeAOVEnabled", OctaneWireframeAOVEnabled.bl_label).init()

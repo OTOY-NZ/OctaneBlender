@@ -43,8 +43,7 @@ bool AnimationExporter::open_animation_container(bool has_container, Object *ob)
 {
   if (!has_container) {
     char anim_id[200];
-    BLI_snprintf(
-        anim_id, sizeof(anim_id), "action_container-%s", translate_id(id_name(ob)).c_str());
+    sprintf(anim_id, "action_container-%s", translate_id(id_name(ob)).c_str());
     openAnimation(anim_id, encode_xml(id_name(ob)));
   }
   return true;
@@ -688,7 +687,7 @@ std::string AnimationExporter::collada_interpolation_source(const BCAnimationCur
   std::vector<float> frames;
   curve.get_frames(frames);
 
-  for (uint i = 0; i < curve.sample_count(); i++) {
+  for (unsigned int i = 0; i < curve.sample_count(); i++) {
     float frame = frames[i];
     int ipo = curve.get_interpolation_type(frame);
     if (ipo == BEZT_IPO_BEZ) {

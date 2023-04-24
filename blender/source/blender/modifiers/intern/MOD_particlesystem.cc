@@ -87,7 +87,9 @@ static void copyData(const ModifierData *md, ModifierData *target, const int fla
   tpsmd->totdmvert = tpsmd->totdmedge = tpsmd->totdmface = 0;
 }
 
-static void requiredDataMask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
+static void requiredDataMask(Object *UNUSED(ob),
+                             ModifierData *md,
+                             CustomData_MeshMasks *r_cddata_masks)
 {
   ParticleSystemModifierData *psmd = (ParticleSystemModifierData *)md;
 
@@ -117,13 +119,14 @@ static void deformVerts(ModifierData *md,
   }
 
   if (mesh_src == nullptr) {
-    mesh_src = MOD_deform_mesh_eval_get(ctx->object, nullptr, nullptr, vertexCos, verts_num, true);
+    mesh_src = MOD_deform_mesh_eval_get(
+        ctx->object, nullptr, nullptr, vertexCos, verts_num, false, true);
     if (mesh_src == nullptr) {
       return;
     }
   }
 
-  /* Clear old evaluated mesh. */
+  /* clear old dm */
   bool had_mesh_final = (psmd->mesh_final != nullptr);
   if (psmd->mesh_final) {
     BKE_id_free(nullptr, psmd->mesh_final);
@@ -159,7 +162,7 @@ static void deformVerts(ModifierData *md,
 
   BKE_mesh_tessface_ensure(psmd->mesh_final);
 
-  if (!psmd->mesh_final->runtime->deformed_only) {
+  if (!psmd->mesh_final->runtime.deformed_only) {
     /* Get the original mesh from the object, this is what the particles
      * are attached to so in case of non-deform modifiers we need to remap
      * them to the final mesh (typically subdivision surfaces). */
@@ -249,7 +252,7 @@ static void deformVertsEM(ModifierData *md,
 }
 #endif
 
-static void panel_draw(const bContext * /*C*/, Panel *panel)
+static void panel_draw(const bContext *UNUSED(C), Panel *panel)
 {
   uiLayout *layout = panel->layout;
 

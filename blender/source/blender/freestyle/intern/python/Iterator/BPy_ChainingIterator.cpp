@@ -176,7 +176,7 @@ PyDoc_STRVAR(ChainingIterator_object_doc,
              "\n"
              ":type: :class:`ViewEdge`");
 
-static PyObject *ChainingIterator_object_get(BPy_ChainingIterator *self, void * /*closure*/)
+static PyObject *ChainingIterator_object_get(BPy_ChainingIterator *self, void *UNUSED(closure))
 {
   if (self->c_it->isEnd()) {
     PyErr_SetString(PyExc_RuntimeError, "iteration has stopped");
@@ -195,7 +195,8 @@ PyDoc_STRVAR(ChainingIterator_next_vertex_doc,
              "\n"
              ":type: :class:`ViewVertex`");
 
-static PyObject *ChainingIterator_next_vertex_get(BPy_ChainingIterator *self, void * /*closure*/)
+static PyObject *ChainingIterator_next_vertex_get(BPy_ChainingIterator *self,
+                                                  void *UNUSED(closure))
 {
   ViewVertex *v = self->c_it->getVertex();
   if (v) {
@@ -211,7 +212,7 @@ PyDoc_STRVAR(ChainingIterator_is_incrementing_doc,
              ":type: bool");
 
 static PyObject *ChainingIterator_is_incrementing_get(BPy_ChainingIterator *self,
-                                                      void * /*closure*/)
+                                                      void *UNUSED(closure))
 {
   return PyBool_from_bool(self->c_it->isIncrementing());
 }

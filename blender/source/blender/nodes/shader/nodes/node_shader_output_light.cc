@@ -11,10 +11,10 @@ static void node_declare(NodeDeclarationBuilder &b)
 }
 
 static int node_shader_gpu_output_light(GPUMaterial *mat,
-                                        bNode * /*node*/,
-                                        bNodeExecData * /*execdata*/,
+                                        bNode *UNUSED(node),
+                                        bNodeExecData *UNUSED(execdata),
                                         GPUNodeStack *in,
-                                        GPUNodeStack * /*out*/)
+                                        GPUNodeStack *UNUSED(out))
 {
   GPUNodeLink *outlink_surface;
   /* Passthrough node in order to do the right socket conversions. */

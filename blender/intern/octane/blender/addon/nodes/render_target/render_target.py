@@ -15,12 +15,13 @@ class OctaneRenderTargetCamera(OctaneBaseSocket):
     bl_idname="OctaneRenderTargetCamera"
     bl_label="Camera"
     color=consts.OctanePinColor.Camera
-    octane_default_node_type=13
+    octane_default_node_type=consts.NodeType.NT_CAM_THINLENS
     octane_default_node_name="OctaneThinLensCamera"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=19)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="camera")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_CAMERA)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_CAMERA
+    octane_pin_name="camera"
+    octane_pin_type=consts.PinType.PT_CAMERA
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -30,12 +31,13 @@ class OctaneRenderTargetEnvironment(OctaneBaseSocket):
     bl_idname="OctaneRenderTargetEnvironment"
     bl_label="Environment"
     color=consts.OctanePinColor.Environment
-    octane_default_node_type=37
+    octane_default_node_type=consts.NodeType.NT_ENV_TEXTURE
     octane_default_node_name="OctaneTextureEnvironment"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=43)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="environment")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENVIRONMENT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_ENVIRONMENT
+    octane_pin_name="environment"
+    octane_pin_type=consts.PinType.PT_ENVIRONMENT
+    octane_pin_index=1
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -45,12 +47,13 @@ class OctaneRenderTargetCameraEnvironment(OctaneBaseSocket):
     bl_idname="OctaneRenderTargetCameraEnvironment"
     bl_label="Visible environment"
     color=consts.OctanePinColor.Environment
-    octane_default_node_type=0
+    octane_default_node_type=consts.NodeType.NT_UNKNOWN
     octane_default_node_name=""
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=303)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="cameraEnvironment")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENVIRONMENT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_VISIBLE_ENVIRONMENT
+    octane_pin_name="cameraEnvironment"
+    octane_pin_type=consts.PinType.PT_ENVIRONMENT
+    octane_pin_index=2
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -60,12 +63,13 @@ class OctaneRenderTargetMesh(OctaneBaseSocket):
     bl_idname="OctaneRenderTargetMesh"
     bl_label="Geometry"
     color=consts.OctanePinColor.Geometry
-    octane_default_node_type=0
+    octane_default_node_type=consts.NodeType.NT_UNKNOWN
     octane_default_node_name=""
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=111)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="mesh")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_GEOMETRY)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_MESH
+    octane_pin_name="mesh"
+    octane_pin_type=consts.PinType.PT_GEOMETRY
+    octane_pin_index=3
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -75,12 +79,13 @@ class OctaneRenderTargetFilmSettings(OctaneBaseSocket):
     bl_idname="OctaneRenderTargetFilmSettings"
     bl_label="Film settings"
     color=consts.OctanePinColor.FilmSettings
-    octane_default_node_type=100
+    octane_default_node_type=consts.NodeType.NT_FILM_SETTINGS
     octane_default_node_name="OctaneFilmSettings"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=311)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="filmSettings")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FILM_SETTINGS)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_FILM_SETTINGS
+    octane_pin_name="filmSettings"
+    octane_pin_type=consts.PinType.PT_FILM_SETTINGS
+    octane_pin_index=4
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=3000013
     octane_end_version=4294967295
@@ -90,12 +95,13 @@ class OctaneRenderTargetAnimation(OctaneBaseSocket):
     bl_idname="OctaneRenderTargetAnimation"
     bl_label="Animation"
     color=consts.OctanePinColor.AnimationSettings
-    octane_default_node_type=99
+    octane_default_node_type=consts.NodeType.NT_ANIMATION_SETTINGS
     octane_default_node_name="OctaneAnimationSettings"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=307)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="animation")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ANIMATION_SETTINGS)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_ANIMATION
+    octane_pin_name="animation"
+    octane_pin_type=consts.PinType.PT_ANIMATION_SETTINGS
+    octane_pin_index=5
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=3000007
     octane_end_version=4294967295
@@ -105,12 +111,13 @@ class OctaneRenderTargetKernel(OctaneBaseSocket):
     bl_idname="OctaneRenderTargetKernel"
     bl_label="Kernel"
     color=consts.OctanePinColor.Kernel
-    octane_default_node_type=24
+    octane_default_node_type=consts.NodeType.NT_KERN_DIRECTLIGHTING
     octane_default_node_name="OctaneDirectLightingKernel"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=89)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="kernel")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_KERNEL)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_KERNEL
+    octane_pin_name="kernel"
+    octane_pin_type=consts.PinType.PT_KERNEL
+    octane_pin_index=6
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -120,12 +127,13 @@ class OctaneRenderTargetRenderLayer(OctaneBaseSocket):
     bl_idname="OctaneRenderTargetRenderLayer"
     bl_label="Render layer"
     color=consts.OctanePinColor.RenderLayer
-    octane_default_node_type=90
+    octane_default_node_type=consts.NodeType.NT_RENDER_LAYER
     octane_default_node_name="OctaneRenderLayer"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=147)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="renderLayer")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_RENDER_LAYER)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_RENDER_LAYER
+    octane_pin_name="renderLayer"
+    octane_pin_type=consts.PinType.PT_RENDER_LAYER
+    octane_pin_index=7
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=2200000
     octane_end_version=4294967295
@@ -135,12 +143,13 @@ class OctaneRenderTargetRenderPasses(OctaneBaseSocket):
     bl_idname="OctaneRenderTargetRenderPasses"
     bl_label="Render AOVs"
     color=consts.OctanePinColor.RenderAOVs
-    octane_default_node_type=179
+    octane_default_node_type=consts.NodeType.NT_RENDER_AOV_GROUP
     octane_default_node_name="OctaneRenderAOVGroup"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=158)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="renderPasses")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_RENDER_PASSES)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_RENDER_PASSES
+    octane_pin_name="renderPasses"
+    octane_pin_type=consts.PinType.PT_RENDER_PASSES
+    octane_pin_index=8
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=2100000
     octane_end_version=4294967295
@@ -148,14 +157,15 @@ class OctaneRenderTargetRenderPasses(OctaneBaseSocket):
 
 class OctaneRenderTargetCompositeAovs(OctaneBaseSocket):
     bl_idname="OctaneRenderTargetCompositeAovs"
-    bl_label="AOV output group"
+    bl_label="Output AOVs"
     color=consts.OctanePinColor.AOVOutputGroup
-    octane_default_node_type=167
+    octane_default_node_type=consts.NodeType.NT_OUTPUT_AOV_GROUP
     octane_default_node_name="OctaneAOVOutputGroup"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=617)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="compositeAovs")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_OUTPUT_AOV_GROUP)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_OUTPUT_AOVS
+    octane_pin_name="compositeAovs"
+    octane_pin_type=consts.PinType.PT_OUTPUT_AOV_GROUP
+    octane_pin_index=9
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=10020300
     octane_end_version=4294967295
@@ -165,12 +175,13 @@ class OctaneRenderTargetImager(OctaneBaseSocket):
     bl_idname="OctaneRenderTargetImager"
     bl_label="Imager"
     color=consts.OctanePinColor.Imager
-    octane_default_node_type=15
+    octane_default_node_type=consts.NodeType.NT_IMAGER_CAMERA
     octane_default_node_name="OctaneCameraImager"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=78)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="imager")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_IMAGER)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_IMAGER
+    octane_pin_name="imager"
+    octane_pin_type=consts.PinType.PT_IMAGER
+    octane_pin_index=10
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -180,12 +191,13 @@ class OctaneRenderTargetPostproc(OctaneBaseSocket):
     bl_idname="OctaneRenderTargetPostproc"
     bl_label="Post processing"
     color=consts.OctanePinColor.PostProcessing
-    octane_default_node_type=61
+    octane_default_node_type=consts.NodeType.NT_POSTPROCESSING
     octane_default_node_name="OctanePostProcessing"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=136)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="postproc")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_POSTPROCESSING)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_POST_PROCESSING
+    octane_pin_name="postproc"
+    octane_pin_type=consts.PinType.PT_POSTPROCESSING
+    octane_pin_index=11
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -195,12 +207,13 @@ class OctaneRenderTargetResolution(OctaneBaseSocket):
     bl_idname="OctaneRenderTargetResolution"
     bl_label="Resolution"
     color=consts.OctanePinColor.Int
-    octane_default_node_type=12
+    octane_default_node_type=consts.NodeType.NT_IMAGE_RESOLUTION
     octane_default_node_name="OctaneImageResolution"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=198)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="resolution")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT2)
+    octane_pin_id=consts.PinID.P_RESOLUTION
+    octane_pin_name="resolution"
+    octane_pin_type=consts.PinType.PT_INT
+    octane_pin_index=12
+    octane_socket_type=consts.SocketType.ST_INT2
     default_value: IntVectorProperty(default=(1024, 512), update=OctaneBaseSocket.update_node_tree, description="Resolution of the render result", min=4, max=65536, soft_min=4, soft_max=65536, step=1, subtype="NONE", size=2)
     octane_hide_value=False
     octane_min_version=0
@@ -215,7 +228,7 @@ class OctaneRenderTargetGroupScene(OctaneGroupTitleSocket):
 class OctaneRenderTargetGroupRenderSettings(OctaneGroupTitleSocket):
     bl_idname="OctaneRenderTargetGroupRenderSettings"
     bl_label="[OctaneGroupTitle]Render settings"
-    octane_group_sockets: StringProperty(name="Group Sockets", default="Film settings;Animation;Kernel;Render layer;Render AOVs;AOV output group;")
+    octane_group_sockets: StringProperty(name="Group Sockets", default="Film settings;Animation;Kernel;Render layer;Render AOVs;Output AOVs;")
 
 class OctaneRenderTargetGroupImagingSettings(OctaneGroupTitleSocket):
     bl_idname="OctaneRenderTargetGroupImagingSettings"
@@ -231,13 +244,13 @@ class OctaneRenderTarget(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneRenderTargetGroupScene,OctaneRenderTargetCamera,OctaneRenderTargetEnvironment,OctaneRenderTargetCameraEnvironment,OctaneRenderTargetMesh,OctaneRenderTargetGroupRenderSettings,OctaneRenderTargetFilmSettings,OctaneRenderTargetAnimation,OctaneRenderTargetKernel,OctaneRenderTargetRenderLayer,OctaneRenderTargetRenderPasses,OctaneRenderTargetCompositeAovs,OctaneRenderTargetGroupImagingSettings,OctaneRenderTargetImager,OctaneRenderTargetPostproc,OctaneRenderTargetResolution,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=56)
-    octane_socket_list: StringProperty(name="Socket List", default="Camera;Environment;Visible environment;Geometry;Film settings;Animation;Kernel;Render layer;Render AOVs;AOV output group;Imager;Post processing;Resolution;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=13)
+    octane_node_type=consts.NodeType.NT_RENDERTARGET
+    octane_socket_list=["Camera", "Environment", "Visible environment", "Geometry", "Film settings", "Animation", "Kernel", "Render layer", "Render AOVs", "Output AOVs", "Imager", "Post processing", "Resolution", ]
+    octane_attribute_list=[]
+    octane_attribute_config={}
+    octane_static_pin_count=12
 
     def init(self, context):
         self.inputs.new("OctaneRenderTargetGroupScene", OctaneRenderTargetGroupScene.bl_label).init()

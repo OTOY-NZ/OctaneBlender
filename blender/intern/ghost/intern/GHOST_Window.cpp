@@ -92,12 +92,7 @@ GHOST_TSuccess GHOST_Window::getSwapInterval(int &intervalOut)
   return m_context->getSwapInterval(intervalOut);
 }
 
-GHOST_Context *GHOST_Window::getContext()
-{
-  return m_context;
-}
-
-uint GHOST_Window::getDefaultFramebuffer()
+unsigned int GHOST_Window::getDefaultFramebuffer()
 {
   return (m_context) ? m_context->getDefaultFramebuffer() : 0;
 }

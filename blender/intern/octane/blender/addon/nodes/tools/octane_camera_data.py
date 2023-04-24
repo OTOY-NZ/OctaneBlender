@@ -32,15 +32,15 @@ class OctaneCameraData(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=consts.NodeType.NT_BLENDER_NODE_CAMERA_DATA)
+    octane_node_type=consts.NodeType.NT_BLENDER_NODE_CAMERA_DATA
     octane_socket_list: StringProperty(name="Socket List", default="")
     octane_attribute_list: StringProperty(name="Attribute List", default="")
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=0)
     
-    max_z_depth: FloatProperty(name="Max Z-Depth", default=10, min=0, max=10000000, soft_min=0, soft_max=10000000)
-    max_distance: FloatProperty(name="Max Distance", default=100, min=0.001, max=10000000, soft_min=0.001, soft_max=10000000)
-    keep_front_projection: BoolProperty(name="Keep Front Projection", default=True)
+    max_z_depth: FloatProperty(name="Max Z-Depth", default=10, min=0, max=10000000, soft_min=0, soft_max=10000000, update=OctaneBaseNode.update_node_tree)
+    max_distance: FloatProperty(name="Max Distance", default=100, min=0.001, max=10000000, soft_min=0.001, soft_max=10000000, update=OctaneBaseNode.update_node_tree)
+    keep_front_projection: BoolProperty(name="Keep Front Projection", default=True, update=OctaneBaseNode.update_node_tree)
 
     def use_mulitple_outputs(self):
         return True
@@ -51,17 +51,17 @@ class OctaneCameraData(bpy.types.Node, OctaneBaseNode):
         self.outputs.new("OctaneTextureOutSocket", self.VIEW_DISTANCE_OUT).init()
         self.outputs.new("OctaneProjectionOutSocket", self.FRONT_PROJECTION_OUT).init()
 
-    def sync_custom_data(self, octane_node, octane_graph_node_data, owner_type, scene, is_viewport):
+    def sync_custom_data(self, octane_node, octane_graph_node_data, depsgraph):
         import os
-        super().sync_custom_data(octane_node, octane_graph_node_data, owner_type, scene, is_viewport)
+        super().sync_custom_data(octane_node, octane_graph_node_data, depsgraph)
         cur_dir_path = os.path.dirname(os.path.abspath(__file__))
         lib_path = os.path.join(cur_dir_path, self.CAMERA_DATA_ORBX_REL_PATH)
         self.CAMERA_DATA_ORBX_ABS_PATH = os.path.realpath(bpy.path.abspath(lib_path))
-        octane_node.set_blender_attribute(self.CAMERA_DATA_ORBX_PATH_NAME, consts.AttributeType.AT_STRING, self.CAMERA_DATA_ORBX_ABS_PATH)
-        octane_node.set_blender_attribute(self.MAX_Z_DEPTH, consts.AttributeType.AT_FLOAT, self.max_z_depth)
-        octane_node.set_blender_attribute(self.MAX_DISTANCE, consts.AttributeType.AT_FLOAT, self.max_distance)
-        octane_node.set_blender_attribute(self.KEEP_FRONT_PROJECTION, consts.AttributeType.AT_BOOL, self.keep_front_projection)
-        octane_node.set_blender_attribute(self.USED_IN_ENVIRONMENT, consts.AttributeType.AT_BOOL, owner_type == consts.OctaneNodeTreeIDName.WORLD)       
+        octane_node.set_attribute_blender_name(self.CAMERA_DATA_ORBX_PATH_NAME, consts.AttributeType.AT_STRING, self.CAMERA_DATA_ORBX_ABS_PATH)
+        octane_node.set_attribute_blender_name(self.MAX_Z_DEPTH, consts.AttributeType.AT_FLOAT, self.max_z_depth)
+        octane_node.set_attribute_blender_name(self.MAX_DISTANCE, consts.AttributeType.AT_FLOAT, self.max_distance)
+        octane_node.set_attribute_blender_name(self.KEEP_FRONT_PROJECTION, consts.AttributeType.AT_BOOL, self.keep_front_projection)
+        octane_node.set_attribute_blender_name(self.USED_IN_ENVIRONMENT, consts.AttributeType.AT_BOOL, owner_type == consts.OctaneNodeTreeIDName.WORLD)       
         
     def draw_buttons(self, context, layout):
         layout.row().prop(self, "max_z_depth")

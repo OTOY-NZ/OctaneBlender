@@ -8,7 +8,6 @@
 #pragma once
 
 #include "intern/builder/deg_builder.h"
-#include "intern/builder/deg_builder_key.h"
 #include "intern/builder/deg_builder_map.h"
 #include "intern/depsgraph_type.h"
 #include "intern/node/deg_node_id.h"
@@ -57,7 +56,6 @@ struct ComponentNode;
 struct Depsgraph;
 class DepsgraphBuilderCache;
 struct IDNode;
-struct OperationKey;
 struct OperationNode;
 struct TimeSourceNode;
 
@@ -94,11 +92,10 @@ class DepsgraphNodeBuilder : public DepsgraphBuilder {
   int foreach_id_cow_detect_need_for_update_callback(ID *id_cow_self, ID *id_pointer);
 
   IDNode *add_id_node(ID *id);
-  IDNode *find_id_node(const ID *id);
+  IDNode *find_id_node(ID *id);
   TimeSourceNode *add_time_source();
 
   ComponentNode *add_component_node(ID *id, NodeType comp_type, const char *comp_name = "");
-  ComponentNode *find_component_node(const ID *id, NodeType comp_type, const char *comp_name = "");
 
   OperationNode *add_operation_node(ComponentNode *comp_node,
                                     OperationCode opcode,
@@ -140,20 +137,15 @@ class DepsgraphNodeBuilder : public DepsgraphBuilder {
                           const char *name = "",
                           int name_tag = -1);
 
-  OperationNode *find_operation_node(const ID *id,
+  OperationNode *find_operation_node(ID *id,
                                      NodeType comp_type,
                                      const char *comp_name,
                                      OperationCode opcode,
                                      const char *name = "",
                                      int name_tag = -1);
 
-  OperationNode *find_operation_node(const ID *id,
-                                     NodeType comp_type,
-                                     OperationCode opcode,
-                                     const char *name = "",
-                                     int name_tag = -1);
-
-  OperationNode *find_operation_node(const OperationKey &key);
+  OperationNode *find_operation_node(
+      ID *id, NodeType comp_type, OperationCode opcode, const char *name = "", int name_tag = -1);
 
   virtual void build_id(ID *id);
 
@@ -182,7 +174,6 @@ class DepsgraphNodeBuilder : public DepsgraphBuilder {
   virtual void build_object_flags(int base_index,
                                   Object *object,
                                   eDepsNode_LinkedState_Type linked_state);
-  virtual void build_object_modifiers(Object *object);
   virtual void build_object_data(Object *object);
   virtual void build_object_data_camera(Object *object);
   virtual void build_object_data_geometry(Object *object);
@@ -263,9 +254,17 @@ class DepsgraphNodeBuilder : public DepsgraphBuilder {
   };
 
  protected:
-  /* Entry tags from the previous state of the dependency graph.
-   * Stored before the graph is re-created so that they can be transferred over. */
-  Vector<PersistentOperationKey> saved_entry_tags_;
+  /* Allows to identify an operation which was tagged for update at the time
+   * relations are being updated. We can not reuse operation node pointer
+   * since it will change during dependency graph construction. */
+  struct SavedEntryTag {
+    ID *id_orig;
+    NodeType component_type;
+    OperationCode opcode;
+    string name;
+    int name_tag;
+  };
+  Vector<SavedEntryTag> saved_entry_tags_;
 
   struct BuilderWalkUserData {
     DepsgraphNodeBuilder *builder;

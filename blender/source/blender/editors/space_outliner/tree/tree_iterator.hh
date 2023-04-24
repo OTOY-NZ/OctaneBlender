@@ -10,11 +10,9 @@
 
 struct ListBase;
 struct SpaceOutliner;
-
-namespace blender::ed::outliner {
-
 struct TreeElement;
 
+namespace blender::ed::outliner {
 namespace tree_iterator {
 
 using VisitorFn = FunctionRef<void(TreeElement *)>;

@@ -11,7 +11,7 @@
 
 #include "draw_cache_impl.h"
 
-#include "overlay_private.hh"
+#include "overlay_private.h"
 
 void OVERLAY_edit_curves_init(OVERLAY_Data *vedata)
 {

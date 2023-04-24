@@ -15,12 +15,13 @@ class OctaneMeshUVProjectionUvSet(OctaneBaseSocket):
     bl_idname="OctaneMeshUVProjectionUvSet"
     bl_label="UV set"
     color=consts.OctanePinColor.Int
-    octane_default_node_type=9
+    octane_default_node_type=consts.NodeType.NT_INT
     octane_default_node_name="OctaneIntValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=249)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="uvSet")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
+    octane_pin_id=consts.PinID.P_UV_SET
+    octane_pin_name="uvSet"
+    octane_pin_type=consts.PinType.PT_INT
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_INT
     default_value: IntProperty(default=1, update=OctaneBaseSocket.update_node_tree, description="Determines which set of UV coordinates to use", min=1, max=3, soft_min=1, soft_max=3, step=1, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=2200000
@@ -36,13 +37,13 @@ class OctaneMeshUVProjection(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneMeshUVProjectionUvSet,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=78)
-    octane_socket_list: StringProperty(name="Socket List", default="UV set;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=1)
+    octane_node_type=consts.NodeType.NT_PROJ_UVW
+    octane_socket_list=["UV set", ]
+    octane_attribute_list=[]
+    octane_attribute_config={}
+    octane_static_pin_count=1
 
     def init(self, context):
         self.inputs.new("OctaneMeshUVProjectionUvSet", OctaneMeshUVProjectionUvSet.bl_label).init()

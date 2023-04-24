@@ -20,7 +20,7 @@ void GPU_compute_dispatch(GPUShader *shader,
                           uint groups_y_len,
                           uint groups_z_len);
 
-void GPU_compute_dispatch_indirect(GPUShader *shader, GPUStorageBuf *indirect_buf_);
+void GPU_compute_dispatch_indirect(GPUShader *shader, GPUStorageBuf *indirect_buf);
 
 #ifdef __cplusplus
 }

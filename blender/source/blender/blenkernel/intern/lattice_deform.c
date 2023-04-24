@@ -30,7 +30,6 @@
 #include "BKE_editmesh.h"
 #include "BKE_key.h"
 #include "BKE_lattice.h"
-#include "BKE_mesh.h"
 #include "BKE_modifier.h"
 #include "BKE_object.h"
 
@@ -79,15 +78,15 @@ LatticeDeformData *BKE_lattice_deform_data_create(const Object *oblatt, const Ob
   /* for example with a particle system: (ob == NULL) */
   if (ob == NULL) {
     /* In deform-space, calc matrix. */
-    invert_m4_m4(latmat, oblatt->object_to_world);
+    invert_m4_m4(latmat, oblatt->obmat);
 
     /* back: put in deform array */
     invert_m4_m4(imat, latmat);
   }
   else {
     /* In deform-space, calc matrix. */
-    invert_m4_m4(imat, oblatt->object_to_world);
-    mul_m4_m4m4(latmat, imat, ob->object_to_world);
+    invert_m4_m4(imat, oblatt->obmat);
+    mul_m4_m4m4(latmat, imat, ob->obmat);
 
     /* back: put in deform array. */
     invert_m4_m4(imat, latmat);
@@ -364,7 +363,7 @@ static void lattice_deform_coords_impl(const Object *ob_lattice,
         dvert = ((Lattice *)ob_target->data)->dvert;
       }
       else {
-        dvert = BKE_mesh_deform_verts((Mesh *)ob_target->data);
+        dvert = ((Mesh *)ob_target->data)->dvert;
       }
     }
   }

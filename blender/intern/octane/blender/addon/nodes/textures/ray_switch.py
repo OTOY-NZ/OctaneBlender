@@ -15,12 +15,13 @@ class OctaneRaySwitchTexture(OctaneBaseSocket):
     bl_idname="OctaneRaySwitchTexture"
     bl_label="Camera ray"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=31
+    octane_default_node_type=consts.NodeType.NT_TEX_FLOAT
     octane_default_node_name="OctaneGreyscaleColor"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=240)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="texture")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_TEXTURE
+    octane_pin_name="texture"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Input texture used for camera rays", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
@@ -31,12 +32,13 @@ class OctaneRaySwitchTexture1(OctaneBaseSocket):
     bl_idname="OctaneRaySwitchTexture1"
     bl_label="Shadow ray"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=31
+    octane_default_node_type=consts.NodeType.NT_TEX_FLOAT
     octane_default_node_name="OctaneGreyscaleColor"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=238)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="texture1")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_TEXTURE1
+    octane_pin_name="texture1"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=1
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Input texture used for shadow rays", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
@@ -47,12 +49,13 @@ class OctaneRaySwitchTexture2(OctaneBaseSocket):
     bl_idname="OctaneRaySwitchTexture2"
     bl_label="Diffuse ray"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=31
+    octane_default_node_type=consts.NodeType.NT_TEX_FLOAT
     octane_default_node_name="OctaneGreyscaleColor"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=239)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="texture2")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_TEXTURE2
+    octane_pin_name="texture2"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=2
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Input texture used for diffuse rays", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
@@ -63,12 +66,13 @@ class OctaneRaySwitchTexture3(OctaneBaseSocket):
     bl_idname="OctaneRaySwitchTexture3"
     bl_label="Reflection ray"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=31
+    octane_default_node_type=consts.NodeType.NT_TEX_FLOAT
     octane_default_node_name="OctaneGreyscaleColor"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=337)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="texture3")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_TEXTURE3
+    octane_pin_name="texture3"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=3
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Input texture used for glossy/reflection rays", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
@@ -79,12 +83,13 @@ class OctaneRaySwitchTexture4(OctaneBaseSocket):
     bl_idname="OctaneRaySwitchTexture4"
     bl_label="Refraction ray"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=31
+    octane_default_node_type=consts.NodeType.NT_TEX_FLOAT
     octane_default_node_name="OctaneGreyscaleColor"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=338)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="texture4")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_TEXTURE4
+    octane_pin_name="texture4"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=4
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Input texture used for refraction rays", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
@@ -95,15 +100,33 @@ class OctaneRaySwitchTexture5(OctaneBaseSocket):
     bl_idname="OctaneRaySwitchTexture5"
     bl_label="AO ray"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=31
+    octane_default_node_type=consts.NodeType.NT_TEX_FLOAT
     octane_default_node_name="OctaneGreyscaleColor"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=619)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="texture5")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_TEXTURE5
+    octane_pin_name="texture5"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=5
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Input texture used for ambient occlusion rays", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
+    octane_end_version=4294967295
+    octane_deprecated=False
+
+class OctaneRaySwitchTexture6(OctaneBaseSocket):
+    bl_idname="OctaneRaySwitchTexture6"
+    bl_label="Photon ray"
+    color=consts.OctanePinColor.Texture
+    octane_default_node_type=consts.NodeType.NT_TEX_FLOAT
+    octane_default_node_name="OctaneGreyscaleColor"
+    octane_pin_id=consts.PinID.P_TEXTURE6
+    octane_pin_name="texture6"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=6
+    octane_socket_type=consts.SocketType.ST_FLOAT
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Input texture used while tracing photons", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
+    octane_hide_value=False
+    octane_min_version=12000001
     octane_end_version=4294967295
     octane_deprecated=False
 
@@ -116,13 +139,13 @@ class OctaneRaySwitch(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneRaySwitchTexture,OctaneRaySwitchTexture1,OctaneRaySwitchTexture2,OctaneRaySwitchTexture3,OctaneRaySwitchTexture4,OctaneRaySwitchTexture5,OctaneRaySwitchTexture6,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=173)
-    octane_socket_list: StringProperty(name="Socket List", default="Camera ray;Shadow ray;Diffuse ray;Reflection ray;Refraction ray;AO ray;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=6)
+    octane_node_type=consts.NodeType.NT_TEX_RAY_SWITCH
+    octane_socket_list=["Camera ray", "Shadow ray", "Diffuse ray", "Reflection ray", "Refraction ray", "AO ray", "Photon ray", ]
+    octane_attribute_list=[]
+    octane_attribute_config={}
+    octane_static_pin_count=7
 
     def init(self, context):
         self.inputs.new("OctaneRaySwitchTexture", OctaneRaySwitchTexture.bl_label).init()
@@ -131,6 +154,7 @@ class OctaneRaySwitch(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneRaySwitchTexture3", OctaneRaySwitchTexture3.bl_label).init()
         self.inputs.new("OctaneRaySwitchTexture4", OctaneRaySwitchTexture4.bl_label).init()
         self.inputs.new("OctaneRaySwitchTexture5", OctaneRaySwitchTexture5.bl_label).init()
+        self.inputs.new("OctaneRaySwitchTexture6", OctaneRaySwitchTexture6.bl_label).init()
         self.outputs.new("OctaneTextureOutSocket", "Texture out").init()
 
 
@@ -141,6 +165,7 @@ _CLASSES=[
     OctaneRaySwitchTexture3,
     OctaneRaySwitchTexture4,
     OctaneRaySwitchTexture5,
+    OctaneRaySwitchTexture6,
     OctaneRaySwitch,
 ]
 

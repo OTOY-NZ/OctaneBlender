@@ -16,10 +16,8 @@
 #include "../image/Image.h"
 #include "../image/ImagePyramid.h"
 
-#include "BLI_math.h"
-#include "BLI_sys_types.h"
-
 #include "BKE_global.h"
+#include "BLI_math.h"
 
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
@@ -28,13 +26,13 @@ namespace Freestyle {
 
 using namespace Geometry;
 
-SteerableViewMap::SteerableViewMap(uint nbOrientations)
+SteerableViewMap::SteerableViewMap(unsigned int nbOrientations)
 {
   _nbOrientations = nbOrientations;
-  _bound = cos(M_PI / float(_nbOrientations));
-  for (uint i = 0; i < _nbOrientations; ++i) {
-    _directions.emplace_back(cos(float(i) * M_PI / float(_nbOrientations)),
-                             sin(float(i) * M_PI / float(_nbOrientations)));
+  _bound = cos(M_PI / (float)_nbOrientations);
+  for (unsigned int i = 0; i < _nbOrientations; ++i) {
+    _directions.emplace_back(cos((float)i * M_PI / (float)_nbOrientations),
+                             sin((float)i * M_PI / (float)_nbOrientations));
   }
   Build();
 }
@@ -49,7 +47,7 @@ void SteerableViewMap::Build()
 SteerableViewMap::SteerableViewMap(const SteerableViewMap &iBrother)
 {
   _nbOrientations = iBrother._nbOrientations;
-  uint i;
+  unsigned int i;
   _bound = iBrother._bound;
   _directions = iBrother._directions;
   _mapping = iBrother._mapping;
@@ -68,7 +66,7 @@ SteerableViewMap::~SteerableViewMap()
 
 void SteerableViewMap::Clear()
 {
-  uint i;
+  unsigned int i;
   if (_imagesPyramids) {
     for (i = 0; i <= _nbOrientations; ++i) {
       if (_imagesPyramids[i]) {
@@ -79,7 +77,8 @@ void SteerableViewMap::Clear()
     _imagesPyramids = nullptr;
   }
   if (!_mapping.empty()) {
-    for (map<uint, double *>::iterator m = _mapping.begin(), mend = _mapping.end(); m != mend;
+    for (map<unsigned int, double *>::iterator m = _mapping.begin(), mend = _mapping.end();
+         m != mend;
          ++m) {
       delete[](*m).second;
     }
@@ -93,7 +92,7 @@ void SteerableViewMap::Reset()
   Build();
 }
 
-double SteerableViewMap::ComputeWeight(const Vec2d &dir, uint i)
+double SteerableViewMap::ComputeWeight(const Vec2d &dir, unsigned i)
 {
   double dotp = fabs(dir * _directions[i]);
   if (dotp < _bound) {
@@ -103,14 +102,14 @@ double SteerableViewMap::ComputeWeight(const Vec2d &dir, uint i)
     dotp = 1.0;
   }
 
-  return cos(float(_nbOrientations) / 2.0 * acos(dotp));
+  return cos((float)_nbOrientations / 2.0 * acos(dotp));
 }
 
 double *SteerableViewMap::AddFEdge(FEdge *iFEdge)
 {
-  uint i;
-  uint id = iFEdge->getId().getFirst();
-  map<uint, double *>::iterator o = _mapping.find(id);
+  unsigned i;
+  unsigned id = iFEdge->getId().getFirst();
+  map<unsigned int, double *>::iterator o = _mapping.find(id);
   if (o != _mapping.end()) {
     return (*o).second;
   }
@@ -133,7 +132,7 @@ double *SteerableViewMap::AddFEdge(FEdge *iFEdge)
   return res;
 }
 
-uint SteerableViewMap::getSVMNumber(Vec2f dir)
+unsigned SteerableViewMap::getSVMNumber(Vec2f dir)
 {
   // soc unsigned res = 0;
   real norm = dir.norm();
@@ -142,8 +141,8 @@ uint SteerableViewMap::getSVMNumber(Vec2f dir)
   }
   dir /= norm;
   double maxw = 0.0f;
-  uint winner = _nbOrientations + 1;
-  for (uint i = 0; i < _nbOrientations; ++i) {
+  unsigned winner = _nbOrientations + 1;
+  for (unsigned int i = 0; i < _nbOrientations; ++i) {
     double w = ComputeWeight(dir, i);
     if (w > maxw) {
       maxw = w;
@@ -153,14 +152,14 @@ uint SteerableViewMap::getSVMNumber(Vec2f dir)
   return winner;
 }
 
-uint SteerableViewMap::getSVMNumber(uint id)
+unsigned SteerableViewMap::getSVMNumber(unsigned id)
 {
-  map<uint, double *>::iterator o = _mapping.find(id);
+  map<unsigned int, double *>::iterator o = _mapping.find(id);
   if (o != _mapping.end()) {
     double *wvalues = (*o).second;
     double maxw = 0.0;
-    uint winner = _nbOrientations + 1;
-    for (uint i = 0; i < _nbOrientations; ++i) {
+    unsigned winner = _nbOrientations + 1;
+    for (unsigned i = 0; i < _nbOrientations; ++i) {
       double w = wvalues[i];
       if (w > maxw) {
         maxw = w;
@@ -174,10 +173,10 @@ uint SteerableViewMap::getSVMNumber(uint id)
 
 void SteerableViewMap::buildImagesPyramids(GrayImage **steerableBases,
                                            bool copy,
-                                           uint iNbLevels,
+                                           unsigned iNbLevels,
                                            float iSigma)
 {
-  for (uint i = 0; i <= _nbOrientations; ++i) {
+  for (unsigned int i = 0; i <= _nbOrientations; ++i) {
     ImagePyramid *svm = (_imagesPyramids)[i];
     delete svm;
     if (copy) {
@@ -190,7 +189,7 @@ void SteerableViewMap::buildImagesPyramids(GrayImage **steerableBases,
   }
 }
 
-float SteerableViewMap::readSteerableViewMapPixel(uint iOrientation, int iLevel, int x, int y)
+float SteerableViewMap::readSteerableViewMapPixel(unsigned iOrientation, int iLevel, int x, int y)
 {
   ImagePyramid *pyramid = _imagesPyramids[iOrientation];
   if (!pyramid) {
@@ -216,7 +215,7 @@ float SteerableViewMap::readCompleteViewMapPixel(int iLevel, int x, int y)
   return readSteerableViewMapPixel(_nbOrientations, iLevel, x, y);
 }
 
-uint SteerableViewMap::getNumberOfPyramidLevels() const
+unsigned int SteerableViewMap::getNumberOfPyramidLevels() const
 {
   if (_imagesPyramids[0]) {
     return _imagesPyramids[0]->getNumberOfLevels();
@@ -226,7 +225,7 @@ uint SteerableViewMap::getNumberOfPyramidLevels() const
 
 void SteerableViewMap::saveSteerableViewMap() const
 {
-  for (uint i = 0; i <= _nbOrientations; ++i) {
+  for (unsigned int i = 0; i <= _nbOrientations; ++i) {
     if (_imagesPyramids[i] == nullptr) {
       cerr << "SteerableViewMap warning: orientation " << i
            << " of steerable View Map whas not been computed yet" << endl;
@@ -248,7 +247,7 @@ void SteerableViewMap::saveSteerableViewMap() const
 
       for (int y = 0; y < oh; ++y) {    // soc
         for (int x = 0; x < ow; ++x) {  // soc
-          int c = int(coeff * _imagesPyramids[i]->pixel(x, y, j));
+          int c = (int)(coeff * _imagesPyramids[i]->pixel(x, y, j));
           if (c > 255) {
             c = 255;
           }

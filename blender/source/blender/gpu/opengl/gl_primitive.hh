@@ -13,6 +13,8 @@
 
 #include "GPU_primitive.h"
 
+#include "glew-mx.h"
+
 namespace blender::gpu {
 
 static inline GLenum to_gl(GPUPrimType prim_type)

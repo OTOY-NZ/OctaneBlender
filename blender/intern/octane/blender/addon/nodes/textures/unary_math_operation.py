@@ -15,12 +15,13 @@ class OctaneUnaryMathOperationTexture(OctaneBaseSocket):
     bl_idname="OctaneUnaryMathOperationTexture"
     bl_label="Argument"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=0
+    octane_default_node_type=consts.NodeType.NT_UNKNOWN
     octane_default_node_name=""
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=240)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="texture")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_TEXTURE
+    octane_pin_name="texture"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -30,28 +31,29 @@ class OctaneUnaryMathOperationOperationType(OctaneBaseSocket):
     bl_idname="OctaneUnaryMathOperationOperationType"
     bl_label="Operation"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type=57
+    octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=613)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="operationType")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
+    octane_pin_id=consts.PinID.P_OPERATION_TYPE
+    octane_pin_name="operationType"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=1
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("Functions|Absolute value", "Functions|Absolute value", "", 0),
         ("Functions|Exponential [2^x]", "Functions|Exponential [2^x]", "", 9),
         ("Functions|Exponential [e^x]", "Functions|Exponential [e^x]", "", 8),
         ("Functions|Exponential [e^x - 1]", "Functions|Exponential [e^x - 1]", "", 10),
         ("Functions|Fraction", "Functions|Fraction", "", 12),
-        ("Functions|Inverse square root", "Functions|Inverse square root", "", 13),
-        ("Functions|Invert", "Functions|Invert", "", 14),
+        ("Functions|Inverse square root [1/sqrt(x)]", "Functions|Inverse square root [1/sqrt(x)]", "", 13),
+        ("Functions|Invert [1-x]", "Functions|Invert [1-x]", "", 14),
         ("Functions|Logarithm base 10", "Functions|Logarithm base 10", "", 17),
         ("Functions|Logarithm base 2", "Functions|Logarithm base 2", "", 16),
         ("Functions|Logarithm base e", "Functions|Logarithm base e", "", 15),
         ("Functions|Logarithm base radix", "Functions|Logarithm base radix", "", 18),
-        ("Functions|Negate", "Functions|Negate", "", 19),
-        ("Functions|Reciprocal", "Functions|Reciprocal", "", 21),
+        ("Functions|Negate [-x]", "Functions|Negate [-x]", "", 19),
+        ("Functions|Reciprocal [1/x]", "Functions|Reciprocal [1/x]", "", 21),
         ("Functions|Sign", "Functions|Sign", "", 23),
-        ("Functions|Square root", "Functions|Square root", "", 26),
+        ("Functions|Square root [sqrt(x)]", "Functions|Square root [sqrt(x)]", "", 26),
         ("Conversion|Degrees", "Conversion|Degrees", "", 7),
         ("Conversion|Radians", "Conversion|Radians", "", 20),
         ("Rounding|Round", "Rounding|Round", "", 22),
@@ -67,6 +69,8 @@ class OctaneUnaryMathOperationOperationType(OctaneBaseSocket):
         ("Trigonometric|Hyperbolic tangent", "Trigonometric|Hyperbolic tangent", "", 28),
         ("Trigonometric|Sine", "Trigonometric|Sine", "", 24),
         ("Trigonometric|Tangent", "Trigonometric|Tangent", "", 27),
+        ("Vector|Length", "Vector|Length", "", 30),
+        ("Vector|Normalize", "Vector|Normalize", "", 31),
     ]
     default_value: EnumProperty(default="Functions|Absolute value", update=OctaneBaseSocket.update_node_tree, description="The operation to perform on the input", items=items)
     octane_hide_value=False
@@ -83,13 +87,13 @@ class OctaneUnaryMathOperation(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneUnaryMathOperationTexture,OctaneUnaryMathOperationOperationType,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=340)
-    octane_socket_list: StringProperty(name="Socket List", default="Argument;Operation;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=2)
+    octane_node_type=consts.NodeType.NT_TEX_MATH_UNARY
+    octane_socket_list=["Argument", "Operation", ]
+    octane_attribute_list=[]
+    octane_attribute_config={}
+    octane_static_pin_count=2
 
     def init(self, context):
         self.inputs.new("OctaneUnaryMathOperationTexture", OctaneUnaryMathOperationTexture.bl_label).init()

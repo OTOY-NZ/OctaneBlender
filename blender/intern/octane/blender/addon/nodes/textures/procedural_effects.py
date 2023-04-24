@@ -15,21 +15,35 @@ class OctaneProceduralEffectsOperationType(OctaneBaseSocket):
     bl_idname="OctaneProceduralEffectsOperationType"
     bl_label="Type"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type=57
+    octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=613)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="operationType")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
+    octane_pin_id=consts.PinID.P_OPERATION_TYPE
+    octane_pin_name="operationType"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
+        ("Blaschke product", "Blaschke product", "", 11),
+        ("Candle flame", "Candle flame", "", 20),
         ("Combustible Voronoi", "Combustible Voronoi", "", 0),
-        ("Fractal", "Fractal", "", 1),
+        ("Fire emitter", "Fire emitter", "", 8),
+        ("Fractal 1", "Fractal 1", "", 1),
+        ("Fractal 2", "Fractal 2", "", 18),
+        ("Fractal 3", "Fractal 3", "", 12),
         ("Kaleidoscope", "Kaleidoscope", "", 2),
+        ("Mist", "Mist", "", 9),
         ("Neon stripes", "Neon stripes", "", 3),
-        ("Paint colors", "Paint colors", "", 4),
+        ("Noise smoke flow", "Noise smoke flow", "", 17),
+        ("Paint colors 1", "Paint colors 1", "", 4),
         ("Particles", "Particles", "", 5),
+        ("Portal", "Portal", "", 19),
+        ("Skinner", "Skinner", "", 13),
         ("Star scroller", "Star scroller", "", 6),
+        ("Sun surface", "Sun surface", "", 14),
+        ("Tunnel", "Tunnel", "", 10),
         ("Wavey colors", "Wavey colors", "", 7),
+        ("Volumetric|Paint colors 2", "Volumetric|Paint colors 2", "", 15),
+        ("Volumetric|Spiral", "Volumetric|Spiral", "", 16),
     ]
     default_value: EnumProperty(default="Combustible Voronoi", update=OctaneBaseSocket.update_node_tree, description="The effect to generate", items=items)
     octane_hide_value=False
@@ -41,12 +55,13 @@ class OctaneProceduralEffectsTime(OctaneBaseSocket):
     bl_idname="OctaneProceduralEffectsTime"
     bl_label="Time"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=241)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="time")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_TIME
+    octane_pin_name="time"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=1
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="The animation timestamp", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
@@ -55,14 +70,15 @@ class OctaneProceduralEffectsTime(OctaneBaseSocket):
 
 class OctaneProceduralEffectsTransform(OctaneBaseSocket):
     bl_idname="OctaneProceduralEffectsTransform"
-    bl_label="UV transform"
+    bl_label="UVW transform"
     color=consts.OctanePinColor.Transform
-    octane_default_node_type=67
+    octane_default_node_type=consts.NodeType.NT_TRANSFORM_VALUE
     octane_default_node_name="OctaneTransformValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=243)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="transform")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TRANSFORM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_TRANSFORM
+    octane_pin_name="transform"
+    octane_pin_type=consts.PinType.PT_TRANSFORM
+    octane_pin_index=2
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -72,12 +88,13 @@ class OctaneProceduralEffectsProjection(OctaneBaseSocket):
     bl_idname="OctaneProceduralEffectsProjection"
     bl_label="Projection"
     color=consts.OctanePinColor.Projection
-    octane_default_node_type=78
+    octane_default_node_type=consts.NodeType.NT_PROJ_UVW
     octane_default_node_name="OctaneMeshUVProjection"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=141)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="projection")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_PROJECTION)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_PROJECTION
+    octane_pin_name="projection"
+    octane_pin_type=consts.PinType.PT_PROJECTION
+    octane_pin_index=3
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -92,13 +109,13 @@ class OctaneProceduralEffects(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneProceduralEffectsOperationType,OctaneProceduralEffectsTime,OctaneProceduralEffectsTransform,OctaneProceduralEffectsProjection,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=262)
-    octane_socket_list: StringProperty(name="Socket List", default="Type;Time;UV transform;Projection;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=4)
+    octane_node_type=consts.NodeType.NT_TEX_PROCEDURAL_EFFECTS
+    octane_socket_list=["Type", "Time", "UVW transform", "Projection", ]
+    octane_attribute_list=[]
+    octane_attribute_config={}
+    octane_static_pin_count=4
 
     def init(self, context):
         self.inputs.new("OctaneProceduralEffectsOperationType", OctaneProceduralEffectsOperationType.bl_label).init()

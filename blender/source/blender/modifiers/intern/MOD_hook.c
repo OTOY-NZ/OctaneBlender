@@ -68,7 +68,9 @@ static void copyData(const ModifierData *md, ModifierData *target, const int fla
   thmd->indexar = MEM_dupallocN(hmd->indexar);
 }
 
-static void requiredDataMask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
+static void requiredDataMask(Object *UNUSED(ob),
+                             ModifierData *md,
+                             CustomData_MeshMasks *r_cddata_masks)
 {
   HookModifierData *hmd = (HookModifierData *)md;
 
@@ -120,7 +122,7 @@ static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphConte
     DEG_add_object_relation(ctx->node, hmd->object, DEG_OB_COMP_TRANSFORM, "Hook Modifier");
   }
   /* We need own transformation as well. */
-  DEG_add_depends_on_transform_relation(ctx->node, "Hook Modifier");
+  DEG_add_modifier_to_transform_relation(ctx->node, "Hook Modifier");
 }
 
 struct HookData_cb {
@@ -279,7 +281,7 @@ static void deformVerts_do(HookModifierData *hmd,
   bPoseChannel *pchan = BKE_pose_channel_find_name(ob_target->pose, hmd->subtarget);
   float dmat[4][4];
   int i, *index_pt;
-  const MDeformVert *dvert;
+  MDeformVert *dvert;
   struct HookData_cb hd;
   const bool invert_vgroup = (hmd->flag & MOD_HOOK_INVERT_VGROUP) != 0;
 
@@ -338,14 +340,14 @@ static void deformVerts_do(HookModifierData *hmd,
   /* get world-space matrix of target, corrected for the space the verts are in */
   if (hmd->subtarget[0] && pchan) {
     /* bone target if there's a matching pose-channel */
-    mul_m4_m4m4(dmat, ob_target->object_to_world, pchan->pose_mat);
+    mul_m4_m4m4(dmat, ob_target->obmat, pchan->pose_mat);
   }
   else {
     /* just object target */
-    copy_m4_m4(dmat, ob_target->object_to_world);
+    copy_m4_m4(dmat, ob_target->obmat);
   }
-  invert_m4_m4(ob->world_to_object, ob->object_to_world);
-  mul_m4_series(hd.mat, ob->world_to_object, dmat, hmd->parentinv);
+  invert_m4_m4(ob->imat, ob->obmat);
+  mul_m4_series(hd.mat, ob->imat, dmat, hmd->parentinv);
   /* --- done with 'hd' init --- */
 
   /* Regarding index range checking below.
@@ -428,7 +430,8 @@ static void deformVerts(struct ModifierData *md,
                         int verts_num)
 {
   HookModifierData *hmd = (HookModifierData *)md;
-  Mesh *mesh_src = MOD_deform_mesh_eval_get(ctx->object, NULL, mesh, NULL, verts_num, false);
+  Mesh *mesh_src = MOD_deform_mesh_eval_get(
+      ctx->object, NULL, mesh, NULL, verts_num, false, false);
 
   deformVerts_do(hmd, ctx, ctx->object, mesh_src, NULL, vertexCos, verts_num);
 

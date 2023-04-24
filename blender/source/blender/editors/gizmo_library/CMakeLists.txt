@@ -13,6 +13,7 @@ set(INC
   ../../windowmanager
   ../../../../intern/clog
   ../../../../intern/eigen
+  ../../../../intern/glew-mx
   ../../../../intern/guardedalloc
   # RNA_prototypes.h
   ${CMAKE_BINARY_DIR}/source/blender/makesrna

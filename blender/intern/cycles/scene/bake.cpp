@@ -16,7 +16,6 @@ CCL_NAMESPACE_BEGIN
 BakeManager::BakeManager()
 {
   need_update_ = true;
-  use_camera_ = false;
 }
 
 BakeManager::~BakeManager()
@@ -39,14 +38,6 @@ void BakeManager::set(Scene *scene, const std::string &object_name_)
   need_update_ = true;
 }
 
-void BakeManager::set_use_camera(const bool use_camera)
-{
-  if (use_camera_ != use_camera) {
-    use_camera_ = use_camera;
-    need_update_ = true;
-  }
-}
-
 void BakeManager::device_update(Device * /*device*/,
                                 DeviceScene *dscene,
                                 Scene *scene,
@@ -57,8 +48,6 @@ void BakeManager::device_update(Device * /*device*/,
 
   KernelBake *kbake = &dscene->data.bake;
   memset(kbake, 0, sizeof(*kbake));
-
-  kbake->use_camera = use_camera_;
 
   if (!object_name.empty()) {
     scoped_callback_timer timer([scene](double time) {

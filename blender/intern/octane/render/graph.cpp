@@ -153,4 +153,15 @@ bool ShaderGraph::is_builtin_image_updated(ShaderGraph &graph)
   return false;
 }
 
+std::string ShaderGraph::generate_dependent_name(std::string name, DependentIDType dependent_id_type)
+{
+  std::string dependent_id_tag = std::to_string(dependent_id_type) + "###";
+  return dependent_id_tag + name;
+}
+
+void ShaderGraph::add_dependent_name(std::string name, DependentIDType dependent_id_type)
+{
+  dependent_names.insert(generate_dependent_name(name, dependent_id_type));
+}
+
 OCT_NAMESPACE_END

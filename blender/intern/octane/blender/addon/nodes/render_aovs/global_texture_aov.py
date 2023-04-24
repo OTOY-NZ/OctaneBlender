@@ -15,12 +15,13 @@ class OctaneGlobalTextureAOVEnabled(OctaneBaseSocket):
     bl_idname="OctaneGlobalTextureAOVEnabled"
     bl_label="Enabled"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type=11
+    octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=42)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="enabled")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
+    octane_pin_id=consts.PinID.P_ENABLED
+    octane_pin_name="enabled"
+    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Enables the render AOV")
     octane_hide_value=False
     octane_min_version=0
@@ -31,12 +32,13 @@ class OctaneGlobalTextureAOVSubType(OctaneBaseSocket):
     bl_idname="OctaneGlobalTextureAOVSubType"
     bl_label="ID"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type=57
+    octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=703)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="subType")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
+    octane_pin_id=consts.PinID.P_SUB_TYPE
+    octane_pin_name="subType"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=1
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("Global texture 1", "Global texture 1", "", 0),
         ("Global texture 2", "Global texture 2", "", 1),
@@ -69,12 +71,13 @@ class OctaneGlobalTextureAOVTexture(OctaneBaseSocket):
     bl_idname="OctaneGlobalTextureAOVTexture"
     bl_label="Texture"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=0
+    octane_default_node_type=consts.NodeType.NT_UNKNOWN
     octane_default_node_name=""
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=240)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="texture")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_TEXTURE
+    octane_pin_name="texture"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=2
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -84,12 +87,13 @@ class OctaneGlobalTextureAOVAlphachannel(OctaneBaseSocket):
     bl_idname="OctaneGlobalTextureAOVAlphachannel"
     bl_label="Alpha channel"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=0
+    octane_default_node_type=consts.NodeType.NT_UNKNOWN
     octane_default_node_name=""
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=2)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="alphachannel")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_ALPHA_CHANNEL
+    octane_pin_name="alphachannel"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=3
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -99,12 +103,13 @@ class OctaneGlobalTextureAOVIncludeEnvironment(OctaneBaseSocket):
     bl_idname="OctaneGlobalTextureAOVIncludeEnvironment"
     bl_label="Include environment"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type=11
+    octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=634)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="includeEnvironment")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
+    octane_pin_id=consts.PinID.P_INCLUDE_ENVIRONMENT
+    octane_pin_name="includeEnvironment"
+    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_index=4
+    octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="If enabled, the texture will also be evaluated for camera rays that leave the scene. This can be useful for textures that need to be evaluated over the whole screen")
     octane_hide_value=False
     octane_min_version=0
@@ -120,13 +125,13 @@ class OctaneGlobalTextureAOV(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name={0: "Glob1", 1: "Glob2", 2: "Glob3", 3: "Glob4", 4: "Glob5", 5: "Glob6", 6: "Glob7", 7: "Glob8", 8: "Glob9", 9: "Glob10", 10: "Glob11", 11: "Glob12", 12: "Glob13", 13: "Glob14", 14: "Glob15", 15: "Glob16", 16: "Glob17", 17: "Glob18", 18: "Glob19", 19: "Glob20", }
     octane_render_pass_description={0: "Global texture AOV 1", 1: "Global texture AOV 2", 2: "Global texture AOV 3", 3: "Global texture AOV 4", 4: "Global texture AOV 5", 5: "Global texture AOV 6", 6: "Global texture AOV 7", 7: "Global texture AOV 8", 8: "Global texture AOV 9", 9: "Global texture AOV 10", 10: "Global texture AOV 11", 11: "Global texture AOV 12", 12: "Global texture AOV 13", 13: "Global texture AOV 14", 14: "Global texture AOV 15", 15: "Global texture AOV 16", 16: "Global texture AOV 17", 17: "Global texture AOV 18", 18: "Global texture AOV 19", 19: "Global texture AOV 20", }
     octane_render_pass_sub_type_name="ID"
+    octane_socket_class_list=[OctaneGlobalTextureAOVEnabled,OctaneGlobalTextureAOVSubType,OctaneGlobalTextureAOVTexture,OctaneGlobalTextureAOVAlphachannel,OctaneGlobalTextureAOVIncludeEnvironment,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=199)
-    octane_socket_list: StringProperty(name="Socket List", default="Enabled;ID;Texture;Alpha channel;Include environment;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=5)
+    octane_node_type=consts.NodeType.NT_AOV_GLOBAL_TEX
+    octane_socket_list=["Enabled", "ID", "Texture", "Alpha channel", "Include environment", ]
+    octane_attribute_list=[]
+    octane_attribute_config={}
+    octane_static_pin_count=5
 
     def init(self, context):
         self.inputs.new("OctaneGlobalTextureAOVEnabled", OctaneGlobalTextureAOVEnabled.bl_label).init()

@@ -31,6 +31,7 @@
 #include <boost/assign.hpp>
 #include <boost/filesystem.hpp>
 #include <unordered_set>
+#include <algorithm>
 
 OCT_NAMESPACE_BEGIN
 
@@ -113,18 +114,10 @@ void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph)
   /* Iterate over all IDs in this depsgraph. */
   BL::Depsgraph::updates_iterator b_update;
 
-  std::unordered_set<void *> updated_object_ids;
+  std::unordered_set<std::string> updated_id_names;
 
   for (b_depsgraph.updates.begin(b_update); b_update != b_depsgraph.updates.end(); ++b_update) {
     BL::ID b_id(b_update->id());
-
-    /* Material */
-    if (b_id.is_a(&RNA_NodeGroup)) {
-      BL::NodeGroup b_tree(b_id);
-      std::string name = b_tree.name();
-      int type = b_tree.type();
-    }
-
     /* Material */
     if (b_id.is_a(&RNA_Material)) {
       BL::Material b_mat(b_id);
@@ -138,7 +131,7 @@ void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph)
     /* Object */
     else if (b_id.is_a(&RNA_Object)) {
       BL::Object b_ob(b_id);
-      updated_object_ids.insert(b_ob.ptr.data);
+      updated_id_names.insert(ShaderGraph::generate_dependent_name(b_ob.name(), DEPENDENT_ID_OBJECT));
       const bool updated_geometry = b_update->is_updated_geometry();
 
       if (b_update->is_updated_transform()) {
@@ -185,7 +178,8 @@ void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph)
     }
     else if (b_id.is_a(&RNA_Collection)) {
       BL::Collection b_col(b_id);
-      updated_object_ids.insert(b_col.ptr.data);
+      updated_id_names.insert(
+          ShaderGraph::generate_dependent_name(b_col.name(), DEPENDENT_ID_COLLECTION));
     }
   }
 
@@ -194,21 +188,11 @@ void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph)
     foreach (Shader *shader, scene->shaders) {
       bool has_object_dependency = false;
       if (shader->graph) {
-        for (auto updated_id : updated_object_ids) {
-          // The object ID seems to be incorrect in the custom node group tree.
-          // Use this for temporal fix as we are going to refactor object data node into add-on
-          // style.
-          if (shader->graph && shader->graph->dependent_ids.size() &&
-              (shader->graph->type == ShaderGraphType::SHADER_GRAPH_COMPOSITE ||
-               shader->graph->type == ShaderGraphType::SHADER_GRAPH_RENDER_AOV)) {
-            has_object_dependency = true;
-          }
-          else {
-            for (auto dependent_id : shader->graph->dependent_ids) {
-              if (updated_id == dependent_id) {
-                has_object_dependency = true;
-                break;
-              }
+        for (auto updated_id_name : updated_id_names) {
+          for (auto dependent_name : shader->graph->dependent_names) {
+            if (updated_id_name == dependent_name) {
+              has_object_dependency = true;
+              break;
             }
           }
         }
@@ -221,6 +205,9 @@ void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph)
   }
   if (has_updated_nodetree) {
     foreach (Shader *shader, scene->shaders) {
+      if (shader->graph && shader->graph->has_ramp_node) {
+        shader->need_update = true;
+      }
       if (shader->graph && (shader->graph->type == ShaderGraphType::SHADER_GRAPH_COMPOSITE ||
                             shader->graph->type == ShaderGraphType::SHADER_GRAPH_RENDER_AOV)) {
         shader->need_update = true;
@@ -414,7 +401,7 @@ SessionParams BlenderSync::get_session_params(
                           (use_preview_setting_for_camera_imager ? hdr_tonemap_preview_enable :
                                                                    hdr_tonemap_render_enable);
   params.out_of_core_enabled = get_boolean(oct_scene, "out_of_core_enable");
-  params.addon_dev_enabled = get_boolean(oct_scene, "addon_dev_enabled");
+  params.addon_dev_enabled = false;
   params.out_of_core_mem_limit = get_int(oct_scene, "out_of_core_limit");
   params.out_of_core_gpu_headroom = get_int(oct_scene, "out_of_core_gpu_headroom");
 
@@ -584,6 +571,13 @@ void BlenderSync::sync_kernel()
   kernel->oct_node->iWorkChunkSize = get_int(oct_scene, "work_chunk_size");
   kernel->oct_node->bAoAlphaShadows = get_boolean(oct_scene, "ao_alpha_shadows");
   kernel->oct_node->fOpacityThreshold = get_float(oct_scene, "opacity_threshold");
+
+  kernel->oct_node->iPhotonDepth = get_int(oct_scene, "photon_depth");
+  kernel->oct_node->bAccurateColors = get_boolean(oct_scene, "accurate_colors");
+  kernel->oct_node->fPhotonGatherRadius = get_float(oct_scene, "photon_gather_radius");
+  kernel->oct_node->fPhotonGatherMultiplier = get_float(oct_scene, "photon_gather_multiplier");
+  kernel->oct_node->iPhotonGatherSamples = get_int(oct_scene, "photon_gather_samples");
+  kernel->oct_node->fExplorationStrength = get_float(oct_scene, "exploration_strength");
 
   kernel->oct_node->bAdaptiveSampling = get_boolean(oct_scene, "adaptive_sampling");
   kernel->oct_node->fAdaptiveNoiseThreshold = get_float(oct_scene, "adaptive_noise_threshold");

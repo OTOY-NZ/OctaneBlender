@@ -14,19 +14,6 @@ class OctaneObjectData(bpy.types.Node, OctaneBaseNode):
     ROTATION_OUT = "Rotation out"
     GEOMETRY_OUT = "Geometry out"
     TRANSFORMED_GEO_OUT = "Transformed Geo out"
-    # Transform
-    NT_TRANSFORM_VALUE = "67"
-    A_TRANSFORM = "a_transform"
-    # Rotation
-    NT_FLOAT = "6"
-    A_VALUE = "a_value"
-    # Geometry
-    NT_GEO_PLACEMENT = "4"
-    P_GEOMETRY = "59"
-    P_TRANSFORM = "243"
-    # Collection
-    NT_GEO_GROUP = "3"
-    A_PIN_COUNT = "a_pin_count"
 
     bl_idname="OctaneObjectData"
     bl_label="Object Data"
@@ -37,7 +24,7 @@ class OctaneObjectData(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=consts.NodeType.NT_BLENDER_NODE_OBJECT_DATA)
+    octane_node_type=consts.NodeType.NT_BLENDER_NODE_OBJECT_DATA
     octane_socket_list: StringProperty(name="Socket List", default="")
     octane_attribute_list: StringProperty(name="Attribute List", default="")
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
@@ -54,7 +41,7 @@ class OctaneObjectData(bpy.types.Node, OctaneBaseNode):
     ]
     source_type: EnumProperty(name="Source type", default="Object", update=update_source_type, description="Determines the data source type(object or collection)", items=items) 
     object_name: StringProperty(name="Object name")
-    collection_name: StringProperty(name="Collection name")    
+    collection_name: StringProperty(name="Collection name")
 
     def use_mulitple_outputs(self):
         return True
@@ -90,82 +77,71 @@ class OctaneObjectData(bpy.types.Node, OctaneBaseNode):
     def get_blender_pin_symbol(self, node_name, pin_symbol):
         return node_name + consts.DERIVED_NODE_SEPARATOR + pin_symbol
 
-    def sync_geometry_data(self, obj, name, octane_node, scene, is_viewport, derived_node_names, derived_node_types, need_transform):
-        if obj is None:
+    def sync_geometry_data(self, object_eval, name, octane_node, depsgraph, need_transform):
+        if object_eval is None:
             return
+        scene = depsgraph.scene_eval
+        is_viewport = depsgraph.mode == "VIEWPORT"
         # Placement node
         placement_node_name = name
-        derived_node_names.append(placement_node_name)
-        derived_node_types.append(self.NT_GEO_PLACEMENT)                    
-        octane_mesh_name = utility.resolve_mesh_octane_name(obj, scene, is_viewport)
-        pin_symbol = self.get_blender_pin_symbol(placement_node_name, self.P_GEOMETRY)
-        octane_node.set_blender_pin(pin_symbol, "Geometry", consts.SocketType.ST_LINK, "", True, octane_mesh_name)
+        placement_subnode = octane_node.get_subnode(placement_node_name, consts.NodeType.NT_GEO_PLACEMENT)
+        octane_geometry_name = utility.resolve_octane_geometry_name(object_eval, scene, is_viewport)
+        placement_subnode.set_pin_id(consts.PinID.P_GEOMETRY, True, octane_geometry_name, "")
         if not need_transform:
-            return
-        # Placement node, transform node link
-        transform_node_name = placement_node_name + "_Transform"
-        pin_symbol = self.get_blender_pin_symbol(placement_node_name, self.P_TRANSFORM)
-        octane_node.set_blender_pin(pin_symbol, "Transform", consts.SocketType.ST_LINK, "", True, transform_node_name)
+            return        
         # Transform node
-        derived_node_names.append(transform_node_name)
-        derived_node_types.append(self.NT_TRANSFORM_VALUE)
-        matrix = utility.OctaneMatrixConvertor.get_octane_matrix(obj.matrix_world)
-        blender_attribute_name = self.get_blender_attribute_name(transform_node_name, self.A_TRANSFORM)
-        octane_node.set_blender_attribute(blender_attribute_name, consts.AttributeType.AT_MATRIX, matrix)
-        
-    def sync_collection_data(self, collection, name, octane_node, scene, is_viewport, derived_node_names, derived_node_types, need_transform):
+        transform_node_name = placement_node_name + "_Transform"
+        transform_subnode = octane_node.get_subnode(transform_node_name, consts.NodeType.NT_TRANSFORM_VALUE)
+        matrix = utility.OctaneMatrixConvertor.get_octane_matrix(object_eval.matrix_world)
+        transform_subnode.set_attribute_id(consts.AttributeID.A_TRANSFORM, matrix)
+        # Placement node, transform node link
+        placement_subnode.set_pin_id(consts.PinID.P_TRANSFORM, True, transform_node_name, "")
+
+    def sync_collection_data(self, collection, name, octane_node, depsgraph, need_transform):
         if collection is None:
             return
         # Geometry Group node
         geometry_group_node_name = name
-        derived_node_names.append(geometry_group_node_name)
-        derived_node_types.append(self.NT_GEO_GROUP)
+        geometry_group_subnode = octane_node.get_subnode(geometry_group_node_name, consts.NodeType.NT_GEO_GROUP)
         geometry_count = 0
         for obj in collection.all_objects:
             if obj.type != "MESH":
                 continue
             mesh_name = geometry_group_node_name + "_" + str(geometry_count)
-            pin_symbol = self.get_blender_pin_symbol(geometry_group_node_name, OctaneBaseSocket.DYNAMIC_PIN_INDEX + str(geometry_count))
-            octane_node.set_blender_pin(pin_symbol, "Geometry", consts.SocketType.ST_LINK, "", True, mesh_name)
-            self.sync_geometry_data(obj, mesh_name, octane_node, scene, is_viewport, derived_node_names, derived_node_types, need_transform)
+            pin_name = "Input " + str(geometry_count + 1)
+            geometry_group_subnode.set_pin_index(geometry_count, pin_name, consts.SocketType.ST_LINK, consts.PinType.PT_GEOMETRY, 0, True, mesh_name, "")
+            self.sync_geometry_data(obj, mesh_name, octane_node, depsgraph, need_transform)
             geometry_count += 1
-        blender_attribute_name = self.get_blender_attribute_name(geometry_group_node_name, self.A_PIN_COUNT)
-        octane_node.set_blender_attribute(blender_attribute_name, consts.AttributeType.AT_INT, geometry_count)
+        geometry_group_subnode.set_attribute_id(consts.AttributeID.A_PIN_COUNT, geometry_count)
 
-    def sync_custom_data(self, octane_node, octane_graph_node_data, owner_type, scene, is_viewport):
-        super().sync_custom_data(octane_node, octane_graph_node_data, owner_type, scene, is_viewport)
+    def sync_custom_data(self, octane_node, octane_graph_node_data, depsgraph):
+        super().sync_custom_data(octane_node, octane_graph_node_data, depsgraph)
         octane_name = octane_node.name
-        derived_node_names = []
-        derived_node_types = []
-        obj = bpy.data.objects.get(self.get_target_object_name(), None)
+        _object = bpy.data.objects.get(self.get_target_object_name(), None)
+        object_eval = _object.evaluated_get(depsgraph) if _object is not None else None        
         collection = bpy.data.collections.get(self.get_target_collection_name(), None)
         if octane_name.endswith(self.TRANSFORM_OUT):
-            if obj is not None:
-                matrix = utility.OctaneMatrixConvertor.get_octane_matrix(obj.matrix_world)
-                derived_node_names.append(octane_name)
-                derived_node_types.append(self.NT_TRANSFORM_VALUE)
-                blender_attribute_name = self.get_blender_attribute_name(octane_name, self.A_TRANSFORM)
-                octane_node.set_blender_attribute(blender_attribute_name, consts.AttributeType.AT_MATRIX, matrix)
+            if object_eval is not None:
+                subnode_name = octane_name
+                matrix = utility.OctaneMatrixConvertor.get_octane_matrix(object_eval.matrix_world)
+                subnode = octane_node.get_subnode(subnode_name, consts.NodeType.NT_TRANSFORM_VALUE)
+                subnode.set_attribute_id(consts.AttributeID.A_TRANSFORM, matrix)
         elif octane_name.endswith(self.ROTATION_OUT):
-            if obj is not None:
-                direction = utility.OctaneMatrixConvertor.get_octane_direction(obj.matrix_world)
-                derived_node_names.append(octane_name)
-                derived_node_types.append(self.NT_FLOAT)
-                blender_attribute_name = self.get_blender_attribute_name(octane_name, self.A_VALUE)
-                octane_node.set_blender_attribute(blender_attribute_name, consts.AttributeType.AT_FLOAT3, direction)
+            if object_eval is not None:
+                subnode_name = octane_name
+                direction = utility.OctaneMatrixConvertor.get_octane_direction(object_eval.matrix_world)
+                subnode = octane_node.get_subnode(subnode_name, consts.NodeType.NT_FLOAT)
+                subnode.set_attribute_id(consts.AttributeID.A_VALUE, direction)
         elif octane_name.endswith(self.GEOMETRY_OUT):
             if self.source_type == "Object":
-                self.sync_geometry_data(obj, octane_node.name, octane_node, scene, is_viewport, derived_node_names, derived_node_types, False)
+                self.sync_geometry_data(object_eval, octane_node.name, octane_node, depsgraph, False)
             else:
-                self.sync_collection_data(collection, octane_node.name, octane_node, scene, is_viewport, derived_node_names, derived_node_types, False)
+                self.sync_collection_data(collection, octane_node.name, octane_node, depsgraph, False)
         elif octane_name.endswith(self.TRANSFORMED_GEO_OUT):
             if self.source_type == "Object":
-                self.sync_geometry_data(obj, octane_node.name, octane_node, scene, is_viewport, derived_node_names, derived_node_types, True)
+                self.sync_geometry_data(object_eval, octane_node.name, octane_node, depsgraph, True)
             else:
-                self.sync_collection_data(collection, octane_node.name, octane_node, scene, is_viewport, derived_node_names, derived_node_types, True)
-        if len(derived_node_names):
-            octane_node.set_blender_attribute(consts.DERIVED_NODE_NAMES, consts.AttributeType.AT_STRING, ";".join(derived_node_names))
-            octane_node.set_blender_attribute(consts.DERIVED_NODE_TYPES, consts.AttributeType.AT_STRING, ";".join(derived_node_types))
+                self.sync_collection_data(collection, octane_node.name, octane_node, depsgraph, True)
 
 
 _CLASSES=[

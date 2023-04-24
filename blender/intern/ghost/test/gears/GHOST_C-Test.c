@@ -315,7 +315,7 @@ bool processEvent(GHOST_EventHandle hEvent, GHOST_TUserDataPtr userData)
         } break;
         case GHOST_kKeyF:
           if (!GHOST_GetFullScreen(shSystem)) {
-            /* Begin full-screen mode. */
+            /* Begin fullscreen mode */
             setting.bpp = 24;
             setting.frequency = 85;
             setting.xPixels = 640;

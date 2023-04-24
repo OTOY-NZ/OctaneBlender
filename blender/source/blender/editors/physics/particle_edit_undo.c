@@ -21,7 +21,6 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_context.h"
-#include "BKE_layer.h"
 #include "BKE_particle.h"
 #include "BKE_pointcache.h"
 #include "BKE_undo_system.h"
@@ -212,8 +211,7 @@ static bool particle_undosys_poll(struct bContext *C)
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  BKE_view_layer_synced_ensure(scene, view_layer);
-  Object *ob = BKE_view_layer_active_object_get(view_layer);
+  Object *ob = OBACT(view_layer);
   PTCacheEdit *edit = PE_get_current(depsgraph, scene, ob);
 
   return (edit != NULL);
@@ -227,8 +225,7 @@ static bool particle_undosys_step_encode(struct bContext *C,
   ParticleUndoStep *us = (ParticleUndoStep *)us_p;
   ViewLayer *view_layer = CTX_data_view_layer(C);
   us->scene_ref.ptr = CTX_data_scene(C);
-  BKE_view_layer_synced_ensure(us->scene_ref.ptr, view_layer);
-  us->object_ref.ptr = BKE_view_layer_active_object_get(view_layer);
+  us->object_ref.ptr = OBACT(view_layer);
   PTCacheEdit *edit = PE_get_current(depsgraph, us->scene_ref.ptr, us->object_ref.ptr);
   undoptcache_from_editcache(&us->data, edit);
   return true;

@@ -13,20 +13,20 @@ from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, O
 
 class OctaneGreyscaleColor(bpy.types.Node, OctaneBaseNode):
     bl_idname="OctaneGreyscaleColor"
-    bl_label="Greyscale color"
+    bl_label="Grayscale color"
     bl_width_default=200
     octane_render_pass_id=-1
     octane_render_pass_name=""
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=31)
-    octane_socket_list: StringProperty(name="Socket List", default="")
-    octane_attribute_list: StringProperty(name="Attribute List", default="a_value;")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="value;")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="6;")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=0)
+    octane_node_type=consts.NodeType.NT_TEX_FLOAT
+    octane_socket_list=[]
+    octane_attribute_list=["a_value", ]
+    octane_attribute_config={"a_value": [consts.AttributeID.A_VALUE, "value", consts.AttributeType.AT_FLOAT], }
+    octane_static_pin_count=0
 
     a_value: FloatProperty(name="Value", default=0.700000, update=OctaneBaseNode.update_node_tree, description="The value of the float texture node", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=100.000000, )
 

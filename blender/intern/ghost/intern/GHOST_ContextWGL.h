@@ -11,7 +11,7 @@
 
 #include "GHOST_Context.h"
 
-#include <epoxy/wgl.h>
+#include <GL/wglew.h>
 
 #ifndef GHOST_OPENGL_WGL_RESET_NOTIFICATION_STRATEGY
 #  define GHOST_OPENGL_WGL_RESET_NOTIFICATION_STRATEGY 0
@@ -86,8 +86,11 @@ class GHOST_ContextWGL : public GHOST_Context {
   GHOST_TSuccess getSwapInterval(int &intervalOut);
 
  private:
+  int choose_pixel_format(bool stereoVisual, bool needAlpha);
   int choose_pixel_format_arb(bool stereoVisual, bool needAlpha);
   int _choose_pixel_format_arb_1(bool stereoVisual, bool needAlpha);
+
+  void initContextWGLEW(PIXELFORMATDESCRIPTOR &preferredPFD);
 
   HWND m_hWnd;
   HDC m_hDC;

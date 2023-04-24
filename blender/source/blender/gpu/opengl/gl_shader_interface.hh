@@ -16,6 +16,8 @@
 
 #include "BLI_vector.hh"
 
+#include "glew-mx.h"
+
 #include "gpu_shader_create_info.hh"
 #include "gpu_shader_interface.hh"
 

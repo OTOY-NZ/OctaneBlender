@@ -2,8 +2,6 @@
 
 #include "node_geometry_util.hh"
 
-#include "BKE_instances.hh"
-
 namespace blender::nodes::node_geo_input_instance_rotation_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
@@ -11,17 +9,28 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Vector>(N_("Rotation")).field_source();
 }
 
-class InstanceRotationFieldInput final : public bke::InstancesFieldInput {
+class VectorFieldInput final : public GeometryFieldInput {
  public:
-  InstanceRotationFieldInput() : bke::InstancesFieldInput(CPPType::get<float3>(), "Rotation")
+  VectorFieldInput() : GeometryFieldInput(CPPType::get<float3>(), "Rotation")
   {
   }
 
-  GVArray get_varray_for_context(const bke::Instances &instances, IndexMask /*mask*/) const final
+  GVArray get_varray_for_context(const GeometryComponent &component,
+                                 const eAttrDomain UNUSED(domain),
+                                 IndexMask UNUSED(mask)) const final
   {
-    auto rotation_fn = [&](const int i) -> float3 { return instances.transforms()[i].to_euler(); };
+    if (component.type() != GEO_COMPONENT_TYPE_INSTANCES) {
+      return {};
+    }
 
-    return VArray<float3>::ForFunc(instances.instances_num(), rotation_fn);
+    const InstancesComponent &instance_component = static_cast<const InstancesComponent &>(
+        component);
+
+    auto rotation_fn = [&](const int i) -> float3 {
+      return instance_component.instance_transforms()[i].to_euler();
+    };
+
+    return VArray<float3>::ForFunc(instance_component.instances_num(), rotation_fn);
   }
 
   uint64_t hash() const override
@@ -31,13 +40,13 @@ class InstanceRotationFieldInput final : public bke::InstancesFieldInput {
 
   bool is_equal_to(const fn::FieldNode &other) const override
   {
-    return dynamic_cast<const InstanceRotationFieldInput *>(&other) != nullptr;
+    return dynamic_cast<const VectorFieldInput *>(&other) != nullptr;
   }
 };
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  Field<float3> rotation{std::make_shared<InstanceRotationFieldInput>()};
+  Field<float3> rotation{std::make_shared<VectorFieldInput>()};
   params.set_output("Rotation", std::move(rotation));
 }
 

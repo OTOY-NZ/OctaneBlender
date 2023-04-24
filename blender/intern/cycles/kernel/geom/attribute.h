@@ -16,14 +16,14 @@ CCL_NAMESPACE_BEGIN
 
 /* Patch index for triangle, -1 if not subdivision triangle */
 
-ccl_device_inline uint subd_triangle_patch(KernelGlobals kg, int prim)
+ccl_device_inline uint subd_triangle_patch(KernelGlobals kg, ccl_private const ShaderData *sd)
 {
-  return (prim != PRIM_NONE) ? kernel_data_fetch(tri_patch, prim) : ~0;
+  return (sd->prim != PRIM_NONE) ? kernel_data_fetch(tri_patch, sd->prim) : ~0;
 }
 
-ccl_device_inline uint attribute_primitive_type(KernelGlobals kg, int prim, int type)
+ccl_device_inline uint attribute_primitive_type(KernelGlobals kg, ccl_private const ShaderData *sd)
 {
-  if ((type & PRIMITIVE_TRIANGLE) && subd_triangle_patch(kg, prim) != ~0) {
+  if ((sd->type & PRIMITIVE_TRIANGLE) && subd_triangle_patch(kg, sd) != ~0) {
     return ATTR_PRIM_SUBD;
   }
   else {
@@ -45,16 +45,17 @@ ccl_device_inline uint object_attribute_map_offset(KernelGlobals kg, int object)
   return kernel_data_fetch(objects, object).attribute_map_offset;
 }
 
-ccl_device_inline AttributeDescriptor
-find_attribute(KernelGlobals kg, int object, int prim, int type, uint64_t id)
+ccl_device_inline AttributeDescriptor find_attribute(KernelGlobals kg,
+                                                     ccl_private const ShaderData *sd,
+                                                     uint id)
 {
-  if (object == OBJECT_NONE) {
+  if (sd->object == OBJECT_NONE) {
     return attribute_not_found();
   }
 
   /* for SVM, find attribute by unique id */
-  uint attr_offset = object_attribute_map_offset(kg, object);
-  attr_offset += attribute_primitive_type(kg, prim, type);
+  uint attr_offset = object_attribute_map_offset(kg, sd->object);
+  attr_offset += attribute_primitive_type(kg, sd);
   AttributeMap attr_map = kernel_data_fetch(attributes_map, attr_offset);
 
   while (attr_map.id != id) {
@@ -76,7 +77,7 @@ find_attribute(KernelGlobals kg, int object, int prim, int type, uint64_t id)
   AttributeDescriptor desc;
   desc.element = (AttributeElement)attr_map.element;
 
-  if (prim == PRIM_NONE && desc.element != ATTR_ELEMENT_MESH &&
+  if (sd->prim == PRIM_NONE && desc.element != ATTR_ELEMENT_MESH &&
       desc.element != ATTR_ELEMENT_VOXEL && desc.element != ATTR_ELEMENT_OBJECT) {
     return attribute_not_found();
   }
@@ -90,16 +91,11 @@ find_attribute(KernelGlobals kg, int object, int prim, int type, uint64_t id)
   return desc;
 }
 
-ccl_device_inline AttributeDescriptor find_attribute(KernelGlobals kg,
-                                                     ccl_private const ShaderData *sd,
-                                                     uint64_t id)
-{
-  return find_attribute(kg, sd->object, sd->prim, sd->type, id);
-}
-
 /* Transform matrix attribute on meshes */
 
-ccl_device Transform primitive_attribute_matrix(KernelGlobals kg, const AttributeDescriptor desc)
+ccl_device Transform primitive_attribute_matrix(KernelGlobals kg,
+                                                ccl_private const ShaderData *sd,
+                                                const AttributeDescriptor desc)
 {
   Transform tfm;
 

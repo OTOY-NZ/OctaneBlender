@@ -403,11 +403,12 @@ void ED_gpencil_stroke_init_data(struct bGPDstroke *gps,
  */
 void ED_gpencil_create_blank(struct bContext *C, struct Object *ob, float mat[4][4]);
 /**
- * Add a 2D Suzanne.
+ * Add a 2D Suzanne (original model created by Matias Mendiola).
  */
 void ED_gpencil_create_monkey(struct bContext *C, struct Object *ob, float mat[4][4]);
 /**
- * Add a Simple stroke with colors.
+ * Add a Simple stroke with colors
+ * (original design created by Daniel M. Lara and Matias Mendiola).
  */
 void ED_gpencil_create_stroke(struct bContext *C, struct Object *ob, float mat[4][4]);
 /**
@@ -475,8 +476,7 @@ void ED_gpencil_stroke_reproject(struct Depsgraph *depsgraph,
                                  struct bGPDframe *gpf,
                                  struct bGPDstroke *gps,
                                  eGP_ReprojectModes mode,
-                                 bool keep_original,
-                                 const float offset);
+                                 bool keep_original);
 
 /**
  * Turn brush cursor in on/off.

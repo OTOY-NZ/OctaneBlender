@@ -512,7 +512,7 @@ static void laplacianDeformPreview(LaplacianSystem *sys, float (*vertexCos)[3])
 static bool isValidVertexGroup(LaplacianDeformModifierData *lmd, Object *ob, Mesh *mesh)
 {
   int defgrp_index;
-  const MDeformVert *dvert = NULL;
+  MDeformVert *dvert = NULL;
 
   MOD_get_vgroup(ob, mesh, lmd->anchor_grp_name, &dvert, &defgrp_index);
 
@@ -526,8 +526,8 @@ static void initSystem(
   int defgrp_index;
   int anchors_num;
   float wpaint;
-  const MDeformVert *dvert = NULL;
-  const MDeformVert *dv = NULL;
+  MDeformVert *dvert = NULL;
+  MDeformVert *dv = NULL;
   LaplacianSystem *sys;
   const bool invert_vgroup = (lmd->flag & MOD_LAPLACIANDEFORM_INVERT_VGROUP) != 0;
 
@@ -570,14 +570,14 @@ static void initSystem(
     createFaceRingMap(mesh->totvert,
                       BKE_mesh_runtime_looptri_ensure(mesh),
                       BKE_mesh_runtime_looptri_len(mesh),
-                      BKE_mesh_loops(mesh),
+                      mesh->mloop,
                       &sys->ringf_map,
                       &sys->ringf_indices);
     createVertRingMap(
-        mesh->totvert, BKE_mesh_edges(mesh), mesh->totedge, &sys->ringv_map, &sys->ringv_indices);
+        mesh->totvert, mesh->medge, mesh->totedge, &sys->ringv_map, &sys->ringv_indices);
 
     mlooptri = BKE_mesh_runtime_looptri_ensure(mesh);
-    mloop = BKE_mesh_loops(mesh);
+    mloop = mesh->mloop;
 
     for (i = 0; i < sys->tris_num; i++) {
       sys->tris[i][0] = mloop[mlooptri[i].tri[0]].v;
@@ -596,8 +596,8 @@ static int isSystemDifferent(LaplacianDeformModifierData *lmd,
   int defgrp_index;
   int anchors_num = 0;
   float wpaint;
-  const MDeformVert *dvert = NULL;
-  const MDeformVert *dv = NULL;
+  MDeformVert *dvert = NULL;
+  MDeformVert *dv = NULL;
   LaplacianSystem *sys = (LaplacianSystem *)lmd->cache_system;
   const bool invert_vgroup = (lmd->flag & MOD_LAPLACIANDEFORM_INVERT_VGROUP) != 0;
 
@@ -747,7 +747,9 @@ static bool isDisabled(const struct Scene *UNUSED(scene),
   return 1;
 }
 
-static void requiredDataMask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
+static void requiredDataMask(Object *UNUSED(ob),
+                             ModifierData *md,
+                             CustomData_MeshMasks *r_cddata_masks)
 {
   LaplacianDeformModifierData *lmd = (LaplacianDeformModifierData *)md;
 
@@ -762,7 +764,8 @@ static void deformVerts(ModifierData *md,
                         float (*vertexCos)[3],
                         int verts_num)
 {
-  Mesh *mesh_src = MOD_deform_mesh_eval_get(ctx->object, NULL, mesh, NULL, verts_num, false);
+  Mesh *mesh_src = MOD_deform_mesh_eval_get(
+      ctx->object, NULL, mesh, NULL, verts_num, false, false);
 
   LaplacianDeformModifier_do(
       (LaplacianDeformModifierData *)md, ctx->object, mesh_src, vertexCos, verts_num);
@@ -779,9 +782,10 @@ static void deformVertsEM(ModifierData *md,
                           float (*vertexCos)[3],
                           int verts_num)
 {
-  Mesh *mesh_src = MOD_deform_mesh_eval_get(ctx->object, editData, mesh, NULL, verts_num, false);
+  Mesh *mesh_src = MOD_deform_mesh_eval_get(
+      ctx->object, editData, mesh, NULL, verts_num, false, false);
 
-  /* TODO(@campbellbarton): use edit-mode data only (remove this line). */
+  /* TODO(Campbell): use edit-mode data only (remove this line). */
   if (mesh_src != NULL) {
     BKE_mesh_wrapper_ensure_mdata(mesh_src);
   }

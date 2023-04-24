@@ -23,8 +23,6 @@
  * see of the increased compile time and binary size is worth it.
  */
 
-#include <optional>
-
 #include "BLI_any.hh"
 #include "BLI_array.hh"
 #include "BLI_index_mask.hh"
@@ -108,7 +106,25 @@ template<typename T> class VArrayImpl {
    */
   virtual void materialize(IndexMask mask, MutableSpan<T> r_span) const
   {
-    mask.foreach_index([&](const int64_t i) { r_span[i] = this->get(i); });
+    T *dst = r_span.data();
+    /* Optimize for a few different common cases. */
+    const CommonVArrayInfo info = this->common_info();
+    switch (info.type) {
+      case CommonVArrayInfo::Type::Any: {
+        mask.foreach_index([&](const int64_t i) { dst[i] = this->get(i); });
+        break;
+      }
+      case CommonVArrayInfo::Type::Span: {
+        const T *src = static_cast<const T *>(info.data);
+        mask.foreach_index([&](const int64_t i) { dst[i] = src[i]; });
+        break;
+      }
+      case CommonVArrayInfo::Type::Single: {
+        const T single = *static_cast<const T *>(info.data);
+        mask.foreach_index([&](const int64_t i) { dst[i] = single; });
+        break;
+      }
+    }
   }
 
   /**
@@ -117,7 +133,24 @@ template<typename T> class VArrayImpl {
   virtual void materialize_to_uninitialized(IndexMask mask, MutableSpan<T> r_span) const
   {
     T *dst = r_span.data();
-    mask.foreach_index([&](const int64_t i) { new (dst + i) T(this->get(i)); });
+    /* Optimize for a few different common cases. */
+    const CommonVArrayInfo info = this->common_info();
+    switch (info.type) {
+      case CommonVArrayInfo::Type::Any: {
+        mask.foreach_index([&](const int64_t i) { new (dst + i) T(this->get(i)); });
+        break;
+      }
+      case CommonVArrayInfo::Type::Span: {
+        const T *src = static_cast<const T *>(info.data);
+        mask.foreach_index([&](const int64_t i) { new (dst + i) T(src[i]); });
+        break;
+      }
+      case CommonVArrayInfo::Type::Single: {
+        const T single = *static_cast<const T *>(info.data);
+        mask.foreach_index([&](const int64_t i) { new (dst + i) T(single); });
+        break;
+      }
+    }
   }
 
   /**
@@ -155,7 +188,7 @@ template<typename T> class VArrayImpl {
    * arrays in all cases.
    * Return true when the virtual array was assigned and false when nothing was done.
    */
-  virtual bool try_assign_GVArray(GVArray & /*varray*/) const
+  virtual bool try_assign_GVArray(GVArray &UNUSED(varray)) const
   {
     return false;
   }
@@ -164,7 +197,7 @@ template<typename T> class VArrayImpl {
    * Return true when the other virtual array should be considered to be the same, e.g. because it
    * shares the same underlying memory.
    */
-  virtual bool is_same(const VArrayImpl<T> & /*other*/) const
+  virtual bool is_same(const VArrayImpl<T> &UNUSED(other)) const
   {
     return false;
   }
@@ -201,7 +234,7 @@ template<typename T> class VMutableArrayImpl : public VArrayImpl<T> {
   /**
    * Similar to #VArrayImpl::try_assign_GVArray but for mutable virtual arrays.
    */
-  virtual bool try_assign_GVMutableArray(GVMutableArray & /*varray*/) const
+  virtual bool try_assign_GVMutableArray(GVMutableArray &UNUSED(varray)) const
   {
     return false;
   }
@@ -253,20 +286,8 @@ template<typename T> class VArrayImpl_For_Span : public VMutableArrayImpl<T> {
     return data_ == static_cast<const T *>(other_info.data);
   }
 
-  void materialize(IndexMask mask, MutableSpan<T> r_span) const override
-  {
-    mask.foreach_index([&](const int64_t i) { r_span[i] = data_[i]; });
-  }
-
-  void materialize_to_uninitialized(IndexMask mask, MutableSpan<T> r_span) const override
-  {
-    T *dst = r_span.data();
-    mask.foreach_index([&](const int64_t i) { new (dst + i) T(data_[i]); });
-  }
-
   void materialize_compressed(IndexMask mask, MutableSpan<T> r_span) const override
   {
-    BLI_assert(mask.size() == r_span.size());
     mask.to_best_mask_type([&](auto best_mask) {
       for (const int64_t i : IndexRange(best_mask.size())) {
         r_span[i] = data_[best_mask[i]];
@@ -277,7 +298,6 @@ template<typename T> class VArrayImpl_For_Span : public VMutableArrayImpl<T> {
   void materialize_compressed_to_uninitialized(IndexMask mask,
                                                MutableSpan<T> r_span) const override
   {
-    BLI_assert(mask.size() == r_span.size());
     T *dst = r_span.data();
     mask.to_best_mask_type([&](auto best_mask) {
       for (const int64_t i : IndexRange(best_mask.size())) {
@@ -294,12 +314,6 @@ template<typename T> class VArrayImpl_For_Span : public VMutableArrayImpl<T> {
 template<typename T> class VArrayImpl_For_Span_final final : public VArrayImpl_For_Span<T> {
  public:
   using VArrayImpl_For_Span<T>::VArrayImpl_For_Span;
-
-  VArrayImpl_For_Span_final(const Span<T> data)
-      /* Cast const away, because the implementation for const and non const spans is shared. */
-      : VArrayImpl_For_Span<T>({const_cast<T *>(data.data()), data.size()})
-  {
-  }
 
  private:
   CommonVArrayInfo common_info() const final
@@ -324,7 +338,7 @@ class VArrayImpl_For_ArrayContainer : public VArrayImpl_For_Span<T> {
 
  public:
   VArrayImpl_For_ArrayContainer(Container container)
-      : VArrayImpl_For_Span<T>(int64_t(container.size())), container_(std::move(container))
+      : VArrayImpl_For_Span<T>((int64_t)container.size()), container_(std::move(container))
   {
     this->data_ = const_cast<T *>(container_.data());
   }
@@ -346,7 +360,7 @@ template<typename T> class VArrayImpl_For_Single final : public VArrayImpl<T> {
   }
 
  protected:
-  T get(const int64_t /*index*/) const override
+  T get(const int64_t UNUSED(index)) const override
   {
     return value_;
   }
@@ -354,17 +368,6 @@ template<typename T> class VArrayImpl_For_Single final : public VArrayImpl<T> {
   CommonVArrayInfo common_info() const override
   {
     return CommonVArrayInfo(CommonVArrayInfo::Type::Single, true, &value_);
-  }
-
-  void materialize(IndexMask mask, MutableSpan<T> r_span) const override
-  {
-    r_span.fill_indices(mask, value_);
-  }
-
-  void materialize_to_uninitialized(IndexMask mask, MutableSpan<T> r_span) const override
-  {
-    T *dst = r_span.data();
-    mask.foreach_index([&](const int64_t i) { new (dst + i) T(value_); });
   }
 
   void materialize_compressed(IndexMask mask, MutableSpan<T> r_span) const override
@@ -794,18 +797,6 @@ template<typename T> class VArrayCommon {
   }
 
   /**
-   * Return the value that is returned for every index, if the array is stored as a single value.
-   */
-  std::optional<T> get_if_single() const
-  {
-    const CommonVArrayInfo info = impl_->common_info();
-    if (info.type != CommonVArrayInfo::Type::Single) {
-      return std::nullopt;
-    }
-    return *static_cast<const T *>(info.data);
-  }
-
-  /**
    * Return true when the other virtual references the same underlying memory.
    */
   bool is_same(const VArrayCommon<T> &other) const
@@ -907,7 +898,10 @@ template<typename T> class VArray : public VArrayCommon<T> {
 
   VArray(varray_tag::span /* tag */, Span<T> span)
   {
-    this->template emplace<VArrayImpl_For_Span_final<T>>(span);
+    /* Cast const away, because the virtual array implementation for const and non const spans is
+     * shared. */
+    MutableSpan<T> mutable_span{const_cast<T *>(span.data()), span.size()};
+    this->template emplace<VArrayImpl_For_Span_final<T>>(mutable_span);
   }
 
   VArray(varray_tag::single /* tag */, T value, const int64_t size)

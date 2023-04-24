@@ -142,17 +142,8 @@ def object_data_add(context, obdata, operator=None, name=None):
         bpy.ops.object.mode_set(mode='EDIT')
     else:
         layer.objects.active = obj_new
-        if context.preferences.edit.use_enter_edit_mode:
-            if obdata and obdata.library is None:
-                obtype = obj_new.type
-                mode = None
-                if obtype in {'ARMATURE', 'CURVE', 'CURVES', 'FONT', 'LATTICE', 'MESH', 'META', 'SURFACE'}:
-                    mode = 'EDIT'
-                elif obtype == 'GPENCIL':
-                    mode = 'EDIT_GPENCIL'
-
-                if mode is not None:
-                    bpy.ops.object.mode_set(mode=mode)
+        if obdata and context.preferences.edit.use_enter_edit_mode:
+            bpy.ops.object.mode_set(mode='EDIT')
 
     return obj_new
 

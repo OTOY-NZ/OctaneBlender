@@ -5,13 +5,12 @@
 
 #include "kernel/camera/projection.h"
 
-#include "kernel/film/light_passes.h"
-
-#include "kernel/integrator/guiding.h"
 #include "kernel/integrator/path_state.h"
 #include "kernel/integrator/shadow_catcher.h"
 
 #include "kernel/light/light.h"
+
+#include "kernel/util/differential.h"
 
 #include "kernel/geom/geom.h"
 
@@ -49,15 +48,13 @@ ccl_device_forceinline bool integrator_intersect_terminate(KernelGlobals kg,
    * surfaces in front of emission do we need to evaluate the shader, since we
    * perform MIS as part of indirect rays. */
   const uint32_t path_flag = INTEGRATOR_STATE(state, path, flag);
-  const float continuation_probability = path_state_continuation_probability(kg, state, path_flag);
-  INTEGRATOR_STATE_WRITE(state, path, continuation_probability) = continuation_probability;
+  const float probability = path_state_continuation_probability(kg, state, path_flag);
+  INTEGRATOR_STATE_WRITE(state, path, continuation_probability) = probability;
 
-  guiding_record_continuation_probability(kg, state, continuation_probability);
-
-  if (continuation_probability != 1.0f) {
+  if (probability != 1.0f) {
     const float terminate = path_state_rng_1D(kg, &rng_state, PRNG_TERMINATE);
 
-    if (continuation_probability == 0.0f || terminate >= continuation_probability) {
+    if (probability == 0.0f || terminate >= probability) {
       if (shader_flags & SD_HAS_EMISSION) {
         /* Mark path to be terminated right after shader evaluation on the surface. */
         INTEGRATOR_STATE_WRITE(state, path, flag) |= PATH_RAY_TERMINATE_ON_NEXT_SURFACE;
@@ -90,7 +87,7 @@ ccl_device_forceinline void integrator_split_shadow_catcher(
     return;
   }
 
-  film_write_shadow_catcher_bounce_data(kg, state, render_buffer);
+  kernel_write_shadow_catcher_bounce_data(kg, state, render_buffer);
 
   /* Mark state as having done a shadow catcher split so that it stops contributing to
    * the shadow catcher matte pass, but keeps contributing to the combined pass. */

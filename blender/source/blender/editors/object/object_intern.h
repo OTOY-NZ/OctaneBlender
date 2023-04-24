@@ -221,10 +221,6 @@ void GPENCIL_OT_segment_add(struct wmOperatorType *ot);
 void GPENCIL_OT_segment_remove(struct wmOperatorType *ot);
 void GPENCIL_OT_segment_move(struct wmOperatorType *ot);
 
-void GPENCIL_OT_time_segment_add(struct wmOperatorType *ot);
-void GPENCIL_OT_time_segment_remove(struct wmOperatorType *ot);
-void GPENCIL_OT_time_segment_move(struct wmOperatorType *ot);
-
 /* object_shader_fx.c */
 
 void OBJECT_OT_shaderfx_add(struct wmOperatorType *ot);
@@ -267,7 +263,7 @@ void CONSTRAINT_OT_objectsolver_set_inverse(struct wmOperatorType *ot);
 void CONSTRAINT_OT_objectsolver_clear_inverse(struct wmOperatorType *ot);
 void CONSTRAINT_OT_followpath_path_animate(struct wmOperatorType *ot);
 
-/* object_vgroup.cc */
+/* object_vgroup.c */
 
 void OBJECT_OT_vertex_group_add(struct wmOperatorType *ot);
 void OBJECT_OT_vertex_group_remove(struct wmOperatorType *ot);

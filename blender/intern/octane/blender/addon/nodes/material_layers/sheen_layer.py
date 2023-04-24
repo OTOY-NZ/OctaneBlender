@@ -15,12 +15,13 @@ class OctaneSheenLayerSheen(OctaneBaseSocket):
     bl_idname="OctaneSheenLayerSheen"
     bl_label="Sheen"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=33
+    octane_default_node_type=consts.NodeType.NT_TEX_RGB
     octane_default_node_name="OctaneRGBColor"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=377)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="sheen")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
+    octane_pin_id=consts.PinID.P_SHEEN
+    octane_pin_name="sheen"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_RGBA
     default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=OctaneBaseSocket.update_node_tree, description="The color of the sheen layer", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
     octane_hide_value=False
     octane_min_version=0
@@ -31,13 +32,14 @@ class OctaneSheenLayerSheenRoughness(OctaneBaseSocket):
     bl_idname="OctaneSheenLayerSheenRoughness"
     bl_label="Roughness"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=31
+    octane_default_node_type=consts.NodeType.NT_TEX_FLOAT
     octane_default_node_name="OctaneGreyscaleColor"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=387)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="sheenRoughness")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.200000, update=OctaneBaseSocket.update_node_tree, description="Roughness of the sheen layer", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
+    octane_pin_id=consts.PinID.P_SHEEN_ROUGHNESS
+    octane_pin_name="sheenRoughness"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=1
+    octane_socket_type=consts.SocketType.ST_FLOAT
+    default_value: FloatProperty(default=0.200000, update=OctaneBaseSocket.update_node_tree, description="Roughness of the sheen layer", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -47,12 +49,13 @@ class OctaneSheenLayerAffectRoughness(OctaneBaseSocket):
     bl_idname="OctaneSheenLayerAffectRoughness"
     bl_label="Affect roughness"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=487)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="affectRoughness")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_AFFECT_ROUGHNESS
+    octane_pin_name="affectRoughness"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=2
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="The percentage of roughness affecting subsequent layers' roughness. Note that the affect roughness takes the maximum affect roughness  along the stack", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=6000006
@@ -63,12 +66,13 @@ class OctaneSheenLayerBump(OctaneBaseSocket):
     bl_idname="OctaneSheenLayerBump"
     bl_label="Bump"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=0
+    octane_default_node_type=consts.NodeType.NT_UNKNOWN
     octane_default_node_name=""
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=18)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="bump")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_BUMP
+    octane_pin_name="bump"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=3
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -78,12 +82,13 @@ class OctaneSheenLayerNormal(OctaneBaseSocket):
     bl_idname="OctaneSheenLayerNormal"
     bl_label="Normal"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=0
+    octane_default_node_type=consts.NodeType.NT_UNKNOWN
     octane_default_node_name=""
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=119)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="normal")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_NORMAL
+    octane_pin_name="normal"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=4
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -93,13 +98,14 @@ class OctaneSheenLayerOpacity(OctaneBaseSocket):
     bl_idname="OctaneSheenLayerOpacity"
     bl_label="Layer opacity"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=31
+    octane_default_node_type=consts.NodeType.NT_TEX_FLOAT
     octane_default_node_name="OctaneGreyscaleColor"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=125)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="opacity")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Opacity channel controlling the transparency of the layer via greyscale texture", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
+    octane_pin_id=consts.PinID.P_OPACITY
+    octane_pin_name="opacity"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=5
+    octane_socket_type=consts.SocketType.ST_FLOAT
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Opacity channel controlling the transparency of the layer via grayscale texture", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -129,13 +135,13 @@ class OctaneSheenLayer(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneSheenLayerSheen,OctaneSheenLayerGroupRoughness,OctaneSheenLayerSheenRoughness,OctaneSheenLayerAffectRoughness,OctaneSheenLayerGroupGeometryProperties,OctaneSheenLayerBump,OctaneSheenLayerNormal,OctaneSheenLayerGroupLayerProperties,OctaneSheenLayerOpacity,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=142)
-    octane_socket_list: StringProperty(name="Socket List", default="Sheen;Roughness;Affect roughness;Bump;Normal;Layer opacity;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=6)
+    octane_node_type=consts.NodeType.NT_MAT_SHEEN_LAYER
+    octane_socket_list=["Sheen", "Roughness", "Affect roughness", "Bump", "Normal", "Layer opacity", ]
+    octane_attribute_list=[]
+    octane_attribute_config={}
+    octane_static_pin_count=6
 
     def init(self, context):
         self.inputs.new("OctaneSheenLayerSheen", OctaneSheenLayerSheen.bl_label).init()

@@ -16,9 +16,15 @@ static void node_declare(NodeDeclarationBuilder &b)
  * Spline Count
  */
 
-static VArray<int> construct_curve_point_count_gvarray(const bke::CurvesGeometry &curves,
+static VArray<int> construct_curve_point_count_gvarray(const CurveComponent &component,
                                                        const eAttrDomain domain)
 {
+  if (!component.has_curves()) {
+    return {};
+  }
+  const Curves &curves_id = *component.get_for_read();
+  const bke::CurvesGeometry &curves = bke::CurvesGeometry::wrap(curves_id.geometry);
+
   auto count_fn = [curves](int64_t i) { return curves.points_for_curve(i).size(); };
 
   if (domain == ATTR_DOMAIN_CURVE) {
@@ -26,24 +32,29 @@ static VArray<int> construct_curve_point_count_gvarray(const bke::CurvesGeometry
   }
   if (domain == ATTR_DOMAIN_POINT) {
     VArray<int> count = VArray<int>::ForFunc(curves.curves_num(), count_fn);
-    return curves.adapt_domain<int>(std::move(count), ATTR_DOMAIN_CURVE, ATTR_DOMAIN_POINT);
+    return component.attributes()->adapt_domain<int>(
+        std::move(count), ATTR_DOMAIN_CURVE, ATTR_DOMAIN_POINT);
   }
 
   return {};
 }
 
-class SplineCountFieldInput final : public bke::CurvesFieldInput {
+class SplineCountFieldInput final : public GeometryFieldInput {
  public:
-  SplineCountFieldInput() : bke::CurvesFieldInput(CPPType::get<int>(), "Spline Point Count")
+  SplineCountFieldInput() : GeometryFieldInput(CPPType::get<int>(), "Spline Point Count")
   {
     category_ = Category::Generated;
   }
 
-  GVArray get_varray_for_context(const bke::CurvesGeometry &curves,
+  GVArray get_varray_for_context(const GeometryComponent &component,
                                  const eAttrDomain domain,
-                                 const IndexMask /*mask*/) const final
+                                 IndexMask UNUSED(mask)) const final
   {
-    return construct_curve_point_count_gvarray(curves, domain);
+    if (component.type() == GEO_COMPONENT_TYPE_CURVE) {
+      const CurveComponent &curve_component = static_cast<const CurveComponent &>(component);
+      return construct_curve_point_count_gvarray(curve_component, domain);
+    }
+    return {};
   }
 
   uint64_t hash() const override
@@ -55,11 +66,6 @@ class SplineCountFieldInput final : public bke::CurvesFieldInput {
   bool is_equal_to(const fn::FieldNode &other) const override
   {
     return dynamic_cast<const SplineCountFieldInput *>(&other) != nullptr;
-  }
-
-  std::optional<eAttrDomain> preferred_domain(const bke::CurvesGeometry & /*curves*/) const final
-  {
-    return ATTR_DOMAIN_CURVE;
   }
 };
 

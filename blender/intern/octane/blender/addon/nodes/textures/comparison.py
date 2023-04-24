@@ -15,12 +15,13 @@ class OctaneComparisonTexture1(OctaneBaseSocket):
     bl_idname="OctaneComparisonTexture1"
     bl_label="Input A"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=0
+    octane_default_node_type=consts.NodeType.NT_UNKNOWN
     octane_default_node_name=""
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=238)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="texture1")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_TEXTURE1
+    octane_pin_name="texture1"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -30,12 +31,13 @@ class OctaneComparisonTexture2(OctaneBaseSocket):
     bl_idname="OctaneComparisonTexture2"
     bl_label="Input B"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=31
+    octane_default_node_type=consts.NodeType.NT_TEX_FLOAT
     octane_default_node_name="OctaneGreyscaleColor"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=239)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="texture2")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_TEXTURE2
+    octane_pin_name="texture2"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=1
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.500000, update=OctaneBaseSocket.update_node_tree, description="Input texture that is used a the right operand", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
@@ -46,12 +48,13 @@ class OctaneComparisonOperationType(OctaneBaseSocket):
     bl_idname="OctaneComparisonOperationType"
     bl_label="Operation"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type=57
+    octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=613)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="operationType")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
+    octane_pin_id=consts.PinID.P_OPERATION_TYPE
+    octane_pin_name="operationType"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=2
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("Less than (A < B)", "Less than (A < B)", "", 0),
         ("Greater than (A > B)", "Greater than (A > B)", "", 1),
@@ -70,13 +73,14 @@ class OctaneComparisonTexture3(OctaneBaseSocket):
     bl_idname="OctaneComparisonTexture3"
     bl_label="If true"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=33
+    octane_default_node_type=consts.NodeType.NT_TEX_RGB
     octane_default_node_name="OctaneRGBColor"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=337)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="texture3")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
-    default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=OctaneBaseSocket.update_node_tree, description="Output texture that is picked if A op B is TRUE", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
+    octane_pin_id=consts.PinID.P_TEXTURE3
+    octane_pin_name="texture3"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=3
+    octane_socket_type=consts.SocketType.ST_RGBA
+    default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=OctaneBaseSocket.update_node_tree, description="Output texture that is picked if A op B is true", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -86,13 +90,14 @@ class OctaneComparisonTexture4(OctaneBaseSocket):
     bl_idname="OctaneComparisonTexture4"
     bl_label="If false"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=33
+    octane_default_node_type=consts.NodeType.NT_TEX_RGB
     octane_default_node_name="OctaneRGBColor"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=338)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="texture4")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
-    default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="Output texture that is picked if A op B is FALSE", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
+    octane_pin_id=consts.PinID.P_TEXTURE4
+    octane_pin_name="texture4"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=4
+    octane_socket_type=consts.SocketType.ST_RGBA
+    default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="Output texture that is picked if A op B is false", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -107,13 +112,13 @@ class OctaneComparison(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneComparisonTexture1,OctaneComparisonTexture2,OctaneComparisonOperationType,OctaneComparisonTexture3,OctaneComparisonTexture4,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=107)
-    octane_socket_list: StringProperty(name="Socket List", default="Input A;Input B;Operation;If true;If false;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=5)
+    octane_node_type=consts.NodeType.NT_TEX_COMPARE
+    octane_socket_list=["Input A", "Input B", "Operation", "If true", "If false", ]
+    octane_attribute_list=[]
+    octane_attribute_config={}
+    octane_static_pin_count=5
 
     def init(self, context):
         self.inputs.new("OctaneComparisonTexture1", OctaneComparisonTexture1.bl_label).init()

@@ -15,12 +15,13 @@ class OctaneReflectionDirectAOVEnabled(OctaneBaseSocket):
     bl_idname="OctaneReflectionDirectAOVEnabled"
     bl_label="Enabled"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type=11
+    octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=42)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="enabled")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
+    octane_pin_id=consts.PinID.P_ENABLED
+    octane_pin_name="enabled"
+    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Enables the render AOV")
     octane_hide_value=False
     octane_min_version=0
@@ -36,13 +37,13 @@ class OctaneReflectionDirectAOV(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name="RefD"
     octane_render_pass_description="Contains all samples where direct light is reflected"
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneReflectionDirectAOVEnabled,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=223)
-    octane_socket_list: StringProperty(name="Socket List", default="Enabled;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=1)
+    octane_node_type=consts.NodeType.NT_AOV_REFLECTION_DIRECT
+    octane_socket_list=["Enabled", ]
+    octane_attribute_list=[]
+    octane_attribute_config={}
+    octane_static_pin_count=1
 
     def init(self, context):
         self.inputs.new("OctaneReflectionDirectAOVEnabled", OctaneReflectionDirectAOVEnabled.bl_label).init()

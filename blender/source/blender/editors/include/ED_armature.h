@@ -312,8 +312,7 @@ void ED_pose_recalculate_paths(struct bContext *C,
 /**
  * \return True when pick finds an element or the selection changed.
  */
-bool ED_armature_pose_select_pick_bone(const struct Scene *scene,
-                                       struct ViewLayer *view_layer,
+bool ED_armature_pose_select_pick_bone(struct ViewLayer *view_layer,
                                        struct View3D *v3d,
                                        struct Object *ob,
                                        struct Bone *bone,
@@ -324,8 +323,7 @@ bool ED_armature_pose_select_pick_bone(const struct Scene *scene,
  *
  * \return True when pick finds an element or the selection changed.
  */
-bool ED_armature_pose_select_pick_with_buffer(const struct Scene *scene,
-                                              struct ViewLayer *view_layer,
+bool ED_armature_pose_select_pick_with_buffer(struct ViewLayer *view_layer,
                                               struct View3D *v3d,
                                               struct Base *base,
                                               const struct GPUSelectResult *buffer,
@@ -340,8 +338,7 @@ bool ED_armature_pose_select_pick_with_buffer(const struct Scene *scene,
  * It can't be set to the active object because we need
  * to keep this set to the weight paint object.
  */
-void ED_armature_pose_select_in_wpaint_mode(const struct Scene *scene,
-                                            struct ViewLayer *view_layer,
+void ED_armature_pose_select_in_wpaint_mode(struct ViewLayer *view_layer,
                                             struct Base *base_select);
 bool ED_pose_deselect_all_multi_ex(struct Base **bases,
                                    uint bases_len,

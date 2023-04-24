@@ -16,10 +16,10 @@ struct Main;
 struct Scene;
 struct Sequence;
 
-bool SEQ_edit_sequence_swap(struct Scene *scene,
-                            struct Sequence *seq_a,
-                            struct Sequence *seq_b,
-                            const char **error_str);
+int SEQ_edit_sequence_swap(struct Scene *scene,
+                           struct Sequence *seq_a,
+                           struct Sequence *seq_b,
+                           const char **error_str);
 /**
  * Move sequence to seqbase.
  *

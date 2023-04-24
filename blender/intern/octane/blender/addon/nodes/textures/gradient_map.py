@@ -15,12 +15,13 @@ class OctaneGradientMapGradientInterpolationType(OctaneBaseSocket):
     bl_idname="OctaneGradientMapGradientInterpolationType"
     bl_label="Interpolation"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type=57
+    octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=299)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="gradientInterpolationType")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
+    octane_pin_id=consts.PinID.P_GRADIENT_INTERP_TYPE
+    octane_pin_name="gradientInterpolationType"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("Constant", "Constant", "", 1),
         ("Linear", "Linear", "", 2),
@@ -36,12 +37,13 @@ class OctaneGradientMapInput(OctaneBaseSocket):
     bl_idname="OctaneGradientMapInput"
     bl_label="Input texture"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=0
+    octane_default_node_type=consts.NodeType.NT_UNKNOWN
     octane_default_node_name=""
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=82)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="input")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_INPUT
+    octane_pin_name="input"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=1
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -51,12 +53,13 @@ class OctaneGradientMapMin(OctaneBaseSocket):
     bl_idname="OctaneGradientMapMin"
     bl_label="Start value"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=33
+    octane_default_node_type=consts.NodeType.NT_TEX_RGB
     octane_default_node_name="OctaneRGBColor"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=113)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="min")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
+    octane_pin_id=consts.PinID.P_MIN
+    octane_pin_name="min"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=2
+    octane_socket_type=consts.SocketType.ST_RGBA
     default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="Output value at 0", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
     octane_hide_value=False
     octane_min_version=0
@@ -67,13 +70,14 @@ class OctaneGradientMapMax(OctaneBaseSocket):
     bl_idname="OctaneGradientMapMax"
     bl_label="End value"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=33
+    octane_default_node_type=consts.NodeType.NT_TEX_RGB
     octane_default_node_name="OctaneRGBColor"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=106)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="max")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
-    default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=OctaneBaseSocket.update_node_tree, description="Output value at 1.0", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
+    octane_pin_id=consts.PinID.P_MAX
+    octane_pin_name="max"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=3
+    octane_socket_type=consts.SocketType.ST_RGBA
+    default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=OctaneBaseSocket.update_node_tree, description="Output value at 1", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -83,12 +87,13 @@ class OctaneGradientMapSmooth(OctaneBaseSocket):
     bl_idname="OctaneGradientMapSmooth"
     bl_label="Smoothing"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type=11
+    octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=218)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="smooth")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
+    octane_pin_id=consts.PinID.P_SMOOTH
+    octane_pin_name="smooth"
+    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_index=4
+    octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="(deprecated) Make the gradient more smooth around the control points")
     octane_hide_value=False
     octane_min_version=0
@@ -104,13 +109,13 @@ class OctaneGradientMap(bpy.types.Node, OctaneBaseRampNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneGradientMapGradientInterpolationType,OctaneGradientMapInput,OctaneGradientMapMin,OctaneGradientMapMax,OctaneGradientMapSmooth,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=49)
-    octane_socket_list: StringProperty(name="Socket List", default="Interpolation;Input texture;Start value;End value;Smoothing;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="a_num_controlpoints;")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="controlpoints;")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="2;")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=5)
+    octane_node_type=consts.NodeType.NT_TEX_GRADIENT
+    octane_socket_list=["Interpolation", "Input texture", "Start value", "End value", "Smoothing", ]
+    octane_attribute_list=["a_num_controlpoints", ]
+    octane_attribute_config={"a_num_controlpoints": [consts.AttributeID.A_NUM_CONTROLPOINTS, "controlpoints", consts.AttributeType.AT_INT], "a_input_action": [consts.AttributeID.A_INPUT_ACTION, "inputAction", consts.AttributeType.AT_INT2], }
+    octane_static_pin_count=4
 
     a_num_controlpoints: IntProperty(name="Num controlpoints", default=0, update=OctaneBaseNode.update_node_tree, description="The number of control points between start and end")
 
@@ -164,4 +169,5 @@ class OctaneGradientMap_Override(OctaneGradientMap):
         super().draw_buttons(context, layout)
 
 utility.override_class(_CLASSES, OctaneGradientMapGradientInterpolationType, OctaneGradientMapGradientInterpolationType_Override)
+OctaneGradientMap_Override.update_node_definition()
 utility.override_class(_CLASSES, OctaneGradientMap, OctaneGradientMap_Override)

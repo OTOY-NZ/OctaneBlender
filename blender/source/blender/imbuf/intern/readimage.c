@@ -81,8 +81,11 @@ static void imb_handle_alpha(ImBuf *ibuf,
   colormanage_imbuf_make_linear(ibuf, effective_colorspace);
 }
 
-ImBuf *IMB_ibImageFromMemory(
-    const uchar *mem, size_t size, int flags, char colorspace[IM_MAX_SPACE], const char *descr)
+ImBuf *IMB_ibImageFromMemory(const unsigned char *mem,
+                             size_t size,
+                             int flags,
+                             char colorspace[IM_MAX_SPACE],
+                             const char *descr)
 {
   ImBuf *ibuf;
   const ImFileType *type;
@@ -154,7 +157,7 @@ ImBuf *IMB_loadifffile(
     int file, const char *filepath, int flags, char colorspace[IM_MAX_SPACE], const char *descr)
 {
   ImBuf *ibuf;
-  uchar *mem;
+  unsigned char *mem;
   size_t size;
 
   if (file == -1) {
@@ -206,7 +209,7 @@ static void imb_cache_filename(char *filepath, const char *name, int flags)
 ImBuf *IMB_loadiffname(const char *filepath, int flags, char colorspace[IM_MAX_SPACE])
 {
   ImBuf *ibuf;
-  int file;
+  int file, a;
   char filepath_tx[IMB_FILENAME_SIZE];
 
   BLI_assert(!BLI_path_is_rel(filepath));
@@ -223,7 +226,7 @@ ImBuf *IMB_loadiffname(const char *filepath, int flags, char colorspace[IM_MAX_S
   if (ibuf) {
     BLI_strncpy(ibuf->name, filepath, sizeof(ibuf->name));
     BLI_strncpy(ibuf->cachename, filepath_tx, sizeof(ibuf->cachename));
-    for (int a = 1; a < ibuf->miptot; a++) {
+    for (a = 1; a < ibuf->miptot; a++) {
       BLI_strncpy(ibuf->mipmap[a - 1]->cachename, filepath_tx, sizeof(ibuf->cachename));
     }
   }
@@ -316,9 +319,9 @@ ImBuf *IMB_testiffname(const char *filepath, int flags)
   return ibuf;
 }
 
-static void imb_loadtilefile(ImBuf *ibuf, int file, int tx, int ty, uint *rect)
+static void imb_loadtilefile(ImBuf *ibuf, int file, int tx, int ty, unsigned int *rect)
 {
-  uchar *mem;
+  unsigned char *mem;
   size_t size;
 
   if (file == -1) {
@@ -349,7 +352,7 @@ static void imb_loadtilefile(ImBuf *ibuf, int file, int tx, int ty, uint *rect)
   imb_mmap_unlock();
 }
 
-void imb_loadtile(ImBuf *ibuf, int tx, int ty, uint *rect)
+void imb_loadtile(ImBuf *ibuf, int tx, int ty, unsigned int *rect)
 {
   int file;
 

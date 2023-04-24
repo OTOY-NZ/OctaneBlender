@@ -10,7 +10,6 @@
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
 
-#include "obj_export_mtl.hh"
 #include "obj_import_file_reader.hh"
 #include "obj_import_string_utils.hh"
 
@@ -103,10 +102,10 @@ static void geom_add_mrgb_colors(const char *p, const char *end, GlobalVertices 
   while (p + mrgb_length <= end) {
     uint32_t value = 0;
     std::from_chars_result res = std::from_chars(p, p + mrgb_length, value, 16);
-    if (ELEM(res.ec, std::errc::invalid_argument, std::errc::result_out_of_range)) {
+    if (res.ec == std::errc::invalid_argument || res.ec == std::errc::result_out_of_range) {
       return;
     }
-    uchar srgb[4];
+    unsigned char srgb[4];
     srgb[0] = (value >> 16) & 0xFF;
     srgb[1] = (value >> 8) & 0xFF;
     srgb[2] = value & 0xFF;
@@ -164,7 +163,7 @@ static void geom_add_edge(Geometry *geom,
   edge_v1 += edge_v1 < 0 ? r_global_vertices.vertices.size() : -1;
   edge_v2 += edge_v2 < 0 ? r_global_vertices.vertices.size() : -1;
   BLI_assert(edge_v1 >= 0 && edge_v2 >= 0);
-  geom->edges_.append({uint(edge_v1), uint(edge_v2)});
+  geom->edges_.append({static_cast<uint>(edge_v1), static_cast<uint>(edge_v2)});
   geom->track_vertex_index(edge_v1);
   geom->track_vertex_index(edge_v2);
 }
@@ -216,7 +215,7 @@ static void geom_add_polygon(Geometry *geom,
       fprintf(stderr,
               "Invalid vertex index %i (valid range [0, %zu)), ignoring face\n",
               corner.vert_index,
-              size_t(global_vertices.vertices.size()));
+              (size_t)global_vertices.vertices.size());
       face_valid = false;
     }
     else {
@@ -228,7 +227,7 @@ static void geom_add_polygon(Geometry *geom,
         fprintf(stderr,
                 "Invalid UV index %i (valid range [0, %zu)), ignoring face\n",
                 corner.uv_vert_index,
-                size_t(global_vertices.uv_vertices.size()));
+                (size_t)global_vertices.uv_vertices.size());
         face_valid = false;
       }
     }
@@ -244,7 +243,7 @@ static void geom_add_polygon(Geometry *geom,
         fprintf(stderr,
                 "Invalid normal index %i (valid range [0, %zu)), ignoring face\n",
                 corner.vertex_normal_index,
-                size_t(global_vertices.vertex_normals.size()));
+                (size_t)global_vertices.vertex_normals.size());
         face_valid = false;
       }
     }
@@ -485,7 +484,7 @@ void OBJParser::parse(Vector<std::unique_ptr<Geometry>> &r_all_geometries,
 
     /* Parse the buffer (until last newline) that we have so far,
      * line by line. */
-    StringRef buffer_str{buffer.data(), int64_t(last_nl)};
+    StringRef buffer_str{buffer.data(), (int64_t)last_nl};
     while (!buffer_str.is_empty()) {
       StringRef line = read_next_line(buffer_str);
       const char *p = line.begin(), *end = line.end();
@@ -508,15 +507,6 @@ void OBJParser::parse(Vector<std::unique_ptr<Geometry>> &r_all_geometries,
       }
       /* Faces. */
       else if (parse_keyword(p, end, "f")) {
-        /* If we don't have a material index assigned yet, get one.
-         * It means "usemtl" state came from the previous object. */
-        if (state_material_index == -1 && !state_material_name.empty() &&
-            curr_geom->material_indices_.is_empty()) {
-          curr_geom->material_indices_.add_new(state_material_name, 0);
-          curr_geom->material_order_.append(state_material_name);
-          state_material_index = 0;
-        }
-
         geom_add_polygon(curr_geom,
                          p,
                          end,
@@ -533,10 +523,7 @@ void OBJParser::parse(Vector<std::unique_ptr<Geometry>> &r_all_geometries,
       else if (parse_keyword(p, end, "o")) {
         state_shaded_smooth = false;
         state_group_name = "";
-        /* Reset object-local material index that's used in face infos.
-         * NOTE: do not reset the material name; that has to carry over
-         * into the next object if needed. */
-        state_material_index = -1;
+        state_material_name = "";
         curr_geom = create_geometry(
             curr_geom, GEOM_MESH, StringRef(p, end).trim(), r_all_geometries);
       }
@@ -605,40 +592,36 @@ void OBJParser::parse(Vector<std::unique_ptr<Geometry>> &r_all_geometries,
   add_default_mtl_library();
 }
 
-static MTLTexMapType mtl_line_start_to_texture_type(const char *&p, const char *end)
+static eMTLSyntaxElement mtl_line_start_to_enum(const char *&p, const char *end)
 {
   if (parse_keyword(p, end, "map_Kd")) {
-    return MTLTexMapType::Color;
+    return eMTLSyntaxElement::map_Kd;
   }
   if (parse_keyword(p, end, "map_Ks")) {
-    return MTLTexMapType::Specular;
+    return eMTLSyntaxElement::map_Ks;
   }
   if (parse_keyword(p, end, "map_Ns")) {
-    return MTLTexMapType::SpecularExponent;
+    return eMTLSyntaxElement::map_Ns;
   }
   if (parse_keyword(p, end, "map_d")) {
-    return MTLTexMapType::Alpha;
+    return eMTLSyntaxElement::map_d;
   }
-  if (parse_keyword(p, end, "refl") || parse_keyword(p, end, "map_refl")) {
-    return MTLTexMapType::Reflection;
+  if (parse_keyword(p, end, "refl")) {
+    return eMTLSyntaxElement::map_refl;
+  }
+  if (parse_keyword(p, end, "map_refl")) {
+    return eMTLSyntaxElement::map_refl;
   }
   if (parse_keyword(p, end, "map_Ke")) {
-    return MTLTexMapType::Emission;
+    return eMTLSyntaxElement::map_Ke;
   }
-  if (parse_keyword(p, end, "bump") || parse_keyword(p, end, "map_Bump") ||
-      parse_keyword(p, end, "map_bump")) {
-    return MTLTexMapType::Normal;
+  if (parse_keyword(p, end, "bump")) {
+    return eMTLSyntaxElement::map_Bump;
   }
-  if (parse_keyword(p, end, "map_Pr")) {
-    return MTLTexMapType::Roughness;
+  if (parse_keyword(p, end, "map_Bump") || parse_keyword(p, end, "map_bump")) {
+    return eMTLSyntaxElement::map_Bump;
   }
-  if (parse_keyword(p, end, "map_Pm")) {
-    return MTLTexMapType::Metallic;
-  }
-  if (parse_keyword(p, end, "map_Ps")) {
-    return MTLTexMapType::Sheen;
-  }
-  return MTLTexMapType::Count;
+  return eMTLSyntaxElement::string;
 }
 
 static const std::pair<StringRef, int> unsupported_texture_options[] = {
@@ -656,7 +639,7 @@ static const std::pair<StringRef, int> unsupported_texture_options[] = {
 static bool parse_texture_option(const char *&p,
                                  const char *end,
                                  MTLMaterial *material,
-                                 MTLTexMap &tex_map)
+                                 tex_map_XX &tex_map)
 {
   p = drop_whitespace(p, end);
   if (parse_keyword(p, end, "-o")) {
@@ -668,7 +651,7 @@ static bool parse_texture_option(const char *&p,
     return true;
   }
   if (parse_keyword(p, end, "-bm")) {
-    p = parse_float(p, end, 1.0f, material->normal_strength, true, true);
+    p = parse_float(p, end, 1.0f, material->map_Bump_strength, true, true);
     return true;
   }
   if (parse_keyword(p, end, "-type")) {
@@ -710,13 +693,13 @@ static void parse_texture_map(const char *p,
   if (!is_map && !is_refl && !is_bump) {
     return;
   }
-  MTLTexMapType key = mtl_line_start_to_texture_type(p, end);
-  if (key == MTLTexMapType::Count) {
+  eMTLSyntaxElement key = mtl_line_start_to_enum(p, end);
+  if (key == eMTLSyntaxElement::string || !material->texture_maps.contains(key)) {
     /* No supported texture map found. */
     std::cerr << "OBJ import: MTL texture map type not supported: '" << line << "'" << std::endl;
     return;
   }
-  MTLTexMap &tex_map = material->tex_map_of_type(key);
+  tex_map_XX &tex_map = material->texture_maps.lookup(key);
   tex_map.mtl_dir_path = mtl_dir_path;
 
   /* Parse texture map options. */
@@ -765,7 +748,7 @@ MTLParser::MTLParser(StringRefNull mtl_library, StringRefNull obj_filepath)
 {
   char obj_file_dir[FILE_MAXDIR];
   BLI_split_dir_part(obj_filepath.data(), obj_file_dir, FILE_MAXDIR);
-  BLI_path_join(mtl_file_path_, FILE_MAX, obj_file_dir, mtl_library.data());
+  BLI_path_join(mtl_file_path_, FILE_MAX, obj_file_dir, mtl_library.data(), NULL);
   BLI_split_dir_part(mtl_file_path_, mtl_dir_path_, FILE_MAXDIR);
 }
 
@@ -780,7 +763,7 @@ void MTLParser::parse_and_store(Map<string, std::unique_ptr<MTLMaterial>> &r_mat
 
   MTLMaterial *material = nullptr;
 
-  StringRef buffer_str{(const char *)buffer, int64_t(buffer_len)};
+  StringRef buffer_str{(const char *)buffer, (int64_t)buffer_len};
   while (!buffer_str.is_empty()) {
     const StringRef line = read_next_line(buffer_str);
     const char *p = line.begin(), *end = line.end();
@@ -801,55 +784,31 @@ void MTLParser::parse_and_store(Map<string, std::unique_ptr<MTLMaterial>> &r_mat
     }
     else if (material != nullptr) {
       if (parse_keyword(p, end, "Ns")) {
-        parse_float(p, end, 324.0f, material->spec_exponent);
+        parse_float(p, end, 324.0f, material->Ns);
       }
       else if (parse_keyword(p, end, "Ka")) {
-        parse_floats(p, end, 0.0f, material->ambient_color, 3);
+        parse_floats(p, end, 0.0f, material->Ka, 3);
       }
       else if (parse_keyword(p, end, "Kd")) {
-        parse_floats(p, end, 0.8f, material->color, 3);
+        parse_floats(p, end, 0.8f, material->Kd, 3);
       }
       else if (parse_keyword(p, end, "Ks")) {
-        parse_floats(p, end, 0.5f, material->spec_color, 3);
+        parse_floats(p, end, 0.5f, material->Ks, 3);
       }
       else if (parse_keyword(p, end, "Ke")) {
-        parse_floats(p, end, 0.0f, material->emission_color, 3);
+        parse_floats(p, end, 0.0f, material->Ke, 3);
       }
       else if (parse_keyword(p, end, "Ni")) {
-        parse_float(p, end, 1.45f, material->ior);
+        parse_float(p, end, 1.45f, material->Ni);
       }
       else if (parse_keyword(p, end, "d")) {
-        parse_float(p, end, 1.0f, material->alpha);
+        parse_float(p, end, 1.0f, material->d);
       }
       else if (parse_keyword(p, end, "illum")) {
         /* Some files incorrectly use a float (T60135). */
         float val;
         parse_float(p, end, 1.0f, val);
-        material->illum_mode = val;
-      }
-      else if (parse_keyword(p, end, "Pr")) {
-        parse_float(p, end, 0.5f, material->roughness);
-      }
-      else if (parse_keyword(p, end, "Pm")) {
-        parse_float(p, end, 0.0f, material->metallic);
-      }
-      else if (parse_keyword(p, end, "Ps")) {
-        parse_float(p, end, 0.0f, material->sheen);
-      }
-      else if (parse_keyword(p, end, "Pc")) {
-        parse_float(p, end, 0.0f, material->cc_thickness);
-      }
-      else if (parse_keyword(p, end, "Pcr")) {
-        parse_float(p, end, 0.0f, material->cc_roughness);
-      }
-      else if (parse_keyword(p, end, "aniso")) {
-        parse_float(p, end, 0.0f, material->aniso);
-      }
-      else if (parse_keyword(p, end, "anisor")) {
-        parse_float(p, end, 0.0f, material->aniso_rot);
-      }
-      else if (parse_keyword(p, end, "Kt") || parse_keyword(p, end, "Tf")) {
-        parse_floats(p, end, 0.0f, material->transmit_color, 3);
+        material->illum = val;
       }
       else {
         parse_texture_map(p, end, material, mtl_dir_path_);

@@ -7,7 +7,7 @@ void main()
     discard;
   }
 #endif
-  fragColor = interp.final_color;
+  fragColor = interp.color;
   if (lineSmooth) {
     fragColor.a *= clamp((lineWidth + SMOOTH_WIDTH) * 0.5 - abs(interp.smoothline), 0.0, 1.0);
   }

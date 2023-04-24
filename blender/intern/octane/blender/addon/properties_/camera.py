@@ -154,7 +154,7 @@ class BlenderCamera(object):
     def init(self, scene):
         self.type = BlenderCameraType.PERSPECTIVE
         self.zoom = 1.0
-        self.pixel_aspect = (1.0, 1.0)
+        self.pixel_aspect = [1.0, 1.0]
         self.sensor_width = 36.0
         self.sensor_height = 24.0
         self.sensor_fit = BlenderCameraSensorFitType.AUTO
@@ -164,20 +164,20 @@ class BlenderCamera(object):
         self.pano_viewplane.reset()
         self.viewport_camera_border.reset()
         self.focal_distance = 1.118034
-        self.full_width = utility.render_resolution_x(scene.render)
-        self.full_height = utility.render_resolution_y(scene.render)        
+        self.full_width = utility.render_resolution_x(scene)
+        self.full_height = utility.render_resolution_y(scene)        
         self.dir = [0, 0, -1]
         self.use_border = False
 
     @staticmethod
-    def camera_focal_distance(engine, camera_object, camera):
+    def camera_focal_distance(camera_object, camera):
         focus_object = camera.dof.focus_object
         if focus_object is None:
             dof_distance = camera.dof.focus_distance
             if dof_distance <= 0:
                 dof_distance = 1.118034
             return dof_distance
-        object_matrix = engine.camera_model_matrix(camera_object, use_spherical_stereo=False)
+        object_matrix = camera.matrix_world
         object_matrix = utility.transform_clear_scale(object_matrix)
         dof_matrix = focus_object.matrix_world
         view_dir = utility.transform_get_column(object_matrix, 2).normalized()
@@ -192,7 +192,7 @@ class BlenderCamera(object):
         else:
             return self.ortho_scale * x_aspect / y_aspect
 
-    def setup_from_camera_object(self, engine, camera_object, skip_panorama):
+    def setup_from_camera_object(self, camera_object, skip_panorama):
         object_data = camera_object.data
         if not object_data:
             return
@@ -223,7 +223,7 @@ class BlenderCamera(object):
                     self.aperture_size = (self.lens * 1e-3) / (2.0 * fstop)
                 self.aperture_blades = camera.dof.aperture_blades
                 self.aperture_rotation = camera.dof.aperture_rotation
-                self.focal_distance = BlenderCamera.camera_focal_distance(engine, camera_object, camera)
+                self.focal_distance = BlenderCamera.camera_focal_distance(camera_object, camera)
                 self.aperture_ratio = camera.dof.aperture_ratio
             else:
                 self.aperture_size = 0
@@ -231,9 +231,9 @@ class BlenderCamera(object):
                 self.aperture_rotation = 0
                 self.focal_distance = 0
                 self.aperture_ratio = 1
-            self.shift[0] = engine.camera_shift_x(camera_object, use_spherical_stereo=False)
+            self.shift[0] = camera.shift_x
             self.shift[1] = camera.shift_y
-            self.focal_distance = BlenderCamera.camera_focal_distance(engine, camera_object, camera)
+            self.focal_distance = BlenderCamera.camera_focal_distance(camera_object, camera)
             self.sensor_width = camera.sensor_width
             self.sensor_height = camera.sensor_height
             if camera.sensor_fit == "AUTO":
@@ -248,13 +248,13 @@ class BlenderCamera(object):
             if lens > 0:
                 self.lens = lens
 
-    def setup_view_subset(self, engine, scene, v3d, rv3d, width, height, skip_panorama):
+    def setup_view_subset(self, scene, v3d, rv3d, width, height, skip_panorama):
         pass
 
-    def setup_camera_border(self, engine, scene, v3d, rv3d, width, height):
+    def setup_camera_border(self, scene, v3d, rv3d, width, height):
         pass
 
-    def setup_camera_viewplane(self, engine, scene, v3d, rv3d, width, height):
+    def setup_camera_viewplane(self, scene, width, height):
         x_ratio = width * self.pixel_aspect[0]
         y_ratio = height * self.pixel_aspect[1]
         horizontal_fit = False
@@ -294,7 +294,7 @@ class BlenderCamera(object):
             self.viewplane.bottom += dy
             self.viewplane.top += dy
 
-    def setup_from_view(self, engine, scene, v3d, rv3d, width, height, skip_panorama):
+    def setup_from_view(self, scene, v3d, rv3d, width, height, skip_panorama):
         self.near_clip = v3d.clip_start
         self.far_clip = v3d.clip_end
         self.lens = v3d.lens
@@ -303,7 +303,7 @@ class BlenderCamera(object):
         if rv3d.view_perspective == "CAMERA":
             camera_object = v3d.camera if v3d.use_local_camera else scene.camera
             if camera_object:
-                self.setup_from_camera_object(engine, camera_object, skip_panorama)
+                self.setup_from_camera_object(camera_object, skip_panorama)
                 if not skip_panorama and self.type == BlenderCameraType.PANORAMA:
                     pass
                 else:
@@ -377,13 +377,13 @@ class OctaneOSLCameraNodeCollection(bpy.types.PropertyGroup):
 
 
 class OctaneImagerSettings(bpy.types.PropertyGroup, common.OctanePropertySettings):
-    PROPERTY_LIST = [
+    PROPERTY_CONFIGS = {consts.NodeType.NT_IMAGER_CAMERA: [
         "exposure", "hotpixel_removal", "vignetting", "white_balance", "saturation", "premultiplied_alpha", "disable_partial_alpha", "dithering", "min_display_samples", "max_tonemap_interval", \
         "force_tone_mapping", \
         "highlight_compression", "saturate_to_white", "order", "response", "neutral_response", "gamma", \
         "denoiser", "denoise_volume", "denoise_once", "min_denoise_samples", "max_denoise_interval", "denoiser_original_blend", \
         "up_sample_mode", "enable_ai_up_sampling", "up_sampling_on_completion", "min_up_sampler_samples", "max_up_sampler_interval",
-    ]
+    ]}
     PROPERTY_NAME_TO_PIN_SYMBOL_MAP = {
         "disable_partial_alpha": "disablePartialAlpha",
         "max_tonemap_interval": "maxTonemapInterval",
@@ -422,14 +422,16 @@ class OctaneImagerSettings(bpy.types.PropertyGroup, common.OctanePropertySetting
         default=1.0,
         step=1,
         precision=2,
+        subtype="FACTOR",
     )
     vignetting: FloatProperty(
         name="Vignetting",
         description="Amount of lens vignetting",
         min=0.0, soft_min=0.0, max=1.0, soft_max=1.0,
-        default=0.0,
+        default=0.3,
         step=1,
         precision=2,
+        subtype="FACTOR",
     )
     white_balance: FloatVectorProperty(
         name="White balance",
@@ -497,6 +499,11 @@ class OctaneImagerSettings(bpy.types.PropertyGroup, common.OctanePropertySetting
         description="Whether to apply Octane's built-in tone mapping (before applying any OCIO look(s)) when using an OCIO view. This may produce undesirable results due to an intermediate reduction to the sRGB color space",
         default=False,
     )
+    aces_tone_mapping: BoolProperty(
+        name="ACES tone mapping",
+        description="Use the ACES 1.2 RRT + sRGB ODT. If this is enabled, all other tone mapping settings will be ignored",
+        default=False,
+    )    
     highlight_compression: FloatProperty(
         name="Highlight compression",
         description="Reduces burned out highlights by compressing them and reducing their contrast",
@@ -504,6 +511,7 @@ class OctaneImagerSettings(bpy.types.PropertyGroup, common.OctanePropertySetting
         default=0.0,
         step=1,
         precision=2,
+        subtype="FACTOR",
     )
     saturate_to_white: FloatProperty(
         name="White saturation",
@@ -512,6 +520,7 @@ class OctaneImagerSettings(bpy.types.PropertyGroup, common.OctanePropertySetting
         default=0.0,
         step=1,
         precision=2,
+        subtype="FACTOR",
     )
     order: EnumProperty(
         name="Order",
@@ -569,7 +578,8 @@ class OctaneImagerSettings(bpy.types.PropertyGroup, common.OctanePropertySetting
         min=0, soft_min=0, max=1.0, soft_max=1.0,
         default=1.0,
         step=1,
-        precision=3,  
+        precision=3,
+        subtype="FACTOR", 
     )
     denoiser: BoolProperty(
         name="Enable Denoising",
@@ -604,7 +614,8 @@ class OctaneImagerSettings(bpy.types.PropertyGroup, common.OctanePropertySetting
         min=0, max=1,
         step=0.1,
         precision=3,                
-        default=0.0, 
+        default=0.0,
+        subtype="FACTOR",
     )
     up_sample_modes = (
         ('No upsampling', "No upsampling", "", 1),
@@ -651,13 +662,13 @@ class OctaneImagerSettings(bpy.types.PropertyGroup, common.OctanePropertySetting
             ocio_look_name = ""
         elif ocio_look_name == " Use view look(s) ":
             ocio_look_name = "Use view look(s)"
-        octane_node.set_blender_attribute(self.BLNEDER_ATTRIBUTE_OCIO_DISPLAY_NAME, consts.AttributeType.AT_STRING, ocio_view_display_name)
-        octane_node.set_blender_attribute(self.BLNEDER_ATTRIBUTE_OCIO_VIEW_NAME, consts.AttributeType.AT_STRING, ocio_view_display_view_name)
-        octane_node.set_blender_attribute(self.BLNEDER_ATTRIBUTE_OCIO_LOOK_NAME, consts.AttributeType.AT_STRING, ocio_look_name)
+        octane_node.set_attribute_blender_name(self.BLNEDER_ATTRIBUTE_OCIO_DISPLAY_NAME, consts.AttributeType.AT_STRING, ocio_view_display_name)
+        octane_node.set_attribute_blender_name(self.BLNEDER_ATTRIBUTE_OCIO_VIEW_NAME, consts.AttributeType.AT_STRING, ocio_view_display_view_name)
+        octane_node.set_attribute_blender_name(self.BLNEDER_ATTRIBUTE_OCIO_LOOK_NAME, consts.AttributeType.AT_STRING, ocio_look_name)
 
-    def sync_custom_data(self, octane_node, engine, scene, region, v3d, rv3d, is_viewport):
-        octane_node.set_blender_attribute(self.BLNEDER_ATTRIBUTE_LUT_FILEPATH, consts.AttributeType.AT_FILENAME, bpy.path.abspath(self.custom_lut))
-        octane_node.set_blender_attribute(self.BLNEDER_ATTRIBUTE_LUT_STRENGTH, consts.AttributeType.AT_FLOAT, self.lut_strength)
+    def sync_custom_data(self, octane_node, scene, region, v3d, rv3d, is_viewport):
+        octane_node.set_attribute_blender_name(self.BLNEDER_ATTRIBUTE_LUT_FILEPATH, consts.AttributeType.AT_FILENAME, bpy.path.abspath(self.custom_lut))
+        octane_node.set_attribute_blender_name(self.BLNEDER_ATTRIBUTE_LUT_STRENGTH, consts.AttributeType.AT_FLOAT, self.lut_strength)
         self.sync_ocio_settings(octane_node, scene, is_viewport)
 
     def update_legacy_data(self, context, legacy_data, is_viewport=None):
@@ -699,28 +710,30 @@ class OctaneImagerSettings(bpy.types.PropertyGroup, common.OctanePropertySetting
         utility.sync_legacy_property(self, "max_up_sampler_interval", legacy_data.ai_up_sampler, "max_up_sampler_interval")
 
     def draw(self, context, layout, is_viewport=None):
-        box = layout.box()
-        col = box.column(align=True)
+        col = layout.column()
+        col.use_property_split = True
         col.prop(self, "exposure")
         col.prop(self, "hotpixel_removal")
         col.prop(self, "vignetting")
         col.prop(self, "white_balance")
         col.prop(self, "saturation")
-        col.prop(self, "premultiplied_alpha")
         col.prop(self, "disable_partial_alpha")
         col.prop(self, "dithering")
         col.prop(self, "min_display_samples")
         col.prop(self, "max_tonemap_interval")
-        box = layout.box()
-        box.label(text="OCIO")
-        col = box.column(align=True)
+
+    def draw_ocio(self, context, layout, is_viewport=None):
+        col = layout.column()
+        col.use_property_split = True
         preferences = utility.get_preferences()
         col.prop_search(self, "ocio_view", preferences, "ocio_view_configs") 
         col.prop_search(self, "ocio_look", preferences, "ocio_look_configs") 
         col.prop(self, 'force_tone_mapping')
-        box = layout.box()
-        box.label(text="Tone mapping")
-        col = box.column(align=True)
+
+    def draw_tonemapping(self, context, layout, is_viewport=None):
+        col = layout.column()
+        col.use_property_split = True
+        col.prop(self, "aces_tone_mapping")
         col.prop(self, "highlight_compression")
         col.prop(self, "saturate_to_white")
         col.prop(self, "order")
@@ -732,27 +745,33 @@ class OctaneImagerSettings(bpy.types.PropertyGroup, common.OctanePropertySetting
         col.prop(self, "gamma")
         col.prop(self, "custom_lut")
         col.prop(self, "lut_strength")
-        box = layout.box()
-        box.label(text="Spectral AI Denoiser")
-        col = box.column(align=True)
-        col.prop(self, "denoiser")
+
+    def draw_denoiser_header(self, context, layout, is_viewport=None):
+        layout.prop(self, "denoiser", text="")
+
+    def draw_denoiser(self, context, layout, is_viewport=None):
+        col = layout.column()
+        col.use_property_split = True
         col.prop(self, "denoise_volume")
         col.prop(self, "denoise_once")
         col.prop(self, "min_denoise_samples")
         col.prop(self, "max_denoise_interval")
         col.prop(self, "denoiser_original_blend")
-        box = layout.box()
-        box.label(text="Upsampler")
-        col = box.column(align=True)
+
+    def draw_upsampler_header(self, context, layout, is_viewport=None):
+        layout.prop(self, "enable_ai_up_sampling", text="")
+
+    def draw_upsampler(self, context, layout, is_viewport=None):
+        col = layout.column()
+        col.use_property_split = True
         col.prop(self, "up_sample_mode")
-        col.prop(self, "enable_ai_up_sampling")
         col.prop(self, "up_sampling_on_completion")
         col.prop(self, "min_up_sampler_samples")
         col.prop(self, "max_up_sampler_interval")
 
 
 class OctanePostProcessingSettings(bpy.types.PropertyGroup, common.OctanePropertySettings):
-    PROPERTY_LIST = ["cutoff", "bloom_power", "glare_power", "glare_ray_amount", "glare_angle", "glare_blur", "spectral_intencity", "spectral_shift"]
+    PROPERTY_CONFIGS = {consts.NodeType.NT_IMAGER_CAMERA : ["cutoff", "bloom_power", "glare_power", "glare_ray_amount", "glare_angle", "glare_blur", "spectral_intencity", "spectral_shift"]}
     PROPERTY_NAME_TO_PIN_SYMBOL_MAP = {}
 
     on_off: BoolProperty(
@@ -813,6 +832,7 @@ class OctanePostProcessingSettings(bpy.types.PropertyGroup, common.OctanePropert
         default=0.0,
         step=10,
         precision=3,
+        subtype="FACTOR",
     )
     spectral_shift: FloatProperty(
         name="Spectral shift",
@@ -834,8 +854,8 @@ class OctanePostProcessingSettings(bpy.types.PropertyGroup, common.OctanePropert
         utility.sync_legacy_property(self, "spectral_shift", legacy_data, "spectral_shift")
 
     def draw(self, context, layout, is_viewport=None):
-        box = layout.box()
-        col = box.column(align=True)
+        col = layout.column()
+        col.use_property_split = True
         col.prop(self, "cutoff")
         col.prop(self, "bloom_power")
         col.prop(self, "glare_power")
@@ -887,16 +907,10 @@ class OctaneAIUpSamplertSettings(bpy.types.PropertyGroup):
 
 
 class OctaneBaseCameraSettings(common.OctanePropertySettings):
-    PROPERTY_LIST = [
-    ]
-    PROPERTY_NAME_TO_PIN_SYMBOL_MAP = {
-    }
-    BLNEDER_ATTRIBUTE_USE_FSTOP = "USE_FSTOP"
-    BLNEDER_ATTRIBUTE_FSTOP = "FSTOP"
-    BLNEDER_ATTRIBUTE_FOV = "FOV"
-    BLNEDER_ATTRIBUTE_SCALE = "SCALE"
+    PROPERTY_CONFIGS = {}
+    PROPERTY_NAME_TO_PIN_SYMBOL_MAP = {}
 
-    def setup_octane_node_type(self, blender_camera, octane_node):
+    def setup_octane_node_type(self, blender_camera, octane_node, is_viewport):
         camera_node_type = consts.NodeType.NT_CAM_THINLENS
         camera_node_name_tag = "[Lens]"
         if getattr(self, "osl_camera_node_collections", None):
@@ -913,18 +927,34 @@ class OctaneBaseCameraSettings(common.OctanePropertySettings):
             camera_node_type = consts.NodeType.NT_CAM_BAKING
             camera_node_name_tag = "[Baking]"
         else:
-            if blender_camera.type in (BlenderCameraType.PERSPECTIVE, BlenderCameraType.ORTHOGRAPHIC, ):
+            if blender_camera.type == BlenderCameraType.PERSPECTIVE:
                 camera_node_type = consts.NodeType.NT_CAM_THINLENS
                 camera_node_name_tag = "[Lens]"
+            elif blender_camera.type == BlenderCameraType.ORTHOGRAPHIC:
+                camera_node_type = consts.NodeType.NT_CAM_THINLENS
+                camera_node_name_tag = "[Ortho]"                
             elif blender_camera.type == BlenderCameraType.PANORAMA:
                 camera_node_type = consts.NodeType.NT_CAM_PANORAMIC
                 camera_node_name_tag = "[Pano]"
-        octane_node.set_node_type(camera_node_type)
-        octane_node.set_name(consts.OctanePresetNodeTreeNames.CAMERA + camera_node_name_tag)
-        return camera_node_type
+        camera_node_name = consts.OctanePresetNodeNames.CAMERA + camera_node_name_tag
+        camera_node = octane_node.find_subnode(camera_node_name)
+        if camera_node is None:
+            camera_node = octane_node.get_subnode(camera_node_name, camera_node_type)
+            if camera_node_type == consts.NodeType.NT_CAM_THINLENS:
+                if blender_camera.type == BlenderCameraType.PERSPECTIVE:
+                    camera_node.set_pin_id(consts.PinID.P_ORTHOGRAPHIC, False, "", False)
+                elif blender_camera.type == BlenderCameraType.ORTHOGRAPHIC:
+                    camera_node.set_pin_id(consts.PinID.P_ORTHOGRAPHIC, False, "", True)
+            camera_node.set_pin_id(consts.PinID.P_POSITION, False, "", (0, 0, 0))
+            if camera_node_type != consts.NodeType.NT_CAM_BAKING:
+                camera_node.set_pin_id(consts.PinID.P_TARGET, False, "", (0, 0, 0))
+                camera_node.set_pin_id(consts.PinID.P_UP, False, "", (0, 0, 0))
+            camera_node.update_to_engine(True)
+        octane_node.current_active_camera_name = camera_node_name
+        return camera_node
 
-    def sync_octane_camera_viewing_angle(self, blender_camera, octane_node, width, height, is_viewport):
-        camera_node_type = octane_node.get_node_type()
+    def sync_octane_camera_viewing_angle(self, blender_camera, octane_node, camera_node, width, height, is_viewport):
+        camera_node_type = camera_node.node_type
         if camera_node_type in (consts.NodeType.NT_CAM_BAKING, consts.NodeType.NT_CAM_OSL, consts.NodeType.NT_CAM_OSL_BAKING, ):
             return
         # Lens camera
@@ -960,68 +990,71 @@ class OctaneBaseCameraSettings(common.OctanePropertySettings):
         keep_upright = getattr(self, "keep_upright", False)
         if camera_node_type == consts.NodeType.NT_CAM_THINLENS:
             if blender_camera.type == BlenderCameraType.ORTHOGRAPHIC:
-                octane_node.set_blender_attribute(self.BLNEDER_ATTRIBUTE_SCALE, consts.AttributeType.AT_FLOAT, scale)
-                octane_node.set_pin("lensShift", "lensShift", consts.SocketType.ST_FLOAT2, (lens_shift_x, lens_shift_y), False, "")
+                camera_node.set_pin_id(consts.PinID.P_SCALE, False, "", scale)
             else:
-                octane_node.set_blender_attribute(self.BLNEDER_ATTRIBUTE_FOV, consts.AttributeType.AT_FLOAT, fov)
-                octane_node.set_pin("lensShift", "lensShift", consts.SocketType.ST_FLOAT2, (lens_shift_x, lens_shift_y), False, "")
-            octane_node.set_pin("distortion", "distortion", consts.SocketType.ST_FLOAT, distortion, False, "")            
-            octane_node.set_pin("perspectiveCorrection", "perspectiveCorrection", consts.SocketType.ST_BOOL, perspective_correction, False, "")            
-            octane_node.set_pin("pixelAspectRatio", "pixelAspectRatio", consts.SocketType.ST_FLOAT, pixel_aspect_ratio, False, "")
+                camera_node.set_pin_id(consts.PinID.P_FOV, False, "", fov)                
+            camera_node.set_pin_id(consts.PinID.P_LENS_SHIFT, False, "", (lens_shift_x, lens_shift_y))
+            camera_node.set_pin_id(consts.PinID.P_DISTORTION, False, "", distortion)
+            camera_node.set_pin_id(consts.PinID.P_PERSPECTIVE_CORRECTION, False, "", perspective_correction)
+            camera_node.set_pin_id(consts.PinID.P_PIXEL_ASPECT_RATIO, False, "", pixel_aspect_ratio)
         elif camera_node_type == consts.NodeType.NT_CAM_PANORAMIC:
-            octane_node.set_pin("fovx", "fovx", consts.SocketType.ST_FLOAT, fov_x, False, "")
-            octane_node.set_pin("fovy", "fovy", consts.SocketType.ST_FLOAT, fov_y, False, "")
-            octane_node.set_pin("keepUpright", "keepUpright", consts.SocketType.ST_BOOL, keep_upright, False, "")
+            camera_node.set_pin_id(consts.PinID.P_FOVX, False, "", fov_x)
+            camera_node.set_pin_id(consts.PinID.P_FOVY, False, "", fov_y)
+            camera_node.set_pin_id(consts.PinID.P_KEEP_UPRIGHT, False, "", keep_upright)
         elif camera_node_type == consts.NodeType.NT_CAM_UNIVERSAL:
-            octane_node.set_blender_attribute(self.BLNEDER_ATTRIBUTE_SCALE, consts.AttributeType.AT_FLOAT, scale)
-            octane_node.set_blender_attribute(self.BLNEDER_ATTRIBUTE_FOV, consts.AttributeType.AT_FLOAT, fov)
-            octane_node.set_pin("lensShift", "lensShift", consts.SocketType.ST_FLOAT3, (lens_shift_x, lens_shift_y, 0.0), False, "")
-            octane_node.set_pin("pixelAspectRatio", "pixelAspectRatio", consts.SocketType.ST_FLOAT, pixel_aspect_ratio, False, "")
+            if blender_camera.type == BlenderCameraType.ORTHOGRAPHIC:
+                camera_node.set_pin_id(consts.PinID.P_SCALE, False, "", scale)
+                camera_node.clear_pin_id(consts.PinID.P_FOV)
+            else:
+                camera_node.set_pin_id(consts.PinID.P_FOV, False, "", fov)
+                camera_node.clear_pin_id(consts.PinID.P_SCALE)
+            camera_node.set_pin_id(consts.PinID.P_LENS_SHIFT, False, "", (lens_shift_x, lens_shift_y, 0.0))
+            camera_node.set_pin_id(consts.PinID.P_PIXEL_ASPECT_RATIO, False, "", pixel_aspect_ratio)
 
-    def sync_octane_universal_camera_properties(self, blender_camera, octane_node):
+    def sync_octane_universal_camera_properties(self, blender_camera, octane_node, camera_node):
         # Fisheye
         fisheye_angle = getattr(self, "fisheye_angle", 240.0)
-        fisheye_type = utility.get_enum_value(self, "fisheye_type", 1)
+        fisheye_type = utility.get_enum_int_value(self, "fisheye_type", 1)
         hard_vignette = getattr(self, "hard_vignette", False)
-        fisheye_projection_type = utility.get_enum_value(self, "fisheye_projection_type", 1)
-        octane_node.set_pin("fisheyeAngle", "fisheyeAngle", consts.SocketType.ST_FLOAT, fisheye_angle, False, "")
-        octane_node.set_pin("fisheyeType", "fisheyeType", consts.SocketType.ST_ENUM, fisheye_type, False, "")
-        octane_node.set_pin("hardVignette", "hardVignette", consts.SocketType.ST_BOOL, hard_vignette, False, "")
-        octane_node.set_pin("fisheyeProjection", "fisheyeProjection", consts.SocketType.ST_ENUM, fisheye_projection_type, False, "")
+        fisheye_projection_type = utility.get_enum_int_value(self, "fisheye_projection_type", 1)
+        camera_node.set_pin_id(consts.PinID.P_FISHEYE_ANGLE, False, "", fisheye_angle)
+        camera_node.set_pin_id(consts.PinID.P_FISHEYE_TYPE, False, "", fisheye_type)
+        camera_node.set_pin_id(consts.PinID.P_HARD_VIGNETTE, False, "", hard_vignette)
+        camera_node.set_pin_id(consts.PinID.P_FISHEYE_PROJECTION, False, "", fisheye_projection_type)
         # Panoramic
         fov_x = getattr(self, "fov_x", 360.0)
         fov_y = getattr(self, "fov_y", 180.0)
-        cubemap_layout_type = utility.get_enum_value(self, "cubemap_layout_type", 1)
+        cubemap_layout_type = utility.get_enum_int_value(self, "cubemap_layout_type", 1)
         equi_angular_cubemap = getattr(self, "equi_angular_cubemap", False)
-        octane_node.set_pin("fovx", "fovx", consts.SocketType.ST_FLOAT, fov_x, False, "")
-        octane_node.set_pin("fovy", "fovy", consts.SocketType.ST_FLOAT, fov_y, False, "")
-        octane_node.set_pin("cubemapLayout", "cubemapLayout", consts.SocketType.ST_ENUM, cubemap_layout_type, False, "")
-        octane_node.set_pin("equiAngularCubemap", "equiAngularCubemap", consts.SocketType.ST_BOOL, equi_angular_cubemap, False, "")
-        # Distortion
+        camera_node.set_pin_id(consts.PinID.P_FOVX, False, "", fov_x)
+        camera_node.set_pin_id(consts.PinID.P_FOVY, False, "", fov_y)
+        camera_node.set_pin_id(consts.PinID.P_CUBEMAP_LAYOUT, False, "", cubemap_layout_type)
+        camera_node.set_pin_id(consts.PinID.P_EQUI_ANGULAR_CUBEMAP, False, "", equi_angular_cubemap)
+         # Distortion
         use_distortion_texture = getattr(self, "use_distortion_texture", False)
         distortion_texture = getattr(self, "distortion_texture", "")
         spherical_distortion = getattr(self, "spherical_distortion", 0.0)
         barrel_distortion = getattr(self, "barrel_distortion", 0.0)
         barrel_distortion_corners = getattr(self, "barrel_distortion_corners", 0.0)
-        octane_node.set_pin("useDistortionTexture", "useDistortionTexture", consts.SocketType.ST_BOOL, use_distortion_texture, False, "")
-        octane_node.set_pin("distortionTexture", "distortionTexture", consts.SocketType.ST_LINK, distortion_texture, True, distortion_texture)
-        octane_node.set_pin("sphericalDistortion", "sphericalDistortion", consts.SocketType.ST_FLOAT, spherical_distortion, False, "")
-        octane_node.set_pin("barrelDistortion", "barrelDistortion", consts.SocketType.ST_FLOAT, barrel_distortion, False, "")
-        octane_node.set_pin("barrelDistortionCorners", "barrelDistortionCorners", consts.SocketType.ST_FLOAT, barrel_distortion_corners, False, "")
+        camera_node.set_pin_id(consts.PinID.P_USE_DISTORTION_TEXTURE, False, "", use_distortion_texture)
+        camera_node.set_pin_id(consts.PinID.P_DISTORTION_TEXTURE, False, "", distortion_texture)
+        camera_node.set_pin_id(consts.PinID.P_SPHERICAL_DISTORTION, False, "", spherical_distortion)
+        camera_node.set_pin_id(consts.PinID.P_BARREL_DISTORTION, False, "", barrel_distortion)
+        camera_node.set_pin_id(consts.PinID.P_BARREL_DISTORTION_CORNERS, False, "", barrel_distortion_corners)
         # Aberration
         spherical_aberration = getattr(self, "spherical_aberration", 0.0)
         coma = getattr(self, "coma", 0.0)
         astigmatism = getattr(self, "astigmatism", 0.0)
         field_curvature = getattr(self, "field_curvature", 0.0)
-        octane_node.set_pin("sphericalAberration", "sphericalAberration", consts.SocketType.ST_FLOAT, spherical_aberration, False, "")
-        octane_node.set_pin("coma", "coma", consts.SocketType.ST_FLOAT, coma, False, "")
-        octane_node.set_pin("astigmatism", "astigmatism", consts.SocketType.ST_FLOAT, astigmatism, False, "")
-        octane_node.set_pin("fieldCurvature", "fieldCurvature", consts.SocketType.ST_FLOAT, field_curvature, False, "")
+        camera_node.set_pin_id(consts.PinID.P_SPHERICAL_ABERRATION, False, "", spherical_aberration)
+        camera_node.set_pin_id(consts.PinID.P_COMA, False, "", coma)
+        camera_node.set_pin_id(consts.PinID.P_ASTIGMATISM, False, "", astigmatism)
+        camera_node.set_pin_id(consts.PinID.P_FIELD_CURVATURE, False, "", field_curvature)
         # Optical vignetting
         optical_vignette_distance = getattr(self, "optical_vignette_distance", 0.0)
         optical_vignette_scale = getattr(self, "optical_vignette_scale", 1.0)
-        octane_node.set_pin("opticalVignetteDistance", "opticalVignetteDistance", consts.SocketType.ST_FLOAT, optical_vignette_distance, False, "")
-        octane_node.set_pin("opticalVignetteScale", "opticalVignetteScale", consts.SocketType.ST_FLOAT, optical_vignette_scale, False, "")
+        camera_node.set_pin_id(consts.PinID.P_OPTICAL_VIGNETTE_DISTANCE, False, "", optical_vignette_distance)
+        camera_node.set_pin_id(consts.PinID.P_OPTICAL_VIGNETTE_SCALE, False, "", optical_vignette_scale)
         # Split-focus diopter
         enable_split_focus_diopter = getattr(self, "enable_split_focus_diopter", False)
         diopter_focal_depth = getattr(self, "diopter_focal_depth", 1.110)
@@ -1030,21 +1063,20 @@ class OctaneBaseCameraSettings(common.OctanePropertySettings):
         diopter_boundary_width = getattr(self, "diopter_boundary_width",  0.5)
         diopter_boundary_falloff = getattr(self, "diopter_boundary_falloff", 1.0)
         show_diopter_guide = getattr(self, "show_diopter_guide", False)
-        octane_node.set_pin("diopterEnable", "diopterEnable", consts.SocketType.ST_BOOL, enable_split_focus_diopter, False, "")
-        octane_node.set_pin("diopterFocalDepth", "diopterFocalDepth", consts.SocketType.ST_FLOAT, diopter_focal_depth, False, "")
-        octane_node.set_pin("diopterRotation", "diopterRotation", consts.SocketType.ST_FLOAT, diopter_rotation, False, "")
-        octane_node.set_pin("diopterTranslation", "diopterTranslation", consts.SocketType.ST_FLOAT2, diopter_translation, False, "")
-        octane_node.set_pin("diopterBoundaryWidth", "diopterBoundaryWidth", consts.SocketType.ST_FLOAT, diopter_boundary_width, False, "")
-        octane_node.set_pin("diopterBoundaryFalloff", "diopterBoundaryFalloff", consts.SocketType.ST_FLOAT, diopter_boundary_falloff, False, "")
-        octane_node.set_pin("diopterShowGuide", "diopterShowGuide", consts.SocketType.ST_BOOL, show_diopter_guide, False, "")
+        camera_node.set_pin_id(consts.PinID.P_DIOPTER_ENABLE, False, "", enable_split_focus_diopter)
+        camera_node.set_pin_id(consts.PinID.P_DIOPTER_FOCAL_DEPTH, False, "", diopter_focal_depth)
+        camera_node.set_pin_id(consts.PinID.P_DIOPTER_ROTATION, False, "", diopter_rotation)
+        camera_node.set_pin_id(consts.PinID.P_DIOPTER_TRANSLATION, False, "", diopter_translation)
+        camera_node.set_pin_id(consts.PinID.P_DIOPTER_BOUNDARY_WIDTH, False, "", diopter_boundary_width)
+        camera_node.set_pin_id(consts.PinID.P_DIOPTER_BOUNDARY_FALLOFF, False, "", diopter_boundary_falloff)                
+        camera_node.set_pin_id(consts.PinID.P_DIOPTER_SHOW_GUIDE, False, "", show_diopter_guide)
 
-    def sync_octane_camera_position(self, blender_camera, octane_node):
-        camera_node_type = octane_node.get_node_type()
-        octane_matrix = utility.OctaneMatrixConvertor.get_octane_matrix(blender_camera.matrix)
+    def calculate_octane_camera_position_parameters(self, camera_matrix, camera_direction, is_ortho_viewport):
+        octane_matrix = utility.OctaneMatrixConvertor.get_octane_matrix(camera_matrix)
         target_vector = mathutils.Vector((octane_matrix[0][3], octane_matrix[1][3], octane_matrix[2][3]))
         position_vector = target_vector.copy()
-        dir_vector = utility.transform_direction(octane_matrix, blender_camera.dir)        
-        if blender_camera.type == BlenderCameraType.ORTHOGRAPHIC and not blender_camera.camera_from_object:
+        dir_vector = utility.transform_direction(octane_matrix, camera_direction)
+        if is_ortho_viewport:
             position_vector.x += dir_vector.x
             position_vector.y += dir_vector.y
             position_vector.z += dir_vector.z
@@ -1053,32 +1085,54 @@ class OctaneBaseCameraSettings(common.OctanePropertySettings):
             target_vector.y += dir_vector.y
             target_vector.z += dir_vector.z
         up_vector = utility.transform_direction(octane_matrix, (0, 1, 0)).normalized()
-        octane_node.set_pin("pos", "pos", consts.SocketType.ST_FLOAT3, position_vector, False, "")
+        return position_vector, target_vector, up_vector
+
+    def sync_octane_camera_position(self, blender_camera, octane_node, camera_node):
+        camera_node_type = camera_node.node_type
+        position_vector, target_vector, up_vector = self.calculate_octane_camera_position_parameters(blender_camera.matrix, blender_camera.dir, blender_camera.type == BlenderCameraType.ORTHOGRAPHIC and not blender_camera.camera_from_object)
+        camera_node.positions = {0: position_vector}
+        camera_node.targets = {0: target_vector}
+        camera_node.ups = {0: up_vector}
+        # camera_position_node = octane_node.get_subnode(consts.OctanePresetNodeNames.CAMERA_POSITION, consts.NodeType.NT_FLOAT)
+        # camera_target_node = octane_node.get_subnode(consts.OctanePresetNodeNames.CAMERA_TARGET, consts.NodeType.NT_FLOAT)
+        # camera_up_node = octane_node.get_subnode(consts.OctanePresetNodeNames.CAMERA_UP, consts.NodeType.NT_FLOAT)
+        # camera_position_node.set_attribute_id(consts.AttributeID.A_VALUE, position_vector)
+        # camera_target_node.set_attribute_id(consts.AttributeID.A_VALUE, target_vector)
+        # camera_up_node.set_attribute_id(consts.AttributeID.A_VALUE, up_vector)
+        camera_node.set_pin_id(consts.PinID.P_POSITION, False, consts.OctanePresetNodeNames.CAMERA_POSITION, position_vector)
         if camera_node_type != consts.NodeType.NT_CAM_BAKING:
-            octane_node.set_pin("target", "target", consts.SocketType.ST_FLOAT3, target_vector, False, "")
-            octane_node.set_pin("up", "up", consts.SocketType.ST_FLOAT3, up_vector, False, "")
+            camera_node.set_pin_id(consts.PinID.P_TARGET, False, consts.OctanePresetNodeNames.CAMERA_TARGET, target_vector)
+            camera_node.set_pin_id(consts.PinID.P_UP, False, consts.OctanePresetNodeNames.CAMERA_UP, up_vector)
         if camera_node_type == consts.NodeType.NT_CAM_UNIVERSAL:
             keep_upright = getattr(self, "keep_upright", False)
-            octane_node.set_pin("keepUpright", "keepUpright", consts.SocketType.ST_BOOL, keep_upright, False, "")
+            camera_node.set_pin_id(consts.PinID.P_KEEP_UPRIGHT, False, "", keep_upright)
 
-    def sync_octane_camera_clipping(self, blender_camera, octane_node):
-        octane_node.set_pin("nearClipDepth", "nearClipDepth", consts.SocketType.ST_FLOAT, blender_camera.near_clip, False, "")
-        octane_node.set_pin("farClipDepth", "farClipDepth", consts.SocketType.ST_FLOAT, blender_camera.far_clip, False, "")
+    def sync_octane_camera_clipping(self, blender_camera, octane_node, camera_node):
+        camera_node.set_pin_id(consts.PinID.P_NEAR_CLIP_DEPTH, False, "", blender_camera.near_clip)
+        camera_node.set_pin_id(consts.PinID.P_FAR_CLIP_DEPTH, False, "", blender_camera.far_clip)
 
-    def sync_octane_camera_dof(self, blender_camera, octane_node, is_viewport):
-        camera_node_type = octane_node.get_node_type()
+    def sync_octane_camera_dof(self, blender_camera, octane_node, camera_node, is_viewport):
+        camera_node_type = camera_node.node_type
         auto_focus = getattr(self, "autofocus", False)
         focal_depth = 1.118034 if is_viewport else blender_camera.focal_distance
         aperture = getattr(self, "aperture", 0)
+        use_fstop = getattr(self, "use_fstop", False)
+        if use_fstop:
+            fstop = getattr(self, "fstop", 2.8)
+            lens = self.id_data.lens / 2
+            try:
+                aperture = lens / (20 * self.fstop)
+            except:
+                aperture = lens / (20 * 0.5)
         aperture_aspect_ratio = getattr(self, "aperture_aspect", 1.0)
         aperture_edge = getattr(self, "aperture_edge", 1.0)
-        octane_node.set_pin("autofocus", "autofocus", consts.SocketType.ST_BOOL, auto_focus, False, "")
-        octane_node.set_pin("focalDepth", "focalDepth", consts.SocketType.ST_FLOAT, focal_depth, False, "")
-        octane_node.set_pin("aperture", "aperture", consts.SocketType.ST_FLOAT, aperture, False, "")
-        octane_node.set_pin("apertureAspectRatio", "apertureAspectRatio", consts.SocketType.ST_FLOAT, aperture_aspect_ratio, False, "")
-        octane_node.set_pin("aperture_edge", "aperture_edge", consts.SocketType.ST_FLOAT, aperture_edge, False, "")
+        camera_node.set_pin_id(consts.PinID.P_AUTOFOCUS, False, "", auto_focus)
+        camera_node.set_pin_id(consts.PinID.P_FOCAL_DEPTH, False, "", focal_depth)
+        camera_node.set_pin_id(consts.PinID.P_APERTURE, False, "", aperture)
+        camera_node.set_pin_id(consts.PinID.P_APERTURE_ASPECT_RATIO, False, "", aperture_aspect_ratio)
+        camera_node.set_pin_id(consts.PinID.P_APERTURE_EDGE, False, "", aperture_edge)
         if camera_node_type == consts.NodeType.NT_CAM_UNIVERSAL:
-            aperture_shape_type = utility.get_enum_value(self, "aperture_shape_type", 1)
+            aperture_shape_type = utility.get_enum_int_value(self, "aperture_shape_type", 1)
             aperture_blade_count = getattr(self, "aperture_blade_count", 6)
             aperture_rotation = getattr(self, "aperture_blade_count", 0.0)
             aperture_roundedness = getattr(self, "aperture_roundedness", 1.0)
@@ -1086,26 +1140,26 @@ class OctaneBaseCameraSettings(common.OctanePropertySettings):
             notch_position = getattr(self, "notch_position", -1.0)
             notch_scale = getattr(self, "notch_scale", 0.5)
             custom_aperture_texture = getattr(self, "custom_aperture_texture", "")
-            octane_node.set_pin("apertureShape", "apertureShape", consts.SocketType.ST_ENUM, aperture_shape_type, False, "")
-            octane_node.set_pin("bokehSidecount", "bokehSidecount", consts.SocketType.ST_INT, aperture_blade_count, False, "")
-            octane_node.set_pin("bokehRotation", "bokehRotation", consts.SocketType.ST_FLOAT, aperture_rotation, False, "")
-            octane_node.set_pin("bokehRoundedness", "bokehRoundedness", consts.SocketType.ST_FLOAT, aperture_roundedness, False, "")
-            octane_node.set_pin("centralObstruction", "centralObstruction", consts.SocketType.ST_FLOAT, central_obstruction, False, "")
-            octane_node.set_pin("notchPosition", "notchPosition", consts.SocketType.ST_FLOAT, notch_position, False, "")
-            octane_node.set_pin("notchScale", "notchScale", consts.SocketType.ST_FLOAT, notch_scale, False, "")
-            octane_node.set_pin("customAperture", "customAperture", consts.SocketType.ST_LINK, custom_aperture_texture, True, custom_aperture_texture)
+            camera_node.set_pin_id(consts.PinID.P_APERTURE_SHAPE, False, "", aperture_shape_type)
+            camera_node.set_pin_id(consts.PinID.P_BOKEH_SIDECOUNT, False, "", aperture_blade_count)
+            camera_node.set_pin_id(consts.PinID.P_BOKEH_ROTATION, False, "", aperture_rotation)
+            camera_node.set_pin_id(consts.PinID.P_BOKEH_ROUNDEDNESS, False, "", aperture_roundedness)
+            camera_node.set_pin_id(consts.PinID.P_CENTRAL_OBSTRUCTION, False, "", central_obstruction)
+            camera_node.set_pin_id(consts.PinID.P_NOTCH_POSITION, False, "", notch_position)
+            camera_node.set_pin_id(consts.PinID.P_NOTCH_SCALE, False, "", notch_scale)
+            camera_node.set_pin_id(consts.PinID.P_CUSTOM_APERTURE, False, "", custom_aperture_texture)
         else:
             bokeh_side_count = getattr(self, "bokeh_sidecount", 6)
             bokeh_rotation = getattr(self, "bokeh_rotation", 0)
-            bokeh_roundedness = getattr(self, "bokeh_roundedness", 1.0)            
-            octane_node.set_pin("bokehSidecount", "bokehSidecount", consts.SocketType.ST_INT, bokeh_side_count, False, "")
-            octane_node.set_pin("bokehRotation", "bokehRotation", consts.SocketType.ST_FLOAT, bokeh_rotation, False, "")
-            octane_node.set_pin("bokehRoundedness", "bokehRoundedness", consts.SocketType.ST_FLOAT, bokeh_roundedness, False, "")
+            bokeh_roundedness = getattr(self, "bokeh_roundedness", 1.0)
+            camera_node.set_pin_id(consts.PinID.P_BOKEH_SIDECOUNT, False, "", bokeh_side_count)
+            camera_node.set_pin_id(consts.PinID.P_BOKEH_ROTATION, False, "", bokeh_rotation)
+            camera_node.set_pin_id(consts.PinID.P_BOKEH_ROUNDEDNESS, False, "", bokeh_roundedness)
 
-    def sync_octane_camera_stereo(self, blender_camera, octane_node):
-        camera_node_type = octane_node.get_node_type()
-        stereo_output = utility.get_enum_value(self, "stereo_out", 0)
-        stereo_mode = utility.get_enum_value(self, "stereo_mode", 1)
+    def sync_octane_camera_stereo(self, blender_camera, octane_node, camera_node):
+        camera_node_type = camera_node.node_type
+        stereo_output = utility.get_enum_int_value(self, "stereo_out", 0)
+        stereo_mode = utility.get_enum_int_value(self, "stereo_mode", 1)
         eye_distance = getattr(self, "stereo_dist", 0.020)
         stereo_dist_falloff = getattr(self, "stereo_dist_falloff", 1.0)
         pano_blackout_lat = getattr(self, "blackout_lat", 90.0)
@@ -1113,23 +1167,22 @@ class OctaneBaseCameraSettings(common.OctanePropertySettings):
         left_stereo_filter = getattr(self, "left_filter", (1, 0, 0.812))
         right_stereo_filter = getattr(self, "right_filter", (0, 1, 0.188))
         if camera_node_type == consts.NodeType.NT_CAM_THINLENS:
-            octane_node.set_pin("stereoOutput", "stereoOutput", consts.SocketType.ST_ENUM, stereo_output, False, "")
-            octane_node.set_pin("stereoMode", "stereoMode", consts.SocketType.ST_ENUM, stereo_mode, False, "")            
-            octane_node.set_pin("stereodist", "stereodist", consts.SocketType.ST_FLOAT, eye_distance, False, "")        
-            octane_node.set_pin("stereoSwitchEyes", "stereoSwitchEyes", consts.SocketType.ST_BOOL, swap_eyes, False, "")
-            octane_node.set_pin("leftFilter", "leftFilter", consts.SocketType.ST_RGBA, left_stereo_filter, False, "")
-            octane_node.set_pin("rightFilter", "rightFilter", consts.SocketType.ST_RGBA, right_stereo_filter, False, "")            
+            camera_node.set_pin_id(consts.PinID.P_STEREO_OUTPUT, False, "", stereo_output)
+            camera_node.set_pin_id(consts.PinID.P_STEREO_MODE, False, "", stereo_mode)
+            camera_node.set_pin_id(consts.PinID.P_STEREO_DIST, False, "", eye_distance)
+            camera_node.set_pin_id(consts.PinID.P_STEREO_SWAP_EYES, False, "", swap_eyes)
+            camera_node.set_pin_id(consts.PinID.P_LEFT_FILTER, False, "", left_stereo_filter)
+            camera_node.set_pin_id(consts.PinID.P_RIGHT_FILTER, False, "", right_stereo_filter)
         elif camera_node_type == consts.NodeType.NT_CAM_PANORAMIC:
-            octane_node.set_pin("stereoOutput", "stereoOutput", consts.SocketType.ST_ENUM, stereo_output, False, "")
-            octane_node.set_pin("stereoMode", "stereoMode", consts.SocketType.ST_ENUM, stereo_mode, False, "")            
-            octane_node.set_pin("stereodist", "stereodist", consts.SocketType.ST_FLOAT, eye_distance, False, "")
-            octane_node.set_pin("stereoDistFalloff", "stereoDistFalloff", consts.SocketType.ST_FLOAT, stereo_dist_falloff, False, "")
-            octane_node.set_pin("stereoCutoffLatitude", "stereoCutoffLatitude", consts.SocketType.ST_FLOAT, pano_blackout_lat, False, "")
-            octane_node.set_pin("stereoSwitchEyes", "stereoSwitchEyes", consts.SocketType.ST_BOOL, swap_eyes, False, "")
-            octane_node.set_pin("leftFilter", "leftFilter", consts.SocketType.ST_RGBA, left_stereo_filter, False, "")
-            octane_node.set_pin("rightFilter", "rightFilter", consts.SocketType.ST_RGBA, right_stereo_filter, False, "")
+            camera_node.set_pin_id(consts.PinID.P_STEREO_OUTPUT, False, "", stereo_output)
+            camera_node.set_pin_id(consts.PinID.P_STEREO_DIST, False, "", eye_distance)
+            camera_node.set_pin_id(consts.PinID.P_STEREO_DIST_FALLOFF, False, "", stereo_dist_falloff)
+            camera_node.set_pin_id(consts.PinID.P_STEREO_CUTOFF_LATITUDE, False, "", pano_blackout_lat)
+            camera_node.set_pin_id(consts.PinID.P_STEREO_SWAP_EYES, False, "", swap_eyes)
+            camera_node.set_pin_id(consts.PinID.P_LEFT_FILTER, False, "", left_stereo_filter)
+            camera_node.set_pin_id(consts.PinID.P_RIGHT_FILTER, False, "", right_stereo_filter)
 
-    def sync_octane_camera_baking(self, blender_camera, octane_node):
+    def sync_octane_camera_baking(self, blender_camera, octane_node, camera_node):
         baking_group_id = getattr(self, "baking_group_id", 1)
         baking_uv_set = getattr(self, "baking_uv_set", 1)
         baking_revert = getattr(self, "baking_revert", False)
@@ -1141,74 +1194,96 @@ class OctaneBaseCameraSettings(common.OctanePropertySettings):
         baking_uvbox_size_y = getattr(self, "baking_uvbox_size_y", 1.0)
         baking_use_position = getattr(self, "baking_use_position", False)
         baking_bkface_culling = getattr(self, "baking_bkface_culling", False)
-        octane_node.set_pin("bakingGroupId", "bakingGroupId", consts.SocketType.ST_INT, baking_group_id, False, "")
-        octane_node.set_pin("uvSet", "uvSet", consts.SocketType.ST_INT, baking_uv_set, False, "")
-        octane_node.set_pin("bakeOutwards", "bakeOutwards", consts.SocketType.ST_BOOL, baking_revert, False, "")
-        octane_node.set_pin("padding", "padding", consts.SocketType.ST_INT, baking_padding_size, False, "")
-        octane_node.set_pin("tolerance", "tolerance", consts.SocketType.ST_FLOAT, baking_tolerance, False, "")
-        octane_node.set_pin("bakingUvBoxMin", "bakingUvBoxMin", consts.SocketType.ST_FLOAT2, (baking_uvbox_min_x, baking_uvbox_min_y), False, "")        
-        octane_node.set_pin("bakingUvBoxSize", "bakingUvBoxSize", consts.SocketType.ST_FLOAT2, (baking_uvbox_size_x, baking_uvbox_size_y), False, "")
-        octane_node.set_pin("bakeFromPosition", "bakeFromPosition", consts.SocketType.ST_BOOL, baking_use_position, False, "")
-        octane_node.set_pin("bakeBackfaceCulling", "bakeBackfaceCulling", consts.SocketType.ST_BOOL, baking_bkface_culling, False, "")
-        self.sync_octane_camera_position(blender_camera, octane_node)
+        camera_node.set_pin_id(consts.PinID.P_BAKING_GROUP_ID, False, "", baking_group_id)
+        camera_node.set_pin_id(consts.PinID.P_UV_SET, False, "", baking_uv_set)
+        camera_node.set_pin_id(consts.PinID.P_BAKE_OUTWARDS, False, "", baking_revert)
+        camera_node.set_pin_id(consts.PinID.P_PADDING, False, "", baking_padding_size)
+        camera_node.set_pin_id(consts.PinID.P_TOLERANCE, False, "", baking_tolerance)
+        camera_node.set_pin_id(consts.PinID.P_BAKING_UVBOX_MIN, False, "", (baking_uvbox_min_x, baking_uvbox_min_y))
+        camera_node.set_pin_id(consts.PinID.P_BAKING_UVBOX_SIZE, False, "", (baking_uvbox_size_x, baking_uvbox_size_y))
+        camera_node.set_pin_id(consts.PinID.P_POSITION, False, "", baking_use_position)
+        camera_node.set_pin_id(consts.PinID.P_BAKE_BACKFACE_CULLING, False, "", baking_bkface_culling)
+        self.sync_octane_camera_position(blender_camera, camera_node)
 
     def sync_octane_camera_parameters(self, blender_camera, octane_node, width, height, is_viewport):
-        camera_node_type = self.setup_octane_node_type(blender_camera, octane_node)
+        camera_node = self.setup_octane_node_type(blender_camera, octane_node, is_viewport)
+        camera_node_type = camera_node.node_type
         if camera_node_type in (consts.NodeType.NT_CAM_OSL, consts.NodeType.NT_CAM_OSL_BAKING, ):
-            octane_node.need_update = False
+            camera_node.need_update = False
             return
         if camera_node_type == consts.NodeType.NT_CAM_BAKING:
-            self.sync_octane_camera_baking(blender_camera, octane_node)
+            self.sync_octane_camera_baking(blender_camera, camera_node)
             return        
         # General
-        universal_camera_type = camera_node_type
         if camera_node_type == consts.NodeType.NT_CAM_THINLENS:
-            octane_node.set_pin("orthographic", "orthographic", consts.SocketType.ST_BOOL, blender_camera.type == BlenderCameraType.ORTHOGRAPHIC, False, "")
+            camera_node.set_pin_id(consts.PinID.P_ORTHOGRAPHIC, False, "", blender_camera.type == BlenderCameraType.ORTHOGRAPHIC)
         elif camera_node_type == consts.NodeType.NT_CAM_PANORAMIC:                        
-            pan_mode = utility.get_enum_value(self, "pan_mode", 0)
-            octane_node.set_pin("cameramode", "cameramode", consts.SocketType.ST_ENUM, pan_mode, False, "")
-            bpy.data.cameras["Camera"].octane.pan_mode
+            pan_mode = utility.get_enum_int_value(self, "pan_mode", 0)
+            camera_node.set_pin_id(consts.PinID.P_CAMERA_MODE, False, "", pan_mode)
         elif camera_node_type == consts.NodeType.NT_CAM_UNIVERSAL:
+            universal_camera_type = camera_node_type
             if blender_camera.type == BlenderCameraType.PERSPECTIVE:
-                universal_camera_type = 1
+                universal_camera_type = 1  # ("Thin lens", "Thin lens", "", 1)
             elif blender_camera.type == BlenderCameraType.ORTHOGRAPHIC:
-                universal_camera_type = 2
+                universal_camera_type = 2  # ("Orthographic", "Orthographic", "", 2)
             else:
-                universal_camera_type = utility.get_enum_value(self, "universal_camera_mode", 3)
+                universal_camera_type = utility.get_enum_int_value(self, "universal_camera_mode", 3)
+            camera_node.set_pin_id(consts.PinID.P_MODE, False, "", universal_camera_type)
         # Physical camera parameters
-        sensor_width = blender_camera.sensor_width
-        focal_length = 50
-        fstop = getattr(self, "fstop", 2.8)
-        use_fstop = getattr(self, "use_fstop", False)        
-        octane_node.set_blender_attribute(self.BLNEDER_ATTRIBUTE_USE_FSTOP, consts.AttributeType.AT_BOOL, use_fstop)
-        octane_node.set_blender_attribute(self.BLNEDER_ATTRIBUTE_FSTOP, consts.AttributeType.AT_FLOAT, fstop)
+        # Do not use the Physical camera parameters(Sensor Width & Focal Length)
+        # F-stop
+        use_fstop = getattr(self, "use_fstop", False)
+        fstop = getattr(self, "fstop", 2.8) if use_fstop else 1000
+        if use_fstop:
+            camera_node.set_pin_id(consts.PinID.P_FSTOP, False, "", fstop)            
+        else:
+            camera_node.clear_pin_id(consts.PinID.P_FSTOP)
         # Viewing angle
-        self.sync_octane_camera_viewing_angle(blender_camera, octane_node, width, height, is_viewport)
+        self.sync_octane_camera_viewing_angle(blender_camera, octane_node, camera_node, width, height, is_viewport)
         # Clipping
-        self.sync_octane_camera_clipping(blender_camera, octane_node)
+        self.sync_octane_camera_clipping(blender_camera, octane_node, camera_node)
         # Depth of field
-        self.sync_octane_camera_dof(blender_camera, octane_node, is_viewport)
+        self.sync_octane_camera_dof(blender_camera, octane_node, camera_node, is_viewport)
         # Position
-        self.sync_octane_camera_position(blender_camera, octane_node)
+        self.sync_octane_camera_position(blender_camera, octane_node, camera_node)
         # Stereo
-        self.sync_octane_camera_stereo(blender_camera, octane_node)
+        self.sync_octane_camera_stereo(blender_camera, octane_node, camera_node)
         # Universal camera properties
         if camera_node_type == consts.NodeType.NT_CAM_UNIVERSAL:
-            self.sync_octane_universal_camera_properties(blender_camera, octane_node)
+            self.sync_octane_universal_camera_properties(blender_camera, octane_node, camera_node)
 
-    def sync_view(self, octane_node, engine, scene, region, v3d, rv3d):
+    def sync_view(self, octane_node, scene, region, v3d, rv3d):
         blender_camera = BlenderCamera()
         blender_camera.init(scene)
-        blender_camera.setup_from_view(engine, scene, v3d, rv3d, region.width, region.height, False)
-        blender_camera.setup_camera_border(engine, scene, v3d, rv3d, region.width, region.height)
-        blender_camera.setup_camera_viewplane(engine, scene, v3d, rv3d, region.width, region.height)
+        blender_camera.setup_from_view(scene, v3d, rv3d, region.width, region.height, False)
+        blender_camera.setup_camera_border(scene, v3d, rv3d, region.width, region.height)
+        blender_camera.setup_camera_viewplane(scene, region.width, region.height)
         self.sync_octane_camera_parameters(blender_camera, octane_node, region.width, region.height, True)
 
-    def sync_custom_data(self, octane_node, engine, scene, region, v3d, rv3d, is_viewport):
+    def sync_camera(self, octane_node, scene, width, height):
+        blender_camera = BlenderCamera()
+        blender_camera.init(scene)
+        blender_camera.pixel_aspect[0] = scene.render.pixel_aspect_x
+        blender_camera.pixel_aspect[1] = scene.render.pixel_aspect_y
+        camera_object = scene.camera
+        blender_camera.setup_from_camera_object(camera_object, False)
+        blender_camera.setup_camera_viewplane(scene, width, height)
+        blender_camera.matrix = camera_object.matrix_world
+        self.sync_octane_camera_parameters(blender_camera, octane_node, width, height, False)
+
+    def sync_camera_motion_blur(self, camera_node, motion_time_offset, camera_eval):
+        position_vector, target_vector, up_vector = self.calculate_octane_camera_position_parameters(camera_eval.matrix_world, [0, 0, -1], False)
+        camera_node.positions[motion_time_offset] = position_vector
+        camera_node.targets[motion_time_offset] = target_vector
+        camera_node.ups[motion_time_offset] = up_vector
+
+    def sync_custom_data(self, octane_node, scene, region, v3d, rv3d, is_viewport):
         if is_viewport:
-            self.sync_view(octane_node, engine, scene, region, v3d, rv3d)
+            self.sync_view(octane_node, scene, region, v3d, rv3d)
         else:
-            pass
+            width = utility.render_resolution_x(scene)
+            height = utility.render_resolution_y(scene)
+            self.sync_camera(octane_node, scene, width, height)
 
 class OctaneCameraSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings):
 
@@ -1613,7 +1688,7 @@ class OctaneCameraSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings):
         precision=2,
         update=update_aperture,
     )
-    def update_fstop(self, context):        
+    def update_fstop(self, context):
         if self.use_fstop:
             lens = self.id_data.lens / 2
             try:
@@ -1866,7 +1941,7 @@ class OctaneCameraSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings):
         name="Vignetting",
         description="Amount of lens vignetting",
         min=0.0, soft_min=0.0, max=1.0, soft_max=1.0,
-        default=0.0,
+        default=0.3,
         step=1,
         precision=2,
     )
@@ -2194,7 +2269,7 @@ class OctaneSpaceDataSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings)
         name="Vignetting",
         description="Amount of lens vignetting",
         min=0.0, soft_min=0.0, max=1.0, soft_max=1.0,
-        default=0.0,
+        default=0.3,
         step=1,
         precision=2,
     )

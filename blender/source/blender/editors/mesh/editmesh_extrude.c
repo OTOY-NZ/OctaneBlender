@@ -55,8 +55,8 @@ static void edbm_extrude_edge_exclude_mirror(
         float mtx[4][4];
         if (mmd->mirror_ob) {
           float imtx[4][4];
-          invert_m4_m4(imtx, mmd->mirror_ob->object_to_world);
-          mul_m4_m4m4(mtx, imtx, obedit->object_to_world);
+          invert_m4_m4(imtx, mmd->mirror_ob->obmat);
+          mul_m4_m4m4(mtx, imtx, obedit->obmat);
         }
 
         BM_ITER_MESH (edge, &iter, bm, BM_EDGES_OF_MESH) {
@@ -281,11 +281,10 @@ static int edbm_extrude_repeat_exec(bContext *C, wmOperator *op)
 
   mul_v3_fl(offset, scale_offset);
 
-  const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   uint objects_len = 0;
   Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C), &objects_len);
+      view_layer, CTX_wm_view3d(C), &objects_len);
 
   for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
     float offset_local[3], tmat[3][3];
@@ -293,7 +292,7 @@ static int edbm_extrude_repeat_exec(bContext *C, wmOperator *op)
     Object *obedit = objects[ob_index];
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
 
-    copy_m3_m4(tmat, obedit->object_to_world);
+    copy_m3_m4(tmat, obedit->obmat);
     invert_m3(tmat);
     mul_v3_m3v3(offset_local, tmat, offset);
 
@@ -419,11 +418,10 @@ static bool edbm_extrude_mesh(Object *obedit, BMEditMesh *em, wmOperator *op)
 /* extrude without transform */
 static int edbm_extrude_region_exec(bContext *C, wmOperator *op)
 {
-  const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   uint objects_len = 0;
   Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C), &objects_len);
+      view_layer, CTX_wm_view3d(C), &objects_len);
 
   for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
     Object *obedit = objects[ob_index];
@@ -479,11 +477,10 @@ void MESH_OT_extrude_region(wmOperatorType *ot)
 /* extrude without transform */
 static int edbm_extrude_context_exec(bContext *C, wmOperator *op)
 {
-  const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   uint objects_len = 0;
   Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C), &objects_len);
+      view_layer, CTX_wm_view3d(C), &objects_len);
 
   for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
     Object *obedit = objects[ob_index];
@@ -534,11 +531,10 @@ void MESH_OT_extrude_context(wmOperatorType *ot)
 
 static int edbm_extrude_verts_exec(bContext *C, wmOperator *op)
 {
-  const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   uint objects_len = 0;
   Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C), &objects_len);
+      view_layer, CTX_wm_view3d(C), &objects_len);
 
   for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
     Object *obedit = objects[ob_index];
@@ -588,11 +584,10 @@ void MESH_OT_extrude_verts_indiv(wmOperatorType *ot)
 static int edbm_extrude_edges_exec(bContext *C, wmOperator *op)
 {
   const bool use_normal_flip = RNA_boolean_get(op->ptr, "use_normal_flip");
-  const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   uint objects_len = 0;
   Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C), &objects_len);
+      view_layer, CTX_wm_view3d(C), &objects_len);
 
   for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
     Object *obedit = objects[ob_index];
@@ -642,11 +637,10 @@ void MESH_OT_extrude_edges_indiv(wmOperatorType *ot)
 
 static int edbm_extrude_faces_exec(bContext *C, wmOperator *op)
 {
-  const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   uint objects_len = 0;
   Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C), &objects_len);
+      view_layer, CTX_wm_view3d(C), &objects_len);
 
   for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
     Object *obedit = objects[ob_index];
@@ -716,7 +710,7 @@ static int edbm_dupli_extrude_cursor_invoke(bContext *C, wmOperator *op, const w
 
   uint objects_len = 0;
   Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      vc.scene, vc.view_layer, vc.v3d, &objects_len);
+      vc.view_layer, vc.v3d, &objects_len);
   for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
     Object *obedit = objects[ob_index];
     ED_view3d_viewcontext_init_object(&vc, obedit);
@@ -736,7 +730,7 @@ static int edbm_dupli_extrude_cursor_invoke(bContext *C, wmOperator *op, const w
     }
 
     mul_v3_fl(local_center, 1.0f / (float)local_verts_len);
-    mul_m4_v3(vc.obedit->object_to_world, local_center);
+    mul_m4_v3(vc.obedit->obmat, local_center);
     mul_v3_fl(local_center, (float)local_verts_len);
 
     add_v3_v3(center, local_center);
@@ -761,11 +755,11 @@ static int edbm_dupli_extrude_cursor_invoke(bContext *C, wmOperator *op, const w
       continue;
     }
 
-    invert_m4_m4(vc.obedit->world_to_object, vc.obedit->object_to_world);
+    invert_m4_m4(vc.obedit->imat, vc.obedit->obmat);
     ED_view3d_init_mats_rv3d(vc.obedit, vc.rv3d);
 
     float local_center[3];
-    mul_v3_m4v3(local_center, vc.obedit->world_to_object, center);
+    mul_v3_m4v3(local_center, vc.obedit->imat, center);
 
     /* call extrude? */
     if (verts_len != 0) {
@@ -791,8 +785,8 @@ static int edbm_dupli_extrude_cursor_invoke(bContext *C, wmOperator *op, const w
             /* 2D rotate by 90d while adding.
              *  (x, y) = (y, -x)
              *
-             * Accumulate the screen-space normal in 2D,
-             * with screen-space edge length weighting the result. */
+             * accumulate the screenspace normal in 2D,
+             * with screenspace edge length weighting the result. */
             if (line_point_side_v2(co1, co2, mval_f) >= 0.0f) {
               nor[0] += (co1[1] - co2[1]);
               nor[1] += -(co1[0] - co2[0]);
@@ -810,11 +804,11 @@ static int edbm_dupli_extrude_cursor_invoke(bContext *C, wmOperator *op, const w
         float view_vec[3], cross[3];
 
         /* convert the 2D normal into 3D */
-        mul_mat3_m4_v3(vc.rv3d->viewinv, nor);           /* World-space. */
-        mul_mat3_m4_v3(vc.obedit->world_to_object, nor); /* Local-space. */
+        mul_mat3_m4_v3(vc.rv3d->viewinv, nor); /* World-space. */
+        mul_mat3_m4_v3(vc.obedit->imat, nor);  /* Local-space. */
 
         /* correct the normal to be aligned on the view plane */
-        mul_v3_mat3_m4v3(view_vec, vc.obedit->world_to_object, vc.rv3d->viewinv[2]);
+        mul_v3_mat3_m4v3(view_vec, vc.obedit->imat, vc.rv3d->viewinv[2]);
         cross_v3_v3v3(cross, nor, view_vec);
         cross_v3_v3v3(nor, view_vec, cross);
         normalize_v3(nor);
@@ -823,9 +817,9 @@ static int edbm_dupli_extrude_cursor_invoke(bContext *C, wmOperator *op, const w
       /* center */
       copy_v3_v3(ofs, local_center);
 
-      mul_m4_v3(vc.obedit->object_to_world, ofs); /* view space */
+      mul_m4_v3(vc.obedit->obmat, ofs); /* view space */
       ED_view3d_win_to_3d_int(vc.v3d, vc.region, ofs, event->mval, ofs);
-      mul_m4_v3(vc.obedit->world_to_object, ofs); /* back in object space */
+      mul_m4_v3(vc.obedit->imat, ofs); /* back in object space */
 
       sub_v3_v3(ofs, local_center);
 
@@ -876,7 +870,7 @@ static int edbm_dupli_extrude_cursor_invoke(bContext *C, wmOperator *op, const w
       copy_v3_v3(local_center, cursor);
       ED_view3d_win_to_3d_int(vc.v3d, vc.region, local_center, event->mval, local_center);
 
-      mul_m4_v3(vc.obedit->world_to_object, local_center); /* back in object space */
+      mul_m4_v3(vc.obedit->imat, local_center); /* back in object space */
 
       EDBM_op_init(vc.em, &bmop, op, "create_vert co=%v", local_center);
       BMO_op_exec(vc.em->bm, &bmop);

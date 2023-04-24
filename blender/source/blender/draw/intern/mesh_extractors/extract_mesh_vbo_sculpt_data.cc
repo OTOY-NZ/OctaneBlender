@@ -9,7 +9,6 @@
 
 #include "BLI_string.h"
 
-#include "BKE_mesh.h"
 #include "BKE_paint.h"
 
 #include "draw_subdivision.h"
@@ -32,9 +31,9 @@ static GPUVertFormat *get_sculpt_data_format()
 }
 
 static void extract_sculpt_data_init(const MeshRenderData *mr,
-                                     MeshBatchCache * /*cache*/,
+                                     MeshBatchCache *UNUSED(cache),
                                      void *buf,
-                                     void * /*tls_data*/)
+                                     void *UNUSED(tls_data))
 {
   GPUVertBuf *vbo = static_cast<GPUVertBuf *>(buf);
   GPUVertFormat *format = get_sculpt_data_format();
@@ -44,8 +43,7 @@ static void extract_sculpt_data_init(const MeshRenderData *mr,
   CustomData *cd_pdata = (mr->extract_type == MR_EXTRACT_BMESH) ? &mr->bm->pdata : &mr->me->pdata;
 
   const float *cd_mask = (const float *)CustomData_get_layer(cd_vdata, CD_PAINT_MASK);
-  const int *cd_face_set = (const int *)CustomData_get_layer_named(
-      cd_pdata, CD_PROP_INT32, ".sculpt_face_set");
+  const int *cd_face_set = (const int *)CustomData_get_layer(cd_pdata, CD_SCULPT_FACE_SETS);
 
   GPU_vertbuf_init_with_format(vbo, format);
   GPU_vertbuf_data_alloc(vbo, mr->loop_len);
@@ -60,7 +58,7 @@ static void extract_sculpt_data_init(const MeshRenderData *mr,
 
   if (mr->extract_type == MR_EXTRACT_BMESH) {
     int cd_mask_ofs = CustomData_get_offset(cd_vdata, CD_PAINT_MASK);
-    int cd_face_set_ofs = CustomData_get_offset_named(cd_pdata, CD_PROP_INT32, ".sculpt_face_set");
+    int cd_face_set_ofs = CustomData_get_offset(cd_pdata, CD_SCULPT_FACE_SETS);
     BMIter f_iter;
     BMFace *efa;
     BM_ITER_MESH (efa, &f_iter, mr->bm, BM_FACES_OF_MESH) {
@@ -115,9 +113,9 @@ static void extract_sculpt_data_init(const MeshRenderData *mr,
 
 static void extract_sculpt_data_init_subdiv(const DRWSubdivCache *subdiv_cache,
                                             const MeshRenderData *mr,
-                                            MeshBatchCache * /*cache*/,
+                                            MeshBatchCache *UNUSED(cache),
                                             void *buffer,
-                                            void * /*data*/)
+                                            void *UNUSED(data))
 {
   GPUVertBuf *vbo = static_cast<GPUVertBuf *>(buffer);
 
@@ -130,9 +128,6 @@ static void extract_sculpt_data_init_subdiv(const DRWSubdivCache *subdiv_cache,
   GPUVertBuf *subdiv_mask_vbo = nullptr;
   const float *cd_mask = (const float *)CustomData_get_layer(cd_vdata, CD_PAINT_MASK);
 
-  const Span<MPoly> coarse_polys = coarse_mesh->polys();
-  const Span<MLoop> coarse_loops = coarse_mesh->loops();
-
   if (cd_mask) {
     GPUVertFormat mask_format = {0};
     GPU_vertformat_attr_add(&mask_format, "msk", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
@@ -143,11 +138,11 @@ static void extract_sculpt_data_init_subdiv(const DRWSubdivCache *subdiv_cache,
     float *v_mask = static_cast<float *>(GPU_vertbuf_get_data(mask_vbo));
 
     for (int i = 0; i < coarse_mesh->totpoly; i++) {
-      const MPoly *mpoly = &coarse_polys[i];
+      const MPoly *mpoly = &coarse_mesh->mpoly[i];
 
       for (int loop_index = mpoly->loopstart; loop_index < mpoly->loopstart + mpoly->totloop;
            loop_index++) {
-        const MLoop *ml = &coarse_loops[loop_index];
+        const MLoop *ml = &coarse_mesh->mloop[loop_index];
         *v_mask++ = cd_mask[ml->v];
       }
     }
@@ -156,7 +151,7 @@ static void extract_sculpt_data_init_subdiv(const DRWSubdivCache *subdiv_cache,
     GPU_vertbuf_init_build_on_device(
         subdiv_mask_vbo, &mask_format, subdiv_cache->num_subdiv_loops);
 
-    draw_subdiv_interp_custom_data(subdiv_cache, mask_vbo, subdiv_mask_vbo, GPU_COMP_F32, 1, 0);
+    draw_subdiv_interp_custom_data(subdiv_cache, mask_vbo, subdiv_mask_vbo, 1, 0, false);
   }
 
   /* Then, gather face sets. */
@@ -172,8 +167,7 @@ static void extract_sculpt_data_init_subdiv(const DRWSubdivCache *subdiv_cache,
   };
 
   gpuFaceSet *face_sets = (gpuFaceSet *)GPU_vertbuf_get_data(face_set_vbo);
-  const int *cd_face_set = (const int *)CustomData_get_layer_named(
-      cd_pdata, CD_PROP_INT32, ".sculpt_face_set");
+  const int *cd_face_set = (const int *)CustomData_get_layer(cd_pdata, CD_SCULPT_FACE_SETS);
 
   GPUVertFormat *format = get_sculpt_data_format();
   GPU_vertbuf_init_build_on_device(vbo, format, subdiv_cache->num_subdiv_loops);

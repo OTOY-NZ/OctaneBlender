@@ -3,6 +3,7 @@
 #include "BKE_curves.hh"
 
 #include "DNA_mesh_types.h"
+#include "DNA_meshdata_types.h"
 
 #include "GEO_mesh_to_curve.hh"
 
@@ -22,6 +23,7 @@ static Curves *edge_paths_to_curves_convert(const Mesh &mesh,
                                             const IndexMask start_verts_mask,
                                             const Span<int> next_indices)
 {
+  const Span<MVert> mvert{mesh.mvert, mesh.totvert};
   Vector<int> vert_indices;
   Vector<int> curve_offsets;
   Array<bool> visited(mesh.totvert, false);
@@ -68,14 +70,14 @@ static void node_geo_exec(GeoNodeExecParams params)
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Mesh");
 
   geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
-    const Mesh *mesh = geometry_set.get_mesh_for_read();
-    if (mesh == nullptr) {
+    if (!geometry_set.has_mesh()) {
       geometry_set.keep_only({GEO_COMPONENT_TYPE_INSTANCES});
       return;
     }
 
-    bke::MeshFieldContext context{*mesh, ATTR_DOMAIN_POINT};
-    fn::FieldEvaluator evaluator{context, mesh->totvert};
+    const MeshComponent &component = *geometry_set.get_component_for_read<MeshComponent>();
+    GeometryComponentFieldContext context{component, ATTR_DOMAIN_POINT};
+    fn::FieldEvaluator evaluator{context, component.attribute_domain_size(ATTR_DOMAIN_POINT)};
     evaluator.add(params.get_input<Field<int>>("Next Vertex Index"));
     evaluator.add(params.get_input<Field<bool>>("Start Vertices"));
     evaluator.evaluate();
@@ -87,7 +89,8 @@ static void node_geo_exec(GeoNodeExecParams params)
       return;
     }
 
-    geometry_set.replace_curves(edge_paths_to_curves_convert(*mesh, start_verts, next_vert));
+    const Mesh &mesh = *component.get_for_read();
+    geometry_set.replace_curves(edge_paths_to_curves_convert(mesh, start_verts, next_vert));
     geometry_set.keep_only({GEO_COMPONENT_TYPE_CURVE, GEO_COMPONENT_TYPE_INSTANCES});
   });
 

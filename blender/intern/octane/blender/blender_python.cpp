@@ -21,6 +21,7 @@
 #include <Python.h>
 
 #include "blender/blender_session.h"
+#include "blender/blender_client.h"
 
 #include "util/util_debug.h"
 #include "util/util_foreach.h"
@@ -79,26 +80,23 @@ static const char *PyC_UnicodeAsByte(PyObject *py_str, PyObject **coerce)
   }
 }
 
-static PyObject *init_func(PyObject * /*self*/, PyObject *args)
+static PyObject *py_init_func(PyObject * /*self*/, PyObject *args)
 {
   PyObject *path, *user_path;
-
   if (!PyArg_ParseTuple(args, "OO", &path, &user_path)) {
-    return NULL;
+    Py_RETURN_FALSE;
   }
-
   PyObject *path_coerce = NULL, *user_path_coerce = NULL;
   path_init(PyC_UnicodeAsByte(path, &path_coerce),
             PyC_UnicodeAsByte(user_path, &user_path_coerce));
   Py_XDECREF(path_coerce);
   Py_XDECREF(user_path_coerce);
-
-  Py_RETURN_NONE;
+  Py_RETURN_TRUE;
 }
 
-static PyObject *exit_func(PyObject * /*self*/, PyObject * /*args*/)
+static PyObject *py_exit_func(PyObject * /*self*/, PyObject * /*args*/)
 {
-  Py_RETURN_NONE;
+  Py_RETURN_TRUE;
 }
 
 static PyObject *create_func(PyObject * /*self*/, PyObject *args)
@@ -786,7 +784,7 @@ static PyObject *update_ocio_info_func(PyObject *self, PyObject *args)
   std::vector<std::vector<std::string>> results;
   int use_other_config, use_automatic, intermediate_color_space_octane;
   PyObject *py_path, *py_intermediate_color_space_ocio_name;
-       if (!PyArg_ParseTuple(args,
+  if (!PyArg_ParseTuple(args,
                         "OiiiO",
                         &py_path,
                         &use_other_config,
@@ -817,7 +815,7 @@ static PyObject *update_ocio_info_func(PyObject *self, PyObject *args)
     PyObject *ret = PyTuple_New(results[i].size());
     for (int j = 0; j < results[i].size(); ++j) {
       PyTuple_SET_ITEM(ret, j, PyUnicode_FromString(results[i][j].c_str()));
-	}
+    }
     PyTuple_SET_ITEM(rets, i, ret);
   }
   return rets;
@@ -846,13 +844,8 @@ static PyObject *orbx_preview_func(PyObject *self, PyObject *args)
 
 static PyObject *update_octane_custom_node(PyObject *self, PyObject *args)
 {
-  std::vector<std::vector<std::string>> results;
-  int use_other_config, use_automatic, intermediate_color_space_octane;
   PyObject *py_command, *py_data;
-  if (!PyArg_ParseTuple(args,
-                        "OO",
-                        &py_command,
-                        &py_data)) {
+  if (!PyArg_ParseTuple(args, "OO", &py_command, &py_data)) {
     return PyBool_FromLong(0);
   }
 
@@ -862,7 +855,7 @@ static PyObject *update_octane_custom_node(PyObject *self, PyObject *args)
   Py_XDECREF(path_coerce);
 
   std::string result_data;
-  Py_BEGIN_ALLOW_THREADS;  
+  Py_BEGIN_ALLOW_THREADS;
   BlenderSession::update_octane_custom_node(G.octane_server_address, command, data, result_data);
   Py_END_ALLOW_THREADS;
 
@@ -870,9 +863,166 @@ static PyObject *update_octane_custom_node(PyObject *self, PyObject *args)
   return ret;
 }
 
+static PyObject *py_add_node_name(PyObject *self, PyObject *args)
+{
+  int32_t node_type;
+  PyObject *py_node_name;
+  if (!PyArg_ParseTuple(args, "iO", &node_type, &py_node_name)) {
+    Py_RETURN_FALSE;
+  }
+  PyObject *py_coerce = NULL;
+  std::string node_name = PyC_UnicodeAsByte(py_node_name, &py_coerce);
+  Py_XDECREF(py_coerce);
+  OctaneInfo::instance().add_node_name(node_type, node_name);
+  Py_RETURN_TRUE;
+}
+
+static PyObject *py_set_static_pin_count(PyObject *self, PyObject *args)
+{
+  int32_t nodeType, pinCount;
+  if (!PyArg_ParseTuple(args, "ii", &nodeType, &pinCount)) {
+    Py_RETURN_FALSE;
+  }
+  OctaneInfo::instance().set_static_pin_count(nodeType, pinCount);
+  Py_RETURN_TRUE;
+}
+
+static PyObject *py_add_attribute_info(PyObject *self, PyObject *args)
+{
+  int32_t nodeType, attributeId, attributeType;
+  PyObject *pyBlenderName, *pyAttributeName;
+  if (!PyArg_ParseTuple(args,
+                        "iOiOi",
+                        &nodeType,
+                        &pyBlenderName,
+                        &attributeId,
+                        &pyAttributeName,
+                        &attributeType)) {
+    Py_RETURN_FALSE;
+  }
+  PyObject *pyCoerce = NULL;
+  std::string blenderName = PyC_UnicodeAsByte(pyBlenderName, &pyCoerce);
+  std::string attributeName = PyC_UnicodeAsByte(pyAttributeName, &pyCoerce);
+  Py_XDECREF(pyCoerce);
+  OctaneInfo::instance().add_attribute_info(
+      nodeType, blenderName, attributeId, attributeName, attributeType);
+  Py_RETURN_TRUE;
+}
+
+static PyObject *py_add_pin_info(PyObject *self, PyObject *args)
+{
+  int32_t nodeType, pinId, pinIndex, pinType, socketType, defaultNodeType;
+  PyObject *pyBlenderName, *pyPinName, *pyDefaultNodeName;
+  if (!PyArg_ParseTuple(args,
+                        "iOiOiiiiO",
+                        &nodeType,
+                        &pyBlenderName,
+                        &pinId,
+                        &pyPinName,
+                        &pinIndex,
+                        &pinType,
+                        &socketType,
+                        &defaultNodeType,
+                        &pyDefaultNodeName)) {
+    Py_RETURN_FALSE;
+  }
+  PyObject *pyCoerce = NULL;
+  std::string blenderName = PyC_UnicodeAsByte(pyBlenderName, &pyCoerce);
+  std::string pinName = PyC_UnicodeAsByte(pyPinName, &pyCoerce);
+  std::string defaultNodeName = PyC_UnicodeAsByte(pyDefaultNodeName, &pyCoerce);
+  Py_XDECREF(pyCoerce);
+  OctaneInfo::instance().add_pin_info(nodeType,
+                                       blenderName,
+                                       pinId,
+                                       pinName,
+                                       pinIndex,
+                                       pinType,
+                                       socketType,
+                                       defaultNodeType,
+                                       defaultNodeName);
+  Py_RETURN_TRUE;
+}
+
+static PyObject *py_add_legacy_data_info(PyObject *self, PyObject *args)
+{
+  int32_t node_type, is_socket, data_type, is_pin, octane_type, is_internal_data, internal_data_is_pin, internal_data_octane_type;
+  PyObject *py_name;
+  if (!PyArg_ParseTuple(args,
+                        "iOiiiiiii",
+                        &node_type,
+                        &py_name,
+                        &is_socket,
+                        &data_type,
+                        &is_pin,
+                        &octane_type,
+                        &is_internal_data,
+                        &internal_data_is_pin,
+                        &internal_data_octane_type)) {
+    Py_RETURN_FALSE;
+  }
+  PyObject *pyCoerce = NULL;
+  std::string name = PyC_UnicodeAsByte(py_name, &pyCoerce);
+  Py_XDECREF(pyCoerce);
+  OctaneInfo::instance().add_legacy_data_info(node_type,
+                                              name,
+                                              is_socket,
+                                              data_type,
+                                              is_pin,
+                                              octane_type,
+                                              is_internal_data,
+                                              internal_data_is_pin,
+                                              internal_data_octane_type);
+  Py_RETURN_TRUE;
+}
+
+
+static PyObject *py_start_utils_client(PyObject *self, PyObject *args)
+{
+  PyObject *py_client_name;
+  if (!PyArg_ParseTuple(args, "O", &py_client_name)) {
+    Py_RETURN_FALSE;
+  }
+  PyObject *py_coerce = NULL;
+  std::string client_name = PyC_UnicodeAsByte(py_client_name, &py_coerce);
+  Py_XDECREF(py_coerce);
+  bool result = OctaneClientManager::instance().start_utils_client(client_name);
+  Py_RETURN_TRUE;
+}
+
+static PyObject *py_stop_utils_client(PyObject *self, PyObject *args)
+{
+  PyObject *py_client_name;
+  if (!PyArg_ParseTuple(args, "O", &py_client_name)) {
+    Py_RETURN_FALSE;
+  }
+  PyObject *py_coerce = NULL;
+  std::string client_name = PyC_UnicodeAsByte(py_client_name, &py_coerce);
+  Py_XDECREF(py_coerce);
+  bool result = OctaneClientManager::instance().stop_utils_client(client_name);
+  Py_RETURN_TRUE;
+}
+
+static PyObject *py_utils_function(PyObject *self, PyObject *args)
+{
+  std::string result_data;
+  int32_t command_type;
+  PyObject *py_client_name, *py_command_data;
+  if (!PyArg_ParseTuple(args, "iOO", &command_type, &py_command_data, &py_client_name)) {
+    Py_RETURN_FALSE;
+  }
+  PyObject *py_coerce = NULL;
+  std::string command_data = PyC_UnicodeAsByte(py_command_data, &py_coerce);
+  std::string client_name = PyC_UnicodeAsByte(py_client_name, &py_coerce);
+  Py_XDECREF(py_coerce);
+  result_data = OctaneClientManager::instance().utils_function(
+      command_type, command_data, client_name);
+  PyObject *ret = PyUnicode_FromString(result_data.c_str());
+  return ret;
+}
+
 static PyMethodDef methods[] = {
-    {"init", init_func, METH_VARARGS, ""},
-    {"exit", exit_func, METH_VARARGS, ""},
+    {"init", py_init_func, METH_VARARGS, ""},
+    {"exit", py_exit_func, METH_VARARGS, ""},
     {"create", create_func, METH_VARARGS, ""},
     {"free", free_func, METH_O, ""},
     {"render", render_func, METH_VARARGS, ""},
@@ -896,21 +1046,22 @@ static PyMethodDef methods[] = {
     {"orbx_preview", orbx_preview_func, METH_VARARGS, ""},
     {"update_ocio_info", update_ocio_info_func, METH_VARARGS, ""},
     {"update_octane_custom_node", update_octane_custom_node, METH_VARARGS, ""},
+    {"add_node_name", py_add_node_name, METH_VARARGS, ""},
+    {"set_static_pin_count", py_set_static_pin_count, METH_VARARGS, ""},
+    {"add_attribute_info", py_add_attribute_info, METH_VARARGS, ""},
+    {"add_pin_info", py_add_pin_info, METH_VARARGS, ""},
+    {"add_legacy_data_info", py_add_legacy_data_info, METH_VARARGS, ""},
+    {"start_utils_client", py_start_utils_client, METH_VARARGS, ""},
+    {"stop_utils_client", py_stop_utils_client, METH_VARARGS, ""},
+    {"utils_function", py_utils_function, METH_VARARGS, ""},
     {NULL, NULL, 0, NULL},
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-static struct PyModuleDef module = {PyModuleDef_HEAD_INIT,
-                                    "_octane",
-                                    "Blender OctaneRender integration",
-                                    -1,
-                                    methods,
-                                    NULL,
-                                    NULL,
-                                    NULL,
-                                    NULL};
+static struct PyModuleDef module = {
+    PyModuleDef_HEAD_INIT, "_octane", "OctaneBlender", -1, methods, NULL, NULL, NULL, NULL};
 
 OCT_NAMESPACE_END
 

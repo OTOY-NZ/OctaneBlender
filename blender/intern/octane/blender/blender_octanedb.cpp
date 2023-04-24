@@ -83,6 +83,13 @@ struct BNodeSocketSetter : BaseVisitor {
             }
           }
         }
+        if (is_custom_node && b_input == b_shader_node.inputs.end()) {
+          // no sockets found
+          PropertyRNA *prop = RNA_struct_find_property(&ptr, base_dto_ptr->sName.c_str());
+          if (prop) {
+            set_blender_node(base_dto_ptr, b_shader_node.ptr, false, is_custom_node);
+          }
+        }
       }
     }
   }
@@ -210,8 +217,8 @@ bool BlenderOctaneDb::generate_blender_material_from_octanedb(
 
   target_material->is_octanedb_updating = 0;
 
-  if (view_layer->basact && view_layer->basact->object) {
-    auto ob = view_layer->basact->object;
+  auto ob = OBACT(view_layer);
+  if (ob) {
     BKE_object_material_slot_remove(bmain, ob);
     short actcol = ob->totcol + 1;
     BKE_object_material_assign(bmain, ob, target_material, actcol, BKE_MAT_ASSIGN_OBDATA);

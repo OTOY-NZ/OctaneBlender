@@ -15,12 +15,13 @@ class OctaneToonDirectionalLightEfficiencyOrTexture(OctaneBaseSocket):
     bl_idname="OctaneToonDirectionalLightEfficiencyOrTexture"
     bl_label="Texture"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=31
+    octane_default_node_type=consts.NodeType.NT_TEX_FLOAT
     octane_default_node_name="OctaneGreyscaleColor"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=237)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="efficiency or texture")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_TEX_OR_EFF
+    octane_pin_name="efficiency or texture"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="The emission texture (on the emitting surface)", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
@@ -31,12 +32,13 @@ class OctaneToonDirectionalLightSundir(OctaneBaseSocket):
     bl_idname="OctaneToonDirectionalLightSundir"
     bl_label="Light direction"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=30
+    octane_default_node_type=consts.NodeType.NT_SUN_DIRECTION
     octane_default_node_name="OctaneSunDirection"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=231)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="sundir")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
+    octane_pin_id=consts.PinID.P_SUN_DIR
+    octane_pin_name="sundir"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=1
+    octane_socket_type=consts.SocketType.ST_FLOAT3
     default_value: FloatVectorProperty(default=(1.000000, 0.800000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="Vector which defines the direction from which the light is pointing to", min=-1.000000, max=1.000000, soft_min=-1.000000, soft_max=1.000000, step=1, subtype="DIRECTION", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=0
@@ -47,12 +49,13 @@ class OctaneToonDirectionalLightPower(OctaneBaseSocket):
     bl_idname="OctaneToonDirectionalLightPower"
     bl_label="Power"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=138)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="power")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_POWER
+    octane_pin_name="power"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=2
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Multiplier for light source's brightness", min=0.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.010000, soft_max=100000.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
@@ -63,12 +66,13 @@ class OctaneToonDirectionalLightLightPassId(OctaneBaseSocket):
     bl_idname="OctaneToonDirectionalLightLightPassId"
     bl_label="Light pass ID"
     color=consts.OctanePinColor.Int
-    octane_default_node_type=9
+    octane_default_node_type=consts.NodeType.NT_INT
     octane_default_node_name="OctaneIntValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=97)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="lightPassId")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
+    octane_pin_id=consts.PinID.P_LIGHT_PASS_ID
+    octane_pin_name="lightPassId"
+    octane_pin_type=consts.PinType.PT_INT
+    octane_pin_index=3
+    octane_socket_type=consts.SocketType.ST_INT
     default_value: IntProperty(default=1, update=OctaneBaseSocket.update_node_tree, description="ID of the light pass that captures the contribution of this emitter", min=1, max=8, soft_min=1, soft_max=8, step=1, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=3080005
@@ -79,12 +83,13 @@ class OctaneToonDirectionalLightCastShadows(OctaneBaseSocket):
     bl_idname="OctaneToonDirectionalLightCastShadows"
     bl_label="Cast shadows"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type=11
+    octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=361)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="castShadows")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
+    octane_pin_id=consts.PinID.P_CAST_SHADOWS
+    octane_pin_name="castShadows"
+    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_index=4
+    octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="If enabled (which is the default), direct light shadows are calculated for this light source")
     octane_hide_value=False
     octane_min_version=4000003
@@ -105,13 +110,13 @@ class OctaneToonDirectionalLight(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneToonDirectionalLightEfficiencyOrTexture,OctaneToonDirectionalLightSundir,OctaneToonDirectionalLightPower,OctaneToonDirectionalLightLightPassId,OctaneToonDirectionalLightGroupVisibility,OctaneToonDirectionalLightCastShadows,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=124)
-    octane_socket_list: StringProperty(name="Socket List", default="Texture;Light direction;Power;Light pass ID;Cast shadows;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=5)
+    octane_node_type=consts.NodeType.NT_TOON_DIRECTIONAL_LIGHT
+    octane_socket_list=["Texture", "Light direction", "Power", "Light pass ID", "Cast shadows", ]
+    octane_attribute_list=[]
+    octane_attribute_config={}
+    octane_static_pin_count=5
 
     def init(self, context):
         self.inputs.new("OctaneToonDirectionalLightEfficiencyOrTexture", OctaneToonDirectionalLightEfficiencyOrTexture.bl_label).init()

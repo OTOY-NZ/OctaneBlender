@@ -24,15 +24,7 @@
 
 GHOST_SystemHandle GHOST_CreateSystem(void)
 {
-  GHOST_ISystem::createSystem(true, false);
-  GHOST_ISystem *system = GHOST_ISystem::getSystem();
-
-  return (GHOST_SystemHandle)system;
-}
-
-GHOST_SystemHandle GHOST_CreateSystemBackground(void)
-{
-  GHOST_ISystem::createSystemBackground();
+  GHOST_ISystem::createSystem();
   GHOST_ISystem *system = GHOST_ISystem::getSystem();
 
   return (GHOST_SystemHandle)system;
@@ -51,13 +43,6 @@ GHOST_TSuccess GHOST_DisposeSystem(GHOST_SystemHandle systemhandle)
 
   return system->disposeSystem();
 }
-
-#if !(defined(WIN32) || defined(__APPLE__))
-const char *GHOST_SystemBackend()
-{
-  return GHOST_ISystem::getSystemBackend();
-}
-#endif
 
 void GHOST_ShowMessageBox(GHOST_SystemHandle systemhandle,
                           const char *title,
@@ -161,6 +146,7 @@ GHOST_WindowHandle GHOST_CreateWindow(GHOST_SystemHandle systemhandle,
                                       uint32_t height,
                                       GHOST_TWindowState state,
                                       bool is_dialog,
+                                      GHOST_TDrawingContextType type,
                                       GHOST_GLSettings glSettings)
 {
   GHOST_ISystem *system = (GHOST_ISystem *)systemhandle;
@@ -171,6 +157,7 @@ GHOST_WindowHandle GHOST_CreateWindow(GHOST_SystemHandle systemhandle,
                                                   width,
                                                   height,
                                                   state,
+                                                  type,
                                                   glSettings,
                                                   false,
                                                   is_dialog,
@@ -727,14 +714,14 @@ GHOST_TSuccess GHOST_ReleaseOpenGLContext(GHOST_ContextHandle contexthandle)
   return context->releaseDrawingContext();
 }
 
-uint GHOST_GetContextDefaultOpenGLFramebuffer(GHOST_ContextHandle contexthandle)
+unsigned int GHOST_GetContextDefaultOpenGLFramebuffer(GHOST_ContextHandle contexthandle)
 {
   GHOST_IContext *context = (GHOST_IContext *)contexthandle;
 
   return context->getDefaultFramebuffer();
 }
 
-uint GHOST_GetDefaultOpenGLFramebuffer(GHOST_WindowHandle windowhandle)
+unsigned int GHOST_GetDefaultOpenGLFramebuffer(GHOST_WindowHandle windowhandle)
 {
   GHOST_IWindow *window = (GHOST_IWindow *)windowhandle;
 
@@ -750,7 +737,7 @@ GHOST_TSuccess GHOST_InvalidateWindow(GHOST_WindowHandle windowhandle)
 
 void GHOST_SetMultitouchGestures(GHOST_SystemHandle systemhandle, const bool use)
 {
-  GHOST_ISystem *system = (GHOST_ISystem *)systemhandle;
+  GHOST_ISystem *system = GHOST_ISystem::getSystem();
   return system->setMultitouchGestures(use);
 }
 
@@ -880,7 +867,8 @@ void GHOST_putClipboard(const char *buffer, bool selection)
 bool GHOST_setConsoleWindowState(GHOST_TConsoleWindowState action)
 {
   GHOST_ISystem *system = GHOST_ISystem::getSystem();
-  return system->setConsoleWindowState(action);
+  /* FIXME: use `bool` instead of int for this value. */
+  return (bool)system->setConsoleWindowState(action);
 }
 
 bool GHOST_UseNativePixels(void)
@@ -1136,7 +1124,8 @@ void *GHOST_XrGetActionCustomdata(GHOST_XrContextHandle xr_contexthandle,
   return 0;
 }
 
-uint GHOST_XrGetActionCount(GHOST_XrContextHandle xr_contexthandle, const char *action_set_name)
+unsigned int GHOST_XrGetActionCount(GHOST_XrContextHandle xr_contexthandle,
+                                    const char *action_set_name)
 {
   GHOST_IXrContext *xr_context = (GHOST_IXrContext *)xr_contexthandle;
   GHOST_XrSession *xr_session = xr_context->getSession();

@@ -23,7 +23,6 @@
 #include "BKE_lib_id.h"
 #include "BKE_lib_query.h"
 #include "BKE_mesh.h"
-#include "BKE_mesh_runtime.h"
 #include "BKE_mesh_wrapper.h"
 #include "BKE_modifier.h"
 #include "BKE_screen.h"
@@ -64,7 +63,9 @@ static bool isDisabled(const struct Scene *UNUSED(scene),
   return false;
 }
 
-static void requiredDataMask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
+static void requiredDataMask(Object *UNUSED(ob),
+                             ModifierData *md,
+                             CustomData_MeshMasks *r_cddata_masks)
 {
   CastModifierData *cmd = (CastModifierData *)md;
 
@@ -86,7 +87,7 @@ static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphConte
   CastModifierData *cmd = (CastModifierData *)md;
   if (cmd->object != NULL) {
     DEG_add_object_relation(ctx->node, cmd->object, DEG_OB_COMP_TRANSFORM, "Cast Modifier");
-    DEG_add_depends_on_transform_relation(ctx->node, "Cast Modifier");
+    DEG_add_modifier_to_transform_relation(ctx->node, "Cast Modifier");
   }
 }
 
@@ -97,7 +98,7 @@ static void sphere_do(CastModifierData *cmd,
                       float (*vertexCos)[3],
                       int verts_num)
 {
-  const MDeformVert *dvert = NULL;
+  MDeformVert *dvert = NULL;
   const bool invert_vgroup = (cmd->flag & MOD_CAST_INVERT_VGROUP) != 0;
 
   Object *ctrl_ob = NULL;
@@ -126,13 +127,13 @@ static void sphere_do(CastModifierData *cmd,
    * we use its location, transformed to ob's local space */
   if (ctrl_ob) {
     if (flag & MOD_CAST_USE_OB_TRANSFORM) {
-      invert_m4_m4(imat, ctrl_ob->object_to_world);
-      mul_m4_m4m4(mat, imat, ob->object_to_world);
+      invert_m4_m4(imat, ctrl_ob->obmat);
+      mul_m4_m4m4(mat, imat, ob->obmat);
       invert_m4_m4(imat, mat);
     }
 
-    invert_m4_m4(ob->world_to_object, ob->object_to_world);
-    mul_v3_m4v3(center, ob->world_to_object, ctrl_ob->object_to_world[3]);
+    invert_m4_m4(ob->imat, ob->obmat);
+    mul_v3_m4v3(center, ob->imat, ctrl_ob->obmat[3]);
   }
 
   /* now we check which options the user wants */
@@ -238,7 +239,7 @@ static void cuboid_do(CastModifierData *cmd,
                       float (*vertexCos)[3],
                       int verts_num)
 {
-  const MDeformVert *dvert = NULL;
+  MDeformVert *dvert = NULL;
   int defgrp_index;
   const bool invert_vgroup = (cmd->flag & MOD_CAST_INVERT_VGROUP) != 0;
 
@@ -275,13 +276,13 @@ static void cuboid_do(CastModifierData *cmd,
 
   if (ctrl_ob) {
     if (flag & MOD_CAST_USE_OB_TRANSFORM) {
-      invert_m4_m4(imat, ctrl_ob->object_to_world);
-      mul_m4_m4m4(mat, imat, ob->object_to_world);
+      invert_m4_m4(imat, ctrl_ob->obmat);
+      mul_m4_m4m4(mat, imat, ob->obmat);
       invert_m4_m4(imat, mat);
     }
 
-    invert_m4_m4(ob->world_to_object, ob->object_to_world);
-    mul_v3_m4v3(center, ob->world_to_object, ctrl_ob->object_to_world[3]);
+    invert_m4_m4(ob->imat, ob->obmat);
+    mul_v3_m4v3(center, ob->imat, ctrl_ob->obmat[3]);
   }
 
   if ((flag & MOD_CAST_SIZE_FROM_RADIUS) && has_radius) {
@@ -466,7 +467,7 @@ static void deformVerts(ModifierData *md,
 
   if (ctx->object->type == OB_MESH && cmd->defgrp_name[0] != '\0') {
     /* mesh_src is only needed for vgroups. */
-    mesh_src = MOD_deform_mesh_eval_get(ctx->object, NULL, mesh, NULL, verts_num, false);
+    mesh_src = MOD_deform_mesh_eval_get(ctx->object, NULL, mesh, NULL, verts_num, false, false);
   }
 
   if (cmd->type == MOD_CAST_TYPE_CUBOID) {
@@ -492,14 +493,15 @@ static void deformVertsEM(ModifierData *md,
   Mesh *mesh_src = NULL;
 
   if (cmd->defgrp_name[0] != '\0') {
-    mesh_src = MOD_deform_mesh_eval_get(ctx->object, editData, mesh, NULL, verts_num, false);
+    mesh_src = MOD_deform_mesh_eval_get(
+        ctx->object, editData, mesh, NULL, verts_num, false, false);
   }
 
-  if (mesh && BKE_mesh_wrapper_type(mesh) == ME_WRAPPER_TYPE_MDATA) {
+  if (mesh && mesh->runtime.wrapper_type == ME_WRAPPER_TYPE_MDATA) {
     BLI_assert(mesh->totvert == verts_num);
   }
 
-  /* TODO(@campbellbarton): use edit-mode data only (remove this line). */
+  /* TODO(Campbell): use edit-mode data only (remove this line). */
   if (mesh_src != NULL) {
     BKE_mesh_wrapper_ensure_mdata(mesh_src);
   }

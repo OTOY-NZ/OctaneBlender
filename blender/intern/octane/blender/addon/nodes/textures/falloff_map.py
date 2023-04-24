@@ -15,12 +15,13 @@ class OctaneFalloffMapMode(OctaneBaseSocket):
     bl_idname="OctaneFalloffMapMode"
     bl_label="Mode"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type=57
+    octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=324)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="mode")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
+    octane_pin_id=consts.PinID.P_MODE
+    octane_pin_name="mode"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("Normal vs. eye ray", "Normal vs. eye ray", "", 0),
         ("Normal vs. vector 90deg", "Normal vs. vector 90deg", "", 1),
@@ -36,12 +37,13 @@ class OctaneFalloffMapNormal(OctaneBaseSocket):
     bl_idname="OctaneFalloffMapNormal"
     bl_label="Minimum value"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=119)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="normal")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_NORMAL
+    octane_pin_name="normal"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=1
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Value if the angle between the two directions is 0", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
@@ -52,12 +54,13 @@ class OctaneFalloffMapGrazing(OctaneBaseSocket):
     bl_idname="OctaneFalloffMapGrazing"
     bl_label="Maximum value"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=68)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="grazing")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_GRAZING
+    octane_pin_name="grazing"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=2
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Value if the angle between the two directions is at the maximum", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
@@ -68,12 +71,13 @@ class OctaneFalloffMapFalloffIndex(OctaneBaseSocket):
     bl_idname="OctaneFalloffMapFalloffIndex"
     bl_label="Falloff skew factor"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=47)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="falloff index")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_FALLOFF
+    octane_pin_name="falloff index"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=3
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=6.000000, update=OctaneBaseSocket.update_node_tree, description="Skew factor for the falloff curve", min=0.100000, max=15.000000, soft_min=0.100000, soft_max=15.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
@@ -84,12 +88,13 @@ class OctaneFalloffMapDirection(OctaneBaseSocket):
     bl_idname="OctaneFalloffMapDirection"
     bl_label="Falloff direction"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=327)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="direction")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
+    octane_pin_id=consts.PinID.P_DIRECTION
+    octane_pin_name="direction"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=4
+    octane_socket_type=consts.SocketType.ST_FLOAT3
     default_value: FloatVectorProperty(default=(0.000000, 1.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="The direction vector that is used by some of the falloff modes", min=-1.000000, max=1.000000, soft_min=-1.000000, soft_max=1.000000, step=1, subtype="DIRECTION", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=3030005
@@ -105,13 +110,13 @@ class OctaneFalloffMap(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneFalloffMapMode,OctaneFalloffMapNormal,OctaneFalloffMapGrazing,OctaneFalloffMapFalloffIndex,OctaneFalloffMapDirection,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=50)
-    octane_socket_list: StringProperty(name="Socket List", default="Mode;Minimum value;Maximum value;Falloff skew factor;Falloff direction;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=5)
+    octane_node_type=consts.NodeType.NT_TEX_FALLOFF
+    octane_socket_list=["Mode", "Minimum value", "Maximum value", "Falloff skew factor", "Falloff direction", ]
+    octane_attribute_list=[]
+    octane_attribute_config={}
+    octane_static_pin_count=5
 
     def init(self, context):
         self.inputs.new("OctaneFalloffMapMode", OctaneFalloffMapMode.bl_label).init()

@@ -16,6 +16,7 @@ from . import shadow_catcher_material
 from . import hair_material
 from . import null_material
 from . import clipping_material
+from . import standard_surface_material
 
 def register():
     glossy_material.register()
@@ -33,6 +34,7 @@ def register():
     hair_material.register()
     null_material.register()
     clipping_material.register()
+    standard_surface_material.register()
 
 def unregister():
     glossy_material.unregister()
@@ -50,5 +52,6 @@ def unregister():
     hair_material.unregister()
     null_material.unregister()
     clipping_material.unregister()
+    standard_surface_material.unregister()
 
 ##### END OCTANE GENERATED CODE BLOCK #####

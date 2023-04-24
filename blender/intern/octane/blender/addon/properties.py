@@ -34,13 +34,10 @@ from bpy.props import (
 
 from math import pi
 import nodeitems_utils
-from . import nodeitems_octane
+from octane import nodeitems_octane
 from octane.utils import consts, utility, ocio
 from octane.properties_ import scene
-
 from operator import add
-
-from octane.core.client import OctaneClient
 
 rotation_orders = (
     ('0', "XYZ", ""),
@@ -308,7 +305,7 @@ class OctaneGeoNodeCollection(bpy.types.PropertyGroup):
                 if mat.name != self.node_graph_tree:
                     continue
                 for node in mat.node_tree.nodes.values():
-                    if node.bl_idname in ('OctaneProxy', 'OctaneVectron', 'ShaderNodeOctVectron', 'ShaderNodeOctScatterToolSurface', 'ShaderNodeOctScatterToolVolume', 'OctaneScatterOnSurface', 'OctaneScatterInVolume', ):                        
+                    if node.bl_idname.startswith("OctaneSDF") or node.bl_idname in ('OctaneProxy', 'OctaneVectron', 'ShaderNodeOctVectron', 'ShaderNodeOctScatterToolSurface', 'ShaderNodeOctScatterToolVolume', 'OctaneScatterOnSurface', 'OctaneScatterInVolume', ):
                         self.osl_geo_nodes.add()
                         self.osl_geo_nodes[-1].name = node.name
         self.sync_geo_node_info(context)
@@ -322,7 +319,6 @@ class OctaneVDBInfo(bpy.types.PropertyGroup):
     vdb_float_grid_id_container: CollectionProperty(type=OctaneVDBGridID)
 
     def update(self, context):
-        import _octane         
         def set_container(container, items):
             for i in range(0, len(container)):
                 container.remove(0)
@@ -352,7 +348,24 @@ class OctaneVDBInfo(bpy.types.PropertyGroup):
                     set_container(self.vdb_float_grid_id_container, vdb_float_grid_ids)
                     set_container(self.vdb_vector_grid_id_container, vdb_vector_grid_ids)               
             else:
-                vdb_float_grid_ids, vdb_vector_grid_ids = _octane.update_vdb_info(cur_obj.as_pointer(), context.blend_data.as_pointer(), scene.as_pointer()) 
+                vdb_float_grid_ids = []
+                vdb_vector_grid_ids = []
+                from octane import core
+                if core.ENABLE_OCTANE_ADDON_CLIENT:
+                    from octane.core.client import OctaneBlender
+                    response = OctaneBlender().utils_function(consts.UtilsFunctionType.FETCH_VDB_INFO, cur_obj.data.filepath)                    
+                    if len(response):
+                        content = ET.fromstring(response).get("content")
+                        root_et = ET.fromstring(content)
+                        float_grid_et = root_et.find("floatGrid")
+                        for et in float_grid_et.findall("grid"):
+                            vdb_float_grid_ids.append(et.text)                        
+                        vector_grid_et = root_et.find("vectorGrid")
+                        for et in vector_grid_et.findall("grid"):
+                            vdb_vector_grid_ids.append(et.text)                                     
+                else:
+                    import _octane
+                    vdb_float_grid_ids, vdb_vector_grid_ids = _octane.update_vdb_info(cur_obj.as_pointer(), context.blend_data.as_pointer(), scene.as_pointer()) 
                 set_container(self.vdb_float_grid_id_container, vdb_float_grid_ids)
                 set_container(self.vdb_vector_grid_id_container, vdb_vector_grid_ids)
 
@@ -469,6 +482,9 @@ class OctanePreferences(bpy.types.AddonPreferences):
     ocio_color_space_configs: CollectionProperty(type=scene.OctaneOCIOConfigName)                        
 
     def draw(self, context):
+        from octane import core
+        if core.ENABLE_OCTANE_ADDON_CLIENT:
+            return        
         layout = self.layout
         layout.row().prop(self, "octane_server_address", expand=False) 
         layout.row().prop(self, "enable_relese_octane_license_when_exiting", expand=False)   
@@ -543,7 +559,7 @@ class OctaneMeshSettings(bpy.types.PropertyGroup):
             name="Enable Mesh Volume SDF",
             description="Convert this mesh to Octane Mesh Volume SDF when rendering",
             default=False,
-            )
+            )        
     mesh_volume_sdf_voxel_size: FloatProperty(
             name="Voxel size",
             description="Size of one voxel",
@@ -1023,17 +1039,17 @@ class OctaneMeshSettings(bpy.types.PropertyGroup):
     @classmethod
     def register(cls):
         bpy.types.Mesh.octane = PointerProperty(
-                name="OctaneRender Mesh Settings",
+                name="Octane Mesh Settings",
                 description="",
                 type=cls,
                 )
         bpy.types.Curve.octane = PointerProperty(
-                name="OctaneRender Curve Settings",
+                name="Octane Curve Settings",
                 description="",
                 type=cls,
                 )
         bpy.types.MetaBall.octane = PointerProperty(
-                name="OctaneRender MetaBall Settings",
+                name="Octane MetaBall Settings",
                 description="",
                 type=cls,
                 )
@@ -1282,7 +1298,7 @@ class OctaneVolumeSettings(bpy.types.PropertyGroup):
     @classmethod
     def register(cls):
         bpy.types.Volume.octane = PointerProperty(
-                name="OctaneRender Volume Settings",
+                name="Octane Volume Settings",
                 description="",
                 type=cls,
                 )
@@ -1296,7 +1312,7 @@ class OctaneObjPropertiesSettings(bpy.types.PropertyGroup):
 
     visibility: BoolProperty(
             name="Visibility",
-            description="Object visibility for OctaneRender",
+            description="Object visibility for Octane",
             default=True,
             )
     overwrite_scatter_instance_id: IntProperty(
@@ -1309,8 +1325,8 @@ class OctaneObjPropertiesSettings(bpy.types.PropertyGroup):
     @classmethod
     def register(cls):
         bpy.types.Object.octane_properties = PointerProperty(
-                name="OctaneRender Object Properties",
-                description="OctaneRender object properties",
+                name="Octane Object Properties",
+                description="Octane object properties",
                 type=cls,
                 )
 
@@ -1319,400 +1335,18 @@ class OctaneObjPropertiesSettings(bpy.types.PropertyGroup):
         del bpy.types.Object.octane_properties
 
 
-class OctaneLightSettings(bpy.types.PropertyGroup):
-
-    enable: BoolProperty(
-            name="Enable",
-            description="Lamp casts shadows",
-            default=True,
-            )
-    camera_visibility: BoolProperty(
-            name="Camera Visibility",
-            description="",
-            default=False
-            )
-    mesh_type: EnumProperty(
-            name="Mesh type",
-            description="",
-            items=mesh_types,
-            default='1',
-            )
-    texture: StringProperty(
-            name="Texture",
-            description="The emission texture (on the emitting surface)",
-            default="",
-            maxlen=512,
-            )        
-    power: FloatProperty(
-           name="Power",
-           description="Multiplier for light source's brightness",
-           min=0.01, soft_min=0.01, max=100000.0, soft_max=100000.0,
-           default=1.0,
-           step=1,
-           precision=3,
-           )
-    light_pass_id: IntProperty(
-            name="Light pass ID",
-            description="ID of the light pass that captures the contribution of this emitter",
-            min=1, max=8,
-            default=1,
-            )   
-    enable_light_object_direction: BoolProperty(
-            name="Enable Light Object Direction",
-            description="Use the directoin from the light object. If this option is disabled, Octane will use the direction vector or sun direction set in the ToonDirectionLight",
-            default=True,
-            )        
-    sun_dir_enable: BoolProperty(
-            name="Use Sun Direction",
-            description="",
-            default=True,
-            )        
-    sun_dir_longitude: FloatProperty(
-            name="Longitude",
-            description="Longitude of the location",
-            min=-180.0, soft_min=-180.0, max=180.0, soft_max=180.0,
-            default=4.4667,
-            step=1,
-            precision=4,
-            )
-    sun_dir_latitude: FloatProperty(
-            name="Latitude",
-            description="Latitude of the location",
-            min=-90.0, soft_min=-90.0, max=90.0, soft_max=90.0,
-            default=50.7667,
-            step=1,
-            precision=4,
-            )
-    sun_dir_day: IntProperty(
-            name="Day",
-            description="Day of the month of the time the sun direction should be calculated for",
-            min=1, max=31,
-            default=1,
-            )
-    sun_dir_month: IntProperty(
-            name="Month",
-            description="Month of the time the sun direction should be calculated for",
-            min=1, max=12,
-            default=3,
-            )
-    sun_dir_gmtoffset: IntProperty(
-            name="GMT offset",
-            description="The time zone as offset to GMT",
-            min=-12, max=12,
-            default=0,
-            )
-    sun_dir_hour: FloatProperty(
-            name="Local time",
-            description="The local time as hours since 0:00",
-            min=0.0, soft_min=0.0, max=24.0, soft_max=24.0,
-            default=14,
-            step=10,
-            precision=1,
-            )
-    light_mesh: PointerProperty(
-            name="Light Mesh",
-            description="Use this mesh with octane emission",
-            type=bpy.types.Mesh,                
-            )   
-    use_external_mesh: BoolProperty(
-            name="Use External Mesh",
-            description="",
-            default=False,
-            )                     
-    external_mesh_file: StringProperty(
-            name="External Obj File",
-            description="Use external mesh with octane emission",
-            default='',
-            subtype='FILE_PATH',
-            )         
-
-    @classmethod
-    def register(cls):
-        bpy.types.Light.octane = PointerProperty(
-                name="OctaneRender Light Settings",
-                description="OctaneRender Light settings",
-                type=cls,
-                )
-
-    @classmethod
-    def unregister(cls):
-        del bpy.types.Light.octane
-
-
 class OctaneMaterialSettings(bpy.types.PropertyGroup):
     @classmethod
     def register(cls):
         bpy.types.Material.octane = PointerProperty(
-                name="OctaneRender Material Settings",
-                description="OctaneRender material settings",
+                name="Octane Material Settings",
+                description="Octane material settings",
                 type=cls,
                 )
 
     @classmethod
     def unregister(cls):
         del bpy.types.Material.octane
-
-
-class OctaneObjectSettings(bpy.types.PropertyGroup):
-
-    def update_object_settings(self, context):
-        self.id_data.update_tag()
-
-    render_layer_id: IntProperty(
-        name="Render layer ID",
-        description="Render layer number for current object. Will use the layer number from blender built-in render layer system if the value is 0",
-        min=1, max=255,
-        update=update_object_settings,
-        default=1,
-    )
-    general_visibility: FloatProperty(
-        name="General visibility",
-        description="",
-        min=0.0, max=1.0, soft_max=1.0,
-        update=update_object_settings,
-        default=1.0,
-    )    
-    camera_visibility: BoolProperty(
-        name="Camera Visibility",
-        description="",
-        update=update_object_settings,
-        default=True
-    )
-    shadow_visibility: BoolProperty(
-        name="Shadow Visibility",
-        description="",
-        update=update_object_settings,
-        default=True
-    )
-    dirt_visibility: BoolProperty(
-        name="Dirt Visibility",
-        description="",
-        update=update_object_settings,
-        default=True
-    )            
-    random_color_seed: IntProperty(
-        name="Random color seed",
-        description="Random color seed",
-        min=0, max=65535,
-        update=update_object_settings,
-        default=0,
-    )    
-    color: FloatVectorProperty(
-        name="Color",
-        description="The color that is rendered in the object layer render pass",
-        min=0.0, max=1.0,
-        update=update_object_settings,
-        default=(1.0, 1.0, 1.0),
-        subtype='COLOR',
-    )
-    light_id_sunlight: BoolProperty(
-        name="Sunlight",
-        description="Sunlight",
-        update=update_object_settings,
-        default=True,
-    )           
-    light_id_env: BoolProperty(
-        name="Environment",
-        description="Environment",
-        update=update_object_settings,
-        default=True,
-    )    
-    light_id_pass_1: BoolProperty(
-        name="Pass 1",
-        description="Pass 1",
-        update=update_object_settings,
-        default=True,
-    ) 
-    light_id_pass_2: BoolProperty(
-        name="Pass 2",
-        description="Pass 2",
-        update=update_object_settings,
-        default=True,
-    ) 
-    light_id_pass_3: BoolProperty(
-        name="Pass 3",
-        description="Pass 3",
-        update=update_object_settings,
-        default=True,
-    ) 
-    light_id_pass_4: BoolProperty(
-        name="Pass 4",
-        description="Pass 4",
-        update=update_object_settings,
-        default=True,
-    ) 
-    light_id_pass_5: BoolProperty(
-        name="Pass 5",
-        description="Pass 5",
-        update=update_object_settings,
-        default=True,
-    ) 
-    light_id_pass_6: BoolProperty(
-        name="Pass 6",
-        description="Pass 6",
-        update=update_object_settings,
-        default=True,
-    ) 
-    light_id_pass_7: BoolProperty(
-        name="Pass 7",
-        description="Pass 7",
-        update=update_object_settings,
-        default=True,
-    ) 
-    light_id_pass_8: BoolProperty(
-        name="Pass 8",
-        description="Pass 8",
-        update=update_object_settings,
-        default=True,
-    )      
-
-    baking_group_id: IntProperty(
-        name="Baking group ID",
-        description="",
-        min=1, max=65535,
-        update=update_object_settings,
-        default=1,                
-    )
-    baking_uv_transform_rz: FloatProperty(
-        name="R.Z",
-        description="Rotation Z",
-        min=-360, max=360,
-        update=update_object_settings,
-        default=0,                
-    )
-    baking_uv_transform_sx: FloatProperty(
-        name="S.X",
-        description="Scale X",
-        min=-0.001, max=1000,
-        update=update_object_settings,
-        default=1,                
-    )    
-    baking_uv_transform_sy: FloatProperty(
-        name="S.Y",
-        description="Scale Y",
-        min=-0.001, max=1000,
-        update=update_object_settings,
-        default=1,                
-    )   
-    baking_uv_transform_tx: FloatProperty(
-        name="T.X",
-        description="Translation X",
-        update=update_object_settings,
-        default=0,                
-    )    
-    baking_uv_transform_ty: FloatProperty(
-        name="T.Y",
-        description="Translation Y",
-        update=update_object_settings,
-        default=0,                
-    )      
-    custom_aov: EnumProperty(
-        name="Custom AOV",
-        description="If a custom AOV is selected, it will write a mask to it where the material is visible",
-        items=custom_aov_modes,
-        update=update_object_settings,
-        default='None',
-    )  
-    custom_aov_channel: EnumProperty(
-        name="Custom AOV Channel",
-        description="If a custom AOV is selected, the selected channel(s) will receive the mask",
-        items=custom_aov_channel_modes,
-        update=update_object_settings,
-        default='All',
-    )           
-
-    use_motion_blur: BoolProperty(
-        name="Use Motion Blur",
-        description="Use motion blur for this object",
-        default=False,
-    )
-    use_deform_motion: BoolProperty(
-        name="Use Deformation Motion",
-        description="Use deformation motion blur for this object",
-        default=False,
-    )
-    motion_steps: IntProperty(
-        name="Motion Steps",
-        description="Control accuracy of motion blur, more steps gives more memory usage (actual number of steps is 2^(steps - 1))",
-        min=1, soft_max=8,
-        default=1,
-    )   
-    object_mesh_type: EnumProperty(
-        name="Object Type",
-        description="Used for rendering speed optimization, see the manual",
-        items=object_mesh_types,
-        default='Auto',
-    )   
-    node_graph_tree: StringProperty(
-        name="Node Graph",
-        default="",
-        maxlen=512,
-    )    
-    osl_geo_node: StringProperty(
-        name="Octane Geo Node",
-        default="",
-        maxlen=512,
-    ) 
-
-
-    @classmethod
-    def register(cls):
-        bpy.types.Object.octane = PointerProperty(
-            name="Octane Object Settings",
-            description="Octane object settings",
-            type=cls,
-        )
-
-    @classmethod
-    def unregister(cls):
-        del bpy.types.Object.octane
-
-
-#LEGACY SYSTEM
-class OctaneHairSettings(bpy.types.PropertyGroup):
-    root_width: FloatProperty(
-            name="Root thickness",
-            description="Hair thickness at root",
-            min=0.0, max=1000.0,
-            default=0.001,
-            )
-    tip_width: FloatProperty(
-            name="Tip thickness",
-            description="Hair thickness at tip",
-            min=0.0, max=1000.0,
-            default=0.001,
-            )
-    min_curvature: FloatProperty(
-            name="Minimal curvature (deg.)",
-            description="Hair points having angle deviation from previous point less than this value will be skipped",
-            min=0.0, max=180.0,
-            default=0.0001,
-            )
-    w_min: FloatProperty(
-            name="Min. W",
-            description="W coordinate of the root of a hair: it represents a position on a color gradient for roots of all hairs of this particle system",
-            min=0.0, max=1.0,
-            default=0.0,
-            )
-    w_max: FloatProperty(
-            name="Max. W",
-            description="W coordinate of the tip of a hair: it represents a position on a color gradient for tips of all hairs of this particle system",
-            min=0.0, max=1.0,
-            default=1.0,
-            )
-
-    @classmethod
-    def register(cls):
-        bpy.types.ParticleSettings.octane = PointerProperty(
-                name="Octane Hair Settings",
-                description="Octane hair settings",
-                type=cls,
-                )
-
-    @classmethod
-    def unregister(cls):
-        del bpy.types.ParticleSettings.octane
-
 
 
 classes = (
@@ -1722,27 +1356,14 @@ classes = (
     OctaneVDBGridID,
     OctaneVDBInfo,
     OctaneMeshSettings,
-    OctaneHairSettings,
     OctaneObjPropertiesSettings,
-    OctaneLightSettings,
     OctaneMaterialSettings,
-    OctaneObjectSettings,
     OctaneVolumeSettings,
 )
 
 @persistent
 def load_handler(scene):
-    try:
-        from . import operators
-        OctaneClient().activate(True)
-        if not scene:
-            scene = bpy.context.scene
-        if scene:
-            from octane import core
-            if not core.ENABLE_OCTANE_ADDON_CLIENT:
-                scene.octane.addon_dev_enabled = False
-    except:
-        pass
+    pass
 
 def register():    
     from bpy.utils import register_class	
@@ -1760,7 +1381,6 @@ def register():
     # nodeitems_utils.register_node_categories("OCT_SHADER", shader_node_categories)    
     # nodeitems_utils.register_node_categories("OCT_TEXTURE", texture_node_categories)
     octane_server_address = str(bpy.context.preferences.addons['octane'].preferences.octane_server_address)
-    OctaneClient().connect(octane_server_address)
     update_octane_data()
     ocio.update_ocio_info()  
     bpy.app.handlers.load_post.append(load_handler)

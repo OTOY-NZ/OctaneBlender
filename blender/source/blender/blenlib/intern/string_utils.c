@@ -344,10 +344,10 @@ bool BLI_uniquename(
  *
  * \{ */
 
-size_t BLI_string_join_array(char *result,
-                             size_t result_len,
-                             const char *strings[],
-                             uint strings_len)
+char *BLI_string_join_array(char *result,
+                            size_t result_len,
+                            const char *strings[],
+                            uint strings_len)
 {
   char *c = result;
   char *c_end = &result[result_len - 1];
@@ -358,10 +358,10 @@ size_t BLI_string_join_array(char *result,
     }
   }
   *c = '\0';
-  return (size_t)(c - result);
+  return c;
 }
 
-size_t BLI_string_join_array_by_sep_char(
+char *BLI_string_join_array_by_sep_char(
     char *result, size_t result_len, char sep, const char *strings[], uint strings_len)
 {
   char *c = result;
@@ -378,7 +378,7 @@ size_t BLI_string_join_array_by_sep_char(
     }
   }
   *c = '\0';
-  return (size_t)(c - result);
+  return c;
 }
 
 char *BLI_string_join_arrayN(const char *strings[], uint strings_len)

@@ -15,12 +15,13 @@ class OctaneRotationRotationOrder(OctaneBaseSocket):
     bl_idname="OctaneRotationRotationOrder"
     bl_label="Order"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type=57
+    octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=202)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="rotationOrder")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
+    octane_pin_id=consts.PinID.P_ROTATION_ORDER
+    octane_pin_name="rotationOrder"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("XYZ", "XYZ", "", 0),
         ("XZY", "XZY", "", 1),
@@ -39,12 +40,13 @@ class OctaneRotationRotation(OctaneBaseSocket):
     bl_idname="OctaneRotationRotation"
     bl_label="Angles"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=203)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="rotation")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
+    octane_pin_id=consts.PinID.P_ROTATION
+    octane_pin_name="rotation"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=1
+    octane_socket_type=consts.SocketType.ST_FLOAT3
     default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="Provides the X/Y/Z rotation angles", min=-360.000000, max=360.000000, soft_min=-360.000000, soft_max=360.000000, step=10, subtype="NONE", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=0
@@ -60,13 +62,13 @@ class OctaneRotation(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneRotationRotationOrder,OctaneRotationRotation,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=29)
-    octane_socket_list: StringProperty(name="Socket List", default="Order;Angles;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=2)
+    octane_node_type=consts.NodeType.NT_TRANSFORM_ROTATION
+    octane_socket_list=["Order", "Angles", ]
+    octane_attribute_list=[]
+    octane_attribute_config={"a_transform": [consts.AttributeID.A_TRANSFORM, "transform", consts.AttributeType.AT_MATRIX], }
+    octane_static_pin_count=2
 
     def init(self, context):
         self.inputs.new("OctaneRotationRotationOrder", OctaneRotationRotationOrder.bl_label).init()

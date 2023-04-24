@@ -2,6 +2,8 @@ import bpy
 import xml.etree.ElementTree as ET
 from bpy.props import IntProperty, FloatProperty, BoolProperty, StringProperty, EnumProperty, PointerProperty, FloatVectorProperty, IntVectorProperty, BoolVectorProperty, CollectionProperty
 from bpy.utils import register_class, unregister_class
+from octane.nodes.render_settings.animation_settings import OctaneAnimationSettingsShutterAlignment
+from octane.nodes.render_settings.render_layer import OctaneRenderLayerMode
 from octane.properties_ import common
 from octane.utils import consts, ocio, utility
 from octane import core
@@ -28,39 +30,6 @@ cryptomatte_pass_channel_modes = (
     ('8', "8", "", 8),
     ('10', "10", "", 10),        
 )
-
-
-class KernelNodeGraphPropertyGroup(bpy.types.PropertyGroup):
-    def poll_kernel_tree(self, node_tree):
-        return node_tree.bl_idname == consts.OctaneNodeTreeIDName.KERNEL
-    node_tree: PointerProperty(
-        name="Kernel Node Graph",
-        description="Select the kernel node graph(can be created in the 'Kernel Editor'",
-        type=bpy.types.NodeTree,
-        poll=poll_kernel_tree,
-    )
-
-
-class RenderAOVNodeGraphPropertyGroup(bpy.types.PropertyGroup):  
-    def poll_render_aov_node_tree(self, node_tree):
-        return node_tree.bl_idname == consts.OctaneNodeTreeIDName.RENDER_AOV
-    node_tree: PointerProperty(
-        name="Render AOV Node Graph",
-        description="Select the render AOV node graph(can be created in the 'Octane Render AOV Editor'",
-        type=bpy.types.NodeTree,
-        poll=poll_render_aov_node_tree,
-    )
-
-
-class CompositeNodeGraphPropertyGroup(bpy.types.PropertyGroup):  
-    def poll_composite_node_tree(self, node_tree):
-        return node_tree.bl_idname == consts.OctaneNodeTreeIDName.COMPOSITE
-    node_tree: PointerProperty(
-        name="Composite Node Graph",
-        description="Select the Octane composite node graph(can be created in the 'Octane Composte Editor'",
-        type=bpy.types.NodeTree,
-        poll=poll_composite_node_tree,
-    )
 
 
 class OctaneOCIOConfigName(bpy.types.PropertyGroup):    
@@ -263,6 +232,512 @@ class OctaneBakingLayerTransformCollection(bpy.types.PropertyGroup):
         pass
 
 
+class KernelNodeGraphPropertyGroup(bpy.types.PropertyGroup):
+    def poll_kernel_tree(self, node_tree):
+        return node_tree.bl_idname == consts.OctaneNodeTreeIDName.KERNEL
+    node_tree: PointerProperty(
+        name="Kernel Node Graph",
+        description="Select the kernel node graph(can be created in the 'Kernel Editor'",
+        type=bpy.types.NodeTree,
+        poll=poll_kernel_tree,
+    )
+
+
+class RenderAOVNodeGraphPropertyGroup(bpy.types.PropertyGroup):  
+    def poll_render_aov_node_tree(self, node_tree):
+        return node_tree.bl_idname == consts.OctaneNodeTreeIDName.RENDER_AOV
+    node_tree: PointerProperty(
+        name="Render AOV Node Graph",
+        description="Select the render AOV node graph(can be created in the 'Octane Render AOV Editor'",
+        type=bpy.types.NodeTree,
+        poll=poll_render_aov_node_tree,
+    )
+
+
+class CompositeNodeGraphPropertyGroup(bpy.types.PropertyGroup):  
+    def poll_composite_node_tree(self, node_tree):
+        return node_tree.bl_idname == consts.OctaneNodeTreeIDName.COMPOSITE
+    node_tree: PointerProperty(
+        name="Composite Node Graph",
+        description="Select the Octane composite node graph(can be created in the 'Octane Composte Editor'",
+        type=bpy.types.NodeTree,
+        poll=poll_composite_node_tree,
+    )
+
+
+class OctaneAnimationSettings(bpy.types.PropertyGroup, common.OctanePropertySettings):
+    PROPERTY_CONFIGS = {consts.NodeType.NT_ANIMATION_SETTINGS: ["mb_direction",]}
+    PROPERTY_NAME_TO_PIN_SYMBOL_MAP = {
+        "mb_direction": "shutterAlignment",
+    }
+
+    mb_direction: EnumProperty(
+        name="Shutter alignment",
+        description="Specifies how the shutter interval is aligned to the current time",
+        items=OctaneAnimationSettingsShutterAlignment.items,
+        default="After",
+    )
+    shutter_time: FloatProperty(
+        name="Shutter time",
+        description="The shutter time percentage relative to the duration of a single frame",                
+        default=20.0,                
+        precision=0,
+        min=0.0, soft_min=0.0, max=100000.0, soft_max=100.0,
+        subtype='PERCENTAGE',
+    )
+    subframe_start: FloatProperty(
+        name="Subframe start",
+        description="Minimum sub-frame % time to sample",                
+        default=0.0,
+        precision=0,
+        min=0.0, soft_min=0.0, max=100.0, soft_max=100.0,
+        subtype='PERCENTAGE',
+    )  
+    subframe_end: FloatProperty(
+        name="Subframe end",
+        description="Maximum sub-frame % time to sample",                
+        default=100.0,
+        precision=0,
+        min=0.0, soft_min=0.0, max=100.0, soft_max=100.0,
+        subtype='PERCENTAGE',
+    )
+
+    def draw(self, context, layout, is_viewport=None):
+        row = layout.row()
+        row.prop(self, "mb_direction")
+        row = layout.row()
+        row.prop(self, "shutter_time")
+        row = layout.row()
+        row.prop(self, "subframe_start")
+        row = layout.row()
+        row.prop(self, "subframe_end")
+
+    def sync_custom_data(self, octane_node, scene, region, v3d, rv3d, is_viewport):
+        octane_node.set_pin_id(consts.PinID.P_SHUTTER_TIME, False, "", scene.render.fps * self.shutter_time / 100.0)
+        # octane_node.set_pin_id(consts.PinID.P_SHUTTER_TIME, False, "", self.shutter_time / 100.0)
+        octane_node.set_pin_id(consts.PinID.P_SUBFRAME_START, False, "", self.subframe_start / 100.0)
+        octane_node.set_pin_id(consts.PinID.P_SUBFRAME_END, False, "", self.subframe_end / 100.0)
+
+    def update_legacy_data(self, context, legacy_data, is_viewport=None):
+        utility.cast_legacy_enum_property(self, "mb_direction", OctaneAnimationSettingsShutterAlignment.items, legacy_data, "mb_direction")
+        utility.sync_legacy_property(self, "shutter_time", legacy_data, "shutter_time")
+        utility.sync_legacy_property(self, "subframe_start", legacy_data, "subframe_start")
+        utility.sync_legacy_property(self, "subframe_end", legacy_data, "subframe_end")
+
+
+class OctaneGlobalRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
+    PROPERTY_CONFIGS = {consts.NodeType.NT_RENDER_LAYER: ["layers_enable", "layers_current", "layers_invert", "layers_mode",]}
+    PROPERTY_NAME_TO_PIN_SYMBOL_MAP = {
+        "layers_enable": "enabled",
+        "layers_current": "layerId",
+        "layers_invert": "invert",
+        "layers_mode": "mode",
+    }
+
+    layers_enable: BoolProperty(
+        name="Enable",
+        description="Tick to enable Octane render layers",
+        default=False,
+    )
+    layers_current: IntProperty(
+        name="Active layer ID",
+        description="ID of the active render layer",
+        min=1, max=255,
+        default=1,
+    )
+    layers_invert: BoolProperty(
+        name="Invert",
+        description="All the non-active render layers become the active render layer and the active render layer becomes inactive",
+        default=False,
+    )
+    layers_mode: EnumProperty(
+        name="Mode",
+        description="The render mode that should be used to render layers:\n"
+            "\n"
+            "'Normal':"
+            " The beauty passes contain the active layer only and the render layer passes (shadows,"
+            " reflections...) record the side-effects of the active render layer for those samples/pixels"
+            " that are not obstructed by the active render layer.\n"
+            "\n"
+            "'Hide inactive layers':"
+            " All geometry that is not on an active layer will be made invisible. No side effects"
+            " will be recorded in the render layer passes, i.e. the render layer passes will be empty.\n"
+            "\n"
+            "'Only side effects':"
+            " The active layer will be made invisible and the render layer passes (shadows, reflections...)"
+            " record the side-effects of the active render layer. The beauty passes will be empty.\n"
+            " This is useful to capture all side-effects without having the active layer obstructing those.\n"
+            "\n"
+            "'Hide from camera':"
+            " Similar to 'Hide inactive layers' All geometry that is not on an active layer"
+            " will be made invisible. But side effects(shadows, reflections...)will be recorded in the render layer passes\n"
+            "\n",
+        items=OctaneRenderLayerMode.items,
+        default="Normal",
+    )
+
+    def draw(self, context, layout, is_viewport=None):
+        col = layout.column()
+        col.prop(self, "layers_mode")
+        col.prop(self, "layers_current")
+        col.prop(self, "layers_invert")        
+
+    def update_legacy_data(self, context, legacy_data, is_viewport=None):
+        utility.cast_legacy_enum_property(self, "layers_mode", OctaneRenderLayerMode.items, legacy_data, "layers_mode")
+        utility.sync_legacy_property(self, "layers_enable", legacy_data, "layers_enable")
+        utility.sync_legacy_property(self, "layers_current", legacy_data, "layers_current")
+        utility.sync_legacy_property(self, "layers_invert", legacy_data, "layers_invert")        
+
+
+
+class OctaneRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
+    PROPERTY_CONFIGS = {
+        consts.NodeType.NT_RENDER_LAYER: ["layers_enable", "layers_current", "layers_invert", "layers_mode",]
+    }
+    PROPERTY_NAME_TO_PIN_SYMBOL_MAP = {
+        "layers_enable": "enabled",
+        "layers_current": "layerId",
+        "layers_invert": "invert",
+        "layers_mode": "mode",
+    }
+    LEGACY_LAYER_MODE_CONVERTOR = {
+        "OCT_RENDER_LAYER_MODE_NORMAL": "Normal",
+        "OCT_RENDER_LAYER_MODE_HIDE_INACTIVE_LAYERS": "Hide inactive layers",
+        "OCT_RENDER_LAYER_MODE_ONLY_SIDE_EFFECTS": "Only side effects",
+        "OCT_RENDER_LAYER_MODE_HIDE_FROM_CAMERA": "Hide from camera",
+    }
+
+
+    layers_enable: BoolProperty(
+        name="Use Octane Render Layer",
+        description="Render current layer with the Octane layer system",
+        default=False,
+    )
+    layers_current: IntProperty(
+        name="Active layer ID",
+        description="ID of the active render layer",
+        min=1, max=255,
+        default=1,
+    )
+    layers_invert: BoolProperty(
+        name="Invert",
+        description="All the non-active render layers become the active render layer and the active render layer becomes inactive",
+        default=False,
+    )
+    layers_mode: EnumProperty(
+        name="Mode",
+        description="The render mode that should be used to render layers:\n"
+            "\n"
+            "'Normal':"
+            " The beauty passes contain the active layer only and the render layer passes (shadows,"
+            " reflections...) record the side-effects of the active render layer for those samples/pixels"
+            " that are not obstructed by the active render layer.\n"
+            "\n"
+            "'Hide inactive layers':"
+            " All geometry that is not on an active layer will be made invisible. No side effects"
+            " will be recorded in the render layer passes, i.e. the render layer passes will be empty.\n"
+            "\n"
+            "'Only side effects':"
+            " The active layer will be made invisible and the render layer passes (shadows, reflections...)"
+            " record the side-effects of the active render layer. The beauty passes will be empty.\n"
+            " This is useful to capture all side-effects without having the active layer obstructing those.\n"
+            "\n"
+            "'Hide from camera':"
+            " Similar to 'Hide inactive layers' All geometry that is not on an active layer"
+            " will be made invisible. But side effects(shadows, reflections...)will be recorded in the render layer passes\n"
+            "\n",
+        items=OctaneRenderLayerMode.items,
+        default="Normal",
+    )
+    render_aov_node_graph_property: PointerProperty(
+        name="Render AOV Node Graph Property",
+        description="",
+        type=RenderAOVNodeGraphPropertyGroup,
+    )
+    composite_node_graph_property: PointerProperty(
+        name="Composite Node Graph Property",
+        description="",
+        type=CompositeNodeGraphPropertyGroup,
+    )
+
+    use_passes: BoolProperty(
+        name="Render passes",
+        description="",
+        default=False,
+    )
+    info_pass_max_samples: IntProperty(
+        name="Info pass max samples",
+        description="The maximum number of samples for the info passes (excluding AO)",
+        min=1, max=1024,
+        default=128,
+    )
+    info_pass_sampling_mode: EnumProperty(
+        name="Sampling mode",
+        description="Enables motion blur and depth of field, and sets pixel filtering modes.\n\n"
+            "'Distributed rays':"
+            " Enables motion blur and DOF, and also enables pixel filtering.\n"
+            "'Non-distributed with pixel filtering':"
+            " Disables motion blur and DOF, but leaves pixel filtering enabled.\n"
+            "'Non-distributed without pixel filtering':"
+            " Disables motion blur and DOF, and disables pixel filtering for all render passes"
+            " except for render layer mask and ambient occlusion\n",
+        items=info_pass_sampling_modes,
+        default='0',
+    )
+    info_pass_z_depth_max: FloatProperty(
+        name="Z-depth max",
+        description="Z-depth value mapped to white (0 is mapped to black)",
+        min=0.001, soft_min=0.001, max=100000.0, soft_max=100000.0,
+        default=5.0,
+        step=10,
+        precision=4,
+    )
+    info_pass_uv_max: FloatProperty(
+        name="UV max",
+        description="UV coordinate value mapped to maximum intensity",
+        min=0.00001, soft_min=0.00001, max=1000.0, soft_max=1000.0,
+        default=1.0,
+        step=10,
+        precision=5,
+    )
+    info_pass_uv_coordinate_selection: IntProperty(
+        name="UV coordinate selection",
+        description="Determines which set of UV coordinates to use",
+        min=1, max=3,
+        default=1,
+    )        
+    info_pass_max_speed: FloatProperty(
+        name="Max speed",
+        description="Speed mapped to the maximum intensity in the motion vector channel. A value of 1 means a maximum movement of 1 screen width in the shutter interval",
+        min=0.00001, soft_min=0.00001, max=10000.0, soft_max=10000.0,
+        default=1.0,
+        step=10,
+        precision=5,
+    )
+    info_pass_ao_distance: FloatProperty(
+        name="AO distance",
+        description="Ambient occlusion distance",
+        min=0.01, soft_min=0.01, max=1024.0, soft_max=1024.0,
+        default=3.0,
+        step=10,
+        precision=2,
+    )
+    info_pass_alpha_shadows: BoolProperty(
+        name="AO alpha shadows",
+        description="Take into account alpha maps when calculating ambient occlusion",
+        default=False,
+    )
+    pass_raw: BoolProperty(
+        name="Raw",
+        description="Make the beauty pass raw render passes by dividing out the color of the BxDF of the surface hit by the camera ray",
+        default=False,
+    )
+    pass_pp_env: BoolProperty(
+        name="Include environment",
+        description="When enabled, the environment render pass is included when doing post-processing. This option only applies when the environment render pass and alpha channel are enabled",
+        default=False,
+    )
+    info_pass_bump: BoolProperty(
+        name="Bump and normal mapping",
+        description="Take bump and normal mapping into account for shading normal output and wireframe shading",
+        default=True,
+    )
+    info_pass_opacity_threshold: FloatProperty(
+        name="Opacity threshold",
+        description="Geometry with opacity higher or equal to this value is treated as totally opaque",
+        min=0.0, soft_min=0.0, max=1.0, soft_max=1.0,
+        default=1.0,
+        step=10,
+        precision=3,
+    )
+    cryptomatte_pass_channels: EnumProperty(
+        name="Channels",
+        description="Amount of cryptomatte channels to render",
+        items=cryptomatte_pass_channel_modes,
+        default='2',
+    )
+    cryptomatte_seed_factor: IntProperty(
+        name="Cryptomatte seed factor",
+        description="Amount of samples to use for seeding cryptomatte. This gets multiplied with the amount of bins. Low values result in pitting artefacts at feathered edges, while large values the values can result in artefacts in places with coverage for lots of different IDs",
+        min=4, max=25,
+        default=10,
+    )
+    octane_render_pass_types = (
+        ('0', "Combined", "Combined pass", 0),
+
+        ('1', "Emitters", "Emitters pass", 1),
+        ('2', "Environment", "Environment pass", 2),
+
+        ('3', "Diffuse", "Diffuse pass", 3),
+        ('4', "Diffuse direct", "Diffuse direct pass", 4),
+        ('5', "Diffuse indirect", "Diffuse indirect pass", 5),
+        ('6', "Diffuse filter", "Diffuse filter pass", 6),
+
+        ('7', "Reflection", "Reflection pass", 7),
+        ('8', "Reflection direct", "Reflection direct pass", 8),
+        ('9', "Reflection indirect", "Reflection indirect pass", 9),
+        ('10', "Reflection filter", "Reflection filter pass", 10),
+
+        ('11', "Refraction", "Refraction pass pass", 11),
+        ('12', "Refraction filter", "Refraction filter pass pass", 12),
+        ('13', "Transmission", "Transmission pass", 13),
+        ('14', "Transmission filter", "Transmission filter pass", 14),
+
+        ('15', "Subsurface scattering", "Subsurface scattering pass", 15),
+        ('16', "Post processing", "Post processing pass", 16),
+
+        ('17', "Layer shadows", "Layer shadows pass", 17),
+        ('18', "Layer black shadows", "Layer black shadows pass", 18),
+        ('20', "Layer reflections", "Layer reflections pass", 20),
+
+        ('21', "Ambient light", "Ambient light pass", 21),
+        ('22', "Sunlight", "Sunlight pass", 22),
+        ('23', "Light pass 1", "Light pass 1", 23),
+        ('24', "Light pass 2", "Light pass 2", 24),
+        ('25', "Light pass 3", "Light pass 3", 25),
+        ('26', "Light pass 4", "Light pass 4", 26),
+        ('27', "Light pass 5", "Light pass 5", 27),
+        ('28', "Light pass 6", "Light pass 6", 28),
+        ('29', "Light pass 7", "Light pass 7", 29),
+        ('30', "Light pass 8", "Light pass 8", 30),
+        ('31', "Noise", "Noise pass", 31),
+        ('32', "Shadow", "Shadow pass", 32),
+        ('33', "Irradiance", "Irradiance pass", 33),
+        ('34', "Light Direction", "Light Direction pass", 34),
+        ('35', "Volume", "Volume pass", 35),
+        ('36', "Volume Mask", "Volume Mask pass", 36),
+        ('37', "Volume Emission", "Volume Emission pass", 37),
+        ('38', "Volume Z-Depth Front", "Volume Z-Depth Front pass", 38),
+        ('39', "Volume Z-Depth Back", "Volume Z-Depth Back pass", 39),
+
+        ('43', "Denoiser Beauty", "Denoiser Beauty pass", 43),
+        ('44', "Denoiser DiffDir", "Denoiser Diffuse Direct pass", 44),
+        ('45', "Denoiser DiffIndir", "Denoiser Diffuse Indirect pass", 45),
+        ('46', "Denoiser ReflectDir", "Denoiser Reflection Direct pass", 46),
+        ('47', "Denoiser ReflectIndir", "Denoiser Reflection Indirect pass", 47),
+        #('48', "Denoiser Refraction", "Denoiser Refraction pass"),
+        ('49', "Denoiser Refraction", "Denoiser Refraction(Remainder) pass", 49),
+        ('76', "Denoiser Emission", "Denoiser Emission pass", 76),
+        ('74', "Denoiser Volume", "Denoiser Volume pass", 74),
+        ('75', "Denoiser Volume Emission", "Denoiser Volume Emission pass", 75),
+
+        ('54', "Ambient light direct", "Ambient light direct pass", 54),
+        ('55', "Ambient light indirect", "Ambient light indirect pass", 55),
+        ('56', "Sunlight direct", "Sunlight direct pass", 56),
+        ('57', "Sunlight indirect", "Sunlight indirect pass", 57),
+        ('58', "Light pass 1 direct", "Light pass 1 direct", 58),    
+        ('59', "Light pass 2 direct", "Light pass 2 direct", 59),
+        ('60', "Light pass 3 direct", "Light pass 3 direct", 60),
+        ('61', "Light pass 4 direct", "Light pass 4 direct", 61),
+        ('62', "Light pass 5 direct", "Light pass 5 direct", 62),
+        ('63', "Light pass 6 direct", "Light pass 6 direct", 63),
+        ('64', "Light pass 7 direct", "Light pass 7 direct", 64),
+        ('65', "Light pass 8 direct", "Light pass 8 direct", 65),   
+        ('66', "Light pass 1 indirect", "Light pass 1 indirect", 66),    
+        ('67', "Light pass 2 indirect", "Light pass 2 indirect", 67),
+        ('68', "Light pass 3 indirect", "Light pass 3 indirect", 68),
+        ('69', "Light pass 4 indirect", "Light pass 4 indirect", 69),
+        ('70', "Light pass 5 indirect", "Light pass 5 indirect", 70),
+        ('71', "Light pass 6 indirect", "Light pass 6 indirect", 71),
+        ('72', "Light pass 7 indirect", "Light pass 7 indirect", 72),
+        ('73', "Light pass 8 indirect", "Light pass 8 indirect", 73),       
+
+        ('1000', "Geometric normals", "Geometric normals pass", 1000),
+        ('1001', "Shading normals", "Shading normals pass", 1001),
+        ('1002', "Position", "Position pass", 1002),
+        ('1003', "Z-depth", "Z-depth pass", 1003),
+        ('1004', "Material id", "Material id pass", 1004),
+        ('1005', "UV coordinates", "UV coordinates pass", 1005),
+        ('1006', "Tangents", "Tangents pass", 1006),
+        ('1007', "Wireframe", "Wireframe pass", 1007),
+        ('1008', "Smooth normals", "Smooth normals pass", 1008),
+        ('1009', "Object id", "Object id pass", 1009),    
+        ('1010', "Ambient occlusion", "Ambient occlusion pass", 1010),
+        ('1011', "Motion vector", "Motion vector pass", 1011),
+        ('1012', "Render layer ID", "Colours objects on the same layer with the same color based on the render layer ID", 1012),
+        ('1013', "Render layer mask", "Mask for geometry on the active render layer", 1013),
+        ('1014', "Light pass ID", "Light pass ID pass", 1014),
+        ('1015', "Tangent normals", "Tangent normals pass", 1015),
+        ('1016', "Info Opacity", "Assigns a colour to the camera ray's hit point proportional to the opacity of the geometry", 1016),
+        ('1017', "Baking group ID", "Colours each distinct baking group in the scene with a colour based on it's ID", 1017),
+        ('1018', "Info Roughness", "Material roughness at the camera ray's hit point", 1018),
+        ('1019', "Info IOR", "Material index of refraction at the camera ray's hit point", 1019),
+        ('1020', "Info DiffFilter", "The diffuse texture color of the diffuse and glossy material", 1020),
+        ('1021', "Info ReflectFilter", "The reflection texture color of the specular and glossy material", 1021),
+        ('1022', "Info RefractFilter", "The refraction texture color of the specular material", 1022),    
+        ('1023', "Info TransmFilter", "The transmission texture color of the diffuse material", 1023),    
+        ('1024', "Object layer color", "The color specified in the object layer node", 1024),
+
+        ('2001', "Cryptomatte MaterialName", "Cryptomatte channels for material node names", 2001), 
+        ('2006', "Cryptomatte MaterialNode", "Cryptomatte channels using distinct material nodes", 2006),    
+        ('2002', "Cryptomatte MaterialPinName", "Cryptomatte channels for material pin names", 2002), 
+        ('2003', "Cryptomatte ObjectName", "Cryptomatte channels for object layer node names", 2003), 
+        ('2004', "Cryptomatte ObjectNode", "Cryptomatte channels using distinct object layer nodes", 2004),    
+        ('2007', "Cryptomatte ObjectPinName", "Cryptomatte channels for object layer pin names", 2007), 
+        # Not suitable for the legacy render pass system
+        # ('2009', "Cryptomatte RenderLayer", "Cryptomatte channels for render layers", 2009), 
+
+        ('2005', "Cryptomatte InstanceID", "Cryptomatte channels for instance IDs", 2005),    
+        # Not suitable for the legacy render pass system
+        # ('2008', "Cryptomatte GeometryNodeName", "Cryptomatte channels for geometry node names", 2008), 
+        # ('2010', "Cryptomatte UserInstanceID", "Cryptomatte channels for user instance IDs", 2010), 
+
+        ('10000', "AOV Output", "AOV Outputs", 10000),   
+    )    
+    current_preview_pass_type: EnumProperty(
+        name="Preview pass type",
+        description="Pass used for preview rendering",
+        items=octane_render_pass_types,
+        default='0',
+    )
+    current_aov_output_id: IntProperty(
+        name="Preivew AOV Output ID",
+        description="The ID of the AOV Outputs for preview(beauty pass output will be used if no valid results for the assigned index)",
+        min=1, max=16,
+        default=1,
+    )
+    aov_output_group_collection: PointerProperty(
+        name="Octane Aov Output Group Collection",
+        description="",
+        type=OctaneAovOutputGroupCollection,
+    )
+    render_passes_style = (
+        ('RENDER_PASSES', "Classic Render Passes", "The classic render passes style but the new render AOVs won't be available there", 0),
+        ('RENDER_AOV_GRAPH', "Render AOV Node Graph", "The render AOV node graph with the AOV features", 1),
+    )    
+    render_pass_style: EnumProperty(
+        name="Render Passes Style",
+        description="Use the classic Render Passes or the new Render AOV Graph",
+        items=render_passes_style,
+        default="RENDER_PASSES",
+        update=utility.update_render_passes
+    )
+
+    def draw(self, context, layout, is_viewport=None):
+        col = layout.column()
+        col.prop(self, "layers_mode")
+        col.prop(self, "layers_current")
+        col.prop(self, "layers_invert")        
+
+    def update_legacy_data(self, context, legacy_data, is_viewport=None): 
+        self.layers_mode = self.LEGACY_LAYER_MODE_CONVERTOR.get(getattr(legacy_data, "octane_render_layers_mode", ""), "Normal")
+        utility.sync_legacy_property(self, "layers_enable", legacy_data, "use_octane_render_layers")
+        utility.sync_legacy_property(self, "layers_current", legacy_data, "octane_render_layer_active_id")
+        utility.sync_legacy_property(self, "layers_invert", legacy_data, "octane_render_layers_invert")
+
+    @classmethod
+    def register(cls):
+        bpy.types.ViewLayer.octane = PointerProperty(
+            name="Octane RenderLayer Settings",
+            description="Octane RenderLayer settings",
+            type=cls,
+        )
+
+    @classmethod
+    def unregister(cls):
+        del bpy.types.ViewLayer.octane
+
+
 class OctaneRenderSettings(bpy.types.PropertyGroup):
 
 # ################################################################################################
@@ -273,6 +748,10 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
         description="",
         default="",
         maxlen=128,
+    )
+    octane_version: IntProperty(
+        name="",
+        default=0,
     )
 # ################################################################################################
 # OCTANE OPTIMIZATION
@@ -289,6 +768,22 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
         name="Kernel Node Graph",
         description="Select the kernel node graph(can be created in the 'Kernel Editor'",
         type=KernelNodeGraphPropertyGroup,
+    )
+# ################################################################################################
+# OCTANE ANIMATION SETTINGS
+# ################################################################################################  
+    animation_settings: PointerProperty(
+        name="Octane Animation Settings",
+        description="",
+        type=OctaneAnimationSettings,
+    )
+# ################################################################################################
+# OCTANE RENDER LAYER
+# ################################################################################################  
+    render_layer: PointerProperty(
+        name="Octane Render Layer",
+        description="",
+        type=OctaneGlobalRenderLayer,
     )
 # ################################################################################################
 # OCTANE RENDER PASSES
@@ -525,7 +1020,7 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
 # ################################################################################################
 # OCTANE BAKING LAYER TRANSFORMS
 # ################################################################################################
-    baking_layer_settings = PointerProperty(
+    baking_layer_settings: PointerProperty(
         name="Octane Baking Layer Transforms",
         description="",
         type=OctaneBakingLayerTransformCollection,
@@ -603,12 +1098,6 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
 # ################################################################################################
 # OCTANE COMMON
 # ################################################################################################
-    addon_dev_enabled: BoolProperty(
-        default=core.ENABLE_OCTANE_ADDON_CLIENT,
-    )
-    legacy_mode_enabled: BoolProperty(
-        default=not core.ENABLE_OCTANE_ADDON_CLIENT,
-    )    
     viewport_hide: BoolProperty(
         name="Viewport hide priority",
         description="Hide from final render objects hidden in viewport",
@@ -767,6 +1256,7 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
         ('2', "Path trace", ""),
         ('3', "PMC", ""),
         ('4', "Info-channel", ""),
+        ('5', "Photon tracing", ""),
     )
     kernel_type: EnumProperty(
         name="Kernel type",
@@ -1372,6 +1862,17 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
         description="Whether to apply Octane's built-in tone mapping (before applying any OCIO look(s)) when using an OCIO view. This may produce undesirable results due to an intermediate reduction to the sRGB color space",
         default=False,
     )
+    octane_export_premultiplied_alpha: BoolProperty(
+        name="Premultiplied Aplha",
+        description="Premultiplied Aplha",
+        default=False,
+    )    
+    octane_export_dwa_compression_level: IntProperty(
+        name="DWA compression level",
+        description="DWA compression level",
+        min=0, max=2000, 
+        default=45,
+    )    
     white_light_spectrum_modes = (
         ('D65', "D65", "D65", 1),
         ('Legacy/flat', "Legacy/flat", "Legacy/flat", 0),
@@ -1392,6 +1893,48 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
         description="",
         default=True,
     )
+    photon_depth: IntProperty(
+        name="Photon depth",
+        description="The maximum path depth for photons",
+        min=2, max=16, 
+        default=8,
+    )
+    accurate_colors: BoolProperty(
+        name="Accurate colors",
+        description="If enabled colors will be more accurate but noise will converge more slowly",
+        default=False,
+    )
+    photon_gather_radius: FloatProperty(
+        name="Photon gathering radius",
+        description="The maximum radius where photons can contribute",
+        min=0.0, soft_min=0.0, max=1.0, soft_max=1.0,
+        default=0.01,
+        step=3,
+        precision=4,
+    )
+    photon_gather_multiplier: FloatProperty(
+        name="Photon count multiplier",
+        description="Approximate ratio between photons and camera rays",
+        min=0.25, soft_min=0.25, max=8.0, soft_max=8.0,
+        default=4.0,
+        step=3,
+        precision=2,
+    )        
+    photon_gather_samples: IntProperty(
+        name="Photon gather samples",
+        description="Maximal amount of photon gather samples per pixel between photon tracing passes. This is similar to max. tile samples, but it also affects the quality of caustics rendered. Higher values give more samples per second at the expense of caustic quality",
+        min=1, max=64, 
+        default=2,
+    )    
+    exploration_strength: FloatProperty(
+        name="Exploration strength",
+        description="The higher this value, the more the photon sampling is influenced by which photons are actually gathered",
+        min=0.0, soft_min=0.0, max=1.0, soft_max=1.0,
+        default=0.8,
+        step=3,
+        precision=3,
+    )
+
     #LEGACY COMPATIBILITY
     hdr_tonemap_enable: BoolProperty(
         name="Tonemapped HDR",
@@ -1412,281 +1955,6 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
         pass
 
 
-class OctaneRenderLayerSettings(bpy.types.PropertyGroup):
-    use_passes: BoolProperty(
-        name="Render passes",
-        description="",
-        default=False,
-    )
-    info_pass_max_samples: IntProperty(
-        name="Info pass max samples",
-        description="The maximum number of samples for the info passes (excluding AO)",
-        min=1, max=1024,
-        default=128,
-    )
-    info_pass_sampling_mode: EnumProperty(
-        name="Sampling mode",
-        description="Enables motion blur and depth of field, and sets pixel filtering modes.\n\n"
-            "'Distributed rays':"
-            " Enables motion blur and DOF, and also enables pixel filtering.\n"
-            "'Non-distributed with pixel filtering':"
-            " Disables motion blur and DOF, but leaves pixel filtering enabled.\n"
-            "'Non-distributed without pixel filtering':"
-            " Disables motion blur and DOF, and disables pixel filtering for all render passes"
-            " except for render layer mask and ambient occlusion\n",
-        items=info_pass_sampling_modes,
-        default='0',
-    )
-    info_pass_z_depth_max: FloatProperty(
-        name="Z-depth max",
-        description="Z-depth value mapped to white (0 is mapped to black)",
-        min=0.001, soft_min=0.001, max=100000.0, soft_max=100000.0,
-        default=5.0,
-        step=10,
-        precision=4,
-    )
-    info_pass_uv_max: FloatProperty(
-        name="UV max",
-        description="UV coordinate value mapped to maximum intensity",
-        min=0.00001, soft_min=0.00001, max=1000.0, soft_max=1000.0,
-        default=1.0,
-        step=10,
-        precision=5,
-    )
-    info_pass_uv_coordinate_selection: IntProperty(
-        name="UV coordinate selection",
-        description="Determines which set of UV coordinates to use",
-        min=1, max=3,
-        default=1,
-    )        
-    info_pass_max_speed: FloatProperty(
-        name="Max speed",
-        description="Speed mapped to the maximum intensity in the motion vector channel. A value of 1 means a maximum movement of 1 screen width in the shutter interval",
-        min=0.00001, soft_min=0.00001, max=10000.0, soft_max=10000.0,
-        default=1.0,
-        step=10,
-        precision=5,
-    )
-    info_pass_ao_distance: FloatProperty(
-        name="AO distance",
-        description="Ambient occlusion distance",
-        min=0.01, soft_min=0.01, max=1024.0, soft_max=1024.0,
-        default=3.0,
-        step=10,
-        precision=2,
-    )
-    info_pass_alpha_shadows: BoolProperty(
-        name="AO alpha shadows",
-        description="Take into account alpha maps when calculating ambient occlusion",
-        default=False,
-    )
-    pass_raw: BoolProperty(
-        name="Raw",
-        description="Make the beauty pass raw render passes by dividing out the color of the BxDF of the surface hit by the camera ray",
-        default=False,
-    )
-    pass_pp_env: BoolProperty(
-        name="Include environment",
-        description="When enabled, the environment render pass is included when doing post-processing. This option only applies when the environment render pass and alpha channel are enabled",
-        default=False,
-    )
-    info_pass_bump: BoolProperty(
-        name="Bump and normal mapping",
-        description="Take bump and normal mapping into account for shading normal output and wireframe shading",
-        default=True,
-    )
-    info_pass_opacity_threshold: FloatProperty(
-        name="Opacity threshold",
-        description="Geometry with opacity higher or equal to this value is treated as totally opaque",
-        min=0.0, soft_min=0.0, max=1.0, soft_max=1.0,
-        default=1.0,
-        step=10,
-        precision=3,
-    )
-    cryptomatte_pass_channels: EnumProperty(
-        name="Channels",
-        description="Amount of cryptomatte channels to render",
-        items=cryptomatte_pass_channel_modes,
-        default='2',
-    )
-    cryptomatte_seed_factor: IntProperty(
-        name="Cryptomatte seed factor",
-        description="Amount of samples to use for seeding cryptomatte. This gets multiplied with the amount of bins. Low values result in pitting artefacts at feathered edges, while large values the values can result in artefacts in places with coverage for lots of different IDs",
-        min=4, max=25,
-        default=10,
-    )
-    octane_render_pass_types = (
-        ('0', "Combined", "Combined pass", 0),
-
-        ('1', "Emitters", "Emitters pass", 1),
-        ('2', "Environment", "Environment pass", 2),
-
-        ('3', "Diffuse", "Diffuse pass", 3),
-        ('4', "Diffuse direct", "Diffuse direct pass", 4),
-        ('5', "Diffuse indirect", "Diffuse indirect pass", 5),
-        ('6', "Diffuse filter", "Diffuse filter pass", 6),
-
-        ('7', "Reflection", "Reflection pass", 7),
-        ('8', "Reflection direct", "Reflection direct pass", 8),
-        ('9', "Reflection indirect", "Reflection indirect pass", 9),
-        ('10', "Reflection filter", "Reflection filter pass", 10),
-
-        ('11', "Refraction", "Refraction pass pass", 11),
-        ('12', "Refraction filter", "Refraction filter pass pass", 12),
-        ('13', "Transmission", "Transmission pass", 13),
-        ('14', "Transmission filter", "Transmission filter pass", 14),
-
-        ('15', "Subsurface scattering", "Subsurface scattering pass", 15),
-        ('16', "Post processing", "Post processing pass", 16),
-
-        ('17', "Layer shadows", "Layer shadows pass", 17),
-        ('18', "Layer black shadows", "Layer black shadows pass", 18),
-        ('20', "Layer reflections", "Layer reflections pass", 20),
-
-        ('21', "Ambient light", "Ambient light pass", 21),
-        ('22', "Sunlight", "Sunlight pass", 22),
-        ('23', "Light pass 1", "Light pass 1", 23),
-        ('24', "Light pass 2", "Light pass 2", 24),
-        ('25', "Light pass 3", "Light pass 3", 25),
-        ('26', "Light pass 4", "Light pass 4", 26),
-        ('27', "Light pass 5", "Light pass 5", 27),
-        ('28', "Light pass 6", "Light pass 6", 28),
-        ('29', "Light pass 7", "Light pass 7", 29),
-        ('30', "Light pass 8", "Light pass 8", 30),
-        ('31', "Noise", "Noise pass", 31),
-        ('32', "Shadow", "Shadow pass", 32),
-        ('33', "Irradiance", "Irradiance pass", 33),
-        ('34', "Light Direction", "Light Direction pass", 34),
-        ('35', "Volume", "Volume pass", 35),
-        ('36', "Volume Mask", "Volume Mask pass", 36),
-        ('37', "Volume Emission", "Volume Emission pass", 37),
-        ('38', "Volume Z-Depth Front", "Volume Z-Depth Front pass", 38),
-        ('39', "Volume Z-Depth Back", "Volume Z-Depth Back pass", 39),
-
-        ('43', "Denoiser Beauty", "Denoiser Beauty pass", 43),
-        ('44', "Denoiser DiffDir", "Denoiser Diffuse Direct pass", 44),
-        ('45', "Denoiser DiffIndir", "Denoiser Diffuse Indirect pass", 45),
-        ('46', "Denoiser ReflectDir", "Denoiser Reflection Direct pass", 46),
-        ('47', "Denoiser ReflectIndir", "Denoiser Reflection Indirect pass", 47),
-        #('48', "Denoiser Refraction", "Denoiser Refraction pass"),
-        ('49', "Denoiser Refraction", "Denoiser Refraction(Remainder) pass", 49),
-        ('76', "Denoiser Emission", "Denoiser Emission pass", 76),
-        ('74', "Denoiser Volume", "Denoiser Volume pass", 74),
-        ('75', "Denoiser Volume Emission", "Denoiser Volume Emission pass", 75),
-
-        ('54', "Ambient light direct", "Ambient light direct pass", 54),
-        ('55', "Ambient light indirect", "Ambient light indirect pass", 55),
-        ('56', "Sunlight direct", "Sunlight direct pass", 56),
-        ('57', "Sunlight indirect", "Sunlight indirect pass", 57),
-        ('58', "Light pass 1 direct", "Light pass 1 direct", 58),    
-        ('59', "Light pass 2 direct", "Light pass 2 direct", 59),
-        ('60', "Light pass 3 direct", "Light pass 3 direct", 60),
-        ('61', "Light pass 4 direct", "Light pass 4 direct", 61),
-        ('62', "Light pass 5 direct", "Light pass 5 direct", 62),
-        ('63', "Light pass 6 direct", "Light pass 6 direct", 63),
-        ('64', "Light pass 7 direct", "Light pass 7 direct", 64),
-        ('65', "Light pass 8 direct", "Light pass 8 direct", 65),   
-        ('66', "Light pass 1 indirect", "Light pass 1 indirect", 66),    
-        ('67', "Light pass 2 indirect", "Light pass 2 indirect", 67),
-        ('68', "Light pass 3 indirect", "Light pass 3 indirect", 68),
-        ('69', "Light pass 4 indirect", "Light pass 4 indirect", 69),
-        ('70', "Light pass 5 indirect", "Light pass 5 indirect", 70),
-        ('71', "Light pass 6 indirect", "Light pass 6 indirect", 71),
-        ('72', "Light pass 7 indirect", "Light pass 7 indirect", 72),
-        ('73', "Light pass 8 indirect", "Light pass 8 indirect", 73),       
-
-        ('1000', "Geometric normals", "Geometric normals pass", 1000),
-        ('1001', "Shading normals", "Shading normals pass", 1001),
-        ('1002', "Position", "Position pass", 1002),
-        ('1003', "Z-depth", "Z-depth pass", 1003),
-        ('1004', "Material id", "Material id pass", 1004),
-        ('1005', "UV coordinates", "UV coordinates pass", 1005),
-        ('1006', "Tangents", "Tangents pass", 1006),
-        ('1007', "Wireframe", "Wireframe pass", 1007),
-        ('1008', "Smooth normals", "Smooth normals pass", 1008),
-        ('1009', "Object id", "Object id pass", 1009),    
-        ('1010', "Ambient occlusion", "Ambient occlusion pass", 1010),
-        ('1011', "Motion vector", "Motion vector pass", 1011),
-        ('1012', "Render layer ID", "Colours objects on the same layer with the same color based on the render layer ID", 1012),
-        ('1013', "Render layer mask", "Mask for geometry on the active render layer", 1013),
-        ('1014', "Light pass ID", "Light pass ID pass", 1014),
-        ('1015', "Tangent normals", "Tangent normals pass", 1015),
-        ('1016', "Info Opacity", "Assigns a colour to the camera ray's hit point proportional to the opacity of the geometry", 1016),
-        ('1017', "Baking group ID", "Colours each distinct baking group in the scene with a colour based on it's ID", 1017),
-        ('1018', "Info Roughness", "Material roughness at the camera ray's hit point", 1018),
-        ('1019', "Info IOR", "Material index of refraction at the camera ray's hit point", 1019),
-        ('1020', "Info DiffFilter", "The diffuse texture color of the diffuse and glossy material", 1020),
-        ('1021', "Info ReflectFilter", "The reflection texture color of the specular and glossy material", 1021),
-        ('1022', "Info RefractFilter", "The refraction texture color of the specular material", 1022),    
-        ('1023', "Info TransmFilter", "The transmission texture color of the diffuse material", 1023),    
-        ('1024', "Object layer color", "The color specified in the object layer node", 1024),
-
-        ('2001', "Cryptomatte MaterialName", "Cryptomatte channels for material node names", 2001), 
-        ('2006', "Cryptomatte MaterialNode", "Cryptomatte channels using distinct material nodes", 2006),    
-        ('2002', "Cryptomatte MaterialPinName", "Cryptomatte channels for material pin names", 2002), 
-        ('2003', "Cryptomatte ObjectName", "Cryptomatte channels for object layer node names", 2003), 
-        ('2004', "Cryptomatte ObjectNode", "Cryptomatte channels using distinct object layer nodes", 2004),    
-        ('2007', "Cryptomatte ObjectPinName", "Cryptomatte channels for object layer pin names", 2007), 
-        # Not suitable for the legacy render pass system
-        # ('2009', "Cryptomatte RenderLayer", "Cryptomatte channels for render layers", 2009), 
-
-        ('2005', "Cryptomatte InstanceID", "Cryptomatte channels for instance IDs", 2005),    
-        # Not suitable for the legacy render pass system
-        # ('2008', "Cryptomatte GeometryNodeName", "Cryptomatte channels for geometry node names", 2008), 
-        # ('2010', "Cryptomatte UserInstanceID", "Cryptomatte channels for user instance IDs", 2010), 
-
-        ('10000', "AOV Output", "AOV Outputs", 10000),   
-    )    
-    current_preview_pass_type: EnumProperty(
-        name="Preview pass type",
-        description="Pass used for preview rendering",
-        items=octane_render_pass_types,
-        default='0',
-    )
-    current_aov_output_id: IntProperty(
-        name="Preivew AOV Output ID",
-        description="The ID of the AOV Outputs for preview(beauty pass output will be used if no valid results for the assigned index)",
-        min=1, max=16,
-        default=1,
-    )
-    aov_output_group_collection: PointerProperty(
-        name="Octane Aov Output Group Collection",
-        description="",
-        type=OctaneAovOutputGroupCollection,
-    )
-    render_passes_style = (
-        ('RENDER_PASSES', "Classic Render Passes", "The classic render passes style but the new render AOVs won't be available there", 0),
-        ('RENDER_AOV_GRAPH', "Render AOV Node Graph", "The render AOV node graph with the AOV features", 1),
-    )    
-    render_pass_style: EnumProperty(
-        name="Render Passes Style",
-        description="Use the classic Render Passes or the new Render AOV Graph",
-        items=render_passes_style,
-        default="RENDER_PASSES",
-        update=utility.update_render_passes
-    )
-    render_aov_node_graph_property: PointerProperty(
-        name="Render AOV Node Graph Property",
-        description="",
-        type=RenderAOVNodeGraphPropertyGroup,
-    )
-    composite_node_graph_property: PointerProperty(
-        name="Composite Node Graph Property",
-        description="",
-        type=CompositeNodeGraphPropertyGroup,
-    )    
-    @classmethod
-    def register(cls):
-        bpy.types.ViewLayer.octane = PointerProperty(
-            name="Octane ViewLayer Settings",
-            description="Octane ViewLayer Settings",
-            type=cls,
-        )
-    @classmethod
-    def unregister(cls):
-        del bpy.types.ViewLayer.octane
-
-
 _CLASSES = [
     KernelNodeGraphPropertyGroup,
     RenderAOVNodeGraphPropertyGroup,
@@ -1695,9 +1963,11 @@ _CLASSES = [
     OctaneAovOutputGroupNode,
     OctaneAovOutputGroupCollection,    
     OctaneBakingLayerTransform,
-    OctaneBakingLayerTransformCollection,
+    OctaneBakingLayerTransformCollection,    
+    OctaneAnimationSettings,
+    OctaneGlobalRenderLayer,
+    OctaneRenderLayer,
     OctaneRenderSettings,
-    OctaneRenderLayerSettings,
 ]
 
 

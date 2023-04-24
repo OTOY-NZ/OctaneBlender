@@ -15,12 +15,13 @@ class OctaneRangeInput(OctaneBaseSocket):
     bl_idname="OctaneRangeInput"
     bl_label="Value"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=0
+    octane_default_node_type=consts.NodeType.NT_UNKNOWN
     octane_default_node_name=""
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=82)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="input")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_INPUT
+    octane_pin_name="input"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -30,19 +31,21 @@ class OctaneRangeInterpolationType(OctaneBaseSocket):
     bl_idname="OctaneRangeInterpolationType"
     bl_label="Interpolation"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type=57
+    octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=661)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="interpolationType")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
+    octane_pin_id=consts.PinID.P_INTERPOLATION_TYPE
+    octane_pin_name="interpolationType"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=1
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("Linear", "Linear", "", 0),
-        ("Steps", "Steps", "", 1),
         ("Smoothstep", "Smoothstep", "", 2),
         ("Smootherstep", "Smootherstep", "", 3),
+        ("Steps", "Steps", "", 1),
+        ("Posterize", "Posterize", "", 4),
     ]
-    default_value: EnumProperty(default="Linear", update=OctaneBaseSocket.update_node_tree, description="Interpolation", items=items)
+    default_value: EnumProperty(default="Linear", update=OctaneBaseSocket.update_node_tree, description="The type of interpolation to perform", items=items)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -52,12 +55,13 @@ class OctaneRangeInputMin(OctaneBaseSocket):
     bl_idname="OctaneRangeInputMin"
     bl_label="Input min"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=31
+    octane_default_node_type=consts.NodeType.NT_TEX_FLOAT
     octane_default_node_name="OctaneGreyscaleColor"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=662)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="inputMin")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_INPUT_MIN
+    octane_pin_name="inputMin"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=2
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Input min", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
@@ -68,12 +72,13 @@ class OctaneRangeInputMax(OctaneBaseSocket):
     bl_idname="OctaneRangeInputMax"
     bl_label="Input max"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=31
+    octane_default_node_type=consts.NodeType.NT_TEX_FLOAT
     octane_default_node_name="OctaneGreyscaleColor"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=663)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="inputMax")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_INPUT_MAX
+    octane_pin_name="inputMax"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=3
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Input max", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
@@ -84,12 +89,13 @@ class OctaneRangeOutputMin(OctaneBaseSocket):
     bl_idname="OctaneRangeOutputMin"
     bl_label="Output min"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=31
+    octane_default_node_type=consts.NodeType.NT_TEX_FLOAT
     octane_default_node_name="OctaneGreyscaleColor"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=664)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="outputMin")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_OUTPUT_MIN
+    octane_pin_name="outputMin"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=4
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Output min", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
@@ -100,12 +106,13 @@ class OctaneRangeOutputMax(OctaneBaseSocket):
     bl_idname="OctaneRangeOutputMax"
     bl_label="Output max"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=31
+    octane_default_node_type=consts.NodeType.NT_TEX_FLOAT
     octane_default_node_name="OctaneGreyscaleColor"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=665)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="outputMax")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_OUTPUT_MAX
+    octane_pin_name="outputMax"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=5
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Output max", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
@@ -114,15 +121,16 @@ class OctaneRangeOutputMax(OctaneBaseSocket):
 
 class OctaneRangeInterpolationSteps(OctaneBaseSocket):
     bl_idname="OctaneRangeInterpolationSteps"
-    bl_label="Steps"
+    bl_label="Levels"
     color=consts.OctanePinColor.Int
-    octane_default_node_type=9
+    octane_default_node_type=consts.NodeType.NT_INT
     octane_default_node_name="OctaneIntValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=666)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="interpolationSteps")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
-    default_value: IntProperty(default=8, update=OctaneBaseSocket.update_node_tree, description="Number of steps when using stepped interpolation", min=1, max=2147483647, soft_min=1, soft_max=2147483647, step=1, subtype="NONE")
+    octane_pin_id=consts.PinID.P_INTERPOLATION_STEPS
+    octane_pin_name="interpolationSteps"
+    octane_pin_type=consts.PinType.PT_INT
+    octane_pin_index=6
+    octane_socket_type=consts.SocketType.ST_INT
+    default_value: IntProperty(default=8, update=OctaneBaseSocket.update_node_tree, description="Number of distinct output levels per channel. Only active when using the Steps or Posterize interpolation methods", min=1, max=2147483647, soft_min=2, soft_max=256, step=1, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -132,13 +140,14 @@ class OctaneRangeClamp(OctaneBaseSocket):
     bl_idname="OctaneRangeClamp"
     bl_label="Clamp"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type=11
+    octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=628)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="clamp")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Clamp the input to the input range")
+    octane_pin_id=consts.PinID.P_CLAMP
+    octane_pin_name="clamp"
+    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_index=7
+    octane_socket_type=consts.SocketType.ST_BOOL
+    default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Clamp the input to the input range. Interpolation modes other than Linear are always clamped")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -153,13 +162,15 @@ class OctaneRange(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneRangeInput,OctaneRangeInterpolationType,OctaneRangeInputMin,OctaneRangeInputMax,OctaneRangeOutputMin,OctaneRangeOutputMax,OctaneRangeInterpolationSteps,OctaneRangeClamp,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=334)
-    octane_socket_list: StringProperty(name="Socket List", default="Value;Interpolation;Input min;Input max;Output min;Output max;Steps;Clamp;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=8)
+    octane_node_type=consts.NodeType.NT_TEX_RANGE
+    octane_socket_list=["Value", "Interpolation", "Input min", "Input max", "Output min", "Output max", "Levels", "Clamp", ]
+    octane_attribute_list=["a_compatibility_version", ]
+    octane_attribute_config={"a_compatibility_version": [consts.AttributeID.A_COMPATIBILITY_VERSION, "compatibilityVersion", consts.AttributeType.AT_INT], }
+    octane_static_pin_count=8
+
+    a_compatibility_version: IntProperty(name="Compatibility version", default=12000007, update=OctaneBaseNode.update_node_tree, description="The Octane version that the behavior of this node should match")
 
     def init(self, context):
         self.inputs.new("OctaneRangeInput", OctaneRangeInput.bl_label).init()

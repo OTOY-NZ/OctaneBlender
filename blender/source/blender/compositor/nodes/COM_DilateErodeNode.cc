@@ -27,8 +27,9 @@ DilateErodeNode::DilateErodeNode(bNode *editor_node) : Node(editor_node)
 void DilateErodeNode::convert_to_operations(NodeConverter &converter,
                                             const CompositorContext &context) const
 {
-  const bNode *editor_node = this->get_bnode();
-  if (editor_node->custom1 == CMP_NODE_DILATE_ERODE_DISTANCE_THRESHOLD) {
+
+  bNode *editor_node = this->get_bnode();
+  if (editor_node->custom1 == CMP_NODE_DILATEERODE_DISTANCE_THRESH) {
     DilateErodeThresholdOperation *operation = new DilateErodeThresholdOperation();
     operation->set_distance(editor_node->custom2);
     operation->set_inset(editor_node->custom3);
@@ -47,7 +48,7 @@ void DilateErodeNode::convert_to_operations(NodeConverter &converter,
       converter.map_output_socket(get_output_socket(0), operation->get_output_socket(0));
     }
   }
-  else if (editor_node->custom1 == CMP_NODE_DILATE_ERODE_DISTANCE) {
+  else if (editor_node->custom1 == CMP_NODE_DILATEERODE_DISTANCE) {
     if (editor_node->custom2 > 0) {
       DilateDistanceOperation *operation = new DilateDistanceOperation();
       operation->set_distance(editor_node->custom2);
@@ -65,7 +66,7 @@ void DilateErodeNode::convert_to_operations(NodeConverter &converter,
       converter.map_output_socket(get_output_socket(0), operation->get_output_socket(0));
     }
   }
-  else if (editor_node->custom1 == CMP_NODE_DILATE_ERODE_DISTANCE_FEATHER) {
+  else if (editor_node->custom1 == CMP_NODE_DILATEERODE_DISTANCE_FEATHER) {
     /* this uses a modified gaussian blur function otherwise its far too slow */
     eCompositorQuality quality = context.get_quality();
 

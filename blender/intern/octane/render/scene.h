@@ -89,7 +89,7 @@ class Scene {
   void free_memory(bool final);
   bool is_addon_mode()
   {
-    return session && session->params.addon_dev_enabled;
+    return false;
   }
   /* Optional name. Is used for logging and reporting. */
   string name;

@@ -12,11 +12,10 @@ struct wmOperatorType;
 extern "C" {
 #endif
 
-/** These are used for operator methods, used by `bpy_operator.c`. */
+/* these are used for operator methods, used by bpy_operator.c */
 PyObject *PYOP_wrap_macro_define(PyObject *self, PyObject *args);
 
-/* Exposed to RNA/WM API. */
-
+/* exposed to rna/wm api */
 /**
  * Generic function used by all Python defined operators
  * it's passed as an argument to #WM_operatortype_append_ptr in for operator registration.

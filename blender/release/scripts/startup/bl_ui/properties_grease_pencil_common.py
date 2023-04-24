@@ -296,7 +296,6 @@ class GPENCIL_MT_material_active(Menu):
 
         for slot in ob.material_slots:
             mat = slot.material
-            mat.id_data.preview_ensure()
             if mat and mat.id_data and mat.id_data.preview:
                 icon = mat.id_data.preview.icon_id
                 layout.operator("gpencil.material_set", text=mat.name, icon_value=icon).slot = mat.name
@@ -356,7 +355,8 @@ class GPENCIL_UL_annotation_layer(UIList):
 
             row = layout.row(align=True)
 
-            row.prop(gpl, "show_in_front", text="", icon='XRAY' if gpl.show_in_front else 'FACESEL', emboss=False)
+            icon_xray = 'XRAY' if gpl.show_in_front else 'FACESEL'
+            row.prop(gpl, "show_in_front", text="", icon=icon_xray, emboss=False)
 
             row.prop(gpl, "annotation_hide", text="", emboss=False)
         elif self.layout_type == 'GRID':

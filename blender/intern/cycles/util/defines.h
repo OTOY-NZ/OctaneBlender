@@ -96,7 +96,4 @@
 #  define util_assert(statement)
 #endif
 
-#define CONCAT_HELPER(a, ...) a##__VA_ARGS__
-#define CONCAT(a, ...) CONCAT_HELPER(a, __VA_ARGS__)
-
 #endif /* __UTIL_DEFINES_H__ */

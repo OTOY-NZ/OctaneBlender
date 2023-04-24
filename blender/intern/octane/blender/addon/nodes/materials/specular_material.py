@@ -15,12 +15,13 @@ class OctaneSpecularMaterialReflection(OctaneBaseSocket):
     bl_idname="OctaneSpecularMaterialReflection"
     bl_label="Reflection"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=33
+    octane_default_node_type=consts.NodeType.NT_TEX_RGB
     octane_default_node_name="OctaneRGBColor"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=145)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="reflection")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
+    octane_pin_id=consts.PinID.P_REFLECTION
+    octane_pin_name="reflection"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_RGBA
     default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=OctaneBaseSocket.update_node_tree, description="Reflection channel", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
     octane_hide_value=False
     octane_min_version=0
@@ -31,13 +32,14 @@ class OctaneSpecularMaterialTransmission(OctaneBaseSocket):
     bl_idname="OctaneSpecularMaterialTransmission"
     bl_label="Transmission"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=33
+    octane_default_node_type=consts.NodeType.NT_TEX_RGB
     octane_default_node_name="OctaneRGBColor"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=245)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="transmission")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
-    default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=OctaneBaseSocket.update_node_tree, description="Transmission channel controlling the light passing the surface of the material (via refraction)", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
+    octane_pin_id=consts.PinID.P_TRANSMISSION
+    octane_pin_name="transmission"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=1
+    octane_socket_type=consts.SocketType.ST_RGBA
+    default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=OctaneBaseSocket.update_node_tree, description="Transmission channel controlling the light passing the surface of the material. (via refraction)", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -45,14 +47,15 @@ class OctaneSpecularMaterialTransmission(OctaneBaseSocket):
 
 class OctaneSpecularMaterialBrdf(OctaneBaseSocket):
     bl_idname="OctaneSpecularMaterialBrdf"
-    bl_label="BRDF Model"
+    bl_label="BRDF model"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type=57
+    octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=357)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="brdf")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
+    octane_pin_id=consts.PinID.P_BRDF
+    octane_pin_name="brdf"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=2
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("Octane", "Octane", "", 0),
         ("Beckmann", "Beckmann", "", 1),
@@ -60,7 +63,7 @@ class OctaneSpecularMaterialBrdf(OctaneBaseSocket):
         ("GGX (energy preserving)", "GGX (energy preserving)", "", 6),
         ("STD", "STD", "", 7),
     ]
-    default_value: EnumProperty(default="Octane", update=OctaneBaseSocket.update_node_tree, description="BRDF Model", items=items)
+    default_value: EnumProperty(default="Octane", update=OctaneBaseSocket.update_node_tree, description="BRDF model", items=items)
     octane_hide_value=False
     octane_min_version=3080000
     octane_end_version=4294967295
@@ -70,13 +73,14 @@ class OctaneSpecularMaterialRoughness(OctaneBaseSocket):
     bl_idname="OctaneSpecularMaterialRoughness"
     bl_label="Roughness"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=31
+    octane_default_node_type=consts.NodeType.NT_TEX_FLOAT
     octane_default_node_name="OctaneGreyscaleColor"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=204)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="roughness")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Roughness of the surface, affecting both reflection and transmission", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
+    octane_pin_id=consts.PinID.P_ROUGHNESS
+    octane_pin_name="roughness"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=3
+    octane_socket_type=consts.SocketType.ST_FLOAT
+    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Roughness of the surface, affecting both reflection and transmission", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -86,12 +90,13 @@ class OctaneSpecularMaterialAnisotropy(OctaneBaseSocket):
     bl_idname="OctaneSpecularMaterialAnisotropy"
     bl_label="Anisotropy"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=358)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="anisotropy")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_ANISOTROPY
+    octane_pin_name="anisotropy"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=4
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="The anisotropy of the specular material, -1 is horizontal and 1 is vertical, 0 is isotropy", min=-1.000000, max=1.000000, soft_min=-1.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=3080000
@@ -102,12 +107,13 @@ class OctaneSpecularMaterialRotation(OctaneBaseSocket):
     bl_idname="OctaneSpecularMaterialRotation"
     bl_label="Rotation"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=31
+    octane_default_node_type=consts.NodeType.NT_TEX_FLOAT
     octane_default_node_name="OctaneGreyscaleColor"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=203)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="rotation")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_ROTATION
+    octane_pin_name="rotation"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=5
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Rotation of the anisotropic specular reflection channel", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=3080000
@@ -118,12 +124,13 @@ class OctaneSpecularMaterialSpread(OctaneBaseSocket):
     bl_idname="OctaneSpecularMaterialSpread"
     bl_label="Spread"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=501)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="spread")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_SPREAD
+    octane_pin_name="spread"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=6
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.500000, update=OctaneBaseSocket.update_node_tree, description="The spread of the tail of the specular BSDF model (STD only) of the specular layer", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=11000007
@@ -134,15 +141,33 @@ class OctaneSpecularMaterialIndex(OctaneBaseSocket):
     bl_idname="OctaneSpecularMaterialIndex"
     bl_label="Index of refraction"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=80)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="index")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_INDEX
+    octane_pin_name="index"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=7
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=1.450000, update=OctaneBaseSocket.update_node_tree, description="Index of refraction controlling the Fresnel effect of the reflection and refraction of light when it enters/exits the material", min=0.100000, max=8.000000, soft_min=1.000000, soft_max=8.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
+    octane_end_version=4294967295
+    octane_deprecated=False
+
+class OctaneSpecularMaterialHasCaustics(OctaneBaseSocket):
+    bl_idname="OctaneSpecularMaterialHasCaustics"
+    bl_label="Allow caustics"
+    color=consts.OctanePinColor.Bool
+    octane_default_node_type=consts.NodeType.NT_BOOL
+    octane_default_node_name="OctaneBoolValue"
+    octane_pin_id=consts.PinID.P_HAS_CAUSTICS
+    octane_pin_name="hasCaustics"
+    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_index=8
+    octane_socket_type=consts.SocketType.ST_BOOL
+    default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="If enabled, the photon tracing kernel will create caustics for light reflecting or transmitting through this object")
+    octane_hide_value=False
+    octane_min_version=12000000
     octane_end_version=4294967295
     octane_deprecated=False
 
@@ -150,12 +175,13 @@ class OctaneSpecularMaterialFilmwidth(OctaneBaseSocket):
     bl_idname="OctaneSpecularMaterialFilmwidth"
     bl_label="Film width"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=31
+    octane_default_node_type=consts.NodeType.NT_TEX_FLOAT
     octane_default_node_name="OctaneGreyscaleColor"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=49)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="filmwidth")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_FILM_WIDTH
+    octane_pin_name="filmwidth"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=9
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Thickness of the film coating", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
@@ -166,12 +192,13 @@ class OctaneSpecularMaterialFilmindex(OctaneBaseSocket):
     bl_idname="OctaneSpecularMaterialFilmindex"
     bl_label="Film IOR"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=48)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="filmindex")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_FILM_INDEX
+    octane_pin_name="filmindex"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=10
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=1.450000, update=OctaneBaseSocket.update_node_tree, description="Index of refraction of the film coating", min=1.000000, max=8.000000, soft_min=1.000000, soft_max=8.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
@@ -182,12 +209,13 @@ class OctaneSpecularMaterialDispersionCoefficientB(OctaneBaseSocket):
     bl_idname="OctaneSpecularMaterialDispersionCoefficientB"
     bl_label="Dispersion coefficient"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=33)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="dispersion_coefficient_B")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_DISPERSION_COEFFICIENT_B
+    octane_pin_name="dispersion_coefficient_B"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=11
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="B parameter of the Cauchy dispersion model", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
@@ -198,12 +226,13 @@ class OctaneSpecularMaterialMedium(OctaneBaseSocket):
     bl_idname="OctaneSpecularMaterialMedium"
     bl_label="Medium"
     color=consts.OctanePinColor.Medium
-    octane_default_node_type=0
+    octane_default_node_type=consts.NodeType.NT_UNKNOWN
     octane_default_node_name=""
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=110)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="medium")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_MEDIUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_MEDIUM
+    octane_pin_name="medium"
+    octane_pin_type=consts.PinType.PT_MEDIUM
+    octane_pin_index=12
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -213,13 +242,14 @@ class OctaneSpecularMaterialOpacity(OctaneBaseSocket):
     bl_idname="OctaneSpecularMaterialOpacity"
     bl_label="Opacity"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=31
+    octane_default_node_type=consts.NodeType.NT_TEX_FLOAT
     octane_default_node_name="OctaneGreyscaleColor"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=125)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="opacity")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Opacity channel controlling the transparency of the material via greyscale texture", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
+    octane_pin_id=consts.PinID.P_OPACITY
+    octane_pin_name="opacity"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=13
+    octane_socket_type=consts.SocketType.ST_FLOAT
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Opacity channel controlling the transparency of the material via grayscale texture", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -229,12 +259,13 @@ class OctaneSpecularMaterialFakeShadows(OctaneBaseSocket):
     bl_idname="OctaneSpecularMaterialFakeShadows"
     bl_label="Fake shadows"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type=11
+    octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=46)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="fake_shadows")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
+    octane_pin_id=consts.PinID.P_FAKE_SHADOWS
+    octane_pin_name="fake_shadows"
+    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_index=14
+    octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="If enabled, light will be traced directly through the material during the shadow calculation, ignoring refraction")
     octane_hide_value=False
     octane_min_version=0
@@ -245,12 +276,13 @@ class OctaneSpecularMaterialRefractionAlpha(OctaneBaseSocket):
     bl_idname="OctaneSpecularMaterialRefractionAlpha"
     bl_label="Affect alpha"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type=11
+    octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=146)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="refractionAlpha")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
+    octane_pin_id=consts.PinID.P_REFRACTION_ALPHA
+    octane_pin_name="refractionAlpha"
+    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_index=15
+    octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Enable to have refractions affect the alpha channel")
     octane_hide_value=False
     octane_min_version=2200000
@@ -261,12 +293,13 @@ class OctaneSpecularMaterialThinWall(OctaneBaseSocket):
     bl_idname="OctaneSpecularMaterialThinWall"
     bl_label="Thin wall"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type=11
+    octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=482)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="thinWall")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
+    octane_pin_id=consts.PinID.P_THIN_WALL
+    octane_pin_name="thinWall"
+    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_index=16
+    octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="The geometry the material attached is a one sided planar, so the ray bounce exits the material immediately rather than entering the medium")
     octane_hide_value=False
     octane_min_version=6000002
@@ -277,12 +310,13 @@ class OctaneSpecularMaterialBump(OctaneBaseSocket):
     bl_idname="OctaneSpecularMaterialBump"
     bl_label="Bump"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=0
+    octane_default_node_type=consts.NodeType.NT_UNKNOWN
     octane_default_node_name=""
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=18)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="bump")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_BUMP
+    octane_pin_name="bump"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=17
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -292,12 +326,13 @@ class OctaneSpecularMaterialNormal(OctaneBaseSocket):
     bl_idname="OctaneSpecularMaterialNormal"
     bl_label="Normal"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=0
+    octane_default_node_type=consts.NodeType.NT_UNKNOWN
     octane_default_node_name=""
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=119)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="normal")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_NORMAL
+    octane_pin_name="normal"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=18
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -307,12 +342,13 @@ class OctaneSpecularMaterialDisplacement(OctaneBaseSocket):
     bl_idname="OctaneSpecularMaterialDisplacement"
     bl_label="Displacement"
     color=consts.OctanePinColor.Displacement
-    octane_default_node_type=0
+    octane_default_node_type=consts.NodeType.NT_UNKNOWN
     octane_default_node_name=""
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=34)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="displacement")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_DISPLACEMENT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_DISPLACEMENT
+    octane_pin_name="displacement"
+    octane_pin_type=consts.PinType.PT_DISPLACEMENT
+    octane_pin_index=19
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=2000000
     octane_end_version=4294967295
@@ -322,12 +358,13 @@ class OctaneSpecularMaterialSmooth(OctaneBaseSocket):
     bl_idname="OctaneSpecularMaterialSmooth"
     bl_label="Smooth"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type=11
+    octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=218)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="smooth")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
+    octane_pin_id=consts.PinID.P_SMOOTH
+    octane_pin_name="smooth"
+    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_index=20
+    octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="If disabled normal interpolation will be disabled and triangle meshes will appear \"facetted\"")
     octane_hide_value=False
     octane_min_version=0
@@ -338,12 +375,13 @@ class OctaneSpecularMaterialSmoothShadowTerminator(OctaneBaseSocket):
     bl_idname="OctaneSpecularMaterialSmoothShadowTerminator"
     bl_label="Smooth shadow terminator"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type=11
+    octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=731)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="smoothShadowTerminator")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
+    octane_pin_id=consts.PinID.P_SMOOTH_SHADOW_TERMINATOR
+    octane_pin_name="smoothShadowTerminator"
+    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_index=21
+    octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="If enabled self-intersecting shadow terminator for low polygon is smoothed according to the polygon's curvature")
     octane_hide_value=False
     octane_min_version=11000008
@@ -354,12 +392,13 @@ class OctaneSpecularMaterialRoundEdges(OctaneBaseSocket):
     bl_idname="OctaneSpecularMaterialRoundEdges"
     bl_label="Round edges"
     color=consts.OctanePinColor.RoundEdges
-    octane_default_node_type=137
+    octane_default_node_type=consts.NodeType.NT_ROUND_EDGES
     octane_default_node_name="OctaneRoundEdges"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=467)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="roundEdges")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ROUND_EDGES)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_ROUND_EDGES
+    octane_pin_name="roundEdges"
+    octane_pin_type=consts.PinType.PT_ROUND_EDGES
+    octane_pin_index=22
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=5100001
     octane_end_version=4294967295
@@ -369,12 +408,13 @@ class OctaneSpecularMaterialPriority(OctaneBaseSocket):
     bl_idname="OctaneSpecularMaterialPriority"
     bl_label="Priority"
     color=consts.OctanePinColor.Int
-    octane_default_node_type=9
+    octane_default_node_type=consts.NodeType.NT_INT
     octane_default_node_name="OctaneIntValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=564)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="priority")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
+    octane_pin_id=consts.PinID.P_PRIORITY
+    octane_pin_name="priority"
+    octane_pin_type=consts.PinType.PT_INT
+    octane_pin_index=23
+    octane_socket_type=consts.SocketType.ST_INT
     default_value: IntProperty(default=0, update=OctaneBaseSocket.update_node_tree, description="The material priority for this surface material", min=-100, max=100, soft_min=-100, soft_max=100, step=1, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=10020900
@@ -385,12 +425,13 @@ class OctaneSpecularMaterialCustomAov(OctaneBaseSocket):
     bl_idname="OctaneSpecularMaterialCustomAov"
     bl_label="Custom AOV"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type=57
+    octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=632)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="customAov")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
+    octane_pin_id=consts.PinID.P_CUSTOM_AOV
+    octane_pin_name="customAov"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=24
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("None", "None", "", 4096),
         ("Custom AOV 1", "Custom AOV 1", "", 0),
@@ -424,12 +465,13 @@ class OctaneSpecularMaterialCustomAovChannel(OctaneBaseSocket):
     bl_idname="OctaneSpecularMaterialCustomAovChannel"
     bl_label="Custom AOV channel"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type=57
+    octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=633)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="customAovChannel")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
+    octane_pin_id=consts.PinID.P_CUSTOM_AOV_CHANNEL
+    octane_pin_name="customAovChannel"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=25
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("All", "All", "", 0),
         ("Red", "Red", "", 1),
@@ -446,12 +488,13 @@ class OctaneSpecularMaterialLayer(OctaneBaseSocket):
     bl_idname="OctaneSpecularMaterialLayer"
     bl_label="Material layer"
     color=consts.OctanePinColor.MaterialLayer
-    octane_default_node_type=144
+    octane_default_node_type=consts.NodeType.NT_MAT_LAYER_GROUP
     octane_default_node_name="OctaneMaterialLayerGroup"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=474)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="layer")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_MATERIAL_LAYER)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_LAYER
+    octane_pin_name="layer"
+    octane_pin_type=consts.PinType.PT_MATERIAL_LAYER
+    octane_pin_index=26
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=5100002
     octane_end_version=4294967295
@@ -461,12 +504,13 @@ class OctaneSpecularMaterialEdgesRounding(OctaneBaseSocket):
     bl_idname="OctaneSpecularMaterialEdgesRounding"
     bl_label="Rounded edges radius"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=39)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="edgesRounding")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_EDGES_ROUNDING
+    octane_pin_name="edgesRounding"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=27
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="(deprecated) Radius of rounded edges that are rendered as shading effect", min=0.000000, max=100.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=2000000
@@ -481,7 +525,7 @@ class OctaneSpecularMaterialGroupRoughness(OctaneGroupTitleSocket):
 class OctaneSpecularMaterialGroupIOR(OctaneGroupTitleSocket):
     bl_idname="OctaneSpecularMaterialGroupIOR"
     bl_label="[OctaneGroupTitle]IOR"
-    octane_group_sockets: StringProperty(name="Group Sockets", default="Index of refraction;")
+    octane_group_sockets: StringProperty(name="Group Sockets", default="Index of refraction;Allow caustics;")
 
 class OctaneSpecularMaterialGroupThinFilmLayer(OctaneGroupTitleSocket):
     bl_idname="OctaneSpecularMaterialGroupThinFilmLayer"
@@ -507,13 +551,13 @@ class OctaneSpecularMaterial(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneSpecularMaterialReflection,OctaneSpecularMaterialTransmission,OctaneSpecularMaterialBrdf,OctaneSpecularMaterialGroupRoughness,OctaneSpecularMaterialRoughness,OctaneSpecularMaterialAnisotropy,OctaneSpecularMaterialRotation,OctaneSpecularMaterialSpread,OctaneSpecularMaterialGroupIOR,OctaneSpecularMaterialIndex,OctaneSpecularMaterialHasCaustics,OctaneSpecularMaterialGroupThinFilmLayer,OctaneSpecularMaterialFilmwidth,OctaneSpecularMaterialFilmindex,OctaneSpecularMaterialGroupTransmissionProperties,OctaneSpecularMaterialDispersionCoefficientB,OctaneSpecularMaterialMedium,OctaneSpecularMaterialOpacity,OctaneSpecularMaterialFakeShadows,OctaneSpecularMaterialRefractionAlpha,OctaneSpecularMaterialThinWall,OctaneSpecularMaterialGroupGeometryProperties,OctaneSpecularMaterialBump,OctaneSpecularMaterialNormal,OctaneSpecularMaterialDisplacement,OctaneSpecularMaterialSmooth,OctaneSpecularMaterialSmoothShadowTerminator,OctaneSpecularMaterialRoundEdges,OctaneSpecularMaterialPriority,OctaneSpecularMaterialCustomAov,OctaneSpecularMaterialCustomAovChannel,OctaneSpecularMaterialLayer,OctaneSpecularMaterialEdgesRounding,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=18)
-    octane_socket_list: StringProperty(name="Socket List", default="Reflection;Transmission;BRDF Model;Roughness;Anisotropy;Rotation;Spread;Index of refraction;Film width;Film IOR;Dispersion coefficient;Medium;Opacity;Fake shadows;Affect alpha;Thin wall;Bump;Normal;Displacement;Smooth;Smooth shadow terminator;Round edges;Priority;Custom AOV;Custom AOV channel;Material layer;Rounded edges radius;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=27)
+    octane_node_type=consts.NodeType.NT_MAT_SPECULAR
+    octane_socket_list=["Reflection", "Transmission", "BRDF model", "Roughness", "Anisotropy", "Rotation", "Spread", "Index of refraction", "Allow caustics", "Film width", "Film IOR", "Dispersion coefficient", "Medium", "Opacity", "Fake shadows", "Affect alpha", "Thin wall", "Bump", "Normal", "Displacement", "Smooth", "Smooth shadow terminator", "Round edges", "Priority", "Custom AOV", "Custom AOV channel", "Material layer", "Rounded edges radius", ]
+    octane_attribute_list=[]
+    octane_attribute_config={}
+    octane_static_pin_count=27
 
     def init(self, context):
         self.inputs.new("OctaneSpecularMaterialReflection", OctaneSpecularMaterialReflection.bl_label).init()
@@ -526,6 +570,7 @@ class OctaneSpecularMaterial(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneSpecularMaterialSpread", OctaneSpecularMaterialSpread.bl_label).init()
         self.inputs.new("OctaneSpecularMaterialGroupIOR", OctaneSpecularMaterialGroupIOR.bl_label).init()
         self.inputs.new("OctaneSpecularMaterialIndex", OctaneSpecularMaterialIndex.bl_label).init()
+        self.inputs.new("OctaneSpecularMaterialHasCaustics", OctaneSpecularMaterialHasCaustics.bl_label).init()
         self.inputs.new("OctaneSpecularMaterialGroupThinFilmLayer", OctaneSpecularMaterialGroupThinFilmLayer.bl_label).init()
         self.inputs.new("OctaneSpecularMaterialFilmwidth", OctaneSpecularMaterialFilmwidth.bl_label).init()
         self.inputs.new("OctaneSpecularMaterialFilmindex", OctaneSpecularMaterialFilmindex.bl_label).init()
@@ -560,6 +605,7 @@ _CLASSES=[
     OctaneSpecularMaterialRotation,
     OctaneSpecularMaterialSpread,
     OctaneSpecularMaterialIndex,
+    OctaneSpecularMaterialHasCaustics,
     OctaneSpecularMaterialFilmwidth,
     OctaneSpecularMaterialFilmindex,
     OctaneSpecularMaterialDispersionCoefficientB,

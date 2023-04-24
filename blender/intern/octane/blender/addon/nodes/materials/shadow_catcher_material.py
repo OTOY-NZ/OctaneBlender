@@ -15,13 +15,14 @@ class OctaneShadowCatcherMaterialEnabled(OctaneBaseSocket):
     bl_idname="OctaneShadowCatcherMaterialEnabled"
     bl_label="Enabled"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type=11
+    octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=42)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="enabled")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="If true it will capture shadows")
+    octane_pin_id=consts.PinID.P_ENABLED
+    octane_pin_name="enabled"
+    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_BOOL
+    default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Whether to capture shadows")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -31,13 +32,14 @@ class OctaneShadowCatcherMaterialOpacity(OctaneBaseSocket):
     bl_idname="OctaneShadowCatcherMaterialOpacity"
     bl_label="Opacity"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=31
+    octane_default_node_type=consts.NodeType.NT_TEX_FLOAT
     octane_default_node_name="OctaneGreyscaleColor"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=125)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="opacity")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Opacity channel controlling the transparency of the shadow via greyscale texture", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
+    octane_pin_id=consts.PinID.P_OPACITY
+    octane_pin_name="opacity"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=1
+    octane_socket_type=consts.SocketType.ST_FLOAT
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Opacity channel controlling the transparency of the shadow via grayscale texture", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=6000600
     octane_end_version=4294967295
@@ -47,12 +49,13 @@ class OctaneShadowCatcherMaterialCustomAov(OctaneBaseSocket):
     bl_idname="OctaneShadowCatcherMaterialCustomAov"
     bl_label="Custom AOV"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type=57
+    octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=632)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="customAov")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
+    octane_pin_id=consts.PinID.P_CUSTOM_AOV
+    octane_pin_name="customAov"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=2
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("None", "None", "", 4096),
         ("Custom AOV 1", "Custom AOV 1", "", 0),
@@ -86,12 +89,13 @@ class OctaneShadowCatcherMaterialCustomAovChannel(OctaneBaseSocket):
     bl_idname="OctaneShadowCatcherMaterialCustomAovChannel"
     bl_label="Custom AOV channel"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type=57
+    octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=633)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="customAovChannel")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
+    octane_pin_id=consts.PinID.P_CUSTOM_AOV_CHANNEL
+    octane_pin_name="customAovChannel"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=3
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("All", "All", "", 0),
         ("Red", "Red", "", 1),
@@ -113,13 +117,13 @@ class OctaneShadowCatcherMaterial(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneShadowCatcherMaterialEnabled,OctaneShadowCatcherMaterialOpacity,OctaneShadowCatcherMaterialCustomAov,OctaneShadowCatcherMaterialCustomAovChannel,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=145)
-    octane_socket_list: StringProperty(name="Socket List", default="Enabled;Opacity;Custom AOV;Custom AOV channel;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=4)
+    octane_node_type=consts.NodeType.NT_MAT_SHADOW_CATCHER
+    octane_socket_list=["Enabled", "Opacity", "Custom AOV", "Custom AOV channel", ]
+    octane_attribute_list=[]
+    octane_attribute_config={}
+    octane_static_pin_count=4
 
     def init(self, context):
         self.inputs.new("OctaneShadowCatcherMaterialEnabled", OctaneShadowCatcherMaterialEnabled.bl_label).init()

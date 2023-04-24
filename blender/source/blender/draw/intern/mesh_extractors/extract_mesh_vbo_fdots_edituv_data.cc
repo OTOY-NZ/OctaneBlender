@@ -21,7 +21,7 @@ struct MeshExtract_EditUVFdotData_Data {
 };
 
 static void extract_fdots_edituv_data_init(const MeshRenderData *mr,
-                                           MeshBatchCache * /*cache*/,
+                                           MeshBatchCache *UNUSED(cache),
                                            void *buf,
                                            void *tls_data)
 {
@@ -41,7 +41,7 @@ static void extract_fdots_edituv_data_init(const MeshRenderData *mr,
 
 static void extract_fdots_edituv_data_iter_poly_bm(const MeshRenderData *mr,
                                                    const BMFace *f,
-                                                   const int /*f_index*/,
+                                                   const int UNUSED(f_index),
                                                    void *_data)
 {
   MeshExtract_EditUVFdotData_Data *data = static_cast<MeshExtract_EditUVFdotData_Data *>(_data);
@@ -51,7 +51,7 @@ static void extract_fdots_edituv_data_iter_poly_bm(const MeshRenderData *mr,
 }
 
 static void extract_fdots_edituv_data_iter_poly_mesh(const MeshRenderData *mr,
-                                                     const MPoly * /*mp*/,
+                                                     const MPoly *UNUSED(mp),
                                                      const int mp_index,
                                                      void *_data)
 {

@@ -1,13 +1,14 @@
 import bpy
-from collections import defaultdict
+import xml.etree.ElementTree as ET
+from collections import deque, defaultdict
 from octane.utils import consts, utility
-from octane.core.client import OctaneClient
-from octane.core.octane_node import OctaneNode, OctaneNodeType, CArray
+from octane.core.octane_node import OctaneNode, CArray
+from octane.nodes.base_node import OctaneBaseNode
 
 
 class NodeTreeAttributes(object):
     def __init__(self):
-        self.auto_refresh = False
+        self.auto_refresh = consts.AutoRereshStrategy.DISABLE
         self.image_names = []
         self.object_names = []
 
@@ -17,7 +18,7 @@ class BaseDataCache(object):
         self.session = session        
         self.type_name = ""
         self.type_class = None
-        self.type_collection_name = ""
+        self.type_collection_name = ""        
         self.last_update_frame = 0
         self.cached_data = {}
         self.changed_data_names = set()
@@ -25,17 +26,18 @@ class BaseDataCache(object):
         self.data_to_dependent = defaultdict(lambda: defaultdict(set))
         # {type_name => {dependent => a set of data names}
         self.dependent_to_data = defaultdict(lambda: defaultdict(set))
-        self.auto_refresh_data_names = set()
+        # {data name => refresh strategy type}
+        self.auto_refresh_data_names = defaultdict(int)
         self.need_update_all = True
         self.need_update = False
 
-    def reset(self, session):
-        self.session = session
+    def reset(self):
         self.last_update_frame = 0
         self.cached_data.clear()
         self.changed_data_names.clear()
         self.data_to_dependent.clear()
         self.dependent_to_data.clear()
+        self.auto_refresh_data_names.clear()
         self.need_update_all = True
         self.need_update = False
 
@@ -57,24 +59,29 @@ class BaseDataCache(object):
         if name in self.cached_data:
             del self.cached_data[name]
         if name in self.auto_refresh_data_names:
-            self.auto_refresh_data_names.remove(name)
+            del self.auto_refresh_data_names[name]
 
-    def add_all(self, context, depsgraph):
+    def add_all(self, depsgraph):
+        # Add non-evaluated data
         for _id in getattr(bpy.data, self.type_collection_name):
             self.changed_data_names.add(_id.name)
             self.need_update = True
+        # Add evaluated data
+        for _id in [item for item in depsgraph.ids if isinstance(item, self.type_class)]:
+            self.changed_data_names.add(_id.name)
+            self.need_update = True            
         self.need_update_all = False
 
-    def dependency_diff(self, context, depsgraph):
+    def dependency_diff(self, depsgraph, scene, view_layer, context=None):
         pass
 
-    def custom_diff(self, context, depsgraph):
+    def custom_diff(self, depsgraph, scene, view_layer, context=None):
         pass
 
-    def diff(self, engine, context, depsgraph):
+    def diff(self, depsgraph, scene, view_layer, context=None):
         self.changed_data_names.clear()
-        if self.need_update_all:
-            self.add_all(context, depsgraph)
+        if self.need_update_all or self.session.session_type == consts.SessionType.EXPORT:
+            self.add_all(depsgraph)
         else:
             if depsgraph.id_type_updated(self.type_name):
                 for dg_update in depsgraph.updates:
@@ -82,34 +89,41 @@ class BaseDataCache(object):
                         self.changed_data_names.add(dg_update.id.name)
                         self.need_update = True          
             # Process auto refresh
-            if self.last_update_frame != context.scene.frame_current:
-                if len(self.auto_refresh_data_names):
-                    self.changed_data_names.update(self.auto_refresh_data_names)
+            frame_changed = (self.last_update_frame != scene.frame_current)
+            for auto_refresh_data_name, strategy in self.auto_refresh_data_names.items():
+                if strategy == consts.AutoRereshStrategy.ALWAYS or (frame_changed and strategy == consts.AutoRereshStrategy.FRAME_CHANGE):
+                    self.changed_data_names.add(auto_refresh_data_name)
                     self.need_update = True
             # Process dependency
-            self.dependency_diff(context, depsgraph)
-            self.custom_diff(context, depsgraph)
-        self.last_update_frame = context.scene.frame_current
+            self.dependency_diff(depsgraph, scene, view_layer, context)
+            self.custom_diff(depsgraph, scene, view_layer, context)
+        self.last_update_frame = scene.frame_current
         return self.need_update
 
-    def update(self, engine, context, depsgraph):
+    def create_octane_node(self, name, node_type=None):
+        octane_node = OctaneNode(name)
+        if node_type is not None:
+            octane_node.node_type = node_type
+        return octane_node
+
+    def update(self, depsgraph, scene, view_layer, context=None):
         pass
 
 
 class OctaneNodeCache(BaseDataCache):
 
     @staticmethod
-    def generate_octane_node_id(node_name, node_id):
-        return "%s[%s]" % (node_name, node_id)
+    def generate_octane_node_id(node_id):
+        return node_id
 
-    def add(self, node_name, node_id):
-        _id = OctaneNodeCache.generate_octane_node_id(node_name, node_id)
-        octane_node = OctaneNode(OctaneNodeType.SYNC_NODE)
+    def add(self, node_name, node_type, node_id):
+        _id = OctaneNodeCache.generate_octane_node_id(node_id)
+        octane_node = OctaneNode(node_name, node_type)
         self.cached_data[_id] = octane_node
         return octane_node
 
     def get(self, node_name, node_id):
-        _id = OctaneNodeCache.generate_octane_node_id(node_name, node_id)
+        _id = OctaneNodeCache.generate_octane_node_id(node_id)
         if _id in self.cached_data:
             return self.cached_data[_id]
         return None
@@ -125,31 +139,29 @@ class OctaneRenderTargetCache(BaseDataCache):
     P_RENDER_PASSES_NAME = "renderPasses"
     P_OUTPUT_AOVS_NAME = "compositeAovs"
     P_POST_PROCESSING_NAME = "postproc"
+    P_ANIMATION_SETTINGS_NAME = "animation"
+    P_RENDER_LAYER_NAME = "renderLayer"    
 
     def __init__(self, session):
         super().__init__(session)
-        self.rendertarget_node = self.add(self.DEFAULT_RENDERTARGET_NAME)
+        self.rendertarget_node = self.create_octane_node(self.DEFAULT_RENDERTARGET_NAME, consts.NodeType.NT_RENDERTARGET)
         self.links = {}
+
+    def __del__(self):
+        self.rendertarget_node = None
 
     def get_rendertarget_node(self):
         return self.rendertarget_node
 
-    def add(self, name):
-        octane_node = OctaneNode(OctaneNodeType.SYNC_NODE)
-        octane_node.set_name(name)
-        octane_node.set_node_type(consts.NodeType.NT_RENDERTARGET)
-        self.cached_data[name] = octane_node
-        return octane_node
-
-    def diff(self, engine, context, depsgraph):
+    def diff(self, depsgraph, scene, view_layer, context=None):
         return self.rendertarget_node.need_update
 
-    def update(self, engine, context, depsgraph):        
+    def update(self, depsgraph, scene, view_layer, context=None):        
         if self.rendertarget_node.need_update:
-            self.session.add_to_update_node_queue(self.rendertarget_node)
+            self.rendertarget_node.update_to_engine(True)
 
     def update_link(self, pin_name, node_name, link_name):
-        self.rendertarget_node.set_blender_attribute(pin_name, consts.AttributeType.AT_STRING, link_name)
+        self.rendertarget_node.set_attribute_blender_name(pin_name, consts.AttributeType.AT_STRING, link_name)
         # If the linked blender node is changed, force to update it
         if self.links.get(pin_name, None) != node_name:
             self.links[pin_name] = node_name
@@ -173,348 +185,6 @@ class OctaneRenderTargetCache(BaseDataCache):
             self.update_link(self.P_KERNEL_NAME, node_name, link_name)
 
 
-class ObjectCache(BaseDataCache):
-    TYPE_NAME = "OBJECT"
-    # Object attributes
-    BLENDER_ATTRIBUTE_OBJECT_COUNT = "OBJECT_COUNT"
-    BLENDER_ATTRIBUTE_OBJECT_NAME = "OBJECT_NAME"
-    BLENDER_ATTRIBUTE_MESH_NAME = "MESH_NAME"
-    BLENDER_ATTRIBUTE_INSTANCE_SIZE = "INSTANCE_SIZE"
-    BLENDER_ATTRIBUTE_INSTANCE_ID = "INSTANCE_ID"
-    BLENDER_ATTRIBUTE_SAMPLE_NUM = "SAMPLE_NUM"
-    BLENDER_ATTRIBUTE_USE_OBJECTLAYER_MODE = "USE_OBJECTLAYER_MODE"
-    # Mesh attributes
-    BLENDER_ATTRIBUTE_MESH_COUNT = "MESH_COUNT"
-    BLENDER_ATTRIBUTE_OSL_GEO_NAME = "OSL_GEO_NAME"
-    BLENDER_ATTRIBUTE_ORBX_PATH = "ORBX_PATH"
-    BLENDER_ATTRIBUTE_SHADER_NAMES = "SHADER_NAMES"
-    BLENDER_ATTRIBUTE_OBJECTS_NAMES = "OBJECTS_NAMES"
-    BLENDER_ATTRIBUTE_ACTIVE_UV_INDEX = "ACTIVE_UV_INDEX"
-    BLENDER_ATTRIBUTE_HAIR_W_SIZE = "HAIR_W_SIZE"
-    BLENDER_ATTRIBUTE_HAIR_INTERPOLATIONS = "HAIR_INTERPOLATIONS"
-    BLENDER_ATTRIBUTE_INFINITE_PLANE = "INFINITE_PLANE"
-    BLENDER_ATTRIBUTE_RESHAPEABLE = "RESHAPEABLE"
-    BLENDER_ATTRIBUTE_MAX_SMOOTH_ANGLE = "MAX_SMOOTH_ANGLE"
-    BLENDER_ATTRIBUTE_MESH_DATA_UPDATE = "MESH_DATA_UPDATE"
-    BLENDER_ATTRIBUTE_SHOW_VERTEX_DATA = "SHOW_VERTEX_DATA"
-    BLENDER_ATTRIBUTE_VERTEX_COLOR_NAMES = "VERTEX_COLOR_NAMES"
-    BLENDER_ATTRIBUTE_VERTEX_FLOAT_NAMES = "VERTEX_FLOAT_NAMES"
-    # Mesh Subdivision attributes
-    BLENDER_ATTRIBUTE_SUBDIVISION = "SUBDIVISION"
-    BLENDER_ATTRIBUTE_SUBDIVISION_SCHEME = "SUBDIVISION_SCHEME"
-    BLENDER_ATTRIBUTE_SUBDIVISION_LEVEL = "SUBDIVISION_LEVEL"
-    BLENDER_ATTRIBUTE_SUBDIVISION_SHARPNESS = "SUBDIVISION_SHARPNESS"
-    BLENDER_ATTRIBUTE_SUBDIVISION_BOUND_INTERPOLATION = "SUBDIVISION_BOUND_INTERPOLATION"
-    BLENDER_ATTRIBUTE_SUBDIVISION_DATA_NEED_UPDATE = "SUBDIVISION_DATA_NEED_UPDATE"
-    # Sphere attributes
-    BLENDER_ATTRIBUTE_SPHERE_ATTRIBUTE_ENABLE = "SPHERE_ATTRIBUTE_ENABLE"
-    BLENDER_ATTRIBUTE_SPHERE_ATTRIBUTE_RADIUS = "SPHERE_ATTRIBUTE_RADIUS"
-    BLENDER_ATTRIBUTE_SPHERE_ATTRIBUTE_RANDOM_SEED = "SPHERE_ATTRIBUTE_RANDOM_SEED"
-    BLENDER_ATTRIBUTE_SPHERE_ATTRIBUTE_MIN_RANDOM_RADIUS = "SPHERE_ATTRIBUTE_MIN_RANDOM_RADIUS"
-    BLENDER_ATTRIBUTE_SPHERE_ATTRIBUTE_MAX_RANDOM_RADIUS = "SPHERE_ATTRIBUTE_MAX_RANDOM_RADIUS"
-    # Object layer attributes
-    BLENDER_ATTRIBUTE_RENDER_LAYER_ID = "RENDER_LAYER_ID"
-    BLENDER_ATTRIBUTE_GENERAL_VISIBILITY = "GENERAL_VISIBILITY"
-    BLENDER_ATTRIBUTE_CAMERA_VISIBILITY = "CAMERA_VISIBILITY"
-    BLENDER_ATTRIBUTE_SHADOW_VISIBILITY = "SHADOW_VISIBILITY"
-    BLENDER_ATTRIBUTE_DIRT_VISIBILITY = "DIRT_VISIBILITY"
-    BLENDER_ATTRIBUTE_RANDOM_COLOR_SEED = "RANDOM_COLOR_SEED"
-    BLENDER_ATTRIBUTE_COLOR = "COLOR"
-    BLENDER_ATTRIBUTE_BAKING_GROUP_ID = "BAKING_GROUP_ID"
-    BLENDER_ATTRIBUTE_BAKING_TRANSFORM_ROTATION_Z = "BAKING_TRANSFORM_ROTATION_Z"
-    BLENDER_ATTRIBUTE_BAKING_TRANSFORM_SCALE = "BAKING_TRANSFORM_SCALE"
-    BLENDER_ATTRIBUTE_BAKING_TRANSFORM_TRANSLATION = "BAKING_TRANSFORM_TRANSLATION"
-    BLENDER_ATTRIBUTE_LIGHT_PASS_MASK = "LIGHT_PASS_MASK"
-    BLENDER_ATTRIBUTE_CUSTOM_AOV = "CUSTOM_AOV"
-    BLENDER_ATTRIBUTE_CUSTOM_AOV_CHANNEL = "CUSTOM_AOV_CHANNEL"
-
-    MAX_OCTANE_COLOR_VERTEX_SETS = 2
-    MAX_OCTANE_FLOAT_VERTEX_SETS = 4
-
-    def __init__(self, session):
-        super().__init__(session)
-        self.type_name = self.TYPE_NAME
-        self.type_class = bpy.types.Object
-        self.type_collection_name = "objects"
-        self.changed_mesh_names = set()
-        self.synced_mesh_names = set()
-       
-    def update_start(self):
-        self.object_index = 0
-        self.mesh_index = 0
-        self.object_node = OctaneNode(OctaneNodeType.SYNC_NODE)
-        self.object_node.set_name("LOAD_OBJECTS")
-        self.object_node.set_node_type(consts.NodeType.NT_BLENDER_NODE_SCATTER)
-        self.mesh_node = OctaneNode(OctaneNodeType.SYNC_NODE)
-        self.mesh_node.set_name("LOAD_MESHES")
-        self.mesh_node.set_node_type(consts.NodeType.NT_BLENDER_NODE_MESH)
-        self.mesh_node.create_scene_data("LOAD_MESHES")
-
-    def update_end(self):
-        self.object_index = 0
-        self.mesh_index = 0
-        self.object_node = None
-        self.mesh_node.release_scene_data("LOAD_MESHES")
-        self.mesh_node = None
-
-    @staticmethod
-    def resolve_identifier_with_index(identifier, index):
-        return identifier + consts.OBJECT_INDEX_SEPARATOR + str(index)
-
-    def set_object_attribute(self, attribute_name, attribute_type, value):
-        return self.object_node.set_blender_attribute(ObjectCache.resolve_identifier_with_index(attribute_name, self.object_index), attribute_type, value)    
-
-    def set_mesh_attribute(self, attribute_name, attribute_type, value):
-        return self.mesh_node.set_blender_attribute(ObjectCache.resolve_identifier_with_index(attribute_name, self.mesh_index), attribute_type, value)    
-
-    def set_object_layer_attribute(self, node, attribute_name, index, attribute_type, value):
-        return node.set_blender_attribute(ObjectCache.resolve_identifier_with_index(attribute_name, index), attribute_type, value)
-
-    def create_object_array(self, identifier, size, _type, dimension=1):
-        array_identifier = ObjectCache.resolve_identifier_with_index(identifier, self.object_index)            
-        self.object_node.create_c_array(size, array_identifier, _type, dimension)
-        c_array = self.object_node.get_c_array(array_identifier, _type)
-        c_array.need_update = True
-        return c_array.array
-
-    def create_mesh_array(self, identifier, size, _type, dimension=1):
-        array_identifier = ObjectCache.resolve_identifier_with_index(identifier, self.mesh_index)            
-        self.mesh_node.create_c_array(size, array_identifier, _type, dimension)
-        c_array = self.mesh_node.get_c_array(array_identifier, _type)
-        c_array.need_update = True
-        return c_array.array
-
-    @staticmethod
-    def cast_light_mask(data):
-        property_to_bits = ["light_id_sunlight", "light_id_env", "light_id_pass_1", "light_id_pass_2", "light_id_pass_3", "light_id_pass_4", "light_id_pass_5", "light_id_pass_6", "light_id_pass_7", "light_id_pass_8"]
-        value = 0
-        for idx, property_name in enumerate(property_to_bits):
-            value += (int(getattr(data, property_name)) << idx)
-        return value
-
-    def update_changed_mesh_names(self, depsgraph):
-        self.changed_mesh_names.clear()
-        if depsgraph.id_type_updated("MESH"):
-            for dg_update in depsgraph.updates:
-                self.changed_mesh_names.add(dg_update.id.name)
-
-    def update_object_layer(self, node, index, octane_data):
-        self.set_object_layer_attribute(node, self.BLENDER_ATTRIBUTE_RENDER_LAYER_ID, index, consts.AttributeType.AT_INT, octane_data.render_layer_id)
-        self.set_object_layer_attribute(node, self.BLENDER_ATTRIBUTE_GENERAL_VISIBILITY, index, consts.AttributeType.AT_FLOAT, octane_data.general_visibility)
-        self.set_object_layer_attribute(node, self.BLENDER_ATTRIBUTE_CAMERA_VISIBILITY, index, consts.AttributeType.AT_BOOL, octane_data.camera_visibility)
-        self.set_object_layer_attribute(node, self.BLENDER_ATTRIBUTE_SHADOW_VISIBILITY, index, consts.AttributeType.AT_BOOL, octane_data.shadow_visibility)
-        self.set_object_layer_attribute(node, self.BLENDER_ATTRIBUTE_DIRT_VISIBILITY, index, consts.AttributeType.AT_BOOL, octane_data.dirt_visibility)
-        self.set_object_layer_attribute(node, self.BLENDER_ATTRIBUTE_RANDOM_COLOR_SEED, index, consts.AttributeType.AT_INT, octane_data.random_color_seed)
-        self.set_object_layer_attribute(node, self.BLENDER_ATTRIBUTE_COLOR, index, consts.AttributeType.AT_INT3, [int(c * 255.0) for c in octane_data.color])
-        self.set_object_layer_attribute(node, self.BLENDER_ATTRIBUTE_BAKING_GROUP_ID, index, consts.AttributeType.AT_INT, octane_data.baking_group_id)
-        self.set_object_layer_attribute(node, self.BLENDER_ATTRIBUTE_BAKING_TRANSFORM_ROTATION_Z, index, consts.AttributeType.AT_FLOAT, octane_data.baking_uv_transform_rz)
-        self.set_object_layer_attribute(node, self.BLENDER_ATTRIBUTE_BAKING_TRANSFORM_SCALE, index, consts.AttributeType.AT_FLOAT2, (octane_data.baking_uv_transform_sx, octane_data.baking_uv_transform_sy))
-        self.set_object_layer_attribute(node, self.BLENDER_ATTRIBUTE_BAKING_TRANSFORM_TRANSLATION, index, consts.AttributeType.AT_FLOAT2, (octane_data.baking_uv_transform_tx, octane_data.baking_uv_transform_ty))
-        self.set_object_layer_attribute(node, self.BLENDER_ATTRIBUTE_CUSTOM_AOV, index, consts.AttributeType.AT_INT, utility.get_enum_value(octane_data, "custom_aov", 4096))
-        self.set_object_layer_attribute(node, self.BLENDER_ATTRIBUTE_CUSTOM_AOV_CHANNEL, index, consts.AttributeType.AT_INT, utility.get_enum_value(octane_data, "custom_aov_channel", 0))
-        self.set_object_layer_attribute(node, self.BLENDER_ATTRIBUTE_LIGHT_PASS_MASK, index, consts.AttributeType.AT_INT, ObjectCache.cast_light_mask(octane_data))
-
-    def update_mesh_array_data(self, engine, context, depsgraph, _object, mesh_name, need_subdivision=False, winding_order=0):
-        self.set_mesh_attribute(self.BLENDER_ATTRIBUTE_MESH_DATA_UPDATE, consts.AttributeType.AT_BOOL, True)
-        # Create Mesh
-        mesh = None
-        object_eval = _object.evaluated_get(depsgraph)
-        if object_eval:
-            mesh = object_eval.to_mesh()
-            if mesh and not need_subdivision:
-                if mesh.use_auto_smooth:
-                    if not mesh.has_custom_normals:
-                        mesh.calc_normals()
-                    mesh.split_faces()
-                mesh.calc_loop_triangles()
-                if mesh.has_custom_normals:
-                    mesh.calc_normals_split()
-        vertices_num = len(mesh.vertices)
-        vertices_addr = mesh.vertices[0].as_pointer() if vertices_num > 0 else 0
-        loop_triangles_num = len(mesh.loop_triangles)
-        loop_triangles_addr = mesh.loop_triangles[0].as_pointer() if loop_triangles_num > 0 else 0
-        loops_num = len(mesh.loops)
-        loops_addr = mesh.loops[0].as_pointer() if loops_num > 0 else 0
-        polygons_num = len(mesh.polygons)
-        polygons_addr = mesh.polygons[0].as_pointer() if polygons_num > 0 else 0
-        materials_num = max(1, len(object_eval.data.materials))
-        # UV Data
-        uv_addrs = []
-        active_uv_set_index = 0
-        if mesh.uv_layers:
-            for idx, uv in enumerate(mesh.uv_layers):
-                uv_addrs.append(uv.data[0].as_pointer())
-                if uv.active_render:
-                    active_uv_set_index = idx
-        self.set_mesh_attribute(self.BLENDER_ATTRIBUTE_ACTIVE_UV_INDEX, consts.AttributeType.AT_INT, active_uv_set_index)
-        # Vertex Float Data
-        blender_vertex_float_num = len(object_eval.vertex_groups)
-        vertex_float_num = min(self.MAX_OCTANE_FLOAT_VERTEX_SETS, blender_vertex_float_num)
-        vertex_float_names = []
-        vertex_float_arrays = []
-        vertex_group_index_map = {}
-        if vertex_float_num > 0:
-            self.create_mesh_array(consts.ArrayIdentifier.ARRAY_INFO_VERTEX_FLOAT_DATA, vertex_float_num, CArray.INT, 1)
-        for idx, vertex_group in enumerate(object_eval.vertex_groups):
-            vertex_float_names.append(vertex_group.name)
-            vertex_float_arrays.append(self.create_mesh_array(consts.ArrayIdentifier.ARRAY_INFO_VERTEX_FLOAT_DATA + str(idx), vertices_num, CArray.FLOAT, 1))
-            vertex_float_arrays[-1].fill(0)
-            vertex_group_index_map[vertex_group.index] = idx
-        for v_idx, vertex in enumerate(mesh.vertices):
-            for group in vertex.groups:
-                group_id = group.group
-                if group_id in vertex_group_index_map:
-                    vertex_float_arrays[vertex_group_index_map[group_id]][v_idx] = group.weight
-        self.set_mesh_attribute(self.BLENDER_ATTRIBUTE_VERTEX_FLOAT_NAMES, consts.AttributeType.AT_STRING, ";".join(vertex_float_names))
-        # Vertex Color Data
-        blender_vertex_colors_num = len(mesh.vertex_colors)
-        vertex_colors_num = min(self.MAX_OCTANE_COLOR_VERTEX_SETS, blender_vertex_colors_num)
-        inactive_vertex_colors_num = self.MAX_OCTANE_COLOR_VERTEX_SETS - 1
-        vertex_color_addrs = []
-        vertex_color_names = []
-        if mesh.vertex_colors:
-            for idx, col in enumerate(mesh.vertex_colors):
-                if inactive_vertex_colors_num == 0 and not col.active_render:
-                    continue
-                if not col.active_render:
-                    inactive_vertex_colors_num -= 1
-                vertex_color_names.append(col.name)
-                vertex_color_addrs.append(col.data[0].as_pointer())
-                if len(vertex_color_names) >= self.MAX_OCTANE_COLOR_VERTEX_SETS:
-                    break
-        self.set_mesh_attribute(self.BLENDER_ATTRIBUTE_VERTEX_COLOR_NAMES, consts.AttributeType.AT_STRING, ";".join(vertex_color_names))
-        # Build Mesh Data via C API
-        dict_args = {
-            "INDEX": self.mesh_index, 
-            "VERTICES_NUM": vertices_num, 
-            "VERTICES_ADDR": vertices_addr, 
-            "LOOP_TRIANGLES_NUM": loop_triangles_num, 
-            "LOOP_TRIANGLES_ADDR": loop_triangles_addr, 
-            "LOOPS_NUM": loops_num, 
-            "LOOPS_ADDR": loops_addr, 
-            "POLYGONS_NUM": polygons_num, 
-            "POLYGONS_ADDR": polygons_addr,
-            "UVS_ADDR": uv_addrs,
-            "VERTEX_COLORS_ADDR": vertex_color_addrs,
-            "NEED_SUBDIVISION": need_subdivision,
-            "WINDING_ORDER": winding_order,
-            "USED_SHADER_NUM": materials_num,
-            "ACTIVE_UV_LAYER_INDEX": active_uv_set_index,
-        }
-        self.mesh_node.build_scene_data(consts.SceneDataType.MESH, dict_args)
-        # Build Mesh Subdivision Data via C API
-        if need_subdivision:
-            edges_num = len(mesh.edges)
-            edges_addr = mesh.edges[0].as_pointer() if edges_num > 0 else 0            
-            subd_dict_args = {
-                "INDEX": self.mesh_index, 
-                "EDGES_NUM": edges_num, 
-                "EDGES_ADDR": edges_addr,
-            }
-            self.mesh_node.build_scene_data(consts.SceneDataType.SUBDIVISION_MESH, subd_dict_args)
-        # Clear Mesh
-        if object_eval and mesh:
-            object_eval.to_mesh_clear()
-
-    def update_mesh(self, engine, context, depsgraph, _object):
-        mesh_data = _object.data
-        mesh_name = mesh_data.name
-        if mesh_name in self.changed_data_names or mesh_name not in self.synced_mesh_names:
-            show_vertex_data = True
-            octane_mesh_name = utility.resolve_mesh_octane_name(_object, context.scene, True)
-            octane_data = mesh_data.octane
-            # General
-            osl_geo_name = utility.resolve_octane_vectron_name(_object)
-            orbx_proxy_path = bpy.path.abspath(octane_data.imported_orbx_file_path)
-            self.set_mesh_attribute(self.BLENDER_ATTRIBUTE_MESH_NAME, consts.AttributeType.AT_STRING, octane_mesh_name)
-            self.set_mesh_attribute(self.BLENDER_ATTRIBUTE_OSL_GEO_NAME, consts.AttributeType.AT_STRING, osl_geo_name)
-            self.set_mesh_attribute(self.BLENDER_ATTRIBUTE_ORBX_PATH, consts.AttributeType.AT_STRING, orbx_proxy_path)
-            self.set_mesh_attribute(self.BLENDER_ATTRIBUTE_INFINITE_PLANE, consts.AttributeType.AT_BOOL, octane_data.infinite_plane)
-            self.set_mesh_attribute(self.BLENDER_ATTRIBUTE_RESHAPEABLE, consts.AttributeType.AT_BOOL, False)
-            # Materials
-            material_names = [material.name for material in mesh_data.materials]            
-            self.set_mesh_attribute(self.BLENDER_ATTRIBUTE_SHADER_NAMES, consts.AttributeType.AT_STRING, ";".join(material_names))
-            # Objects
-            self.set_mesh_attribute(self.BLENDER_ATTRIBUTE_OBJECTS_NAMES, consts.AttributeType.AT_STRING, "__" + octane_mesh_name)
-            # Subdivision
-            open_subd_enable = octane_data.open_subd_enable
-            open_subd_level = octane_data.open_subd_level
-            need_subdivision = open_subd_enable and open_subd_level > 0
-            self.set_mesh_attribute(self.BLENDER_ATTRIBUTE_SUBDIVISION, consts.AttributeType.AT_BOOL, open_subd_enable)
-            self.set_mesh_attribute(self.BLENDER_ATTRIBUTE_SUBDIVISION_SCHEME, consts.AttributeType.AT_INT, int(octane_data.open_subd_scheme))
-            self.set_mesh_attribute(self.BLENDER_ATTRIBUTE_SUBDIVISION_LEVEL, consts.AttributeType.AT_INT, octane_data.open_subd_level)
-            self.set_mesh_attribute(self.BLENDER_ATTRIBUTE_SUBDIVISION_SHARPNESS, consts.AttributeType.AT_FLOAT, octane_data.open_subd_sharpness)
-            self.set_mesh_attribute(self.BLENDER_ATTRIBUTE_SUBDIVISION_BOUND_INTERPOLATION, consts.AttributeType.AT_INT, int(octane_data.open_subd_bound_interp))
-            self.set_mesh_attribute(self.BLENDER_ATTRIBUTE_SUBDIVISION_DATA_NEED_UPDATE, consts.AttributeType.AT_BOOL, True)
-            # Sphere Attributes
-            if octane_data.octane_hide_original_mesh:
-                show_vertex_data = False
-            self.set_mesh_attribute(self.BLENDER_ATTRIBUTE_SPHERE_ATTRIBUTE_ENABLE, consts.AttributeType.AT_BOOL, octane_data.octane_enable_sphere_attribute)
-            self.set_mesh_attribute(self.BLENDER_ATTRIBUTE_SPHERE_ATTRIBUTE_RADIUS, consts.AttributeType.AT_FLOAT, octane_data.octane_sphere_radius)
-            self.set_mesh_attribute(self.BLENDER_ATTRIBUTE_SPHERE_ATTRIBUTE_RANDOM_SEED, consts.AttributeType.AT_INT, octane_data.octane_sphere_randomized_radius_seed if octane_data.octane_use_randomized_radius else -1)
-            self.set_mesh_attribute(self.BLENDER_ATTRIBUTE_SPHERE_ATTRIBUTE_MIN_RANDOM_RADIUS, consts.AttributeType.AT_FLOAT, octane_data.octane_sphere_randomized_radius_min)
-            self.set_mesh_attribute(self.BLENDER_ATTRIBUTE_SPHERE_ATTRIBUTE_MAX_RANDOM_RADIUS, consts.AttributeType.AT_FLOAT, octane_data.octane_sphere_randomized_radius_max)
-            # Mesh Data
-            self.update_mesh_array_data(engine, context, depsgraph, _object, mesh_name, need_subdivision, int(octane_data.winding_order))
-            self.set_mesh_attribute(self.BLENDER_ATTRIBUTE_HAIR_INTERPOLATIONS, consts.AttributeType.AT_INT, int(octane_data.hair_interpolation))
-            hair_w_size = 0
-            self.set_mesh_attribute(self.BLENDER_ATTRIBUTE_HAIR_W_SIZE, consts.AttributeType.AT_INT, hair_w_size)            
-            self.set_mesh_attribute(self.BLENDER_ATTRIBUTE_SHOW_VERTEX_DATA, consts.AttributeType.AT_BOOL, show_vertex_data)
-            self.mesh_index += 1
-            self.synced_mesh_names.add(mesh_name)
-
-    def update_object(self, engine, context, depsgraph, _object):
-        # General
-        object_name = utility.resolve_object_octane_name(_object, context.scene, True)
-        mesh_name = utility.resolve_mesh_octane_name(_object, context.scene, True)
-        self.set_object_attribute(self.BLENDER_ATTRIBUTE_OBJECT_NAME, consts.AttributeType.AT_STRING, object_name)            
-        if _object.type == "MESH":
-            osl_geo_name = utility.resolve_octane_vectron_name(_object)
-            if len(osl_geo_name):
-                mesh_name = osl_geo_name
-            orbx_proxy_path = bpy.path.abspath(_object.data.octane.imported_orbx_file_path)
-            self.set_object_attribute(self.BLENDER_ATTRIBUTE_MESH_NAME, consts.AttributeType.AT_STRING, mesh_name)       
-            self.set_object_attribute(self.BLENDER_ATTRIBUTE_INSTANCE_SIZE, consts.AttributeType.AT_INT, 1)
-            self.set_object_attribute(self.BLENDER_ATTRIBUTE_INSTANCE_ID, consts.AttributeType.AT_INT, 0)
-            self.set_object_attribute(self.BLENDER_ATTRIBUTE_SAMPLE_NUM, consts.AttributeType.AT_INT, 1)
-            self.set_object_attribute(self.BLENDER_ATTRIBUTE_USE_OBJECTLAYER_MODE, consts.AttributeType.AT_INT, 2 if len(orbx_proxy_path) else 1)
-            # Transforms
-            matrix = utility.OctaneMatrixConvertor.get_octane_matrix(_object.matrix_world)
-            array = self.create_object_array(consts.ArrayIdentifier.ARRAY_INFO_MATRIX_DATA, 12, CArray.FLOAT)            
-            array_index = 0
-            for i in range(3):
-                for j in range(4):
-                    array[array_index] = matrix[i][j]
-                    array_index += 1
-            # Instance ID
-            array = self.create_object_array(consts.ArrayIdentifier.ARRAY_INFO_INSTANCE_ID_DATA, 1, CArray.INT)
-            array[0] = -1
-            # Mesh Data
-            self.update_mesh(engine, context, depsgraph, _object)
-            # Object Layer
-            self.update_object_layer(self.object_node, self.object_index, _object.octane)
-            # Object Index
-            self.object_index += 1            
-
-
-    def update_objects(self, engine, context, depsgraph):
-        for name in self.changed_data_names:
-            _object = getattr(bpy.data, self.type_collection_name).get(name, None)
-            self.update_object(engine, context, depsgraph, _object)            
-        self.object_node.set_blender_attribute(self.BLENDER_ATTRIBUTE_OBJECT_COUNT, consts.AttributeType.AT_INT, self.object_index)
-        self.mesh_node.set_blender_attribute(self.BLENDER_ATTRIBUTE_MESH_COUNT, consts.AttributeType.AT_INT, self.mesh_index)
-
-    def update(self, engine, context, depsgraph):
-        self.update_start()
-        self.update_changed_mesh_names(depsgraph)
-        self.update_objects(engine, context, depsgraph)
-        if self.mesh_node and self.mesh_node.need_update:
-            OctaneClient().process_octane_node(self.mesh_node)
-        if self.object_node and self.object_node.need_update:
-            OctaneClient().process_octane_node(self.object_node)
-        self.need_update = False
-        self.update_end()
-
 class ImageCache(BaseDataCache):
     TYPE_NAME = "IMAGE"
 
@@ -525,39 +195,133 @@ class ImageCache(BaseDataCache):
         self.type_collection_name = "images"
 
 
-class NodeTreeCache(BaseDataCache):
+class NodeTreeCache(OctaneNodeCache):
 
-    def _dependency_diff(self, context, depsgraph, cache_depend_on):
+    def _dependency_diff(self, depsgraph, cache_depend_on):
         if cache_depend_on and len(cache_depend_on.changed_data_names):
             for dependent_name in cache_depend_on.changed_data_names:
                 for data_name in self.dependent_to_data[cache_depend_on.type_name][dependent_name]:
                     self.changed_data_names.add(data_name)
                     self.need_update = True
 
-    def dependency_diff(self, context, depsgraph):
+    def dependency_diff(self, depsgraph, scene, view_layer, context=None):
         # Process image
-        self._dependency_diff(context, depsgraph, self.session.image_cache)
+        self._dependency_diff(depsgraph, self.session.image_cache)
         # Process object
-        self._dependency_diff(context, depsgraph, self.session.object_cache)
+        self._dependency_diff(depsgraph, self.session.object_cache)
 
-    def use_node_tree(self, context, _id):
+    def use_node_tree(self, scene, view_layer, _id):
         return _id is not None and _id.use_nodes
 
     def get_node_tree(self, _id):
         return _id.node_tree
 
-    def update(self, engine, context, depsgraph):
-        self.custom_update(context, depsgraph)
-        for name in self.changed_data_names:            
-            _id = getattr(bpy.data, self.type_collection_name).get(name, None)
-            if self.use_node_tree(context, _id):
+    def get_octane_node(self, node_name, node):
+        node_id = node_name
+        node_type = node.octane_node_type
+        if self.has_data(node_id):
+            octane_node = self.get(node_name, node_id)
+            if octane_node.node_type != node_type:
+                self.remove(node_id)
+                octane_node = self.add(node_name, node_type, node_id)
+        else:
+            octane_node = self.add(node_name, node_type, node_id)
+        return octane_node
+
+    def _update_node_tree(self, depsgraph, view_layer, node_tree, owner_id, owner_type, active_output_node, active_input_name, root_name, node_tree_attributes):
+        ancestor_list = [utility.OctaneGraphNodeDummy(root_name), ]
+        # nodes to process [OctaneGraphNode...]
+        queue = deque()
+        queue.append(utility.OctaneGraphNode(active_output_node, None, ancestor_list, False))
+        # node name => OctaneGraphNode
+        processed_octane_nodes = {}
+        # the final node list to update [OctaneGraphNode...]
+        final_node_list = []        
+        # traverse node graph recursively and generate linked node maps
+        while len(queue):
+            octane_graph_node = queue.popleft()
+            if octane_graph_node.node is active_output_node:
+                # Root node
+                root_octane_node = octane_graph_node.add_socket(active_output_node.inputs[active_input_name])
+                if root_octane_node is None:
+                    continue
+                root_octane_node.octane_name = root_name
+                root_octane_node.is_root = True
+                if active_input_name in ("Geometry", "Octane Geometry"):
+                    if len(active_output_node.inputs[active_input_name].links):
+                        root_octane_node.octane_name = root_name + "_" + active_output_node.inputs[active_input_name].links[0].from_node.name
+                    root_octane_node.is_root = False
+                queue.append(root_octane_node)
+            else:
+                # Avoid cyclic link and redundant process
+                if octane_graph_node.octane_name in processed_octane_nodes:
+                    continue
+                processed_octane_nodes[octane_graph_node.octane_name] = octane_graph_node
+                for _input in octane_graph_node.node.inputs:                
+                    linked_octane_node = octane_graph_node.add_socket(_input)
+                    if linked_octane_node:
+                        queue.append(linked_octane_node)
+                final_node_list.append(octane_graph_node)
+                if isinstance(octane_graph_node.node, OctaneBaseNode):
+                    # Set auto refresh attribute
+                    node_tree_attributes.auto_refresh = max(node_tree_attributes.auto_refresh, octane_graph_node.node.auto_refresh())
+                    # Set image attribute
+                    if octane_graph_node.node.is_octane_image_node() and octane_graph_node.node.image is not None:                    
+                        node_tree_attributes.image_names.append(octane_graph_node.node.image.name)
+                    # Set object attribute
+                    if octane_graph_node.node.bl_idname == "OctaneObjectData":
+                        node_tree_attributes.object_names.append(octane_graph_node.node.get_target_object_name())                
+        # update node to the server
+        is_updated = False
+        for octane_graph_node_data in final_node_list:
+            octane_name = octane_graph_node_data.octane_name
+            node = octane_graph_node_data.node
+            octane_node = self.get_octane_node(octane_name, node)
+            if isinstance(node, OctaneBaseNode):
+                octane_node.node_type = node.octane_node_type
+                octane_node.name = octane_name
+                node.sync_data(octane_node, octane_graph_node_data, depsgraph)
+                if octane_node.need_update:
+                    octane_node.update_to_engine(True)
+                    is_updated = True
+        return is_updated
+
+    def update_node_tree(self, depsgraph, view_layer, node_tree, owner_id, node_tree_attributes):
+        owner_type = utility.get_node_tree_owner_type(owner_id)
+        active_output_node = utility.find_active_output_node(node_tree, owner_type)
+        if active_output_node:
+            for _input in active_output_node.inputs:
+                if not _input.enabled:
+                    continue
+                root_node = _input.links[0].from_node if len(_input.links) else None
+                root_name = utility.get_octane_name_for_root_node(active_output_node, _input.name, owner_id)
+                self.session.rendertarget_cache.update_links(owner_type, _input.name, root_node, root_name)
+                if not root_node:
+                    continue                
+                is_updated = self._update_node_tree(depsgraph, view_layer, node_tree, owner_id, owner_type, active_output_node, _input.name, root_name, node_tree_attributes)
+
+    def update(self, depsgraph, scene, view_layer, context=None):
+        from octane.core.object_cache import ObjectCache
+        self.custom_update(depsgraph, scene, view_layer, context)
+        for name in self.changed_data_names:
+            if len(name) == 0:
+                continue
+            _id = None
+            for depsgraph_id in depsgraph.ids:
+                if depsgraph_id.name == name and isinstance(depsgraph_id.original, self.type_class):
+                    _id = depsgraph_id
+                    break
+            if _id is None:
+                _id = getattr(bpy.data, self.type_collection_name).get(name, None)
+                if _id is not None:
+                    _id = _id.evaluated_get(depsgraph)
+            if self.use_node_tree(scene, view_layer, _id):
                 data_name = _id.name
                 node_tree_attributes = NodeTreeAttributes()
-                self.session.update_node_tree(context, self.get_node_tree(_id), _id, node_tree_attributes)
-                self.add(data_name)
+                self.update_node_tree(depsgraph, view_layer, self.get_node_tree(_id), _id, node_tree_attributes)
                 # Update auto refresh attribute
-                if node_tree_attributes.auto_refresh:
-                    self.auto_refresh_data_names.add(data_name)
+                if node_tree_attributes.auto_refresh != consts.AutoRereshStrategy.DISABLE:
+                    self.auto_refresh_data_names[data_name] = node_tree_attributes.auto_refresh
                 else:
                     if data_name in self.auto_refresh_data_names:
                         self.auto_refresh_data_names.remove(data_name)
@@ -578,7 +342,7 @@ class NodeTreeCache(BaseDataCache):
         self.changed_data_names.clear()
         self.need_update = False
 
-    def custom_update(self, context, depsgraph):
+    def custom_update(self, depsgraph, scene, view_layer, context=None):
         pass
 
 
@@ -592,6 +356,16 @@ class MaterialCache(NodeTreeCache):
         self.type_collection_name = "materials"
 
 
+class LightCache(NodeTreeCache):
+    TYPE_NAME = "LIGHT"
+
+    def __init__(self, session):
+        super().__init__(session)
+        self.type_name = self.TYPE_NAME
+        self.type_class = bpy.types.Light
+        self.type_collection_name = "lights"
+
+
 class WorldCache(NodeTreeCache):
     TYPE_NAME = "WORLD"
 
@@ -601,21 +375,40 @@ class WorldCache(NodeTreeCache):
         self.type_class = bpy.types.World
         self.type_collection_name = "worlds"
         self.last_name = ""
+        self.last_links_set = set()
 
-    def use_node_tree(self, context, _id):
-        return super().use_node_tree(context, _id) and context.scene.world is _id
+    def use_node_tree(self, scene, view_layer, _id):        
+        return super().use_node_tree(scene, view_layer, _id) and getattr(scene.world, "name", "") == getattr(_id, "name", "")
 
-    def custom_diff(self, context, depsgraph):
-        current_name = getattr(context.scene.world, "name", "")
+    def custom_diff(self, depsgraph, scene, view_layer, context=None):
+        current_name = getattr(scene.world, "name", "")
         if current_name != self.last_name:
             self.last_name = current_name
             self.need_update = True
+        if self.is_node_tree_link_changed(scene):
+            self.need_update = True
+        if self.need_update:
+            self.changed_data_names.add(current_name)
 
-    def custom_update(self, context, depsgraph):        
-        if context.scene.world is None:            
+    def custom_update(self, depsgraph, scene, view_layer, context=None):
+        if scene.world is None:
             self.session.rendertarget_cache.update_links(consts.OctaneNodeTreeIDName.WORLD, consts.OctaneOutputNodeSocketNames.ENVIRONMENT, None, "")
             self.session.rendertarget_cache.update_links(consts.OctaneNodeTreeIDName.WORLD, consts.OctaneOutputNodeSocketNames.VISIBLE_ENVIRONMENT, None, "")
 
+    def is_node_tree_link_changed(self, scene):
+        # The customized World Output cannot trigger the update signal automatically
+        # So we need an additional check here
+        is_changed = False
+        links_set = set()
+        if scene.world and scene.world.use_nodes:
+            for link in scene.world.node_tree.links:
+                link_info = "%s->%s" % (link.from_node.name, link.to_node.name)
+                links_set.add(link_info)
+                # links_set.add(link.as_pointer())
+        if links_set != self.last_links_set:
+            self.last_links_set = links_set
+            is_changed = True
+        return is_changed
 
 class CompositeCache(NodeTreeCache):
     TYPE_NAME = "NODETREE"
@@ -630,24 +423,25 @@ class CompositeCache(NodeTreeCache):
     def get_node_tree(self, _id):
         return _id
 
-    def use_node_tree(self, context, _id):
-        return _id is not None and self.find_active_composite_node_tree(context) is _id
+    def use_node_tree(self, scene, view_layer, _id):
+        active_composite_node_tree = self.find_active_composite_node_tree(view_layer)
+        return _id is not None and getattr(active_composite_node_tree, "name", "") == getattr(_id, "name", "")
 
-    def find_active_composite_node_tree(self, context):
-        node_tree = utility.find_active_composite_node_tree(context)
+    def find_active_composite_node_tree(self, view_layer):
+        node_tree = utility.find_active_composite_node_tree(view_layer)
         if node_tree and node_tree.active_output_node:
             return node_tree
         return None
 
-    def custom_diff(self, context, depsgraph):
-        current_name = getattr(self.find_active_composite_node_tree(context), "name", "")
+    def custom_diff(self, depsgraph, scene, view_layer, context=None):
+        current_name = getattr(self.find_active_composite_node_tree(view_layer), "name", "")
         if depsgraph.id_type_updated(self.type_name) or current_name != self.last_name:            
             self.changed_data_names.add(current_name)
             self.need_update = True
         self.last_name = current_name
 
-    def custom_update(self, context, depsgraph):
-        if self.find_active_composite_node_tree(context) is None:
+    def custom_update(self, depsgraph, scene, view_layer, context=None):
+        if self.find_active_composite_node_tree(view_layer) is None:
             self.session.rendertarget_cache.update_links(consts.OctaneNodeTreeIDName.COMPOSITE, consts.OctaneOutputNodeSocketNames.COMPOSITE, None, "")
 
 
@@ -664,24 +458,37 @@ class RenderAOVCache(NodeTreeCache):
     def get_node_tree(self, _id):
         return _id
 
-    def use_node_tree(self, context, _id):
-        return _id is not None and self.find_active_render_aov_node_tree(context) is _id
+    def use_node_tree(self, scene, view_layer, _id):
+        render_aov_node_tree = self.find_active_render_aov_node_tree(view_layer)
+        return _id is not None and getattr(render_aov_node_tree, "name", "") == getattr(_id, "name", "")
 
-    def find_active_render_aov_node_tree(self, context):
-        node_tree = utility.find_active_render_aov_node_tree(context)
+    def find_active_render_aov_node_tree(self, view_layer):
+        node_tree = utility.find_active_render_aov_node_tree(view_layer)
         if node_tree and node_tree.active_output_node:
             return node_tree
         return None
 
-    def custom_diff(self, context, depsgraph):
-        current_name = getattr(self.find_active_render_aov_node_tree(context), "name", "")
+    def get_current_preview_render_pass_id(self, view_layer):
+        node_tree = self.find_active_render_aov_node_tree(view_layer)
+        if node_tree is None:
+            return consts.RenderPassId.BEAUTY
+        return node_tree.get_current_preview_render_pass_id(view_layer)
+
+    def get_enabled_render_pass_ids(self, view_layer):
+        node_tree = self.find_active_render_aov_node_tree(view_layer)
+        if node_tree is None:
+            return [consts.RenderPassId.BEAUTY, ]
+        return node_tree.get_enabled_render_pass_ids(view_layer)
+
+    def custom_diff(self, depsgraph, scene, view_layer, context=None):
+        current_name = getattr(self.find_active_render_aov_node_tree(view_layer), "name", "")
         if depsgraph.id_type_updated(self.type_name) or current_name != self.last_name:            
             self.changed_data_names.add(current_name)
             self.need_update = True
         self.last_name = current_name
 
-    def custom_update(self, context, depsgraph):
-        if self.find_active_render_aov_node_tree(context) is None:
+    def custom_update(self, depsgraph, scene, view_layer, context=None):
+        if self.find_active_render_aov_node_tree(view_layer) is None:
             self.session.rendertarget_cache.update_links(consts.OctaneNodeTreeIDName.RENDER_AOV, consts.OctaneOutputNodeSocketNames.RENDER_AOV, None, "")            
 
 
@@ -698,94 +505,233 @@ class KernelCache(NodeTreeCache):
     def get_node_tree(self, _id):
         return _id
 
-    def use_node_tree(self, context, _id):
-        return _id is not None and self.find_active_kernel_node_tree(context) is _id
+    def use_node_tree(self, scene, view_layer, _id):
+        kernel_node_tree = self.find_active_kernel_node_tree(scene)
+        return _id is not None and getattr(kernel_node_tree, "name", "") == getattr(_id, "name", "")
 
-    def find_active_kernel_node_tree(self, context):
-        node_tree = utility.find_active_kernel_node_tree(context)
+    def find_active_kernel_node_tree(self, scene):
+        node_tree = utility.find_active_kernel_node_tree(scene)
         if node_tree and node_tree.active_output_node:
             return node_tree
         return None
 
-    def custom_diff(self, context, depsgraph):
-        current_name = getattr(self.find_active_kernel_node_tree(context), "name", "")
+    def custom_diff(self, depsgraph, scene, view_layer, context=None):
+        current_name = getattr(self.find_active_kernel_node_tree(scene), "name", "")
         if depsgraph.id_type_updated(self.type_name) or current_name != self.last_name:            
             self.changed_data_names.add(current_name)
             self.need_update = True
         self.last_name = current_name
 
-    def custom_update(self, context, depsgraph):
-        if self.find_active_kernel_node_tree(context) is None:
+    def custom_update(self, depsgraph, scene, view_layer, context=None):
+        if self.find_active_kernel_node_tree(scene) is None:
             self.session.rendertarget_cache.update_links(consts.OctaneNodeTreeIDName.KERNEL, consts.OctaneOutputNodeSocketNames.KERNEL, None, "")
 
 
+class RenderSettings(object):
+    def __init__(self):
+        # Priority Level
+        self.priority_level = 0
+        # Out of Core
+        self.enable_out_of_core = False
+        self.out_of_core_limit = 0
+        self.out_of_core_gpu_headroom = 0
+        # Sub-sampling Mode
+        self.subsampling_mode = 0
+        # Clay Mode
+        self.clay_mode = 0
+
+
 class SceneCache(BaseDataCache):
+    CAMERA_MOTION_DATA_SAMPLE_NUM = "CAMERA_MOTION_DATA_SAMPLE_NUM"
+    CAMERA_POSITION_DATA_C_ARRAY_IDENTIFIER = "CAMERA_POSITION"
+    CAMERA_TARGET_DATA_C_ARRAY_IDENTIFIER = "CAMERA_TARGET"
+    CAMERA_UP_DATA_C_ARRAY_IDENTIFIER = "CAMERA_UP"
+
     def __init__(self, session):
         super().__init__(session)
-        self.camera_node = self.create_octane_node(consts.OctanePresetNodeTreeNames.CAMERA)
-        self.imager_node = self.create_octane_node(consts.OctanePresetNodeTreeNames.IMAGER, consts.NodeType.NT_IMAGER_CAMERA)
-        self.post_processing_node = self.create_octane_node(consts.OctanePresetNodeTreeNames.POST_PROCESSING, consts.NodeType.NT_POSTPROCESSING)
+        self.render_settings = RenderSettings()
+        self.camera_node = self.create_octane_node(consts.OctanePresetNodeNames.CAMERA)
+        self.imager_node = self.create_octane_node(consts.OctanePresetNodeNames.IMAGER, consts.NodeType.NT_IMAGER_CAMERA)
+        self.post_processing_node = self.create_octane_node(consts.OctanePresetNodeNames.POST_PROCESSING, consts.NodeType.NT_POSTPROCESSING)
+        self.animation_setting_node = self.create_octane_node(consts.OctanePresetNodeNames.ANIMATION_SETTINGS, consts.NodeType.NT_ANIMATION_SETTINGS)
+        self.render_layer_node = self.create_octane_node(consts.OctanePresetNodeNames.RENDER_LAYER, consts.NodeType.NT_RENDER_LAYER)
         self.last_camera_name = ""
         self.last_imager_name = ""
-        self.last_post_processing_name = ""
+        self.last_post_processing_name = ""        
 
-    def create_octane_node(self, name, node_type=None):
-        octane_node = OctaneNode(OctaneNodeType.SYNC_NODE)
-        octane_node.set_name(name)
-        if node_type is not None:
-            octane_node.set_node_type(node_type)
-        return octane_node
-
-    def diff(self, engine, context, depsgraph):
+    def diff(self, depsgraph, scene, view_layer, context=None):
         if self.need_update_all or depsgraph.id_type_updated("SCENE") or depsgraph.id_type_updated("CAMERA"):
-            self.need_update_all = False
+            self.need_update_all = False            
             self.need_update = True
         else:
-            _, post_processing_name = utility.find_active_post_process_data(context)            
+            _, post_processing_name = utility.find_active_post_process_data(scene, context)            
             if post_processing_name != self.last_post_processing_name:
                 self.last_post_processing_name = post_processing_name
                 self.need_update = True
-            _, imager_name = utility.find_active_imager_data(context)
+            _, imager_name = utility.find_active_imager_data(scene, context)
             if imager_name != self.last_imager_name:
                 self.last_imager_name = imager_name
                 self.need_update = True            
         return self.need_update
 
-    def update(self, engine, context, depsgraph):
+    def update(self, depsgraph, scene, view_layer, context=None):
         if self.need_update:
-            self.update_post_processing(context, depsgraph)
-            self.update_imager(context, depsgraph)
+            self.update_post_processing(depsgraph, scene, view_layer, context)
+            self.update_imager(depsgraph, scene, view_layer, context)
+            self.update_animation_settings(depsgraph, scene, view_layer, context)
+            self.update_render_layer(depsgraph, scene, view_layer, context)
+            self.update_render_settings(depsgraph, scene, view_layer, context)
         self.need_update = False
 
-    def update_camera(self, engine, context, depsgraph):        
-        camera_data, camera_name = utility.find_active_camera_data(context)
+    def update_camera(self, depsgraph, scene, view_layer, context=None):        
+        camera_data, camera_name = utility.find_active_camera_data(scene, context)
         is_viewport = self.session.is_viewport()
+        motion_time_offsets = None
+        if self.session.need_motion_blur:
+            motion_time_offsets = utility.object_motion_time_offsets(bpy.data.objects[camera_name], self.session.motion_blur_start_frame_offset, self.session.motion_blur_end_frame_offset)
+            if motion_time_offsets is not None:
+                self.camera_node.need_motion_blur = True
+                for offset in motion_time_offsets:
+                    self.session.motion_blur_time_offsets.add(offset)
         if is_viewport:
-            camera_data.sync_data(self.camera_node, engine=engine, scene=context.scene, region=context.region, v3d=context.space_data, rv3d=context.region_data, is_viewport=True)
+            if context is None:
+                context = bpy.context
+            camera_data.sync_data(self.camera_node, scene=scene, region=context.region, v3d=context.space_data, rv3d=context.region_data, is_viewport=True)
         else:
-            camera_data.sync_data(self.camera_node, engine=engine, scene=context.scene, is_viewport=False)
+            camera_data.sync_data(self.camera_node, scene=scene, is_viewport=False)        
         if self.camera_node.need_update:
-            self.session.add_to_update_node_queue(self.camera_node)
-        self.session.rendertarget_cache.update_link(OctaneRenderTargetCache.P_CAMERA_NAME, self.camera_node.name, self.camera_node.name)            
+            self.camera_node.update_to_engine(True)            
+        current_active_camera_name = getattr(self.camera_node, "current_active_camera_name", "")
+        active_camera_node = self.camera_node.find_subnode(current_active_camera_name)
+        if active_camera_node is not None:
+            active_camera_node.motion_time_offsets = motion_time_offsets
+        self.session.rendertarget_cache.update_link(OctaneRenderTargetCache.P_CAMERA_NAME, current_active_camera_name, current_active_camera_name)
 
-    def update_post_processing(self, context, depsgraph):
-        camera_data, camera_name = utility.find_active_post_process_data(context)
+    def update_camera_motion_blur_sample(self, motion_time_offset, depsgraph, scene, view_layer, context=None):        
+        camera_data, camera_name = utility.find_active_camera_data(scene, context)
+        current_active_camera_name = getattr(self.camera_node, "current_active_camera_name", "")
+        active_camera_node = self.camera_node.find_subnode(current_active_camera_name)
+        if active_camera_node.motion_time_offsets and motion_time_offset in active_camera_node.motion_time_offsets:
+            camera_eval = scene.camera.evaluated_get(depsgraph)
+            camera_data.sync_camera_motion_blur(active_camera_node, motion_time_offset, camera_eval)
+
+    def update_camera_motion_array_data(self, node, identifier, sample_num, current_sample_index, current_data):
+        float_data_num = sample_num * 3
+        array_data = node.get_array_data(identifier)
+        if array_data is None or len(array_data) != float_data_num:
+            node.delete_array_data(identifier)
+            if node.new_array_data(identifier, CArray.FLOAT, float_data_num, 3):
+                array_data = node.get_array_data(identifier)
+        offset = current_sample_index * 3
+        array_data[offset] = current_data[0]
+        array_data[offset + 1] = current_data[1]
+        array_data[offset + 2] = current_data[2]
+
+    def update_camera_motion_blur(self, depsgraph, scene, view_layer, context=None):
+        camera_data, camera_name = utility.find_active_camera_data(scene, context)
+        current_active_camera_name = getattr(self.camera_node, "current_active_camera_name", "")
+        active_camera_node = self.camera_node.find_subnode(current_active_camera_name)
+        # camera_position_node = self.camera_node.get_subnode(consts.OctanePresetNodeNames.CAMERA_POSITION, consts.NodeType.NT_FLOAT)
+        # camera_target_node = self.camera_node.get_subnode(consts.OctanePresetNodeNames.CAMERA_TARGET, consts.NodeType.NT_FLOAT)
+        # camera_up_node = self.camera_node.get_subnode(consts.OctanePresetNodeNames.CAMERA_UP, consts.NodeType.NT_FLOAT)
+        if active_camera_node.motion_time_offsets and len(active_camera_node.motion_time_offsets) > 0:
+            sample_num = len(active_camera_node.motion_time_offsets)
+            for idx, time_offset in enumerate(sorted(list(active_camera_node.motion_time_offsets))):
+                self.update_camera_motion_array_data(active_camera_node, self.CAMERA_POSITION_DATA_C_ARRAY_IDENTIFIER, sample_num, idx, active_camera_node.positions[time_offset])
+                self.update_camera_motion_array_data(active_camera_node, self.CAMERA_TARGET_DATA_C_ARRAY_IDENTIFIER, sample_num, idx, active_camera_node.targets[time_offset])
+                self.update_camera_motion_array_data(active_camera_node, self.CAMERA_UP_DATA_C_ARRAY_IDENTIFIER, sample_num, idx, active_camera_node.ups[time_offset])
+            # camera_position_node.set_attribute_id(consts.AttributeID.A_VALUE, self.CAMERA_POSITION_DATA_C_ARRAY_IDENTIFIER, sample_num)
+            # camera_target_node.set_attribute_id(consts.AttributeID.A_VALUE, self.CAMERA_TARGET_DATA_C_ARRAY_IDENTIFIER, sample_num)
+            # camera_up_node.set_attribute_id(consts.AttributeID.A_VALUE, self.CAMERA_UP_DATA_C_ARRAY_IDENTIFIER, sample_num)
+            # camera_position_node.update_to_engine(True)
+            # camera_target_node.update_to_engine(True)
+            # camera_up_node.update_to_engine(True)
+            active_camera_node.set_attribute_blender_name(self.CAMERA_MOTION_DATA_SAMPLE_NUM, consts.AttributeType.AT_INT, sample_num)
+            active_camera_node.set_attribute_blender_name(self.CAMERA_POSITION_DATA_C_ARRAY_IDENTIFIER, consts.AttributeType.AT_STRING, self.CAMERA_POSITION_DATA_C_ARRAY_IDENTIFIER)
+            active_camera_node.set_attribute_blender_name(self.CAMERA_TARGET_DATA_C_ARRAY_IDENTIFIER, consts.AttributeType.AT_STRING, self.CAMERA_TARGET_DATA_C_ARRAY_IDENTIFIER)
+            active_camera_node.set_attribute_blender_name(self.CAMERA_POSITION_DATA_C_ARRAY_IDENTIFIER, consts.AttributeType.AT_STRING, self.CAMERA_POSITION_DATA_C_ARRAY_IDENTIFIER)
+            active_camera_node.update_to_engine(True)            
+
+    def update_post_processing(self, depsgraph, scene, view_layer, context=None):
+        camera_data, camera_name = utility.find_active_post_process_data(scene, context)
         if camera_data is None:
-            self.post_processing_node.set_pin("on_off", "postprocess", consts.SocketType.ST_BOOL, False, False, "")
+            self.post_processing_node.set_pin_id(consts.PinID.P_ON_OFF, False, "", False)
         else:
-            self.post_processing_node.set_pin("on_off", "postprocess", consts.SocketType.ST_BOOL, getattr(camera_data, "postprocess", False), False, "")            
-            camera_data.post_processing.sync_data(self.post_processing_node, scene=context.scene, is_viewport=self.session.is_viewport())
+            self.post_processing_node.set_pin_id(consts.PinID.P_ON_OFF, False, "", getattr(camera_data, "postprocess", False))
+            camera_data.post_processing.sync_data(self.post_processing_node, scene=scene, is_viewport=self.session.is_viewport())
         if self.post_processing_node.need_update:
-            self.session.add_to_update_node_queue(self.post_processing_node)
+            self.post_processing_node.update_to_engine(True)
         self.session.rendertarget_cache.update_link(OctaneRenderTargetCache.P_POST_PROCESSING_NAME, self.post_processing_node.name, self.post_processing_node.name)
 
-    def update_imager(self, context, depsgraph):
-        camera_data, camera_name = utility.find_active_imager_data(context)
-        enable_imager = utility.is_active_imager_enabled(context)
+    def update_imager(self, depsgraph, scene, view_layer, context=None):
+        camera_data, camera_name = utility.find_active_imager_data(scene, context)
+        enable_imager = utility.is_active_imager_enabled(scene, context)
         if not enable_imager or camera_data is None:
             self.session.rendertarget_cache.update_link(OctaneRenderTargetCache.P_IMAGER_NAME, "", "")
         else:
-            camera_data.imager.sync_data(self.imager_node, scene=context.scene, is_viewport=self.session.is_viewport())
+            camera_data.imager.sync_data(self.imager_node, scene=scene, is_viewport=self.session.is_viewport())
             if self.imager_node.need_update:
-                self.session.add_to_update_node_queue(self.imager_node)
+                self.imager_node.update_to_engine(True)
             self.session.rendertarget_cache.update_link(OctaneRenderTargetCache.P_IMAGER_NAME, self.imager_node.name, self.imager_node.name)
+
+    def update_animation_settings(self, depsgraph, scene, view_layer, context=None):
+        enable_animation_settings = scene.render.use_motion_blur
+        if enable_animation_settings:
+            scene.octane.animation_settings.sync_data(self.animation_setting_node, scene=scene, is_viewport=self.session.is_viewport())
+            if self.animation_setting_node.need_update:
+                self.animation_setting_node.update_to_engine(True)
+            self.session.rendertarget_cache.update_link(OctaneRenderTargetCache.P_ANIMATION_SETTINGS_NAME, self.animation_setting_node.name, self.animation_setting_node.name)
+        else:
+            self.session.rendertarget_cache.update_link(OctaneRenderTargetCache.P_ANIMATION_SETTINGS_NAME, "", "")
+
+    def update_render_layer(self, depsgraph, scene, view_layer, context=None):
+        enable_global_render_layer = scene.octane.render_layer.layers_enable
+        enable_viewlayer_render_layer = view_layer.octane.layers_enable
+        if enable_global_render_layer or enable_viewlayer_render_layer:
+            if enable_global_render_layer:
+                scene.octane.render_layer.sync_data(self.render_layer_node, scene=scene, is_viewport=self.session.is_viewport())
+            elif enable_viewlayer_render_layer:
+                view_layer.octane.sync_data(self.render_layer_node, scene=scene, is_viewport=self.session.is_viewport())
+            if self.render_layer_node.need_update:
+                self.render_layer_node.update_to_engine(True)
+            self.session.rendertarget_cache.update_link(OctaneRenderTargetCache.P_RENDER_LAYER_NAME, self.render_layer_node.name, self.render_layer_node.name)
+        else:
+            self.session.rendertarget_cache.update_link(OctaneRenderTargetCache.P_RENDER_LAYER_NAME, "", "")
+
+    def update_render_settings(self, depsgraph, scene, view_layer, context=None):
+        need_update = False
+        scene_octane = scene.octane
+        request_et = ET.Element('updateRenderSettings')
+        # Priority Level
+        priority_mode = utility.get_enum_int_value(scene_octane, "priority_mode", 0)
+        if self.render_settings.priority_level != priority_mode:
+            self.render_settings.priority_level = priority_mode
+            request_et.set("priorityLevel", str(self.render_settings.priority_level))
+            need_update = True
+        # Out of Core
+        if self.render_settings.enable_out_of_core != scene_octane.out_of_core_enable or \
+            self.render_settings.out_of_core_limit != scene_octane.out_of_core_limit or \
+            self.render_settings.out_of_core_gpu_headroom != scene_octane.out_of_core_gpu_headroom:
+            self.render_settings.enable_out_of_core = scene_octane.out_of_core_enable
+            self.render_settings.out_of_core_limit = scene_octane.out_of_core_limit
+            self.render_settings.out_of_core_gpu_headroom = scene_octane.out_of_core_gpu_headroom
+            request_et.set("enableOutOfCore", str(1 if self.render_settings.enable_out_of_core else 0))
+            request_et.set("outOfCoreLimit", str(self.render_settings.out_of_core_limit))
+            request_et.set("outOfCoreGPUheadroom", str(self.render_settings.out_of_core_gpu_headroom))
+            need_update = True
+        # Subsample Mode
+        subsample_mode = utility.get_enum_int_value(scene_octane, "subsample_mode", 0)
+        if self.render_settings.subsampling_mode != subsample_mode:
+            self.render_settings.subsampling_mode = subsample_mode
+            request_et.set("subsamplingMode", str(self.render_settings.subsampling_mode))
+            need_update = True
+        # Clay Mode
+        clay_mode = utility.get_enum_int_value(scene_octane, "clay_mode", 0)
+        if self.render_settings.clay_mode != clay_mode:
+            self.render_settings.clay_mode = clay_mode
+            request_et.set("clayMode", str(self.render_settings.clay_mode))
+            need_update = True                        
+        if need_update:
+            xml_data = ET.tostring(request_et, encoding="unicode")
+            from octane.core.client import OctaneBlender
+            response = OctaneBlender().utils_function(consts.UtilsFunctionType.UPDATE_RENDER_SETTINGS, xml_data)

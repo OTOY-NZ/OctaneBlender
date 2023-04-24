@@ -20,13 +20,13 @@ class OctaneRGBColor(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=33)
-    octane_socket_list: StringProperty(name="Socket List", default="")
-    octane_attribute_list: StringProperty(name="Attribute List", default="a_value;")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="value;")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="8;")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=0)
+    octane_node_type=consts.NodeType.NT_TEX_RGB
+    octane_socket_list=[]
+    octane_attribute_list=["a_value", ]
+    octane_attribute_config={"a_value": [consts.AttributeID.A_VALUE, "value", consts.AttributeType.AT_FLOAT3], }
+    octane_static_pin_count=0
 
     a_value: FloatVectorProperty(name="Value", default=(0.700000, 0.700000, 0.700000), size=3, update=OctaneBaseNode.update_node_tree, description="Value of the RGB texture node stored in 3 floats (R,G,B)", subtype="COLOR")
 
@@ -49,8 +49,6 @@ def unregister():
     utility.octane_unregister_class(reversed(_CLASSES))
 
 ##### END OCTANE GENERATED CODE BLOCK #####
-
-from ...utils import utility
 
 class OctaneRGBColor_Override(OctaneRGBColor):
     a_value: FloatVectorProperty(name="Value", default=(0.700000, 0.700000, 0.700000), min=0, max=1, size=3, update=OctaneBaseNode.update_node_tree, description="Value of the RGB texture node stored in 3 floats (R,G,B)", subtype="COLOR")

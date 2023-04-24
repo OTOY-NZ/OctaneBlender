@@ -18,7 +18,9 @@
 
 # <pep8 compliant>
 
-OCTANE_BLENDER_VERSION='25.2'
+OCTANE_BLENDER_VERSION = '27.4'
+OCTANE_VERSION = 12000005
+OCTANE_VERSION_STR = "2022.1 XB 4"
 
 import bpy
 import math
@@ -28,8 +30,9 @@ from bpy.app.handlers import persistent
 
 
 @persistent
-def do_versions(self):        
-    file_version = get_current_version()
+def do_versions(self):
+    from octane import core
+    file_version = get_current_octane_blender_version()
     check_compatibility_octane_mesh(file_version)
     check_compatibility_octane_object(file_version)
     check_compatibility_octane_pariticle(file_version)
@@ -42,19 +45,26 @@ def do_versions(self):
     check_compatibility_octane_composite_graph(file_version)
     check_octane_output_settings(file_version)
     check_compatible_render_settings()
-    check_color_management()    
+    check_compatibility_animation_settings(file_version)
+    check_compatibility_render_layer(file_version)	
+    check_color_management()
+    octane_version = get_current_octane_version()
+    check_compatibility_octane_nodes(file_version, octane_version)
     update_current_version()    
 
 
 # helper functions
-def get_current_version():
+def get_current_octane_blender_version():
     if bpy.context.scene.octane:
         return getattr(bpy.context.scene.octane, 'octane_blender_version', '')
     return ''
 
-def check_compatible_render_settings():
-    for scene in bpy.data.scenes:
-        scene.render.use_persistent_data = False
+
+def get_current_octane_version():
+    if bpy.context.scene.octane:
+        return getattr(bpy.context.scene.octane, 'octane_version', 0)
+    return 0
+
 
 def check_update(current_version, update_version):
     try:
@@ -70,15 +80,16 @@ def check_update(current_version, update_version):
 
 def check_compatibility_octane_aovs_graph(file_version):
     from octane.utils import utility
-    node_tree = utility.find_active_render_aov_node_tree(bpy.context)
+    node_tree = utility.find_active_render_aov_node_tree(bpy.context.view_layer)
     if node_tree and not node_tree.use_fake_user:
         node_tree.use_fake_user = True
     
 def check_compatibility_octane_composite_graph(file_version):
     from octane.utils import utility
-    node_tree = utility.find_active_composite_node_tree(bpy.context)
+    node_tree = utility.find_active_composite_node_tree(bpy.context.view_layer)
     if node_tree and not node_tree.use_fake_user:
         node_tree.use_fake_user = True
+    check_compatibility_octane_composite_graph_27_4(file_version)    
 
 def check_color_management():
     # Update Color Management Settings for "New Created" files
@@ -104,10 +115,16 @@ def check_octane_output_settings(file_version):
             image_settings.octane_export_post_tag = "$OCTANE_PASS$_###"
             bpy.context.scene.octane.need_upgrade_octane_output_tag = False
 
-def update_current_version():
-    if bpy.context.scene.octane and hasattr(bpy.context.scene.octane, 'octane_blender_version'):
-        setattr(bpy.context.scene.octane, 'octane_blender_version', OCTANE_BLENDER_VERSION)    
+def check_compatible_render_settings():
+    for scene in bpy.data.scenes:
+        scene.render.use_persistent_data = False
 
+def update_current_version():
+    if bpy.context.scene.octane:
+        if hasattr(bpy.context.scene.octane, 'octane_blender_version'):
+            setattr(bpy.context.scene.octane, 'octane_blender_version', OCTANE_BLENDER_VERSION)
+        if hasattr(bpy.context.scene.octane, 'octane_version'):
+            setattr(bpy.context.scene.octane, 'octane_version', OCTANE_VERSION)
 
 def attribute_update(current_object, current_attribute, previous_object, previous_attribute):
     if hasattr(current_object, current_attribute) and hasattr(previous_object, previous_attribute):
@@ -236,6 +253,31 @@ def check_compatibility_post_processing_25_0(file_version):
     for camera in bpy.data.cameras:
         if getattr(camera, "octane", None) is not None:
             camera.octane.post_processing.update_legacy_data(bpy.context, camera.octane)
+
+# animation settings
+def check_compatibility_animation_settings(file_version):
+    check_compatibility_animation_settings_27_2(file_version)
+
+def check_compatibility_animation_settings_27_2(file_version):
+    UPDATE_VERSION = "27.2"
+    if not check_update(file_version, UPDATE_VERSION):
+        return
+    if getattr(bpy.context.scene.octane, "animation_settings", None) is not None:
+        bpy.context.scene.octane.animation_settings.update_legacy_data(bpy.context, bpy.context.scene.octane)
+
+# render layer
+def check_compatibility_render_layer(file_version):
+    check_compatibility_render_layer_27_2(file_version)
+
+def check_compatibility_render_layer_27_2(file_version):
+    UPDATE_VERSION = "27.2"
+    if not check_update(file_version, UPDATE_VERSION):
+        return
+    if getattr(bpy.context.scene.octane, "render_layer", None) is not None:
+        bpy.context.scene.octane.render_layer.update_legacy_data(bpy.context, bpy.context.scene.octane)
+    for scene in bpy.data.scenes:
+        for view_layer in scene.view_layers:
+            view_layer.octane.update_legacy_data(bpy.context, view_layer)
 
 # passes
 def check_compatibility_octane_passes(file_version):
@@ -464,11 +506,14 @@ def check_compatibility_octane_mesh_25_2(file_version):
         return    
     for mesh in bpy.data.meshes:
         oct_mesh = mesh.octane
-        mesh.oct_enable_subd = int(oct_mesh.open_subd_enable)
-        mesh.oct_subd_level = oct_mesh.open_subd_level
-        mesh.oct_open_subd_scheme = int(oct_mesh.open_subd_scheme)
-        mesh.oct_open_subd_bound_interp = int(oct_mesh.open_subd_bound_interp)
-        mesh.oct_open_subd_sharpness = oct_mesh.open_subd_sharpness
+        try:
+            mesh.oct_enable_subd = int(oct_mesh.open_subd_enable)
+            mesh.oct_subd_level = oct_mesh.open_subd_level
+            mesh.oct_open_subd_scheme = int(oct_mesh.open_subd_scheme)
+            mesh.oct_open_subd_bound_interp = int(oct_mesh.open_subd_bound_interp)
+            mesh.oct_open_subd_sharpness = oct_mesh.open_subd_sharpness
+        except:
+            pass
 
 # object
 def check_compatibility_octane_object(file_version):
@@ -788,3 +833,68 @@ def _check_compatibility_octane_images_node_24_0(node_tree, node):
             node.octane_ies_mode = "IES_MAX_1"
     except Exception as e:
         pass                        
+
+
+def upgrade_octane_node_tree(octane_version, tree_name, nodes):
+    from octane.nodes.base_node import OctaneBaseNode
+    for node in nodes:
+        if isinstance(node, OctaneBaseNode):
+            current_socket_class = [_input.__class__ for _input in node.inputs]
+            new_socket_configs = []
+            for idx, socket_class in enumerate(node.octane_socket_class_list):
+                if socket_class in current_socket_class:
+                    continue
+                if socket_class.octane_deprecated:
+                    continue
+                if getattr(socket_class, "octane_min_version", 0) <= octane_version:
+                    continue
+                socket_label = socket_class.bl_label
+                if socket_label not in node.inputs:
+                    # record the data of the new socket
+                    new_socket_configs.append([socket_class, idx])
+            for config in new_socket_configs:
+                socket_class, idx = config
+                node.inputs.new(socket_class.__name__, socket_class.bl_label).init()
+                node.inputs.move(len(node.inputs) - 1, idx)
+                print("Add Socket: %s, Node[%s], NodeTree[%s]" % (socket_class.bl_label, node.name, tree_name))
+            for _input in node.inputs:
+                if _input.octane_deprecated and not _input.hide:
+                    _input.hide = True
+
+
+def check_compatibility_octane_nodes(file_version, octane_version):
+    if octane_version >= OCTANE_VERSION:
+        return
+    for world in bpy.data.worlds:
+        if world.node_tree and world.use_nodes:
+            upgrade_octane_node_tree(octane_version, world.name, world.node_tree.nodes)
+    for material in bpy.data.materials:
+        if material.node_tree and material.use_nodes:
+            upgrade_octane_node_tree(octane_version, material.name, material.node_tree.nodes)
+    for node_group in bpy.data.node_groups:
+        upgrade_octane_node_tree(octane_version, node_group.name, node_group.nodes)
+
+
+def check_compatibility_octane_composite_graph_27_4(file_version):
+    UPDATE_VERSION = '27.4'
+    if not check_update(file_version, UPDATE_VERSION):
+        return
+    for node_group in bpy.data.node_groups:
+        for node in node_group.nodes:
+            if node.bl_idname == "OctaneCompositeAOVOutputLayer":
+                try:
+                    premultiply_opacity = node.inputs["Force premultiply opacity"].default_value
+                    is_legacy_blend_mode = (node.inputs["Alpha operation"].default_value == "")
+                    if is_legacy_blend_mode:
+                        if premultiply_opacity:
+                            node.a_compatibility_version = 11000296
+                        else:
+                            node.a_compatibility_version = 11000297
+                        node.inputs["Alpha operation"].default_value = "Blend mode"
+                    else:
+                        if premultiply_opacity:
+                            node.a_compatibility_version = 11000298
+                        else:
+                            node.a_compatibility_version = 11000299
+                except:
+                    pass

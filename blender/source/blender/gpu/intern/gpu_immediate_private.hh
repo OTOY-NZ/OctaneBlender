@@ -9,8 +9,6 @@
 
 #pragma once
 
-#include <optional>
-
 #include "GPU_batch.h"
 #include "GPU_primitive.h"
 #include "GPU_shader.h"
@@ -44,9 +42,9 @@ class Immediate {
   /** Wide Line workaround. */
 
   /** Previously bound shader to restore after drawing. */
-  std::optional<eGPUBuiltinShader> prev_builtin_shader;
-  /** Builtin shader index. Used to test if the line width workaround can be done. */
-  std::optional<eGPUBuiltinShader> builtin_shader_bound;
+  eGPUBuiltinShader prev_builtin_shader = GPU_SHADER_TEXT;
+  /** Builtin shader index. Used to test if the workaround can be done. */
+  eGPUBuiltinShader builtin_shader_bound = GPU_SHADER_TEXT;
   /** Uniform color: Kept here to update the wide-line shader just before #immBegin. */
   float uniform_color[4];
 

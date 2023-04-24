@@ -52,8 +52,6 @@
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 
-#include "DEG_depsgraph.h"
-
 #include "BKE_idtype.h"
 #include "BKE_image.h"
 #include "BKE_lib_id.h"
@@ -86,8 +84,6 @@ void BKE_bpath_foreach_path_id(BPathForeachPathData *bpath_data, ID *id)
                             ID_BLEND_PATH(bpath_data->bmain, id) :
                             NULL;
   bpath_data->absolute_base_path = absbase;
-  bpath_data->owner_id = id;
-  bpath_data->is_path_modified = false;
 
   if ((flag & BKE_BPATH_FOREACH_PATH_SKIP_LINKED) && ID_IS_LINKED(id)) {
     return;
@@ -111,10 +107,6 @@ void BKE_bpath_foreach_path_id(BPathForeachPathData *bpath_data, ID *id)
   }
 
   id_type->foreach_path(id, bpath_data);
-
-  if (bpath_data->is_path_modified) {
-    DEG_id_tag_update(id, ID_RECALC_SOURCE | ID_RECALC_COPY_ON_WRITE);
-  }
 }
 
 void BKE_bpath_foreach_path_main(BPathForeachPathData *bpath_data)
@@ -148,7 +140,6 @@ bool BKE_bpath_foreach_path_fixed_process(BPathForeachPathData *bpath_data, char
 
   if (bpath_data->callback_function(bpath_data, path_dst, path_src)) {
     BLI_strncpy(path, path_dst, FILE_MAX);
-    bpath_data->is_path_modified = true;
     return true;
   }
 
@@ -164,7 +155,7 @@ bool BKE_bpath_foreach_path_dirfile_fixed_process(BPathForeachPathData *bpath_da
   char path_src[FILE_MAX];
   char path_dst[FILE_MAX];
 
-  BLI_path_join(path_src, sizeof(path_src), path_dir, path_file);
+  BLI_join_dirfile(path_src, sizeof(path_src), path_dir, path_file);
 
   /* So that functions can access the old value. */
   BLI_strncpy(path_dst, path_src, FILE_MAX);
@@ -175,7 +166,6 @@ bool BKE_bpath_foreach_path_dirfile_fixed_process(BPathForeachPathData *bpath_da
 
   if (bpath_data->callback_function(bpath_data, path_dst, (const char *)path_src)) {
     BLI_split_dirfile(path_dst, path_dir, path_file, FILE_MAXDIR, FILE_MAXFILE);
-    bpath_data->is_path_modified = true;
     return true;
   }
 
@@ -202,7 +192,6 @@ bool BKE_bpath_foreach_path_allocated_process(BPathForeachPathData *bpath_data, 
   if (bpath_data->callback_function(bpath_data, path_dst, path_src)) {
     MEM_freeN(*path);
     (*path) = BLI_strdup(path_dst);
-    bpath_data->is_path_modified = true;
     return true;
   }
 
@@ -290,7 +279,7 @@ static bool missing_files_find__recursive(const char *search_directory,
       continue;
     }
 
-    BLI_path_join(path, sizeof(path), search_directory, de->d_name);
+    BLI_join_dirfile(path, sizeof(path), search_directory, de->d_name);
 
     if (BLI_stat(path, &status) == -1) {
       CLOG_WARN(&LOG, "Cannot get file status (`stat()`) of '%s'", path);

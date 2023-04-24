@@ -15,12 +15,13 @@ class OctaneTextureEnvironmentTexture(OctaneBaseSocket):
     bl_idname="OctaneTextureEnvironmentTexture"
     bl_label="Texture"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=33
+    octane_default_node_type=consts.NodeType.NT_TEX_RGB
     octane_default_node_name="OctaneRGBColor"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=240)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="texture")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
+    octane_pin_id=consts.PinID.P_TEXTURE
+    octane_pin_name="texture"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_RGBA
     default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=OctaneBaseSocket.update_node_tree, description="Environment texture", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
     octane_hide_value=False
     octane_min_version=0
@@ -31,12 +32,13 @@ class OctaneTextureEnvironmentPower(OctaneBaseSocket):
     bl_idname="OctaneTextureEnvironmentPower"
     bl_label="Power"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=138)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="power")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_POWER
+    octane_pin_name="power"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=1
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Power", min=0.000000, max=1000.000000, soft_min=0.000000, soft_max=1000.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
@@ -47,12 +49,13 @@ class OctaneTextureEnvironmentImportanceSampling(OctaneBaseSocket):
     bl_idname="OctaneTextureEnvironmentImportanceSampling"
     bl_label="Importance sampling"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type=11
+    octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=79)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="importance_sampling")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
+    octane_pin_id=consts.PinID.P_IMPORTANCE_SAMPLING
+    octane_pin_name="importance_sampling"
+    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_index=2
+    octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Use importance sampling for image textures")
     octane_hide_value=False
     octane_min_version=0
@@ -63,12 +66,13 @@ class OctaneTextureEnvironmentMedium(OctaneBaseSocket):
     bl_idname="OctaneTextureEnvironmentMedium"
     bl_label="Medium"
     color=consts.OctanePinColor.Medium
-    octane_default_node_type=0
+    octane_default_node_type=consts.NodeType.NT_UNKNOWN
     octane_default_node_name=""
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=110)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="medium")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_MEDIUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_MEDIUM
+    octane_pin_name="medium"
+    octane_pin_type=consts.PinType.PT_MEDIUM
+    octane_pin_index=3
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=3000000
     octane_end_version=4294967295
@@ -78,12 +82,13 @@ class OctaneTextureEnvironmentMediumRadius(OctaneBaseSocket):
     bl_idname="OctaneTextureEnvironmentMediumRadius"
     bl_label="Medium radius"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=269)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="mediumRadius")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_MEDIUM_RADIUS
+    octane_pin_name="mediumRadius"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=4
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Radius of the environment medium. The environment medium acts as a sphere around the camera position with the specified radius", min=0.000100, max=10000000000.000000, soft_min=0.000100, soft_max=10000000000.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=3000000
@@ -94,12 +99,13 @@ class OctaneTextureEnvironmentLightPassMask(OctaneBaseSocket):
     bl_idname="OctaneTextureEnvironmentLightPassMask"
     bl_label="Medium light pass mask"
     color=consts.OctanePinColor.BitMask
-    octane_default_node_type=132
+    octane_default_node_type=consts.NodeType.NT_BIT_MASK
     octane_default_node_name="OctaneBitValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=433)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="lightPassMask")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BIT_MASK)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_LIGHT_PASS_MASK
+    octane_pin_name="lightPassMask"
+    octane_pin_type=consts.PinType.PT_BIT_MASK
+    octane_pin_index=5
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=11000002
     octane_end_version=4294967295
@@ -109,12 +115,13 @@ class OctaneTextureEnvironmentVisibleEnvironmentBackplate(OctaneBaseSocket):
     bl_idname="OctaneTextureEnvironmentVisibleEnvironmentBackplate"
     bl_label="Backplate"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type=11
+    octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=317)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="visibleEnvironmentBackplate")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
+    octane_pin_id=consts.PinID.P_VISIBLE_ENVIRONMENT_BACKPLATE
+    octane_pin_name="visibleEnvironmentBackplate"
+    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_index=6
+    octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="When used as a visible environment, this environment will behave as a backplate image")
     octane_hide_value=False
     octane_min_version=3030003
@@ -125,12 +132,13 @@ class OctaneTextureEnvironmentVisibleEnvironmentReflections(OctaneBaseSocket):
     bl_idname="OctaneTextureEnvironmentVisibleEnvironmentReflections"
     bl_label="Reflections"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type=11
+    octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=318)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="visibleEnvironmentReflections")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
+    octane_pin_id=consts.PinID.P_VISIBLE_ENVIRONMENT_REFLECTIONS
+    octane_pin_name="visibleEnvironmentReflections"
+    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_index=7
+    octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="When used as a visible environment, this environment will be visible in reflections (specular and glossy materials)")
     octane_hide_value=False
     octane_min_version=3030003
@@ -141,12 +149,13 @@ class OctaneTextureEnvironmentVisibleEnvironmentRefractions(OctaneBaseSocket):
     bl_idname="OctaneTextureEnvironmentVisibleEnvironmentRefractions"
     bl_label="Refractions"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type=11
+    octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=319)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="visibleEnvironmentRefractions")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
+    octane_pin_id=consts.PinID.P_VISIBLE_ENVIRONMENT_REFRACTIONS
+    octane_pin_name="visibleEnvironmentRefractions"
+    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_index=8
+    octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="When used as a visible environment, this environment will be visible in refractions")
     octane_hide_value=False
     octane_min_version=3030003
@@ -157,12 +166,13 @@ class OctaneTextureEnvironmentRotation(OctaneBaseSocket):
     bl_idname="OctaneTextureEnvironmentRotation"
     bl_label="Rotation"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=203)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="rotation")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT2)
+    octane_pin_id=consts.PinID.P_ROTATION
+    octane_pin_name="rotation"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=9
+    octane_socket_type=consts.SocketType.ST_FLOAT2
     default_value: FloatVectorProperty(default=(0.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="(deprecated) Rotation", min=-1.000000, max=1.000000, soft_min=-1.000000, soft_max=1.000000, step=1, subtype="NONE", precision=2, size=2)
     octane_hide_value=False
     octane_min_version=0
@@ -183,13 +193,13 @@ class OctaneTextureEnvironment(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneTextureEnvironmentTexture,OctaneTextureEnvironmentPower,OctaneTextureEnvironmentImportanceSampling,OctaneTextureEnvironmentMedium,OctaneTextureEnvironmentMediumRadius,OctaneTextureEnvironmentLightPassMask,OctaneTextureEnvironmentGroupVisibleEnvironment,OctaneTextureEnvironmentVisibleEnvironmentBackplate,OctaneTextureEnvironmentVisibleEnvironmentReflections,OctaneTextureEnvironmentVisibleEnvironmentRefractions,OctaneTextureEnvironmentRotation,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=37)
-    octane_socket_list: StringProperty(name="Socket List", default="Texture;Power;Importance sampling;Medium;Medium radius;Medium light pass mask;Backplate;Reflections;Refractions;Rotation;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=10)
+    octane_node_type=consts.NodeType.NT_ENV_TEXTURE
+    octane_socket_list=["Texture", "Power", "Importance sampling", "Medium", "Medium radius", "Medium light pass mask", "Backplate", "Reflections", "Refractions", "Rotation", ]
+    octane_attribute_list=[]
+    octane_attribute_config={}
+    octane_static_pin_count=9
 
     def init(self, context):
         self.inputs.new("OctaneTextureEnvironmentTexture", OctaneTextureEnvironmentTexture.bl_label).init()

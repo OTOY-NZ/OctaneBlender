@@ -261,6 +261,54 @@ class OCTANE_CAMERA_PT_imager(common.OctanePropertyPanel, Panel):
         context.camera.octane.imager.draw(context, self.layout, False)
 
 
+class OCTANE_CAMERA_PT_imager_OCIO(common.OctanePropertyPanel, Panel):    
+    bl_label = "OCIO"
+    bl_context = "data"
+    bl_parent_id = "OCTANE_CAMERA_PT_imager"
+
+    def draw(self, context):
+        layout = self.layout
+        context.camera.octane.imager.draw_ocio(context, layout, True)
+
+
+class OCTANE_CAMERA_PT_imager_Tonemapping(common.OctanePropertyPanel, Panel):
+    bl_label = "Tone Mapping"
+    bl_context = "data"
+    bl_parent_id = "OCTANE_CAMERA_PT_imager"
+
+    def draw(self, context):
+        layout = self.layout
+        context.camera.octane.imager.draw_tonemapping(context, layout, True)
+
+
+class OCTANE_CAMERA_PT_imager_Denoiser(common.OctanePropertyPanel, Panel):
+    bl_label = "Denoiser"
+    bl_context = "data"
+    bl_parent_id = "OCTANE_CAMERA_PT_imager"
+
+    def draw_header(self, context):
+        layout = self.layout
+        context.camera.octane.imager.draw_denoiser_header(context, layout, True)
+
+    def draw(self, context):
+        layout = self.layout
+        context.camera.octane.imager.draw_denoiser(context, layout, True)
+
+
+class OCTANE_CAMERA_PT_imager_Upsampler(common.OctanePropertyPanel, Panel):
+    bl_label = "Upsampler"
+    bl_context = "data"
+    bl_parent_id = "OCTANE_CAMERA_PT_imager"
+
+    def draw_header(self, context):
+        layout = self.layout
+        context.camera.octane.imager.draw_upsampler_header(context, layout, True)
+
+    def draw(self, context):
+        layout = self.layout
+        context.camera.octane.imager.draw_upsampler(context, layout, True)    
+
+
 class OCTANE_CAMERA_PT_post(common.OctanePropertyPanel, Panel):
     bl_label = "Octane Post Processing"
     bl_context = "data"
@@ -292,16 +340,83 @@ class OCTANE_VIEW3D_PT_imager(common.OctanePropertyPanel, Panel):
         self.layout.prop(context.scene.octane, "hdr_tonemap_preview_enable", text="")
 
     def draw(self, context):        
-        camera_data, camera_name = utility.find_active_imager_data(context)
-        self.layout.active = (camera_name == "VIEW_3D")
-        row = self.layout.row(align=True)
+        camera_data, camera_name = utility.find_active_imager_data(context.scene, context)
+        layout = self.layout
+        layout.active = (camera_name == "VIEW_3D")
+        row = layout.row(align=True)
         row.menu("OCTANE_MT_3dimager_presets", text=OCTANE_MT_3dimager_presets.bl_label)
         row.operator("render.octane_3dimager_preset_add", text="", icon="ADD")
         row.operator("render.octane_3dimager_preset_add", text="", icon="REMOVE").remove_active = True        
-        col = self.layout.column(align=True)
+        col = layout.column(align=True)
         col.prop(context.scene.octane, "use_preview_setting_for_camera_imager")
         oct_cam = context.scene.oct_view_cam
-        oct_cam.imager.draw(context, self.layout, True)
+        oct_cam.imager.draw(context, layout, True)
+
+
+class OCTANE_VIEW3D_PT_imager_OCIO(common.OctanePropertyPanel, Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'    
+    bl_label = "OCIO"
+    bl_parent_id = "OCTANE_VIEW3D_PT_imager"
+    bl_category = "Octane"    
+    COMPAT_ENGINES = {'octane'}
+
+    def draw(self, context):
+        layout = self.layout
+        oct_cam = context.scene.oct_view_cam
+        oct_cam.imager.draw_ocio(context, layout, True)
+
+
+class OCTANE_VIEW3D_PT_imager_Tonemapping(common.OctanePropertyPanel, Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'    
+    bl_label = "Tone Mapping"
+    bl_parent_id = "OCTANE_VIEW3D_PT_imager"
+    bl_category = "Octane"    
+    COMPAT_ENGINES = {'octane'}
+
+    def draw(self, context):
+        layout = self.layout
+        oct_cam = context.scene.oct_view_cam
+        oct_cam.imager.draw_tonemapping(context, layout, True)
+
+
+class OCTANE_VIEW3D_PT_imager_Denoiser(common.OctanePropertyPanel, Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'    
+    bl_label = "Denoiser"
+    bl_parent_id = "OCTANE_VIEW3D_PT_imager"
+    bl_category = "Octane"    
+    COMPAT_ENGINES = {'octane'}
+
+    def draw_header(self, context):
+        layout = self.layout
+        oct_cam = context.scene.oct_view_cam
+        oct_cam.imager.draw_denoiser_header(context, layout, True)
+
+    def draw(self, context):
+        layout = self.layout
+        oct_cam = context.scene.oct_view_cam
+        oct_cam.imager.draw_denoiser(context, layout, True)
+
+
+class OCTANE_VIEW3D_PT_imager_Upsampler(common.OctanePropertyPanel, Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'    
+    bl_label = "Upsampler"
+    bl_parent_id = "OCTANE_VIEW3D_PT_imager"
+    bl_category = "Octane"    
+    COMPAT_ENGINES = {'octane'}
+
+    def draw_header(self, context):
+        layout = self.layout
+        oct_cam = context.scene.oct_view_cam
+        oct_cam.imager.draw_upsampler_header(context, layout, True)
+
+    def draw(self, context):
+        layout = self.layout
+        oct_cam = context.scene.oct_view_cam
+        oct_cam.imager.draw_upsampler(context, layout, True)                
 
 
 class OCTANE_VIEW3D_PT_post(common.OctanePropertyPanel, Panel):
@@ -320,7 +435,7 @@ class OCTANE_VIEW3D_PT_post(common.OctanePropertyPanel, Panel):
         self.layout.prop(context.scene.oct_view_cam, "postprocess", text="")
 
     def draw(self, context):
-        camera_data, camera_name = utility.find_active_post_process_data(context)
+        camera_data, camera_name = utility.find_active_post_process_data(context.scene, context)
         self.layout.active = (camera_name == "VIEW_3D")
         col = self.layout.column(align=True)
         col.prop(context.scene.octane, "use_preview_post_process_setting")
@@ -333,9 +448,17 @@ _CLASSES = [
     OCTANE_MT_3dimager_presets,
     OCTANE_CAMERA_PT_camera,
     OCTANE_CAMERA_PT_imager,
+    OCTANE_CAMERA_PT_imager_OCIO,
+    OCTANE_CAMERA_PT_imager_Tonemapping,
+    OCTANE_CAMERA_PT_imager_Denoiser,
+    OCTANE_CAMERA_PT_imager_Upsampler,    
     OCTANE_CAMERA_PT_post,
     OCTANE_VIEW3D_PT_imager,
-    OCTANE_VIEW3D_PT_post,    
+    OCTANE_VIEW3D_PT_imager_OCIO,
+    OCTANE_VIEW3D_PT_imager_Tonemapping,
+    OCTANE_VIEW3D_PT_imager_Denoiser,
+    OCTANE_VIEW3D_PT_imager_Upsampler,
+    OCTANE_VIEW3D_PT_post,
 ]
 
 

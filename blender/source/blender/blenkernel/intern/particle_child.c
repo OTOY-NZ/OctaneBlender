@@ -158,8 +158,10 @@ static void do_kink_spiral(ParticleThreadContext *ctx,
   int start_index = 0, end_index = 0;
   float kink_base[3];
 
-  kink_amp *= ptex->kink_amp;
-  kink_freq *= ptex->kink_freq;
+  if (ptex) {
+    kink_amp *= ptex->kink_amp;
+    kink_freq *= ptex->kink_freq;
+  }
 
   cut_time = (totkeys - 1) * ptex->length;
   zero_v3(spiral_start);
@@ -187,7 +189,7 @@ static void do_kink_spiral(ParticleThreadContext *ctx,
 
   zero_v3(kink_base);
   kink_base[part->kink_axis] = 1.0f;
-  mul_mat3_m4_v3(ctx->sim.ob->object_to_world, kink_base);
+  mul_mat3_m4_v3(ctx->sim.ob->obmat, kink_base);
 
   /* Fill in invariant part of modifier context. */
   ParticleChildModifierContext modifier_ctx = {NULL};
@@ -403,7 +405,7 @@ void do_kink(ParticleKey *state,
              float obmat[4][4],
              int smooth_start)
 {
-  float kink[3] = {1.0f, 0.0f, 0.0f}, par_vec[3];
+  float kink[3] = {1.0f, 0.0f, 0.0f}, par_vec[3], q1[4] = {1.0f, 0.0f, 0.0f, 0.0f};
   float t, dt = 1.0f, result[3];
 
   if (ELEM(type, PART_KINK_NO, PART_KINK_SPIRAL)) {
@@ -453,7 +455,6 @@ void do_kink(ParticleKey *state,
   switch (type) {
     case PART_KINK_CURL: {
       float curl_offset[3];
-      float q1[4] = {1.0f, 0.0f, 0.0f, 0.0f};
 
       /* rotate kink vector around strand tangent */
       mul_v3_v3fl(curl_offset, kink, amplitude);
@@ -873,7 +874,7 @@ void do_child_modifiers(const ParticleChildModifierContext *modifier_ctx,
               part->kink_flat,
               part->kink,
               part->kink_axis,
-              sim->ob->object_to_world,
+              sim->ob->obmat,
               smooth_start);
     }
   }

@@ -228,14 +228,12 @@ namespace OctaneDataTransferObject {
 		/// FALSE if we only need a float texture.
 		/// Only makes sense for texture pins of material/emitter/medium nodes.
 		bool  mUsesSpectrum;
-		/// TRUE if the user interface should display an alpha gradient slider.
-		bool  mUseAlphaUi;
 
-		ApiTexturePinInfo& operator=(const ApiTexturePinInfo& other) { if (&other != this) { mMinValue = other.mMinValue; mMaxValue = other.mMaxValue; mSliderMinValue = other.mSliderMinValue; mSliderMaxValue = other.mSliderMaxValue; mDefaultValue = other.mDefaultValue; mUsesSpectrum = other.mUsesSpectrum; mUseAlphaUi = other.mUseAlphaUi; } return *this; }
+		ApiTexturePinInfo& operator=(const ApiTexturePinInfo& other) { if (&other != this) { mMinValue = other.mMinValue; mMaxValue = other.mMaxValue; mSliderMinValue = other.mSliderMinValue; mSliderMaxValue = other.mSliderMaxValue; mDefaultValue = other.mDefaultValue; mUsesSpectrum = other.mUsesSpectrum; } return *this; }
 #ifdef OCTANE_SERVER
-		ApiTexturePinInfo& operator=(const Octane::ApiTexturePinInfo& other) { mMinValue = other.mMinValue; mMaxValue = other.mMaxValue; mSliderMinValue = other.mSliderMinValue; mSliderMaxValue = other.mSliderMaxValue; mDefaultValue = other.mDefaultValue; mUsesSpectrum = other.mUsesSpectrum; mUseAlphaUi = other.mUseAlphaUi; return *this; }
+		ApiTexturePinInfo& operator=(const Octane::ApiTexturePinInfo& other) { mMinValue = other.mMinValue; mMaxValue = other.mMaxValue; mSliderMinValue = other.mSliderMinValue; mSliderMaxValue = other.mSliderMaxValue; mDefaultValue = other.mDefaultValue; mUsesSpectrum = other.mUsesSpectrum; return *this; }
 #endif
-		MSGPACK_DEFINE(mMinValue, mMaxValue, mSliderMinValue, mSliderMaxValue, mDefaultValue, mUsesSpectrum, mUseAlphaUi);
+		MSGPACK_DEFINE(mMinValue, mMaxValue, mSliderMinValue, mSliderMaxValue, mDefaultValue, mUsesSpectrum);
 	};
 
 	/// Stores static information for pins of type PT_TRANSFORM.

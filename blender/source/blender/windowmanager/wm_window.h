@@ -20,7 +20,6 @@ extern "C" {
  * need to event handling.
  */
 void wm_ghost_init(bContext *C);
-void wm_ghost_init_background(void);
 void wm_ghost_exit(void);
 
 /**

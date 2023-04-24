@@ -15,12 +15,13 @@ class OctaneJointTransform(OctaneBaseSocket):
     bl_idname="OctaneJointTransform"
     bl_label="Joint transform"
     color=consts.OctanePinColor.Transform
-    octane_default_node_type=67
+    octane_default_node_type=consts.NodeType.NT_TRANSFORM_VALUE
     octane_default_node_name="OctaneTransformValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=243)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="transform")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TRANSFORM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_TRANSFORM
+    octane_pin_name="transform"
+    octane_pin_type=consts.PinType.PT_TRANSFORM
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -35,16 +36,16 @@ class OctaneJoint(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneJointTransform,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=102)
-    octane_socket_list: StringProperty(name="Socket List", default="Joint transform;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="a_pin_count;a_index;")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="pin_count;index;")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="2;14;")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=1)
+    octane_node_type=consts.NodeType.NT_GEO_JOINT
+    octane_socket_list=["Joint transform", ]
+    octane_attribute_list=["a_pin_count", "a_index", ]
+    octane_attribute_config={"a_pin_count": [consts.AttributeID.A_PIN_COUNT, "pin_count", consts.AttributeType.AT_INT], "a_index": [consts.AttributeID.A_INDEX, "index", consts.AttributeType.AT_LONG], }
+    octane_static_pin_count=1
 
-    a_pin_count: IntProperty(name="Pin count", default=0, update=OctaneBaseNode.update_node_tree, description="The number of child geometry pins. Ideally for connecting child joints, but you can connect other geometry nodes as well to a hierarchy, But only the joint nodes in the hierarchy will be used in deformation calculation. Joint nodes will work as placement node for other geometries connected to the joint hierarchy.\n\n Restrictions:\n     - A joint node should have only one joint parent(destination). Except a root joint node")
-    a_index: IntProperty(name="Index", default=0, update=OctaneBaseNode.update_node_tree, description="Index/ID of this joint. Index value must be unique to a joint hierarchy. If more than one joint hierarchies have same index then the closest hierarchy(compared between closest common parent depths) to the mesh node is selected for deformation")
+    a_pin_count: IntProperty(name="Pin count", default=0, update=OctaneBaseNode.update_node_tree, description="The number of child geometry pins. Ideally for connecting child joints, but you can connect other geometry nodes as well to a hierarchy, But only the joint nodes in the hierarchy will be used in deformation calculation. Joint nodes will work as placement node for other geometries connected to the joint hierarchy.\n\n Restrictions:\n     - A joint node should have only one joint parent (destination). Except a root joint node")
+    a_index: IntProperty(name="Index", default=0, update=OctaneBaseNode.update_node_tree, description="Index/ID of this joint. Index value must be unique to a joint hierarchy. If more than one joint hierarchies have same index then the closest hierarchy (compared between closest common parent depths) to the mesh node is selected for deformation")
 
     def init(self, context):
         self.inputs.new("OctaneJointTransform", OctaneJointTransform.bl_label).init()

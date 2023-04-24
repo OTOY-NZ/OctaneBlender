@@ -87,7 +87,7 @@ class GHOST_TimerManager {
    */
   void disposeTimers();
 
-  using TTimerVector = std::vector<GHOST_TimerTask *>;
+  typedef std::vector<GHOST_TimerTask *> TTimerVector;
   /** The list with event consumers. */
   TTimerVector m_timers;
 

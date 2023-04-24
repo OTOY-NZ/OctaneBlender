@@ -1,14 +1,15 @@
 import bpy
 import math
 import mathutils
-from bpy.utils import register_class, unregister_class
-from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
-from bpy_extras.node_utils import find_node_input
 import numpy as np
 import time
 import copy
 import hashlib
-from octane.utils import consts
+from collections import deque, defaultdict
+from bpy.utils import register_class, unregister_class
+from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
+from bpy_extras.node_utils import find_node_input
+from octane.utils import consts, legacy_octane_node
 
 ##### General #####
 
@@ -26,8 +27,44 @@ def override_class(classes, old_class, new_class):
 
 def octane_register_class(classes):
     from bpy.utils import register_class
+    from octane.core.octane_info import OctaneInfoManger
     for _class in classes:
         register_class(_class)
+        if hasattr(_class, "octane_node_type"):
+            OctaneInfoManger().add_node_name(_class.octane_node_type, _class.bl_idname)
+            OctaneInfoManger().set_static_pin_count(_class.octane_node_type, _class.octane_static_pin_count)
+            if _class.octane_node_type in legacy_octane_node.LEGACY_NODE_TYPE_INFO:
+                OctaneInfoManger().add_legacy_node_name(_class.octane_node_type, legacy_octane_node.LEGACY_NODE_TYPE_INFO[_class.octane_node_type])
+                for data in legacy_octane_node.LEGACY_NODE_PROPERTY_INFO[_class.octane_node_type]:
+                    name = data[0]
+                    is_socket = data[1]
+                    data_type = data[2]
+                    is_pin = data[3]
+                    octane_type = data[4]
+                    is_internal_data = False
+                    internal_data_is_pin = True
+                    internal_data_octane_type = 0
+                    if len(data) > 5:
+                        is_internal_data = True
+                        internal_data_is_pin = data[5]
+                        internal_data_octane_type = data[6]
+                    OctaneInfoManger().add_legacy_data_info(_class.octane_node_type, name, is_socket, data_type, is_pin, octane_type, is_internal_data, internal_data_is_pin, internal_data_octane_type)
+            _class.octane_socket_set = set(_class.octane_socket_list)
+            for blender_prop_name, attribute_config in _class.octane_attribute_config.items():
+                attribute_id, attribute_name, attribute_type = attribute_config
+                OctaneInfoManger().add_attribute_info(_class.octane_node_type, blender_prop_name, attribute_id, attribute_name, attribute_type)
+            for socket_class in _class.octane_socket_class_list:                
+                pin_id = socket_class.octane_pin_id
+                if pin_id == consts.PinID.P_UNKNOWN:
+                    continue
+                bl_label = socket_class.bl_label
+                pin_name = socket_class.octane_pin_name
+                pin_index = socket_class.octane_pin_index
+                pin_type = socket_class.octane_pin_type
+                socket_type = socket_class.octane_socket_type
+                default_node_type = socket_class.octane_default_node_type
+                default_node_name = socket_class.octane_default_node_name
+                OctaneInfoManger().add_pin_info(_class.octane_node_type, bl_label, pin_id, pin_name, pin_index, pin_type, socket_type, default_node_type, default_node_name)
 
 def octane_unregister_class(classes):
     from bpy.utils import unregister_class
@@ -54,7 +91,7 @@ def octane_register_interface_class(classes, socket_interface_classes):
             if socket_type == consts.SocketType.ST_BOOL:
                 ntype.__annotations__["default_value"] = BoolProperty()
             elif socket_type == consts.SocketType.ST_ENUM:
-                ntype.__annotations__["default_value"] = EnumProperty()
+                ntype.__annotations__["default_value"] = EnumProperty(items=[])
             elif socket_type == consts.SocketType.ST_INT:
                 ntype.__annotations__["default_value"] = IntProperty()
             elif socket_type in (consts.SocketType.ST_INT2, consts.SocketType.ST_INT3):
@@ -72,63 +109,36 @@ def octane_unregister_interface_class(classes):
     octane_unregister_class(classes)
     classes.clear()
 
-def add_socket_list(node, new_socket_list_str):
-    node.octane_socket_list += new_socket_list_str
+def add_socket_list(node, new_socket_list):
+    for new_socket in new_socket_list:
+        if new_socket not in node.octane_socket_list:
+            node.octane_socket_list.append(new_socket)
 
-def remove_socket_list(node, remove_socket_list_str, remove_from_inputs=False):
-    original_socket_list = node.octane_socket_list.split(";")
-    remove_socket_list = remove_socket_list_str.split(";")
+def remove_socket_list(node, remove_socket_names):
+    original_socket_list = node.octane_socket_list
     new_socket_list = []
     for idx, original_socket in enumerate(original_socket_list):
-        if original_socket not in remove_socket_list_str:
+        if original_socket not in remove_socket_names:
             new_socket_list.append(original_socket)
-    node.octane_socket_list = ";".join(new_socket_list) + ";"
-    if remove_from_inputs:
-        for remove_socket_name in remove_socket_list:
-            if remove_socket_name in node.inputs:
-                node.inputs.remove(node.inputs[remove_socket_name])
+    node.octane_socket_list = new_socket_list
 
-def add_attribute_list(node, new_attribute_list_str, new_attribute_name_list_str, new_attribute_config_list_str):
-    node.octane_attribute_list += new_attribute_list_str
-    node.octane_attribute_name_list += new_attribute_name_list_str
-    node.octane_attribute_config_list += new_attribute_config_list_str
+def remove_socket_inputs(node, remove_socket_names):
+    for remove_socket_name in remove_socket_names:
+        if remove_socket_name in node.inputs:
+            node.inputs.remove(node.inputs[remove_socket_name])
 
-def remove_attribute_list(node, remove_attribute_list_str):
-    original_attribute_list = node.octane_attribute_list.split(";")
-    original_octane_attribute_name_list = node.octane_attribute_name_list.split(";")
-    original_attribute_config_list = node.octane_attribute_config_list.split(";")
-    remove_attribute_list = remove_attribute_list_str.split(";")
+def add_attribute_list(node, new_attribute_list):
+    for new_attribute in new_attribute_list:
+        if new_attribute not in node.octane_attribute_list:
+            node.octane_attribute_list.append(new_attribute)
+
+def remove_attribute_list(node, remove_attribute_names):
     new_attribute_list = []
     new_octane_attribute_name_list = []
-    new_attribute_config_list = []
-    for idx, original_attribute in enumerate(original_attribute_list):
-        if original_attribute not in remove_attribute_list:
+    for idx, original_attribute in enumerate(node.octane_attribute_list):
+        if original_attribute not in remove_attribute_names:
             new_attribute_list.append(original_attribute)
-            new_octane_attribute_name_list.append(original_octane_attribute_name_list[idx])
-            new_attribute_config_list.append(original_attribute_config_list[idx])
-    node.octane_attribute_list = ";".join(new_attribute_list) + ";"
-    node.octane_attribute_name_list = ";".join(new_octane_attribute_name_list) + ";"
-    node.octane_attribute_config_list = ";".join(new_attribute_config_list) + ";"
-
-def override_attribute_list(node, old_attribute, new_attribute, new_attribute_name, new_attribute_config):
-    original_attribute_list = node.octane_attribute_list.split(";")
-    original_attribute_name_list = node.octane_attribute_name_list.split(";")
-    original_attribute_config_list = node.octane_attribute_config_list.split(";")
-    new_attribute_list = []
-    new_attribute_name_list = []
-    new_attribute_config_list = []
-    for idx, original_attribute in enumerate(original_attribute_list):
-        if original_attribute == new_attribute:
-            new_attribute_list.append(new_attribute)
-            new_attribute_name_list.append(new_attribute_name)
-            new_attribute_config_list.append(new_attribute_config)
-        else:
-            new_attribute_list.append(original_attribute)
-            new_attribute_name_list.append(original_attribute_name_list[idx])
-            new_attribute_config_list.append(original_attribute_config_list[idx])
-    node.octane_attribute_list = ";".join(new_attribute_list)
-    node.octane_attribute_name_list = ";".join(new_attribute_name_list)
-    node.octane_attribute_config_list = ";".join(new_attribute_config_list)
+    node.octane_attribute_list = new_attribute_list
 
 def convert_octane_color_to_rgba(color):
     a = (0xff & (color >> 24)) / 255.0
@@ -150,13 +160,32 @@ def get_default_material_node_bl_idname():
         if default_material_id == data[3]:
             return data[2]
 
+def resolve_octane_format_path(cur_path):
+    import os    
+    octane_path = ""
+    try:
+        if len(cur_path):
+            cur_path = str(bpy.path.abspath(cur_path))            
+            if not cur_path.endswith(os.sep):
+                cur_path += os.sep            
+        octane_path = cur_path                          
+    except:
+        pass  
+    return octane_path
+
 ##### Properties #####
 
-def get_enum_value(data, property_name, default_value):
+def get_enum_int_value(data, property_name, default_value):
     property_value = getattr(data, property_name, None)
     if property_value is not None:
         return data.rna_type.properties[property_name].enum_items[property_value].value
     return default_value
+
+def set_enum_int_value(data, property_name, int_value):
+    for item in data.rna_type.properties[property_name].enum_items:
+        if int_value == item.value:
+            setattr(data, property_name, item.name)
+            break
 
 def set_collection(collection, items, set_func):
     for i in range(0, len(collection)):
@@ -415,7 +444,7 @@ def find_active_output_node(node_tree, owner_type):
             if not active_output_node:
                 active_output_node = _find_active_octane_output_node(node_tree, base_output_node.OctaneEditorWorldOutputNode.bl_idname)
         elif owner_type == consts.OctaneNodeTreeIDName.LIGHT:
-            active_output_node = _find_active_blender_output_node(node_tree)        
+            active_output_node = _find_active_blender_output_node(node_tree)
         elif owner_type == consts.OctaneNodeTreeIDName.COMPOSITE:
             active_output_node = node_tree.active_output_node
         elif owner_type == consts.OctaneNodeTreeIDName.RENDER_AOV:
@@ -441,7 +470,7 @@ def find_compatible_socket_name(output_node, socket_name):
 
 def get_octane_name_for_root_node(output_node, input_name=None, owner_id=None):    
     node_type = getattr(output_node, "type", None)
-    if node_type in ("OUTPUT_MATERIAL", "OUTPUT_TEXTURE"):
+    if node_type in ("OUTPUT_MATERIAL", "OUTPUT_TEXTURE", "OUTPUT_LIGHT"):
         return owner_id.name if owner_id else ""
     elif node_type == "OUTPUT_WORLD":
         world_name = owner_id.name if owner_id else ""
@@ -451,66 +480,69 @@ def get_octane_name_for_root_node(output_node, input_name=None, owner_id=None):
     else:
         return output_node.get_octane_name_for_root_node(input_name, owner_id)
 
-def find_active_kernel_node_tree(context):
-    scene = context.scene
+def find_active_kernel_node_tree(scene):
     octane_scene = scene.octane
     node_tree = octane_scene.kernel_node_graph_property.node_tree
     return node_tree
 
-def find_active_composite_node_tree(context):
-    view_layer = context.view_layer
+def find_active_composite_node_tree(view_layer):
     octane_view_layer = view_layer.octane
     node_tree = octane_view_layer.composite_node_graph_property.node_tree
     return node_tree
 
-def find_active_render_aov_node_tree(context):
-    view_layer = context.view_layer
+def find_active_render_aov_node_tree(view_layer):
     octane_view_layer = view_layer.octane
     node_tree = octane_view_layer.render_aov_node_graph_property.node_tree
     return node_tree
     
-def update_active_render_aov_node_tree(context):
-    node_tree = find_active_render_aov_node_tree(context)
+def update_active_render_aov_node_tree(view_layer):
+    node_tree = find_active_render_aov_node_tree(view_layer)
     if node_tree is None:
         return
     node_tree.update()
 
-def find_active_camera_data(context):
+def find_active_camera_data(scene, context=None):
+    if context is None:
+        return (scene.camera.data.octane, scene.camera.name)
     view = context.space_data
     if getattr(context.region_data, "view_perspective", None) != "CAMERA" and \
         (view.region_3d.view_perspective != "CAMERA" or view.region_quadviews):
-        return (context.scene.oct_view_cam, "VIEW_3D")
+        return (scene.oct_view_cam, "VIEW_3D")
     else:
-        return (context.scene.camera.data.octane, context.scene.camera.name)
+        return (scene.camera.data.octane, scene.camera.name)
 
-def find_active_post_process_data(context):
-    if context.scene.octane.use_preview_post_process_setting:
-        return (context.scene.oct_view_cam, "VIEW_3D")
+def find_active_post_process_data(scene, context=None):
+    if scene.octane.use_preview_post_process_setting:
+        return (scene.oct_view_cam, "VIEW_3D")
     else:
+        if context is None:
+            return (scene.camera.data.octane, scene.camera.name)
         view = context.space_data
         if getattr(context.region_data, "view_perspective", None) != "CAMERA" and \
             (view.region_3d.view_perspective != "CAMERA" or view.region_quadviews):
-            return (context.scene.oct_view_cam, "VIEW_3D")
+            return (scene.oct_view_cam, "VIEW_3D")
         else:
-            return (context.scene.camera.data.octane, context.scene.camera.name)
+            return (scene.camera.data.octane, scene.camera.name)
 
-def find_active_imager_data(context):
-    if context.scene.octane.use_preview_setting_for_camera_imager:
-        return (context.scene.oct_view_cam, "VIEW_3D")
+def find_active_imager_data(scene, context=None):
+    if scene.octane.use_preview_setting_for_camera_imager:
+        return (scene.oct_view_cam, "VIEW_3D")
     else:
+        if context is None:
+            return (scene.camera.data.octane, scene.camera.name)
         view = context.space_data
         if getattr(context.region_data, "view_perspective", None) != "CAMERA" and \
             (view.region_3d.view_perspective != "CAMERA" or view.region_quadviews):
-            return (context.scene.oct_view_cam, "VIEW_3D")
+            return (scene.oct_view_cam, "VIEW_3D")
         else:
-            return (context.scene.camera.data.octane, context.scene.camera.name)
+            return (scene.camera.data.octane, scene.camera.name)
 
-def is_active_imager_enabled(context):
-    camera, name = find_active_imager_data(context)
+def is_active_imager_enabled(scene, context=None):
+    camera, name = find_active_imager_data(scene, context)
     if name == "VIEW_3D":
-        return context.scene.octane.hdr_tonemap_preview_enable
+        return scene.octane.hdr_tonemap_preview_enable
     else:
-        return context.scene.octane.hdr_tonemap_render_enable
+        return scene.octane.hdr_tonemap_render_enable
 
 def get_split_panel_ui_layout(layout):
     # Simulate the use_property_split feature
@@ -669,45 +701,194 @@ def show_nodetree(context, node_tree):
                     return True
     return False
 
+def beautifier_nodetree_layout(id_data):
+    X_OFFSET = -300
+    Y_OFFSET = -100
+    Y_SOCKET_GAP = -20
+    def get_y_offset_delta(node):
+        if node.dimensions.y > 0:
+            return node.dimensions.y + Y_OFFSET
+        else:
+            y_offset = Y_SOCKET_GAP * (len(node.inputs) + len(node.outputs)) + Y_OFFSET
+            if node.bl_idname.endswith("Image"):
+                y_offset += (-300)
+            return y_offset
+    node_tree = id_data.node_tree
+    owner_type = get_node_tree_owner_type(id_data)
+    output_node = find_active_output_node(node_tree, owner_type)
+    output_node.location = node_tree.view_center
+    pending_nodes = deque()
+    arranged_nodes = set()
+    pending_nodes.append([output_node, 0])
+    base_x = output_node.location.x - output_node.dimensions[0]
+    current_location_y = {}
+    last_location = node_tree.view_center
+    while len(pending_nodes):
+        node, level = pending_nodes.popleft()
+        next_level = level + 1
+        x, y = node.location
+        if next_level not in current_location_y:
+            current_location_y[next_level] = y
+        if node in arranged_nodes:
+            continue        
+        for idx, _input in enumerate(node.inputs):
+            if _input.is_linked:
+                from_node = _input.links[0].from_node
+                from_node.location = base_x + X_OFFSET * next_level, current_location_y[next_level]
+                last_location = from_node.location
+                current_location_y[next_level] += get_y_offset_delta(from_node)
+                pending_nodes.append([from_node, next_level])
+        arranged_nodes.add(node)
+    unlink_node_location = (last_location.x - 500, last_location.y)
+    for node in node_tree.nodes:
+        if node not in arranged_nodes:
+            node.location = unlink_node_location
+
 ##### Scenes #####
-def scene_max_aov_output_count(context):
-    view_layer = context.view_layer
+
+def is_viewport_rendering():
+    for window in bpy.context.window_manager.windows:
+        for area in window.screen.areas:
+            if area.type == 'VIEW_3D':
+                for space in area.spaces:
+                    if space.type == 'VIEW_3D' and space.shading.type == 'RENDERED':
+                        return True
+    return False
+
+def is_multiple_viewport_rendering():
+    count = 0
+    for window in bpy.context.window_manager.windows:
+        for area in window.screen.areas:
+            if area.type == 'VIEW_3D':
+                for space in area.spaces:
+                    if space.type == 'VIEW_3D' and space.shading.type == 'RENDERED':
+                        count += 1
+    return count > 1
+
+def scene_max_aov_output_count(view_layer):
     octane_view_layer = view_layer.octane
     node_tree = octane_view_layer.composite_node_graph_property.node_tree
     if node_tree is None:
         return 0
     return node_tree.max_aov_output_count
 
-def render_resolution_x(render):
-  return render.resolution_x * render.resolution_percentage / 100
+def render_resolution_x(scene):
+  return int(scene.render.resolution_x * scene.render.resolution_percentage / 100.0)
 
-def render_resolution_y(render):
-  return render.resolution_y * render.resolution_percentage / 100
+def render_resolution_y(scene):
+  return int(scene.render.resolution_y * scene.render.resolution_percentage / 100.0)
+
+def object_motion_steps(_object):
+    if not _object.octane.use_motion_blur:
+        return 0
+    steps = max(1, _object.octane.motion_steps)
+    return (2 << (steps - 1)) + 1
+
+def object_motion_time_offsets(_object, start_frame_offset, end_frame_offset):
+    steps = object_motion_steps(_object)
+    if steps <= 1:
+        return None
+    motion_time_candidate_offsets = set()
+    for step in range(steps):
+        subframe = 2.0 * step / (steps - 1) - 1.0
+        motion_time_candidate_offsets.add(subframe)
+        for offset in range(start_frame_offset, end_frame_offset + 1):
+            motion_time_candidate_offsets.add(subframe + offset)
+    motion_time_offsets = set()
+    for motion_time_candidate_offset in motion_time_candidate_offsets:
+        if motion_time_candidate_offset >= start_frame_offset and motion_time_candidate_offset <= end_frame_offset:
+            motion_time_offsets.add(motion_time_candidate_offset)
+    return motion_time_offsets
 
 ##### Render passes #####
+
+def is_denoise_render_pass(render_pass_id):
+    return render_pass_id in (consts.RenderPassId.BEAUTY_DENOISER_OUTPUT, 
+        consts.RenderPassId.DIFFUSE_DIRECT_DENOISER_OUTPUT,
+        consts.RenderPassId.DIFFUSE_INDIRECT_DENOISER_OUTPUT,
+        consts.RenderPassId.REFLECTION_DIRECT_DENOISER_OUTPUT,
+        consts.RenderPassId.REFLECTION_INDIRECT_DENOISER_OUTPUT,
+        consts.RenderPassId.EMISSION_DENOISER_OUTPUT,
+        consts.RenderPassId.REMAINDER_DENOISER_OUTPUT,
+        consts.RenderPassId.VOLUME_DENOISER_OUTPUT,
+        consts.RenderPassId.VOLUME_EMISSION_DENOISER_OUTPUT)        
 
 def update_render_passes(_self, context):
     scene = context.scene
     view_layer = context.view_layer
     view_layer.update_render_passes()
 
+def get_render_pass_id_by_legacy_render_pass_name(name):
+    from octane.nodes.base_output_node import OctaneRenderAOVsOutputNode_Override_RenderPassItems as RenderPassItems
+    if name in RenderPassItems.LEGACY_STYLE_PASS_NAME_TO_RENDER_ID:
+        return RenderPassItems.LEGACY_STYLE_PASS_NAME_TO_RENDER_ID[name]
+    else:
+        for _id, _name in RenderPassItems.RENDER_ID_TO_LEGACY_STYLE_PASS_NAME.items():
+            if _name == name:
+                return _id
+    return -1
 
-def engine_add_layer_passes(scene, engine, layer, enable_denoiser=False):
-    from ..nodes.base_output_node import OctaneRenderAOVsOutputNode_Override_RenderPassItems
-    render_pass_ids = OctaneRenderAOVsOutputNode_Override_RenderPassItems.get_render_pass_ids()    
+def engine_add_layer_passes(scene, engine, layer, enable_denoiser=False):    
+    render_pass_ids = []
+    aov_node_tree = find_active_render_aov_node_tree(layer)
+    if aov_node_tree is not None:
+        from octane.nodes.base_output_node import OctaneRenderAOVsOutputNode_Override_RenderPassItems as RenderPassItems
+        render_pass_ids = RenderPassItems.get_render_pass_ids()
     for _id in render_pass_ids:
-        name = OctaneRenderAOVsOutputNode_Override_RenderPassItems.RENDER_ID_TO_LEGACY_STYLE_PASS_NAME[_id]
-        is_denoiser = name.startswith("OctDenoiser")            
+        name = RenderPassItems.RENDER_ID_TO_LEGACY_STYLE_PASS_NAME[_id]
+        RenderPassItems.LEGACY_STYLE_PASS_NAME_TO_RENDER_ID[name] = _id
+        is_denoiser = name.startswith("OctDenoiser")     
         if is_denoiser and not enable_denoiser:
             continue        
         engine.add_pass(name, 4, "RGBA", layer=layer.name)
         engine.register_pass(scene, layer, name, 4, "RGBA", "COLOR")
 
+def add_render_passes(engine, scene, current_layer=None):
+    oct_scene = scene.octane
+    oct_view_cam = scene.oct_view_cam
+    oct_active_cam = scene.camera.data.octane
+    enable_denoiser = False
+    if oct_scene.use_preview_setting_for_camera_imager:
+        enable_denoiser = oct_view_cam.imager.denoiser and oct_scene.hdr_tonemap_preview_enable
+    else:
+        enable_denoiser = oct_active_cam.imager.denoiser and oct_scene.hdr_tonemap_render_enable
+    if current_layer is None:
+        for layer in scene.view_layers:
+            if layer.use:                
+                engine_add_layer_passes(scene, engine, layer, enable_denoiser)
+    else:
+        engine_add_layer_passes(scene, engine, current_layer, enable_denoiser)
+
+def find_smoke_domain_modifier(_object):
+    for mod in _object.modifiers:
+        if mod.type == "FLUID" and mod.fluid_type == "DOMAIN":
+            return mod
+    return None
+
+def resolve_object_mesh_type(_object):
+    object_mesh_type = _object.octane.object_mesh_type
+    if object_mesh_type == "Auto":
+        if find_smoke_domain_modifier(_object) is not None:        
+            object_mesh_type = "Reshapable proxy"
+    return object_mesh_type
+
+def is_reshapable_proxy(_object):
+    return resolve_object_mesh_type(_object) == "Reshapable proxy"
 
 # Math
 
 def calculate_np_array_md5(np_array):
     return hashlib.md5(np_array.astype("uint8")).hexdigest()
+
+def time_human_readable_from_seconds(seconds):
+    h = (((int)(seconds)) / (60 * 60))
+    m = (((int)(seconds)) / 60) % 60
+    s = (((int)(seconds)) % 60)
+    r = (((int)(seconds * 100)) % 100)
+    if h > 0:
+        return "%.2d:%.2d:%.2d.%.2d" % (h, m, s, r)
+    else:
+        return "%.2d:%.2d.%.2d" % (m, s, r)
 
 # Matrix
 
@@ -717,6 +898,17 @@ class OctaneMatrixConvertor(object):
     @staticmethod
     def get_octane_matrix(matrix):
         return OctaneMatrixConvertor.OCTANE_ROTATION_MATRIX_CONVERTOR @ matrix
+
+    @staticmethod
+    def get_octane_matrix_array(matrix):
+        mat = OctaneMatrixConvertor.OCTANE_ROTATION_MATRIX_CONVERTOR @ matrix
+        array_data = [0] * 12
+        array_index = 0
+        for i in range(3):
+            for j in range(4):
+                array_data[array_index] = mat[i][j]
+                array_index += 1
+        return array_data
 
     @staticmethod
     def get_octane_direction(matrix):
@@ -746,8 +938,13 @@ def transform_clear_scale(matrix):
 
 # Object & Mesh
 MESH_TAG = "[Mesh]"
+LIGHT_TAG = "[Light]"
+GEOMETRY_TAG = "[Geometry]"
 OBJECT_TAG = "[Object]"
 COLLECTION_TAG = "[Collection]"
+SCATTER_TAG = "[Scatter]"
+OBJECTLAYER_TAG = "[ObjLayer]"
+OBJECTLAYER_MAP_TAG = "[ObjLM]"
 SEPERATOR = "."
 
 def resolve_octane_name(obj, modifier_tag, type_tag):    
@@ -760,17 +957,41 @@ def resolve_octane_name(obj, modifier_tag, type_tag):
     obj_name_full = obj.name_full
     return lib_prefix + modifier_tag + obj_name_full + type_tag
 
-def resolve_mesh_octane_name(obj, scene, is_viewport):
+def resolve_octane_generic_geometry_name(obj, scene, is_viewport):
     obj_name_full = obj.name_full
     is_modified = obj.is_modified(scene, "PREVIEW" if is_viewport else "RENDER")
-    modifier_tag = obj_name_full if is_modified else ""
-    return resolve_octane_name(obj, modifier_tag, MESH_TAG)
+    # modifier_tag = obj_name_full if is_modified else ""
+    modifier_tag = obj.data.name_full if is_modified else ""
+    return resolve_octane_name(obj.data, modifier_tag, GEOMETRY_TAG)
 
-def resolve_object_octane_name(obj, scene, is_viewport):
+def resolve_octane_geometry_name(obj, scene, is_viewport):
+    generic_geometry_name = resolve_octane_generic_geometry_name(obj, scene, is_viewport)
+    if obj.type == "MESH":
+        return generic_geometry_name + MESH_TAG
+    elif obj.type == "LIGHT":
+        return generic_geometry_name + LIGHT_TAG
+    return generic_geometry_name
+
+def resolve_octane_object_name(obj, scene, is_viewport):
     obj_name_full = obj.name_full
-    is_modified = obj.is_modified(scene, "PREVIEW" if is_viewport else "RENDER")
-    modifier_tag = obj_name_full if is_modified else ""
-    return resolve_octane_name(obj, modifier_tag, OBJECT_TAG)
+    # is_modified = obj.is_modified(scene, "PREVIEW" if is_viewport else "RENDER")
+    # modifier_tag = obj_name_full if is_modified else ""
+    return resolve_octane_name(obj, "", OBJECT_TAG)
+
+def resolve_octane_scatter_name(instance_object, scene, is_viewport):    
+    parent_name = getattr(instance_object.parent, "name", None)
+    object_name = resolve_octane_object_name(instance_object.object, scene, is_viewport)
+    if parent_name is not None:
+        object_name = object_name + "[%s]" % parent_name
+    return object_name + SCATTER_TAG
+
+def resolve_octane_objectlayer_name(obj, scene, is_viewport):
+    object_name = resolve_octane_object_name(obj, scene, is_viewport)
+    return object_name + OBJECTLAYER_TAG
+
+def resolve_octane_objectlayer_map_name(obj, scene, is_viewport):
+    object_name = resolve_octane_object_name(obj, scene, is_viewport)
+    return object_name + OBJECTLAYER_MAP_TAG    
 
 def resolve_octane_vectron_name(obj):
     if obj and obj.type == "MESH":

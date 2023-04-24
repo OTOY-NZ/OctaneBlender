@@ -147,9 +147,6 @@ struct Depsgraph {
    * to read stuff from. */
   bool is_active;
 
-  /* Optimize out evaluation of operations which affect hidden objects or disabled modifiers. */
-  bool use_visibility_optimization;
-
   DepsgraphDebug debug;
 
   bool is_evaluating;

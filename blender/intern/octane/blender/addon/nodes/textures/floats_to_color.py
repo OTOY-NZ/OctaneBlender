@@ -15,12 +15,13 @@ class OctaneFloatsToColorInput1(OctaneBaseSocket):
     bl_idname="OctaneFloatsToColorInput1"
     bl_label="R"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=527)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="input1")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_INPUT1
+    octane_pin_name="input1"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Value stored in the red channel of the output color", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
@@ -31,12 +32,13 @@ class OctaneFloatsToColorInput2(OctaneBaseSocket):
     bl_idname="OctaneFloatsToColorInput2"
     bl_label="G"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=528)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="input2")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_INPUT2
+    octane_pin_name="input2"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=1
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Value stored in the green channel of the output color", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
@@ -47,12 +49,13 @@ class OctaneFloatsToColorInput3(OctaneBaseSocket):
     bl_idname="OctaneFloatsToColorInput3"
     bl_label="B"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=573)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="input3")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_INPUT3
+    octane_pin_name="input3"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=2
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Value stored in the blue channel of the output color", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
@@ -68,13 +71,13 @@ class OctaneFloatsToColor(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneFloatsToColorInput1,OctaneFloatsToColorInput2,OctaneFloatsToColorInput3,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=320)
-    octane_socket_list: StringProperty(name="Socket List", default="R;G;B;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=3)
+    octane_node_type=consts.NodeType.NT_TEX_FLOATS_TO_COLOR
+    octane_socket_list=["R", "G", "B", ]
+    octane_attribute_list=[]
+    octane_attribute_config={}
+    octane_static_pin_count=3
 
     def init(self, context):
         self.inputs.new("OctaneFloatsToColorInput1", OctaneFloatsToColorInput1.bl_label).init()

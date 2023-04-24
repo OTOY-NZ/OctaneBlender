@@ -15,12 +15,13 @@ class OctaneCellNoiseTransform(OctaneBaseSocket):
     bl_idname="OctaneCellNoiseTransform"
     bl_label="UVW transform"
     color=consts.OctanePinColor.Transform
-    octane_default_node_type=67
+    octane_default_node_type=consts.NodeType.NT_TRANSFORM_VALUE
     octane_default_node_name="OctaneTransformValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=243)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="transform")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TRANSFORM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_TRANSFORM
+    octane_pin_name="transform"
+    octane_pin_type=consts.PinType.PT_TRANSFORM
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -30,12 +31,13 @@ class OctaneCellNoiseProjection(OctaneBaseSocket):
     bl_idname="OctaneCellNoiseProjection"
     bl_label="Projection"
     color=consts.OctanePinColor.Projection
-    octane_default_node_type=75
+    octane_default_node_type=consts.NodeType.NT_PROJ_LINEAR
     octane_default_node_name="OctaneXYZToUVW"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=141)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="projection")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_PROJECTION)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_PROJECTION
+    octane_pin_name="projection"
+    octane_pin_type=consts.PinType.PT_PROJECTION
+    octane_pin_index=1
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -45,13 +47,14 @@ class OctaneCellNoiseRgbNoise(OctaneBaseSocket):
     bl_idname="OctaneCellNoiseRgbNoise"
     bl_label="RGB output"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type=11
+    octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=743)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="rgbNoise")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Output color instead of greyscale")
+    octane_pin_id=consts.PinID.P_RGB_NOISE
+    octane_pin_name="rgbNoise"
+    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_index=2
+    octane_socket_type=consts.SocketType.ST_BOOL
+    default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Output color instead of grayscale")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -66,13 +69,13 @@ class OctaneCellNoise(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneCellNoiseTransform,OctaneCellNoiseProjection,OctaneCellNoiseRgbNoise,]
     octane_min_version=11000014
-    octane_node_type: IntProperty(name="Octane Node Type", default=275)
-    octane_socket_list: StringProperty(name="Socket List", default="UVW transform;Projection;RGB output;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=3)
+    octane_node_type=consts.NodeType.NT_TEX_CELLNOISE
+    octane_socket_list=["UVW transform", "Projection", "RGB output", ]
+    octane_attribute_list=[]
+    octane_attribute_config={}
+    octane_static_pin_count=3
 
     def init(self, context):
         self.inputs.new("OctaneCellNoiseTransform", OctaneCellNoiseTransform.bl_label).init()

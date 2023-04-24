@@ -90,8 +90,7 @@ void GpencilExporterSVG::create_document_header()
 
   pugi::xml_node comment = main_doc_.append_child(pugi::node_comment);
   char txt[128];
-  BLI_snprintf(
-      txt, sizeof(txt), " Generator: Blender, %s - %s ", SVG_EXPORTER_NAME, SVG_EXPORTER_VERSION);
+  sprintf(txt, " Generator: Blender, %s - %s ", SVG_EXPORTER_NAME, SVG_EXPORTER_VERSION);
   comment.set_value(txt);
 
   pugi::xml_node doctype = main_doc_.append_child(pugi::node_doctype);
@@ -148,7 +147,7 @@ void GpencilExporterSVG::export_gpencil_layers()
     pugi::xml_node ob_node = frame_node_.append_child("g");
 
     char obtxt[96];
-    BLI_snprintf(obtxt, sizeof(obtxt), "blender_object_%s", ob->id.name + 2);
+    sprintf(obtxt, "blender_object_%s", ob->id.name + 2);
     ob_node.append_attribute("id").set_value(obtxt);
 
     /* Use evaluated version to get strokes with modifiers. */
@@ -198,7 +197,7 @@ void GpencilExporterSVG::export_gpencil_layers()
         /* Apply layer thickness change. */
         gps_duplicate->thickness += gpl->line_change;
         /* Apply object scale to thickness. */
-        gps_duplicate->thickness *= mat4_to_scale(ob->object_to_world);
+        gps_duplicate->thickness *= mat4_to_scale(ob->obmat);
         CLAMP_MIN(gps_duplicate->thickness, 1.0f);
 
         const bool is_normalized = ((params_.flag & GP_EXPORT_NORM_THICKNESS) != 0) ||
@@ -218,7 +217,7 @@ void GpencilExporterSVG::export_gpencil_layers()
           }
           else {
             bGPDstroke *gps_perimeter = BKE_gpencil_stroke_perimeter_from_view(
-                rv3d_->viewmat, gpd_, gpl, gps_duplicate, 3, diff_mat_.values, 0.0f);
+                rv3d_, gpd_, gpl, gps_duplicate, 3, diff_mat_.values);
 
             /* Sample stroke. */
             if (params_.stroke_sample > 0.0f) {
@@ -403,7 +402,7 @@ std::string GpencilExporterSVG::rgb_to_hexstr(const float color[3])
   uint8_t g = color[1] * 255.0f;
   uint8_t b = color[2] * 255.0f;
   char hex_string[20];
-  BLI_snprintf(hex_string, sizeof(hex_string), "#%02X%02X%02X", r, g, b);
+  sprintf(hex_string, "#%02X%02X%02X", r, g, b);
 
   std::string hexstr = hex_string;
 

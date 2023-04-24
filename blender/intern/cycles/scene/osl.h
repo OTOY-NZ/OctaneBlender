@@ -66,9 +66,6 @@ class OSLShaderManager : public ShaderManager {
     return true;
   }
 
-  uint64_t get_attribute_id(ustring name) override;
-  uint64_t get_attribute_id(AttributeStandard std) override;
-
   void device_update_specific(Device *device,
                               DeviceScene *dscene,
                               Scene *scene,

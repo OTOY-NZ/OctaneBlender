@@ -272,11 +272,10 @@ void AbstractHierarchyIterator::export_graph_construct()
   ExportGraph::key_type root_node_id = ObjectIdentifier::for_real_object(nullptr);
   export_graph_[root_node_id] = ExportChildren();
 
-  DEGObjectIterSettings deg_iter_settings{};
-  deg_iter_settings.depsgraph = depsgraph_;
-  deg_iter_settings.flags = DEG_ITER_OBJECT_FLAG_LINKED_DIRECTLY |
-                            DEG_ITER_OBJECT_FLAG_LINKED_VIA_SET;
-  DEG_OBJECT_ITER_BEGIN (&deg_iter_settings, object) {
+  DEG_OBJECT_ITER_BEGIN (depsgraph_,
+                         object,
+                         DEG_ITER_OBJECT_FLAG_LINKED_DIRECTLY |
+                             DEG_ITER_OBJECT_FLAG_LINKED_VIA_SET) {
     /* Non-instanced objects always have their object-parent as export-parent. */
     const bool weak_export = mark_as_weak_export(object);
     visit_object(object, object->parent, weak_export);
@@ -416,7 +415,7 @@ void AbstractHierarchyIterator::visit_object(Object *object,
   context->original_export_path = "";
   context->higher_up_export_path = "";
 
-  copy_m4_m4(context->matrix_world, object->object_to_world);
+  copy_m4_m4(context->matrix_world, object->obmat);
 
   ExportGraph::key_type graph_index = determine_graph_index_object(context);
   context_update_for_graph_index(context, graph_index);

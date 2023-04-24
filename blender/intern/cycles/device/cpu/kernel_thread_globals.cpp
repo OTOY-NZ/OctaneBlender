@@ -3,7 +3,10 @@
 
 #include "device/cpu/kernel_thread_globals.h"
 
+// clang-format off
+#include "kernel/osl/shader.h"
 #include "kernel/osl/globals.h"
+// clang-format on
 
 #include "util/profiling.h"
 
@@ -14,35 +17,25 @@ CPUKernelThreadGlobals::CPUKernelThreadGlobals(const KernelGlobalsCPU &kernel_gl
                                                Profiler &cpu_profiler)
     : KernelGlobalsCPU(kernel_globals), cpu_profiler_(cpu_profiler)
 {
-  clear_runtime_pointers();
+  reset_runtime_memory();
 
 #ifdef WITH_OSL
-  OSLGlobals::thread_init(this, static_cast<OSLGlobals *>(osl_globals_memory));
+  OSLShader::thread_init(this, reinterpret_cast<OSLGlobals *>(osl_globals_memory));
 #else
   (void)osl_globals_memory;
-#endif
-
-#ifdef WITH_PATH_GUIDING
-  opgl_path_segment_storage = new openpgl::cpp::PathSegmentStorage();
 #endif
 }
 
 CPUKernelThreadGlobals::CPUKernelThreadGlobals(CPUKernelThreadGlobals &&other) noexcept
     : KernelGlobalsCPU(std::move(other)), cpu_profiler_(other.cpu_profiler_)
 {
-  other.clear_runtime_pointers();
+  other.reset_runtime_memory();
 }
 
 CPUKernelThreadGlobals::~CPUKernelThreadGlobals()
 {
 #ifdef WITH_OSL
-  OSLGlobals::thread_free(this);
-#endif
-
-#ifdef WITH_PATH_GUIDING
-  delete opgl_path_segment_storage;
-  delete opgl_surface_sampling_distribution;
-  delete opgl_volume_sampling_distribution;
+  OSLShader::thread_free(this);
 #endif
 }
 
@@ -54,24 +47,15 @@ CPUKernelThreadGlobals &CPUKernelThreadGlobals::operator=(CPUKernelThreadGlobals
 
   *static_cast<KernelGlobalsCPU *>(this) = *static_cast<KernelGlobalsCPU *>(&other);
 
-  other.clear_runtime_pointers();
+  other.reset_runtime_memory();
 
   return *this;
 }
 
-void CPUKernelThreadGlobals::clear_runtime_pointers()
+void CPUKernelThreadGlobals::reset_runtime_memory()
 {
 #ifdef WITH_OSL
   osl = nullptr;
-#endif
-
-#ifdef WITH_PATH_GUIDING
-  opgl_sample_data_storage = nullptr;
-  opgl_guiding_field = nullptr;
-
-  opgl_path_segment_storage = nullptr;
-  opgl_surface_sampling_distribution = nullptr;
-  opgl_volume_sampling_distribution = nullptr;
 #endif
 }
 

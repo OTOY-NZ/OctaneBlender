@@ -16,33 +16,39 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description(N_("The surface area of each of the mesh's faces"));
 }
 
-static VArray<float> construct_face_area_varray(const Mesh &mesh, const eAttrDomain domain)
+static VArray<float> construct_face_area_gvarray(const MeshComponent &component,
+                                                 const eAttrDomain domain)
 {
-  const Span<MVert> verts = mesh.verts();
-  const Span<MPoly> polys = mesh.polys();
-  const Span<MLoop> loops = mesh.loops();
+  const Mesh *mesh = component.get_for_read();
+  if (mesh == nullptr) {
+    return {};
+  }
 
-  auto area_fn = [verts, polys, loops](const int i) -> float {
-    const MPoly &poly = polys[i];
-    return BKE_mesh_calc_poly_area(&poly, &loops[poly.loopstart], verts.data());
+  auto area_fn = [mesh](const int i) -> float {
+    const MPoly *mp = &mesh->mpoly[i];
+    return BKE_mesh_calc_poly_area(mp, &mesh->mloop[mp->loopstart], mesh->mvert);
   };
 
-  return mesh.attributes().adapt_domain<float>(
-      VArray<float>::ForFunc(polys.size(), area_fn), ATTR_DOMAIN_FACE, domain);
+  return component.attributes()->adapt_domain<float>(
+      VArray<float>::ForFunc(mesh->totpoly, area_fn), ATTR_DOMAIN_FACE, domain);
 }
 
-class FaceAreaFieldInput final : public bke::MeshFieldInput {
+class FaceAreaFieldInput final : public GeometryFieldInput {
  public:
-  FaceAreaFieldInput() : bke::MeshFieldInput(CPPType::get<float>(), "Face Area Field")
+  FaceAreaFieldInput() : GeometryFieldInput(CPPType::get<float>(), "Face Area Field")
   {
     category_ = Category::Generated;
   }
 
-  GVArray get_varray_for_context(const Mesh &mesh,
+  GVArray get_varray_for_context(const GeometryComponent &component,
                                  const eAttrDomain domain,
-                                 const IndexMask /*mask*/) const final
+                                 IndexMask UNUSED(mask)) const final
   {
-    return construct_face_area_varray(mesh, domain);
+    if (component.type() == GEO_COMPONENT_TYPE_MESH) {
+      const MeshComponent &mesh_component = static_cast<const MeshComponent &>(component);
+      return construct_face_area_gvarray(mesh_component, domain);
+    }
+    return {};
   }
 
   uint64_t hash() const override
@@ -54,11 +60,6 @@ class FaceAreaFieldInput final : public bke::MeshFieldInput {
   bool is_equal_to(const fn::FieldNode &other) const override
   {
     return dynamic_cast<const FaceAreaFieldInput *>(&other) != nullptr;
-  }
-
-  std::optional<eAttrDomain> preferred_domain(const Mesh & /*mesh*/) const override
-  {
-    return ATTR_DOMAIN_FACE;
   }
 };
 

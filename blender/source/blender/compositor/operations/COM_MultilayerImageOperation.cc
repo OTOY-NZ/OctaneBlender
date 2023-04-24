@@ -37,7 +37,7 @@ ImBuf *MultilayerBaseOperation::get_im_buf()
 
 void MultilayerBaseOperation::update_memory_buffer_partial(MemoryBuffer *output,
                                                            const rcti &area,
-                                                           Span<MemoryBuffer *> /*inputs*/)
+                                                           Span<MemoryBuffer *> UNUSED(inputs))
 {
   output->copy_from(buffer_, area);
 }
@@ -93,7 +93,8 @@ void MultilayerColorOperation::execute_pixel_sampled(float output[4],
     else {
       int yi = y;
       int xi = x;
-      if (xi < 0 || yi < 0 || uint(xi) >= this->get_width() || uint(yi) >= this->get_height()) {
+      if (xi < 0 || yi < 0 || (unsigned int)xi >= this->get_width() ||
+          (unsigned int)yi >= this->get_height()) {
         zero_v4(output);
       }
       else {
@@ -115,7 +116,8 @@ void MultilayerValueOperation::execute_pixel_sampled(float output[4],
   else {
     int yi = y;
     int xi = x;
-    if (xi < 0 || yi < 0 || uint(xi) >= this->get_width() || uint(yi) >= this->get_height()) {
+    if (xi < 0 || yi < 0 || (unsigned int)xi >= this->get_width() ||
+        (unsigned int)yi >= this->get_height()) {
       output[0] = 0.0f;
     }
     else {
@@ -136,7 +138,8 @@ void MultilayerVectorOperation::execute_pixel_sampled(float output[4],
   else {
     int yi = y;
     int xi = x;
-    if (xi < 0 || yi < 0 || uint(xi) >= this->get_width() || uint(yi) >= this->get_height()) {
+    if (xi < 0 || yi < 0 || (unsigned int)xi >= this->get_width() ||
+        (unsigned int)yi >= this->get_height()) {
       output[0] = 0.0f;
     }
     else {

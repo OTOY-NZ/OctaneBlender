@@ -23,7 +23,6 @@
 #include "BKE_bvhutils.h"
 #include "BKE_context.h"
 #include "BKE_global.h"
-#include "BKE_layer.h"
 #include "BKE_lib_id.h"
 #include "BKE_main.h"
 #include "BKE_mesh.h"
@@ -119,8 +118,7 @@ static int particle_system_remove_exec(bContext *C, wmOperator *UNUSED(op))
    */
   if (mode_orig & OB_MODE_PARTICLE_EDIT) {
     if ((ob->mode & OB_MODE_PARTICLE_EDIT) == 0) {
-      BKE_view_layer_synced_ensure(scene, view_layer);
-      if (BKE_view_layer_active_object_get(view_layer) == ob) {
+      if (view_layer->basact && view_layer->basact->object == ob) {
         WM_event_add_notifier(C, NC_SCENE | ND_MODE | NS_MODE_OBJECT, NULL);
       }
     }
@@ -706,7 +704,7 @@ static bool remap_hair_emitter(Depsgraph *depsgraph,
   PTCacheEditKey *ekey;
   BVHTreeFromMesh bvhtree = {NULL};
   MFace *mface = NULL, *mf;
-  const MEdge *medge = NULL, *me;
+  MEdge *medge = NULL, *me;
   MVert *mvert;
   Mesh *mesh, *target_mesh;
   int numverts;
@@ -726,13 +724,13 @@ static bool remap_hair_emitter(Depsgraph *depsgraph,
 
   edit_point = target_edit ? target_edit->points : NULL;
 
-  invert_m4_m4(from_ob_imat, ob->object_to_world);
-  invert_m4_m4(to_ob_imat, target_ob->object_to_world);
+  invert_m4_m4(from_ob_imat, ob->obmat);
+  invert_m4_m4(to_ob_imat, target_ob->obmat);
   invert_m4_m4(from_imat, from_mat);
   invert_m4_m4(to_imat, to_mat);
 
   const bool use_dm_final_indices = (target_psys->part->use_modifier_stack &&
-                                     !BKE_mesh_is_deformed_only(target_psmd->mesh_final));
+                                     !target_psmd->mesh_final->runtime.deformed_only);
 
   if (use_dm_final_indices || !target_psmd->mesh_original) {
     mesh = target_psmd->mesh_final;
@@ -752,7 +750,7 @@ static bool remap_hair_emitter(Depsgraph *depsgraph,
   BKE_mesh_tessface_ensure(mesh);
 
   numverts = mesh->totvert;
-  mvert = BKE_mesh_verts_for_write(mesh);
+  mvert = mesh->mvert;
 
   /* convert to global coordinates */
   for (int i = 0; i < numverts; i++) {
@@ -760,11 +758,11 @@ static bool remap_hair_emitter(Depsgraph *depsgraph,
   }
 
   if (mesh->totface != 0) {
-    mface = CustomData_get_layer(&mesh->fdata, CD_MFACE);
+    mface = mesh->mface;
     BKE_bvhtree_from_mesh_get(&bvhtree, mesh, BVHTREE_FROM_FACES, 2);
   }
   else if (mesh->totedge != 0) {
-    medge = BKE_mesh_edges(mesh);
+    medge = mesh->medge;
     BKE_bvhtree_from_mesh_get(&bvhtree, mesh, BVHTREE_FROM_EDGES, 2);
   }
   else {
@@ -843,7 +841,7 @@ static bool remap_hair_emitter(Depsgraph *depsgraph,
       float offset[3];
 
       if (to_global) {
-        copy_m4_m4(imat, target_ob->object_to_world);
+        copy_m4_m4(imat, target_ob->obmat);
       }
       else {
         /* NOTE: using target_dm here, which is in target_ob object space and has full modifiers.
@@ -923,8 +921,8 @@ static bool connect_hair(Depsgraph *depsgraph, Scene *scene, Object *ob, Particl
                           ob,
                           psys,
                           psys->edit,
-                          ob->object_to_world,
-                          ob->object_to_world,
+                          ob->obmat,
+                          ob->obmat,
                           psys->flag & PSYS_GLOBAL_HAIR,
                           false);
   if (ok) {
@@ -1174,8 +1172,8 @@ static bool copy_particle_systems_to_object(const bContext *C,
         to_mat = I;
         break;
       case PAR_COPY_SPACE_WORLD:
-        from_mat = ob_from->object_to_world;
-        to_mat = ob_to->object_to_world;
+        from_mat = ob_from->obmat;
+        to_mat = ob_to->obmat;
         break;
       default:
         /* should not happen */
@@ -1204,7 +1202,9 @@ static bool copy_particle_systems_to_object(const bContext *C,
 #undef PSYS_FROM_FIRST
 #undef PSYS_FROM_NEXT
 
-  DEG_relations_tag_update(bmain);
+  if (duplicate_settings) {
+    DEG_relations_tag_update(bmain);
+  }
   DEG_id_tag_update(&ob_to->id, ID_RECALC_GEOMETRY);
   WM_main_add_notifier(NC_OBJECT | ND_PARTICLE | NA_EDITED, ob_to);
   return true;
@@ -1267,7 +1267,8 @@ static int copy_particle_systems_exec(bContext *C, wmOperator *op)
   CTX_DATA_END;
 
   if (changed_tot > 0) {
-    DEG_relations_tag_update(CTX_data_main(C));
+    Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+    DEG_graph_tag_relations_update(depsgraph);
   }
 
   if ((changed_tot == 0 && fail == 0) || fail) {

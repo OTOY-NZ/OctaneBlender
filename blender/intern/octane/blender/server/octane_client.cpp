@@ -911,7 +911,7 @@ void OctaneClient::uploadCamera(Camera *pCamera, uint32_t uiFrameIdx, uint32_t u
 
       RPCSend snd(m_Socket,
                   (sizeof(uint32_t) + (sizeof(float_3) * 3 + sizeof(float)) * motoin_data_num) +
-                      sizeof(float_3) * 6 + sizeof(float) * 31 + sizeof(int32_t) * 30 +
+                      sizeof(float_3) * 6 + sizeof(float) * 31 + sizeof(int32_t) * 31 +
                       sizeof(uint32_t) * 6 + (pCamera->sCustomLut.length() + 2) +
                       (pCamera->sOcioViewDisplay.length() + 2) +
                       (pCamera->sOcioViewDisplayView.length() + 2) +
@@ -952,7 +952,8 @@ void OctaneClient::uploadCamera(Camera *pCamera, uint32_t uiFrameIdx, uint32_t u
           << pCamera->iBokehSidecount
 
           << pCamera->bEnableImager << pCamera->bOrtho << pCamera->bAutofocus
-          << pCamera->bPremultipliedAlpha << pCamera->bDithering << pCamera->bUsePostprocess
+          << pCamera->bPremultipliedAlpha << pCamera->bACESToneMapping << pCamera->bDithering
+          << pCamera->bUsePostprocess
           << pCamera->bPerspCorr << pCamera->bNeutralResponse << pCamera->bUseFstopValue
           << pCamera->bDisablePartialAlpha << pCamera->bSwapEyes << pCamera->bUseOSLCamera
           << pCamera->bPreviewCameraMode << pCamera->sCustomLut.c_str() 
@@ -977,7 +978,7 @@ void OctaneClient::uploadCamera(Camera *pCamera, uint32_t uiFrameIdx, uint32_t u
     {
       RPCSend snd(
           m_Socket,
-          sizeof(float_3) * 6 + sizeof(float) * 28 + sizeof(int32_t) * 31 +
+          sizeof(float_3) * 6 + sizeof(float) * 28 + sizeof(int32_t) * 32 +
               (pCamera->sCustomLut.length() + 2) + (pCamera->sOcioViewDisplay.length() + 2) +
               (pCamera->sOcioViewDisplayView.length() + 2) + (pCamera->sOcioLook.length() + 2),
           OctaneDataTransferObject::LOAD_PANORAMIC_CAMERA);
@@ -1005,7 +1006,8 @@ void OctaneClient::uploadCamera(Camera *pCamera, uint32_t uiFrameIdx, uint32_t u
           << pCamera->iMinDisplaySamples << pCamera->iGlareRayCount << pCamera->stereoOutput
           << pCamera->iMaxTonemapInterval << pCamera->iBokehSidecount
 
-          << pCamera->bEnableImager << pCamera->bPremultipliedAlpha << pCamera->bDithering
+          << pCamera->bEnableImager << pCamera->bPremultipliedAlpha << pCamera->bACESToneMapping
+          << pCamera->bDithering
           << pCamera->bUsePostprocess << pCamera->bKeepUpright << pCamera->bNeutralResponse
           << pCamera->bDisablePartialAlpha << pCamera->bUseFstopValue << pCamera->bAutofocus
           << pCamera->bUseOSLCamera << pCamera->bPreviewCameraMode << pCamera->sCustomLut.c_str()
@@ -1030,7 +1032,7 @@ void OctaneClient::uploadCamera(Camera *pCamera, uint32_t uiFrameIdx, uint32_t u
   else if (pCamera->type == Camera::CAMERA_BAKING) {
     {
       RPCSend snd(m_Socket,
-                  sizeof(float_3) * 5 + sizeof(float_2) * 2 + sizeof(float) * 17 + sizeof(int32_t) * 31 +
+                  sizeof(float_3) * 5 + sizeof(float_2) * 2 + sizeof(float) * 17 + sizeof(int32_t) * 32 +
               (pCamera->sCustomLut.length() + 2) + (pCamera->sOcioViewDisplay.length() + 2) +
               (pCamera->sOcioViewDisplayView.length() + 2) + (pCamera->sOcioLook.length() + 2),
                   OctaneDataTransferObject::LOAD_BAKING_CAMERA);
@@ -1056,7 +1058,8 @@ void OctaneClient::uploadCamera(Camera *pCamera, uint32_t uiFrameIdx, uint32_t u
           << pCamera->iGlareRayCount << pCamera->iMaxTonemapInterval << pCamera->iBakingGroupId
           << pCamera->iPadding << pCamera->iUvSet << pCamera->iUVWBakingTransformRotationOrder
 
-          << pCamera->bEnableImager << pCamera->bPremultipliedAlpha << pCamera->bDithering
+          << pCamera->bEnableImager << pCamera->bPremultipliedAlpha << pCamera->bACESToneMapping
+          << pCamera->bDithering
           << pCamera->bUsePostprocess << pCamera->bNeutralResponse << pCamera->bBakeOutwards
           << pCamera->bUseBakingPosition << pCamera->bBackfaceCulling
           << pCamera->bDisablePartialAlpha << pCamera->bUseOSLCamera << pCamera->bPreviewCameraMode
@@ -1095,7 +1098,7 @@ void OctaneClient::uploadCamera(Camera *pCamera, uint32_t uiFrameIdx, uint32_t u
 
       RPCSend snd(m_Socket,
                   (sizeof(uint32_t) + (sizeof(float_3) * 3 + sizeof(float)) * motoin_data_num) +
-                      sizeof(float_3) * 6 + sizeof(float) * 31 + sizeof(int32_t) * 30 +
+                      sizeof(float_3) * 6 + sizeof(float) * 31 + sizeof(int32_t) * 31 +
                       sizeof(uint32_t) * 6 + (pCamera->sCustomLut.length() + 2) +
                       (pCamera->sOcioViewDisplay.length() + 2) +
                       (pCamera->sOcioViewDisplayView.length() + 2) +
@@ -1136,7 +1139,8 @@ void OctaneClient::uploadCamera(Camera *pCamera, uint32_t uiFrameIdx, uint32_t u
           << pCamera->iBokehSidecount
 
           << pCamera->bEnableImager << pCamera->bOrtho << pCamera->bAutofocus
-          << pCamera->bPremultipliedAlpha << pCamera->bDithering << pCamera->bUsePostprocess
+          << pCamera->bPremultipliedAlpha << pCamera->bACESToneMapping << pCamera->bDithering
+          << pCamera->bUsePostprocess
           << pCamera->bPerspCorr << pCamera->bNeutralResponse << pCamera->bUseFstopValue
           << pCamera->bDisablePartialAlpha << pCamera->bSwapEyes << pCamera->bUseOSLCamera
           << pCamera->bPreviewCameraMode << pCamera->sCustomLut.c_str()
@@ -1400,6 +1404,35 @@ void OctaneClient::uploadKernel(Kernel *pKernel)
           << pKernel->mbAlignment << pKernel->bLayersEnable << pKernel->iLayersCurrent
           << pKernel->bLayersInvert << pKernel->layersMode << pKernel->iClayMode
           << pKernel->iSubsampleMode << pKernel->iMaxSubdivisionLevel
+          << pKernel->iWhiteLightSpectrum << pKernel->bUseOldPipeline
+          << pKernel->f3ToonShadowAmbient;
+      snd.write();
+    } break;
+    case Kernel::PHOTON_TRACING: {
+      RPCSend snd(m_Socket,
+                  sizeof(float) * 18 + sizeof(int32_t) * 39 + sizeof(float_3),
+                  OctaneDataTransferObject::LOAD_KERNEL);
+      snd << pKernel->type << pKernel->iMaxSamples << pKernel->fCurrentTime
+          << pKernel->fShutterTime << pKernel->fSubframeStart << pKernel->fSubframeEnd
+          << pKernel->fFilterSize << pKernel->fRayEpsilon << pKernel->fPathTermPower
+          << pKernel->fCoherentRatio << pKernel->fCausticBlur << pKernel->fGIClamp
+          << pKernel->fDepthTolerance << pKernel->fAdaptiveNoiseThreshold
+          << pKernel->fAdaptiveExpectedExposure << pKernel->fAILightStrength
+          << pKernel->iPhotonDepth << pKernel->bAccurateColors << pKernel->fPhotonGatherRadius
+          << pKernel->fPhotonGatherMultiplier << pKernel->iPhotonGatherSamples
+          << pKernel->fExplorationStrength
+          << pKernel->bAlphaChannel << pKernel->bAlphaShadows << pKernel->bStaticNoise
+          << pKernel->bKeepEnvironment << pKernel->bIrradianceMode << pKernel->bNestDielectrics
+          << pKernel->bEmulateOldVolumeBehavior << pKernel->fAffectRoughness
+          << pKernel->bAILightEnable << pKernel->bAILightUpdate << pKernel->iLightIDsAction
+          << pKernel->iLightIDsMask << pKernel->iLightLinkingInvertMask
+          << pKernel->bMinimizeNetTraffic << pKernel->bDeepImageEnable
+          << pKernel->bDeepRenderPasses << pKernel->bAdaptiveSampling << pKernel->iMaxDiffuseDepth
+          << pKernel->iMaxGlossyDepth << pKernel->iMaxScatterDepth << pKernel->iParallelSamples
+          << pKernel->iMaxTileSamples << pKernel->iMaxDepthSamples << pKernel->iAdaptiveMinSamples
+          << pKernel->adaptiveGroupPixels << pKernel->mbAlignment << pKernel->bLayersEnable
+          << pKernel->iLayersCurrent << pKernel->bLayersInvert << pKernel->layersMode
+          << pKernel->iClayMode << pKernel->iSubsampleMode << pKernel->iMaxSubdivisionLevel
           << pKernel->iWhiteLightSpectrum << pKernel->bUseOldPipeline
           << pKernel->f3ToonShadowAmbient;
       snd.write();

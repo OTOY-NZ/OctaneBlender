@@ -15,12 +15,13 @@ class OctaneFilmSettingsResolution(OctaneBaseSocket):
     bl_idname="OctaneFilmSettingsResolution"
     bl_label="Resolution"
     color=consts.OctanePinColor.Int
-    octane_default_node_type=12
+    octane_default_node_type=consts.NodeType.NT_IMAGE_RESOLUTION
     octane_default_node_name="OctaneImageResolution"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=198)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="resolution")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT2)
+    octane_pin_id=consts.PinID.P_RESOLUTION
+    octane_pin_name="resolution"
+    octane_pin_type=consts.PinType.PT_INT
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_INT2
     default_value: IntVectorProperty(default=(1024, 512), update=OctaneBaseSocket.update_node_tree, description="Resolution of the render result", min=4, max=65536, soft_min=4, soft_max=65536, step=1, subtype="NONE", size=2)
     octane_hide_value=False
     octane_min_version=0
@@ -31,12 +32,13 @@ class OctaneFilmSettingsRegionOffset(OctaneBaseSocket):
     bl_idname="OctaneFilmSettingsRegionOffset"
     bl_label="Region start"
     color=consts.OctanePinColor.Int
-    octane_default_node_type=9
+    octane_default_node_type=consts.NodeType.NT_INT
     octane_default_node_name="OctaneIntValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=312)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="regionOffset")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT2)
+    octane_pin_id=consts.PinID.P_REGION_OFFSET
+    octane_pin_name="regionOffset"
+    octane_pin_type=consts.PinType.PT_INT
+    octane_pin_index=1
+    octane_socket_type=consts.SocketType.ST_INT2
     default_value: IntVectorProperty(default=(0, 0), update=OctaneBaseSocket.update_node_tree, description="The start coordinate where the render region starts", min=0, max=65535, soft_min=0, soft_max=65535, step=1, subtype="NONE", size=2)
     octane_hide_value=False
     octane_min_version=0
@@ -47,12 +49,13 @@ class OctaneFilmSettingsRegionSize(OctaneBaseSocket):
     bl_idname="OctaneFilmSettingsRegionSize"
     bl_label="Region size"
     color=consts.OctanePinColor.Int
-    octane_default_node_type=9
+    octane_default_node_type=consts.NodeType.NT_INT
     octane_default_node_name="OctaneIntValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=313)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="regionSize")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT2)
+    octane_pin_id=consts.PinID.P_REGION_SIZE
+    octane_pin_name="regionSize"
+    octane_pin_type=consts.PinType.PT_INT
+    octane_pin_index=2
+    octane_socket_type=consts.SocketType.ST_INT2
     default_value: IntVectorProperty(default=(65536, 65536), update=OctaneBaseSocket.update_node_tree, description="The size of the render region", min=1, max=65536, soft_min=1, soft_max=65536, step=1, subtype="NONE", size=2)
     octane_hide_value=False
     octane_min_version=0
@@ -68,13 +71,13 @@ class OctaneFilmSettings(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneFilmSettingsResolution,OctaneFilmSettingsRegionOffset,OctaneFilmSettingsRegionSize,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=100)
-    octane_socket_list: StringProperty(name="Socket List", default="Resolution;Region start;Region size;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=3)
+    octane_node_type=consts.NodeType.NT_FILM_SETTINGS
+    octane_socket_list=["Resolution", "Region start", "Region size", ]
+    octane_attribute_list=[]
+    octane_attribute_config={}
+    octane_static_pin_count=3
 
     def init(self, context):
         self.inputs.new("OctaneFilmSettingsResolution", OctaneFilmSettingsResolution.bl_label).init()

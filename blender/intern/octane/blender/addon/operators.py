@@ -18,10 +18,14 @@
 
 import os
 import bpy
-import mathutils    
+import mathutils
+import xml.etree.ElementTree as ET
+from bpy_extras.io_utils import ExportHelper
 from bpy.app.handlers import persistent
 from bpy.types import Operator
-from bpy.props import StringProperty
+from bpy.props import IntProperty, BoolProperty, StringProperty
+from octane import core
+from octane.utils import consts, utility
 from . import converters
 
 COMMAND_TYPES = {
@@ -99,10 +103,7 @@ def get_dirty_resources():
 
 def set_all_mesh_resource_cache_tags(is_dirty):
     for obj in bpy.data.objects:
-        if obj.mode == "OBJECT":
-            set_mesh_resource_cache_tag(obj, is_dirty)
-        else:
-            set_mesh_resource_cache_tag(obj, True)
+        set_mesh_resource_cache_tag(obj, is_dirty) 
 
 @persistent
 def sync_octane_aov_output_number(self):
@@ -194,60 +195,66 @@ class OCTANE_OT_BaseCommand(Operator):
         return True
 
     def execute(self, context):
-        import _octane
-        scene = context.scene
-        oct_scene = scene.octane   
-        _octane.command_to_octane(self.command_type)   
-        return {'FINISHED'} 
+        from octane import core
+        if core.ENABLE_OCTANE_ADDON_CLIENT:
+            from octane.core.client import OctaneBlender
+            OctaneBlender().utils_function(self.command_type, "")
+            return {'FINISHED'} 
+        else:
+            import _octane
+            scene = context.scene
+            oct_scene = scene.octane
+            _octane.command_to_octane(self.command_type)   
+            return {'FINISHED'} 
 
 class OCTANE_OT_ShowOctaneNodeGraph(OCTANE_OT_BaseCommand):
     """Show Octane NodeGraph(VIEW Mode Only. Please DO NOT ADD or DELETE nodes.)"""
     bl_idname = "octane.show_octane_node_graph"
     bl_label = "Show Octane Node Graph"
-    command_type = COMMAND_TYPES['SHOW_NODEGRAPH']
+    command_type = consts.UtilsFunctionType.SHOW_NODEGRAPH
 
 class OCTANE_OT_ShowOctaneViewport(OCTANE_OT_BaseCommand):
     """Show Octane Viewport(Suggest VIEW Mode Only. Camera navigation in the viewport would not synchronize to Blender viewport.)"""
     bl_idname = "octane.show_octane_viewport"
     bl_label = "Show Octane Viewport"
-    command_type = COMMAND_TYPES['SHOW_OCTANE_VIEWPORT']
+    command_type = consts.UtilsFunctionType.SHOW_VIEWPORT
 
 class OCTANE_OT_ShowOctaneNetworkPreference(OCTANE_OT_BaseCommand):
-    """Show Octane Network Preference(For the Studio+ License Only)"""
+    """Show Octane Network Preference"""
     bl_idname = "octane.show_octane_network_preference"
     bl_label = "Show Octane Network Preference"
-    command_type = COMMAND_TYPES['SHOW_NETWORK_PREFERENCE']       
+    command_type = consts.UtilsFunctionType.SHOW_NETWORK_PREFERENCE
 
 class OCTANE_OT_StopRender(OCTANE_OT_BaseCommand):
     """Force to stop rendering and empty GPUs"""
     bl_idname = "octane.stop_render"
     bl_label = "Stop Render and Empty GPUs"
-    command_type = COMMAND_TYPES['STOP_RENDERING']
+    command_type = consts.UtilsFunctionType.STOP_RENDERING
 
 class OCTANE_OT_ShowOctaneLog(OCTANE_OT_BaseCommand):
     """Show Octane Log"""
     bl_idname = "octane.show_octane_log"
     bl_label = "Show Octane Log"
-    command_type = COMMAND_TYPES['SHOW_LOG']
+    command_type = consts.UtilsFunctionType.SHOW_LOG
 
 class OCTANE_OT_ShowOctaneDeviceSetting(OCTANE_OT_BaseCommand):
     """Show Octane Device Setting"""
     bl_idname = "octane.show_octane_device_setting"
     bl_label = "Show Octane Device Setting"
-    command_type = COMMAND_TYPES['SHOW_DEVICE_SETTINGS']
+    command_type = consts.UtilsFunctionType.SHOW_DEVICE_SETTINGS
 
 class OCTANE_OT_ActivateOctane(OCTANE_OT_BaseCommand):
     """Activate the Octane license"""
     bl_idname = "octane.activate"
     bl_label = "Open activation state dialog on OctaneServer"
-    command_type = COMMAND_TYPES['ACTIVATE']
+    command_type = consts.UtilsFunctionType.SHOW_ACTIVATION
 
 
 class OCTANE_OT_ClearResourceCache(OCTANE_OT_BaseCommand):
     """Clear the Resource Cache"""
     bl_idname = "octane.clear_resource_cache"
     bl_label = "Clear"
-    command_type = COMMAND_TYPES['CLEAR_RESOURCE_CACHE_SYSTEM']
+    command_type = consts.UtilsFunctionType.UPDATE_RESOURCE_CACHE_SYSTEM
 
     @classmethod
     def poll(cls, context):        
@@ -268,10 +275,8 @@ class OCTANE_OT_ShowOctaneDB(OCTANE_OT_BaseCommand):
         return True
 
     def execute(self, context):
-        import _octane
-        scene = context.scene
-        oct_scene = scene.octane
-        _octane.get_octanedb(scene.as_pointer(), context.as_pointer())
+        from octane.core.octanedb import OctaneDBManager
+        OctaneDBManager().open_octanedb()
         return {'FINISHED'} 
 
 
@@ -399,51 +404,96 @@ class OCTANE_OT_ConvertToOctaneMaterial(bpy.types.Operator):
             converters.convert_all_related_material(cur_material, converted_material)            
         return {'FINISHED'} 
 
-class OCTANE_OT_BaseExport(Operator):
+class OCTANE_OT_BaseExport(Operator, ExportHelper):
     export_type = 0
-    file_ext = '.orbx'
-    filepath: bpy.props.StringProperty(subtype="FILE_PATH")
-    filename: StringProperty(subtype='FILE_NAME')    
+    filename_ext = '.orbx'
+    filepath: StringProperty(subtype="FILE_PATH")
+    filename: StringProperty(subtype='FILE_NAME')
+    EXPORT_START = consts.UtilsFunctionType.EXPORT_ORBX_START
+    EXPORT_WRITE_FRAME = consts.UtilsFunctionType.EXPORT_ORBX_WRITE_FRAME
+    EXPORT_END = consts.UtilsFunctionType.EXPORT_ORBX_END
 
     def execute(self, context):
-        import _octane
-        scene = context.scene            
-        data = context.blend_data.as_pointer()
-        prefs = bpy.context.preferences.as_pointer()
-        if not self.filepath.endswith(self.file_ext):
-            self.filepath += self.file_ext
-        _octane.export(scene.as_pointer(), context.as_pointer(), prefs, data, self.filepath, self.export_type)  
-        return {'FINISHED'} 
+        if core.ENABLE_OCTANE_ADDON_CLIENT:
+            from octane.core.session import RenderSession
+            from octane.core.client import OctaneBlender
+            if not self.filepath.endswith(self.filename_ext):
+                self.filepath += self.filename_ext
+            session = RenderSession(None)
+            session.session_type = consts.SessionType.EXPORT
+            session.start_render(is_viewport=False)
+            OctaneBlender().utils_function(consts.UtilsFunctionType.RENDER_STOP, "")
+            frame_start = context.scene.frame_start
+            frame_end = context.scene.frame_end
+            for frame in range(frame_start, frame_end + 1):
+                context.scene.frame_set(frame)                        
+                depsgraph = context.evaluated_depsgraph_get()
+                scene = depsgraph.scene_eval
+                layer = depsgraph.view_layer_eval
+                width = utility.render_resolution_x(scene)
+                height = utility.render_resolution_y(scene)
+                session.render_update(depsgraph, scene, layer)
+                session.set_resolution(width, height)
+                if frame == scene.frame_start:
+                    OctaneBlender().utils_function(self.EXPORT_START, self.filepath)
+                OctaneBlender().utils_function(self.EXPORT_WRITE_FRAME, self.filepath)
+                # print("self.EXPORT_WRITE_FRAME", self.EXPORT_WRITE_FRAME)
+                # print("Export Frame: %d / [%d, %d]" % (frame, frame_start, frame_end))
+            response = OctaneBlender().utils_function(self.EXPORT_END, self.filepath)
+            success = False
+            if len(response):
+                success = int(ET.fromstring(response).get("result"))
+            if success:
+                self.report({"INFO"}, "Export Success: %s" % self.filepath)
+            else:
+                self.report({"Error"}, "Export Error: %s" % self.filepath)
+            session.stop_render()
+            return {'FINISHED'}
+        else:
+            import _octane
+            scene = context.scene            
+            data = context.blend_data.as_pointer()
+            prefs = bpy.context.preferences.as_pointer()
+            if not self.filepath.endswith(self.filename_ext):
+                self.filepath += self.filename_ext
+            _octane.export(scene.as_pointer(), context.as_pointer(), prefs, data, self.filepath, self.export_type)             
 
     def invoke(self, context, event):
         filename = os.path.splitext(os.path.basename(bpy.data.filepath))[0]
         if filename == '':
             filename = 'octane_export'     
         filename = bpy.path.clean_name(filename)           
-        self.filename = bpy.path.ensure_ext(filename, self.file_ext)    
+        self.filename = bpy.path.ensure_ext(filename, self.filename_ext)    
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
 
 class OCTANE_OT_OrbxExport(OCTANE_OT_BaseExport):
     """Export current scene in Octane ORBX format"""
     export_type = EXPORT_TYPES['ORBX']
-    file_ext = '.orbx'    
+    filename_ext = '.orbx'    
     bl_idname = "export.orbx"
     bl_label = "Octane Orbx(.orbx)"
+    bl_description = "Export current scene in Octane ORBX format"
     filter_glob: StringProperty(default="*.orbx", options={'HIDDEN'}) 
     filepath: bpy.props.StringProperty(subtype="FILE_PATH")
-    filename: StringProperty(subtype='FILE_NAME')      
+    filename: StringProperty(subtype='FILE_NAME')
+    EXPORT_START = consts.UtilsFunctionType.EXPORT_ORBX_START
+    EXPORT_WRITE_FRAME = consts.UtilsFunctionType.EXPORT_ORBX_WRITE_FRAME
+    EXPORT_END = consts.UtilsFunctionType.EXPORT_ORBX_END
 
 class OCTANE_OT_AlembicExport(OCTANE_OT_BaseExport):
     """Export current scene in Octane alembic format"""
     export_type = EXPORT_TYPES['ALEMBIC']
-    file_ext = '.abc'    
+    filename_ext = '.abc'    
     bl_idname = "export.abc"
     bl_label = "Octane Alembic(.abc)"   
+    bl_description = "Export current scene in Octane Alembic format"
     filter_glob: StringProperty(default="*.abc", options={'HIDDEN'})     
     filepath: bpy.props.StringProperty(subtype="FILE_PATH")
     filename: StringProperty(subtype='FILE_NAME')   
-
+    EXPORT_START = consts.UtilsFunctionType.EXPORT_ALEMBIC_START
+    EXPORT_WRITE_FRAME = consts.UtilsFunctionType.EXPORT_ALEMBIC_WRITE_FRAME
+    EXPORT_END = consts.UtilsFunctionType.EXPORT_ALEMBIC_END
 
 class OCTANE_OT_OrbxPreivew(Operator):
     """Generate Orbx Preview Mesh(The current mesh data will be replaced with the preview data. The current object's delta matrix may be updated according to the orbx settings.)"""

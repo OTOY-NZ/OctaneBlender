@@ -15,12 +15,13 @@ class OctaneVolumeToTextureGeometry(OctaneBaseSocket):
     bl_idname="OctaneVolumeToTextureGeometry"
     bl_label="VDB"
     color=consts.OctanePinColor.Geometry
-    octane_default_node_type=0
+    octane_default_node_type=consts.NodeType.NT_UNKNOWN
     octane_default_node_name=""
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=59)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="geometry")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_GEOMETRY)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_GEOMETRY
+    octane_pin_name="geometry"
+    octane_pin_type=consts.PinType.PT_GEOMETRY
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -28,14 +29,15 @@ class OctaneVolumeToTextureGeometry(OctaneBaseSocket):
 
 class OctaneVolumeToTextureTransform(OctaneBaseSocket):
     bl_idname="OctaneVolumeToTextureTransform"
-    bl_label="UVW transform"
+    bl_label="P transform"
     color=consts.OctanePinColor.Transform
-    octane_default_node_type=67
+    octane_default_node_type=consts.NodeType.NT_TRANSFORM_VALUE
     octane_default_node_name="OctaneTransformValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=243)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="transform")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TRANSFORM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_TRANSFORM
+    octane_pin_name="transform"
+    octane_pin_type=consts.PinType.PT_TRANSFORM
+    octane_pin_index=1
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -45,12 +47,13 @@ class OctaneVolumeToTextureProjection(OctaneBaseSocket):
     bl_idname="OctaneVolumeToTextureProjection"
     bl_label="Projection"
     color=consts.OctanePinColor.Projection
-    octane_default_node_type=75
+    octane_default_node_type=consts.NodeType.NT_PROJ_LINEAR
     octane_default_node_name="OctaneXYZToUVW"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=141)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="projection")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_PROJECTION)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_PROJECTION
+    octane_pin_name="projection"
+    octane_pin_type=consts.PinType.PT_PROJECTION
+    octane_pin_index=2
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -60,23 +63,43 @@ class OctaneVolumeToTextureGrid(OctaneBaseSocket):
     bl_idname="OctaneVolumeToTextureGrid"
     bl_label="Grid ID"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type=57
+    octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=705)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="grid")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
+    octane_pin_id=consts.PinID.P_GRID
+    octane_pin_name="grid"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=3
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
+        ("Use grid name", "Use grid name", "", 0),
         ("Scatter", "Scatter", "", 1),
         ("Absorption", "Absorption", "", 2),
         ("Emission", "Emission", "", 3),
-        ("Velocity X", "Velocity X", "", 4),
-        ("Velocity Y", "Velocity Y", "", 5),
-        ("Velocity Z", "Velocity Z", "", 6),
+        ("Velocity", "Velocity", "", 7),
+        ("Velocity.X", "Velocity.X", "", 4),
+        ("Velocity.Y", "Velocity.Y", "", 5),
+        ("Velocity.Z", "Velocity.Z", "", 6),
     ]
-    default_value: EnumProperty(default="Scatter", update=OctaneBaseSocket.update_node_tree, description="Which grid to read from the VDB", items=items)
+    default_value: EnumProperty(default="Scatter", update=OctaneBaseSocket.update_node_tree, description="Which grid to read from the VDB. Applies only if the node connected to the VDB input is a Volume node", items=items)
     octane_hide_value=False
     octane_min_version=0
+    octane_end_version=4294967295
+    octane_deprecated=False
+
+class OctaneVolumeToTextureGridName(OctaneBaseSocket):
+    bl_idname="OctaneVolumeToTextureGridName"
+    bl_label="Grid name"
+    color=consts.OctanePinColor.String
+    octane_default_node_type=consts.NodeType.NT_STRING
+    octane_default_node_name="OctaneStringValue"
+    octane_pin_id=consts.PinID.P_GRID_NAME
+    octane_pin_name="gridName"
+    octane_pin_type=consts.PinType.PT_STRING
+    octane_pin_index=4
+    octane_socket_type=consts.SocketType.ST_STRING
+    default_value: StringProperty(default="", update=OctaneBaseSocket.update_node_tree, description="Name of the grid to read from the VDB, if “Use grid name” is selected above. You have to make this grid available in the volume import preferences")
+    octane_hide_value=False
+    octane_min_version=12000001
     octane_end_version=4294967295
     octane_deprecated=False
 
@@ -89,19 +112,20 @@ class OctaneVolumeToTexture(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
-    octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=256)
-    octane_socket_list: StringProperty(name="Socket List", default="VDB;UVW transform;Projection;Grid ID;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=4)
+    octane_socket_class_list=[OctaneVolumeToTextureGeometry,OctaneVolumeToTextureTransform,OctaneVolumeToTextureProjection,OctaneVolumeToTextureGrid,OctaneVolumeToTextureGridName,]
+    octane_min_version=11000005
+    octane_node_type=consts.NodeType.NT_TEX_READ_VDB
+    octane_socket_list=["VDB", "P transform", "Projection", "Grid ID", "Grid name", ]
+    octane_attribute_list=[]
+    octane_attribute_config={}
+    octane_static_pin_count=5
 
     def init(self, context):
         self.inputs.new("OctaneVolumeToTextureGeometry", OctaneVolumeToTextureGeometry.bl_label).init()
         self.inputs.new("OctaneVolumeToTextureTransform", OctaneVolumeToTextureTransform.bl_label).init()
         self.inputs.new("OctaneVolumeToTextureProjection", OctaneVolumeToTextureProjection.bl_label).init()
         self.inputs.new("OctaneVolumeToTextureGrid", OctaneVolumeToTextureGrid.bl_label).init()
+        self.inputs.new("OctaneVolumeToTextureGridName", OctaneVolumeToTextureGridName.bl_label).init()
         self.outputs.new("OctaneTextureOutSocket", "Texture out").init()
 
 
@@ -110,6 +134,7 @@ _CLASSES=[
     OctaneVolumeToTextureTransform,
     OctaneVolumeToTextureProjection,
     OctaneVolumeToTextureGrid,
+    OctaneVolumeToTextureGridName,
     OctaneVolumeToTexture,
 ]
 

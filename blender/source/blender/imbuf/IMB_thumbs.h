@@ -87,6 +87,8 @@ struct ImBuf *IMB_thumb_load_blend(const char *blen_path,
  */
 struct ImBuf *IMB_thumb_load_font(const char *filepath, unsigned int x, unsigned int y);
 bool IMB_thumb_load_font_get_hash(char *r_hash);
+void IMB_thumb_clear_translations(void);
+void IMB_thumb_ensure_translations(void);
 
 /* Threading */
 

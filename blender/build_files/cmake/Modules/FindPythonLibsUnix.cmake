@@ -34,17 +34,11 @@ SET(PYTHON_VERSION 3.10 CACHE STRING "Python Version (major and minor only)")
 MARK_AS_ADVANCED(PYTHON_VERSION)
 
 
-if(APPLE)
-  if(WITH_PYTHON_MODULE)
-    set(PYTHON_LINKFLAGS "-undefined dynamic_lookup")
-  else()
-    set(PYTHON_LINKFLAGS)
-  endif()
-else()
-  # See: http://docs.python.org/extending/embedding.html#linking-requirements
-  SET(PYTHON_LINKFLAGS "-Xlinker -export-dynamic" CACHE STRING "Linker flags for python")
-  MARK_AS_ADVANCED(PYTHON_LINKFLAGS)
-endif()
+# See: http://docs.python.org/extending/embedding.html#linking-requirements
+#      for why this is needed
+SET(PYTHON_LINKFLAGS "-Xlinker -export-dynamic" CACHE STRING "Linker flags for python")
+MARK_AS_ADVANCED(PYTHON_LINKFLAGS)
+
 
 # if the user passes these defines as args, we don't want to overwrite
 SET(_IS_INC_DEF OFF)

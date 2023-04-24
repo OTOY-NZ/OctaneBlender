@@ -79,8 +79,7 @@ ccl_device_intersect bool scene_intersect(KernelGlobals kg,
   metal::raytracing::ray r(ray->P, ray->D, ray->tmin, ray->tmax);
   metalrt_intersector_type metalrt_intersect;
 
-  bool triangle_only = !kernel_data.bvh.have_curves && !kernel_data.bvh.have_points;
-  if (triangle_only) {
+  if (!kernel_data.bvh.have_curves) {
     metalrt_intersect.assume_geometry_type(metal::raytracing::geometry_type::triangle);
   }
 
@@ -178,9 +177,7 @@ ccl_device_intersect bool scene_intersect_local(KernelGlobals kg,
   metalrt_intersector_type metalrt_intersect;
 
   metalrt_intersect.force_opacity(metal::raytracing::forced_opacity::non_opaque);
-
-  bool triangle_only = !kernel_data.bvh.have_curves && !kernel_data.bvh.have_points;
-  if (triangle_only) {
+  if (!kernel_data.bvh.have_curves) {
     metalrt_intersect.assume_geometry_type(metal::raytracing::geometry_type::triangle);
   }
 
@@ -208,9 +205,7 @@ ccl_device_intersect bool scene_intersect_local(KernelGlobals kg,
   if (lcg_state) {
     *lcg_state = payload.lcg_state;
   }
-  if (local_isect) {
-    *local_isect = payload.local_isect;
-  }
+  *local_isect = payload.local_isect;
 
   return payload.result;
 }
@@ -245,9 +240,7 @@ ccl_device_intersect bool scene_intersect_shadow_all(KernelGlobals kg,
   metalrt_intersector_type metalrt_intersect;
 
   metalrt_intersect.force_opacity(metal::raytracing::forced_opacity::non_opaque);
-
-  bool triangle_only = !kernel_data.bvh.have_curves && !kernel_data.bvh.have_points;
-  if (triangle_only) {
+  if (!kernel_data.bvh.have_curves) {
     metalrt_intersect.assume_geometry_type(metal::raytracing::geometry_type::triangle);
   }
 
@@ -314,9 +307,7 @@ ccl_device_intersect bool scene_intersect_volume(KernelGlobals kg,
   metalrt_intersector_type metalrt_intersect;
 
   metalrt_intersect.force_opacity(metal::raytracing::forced_opacity::non_opaque);
-
-  bool triangle_only = !kernel_data.bvh.have_curves && !kernel_data.bvh.have_points;
-  if (triangle_only) {
+  if (!kernel_data.bvh.have_curves) {
     metalrt_intersect.assume_geometry_type(metal::raytracing::geometry_type::triangle);
   }
 

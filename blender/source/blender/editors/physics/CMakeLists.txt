@@ -11,6 +11,7 @@ set(INC
   ../../makesrna
   ../../windowmanager
   ../../../../intern/clog
+  ../../../../intern/glew-mx
   ../../../../intern/guardedalloc
   ../../../../intern/mantaflow/extern
   # RNA_prototypes.h

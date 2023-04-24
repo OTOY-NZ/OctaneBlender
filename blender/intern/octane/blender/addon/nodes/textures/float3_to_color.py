@@ -15,12 +15,13 @@ class OctaneFloat3ToColorInput(OctaneBaseSocket):
     bl_idname="OctaneFloat3ToColorInput"
     bl_label="Values"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=82)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="input")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
+    octane_pin_id=consts.PinID.P_INPUT
+    octane_pin_name="input"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_FLOAT3
     default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="Float values stored in the red, green and blue channels of the output color", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=0
@@ -36,13 +37,13 @@ class OctaneFloat3ToColor(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneFloat3ToColorInput,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=321)
-    octane_socket_list: StringProperty(name="Socket List", default="Values;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=1)
+    octane_node_type=consts.NodeType.NT_TEX_FLOAT3_TO_COLOR
+    octane_socket_list=["Values", ]
+    octane_attribute_list=[]
+    octane_attribute_config={}
+    octane_static_pin_count=1
 
     def init(self, context):
         self.inputs.new("OctaneFloat3ToColorInput", OctaneFloat3ToColorInput.bl_label).init()

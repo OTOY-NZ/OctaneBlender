@@ -375,8 +375,6 @@ set(ICON_NAMES
   small_caps
   modifier
   con_action
-  mod_envelope
-  mod_outline
   mod_length
   mod_dash
   mod_lineart

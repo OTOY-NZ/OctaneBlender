@@ -179,44 +179,37 @@ static void mainwindow_do_key(MainWindow *mw, GHOST_TKey key, int press)
 {
   switch (key) {
     case GHOST_kKeyC:
-      if (press) {
+      if (press)
         GHOST_SetCursorShape(mw->win,
                              (GHOST_TStandardCursor)(rand() % (GHOST_kStandardCursorNumCursors)));
-      }
       break;
     case GHOST_kKeyLeftBracket:
-      if (press) {
+      if (press)
         GHOST_SetCursorVisibility(mw->win, 0);
-      }
       break;
     case GHOST_kKeyRightBracket:
-      if (press) {
+      if (press)
         GHOST_SetCursorVisibility(mw->win, 1);
-      }
       break;
     case GHOST_kKeyE:
-      if (press) {
+      if (press)
         multitestapp_toggle_extra_window(mw->app);
-      }
       break;
     case GHOST_kKeyQ:
-      if (press) {
+      if (press)
         multitestapp_exit(mw->app);
-      }
       break;
     case GHOST_kKeyT:
-      if (press) {
+      if (press)
         mainwindow_log(mw, "TextTest~|`hello`\"world\",<>/");
-      }
       break;
     case GHOST_kKeyR:
       if (press) {
         int i;
 
         mainwindow_log(mw, "Invalidating window 10 times");
-        for (i = 0; i < 10; i++) {
+        for (i = 0; i < 10; i++)
           GHOST_InvalidateWindow(mw->win);
-        }
       }
       break;
     case GHOST_kKeyF11:
@@ -323,7 +316,7 @@ MainWindow *mainwindow_new(MultiTestApp *app)
   if (win) {
     MainWindow *mw = MEM_callocN(sizeof(*mw), "mainwindow_new");
 
-    mw->gpu_context = GPU_context_create(win, NULL);
+    mw->gpu_context = GPU_context_create(win);
     GPU_init();
 
     mw->app = app;
@@ -335,7 +328,9 @@ MainWindow *mainwindow_new(MultiTestApp *app)
 
     return mw;
   }
-  return NULL;
+  else {
+    return NULL;
+  }
 }
 
 void mainwindow_free(MainWindow *mw)
@@ -578,7 +573,7 @@ LoggerWindow *loggerwindow_new(MultiTestApp *app)
   if (win) {
     LoggerWindow *lw = MEM_callocN(sizeof(*lw), "loggerwindow_new");
 
-    lw->gpu_context = GPU_context_create(win, NULL);
+    lw->gpu_context = GPU_context_create(win);
     GPU_init();
 
     int bbox[2][2];
@@ -780,7 +775,7 @@ ExtraWindow *extrawindow_new(MultiTestApp *app)
   if (win) {
     ExtraWindow *ew = MEM_callocN(sizeof(*ew), "mainwindow_new");
 
-    ew->gpu_context = GPU_context_create(win, NULL);
+    ew->gpu_context = GPU_context_create(win);
     GPU_init();
 
     ew->app = app;

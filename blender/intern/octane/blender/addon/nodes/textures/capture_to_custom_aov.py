@@ -15,12 +15,13 @@ class OctaneCaptureToCustomAOVTexture(OctaneBaseSocket):
     bl_idname="OctaneCaptureToCustomAOVTexture"
     bl_label="Capture texture"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=0
+    octane_default_node_type=consts.NodeType.NT_UNKNOWN
     octane_default_node_name=""
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=240)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="texture")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_TEXTURE
+    octane_pin_name="texture"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -30,12 +31,13 @@ class OctaneCaptureToCustomAOVCustomAov(OctaneBaseSocket):
     bl_idname="OctaneCaptureToCustomAOVCustomAov"
     bl_label="Custom AOV"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type=57
+    octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=632)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="customAov")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
+    octane_pin_id=consts.PinID.P_CUSTOM_AOV
+    octane_pin_name="customAov"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=1
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("None", "None", "", 4096),
         ("Custom AOV 1", "Custom AOV 1", "", 0),
@@ -69,12 +71,13 @@ class OctaneCaptureToCustomAOVOverrideTexture(OctaneBaseSocket):
     bl_idname="OctaneCaptureToCustomAOVOverrideTexture"
     bl_label="Override texture"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=0
+    octane_default_node_type=consts.NodeType.NT_UNKNOWN
     octane_default_node_name=""
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=644)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="overrideTexture")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_OVERRIDE_TEXTURE
+    octane_pin_name="overrideTexture"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=2
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -89,13 +92,13 @@ class OctaneCaptureToCustomAOV(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneCaptureToCustomAOVTexture,OctaneCaptureToCustomAOVCustomAov,OctaneCaptureToCustomAOVOverrideTexture,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=323)
-    octane_socket_list: StringProperty(name="Socket List", default="Capture texture;Custom AOV;Override texture;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=3)
+    octane_node_type=consts.NodeType.NT_TEX_CAPTURE
+    octane_socket_list=["Capture texture", "Custom AOV", "Override texture", ]
+    octane_attribute_list=[]
+    octane_attribute_config={}
+    octane_static_pin_count=3
 
     def init(self, context):
         self.inputs.new("OctaneCaptureToCustomAOVTexture", OctaneCaptureToCustomAOVTexture.bl_label).init()

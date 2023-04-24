@@ -33,7 +33,7 @@
 #define BLU 2
 #define EXP 3
 #define COLXS 128
-typedef uchar RGBE[4];
+typedef unsigned char RGBE[4];
 typedef float fCOLOR[3];
 
 /* copy source -> dest */
@@ -41,7 +41,10 @@ typedef float fCOLOR[3];
   (c2[RED] = c1[RED], c2[GRN] = c1[GRN], c2[BLU] = c1[BLU], c2[EXP] = c1[EXP])
 
 /* read routines */
-static const uchar *oldreadcolrs(RGBE *scan, const uchar *mem, int xmax, const uchar *mem_eof)
+static const unsigned char *oldreadcolrs(RGBE *scan,
+                                         const unsigned char *mem,
+                                         int xmax,
+                                         const unsigned char *mem_eof)
 {
   size_t i, rshift = 0, len = xmax;
   while (len > 0) {
@@ -69,7 +72,10 @@ static const uchar *oldreadcolrs(RGBE *scan, const uchar *mem, int xmax, const u
   return mem;
 }
 
-static const uchar *freadcolrs(RGBE *scan, const uchar *mem, int xmax, const uchar *mem_eof)
+static const unsigned char *freadcolrs(RGBE *scan,
+                                       const unsigned char *mem,
+                                       int xmax,
+                                       const unsigned char *mem_eof)
 {
   if (UNLIKELY(mem_eof - mem < 4)) {
     return NULL;
@@ -112,7 +118,7 @@ static const uchar *freadcolrs(RGBE *scan, const uchar *mem, int xmax, const uch
         }
         val = *mem++;
         while (code--) {
-          scan[j++][i] = (uchar)val;
+          scan[j++][i] = (unsigned char)val;
         }
       }
       else {
@@ -161,16 +167,16 @@ static void FLOAT2RGBE(const fCOLOR fcol, RGBE rgbe)
   }
   else {
     d = (float)frexp(d, &e) * 256.0f / d;
-    rgbe[RED] = (uchar)(fcol[RED] * d);
-    rgbe[GRN] = (uchar)(fcol[GRN] * d);
-    rgbe[BLU] = (uchar)(fcol[BLU] * d);
-    rgbe[EXP] = (uchar)(e + COLXS);
+    rgbe[RED] = (unsigned char)(fcol[RED] * d);
+    rgbe[GRN] = (unsigned char)(fcol[GRN] * d);
+    rgbe[BLU] = (unsigned char)(fcol[BLU] * d);
+    rgbe[EXP] = (unsigned char)(e + COLXS);
   }
 }
 
 /* ImBuf read */
 
-bool imb_is_a_hdr(const uchar *buf, const size_t size)
+bool imb_is_a_hdr(const unsigned char *buf, const size_t size)
 {
   /* NOTE: `#?RADIANCE` is used by other programs such as `ImageMagik`,
    * Although there are some files in the wild that only use `#?` (from looking online).
@@ -181,14 +187,17 @@ bool imb_is_a_hdr(const uchar *buf, const size_t size)
    *
    * See: http://paulbourke.net/dataformats/pic/
    */
-  const uchar magic[2] = {'#', '?'};
+  const unsigned char magic[2] = {'#', '?'};
   if (size < sizeof(magic)) {
     return false;
   }
   return memcmp(buf, magic, sizeof(magic)) == 0;
 }
 
-struct ImBuf *imb_loadhdr(const uchar *mem, size_t size, int flags, char colorspace[IM_MAX_SPACE])
+struct ImBuf *imb_loadhdr(const unsigned char *mem,
+                          size_t size,
+                          int flags,
+                          char colorspace[IM_MAX_SPACE])
 {
   struct ImBuf *ibuf;
   RGBE *sline;
@@ -196,7 +205,7 @@ struct ImBuf *imb_loadhdr(const uchar *mem, size_t size, int flags, char colorsp
   float *rect_float;
   int found = 0;
   int width = 0, height = 0;
-  const uchar *ptr, *mem_eof = mem + size;
+  const unsigned char *ptr, *mem_eof = mem + size;
   char oriY[3], oriX[3];
 
   if (!imb_is_a_hdr(mem, size)) {
@@ -237,7 +246,7 @@ struct ImBuf *imb_loadhdr(const uchar *mem, size_t size, int flags, char colorsp
    * since the format uses RLE compression. Can cause excessive memory allocation to occur. */
 
   /* find end of this line, data right behind it */
-  ptr = (const uchar *)strchr((const char *)&mem[x], '\n');
+  ptr = (const unsigned char *)strchr((const char *)&mem[x], '\n');
   if (ptr == NULL || ptr >= mem_eof) {
     return NULL;
   }
@@ -297,7 +306,7 @@ struct ImBuf *imb_loadhdr(const uchar *mem, size_t size, int flags, char colorsp
 
 /* ImBuf write */
 static int fwritecolrs(
-    FILE *file, int width, int channels, const uchar *ibufscan, const float *fpscan)
+    FILE *file, int width, int channels, const unsigned char *ibufscan, const float *fpscan)
 {
   int beg, c2, count = 0;
   fCOLOR fcol;
@@ -334,8 +343,8 @@ static int fwritecolrs(
   /* put magic header */
   putc(2, file);
   putc(2, file);
-  putc((uchar)(width >> 8), file);
-  putc((uchar)(width & 255), file);
+  putc((unsigned char)(width >> 8), file);
+  putc((unsigned char)(width & 255), file);
   /* put components separately */
   for (size_t i = 0; i < 4; i++) {
     for (size_t j = 0; j < width; j += count) { /* find next run */
@@ -353,8 +362,8 @@ static int fwritecolrs(
         c2 = j + 1;
         while (rgbe_scan[c2++][i] == rgbe_scan[j][i]) {
           if (c2 == beg) { /* short run */
-            putc((uchar)(128 + beg - j), file);
-            putc((uchar)(rgbe_scan[j][i]), file);
+            putc((unsigned char)(128 + beg - j), file);
+            putc((unsigned char)(rgbe_scan[j][i]), file);
             j = beg;
             break;
           }
@@ -364,13 +373,13 @@ static int fwritecolrs(
         if ((c2 = beg - j) > 128) {
           c2 = 128;
         }
-        putc((uchar)(c2), file);
+        putc((unsigned char)(c2), file);
         while (c2--) {
           putc(rgbe_scan[j++][i], file);
         }
       }
       if (count >= MINRUN) { /* write out run */
-        putc((uchar)(128 + count), file);
+        putc((unsigned char)(128 + count), file);
         putc(rgbe_scan[beg][i], file);
       }
       else {
@@ -402,7 +411,7 @@ bool imb_savehdr(struct ImBuf *ibuf, const char *filepath, int flags)
   FILE *file = BLI_fopen(filepath, "wb");
   float *fp = NULL;
   size_t width = ibuf->x, height = ibuf->y;
-  uchar *cp = NULL;
+  unsigned char *cp = NULL;
 
   (void)flags; /* unused */
 
@@ -413,7 +422,7 @@ bool imb_savehdr(struct ImBuf *ibuf, const char *filepath, int flags)
   writeHeader(file, width, height);
 
   if (ibuf->rect) {
-    cp = (uchar *)ibuf->rect + ibuf->channels * (height - 1) * width;
+    cp = (unsigned char *)ibuf->rect + ibuf->channels * (height - 1) * width;
   }
   if (ibuf->rect_float) {
     fp = ibuf->rect_float + ibuf->channels * (height - 1) * width;

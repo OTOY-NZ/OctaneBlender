@@ -13,8 +13,8 @@ extern "C" {
 #endif
 
 typedef struct ParamHandle ParamHandle; /* Handle to an array of charts. */
-typedef uintptr_t ParamKey;             /* Key (hash) for identifying verts and faces. */
-#define PARAM_KEY_MAX UINTPTR_MAX
+typedef intptr_t ParamKey;              /* Key (hash) for identifying verts and faces. */
+#define PARAM_KEY_MAX INTPTR_MAX
 
 /* -------------------------------------------------------------------- */
 /** \name Chart Construction:

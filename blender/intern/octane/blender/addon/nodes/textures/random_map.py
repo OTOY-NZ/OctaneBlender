@@ -15,12 +15,13 @@ class OctaneRandomMapInput(OctaneBaseSocket):
     bl_idname="OctaneRandomMapInput"
     bl_label="Input texture"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=0
+    octane_default_node_type=consts.NodeType.NT_UNKNOWN
     octane_default_node_name=""
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=82)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="input")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_INPUT
+    octane_pin_name="input"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -30,12 +31,13 @@ class OctaneRandomMapInputScale(OctaneBaseSocket):
     bl_idname="OctaneRandomMapInputScale"
     bl_label="Input scale"
     color=consts.OctanePinColor.Int
-    octane_default_node_type=9
+    octane_default_node_type=consts.NodeType.NT_INT
     octane_default_node_name="OctaneIntValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=709)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="inputScale")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
+    octane_pin_id=consts.PinID.P_INPUT_SCALE
+    octane_pin_name="inputScale"
+    octane_pin_type=consts.PinType.PT_INT
+    octane_pin_index=1
+    octane_socket_type=consts.SocketType.ST_INT
     default_value: IntProperty(default=1, update=OctaneBaseSocket.update_node_tree, description="Scale factor for the input texture values", min=1, max=65536, soft_min=1, soft_max=65536, step=1, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
@@ -46,12 +48,13 @@ class OctaneRandomMapNoiseType(OctaneBaseSocket):
     bl_idname="OctaneRandomMapNoiseType"
     bl_label="Noise function"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type=57
+    octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=117)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="noiseType")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
+    octane_pin_id=consts.PinID.P_NOISE_TYPE
+    octane_pin_name="noiseType"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=2
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("Perlin", "Perlin", "", 0),
         ("Unsigned perlin", "Unsigned perlin", "", 1),
@@ -73,13 +76,13 @@ class OctaneRandomMap(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneRandomMapInput,OctaneRandomMapInputScale,OctaneRandomMapNoiseType,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=333)
-    octane_socket_list: StringProperty(name="Socket List", default="Input texture;Input scale;Noise function;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=3)
+    octane_node_type=consts.NodeType.NT_TEX_RANDOM_MAP
+    octane_socket_list=["Input texture", "Input scale", "Noise function", ]
+    octane_attribute_list=[]
+    octane_attribute_config={}
+    octane_static_pin_count=3
 
     def init(self, context):
         self.inputs.new("OctaneRandomMapInput", OctaneRandomMapInput.bl_label).init()

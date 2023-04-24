@@ -101,59 +101,53 @@ ccl_device differential3 differential3_zero()
   return d;
 }
 
-/* Compact ray differentials that are just a radius to reduce memory usage and access cost
- * on GPUs, basically cone tracing.
+/* Compact ray differentials that are just a scale to reduce memory usage and
+ * access cost in GPU.
  *
- * See above for more accurate reference implementations of ray differentials. */
+ * See above for more accurate reference implementations.
+ *
+ * TODO: also store the more compact version in ShaderData and recompute where
+ * needed? */
 
 ccl_device_forceinline float differential_zero_compact()
 {
   return 0.0f;
 }
 
-ccl_device_forceinline float differential_make_compact(const float dD)
+ccl_device_forceinline float differential_make_compact(const differential3 D)
 {
-  return dD;
+  return 0.5f * (len(D.dx) + len(D.dy));
 }
 
-ccl_device_forceinline float differential_make_compact(const differential3 dD)
+ccl_device_forceinline void differential_transfer_compact(ccl_private differential3 *surface_dP,
+                                                          const float ray_dP,
+                                                          const float3 /* ray_D */,
+                                                          const float ray_dD,
+                                                          const float3 surface_Ng,
+                                                          const float ray_t)
 {
-  return 0.5f * (len(dD.dx) + len(dD.dy));
+  /* ray differential transfer through homogeneous medium, to
+   * compute dPdx/dy at a shading point from the incoming ray */
+  float scale = ray_dP + ray_t * ray_dD;
+
+  float3 dx, dy;
+  make_orthonormals(surface_Ng, &dx, &dy);
+  surface_dP->dx = dx * scale;
+  surface_dP->dy = dy * scale;
 }
 
-ccl_device_forceinline float differential_incoming_compact(const float dD)
+ccl_device_forceinline void differential_incoming_compact(ccl_private differential3 *dI,
+                                                          const float3 D,
+                                                          const float dD)
 {
-  return dD;
-}
+  /* compute dIdx/dy at a shading point, we just need to negate the
+   * differential of the ray direction */
 
-ccl_device_forceinline float differential_transfer_compact(const float ray_dP,
-                                                           const float3 /* ray_D */,
-                                                           const float ray_dD,
-                                                           const float ray_t)
-{
-  return ray_dP + ray_t * ray_dD;
-}
-
-ccl_device_forceinline differential3 differential_from_compact(const float3 D, const float dD)
-{
   float3 dx, dy;
   make_orthonormals(D, &dx, &dy);
 
-  differential3 d;
-  d.dx = dD * dx;
-  d.dy = dD * dy;
-  return d;
-}
-
-ccl_device void differential_dudv_compact(ccl_private differential *du,
-                                          ccl_private differential *dv,
-                                          float3 dPdu,
-                                          float3 dPdv,
-                                          float dP,
-                                          float3 Ng)
-{
-  /* TODO: can we speed this up? */
-  differential_dudv(du, dv, dPdu, dPdv, differential_from_compact(Ng, dP), Ng);
+  dI->dx = dD * dx;
+  dI->dy = dD * dy;
 }
 
 CCL_NAMESPACE_END

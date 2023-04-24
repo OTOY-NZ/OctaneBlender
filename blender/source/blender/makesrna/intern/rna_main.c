@@ -169,6 +169,7 @@ void RNA_def_main(BlenderRNA *brna)
 {
   StructRNA *srna;
   PropertyRNA *prop;
+  CollectionDefFunc *func;
 
   /* plural must match idtypes in readblenentry.c */
   MainCollectionDef lists[] = {
@@ -466,7 +467,7 @@ void RNA_def_main(BlenderRNA *brna)
     RNA_def_property_ui_text(prop, lists[i].name, lists[i].description);
 
     /* collection functions */
-    CollectionDefFunc *func = lists[i].func;
+    func = lists[i].func;
     if (func) {
       func(brna, prop);
     }

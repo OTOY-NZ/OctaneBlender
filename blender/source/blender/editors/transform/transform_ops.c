@@ -379,8 +379,6 @@ static int transformops_data(bContext *C, wmOperator *op, const wmEvent *event)
   if (op->customdata == NULL) {
     TransInfo *t = MEM_callocN(sizeof(TransInfo), "TransInfo data2");
 
-    t->undo_name = op->type->name;
-
     int mode = transformops_mode(op);
     retval = initTransform(C, t, op, event, mode);
 
@@ -523,7 +521,9 @@ static int transform_invoke(bContext *C, wmOperator *op, const wmEvent *event)
   return OPERATOR_RUNNING_MODAL;
 }
 
-static bool transform_poll_property(const bContext *C, wmOperator *op, const PropertyRNA *prop)
+static bool transform_poll_property(const bContext *UNUSED(C),
+                                    wmOperator *op,
+                                    const PropertyRNA *prop)
 {
   const char *prop_id = RNA_property_identifier(prop);
 
@@ -557,21 +557,12 @@ static bool transform_poll_property(const bContext *C, wmOperator *op, const Pro
   }
 
   /* Proportional Editing. */
-  if (STRPREFIX(prop_id, "proportional") || STRPREFIX(prop_id, "use_proportional")) {
-    ScrArea *area = CTX_wm_area(C);
-    if (area->spacetype == SPACE_NLA) {
-      /* Hide properties that are not supported in some spaces. */
-      return false;
-    }
-
+  {
     PropertyRNA *prop_pet = RNA_struct_find_property(op->ptr, "use_proportional_edit");
-    if ((prop_pet != prop) && (RNA_property_boolean_get(op->ptr, prop_pet) == false)) {
-      /* If "use_proportional_edit" is false, hide:
-       * - "proportional_edit_falloff",
-       * - "proportional_size",
-       * - "use_proportional_connected",
-       * - "use_proportional_projected". */
-      return false;
+    if (prop_pet && (prop_pet != prop) && (RNA_property_boolean_get(op->ptr, prop_pet) == false)) {
+      if (STRPREFIX(prop_id, "proportional") || STRPREFIX(prop_id, "use_proportional")) {
+        return false;
+      }
     }
   }
 

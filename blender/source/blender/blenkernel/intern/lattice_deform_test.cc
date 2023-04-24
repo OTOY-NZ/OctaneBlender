@@ -13,9 +13,6 @@
 
 #include "BLI_rand.hh"
 
-#define DO_PERF_TESTS 0
-
-#if DO_PERF_TESTS
 namespace blender::bke::tests {
 
 struct LatticeDeformTestContext {
@@ -125,4 +122,3 @@ TEST(lattice_deform_performance, performance_no_dvert_10000000)
 }
 
 }  // namespace blender::bke::tests
-#endif

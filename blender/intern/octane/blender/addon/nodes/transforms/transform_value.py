@@ -20,13 +20,13 @@ class OctaneTransformValue(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=67)
-    octane_socket_list: StringProperty(name="Socket List", default="")
-    octane_attribute_list: StringProperty(name="Attribute List", default="a_rotation_order;a_rotation;a_scale;a_translation;")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="rotationOrder;rotation;scale;translation;")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="2;8;8;8;")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=0)
+    octane_node_type=consts.NodeType.NT_TRANSFORM_VALUE
+    octane_socket_list=[]
+    octane_attribute_list=["a_rotation_order", "a_rotation", "a_scale", "a_translation", ]
+    octane_attribute_config={"a_rotation_order": [consts.AttributeID.A_ROTATION_ORDER, "rotationOrder", consts.AttributeType.AT_INT], "a_rotation": [consts.AttributeID.A_ROTATION, "rotation", consts.AttributeType.AT_FLOAT3], "a_scale": [consts.AttributeID.A_SCALE, "scale", consts.AttributeType.AT_FLOAT3], "a_translation": [consts.AttributeID.A_TRANSLATION, "translation", consts.AttributeType.AT_FLOAT3], "a_transform": [consts.AttributeID.A_TRANSFORM, "transform", consts.AttributeType.AT_MATRIX], }
+    octane_static_pin_count=0
 
     a_rotation_order: IntProperty(name="Rotation order", default=2, update=OctaneBaseNode.update_node_tree, description="The axis order in which the rotation will be executed. Must be of type Matrix::RotationOrder. Changing this attribute will re-calculate A_ROTATION from A_TRANSFORM using the new rotation order")
     a_rotation: FloatVectorProperty(name="Rotation", default=(0.000000, 0.000000, 0.000000), size=3, update=OctaneBaseNode.update_node_tree, description="Rotation. Either calculated from A_TRANSFORM or used to calculate A_TRANSFORM")

@@ -13,7 +13,7 @@ struct wmGizmoType;
 extern "C" {
 #endif
 
-/* Exposed to RNA/WM API. */
+/* exposed to rna/wm api */
 void BPY_RNA_gizmo_wrapper(struct wmGizmoType *gzt, void *userdata);
 void BPY_RNA_gizmogroup_wrapper(struct wmGizmoGroupType *gzgt, void *userdata);
 

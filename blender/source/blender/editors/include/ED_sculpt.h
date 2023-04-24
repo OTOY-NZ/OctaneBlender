@@ -20,7 +20,6 @@ struct rcti;
 struct wmMsgSubscribeKey;
 struct wmMsgSubscribeValue;
 struct wmRegionMessageSubscribeParams;
-struct wmOperator;
 
 /* sculpt.c */
 
@@ -34,10 +33,7 @@ bool ED_sculpt_mask_box_select(struct bContext *C,
 /* sculpt_transform.c */
 
 void ED_sculpt_update_modal_transform(struct bContext *C, struct Object *ob);
-void ED_sculpt_init_transform(struct bContext *C,
-                              struct Object *ob,
-                              const int mval[2],
-                              const char *undo_name);
+void ED_sculpt_init_transform(struct bContext *C, struct Object *ob);
 void ED_sculpt_end_transform(struct bContext *C, struct Object *ob);
 
 /* sculpt_undo.c */
@@ -45,13 +41,7 @@ void ED_sculpt_end_transform(struct bContext *C, struct Object *ob);
 /** Export for ED_undo_sys. */
 void ED_sculpt_undosys_type(struct UndoType *ut);
 
-/**
- * Pushes an undo step using the operator name. This is necessary for
- * redo panels to work; operators that do not support that may use
- * #ED_sculpt_undo_geometry_begin_ex instead if so desired.
- */
-void ED_sculpt_undo_geometry_begin(struct Object *ob, const struct wmOperator *op);
-void ED_sculpt_undo_geometry_begin_ex(struct Object *ob, const char *name);
+void ED_sculpt_undo_geometry_begin(struct Object *ob, const char *name);
 void ED_sculpt_undo_geometry_end(struct Object *ob);
 
 /* Face sets. */

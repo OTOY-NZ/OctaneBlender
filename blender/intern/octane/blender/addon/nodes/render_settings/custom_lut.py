@@ -15,12 +15,13 @@ class OctaneCustomLUTStrength(OctaneBaseSocket):
     bl_idname="OctaneCustomLUTStrength"
     bl_label="Strength"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=230)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="strength")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_STRENGTH
+    octane_pin_name="strength"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="The amount how much the LUT should be applied", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
@@ -36,13 +37,13 @@ class OctaneCustomLUT(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneCustomLUTStrength,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=103)
-    octane_socket_list: StringProperty(name="Socket List", default="Strength;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="a_filename;a_reload;a_title;a_domain_min_1d;a_domain_max_1d;a_values_1d;a_domain_min_3d;a_domain_max_3d;a_values_3d;")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="filename;reload;title;domainMin1D;domainMax1D;values1d;domainMin3D;domainMax3D;values3d;")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="11;1;10;8;8;8;8;8;8;")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=1)
+    octane_node_type=consts.NodeType.NT_LUT_CUSTOM
+    octane_socket_list=["Strength", ]
+    octane_attribute_list=["a_filename", "a_reload", "a_title", "a_domain_min_1d", "a_domain_max_1d", "a_values_1d", "a_domain_min_3d", "a_domain_max_3d", "a_values_3d", ]
+    octane_attribute_config={"a_package": [consts.AttributeID.A_PACKAGE, "package", consts.AttributeType.AT_FILENAME], "a_filename": [consts.AttributeID.A_FILENAME, "filename", consts.AttributeType.AT_FILENAME], "a_reload": [consts.AttributeID.A_RELOAD, "reload", consts.AttributeType.AT_BOOL], "a_title": [consts.AttributeID.A_TITLE, "title", consts.AttributeType.AT_STRING], "a_domain_min_1d": [consts.AttributeID.A_DOMAIN_MIN_1D, "domainMin1D", consts.AttributeType.AT_FLOAT3], "a_domain_max_1d": [consts.AttributeID.A_DOMAIN_MAX_1D, "domainMax1D", consts.AttributeType.AT_FLOAT3], "a_values_1d": [consts.AttributeID.A_VALUES_1D, "values1d", consts.AttributeType.AT_FLOAT3], "a_domain_min_3d": [consts.AttributeID.A_DOMAIN_MIN_3D, "domainMin3D", consts.AttributeType.AT_FLOAT3], "a_domain_max_3d": [consts.AttributeID.A_DOMAIN_MAX_3D, "domainMax3D", consts.AttributeType.AT_FLOAT3], "a_values_3d": [consts.AttributeID.A_VALUES_3D, "values3d", consts.AttributeType.AT_FLOAT3], }
+    octane_static_pin_count=1
 
     a_filename: StringProperty(name="Filename", default="", update=OctaneBaseNode.update_node_tree, description="Stores the CSV file to load the transforms from. After loading successfully the A_TRANSFORMS and A_USER_INSTANCE_IDS attributes will be replaced by the file contents, otherwise the A_TRANSFORMS and AT_FILENAME and A_USER_INSTANCE_IDS attributes are reverted to their original value", subtype="FILE_PATH")
     a_reload: BoolProperty(name="Reload", default=False, update=OctaneBaseNode.update_node_tree, description="Set it to TRUE if the file needs a reload. After the node was evaluated the attribute will be false again")

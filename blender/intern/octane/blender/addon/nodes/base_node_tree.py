@@ -3,7 +3,7 @@ from bpy.app.handlers import persistent
 from bpy.props import StringProperty
 from bpy.utils import register_class, unregister_class
 from bl_ui.space_node import NODE_HT_header, NODE_MT_editor_menus
-from octane.utils import consts
+from octane.utils import consts, utility
 from octane import core
 
 
@@ -358,7 +358,7 @@ class NodeTreeHandler:
         NodeTreeHandler.material_node_tree_count = len(bpy.data.materials)
         NodeTreeHandler.world_node_tree_count = len(bpy.data.worlds)
         NodeTreeHandler.light_node_tree_count = NodeTreeHandler.get_light_node_tree_count(scene)
-        utility.update_active_render_aov_node_tree(bpy.context)
+        utility.update_active_render_aov_node_tree(bpy.context.view_layer)
         # Init color ramp watchers
         NodeTreeHandler.init_helper_color_ramp_watcher()
         # Init kernel and camera imager
@@ -398,15 +398,8 @@ class NodeTreeHandler:
             if node_tree and NodeTreeHandler.MATERIAL_OUTPUT_NODE_NAME in node_tree.nodes:
                 blender_output = node_tree.nodes[NodeTreeHandler.MATERIAL_OUTPUT_NODE_NAME]
                 material_node_bl_idname = utility.get_default_material_node_bl_idname()
-                if core.ENABLE_OCTANE_ADDON_CLIENT:                    
-                    output = node_tree.nodes.new("OctaneEditorMaterialOutputNode")
-                    output.location = blender_output.location
-                    NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, blender_output, output, NodeTreeHandler.SURFACE_INPUT_NAME, NodeTreeHandler.SURFACE_INPUT_NAME, material_node_bl_idname)
-                    NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, blender_output, output, NodeTreeHandler.VOLUME_INPUT_NAME, NodeTreeHandler.VOLUME_INPUT_NAME, "OctaneVolumeMedium")
-                    node_tree.nodes.remove(blender_output)
-                else:
-                    NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, blender_output, blender_output, NodeTreeHandler.SURFACE_INPUT_NAME, NodeTreeHandler.SURFACE_INPUT_NAME, material_node_bl_idname)
-                    NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, blender_output, blender_output, NodeTreeHandler.VOLUME_INPUT_NAME, NodeTreeHandler.VOLUME_INPUT_NAME, "OctaneVolumeMedium")                    
+                NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, blender_output, blender_output, NodeTreeHandler.SURFACE_INPUT_NAME, NodeTreeHandler.SURFACE_INPUT_NAME, material_node_bl_idname)
+                NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, blender_output, blender_output, NodeTreeHandler.VOLUME_INPUT_NAME, NodeTreeHandler.VOLUME_INPUT_NAME, "OctaneVolumeMedium")                    
 
         NodeTreeHandler.material_node_tree_count = len(bpy.data.materials)
         
@@ -447,16 +440,24 @@ class NodeTreeHandler:
                 if node_tree and NodeTreeHandler.LIGHT_OUTPUT_NODE_NAME in node_tree.nodes:
                     output = node_tree.nodes[NodeTreeHandler.LIGHT_OUTPUT_NODE_NAME]
                     if light_data.type == "POINT":
-                        NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, output, output, NodeTreeHandler.SURFACE_INPUT_NAME, NodeTreeHandler.SURFACE_INPUT_NAME, "ShaderNodeOctToonPointLight")
+                        NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, output, output, NodeTreeHandler.SURFACE_INPUT_NAME, NodeTreeHandler.SURFACE_INPUT_NAME, "OctaneToonPointLight")
                     elif light_data.type == "SUN":
-                        NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, output, output, NodeTreeHandler.SURFACE_INPUT_NAME, NodeTreeHandler.SURFACE_INPUT_NAME, "ShaderNodeOctToonDirectionLight")
-                    elif light_data.type in ("AREA", "MESH", "SPHERE"):
+                        NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, output, output, NodeTreeHandler.SURFACE_INPUT_NAME, NodeTreeHandler.SURFACE_INPUT_NAME, "OctaneToonDirectionalLight")
+                        light_node = node_tree.nodes["Toon directional light"]
+                        object_data_node = node_tree.nodes.new("OctaneObjectData")    
+                        object_data_node.source_type = "Object"
+                        object_data_node.object_name = active_object.name
+                        node_tree.links.new(object_data_node.outputs[object_data_node.ROTATION_OUT], light_node.inputs["Light direction"])                        
+                    elif light_data.type == "SPOT":
+                        NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, output, output, NodeTreeHandler.SURFACE_INPUT_NAME, NodeTreeHandler.SURFACE_INPUT_NAME, "OctaneVolumetricSpotlight")
+                        light_data.spot_blend = 0
+                        light_data.shadow_soft_size = 0
+                    elif light_data.type == "AREA":
                         NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, output, output, NodeTreeHandler.SURFACE_INPUT_NAME, NodeTreeHandler.SURFACE_INPUT_NAME, "OctaneDiffuseMaterial")
                         material_node = node_tree.nodes["Diffuse material"]
-                        if not material_node.inputs["Emission"].is_linked:
-                            emission_node = node_tree.nodes.new("OctaneTextureEmission")
-                            emission_node.location = (material_node.location.x - 300, material_node.location.y)
-                            node_tree.links.new(emission_node.outputs[0], material_node.inputs["Emission"])
+                        emission_node = node_tree.nodes.new("OctaneTextureEmission")
+                        node_tree.links.new(emission_node.outputs[0], material_node.inputs["Emission"])
+                    utility.beautifier_nodetree_layout(light_data)
         NodeTreeHandler.light_node_tree_count = current_light_node_tree_count
 
     @staticmethod

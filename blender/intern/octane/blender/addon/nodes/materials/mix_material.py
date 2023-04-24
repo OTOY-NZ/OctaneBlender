@@ -15,13 +15,14 @@ class OctaneMixMaterialAmount(OctaneBaseSocket):
     bl_idname="OctaneMixMaterialAmount"
     bl_label="Amount"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=31
+    octane_default_node_type=consts.NodeType.NT_TEX_FLOAT
     octane_default_node_name="OctaneGreyscaleColor"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=6)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="amount")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.500000, update=OctaneBaseSocket.update_node_tree, description="Mix amount", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
+    octane_pin_id=consts.PinID.P_AMOUNT
+    octane_pin_name="amount"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_FLOAT
+    default_value: FloatProperty(default=0.500000, update=OctaneBaseSocket.update_node_tree, description="Mix amount", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -31,12 +32,13 @@ class OctaneMixMaterialMaterial1(OctaneBaseSocket):
     bl_idname="OctaneMixMaterialMaterial1"
     bl_label="First material"
     color=consts.OctanePinColor.Material
-    octane_default_node_type=17
+    octane_default_node_type=consts.NodeType.NT_MAT_DIFFUSE
     octane_default_node_name="OctaneDiffuseMaterial"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=100)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="material1")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_MATERIAL)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_MATERIAL1
+    octane_pin_name="material1"
+    octane_pin_type=consts.PinType.PT_MATERIAL
+    octane_pin_index=1
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -46,12 +48,13 @@ class OctaneMixMaterialMaterial2(OctaneBaseSocket):
     bl_idname="OctaneMixMaterialMaterial2"
     bl_label="Second material"
     color=consts.OctanePinColor.Material
-    octane_default_node_type=17
+    octane_default_node_type=consts.NodeType.NT_MAT_DIFFUSE
     octane_default_node_name="OctaneDiffuseMaterial"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=101)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="material2")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_MATERIAL)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_MATERIAL2
+    octane_pin_name="material2"
+    octane_pin_type=consts.PinType.PT_MATERIAL
+    octane_pin_index=2
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -61,12 +64,13 @@ class OctaneMixMaterialDisplacement(OctaneBaseSocket):
     bl_idname="OctaneMixMaterialDisplacement"
     bl_label="Displacement"
     color=consts.OctanePinColor.Displacement
-    octane_default_node_type=0
+    octane_default_node_type=consts.NodeType.NT_UNKNOWN
     octane_default_node_name=""
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=34)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="displacement")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_DISPLACEMENT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_DISPLACEMENT
+    octane_pin_name="displacement"
+    octane_pin_type=consts.PinType.PT_DISPLACEMENT
+    octane_pin_index=3
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=2000000
     octane_end_version=4294967295
@@ -76,12 +80,13 @@ class OctaneMixMaterialCustomAov(OctaneBaseSocket):
     bl_idname="OctaneMixMaterialCustomAov"
     bl_label="Custom AOV"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type=57
+    octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=632)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="customAov")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
+    octane_pin_id=consts.PinID.P_CUSTOM_AOV
+    octane_pin_name="customAov"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=4
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("None", "None", "", 4096),
         ("Custom AOV 1", "Custom AOV 1", "", 0),
@@ -115,12 +120,13 @@ class OctaneMixMaterialCustomAovChannel(OctaneBaseSocket):
     bl_idname="OctaneMixMaterialCustomAovChannel"
     bl_label="Custom AOV channel"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type=57
+    octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=633)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="customAovChannel")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
+    octane_pin_id=consts.PinID.P_CUSTOM_AOV_CHANNEL
+    octane_pin_name="customAovChannel"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=5
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("All", "All", "", 0),
         ("Red", "Red", "", 1),
@@ -142,13 +148,13 @@ class OctaneMixMaterial(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneMixMaterialAmount,OctaneMixMaterialMaterial1,OctaneMixMaterialMaterial2,OctaneMixMaterialDisplacement,OctaneMixMaterialCustomAov,OctaneMixMaterialCustomAovChannel,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=19)
-    octane_socket_list: StringProperty(name="Socket List", default="Amount;First material;Second material;Displacement;Custom AOV;Custom AOV channel;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=6)
+    octane_node_type=consts.NodeType.NT_MAT_MIX
+    octane_socket_list=["Amount", "First material", "Second material", "Displacement", "Custom AOV", "Custom AOV channel", ]
+    octane_attribute_list=[]
+    octane_attribute_config={}
+    octane_static_pin_count=6
 
     def init(self, context):
         self.inputs.new("OctaneMixMaterialAmount", OctaneMixMaterialAmount.bl_label).init()

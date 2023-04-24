@@ -65,10 +65,10 @@ static void node_oct_update_output_material(bNodeTree *ntree, bNode *node)
 }
 
 static int node_shader_gpu_output_material(GPUMaterial *mat,
-                                           bNode * /*node*/,
-                                           bNodeExecData * /*execdata*/,
+                                           bNode *UNUSED(node),
+                                           bNodeExecData *UNUSED(execdata),
                                            GPUNodeStack *in,
-                                           GPUNodeStack * /*out*/)
+                                           GPUNodeStack *UNUSED(out))
 {
   GPUNodeLink *outlink_surface, *outlink_volume, *outlink_displacement, *outlink_thickness;
   /* Passthrough node in order to do the right socket conversions (important for displacement). */

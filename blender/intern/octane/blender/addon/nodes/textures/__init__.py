@@ -58,16 +58,24 @@ from . import moire_mosaic
 from . import color_squares
 from . import stripes
 from . import flakes
-from . import fractal
 from . import hagelslag
 from . import glowing_circle
 from . import curvature_texture
 from . import cell_noise
+from . import angular_field
+from . import planar_field
+from . import shape_field
+from . import spherical_field
+from . import pixel_flow
+from . import rain_bump
+from . import scratches
+from . import snow_effect
 from . import composite_texture_layer
 from . import floats_to_color
 from . import float3_to_color
 from . import capture_to_custom_aov
 from . import float_to_greyscale
+from . import circle_spiral
 from . import ray_direction
 from . import normal
 from . import position
@@ -82,6 +90,27 @@ from . import surface_tangent_dpdv
 from . import sample_position
 from . import binary_math_operation
 from . import unary_math_operation
+from . import fan_spiral
+from . import tripper
+from . import woodgrain
+from . import fbm_flow_noise
+from . import fbm_noise
+from . import fractal_flow_noise
+from . import fractal_noise
+from . import volume_cloud
+from . import mandelbulb
+from . import wave_pattern
+from . import rot_fractal
+from . import sine_wave_fan
+from . import matrix_effect
+from . import color_key
+from . import image_adjustment
+from . import jittered_color_correction
+from . import object_layer_color
+from . import color_space_conversion
+from . import instance_highlight
+from . import star_field
+from . import digits
 
 def register():
     turbulence_texture.register()
@@ -141,16 +170,24 @@ def register():
     color_squares.register()
     stripes.register()
     flakes.register()
-    fractal.register()
     hagelslag.register()
     glowing_circle.register()
     curvature_texture.register()
     cell_noise.register()
+    angular_field.register()
+    planar_field.register()
+    shape_field.register()
+    spherical_field.register()
+    pixel_flow.register()
+    rain_bump.register()
+    scratches.register()
+    snow_effect.register()
     composite_texture_layer.register()
     floats_to_color.register()
     float3_to_color.register()
     capture_to_custom_aov.register()
     float_to_greyscale.register()
+    circle_spiral.register()
     ray_direction.register()
     normal.register()
     position.register()
@@ -165,6 +202,27 @@ def register():
     sample_position.register()
     binary_math_operation.register()
     unary_math_operation.register()
+    fan_spiral.register()
+    tripper.register()
+    woodgrain.register()
+    fbm_flow_noise.register()
+    fbm_noise.register()
+    fractal_flow_noise.register()
+    fractal_noise.register()
+    volume_cloud.register()
+    mandelbulb.register()
+    wave_pattern.register()
+    rot_fractal.register()
+    sine_wave_fan.register()
+    matrix_effect.register()
+    color_key.register()
+    image_adjustment.register()
+    jittered_color_correction.register()
+    object_layer_color.register()
+    color_space_conversion.register()
+    instance_highlight.register()
+    star_field.register()
+    digits.register()
 
 def unregister():
     turbulence_texture.unregister()
@@ -224,16 +282,24 @@ def unregister():
     color_squares.unregister()
     stripes.unregister()
     flakes.unregister()
-    fractal.unregister()
     hagelslag.unregister()
     glowing_circle.unregister()
     curvature_texture.unregister()
     cell_noise.unregister()
+    angular_field.unregister()
+    planar_field.unregister()
+    shape_field.unregister()
+    spherical_field.unregister()
+    pixel_flow.unregister()
+    rain_bump.unregister()
+    scratches.unregister()
+    snow_effect.unregister()
     composite_texture_layer.unregister()
     floats_to_color.unregister()
     float3_to_color.unregister()
     capture_to_custom_aov.unregister()
     float_to_greyscale.unregister()
+    circle_spiral.unregister()
     ray_direction.unregister()
     normal.unregister()
     position.unregister()
@@ -248,5 +314,26 @@ def unregister():
     sample_position.unregister()
     binary_math_operation.unregister()
     unary_math_operation.unregister()
+    fan_spiral.unregister()
+    tripper.unregister()
+    woodgrain.unregister()
+    fbm_flow_noise.unregister()
+    fbm_noise.unregister()
+    fractal_flow_noise.unregister()
+    fractal_noise.unregister()
+    volume_cloud.unregister()
+    mandelbulb.unregister()
+    wave_pattern.unregister()
+    rot_fractal.unregister()
+    sine_wave_fan.unregister()
+    matrix_effect.unregister()
+    color_key.unregister()
+    image_adjustment.unregister()
+    jittered_color_correction.unregister()
+    object_layer_color.unregister()
+    color_space_conversion.unregister()
+    instance_highlight.unregister()
+    star_field.unregister()
+    digits.unregister()
 
 ##### END OCTANE GENERATED CODE BLOCK #####

@@ -15,12 +15,13 @@ class OctaneChecksTextureTransform(OctaneBaseSocket):
     bl_idname="OctaneChecksTextureTransform"
     bl_label="UVW transform"
     color=consts.OctanePinColor.Transform
-    octane_default_node_type=67
+    octane_default_node_type=consts.NodeType.NT_TRANSFORM_VALUE
     octane_default_node_name="OctaneTransformValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=243)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="transform")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TRANSFORM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_TRANSFORM
+    octane_pin_name="transform"
+    octane_pin_type=consts.PinType.PT_TRANSFORM
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -30,12 +31,13 @@ class OctaneChecksTextureProjection(OctaneBaseSocket):
     bl_idname="OctaneChecksTextureProjection"
     bl_label="Projection"
     color=consts.OctanePinColor.Projection
-    octane_default_node_type=75
+    octane_default_node_type=consts.NodeType.NT_PROJ_LINEAR
     octane_default_node_name="OctaneXYZToUVW"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=141)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="projection")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_PROJECTION)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_PROJECTION
+    octane_pin_name="projection"
+    octane_pin_type=consts.PinType.PT_PROJECTION
+    octane_pin_index=1
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=1210000
     octane_end_version=4294967295
@@ -50,13 +52,13 @@ class OctaneChecksTexture(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneChecksTextureTransform,OctaneChecksTextureProjection,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=45)
-    octane_socket_list: StringProperty(name="Socket List", default="UVW transform;Projection;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=2)
+    octane_node_type=consts.NodeType.NT_TEX_CHECKS
+    octane_socket_list=["UVW transform", "Projection", ]
+    octane_attribute_list=[]
+    octane_attribute_config={}
+    octane_static_pin_count=2
 
     def init(self, context):
         self.inputs.new("OctaneChecksTextureTransform", OctaneChecksTextureTransform.bl_label).init()

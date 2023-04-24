@@ -4,8 +4,6 @@
  * \ingroup imbdds
  */
 
-#include "BLI_sys_types.h" /* For `uint`. */
-
 #include <Stream.h>
 
 #include <cstdio>  /* printf */
@@ -14,7 +12,7 @@
 static const char *msg_error_seek = "DDS: trying to seek beyond end of stream (corrupt file?)";
 static const char *msg_error_read = "DDS: trying to read beyond end of stream (corrupt file?)";
 
-inline bool is_read_within_bounds(const Stream &mem, uint count)
+inline bool is_read_within_bounds(const Stream &mem, unsigned int count)
 {
   if (mem.pos >= mem.size) {
     /* No more data remained in the memory buffer. */
@@ -29,7 +27,7 @@ inline bool is_read_within_bounds(const Stream &mem, uint count)
   return true;
 }
 
-uint Stream::seek(uint p)
+unsigned int Stream::seek(unsigned int p)
 {
   if (p > size) {
     set_failed(msg_error_seek);
@@ -41,7 +39,7 @@ uint Stream::seek(uint p)
   return pos;
 }
 
-uint mem_read(Stream &mem, unsigned long long &i)
+unsigned int mem_read(Stream &mem, unsigned long long &i)
 {
   if (!is_read_within_bounds(mem, 8)) {
     mem.set_failed(msg_error_seek);
@@ -52,7 +50,7 @@ uint mem_read(Stream &mem, unsigned long long &i)
   return 8;
 }
 
-uint mem_read(Stream &mem, uint &i)
+unsigned int mem_read(Stream &mem, unsigned int &i)
 {
   if (!is_read_within_bounds(mem, 4)) {
     mem.set_failed(msg_error_read);
@@ -63,7 +61,7 @@ uint mem_read(Stream &mem, uint &i)
   return 4;
 }
 
-uint mem_read(Stream &mem, ushort &i)
+unsigned int mem_read(Stream &mem, unsigned short &i)
 {
   if (!is_read_within_bounds(mem, 2)) {
     mem.set_failed(msg_error_read);
@@ -74,7 +72,7 @@ uint mem_read(Stream &mem, ushort &i)
   return 2;
 }
 
-uint mem_read(Stream &mem, uchar &i)
+unsigned int mem_read(Stream &mem, unsigned char &i)
 {
   if (!is_read_within_bounds(mem, 1)) {
     mem.set_failed(msg_error_read);
@@ -85,7 +83,7 @@ uint mem_read(Stream &mem, uchar &i)
   return 1;
 }
 
-uint mem_read(Stream &mem, uchar *i, uint count)
+unsigned int mem_read(Stream &mem, unsigned char *i, unsigned int count)
 {
   if (!is_read_within_bounds(mem, count)) {
     mem.set_failed(msg_error_read);

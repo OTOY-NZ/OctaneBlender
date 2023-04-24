@@ -15,12 +15,13 @@ class OctaneRenderLayerEnabled(OctaneBaseSocket):
     bl_idname="OctaneRenderLayerEnabled"
     bl_label="Enable"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type=11
+    octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=42)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="enabled")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
+    octane_pin_id=consts.PinID.P_ENABLED
+    octane_pin_name="enabled"
+    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Tick to enable render layers")
     octane_hide_value=False
     octane_min_version=2200000
@@ -31,12 +32,13 @@ class OctaneRenderLayerLayerId(OctaneBaseSocket):
     bl_idname="OctaneRenderLayerLayerId"
     bl_label="Active layer ID"
     color=consts.OctanePinColor.Int
-    octane_default_node_type=9
+    octane_default_node_type=consts.NodeType.NT_INT
     octane_default_node_name="OctaneIntValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=92)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="layerId")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
+    octane_pin_id=consts.PinID.P_LAYER_ID
+    octane_pin_name="layerId"
+    octane_pin_type=consts.PinType.PT_INT
+    octane_pin_index=1
+    octane_socket_type=consts.SocketType.ST_INT
     default_value: IntProperty(default=1, update=OctaneBaseSocket.update_node_tree, description="ID of the active render layer", min=1, max=255, soft_min=1, soft_max=255, step=1, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=2200000
@@ -47,12 +49,13 @@ class OctaneRenderLayerInvert(OctaneBaseSocket):
     bl_idname="OctaneRenderLayerInvert"
     bl_label="Invert"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type=11
+    octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=83)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="invert")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
+    octane_pin_id=consts.PinID.P_INVERT
+    octane_pin_name="invert"
+    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_index=2
+    octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="All the non-active render layers become the active render layer and the active render layer becomes inactive")
     octane_hide_value=False
     octane_min_version=2200000
@@ -63,12 +66,13 @@ class OctaneRenderLayerMode(OctaneBaseSocket):
     bl_idname="OctaneRenderLayerMode"
     bl_label="Mode"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type=57
+    octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=324)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="mode")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
+    octane_pin_id=consts.PinID.P_MODE
+    octane_pin_name="mode"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=3
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("Normal", "Normal", "", 0),
         ("Hide inactive layers", "Hide inactive layers", "", 1),
@@ -85,12 +89,13 @@ class OctaneRenderLayerVisibilityOnly(OctaneBaseSocket):
     bl_idname="OctaneRenderLayerVisibilityOnly"
     bl_label="Visibility only"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type=11
+    octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=253)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="visibilityOnly")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
+    octane_pin_id=consts.PinID.P_VISIBILITY_ONLY
+    octane_pin_name="visibilityOnly"
+    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_index=4
+    octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="The layers only affect visibility i.e. objects on the non-active layer are treated as if they are not in the scene at all. Render layer passes don't work if this option is enabled")
     octane_hide_value=False
     octane_min_version=2210000
@@ -106,13 +111,13 @@ class OctaneRenderLayer(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneRenderLayerEnabled,OctaneRenderLayerLayerId,OctaneRenderLayerInvert,OctaneRenderLayerMode,OctaneRenderLayerVisibilityOnly,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=90)
-    octane_socket_list: StringProperty(name="Socket List", default="Enable;Active layer ID;Invert;Mode;Visibility only;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=5)
+    octane_node_type=consts.NodeType.NT_RENDER_LAYER
+    octane_socket_list=["Enable", "Active layer ID", "Invert", "Mode", "Visibility only", ]
+    octane_attribute_list=[]
+    octane_attribute_config={}
+    octane_static_pin_count=4
 
     def init(self, context):
         self.inputs.new("OctaneRenderLayerEnabled", OctaneRenderLayerEnabled.bl_label).init()

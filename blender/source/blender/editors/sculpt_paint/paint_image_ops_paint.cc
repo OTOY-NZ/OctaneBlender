@@ -13,9 +13,10 @@
 
 #include "BKE_brush.h"
 #include "BKE_context.h"
-#include "BKE_layer.h"
 #include "BKE_paint.h"
 #include "BKE_undo_system.h"
+
+#include "DEG_depsgraph.h"
 
 #include "ED_paint.h"
 #include "ED_view3d.h"
@@ -26,8 +27,11 @@
 #include "MEM_guardedalloc.h"
 
 #include "RNA_access.h"
+#include "RNA_define.h"
 
 #include "WM_api.h"
+#include "WM_message.h"
+#include "WM_toolsystem.h"
 #include "WM_types.h"
 
 #include "ED_image.h"
@@ -74,13 +78,16 @@ class AbstractPaintMode {
 
 class ImagePaintMode : public AbstractPaintMode {
  public:
-  void *paint_new_stroke(
-      bContext *C, wmOperator *op, Object * /*ob*/, const float /*mouse*/[2], int mode) override
+  void *paint_new_stroke(bContext *C,
+                         wmOperator *op,
+                         Object *UNUSED(ob),
+                         const float UNUSED(mouse[2]),
+                         int mode) override
   {
     return paint_2d_new_stroke(C, op, mode);
   }
 
-  void paint_stroke(bContext * /*C*/,
+  void paint_stroke(bContext *UNUSED(C),
                     void *stroke_handle,
                     float prev_mouse[2],
                     float mouse[2],
@@ -103,9 +110,9 @@ class ImagePaintMode : public AbstractPaintMode {
   }
 
   void paint_gradient_fill(const bContext *C,
-                           const Scene * /*scene*/,
+                           const Scene *UNUSED(scene),
                            Brush *brush,
-                           struct PaintStroke * /*stroke*/,
+                           struct PaintStroke *UNUSED(stroke),
                            void *stroke_handle,
                            float mouse_start[2],
                            float mouse_end[2]) override
@@ -135,7 +142,7 @@ class ImagePaintMode : public AbstractPaintMode {
 class ProjectionPaintMode : public AbstractPaintMode {
  public:
   void *paint_new_stroke(
-      bContext *C, wmOperator * /*op*/, Object *ob, const float mouse[2], int mode) override
+      bContext *C, wmOperator *UNUSED(op), Object *ob, const float mouse[2], int mode) override
   {
     return paint_proj_new_stroke(C, ob, mouse, mode);
   }
@@ -232,7 +239,7 @@ struct PaintOperation {
   }
 };
 
-static void gradient_draw_line(bContext * /*C*/, int x, int y, void *customdata)
+static void gradient_draw_line(bContext *UNUSED(C), int x, int y, void *customdata)
 {
   PaintOperation *pop = (PaintOperation *)customdata;
 
@@ -245,7 +252,7 @@ static void gradient_draw_line(bContext * /*C*/, int x, int y, void *customdata)
 
     ARegion *region = pop->vc.region;
 
-    immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+    immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
 
     GPU_line_width(4.0);
     immUniformColor4ub(0, 0, 0, 255);
@@ -286,8 +293,7 @@ static PaintOperation *texture_paint_init(bContext *C, wmOperator *op, const flo
   copy_v2_v2(pop->startmouse, mouse);
 
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  BKE_view_layer_synced_ensure(scene, view_layer);
-  Object *ob = BKE_view_layer_active_object_get(view_layer);
+  Object *ob = OBACT(view_layer);
 
   /* initialize from context */
   if (CTX_wm_region_view3d(C)) {
@@ -322,7 +328,7 @@ static PaintOperation *texture_paint_init(bContext *C, wmOperator *op, const flo
 }
 
 static void paint_stroke_update_step(bContext *C,
-                                     wmOperator * /*op*/,
+                                     wmOperator *UNUSED(op),
                                      struct PaintStroke *stroke,
                                      PointerRNA *itemptr)
 {

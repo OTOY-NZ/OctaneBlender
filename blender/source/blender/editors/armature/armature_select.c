@@ -59,7 +59,7 @@ Base *ED_armature_base_and_ebone_from_select_buffer(Base **bases,
   const uint hit_object = select_id & 0xFFFF;
   Base *base = NULL;
   EditBone *ebone = NULL;
-  /* TODO(@campbellbarton): optimize, eg: sort & binary search. */
+  /* TODO(campbell): optimize, eg: sort & binary search. */
   for (uint base_index = 0; base_index < bases_len; base_index++) {
     if (bases[base_index]->object->runtime.select_id == hit_object) {
       base = bases[base_index];
@@ -83,7 +83,7 @@ Object *ED_armature_object_and_ebone_from_select_buffer(Object **objects,
   const uint hit_object = select_id & 0xFFFF;
   Object *ob = NULL;
   EditBone *ebone = NULL;
-  /* TODO(@campbellbarton): optimize, eg: sort & binary search. */
+  /* TODO(campbell): optimize, eg: sort & binary search. */
   for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
     if (objects[ob_index]->runtime.select_id == hit_object) {
       ob = objects[ob_index];
@@ -107,7 +107,7 @@ Base *ED_armature_base_and_pchan_from_select_buffer(Base **bases,
   const uint hit_object = select_id & 0xFFFF;
   Base *base = NULL;
   bPoseChannel *pchan = NULL;
-  /* TODO(@campbellbarton): optimize, eg: sort & binary search. */
+  /* TODO(campbell): optimize, eg: sort & binary search. */
   for (uint base_index = 0; base_index < bases_len; base_index++) {
     if (bases[base_index]->object->runtime.select_id == hit_object) {
       base = bases[base_index];
@@ -339,11 +339,15 @@ static void *ed_armature_pick_bone_impl(
     Base **bases;
 
     if (vc.obedit != NULL) {
-      bases = BKE_view_layer_array_from_bases_in_edit_mode(
-          vc.scene, vc.view_layer, vc.v3d, &bases_len);
+      bases = BKE_view_layer_array_from_bases_in_mode(vc.view_layer,
+                                                      vc.v3d,
+                                                      &bases_len,
+                                                      {
+                                                          .object_mode = OB_MODE_EDIT,
+                                                      });
     }
     else {
-      bases = BKE_object_pose_base_array_get(vc.scene, vc.view_layer, vc.v3d, &bases_len);
+      bases = BKE_object_pose_base_array_get(vc.view_layer, vc.v3d, &bases_len);
     }
 
     void *bone = ed_armature_pick_bone_from_selectbuffer_impl(
@@ -495,11 +499,10 @@ static int armature_select_linked_exec(bContext *C, wmOperator *op)
   const bool all_forks = RNA_boolean_get(op->ptr, "all_forks");
 
   bool changed_multi = false;
-  const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   uint objects_len = 0;
   Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C), &objects_len);
+      view_layer, CTX_wm_view3d(C), &objects_len);
   for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
     Object *ob = objects[ob_index];
     bArmature *arm = ob->data;
@@ -715,7 +718,7 @@ cache_end:
 
   uint bases_len;
   Base **bases = BKE_view_layer_array_from_bases_in_edit_mode_unique_data(
-      vc->scene, vc->view_layer, vc->v3d, &bases_len);
+      vc->view_layer, vc->v3d, &bases_len);
 
   /* See if there are any selected bones in this group */
   if (hits > 0) {
@@ -932,7 +935,7 @@ bool ED_armature_edit_deselect_all_visible_multi(bContext *C)
   ED_view3d_viewcontext_init(C, &vc, depsgraph);
   uint bases_len = 0;
   Base **bases = BKE_view_layer_array_from_bases_in_edit_mode_unique_data(
-      vc.scene, vc.view_layer, vc.v3d, &bases_len);
+      vc.view_layer, vc.v3d, &bases_len);
   bool changed_multi = ED_armature_edit_deselect_all_multi_ex(bases, bases_len);
   MEM_freeN(bases);
   return changed_multi;
@@ -950,7 +953,6 @@ bool ED_armature_edit_select_pick_bone(bContext *C,
                                        const int selmask,
                                        const struct SelectPick_Params *params)
 {
-  const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   View3D *v3d = CTX_wm_view3d(C);
   bool changed = false;
@@ -972,7 +974,7 @@ bool ED_armature_edit_select_pick_bone(bContext *C,
       /* Deselect everything. */
       uint bases_len = 0;
       Base **bases = BKE_view_layer_array_from_bases_in_edit_mode_unique_data(
-          scene, view_layer, v3d, &bases_len);
+          view_layer, v3d, &bases_len);
       ED_armature_edit_deselect_all_multi_ex(bases, bases_len);
       MEM_freeN(bases);
       changed = true;
@@ -1103,8 +1105,7 @@ bool ED_armature_edit_select_pick_bone(bContext *C,
       arm->act_edbone = ebone;
     }
 
-    BKE_view_layer_synced_ensure(scene, view_layer);
-    if (BKE_view_layer_active_base_get(view_layer) != basact) {
+    if (view_layer->basact != basact) {
       ED_object_base_activate(C, basact);
     }
 
@@ -1451,7 +1452,7 @@ static void armature_select_more_less(Object *ob, bool more)
   bArmature *arm = (bArmature *)ob->data;
   EditBone *ebone;
 
-  /* XXX(@campbellbarton): eventually we shouldn't need this. */
+  /* XXX(campbell): eventually we shouldn't need this. */
   ED_armature_edit_sync_selection(arm->edbo);
 
   /* count bones & store selection state */
@@ -1493,11 +1494,10 @@ static void armature_select_more_less(Object *ob, bool more)
 
 static int armature_de_select_more_exec(bContext *C, wmOperator *UNUSED(op))
 {
-  const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   uint objects_len = 0;
   Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C), &objects_len);
+      view_layer, CTX_wm_view3d(C), &objects_len);
   for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
     Object *ob = objects[ob_index];
     armature_select_more_less(ob, true);
@@ -1533,11 +1533,10 @@ void ARMATURE_OT_select_more(wmOperatorType *ot)
 
 static int armature_de_select_less_exec(bContext *C, wmOperator *UNUSED(op))
 {
-  const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   uint objects_len = 0;
   Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C), &objects_len);
+      view_layer, CTX_wm_view3d(C), &objects_len);
   for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
     Object *ob = objects[ob_index];
     armature_select_more_less(ob, false);
@@ -1601,14 +1600,13 @@ static const EnumPropertyItem prop_similar_types[] = {
 static float bone_length_squared_worldspace_get(Object *ob, EditBone *ebone)
 {
   float v1[3], v2[3];
-  mul_v3_mat3_m4v3(v1, ob->object_to_world, ebone->head);
-  mul_v3_mat3_m4v3(v2, ob->object_to_world, ebone->tail);
+  mul_v3_mat3_m4v3(v1, ob->obmat, ebone->head);
+  mul_v3_mat3_m4v3(v2, ob->obmat, ebone->tail);
   return len_squared_v3v3(v1, v2);
 }
 
 static void select_similar_length(bContext *C, const float thresh)
 {
-  const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   Object *ob_act = CTX_data_edit_object(C);
   EditBone *ebone_act = CTX_data_active_bone(C);
@@ -1620,7 +1618,7 @@ static void select_similar_length(bContext *C, const float thresh)
 
   uint objects_len = 0;
   Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C), &objects_len);
+      view_layer, CTX_wm_view3d(C), &objects_len);
   for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
     Object *ob = objects[ob_index];
     bArmature *arm = ob->data;
@@ -1650,8 +1648,8 @@ static void bone_direction_worldspace_get(Object *ob, EditBone *ebone, float *r_
   copy_v3_v3(v1, ebone->head);
   copy_v3_v3(v2, ebone->tail);
 
-  mul_m4_v3(ob->object_to_world, v1);
-  mul_m4_v3(ob->object_to_world, v2);
+  mul_m4_v3(ob->obmat, v1);
+  mul_m4_v3(ob->obmat, v2);
 
   sub_v3_v3v3(r_dir, v1, v2);
   normalize_v3(r_dir);
@@ -1659,7 +1657,6 @@ static void bone_direction_worldspace_get(Object *ob, EditBone *ebone, float *r_
 
 static void select_similar_direction(bContext *C, const float thresh)
 {
-  const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   Object *ob_act = CTX_data_edit_object(C);
   EditBone *ebone_act = CTX_data_active_bone(C);
@@ -1669,7 +1666,7 @@ static void select_similar_direction(bContext *C, const float thresh)
 
   uint objects_len = 0;
   Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C), &objects_len);
+      view_layer, CTX_wm_view3d(C), &objects_len);
   for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
     Object *ob = objects[ob_index];
     bArmature *arm = ob->data;
@@ -1698,13 +1695,12 @@ static void select_similar_direction(bContext *C, const float thresh)
 
 static void select_similar_layer(bContext *C)
 {
-  const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   EditBone *ebone_act = CTX_data_active_bone(C);
 
   uint objects_len = 0;
   Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C), &objects_len);
+      view_layer, CTX_wm_view3d(C), &objects_len);
   for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
     Object *ob = objects[ob_index];
     bArmature *arm = ob->data;
@@ -1729,7 +1725,6 @@ static void select_similar_layer(bContext *C)
 
 static void select_similar_prefix(bContext *C)
 {
-  const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   EditBone *ebone_act = CTX_data_active_bone(C);
 
@@ -1744,7 +1739,7 @@ static void select_similar_prefix(bContext *C)
 
   uint objects_len = 0;
   Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C), &objects_len);
+      view_layer, CTX_wm_view3d(C), &objects_len);
   for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
     Object *ob = objects[ob_index];
     bArmature *arm = ob->data;
@@ -1772,7 +1767,6 @@ static void select_similar_prefix(bContext *C)
 
 static void select_similar_suffix(bContext *C)
 {
-  const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   EditBone *ebone_act = CTX_data_active_bone(C);
 
@@ -1787,7 +1781,7 @@ static void select_similar_suffix(bContext *C)
 
   uint objects_len = 0;
   Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C), &objects_len);
+      view_layer, CTX_wm_view3d(C), &objects_len);
   for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
     Object *ob = objects[ob_index];
     bArmature *arm = ob->data;
@@ -2112,14 +2106,13 @@ void ARMATURE_OT_select_hierarchy(wmOperatorType *ot)
  */
 static int armature_select_mirror_exec(bContext *C, wmOperator *op)
 {
-  const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   const bool active_only = RNA_boolean_get(op->ptr, "only_active");
   const bool extend = RNA_boolean_get(op->ptr, "extend");
 
   uint objects_len = 0;
   Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C), &objects_len);
+      view_layer, CTX_wm_view3d(C), &objects_len);
   for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
     Object *ob = objects[ob_index];
     bArmature *arm = ob->data;
@@ -2137,7 +2130,7 @@ static int armature_select_mirror_exec(bContext *C, wmOperator *op)
         int flag_new = extend ? EBONE_PREV_FLAG_GET(ebone) : 0;
 
         if ((ebone_mirror = ED_armature_ebone_get_mirrored(arm->edbo, ebone)) &&
-            EBONE_VISIBLE(arm, ebone_mirror)) {
+            (EBONE_VISIBLE(arm, ebone_mirror))) {
           const int flag_mirror = EBONE_PREV_FLAG_GET(ebone_mirror);
           flag_new |= flag_mirror;
 

@@ -41,10 +41,6 @@ struct OSLGlobals {
     use = false;
   }
 
-  /* per thread data */
-  static void thread_init(struct KernelGlobalsCPU *kg, OSLGlobals *osl_globals);
-  static void thread_free(struct KernelGlobalsCPU *kg);
-
   bool use;
 
   /* shading system */
@@ -60,8 +56,16 @@ struct OSLGlobals {
   OSL::ShaderGroupRef background_state;
 
   /* attributes */
+  struct Attribute {
+    TypeDesc type;
+    AttributeDescriptor desc;
+    ParamValue value;
+  };
+
+  typedef unordered_map<ustring, Attribute, ustringHash> AttributeMap;
   typedef unordered_map<ustring, int, ustringHash> ObjectNameMap;
 
+  vector<AttributeMap> attribute_map;
   ObjectNameMap object_name_map;
   vector<ustring> object_names;
 };

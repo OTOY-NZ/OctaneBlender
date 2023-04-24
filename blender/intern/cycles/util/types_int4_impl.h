@@ -1,15 +1,20 @@
 /* SPDX-License-Identifier: Apache-2.0
  * Copyright 2011-2022 Blender Foundation */
 
-#pragma once
+#ifndef __UTIL_TYPES_INT4_IMPL_H__
+#define __UTIL_TYPES_INT4_IMPL_H__
 
 #ifndef __UTIL_TYPES_H__
 #  error "Do not include this file directly, include util/types.h instead."
 #endif
 
+#ifndef __KERNEL_GPU__
+#  include <cstdio>
+#endif
+
 CCL_NAMESPACE_BEGIN
 
-#ifndef __KERNEL_NATIVE_VECTOR_TYPES__
+#if !defined(__KERNEL_GPU__) || defined(__KERNEL_ONEAPI__)
 #  ifdef __KERNEL_SSE__
 __forceinline int4::int4()
 {
@@ -40,7 +45,6 @@ __forceinline int4 &int4::operator=(const int4 &a)
 }
 #  endif /* __KERNEL_SSE__ */
 
-#  ifndef __KERNEL_GPU__
 __forceinline int int4::operator[](int i) const
 {
   util_assert(i >= 0);
@@ -54,53 +58,55 @@ __forceinline int &int4::operator[](int i)
   util_assert(i < 4);
   return *(&x + i);
 }
+
+ccl_device_inline int4 make_int4(int i)
+{
+#  ifdef __KERNEL_SSE__
+  int4 a(_mm_set1_epi32(i));
+#  else
+  int4 a = {i, i, i, i};
 #  endif
+  return a;
+}
 
 ccl_device_inline int4 make_int4(int x, int y, int z, int w)
 {
 #  ifdef __KERNEL_SSE__
-  return int4(_mm_set_epi32(w, z, y, x));
+  int4 a(_mm_set_epi32(w, z, y, x));
 #  else
-  return {x, y, z, w};
+  int4 a = {x, y, z, w};
 #  endif
+  return a;
 }
 
-#endif /* __KERNEL_NATIVE_VECTOR_TYPES__ */
-
-ccl_device_inline int4 make_int4(int i)
+ccl_device_inline int4 make_int4(const float3 &f)
 {
-#ifdef __KERNEL_SSE__
-  return int4(_mm_set1_epi32(i));
-#else
-  return make_int4(i, i, i, i);
-#endif
+#  ifdef __KERNEL_SSE__
+  int4 a(_mm_cvtps_epi32(f.m128));
+#  elif defined(__KERNEL_ONEAPI__)
+  int4 a = {(int)f.x, (int)f.y, (int)f.z, 0};
+#  else
+  int4 a = {(int)f.x, (int)f.y, (int)f.z, (int)f.w};
+#  endif
+  return a;
 }
 
-ccl_device_inline int4 make_int4(const float3 f)
+ccl_device_inline int4 make_int4(const float4 &f)
 {
-#if defined(__KERNEL_GPU__)
-  return make_int4((int)f.x, (int)f.y, (int)f.z, 0);
-#elif defined(__KERNEL_SSE__)
-  return int4(_mm_cvtps_epi32(f.m128));
-#else
-  return make_int4((int)f.x, (int)f.y, (int)f.z, (int)f.w);
-#endif
+#  ifdef __KERNEL_SSE__
+  int4 a(_mm_cvtps_epi32(f.m128));
+#  else
+  int4 a = {(int)f.x, (int)f.y, (int)f.z, (int)f.w};
+#  endif
+  return a;
 }
 
-ccl_device_inline int4 make_int4(const float4 f)
+ccl_device_inline void print_int4(const char *label, const int4 &a)
 {
-#ifdef __KERNEL_SSE__
-  return int4(_mm_cvtps_epi32(f.m128));
-#else
-  return make_int4((int)f.x, (int)f.y, (int)f.z, (int)f.w);
-#endif
-}
-
-ccl_device_inline void print_int4(ccl_private const char *label, const int4 a)
-{
-#ifdef __KERNEL_PRINTF__
   printf("%s: %d %d %d %d\n", label, a.x, a.y, a.z, a.w);
-#endif
 }
+#endif /* !defined(__KERNEL_GPU__) || defined(__KERNEL_ONEAPI__) */
 
 CCL_NAMESPACE_END
+
+#endif /* __UTIL_TYPES_INT4_IMPL_H__ */

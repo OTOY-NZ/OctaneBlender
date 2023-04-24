@@ -59,10 +59,11 @@ void BKE_blender_free(void)
 {
   /* samples are in a global list..., also sets G_MAIN->sound->sample NULL */
 
-  /* Needs to run before main free as window-manager is still referenced for icons preview jobs. */
+  /* Needs to run before main free as wm is still referenced for icons preview jobs. */
   BKE_studiolight_free();
 
-  BKE_blender_globals_clear();
+  BKE_main_free(G_MAIN);
+  G_MAIN = NULL;
 
   if (G.log.file != NULL) {
     fclose(G.log.file);
@@ -145,7 +146,7 @@ void BKE_blender_globals_init(void)
 
   U.savetime = 1;
 
-  BKE_blender_globals_main_replace(BKE_main_new());
+  G_MAIN = BKE_main_new();
 
   strcpy(G.ima, "//");
 
@@ -160,32 +161,9 @@ void BKE_blender_globals_init(void)
 
 void BKE_blender_globals_clear(void)
 {
-  if (G_MAIN == NULL) {
-    return;
-  }
-  BLI_assert(G_MAIN->is_global_main);
   BKE_main_free(G_MAIN); /* free all lib data */
 
   G_MAIN = NULL;
-}
-
-void BKE_blender_globals_main_replace(Main *bmain)
-{
-  BLI_assert(!bmain->is_global_main);
-  BKE_blender_globals_clear();
-  bmain->is_global_main = true;
-  G_MAIN = bmain;
-}
-
-Main *BKE_blender_globals_main_swap(Main *new_gmain)
-{
-  Main *old_gmain = G_MAIN;
-  BLI_assert(old_gmain->is_global_main);
-  BLI_assert(!new_gmain->is_global_main);
-  new_gmain->is_global_main = true;
-  G_MAIN = new_gmain;
-  old_gmain->is_global_main = false;
-  return old_gmain;
 }
 
 /** \} */

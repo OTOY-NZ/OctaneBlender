@@ -10,8 +10,6 @@
 #include "UI_interface.h"
 #include "UI_resources.h"
 
-#include "COM_node_operation.hh"
-
 #include "node_composite_util.hh"
 
 namespace blender::nodes::node_composite_denoise_cc {
@@ -28,7 +26,7 @@ static void cmp_node_denoise_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Color>(N_("Image"));
 }
 
-static void node_composit_init_denonise(bNodeTree * /*ntree*/, bNode *node)
+static void node_composit_init_denonise(bNodeTree *UNUSED(ntree), bNode *node)
 {
   NodeDenoise *ndg = MEM_cnew<NodeDenoise>(__func__);
   ndg->hdr = true;
@@ -36,7 +34,7 @@ static void node_composit_init_denonise(bNodeTree * /*ntree*/, bNode *node)
   node->storage = ndg;
 }
 
-static void node_composit_buts_denoise(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_composit_buts_denoise(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
 #ifndef WITH_OPENIMAGEDENOISE
   uiItemL(layout, IFACE_("Disabled, built without OpenImageDenoise"), ICON_ERROR);
@@ -54,23 +52,6 @@ static void node_composit_buts_denoise(uiLayout *layout, bContext * /*C*/, Point
   uiItemR(layout, ptr, "use_hdr", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
 }
 
-using namespace blender::realtime_compositor;
-
-class DenoiseOperation : public NodeOperation {
- public:
-  using NodeOperation::NodeOperation;
-
-  void execute() override
-  {
-    get_input("Image").pass_through(get_result("Image"));
-  }
-};
-
-static NodeOperation *get_compositor_operation(Context &context, DNode node)
-{
-  return new DenoiseOperation(context, node);
-}
-
 }  // namespace blender::nodes::node_composite_denoise_cc
 
 void register_node_type_cmp_denoise()
@@ -84,7 +65,6 @@ void register_node_type_cmp_denoise()
   ntype.draw_buttons = file_ns::node_composit_buts_denoise;
   node_type_init(&ntype, file_ns::node_composit_init_denonise);
   node_type_storage(&ntype, "NodeDenoise", node_free_standard_storage, node_copy_standard_storage);
-  ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
   nodeRegisterType(&ntype);
 }

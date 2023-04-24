@@ -141,7 +141,7 @@ AbstractHierarchyWriter *USDHierarchyIterator::create_hair_writer(const Hierarch
 }
 
 AbstractHierarchyWriter *USDHierarchyIterator::create_particle_writer(
-    const HierarchyContext * /*context*/)
+    const HierarchyContext *UNUSED(context))
 {
   return nullptr;
 }

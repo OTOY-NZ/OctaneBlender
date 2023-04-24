@@ -73,7 +73,7 @@ template<typename Key> class SimpleVectorSetSlot {
   template<typename ForwardKey, typename IsEqual>
   bool contains(const ForwardKey &key,
                 const IsEqual &is_equal,
-                uint64_t /*hash*/,
+                uint64_t UNUSED(hash),
                 const Key *keys) const
   {
     if (state_ >= 0) {
@@ -86,7 +86,7 @@ template<typename Key> class SimpleVectorSetSlot {
    * Change the state of this slot from empty/removed to occupied. The hash can be used by other
    * slot implementations.
    */
-  void occupy(int64_t index, uint64_t /*hash*/)
+  void occupy(int64_t index, uint64_t UNUSED(hash))
   {
     BLI_assert(!this->is_occupied());
     state_ = index;

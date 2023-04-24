@@ -28,7 +28,6 @@ class Progress {
     denoised_tiles = 0;
     start_time = time_dt();
     render_start_time = time_dt();
-    time_limit = 0.0;
     end_time = 0.0;
     status = "Initializing";
     substatus = "";
@@ -69,7 +68,6 @@ class Progress {
     denoised_tiles = 0;
     start_time = time_dt();
     render_start_time = time_dt();
-    time_limit = 0.0;
     end_time = 0.0;
     status = "Initializing";
     substatus = "";
@@ -147,13 +145,6 @@ class Progress {
     render_start_time = time_dt();
   }
 
-  void set_time_limit(double time_limit_)
-  {
-    thread_scoped_lock lock(progress_mutex);
-
-    time_limit = time_limit_;
-  }
-
   void add_skip_time(const scoped_timer &start_timer, bool only_render)
   {
     double skip_time = time_dt() - start_timer.get_start();
@@ -200,13 +191,8 @@ class Progress {
   {
     thread_scoped_lock lock(progress_mutex);
 
-    if (pixel_samples > 0) {
-      double progress_percent = (double)pixel_samples / (double)total_pixel_samples;
-      if (time_limit != 0.0) {
-        double time_since_render_start = time_dt() - render_start_time;
-        progress_percent = max(progress_percent, time_since_render_start / time_limit);
-      }
-      return min(1.0, progress_percent);
+    if (total_pixel_samples > 0) {
+      return ((double)pixel_samples) / (double)total_pixel_samples;
     }
     return 0.0;
   }
@@ -349,7 +335,7 @@ class Progress {
    * in which case the current_tile_sample is displayed. */
   int rendered_tiles, denoised_tiles;
 
-  double start_time, render_start_time, time_limit;
+  double start_time, render_start_time;
   /* End time written when render is done, so it doesn't keep increasing on redraws. */
   double end_time;
 

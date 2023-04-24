@@ -106,7 +106,8 @@ const char *imb_ext_audio[] = {
 /* Increased from 32 to 64 because of the bitmaps header size. */
 #define HEADER_SIZE 64
 
-static ssize_t imb_ispic_read_header_from_filepath(const char *filepath, uchar buf[HEADER_SIZE])
+static ssize_t imb_ispic_read_header_from_filepath(const char *filepath,
+                                                   unsigned char buf[HEADER_SIZE])
 {
   BLI_stat_t st;
   int fp;
@@ -134,7 +135,7 @@ static ssize_t imb_ispic_read_header_from_filepath(const char *filepath, uchar b
   return size;
 }
 
-int IMB_ispic_type_from_memory(const uchar *buf, const size_t buf_size)
+int IMB_ispic_type_from_memory(const unsigned char *buf, const size_t buf_size)
 {
   for (const ImFileType *type = IMB_FILE_TYPES; type < IMB_FILE_TYPES_LAST; type++) {
     if (type->is_a != NULL) {
@@ -149,7 +150,7 @@ int IMB_ispic_type_from_memory(const uchar *buf, const size_t buf_size)
 
 int IMB_ispic_type(const char *filepath)
 {
-  uchar buf[HEADER_SIZE];
+  unsigned char buf[HEADER_SIZE];
   const ssize_t buf_size = imb_ispic_read_header_from_filepath(filepath, buf);
   if (buf_size <= 0) {
     return IMB_FTYPE_NONE;
@@ -159,7 +160,7 @@ int IMB_ispic_type(const char *filepath)
 
 bool IMB_ispic_type_matches(const char *filepath, int filetype)
 {
-  uchar buf[HEADER_SIZE];
+  unsigned char buf[HEADER_SIZE];
   const ssize_t buf_size = imb_ispic_read_header_from_filepath(filepath, buf);
   if (buf_size <= 0) {
     return false;
@@ -250,7 +251,7 @@ const char *IMB_ffmpeg_last_error(void)
 static int isffmpeg(const char *filepath)
 {
   AVFormatContext *pFormatCtx = NULL;
-  uint i;
+  unsigned int i;
   int videoStream;
   const AVCodec *pCodec;
 

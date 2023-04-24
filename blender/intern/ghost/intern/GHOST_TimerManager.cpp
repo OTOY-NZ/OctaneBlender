@@ -26,7 +26,7 @@ GHOST_TimerManager::~GHOST_TimerManager()
 
 uint32_t GHOST_TimerManager::getNumTimers()
 {
-  return uint32_t(m_timers.size());
+  return (uint32_t)m_timers.size();
 }
 
 bool GHOST_TimerManager::getTimerFound(GHOST_TimerTask *timer)
@@ -71,11 +71,10 @@ uint64_t GHOST_TimerManager::nextFireTime()
   TTimerVector::iterator iter;
 
   for (iter = m_timers.begin(); iter != m_timers.end(); ++iter) {
-    const uint64_t next = (*iter)->getNext();
+    uint64_t next = (*iter)->getNext();
 
-    if (next < smallest) {
+    if (next < smallest)
       smallest = next;
-    }
   }
 
   return smallest;
@@ -87,9 +86,8 @@ bool GHOST_TimerManager::fireTimers(uint64_t time)
   bool anyProcessed = false;
 
   for (iter = m_timers.begin(); iter != m_timers.end(); ++iter) {
-    if (fireTimer(time, *iter)) {
+    if (fireTimer(time, *iter))
       anyProcessed = true;
-    }
   }
 
   return anyProcessed;
@@ -115,7 +113,9 @@ bool GHOST_TimerManager::fireTimer(uint64_t time, GHOST_TimerTask *task)
 
     return true;
   }
-  return false;
+  else {
+    return false;
+  }
 }
 
 void GHOST_TimerManager::disposeTimers()

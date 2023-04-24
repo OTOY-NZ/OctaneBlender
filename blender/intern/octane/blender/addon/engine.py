@@ -23,17 +23,6 @@ import bpy
 IS_RENDERING = False
 
 
-def heart_beat():
-    print('OctaneBlender Engine Heart Beat')    
-    scene = bpy.context.scene
-    oct_scene = scene.octane
-    from octane import core
-    if not core.EXCLUSIVE_OCTANE_ADDON_CLIENT_MODE:
-        import _octane
-        _octane.heart_beat()   
-    return 1
-
-
 def init():
     print("OctaneBlender Engine Init")        
     import os.path
@@ -313,5 +302,5 @@ def register_render_aov_node_graph_passes(engine, scene):
         if octane_view_layer.render_pass_style == "RENDER_PASSES":
             continue
         if layer.use:
-            from .utils import utility
+            from octane.utils import utility
             utility.engine_add_layer_passes(scene, engine, layer, enable_denoiser)

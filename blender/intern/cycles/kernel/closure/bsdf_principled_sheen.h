@@ -32,7 +32,7 @@ ccl_device_inline float calculate_avg_principled_sheen_brdf(float3 N, float3 I)
   return schlick_fresnel(NdotI) * NdotI;
 }
 
-ccl_device Spectrum
+ccl_device float3
 calculate_principled_sheen_brdf(float3 N, float3 V, float3 L, float3 H, ccl_private float *pdf)
 {
   float NdotL = dot(N, L);
@@ -40,14 +40,14 @@ calculate_principled_sheen_brdf(float3 N, float3 V, float3 L, float3 H, ccl_priv
 
   if (NdotL < 0 || NdotV < 0) {
     *pdf = 0.0f;
-    return zero_spectrum();
+    return make_float3(0.0f, 0.0f, 0.0f);
   }
 
   float LdotH = dot(L, H);
 
   float value = schlick_fresnel(LdotH) * NdotL;
 
-  return make_spectrum(value);
+  return make_float3(value, value, value);
 }
 
 ccl_device int bsdf_principled_sheen_setup(ccl_private const ShaderData *sd,
@@ -59,35 +59,48 @@ ccl_device int bsdf_principled_sheen_setup(ccl_private const ShaderData *sd,
   return SD_BSDF | SD_BSDF_HAS_EVAL;
 }
 
-ccl_device Spectrum bsdf_principled_sheen_eval(ccl_private const ShaderClosure *sc,
-                                               const float3 I,
-                                               const float3 omega_in,
-                                               ccl_private float *pdf)
+ccl_device float3 bsdf_principled_sheen_eval_reflect(ccl_private const ShaderClosure *sc,
+                                                     const float3 I,
+                                                     const float3 omega_in,
+                                                     ccl_private float *pdf)
 {
   ccl_private const PrincipledSheenBsdf *bsdf = (ccl_private const PrincipledSheenBsdf *)sc;
-  const float3 N = bsdf->N;
+
+  float3 N = bsdf->N;
+  float3 V = I;         // outgoing
+  float3 L = omega_in;  // incoming
+  float3 H = normalize(L + V);
 
   if (dot(N, omega_in) > 0.0f) {
-    const float3 V = I;         // outgoing
-    const float3 L = omega_in;  // incoming
-    const float3 H = normalize(L + V);
-
     *pdf = fmaxf(dot(N, omega_in), 0.0f) * M_1_PI_F;
     return calculate_principled_sheen_brdf(N, V, L, H, pdf);
   }
   else {
     *pdf = 0.0f;
-    return zero_spectrum();
+    return make_float3(0.0f, 0.0f, 0.0f);
   }
+}
+
+ccl_device float3 bsdf_principled_sheen_eval_transmit(ccl_private const ShaderClosure *sc,
+                                                      const float3 I,
+                                                      const float3 omega_in,
+                                                      ccl_private float *pdf)
+{
+  *pdf = 0.0f;
+  return make_float3(0.0f, 0.0f, 0.0f);
 }
 
 ccl_device int bsdf_principled_sheen_sample(ccl_private const ShaderClosure *sc,
                                             float3 Ng,
                                             float3 I,
+                                            float3 dIdx,
+                                            float3 dIdy,
                                             float randu,
                                             float randv,
-                                            ccl_private Spectrum *eval,
+                                            ccl_private float3 *eval,
                                             ccl_private float3 *omega_in,
+                                            ccl_private float3 *domega_in_dx,
+                                            ccl_private float3 *domega_in_dy,
                                             ccl_private float *pdf)
 {
   ccl_private const PrincipledSheenBsdf *bsdf = (ccl_private const PrincipledSheenBsdf *)sc;
@@ -100,9 +113,15 @@ ccl_device int bsdf_principled_sheen_sample(ccl_private const ShaderClosure *sc,
     float3 H = normalize(I + *omega_in);
 
     *eval = calculate_principled_sheen_brdf(N, I, *omega_in, H, pdf);
+
+#ifdef __RAY_DIFFERENTIALS__
+    // TODO: find a better approximation for the diffuse bounce
+    *domega_in_dx = -((2 * dot(N, dIdx)) * N - dIdx);
+    *domega_in_dy = -((2 * dot(N, dIdy)) * N - dIdy);
+#endif
   }
   else {
-    *eval = zero_spectrum();
+    *eval = make_float3(0.0f, 0.0f, 0.0f);
     *pdf = 0.0f;
   }
   return LABEL_REFLECT | LABEL_DIFFUSE;

@@ -3,6 +3,7 @@
 
 set(INC
   .
+  ../glew-mx
   ../guardedalloc
   ../../source/blender/blenlib
   ../../source/blender/gpu
@@ -31,11 +32,12 @@ if(WITH_OPENCOLORIO)
     -DWITH_OCIO
   )
 
+  add_definitions(${GL_DEFINITIONS})
   add_definitions(${OPENCOLORIO_DEFINITIONS})
 
   list(APPEND INC_SYS
     ${OPENCOLORIO_INCLUDE_DIRS}
-    ${Epoxy_INCLUDE_DIRS}
+    ${GLEW_INCLUDE_PATH}
   )
 
   list(APPEND SRC

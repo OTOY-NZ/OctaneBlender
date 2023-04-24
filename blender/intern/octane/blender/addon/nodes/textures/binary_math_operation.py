@@ -15,12 +15,13 @@ class OctaneBinaryMathOperationTexture1(OctaneBaseSocket):
     bl_idname="OctaneBinaryMathOperationTexture1"
     bl_label="Argument A"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=0
+    octane_default_node_type=consts.NodeType.NT_UNKNOWN
     octane_default_node_name=""
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=238)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="texture1")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_TEXTURE1
+    octane_pin_name="texture1"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -30,12 +31,13 @@ class OctaneBinaryMathOperationTexture2(OctaneBaseSocket):
     bl_idname="OctaneBinaryMathOperationTexture2"
     bl_label="Argument B"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=0
+    octane_default_node_type=consts.NodeType.NT_UNKNOWN
     octane_default_node_name=""
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=239)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="texture2")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_TEXTURE2
+    octane_pin_name="texture2"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=1
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -45,17 +47,16 @@ class OctaneBinaryMathOperationOperationType(OctaneBaseSocket):
     bl_idname="OctaneBinaryMathOperationOperationType"
     bl_label="Operation"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type=57
+    octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=613)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="operationType")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
+    octane_pin_id=consts.PinID.P_OPERATION_TYPE
+    octane_pin_name="operationType"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=2
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("Functions|Add", "Functions|Add", "", 0),
-        ("Functions|Cross product", "Functions|Cross product", "", 2),
         ("Functions|Divide", "Functions|Divide", "", 3),
-        ("Functions|Dot product", "Functions|Dot product", "", 4),
         ("Functions|Exponential [a^b]", "Functions|Exponential [a^b]", "", 11),
         ("Functions|Logarithm [log_b(a)]", "Functions|Logarithm [log_b(a)]", "", 6),
         ("Functions|Multiply", "Functions|Multiply", "", 10),
@@ -65,6 +66,8 @@ class OctaneBinaryMathOperationOperationType(OctaneBaseSocket):
         ("Comparison|Maximum value", "Comparison|Maximum value", "", 7),
         ("Comparison|Minimum value", "Comparison|Minimum value", "", 8),
         ("Trigonometric|Arc tangent", "Trigonometric|Arc tangent", "", 1),
+        ("Vector|Cross product", "Vector|Cross product", "", 2),
+        ("Vector|Dot product", "Vector|Dot product", "", 4),
     ]
     default_value: EnumProperty(default="Functions|Add", update=OctaneBaseSocket.update_node_tree, description="The operation to perform on the input", items=items)
     octane_hide_value=False
@@ -81,13 +84,13 @@ class OctaneBinaryMathOperation(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneBinaryMathOperationTexture1,OctaneBinaryMathOperationTexture2,OctaneBinaryMathOperationOperationType,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=339)
-    octane_socket_list: StringProperty(name="Socket List", default="Argument A;Argument B;Operation;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=3)
+    octane_node_type=consts.NodeType.NT_TEX_MATH_BINARY
+    octane_socket_list=["Argument A", "Argument B", "Operation", ]
+    octane_attribute_list=[]
+    octane_attribute_config={}
+    octane_static_pin_count=3
 
     def init(self, context):
         self.inputs.new("OctaneBinaryMathOperationTexture1", OctaneBinaryMathOperationTexture1.bl_label).init()

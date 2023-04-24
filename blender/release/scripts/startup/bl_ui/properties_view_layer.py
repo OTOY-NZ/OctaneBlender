@@ -1,7 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
-from bpy.types import Menu, Panel, UIList, ViewLayer
-
-from rna_prop_ui import PropertyPanel
+from bpy.types import Menu, Panel, UIList
 
 
 class VIEWLAYER_UL_aov(UIList):
@@ -91,7 +89,6 @@ class VIEWLAYER_PT_eevee_next_layer_passes_data(ViewLayerButtonsPanel, Panel):
         layout.use_property_split = True
         layout.use_property_decorate = False
 
-        scene = context.scene
         view_layer = context.view_layer
 
         col = layout.column()
@@ -100,9 +97,7 @@ class VIEWLAYER_PT_eevee_next_layer_passes_data(ViewLayerButtonsPanel, Panel):
         col.prop(view_layer, "use_pass_mist")
         col.prop(view_layer, "use_pass_normal")
         col.prop(view_layer, "use_pass_position")
-        sub = col.column()
-        sub.active = not scene.eevee.use_motion_blur
-        sub.prop(view_layer, "use_pass_vector")
+        col.prop(view_layer, "use_pass_vector")
 
 
 class VIEWLAYER_PT_eevee_layer_passes_light(ViewLayerButtonsPanel, Panel):
@@ -219,7 +214,7 @@ class ViewLayerCryptomattePanel(ViewLayerButtonsPanel, Panel):
 
 class VIEWLAYER_PT_layer_passes_cryptomatte(ViewLayerCryptomattePanel, Panel):
     bl_parent_id = "VIEWLAYER_PT_layer_passes"
-    COMPAT_ENGINES = {'BLENDER_EEVEE', 'BLENDER_EEVEE_NEXT'}
+    COMPAT_ENGINES = {'BLENDER_EEVEE'}
 
 
 class VIEWLAYER_MT_lightgroup_sync(Menu):
@@ -261,14 +256,6 @@ class VIEWLAYER_PT_layer_passes_lightgroups(ViewLayerLightgroupsPanel):
     COMPAT_ENGINES = {'CYCLES'}
 
 
-class VIEWLAYER_PT_layer_custom_props(PropertyPanel, Panel):
-    bl_space_type = 'PROPERTIES'
-    bl_region_type = 'WINDOW'
-    bl_context = "view_layer"
-    _context_path = "view_layer"
-    _property_type = ViewLayer
-
-
 classes = (
     VIEWLAYER_MT_lightgroup_sync,
     VIEWLAYER_PT_layer,
@@ -280,7 +267,6 @@ classes = (
     VIEWLAYER_PT_layer_passes_cryptomatte,
     VIEWLAYER_PT_layer_passes_aov,
     VIEWLAYER_PT_layer_passes_lightgroups,
-    VIEWLAYER_PT_layer_custom_props,
     VIEWLAYER_UL_aov,
 )
 

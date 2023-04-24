@@ -14,12 +14,8 @@
 struct Depsgraph;
 struct GridPaintMask;
 struct MDisps;
-struct MEdge;
 struct Mesh;
-struct MLoop;
-struct MPoly;
 struct MultiresModifierData;
-struct MVert;
 struct Object;
 struct Subdiv;
 struct SubdivCCG;
@@ -34,10 +30,6 @@ typedef struct MultiresReshapeContext {
   /* Base mesh from original object.
    * NOTE: Does NOT include any leading modifiers in it. */
   struct Mesh *base_mesh;
-  const struct MVert *base_verts;
-  const struct MEdge *base_edges;
-  const struct MPoly *base_polys;
-  const struct MLoop *base_loops;
 
   /* Subdivision surface created for multires modifier.
    *
@@ -101,8 +93,6 @@ typedef struct MultiresReshapeContext {
 
   /* Vertex crease custom data layer, null if none is present. */
   const float *cd_vertex_crease;
-  /* Edge crease custom data layer, null if none is present. */
-  const float *cd_edge_crease;
 } MultiresReshapeContext;
 
 /**

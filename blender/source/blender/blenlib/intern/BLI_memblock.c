@@ -5,6 +5,7 @@
  * \ingroup bli
  *
  * Dead simple, fast memory allocator for allocating many elements of the same size.
+ *
  */
 
 #include <stdlib.h>

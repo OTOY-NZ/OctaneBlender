@@ -51,7 +51,8 @@ static void simulation_init_data(ID *id)
 
   MEMCPY_STRUCT_AFTER(simulation, DNA_struct_default_get(Simulation), id);
 
-  ntreeAddTreeEmbedded(nullptr, id, "Geometry Nodetree", ntreeType_Geometry->idname);
+  bNodeTree *ntree = ntreeAddTree(nullptr, "Geometry Nodetree", ntreeType_Geometry->idname);
+  simulation->nodetree = ntree;
 }
 
 static void simulation_copy_data(Main *bmain, ID *id_dst, const ID *id_src, const int flag)
@@ -67,7 +68,6 @@ static void simulation_copy_data(Main *bmain, ID *id_dst, const ID *id_src, cons
                    (ID *)simulation_src->nodetree,
                    (ID **)&simulation_dst->nodetree,
                    flag_private_id_data);
-    simulation_dst->nodetree->owner_id = &simulation_dst->id;
   }
 }
 
@@ -149,7 +149,7 @@ IDTypeInfo IDType_ID_SIM = {
     /* foreach_id */ simulation_foreach_id,
     /* foreach_cache */ nullptr,
     /* foreach_path */ nullptr,
-    /* owner_pointer_get */ nullptr,
+    /* owner_get */ nullptr,
 
     /* blend_write */ simulation_blend_write,
     /* blend_read_data */ simulation_blend_read_data,
@@ -167,8 +167,8 @@ void *BKE_simulation_add(Main *bmain, const char *name)
   return simulation;
 }
 
-void BKE_simulation_data_update(Depsgraph * /*depsgraph*/,
-                                Scene * /*scene*/,
-                                Simulation * /*simulation*/)
+void BKE_simulation_data_update(Depsgraph *UNUSED(depsgraph),
+                                Scene *UNUSED(scene),
+                                Simulation *UNUSED(simulation))
 {
 }

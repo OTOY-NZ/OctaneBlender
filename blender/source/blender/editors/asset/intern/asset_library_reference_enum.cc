@@ -97,8 +97,10 @@ const EnumPropertyItem *ED_asset_library_reference_to_rna_enum_itemf(
     RNA_enum_item_add_separator(&item, &totitem);
   }
 
-  int i;
-  LISTBASE_FOREACH_INDEX (bUserAssetLibrary *, user_library, &U.asset_libraries, i) {
+  int i = 0;
+  for (bUserAssetLibrary *user_library = (bUserAssetLibrary *)U.asset_libraries.first;
+       user_library;
+       user_library = user_library->next, i++) {
     /* Note that the path itself isn't checked for validity here. If an invalid library path is
      * used, the Asset Browser can give a nice hint on what's wrong. */
     const bool is_valid = (user_library->name[0] && user_library->path[0]);

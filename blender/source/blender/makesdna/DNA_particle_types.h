@@ -159,7 +159,7 @@ typedef struct SPHFluidSettings {
   char _pad[6];
 } SPHFluidSettings;
 
-/** #SPHFluidSettings.flag */
+/* fluid->flag */
 #define SPH_VISCOELASTIC_SPRINGS 1
 #define SPH_CURRENT_REST_LENGTH 2
 #define SPH_FAC_REPULSION 4
@@ -168,7 +168,7 @@ typedef struct SPHFluidSettings {
 #define SPH_FAC_VISCOSITY 32
 #define SPH_FAC_REST_LENGTH 64
 
-/** #SPHFluidSettings.solver (numerical ID field, not bit-field). */
+/* fluid->solver (numerical ID field, not bitfield) */
 #define SPH_SOLVER_DDR 0
 #define SPH_SOLVER_CLASSICAL 1
 
@@ -279,7 +279,7 @@ typedef struct ParticleSettings {
   struct PartDeflect *pd;
   struct PartDeflect *pd2;
 
-  /* Evaluated mesh support. */
+  /* modified dm support */
   short use_modifier_stack;
   char _pad5[2];
 
@@ -472,7 +472,7 @@ enum {
 #define PART_REACT_MULTIPLE 2
 
 //#define PART_LOOP         4   /* not used anymore */
-/* For dope-sheet. */
+/* for dopesheet */
 #define PART_DS_EXPAND 8
 
 #define PART_HAIR_REGROW 16 /* regrow hair for each frame */

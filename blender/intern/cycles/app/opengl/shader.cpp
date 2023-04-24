@@ -6,7 +6,7 @@
 #include "util/log.h"
 #include "util/string.h"
 
-#include <epoxy/gl.h>
+#include <GL/glew.h>
 
 CCL_NAMESPACE_BEGIN
 

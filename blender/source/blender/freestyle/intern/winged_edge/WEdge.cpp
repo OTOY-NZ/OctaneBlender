@@ -9,8 +9,6 @@
 
 #include "WEdge.h"
 
-#include "BLI_sys_types.h"
-
 namespace Freestyle {
 
 /** Temporary structures */
@@ -453,7 +451,7 @@ WShape *WFace::getShape()
  *                                *
  **********************************/
 
-uint WShape::_SceneCurrentId = 0;
+unsigned WShape::_SceneCurrentId = 0;
 
 WShape *WShape::duplicate()
 {
@@ -502,7 +500,7 @@ WShape::WShape(WShape &iBrother)
   for (v = _VertexList.begin(); v != vend; ++v) {
     const vector<WEdge *> &vedgeList = (*v)->GetEdges();
     vector<WEdge *> newvedgelist;
-    uint i;
+    unsigned int i;
     for (i = 0; i < vedgeList.size(); i++) {
       WEdge *current = vedgeList[i];
       edgedata *currentvedata = (edgedata *)current->userdata;
@@ -538,11 +536,11 @@ WShape::WShape(WShape &iBrother)
 
   fend = _FaceList.end();
   for (f = _FaceList.begin(); f != fend; ++f) {
-    uint i;
+    unsigned int i;
     const vector<WOEdge *> &oedgeList = (*f)->getEdgeList();
     vector<WOEdge *> newoedgelist;
 
-    uint n = oedgeList.size();
+    unsigned int n = oedgeList.size();
     for (i = 0; i < n; i++) {
       WOEdge *current = oedgeList[i];
       oedgedata *currentoedata = (oedgedata *)current->userdata;
@@ -587,7 +585,7 @@ WShape::WShape(WShape &iBrother)
 
 WFace *WShape::MakeFace(vector<WVertex *> &iVertexList,
                         vector<bool> &iFaceEdgeMarksList,
-                        uint iMaterial)
+                        unsigned iMaterial)
 {
   // allocate the new face
   WFace *face = instanciateFace();
@@ -603,7 +601,7 @@ WFace *WShape::MakeFace(vector<WVertex *> &iVertexList,
                         vector<Vec3f> &iNormalsList,
                         vector<Vec2f> &iTexCoordsList,
                         vector<bool> &iFaceEdgeMarksList,
-                        uint iMaterial)
+                        unsigned iMaterial)
 {
   // allocate the new face
   WFace *face = MakeFace(iVertexList, iFaceEdgeMarksList, iMaterial);
@@ -622,7 +620,7 @@ WFace *WShape::MakeFace(vector<WVertex *> &iVertexList,
 
 WFace *WShape::MakeFace(vector<WVertex *> &iVertexList,
                         vector<bool> &iFaceEdgeMarksList,
-                        uint iMaterial,
+                        unsigned iMaterial,
                         WFace *face)
 {
   int id = _FaceList.size();

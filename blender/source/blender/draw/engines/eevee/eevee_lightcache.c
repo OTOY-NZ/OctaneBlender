@@ -591,26 +591,23 @@ static void eevee_lightbake_context_enable(EEVEE_LightBake *lbake)
   if (GPU_use_main_context_workaround() && !BLI_thread_is_main()) {
     GPU_context_main_lock();
     DRW_opengl_context_enable();
-    GPU_render_begin();
     return;
   }
 
   if (lbake->gl_context) {
     DRW_opengl_render_context_enable(lbake->gl_context);
     if (lbake->gpu_context == NULL) {
-      lbake->gpu_context = GPU_context_create(NULL, lbake->gl_context);
+      lbake->gpu_context = GPU_context_create(NULL);
     }
     DRW_gpu_render_context_enable(lbake->gpu_context);
   }
   else {
     DRW_opengl_context_enable();
   }
-  GPU_render_begin();
 }
 
 static void eevee_lightbake_context_disable(EEVEE_LightBake *lbake)
 {
-  GPU_render_end();
   if (GPU_use_main_context_workaround() && !BLI_thread_is_main()) {
     DRW_opengl_context_disable();
     GPU_context_main_unlock();
@@ -639,10 +636,7 @@ static void eevee_lightbake_count_probes(EEVEE_LightBake *lbake)
   /* At least one of each for the world */
   lbake->grid_len = lbake->cube_len = lbake->total_irr_samples = 1;
 
-  DEGObjectIterSettings deg_iter_settings = {0};
-  deg_iter_settings.depsgraph = depsgraph;
-  deg_iter_settings.flags = DEG_OBJECT_ITER_FOR_RENDER_ENGINE_FLAGS;
-  DEG_OBJECT_ITER_BEGIN (&deg_iter_settings, ob) {
+  DEG_OBJECT_ITER_FOR_RENDER_ENGINE_BEGIN (depsgraph, ob) {
     const int ob_visibility = BKE_object_visibility(ob, DAG_EVAL_RENDER);
     if ((ob_visibility & OB_VISIBLE_SELF) == 0) {
       continue;
@@ -661,7 +655,7 @@ static void eevee_lightbake_count_probes(EEVEE_LightBake *lbake)
       }
     }
   }
-  DEG_OBJECT_ITER_END;
+  DEG_OBJECT_ITER_FOR_RENDER_ENGINE_END;
 }
 
 static void eevee_lightbake_create_render_target(EEVEE_LightBake *lbake, int rt_res)
@@ -855,7 +849,7 @@ static void eevee_lightbake_delete_resources(EEVEE_LightBake *lbake)
     DRW_opengl_context_enable();
   }
 
-  /* XXX: Free the resources contained in the view-layer data
+  /* XXX Free the resources contained in the viewlayer data
    * to be able to free the context before deleting the depsgraph. */
   if (lbake->sldata) {
     EEVEE_view_layer_data_free(lbake->sldata);
@@ -1285,10 +1279,7 @@ static void eevee_lightbake_gather_probes(EEVEE_LightBake *lbake)
 
   /* Convert all lightprobes to tight UBO data from all lightprobes in the scene.
    * This allows a large number of probe to be precomputed (even dupli ones). */
-  DEGObjectIterSettings deg_iter_settings = {0};
-  deg_iter_settings.depsgraph = depsgraph;
-  deg_iter_settings.flags = DEG_OBJECT_ITER_FOR_RENDER_ENGINE_FLAGS;
-  DEG_OBJECT_ITER_BEGIN (&deg_iter_settings, ob) {
+  DEG_OBJECT_ITER_FOR_RENDER_ENGINE_BEGIN (depsgraph, ob) {
     const int ob_visibility = BKE_object_visibility(ob, DAG_EVAL_RENDER);
     if ((ob_visibility & OB_VISIBLE_SELF) == 0) {
       continue;
@@ -1309,7 +1300,7 @@ static void eevee_lightbake_gather_probes(EEVEE_LightBake *lbake)
       }
     }
   }
-  DEG_OBJECT_ITER_END;
+  DEG_OBJECT_ITER_FOR_RENDER_ENGINE_END;
 
   SORT_PROBE(EEVEE_LightGrid,
              lbake->grid_prb + 1,

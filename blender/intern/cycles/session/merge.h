@@ -9,7 +9,7 @@
 
 CCL_NAMESPACE_BEGIN
 
-/* Merge OpenEXR multi-layer renders. */
+/* Merge OpenEXR multilayer renders. */
 
 class ImageMerger {
  public:

@@ -174,7 +174,8 @@ static void wm_dropbox_invoke(bContext *C, wmDrag *drag)
   }
 }
 
-wmDrag *WM_drag_data_create(bContext *C, int icon, int type, void *poin, double value, uint flags)
+wmDrag *WM_drag_data_create(
+    bContext *C, int icon, int type, void *poin, double value, unsigned int flags)
 {
   wmDrag *drag = MEM_cnew<wmDrag>(__func__);
 
@@ -233,7 +234,8 @@ void WM_event_start_prepared_drag(bContext *C, wmDrag *drag)
   wm_dropbox_invoke(C, drag);
 }
 
-void WM_event_start_drag(bContext *C, int icon, int type, void *poin, double value, uint flags)
+void WM_event_start_drag(
+    bContext *C, int icon, int type, void *poin, double value, unsigned int flags)
 {
   wmDrag *drag = WM_drag_data_create(C, icon, type, poin, value, flags);
   WM_event_start_prepared_drag(C, drag);
@@ -471,7 +473,7 @@ void wm_drop_prepare(bContext *C, wmDrag *drag, wmDropBox *drop)
   wm_drags_exit(CTX_wm_manager(C), CTX_wm_window(C));
 }
 
-void wm_drop_end(bContext *C, wmDrag * /*drag*/, wmDropBox * /*drop*/)
+void wm_drop_end(bContext *C, wmDrag *UNUSED(drag), wmDropBox *UNUSED(drop))
 {
   CTX_store_set(C, nullptr);
 }
@@ -496,7 +498,7 @@ void wm_drags_check_ops(bContext *C, const wmEvent *event)
   }
 }
 
-wmOperatorCallContext wm_drop_operator_context_get(const wmDropBox * /*drop*/)
+wmOperatorCallContext wm_drop_operator_context_get(const wmDropBox *UNUSED(drop))
 {
   return WM_OP_INVOKE_DEFAULT;
 }
@@ -585,7 +587,7 @@ wmDragAsset *WM_drag_get_asset_data(const wmDrag *drag, int idcode)
   }
 
   wmDragAsset *asset_drag = static_cast<wmDragAsset *>(drag->poin);
-  return ELEM(idcode, 0, asset_drag->id_type) ? asset_drag : nullptr;
+  return (ELEM(idcode, 0, asset_drag->id_type)) ? asset_drag : nullptr;
 }
 
 AssetMetaData *WM_drag_get_asset_meta_data(const wmDrag *drag, int idcode)
@@ -818,7 +820,10 @@ static int wm_drag_imbuf_icon_height_get(const wmDrag *drag)
   return round_fl_to_int(drag->imb->y * drag->imbuf_scale);
 }
 
-static void wm_drag_draw_icon(bContext * /*C*/, wmWindow * /*win*/, wmDrag *drag, const int xy[2])
+static void wm_drag_draw_icon(bContext *UNUSED(C),
+                              wmWindow *UNUSED(win),
+                              wmDrag *drag,
+                              const int xy[2])
 {
   int x, y;
 
@@ -832,7 +837,7 @@ static void wm_drag_draw_icon(bContext * /*C*/, wmWindow * /*win*/, wmDrag *drag
     y = xy[1] - (wm_drag_imbuf_icon_height_get(drag) / 2);
 
     const float col[4] = {1.0f, 1.0f, 1.0f, 0.65f}; /* this blends texture */
-    IMMDrawPixelsTexState state = immDrawPixelsTexSetup(GPU_SHADER_3D_IMAGE_COLOR);
+    IMMDrawPixelsTexState state = immDrawPixelsTexSetup(GPU_SHADER_2D_IMAGE_COLOR);
     immDrawPixelsTexTiled_scaling(&state,
                                   x,
                                   y,
@@ -853,8 +858,7 @@ static void wm_drag_draw_icon(bContext * /*C*/, wmWindow * /*win*/, wmDrag *drag
     y = xy[1] - 2 * UI_DPI_FAC;
 
     const uchar text_col[] = {255, 255, 255, 255};
-    UI_icon_draw_ex(
-        x, y, drag->icon, U.inv_dpi_fac, 0.8, 0.0f, text_col, false, UI_NO_ICON_OVERLAY_TEXT);
+    UI_icon_draw_ex(x, y, drag->icon, U.inv_dpi_fac, 0.8, 0.0f, text_col, false);
   }
 }
 
@@ -865,7 +869,10 @@ static void wm_drag_draw_item_name(wmDrag *drag, const int x, const int y)
   UI_fontstyle_draw_simple(fstyle, x, y, WM_drag_get_item_name(drag), text_col);
 }
 
-void WM_drag_draw_item_name_fn(bContext * /*C*/, wmWindow * /*win*/, wmDrag *drag, const int xy[2])
+void WM_drag_draw_item_name_fn(bContext *UNUSED(C),
+                               wmWindow *UNUSED(win),
+                               wmDrag *drag,
+                               const int xy[2])
 {
   int x = xy[0] + 10 * UI_DPI_FAC;
   int y = xy[1] + 1 * UI_DPI_FAC;

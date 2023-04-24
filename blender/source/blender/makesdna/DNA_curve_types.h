@@ -439,9 +439,9 @@ enum {
 
 /* *************** BEZTRIPLE **************** */
 
-/** #BezTriple.f1, #BezTriple.f2, #BezTriple.f3. */
+/* BezTriple.f1,2,3 */
 typedef enum eBezTriple_Flag {
-  /* `SELECT = (1 << 0)` */
+  /* SELECT */
   BEZT_FLAG_TEMP_TAG = (1 << 1), /* always clear. */
   /* Can be used to ignore keyframe points for certain operations. */
   BEZT_FLAG_IGNORE_TAG = (1 << 2),

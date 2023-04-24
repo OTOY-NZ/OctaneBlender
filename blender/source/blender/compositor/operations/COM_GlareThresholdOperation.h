@@ -18,7 +18,7 @@ class GlareThresholdOperation : public MultiThreadedOperation {
   /**
    * \brief settings of the glare node.
    */
-  const NodeGlare *settings_;
+  NodeGlare *settings_;
 
  public:
   GlareThresholdOperation();
@@ -38,7 +38,7 @@ class GlareThresholdOperation : public MultiThreadedOperation {
    */
   void deinit_execution() override;
 
-  void set_glare_settings(const NodeGlare *settings)
+  void set_glare_settings(NodeGlare *settings)
   {
     settings_ = settings;
   }

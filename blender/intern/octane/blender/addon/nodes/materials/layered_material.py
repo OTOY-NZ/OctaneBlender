@@ -15,12 +15,13 @@ class OctaneLayeredMaterialMaterial1(OctaneBaseSocket):
     bl_idname="OctaneLayeredMaterialMaterial1"
     bl_label="Base Material"
     color=consts.OctanePinColor.Material
-    octane_default_node_type=17
+    octane_default_node_type=consts.NodeType.NT_MAT_DIFFUSE
     octane_default_node_name="OctaneDiffuseMaterial"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=100)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="material1")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_MATERIAL)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_MATERIAL1
+    octane_pin_name="material1"
+    octane_pin_type=consts.PinType.PT_MATERIAL
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -30,12 +31,13 @@ class OctaneLayeredMaterialCustomAov(OctaneBaseSocket):
     bl_idname="OctaneLayeredMaterialCustomAov"
     bl_label="Custom AOV"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type=57
+    octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=632)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="customAov")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
+    octane_pin_id=consts.PinID.P_CUSTOM_AOV
+    octane_pin_name="customAov"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=1
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("None", "None", "", 4096),
         ("Custom AOV 1", "Custom AOV 1", "", 0),
@@ -69,12 +71,13 @@ class OctaneLayeredMaterialCustomAovChannel(OctaneBaseSocket):
     bl_idname="OctaneLayeredMaterialCustomAovChannel"
     bl_label="Custom AOV channel"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type=57
+    octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=633)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="customAovChannel")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
+    octane_pin_id=consts.PinID.P_CUSTOM_AOV_CHANNEL
+    octane_pin_name="customAovChannel"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=2
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("All", "All", "", 0),
         ("Red", "Red", "", 1),
@@ -96,15 +99,16 @@ class OctaneLayeredMaterial(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneLayeredMaterialMaterial1,OctaneLayeredMaterialCustomAov,OctaneLayeredMaterialCustomAovChannel,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=143)
-    octane_socket_list: StringProperty(name="Socket List", default="Base Material;Custom AOV;Custom AOV channel;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="a_pin_count;")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="pin_count;")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="2;")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=3)
+    octane_node_type=consts.NodeType.NT_MAT_LAYER
+    octane_socket_list=["Base Material", "Custom AOV", "Custom AOV channel", ]
+    octane_attribute_list=["a_pin_count", "a_compatibility_version", ]
+    octane_attribute_config={"a_pin_count": [consts.AttributeID.A_PIN_COUNT, "pin_count", consts.AttributeType.AT_INT], "a_input_action": [consts.AttributeID.A_INPUT_ACTION, "inputAction", consts.AttributeType.AT_INT2], "a_compatibility_version": [consts.AttributeID.A_COMPATIBILITY_VERSION, "compatibilityVersion", consts.AttributeType.AT_INT], }
+    octane_static_pin_count=3
 
     a_pin_count: IntProperty(name="Pin count", default=0, update=OctaneBaseNode.update_node_tree, description="The number of material layers. New material layer pins will be added to the end of the pin list")
+    a_compatibility_version: IntProperty(name="Compatibility version", default=12000007, update=OctaneBaseNode.update_node_tree, description="The Octane version that the behavior of this node should match")
 
     def init(self, context):
         self.inputs.new("OctaneLayeredMaterialMaterial1", OctaneLayeredMaterialMaterial1.bl_label).init()

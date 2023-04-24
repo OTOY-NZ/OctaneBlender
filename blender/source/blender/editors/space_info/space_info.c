@@ -28,8 +28,6 @@
 #include "UI_resources.h"
 #include "UI_view2d.h"
 
-#include "BLO_read_write.h"
-
 #include "info_intern.h" /* own include */
 
 /* ******************** default callbacks for info space ***************** */
@@ -188,7 +186,7 @@ static void info_header_region_draw(const bContext *C, ARegion *region)
 static void info_main_region_listener(const wmRegionListenerParams *params)
 {
   ARegion *region = params->region;
-  const wmNotifier *wmn = params->notifier;
+  wmNotifier *wmn = params->notifier;
 
   /* context changes */
   switch (wmn->category) {
@@ -204,7 +202,7 @@ static void info_main_region_listener(const wmRegionListenerParams *params)
 static void info_header_listener(const wmRegionListenerParams *params)
 {
   ARegion *region = params->region;
-  const wmNotifier *wmn = params->notifier;
+  wmNotifier *wmn = params->notifier;
 
   /* context changes */
   switch (wmn->category) {
@@ -250,18 +248,13 @@ static void info_header_region_message_subscribe(const wmRegionMessageSubscribeP
   WM_msg_subscribe_rna_anon_prop(mbus, ViewLayer, name, &msg_sub_value_region_tag_redraw);
 }
 
-static void info_blend_write(BlendWriter *writer, SpaceLink *sl)
-{
-  BLO_write_struct(writer, SpaceInfo, sl);
-}
-
 void ED_spacetype_info(void)
 {
   SpaceType *st = MEM_callocN(sizeof(SpaceType), "spacetype info");
   ARegionType *art;
 
   st->spaceid = SPACE_INFO;
-  STRNCPY(st->name, "Info");
+  strncpy(st->name, "Info", BKE_ST_MAXNAME);
 
   st->create = info_create;
   st->free = info_free;
@@ -269,7 +262,6 @@ void ED_spacetype_info(void)
   st->duplicate = info_duplicate;
   st->operatortypes = info_operatortypes;
   st->keymap = info_keymap;
-  st->blend_write = info_blend_write;
 
   /* regions: main window */
   art = MEM_callocN(sizeof(ARegionType), "spacetype info region");

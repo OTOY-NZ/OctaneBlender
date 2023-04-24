@@ -496,7 +496,7 @@ bool BVHMetal::build_BLAS_pointcloud(Progress &progress,
       num_motion_steps = pointcloud->get_motion_steps();
     }
 
-    const size_t num_aabbs = num_motion_steps * num_points;
+    const size_t num_aabbs = num_motion_steps;
 
     MTLResourceOptions storage_mode;
     if (device.hasUnifiedMemory) {
@@ -755,10 +755,6 @@ bool BVHMetal::build_TLAS(Progress &progress,
       else {
         num_motion_transforms++;
       }
-    }
-
-    if (num_instances == 0) {
-      return false;
     }
 
     /*------------------------------------------------*/

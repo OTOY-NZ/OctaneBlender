@@ -20,13 +20,13 @@ class OctaneVertexDisplacementMixer(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=151)
-    octane_socket_list: StringProperty(name="Socket List", default="")
-    octane_attribute_list: StringProperty(name="Attribute List", default="a_displacement_count;")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="displacementCount;")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="2;")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=0)
+    octane_node_type=consts.NodeType.NT_VERTEX_DISPLACEMENT_MIXER
+    octane_socket_list=[]
+    octane_attribute_list=["a_displacement_count", ]
+    octane_attribute_config={"a_displacement_count": [consts.AttributeID.A_DISPLACEMENT_COUNT, "displacementCount", consts.AttributeType.AT_INT], }
+    octane_static_pin_count=0
 
     a_displacement_count: IntProperty(name="Displacement count", default=0, update=OctaneBaseNode.update_node_tree, description="The number of vertex displacements to mix")
 
@@ -50,8 +50,8 @@ def unregister():
 
 ##### END OCTANE GENERATED CODE BLOCK #####
 
-from ...utils import utility
-from ..base_socket import OctanePatternInput
+from octane.utils import utility
+from octane.nodes.base_socket import OctanePatternInput
 
 
 class OctaneVertexDisplacementMixerBlendWeightMovableInput(OctanePatternInput):
@@ -60,7 +60,8 @@ class OctaneVertexDisplacementMixerBlendWeightMovableInput(OctanePatternInput):
     octane_input_pattern=r"Blend weight \d+"
     octane_input_format_pattern="Blend weight {}"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type="OctaneGreyscaleColor"
+    octane_default_node_type=consts.NodeType.NT_TEX_FLOAT
+    octane_default_node_name="OctaneGreyscaleColor"
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")

@@ -15,12 +15,13 @@ class OctaneImageAOVOutputColorSpace(OctaneBaseSocket):
     bl_idname="OctaneImageAOVOutputColorSpace"
     bl_label="Color space"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type=57
+    octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=616)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="colorSpace")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
+    octane_pin_id=consts.PinID.P_COLOR_SPACE
+    octane_pin_name="colorSpace"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("sRGB", "sRGB", "", 1),
         ("Linear sRGB", "Linear sRGB", "", 2),
@@ -35,16 +36,17 @@ class OctaneImageAOVOutputOutputChannels(OctaneBaseSocket):
     bl_idname="OctaneImageAOVOutputOutputChannels"
     bl_label="Output channels"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type=57
+    octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=615)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="outputChannels")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
+    octane_pin_id=consts.PinID.P_OUTPUT_CHANNELS
+    octane_pin_name="outputChannels"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=1
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("RGBA", "RGBA", "", 0),
         ("RGB", "RGB", "", 1),
-        ("ALPHA", "ALPHA", "", 2),
+        ("Alpha", "Alpha", "", 2),
     ]
     default_value: EnumProperty(default="RGBA", update=OctaneBaseSocket.update_node_tree, description="Select output channels type of this node. Can be set to one of enum ChannelGroups", items=items)
     octane_hide_value=False
@@ -56,13 +58,14 @@ class OctaneImageAOVOutputImager(OctaneBaseSocket):
     bl_idname="OctaneImageAOVOutputImager"
     bl_label="Enable imager"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type=11
+    octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=78)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="imager")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="If enabled, The imager settings is applied on the final AOV output. Otherwise ignored  Only used/vaild if this node is the root output AOV node (I.e. directly connected to the AOV output group node)")
+    octane_pin_id=consts.PinID.P_IMAGER
+    octane_pin_name="imager"
+    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_index=2
+    octane_socket_type=consts.SocketType.ST_BOOL
+    default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Whether to apply the imager settings on the final AOV output. Only used if this node is the root output AOV node (i.e. directly connected to the output AOV group node)")
     octane_hide_value=False
     octane_min_version=10021000
     octane_end_version=4294967295
@@ -72,13 +75,14 @@ class OctaneImageAOVOutputPostproc(OctaneBaseSocket):
     bl_idname="OctaneImageAOVOutputPostproc"
     bl_label="Enable post processing"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type=11
+    octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=136)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="postproc")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="If enabled, The post processing settings is applied on the final AOV output. Otherwise ignored Only used/vaild if this node is the root output AOV node (I.e. directly connected to the AOV output group node)")
+    octane_pin_id=consts.PinID.P_POST_PROCESSING
+    octane_pin_name="postproc"
+    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_index=3
+    octane_socket_type=consts.SocketType.ST_BOOL
+    default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Whether to apply the post processing settings on the final AOV output. Only used if this node is the root output AOV node (i.e. directly connected to the output AOV group node)")
     octane_hide_value=False
     octane_min_version=10021000
     octane_end_version=4294967295
@@ -86,15 +90,16 @@ class OctaneImageAOVOutputPostproc(OctaneBaseSocket):
 
 class OctaneImageAOVOutputPremultipliedAlpha(OctaneBaseSocket):
     bl_idname="OctaneImageAOVOutputPremultipliedAlpha"
-    bl_label="Pre multiply alpha"
+    bl_label="Premultiplied alpha"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type=11
+    octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=139)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="premultiplied_alpha")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="If enabled the input RGB values will be multiplied with alpha")
+    octane_pin_id=consts.PinID.P_PREMULTIPLIED_ALPHA
+    octane_pin_name="premultiplied_alpha"
+    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_index=4
+    octane_socket_type=consts.SocketType.ST_BOOL
+    default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="(deprecated) Ignored")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=10021500
@@ -107,20 +112,20 @@ class OctaneImageAOVOutputGroupOutputSettings(OctaneGroupTitleSocket):
 
 class OctaneImageAOVOutput(bpy.types.Node, OctaneBaseImageNode):
     bl_idname="OctaneImageAOVOutput"
-    bl_label="Image AOV output"
+    bl_label="Image output AOV"
     bl_width_default=200
     octane_render_pass_id=-1
     octane_render_pass_name=""
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneImageAOVOutputColorSpace,OctaneImageAOVOutputOutputChannels,OctaneImageAOVOutputGroupOutputSettings,OctaneImageAOVOutputImager,OctaneImageAOVOutputPostproc,OctaneImageAOVOutputPremultipliedAlpha,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=168)
-    octane_socket_list: StringProperty(name="Socket List", default="Color space;Output channels;Enable imager;Enable post processing;Pre multiply alpha;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="a_filename;a_reload;a_size;a_type;a_image_file_type;a_can_wrap_x;a_can_wrap_y;a_image_flip;a_source_info;a_image_layer_names;a_image_chosen_layer_name;")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="filename;reload;size;type;imageFileType;canWrapX;canWrapY;imageFlip;sourceInfo;imageLayerNames;imageChosenLayerName;")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="11;1;3;2;2;1;1;1;10;10;10;")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=5)
+    octane_node_type=consts.NodeType.NT_OUTPUT_AOV_IMAGE
+    octane_socket_list=["Color space", "Output channels", "Enable imager", "Enable post processing", "Premultiplied alpha", ]
+    octane_attribute_list=["a_filename", "a_reload", "a_size", "a_type", "a_image_file_type", "a_can_wrap_x", "a_can_wrap_y", "a_image_flip", "a_source_info", "a_image_layer_names", "a_image_chosen_layer_name", "a_legacy_png_gamma", ]
+    octane_attribute_config={"a_package": [consts.AttributeID.A_PACKAGE, "package", consts.AttributeType.AT_FILENAME], "a_filename": [consts.AttributeID.A_FILENAME, "filename", consts.AttributeType.AT_FILENAME], "a_reload": [consts.AttributeID.A_RELOAD, "reload", consts.AttributeType.AT_BOOL], "a_buffer": [consts.AttributeID.A_BUFFER, "buffer", consts.AttributeType.AT_BYTE], "a_size": [consts.AttributeID.A_SIZE, "size", consts.AttributeType.AT_INT2], "a_type": [consts.AttributeID.A_TYPE, "type", consts.AttributeType.AT_INT], "a_image_file_type": [consts.AttributeID.A_IMAGE_FILE_TYPE, "imageFileType", consts.AttributeType.AT_INT], "a_can_wrap_x": [consts.AttributeID.A_CAN_WRAP_X, "canWrapX", consts.AttributeType.AT_BOOL], "a_can_wrap_y": [consts.AttributeID.A_CAN_WRAP_Y, "canWrapY", consts.AttributeType.AT_BOOL], "a_image_flip": [consts.AttributeID.A_IMAGE_FLIP, "imageFlip", consts.AttributeType.AT_BOOL], "a_source_info": [consts.AttributeID.A_SOURCE_INFO, "sourceInfo", consts.AttributeType.AT_STRING], "a_image_layer_names": [consts.AttributeID.A_IMAGE_LAYER_NAMES, "imageLayerNames", consts.AttributeType.AT_STRING], "a_channel_format": [consts.AttributeID.A_CHANNEL_FORMAT, "channelFormat", consts.AttributeType.AT_INT], "a_image_chosen_layer_name": [consts.AttributeID.A_IMAGE_CHOSEN_LAYER_NAME, "imageChosenLayerName", consts.AttributeType.AT_STRING], "a_ies_photometry_mode": [consts.AttributeID.A_IES_PHOTOMETRY_MODE, "iesPhotometryMode", consts.AttributeType.AT_INT], "a_legacy_png_gamma": [consts.AttributeID.A_LEGACY_PNG_GAMMA, "legacyPngGamma", consts.AttributeType.AT_BOOL], }
+    octane_static_pin_count=4
 
     a_filename: StringProperty(name="Filename", default="", update=OctaneBaseNode.update_node_tree, description="Stores the filename of the texture image", subtype="FILE_PATH")
     a_reload: BoolProperty(name="Reload", default=False, update=OctaneBaseNode.update_node_tree, description="TRUE if the file needs a reload or the preference of the image file has been changed.After evaluation the attribute will be false again")
@@ -133,6 +138,7 @@ class OctaneImageAOVOutput(bpy.types.Node, OctaneBaseImageNode):
     a_source_info: StringProperty(name="Source info", default="", update=OctaneBaseNode.update_node_tree, description="Information about the image source (file), which is used only in the UI")
     a_image_layer_names: StringProperty(name="Image layer names", default="", update=OctaneBaseNode.update_node_tree, description="Will contain the layer names if the image was loaded from a file that contained layers. Will be empty otherwise")
     a_image_chosen_layer_name: StringProperty(name="Image chosen layer name", default="", update=OctaneBaseNode.update_node_tree, description="Indicate the chosen layer name, if the current image has multiple layers")
+    a_legacy_png_gamma: BoolProperty(name="Legacy png gamma", default=False, update=OctaneBaseNode.update_node_tree, description="If true, PNG files with a gAMA chunk will be converted to display gamma 2.2 while loading")
 
     def init(self, context):
         self.inputs.new("OctaneImageAOVOutputColorSpace", OctaneImageAOVOutputColorSpace.bl_label).init()
@@ -141,7 +147,7 @@ class OctaneImageAOVOutput(bpy.types.Node, OctaneBaseImageNode):
         self.inputs.new("OctaneImageAOVOutputImager", OctaneImageAOVOutputImager.bl_label).init()
         self.inputs.new("OctaneImageAOVOutputPostproc", OctaneImageAOVOutputPostproc.bl_label).init()
         self.inputs.new("OctaneImageAOVOutputPremultipliedAlpha", OctaneImageAOVOutputPremultipliedAlpha.bl_label).init()
-        self.outputs.new("OctaneAOVOutputOutSocket", "AOV output out").init()
+        self.outputs.new("OctaneAOVOutputOutSocket", "Output AOV out").init()
 
 
 _CLASSES=[
@@ -165,14 +171,3 @@ def unregister():
     utility.octane_unregister_class(reversed(_CLASSES))
 
 ##### END OCTANE GENERATED CODE BLOCK #####
-
-class OctaneImageAOVOutput_Override(OctaneImageAOVOutput):
-
-    def init(self, context):
-        super().init(context)
-        self.init_image_attributes()
-
-    def draw_buttons(self, context, layout):
-        super().draw_buttons(context, layout)
-
-utility.override_class(_CLASSES, OctaneImageAOVOutput, OctaneImageAOVOutput_Override)

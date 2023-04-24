@@ -20,13 +20,13 @@ class OctaneEnumValue(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=57)
-    octane_socket_list: StringProperty(name="Socket List", default="")
-    octane_attribute_list: StringProperty(name="Attribute List", default="a_value;")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="value;")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="2;")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=0)
+    octane_node_type=consts.NodeType.NT_ENUM
+    octane_socket_list=[]
+    octane_attribute_list=["a_value", ]
+    octane_attribute_config={"a_value": [consts.AttributeID.A_VALUE, "value", consts.AttributeType.AT_INT], }
+    octane_static_pin_count=0
 
     a_value: IntProperty(name="Value", default=0, update=OctaneBaseNode.update_node_tree, description="The value of the enum node")
 

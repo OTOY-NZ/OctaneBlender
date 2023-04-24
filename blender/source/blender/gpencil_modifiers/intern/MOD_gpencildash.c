@@ -146,7 +146,6 @@ static bool stroke_dash(const bGPDstroke *gps,
 
     bGPDstroke *stroke = BKE_gpencil_stroke_new(
         ds->mat_nr < 0 ? gps->mat_nr : ds->mat_nr, size, gps->thickness);
-    stroke->runtime.gps_orig = gps->runtime.gps_orig;
     if (ds->flag & GP_DASH_USE_CYCLIC) {
       stroke->flag |= GP_STROKE_CYCLIC;
     }
@@ -158,9 +157,6 @@ static bool stroke_dash(const bGPDstroke *gps,
       stroke->points[is].z = p->z;
       stroke->points[is].pressure = p->pressure * ds->radius;
       stroke->points[is].strength = p->strength * ds->opacity;
-      /* Assign original point pointers. */
-      stroke->points[is].runtime.idx_orig = p->runtime.idx_orig;
-      stroke->points[is].runtime.pt_orig = p->runtime.pt_orig;
       copy_v4_v4(stroke->points[is].vert_color, p->vert_color);
     }
     BLI_addtail(r_strokes, stroke);
@@ -274,7 +270,7 @@ static void foreachIDLink(GpencilModifierData *md, Object *ob, IDWalkFunc walk, 
 }
 
 static void segment_list_item(struct uiList *UNUSED(ui_list),
-                              const struct bContext *UNUSED(C),
+                              struct bContext *UNUSED(C),
                               struct uiLayout *layout,
                               struct PointerRNA *UNUSED(idataptr),
                               struct PointerRNA *itemptr,

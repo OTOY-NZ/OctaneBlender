@@ -82,7 +82,7 @@ static Mesh *triangulate_mesh(Mesh *mesh,
   }
 
   edges_num = result->totedge;
-  me = BKE_mesh_edges_for_write(result);
+  me = result->medge;
 
   /* force drawing of all edges (seems to be omitted in CDDM_from_bmesh) */
   for (i = 0; i < edges_num; i++, me++) {

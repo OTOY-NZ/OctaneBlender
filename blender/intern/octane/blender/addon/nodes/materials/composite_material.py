@@ -15,12 +15,13 @@ class OctaneCompositeMaterialDisplacement(OctaneBaseSocket):
     bl_idname="OctaneCompositeMaterialDisplacement"
     bl_label="Displacement"
     color=consts.OctanePinColor.Displacement
-    octane_default_node_type=0
+    octane_default_node_type=consts.NodeType.NT_UNKNOWN
     octane_default_node_name=""
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=34)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="displacement")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_DISPLACEMENT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_DISPLACEMENT
+    octane_pin_name="displacement"
+    octane_pin_type=consts.PinType.PT_DISPLACEMENT
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -30,12 +31,13 @@ class OctaneCompositeMaterialCustomAov(OctaneBaseSocket):
     bl_idname="OctaneCompositeMaterialCustomAov"
     bl_label="Custom AOV"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type=57
+    octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=632)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="customAov")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
+    octane_pin_id=consts.PinID.P_CUSTOM_AOV
+    octane_pin_name="customAov"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=1
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("None", "None", "", 4096),
         ("Custom AOV 1", "Custom AOV 1", "", 0),
@@ -69,12 +71,13 @@ class OctaneCompositeMaterialCustomAovChannel(OctaneBaseSocket):
     bl_idname="OctaneCompositeMaterialCustomAovChannel"
     bl_label="Custom AOV channel"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type=57
+    octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=633)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="customAovChannel")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
+    octane_pin_id=consts.PinID.P_CUSTOM_AOV_CHANNEL
+    octane_pin_name="customAovChannel"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=2
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("All", "All", "", 0),
         ("Red", "Red", "", 1),
@@ -96,13 +99,13 @@ class OctaneCompositeMaterial(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneCompositeMaterialDisplacement,OctaneCompositeMaterialCustomAov,OctaneCompositeMaterialCustomAovChannel,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=138)
-    octane_socket_list: StringProperty(name="Socket List", default="Displacement;Custom AOV;Custom AOV channel;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="a_material_count;")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="materialCount;")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="2;")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=3)
+    octane_node_type=consts.NodeType.NT_MAT_COMPOSITE
+    octane_socket_list=["Displacement", "Custom AOV", "Custom AOV channel", ]
+    octane_attribute_list=["a_material_count", ]
+    octane_attribute_config={"a_material_count": [consts.AttributeID.A_MATERIAL_COUNT, "materialCount", consts.AttributeType.AT_INT], "a_input_action": [consts.AttributeID.A_INPUT_ACTION, "inputAction", consts.AttributeType.AT_INT2], }
+    octane_static_pin_count=3
 
     a_material_count: IntProperty(name="Material count", default=0, update=OctaneBaseNode.update_node_tree, description="The number of materials to mix. Two pins per new material are created and appended to the end")
 

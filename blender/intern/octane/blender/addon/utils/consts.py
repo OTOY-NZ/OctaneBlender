@@ -1,3 +1,5 @@
+from octane.utils.octaneid import *
+
 ENGINE_NAME = "octane"
 ADDON_NAME = "octane"
 
@@ -7,6 +9,35 @@ DERIVED_NODE_SEPARATOR = "###DERIVED_NODE_SEPARATOR###"
 OBJECT_INDEX_SEPARATOR = "###OBJECT_INDEX###"
 
 OCTANE_HELPER_NODE_GROUP = "[OCTANE_HELPER_NODE_GROUP]"
+
+
+# Add Blender Pin Type
+PinType.PT_BLENDER_OUTPUT = -10000
+PinType.PT_BLENDER_INPUT = -10001
+PinType.PT_BLENDER_VALUES = -10002
+PinType.PT_BLENDER_UTILITY = -20000
+
+
+# Add Blender Node Type
+NodeType.NT_BLENDER_NODE_OFFSET = -100000
+NodeType.NT_BLENDER_NODE_OCTANE_PROXY = -100001
+NodeType.NT_BLENDER_NODE_OBJECT_DATA = -100002
+NodeType.NT_BLENDER_NODE_CAMERA_DATA = -100003
+NodeType.NT_BLENDER_NODE_IMAGE_INFO = -100004
+NodeType.NT_BLENDER_NODE_GET_RENDER_RESULT = -100005
+NodeType.NT_BLENDER_NODE_START_RENDER = -100006
+NodeType.NT_BLENDER_NODE_STOP_RENDER = -100007
+NodeType.NT_BLENDER_NODE_RESET_RENDER = -100008
+NodeType.NT_BLENDER_NODE_SCATTER = -100009
+NodeType.NT_BLENDER_NODE_MESH = -100010
+NodeType.NT_BLENDER_NODE_VOLUME = -100011
+
+
+# Render Frame Data Type
+class RenderFrameDataType:
+    RENDER_FRAME_SIGNED_BYTE_RGBA = 0 # -127~128
+    RENDER_FRAME_FLOAT_RGBA = 1
+    RENDER_FRAME_FLOAT_MONO = 2
 
 
 # Render Session type
@@ -23,6 +54,35 @@ class SceneDataType:
     MESH = 0
     SUBDIVISION_MESH = 1
     OBJECT = 2
+
+
+# Octane Data Block Symbol Type
+class OctaneDataBlockSymbolType:
+    ATTRIBUTE_ID = 0
+    ATTRIBUTE_NAME = 1
+    ATTRIBUTE_CUSTOM = 2
+    PIN_OFFSET = 10
+    PIN_ID = 10
+    PIN_NAME = 11
+    PIN_INDEX = 12
+    PIN_DYNAMIC = 13
+    PIN_CUSTOM = 14
+
+
+# Legacy OctaneDataTransferObject Type
+class LegacyDTOType:
+    DTO_NONE = 0
+    DTO_BOOL = 1
+    DTO_FLOAT = 2
+    DTO_FLOAT_2 = 3
+    DTO_FLOAT_3 = 4
+    DTO_RGB = 5
+    DTO_ENUM = 6
+    DTO_INT = 7
+    DTO_INT_2 = 8
+    DTO_INT_3 = 9
+    DTO_STR = 10
+    DTO_SHADER = 11
 
 
 # Socket type
@@ -43,73 +103,11 @@ class SocketType:
     ST_GROUP_TITLE = 1000
 
 
-# Pin type
-class PinType:
-    PT_UNKNOWN             = 0
-    PT_ANIMATION_SETTINGS  = 27
-    PT_BIT_MASK            = 31
-    PT_BOOL                = 1
-    PT_CAMERA              = 8
-    PT_COMPOSITE_AOV_LAYER = 40
-    PT_DISPLACEMENT        = 22
-    PT_EMISSION            = 6
-    PT_ENUM                = 16
-    PT_ENVIRONMENT         = 9
-    PT_FILM_SETTINGS       = 15
-    PT_FLOAT               = 2
-    PT_GEOMETRY            = 12
-    PT_IMAGER              = 10
-    PT_INT                 = 3
-    PT_KERNEL              = 11
-    PT_LUT                 = 28
-    PT_MATERIAL            = 7
-    PT_MATERIAL_LAYER      = 33
-    PT_MEDIUM              = 13
-    PT_OBJECTLAYER         = 17
-    PT_OCIO_COLOR_SPACE    = 36
-    PT_OCIO_LOOK           = 35
-    PT_OCIO_VIEW           = 34
-    PT_OUTPUT_AOV          = 38
-    PT_OUTPUT_AOV_GROUP    = 37
-    PT_PHASEFUNCTION       = 14
-    PT_POSTPROCESSING      = 18
-    PT_PROJECTION          = 21
-    PT_RENDER_JOB          = 29
-    PT_RENDER_LAYER        = 25
-    PT_RENDER_PASSES       = 24
-    PT_RENDERTARGET        = 19
-    PT_ROUND_EDGES         = 32
-    PT_STRING              = 23
-    PT_TEX_COMPOSITE_LAYER = 39
-    PT_TEXTURE             = 5
-    PT_TOON_RAMP           = 30
-    PT_TRANSFORM           = 4
-    PT_VOLUME_RAMP         = 26
-    PT_WORK_PANE           = 20
-    PT_BLENDER_OUTPUT      = -10000
-    PT_BLENDER_INPUT       = -10001
-    PT_BLENDER_VALUES      = -10002
-    PT_BLENDER_UTILITY     = -20000
-
-
-# Attribute type
-class AttributeType:
-    AT_UNKNOWN   = 0
-    AT_BOOL      = 1
-    AT_INT       = 2
-    AT_INT2      = 3
-    AT_INT3      = 4
-    AT_INT4      = 5
-    AT_LONG      = 14
-    AT_LONG2     = 15
-    AT_FLOAT     = 6
-    AT_FLOAT2    = 7
-    AT_FLOAT3    = 8
-    AT_FLOAT4    = 9
-    AT_STRING    = 10
-    AT_FILENAME  = 11
-    AT_BYTE      = 12
-    AT_MATRIX    = 13   
+# Auto Refresh Strategy
+class AutoRereshStrategy:
+    DISABLE = 0
+    FRAME_CHANGE = 1
+    ALWAYS = 2
 
 
 # Pin color
@@ -222,9 +220,6 @@ class OctaneNodeTreeIDName:
 # Octane Preset Node Tree Names
 class OctanePresetNodeTreeNames:
     KERNEL = "OCTANE_KERNEL"
-    CAMERA = "OCTANE_CAMERA"
-    IMAGER = "OCTANE_IMAGER"
-    POST_PROCESSING = "OCTANE_POST_PROCESSING"
 
 
 # Octane Preset Node Names
@@ -233,6 +228,14 @@ class OctanePresetNodeNames:
     VISIBLE_ENVIRONMENT = "OCTANE_BLENDER_VISIBLE_ENVIRONMENT"
     COMPOSITE = "OCTANE_BLENDER_RENDER_AOV_NODE"
     RENDER_AOV = "OCTANE_BLENDER_RENDER_AOV_NODE"
+    CAMERA = "OCTANE_CAMERA"
+    IMAGER = "OCTANE_IMAGER"
+    POST_PROCESSING = "OCTANE_POST_PROCESSING"
+    ANIMATION_SETTINGS = "OCTANE_ANIMATION_SETTINGS"
+    RENDER_LAYER = "OCTANE_RENDER_LAYER"
+    CAMERA_POSITION = "OCTANE_CAMERA_POSITION"
+    CAMERA_TARGET = "OCTANE_CAMERA_TARGET"
+    CAMERA_UP = "OCTANE_CAMERA_UP"
 
 
 # Octane OutputNode Socket Names
@@ -251,29 +254,51 @@ class OctaneOutputNodeSocketNames:
     RENDER_AOV = "RenderAOVs"
 
 
-# Node type
-class NodeType:
-    NT_UNKNOWN = 0
-    NT_CAM_THINLENS = 13
-    NT_IMAGER_CAMERA = 15
-    NT_RENDERTARGET = 56    
-    NT_POSTPROCESSING = 61
-    NT_CAM_PANORAMIC = 62
-    NT_CAM_BAKING = 94
-    NT_CAM_OSL = 126
-    NT_CAM_OSL_BAKING = 128
-    NT_CAM_UNIVERSAL = 157
-    NT_BLENDER_NODE_OFFSET = -100000
-    NT_BLENDER_NODE_OCTANE_PROXY = -100001
-    NT_BLENDER_NODE_OBJECT_DATA = -100002
-    NT_BLENDER_NODE_CAMERA_DATA = -100003
-    NT_BLENDER_NODE_IMAGE_INFO = -100004
-    NT_BLENDER_NODE_GET_RENDER_RESULT = -100005
-    NT_BLENDER_NODE_START_RENDER = -100006
-    NT_BLENDER_NODE_STOP_RENDER = -100007
-    NT_BLENDER_NODE_RESET_RENDER = -100008
-    NT_BLENDER_NODE_SCATTER = -100009
-    NT_BLENDER_NODE_MESH = -100010
+class ObjectLayerMode:
+    NO_OBJECTLAYER = 0
+    WITH_OBJECTLAYER = 1
+    WITH_OBJECTLAYER_FOR_ORBX_PROXY = 2
+
+
+class UtilsFunctionType:
+    TEST = 0
+    SHOW_NODEGRAPH = 1
+    SHOW_NETWORK_PREFERENCE = 2
+    STOP_RENDERING = 3     
+    SHOW_LOG = 4
+    SHOW_DEVICE_SETTINGS = 5
+    FETCH_LIVEDB = 6
+    SHOW_ACTIVATION = 7
+    SAVE_LIVEDB = 8
+    SHOW_VIEWPORT = 9
+    UPDATE_RESOURCE_CACHE_SYSTEM = 10
+    UPDATE_RENDER_SETTINGS = 11
+    FETCH_IMAGE_INFO = 100
+    FETCH_VDB_INFO = 101
+    FETCH_OSL_INFO = 102
+    EXPORT_OFFSET = 200
+    EXPORT_ALEMBIC_START = 201
+    EXPORT_ALEMBIC_END = 202
+    EXPORT_ALEMBIC_WRITE_FRAME = 203
+    EXPORT_ORBX_START = 204
+    EXPORT_ORBX_END = 205
+    EXPORT_ORBX_WRITE_FRAME = 206
+    RENDER_START = 300
+    RENDER_STOP = 301
+    RENDER_PAUSE = 302
+
+class RenderPassId:
+    BEAUTY = 0
+    BEAUTY_DENOISER_OUTPUT = 43
+    DIFFUSE_DIRECT_DENOISER_OUTPUT = 44
+    DIFFUSE_INDIRECT_DENOISER_OUTPUT = 45
+    REFLECTION_DIRECT_DENOISER_OUTPUT = 46
+    REFLECTION_INDIRECT_DENOISER_OUTPUT = 47
+    EMISSION_DENOISER_OUTPUT = 76
+    REMAINDER_DENOISER_OUTPUT = 49
+    VOLUME_DENOISER_OUTPUT = 74
+    VOLUME_EMISSION_DENOISER_OUTPUT = 75    
+    
 
 # Pin Id
 P_INVALID = -1

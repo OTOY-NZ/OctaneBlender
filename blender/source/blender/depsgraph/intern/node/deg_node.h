@@ -64,7 +64,7 @@ enum class NodeType {
   ANIMATION,
   /* Transform Component (Parenting/Constraints) */
   TRANSFORM,
-  /* Geometry Component (#Mesh, #Curves, etc.) */
+  /* Geometry Component (#Mesh / #DispList) */
   GEOMETRY,
   /* Sequencer Component (Scene Only) */
   SEQUENCER,
@@ -130,8 +130,6 @@ enum class NodeType {
   SIMULATION,
   /* Node tree output component. */
   NTREE_OUTPUT,
-  /* Preprocessing for geometry node trees before they can be evaluated. */
-  NTREE_GEOMETRY_PREPROCESS,
 
   /* Total number of meaningful node types. */
   NUM_TYPES,

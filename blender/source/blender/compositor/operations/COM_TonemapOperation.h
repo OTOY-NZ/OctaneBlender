@@ -21,7 +21,7 @@ typedef struct AvgLogLum {
 } AvgLogLum;
 
 /**
- * \brief base class of tone-map, implementing the simple tone-map
+ * \brief base class of tonemap, implementing the simple tonemap
  * \ingroup operation
  */
 class TonemapOperation : public MultiThreadedOperation {
@@ -32,9 +32,9 @@ class TonemapOperation : public MultiThreadedOperation {
   SocketReader *image_reader_;
 
   /**
-   * \brief settings of the Tone-map
+   * \brief settings of the Tonemap
    */
-  const NodeTonemap *data_;
+  NodeTonemap *data_;
 
   /**
    * \brief temporarily cache of the execution storage
@@ -62,7 +62,7 @@ class TonemapOperation : public MultiThreadedOperation {
    */
   void deinit_execution() override;
 
-  void set_data(const NodeTonemap *data)
+  void set_data(NodeTonemap *data)
   {
     data_ = data;
   }

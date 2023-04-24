@@ -84,8 +84,9 @@ bool BlenderSync::object_is_mesh(BL::Object &b_ob)
   }
 
   /* Other object types that are not meshes but evaluate to meshes are presented to render engines
-   * as separate instance objects. */
-  if (type == BL::Object::type_SURFACE) {
+   * as separate instance objects. Metaballs and surface objects have not been affected by that
+   * change yet. */
+  if (type == BL::Object::type_SURFACE || type == BL::Object::type_META) {
     return true;
   }
 
@@ -495,9 +496,14 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
   bool need_update = preview ? is_object_data_updated :
                                is_octane_object_required(object_name, b_ob.type(), mesh_type);
   if (mesh_type == MeshType::AUTO) {
-    bool is_library = b_ob.library().ptr.data != NULL;
-    if (!is_instance || is_library) {
+    if (!preview) {
       tag_movable_candidate(object_name);
+    }
+    else {
+      bool is_library = b_ob.library().ptr.data != NULL;
+      if (!is_instance || is_library) {
+        tag_movable_candidate(object_name);
+      }   
     }
   }
   object->scene = scene;

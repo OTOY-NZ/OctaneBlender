@@ -15,12 +15,13 @@ class OctaneSunDirectionLatitude(OctaneBaseSocket):
     bl_idname="OctaneSunDirectionLatitude"
     bl_label="Latitude"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=91)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="latitude")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_LATITUDE
+    octane_pin_name="latitude"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=-37.043659, update=OctaneBaseSocket.update_node_tree, description="Latitude of the location", min=-90.000000, max=90.000000, soft_min=-90.000000, soft_max=90.000000, step=1, precision=4, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
@@ -31,12 +32,13 @@ class OctaneSunDirectionLongitude(OctaneBaseSocket):
     bl_idname="OctaneSunDirectionLongitude"
     bl_label="Longitude"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=99)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="longitude")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_LONGITUDE
+    octane_pin_name="longitude"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=1
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=174.509171, update=OctaneBaseSocket.update_node_tree, description="Longitude of the location", min=-180.000000, max=180.000000, soft_min=-180.000000, soft_max=180.000000, step=1, precision=4, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
@@ -47,12 +49,13 @@ class OctaneSunDirectionMonth(OctaneBaseSocket):
     bl_idname="OctaneSunDirectionMonth"
     bl_label="Month"
     color=consts.OctanePinColor.Int
-    octane_default_node_type=9
+    octane_default_node_type=consts.NodeType.NT_INT
     octane_default_node_name="OctaneIntValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=115)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="month")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
+    octane_pin_id=consts.PinID.P_MONTH
+    octane_pin_name="month"
+    octane_pin_type=consts.PinType.PT_INT
+    octane_pin_index=2
+    octane_socket_type=consts.SocketType.ST_INT
     default_value: IntProperty(default=3, update=OctaneBaseSocket.update_node_tree, description="Month of the time the sun direction should be calculated for", min=1, max=12, soft_min=1, soft_max=12, step=1, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
@@ -63,12 +66,13 @@ class OctaneSunDirectionDay(OctaneBaseSocket):
     bl_idname="OctaneSunDirectionDay"
     bl_label="Day"
     color=consts.OctanePinColor.Int
-    octane_default_node_type=9
+    octane_default_node_type=consts.NodeType.NT_INT
     octane_default_node_name="OctaneIntValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=27)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="day")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
+    octane_pin_id=consts.PinID.P_DAY
+    octane_pin_name="day"
+    octane_pin_type=consts.PinType.PT_INT
+    octane_pin_index=3
+    octane_socket_type=consts.SocketType.ST_INT
     default_value: IntProperty(default=1, update=OctaneBaseSocket.update_node_tree, description="Day of the month of the time the sun direction should be calculated for", min=1, max=31, soft_min=1, soft_max=31, step=1, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
@@ -79,12 +83,13 @@ class OctaneSunDirectionHour(OctaneBaseSocket):
     bl_idname="OctaneSunDirectionHour"
     bl_label="Local time"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=75)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="hour")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_HOUR
+    octane_pin_name="hour"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=4
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=10.000000, update=OctaneBaseSocket.update_node_tree, description="The local time as hours since 0:00", min=0.000000, max=24.000000, soft_min=0.000000, soft_max=24.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
@@ -95,12 +100,13 @@ class OctaneSunDirectionGmtoffset(OctaneBaseSocket):
     bl_idname="OctaneSunDirectionGmtoffset"
     bl_label="GMT offset"
     color=consts.OctanePinColor.Int
-    octane_default_node_type=9
+    octane_default_node_type=consts.NodeType.NT_INT
     octane_default_node_name="OctaneIntValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=67)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="gmtoffset")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
+    octane_pin_id=consts.PinID.P_GMT_OFFSET
+    octane_pin_name="gmtoffset"
+    octane_pin_type=consts.PinType.PT_INT
+    octane_pin_index=5
+    octane_socket_type=consts.SocketType.ST_INT
     default_value: IntProperty(default=12, update=OctaneBaseSocket.update_node_tree, description="The time zone as offset to GMT", min=-12, max=12, soft_min=-12, soft_max=12, step=1, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
@@ -116,13 +122,13 @@ class OctaneSunDirection(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneSunDirectionLatitude,OctaneSunDirectionLongitude,OctaneSunDirectionMonth,OctaneSunDirectionDay,OctaneSunDirectionHour,OctaneSunDirectionGmtoffset,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=30)
-    octane_socket_list: StringProperty(name="Socket List", default="Latitude;Longitude;Month;Day;Local time;GMT offset;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="a_value;")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="value;")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="8;")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=6)
+    octane_node_type=consts.NodeType.NT_SUN_DIRECTION
+    octane_socket_list=["Latitude", "Longitude", "Month", "Day", "Local time", "GMT offset", ]
+    octane_attribute_list=["a_value", ]
+    octane_attribute_config={"a_value": [consts.AttributeID.A_VALUE, "value", consts.AttributeType.AT_FLOAT3], }
+    octane_static_pin_count=6
 
     a_value: FloatVectorProperty(name="Value", default=(0.617750, 0.703410, -0.351568), size=3, update=OctaneBaseNode.update_node_tree, description="The direction calculated from the input pins of the node (normalized)")
 
@@ -157,10 +163,3 @@ def unregister():
     utility.octane_unregister_class(reversed(_CLASSES))
 
 ##### END OCTANE GENERATED CODE BLOCK #####
-
-from ...utils import utility
-
-class OctaneSunDirection_Override(OctaneSunDirection):
-    octane_attribute_list: StringProperty(name="Attribute List", default="")
-
-utility.override_class(_CLASSES, OctaneSunDirection, OctaneSunDirection_Override)  

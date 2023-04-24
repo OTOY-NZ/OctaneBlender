@@ -23,6 +23,7 @@ struct CustomDataAccessInfo {
   CustomDataGetter get_custom_data;
   ConstCustomDataGetter get_const_custom_data;
   GetElementNum get_element_num;
+  UpdateCustomDataPointers update_custom_data_pointers;
 };
 
 /**
@@ -53,7 +54,6 @@ class BuiltinAttributeProvider {
   const CreatableEnum createable_;
   const WritableEnum writable_;
   const DeletableEnum deletable_;
-  const AttributeValidator validator_;
 
  public:
   BuiltinAttributeProvider(std::string name,
@@ -61,15 +61,13 @@ class BuiltinAttributeProvider {
                            const eCustomDataType data_type,
                            const CreatableEnum createable,
                            const WritableEnum writable,
-                           const DeletableEnum deletable,
-                           AttributeValidator validator = {})
+                           const DeletableEnum deletable)
       : name_(std::move(name)),
         domain_(domain),
         data_type_(data_type),
         createable_(createable),
         writable_(writable),
-        deletable_(deletable),
-        validator_(validator)
+        deletable_(deletable)
   {
   }
 
@@ -92,11 +90,6 @@ class BuiltinAttributeProvider {
   eCustomDataType data_type() const
   {
     return data_type_;
-  }
-
-  AttributeValidator validator() const
-  {
-    return validator_;
   }
 };
 
@@ -249,15 +242,9 @@ class BuiltinCustomDataLayerProvider final : public BuiltinAttributeProvider {
                                  const CustomDataAccessInfo custom_data_access,
                                  const AsReadAttribute as_read_attribute,
                                  const AsWriteAttribute as_write_attribute,
-                                 const UpdateOnChange update_on_write,
-                                 const AttributeValidator validator = {})
-      : BuiltinAttributeProvider(std::move(attribute_name),
-                                 domain,
-                                 attribute_type,
-                                 creatable,
-                                 writable,
-                                 deletable,
-                                 validator),
+                                 const UpdateOnChange update_on_write)
+      : BuiltinAttributeProvider(
+            std::move(attribute_name), domain, attribute_type, creatable, writable, deletable),
         stored_type_(stored_type),
         custom_data_access_(custom_data_access),
         as_read_attribute_(as_read_attribute),
@@ -272,9 +259,6 @@ class BuiltinCustomDataLayerProvider final : public BuiltinAttributeProvider {
   bool try_delete(void *owner) const final;
   bool try_create(void *owner, const AttributeInit &initializer) const final;
   bool exists(const void *owner) const final;
-
- private:
-  bool layer_exists(const CustomData &custom_data) const;
 };
 
 /**
@@ -334,7 +318,7 @@ class ComponentAttributeProviders {
 namespace attribute_accessor_functions {
 
 template<const ComponentAttributeProviders &providers>
-inline bool is_builtin(const void * /*owner*/, const AttributeIDRef &attribute_id)
+inline bool is_builtin(const void *UNUSED(owner), const AttributeIDRef &attribute_id)
 {
   if (!attribute_id.is_named()) {
     return false;
@@ -390,21 +374,6 @@ inline bool for_all(const void *owner,
     }
   }
   return true;
-}
-
-template<const ComponentAttributeProviders &providers>
-inline AttributeValidator lookup_validator(const void * /*owner*/,
-                                           const blender::bke::AttributeIDRef &attribute_id)
-{
-  if (!attribute_id.is_named()) {
-    return {};
-  }
-  const BuiltinAttributeProvider *provider =
-      providers.builtin_attribute_providers().lookup_default_as(attribute_id.name(), nullptr);
-  if (!provider) {
-    return {};
-  }
-  return provider->validator();
 }
 
 template<const ComponentAttributeProviders &providers>
@@ -469,12 +438,11 @@ inline bool remove(void *owner, const AttributeIDRef &attribute_id)
       return provider->try_delete(owner);
     }
   }
+  bool success = false;
   for (const DynamicAttributesProvider *provider : providers.dynamic_attribute_providers()) {
-    if (provider->try_delete(owner, attribute_id)) {
-      return true;
-    }
+    success = provider->try_delete(owner, attribute_id) || success;
   }
-  return false;
+  return success;
 }
 
 template<const ComponentAttributeProviders &providers>
@@ -519,7 +487,6 @@ inline AttributeAccessorFunctions accessor_functions_for_providers()
                                     lookup<providers>,
                                     nullptr,
                                     for_all<providers>,
-                                    lookup_validator<providers>,
                                     lookup_for_write<providers>,
                                     remove<providers>,
                                     add<providers>};

@@ -19,7 +19,6 @@
 
 #  include "DEG_depsgraph.h"
 
-#  include "ED_fileselect.h"
 #  include "ED_object.h"
 
 #  include "RNA_access.h"
@@ -37,7 +36,22 @@
 
 static int wm_collada_export_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
-  ED_fileselect_ensure_default_filepath(C, op, ".dae");
+  Main *bmain = CTX_data_main(C);
+
+  if (!RNA_struct_property_is_set_ex(op->ptr, "filepath", false)) {
+    char filepath[FILE_MAX];
+    const char *blendfile_path = BKE_main_blendfile_path(bmain);
+
+    if (blendfile_path[0] == '\0') {
+      BLI_strncpy(filepath, "untitled", sizeof(filepath));
+    }
+    else {
+      BLI_strncpy(filepath, blendfile_path, sizeof(filepath));
+    }
+
+    BLI_path_extension_replace(filepath, sizeof(filepath), ".dae");
+    RNA_string_set(op->ptr, "filepath", filepath);
+  }
 
   WM_event_add_fileselect(C, op);
 
@@ -219,7 +233,7 @@ static int wm_collada_export_exec(bContext *C, wmOperator *op)
   }
 
   char buff[100];
-  BLI_snprintf(buff, sizeof(buff), "Exported %d Objects", export_count);
+  sprintf(buff, "Exported %d Objects", export_count);
   BKE_report(op->reports, RPT_INFO, buff);
   return OPERATOR_FINISHED;
 }
@@ -693,7 +707,6 @@ static int wm_collada_import_exec(bContext *C, wmOperator *op)
   int min_chain_length;
 
   int keep_bind_info;
-  int custom_normals;
   ImportSettings import_settings;
 
   if (!RNA_struct_property_is_set_ex(op->ptr, "filepath", false)) {
@@ -703,7 +716,6 @@ static int wm_collada_import_exec(bContext *C, wmOperator *op)
 
   /* Options panel */
   import_units = RNA_boolean_get(op->ptr, "import_units");
-  custom_normals = RNA_boolean_get(op->ptr, "custom_normals");
   find_chains = RNA_boolean_get(op->ptr, "find_chains");
   auto_connect = RNA_boolean_get(op->ptr, "auto_connect");
   fix_orientation = RNA_boolean_get(op->ptr, "fix_orientation");
@@ -716,7 +728,6 @@ static int wm_collada_import_exec(bContext *C, wmOperator *op)
 
   import_settings.filepath = filename;
   import_settings.import_units = import_units != 0;
-  import_settings.custom_normals = custom_normals != 0;
   import_settings.auto_connect = auto_connect != 0;
   import_settings.find_chains = find_chains != 0;
   import_settings.fix_orientation = fix_orientation != 0;
@@ -744,7 +755,6 @@ static void uiCollada_importSettings(uiLayout *layout, PointerRNA *imfptr)
   uiItemL(box, IFACE_("Import Data Options"), ICON_MESH_DATA);
 
   uiItemR(box, imfptr, "import_units", 0, NULL, ICON_NONE);
-  uiItemR(box, imfptr, "custom_normals", 0, NULL, ICON_NONE);
 
   box = uiLayoutBox(layout);
   uiItemL(box, IFACE_("Armature Options"), ICON_ARMATURE_DATA);
@@ -770,11 +780,13 @@ void WM_OT_collada_import(wmOperatorType *ot)
   ot->name = "Import COLLADA";
   ot->description = "Load a Collada file";
   ot->idname = "WM_OT_collada_import";
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_PRESET;
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   ot->invoke = WM_operator_filesel;
   ot->exec = wm_collada_import_exec;
   ot->poll = WM_operator_winactive;
+
+  // ot->flag = OPTYPE_PRESET;
 
   ot->ui = wm_collada_import_draw;
 
@@ -792,12 +804,6 @@ void WM_OT_collada_import(wmOperatorType *ot)
                   "Import Units",
                   "If disabled match import to Blender's current Unit settings, "
                   "otherwise use the settings from the Imported scene");
-
-  RNA_def_boolean(ot->srna,
-                  "custom_normals",
-                  1,
-                  "Custom Normals",
-                  "Import custom normals, if available (otherwise Blender will compute them)");
 
   RNA_def_boolean(ot->srna,
                   "fix_orientation",

@@ -14,9 +14,7 @@
 #include "../generic/py_capi_utils.h"
 #include "../generic/python_utildefines.h"
 
-#ifndef MATH_STANDALONE
-#  include "IMB_colormanagement.h"
-#endif
+#include "IMB_colormanagement.h"
 
 #ifndef MATH_STANDALONE
 #  include "BLI_dynstr.h"
@@ -73,8 +71,9 @@ static PyObject *Color_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
     case 0:
       break;
     case 1:
-      if (mathutils_array_parse(
-              col, COLOR_SIZE, COLOR_SIZE, PyTuple_GET_ITEM(args, 0), "mathutils.Color()") == -1) {
+      if ((mathutils_array_parse(
+              col, COLOR_SIZE, COLOR_SIZE, PyTuple_GET_ITEM(args, 0), "mathutils.Color()")) ==
+          -1) {
         return NULL;
       }
       break;
@@ -92,8 +91,6 @@ static PyObject *Color_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 /* -------------------------------------------------------------------- */
 /** \name Color Methods: Color Space Conversion
  * \{ */
-
-#ifndef MATH_STANDALONE
 
 PyDoc_STRVAR(Color_from_scene_linear_to_srgb_doc,
              ".. function:: from_scene_linear_to_srgb()\n"
@@ -206,8 +203,6 @@ static PyObject *Color_from_rec709_linear_to_scene_linear(ColorObject *self)
   IMB_colormanagement_rec709_to_scene_linear(col, self->col);
   return Color_CreatePyObject(col, Py_TYPE(self));
 }
-
-#endif /* MATH_STANDALONE */
 
 /** \} */
 
@@ -351,13 +346,13 @@ static Py_hash_t Color_hash(ColorObject *self)
  * \{ */
 
 /** Sequence length: `len(object)`. */
-static Py_ssize_t Color_len(ColorObject *UNUSED(self))
+static int Color_len(ColorObject *UNUSED(self))
 {
   return COLOR_SIZE;
 }
 
 /** Sequence accessor (get): `x = object[i]`. */
-static PyObject *Color_item(ColorObject *self, Py_ssize_t i)
+static PyObject *Color_item(ColorObject *self, int i)
 {
   if (i < 0) {
     i = COLOR_SIZE - i;
@@ -378,7 +373,7 @@ static PyObject *Color_item(ColorObject *self, Py_ssize_t i)
 }
 
 /** Sequence accessor (set): `object[i] = x`. */
-static int Color_ass_item(ColorObject *self, Py_ssize_t i, PyObject *value)
+static int Color_ass_item(ColorObject *self, int i, PyObject *value)
 {
   float f;
 
@@ -1055,8 +1050,7 @@ static struct PyMethodDef Color_methods[] = {
     /* base-math methods */
     {"freeze", (PyCFunction)BaseMathObject_freeze, METH_NOARGS, BaseMathObject_freeze_doc},
 
-/* Color-space methods. */
-#ifndef MATH_STANDALONE
+    /* Color-space methods. */
     {"from_scene_linear_to_srgb",
      (PyCFunction)Color_from_scene_linear_to_srgb,
      METH_NOARGS,
@@ -1089,8 +1083,6 @@ static struct PyMethodDef Color_methods[] = {
      (PyCFunction)Color_from_rec709_linear_to_scene_linear,
      METH_NOARGS,
      Color_from_rec709_linear_to_scene_linear_doc},
-#endif /* MATH_STANDALONE */
-
     {NULL, NULL, 0, NULL},
 };
 
@@ -1110,7 +1102,7 @@ PyDoc_STRVAR(
     "   the OpenColorIO configuration. The notable exception is user interface theming colors, "
     "   which are in sRGB color space.\n"
     "\n"
-    "   :arg rgb: (r, g, b) color values\n"
+    "   :param rgb: (r, g, b) color values\n"
     "   :type rgb: 3d vector\n");
 PyTypeObject color_Type = {
     PyVarObject_HEAD_INIT(NULL, 0) "Color", /* tp_name */
@@ -1155,7 +1147,7 @@ PyTypeObject color_Type = {
     NULL,                                                          /* tp_alloc */
     Color_new,                                                     /* tp_new */
     NULL,                                                          /* tp_free */
-    (inquiry)BaseMathObject_is_gc,                                 /* tp_is_gc */
+    NULL,                                                          /* tp_is_gc */
     NULL,                                                          /* tp_bases */
     NULL,                                                          /* tp_mro */
     NULL,                                                          /* tp_cache */
@@ -1234,7 +1226,6 @@ PyObject *Color_CreatePyObject_cb(PyObject *cb_user, uchar cb_type, uchar cb_sub
     self->cb_user = cb_user;
     self->cb_type = cb_type;
     self->cb_subtype = cb_subtype;
-    BLI_assert(!PyObject_GC_IsTracked((PyObject *)self));
     PyObject_GC_Track(self);
   }
 

@@ -15,12 +15,13 @@ class OctaneVolumeGradientGradientInterpolationType(OctaneBaseSocket):
     bl_idname="OctaneVolumeGradientGradientInterpolationType"
     bl_label="Interpolation"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type=57
+    octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=299)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="gradientInterpolationType")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
+    octane_pin_id=consts.PinID.P_GRADIENT_INTERP_TYPE
+    octane_pin_name="gradientInterpolationType"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("Constant", "Constant", "", 1),
         ("Linear", "Linear", "", 2),
@@ -36,12 +37,13 @@ class OctaneVolumeGradientMin(OctaneBaseSocket):
     bl_idname="OctaneVolumeGradientMin"
     bl_label="Start value"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=113)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="min")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
+    octane_pin_id=consts.PinID.P_MIN
+    octane_pin_name="min"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=1
+    octane_socket_type=consts.SocketType.ST_RGBA
     default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="Output value at 0", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=0
@@ -52,13 +54,14 @@ class OctaneVolumeGradientMax(OctaneBaseSocket):
     bl_idname="OctaneVolumeGradientMax"
     bl_label="End value"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=106)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="max")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
-    default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=OctaneBaseSocket.update_node_tree, description="Output value at 1.0", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", precision=2, size=3)
+    octane_pin_id=consts.PinID.P_MAX
+    octane_pin_name="max"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=2
+    octane_socket_type=consts.SocketType.ST_RGBA
+    default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=OctaneBaseSocket.update_node_tree, description="Output value at 1", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -68,13 +71,14 @@ class OctaneVolumeGradientMaxGridValue(OctaneBaseSocket):
     bl_idname="OctaneVolumeGradientMaxGridValue"
     bl_label="Max value"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=301)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="maxGridValue")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=100.000000, update=OctaneBaseSocket.update_node_tree, description="Max grid Value", min=0.001000, max=1000000.000000, soft_min=0.001000, soft_max=1000000.000000, step=1, precision=3, subtype="NONE")
+    octane_pin_id=consts.PinID.P_MAX_GRID_VALUE
+    octane_pin_name="maxGridValue"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=3
+    octane_socket_type=consts.SocketType.ST_FLOAT
+    default_value: FloatProperty(default=100.000000, update=OctaneBaseSocket.update_node_tree, description="Maximum grid value", min=0.001000, max=1000000.000000, soft_min=0.001000, soft_max=1000000.000000, step=1, precision=3, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -84,12 +88,13 @@ class OctaneVolumeGradientSmooth(OctaneBaseSocket):
     bl_idname="OctaneVolumeGradientSmooth"
     bl_label="Smoothing"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type=11
+    octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=218)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="smooth")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
+    octane_pin_id=consts.PinID.P_SMOOTH
+    octane_pin_name="smooth"
+    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_index=4
+    octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="(deprecated) Make the gradient more smooth around the control points")
     octane_hide_value=False
     octane_min_version=0
@@ -105,13 +110,13 @@ class OctaneVolumeGradient(bpy.types.Node, OctaneBaseRampNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneVolumeGradientGradientInterpolationType,OctaneVolumeGradientMin,OctaneVolumeGradientMax,OctaneVolumeGradientMaxGridValue,OctaneVolumeGradientSmooth,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=95)
-    octane_socket_list: StringProperty(name="Socket List", default="Interpolation;Start value;End value;Max value;Smoothing;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="a_num_controlpoints;")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="controlpoints;")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="2;")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=5)
+    octane_node_type=consts.NodeType.NT_VOLUME_RAMP
+    octane_socket_list=["Interpolation", "Start value", "End value", "Max value", "Smoothing", ]
+    octane_attribute_list=["a_num_controlpoints", ]
+    octane_attribute_config={"a_num_controlpoints": [consts.AttributeID.A_NUM_CONTROLPOINTS, "controlpoints", consts.AttributeType.AT_INT], "a_input_action": [consts.AttributeID.A_INPUT_ACTION, "inputAction", consts.AttributeType.AT_INT2], }
+    octane_static_pin_count=4
 
     a_num_controlpoints: IntProperty(name="Num controlpoints", default=0, update=OctaneBaseNode.update_node_tree, description="The number of control points between start and end")
 
@@ -156,7 +161,10 @@ class OctaneVolumeGradientGradientInterpolationType_Override(OctaneVolumeGradien
 class OctaneVolumeGradient_Override(OctaneVolumeGradient):
     bl_width_default = 300
     MAX_VALUE_SOCKET = 0
-
+    RAMP_VALUE_INPUT_SOCKET_TYPE = consts.SocketType.ST_FLOAT3
+    RAMP_VALUE_INPUT_PIN_TYPE = consts.PinType.PT_FLOAT
+    RAMP_VALUE_INPUT_DEFAULT_NODE_TYPE = consts.NodeType.NT_FLOAT
+    
     def init(self, context):
         super().init(context)        
         self.init_octane_color_ramp()
@@ -165,4 +173,5 @@ class OctaneVolumeGradient_Override(OctaneVolumeGradient):
         super().draw_buttons(context, layout)
 
 utility.override_class(_CLASSES, OctaneVolumeGradientGradientInterpolationType, OctaneVolumeGradientGradientInterpolationType_Override)
+OctaneVolumeGradient_Override.update_node_definition()
 utility.override_class(_CLASSES, OctaneVolumeGradient, OctaneVolumeGradient_Override)

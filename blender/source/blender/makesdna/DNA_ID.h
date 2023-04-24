@@ -37,7 +37,7 @@ typedef struct DrawData {
   /* Only nested data, NOT the engine data itself. */
   DrawDataFreeCb free;
   /* Accumulated recalc flags, which corresponds to ID->recalc flags. */
-  unsigned int recalc;
+  int recalc;
 } DrawData;
 
 typedef struct DrawDataList {
@@ -256,7 +256,6 @@ typedef struct IDOverrideLibraryProperty {
 
   /**
    * List of overriding operations (IDOverrideLibraryPropertyOperation) applied to this property.
-   * Recreated as part of the diffing, so do not store any of these elsewhere.
    */
   ListBase operations;
 
@@ -388,7 +387,7 @@ typedef struct ID {
   int tag;
   int us;
   int icon_id;
-  unsigned int recalc;
+  int recalc;
   /**
    * Used by undo code. recalc_after_undo_push contains the changes between the
    * last undo push and the current state. This is accumulated as IDs are tagged
@@ -398,8 +397,8 @@ typedef struct ID {
    * recalc_after_undo_push at the time of the undo push. This means it can be
    * used to find the changes between undo states.
    */
-  unsigned int recalc_up_to_undo_push;
-  unsigned int recalc_after_undo_push;
+  int recalc_up_to_undo_push;
+  int recalc_after_undo_push;
 
   /**
    * A session-wide unique identifier for a given ID, that remain the same across potential
@@ -471,7 +470,7 @@ typedef struct Library {
    */
   char filepath_abs[1024];
 
-  /** Set for indirectly linked libraries, used in the outliner and while reading. */
+  /** Set for indirectly linked libs, used in the outliner and while reading. */
   struct Library *parent;
 
   struct PackedFile *packedfile;
@@ -655,123 +654,62 @@ enum {
 /**
  * id->tag (runtime-only).
  *
- * Those flags belong to three different categories, which have different expected handling in
- * code:
+ * Those flags belong to three different categories,
+ * which have different expected handling in code:
  *
- * - RESET_BEFORE_USE: piece of code that wants to use such flag has to ensure they are properly
- *   'reset' first.
+ * - RESET_BEFORE_USE: piece of code that wants to use such flag
+ *   has to ensure they are properly 'reset' first.
  * - RESET_AFTER_USE: piece of code that wants to use such flag has to ensure they are properly
- *   'reset' after usage (though 'lifetime' of those flags is a bit fuzzy, e.g. _RECALC ones are
- *   reset on depsgraph evaluation...).
- * - RESET_NEVER: these flags are 'status' ones, and never actually need any reset (except on
- *   initialization during .blend file reading).
+ *   'reset' after usage
+ *   (though 'lifetime' of those flags is a bit fuzzy, e.g. _RECALC ones are reset on depsgraph
+ *   evaluation...).
+ * - RESET_NEVER: those flags are 'status' one, and never actually need any reset
+ *   (except on initialization during .blend file reading).
  */
 enum {
-  /**
-   * ID is from current .blend file.
-   *
-   * RESET_NEVER
-   */
+  /* RESET_NEVER Datablock is from current .blend file. */
   LIB_TAG_LOCAL = 0,
-  /**
-   * ID is from a library, but is used (linked) directly by current .blend file.
-   *
-   * RESET_NEVER
-   */
+  /* RESET_NEVER Datablock is from a library,
+   * but is used (linked) directly by current .blend file. */
   LIB_TAG_EXTERN = 1 << 0,
-  /**
-   * ID is from a library, and is only used (linked) indirectly through other libraries.
-   *
-   * RESET_NEVER
-   */
+  /* RESET_NEVER Datablock is from a library,
+   * and is only used (linked) indirectly through other libraries. */
   LIB_TAG_INDIRECT = 1 << 1,
 
-  /**
-   * Tag used internally in readfile.c, to mark IDs needing to be expanded (only done once).
-   *
-   * RESET_AFTER_USE
-   */
+  /* RESET_AFTER_USE Flag used internally in readfile.c,
+   * to mark IDs needing to be expanded (only done once). */
   LIB_TAG_NEED_EXPAND = 1 << 3,
-  /**
-   * Tag used internally in readfile.c, to mark ID placeholders for linked data-blocks needing to
-   * be read.
-   *
-   * RESET_AFTER_USE
-   */
+  /* RESET_AFTER_USE Flag used internally in readfile.c to mark ID
+   * placeholders for linked data-blocks needing to be read. */
   LIB_TAG_ID_LINK_PLACEHOLDER = 1 << 4,
-  /**
-   * Tag used internally in readfile.c, to mark IDs needing to be 'lib-linked', i.e. to get their
-   * pointers to other data-blocks updated from the 'UID' values stored in .blend files to the new,
-   * actual pointers.
-   *
-   * RESET_AFTER_USE
-   */
+  /* RESET_AFTER_USE */
   LIB_TAG_NEED_LINK = 1 << 5,
 
-  /**
-   * ID is a place-holder, an 'empty shell' (because the real one could not be linked from its
-   * library e.g.).
-   *
-   * RESET_NEVER
-   */
+  /* RESET_NEVER tag data-block as a place-holder
+   * (because the real one could not be linked from its library e.g.). */
   LIB_TAG_MISSING = 1 << 6,
 
-  /**
-   * ID is up-to-date regarding its reference (only for library overrides).
-   *
-   * RESET_NEVER
-   */
+  /* RESET_NEVER tag data-block as being up-to-date regarding its reference. */
   LIB_TAG_OVERRIDE_LIBRARY_REFOK = 1 << 9,
-  /**
-   * ID needs an auto-diffing execution, if enabled (only for library overrides).
-   *
-   * RESET_NEVER
-   */
+  /* RESET_NEVER tag data-block as needing an auto-override execution, if enabled. */
   LIB_TAG_OVERRIDE_LIBRARY_AUTOREFRESH = 1 << 17,
 
-  /**
-   * ID has an extra virtual user (aka 'ensured real', as set by e.g. some editors, not to be
-   * confused with the `LIB_FAKEUSER` flag).
-   *
-   * RESET_NEVER
-   *
-   * \note This tag does not necessarily mean the actual user count of the ID is increased, this is
-   * defined by #LIB_TAG_EXTRAUSER_SET.
-   */
+  /* tag data-block as having an extra user. */
   LIB_TAG_EXTRAUSER = 1 << 2,
-  /**
-   * ID actually has increased user-count for the extra virtual user.
-   *
-   * RESET_NEVER
-   */
+  /* tag data-block as having actually increased user-count for the extra virtual user. */
   LIB_TAG_EXTRAUSER_SET = 1 << 7,
 
-  /**
-   * ID is newly duplicated/copied (see #ID_NEW_SET macro above).
-   *
-   * RESET_AFTER_USE
-   *
-   * \note Also used internally in readfile.c to mark data-blocks needing do_versions.
-   */
+  /* RESET_AFTER_USE tag newly duplicated/copied IDs (see #ID_NEW_SET macro above).
+   * Also used internally in readfile.c to mark data-blocks needing do_versions. */
   LIB_TAG_NEW = 1 << 8,
-  /**
-   * Free to use tag, often used in BKE code to mark IDs to be processed.
-   *
-   * RESET_BEFORE_USE
-   *
-   * \todo Make it a RESET_AFTER_USE too.
-   */
+  /* RESET_BEFORE_USE free test flag.
+   * TODO: make it a RESET_AFTER_USE too. */
   LIB_TAG_DOIT = 1 << 10,
-  /**
-   * ID is already existing. Set before linking, to distinguish between existing data-blocks and
-   * newly linked ones.
-   *
-   * RESET_AFTER_USE
-   */
+  /* RESET_AFTER_USE tag existing data before linking so we know what is new. */
   LIB_TAG_PRE_EXISTING = 1 << 11,
 
   /**
-   * ID is a copy-on-write/localized version.
+   * The data-block is a copy-on-write/localized version.
    *
    * RESET_NEVER
    *
@@ -781,8 +719,8 @@ enum {
    */
   LIB_TAG_COPIED_ON_WRITE = 1 << 12,
   /**
-   * ID is not the original COW ID created by the depsgraph, but has been re-allocated during the
-   * evaluation process of another ID.
+   * The data-block is not the original COW ID created by the depsgraph, but has be re-allocated
+   * during the evaluation process of another ID.
    *
    * RESET_NEVER
    *
@@ -792,58 +730,34 @@ enum {
   LIB_TAG_COPIED_ON_WRITE_EVAL_RESULT = 1 << 13,
 
   /**
-   * ID is fully outside of any ID management area, and should be considered as a purely
-   * independent data.
+   * The data-block is fully outside of any ID management area, and should be considered as a
+   * purely independent data.
    *
    * RESET_NEVER
    *
-   * \note Only used by node-trees currently.
+   * NOTE: Only used by node-groups currently.
    */
   LIB_TAG_LOCALIZED = 1 << 14,
 
-  /** General ID management info, for freeing or copying behavior e.g. */
-  /**
-   * ID is not listed/stored in Main database.
-   *
-   * RESET_NEVER
-   */
-  LIB_TAG_NO_MAIN = 1 << 15,
-  /**
-   * Datablock does not refcount usages of other IDs.
-   *
-   * RESET_NEVER
-   */
-  LIB_TAG_NO_USER_REFCOUNT = 1 << 16,
-  /**
-   * ID was not allocated by standard system (BKE_libblock_alloc), do not free its memory
-   * (usual type-specific freeing is called though).
-   *
-   * RESET_NEVER
-   */
+  /* RESET_NEVER tag data-block for freeing etc. behavior
+   * (usually set when copying real one into temp/runtime one). */
+  LIB_TAG_NO_MAIN = 1 << 15,          /* Datablock is not listed in Main database. */
+  LIB_TAG_NO_USER_REFCOUNT = 1 << 16, /* Datablock does not refcount usages of other IDs. */
+  /* Datablock was not allocated by standard system (BKE_libblock_alloc), do not free its memory
+   * (usual type-specific freeing is called though). */
   LIB_TAG_NOT_ALLOCATED = 1 << 18,
 
-  /**
-   * ID is being re-used from the old Main (instead of read from memfile), during memfile undo
-   * processing.
-   *
-   * RESET_AFTER_USE
-   */
+  /* RESET_AFTER_USE Used by undo system to tag unchanged IDs re-used from old Main (instead of
+   * read from memfile). */
   LIB_TAG_UNDO_OLD_ID_REUSED = 1 << 19,
 
-  /**
-   * ID is part of a temporary #Main which is expected to be freed in a short time-frame.
-   *
-   * RESET_NEVER
-   *
+  /* This ID is part of a temporary #Main which is expected to be freed in a short time-frame.
    * Don't allow assigning this to non-temporary members (since it's likely to cause errors).
-   * When set #ID.session_uuid isn't initialized, since the data isn't part of the session.
-   */
+   * When set #ID.session_uuid isn't initialized, since the data isn't part of the session. */
   LIB_TAG_TEMP_MAIN = 1 << 20,
 
   /**
-   * ID is a library override that needs re-sync to its linked reference.
-   *
-   * RESET_NEVER
+   * The data-block is a library override that needs re-sync to its linked reference.
    */
   LIB_TAG_LIB_OVERRIDE_NEED_RESYNC = 1 << 21,
 };
@@ -956,17 +870,6 @@ typedef enum IDRecalcFlag {
   /* The node tree has changed in a way that affects its output nodes. */
   ID_RECALC_NTREE_OUTPUT = (1 << 25),
 
-  /* Provisioned flags.
-   *
-   * Not for actual use. The idea of them is to have all bits of the `IDRecalcFlag` defined to a
-   * known value, silencing sanitizer warnings when checking bits of the ID_RECALC_ALL. */
-  ID_RECALC_PROVISION_26 = (1 << 26),
-  ID_RECALC_PROVISION_27 = (1 << 27),
-  ID_RECALC_PROVISION_28 = (1 << 28),
-  ID_RECALC_PROVISION_29 = (1 << 29),
-  ID_RECALC_PROVISION_30 = (1 << 30),
-  ID_RECALC_PROVISION_31 = (1u << 31),
-
   /***************************************************************************
    * Pseudonyms, to have more semantic meaning in the actual code without
    * using too much low-level and implementation specific tags. */
@@ -985,8 +888,7 @@ typedef enum IDRecalcFlag {
    * Do NOT use those for tagging. */
 
   /* Identifies that SOMETHING has been changed in this ID. */
-  ID_RECALC_ALL = (0xffffffff),
-
+  ID_RECALC_ALL = ~(0),
   /* Identifies that something in particle system did change. */
   ID_RECALC_PSYS_ALL = (ID_RECALC_PSYS_REDO | ID_RECALC_PSYS_RESET | ID_RECALC_PSYS_CHILD |
                         ID_RECALC_PSYS_PHYS),

@@ -103,6 +103,10 @@ if(EXISTS ${SOURCE_DIR}/.git)
       endif()
     endif()
 
+    if(MY_WC_BRANCH MATCHES "^blender-v")
+      set(MY_WC_BRANCH "master")
+    endif()
+
     unset(_git_below_check)
   endif()
 
@@ -146,10 +150,10 @@ endif()
 # BUILD_PLATFORM is taken from CMake
 # but BUILD_DATE and BUILD_TIME are platform dependent
 if(NOT BUILD_DATE)
-  string(TIMESTAMP BUILD_DATE "%Y-%m-%d" UTC)
+  STRING(TIMESTAMP BUILD_DATE "%Y-%m-%d" UTC)
 endif()
 if(NOT BUILD_TIME)
-  string(TIMESTAMP BUILD_TIME "%H:%M:%S" UTC)
+  STRING(TIMESTAMP BUILD_TIME "%H:%M:%S" UTC)
 endif()
 
 # Write a file with the BUILD_HASH define

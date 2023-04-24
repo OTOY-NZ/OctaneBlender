@@ -243,15 +243,12 @@ typedef struct bGPDstroke_Runtime {
   /** Runtime falloff factor (only for transform). */
   float multi_frame_falloff;
 
-  /** Triangle offset in the IBO where this stroke starts. */
+  /** Vertex offset in the VBO where this stroke starts. */
   int stroke_start;
   /** Triangle offset in the IBO where this fill starts. */
   int fill_start;
-  /** Vertex offset in the VBO where this stroke starts. */
-  int vertex_start;
   /** Curve Handles offset in the IBO where this handle starts. */
   int curve_start;
-  int _pad0;
 
   /** Original stroke (used to dereference evaluated data) */
   struct bGPDstroke *gps_orig;
@@ -350,10 +347,6 @@ typedef enum eGPDstroke_Flag {
   /* Flag to indicated that the editcurve has been changed and the stroke needs to be updated with
    * the curve data */
   GP_STROKE_NEEDS_CURVE_UPDATE = (1 << 9),
-  /* Flag to indicate that a stroke is used only for help, and will not affect rendering or fill */
-  GP_STROKE_HELP = (1 << 10),
-  /* Flag to indicate that a extend stroke collide (fill tool)  */
-  GP_STROKE_COLLIDE = (1 << 11),
   /* only for use with stroke-buffer (while drawing arrows) */
   GP_STROKE_USE_ARROW_START = (1 << 12),
   /* only for use with stroke-buffer (while drawing arrows) */
@@ -586,7 +579,7 @@ typedef enum eGPDlayer_Flag {
   GP_LAYER_USE_MASK = (1 << 13), /* TODO: DEPRECATED */
   /* Ruler Layer */
   GP_LAYER_IS_RULER = (1 << 14),
-  /* Disable masks in view-layer render */
+  /* Disable masks in viewlayer render */
   GP_LAYER_DISABLE_MASKS_IN_VIEWLAYER = (1 << 15),
 } eGPDlayer_Flag;
 
@@ -616,9 +609,8 @@ typedef struct bGPdata_Runtime {
   /** Stroke buffer. */
   void *sbuffer;
   /** Temp batches cleared after drawing. */
-  struct GPUVertBuf *sbuffer_position_buf;
-  struct GPUVertBuf *sbuffer_color_buf;
-  struct GPUBatch *sbuffer_batch;
+  struct GPUBatch *sbuffer_stroke_batch;
+  struct GPUBatch *sbuffer_fill_batch;
   /** Temp stroke used for drawing. */
   struct bGPDstroke *sbuffer_gps;
 

@@ -15,12 +15,13 @@ class OctaneColorVertexAttributeName(OctaneBaseSocket):
     bl_idname="OctaneColorVertexAttributeName"
     bl_label="Name"
     color=consts.OctanePinColor.String
-    octane_default_node_type=84
+    octane_default_node_type=consts.NodeType.NT_STRING
     octane_default_node_name="OctaneStringValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=465)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="name")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_STRING)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_STRING)
+    octane_pin_id=consts.PinID.P_NAME
+    octane_pin_name="name"
+    octane_pin_type=consts.PinType.PT_STRING
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_STRING
     default_value: StringProperty(default="", update=OctaneBaseSocket.update_node_tree, description="Name of the vertex attribute")
     octane_hide_value=False
     octane_min_version=0
@@ -36,13 +37,13 @@ class OctaneColorVertexAttribute(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneColorVertexAttributeName,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=135)
-    octane_socket_list: StringProperty(name="Socket List", default="Name;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=1)
+    octane_node_type=consts.NodeType.NT_TEX_COLOUR_VERTEXATTRIBUTE
+    octane_socket_list=["Name", ]
+    octane_attribute_list=[]
+    octane_attribute_config={}
+    octane_static_pin_count=1
 
     def init(self, context):
         self.inputs.new("OctaneColorVertexAttributeName", OctaneColorVertexAttributeName.bl_label).init()

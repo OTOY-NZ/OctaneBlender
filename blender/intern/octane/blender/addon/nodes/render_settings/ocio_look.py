@@ -20,13 +20,13 @@ class OctaneOCIOLook(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=161)
-    octane_socket_list: StringProperty(name="Socket List", default="")
-    octane_attribute_list: StringProperty(name="Attribute List", default="a_ocio_use_view_look;a_ocio_look_name;")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="ocioUseViewLook;ocioLookName;")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="1;10;")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=0)
+    octane_node_type=consts.NodeType.NT_OCIO_LOOK
+    octane_socket_list=[]
+    octane_attribute_list=["a_ocio_use_view_look", "a_ocio_look_name", ]
+    octane_attribute_config={"a_ocio_use_view_look": [consts.AttributeID.A_OCIO_USE_VIEW_LOOK, "ocioUseViewLook", consts.AttributeType.AT_BOOL], "a_ocio_look_name": [consts.AttributeID.A_OCIO_LOOK_NAME, "ocioLookName", consts.AttributeType.AT_STRING], }
+    octane_static_pin_count=0
 
     a_ocio_use_view_look: BoolProperty(name="Ocio use view look", default=False, update=OctaneBaseNode.update_node_tree, description="Whether to use the selected OCIO view's default look(s) instead of the specified look")
     a_ocio_look_name: StringProperty(name="Ocio look name", default="", update=OctaneBaseNode.update_node_tree, description="If using the selected OCIO view's default look(s), this value is ignored. Otherwise, the name of the OCIO look to apply with the selected OCIO view, or empty to apply no look")

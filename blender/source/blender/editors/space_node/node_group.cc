@@ -14,7 +14,6 @@
 
 #include "BLI_linklist.h"
 #include "BLI_listbase.h"
-#include "BLI_map.hh"
 #include "BLI_math_vec_types.hh"
 #include "BLI_string.h"
 #include "BLI_vector.hh"
@@ -26,7 +25,6 @@
 #include "BKE_context.h"
 #include "BKE_lib_id.h"
 #include "BKE_main.h"
-#include "BKE_node_runtime.hh"
 #include "BKE_node_tree_update.h"
 #include "BKE_report.h"
 
@@ -47,12 +45,7 @@
 #include "UI_resources.h"
 
 #include "NOD_common.h"
-#include "NOD_composite.h"
-#include "NOD_geometry.h"
-#include "NOD_shader.h"
 #include "NOD_socket.h"
-#include "NOD_texture.h"
-
 #include "node_intern.hh" /* own include */
 
 namespace blender::ed::space_node {
@@ -107,16 +100,16 @@ const char *node_group_idname(bContext *C)
   SpaceNode *snode = CTX_wm_space_node(C);
 
   if (ED_node_is_shader(snode)) {
-    return ntreeType_Shader->group_idname;
+    return "ShaderNodeGroup";
   }
   if (ED_node_is_compositor(snode)) {
-    return ntreeType_Composite->group_idname;
+    return "CompositorNodeGroup";
   }
   if (ED_node_is_texture(snode)) {
-    return ntreeType_Texture->group_idname;
+    return "TextureNodeGroup";
   }
   if (ED_node_is_geometry(snode)) {
-    return ntreeType_Geometry->group_idname;
+    return "GeometryNodeGroup";
   }
 
   return "";
@@ -464,7 +457,8 @@ static bool node_group_separate_selected(
     bNode *newnode;
     if (make_copy) {
       /* make a copy */
-      newnode = bke::node_copy_with_mapping(&ngroup, *node, LIB_ID_COPY_DEFAULT, true, socket_map);
+      newnode = blender::bke::node_copy_with_mapping(
+          &ngroup, *node, LIB_ID_COPY_DEFAULT, true, socket_map);
       node_map.add_new(node, newnode);
     }
     else {
@@ -604,7 +598,9 @@ static int node_group_separate_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int node_group_separate_invoke(bContext *C, wmOperator * /*op*/, const wmEvent * /*event*/)
+static int node_group_separate_invoke(bContext *C,
+                                      wmOperator *UNUSED(op),
+                                      const wmEvent *UNUSED(event))
 {
   uiPopupMenu *pup = UI_popup_menu_begin(
       C, CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Separate"), ICON_NONE);
@@ -652,7 +648,7 @@ static bool node_group_make_use_node(bNode &node, bNode *gnode)
 static bool node_group_make_test_selected(bNodeTree &ntree,
                                           bNode *gnode,
                                           const char *ntree_idname,
-                                          ReportList &reports)
+                                          struct ReportList &reports)
 {
   int ok = true;
 
@@ -716,13 +712,13 @@ static int node_get_selected_minmax(
   INIT_MINMAX2(min, max);
   LISTBASE_FOREACH (bNode *, node, &ntree.nodes) {
     if (node_group_make_use_node(*node, gnode)) {
-      float2 loc;
-      nodeToView(node, node->offsetx, node->offsety, &loc.x, &loc.y);
-      math::min_max(loc, min, max);
+      float loc[2];
+      nodeToView(node, node->offsetx, node->offsety, &loc[0], &loc[1]);
+      minmax_v2v2_v2(min, max, loc);
       if (use_size) {
-        loc.x += node->width;
-        loc.y -= node->height;
-        math::min_max(loc, min, max);
+        loc[0] += node->width;
+        loc[1] -= node->height;
+        minmax_v2v2_v2(min, max, loc);
       }
       totselect++;
     }
@@ -734,74 +730,6 @@ static int node_get_selected_minmax(
   }
 
   return totselect;
-}
-
-/**
- * Redirect a link that are connecting a non-selected node to selected one.
- * Create new socket or reuse an existing one that was connected from the same input.
- * The output sockets of group nodes usually have consciously given names so they have
- * precedence over socket names the link points to.
- *
- * \param ntree: The node tree that the node group is being created from.
- * \param ngroup: The node tree of the new node group.
- * \param gnode: The new group node in the original tree.
- * \param input_node: The input node of the new node group.
- * \param link: The incoming link that needs to be altered.
- * \param reusable_sockets: Map for input socket interface lookup.
- */
-static void node_group_make_redirect_incoming_link(
-    bNodeTree &ntree,
-    bNodeTree *ngroup,
-    bNode *gnode,
-    bNode *input_node,
-    bNodeLink *link,
-    Map<bNodeSocket *, bNodeSocket *> &reusable_sockets)
-{
-  bNodeSocket *input_socket = reusable_sockets.lookup_default(link->fromsock, nullptr);
-  if (input_socket) {
-    /* The incoming link is from a socket that has already been linked to
-     * a socket interface of the input node.
-     * Change the source of the link to the previously created socket interface.
-     * Move the link into the node tree of the new group. */
-    link->fromnode = input_node;
-    link->fromsock = input_socket;
-    BLI_remlink(&ntree.links, link);
-    BLI_addtail(&ngroup->links, link);
-  }
-  else {
-    bNode *node_for_typeinfo = nullptr;
-    bNodeSocket *socket_for_typeinfo = nullptr;
-    /* Find a socket where typeinfo and name may come from. */
-    node_socket_skip_reroutes(
-        &ntree.links, link->tonode, link->tosock, &node_for_typeinfo, &socket_for_typeinfo);
-    bNodeSocket *socket_for_naming = socket_for_typeinfo;
-
-    /* Use the name of group node output sockets. */
-    if (ELEM(link->fromnode->type, NODE_GROUP_INPUT, NODE_GROUP, NODE_CUSTOM_GROUP)) {
-      socket_for_naming = link->fromsock;
-    }
-
-    bNodeSocket *iosock = ntreeAddSocketInterfaceFromSocketWithName(ngroup,
-                                                                    node_for_typeinfo,
-                                                                    socket_for_typeinfo,
-                                                                    socket_for_naming->idname,
-                                                                    socket_for_naming->name);
-
-    /* Update the group node and interface sockets so the new interface socket can be linked. */
-    node_group_update(&ntree, gnode);
-    node_group_input_update(ngroup, input_node);
-
-    /* Create new internal link. */
-    bNodeSocket *input_sock = node_group_input_find_socket(input_node, iosock->identifier);
-    nodeAddLink(ngroup, input_node, input_sock, link->tonode, link->tosock);
-
-    /* Redirect external link. */
-    link->tonode = gnode;
-    link->tosock = node_group_find_input_socket(gnode, iosock->identifier);
-
-    /* Remember which interface socket the link has been redirected to. */
-    reusable_sockets.add_new(link->fromsock, input_sock);
-  }
 }
 
 static void node_group_make_insert_selected(const bContext &C, bNodeTree &ntree, bNode *gnode)
@@ -903,13 +831,9 @@ static void node_group_make_insert_selected(const bContext &C, bNodeTree &ntree,
   output_node->locy = -offsety;
 
   /* relink external sockets */
-
-  /* A map from link sources to input sockets already connected. */
-  Map<bNodeSocket *, bNodeSocket *> reusable_sockets;
-
   LISTBASE_FOREACH_MUTABLE (bNodeLink *, link, &ntree.links) {
-    const bool fromselect = node_group_make_use_node(*link->fromnode, gnode);
-    const bool toselect = node_group_make_use_node(*link->tonode, gnode);
+    int fromselect = node_group_make_use_node(*link->fromnode, gnode);
+    int toselect = node_group_make_use_node(*link->tonode, gnode);
 
     if ((fromselect && link->tonode == gnode) || (toselect && link->fromnode == gnode)) {
       /* remove all links to/from the gnode.
@@ -924,8 +848,24 @@ static void node_group_make_insert_selected(const bContext &C, bNodeTree &ntree,
         continue;
       }
 
-      node_group_make_redirect_incoming_link(
-          ntree, ngroup, gnode, input_node, link, reusable_sockets);
+      bNodeSocket *link_sock;
+      bNode *link_node;
+      node_socket_skip_reroutes(&ntree.links, link->tonode, link->tosock, &link_node, &link_sock);
+      bNodeSocket *iosock = ntreeAddSocketInterfaceFromSocket(ngroup, link_node, link_sock);
+
+      /* update the group node and interface node sockets,
+       * so the new interface socket can be linked.
+       */
+      node_group_update(&ntree, gnode);
+      node_group_input_update(ngroup, input_node);
+
+      /* create new internal link */
+      bNodeSocket *input_sock = node_group_input_find_socket(input_node, iosock->identifier);
+      nodeAddLink(ngroup, input_node, input_sock, link->tonode, link->tosock);
+
+      /* redirect external link */
+      link->tonode = gnode;
+      link->tosock = node_group_find_input_socket(gnode, iosock->identifier);
     }
     else if (fromselect && !toselect) {
       /* Remove hidden links to not create unconnected sockets in the interface. */
@@ -973,8 +913,8 @@ static void node_group_make_insert_selected(const bContext &C, bNodeTree &ntree,
 
   /* move internal links */
   LISTBASE_FOREACH_MUTABLE (bNodeLink *, link, &ntree.links) {
-    const bool fromselect = node_group_make_use_node(*link->fromnode, gnode);
-    const bool toselect = node_group_make_use_node(*link->tonode, gnode);
+    int fromselect = node_group_make_use_node(*link->fromnode, gnode);
+    int toselect = node_group_make_use_node(*link->tonode, gnode);
 
     if (fromselect && toselect) {
       BLI_remlink(&ntree.links, link);
@@ -1097,12 +1037,15 @@ static int node_group_make_exec(bContext *C, wmOperator *op)
     nodeSetActive(&ntree, gnode);
     if (ngroup) {
       ED_node_tree_push(&snode, ngroup, gnode);
+      LISTBASE_FOREACH (bNode *, node, &ngroup->nodes) {
+        sort_multi_input_socket_links(snode, *node, nullptr, nullptr);
+      }
     }
   }
 
   ED_node_tree_propagate_change(C, bmain, nullptr);
 
-  WM_event_add_notifier(C, NC_NODE | NA_ADDED, nullptr);
+  WM_event_add_notifier(C, NC_NODE | NA_ADDED, NULL);
 
   /* We broke relations in node tree, need to rebuild them in the graphs. */
   DEG_relations_tag_update(bmain);

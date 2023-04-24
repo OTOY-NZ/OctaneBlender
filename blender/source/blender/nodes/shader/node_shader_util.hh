@@ -59,8 +59,6 @@
 #include "RE_pipeline.h"
 #include "RE_texture.h"
 
-#include "RNA_access.h"
-
 bool sh_node_poll_default(struct bNodeType *ntype,
                           struct bNodeTree *ntree,
                           const char **r_disabled_hint);

@@ -292,7 +292,7 @@ void OverrideRNAPathTreeBuilder::build_path(TreeElement &parent,
   PointerRNA idpoin;
   RNA_id_pointer_create(&override_data.id, &idpoin);
 
-  ListBase path_elems = {nullptr};
+  ListBase path_elems = {NULL};
   if (!RNA_path_resolve_elements(&idpoin, override_data.override_property.rna_path, &path_elems)) {
     return;
   }
@@ -371,7 +371,9 @@ void OverrideRNAPathTreeBuilder::ensure_entire_collection(
     const char *coll_prop_path,
     short &index)
 {
-  BLI_assert(tree_element_cast<AbstractTreeElement>(&te_to_expand) != nullptr);
+  AbstractTreeElement *abstract_parent = tree_element_cast<AbstractTreeElement>(&te_to_expand);
+  BLI_assert(abstract_parent != nullptr);
+  UNUSED_VARS_NDEBUG(abstract_parent);
 
   TreeElement *previous_te = nullptr;
   int item_idx = 0;

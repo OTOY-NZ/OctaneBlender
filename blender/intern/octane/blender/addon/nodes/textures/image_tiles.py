@@ -15,12 +15,13 @@ class OctaneImageTilesPower(OctaneBaseSocket):
     bl_idname="OctaneImageTilesPower"
     bl_label="Power"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=31
+    octane_default_node_type=consts.NodeType.NT_TEX_FLOAT
     octane_default_node_name="OctaneGreyscaleColor"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=138)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="power")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_POWER
+    octane_pin_name="power"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Power/brightness", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
@@ -31,12 +32,13 @@ class OctaneImageTilesColorSpace(OctaneBaseSocket):
     bl_idname="OctaneImageTilesColorSpace"
     bl_label="Color space"
     color=consts.OctanePinColor.OCIOColorSpace
-    octane_default_node_type=163
+    octane_default_node_type=consts.NodeType.NT_OCIO_COLOR_SPACE
     octane_default_node_name="OctaneOCIOColorSpace"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=616)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="colorSpace")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_OCIO_COLOR_SPACE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_COLOR_SPACE
+    octane_pin_name="colorSpace"
+    octane_pin_type=consts.PinType.PT_OCIO_COLOR_SPACE
+    octane_pin_index=1
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=11000005
     octane_end_version=4294967295
@@ -46,12 +48,13 @@ class OctaneImageTilesGamma(OctaneBaseSocket):
     bl_idname="OctaneImageTilesGamma"
     bl_label="Legacy gamma"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=57)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="gamma")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_GAMMA
+    octane_pin_name="gamma"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=2
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Gamma value. Only used when the color space is set to \"Linear sRGB + legacy gamma\"", min=0.100000, max=8.000000, soft_min=0.100000, soft_max=8.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
@@ -62,12 +65,13 @@ class OctaneImageTilesInvert(OctaneBaseSocket):
     bl_idname="OctaneImageTilesInvert"
     bl_label="Invert"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type=11
+    octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=83)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="invert")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
+    octane_pin_id=consts.PinID.P_INVERT
+    octane_pin_name="invert"
+    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_index=3
+    octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Invert image")
     octane_hide_value=False
     octane_min_version=0
@@ -78,12 +82,13 @@ class OctaneImageTilesLinearSpaceInvert(OctaneBaseSocket):
     bl_idname="OctaneImageTilesLinearSpaceInvert"
     bl_label="Linear sRGB invert"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type=11
+    octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=466)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="linearSpaceInvert")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
+    octane_pin_id=consts.PinID.P_LINEAR_SPACE_INVERT
+    octane_pin_name="linearSpaceInvert"
+    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_index=4
+    octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Invert image after conversion to the linear sRGB color space, not before")
     octane_hide_value=False
     octane_min_version=4020000
@@ -94,12 +99,13 @@ class OctaneImageTilesTransform(OctaneBaseSocket):
     bl_idname="OctaneImageTilesTransform"
     bl_label="UV transform"
     color=consts.OctanePinColor.Transform
-    octane_default_node_type=67
+    octane_default_node_type=consts.NodeType.NT_TRANSFORM_VALUE
     octane_default_node_name="OctaneTransformValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=243)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="transform")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TRANSFORM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_TRANSFORM
+    octane_pin_name="transform"
+    octane_pin_type=consts.PinType.PT_TRANSFORM
+    octane_pin_index=5
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=1210000
     octane_end_version=4294967295
@@ -109,12 +115,13 @@ class OctaneImageTilesProjection(OctaneBaseSocket):
     bl_idname="OctaneImageTilesProjection"
     bl_label="Projection"
     color=consts.OctanePinColor.Projection
-    octane_default_node_type=78
+    octane_default_node_type=consts.NodeType.NT_PROJ_UVW
     octane_default_node_name="OctaneMeshUVProjection"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=141)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="projection")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_PROJECTION)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_PROJECTION
+    octane_pin_name="projection"
+    octane_pin_type=consts.PinType.PT_PROJECTION
+    octane_pin_index=6
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=1210000
     octane_end_version=4294967295
@@ -124,12 +131,13 @@ class OctaneImageTilesEmptyTileColor(OctaneBaseSocket):
     bl_idname="OctaneImageTilesEmptyTileColor"
     bl_label="Empty tile color"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=441)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="emptyTileColor")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
+    octane_pin_id=consts.PinID.P_EMPTY_TILE_COLOR
+    octane_pin_name="emptyTileColor"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=7
+    octane_socket_type=consts.SocketType.ST_RGBA
     default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="Color to use if no image is loaded for a tile", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=4000011
@@ -145,19 +153,20 @@ class OctaneImageTiles(bpy.types.Node, OctaneBaseImageNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneImageTilesPower,OctaneImageTilesColorSpace,OctaneImageTilesGamma,OctaneImageTilesInvert,OctaneImageTilesLinearSpaceInvert,OctaneImageTilesTransform,OctaneImageTilesProjection,OctaneImageTilesEmptyTileColor,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=131)
-    octane_socket_list: StringProperty(name="Socket List", default="Power;Color space;Legacy gamma;Invert;Linear sRGB invert;UV transform;Projection;Empty tile color;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="a_filename;a_image_color_format;a_grid_size;a_reload;a_image_chosen_layer_name;")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="filename;imageColorFormat;gridSize;reload;imageChosenLayerName;")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="11;2;3;1;10;")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=8)
+    octane_node_type=consts.NodeType.NT_TEX_IMAGE_TILES
+    octane_socket_list=["Power", "Color space", "Legacy gamma", "Invert", "Linear sRGB invert", "UV transform", "Projection", "Empty tile color", ]
+    octane_attribute_list=["a_filename", "a_image_color_format", "a_grid_size", "a_reload", "a_image_chosen_layer_name", "a_legacy_png_gamma", ]
+    octane_attribute_config={"a_package": [consts.AttributeID.A_PACKAGE, "package", consts.AttributeType.AT_FILENAME], "a_filename": [consts.AttributeID.A_FILENAME, "filename", consts.AttributeType.AT_FILENAME], "a_image_color_format": [consts.AttributeID.A_IMAGE_COLOR_FORMAT, "imageColorFormat", consts.AttributeType.AT_INT], "a_grid_size": [consts.AttributeID.A_GRID_SIZE, "gridSize", consts.AttributeType.AT_INT2], "a_reload": [consts.AttributeID.A_RELOAD, "reload", consts.AttributeType.AT_BOOL], "a_channel_format": [consts.AttributeID.A_CHANNEL_FORMAT, "channelFormat", consts.AttributeType.AT_INT], "a_image_chosen_layer_name": [consts.AttributeID.A_IMAGE_CHOSEN_LAYER_NAME, "imageChosenLayerName", consts.AttributeType.AT_STRING], "a_ies_photometry_mode": [consts.AttributeID.A_IES_PHOTOMETRY_MODE, "iesPhotometryMode", consts.AttributeType.AT_INT], "a_legacy_png_gamma": [consts.AttributeID.A_LEGACY_PNG_GAMMA, "legacyPngGamma", consts.AttributeType.AT_BOOL], }
+    octane_static_pin_count=8
 
     a_filename: StringProperty(name="Filename", default="", update=OctaneBaseNode.update_node_tree, description="Stores the filenames of the texture image tiles. Entries may be left empty if no image is available for a particular tile. If the length doesn't cover the entire grid then the remaining entries are assumed to be empty", subtype="FILE_PATH")
-    a_image_color_format: IntProperty(name="Image color format", default=0, update=OctaneBaseNode.update_node_tree, description="Control in which color format the textures are loaded, see Octane::ImageColorType. If set to IMAGE_COLOR_KEEP_SOURCE images are loaded either as RGB color or greyscale, depending on the format used to save the image file")
+    a_image_color_format: IntProperty(name="Image color format", default=0, update=OctaneBaseNode.update_node_tree, description="Control in which color format the textures are loaded, see Octane::ImageColorType. If set to IMAGE_COLOR_KEEP_SOURCE images are loaded either as RGB color or grayscale, depending on the format used to save the image file")
     a_grid_size: IntVectorProperty(name="Grid size", default=(1, 1), size=2, update=OctaneBaseNode.update_node_tree, description="The size of the image tile grid")
     a_reload: BoolProperty(name="Reload", default=False, update=OctaneBaseNode.update_node_tree, description="TRUE if the files needs a reload. After evaluation the attribute will be false again")
     a_image_chosen_layer_name: StringProperty(name="Image chosen layer name", default="", update=OctaneBaseNode.update_node_tree, description="Indicate the chosen layer name, if the current image has multiple layers")
+    a_legacy_png_gamma: BoolProperty(name="Legacy png gamma", default=False, update=OctaneBaseNode.update_node_tree, description="If true, PNG files with a gAMA chunk will be converted to display gamma 2.2 while loading")
 
     def init(self, context):
         self.inputs.new("OctaneImageTilesPower", OctaneImageTilesPower.bl_label).init()
@@ -203,8 +212,8 @@ class OctaneImageTiles_Override(OctaneImageTiles):
         super().init(context)
         self.init_image_attributes()
 
-    def sync_custom_data(self, octane_node, octane_graph_node_data, owner_type, scene, is_viewport):
-        super().sync_custom_data(octane_node, octane_graph_node_data, owner_type, scene, is_viewport)
+    def sync_custom_data(self, octane_node, octane_graph_node_data, depsgraph):
+        super().sync_custom_data(octane_node, octane_graph_node_data, depsgraph)
         filepath = "" 
         is_data_updated = False
         grid_size = [0, 0]
@@ -220,11 +229,12 @@ class OctaneImageTiles_Override(OctaneImageTiles):
                 tile_filepath = self.image.filepath_from_user(image_user=cycles_image_helper.image_user)
                 filepaths.append(tile_filepath)
             filepath = ";".join(filepaths)
-        is_data_updated |= octane_node.set_attribute("a_filename", consts.AttributeType.AT_FILENAME, filepath)
-        is_data_updated |= octane_node.set_attribute("a_grid_size", consts.AttributeType.AT_INT2, grid_size)
-        octane_node.set_blender_attribute(self.BLENDER_ATTRIBUTE_IMAGE_DATA_UPDATE, consts.AttributeType.AT_BOOL, is_data_updated)
+        is_data_updated |= octane_node.set_attribute_blender_name("a_filename", consts.AttributeType.AT_FILENAME, filepath)
+        is_data_updated |= octane_node.set_attribute_blender_name("a_grid_size", consts.AttributeType.AT_INT2, grid_size)
+        octane_node.set_attribute_blender_name(self.BLENDER_ATTRIBUTE_IMAGE_DATA_UPDATE, consts.AttributeType.AT_BOOL, is_data_updated)
 
     def draw_buttons(self, context, layout):
         super().draw_buttons(context, layout)
 
+OctaneImageTiles_Override.update_node_definition()
 utility.override_class(_CLASSES, OctaneImageTiles, OctaneImageTiles_Override)

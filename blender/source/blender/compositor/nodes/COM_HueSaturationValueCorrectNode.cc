@@ -21,7 +21,7 @@ void HueSaturationValueCorrectNode::convert_to_operations(
   NodeInput *value_socket = this->get_input_socket(0);
   NodeInput *color_socket = this->get_input_socket(1);
   NodeOutput *output_socket = this->get_output_socket(0);
-  const bNode *editorsnode = get_bnode();
+  bNode *editorsnode = get_bnode();
   CurveMapping *storage = (CurveMapping *)editorsnode->storage;
 
   ConvertRGBToHSVOperation *rgbToHSV = new ConvertRGBToHSVOperation();

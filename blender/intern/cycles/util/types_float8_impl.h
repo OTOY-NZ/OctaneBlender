@@ -2,10 +2,15 @@
  * Original code Copyright 2017, Intel Corporation
  * Modifications Copyright 2018-2022 Blender Foundation. */
 
-#pragma once
+#ifndef __UTIL_TYPES_FLOAT8_IMPL_H__
+#define __UTIL_TYPES_FLOAT8_IMPL_H__
 
 #ifndef __UTIL_TYPES_H__
 #  error "Do not include this file directly, include util/types.h instead."
+#endif
+
+#ifndef __KERNEL_GPU__
+#  include <cstdio>
 #endif
 
 CCL_NAMESPACE_BEGIN
@@ -78,3 +83,5 @@ make_float8_t(float a, float b, float c, float d, float e, float f, float g, flo
 }
 
 CCL_NAMESPACE_END
+
+#endif /* __UTIL_TYPES_FLOAT8_IMPL_H__ */

@@ -12,7 +12,6 @@
 #include "BLI_string_ref.hh"
 
 #include "BKE_geometry_set.hh"
-#include "BKE_instances.hh"
 
 #include "spreadsheet_column.hh"
 #include "spreadsheet_column_values.hh"
@@ -45,7 +44,7 @@ eSpreadsheetColumnValueType cpp_type_to_column_type(const CPPType &type)
   if (type.is<std::string>()) {
     return SPREADSHEET_VALUE_TYPE_STRING;
   }
-  if (type.is<bke::InstanceReference>()) {
+  if (type.is<InstanceReference>()) {
     return SPREADSHEET_VALUE_TYPE_INSTANCES;
   }
   if (type.is<ColorGeometry4b>()) {

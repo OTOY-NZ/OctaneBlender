@@ -17,7 +17,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Float>(N_("AO"));
 }
 
-static void node_shader_buts_ambient_occlusion(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_shader_buts_ambient_occlusion(uiLayout *layout,
+                                               bContext *UNUSED(C),
+                                               PointerRNA *ptr)
 {
   uiItemR(layout, ptr, "samples", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
   uiItemR(layout, ptr, "inside", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
@@ -26,7 +28,7 @@ static void node_shader_buts_ambient_occlusion(uiLayout *layout, bContext * /*C*
 
 static int node_shader_gpu_ambient_occlusion(GPUMaterial *mat,
                                              bNode *node,
-                                             bNodeExecData * /*execdata*/,
+                                             bNodeExecData *UNUSED(execdata),
                                              GPUNodeStack *in,
                                              GPUNodeStack *out)
 {
@@ -48,7 +50,7 @@ static int node_shader_gpu_ambient_occlusion(GPUMaterial *mat,
                         GPU_constant(&f_samples));
 }
 
-static void node_shader_init_ambient_occlusion(bNodeTree * /*ntree*/, bNode *node)
+static void node_shader_init_ambient_occlusion(bNodeTree *UNUSED(ntree), bNode *node)
 {
   node->custom1 = 16; /* samples */
   node->custom2 = 0;

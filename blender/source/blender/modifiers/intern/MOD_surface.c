@@ -114,7 +114,7 @@ static void deformVerts(ModifierData *md,
     surmd->mesh = (Mesh *)BKE_id_copy_ex(NULL, (ID *)mesh, NULL, LIB_ID_COPY_LOCALIZE);
   }
   else {
-    surmd->mesh = MOD_deform_mesh_eval_get(ctx->object, NULL, NULL, NULL, verts_num, false);
+    surmd->mesh = MOD_deform_mesh_eval_get(ctx->object, NULL, NULL, NULL, verts_num, false, false);
   }
 
   if (!ctx->object->pd) {
@@ -125,6 +125,7 @@ static void deformVerts(ModifierData *md,
   if (surmd->mesh) {
     uint mesh_verts_num = 0, i = 0;
     int init = 0;
+    float *vec;
     MVert *x, *v;
 
     BKE_mesh_vert_coords_apply(surmd->mesh, vertexCos);
@@ -151,10 +152,9 @@ static void deformVerts(ModifierData *md,
     }
 
     /* convert to global coordinates and calculate velocity */
-    MVert *verts = BKE_mesh_verts_for_write(surmd->mesh);
     for (i = 0, x = surmd->x, v = surmd->v; i < mesh_verts_num; i++, x++, v++) {
-      float *vec = verts[i].co;
-      mul_m4_v3(ctx->object->object_to_world, vec);
+      vec = surmd->mesh->mvert[i].co;
+      mul_m4_v3(ctx->object->obmat, vec);
 
       if (init) {
         v->co[0] = v->co[1] = v->co[2] = 0.0f;

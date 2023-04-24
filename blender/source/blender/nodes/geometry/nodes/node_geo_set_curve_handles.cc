@@ -17,21 +17,17 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Geometry>(N_("Curve")).supported_type(GEO_COMPONENT_TYPE_CURVE);
   b.add_input<decl::Bool>(N_("Selection")).default_value(true).hide_value().supports_field();
-  b.add_input<decl::Vector>(N_("Position")).implicit_field([](const bNode &node, void *r_value) {
-    const StringRef side = node_storage(node).mode == GEO_NODE_CURVE_HANDLE_LEFT ? "handle_left" :
-                                                                                   "handle_right";
-    new (r_value) ValueOrField<float3>(bke::AttributeFieldInput::Create<float3>(side));
-  });
+  b.add_input<decl::Vector>(N_("Position")).implicit_field();
   b.add_input<decl::Vector>(N_("Offset")).default_value(float3(0.0f, 0.0f, 0.0f)).supports_field();
   b.add_output<decl::Geometry>(N_("Curve"));
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
   uiItemR(layout, ptr, "mode", UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
 }
 
-static void node_init(bNodeTree * /*tree*/, bNode *node)
+static void node_init(bNodeTree *UNUSED(tree), bNode *node)
 {
   NodeGeometrySetCurveHandlePositions *data = MEM_cnew<NodeGeometrySetCurveHandlePositions>(
       __func__);
@@ -72,18 +68,19 @@ static void update_handle_types_for_movement(int8_t &type, int8_t &other)
   }
 }
 
-static void set_position_in_component(bke::CurvesGeometry &curves,
+static void set_position_in_component(CurveComponent &component,
                                       const GeometryNodeCurveHandleMode mode,
                                       const Field<bool> &selection_field,
                                       const Field<float3> &position_field,
                                       const Field<float3> &offset_field)
 {
-  if (curves.points_num() == 0) {
+  GeometryComponentFieldContext field_context{component, ATTR_DOMAIN_POINT};
+  const int domain_size = component.attribute_domain_size(ATTR_DOMAIN_POINT);
+  if (domain_size == 0) {
     return;
   }
 
-  bke::CurvesFieldContext field_context{curves, ATTR_DOMAIN_POINT};
-  fn::FieldEvaluator evaluator{field_context, curves.points_num()};
+  fn::FieldEvaluator evaluator{field_context, domain_size};
   evaluator.set_selection(selection_field);
   evaluator.add(position_field);
   evaluator.add(offset_field);
@@ -91,6 +88,9 @@ static void set_position_in_component(bke::CurvesGeometry &curves,
   const IndexMask selection = evaluator.get_evaluated_selection_as_mask();
   const VArray<float3> new_positions = evaluator.get_evaluated<float3>(0);
   const VArray<float3> new_offsets = evaluator.get_evaluated<float3>(1);
+
+  Curves &curves_id = *component.get_for_write();
+  bke::CurvesGeometry &curves = bke::CurvesGeometry::wrap(curves_id.geometry);
 
   Span<float3> positions = curves.positions();
 
@@ -141,17 +141,22 @@ static void node_geo_exec(GeoNodeExecParams params)
   std::atomic<bool> has_bezier = false;
 
   geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
-    if (Curves *curves_id = geometry_set.get_curves_for_write()) {
-      bke::CurvesGeometry &curves = bke::CurvesGeometry::wrap(curves_id->geometry);
-      has_curves = true;
-      const AttributeAccessor attributes = curves.attributes();
-      if (!attributes.contains("handle_left") || !attributes.contains("handle_right")) {
-        return;
-      }
-      has_bezier = true;
-
-      set_position_in_component(curves, mode, selection_field, position_field, offset_field);
+    if (!geometry_set.has_curves()) {
+      return;
     }
+    has_curves = true;
+    const CurveComponent &component = *geometry_set.get_component_for_read<CurveComponent>();
+    const AttributeAccessor attributes = *component.attributes();
+    if (!attributes.contains("handle_left") || !attributes.contains("handle_right")) {
+      return;
+    }
+    has_bezier = true;
+
+    set_position_in_component(geometry_set.get_component_for_write<CurveComponent>(),
+                              mode,
+                              selection_field,
+                              position_field,
+                              offset_field);
   });
 
   if (has_curves && !has_bezier) {

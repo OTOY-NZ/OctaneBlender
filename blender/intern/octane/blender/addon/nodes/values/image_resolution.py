@@ -20,13 +20,13 @@ class OctaneImageResolution(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=12)
-    octane_socket_list: StringProperty(name="Socket List", default="")
-    octane_attribute_list: StringProperty(name="Attribute List", default="a_value;a_preset;a_aspect_ratio;")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="value;preset;aspectRatio;")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="4;2;6;")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=0)
+    octane_node_type=consts.NodeType.NT_IMAGE_RESOLUTION
+    octane_socket_list=[]
+    octane_attribute_list=["a_value", "a_preset", "a_aspect_ratio", ]
+    octane_attribute_config={"a_value": [consts.AttributeID.A_VALUE, "value", consts.AttributeType.AT_INT3], "a_preset": [consts.AttributeID.A_PRESET, "preset", consts.AttributeType.AT_INT], "a_aspect_ratio": [consts.AttributeID.A_ASPECT_RATIO, "aspectRatio", consts.AttributeType.AT_FLOAT], }
+    octane_static_pin_count=0
 
     a_value: IntVectorProperty(name="Value", default=(1024, 512, 0), size=3, update=OctaneBaseNode.update_node_tree, description="The resolution stored in the node. X and Y need to be > 0, Z is ignored")
     a_preset: IntProperty(name="Preset", default=403, update=OctaneBaseNode.update_node_tree, description="The preset chosen by the user - used only by the standalone UI, since many resolutions have multiple entries in the resolution menu")

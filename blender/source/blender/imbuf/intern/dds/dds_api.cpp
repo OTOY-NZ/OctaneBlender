@@ -58,7 +58,7 @@ bool imb_save_dds(struct ImBuf *ibuf, const char *name, int /*flags*/)
   return true;
 }
 
-bool imb_is_a_dds(const uchar *mem, const size_t size)
+bool imb_is_a_dds(const unsigned char *mem, const size_t size)
 {
   if (size < 8) {
     return false;
@@ -75,16 +75,19 @@ bool imb_is_a_dds(const uchar *mem, const size_t size)
   return true;
 }
 
-struct ImBuf *imb_load_dds(const uchar *mem, size_t size, int flags, char colorspace[IM_MAX_SPACE])
+struct ImBuf *imb_load_dds(const unsigned char *mem,
+                           size_t size,
+                           int flags,
+                           char colorspace[IM_MAX_SPACE])
 {
   struct ImBuf *ibuf = nullptr;
-  DirectDrawSurface dds((uchar *)mem, size); /* reads header */
-  uchar bits_per_pixel;
-  uint *rect;
+  DirectDrawSurface dds((unsigned char *)mem, size); /* reads header */
+  unsigned char bits_per_pixel;
+  unsigned int *rect;
   Image img;
-  uint numpixels = 0;
+  unsigned int numpixels = 0;
   int col;
-  uchar *cp = (uchar *)&col;
+  unsigned char *cp = (unsigned char *)&col;
   Color32 pixel;
   Color32 *pixels = nullptr;
 
@@ -125,7 +128,7 @@ struct ImBuf *imb_load_dds(const uchar *mem, size_t size, int flags, char colors
   bits_per_pixel = 24;
   if (img.format() == Image::Format_ARGB) {
     /* check that there is effectively an alpha channel */
-    for (uint i = 0; i < numpixels; i++) {
+    for (unsigned int i = 0; i < numpixels; i++) {
       pixel = pixels[i];
       if (pixel.a != 255) {
         bits_per_pixel = 32;
@@ -153,7 +156,7 @@ struct ImBuf *imb_load_dds(const uchar *mem, size_t size, int flags, char colors
     rect = ibuf->rect;
     cp[3] = 0xff; /* default alpha if alpha channel is not present */
 
-    for (uint i = 0; i < numpixels; i++) {
+    for (unsigned int i = 0; i < numpixels; i++) {
       pixel = pixels[i];
       cp[0] = pixel.r; /* set R component of col */
       cp[1] = pixel.g; /* set G component of col */
@@ -165,7 +168,7 @@ struct ImBuf *imb_load_dds(const uchar *mem, size_t size, int flags, char colors
     }
 
     if (ibuf->dds_data.fourcc != FOURCC_DDS) {
-      ibuf->dds_data.data = (uchar *)dds.readData(ibuf->dds_data.size);
+      ibuf->dds_data.data = (unsigned char *)dds.readData(ibuf->dds_data.size);
 
       /* flip compressed texture */
       if (ibuf->dds_data.data) {

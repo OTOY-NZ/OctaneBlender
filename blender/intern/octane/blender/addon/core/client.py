@@ -1,131 +1,139 @@
 import bpy
+import xml.etree.ElementTree as ET
 from octane import utils
 from octane.utils import consts, utility
 from octane import core
-from octane.core.octane_node import OctaneNode, OctaneNodeType
-
 if core.ENABLE_OCTANE_ADDON_CLIENT:
-    from octane.bin import octane_blender_client
+    from octane.bin import octane_blender
+else:
+    import _octane as octane_blender
 
 
-class OctaneClient(metaclass=utility.Singleton):
+class OctaneBlender(metaclass=utility.Singleton):
+    GENERAL_CLIENT_NAME = "OCTANE_GENERAL_CLIENT"
+
     def __init__(self):
+        self.enabled = False
         self.address = ""
         self.session = None
 
-    def enable(self):
-        return core.ENABLE_OCTANE_ADDON_CLIENT
+    def enabled(self):
+        return self.enabled
 
-    def start(self):
-        if not self.enable():
+    def init(self, path, user_path):
+        self.debug_console("OctaneBlender.init")
+        self.enabled = octane_blender.init(path, user_path)
+        if not self.enabled:
+            self.print_last_error()
+
+    def exit(self):
+        self.debug_console("OctaneBlender.exit")
+        self.enabled = False
+        if not octane_blender.exit():        
+            self.print_last_error()
+
+    def start_render(self, cache_path):
+        self.debug_console("OctaneBlender.start_render")
+        if not self.enabled:
             return
-        octane_blender_client.start()
-        self.console("OctaneEngine Start", "INFO", None)
-
-    def stop(self):
-        if not self.enable():
-            return        
-        octane_blender_client.stop()
-        self.console("OctaneEngine Stop", "INFO", None)
-
-    def create_session(self):
-        if not self.enable():
+        if not octane_blender.start_render(cache_path):
+            self.print_last_error()
             return
-        from octane.core.session import RenderSession
-        return RenderSession()
 
-    def free_session(self, session):
-        if not self.enable():
+    def stop_render(self):
+        self.debug_console("OctaneBlender.stop_render")
+        if not self.enabled:
             return
-        from octane.core.session import RenderSession
-        session.clear()
+        if not octane_blender.stop_render():
+            self.print_last_error()
+            return
+
+    def reset_render(self):
+        self.debug_console("OctaneBlender.reset_render")
+        if not self.enabled:
+            return
+        if not octane_blender.reset_render():
+            self.print_last_error()
+            return
+
+    def start_utils_client(self, client_name):
+        self.debug_console("OctaneBlender.start_utils_client(%s)" % (client_name))
+        if not self.enabled:
+            return
+        return octane_blender.start_utils_client(client_name)
+
+    def stop_utils_client(self, client_name):
+        self.debug_console("OctaneBlender.stop_utils_client(%s)" % (client_name))
+        if not self.enabled:
+            return
+        return octane_blender.stop_utils_client(client_name)
+
+    def utils_function(self, command_type, data, client_name=None):
+        if client_name is None:
+            client_name = self.GENERAL_CLIENT_NAME
+            self.start_utils_client(client_name)
+        self.debug_console("OctaneBlender.utils_function(%d, %s, %s)" % (command_type, data, client_name))
+        if not self.enabled:
+            return
+        response = octane_blender.utils_function(command_type, data, client_name)
+        self.debug_console("OctaneBlender.utils_function: %s" % response)
+        return response
+
+    def init_server(self):
+        self.utils_function(consts.UtilsFunctionType.SHOW_ACTIVATION, "Activation")
+        self.utils_function(consts.UtilsFunctionType.SHOW_VIEWPORT, "InitOnly")
+
+    def copy_color_ramp(self, from_addr, to_addr):
+        self.debug_console("OctaneBlender.copy_color_ramp")
+        if not self.enabled:
+            return
+        return octane_blender.copy_color_ramp(from_addr, to_addr)
+
+    def fetch_octanedb(self, localdb_path):
+        self.debug_console("OctaneBlender.fetch_octanedb(%s)" % (localdb_path))
+        if not self.enabled:
+            return
+        response = octane_blender.utils_function(command_type, data)
+        self.debug_console("OctaneBlender.fetch_octanedb: %s" % response)
+        return response
+
+    def set_resolution(self, width, height):
+        self.debug_console("OctaneBlender.set_resolution")
+        if not self.enabled:
+            return
+        return octane_blender.set_resolution(width, height)
+
+    def set_graph_time(self, time):
+        self.debug_console("OctaneBlender.set_graph_time")
+        if not self.enabled:
+            return
+        return octane_blender.set_graph_time(time)
+
+    def set_render_pass_ids(self, render_pass_ids):
+        self.debug_console("OctaneBlender.set_render_pass_ids")
+        if not self.enabled:
+            return
+        return octane_blender.set_render_pass_ids(render_pass_ids)
         
+    def get_render_result(self, render_pass_id, is_viewport, data_type, buffer, statistics):
+        self.debug_console("OctaneBlender.get_render_result", render_pass_id)
+        if not self.enabled:
+            return
+        return octane_blender.get_render_result(render_pass_id, is_viewport, data_type, buffer, statistics)
+
+    def print_last_error(self):
+        error_msg = octane_blender.get_last_error()
+        self.console(error_msg, "ERROR", None)
+        
+    def debug_console(self, message, message_type=None, report=None):
+        if core.DEBUG_MODE:
+            if message_type is None:
+                message_type = "DEBUG"
+            self.console(message, message_type, report)
+
     def console(self, message, message_type=None, report=None):
         if message_type is None:
             message_type = "INFO"
         print("[%s]%s" % (message_type, message))
         if report:
-            report({message_type}, message)
-
-    def connect(self, address):
-        if not self.enable():
-            return
-        self.address = address
-        if octane_blender_client.connect_server(address):
-            self.console("Connect to Octane server %s" % address, "INFO", None)
-        else:
-            self.console("Cannot connect to Octane server %s" % address, "ERROR", None)
-
-    def activate(self, status):
-        if self.enable():
-            octane_node = OctaneNode(OctaneNodeType.ACTIVATE)
-            octane_node.set_attribute("status", consts.AttributeType.AT_BOOL, status)
-            self.process_octane_node(octane_node)
-        else:
-            import _octane
-            _octane.activate(status)
-
-    def process_octane_node(self, request_node):
-        reply_xml = octane_blender_client.process_octane_node(request_node.rpc_type, request_node.get_xml_data(), request_node.get_c_array_identifier_list(), request_node.get_scene_data_identifier(), request_node.get_reply_c_array_identifier())
-        if len(reply_xml):
-            octane_node = OctaneNode(request_node.rpc_type)
-            octane_node.set_xml_data(reply_xml)
-            error = octane_node.get_error()
-            if error:
-                self.console(error, "ERROR", None)
-        return reply_xml
-
-    def create_float_c_array(self, identifier, server_identifier, size, dimension):
-        if not self.enable():
-            return         
-        return octane_blender_client.create_float_array(identifier, server_identifier, size, dimension)
-
-    def create_int_c_array(self, identifier, server_identifier, size, dimension):
-        if not self.enable():
-            return         
-        return octane_blender_client.create_int_array(identifier, server_identifier, size, dimension)
-
-    def create_uint8_c_array(self, identifier, server_identifier, size, dimension):
-        if not self.enable():
-            return         
-        return octane_blender_client.create_uint8_array(identifier, server_identifier, size, dimension)
-
-    def get_reply_float_c_array(self, identifier):
-        if not self.enable():
-            return
-        return octane_blender_client.get_reply_float_array(identifier)
-
-    def get_reply_int_c_array(self, identifier):
-        if not self.enable():
-            return
-        return octane_blender_client.get_reply_int_array(identifier)
-
-    def get_reply_uint8_c_array(self, identifier):
-        if not self.enable():
-            return
-        return octane_blender_client.get_reply_uint8_array(identifier)
-
-    def release_c_array(self, identifier):
-        if not self.enable():
-            return
-        return octane_blender_client.release_array(identifier)
-
-    def create_scene_data(self, identifier):
-        if not self.enable():
-            return
-        return octane_blender_client.create_scene_data(identifier)
-
-    def release_scene_data(self, identifier):
-        if not self.enable():
-            return
-        return octane_blender_client.release_scene_data(identifier)        
-
-    def build_mesh_data(self, identifier, index, vertices_num, vertices_addr, loop_triangles_num, loop_triangles_addr, loops_num, loops_addr, polygons_num, polygons_addr):
-        if not self.enable():
-            return
-        return octane_blender_client.build_mesh_data(identifier, index, vertices_num, vertices_addr, loop_triangles_num, loop_triangles_addr, loops_num, loops_addr, polygons_num, polygons_addr)
-
-    def build_scene_data(self, identifier, scene_data_type, dict_args):
-        if not self.enable():
-            return
-        return octane_blender_client.build_scene_data(identifier, scene_data_type, dict_args)
+            report({message_type}, message)      

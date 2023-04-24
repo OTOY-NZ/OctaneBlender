@@ -1,7 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_curves.hh"
-
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_set_spline_resolution_cc {
@@ -14,23 +12,24 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Geometry>(N_("Geometry"));
 }
 
-static void set_resolution(bke::CurvesGeometry &curves,
-                           const Field<bool> &selection_field,
-                           const Field<int> &resolution_field)
+static void set_resolution_in_component(GeometryComponent &component,
+                                        const Field<bool> &selection_field,
+                                        const Field<int> &resolution_field)
 {
-  if (curves.curves_num() == 0) {
+  const int domain_size = component.attribute_domain_size(ATTR_DOMAIN_CURVE);
+  if (domain_size == 0) {
     return;
   }
-  MutableAttributeAccessor attributes = curves.attributes_for_write();
+  MutableAttributeAccessor attributes = *component.attributes_for_write();
+
+  GeometryComponentFieldContext field_context{component, ATTR_DOMAIN_CURVE};
+
   AttributeWriter<int> resolutions = attributes.lookup_or_add_for_write<int>("resolution",
                                                                              ATTR_DOMAIN_CURVE);
-  bke::AttributeValidator validator = attributes.lookup_validator("resolution");
 
-  bke::CurvesFieldContext field_context{curves, ATTR_DOMAIN_CURVE};
-  fn::FieldEvaluator evaluator{field_context, curves.curves_num()};
+  fn::FieldEvaluator evaluator{field_context, domain_size};
   evaluator.set_selection(selection_field);
-  evaluator.add_with_destination(validator.validate_field_if_necessary(resolution_field),
-                                 resolutions.varray);
+  evaluator.add_with_destination(resolution_field, resolutions.varray);
   evaluator.evaluate();
 
   resolutions.finish();
@@ -39,13 +38,12 @@ static void set_resolution(bke::CurvesGeometry &curves,
 static void node_geo_exec(GeoNodeExecParams params)
 {
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
-  Field<bool> selection = params.extract_input<Field<bool>>("Selection");
-  Field<int> resolution = params.extract_input<Field<int>>("Resolution");
+  Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
+  Field<int> resolution_field = params.extract_input<Field<int>>("Resolution");
 
   geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
-    if (Curves *curves_id = geometry_set.get_curves_for_write()) {
-      set_resolution(bke::CurvesGeometry::wrap(curves_id->geometry), selection, resolution);
-    }
+    set_resolution_in_component(
+        geometry_set.get_component_for_write<CurveComponent>(), selection_field, resolution_field);
   });
 
   params.set_output("Geometry", std::move(geometry_set));

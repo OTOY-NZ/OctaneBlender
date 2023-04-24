@@ -168,7 +168,7 @@ static void testbuffer_list_state_from_data__stride_expand(ListBase *lb,
 
 #define testbuffer_list_state_from_string_array(lb, data_array) \
   { \
-    uint i_ = 0; \
+    unsigned int i_ = 0; \
     const char *data; \
     while ((data = data_array[i_++])) { \
       testbuffer_list_state_from_data(lb, data, strlen(data)); \
@@ -181,7 +181,7 @@ static void testbuffer_list_state_from_data__stride_expand(ListBase *lb,
 #define TESTBUFFER_STRINGS_CREATE(lb, ...) \
   { \
     BLI_listbase_clear(lb); \
-    const char *data_array[] = {__VA_ARGS__ nullptr}; \
+    const char *data_array[] = {__VA_ARGS__ NULL}; \
     testbuffer_list_state_from_string_array((lb), data_array); \
   } \
   ((void)0)
@@ -224,7 +224,7 @@ static bool testbuffer_list_validate(const ListBase *lb)
   return true;
 }
 
-static void testbuffer_list_data_randomize(ListBase *lb, uint random_seed)
+static void testbuffer_list_data_randomize(ListBase *lb, unsigned int random_seed)
 {
   for (TestBuffer *tb = (TestBuffer *)lb->first; tb; tb = tb->next) {
     BLI_array_randomize((void *)tb->data, 1, tb->data_len, random_seed++);
@@ -301,7 +301,7 @@ TEST(array_store, Nop)
 TEST(array_store, NopState)
 {
   BArrayStore *bs = BLI_array_store_create(1, 32);
-  const uchar data[] = "test";
+  const unsigned char data[] = "test";
   BArrayState *state = BLI_array_store_state_add(bs, data, sizeof(data) - 1, nullptr);
   EXPECT_EQ(BLI_array_store_state_size_get(state), sizeof(data) - 1);
   BLI_array_store_state_remove(bs, state);
@@ -556,15 +556,18 @@ TEST(array_store, TextSentencesRandom_Stride128_Chunk6)
 /* -------------------------------------------------------------------- */
 /* Random Data Tests */
 
-static uint rand_range_i(RNG *rng, uint min_i, uint max_i, uint step)
+static unsigned int rand_range_i(RNG *rng,
+                                 unsigned int min_i,
+                                 unsigned int max_i,
+                                 unsigned int step)
 {
   if (min_i == max_i) {
     return min_i;
   }
   BLI_assert(min_i <= max_i);
   BLI_assert(((min_i % step) == 0) && ((max_i % step) == 0));
-  uint range = (max_i - min_i);
-  uint value = BLI_rng_get_uint(rng) % range;
+  unsigned int range = (max_i - min_i);
+  unsigned int value = BLI_rng_get_uint(rng) % range;
   value = (value / step) * step;
   return min_i + value;
 }
@@ -574,7 +577,7 @@ static void testbuffer_list_state_random_data(ListBase *lb,
                                               const size_t data_min_len,
                                               const size_t data_max_len,
 
-                                              const uint mutate,
+                                              const unsigned int mutate,
                                               RNG *rng)
 {
   size_t data_len = rand_range_i(rng, data_min_len, data_max_len + stride, stride);
@@ -604,12 +607,12 @@ static void testbuffer_list_state_random_data(ListBase *lb,
         MUTATE_TOTAL,
       };
 
-      switch (BLI_rng_get_uint(rng) % MUTATE_TOTAL) {
+      switch ((BLI_rng_get_uint(rng) % MUTATE_TOTAL)) {
         case MUTATE_NOP: {
           break;
         }
         case MUTATE_ADD: {
-          const uint offset = rand_range_i(rng, 0, data_len, stride);
+          const unsigned int offset = rand_range_i(rng, 0, data_len, stride);
           if (data_len < data_max_len) {
             data_len += stride;
             data = (char *)MEM_reallocN((void *)data, data_len);
@@ -619,7 +622,7 @@ static void testbuffer_list_state_random_data(ListBase *lb,
           break;
         }
         case MUTATE_REMOVE: {
-          const uint offset = rand_range_i(rng, 0, data_len, stride);
+          const unsigned int offset = rand_range_i(rng, 0, data_len, stride);
           if (data_len > data_min_len) {
             memmove(&data[offset], &data[offset + stride], data_len - (offset + stride));
             data_len -= stride;
@@ -635,7 +638,7 @@ static void testbuffer_list_state_random_data(ListBase *lb,
         }
         case MUTATE_RANDOMIZE: {
           if (data_len > 0) {
-            const uint offset = rand_range_i(rng, 0, data_len - stride, stride);
+            const unsigned int offset = rand_range_i(rng, 0, data_len - stride, stride);
             BLI_rng_get_char_n(rng, &data[offset], stride);
           }
           break;
@@ -792,10 +795,10 @@ TEST(array_store, TestChunk_Rand31_Stride11_Chunk21)
 
 /* Test From Files (disabled, keep for local tests.) */
 
-static void *file_read_binary_as_mem(const char *filepath, size_t pad_bytes, size_t *r_size)
+void *file_read_binary_as_mem(const char *filepath, size_t pad_bytes, size_t *r_size)
 {
   FILE *fp = fopen(filepath, "rb");
-  void *mem = nullptr;
+  void *mem = NULL;
 
   if (fp) {
     long int filelen_read;
@@ -807,14 +810,14 @@ static void *file_read_binary_as_mem(const char *filepath, size_t pad_bytes, siz
     fseek(fp, 0L, SEEK_SET);
 
     mem = MEM_mallocN(filelen + pad_bytes, __func__);
-    if (mem == nullptr) {
+    if (mem == NULL) {
       goto finally;
     }
 
     filelen_read = fread(mem, 1, filelen, fp);
     if ((filelen_read != filelen) || ferror(fp)) {
       MEM_freeN(mem);
-      mem = nullptr;
+      mem = NULL;
       goto finally;
     }
 

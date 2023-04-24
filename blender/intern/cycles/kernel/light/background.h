@@ -9,6 +9,8 @@ CCL_NAMESPACE_BEGIN
 
 /* Background Light */
 
+#ifdef __BACKGROUND_MIS__
+
 ccl_device float3 background_map_sample(KernelGlobals kg,
                                         float randu,
                                         float randv,
@@ -432,5 +434,7 @@ ccl_device float background_light_pdf(KernelGlobals kg, float3 P, float3 directi
 
   return pdf * kernel_data.integrator.pdf_lights;
 }
+
+#endif
 
 CCL_NAMESPACE_END

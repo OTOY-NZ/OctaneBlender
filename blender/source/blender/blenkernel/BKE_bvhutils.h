@@ -11,10 +11,6 @@
 #include "BLI_threads.h"
 
 #ifdef __cplusplus
-#  include <mutex>
-#endif
-
-#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -200,8 +196,6 @@ BVHTree *BKE_bvhtree_from_mesh_get(struct BVHTreeFromMesh *data,
                                    BVHCacheType bvh_cache_type,
                                    int tree_type);
 
-#ifdef __cplusplus
-
 /**
  * Builds or queries a BVH-cache for the cache BVH-tree of the request type.
  */
@@ -210,9 +204,7 @@ BVHTree *BKE_bvhtree_from_editmesh_get(BVHTreeFromEditMesh *data,
                                        int tree_type,
                                        BVHCacheType bvh_cache_type,
                                        struct BVHCache **bvh_cache_p,
-                                       std::mutex *mesh_eval_mutex);
-
-#endif
+                                       ThreadMutex *mesh_eval_mutex);
 
 /**
  * Frees data allocated by a call to `bvhtree_from_editmesh_*`.

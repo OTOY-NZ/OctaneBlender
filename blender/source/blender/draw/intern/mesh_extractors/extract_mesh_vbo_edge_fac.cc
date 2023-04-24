@@ -20,10 +20,10 @@ namespace blender::draw {
  * \{ */
 
 struct MeshExtract_EdgeFac_Data {
-  uint8_t *vbo_data;
+  uchar *vbo_data;
   bool use_edge_render;
   /* Number of loop per edge. */
-  uint8_t *edge_loop_count;
+  uchar *edge_loop_count;
 };
 
 static float loop_edge_factor_get(const float f_no[3],
@@ -43,7 +43,7 @@ static float loop_edge_factor_get(const float f_no[3],
 }
 
 static void extract_edge_fac_init(const MeshRenderData *mr,
-                                  MeshBatchCache * /*cache*/,
+                                  MeshBatchCache *UNUSED(cache),
                                   void *buf,
                                   void *tls_data)
 {
@@ -59,7 +59,8 @@ static void extract_edge_fac_init(const MeshRenderData *mr,
   MeshExtract_EdgeFac_Data *data = static_cast<MeshExtract_EdgeFac_Data *>(tls_data);
 
   if (mr->extract_type == MR_EXTRACT_MESH) {
-    data->edge_loop_count = MEM_cnew_array<uint8_t>(mr->edge_len, __func__);
+    data->edge_loop_count = static_cast<uchar *>(
+        MEM_callocN(sizeof(uint32_t) * mr->edge_len, __func__));
 
     /* HACK(@fclem): Detecting the need for edge render.
      * We could have a flag in the mesh instead or check the modifier stack. */
@@ -81,7 +82,7 @@ static void extract_edge_fac_init(const MeshRenderData *mr,
 
 static void extract_edge_fac_iter_poly_bm(const MeshRenderData *mr,
                                           const BMFace *f,
-                                          const int /*f_index*/,
+                                          const int UNUSED(f_index),
                                           void *_data)
 {
   MeshExtract_EdgeFac_Data *data = static_cast<MeshExtract_EdgeFac_Data *>(_data);
@@ -145,7 +146,7 @@ static void extract_edge_fac_iter_poly_mesh(const MeshRenderData *mr,
 }
 
 static void extract_edge_fac_iter_ledge_bm(const MeshRenderData *mr,
-                                           const BMEdge * /*eed*/,
+                                           const BMEdge *UNUSED(eed),
                                            const int ledge_index,
                                            void *_data)
 {
@@ -155,7 +156,7 @@ static void extract_edge_fac_iter_ledge_bm(const MeshRenderData *mr,
 }
 
 static void extract_edge_fac_iter_ledge_mesh(const MeshRenderData *mr,
-                                             const MEdge * /*med*/,
+                                             const MEdge *UNUSED(med),
                                              const int ledge_index,
                                              void *_data)
 {
@@ -166,14 +167,14 @@ static void extract_edge_fac_iter_ledge_mesh(const MeshRenderData *mr,
 }
 
 static void extract_edge_fac_finish(const MeshRenderData *mr,
-                                    MeshBatchCache * /*cache*/,
+                                    MeshBatchCache *UNUSED(cache),
                                     void *buf,
                                     void *_data)
 {
   GPUVertBuf *vbo = static_cast<GPUVertBuf *>(buf);
   MeshExtract_EdgeFac_Data *data = static_cast<MeshExtract_EdgeFac_Data *>(_data);
 
-  if (GPU_crappy_amd_driver() || GPU_minimum_per_vertex_stride() > 1) {
+  if (GPU_crappy_amd_driver()) {
     /* Some AMD drivers strangely crash with VBO's with a one byte format.
      * To workaround we reinitialize the VBO with another format and convert
      * all bytes to floats. */
@@ -205,7 +206,7 @@ static GPUVertFormat *get_subdiv_edge_fac_format()
 {
   static GPUVertFormat format = {0};
   if (format.attr_len == 0) {
-    if (GPU_crappy_amd_driver() || GPU_minimum_per_vertex_stride() > 1) {
+    if (GPU_crappy_amd_driver()) {
       GPU_vertformat_attr_add(&format, "wd", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
     }
     else {
@@ -216,10 +217,10 @@ static GPUVertFormat *get_subdiv_edge_fac_format()
 }
 
 static void extract_edge_fac_init_subdiv(const DRWSubdivCache *subdiv_cache,
-                                         const MeshRenderData * /*mr*/,
+                                         const MeshRenderData *UNUSED(mr),
                                          MeshBatchCache *cache,
                                          void *buffer,
-                                         void * /*data*/)
+                                         void *UNUSED(data))
 {
   const DRWSubdivLooseGeom &loose_geom = subdiv_cache->loose_geom;
   GPUVertBuf *edge_idx = cache->final.buff.vbo.edge_idx;
@@ -251,9 +252,9 @@ static void extract_edge_fac_init_subdiv(const DRWSubdivCache *subdiv_cache,
 }
 
 static void extract_edge_fac_loose_geom_subdiv(const DRWSubdivCache *subdiv_cache,
-                                               const MeshRenderData * /*mr*/,
+                                               const MeshRenderData *UNUSED(mr),
                                                void *buffer,
-                                               void * /*data*/)
+                                               void *UNUSED(data))
 {
   const DRWSubdivLooseGeom &loose_geom = subdiv_cache->loose_geom;
   if (loose_geom.edge_len == 0) {
@@ -267,7 +268,7 @@ static void extract_edge_fac_loose_geom_subdiv(const DRWSubdivCache *subdiv_cach
 
   uint offset = subdiv_cache->num_subdiv_loops;
   for (int i = 0; i < loose_geom.edge_len; i++) {
-    if (GPU_crappy_amd_driver() || GPU_minimum_per_vertex_stride() > 1) {
+    if (GPU_crappy_amd_driver()) {
       float loose_edge_fac[2] = {1.0f, 1.0f};
       GPU_vertbuf_update_sub(vbo, offset * sizeof(float), sizeof(loose_edge_fac), loose_edge_fac);
     }

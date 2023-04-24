@@ -63,7 +63,7 @@ static void rna_Sequence_swap_internal(ID *id,
   const char *error_msg;
   Scene *scene = (Scene *)id;
 
-  if (SEQ_edit_sequence_swap(scene, seq_self, seq_other, &error_msg) == false) {
+  if (SEQ_edit_sequence_swap(scene, seq_self, seq_other, &error_msg) == 0) {
     BKE_report(reports, RPT_ERROR, error_msg);
   }
 }

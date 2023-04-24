@@ -9,14 +9,14 @@
 namespace blender::gpu {
 
 static const size_t VISIBILITY_COUNT_PER_BUFFER = 512;
-/* Defined in the documentation but can't be queried programmatically:
+/* defined in the documentation but not queryable programmatically:
  * https://developer.apple.com/documentation/metal/mtlvisibilityresultmode/mtlvisibilityresultmodeboolean?language=objc
  */
 static const size_t VISIBILITY_RESULT_SIZE_IN_BYTES = 8;
 
 MTLQueryPool::MTLQueryPool()
 {
-  allocate();
+  allocate_buffer();
 }
 MTLQueryPool::~MTLQueryPool()
 {
@@ -26,12 +26,12 @@ MTLQueryPool::~MTLQueryPool()
   }
 }
 
-void MTLQueryPool::allocate()
+void MTLQueryPool::allocate_buffer()
 {
   /* Allocate Metal buffer for visibility results. */
   size_t buffer_size_in_bytes = VISIBILITY_COUNT_PER_BUFFER * VISIBILITY_RESULT_SIZE_IN_BYTES;
-  gpu::MTLBuffer *buffer = MTLContext::get_global_memory_manager().allocate(buffer_size_in_bytes,
-                                                                            true);
+  gpu::MTLBuffer *buffer = MTLContext::get_global_memory_manager().allocate_buffer(
+      buffer_size_in_bytes, true);
   BLI_assert(buffer);
   buffer_.append(buffer);
 }
@@ -62,7 +62,7 @@ void MTLQueryPool::begin_query()
   int query_id = query_issued_;
   int requested_buffer = query_id / VISIBILITY_COUNT_PER_BUFFER;
   if (requested_buffer >= buffer_.size()) {
-    allocate();
+    allocate_buffer();
   }
 
   BLI_assert(requested_buffer < buffer_.size());

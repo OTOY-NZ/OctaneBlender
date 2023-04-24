@@ -63,12 +63,19 @@ static Array<float3> curve_tangent_point_domain(const bke::CurvesGeometry &curve
   return results;
 }
 
-static VArray<float3> construct_curve_tangent_gvarray(const bke::CurvesGeometry &curves,
+static VArray<float3> construct_curve_tangent_gvarray(const CurveComponent &component,
                                                       const eAttrDomain domain)
 {
+  if (!component.has_curves()) {
+    return {};
+  }
+
+  const Curves &curves_id = *component.get_for_read();
+  const bke::CurvesGeometry &curves = bke::CurvesGeometry::wrap(curves_id.geometry);
+
   const VArray<int8_t> types = curves.curve_types();
   if (curves.is_single_type(CURVE_TYPE_POLY)) {
-    return curves.adapt_domain<float3>(
+    return component.attributes()->adapt_domain<float3>(
         VArray<float3>::ForSpan(curves.evaluated_tangents()), ATTR_DOMAIN_POINT, domain);
   }
 
@@ -79,25 +86,29 @@ static VArray<float3> construct_curve_tangent_gvarray(const bke::CurvesGeometry 
   }
 
   if (domain == ATTR_DOMAIN_CURVE) {
-    return curves.adapt_domain<float3>(
+    return component.attributes()->adapt_domain<float3>(
         VArray<float3>::ForContainer(std::move(tangents)), ATTR_DOMAIN_POINT, ATTR_DOMAIN_CURVE);
   }
 
   return nullptr;
 }
 
-class TangentFieldInput final : public bke::CurvesFieldInput {
+class TangentFieldInput final : public GeometryFieldInput {
  public:
-  TangentFieldInput() : bke::CurvesFieldInput(CPPType::get<float3>(), "Tangent node")
+  TangentFieldInput() : GeometryFieldInput(CPPType::get<float3>(), "Tangent node")
   {
     category_ = Category::Generated;
   }
 
-  GVArray get_varray_for_context(const bke::CurvesGeometry &curves,
+  GVArray get_varray_for_context(const GeometryComponent &component,
                                  const eAttrDomain domain,
-                                 const IndexMask /*mask*/) const final
+                                 IndexMask UNUSED(mask)) const final
   {
-    return construct_curve_tangent_gvarray(curves, domain);
+    if (component.type() == GEO_COMPONENT_TYPE_CURVE) {
+      const CurveComponent &curve_component = static_cast<const CurveComponent &>(component);
+      return construct_curve_tangent_gvarray(curve_component, domain);
+    }
+    return {};
   }
 
   uint64_t hash() const override
@@ -109,11 +120,6 @@ class TangentFieldInput final : public bke::CurvesFieldInput {
   bool is_equal_to(const fn::FieldNode &other) const override
   {
     return dynamic_cast<const TangentFieldInput *>(&other) != nullptr;
-  }
-
-  std::optional<eAttrDomain> preferred_domain(const bke::CurvesGeometry & /*curves*/) const final
-  {
-    return ATTR_DOMAIN_POINT;
   }
 };
 

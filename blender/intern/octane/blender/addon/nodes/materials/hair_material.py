@@ -15,12 +15,13 @@ class OctaneHairMaterialDiffuseAmount(OctaneBaseSocket):
     bl_idname="OctaneHairMaterialDiffuseAmount"
     bl_label="Diffuse"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=0
+    octane_default_node_type=consts.NodeType.NT_UNKNOWN
     octane_default_node_name=""
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=706)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="diffuseAmount")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_DIFFUSE_AMOUNT
+    octane_pin_name="diffuseAmount"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -30,12 +31,13 @@ class OctaneHairMaterialDiffuse(OctaneBaseSocket):
     bl_idname="OctaneHairMaterialDiffuse"
     bl_label="Diffuse color"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=0
+    octane_default_node_type=consts.NodeType.NT_UNKNOWN
     octane_default_node_name=""
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=30)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="diffuse")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_DIFFUSE
+    octane_pin_name="diffuse"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=1
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -45,12 +47,13 @@ class OctaneHairMaterialAlbedo(OctaneBaseSocket):
     bl_idname="OctaneHairMaterialAlbedo"
     bl_label="Albedo"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=33
+    octane_default_node_type=consts.NodeType.NT_TEX_RGB
     octane_default_node_name="OctaneRGBColor"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=409)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="albedo")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
+    octane_pin_id=consts.PinID.P_ALBEDO
+    octane_pin_name="albedo"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=2
+    octane_socket_type=consts.SocketType.ST_RGBA
     default_value: FloatVectorProperty(default=(0.100000, 0.100000, 0.100000), update=OctaneBaseSocket.update_node_tree, description="Hair base color", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
     octane_hide_value=False
     octane_min_version=0
@@ -61,12 +64,13 @@ class OctaneHairMaterialSpecular(OctaneBaseSocket):
     bl_idname="OctaneHairMaterialSpecular"
     bl_label="Specular"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=33
+    octane_default_node_type=consts.NodeType.NT_TEX_RGB
     octane_default_node_name="OctaneRGBColor"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=222)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="specular")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
+    octane_pin_id=consts.PinID.P_SPECULAR
+    octane_pin_name="specular"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=3
+    octane_socket_type=consts.SocketType.ST_RGBA
     default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=OctaneBaseSocket.update_node_tree, description="Hair specular color", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
     octane_hide_value=False
     octane_min_version=0
@@ -77,12 +81,13 @@ class OctaneHairMaterialHairMelanin(OctaneBaseSocket):
     bl_idname="OctaneHairMaterialHairMelanin"
     bl_label="Melanin"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=31
+    octane_default_node_type=consts.NodeType.NT_TEX_FLOAT
     octane_default_node_name="OctaneGreyscaleColor"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=490)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="hairMelanin")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_HAIR_MELANIN
+    octane_pin_name="hairMelanin"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=4
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="The absolute quantity of pigment that gives the hair base color", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
@@ -93,12 +98,13 @@ class OctaneHairMaterialHairPheomelanin(OctaneBaseSocket):
     bl_idname="OctaneHairMaterialHairPheomelanin"
     bl_label="Pheomelanin"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=31
+    octane_default_node_type=consts.NodeType.NT_TEX_FLOAT
     octane_default_node_name="OctaneGreyscaleColor"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=491)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="hairPheomelanin")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_HAIR_PHEOMELANIN
+    octane_pin_name="hairPheomelanin"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=5
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="The extent of redness of a hair strand", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
@@ -109,12 +115,13 @@ class OctaneHairMaterialHairMode(OctaneBaseSocket):
     bl_idname="OctaneHairMaterialHairMode"
     bl_label="Mode"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type=57
+    octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=492)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="hairMode")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
+    octane_pin_id=consts.PinID.P_HAIR_MODE
+    octane_pin_name="hairMode"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=6
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("Albedo", "Albedo", "", 0),
         ("Melanin + Pheomelanin", "Melanin + Pheomelanin", "", 1),
@@ -129,12 +136,13 @@ class OctaneHairMaterialIndex(OctaneBaseSocket):
     bl_idname="OctaneHairMaterialIndex"
     bl_label="Index of refraction"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=80)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="index")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_INDEX
+    octane_pin_name="index"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=7
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=1.550000, update=OctaneBaseSocket.update_node_tree, description="Index of refraction controlling the Fresnel effect of the specular reflection", min=0.100000, max=8.000000, soft_min=1.000000, soft_max=8.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
@@ -145,13 +153,14 @@ class OctaneHairMaterialRoughness(OctaneBaseSocket):
     bl_idname="OctaneHairMaterialRoughness"
     bl_label="Longitudinal roughness"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=31
+    octane_default_node_type=consts.NodeType.NT_TEX_FLOAT
     octane_default_node_name="OctaneGreyscaleColor"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=204)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="roughness")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.200000, update=OctaneBaseSocket.update_node_tree, description="Longitudinal roughness, roughness along a hair strand for longitudinal scattering", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
+    octane_pin_id=consts.PinID.P_ROUGHNESS
+    octane_pin_name="roughness"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=8
+    octane_socket_type=consts.SocketType.ST_FLOAT
+    default_value: FloatProperty(default=0.200000, update=OctaneBaseSocket.update_node_tree, description="Roughness along a hair strand for longitudinal scattering", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -161,13 +170,14 @@ class OctaneHairMaterialRoughnessV(OctaneBaseSocket):
     bl_idname="OctaneHairMaterialRoughnessV"
     bl_label="Azimuthal roughness"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=31
+    octane_default_node_type=consts.NodeType.NT_TEX_FLOAT
     octane_default_node_name="OctaneGreyscaleColor"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=493)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="roughnessV")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.200000, update=OctaneBaseSocket.update_node_tree, description="Azimuthal roughness, roughness used for cross section of a hair strand for azimuth scattering", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
+    octane_pin_id=consts.PinID.P_ROUGHNESS_V
+    octane_pin_name="roughnessV"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=9
+    octane_socket_type=consts.SocketType.ST_FLOAT
+    default_value: FloatProperty(default=0.200000, update=OctaneBaseSocket.update_node_tree, description="Roughness used for cross section of a hair strand for azimuth scattering", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -177,12 +187,13 @@ class OctaneHairMaterialOffset(OctaneBaseSocket):
     bl_idname="OctaneHairMaterialOffset"
     bl_label="Offset"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=31
+    octane_default_node_type=consts.NodeType.NT_TEX_FLOAT
     octane_default_node_name="OctaneGreyscaleColor"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=122)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="offset")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_OFFSET
+    octane_pin_name="offset"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=10
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Scale offset on the surface of the hair. 0 denotes perfectly smooth cylindrical hair, increasing the value shifts the specular highlight away from perfectly reflective direction", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
@@ -193,12 +204,13 @@ class OctaneHairMaterialHairRandomFrequency(OctaneBaseSocket):
     bl_idname="OctaneHairMaterialHairRandomFrequency"
     bl_label="Randomness frequency"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=512)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="hairRandomFrequency")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_HAIR_RANDOMNESS_FREQUENCY
+    octane_pin_name="hairRandomFrequency"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=11
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Controls the frequency of randomness on hair", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
@@ -209,12 +221,13 @@ class OctaneHairMaterialHairRandomOffset(OctaneBaseSocket):
     bl_idname="OctaneHairMaterialHairRandomOffset"
     bl_label="Randomness offset"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=511)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="hairRandomOffset")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT2)
+    octane_pin_id=consts.PinID.P_HAIR_RANDOMNESS_OFFSET
+    octane_pin_name="hairRandomOffset"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=12
+    octane_socket_type=consts.SocketType.ST_FLOAT2
     default_value: FloatVectorProperty(default=(0.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="Controls the offset of randomness on hair", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="NONE", precision=2, size=2)
     octane_hide_value=False
     octane_min_version=0
@@ -225,12 +238,13 @@ class OctaneHairMaterialHairRandomnessIntensity(OctaneBaseSocket):
     bl_idname="OctaneHairMaterialHairRandomnessIntensity"
     bl_label="Randomness intensity"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=510)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="hairRandomnessIntensity")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_HAIR_RANDOMNESS_INTENSITY
+    octane_pin_name="hairRandomnessIntensity"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=13
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Controls the intensity of randomness on each hair strand", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
@@ -241,12 +255,13 @@ class OctaneHairMaterialHairAlbedoRandomnColor(OctaneBaseSocket):
     bl_idname="OctaneHairMaterialHairAlbedoRandomnColor"
     bl_label="Random albedo"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=33
+    octane_default_node_type=consts.NodeType.NT_TEX_RGB
     octane_default_node_name="OctaneRGBColor"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=509)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="hairAlbedoRandomnColor")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
+    octane_pin_id=consts.PinID.P_HAIR_ALBEDO_RANDOM_COLOR
+    octane_pin_name="hairAlbedoRandomnColor"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=14
+    octane_socket_type=consts.SocketType.ST_RGBA
     default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="Controls the target random albedo on the hair, this only works with albedo mode enabled", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
     octane_hide_value=False
     octane_min_version=0
@@ -257,12 +272,13 @@ class OctaneHairMaterialHairRandomRoughness(OctaneBaseSocket):
     bl_idname="OctaneHairMaterialHairRandomRoughness"
     bl_label="Random roughness"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=6
+    octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=704)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="hairRandomRoughness")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_pin_id=consts.PinID.P_HAIR_RANDOMNESS_ROUGHNESS
+    octane_pin_name="hairRandomRoughness"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=15
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Adds random roughness on top of the base roughness", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=11000004
@@ -273,13 +289,14 @@ class OctaneHairMaterialOpacity(OctaneBaseSocket):
     bl_idname="OctaneHairMaterialOpacity"
     bl_label="Opacity"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=31
+    octane_default_node_type=consts.NodeType.NT_TEX_FLOAT
     octane_default_node_name="OctaneGreyscaleColor"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=125)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="opacity")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Opacity channel controlling the transparency of the material via greyscale texture", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
+    octane_pin_id=consts.PinID.P_OPACITY
+    octane_pin_name="opacity"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=16
+    octane_socket_type=consts.SocketType.ST_FLOAT
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Opacity channel controlling the transparency of the material via grayscale texture", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -289,12 +306,13 @@ class OctaneHairMaterialEmission(OctaneBaseSocket):
     bl_idname="OctaneHairMaterialEmission"
     bl_label="Emission"
     color=consts.OctanePinColor.Emission
-    octane_default_node_type=0
+    octane_default_node_type=consts.NodeType.NT_UNKNOWN
     octane_default_node_name=""
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=41)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="emission")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_EMISSION)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_EMISSION
+    octane_pin_name="emission"
+    octane_pin_type=consts.PinType.PT_EMISSION
+    octane_pin_index=17
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -304,12 +322,13 @@ class OctaneHairMaterialCustomAov(OctaneBaseSocket):
     bl_idname="OctaneHairMaterialCustomAov"
     bl_label="Custom AOV"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type=57
+    octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=632)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="customAov")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
+    octane_pin_id=consts.PinID.P_CUSTOM_AOV
+    octane_pin_name="customAov"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=18
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("None", "None", "", 4096),
         ("Custom AOV 1", "Custom AOV 1", "", 0),
@@ -343,12 +362,13 @@ class OctaneHairMaterialCustomAovChannel(OctaneBaseSocket):
     bl_idname="OctaneHairMaterialCustomAovChannel"
     bl_label="Custom AOV channel"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type=57
+    octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=633)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="customAovChannel")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
+    octane_pin_id=consts.PinID.P_CUSTOM_AOV_CHANNEL
+    octane_pin_name="customAovChannel"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=19
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("All", "All", "", 0),
         ("Red", "Red", "", 1),
@@ -365,12 +385,13 @@ class OctaneHairMaterialLayer(OctaneBaseSocket):
     bl_idname="OctaneHairMaterialLayer"
     bl_label="Material layer"
     color=consts.OctanePinColor.MaterialLayer
-    octane_default_node_type=144
+    octane_default_node_type=consts.NodeType.NT_MAT_LAYER_GROUP
     octane_default_node_name="OctaneMaterialLayerGroup"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=474)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="layer")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_MATERIAL_LAYER)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_LAYER
+    octane_pin_name="layer"
+    octane_pin_type=consts.PinType.PT_MATERIAL_LAYER
+    octane_pin_index=20
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=5100002
     octane_end_version=4294967295
@@ -420,13 +441,13 @@ class OctaneHairMaterial(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneHairMaterialGroupDiffuse,OctaneHairMaterialDiffuseAmount,OctaneHairMaterialDiffuse,OctaneHairMaterialGroupAlbedoSpecular,OctaneHairMaterialAlbedo,OctaneHairMaterialSpecular,OctaneHairMaterialGroupMelaninPheomelanin,OctaneHairMaterialHairMelanin,OctaneHairMaterialHairPheomelanin,OctaneHairMaterialGroupSpecularColorMode,OctaneHairMaterialHairMode,OctaneHairMaterialGroupIOR,OctaneHairMaterialIndex,OctaneHairMaterialGroupRoughness,OctaneHairMaterialRoughness,OctaneHairMaterialRoughnessV,OctaneHairMaterialOffset,OctaneHairMaterialGroupRandomness,OctaneHairMaterialHairRandomFrequency,OctaneHairMaterialHairRandomOffset,OctaneHairMaterialHairRandomnessIntensity,OctaneHairMaterialHairAlbedoRandomnColor,OctaneHairMaterialHairRandomRoughness,OctaneHairMaterialOpacity,OctaneHairMaterialEmission,OctaneHairMaterialCustomAov,OctaneHairMaterialCustomAovChannel,OctaneHairMaterialLayer,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=147)
-    octane_socket_list: StringProperty(name="Socket List", default="Diffuse;Diffuse color;Albedo;Specular;Melanin;Pheomelanin;Mode;Index of refraction;Longitudinal roughness;Azimuthal roughness;Offset;Randomness frequency;Randomness offset;Randomness intensity;Random albedo;Random roughness;Opacity;Emission;Custom AOV;Custom AOV channel;Material layer;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=21)
+    octane_node_type=consts.NodeType.NT_MAT_HAIR
+    octane_socket_list=["Diffuse", "Diffuse color", "Albedo", "Specular", "Melanin", "Pheomelanin", "Mode", "Index of refraction", "Longitudinal roughness", "Azimuthal roughness", "Offset", "Randomness frequency", "Randomness offset", "Randomness intensity", "Random albedo", "Random roughness", "Opacity", "Emission", "Custom AOV", "Custom AOV channel", "Material layer", ]
+    octane_attribute_list=[]
+    octane_attribute_config={}
+    octane_static_pin_count=21
 
     def init(self, context):
         self.inputs.new("OctaneHairMaterialGroupDiffuse", OctaneHairMaterialGroupDiffuse.bl_label).init()

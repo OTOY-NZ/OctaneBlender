@@ -4,10 +4,9 @@ import math
 import xml.etree.ElementTree as ET
 from bpy.props import IntProperty, FloatProperty, BoolProperty, StringProperty, EnumProperty, PointerProperty, FloatVectorProperty, IntVectorProperty
 from bpy.utils import register_class, unregister_class
-from octane.core.client import OctaneClient
+from octane.core.octane_info import OctaneInfoManger
 from octane.utils import utility, consts
 from octane.nodes import base_node, base_socket
-from octane.core.octane_node import OctaneNode, OctaneNodeType
 
 
 class OctaneOSLBaseSocket(base_socket.OctaneBaseSocket):    
@@ -58,9 +57,10 @@ class OctaneOSLBoolSocket(OctaneOSLBaseSocket):
     bl_idname="OctaneOSLBoolSocket"
     bl_label="OSL Bool Socket"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
+    octane_pin_type=consts.PinType.PT_BOOL
+    octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=base_socket.OctaneBaseSocket.update_node_tree, description="")
 
 
@@ -68,9 +68,10 @@ class OctaneOSLIntSocket(OctaneOSLBaseSocket):
     bl_idname="OctaneOSLIntSocket"
     bl_label="OSL Int Socket"
     color=consts.OctanePinColor.Int
-    octane_default_node_type="OctaneIntValue"
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
+    octane_default_node_type=9
+    octane_default_node_name="OctaneIntValue"
+    octane_pin_type=consts.PinType.PT_INT
+    octane_socket_type=consts.SocketType.ST_INT
     default_value: IntProperty(default=0, update=base_socket.OctaneBaseSocket.update_node_tree, set=OctaneOSLBaseSocket.set_osl_value, get=OctaneOSLBaseSocket.get_osl_value, description="", min=-2147483647, max=2147483647, step=1, subtype="NONE")
 
 
@@ -78,9 +79,10 @@ class OctaneOSLInt2Socket(OctaneOSLBaseSocket):
     bl_idname="OctaneOSLInt2Socket"
     bl_label="OSL Int2 Socket"
     color=consts.OctanePinColor.Int
-    octane_default_node_type="OctaneIntValue"
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT2)
+    octane_default_node_type=9
+    octane_default_node_name="OctaneIntValue"
+    octane_pin_type=consts.PinType.PT_INT
+    octane_socket_type=consts.SocketType.ST_INT2
     default_value: IntVectorProperty(default=(0, 0), set=OctaneOSLBaseSocket.set_osl_vector_value, get=OctaneOSLBaseSocket.get_osl_vector_value, update=base_socket.OctaneBaseSocket.update_node_tree, description="", min=-2147483647, max=2147483647, subtype="NONE", size=2)
 
 
@@ -88,9 +90,10 @@ class OctaneOSLInt3Socket(OctaneOSLBaseSocket):
     bl_idname="OctaneOSLInt3Socket"
     bl_label="OSL Int3 Socket"
     color=consts.OctanePinColor.Int
-    octane_default_node_type="OctaneIntValue"
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT3)
+    octane_default_node_type=9
+    octane_default_node_name="OctaneIntValue"
+    octane_pin_type=consts.PinType.PT_INT
+    octane_socket_type=consts.SocketType.ST_INT3
     default_value: IntVectorProperty(default=(0, 0, 0), set=OctaneOSLBaseSocket.set_osl_vector_value, get=OctaneOSLBaseSocket.get_osl_vector_value, update=base_socket.OctaneBaseSocket.update_node_tree, description="", min=-2147483647, max=2147483647, subtype="NONE", size=3)
 
 
@@ -98,9 +101,10 @@ class OctaneOSLFloatSocket(OctaneOSLBaseSocket):
     bl_idname="OctaneOSLFloatSocket"
     bl_label="OSL Float Socket"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.0, set=OctaneOSLBaseSocket.set_osl_value, get=OctaneOSLBaseSocket.get_osl_value, update=base_socket.OctaneBaseSocket.update_node_tree, description="", min=-2147483647, max=2147483647, subtype="NONE")
     
 
@@ -108,9 +112,10 @@ class OctaneOSLFloat2Socket(OctaneOSLBaseSocket):
     bl_idname="OctaneOSLFloat2Socket"
     bl_label="OSL Float2 Socket"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT2)
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_socket_type=consts.SocketType.ST_FLOAT2
     default_value: FloatVectorProperty(default=(0.000000, 0.000000), set=OctaneOSLBaseSocket.set_osl_vector_value, get=OctaneOSLBaseSocket.get_osl_vector_value, update=base_socket.OctaneBaseSocket.update_node_tree, description="", min=-2147483647, max=2147483647, subtype="NONE", size=2)
 
 
@@ -118,9 +123,10 @@ class OctaneOSLFloat3Socket(OctaneOSLBaseSocket):
     bl_idname="OctaneOSLFloat3Socket"
     bl_label="OSL Float3 Socket"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_socket_type=consts.SocketType.ST_FLOAT3
     default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), set=OctaneOSLBaseSocket.set_osl_vector_value, get=OctaneOSLBaseSocket.get_osl_vector_value, update=base_socket.OctaneBaseSocket.update_node_tree, description="", min=-2147483647, max=2147483647, subtype="NONE", size=3)
     
 
@@ -128,9 +134,10 @@ class OctaneOSLEnumSocket(OctaneOSLBaseSocket):
     bl_idname="OctaneOSLEnumSocket"
     bl_label="OSL Enum Socket"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type="OctaneEnumValue"
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)    
+    octane_default_node_type=57
+    octane_default_node_name="OctaneEnumValue"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_socket_type=consts.SocketType.ST_ENUM
     default_value: EnumProperty(update=base_socket.OctaneBaseSocket.update_node_tree, description="", items=OctaneOSLBaseSocket.get_enum_items)
     enum_items_str: StringProperty()
 
@@ -139,9 +146,10 @@ class OctaneOSLGreyscaleSocket(OctaneOSLBaseSocket):
     bl_idname="OctaneOSLGreyscaleSocket"
     bl_label="OSL Greyscale Socket"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type="OctaneGreyscaleColor"
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    octane_default_node_type=31
+    octane_default_node_name="OctaneGreyscaleColor"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=1.000000, update=base_socket.OctaneBaseSocket.update_node_tree, description="", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
 
 
@@ -149,9 +157,10 @@ class OctaneOSLColorSocket(OctaneOSLBaseSocket):
     bl_idname="OctaneOSLColorSocket"
     bl_label="OSL Color Socket"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type="OctaneRGBColor"
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
+    octane_default_node_type=33
+    octane_default_node_name="OctaneRGBColor"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_socket_type=consts.SocketType.ST_RGBA
     default_value: FloatVectorProperty(default=(0.700000, 0.700000, 0.700000), update=base_socket.OctaneBaseSocket.update_node_tree, description="", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
 
 
@@ -159,9 +168,10 @@ class OctaneOSLStringSocket(OctaneOSLBaseSocket):
     bl_idname="OctaneOSLStringSocket"
     bl_label="OSL String Socket"
     color=consts.OctanePinColor.String
-    octane_default_node_type="OctaneStringValue"
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_STRING)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_STRING)
+    octane_default_node_type=84
+    octane_default_node_name="OctaneStringValue"
+    octane_pin_type=consts.PinType.PT_STRING
+    octane_socket_type=consts.SocketType.ST_STRING
     default_value: StringProperty(default="", update=base_socket.OctaneBaseSocket.update_node_tree, description="", subtype="NONE")
     options_str: StringProperty()
 
@@ -170,19 +180,20 @@ class OctaneOSLFilePathSocket(OctaneOSLBaseSocket):
     bl_idname="OctaneOSLFilePathSocket"
     bl_label="OSL FilePath Socket"
     color=consts.OctanePinColor.String
-    octane_default_node_type="OctaneStringValue"
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_STRING)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_STRING)
+    octane_default_node_type=84
+    octane_default_node_name="OctaneStringValue"
+    octane_pin_type=consts.PinType.PT_STRING
+    octane_socket_type=consts.SocketType.ST_STRING
     default_value: StringProperty(default="", update=base_socket.OctaneBaseSocket.update_node_tree, description="", subtype="FILE_PATH")
 
 
 class OctaneOSLLinkSocket(OctaneOSLBaseSocket):
     bl_idname="OctaneOSLLinkSocket"
     bl_label="OSL Link Socket"
-    octane_default_node_type=""
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_UNKNOWN)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
-    octane_osl_default_node_type: StringProperty()
+    octane_default_node_name=""
+    octane_pin_type=consts.PinType.PT_UNKNOWN
+    octane_socket_type=consts.SocketType.ST_LINK
+    octane_osl_default_node_name: StringProperty()
 
 
 class OctaneScriptNode(base_node.OctaneBaseNode):
@@ -208,11 +219,46 @@ class OctaneScriptNode(base_node.OctaneBaseNode):
         row.operator("octane.compile_osl_node")
 
     def build_pin(self, pin_et):
-        socket_pin_type = int(pin_et.findtext("socket_type"))
-        color = int(pin_et.findtext("color"))
-        pin_name = pin_et.findtext("name")
-        socket_name = pin_et.findtext("label")
-        value = pin_et.findtext("value")
+        pin_type = int(pin_et.get("pin_type"))
+        socket_pin_type = None
+        if pin_type == consts.PinType.PT_BOOL:
+            socket_pin_type = consts.SocketType.ST_BOOL
+        elif pin_type == consts.PinType.PT_FLOAT:
+            dimension = int(pin_et.get("dimension"))
+            is_color_type = int(pin_et.get("is_color_type"))
+            if dimension == 1:
+                socket_pin_type = consts.SocketType.ST_FLOAT
+            elif dimension == 2:
+                socket_pin_type = consts.SocketType.ST_FLOAT2
+            elif dimension == 3:
+                if is_color_type:
+                    socket_pin_type = consts.SocketType.ST_RGBA
+                else:
+                    socket_pin_type = consts.SocketType.ST_FLOAT3
+        elif pin_type == consts.PinType.PT_INT:
+            dimension = int(pin_et.get("dimension"))
+            if dimension == 1:
+                socket_pin_type = consts.SocketType.ST_INT
+            elif dimension == 2:
+                socket_pin_type = consts.SocketType.ST_INT2
+            elif dimension == 3:
+                socket_pin_type = consts.SocketType.ST_INT3
+        elif pin_type == consts.PinType.PT_ENUM:
+            socket_pin_type = consts.SocketType.ST_ENUM
+        elif pin_type == consts.PinType.PT_TEXTURE:
+            is_color_type = int(pin_et.get("is_color_type"))
+            if is_color_type:
+                socket_pin_type = consts.SocketType.ST_RGBA
+            else:
+                socket_pin_type = consts.SocketType.ST_FLOAT
+        elif pin_type == consts.PinType.PT_STRING:
+            socket_pin_type = consts.SocketType.ST_STRING
+        else:
+            socket_pin_type = consts.SocketType.ST_LINK
+        color = int(pin_et.get("color"))
+        pin_name = pin_et.get("name")
+        socket_name = pin_et.get("label")
+        value = pin_et.get("value")
         socket_type_blname = ""
         default_value = None
         use_scope_limitation = False
@@ -267,7 +313,7 @@ class OctaneScriptNode(base_node.OctaneBaseNode):
             socket_type_blname = "OctaneOSLColorSocket"
             default_value = [float(v) for v in value.split(" ")]
         elif socket_pin_type == consts.SocketType.ST_STRING:
-            if int(pin_et.findtext("is_file")):
+            if int(pin_et.get("is_file")):
                 socket_type_blname = "OctaneOSLFilePathSocket"
             else:
                 socket_type_blname = "OctaneOSLStringSocket"
@@ -292,14 +338,14 @@ class OctaneScriptNode(base_node.OctaneBaseNode):
             _input.name = socket_name
             self.current_socket_list.append(socket_name)
             if use_scope_limitation:
-                if pin_et.findtext("min") is not None:
-                    _input.osl_value_min = float(pin_et.findtext("min"))
-                if pin_et.findtext("max") is not None:
-                    _input.osl_value_max = float(pin_et.findtext("max"))
-                if pin_et.findtext("slider_min") is not None:
-                    _input.osl_value_min = max(_input.osl_value_min, float(pin_et.findtext("slider_min")))
-                if pin_et.findtext("slider_max") is not None:
-                    _input.osl_value_max = min(_input.osl_value_max, float(pin_et.findtext("slider_max")))
+                if pin_et.get("min") is not None:
+                    _input.osl_value_min = float(pin_et.get("min"))
+                if pin_et.get("max") is not None:
+                    _input.osl_value_max = float(pin_et.get("max"))
+                if pin_et.get("slider_min") is not None:
+                    _input.osl_value_min = max(_input.osl_value_min, float(pin_et.get("slider_min")))
+                if pin_et.get("slider_max") is not None:
+                    _input.osl_value_max = min(_input.osl_value_max, float(pin_et.get("slider_max")))
             if len(enum_items_str):
                 _input.enum_items_str = enum_items_str
             if len(options_str):
@@ -307,16 +353,18 @@ class OctaneScriptNode(base_node.OctaneBaseNode):
             if default_value is not None and is_new_input:
                 _input.default_value = default_value
             if socket_pin_type == consts.SocketType.ST_LINK:
-                _input.color = utility.convert_octane_color_to_rgba(int(pin_et.findtext("color")))
-                _input.octane_pin_type = int(pin_et.findtext("pin_type"))
-                _input.octane_osl_default_node_type = pin_et.findtext("default_node_type")
+                _input.color = utility.convert_octane_color_to_rgba(int(pin_et.get("color")))
+                _input.octane_pin_type = int(pin_et.get("pin_type"))
+                octane_osl_default_node_type = int(pin_et.get("default_node_type"))
+                octane_default_node_name = OctaneInfoManger().get_node_name(octane_osl_default_node_type)
+                _input.octane_osl_default_node_name = octane_default_node_name
         return _input
 
     def build_osl_node(self, xml_str_data):
         root = ET.fromstring(xml_str_data)
-        custom_data_pt = root.find("custom_data")
-        compilation_result = custom_data_pt.findtext("errors")
-        self.a_result = int(custom_data_pt.findtext("result"))
+        custom_data_pt = root
+        compilation_result = custom_data_pt.get("error")
+        self.a_result = int(custom_data_pt.get("result"))
         self.current_socket_list = []
         for pin_et in custom_data_pt.findall("pins/pin"):
             self.build_pin(pin_et)
@@ -332,18 +380,22 @@ class OctaneScriptNode(base_node.OctaneBaseNode):
     def compile_osl_node(self, report=None):
         if self.a_result == consts.COMPILE_SUCCESS:
             return
-        octane_node = OctaneNode(OctaneNodeType.SYNC_NODE)
-        octane_node.set_name("CompileOSL[%s]" % self.name)
-        octane_node.set_node_type(self.octane_node_type)
-        octane_node.set_blender_attribute(self.BLENDER_ATTRIBUTE_QUERY_COMPILATION_RESULT, consts.AttributeType.AT_BOOL, True)
-        self.sync_data(octane_node, None, consts.OctaneNodeTreeIDName.GENERAL)
-        reply_data = OctaneClient().process_octane_node(octane_node)        
-        compilation_result = self.build_osl_node(reply_data)
-        if report and len(compilation_result):
-            if compilation_result.find("Error") != -1 or compilation_result.find("error") != -1:
-                report({"ERROR"}, compilation_result)
-            else:
-                report({"WARNING"}, compilation_result)
+        root_et = ET.Element('fetchOslInfo')
+        root_et.set("nodeName", "CompileOSL[%s]" % self.name)
+        root_et.set("shaderCode", self.a_shader_code)
+        root_et.set("fileName", self.a_filename)
+        root_et.set("nodeType", str(self.octane_node_type))
+        xml_data = ET.tostring(root_et, encoding="unicode")
+        from octane.core.client import OctaneBlender
+        response = OctaneBlender().utils_function(consts.UtilsFunctionType.FETCH_OSL_INFO, xml_data)
+        if len(response):
+            reply_data = str(ET.fromstring(response).get("content"))
+            compilation_result = self.build_osl_node(reply_data)
+            if report and len(compilation_result):
+                if compilation_result.find("Error") != -1 or compilation_result.find("error") != -1:
+                    report({"ERROR"}, compilation_result)
+                else:
+                    report({"WARNING"}, compilation_result)
 
     def update_shader_code(self, force_compile=False):
         shader_code = ""

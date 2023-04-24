@@ -91,14 +91,9 @@ static void shapekey_foreach_id(ID *id, LibraryForeachIDData *data)
   BKE_LIB_FOREACHID_PROCESS_ID(data, key->from, IDWALK_CB_LOOPBACK);
 }
 
-static ID **shapekey_owner_pointer_get(ID *id)
+static ID *shapekey_owner_get(Main *UNUSED(bmain), ID *id, ID *UNUSED(owner_id_hint))
 {
-  Key *key = (Key *)id;
-
-  BLI_assert(key->from != NULL);
-  BLI_assert(BKE_key_from_id(key->from) == key);
-
-  return &key->from;
+  return ((Key *)id)->from;
 }
 
 static void shapekey_blend_write(BlendWriter *writer, ID *id, const void *id_address)
@@ -215,7 +210,7 @@ IDTypeInfo IDType_ID_KE = {
     .foreach_path = NULL,
     /* A bit weird, due to shape-keys not being strictly speaking embedded data... But they also
      * share a lot with those (non linkable, only ever used by one owner ID, etc.). */
-    .owner_pointer_get = shapekey_owner_pointer_get,
+    .owner_get = shapekey_owner_get,
 
     .blend_write = shapekey_blend_write,
     .blend_read_data = shapekey_blend_read_data,
@@ -1263,7 +1258,7 @@ static void do_key(const int start,
 
 static float *get_weights_array(Object *ob, char *vgroup, WeightsArrayCache *cache)
 {
-  const MDeformVert *dvert = NULL;
+  MDeformVert *dvert = NULL;
   BMEditMesh *em = NULL;
   BMIter iter;
   BMVert *eve;
@@ -1277,7 +1272,7 @@ static float *get_weights_array(Object *ob, char *vgroup, WeightsArrayCache *cac
   /* gather dvert and totvert */
   if (ob->type == OB_MESH) {
     Mesh *me = ob->data;
-    dvert = BKE_mesh_deform_verts(me);
+    dvert = me->dvert;
     totvert = me->totvert;
 
     if (me->edit_mesh && me->edit_mesh->bm->totvert == totvert) {
@@ -1607,9 +1602,8 @@ float *BKE_key_evaluate_object_ex(
     switch (GS(obdata->name)) {
       case ID_ME: {
         Mesh *mesh = (Mesh *)obdata;
-        MVert *verts = BKE_mesh_verts_for_write(mesh);
         const int totvert = min_ii(tot, mesh->totvert);
-        keyblock_data_convert_to_mesh((const float(*)[3])out, verts, totvert);
+        keyblock_data_convert_to_mesh((const float(*)[3])out, mesh->mvert, totvert);
         break;
       }
       case ID_LT: {
@@ -1938,16 +1932,6 @@ KeyBlock *BKE_keyblock_find_name(Key *key, const char name[])
   return BLI_findstring(&key->block, name, offsetof(KeyBlock, name));
 }
 
-KeyBlock *BKE_keyblock_find_uid(Key *key, const int uid)
-{
-  LISTBASE_FOREACH (KeyBlock *, kb, &key->block) {
-    if (kb->uid == uid) {
-      return kb;
-    }
-  }
-  return NULL;
-}
-
 void BKE_keyblock_copy_settings(KeyBlock *kb_dst, const KeyBlock *kb_src)
 {
   kb_dst->pos = kb_src->pos;
@@ -2184,6 +2168,7 @@ void BKE_keyblock_convert_to_curve(KeyBlock *kb, Curve *UNUSED(cu), ListBase *nu
 
 void BKE_keyblock_update_from_mesh(const Mesh *me, KeyBlock *kb)
 {
+  MVert *mvert;
   float(*fp)[3];
   int a, tot;
 
@@ -2194,7 +2179,7 @@ void BKE_keyblock_update_from_mesh(const Mesh *me, KeyBlock *kb)
     return;
   }
 
-  const MVert *mvert = BKE_mesh_verts(me);
+  mvert = me->mvert;
   fp = kb->data;
   for (a = 0; a < tot; a++, fp++, mvert++) {
     copy_v3_v3(*fp, mvert->co);
@@ -2242,11 +2227,8 @@ void BKE_keyblock_mesh_calc_normals(const KeyBlock *kb,
     return;
   }
 
-  MVert *verts = MEM_dupallocN(BKE_mesh_verts(mesh));
-  BKE_keyblock_convert_to_mesh(kb, verts, mesh->totvert);
-  const MEdge *edges = BKE_mesh_edges(mesh);
-  const MPoly *polys = BKE_mesh_polys(mesh);
-  const MLoop *loops = BKE_mesh_loops(mesh);
+  MVert *mvert = MEM_dupallocN(mesh->mvert);
+  BKE_keyblock_convert_to_mesh(kb, mvert, mesh->totvert);
 
   const bool loop_normals_needed = r_loopnors != NULL;
   const bool vert_normals_needed = r_vertnors != NULL || loop_normals_needed;
@@ -2267,30 +2249,35 @@ void BKE_keyblock_mesh_calc_normals(const KeyBlock *kb,
   }
 
   if (poly_normals_needed) {
-    BKE_mesh_calc_normals_poly(
-        verts, mesh->totvert, loops, mesh->totloop, polys, mesh->totpoly, poly_normals);
+    BKE_mesh_calc_normals_poly(mvert,
+                               mesh->totvert,
+                               mesh->mloop,
+                               mesh->totloop,
+                               mesh->mpoly,
+                               mesh->totpoly,
+                               poly_normals);
   }
   if (vert_normals_needed) {
-    BKE_mesh_calc_normals_poly_and_vertex(verts,
+    BKE_mesh_calc_normals_poly_and_vertex(mvert,
                                           mesh->totvert,
-                                          loops,
+                                          mesh->mloop,
                                           mesh->totloop,
-                                          polys,
+                                          mesh->mpoly,
                                           mesh->totpoly,
                                           poly_normals,
                                           vert_normals);
   }
   if (loop_normals_needed) {
     short(*clnors)[2] = CustomData_get_layer(&mesh->ldata, CD_CUSTOMLOOPNORMAL); /* May be NULL. */
-    BKE_mesh_normals_loop_split(verts,
+    BKE_mesh_normals_loop_split(mvert,
                                 vert_normals,
                                 mesh->totvert,
-                                edges,
+                                mesh->medge,
                                 mesh->totedge,
-                                loops,
+                                mesh->mloop,
                                 r_loopnors,
                                 mesh->totloop,
-                                polys,
+                                mesh->mpoly,
                                 poly_normals,
                                 mesh->totpoly,
                                 (mesh->flag & ME_AUTOSMOOTH) != 0,
@@ -2306,7 +2293,7 @@ void BKE_keyblock_mesh_calc_normals(const KeyBlock *kb,
   if (free_poly_normals) {
     MEM_freeN(poly_normals);
   }
-  MEM_freeN(verts);
+  MEM_freeN(mvert);
 }
 
 /************************* raw coords ************************/

@@ -5,8 +5,8 @@ import numpy as np
 import xml.etree.ElementTree as ET
 from bpy.props import IntProperty, FloatProperty, BoolProperty, StringProperty, EnumProperty, PointerProperty, FloatVectorProperty, IntVectorProperty
 from bpy.utils import register_class, unregister_class
-from octane.core.octane_node import OctaneNode, CArray, OctaneNodeType
-from octane.core.client import OctaneClient
+from octane.core.octane_node import CArray
+from octane.core.client import OctaneBlender
 from octane.utils import utility, consts
 from octane.nodes.base_socket import OctaneBaseSocket
 from octane.nodes.base_node import OctaneBaseNode
@@ -42,9 +42,13 @@ class OctaneRampColorLinkValueSocket(OctaneBaseSocket):
     bl_idname="OctaneRampColorLinkValueSocket"
     bl_label="Color Ramp Link Value Socket"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=""
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_default_node_type=0
+    octane_default_node_name=""
+    octane_pin_index=-1
+    octane_pin_id=0
+    octane_pin_name=""
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_socket_type=consts.SocketType.ST_LINK
     value_index: IntProperty()
 
 
@@ -57,50 +61,88 @@ def helper_color_ramp_watcher_callback(*args):
 
 class OctaneBaseRampNode(OctaneBaseNode):
     MAX_VALUE_SOCKET = 0
+    POSITION_SOCKET_NAME_PATTERN = "Position"
     VALUE_SOCKET_NAME_PATTERN = "Value"
     RAMP_COLOR_BLENDER_ATTRIBUTE = "RAMP_COLOR"
     RAMP_POSITION_BLENDER_ATTRIBUTE = "RAMP_POSITION"
     RAMP_LINK_BLENDER_ATTRIBUTE = "RAMP_LINK"
+    RAMP_VALUE_INPUT_SOCKET_TYPE = consts.SocketType.ST_RGBA
+    RAMP_VALUE_INPUT_PIN_TYPE = consts.PinType.PT_TEXTURE
+    RAMP_VALUE_INPUT_DEFAULT_NODE_TYPE = consts.NodeType.NT_TEX_RGB
 
     color_ramp_name: StringProperty()
 
     def copy(self, original):
-        self.init_color_ramp_helper_node()
+        self.init_color_ramp_helper_node(original)
     
     def free(self):
         utility.free_octane_helper_node(self.color_ramp_name)   
     
-    def get_value_socket_name(self, idx):
-        if self.MAX_VALUE_SOCKET == 0:
+    @classmethod
+    def get_value_socket_name(cls, idx):
+        if cls.MAX_VALUE_SOCKET == 0:
             return ""
         if idx == 0:
-            return "Start %s" % self.VALUE_SOCKET_NAME_PATTERN
-        elif idx == self.MAX_VALUE_SOCKET - 1:
-            return "End %s" % self.VALUE_SOCKET_NAME_PATTERN
+            return "Start %s" % cls.VALUE_SOCKET_NAME_PATTERN
+        elif idx == cls.MAX_VALUE_SOCKET - 1:
+            return "End %s" % cls.VALUE_SOCKET_NAME_PATTERN
         else:
-            return "%s %d" % (self.VALUE_SOCKET_NAME_PATTERN, idx)
+            return "%s %d" % (cls.VALUE_SOCKET_NAME_PATTERN, idx)
+
+    @classmethod
+    def update_node_definition(cls):
+        utility.remove_attribute_list(cls, ["a_num_controlpoints",])
+        utility.remove_socket_list(cls, ["Start value", "End value"])
+        value_socket_names = []
+        for idx in range(cls.MAX_VALUE_SOCKET):
+            value_socket_name = cls.get_value_socket_name(idx)
+            value_socket_names.append(value_socket_name)
+        utility.add_socket_list(cls, value_socket_names)
 
     def init_octane_color_ramp(self):
         self.init_color_ramp_helper_node()
-        utility.remove_attribute_list(self, "a_num_controlpoints;")
-        utility.remove_socket_list(self, "Start value;End value;", True)
+        utility.remove_socket_inputs(self, ["Start value", "End value"])
+        color_ramp_node = utility.get_octane_helper_node(self.color_ramp_name)
+        if color_ramp_node is None:
+            return        
         if self.MAX_VALUE_SOCKET == 0:
             return
+        number = len(color_ramp_node.color_ramp.elements)
         value_socket_names = []
         for idx in range(self.MAX_VALUE_SOCKET):
             value_socket_name = self.get_value_socket_name(idx)
             value_socket_names.append(value_socket_name)
             value_socket = self.inputs.new("OctaneRampColorLinkValueSocket", value_socket_name)
             value_socket.init()
-            value_socket.value_index = idx            
-            value_socket.hide = not (idx == 0 or idx == self.MAX_VALUE_SOCKET - 1)
-        utility.add_socket_list(self, ";".join(value_socket_names))
+            value_socket.value_index = idx
+            if idx == 0 or idx == self.MAX_VALUE_SOCKET - 1 or idx <= number:
+                value_socket.hide = False
+            else:
+                value_socket.hide = True
 
-    def init_color_ramp_helper_node(self):
+    def init_color_ramp_helper_node(self, original=None):
         self.color_ramp_name = "[ColorRamp]" + utility.hash_node_id(self)
         if utility.get_octane_helper_node(self.color_ramp_name) is None:
             utility.create_octane_helper_node(self.color_ramp_name, "ShaderNodeValToRGB")
         self.init_helper_color_ramp_watcher()
+        if original is not None:
+            original_color_ramp_node = utility.get_octane_helper_node(original.color_ramp_name)
+            original_color_ramp = original_color_ramp_node.color_ramp            
+            new_color_ramp = utility.get_octane_helper_node(self.color_ramp_name).color_ramp
+            OctaneBlender().copy_color_ramp(original_color_ramp.as_pointer(), new_color_ramp.as_pointer())
+            # new_color_ramp.interpolation = original_color_ramp.interpolation
+            # new_color_ramp.color_mode = original_color_ramp.color_mode
+            # # Clear elements
+            # while len(new_color_ramp.elements) > 1:
+            #     new_color_ramp.elements.remove(new_color_ramp.elements[0])
+            # # Create elements
+            # for idx, original_element in enumerate(original_color_ramp.elements):
+            #     if idx >= len(new_color_ramp.elements):
+            #         new_color_ramp.elements.new(0)
+            # # Copy elements
+            # for idx, original_element in enumerate(original_color_ramp.elements):
+            #     new_color_ramp.elements[idx].position = original_element.position
+            #     new_color_ramp.elements[idx].color = original_element.color
 
     def init_helper_color_ramp_watcher(self):
         self.unregister_helper_color_ramp_watcher()
@@ -132,7 +174,7 @@ class OctaneBaseRampNode(OctaneBaseNode):
             if idx == 0 or idx == self.MAX_VALUE_SOCKET - 1:
                 value_socket.hide = False
             else:
-                value_socket.hide = idx + 2 > number
+                value_socket.hide = idx > number
 
     def update_color_ramp_interpolation(self, context):
         color_ramp_helper = utility.get_octane_helper_node(self.color_ramp_name)
@@ -149,43 +191,55 @@ class OctaneBaseRampNode(OctaneBaseNode):
         elif self.inputs[INTERPOLATION_SOCKET_NAME].default_value == "Cubic":
             if color_ramp.interpolation != "B_SPLINE":
                 color_ramp.interpolation = "B_SPLINE"
+        self.update_node_tree(context)
 
-    def sync_custom_data(self, octane_node, octane_graph_node_data, owner_type, scene, is_viewport):
-        super().sync_custom_data(octane_node, octane_graph_node_data, owner_type, scene, is_viewport)
+    def auto_refresh(self):
+        return consts.AutoRereshStrategy.ALWAYS
+
+    def sync_custom_data(self, octane_node, octane_graph_node_data, depsgraph):
+        super().sync_custom_data(octane_node, octane_graph_node_data, depsgraph)
         color_ramp_node = utility.get_octane_helper_node(self.color_ramp_name)
         if color_ramp_node is None:
             return
         color_ramp = color_ramp_node.color_ramp
-        octane_node.set_attribute("a_num_controlpoints", consts.AttributeType.AT_INT, len(color_ramp.elements))
         color_ramp_color_list = []
         color_ramp_position_list = []
         color_ramp_link_name_list = []
         # Add color ramp data to color, position, and the link name list
         def add_color_ramp_data(color, position, value_idx):
-            color_ramp_color_list.append("%f %f %f" % (color[0], color[1], color[2]))
-            color_ramp_position_list.append(str(position))
+            color_ramp_color_list.append(color)
+            color_ramp_position_list.append(position)
             link_node_name = ""
             socket_name = self.get_value_socket_name(value_idx)
             if octane_graph_node_data and socket_name in octane_graph_node_data.octane_complicated_sockets:
                 link_node_name = octane_graph_node_data.octane_complicated_sockets[socket_name].linked_node_octane_name            
             color_ramp_link_name_list.append(link_node_name)
-        add_start_stop = False
-        add_end_stop = False
-        if len(color_ramp.elements) > 0:
-            if color_ramp.elements[0].position > 0:
-                add_start_stop = True
-            if color_ramp.elements[-1].position < 1:
-                add_end_stop = True
-        if add_start_stop:
-            add_color_ramp_data(color_ramp.evaluate(0), 0, 0)
+        add_color_ramp_data(color_ramp.evaluate(0), 0, 0)
         for idx, element in enumerate(color_ramp.elements):
-            socket_idx = idx if (idx != len(color_ramp.elements) - 1) else self.MAX_VALUE_SOCKET - 1
+            # socket_idx = idx if (idx != len(color_ramp.elements) - 1) else self.MAX_VALUE_SOCKET - 1
+            socket_idx = idx + 1
             add_color_ramp_data(element.color, element.position, socket_idx)
-        if add_end_stop:
-            add_color_ramp_data(color_ramp.evaluate(1), 1, self.MAX_VALUE_SOCKET - 1)        
-        octane_node.set_blender_attribute(self.RAMP_COLOR_BLENDER_ATTRIBUTE, consts.AttributeType.AT_STRING, ";".join(color_ramp_color_list))
-        octane_node.set_blender_attribute(self.RAMP_POSITION_BLENDER_ATTRIBUTE, consts.AttributeType.AT_STRING, ";".join(color_ramp_position_list))
-        octane_node.set_blender_attribute(self.RAMP_LINK_BLENDER_ATTRIBUTE, consts.AttributeType.AT_STRING, ";".join(color_ramp_link_name_list))
+        add_color_ramp_data(color_ramp.evaluate(1), 1, self.MAX_VALUE_SOCKET - 1)
+        position_number = len(color_ramp_position_list)
+        dynamic_pin_count = position_number - 2
+        octane_node.set_attribute_id(consts.AttributeID.A_NUM_CONTROLPOINTS, dynamic_pin_count)
+        # Force sync the controlpoints
+        octane_node.update_to_engine(True)
+        for idx in range(position_number):
+            position = color_ramp_position_list[idx]
+            color = color_ramp_color_list[idx]
+            link_name = color_ramp_link_name_list[idx]
+            if idx == 0:
+                octane_node.set_pin_id(consts.PinID.P_MIN, len(link_name) > 0, link_name, color)
+            elif idx == position_number - 1:
+                octane_node.set_pin_id(consts.PinID.P_MAX, len(link_name) > 0, link_name, color)
+            else:
+                position_pin_name = "%s %d" % (self.POSITION_SOCKET_NAME_PATTERN, idx)
+                value_pin_name = "%s %d" % (self.VALUE_SOCKET_NAME_PATTERN, idx)
+                position_pin_index = self.octane_static_pin_count + (idx - 1) * 2
+                value_pin_index = self.octane_static_pin_count + (idx - 1) * 2 + 1
+                octane_node.set_pin(consts.OctaneDataBlockSymbolType.PIN_NAME, position_pin_index, position_pin_name, consts.SocketType.ST_FLOAT, consts.PinType.PT_FLOAT, consts.NodeType.NT_FLOAT, False, "", position)
+                octane_node.set_pin(consts.OctaneDataBlockSymbolType.PIN_NAME, value_pin_index, value_pin_name, self.RAMP_VALUE_INPUT_SOCKET_TYPE, self.RAMP_VALUE_INPUT_PIN_TYPE, self.RAMP_VALUE_INPUT_DEFAULT_NODE_TYPE, len(link_name) > 0, link_name, color)
 
     def draw_buttons(self, context, layout):
         box = layout.box()
@@ -194,7 +248,7 @@ class OctaneBaseRampNode(OctaneBaseNode):
         if color_ramp_helper is not None:
             row.column().template_color_ramp(color_ramp_helper, "color_ramp", expand=True)
             row.column().operator("octane.color_ramp_tips", text="", icon="QUESTION", emboss=False)
-        layout.row().operator("octane.update_color_ramp_data", text="Update Color Ramp", icon="FILE_REFRESH")
+        # layout.row().operator("octane.update_color_ramp_data", text="Update Color Ramp", icon="FILE_REFRESH")
 
 
 _CLASSES = [

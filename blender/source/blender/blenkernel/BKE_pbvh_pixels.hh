@@ -186,14 +186,8 @@ struct NodeData {
   {
     UDIMTilePixels *tile = find_tile_data(image_tile);
     if (tile && tile->flags.dirty) {
-      if (image_buffer.planes == 8) {
-        image_buffer.planes = 32;
-        BKE_image_partial_update_mark_full_update(&image);
-      }
-      else {
-        BKE_image_partial_update_mark_region(
-            &image, image_tile.image_tile, &image_buffer, &tile->dirty_region);
-      }
+      BKE_image_partial_update_mark_region(
+          &image, image_tile.image_tile, &image_buffer, &tile->dirty_region);
       tile->clear_dirty();
     }
   }

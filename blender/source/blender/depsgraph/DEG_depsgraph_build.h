@@ -56,9 +56,6 @@ void DEG_graph_build_for_render_pipeline(struct Depsgraph *graph);
  */
 void DEG_graph_build_for_compositor_preview(struct Depsgraph *graph, struct bNodeTree *nodetree);
 
-/**
- * Builds the minimal dependency graph needed for evaluation of the given IDs.
- */
 void DEG_graph_build_from_ids(struct Depsgraph *graph, struct ID **ids, int num_ids);
 
 /** Tag relations from the given graph for update. */
@@ -104,7 +101,7 @@ typedef enum eDepsObjectComponentType {
   DEG_OB_COMP_ANIMATION,
   /* Transform Component (Parenting/Constraints) */
   DEG_OB_COMP_TRANSFORM,
-  /* Geometry Component (#Mesh / #Curves, etc.). */
+  /* Geometry Component (#Mesh / #DispList). */
   DEG_OB_COMP_GEOMETRY,
 
   /* Evaluation-Related Outer Types (with Sub-data) */
@@ -164,8 +161,8 @@ void DEG_add_generic_id_relation(struct DepsNodeHandle *node_handle,
  * This function will take care of checking which operation is required to
  * have transformation for the modifier, taking into account possible simulation solvers.
  */
-void DEG_add_depends_on_transform_relation(struct DepsNodeHandle *node_handle,
-                                           const char *description);
+void DEG_add_modifier_to_transform_relation(struct DepsNodeHandle *node_handle,
+                                            const char *description);
 
 /**
  * Adds relations from the given component of a given object to the given node

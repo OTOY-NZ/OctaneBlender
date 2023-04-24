@@ -2,7 +2,6 @@
 
 #include "DNA_collection_types.h"
 
-#include "BLI_array_utils.hh"
 #include "BLI_hash.h"
 #include "BLI_task.hh"
 
@@ -10,7 +9,6 @@
 #include "UI_resources.h"
 
 #include "BKE_attribute_math.hh"
-#include "BKE_instances.hh"
 
 #include "node_geometry_util.hh"
 
@@ -27,7 +25,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description(N_("Choose instances from the \"Instance\" input at each point instead of "
                       "instancing the entire geometry"));
   b.add_input<decl::Int>(N_("Instance Index"))
-      .implicit_field(implicit_field_inputs::id_or_index)
+      .implicit_field()
       .description(N_(
           "Index of the instance that used for each point. This is only used when Pick Instances "
           "is on. By default the point index is used"));
@@ -45,7 +43,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 }
 
 static void add_instances_from_component(
-    bke::Instances &dst_component,
+    InstancesComponent &dst_component,
     const GeometryComponent &src_component,
     const GeometrySet &instance,
     const GeoNodeExecParams &params,
@@ -59,7 +57,7 @@ static void add_instances_from_component(
   VArray<float3> rotations;
   VArray<float3> scales;
 
-  bke::GeometryFieldContext field_context{src_component, domain};
+  GeometryComponentFieldContext field_context{src_component, domain};
   const Field<bool> selection_field = params.get_input<Field<bool>>("Selection");
   fn::FieldEvaluator evaluator{field_context, domain_num};
   evaluator.set_selection(selection_field);
@@ -82,23 +80,25 @@ static void add_instances_from_component(
   const int select_len = selection.index_range().size();
   dst_component.resize(start_len + select_len);
 
-  MutableSpan<int> dst_handles = dst_component.reference_handles().slice(start_len, select_len);
-  MutableSpan<float4x4> dst_transforms = dst_component.transforms().slice(start_len, select_len);
+  MutableSpan<int> dst_handles = dst_component.instance_reference_handles().slice(start_len,
+                                                                                  select_len);
+  MutableSpan<float4x4> dst_transforms = dst_component.instance_transforms().slice(start_len,
+                                                                                   select_len);
 
   VArray<float3> positions = src_component.attributes()->lookup_or_default<float3>(
       "position", domain, {0, 0, 0});
 
-  const bke::Instances *src_instances = instance.get_instances_for_read();
+  const InstancesComponent *src_instances = instance.get_component_for_read<InstancesComponent>();
 
   /* Maps handles from the source instances to handles on the new instance. */
   Array<int> handle_mapping;
   /* Only fill #handle_mapping when it may be used below. */
   if (src_instances != nullptr &&
       (!pick_instance.is_single() || pick_instance.get_internal_single())) {
-    Span<bke::InstanceReference> src_references = src_instances->references();
+    Span<InstanceReference> src_references = src_instances->references();
     handle_mapping.reinitialize(src_references.size());
     for (const int src_instance_handle : src_references.index_range()) {
-      const bke::InstanceReference &reference = src_references[src_instance_handle];
+      const InstanceReference &reference = src_references[src_instance_handle];
       const int dst_instance_handle = dst_component.add_reference(reference);
       handle_mapping[src_instance_handle] = dst_instance_handle;
     }
@@ -106,7 +106,7 @@ static void add_instances_from_component(
 
   const int full_instance_handle = dst_component.add_reference(instance);
   /* Add this reference last, because it is the most likely one to be removed later on. */
-  const int empty_reference_handle = dst_component.add_reference(bke::InstanceReference());
+  const int empty_reference_handle = dst_component.add_reference(InstanceReference());
 
   threading::parallel_for(selection.index_range(), 1024, [&](IndexRange selection_range) {
     for (const int range_i : selection_range) {
@@ -129,11 +129,12 @@ static void add_instances_from_component(
           const int index = mod_i(original_index, std::max(src_instances_num, 1));
           if (index < src_instances_num) {
             /* Get the reference to the source instance. */
-            const int src_handle = src_instances->reference_handles()[index];
+            const int src_handle = src_instances->instance_reference_handles()[index];
             dst_handle = handle_mapping[src_handle];
 
             /* Take transforms of the source instance into account. */
-            mul_m4_m4_post(dst_transform.values, src_instances->transforms()[index].values);
+            mul_m4_m4_post(dst_transform.values,
+                           src_instances->instance_transforms()[index].values);
           }
         }
       }
@@ -156,7 +157,7 @@ static void add_instances_from_component(
     }
   }
 
-  bke::CustomDataAttributes &instance_attributes = dst_component.custom_data_attributes();
+  bke::CustomDataAttributes &instance_attributes = dst_component.instance_attributes();
   for (const auto item : attributes_to_propagate.items()) {
     const AttributeIDRef &attribute_id = item.key;
     const AttributeKind attribute_kind = item.value;
@@ -173,7 +174,18 @@ static void add_instances_from_component(
       dst_attribute_opt = instance_attributes.get_for_write(attribute_id);
     }
     BLI_assert(dst_attribute_opt);
-    array_utils::gather(src_attribute, selection, dst_attribute_opt->slice(start_len, select_len));
+    const GMutableSpan dst_attribute = dst_attribute_opt->slice(start_len, select_len);
+    threading::parallel_for(selection.index_range(), 1024, [&](IndexRange selection_range) {
+      attribute_math::convert_to_static_type(attribute_kind.data_type, [&](auto dummy) {
+        using T = decltype(dummy);
+        VArray<T> src = src_attribute.typed<T>();
+        MutableSpan<T> dst = dst_attribute.typed<T>();
+        for (const int range_i : selection_range) {
+          const int i = selection[range_i];
+          dst[range_i] = src[i];
+        }
+      });
+    });
   }
 }
 
@@ -184,15 +196,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   instance.ensure_owns_direct_data();
 
   geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
-    /* It's important not to invalidate the existing #InstancesComponent because it owns references
-     * to other geometry sets that are processed by this node. */
-    InstancesComponent &instances_component =
-        geometry_set.get_component_for_write<InstancesComponent>();
-    bke::Instances *dst_instances = instances_component.get_for_write();
-    if (dst_instances == nullptr) {
-      dst_instances = new bke::Instances();
-      instances_component.replace(dst_instances);
-    }
+    InstancesComponent &instances = geometry_set.get_component_for_write<InstancesComponent>();
 
     const Array<GeometryComponentType> types{
         GEO_COMPONENT_TYPE_MESH, GEO_COMPONENT_TYPE_POINT_CLOUD, GEO_COMPONENT_TYPE_CURVE};
@@ -204,13 +208,14 @@ static void node_geo_exec(GeoNodeExecParams params)
 
     for (const GeometryComponentType type : types) {
       if (geometry_set.has(type)) {
-        add_instances_from_component(*dst_instances,
+        add_instances_from_component(instances,
                                      *geometry_set.get_component_for_read(type),
                                      instance,
                                      params,
                                      attributes_to_propagate);
       }
     }
+
     geometry_set.remove_geometry_during_modify();
   });
 
@@ -218,9 +223,8 @@ static void node_geo_exec(GeoNodeExecParams params)
    * process them needlessly.
    * This should eventually be moved into the loop above, but currently this is quite tricky
    * because it might remove references that the loop still wants to iterate over. */
-  if (bke::Instances *instances = geometry_set.get_instances_for_write()) {
-    instances->remove_unused_references();
-  }
+  InstancesComponent &instances = geometry_set.get_component_for_write<InstancesComponent>();
+  instances.remove_unused_references();
 
   params.set_output("Instances", std::move(geometry_set));
 }

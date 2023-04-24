@@ -6,7 +6,6 @@ set(INC
   ../../blenfont
   ../../blenkernel
   ../../blenlib
-  ../../blenloader
   ../../blentranslation
   ../../depsgraph
   ../../gpu
@@ -14,6 +13,7 @@ set(INC
   ../../makesdna
   ../../makesrna
   ../../windowmanager
+  ../../../../intern/glew-mx
   ../../../../intern/guardedalloc
 
   # dna_type_offsets.h

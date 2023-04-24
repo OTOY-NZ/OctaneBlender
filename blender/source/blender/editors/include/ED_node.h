@@ -87,6 +87,17 @@ void ED_node_tag_update_id(struct ID *id);
 
 float ED_node_grid_size(void);
 
+/* node_relationships.cc */
+
+/**
+ * Test == 0, clear all intersect flags.
+ */
+void ED_node_link_intersect_test(struct ScrArea *area, int test);
+/**
+ * Assumes link with #NODE_LINKFLAG_HILITE set.
+ */
+void ED_node_link_insert(struct Main *bmain, struct ScrArea *area);
+
 /* node_edit.cc */
 
 void ED_node_set_tree_type(struct SpaceNode *snode, struct bNodeTreeType *typeinfo);
@@ -174,21 +185,4 @@ bool ED_space_node_color_sample(struct Main *bmain,
 
 #ifdef __cplusplus
 }
-#endif
-
-#ifdef __cplusplus
-
-/* node_relationships.cc */
-
-namespace blender::ed::space_node {
-
-void node_insert_on_link_flags_set(SpaceNode &snode, const ARegion &region);
-/**
- * Assumes link with #NODE_LINKFLAG_HILITE set.
- */
-void node_insert_on_link_flags(Main &bmain, SpaceNode &snode);
-void node_insert_on_link_flags_clear(bNodeTree &node_tree);
-
-}  // namespace blender::ed::space_node
-
 #endif

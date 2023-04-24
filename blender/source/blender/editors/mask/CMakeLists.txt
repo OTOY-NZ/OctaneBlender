@@ -10,6 +10,7 @@ set(INC
   ../../makesdna
   ../../makesrna
   ../../windowmanager
+  ../../../../intern/glew-mx
   ../../../../intern/guardedalloc
 )
 

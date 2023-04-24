@@ -15,12 +15,13 @@ class OctaneGeometricPrimitivePrimitive(OctaneBaseSocket):
     bl_idname="OctaneGeometricPrimitivePrimitive"
     bl_label="Primitive"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type=57
+    octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=526)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="primitive")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
+    octane_pin_id=consts.PinID.P_PRIMITIVE
+    octane_pin_name="primitive"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("Box", "Box", "", 1),
         ("Capsule", "Capsule", "", 2),
@@ -56,12 +57,13 @@ class OctaneGeometricPrimitiveMaterial(OctaneBaseSocket):
     bl_idname="OctaneGeometricPrimitiveMaterial"
     bl_label="Material"
     color=consts.OctanePinColor.Material
-    octane_default_node_type=17
+    octane_default_node_type=consts.NodeType.NT_MAT_DIFFUSE
     octane_default_node_name="OctaneDiffuseMaterial"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=397)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="material")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_MATERIAL)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_MATERIAL
+    octane_pin_name="material"
+    octane_pin_type=consts.PinType.PT_MATERIAL
+    octane_pin_index=1
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -71,12 +73,13 @@ class OctaneGeometricPrimitiveObjectLayer(OctaneBaseSocket):
     bl_idname="OctaneGeometricPrimitiveObjectLayer"
     bl_label="Object layer"
     color=consts.OctanePinColor.ObjectLayer
-    octane_default_node_type=65
+    octane_default_node_type=consts.NodeType.NT_OBJECTLAYER
     octane_default_node_name="OctaneObjectLayer"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=328)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="objectLayer")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_OBJECTLAYER)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_OBJECT_LAYER
+    octane_pin_name="objectLayer"
+    octane_pin_type=consts.PinType.PT_OBJECTLAYER
+    octane_pin_index=2
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -86,12 +89,13 @@ class OctaneGeometricPrimitiveTransform(OctaneBaseSocket):
     bl_idname="OctaneGeometricPrimitiveTransform"
     bl_label="Transform"
     color=consts.OctanePinColor.Transform
-    octane_default_node_type=67
+    octane_default_node_type=consts.NodeType.NT_TRANSFORM_VALUE
     octane_default_node_name="OctaneTransformValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=243)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="transform")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TRANSFORM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_pin_id=consts.PinID.P_TRANSFORM
+    octane_pin_name="transform"
+    octane_pin_type=consts.PinType.PT_TRANSFORM
+    octane_pin_index=3
+    octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
     octane_end_version=4294967295
@@ -106,13 +110,13 @@ class OctaneGeometricPrimitive(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneGeometricPrimitivePrimitive,OctaneGeometricPrimitiveMaterial,OctaneGeometricPrimitiveObjectLayer,OctaneGeometricPrimitiveTransform,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=153)
-    octane_socket_list: StringProperty(name="Socket List", default="Primitive;Material;Object layer;Transform;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=4)
+    octane_node_type=consts.NodeType.NT_GEO_OBJECT
+    octane_socket_list=["Primitive", "Material", "Object layer", "Transform", ]
+    octane_attribute_list=[]
+    octane_attribute_config={"a_script_storage": [consts.AttributeID.A_SCRIPT_STORAGE, "scriptStorage", consts.AttributeType.AT_STRING], }
+    octane_static_pin_count=4
 
     def init(self, context):
         self.inputs.new("OctaneGeometricPrimitivePrimitive", OctaneGeometricPrimitivePrimitive.bl_label).init()

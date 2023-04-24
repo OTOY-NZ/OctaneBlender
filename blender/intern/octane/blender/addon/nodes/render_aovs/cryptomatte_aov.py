@@ -15,12 +15,13 @@ class OctaneCryptomatteAOVEnabled(OctaneBaseSocket):
     bl_idname="OctaneCryptomatteAOVEnabled"
     bl_label="Enabled"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type=11
+    octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=42)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="enabled")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
+    octane_pin_id=consts.PinID.P_ENABLED
+    octane_pin_name="enabled"
+    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Enables the render AOV")
     octane_hide_value=False
     octane_min_version=0
@@ -31,12 +32,13 @@ class OctaneCryptomatteAOVSubType(OctaneBaseSocket):
     bl_idname="OctaneCryptomatteAOVSubType"
     bl_label="Type"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type=57
+    octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=703)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="subType")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
+    octane_pin_id=consts.PinID.P_SUB_TYPE
+    octane_pin_name="subType"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=1
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("Material node", "Material node", "", 0),
         ("Material node name", "Material node name", "", 1),
@@ -64,13 +66,13 @@ class OctaneCryptomatteAOV(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name={0: "cm-Mn", 1: "cm-Mnn", 2: "cm-MPn", 3: "cm-On", 4: "cm-Onn", 5: "cm-Opn", 6: "cm-Ii", 7: "cm-Gnn", 8: "cm-RL", 9: "cm-UID", }
     octane_render_pass_description={0: "Cryptomatte channels using distinct material nodes. Note: This cannot generate stable matte IDs", 1: "Cryptomatte channels using material node names", 2: "Cryptomatte channels using material pin names", 3: "Cryptomatte channels using distinct object layer nodes. Note: This cannot generate stable matte IDs", 4: "Cryptomatte channels using object layer node names", 5: "Cryptomatte channels using object layer pin names", 6: "Cryptomatte channels for instances. Note: This cannot generate stable matte IDs", 7: "Cryptomatte channels using geometry node names", 8: "Cryptomatte channels using render layers", 9: "Cryptomatte channels using user instance ID", }
     octane_render_pass_sub_type_name="Type"
+    octane_socket_class_list=[OctaneCryptomatteAOVEnabled,OctaneCryptomatteAOVSubType,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=185)
-    octane_socket_list: StringProperty(name="Socket List", default="Enabled;Type;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=2)
+    octane_node_type=consts.NodeType.NT_AOV_CRYPTOMATTE
+    octane_socket_list=["Enabled", "Type", ]
+    octane_attribute_list=[]
+    octane_attribute_config={}
+    octane_static_pin_count=2
 
     def init(self, context):
         self.inputs.new("OctaneCryptomatteAOVEnabled", OctaneCryptomatteAOVEnabled.bl_label).init()

@@ -18,6 +18,7 @@ batch = batch_for_shader(shader, 'TRIS', {"pos": vertices}, indices=indices)
 
 
 def draw():
+    shader.bind()
     shader.uniform_float("color", (0, 0.5, 0.5, 1.0))
     batch.draw(shader)
 

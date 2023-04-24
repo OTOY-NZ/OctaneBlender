@@ -20,13 +20,13 @@ class OctaneOCIOColorSpace(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=163)
-    octane_socket_list: StringProperty(name="Socket List", default="")
-    octane_attribute_list: StringProperty(name="Attribute List", default="a_color_space;a_ocio_color_space_name;")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="colorSpace;ocioColorSpaceName;")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="2;10;")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=0)
+    octane_node_type=consts.NodeType.NT_OCIO_COLOR_SPACE
+    octane_socket_list=[]
+    octane_attribute_list=["a_color_space", "a_ocio_color_space_name", ]
+    octane_attribute_config={"a_color_space": [consts.AttributeID.A_COLOR_SPACE, "colorSpace", consts.AttributeType.AT_INT], "a_ocio_color_space_name": [consts.AttributeID.A_OCIO_COLOR_SPACE_NAME, "ocioColorSpaceName", consts.AttributeType.AT_STRING], }
+    octane_static_pin_count=0
 
     a_color_space: IntProperty(name="Color space", default=0, update=OctaneBaseNode.update_node_tree, description="The selected non-OCIO color space, or NAMED_COLOR_SPACE_OCIO if an OCIO color space is selected")
     a_ocio_color_space_name: StringProperty(name="Ocio color space name", default="", update=OctaneBaseNode.update_node_tree, description="The name of the selected OCIO color space, if an OCIO color space is selected. Unused otherwise")
@@ -68,7 +68,6 @@ class OctaneOCIOColorSpace_Override(OctaneOCIOColorSpace):
     
     def init(self, context):
         super().init(context)
-        utility.remove_attribute_list(self, "a_color_space;a_ocio_color_space_name;")
 
     def draw_buttons(self, context, layout):
         super().draw_buttons(context, layout)
@@ -76,8 +75,9 @@ class OctaneOCIOColorSpace_Override(OctaneOCIOColorSpace):
         preference, collection_name = ocio.OctaneOCIOManagement().get_ocio_color_space_collection_config()
         col.prop_search(self, "ocio_color_space_name", preference, collection_name)        
 
-    def sync_custom_data(self, octane_node, octane_graph_node_data, owner_type, scene, is_viewport):
-        super().sync_custom_data(octane_node, octane_graph_node_data, owner_type, scene, is_viewport)
-        octane_node.set_blender_attribute(self.BLENDER_ATTRIBUTE_COLOR_SPACE_NAME, consts.AttributeType.AT_STRING, self.formatted_ocio_color_space_name)
+    def sync_custom_data(self, octane_node, octane_graph_node_data, depsgraph):
+        super().sync_custom_data(octane_node, octane_graph_node_data, depsgraph)
+        octane_node.set_attribute_blender_name(self.BLENDER_ATTRIBUTE_COLOR_SPACE_NAME, consts.AttributeType.AT_STRING, self.formatted_ocio_color_space_name)
 
+utility.remove_attribute_list(OctaneOCIOColorSpace_Override, ["a_color_space", "a_ocio_color_space_name",])
 utility.override_class(_CLASSES, OctaneOCIOColorSpace, OctaneOCIOColorSpace_Override)

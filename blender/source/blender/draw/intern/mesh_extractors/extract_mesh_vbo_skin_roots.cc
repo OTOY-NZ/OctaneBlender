@@ -19,9 +19,9 @@ struct SkinRootData {
 };
 
 static void extract_skin_roots_init(const MeshRenderData *mr,
-                                    MeshBatchCache * /*cache*/,
+                                    MeshBatchCache *UNUSED(cache),
                                     void *buf,
-                                    void * /*tls_data*/)
+                                    void *UNUSED(tls_data))
 {
   GPUVertBuf *vbo = static_cast<GPUVertBuf *>(buf);
   /* Exclusively for edit mode. */

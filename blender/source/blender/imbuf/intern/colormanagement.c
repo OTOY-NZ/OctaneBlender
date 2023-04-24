@@ -235,11 +235,11 @@ static ColormanageCacheData *colormanage_cachedata_get(const ImBuf *ibuf)
   return ibuf->colormanage_cache->data;
 }
 
-static uint colormanage_hashhash(const void *key_v)
+static unsigned int colormanage_hashhash(const void *key_v)
 {
   const ColormanageCacheKey *key = key_v;
 
-  uint rval = (key->display << 16) | (key->view % 0xffff);
+  unsigned int rval = (key->display << 16) | (key->view % 0xffff);
 
   return rval;
 }
@@ -336,10 +336,11 @@ static ImBuf *colormanage_cache_get_ibuf(ImBuf *ibuf,
   return cache_ibuf;
 }
 
-static uchar *colormanage_cache_get(ImBuf *ibuf,
-                                    const ColormanageCacheViewSettings *view_settings,
-                                    const ColormanageCacheDisplaySettings *display_settings,
-                                    void **cache_handle)
+static unsigned char *colormanage_cache_get(
+    ImBuf *ibuf,
+    const ColormanageCacheViewSettings *view_settings,
+    const ColormanageCacheDisplaySettings *display_settings,
+    void **cache_handle)
 {
   ColormanageCacheKey key;
   ImBuf *cache_ibuf;
@@ -382,7 +383,7 @@ static uchar *colormanage_cache_get(ImBuf *ibuf,
       return NULL;
     }
 
-    return (uchar *)cache_ibuf->rect;
+    return (unsigned char *)cache_ibuf->rect;
   }
 
   return NULL;
@@ -391,7 +392,7 @@ static uchar *colormanage_cache_get(ImBuf *ibuf,
 static void colormanage_cache_put(ImBuf *ibuf,
                                   const ColormanageCacheViewSettings *view_settings,
                                   const ColormanageCacheDisplaySettings *display_settings,
-                                  uchar *display_buffer,
+                                  unsigned char *display_buffer,
                                   void **cache_handle)
 {
   ColormanageCacheKey key;
@@ -409,7 +410,7 @@ static void colormanage_cache_put(ImBuf *ibuf,
 
   /* buffer itself */
   cache_ibuf = IMB_allocImBuf(ibuf->x, ibuf->y, ibuf->planes, 0);
-  cache_ibuf->rect = (uint *)display_buffer;
+  cache_ibuf->rect = (unsigned int *)display_buffer;
 
   cache_ibuf->mall |= IB_rect;
   cache_ibuf->flags |= IB_rect;
@@ -668,7 +669,7 @@ void colormanagement_init(void)
     configdir = BKE_appdir_folder_id(BLENDER_DATAFILES, "colormanagement");
 
     if (configdir) {
-      BLI_path_join(configfile, sizeof(configfile), configdir, BCM_CONFIG_FILE);
+      BLI_join_dirfile(configfile, sizeof(configfile), configdir, BCM_CONFIG_FILE);
 
 #ifdef WIN32
       {
@@ -1440,10 +1441,10 @@ typedef struct DisplayBufferThread {
   ColormanageProcessor *cm_processor;
 
   const float *buffer;
-  uchar *byte_buffer;
+  unsigned char *byte_buffer;
 
   float *display_buffer;
-  uchar *display_buffer_byte;
+  unsigned char *display_buffer_byte;
 
   int width;
   int start_line;
@@ -1462,10 +1463,10 @@ typedef struct DisplayBufferInitData {
   ImBuf *ibuf;
   ColormanageProcessor *cm_processor;
   const float *buffer;
-  uchar *byte_buffer;
+  unsigned char *byte_buffer;
 
   float *display_buffer;
-  uchar *display_buffer_byte;
+  unsigned char *display_buffer_byte;
 
   int width;
 
@@ -1538,13 +1539,13 @@ static void display_buffer_apply_get_linear_buffer(DisplayBufferThread *handle,
   bool predivide = handle->predivide;
 
   if (!handle->buffer) {
-    uchar *byte_buffer = handle->byte_buffer;
+    unsigned char *byte_buffer = handle->byte_buffer;
 
     const char *from_colorspace = handle->byte_colorspace;
     const char *to_colorspace = global_role_scene_linear;
 
     float *fp;
-    uchar *cp;
+    unsigned char *cp;
     const size_t i_last = ((size_t)width) * height;
     size_t i;
 
@@ -1607,7 +1608,7 @@ static void *do_display_buffer_apply_thread(void *handle_v)
   DisplayBufferThread *handle = (DisplayBufferThread *)handle_v;
   ColormanageProcessor *cm_processor = handle->cm_processor;
   float *display_buffer = handle->display_buffer;
-  uchar *display_buffer_byte = handle->display_buffer_byte;
+  unsigned char *display_buffer_byte = handle->display_buffer_byte;
   int channels = handle->channels;
   int width = handle->width;
   int height = handle->tot_line;
@@ -1697,9 +1698,9 @@ static void *do_display_buffer_apply_thread(void *handle_v)
 
 static void display_buffer_apply_threaded(ImBuf *ibuf,
                                           const float *buffer,
-                                          uchar *byte_buffer,
+                                          unsigned char *byte_buffer,
                                           float *display_buffer,
-                                          uchar *display_buffer_byte,
+                                          unsigned char *display_buffer_byte,
                                           ColormanageProcessor *cm_processor)
 {
   DisplayBufferInitData init_data;
@@ -1760,7 +1761,7 @@ static bool is_ibuf_rect_in_display_space(ImBuf *ibuf,
 static void colormanage_display_buffer_process_ex(
     ImBuf *ibuf,
     float *display_buffer,
-    uchar *display_buffer_byte,
+    unsigned char *display_buffer_byte,
     const ColorManagedViewSettings *view_settings,
     const ColorManagedDisplaySettings *display_settings)
 {
@@ -1782,7 +1783,7 @@ static void colormanage_display_buffer_process_ex(
 
   display_buffer_apply_threaded(ibuf,
                                 ibuf->rect_float,
-                                (uchar *)ibuf->rect,
+                                (unsigned char *)ibuf->rect,
                                 display_buffer,
                                 display_buffer_byte,
                                 cm_processor);
@@ -1793,7 +1794,7 @@ static void colormanage_display_buffer_process_ex(
 }
 
 static void colormanage_display_buffer_process(ImBuf *ibuf,
-                                               uchar *display_buffer,
+                                               unsigned char *display_buffer,
                                                const ColorManagedViewSettings *view_settings,
                                                const ColorManagedDisplaySettings *display_settings)
 {
@@ -1809,7 +1810,7 @@ static void colormanage_display_buffer_process(ImBuf *ibuf,
 
 typedef struct ProcessorTransformThread {
   ColormanageProcessor *cm_processor;
-  uchar *byte_buffer;
+  unsigned char *byte_buffer;
   float *float_buffer;
   int width;
   int start_line;
@@ -1821,7 +1822,7 @@ typedef struct ProcessorTransformThread {
 
 typedef struct ProcessorTransformInit {
   ColormanageProcessor *cm_processor;
-  uchar *byte_buffer;
+  unsigned char *byte_buffer;
   float *float_buffer;
   int width;
   int height;
@@ -1870,7 +1871,7 @@ static void processor_transform_init_handle(void *handle_v,
 static void *do_processor_transform_thread(void *handle_v)
 {
   ProcessorTransformThread *handle = (ProcessorTransformThread *)handle_v;
-  uchar *byte_buffer = handle->byte_buffer;
+  unsigned char *byte_buffer = handle->byte_buffer;
   float *float_buffer = handle->float_buffer;
   const int channels = handle->channels;
   const int width = handle->width;
@@ -1906,7 +1907,7 @@ static void *do_processor_transform_thread(void *handle_v)
   return NULL;
 }
 
-static void processor_transform_apply_threaded(uchar *byte_buffer,
+static void processor_transform_apply_threaded(unsigned char *byte_buffer,
                                                float *float_buffer,
                                                const int width,
                                                const int height,
@@ -1941,7 +1942,7 @@ static void processor_transform_apply_threaded(uchar *byte_buffer,
 
 /* Convert the whole buffer from specified by name color space to another -
  * internal implementation. */
-static void colormanagement_transform_ex(uchar *byte_buffer,
+static void colormanagement_transform_ex(unsigned char *byte_buffer,
                                          float *float_buffer,
                                          int width,
                                          int height,
@@ -2007,7 +2008,7 @@ void IMB_colormanagement_transform_threaded(float *buffer,
       NULL, buffer, width, height, channels, from_colorspace, to_colorspace, predivide, true);
 }
 
-void IMB_colormanagement_transform_byte(uchar *buffer,
+void IMB_colormanagement_transform_byte(unsigned char *buffer,
                                         int width,
                                         int height,
                                         int channels,
@@ -2017,7 +2018,7 @@ void IMB_colormanagement_transform_byte(uchar *buffer,
   colormanagement_transform_ex(
       buffer, NULL, width, height, channels, from_colorspace, to_colorspace, false, false);
 }
-void IMB_colormanagement_transform_byte_threaded(uchar *buffer,
+void IMB_colormanagement_transform_byte_threaded(unsigned char *buffer,
                                                  int width,
                                                  int height,
                                                  int channels,
@@ -2029,7 +2030,7 @@ void IMB_colormanagement_transform_byte_threaded(uchar *buffer,
 }
 
 void IMB_colormanagement_transform_from_byte(float *float_buffer,
-                                             uchar *byte_buffer,
+                                             unsigned char *byte_buffer,
                                              int width,
                                              int height,
                                              int channels,
@@ -2049,7 +2050,7 @@ void IMB_colormanagement_transform_from_byte(float *float_buffer,
       float_buffer, width, height, channels, from_colorspace, to_colorspace, true);
 }
 void IMB_colormanagement_transform_from_byte_threaded(float *float_buffer,
-                                                      uchar *byte_buffer,
+                                                      unsigned char *byte_buffer,
                                                       int width,
                                                       int height,
                                                       int channels,
@@ -2204,7 +2205,7 @@ void IMB_colormanagement_colorspace_to_scene_linear(float *buffer,
   }
 }
 
-void IMB_colormanagement_imbuf_to_byte_texture(uchar *out_buffer,
+void IMB_colormanagement_imbuf_to_byte_texture(unsigned char *out_buffer,
                                                const int offset_x,
                                                const int offset_y,
                                                const int width,
@@ -2219,14 +2220,14 @@ void IMB_colormanagement_imbuf_to_byte_texture(uchar *out_buffer,
              IMB_colormanagement_space_is_scene_linear(ibuf->rect_colorspace) ||
              IMB_colormanagement_space_is_data(ibuf->rect_colorspace));
 
-  const uchar *in_buffer = (uchar *)ibuf->rect;
+  const unsigned char *in_buffer = (unsigned char *)ibuf->rect;
   const bool use_premultiply = IMB_alpha_affects_rgb(ibuf) && store_premultiplied;
 
   for (int y = 0; y < height; y++) {
     const size_t in_offset = (offset_y + y) * ibuf->x + offset_x;
     const size_t out_offset = y * width;
-    const uchar *in = in_buffer + in_offset * 4;
-    uchar *out = out_buffer + out_offset * 4;
+    const unsigned char *in = in_buffer + in_offset * 4;
+    unsigned char *out = out_buffer + out_offset * 4;
 
     if (use_premultiply) {
       /* Premultiply only. */
@@ -2304,7 +2305,7 @@ void IMB_colormanagement_imbuf_to_float_texture(float *out_buffer,
   }
   else {
     /* Byte source buffer. */
-    const uchar *in_buffer = (uchar *)ibuf->rect;
+    const unsigned char *in_buffer = (unsigned char *)ibuf->rect;
     const bool use_premultiply = IMB_alpha_affects_rgb(ibuf) && store_premultiplied;
 
     /* TODO(brecht): make this multi-threaded, or at least process in batches. */
@@ -2316,7 +2317,7 @@ void IMB_colormanagement_imbuf_to_float_texture(float *out_buffer,
     for (int y = 0; y < height; y++) {
       const size_t in_offset = (offset_y + y) * ibuf->x + offset_x;
       const size_t out_offset = y * width;
-      const uchar *in = in_buffer + in_offset * 4;
+      const unsigned char *in = in_buffer + in_offset * 4;
       float *out = out_buffer + out_offset * 4;
 
       /* Convert to scene linear, to sRGB and premultiply. */
@@ -2457,7 +2458,7 @@ static void colormanagement_imbuf_make_display_space(
   }
 
   colormanage_display_buffer_process_ex(
-      ibuf, ibuf->rect_float, (uchar *)ibuf->rect, view_settings, display_settings);
+      ibuf, ibuf->rect_float, (unsigned char *)ibuf->rect, view_settings, display_settings);
 }
 
 void IMB_colormanagement_imbuf_make_display_space(
@@ -2544,8 +2545,10 @@ ImBuf *IMB_colormanagement_imbuf_for_write(ImBuf *ibuf,
     }
 
     if (colormanaged_ibuf->rect) {
-      IMB_alpha_under_color_byte(
-          (uchar *)colormanaged_ibuf->rect, colormanaged_ibuf->x, colormanaged_ibuf->y, color);
+      IMB_alpha_under_color_byte((unsigned char *)colormanaged_ibuf->rect,
+                                 colormanaged_ibuf->x,
+                                 colormanaged_ibuf->y,
+                                 color);
     }
   }
 
@@ -2600,7 +2603,7 @@ ImBuf *IMB_colormanagement_imbuf_for_write(ImBuf *ibuf,
 
         if (colormanaged_ibuf->rect) {
           /* Byte to byte. */
-          IMB_colormanagement_transform_byte_threaded((uchar *)colormanaged_ibuf->rect,
+          IMB_colormanagement_transform_byte_threaded((unsigned char *)colormanaged_ibuf->rect,
                                                       colormanaged_ibuf->x,
                                                       colormanaged_ibuf->y,
                                                       colormanaged_ibuf->channels,
@@ -2647,12 +2650,12 @@ ImBuf *IMB_colormanagement_imbuf_for_write(ImBuf *ibuf,
 /** \name Public Display Buffers Interfaces
  * \{ */
 
-uchar *IMB_display_buffer_acquire(ImBuf *ibuf,
-                                  const ColorManagedViewSettings *view_settings,
-                                  const ColorManagedDisplaySettings *display_settings,
-                                  void **cache_handle)
+unsigned char *IMB_display_buffer_acquire(ImBuf *ibuf,
+                                          const ColorManagedViewSettings *view_settings,
+                                          const ColorManagedDisplaySettings *display_settings,
+                                          void **cache_handle)
 {
-  uchar *display_buffer;
+  unsigned char *display_buffer;
   size_t buffer_size;
   ColormanageCacheViewSettings cache_view_settings;
   ColormanageCacheDisplaySettings cache_display_settings;
@@ -2680,7 +2683,7 @@ uchar *IMB_display_buffer_acquire(ImBuf *ibuf,
    */
   if (ibuf->rect_float == NULL && ibuf->rect_colorspace && ibuf->channels == 4) {
     if (is_ibuf_rect_in_display_space(ibuf, applied_view_settings, display_settings)) {
-      return (uchar *)ibuf->rect;
+      return (unsigned char *)ibuf->rect;
     }
   }
 
@@ -2691,7 +2694,7 @@ uchar *IMB_display_buffer_acquire(ImBuf *ibuf,
     if ((ibuf->userflags & IB_DISPLAY_BUFFER_INVALID) == 0) {
       IMB_partial_display_buffer_update_threaded(ibuf,
                                                  ibuf->rect_float,
-                                                 (uchar *)ibuf->rect,
+                                                 (unsigned char *)ibuf->rect,
                                                  ibuf->x,
                                                  0,
                                                  0,
@@ -2710,14 +2713,14 @@ uchar *IMB_display_buffer_acquire(ImBuf *ibuf,
 
   /* ensure color management bit fields exists */
   if (!ibuf->display_buffer_flags) {
-    ibuf->display_buffer_flags = MEM_callocN(sizeof(uint) * global_tot_display,
+    ibuf->display_buffer_flags = MEM_callocN(sizeof(unsigned int) * global_tot_display,
                                              "imbuf display_buffer_flags");
   }
   else if (ibuf->userflags & IB_DISPLAY_BUFFER_INVALID) {
     /* all display buffers were marked as invalid from other areas,
      * now propagate this flag to internal color management routines
      */
-    memset(ibuf->display_buffer_flags, 0, global_tot_display * sizeof(uint));
+    memset(ibuf->display_buffer_flags, 0, global_tot_display * sizeof(unsigned int));
 
     ibuf->userflags &= ~IB_DISPLAY_BUFFER_INVALID;
   }
@@ -2744,7 +2747,7 @@ uchar *IMB_display_buffer_acquire(ImBuf *ibuf,
   return display_buffer;
 }
 
-uchar *IMB_display_buffer_acquire_ctx(const bContext *C, ImBuf *ibuf, void **cache_handle)
+unsigned char *IMB_display_buffer_acquire_ctx(const bContext *C, ImBuf *ibuf, void **cache_handle)
 {
   ColorManagedViewSettings *view_settings;
   ColorManagedDisplaySettings *display_settings;
@@ -2754,7 +2757,7 @@ uchar *IMB_display_buffer_acquire_ctx(const bContext *C, ImBuf *ibuf, void **cac
   return IMB_display_buffer_acquire(ibuf, view_settings, display_settings, cache_handle);
 }
 
-void IMB_display_buffer_transform_apply(uchar *display_buffer,
+void IMB_display_buffer_transform_apply(unsigned char *display_buffer,
                                         float *linear_buffer,
                                         int width,
                                         int height,
@@ -3393,9 +3396,9 @@ void IMB_colormanagement_colorspace_items_add(EnumPropertyItem **items, int *tot
  */
 
 static void partial_buffer_update_rect(ImBuf *ibuf,
-                                       uchar *display_buffer,
+                                       unsigned char *display_buffer,
                                        const float *linear_buffer,
-                                       const uchar *byte_buffer,
+                                       const unsigned char *byte_buffer,
                                        int display_stride,
                                        int linear_stride,
                                        int linear_offset_x,
@@ -3544,9 +3547,9 @@ static void partial_buffer_update_rect(ImBuf *ibuf,
 
 typedef struct PartialThreadData {
   ImBuf *ibuf;
-  uchar *display_buffer;
+  unsigned char *display_buffer;
   const float *linear_buffer;
-  const uchar *byte_buffer;
+  const unsigned char *byte_buffer;
   int display_stride;
   int linear_stride;
   int linear_offset_x, linear_offset_y;
@@ -3577,7 +3580,7 @@ static void partial_buffer_update_rect_thread_do(void *data_v, int scanline)
 static void imb_partial_display_buffer_update_ex(
     ImBuf *ibuf,
     const float *linear_buffer,
-    const uchar *byte_buffer,
+    const unsigned char *byte_buffer,
     int stride,
     int offset_x,
     int offset_y,
@@ -3592,7 +3595,7 @@ static void imb_partial_display_buffer_update_ex(
   ColormanageCacheViewSettings cache_view_settings;
   ColormanageCacheDisplaySettings cache_display_settings;
   void *cache_handle = NULL;
-  uchar *display_buffer = NULL;
+  unsigned char *display_buffer = NULL;
   int buffer_width = ibuf->x;
 
   if (ibuf->display_buffer_flags) {
@@ -3618,7 +3621,7 @@ static void imb_partial_display_buffer_update_ex(
     buffer_width = ibuf->x;
 
     /* Mark all other buffers as invalid. */
-    memset(ibuf->display_buffer_flags, 0, global_tot_display * sizeof(uint));
+    memset(ibuf->display_buffer_flags, 0, global_tot_display * sizeof(unsigned int));
     ibuf->display_buffer_flags[display_index] |= view_flag;
 
     BLI_thread_unlock(LOCK_COLORMANAGE);
@@ -3686,7 +3689,7 @@ static void imb_partial_display_buffer_update_ex(
 
 void IMB_partial_display_buffer_update(ImBuf *ibuf,
                                        const float *linear_buffer,
-                                       const uchar *byte_buffer,
+                                       const unsigned char *byte_buffer,
                                        int stride,
                                        int offset_x,
                                        int offset_y,
@@ -3715,7 +3718,7 @@ void IMB_partial_display_buffer_update(ImBuf *ibuf,
 void IMB_partial_display_buffer_update_threaded(
     struct ImBuf *ibuf,
     const float *linear_buffer,
-    const uchar *byte_buffer,
+    const unsigned char *byte_buffer,
     int stride,
     int offset_x,
     int offset_y,
@@ -3922,7 +3925,7 @@ void IMB_colormanagement_processor_apply(ColormanageProcessor *cm_processor,
 }
 
 void IMB_colormanagement_processor_apply_byte(
-    ColormanageProcessor *cm_processor, uchar *buffer, int width, int height, int channels)
+    ColormanageProcessor *cm_processor, unsigned char *buffer, int width, int height, int channels)
 {
   /* TODO(sergey): Would be nice to support arbitrary channels configurations,
    * but for now it's not so important.

@@ -41,7 +41,7 @@ void viewdolly_modal_keymap(wmKeyConfig *keyconf)
 
   wmKeyMap *keymap = WM_modalkeymap_find(keyconf, "View3D Dolly Modal");
 
-  /* This function is called for each space-type, only needs to add map once. */
+  /* this function is called for each spacetype, only needs to add map once */
   if (keymap && keymap->modal_items) {
     return;
   }

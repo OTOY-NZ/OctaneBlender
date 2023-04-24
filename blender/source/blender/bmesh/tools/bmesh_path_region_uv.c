@@ -109,10 +109,9 @@ static bool bm_loop_region_test_chain(BMLoop *l, int *const depths[2], const int
 static LinkNode *mesh_calc_path_region_elem(BMesh *bm,
                                             BMElem *ele_src,
                                             BMElem *ele_dst,
-                                            const int cd_loop_uv_offset,
+                                            const uint cd_loop_uv_offset,
                                             const char path_htype)
 {
-  BLI_assert(cd_loop_uv_offset >= 0);
   int ele_loops_len[2];
   BMLoop **ele_loops[2];
 
@@ -398,7 +397,7 @@ static LinkNode *mesh_calc_path_region_elem(BMesh *bm,
 LinkNode *BM_mesh_calc_path_uv_region_vert(BMesh *bm,
                                            BMElem *ele_src,
                                            BMElem *ele_dst,
-                                           const int cd_loop_uv_offset,
+                                           const uint cd_loop_uv_offset,
                                            bool (*filter_fn)(BMLoop *, void *user_data),
                                            void *user_data)
 {
@@ -427,7 +426,7 @@ LinkNode *BM_mesh_calc_path_uv_region_vert(BMesh *bm,
 LinkNode *BM_mesh_calc_path_uv_region_edge(BMesh *bm,
                                            BMElem *ele_src,
                                            BMElem *ele_dst,
-                                           const int cd_loop_uv_offset,
+                                           const uint cd_loop_uv_offset,
                                            bool (*filter_fn)(BMLoop *, void *user_data),
                                            void *user_data)
 {
@@ -456,7 +455,7 @@ LinkNode *BM_mesh_calc_path_uv_region_edge(BMesh *bm,
 LinkNode *BM_mesh_calc_path_uv_region_face(BMesh *bm,
                                            BMElem *ele_src,
                                            BMElem *ele_dst,
-                                           const int cd_loop_uv_offset,
+                                           const uint cd_loop_uv_offset,
                                            bool (*filter_fn)(BMFace *, void *user_data),
                                            void *user_data)
 {

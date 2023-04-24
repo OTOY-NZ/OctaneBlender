@@ -19,9 +19,9 @@ namespace blender::draw {
 #define NOR_AND_FLAG_HIDDEN -2
 
 static void extract_fdots_nor_init(const MeshRenderData *mr,
-                                   MeshBatchCache * /*cache*/,
+                                   MeshBatchCache *UNUSED(cache),
                                    void *buf,
-                                   void * /*tls_data*/)
+                                   void *UNUSED(tls_data))
 {
   GPUVertBuf *vbo = static_cast<GPUVertBuf *>(buf);
   static GPUVertFormat format = {0};
@@ -34,9 +34,9 @@ static void extract_fdots_nor_init(const MeshRenderData *mr,
 }
 
 static void extract_fdots_nor_finish(const MeshRenderData *mr,
-                                     MeshBatchCache * /*cache*/,
+                                     MeshBatchCache *UNUSED(cache),
                                      void *buf,
-                                     void * /*data*/)
+                                     void *UNUSED(data))
 {
   GPUVertBuf *vbo = static_cast<GPUVertBuf *>(buf);
   static float invalid_normal[3] = {0.0f, 0.0f, 0.0f};
@@ -48,7 +48,8 @@ static void extract_fdots_nor_finish(const MeshRenderData *mr,
     for (int f = 0; f < mr->poly_len; f++) {
       efa = BM_face_at_index(mr->bm, f);
       const bool is_face_hidden = BM_elem_flag_test(efa, BM_ELEM_HIDDEN);
-      if (is_face_hidden || (mr->p_origindex && mr->p_origindex[f] == ORIGINDEX_NONE)) {
+      if (is_face_hidden || (mr->extract_type == MR_EXTRACT_MAPPED && mr->p_origindex &&
+                             mr->p_origindex[f] == ORIGINDEX_NONE)) {
         nor[f] = GPU_normal_convert_i10_v3(invalid_normal);
         nor[f].w = NOR_AND_FLAG_HIDDEN;
       }
@@ -65,7 +66,8 @@ static void extract_fdots_nor_finish(const MeshRenderData *mr,
     for (int f = 0; f < mr->poly_len; f++) {
       efa = bm_original_face_get(mr, f);
       const bool is_face_hidden = efa && BM_elem_flag_test(efa, BM_ELEM_HIDDEN);
-      if (is_face_hidden || (mr->p_origindex && mr->p_origindex[f] == ORIGINDEX_NONE)) {
+      if (is_face_hidden || (mr->extract_type == MR_EXTRACT_MAPPED && mr->p_origindex &&
+                             mr->p_origindex[f] == ORIGINDEX_NONE)) {
         nor[f] = GPU_normal_convert_i10_v3(invalid_normal);
         nor[f].w = NOR_AND_FLAG_HIDDEN;
       }
@@ -99,9 +101,9 @@ constexpr MeshExtract create_extractor_fdots_nor()
  * \{ */
 
 static void extract_fdots_nor_hq_init(const MeshRenderData *mr,
-                                      MeshBatchCache * /*cache*/,
+                                      MeshBatchCache *UNUSED(cache),
                                       void *buf,
-                                      void * /*tls_data*/)
+                                      void *UNUSED(tls_data))
 {
   GPUVertBuf *vbo = static_cast<GPUVertBuf *>(buf);
   static GPUVertFormat format = {0};
@@ -114,9 +116,9 @@ static void extract_fdots_nor_hq_init(const MeshRenderData *mr,
 }
 
 static void extract_fdots_nor_hq_finish(const MeshRenderData *mr,
-                                        MeshBatchCache * /*cache*/,
+                                        MeshBatchCache *UNUSED(cache),
                                         void *buf,
-                                        void * /*data*/)
+                                        void *UNUSED(data))
 {
   GPUVertBuf *vbo = static_cast<GPUVertBuf *>(buf);
   static float invalid_normal[3] = {0.0f, 0.0f, 0.0f};
@@ -128,7 +130,8 @@ static void extract_fdots_nor_hq_finish(const MeshRenderData *mr,
     for (int f = 0; f < mr->poly_len; f++) {
       efa = BM_face_at_index(mr->bm, f);
       const bool is_face_hidden = BM_elem_flag_test(efa, BM_ELEM_HIDDEN);
-      if (is_face_hidden || (mr->p_origindex && mr->p_origindex[f] == ORIGINDEX_NONE)) {
+      if (is_face_hidden || (mr->extract_type == MR_EXTRACT_MAPPED && mr->p_origindex &&
+                             mr->p_origindex[f] == ORIGINDEX_NONE)) {
         normal_float_to_short_v3(&nor[f * 4], invalid_normal);
         nor[f * 4 + 3] = NOR_AND_FLAG_HIDDEN;
       }
@@ -145,7 +148,8 @@ static void extract_fdots_nor_hq_finish(const MeshRenderData *mr,
     for (int f = 0; f < mr->poly_len; f++) {
       efa = bm_original_face_get(mr, f);
       const bool is_face_hidden = efa && BM_elem_flag_test(efa, BM_ELEM_HIDDEN);
-      if (is_face_hidden || (mr->p_origindex && mr->p_origindex[f] == ORIGINDEX_NONE)) {
+      if (is_face_hidden || (mr->extract_type == MR_EXTRACT_MAPPED && mr->p_origindex &&
+                             mr->p_origindex[f] == ORIGINDEX_NONE)) {
         normal_float_to_short_v3(&nor[f * 4], invalid_normal);
         nor[f * 4 + 3] = NOR_AND_FLAG_HIDDEN;
       }

@@ -18,7 +18,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static int gpu_shader_invert(GPUMaterial *mat,
                              bNode *node,
-                             bNodeExecData * /*execdata*/,
+                             bNodeExecData *UNUSED(execdata),
                              GPUNodeStack *in,
                              GPUNodeStack *out)
 {

@@ -15,7 +15,6 @@
 #include <stddef.h>
 #include <string.h>
 
-#include "BLI_ghash.h"
 #include "BLI_sys_types.h"
 
 #include "DNA_windowmanager_types.h"
@@ -194,7 +193,6 @@ static void window_manager_blend_read_data(BlendDataReader *reader, ID *id)
   BLI_listbase_clear(&wm->operators);
   BLI_listbase_clear(&wm->paintcursors);
   BLI_listbase_clear(&wm->notifier_queue);
-  wm->notifier_queue_set = NULL;
   BKE_reports_init(&wm->reports, RPT_STORE);
 
   BLI_listbase_clear(&wm->keyconfigs);
@@ -275,7 +273,7 @@ IDTypeInfo IDType_ID_WM = {
     .foreach_id = window_manager_foreach_id,
     .foreach_cache = NULL,
     .foreach_path = NULL,
-    .owner_pointer_get = NULL,
+    .owner_get = NULL,
 
     .blend_write = window_manager_blend_write,
     .blend_read_data = window_manager_blend_read_data,
@@ -582,10 +580,6 @@ void wm_close_and_free(bContext *C, wmWindowManager *wm)
   }
 
   BLI_freelistN(&wm->notifier_queue);
-  if (wm->notifier_queue_set) {
-    BLI_gset_free(wm->notifier_queue_set, NULL);
-    wm->notifier_queue_set = NULL;
-  }
 
   if (wm->message_bus != NULL) {
     WM_msgbus_destroy(wm->message_bus);

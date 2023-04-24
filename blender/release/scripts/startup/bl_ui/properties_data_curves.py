@@ -44,13 +44,7 @@ class DATA_PT_curves_surface(DataButtonsPanel, Panel):
         layout.use_property_split = True
 
         layout.prop(ob.data, "surface")
-        has_surface = ob.data.surface is not None
-        if has_surface:
-            layout.prop_search(ob.data, "surface_uv_map", ob.data.surface.data, "uv_layers", text="UV Map")
-        else:
-            row = layout.row()
-            row.prop(ob.data, "surface_uv_map", text="UV Map")
-            row.enabled = has_surface
+        layout.prop(ob.data, "surface_uv_map", text="UV Map")
 
 
 class CURVES_MT_add_attribute(Menu):
@@ -89,7 +83,7 @@ class CURVES_UL_attributes(UIList):
         indices = [i for i in range(len(attributes))]
 
         for item in attributes:
-            flags.append(0 if item.is_internal else self.bitflag_filter_item)
+            flags.append(self.bitflag_filter_item if item.is_internal else 0)
 
         return flags, indices
 

@@ -20,7 +20,6 @@ extern GpencilModifierTypeInfo modifierType_Gpencil_Color;
 extern GpencilModifierTypeInfo modifierType_Gpencil_Array;
 extern GpencilModifierTypeInfo modifierType_Gpencil_Build;
 extern GpencilModifierTypeInfo modifierType_Gpencil_Opacity;
-extern GpencilModifierTypeInfo modifierType_Gpencil_Outline;
 extern GpencilModifierTypeInfo modifierType_Gpencil_Lattice;
 extern GpencilModifierTypeInfo modifierType_Gpencil_Length;
 extern GpencilModifierTypeInfo modifierType_Gpencil_Mirror;

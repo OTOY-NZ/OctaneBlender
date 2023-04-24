@@ -1,7 +1,6 @@
 /** This describe the entire interface of the shader. */
 
 #pragma BLENDER_REQUIRE(common_math_lib.glsl)
-#pragma BLENDER_REQUIRE(common_math_lib.glsl)
 
 #define SURFACE_INTERFACE \
   vec3 worldPosition; \
@@ -177,13 +176,13 @@ vec3 coordinate_screen(vec3 P)
   /* Unsupported. It would make the probe camera-dependent. */
   window.xy = vec2(0.5);
 
-#elif defined(WORLD_BACKGROUND) && defined(COMMON_UNIFORMS_LIB)
+#elif defined(WORLD_BACKGROUND)
   window.xy = project_point(ProjectionMatrix, viewPosition).xy * 0.5 + 0.5;
-  window.xy = window.xy * cameraUvScaleBias.xy + cameraUvScaleBias.zw;
+  window.xy = window.xy * CameraTexCoFactors.xy + CameraTexCoFactors.zw;
 
-#elif defined(COMMON_UNIFORMS_LIB) /* MESH */
-  window.xy = project_point(ProjectionMatrix, transform_point(ViewMatrix, P)).xy * 0.5 + 0.5;
-  window.xy = window.xy * cameraUvScaleBias.xy + cameraUvScaleBias.zw;
+#else /* MESH */
+  window.xy = project_point(ViewProjectionMatrix, P).xy * 0.5 + 0.5;
+  window.xy = window.xy * CameraTexCoFactors.xy + CameraTexCoFactors.zw;
 #endif
   return window;
 }

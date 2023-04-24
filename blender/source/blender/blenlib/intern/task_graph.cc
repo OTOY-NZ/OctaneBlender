@@ -75,7 +75,7 @@ struct TaskNode {
   }
 
 #ifdef WITH_TBB
-  tbb::flow::continue_msg run(const tbb::flow::continue_msg /*input*/)
+  tbb::flow::continue_msg run(const tbb::flow::continue_msg UNUSED(input))
   {
     run_func(task_data);
     return tbb::flow::continue_msg();

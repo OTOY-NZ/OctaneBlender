@@ -2,72 +2,108 @@ import bpy
 import xml.etree.ElementTree as ET
 from bpy.props import IntProperty, FloatProperty, BoolProperty, StringProperty, EnumProperty, PointerProperty, FloatVectorProperty, IntVectorProperty
 from bpy.utils import register_class, unregister_class
-from octane.utils import consts
+from octane.core.octane_info import OctaneInfoManger
+from octane.utils import consts, utility
 
 
 class OctanePropertySettings(object):
     BLENDER_ATTRIBUTE_PROPERTY_ENABLED = "PROPERTY_ENABLED"
-    PROPERTY_LIST = []
+    PROPERTY_CONFIGS = {}    
     PROPERTY_NAME_TO_PIN_SYMBOL_MAP = {}
 
-    def sync_data(self, octane_node, engine=None, scene=None, region=None, v3d=None, rv3d=None, is_viewport=True):
-        if not hasattr(self.__class__, "octane_property_type_list") or \
-            not hasattr(self.__class__, "octane_property_name_list") or \
-            not hasattr(self.__class__, "octane_property_pin_symbol_list"):
+    def sync_data(self, octane_node, scene=None, region=None, v3d=None, rv3d=None, is_viewport=True):
+        if not hasattr(self.__class__, "octane_property_config_inited"):
+            self.__class__.octane_property_config_inited = True
             self.__class__.octane_property_type_list = []
             self.__class__.octane_property_name_list = []
+            self.__class__.octane_property_name_to_node_type = {}
             self.__class__.octane_property_pin_symbol_list = []
-            for property_name in self.PROPERTY_LIST:                
-                property_type = self.rna_type.properties[property_name].type
-                property_subtype = self.rna_type.properties[property_name].subtype                
-                octane_socket_type = consts.SocketType.ST_UNKNOWN
-                if property_type == "BOOLEAN":
-                    octane_socket_type = consts.SocketType.ST_BOOL
-                elif property_type == "ENUM":
-                    octane_socket_type = consts.SocketType.ST_ENUM
-                elif property_type == "INT":
-                    if self.rna_type.properties[property_name].is_array:
-                        property_array_length = self.rna_type.properties[property_name].array_length
-                        if property_array_length == 2:
-                            octane_socket_type = consts.SocketType.ST_INT2
-                        elif property_array_length == 3:
-                            octane_socket_type = consts.SocketType.ST_INT3
-                    else:
-                        octane_socket_type = consts.SocketType.ST_INT
-                elif property_type == "FLOAT":
-                    if property_subtype == "COLOR":
-                        octane_socket_type = consts.SocketType.ST_RGBA
-                    elif self.rna_type.properties[property_name].is_array:
-                        property_array_length = self.rna_type.properties[property_name].array_length
-                        if property_array_length == 2:
-                            octane_socket_type = consts.SocketType.ST_FLOAT2
-                        elif property_array_length == 3:
-                            octane_socket_type = consts.SocketType.ST_FLOAT3
-                    else:
-                        octane_socket_type = consts.SocketType.ST_FLOAT
-                elif property_type == "STRING":
-                    octane_socket_type = consts.SocketType.ST_STRING
-                pin_symbol = self.PROPERTY_NAME_TO_PIN_SYMBOL_MAP.get(property_name, property_name)
-                if octane_socket_type != consts.SocketType.ST_UNKNOWN:
-                    self.__class__.octane_property_name_list.append(property_name)
-                    self.__class__.octane_property_type_list.append(octane_socket_type)
-                    self.__class__.octane_property_pin_symbol_list.append(pin_symbol)
+            self.__class__.octane_property_pin_index_list = []
+            for node_type, property_list in self.PROPERTY_CONFIGS.items():
+                for property_name in property_list:
+                    property_type = self.rna_type.properties[property_name].type
+                    property_subtype = self.rna_type.properties[property_name].subtype                
+                    octane_socket_type = consts.SocketType.ST_UNKNOWN
+                    octane_pin_type = consts.PinType.PT_UNKNOWN
+                    octane_default_node_type = consts.NodeType.NT_UNKNOWN
+                    if property_type == "BOOLEAN":
+                        octane_socket_type = consts.SocketType.ST_BOOL
+                        octane_pin_type = consts.PinType.PT_BOOL
+                        octane_default_node_type = consts.NodeType.NT_BOOL
+                    elif property_type == "ENUM":
+                        octane_socket_type = consts.SocketType.ST_ENUM
+                        octane_pin_type = consts.PinType.PT_ENUM
+                        octane_default_node_type = consts.NodeType.NT_ENUM                    
+                    elif property_type == "INT":
+                        if self.rna_type.properties[property_name].is_array:
+                            property_array_length = self.rna_type.properties[property_name].array_length
+                            if property_array_length == 2:
+                                octane_socket_type = consts.SocketType.ST_INT2
+                            elif property_array_length == 3:
+                                octane_socket_type = consts.SocketType.ST_INT3
+                        else:
+                            octane_socket_type = consts.SocketType.ST_INT
+                        octane_pin_type = consts.PinType.PT_INT
+                        octane_default_node_type = consts.NodeType.NT_INT                       
+                    elif property_type == "FLOAT":
+                        if property_subtype == "COLOR":
+                            octane_socket_type = consts.SocketType.ST_RGBA
+                            octane_pin_type = consts.PinType.PT_TEXTURE
+                            octane_default_node_type = consts.NodeType.NT_TEX_RGB                        
+                        elif self.rna_type.properties[property_name].is_array:
+                            property_array_length = self.rna_type.properties[property_name].array_length
+                            if property_array_length == 2:
+                                octane_socket_type = consts.SocketType.ST_FLOAT2
+                            elif property_array_length == 3:
+                                octane_socket_type = consts.SocketType.ST_FLOAT3
+                            octane_pin_type = consts.PinType.PT_FLOAT
+                            octane_default_node_type = consts.NodeType.NT_FLOAT                            
+                        else:
+                            octane_socket_type = consts.SocketType.ST_FLOAT
+                            octane_pin_type = consts.PinType.PT_FLOAT
+                            octane_default_node_type = consts.NodeType.NT_FLOAT                        
+                    elif property_type == "STRING":
+                        octane_socket_type = consts.SocketType.ST_STRING
+                        octane_pin_type = consts.PinType.PT_STRING
+                        octane_default_node_type = consts.NodeType.NT_STRING                    
+                    pin_symbol = self.PROPERTY_NAME_TO_PIN_SYMBOL_MAP.get(property_name, property_name)
+                    pin_index = -1
+                    pin_info = OctaneInfoManger().get_pin_info_by_name(node_type, pin_symbol)
+                    if pin_info is not None:
+                        pin_id = pin_info.id
+                        _pin_name = pin_info.name
+                        pin_type = pin_info.pin_type
+                        socket_type = pin_info.socket_type
+                        default_node_type = pin_info.default_node_type
+                        default_node_name = pin_info.default_node_name
+                    if octane_socket_type != consts.SocketType.ST_UNKNOWN:
+                        self.__class__.octane_property_name_list.append(property_name)
+                        self.__class__.octane_property_name_to_node_type[property_name] = node_type
+                        self.__class__.octane_property_type_list.append([octane_socket_type, octane_pin_type, octane_default_node_type])
+                        self.__class__.octane_property_pin_symbol_list.append(pin_symbol)
+                        self.__class__.octane_property_pin_index_list.append(pin_index)
         for idx, property_name in enumerate(self.octane_property_name_list):
             if not hasattr(self, property_name):
                 continue
+            if self.octane_property_name_to_node_type[property_name] != octane_node.node_type:
+                continue
             pin_symbol = self.octane_property_pin_symbol_list[idx]
-            socket_type = self.octane_property_type_list[idx]
+            pin_index = self.octane_property_pin_index_list[idx]
+            socket_type, octane_pin_type, octane_default_node_type = self.octane_property_type_list[idx]
             property_value = getattr(self, property_name, None)
             if socket_type == consts.SocketType.ST_ENUM:
                 property_value = self.rna_type.properties[property_name].enum_items[property_value].value
-            octane_node.set_pin(pin_symbol, property_name, socket_type, property_value, False, "")
-        self.sync_custom_data(octane_node, engine, scene, region, v3d, rv3d, is_viewport)
+            octane_node.node.set_pin(consts.OctaneDataBlockSymbolType.PIN_NAME, pin_index, pin_symbol, socket_type, octane_pin_type, octane_default_node_type, False, "", property_value)
+        self.sync_custom_data(octane_node, scene, region, v3d, rv3d, is_viewport)
 
-    def sync_custom_data(self, octane_node, engine, scene, region, v3d, rv3d, is_viewport):
+    def sync_custom_data(self, octane_node, scene, region, v3d, rv3d, is_viewport):
         pass
 
     def update_legacy_data(self, context, legacy_data, is_viewport=None):
         pass
+
+    def set_pin_name(self, octane_node, pin_name, socket_type, pin_type, default_node_type, is_link, link, value):
+        return octane_node.set_pin(consts.OctaneDataBlockSymbolType.PIN_NAME, 0, pin_name, socket_type, pin_type, default_node_type, is_link, link, value)
 
     def draw(self, context, layout, is_viewport=None):
         pass

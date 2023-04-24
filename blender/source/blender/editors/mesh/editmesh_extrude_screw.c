@@ -41,7 +41,7 @@ static int edbm_screw_exec(bContext *C, wmOperator *op)
   int valence;
   uint objects_empty_len = 0;
   uint failed_axis_len = 0;
-  uint failed_verts_len = 0;
+  uint failed_vertices_len = 0;
 
   turns = RNA_int_get(op->ptr, "turns");
   steps = RNA_int_get(op->ptr, "steps");
@@ -49,10 +49,9 @@ static int edbm_screw_exec(bContext *C, wmOperator *op)
   RNA_float_get_array(op->ptr, "axis", axis);
 
   uint objects_len = 0;
-  const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C), &objects_len);
+      view_layer, CTX_wm_view3d(C), &objects_len);
 
   for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
     Object *obedit = objects[ob_index];
@@ -98,15 +97,15 @@ static int edbm_screw_exec(bContext *C, wmOperator *op)
     }
 
     if (v1 == NULL || v2 == NULL) {
-      failed_verts_len++;
+      failed_vertices_len++;
       continue;
     }
 
-    copy_v3_v3(nor, obedit->object_to_world[2]);
+    copy_v3_v3(nor, obedit->obmat[2]);
 
     /* calculate dvec */
-    mul_v3_m4v3(v1_co_global, obedit->object_to_world, v1->co);
-    mul_v3_m4v3(v2_co_global, obedit->object_to_world, v2->co);
+    mul_v3_m4v3(v1_co_global, obedit->obmat, v1->co);
+    mul_v3_m4v3(v2_co_global, obedit->obmat, v2->co);
     sub_v3_v3v3(dvec, v1_co_global, v2_co_global);
     mul_v3_fl(dvec, 1.0f / steps);
 
@@ -126,7 +125,7 @@ static int edbm_screw_exec(bContext *C, wmOperator *op)
             dvec,
             turns * steps,
             DEG2RADF(360.0f * turns),
-            obedit->object_to_world,
+            obedit->obmat,
             false)) {
       continue;
     }
@@ -152,7 +151,7 @@ static int edbm_screw_exec(bContext *C, wmOperator *op)
   if (failed_axis_len == objects_len - objects_empty_len) {
     BKE_report(op->reports, RPT_ERROR, "Invalid/unset axis");
   }
-  else if (failed_verts_len == objects_len - objects_empty_len) {
+  else if (failed_vertices_len == objects_len - objects_empty_len) {
     BKE_report(op->reports, RPT_ERROR, "You have to select a string of connected vertices too");
   }
 

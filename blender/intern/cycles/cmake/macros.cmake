@@ -118,9 +118,6 @@ macro(cycles_external_libraries_append libraries)
   if(WITH_ALEMBIC)
     list(APPEND ${libraries} ${ALEMBIC_LIBRARIES})
   endif()
-  if(WITH_PATH_GUIDING)
-    target_link_libraries(${target} ${OPENPGL_LIBRARIES})
-  endif()
 
   list(APPEND ${libraries}
     ${OPENIMAGEIO_LIBRARIES}
@@ -172,13 +169,13 @@ macro(cycles_install_libraries target)
         FILES
         ${TBB_ROOT_DIR}/bin/tbb_debug${CMAKE_SHARED_LIBRARY_SUFFIX}
         ${OPENVDB_ROOT_DIR}/bin/openvdb_d${CMAKE_SHARED_LIBRARY_SUFFIX}
-        DESTINATION ${CMAKE_INSTALL_PREFIX})
+        DESTINATION $<TARGET_FILE_DIR:${target}>)
     else()
       install(
         FILES
         ${TBB_ROOT_DIR}/bin/tbb${CMAKE_SHARED_LIBRARY_SUFFIX}
         ${OPENVDB_ROOT_DIR}/bin/openvdb${CMAKE_SHARED_LIBRARY_SUFFIX}
-        DESTINATION ${CMAKE_INSTALL_PREFIX})
+        DESTINATION $<TARGET_FILE_DIR:${target}>)
     endif()
   endif()
 endmacro()

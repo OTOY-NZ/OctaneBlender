@@ -15,12 +15,13 @@ class OctanePositionCoordinateSystem(OctaneBaseSocket):
     bl_idname="OctanePositionCoordinateSystem"
     bl_label="Coordinate system"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type=57
+    octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=645)
-    octane_pin_name: StringProperty(name="Octane Pin Name", default="coordinateSystem")
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
+    octane_pin_id=consts.PinID.P_COORDINATE_SYSTEM
+    octane_pin_name="coordinateSystem"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("World", "World", "", 0),
         ("Camera", "Camera", "", 1),
@@ -41,13 +42,13 @@ class OctanePosition(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctanePositionCoordinateSystem,]
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=328)
-    octane_socket_list: StringProperty(name="Socket List", default="Coordinate system;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="")
-    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=1)
+    octane_node_type=consts.NodeType.NT_TEX_POSITION
+    octane_socket_list=["Coordinate system", ]
+    octane_attribute_list=[]
+    octane_attribute_config={}
+    octane_static_pin_count=1
 
     def init(self, context):
         self.inputs.new("OctanePositionCoordinateSystem", OctanePositionCoordinateSystem.bl_label).init()

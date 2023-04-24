@@ -312,7 +312,7 @@ float FxaaLuma(vec4 rgba)
 /*--------------------------------------------------------------------------*/
 vec4 FxaaPixelShader(
     /*
-     * Use no perspective interpolation here (turn off perspective interpolation).
+     * Use noperspective interpolation here (turn off perspective interpolation).
      * {xy} = center of pixel */
     vec2 pos,
     /*

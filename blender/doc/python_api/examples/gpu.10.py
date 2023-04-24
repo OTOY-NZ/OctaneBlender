@@ -14,36 +14,33 @@ from random import random
 from mathutils import Vector
 from gpu_extras.batch import batch_for_shader
 
-vert_out = gpu.types.GPUStageInterfaceInfo("my_interface")
-vert_out.smooth('FLOAT', "v_ArcLength")
+vertex_shader = '''
+    uniform mat4 u_ViewProjectionMatrix;
 
-shader_info = gpu.types.GPUShaderCreateInfo()
-shader_info.push_constant('MAT4', "u_ViewProjectionMatrix")
-shader_info.push_constant('FLOAT', "u_Scale")
-shader_info.vertex_in(0, 'VEC3', "position")
-shader_info.vertex_in(1, 'FLOAT', "arcLength")
-shader_info.vertex_out(vert_out)
-shader_info.fragment_out(0, 'VEC4', "FragColor")
+    in vec3 position;
+    in float arcLength;
 
-shader_info.vertex_source(
-    "void main()"
-    "{"
-    "  v_ArcLength = arcLength;"
-    "  gl_Position = u_ViewProjectionMatrix * vec4(position, 1.0f);"
-    "}"
-)
+    out float v_ArcLength;
 
-shader_info.fragment_source(
-    "void main()"
-    "{"
-    "  if (step(sin(v_ArcLength * u_Scale), 0.5) == 1) discard;"
-    "  FragColor = vec4(1.0);"
-    "}"
-)
+    void main()
+    {
+        v_ArcLength = arcLength;
+        gl_Position = u_ViewProjectionMatrix * vec4(position, 1.0f);
+    }
+'''
 
-shader = gpu.shader.create_from_info(shader_info)
-del vert_out
-del shader_info
+fragment_shader = '''
+    uniform float u_Scale;
+
+    in float v_ArcLength;
+    out vec4 FragColor;
+
+    void main()
+    {
+        if (step(sin(v_ArcLength * u_Scale), 0.5) == 1) discard;
+        FragColor = vec4(1.0);
+    }
+'''
 
 coords = [Vector((random(), random(), random())) * 5 for _ in range(5)]
 
@@ -51,6 +48,7 @@ arc_lengths = [0]
 for a, b in zip(coords[:-1], coords[1:]):
     arc_lengths.append(arc_lengths[-1] + (a - b).length)
 
+shader = gpu.types.GPUShader(vertex_shader, fragment_shader)
 batch = batch_for_shader(
     shader, 'LINE_STRIP',
     {"position": coords, "arcLength": arc_lengths},
@@ -58,6 +56,7 @@ batch = batch_for_shader(
 
 
 def draw():
+    shader.bind()
     matrix = bpy.context.region_data.perspective_matrix
     shader.uniform_float("u_ViewProjectionMatrix", matrix)
     shader.uniform_float("u_Scale", 10)

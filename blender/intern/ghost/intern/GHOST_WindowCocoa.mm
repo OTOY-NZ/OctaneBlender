@@ -719,7 +719,7 @@ void GHOST_WindowCocoa::setNativePixelSize(void)
 }
 
 /**
- * \note Full-screen switch is not actual fullscreen with display capture.
+ * \note Fullscreen switch is not actual fullscreen with display capture.
  * As this capture removes all OS X window manager features.
  *
  * Instead, the menu bar and the dock are hidden, and the window is made border-less and enlarged.
@@ -803,10 +803,10 @@ GHOST_TSuccess GHOST_WindowCocoa::setOrder(GHOST_TWindowOrder order)
 
 GHOST_Context *GHOST_WindowCocoa::newDrawingContext(GHOST_TDrawingContextType type)
 {
-  if (type == GHOST_kDrawingContextTypeOpenGL || type == GHOST_kDrawingContextTypeMetal) {
+  if (type == GHOST_kDrawingContextTypeOpenGL) {
 
     GHOST_Context *context = new GHOST_ContextCGL(
-        m_wantStereoVisual, m_metalView, m_metalLayer, m_openGLView, type);
+        m_wantStereoVisual, m_metalView, m_metalLayer, m_openGLView);
 
     if (context->initializeDrawingContext())
       return context;

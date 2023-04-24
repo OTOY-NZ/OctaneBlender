@@ -23,13 +23,14 @@ class OctaneBaseSocket(bpy.types.NodeSocket):
     color=consts.OctanePinColor.Default    
     octane_default_node_type=0
     octane_default_node_name=""
+    octane_pin_index=-1
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=0
     octane_deprecated=False
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=consts.P_UNKNOWN)
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=PinType.PT_UNKNOWN)
-    octane_socket_type: IntProperty(name="Socket Type", default=SocketType.ST_UNKNOWN)
+    octane_pin_id=0
+    octane_pin_type=PinType.PT_UNKNOWN
+    octane_socket_type=SocketType.ST_UNKNOWN
     octane_input_enum_items: EnumProperty(items=utility.node_input_enum_items_callback, update=utility.node_input_enum_update_callback, default=consts.LINK_UTILITY_DEFAULT_INDEX)
 
     def init(self, **kwargs):
@@ -53,10 +54,10 @@ class OctaneBaseSocket(bpy.types.NodeSocket):
             layout.label(text=text)
             if self.octane_socket_type != SocketType.ST_OUTPUT:
                 op = layout.operator("octane.add_default_node", icon="ADD", text="")
-                if hasattr(self, "octane_osl_default_node_type"):
-                    op.node_type = self.octane_osl_default_node_type
+                if hasattr(self, "octane_osl_default_node_name"):
+                    op.default_node_name = self.octane_osl_default_node_name
                 else:
-                    op.node_type = self.octane_default_node_name
+                    op.default_node_name = self.octane_default_node_name
                 op.input_socket_name = self.name
                 op.output_socket_pin_type = self.octane_pin_type
 
@@ -66,23 +67,6 @@ class OctaneBaseSocket(bpy.types.NodeSocket):
     def draw_color(self, context, node):
         return self.color
 
-    def generate_octane_pin_symbol(self):
-        if self.is_octane_proxy_pin():
-            return self.DYNAMIC_PIN_NAME + (self.name + self.PROXY_PIN_TAG + str(self.octane_proxy_link_index))
-        elif self.is_octane_osl_pin():
-            return self.DYNAMIC_PIN_NAME + (self.OSL_PIN_TAG + self.osl_pin_name)
-        elif self.is_octane_dynamic_pin():
-            dynamic_pin_id = self.octane_pin_id - self.DYNAMIC_PIN_ID_OFFSET
-            if getattr(self, "octane_reversed_input_sockets", False):
-                dynamic_pin_count = getattr(self.node, self.octane_movable_input_count_attribute_name, 0)
-                group_input_num = len(self.octane_sub_movable_inputs) + 1
-                dynamic_pin_count *= group_input_num
-                dynamic_pin_id = dynamic_pin_count - dynamic_pin_id + 1
-            dynamic_pin_id += self.node.octane_static_pin_count
-            return self.DYNAMIC_PIN_INDEX + str(dynamic_pin_id)
-        else:
-            return str(self.octane_pin_id)
-
     def is_octane_proxy_pin(self):
         return False
 
@@ -90,19 +74,20 @@ class OctaneBaseSocket(bpy.types.NodeSocket):
         return False
 
     def is_octane_dynamic_pin(self):
-        return self.octane_pin_id - self.DYNAMIC_PIN_ID_OFFSET >= 0
+        return False
 
-    def get_octane_dynamic_pin_index(self):
-        pin_index = self.octane_pin_id - self.DYNAMIC_PIN_ID_OFFSET
-        if pin_index < 0:
-            return consts.P_INVALID
-        return pin_index
+    def generate_octane_dynamic_pin_index(self):
+        return -1
 
-    def update_node_tree(self, context):
+    def get_dynamic_input_index(self):
+        return -1
+
+    def update_node_tree(self, context):        
         node_tree = self.node.id_data
         if node_tree:
-            if node_tree.type == "SHADER":
-                node_tree.update_tag()
+            if node_tree.type == "SHADER":                
+                node_tree.interface_update(context)
+                node_tree.update_tag()                
             else:
                 self.node.id_data.update()
 
@@ -126,7 +111,7 @@ class OctaneGroupTitleSocket(OctaneBaseSocket):
     color=consts.OctanePinColor.GroupTitle
     display_shape="CIRCLE_DOT"
     octane_hide_value=True
-    octane_socket_type: IntProperty(name="Socket Type", default=SocketType.ST_GROUP_TITLE)
+    octane_socket_type=SocketType.ST_GROUP_TITLE
 
     def group_title_socket_show_group_sockets_update_callback(self, context):
         node = self.node
@@ -174,6 +159,8 @@ class OctanePatternInput(OctaneBaseSocket):
     bl_idname="OctanePatternInput"
     octane_input_pattern=""
     octane_input_format_pattern="{}"
+    octane_dynamic_pin_index: IntProperty()
+    octane_dynamic_pin_socket_type: IntProperty(default=SocketType.ST_LINK) 
 
     def init(self, **kwargs):
         super().init(**kwargs)
@@ -183,12 +170,31 @@ class OctanePatternInput(OctaneBaseSocket):
         if index is not None:
             self.set_pattern_input_name(index, offset, group_size)
 
+    def is_octane_dynamic_pin(self):
+        return True
+
+    def generate_octane_dynamic_pin_index(self):
+        dynamic_pin_index = self.octane_dynamic_pin_index
+        if getattr(self, "octane_reversed_input_sockets", False):
+            dynamic_pin_count = getattr(self.node, self.octane_movable_input_count_attribute_name, 0)
+            group_input_num = len(self.octane_sub_movable_inputs) + 1
+            dynamic_pin_count *= group_input_num
+            dynamic_pin_index = dynamic_pin_count - dynamic_pin_index + 1
+        dynamic_pin_index += self.node.octane_static_pin_count
+        dynamic_pin_index -= 1
+        return dynamic_pin_index
+
+    def get_dynamic_input_index(self):
+        if self.octane_dynamic_pin_index < 0:
+            return consts.P_INVALID
+        return self.octane_dynamic_pin_index
+
     @classmethod
     def generate_pattern_input_name(cls, idx):
         return cls.octane_input_format_pattern.format(idx)
 
     def set_pattern_input_name(self, idx, offset=0, group_size=1):        
-        self.octane_pin_id = self.DYNAMIC_PIN_ID_OFFSET + 1 + (idx - 1) * group_size + offset        
+        self.octane_dynamic_pin_index = 1 + (idx - 1) * group_size + offset        
         self.name = self.generate_pattern_input_name(idx)
 
 
@@ -208,7 +214,10 @@ class OctaneMovableInput(OctanePatternInput):
         split = split.split(factor=0.4)
         c = split.column()
         op = c.operator("octane.add_default_node", icon="ADD", text="")
-        op.node_type = self.octane_default_node_name
+        if hasattr(self, "octane_osl_default_node_name"):
+            op.default_node_name = self.octane_osl_default_node_name
+        else:
+            op.default_node_name = self.octane_default_node_name
         op.input_socket_name = self.name
         op.output_socket_pin_type = self.octane_pin_type
         if not self.octane_show_action_ops:
@@ -230,12 +239,12 @@ class OctaneMovableInput(OctanePatternInput):
         op.input_socket_bl_idname = self.bl_idname
         op.group_input_num = group_input_num
         op.reversed_input_sockets = self.octane_reversed_input_sockets
-        c2.enabled = self.get_octane_dynamic_pin_index() != (octane_movable_pin_count if self.octane_reversed_input_sockets else 1)
+        c2.enabled = self.get_dynamic_input_index() != (octane_movable_pin_count if self.octane_reversed_input_sockets else 1)
         op = c2.operator("octane.move_up_movable_input", icon="SORT_DESC", text="")
         op.movable_input_count_attribute_name = self.octane_movable_input_count_attribute_name
         op.input_socket_name = self.name
         op.group_input_num = group_input_num
-        c3.enabled = self.get_octane_dynamic_pin_index() != (1 if self.octane_reversed_input_sockets else octane_movable_pin_count - group_input_num + 1)
+        c3.enabled = self.get_dynamic_input_index() != (1 if self.octane_reversed_input_sockets else octane_movable_pin_count - group_input_num + 1)
         op = c3.operator("octane.move_down_movable_input", icon="SORT_ASC", text="")
         op.movable_input_count_attribute_name = self.octane_movable_input_count_attribute_name
         op.input_socket_name = self.name
@@ -277,9 +286,9 @@ class OCTANE_OT_add_default_node_helper(bpy.types.Operator):
     destination_socket_name = ""
     # The output socket pin type
     output_socket_pin_type = 0  
-    # The type of the node to add
-    node_type: StringProperty()
-      
+    # The default node name of the node to be added
+    default_node_name: StringProperty()
+
     use_transform: BoolProperty(
         name="Use Transform",
         description="Start transform operator after inserting the node",
@@ -313,7 +322,7 @@ class OCTANE_OT_add_default_node_helper(bpy.types.Operator):
         cls.output_socket_pin_type = output_socket_pin_type
 
     @classmethod
-    def _execute(cls, context, node_type):
+    def _execute(cls, context, default_node_name):
         node = cls.destination_node
         cursor_location = None
         if node is None:
@@ -326,12 +335,12 @@ class OCTANE_OT_add_default_node_helper(bpy.types.Operator):
             return
         for n in node_tree.nodes:
             n.select = False            
-        if len(node_type):
+        if len(default_node_name):
             output_socket_name = ""
-            if node_type.find(":") != -1:
-                node_type, output_socket_name = node_type.split(":")
+            if default_node_name.find(":") != -1:
+                default_node_name, output_socket_name = default_node_name.split(":")
             # Create node
-            new_node = node_tree.nodes.new(node_type)
+            new_node = node_tree.nodes.new(default_node_name)
             if node is None:
                 if cursor_location is not None:
                     new_node.location = cursor_location
@@ -355,7 +364,7 @@ class OCTANE_OT_add_default_node_helper(bpy.types.Operator):
                 output_socket = new_node.outputs[output_socket_name]
             if output_socket is None:
                 for output in new_node.outputs:
-                    if getattr(output, "octane_pin_type", consts.PinType.PT_UNKNOWN) == cls.output_socket_pin_type:
+                    if cls.output_socket_pin_type == consts.PinType.PT_UNKNOWN or getattr(output, "octane_pin_type", consts.PinType.PT_UNKNOWN) == cls.output_socket_pin_type:
                         output_socket = output
                         break
             if output_socket:
@@ -365,7 +374,7 @@ class OCTANE_OT_add_default_node_helper(bpy.types.Operator):
             cls.destination_node = None
 
     def execute(self, context):
-        self._execute(context, self.node_type)
+        self._execute(context, self.default_node_name)
         return {"FINISHED"}
 
     def invoke(self, context, event):
@@ -374,7 +383,7 @@ class OCTANE_OT_add_default_node_helper(bpy.types.Operator):
         if self.use_transform and ('FINISHED' in result):
             # removes the node again if transform is canceled
             bpy.ops.node.translate_attach_remove_on_cancel('INVOKE_DEFAULT')
-        return result
+        return result        
 
 
 class OCTANE_OT_add_default_node(bpy.types.Operator):
@@ -387,7 +396,7 @@ class OCTANE_OT_add_default_node(bpy.types.Operator):
     offset_x = -50
     offset_y = -100
 
-    node_type: StringProperty()
+    default_node_name: StringProperty()
     input_socket_name: StringProperty()
     output_socket_pin_type: IntProperty()
 
@@ -401,11 +410,11 @@ class OCTANE_OT_add_default_node(bpy.types.Operator):
         node = context.node
         node_tree = node.id_data
         OCTANE_OT_add_default_node_helper.update_destinations(node, self.input_socket_name, self.output_socket_pin_type)
-        if event.shift or len(self.node_type) == 0:
+        if event.shift or len(self.default_node_name) == 0:
             OCTANE_NODE_MT_node_add.octane_pin_type = self.output_socket_pin_type
             bpy.ops.wm.call_menu(name="OCTANE_NODE_MT_node_add")
         else:
-            OCTANE_OT_add_default_node_helper._execute(context, self.node_type)
+            OCTANE_OT_add_default_node_helper._execute(context, self.default_node_name)
         return {"FINISHED"}
 
 
@@ -487,8 +496,7 @@ class OCTANE_OT_node_add_search(NodeAddOperator, bpy.types.Operator):
             OCTANE_OT_add_default_node_helper._execute(context, item.nodetype)
 
             if self.use_transform:
-                bpy.ops.node.translate_attach_remove_on_cancel(
-                    'INVOKE_DEFAULT')
+                bpy.ops.node.translate_attach_remove_on_cancel('INVOKE_DEFAULT')
 
             return {'FINISHED'}
         else:
@@ -570,8 +578,8 @@ class OCTANE_OT_modify_movable_input_num(bpy.types.Operator):
                     input2_index = idx                  
             for offset in range(len(input1.octane_sub_movable_inputs) + 1):
                 utility.swap_node_socket_position(node, node.inputs[input1_index + offset], node.inputs[input2_index + offset])
-            input1_pin_idx = math.ceil(input1.get_octane_dynamic_pin_index() / self.group_input_num)
-            input2_pin_idx = math.ceil(input2.get_octane_dynamic_pin_index() / self.group_input_num)
+            input1_pin_idx = math.ceil(input1.get_dynamic_input_index() / self.group_input_num)
+            input2_pin_idx = math.ceil(input2.get_dynamic_input_index() / self.group_input_num)
             self.set_input_name(node, input1, input2_pin_idx)
             self.set_input_name(node, input2, input1_pin_idx)
 
@@ -649,12 +657,12 @@ class OCTANE_OT_remove_movable_input(OCTANE_OT_modify_movable_input_num):
                 if _input.bl_idname == target_input.bl_idname and last_available_pin_index is not None:
                     temp_last_available_pin_index = last_available_pin_index
                     if _input.is_octane_dynamic_pin():
-                        last_available_pin_index = _input.get_octane_dynamic_pin_index()
+                        last_available_pin_index = _input.get_dynamic_input_index()
                     else:
                         last_available_pin_index = None
                     self.set_input_name(node, _input, math.ceil(temp_last_available_pin_index / self.group_input_num))
                 if _input == target_input and target_input.is_octane_dynamic_pin():
-                    last_available_pin_index = target_input.get_octane_dynamic_pin_index()
+                    last_available_pin_index = target_input.get_dynamic_input_index()
         if target_input is not None:
             self.remove_input(node, target_input)
         self.update_movable_input_count(node)

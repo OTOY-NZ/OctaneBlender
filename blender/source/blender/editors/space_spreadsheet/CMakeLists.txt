@@ -5,7 +5,6 @@ set(INC
   ../../blenfont
   ../../blenkernel
   ../../blenlib
-  ../../blenloader
   ../../blentranslation
   ../../bmesh
   ../../depsgraph
@@ -15,10 +14,8 @@ set(INC
   ../../makesrna
   ../../nodes
   ../../windowmanager
+  ../../../../intern/glew-mx
   ../../../../intern/guardedalloc
-
-  # dna_type_offsets.h
-  ${CMAKE_CURRENT_BINARY_DIR}/../../makesdna/intern
   # RNA_prototypes.h
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
@@ -27,6 +24,7 @@ set(SRC
   space_spreadsheet.cc
   spreadsheet_cache.cc
   spreadsheet_column.cc
+  spreadsheet_context.cc
   spreadsheet_data_source.cc
   spreadsheet_data_source_geometry.cc
   spreadsheet_dataset_draw.cc
@@ -40,6 +38,7 @@ set(SRC
   spreadsheet_cache.hh
   spreadsheet_column.hh
   spreadsheet_column_values.hh
+  spreadsheet_context.hh
   spreadsheet_data_source.hh
   spreadsheet_data_source_geometry.hh
   spreadsheet_dataset_draw.hh
@@ -65,5 +64,5 @@ endif()
 
 blender_add_lib(bf_editor_space_spreadsheet "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
-# RNA_prototypes.h dna_type_offsets.h
+# RNA_prototypes.h
 add_dependencies(bf_editor_space_spreadsheet bf_rna)

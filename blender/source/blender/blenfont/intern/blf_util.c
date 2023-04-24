@@ -15,7 +15,7 @@
 
 #include "blf_internal.h"
 
-uint blf_next_p2(uint x)
+unsigned int blf_next_p2(unsigned int x)
 {
   x -= 1;
   x |= (x >> 16);
@@ -27,9 +27,9 @@ uint blf_next_p2(uint x)
   return x;
 }
 
-uint blf_hash(uint val)
+unsigned int blf_hash(unsigned int val)
 {
-  uint key;
+  unsigned int key;
 
   key = val;
   key += ~(key << 16);

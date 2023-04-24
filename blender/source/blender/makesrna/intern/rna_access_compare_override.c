@@ -27,7 +27,6 @@
 
 #ifdef DEBUG_OVERRIDE_TIMEIT
 #  include "PIL_time_utildefines.h"
-#  include <stdio.h>
 #endif
 
 #include "BKE_armature.h"
@@ -55,7 +54,7 @@ static CLG_LogRef LOG = {"rna.access_compare_override"};
  * #RNA_find_real_ID_and_path, since in overrides we also consider shape keys as embedded data, not
  * only root node trees and master collections.
  */
-static ID *rna_property_override_property_real_id_owner(Main *UNUSED(bmain),
+static ID *rna_property_override_property_real_id_owner(Main *bmain,
                                                         PointerRNA *ptr,
                                                         PropertyRNA *prop,
                                                         char **r_rna_path)
@@ -87,7 +86,7 @@ static ID *rna_property_override_property_real_id_owner(Main *UNUSED(bmain),
       case ID_GR:
       case ID_NT:
         /* Master collections, Root node trees. */
-        owner_id = RNA_find_real_ID_and_path(id, &rna_path_prefix);
+        owner_id = RNA_find_real_ID_and_path(bmain, id, &rna_path_prefix);
         break;
       default:
         BLI_assert_unreachable();

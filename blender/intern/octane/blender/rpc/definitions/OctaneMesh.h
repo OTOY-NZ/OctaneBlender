@@ -187,6 +187,7 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOBool)		bCameraVisibility,
 		(OctaneDTOBool)		bShadowVisibility,
 		(OctaneDTOBool)		bDirtVisibility,
+		(OctaneDTOBool)		bCurvatureVisibility,
 		(OctaneDTOInt)		iRandomColorSeed,
 		(OctaneDTOFloat3)	f3Color,
 		(OctaneDTOInt)		iBakingGroupId,
@@ -208,6 +209,7 @@ namespace OctaneDataTransferObject {
 			bCameraVisibility("camera_visibility", false),
 			bShadowVisibility("shadow_visibility", false),
 			bDirtVisibility("dirt_visibility", false),
+			bCurvatureVisibility("curvature_visibility", false),
 			iRandomColorSeed("random_color_seed", false),
 			f3Color("color", false),
 			iBakingGroupId("baking_group_id", false),
@@ -221,7 +223,7 @@ namespace OctaneDataTransferObject {
 			OctaneNodeBase(Octane::NT_OBJECTLAYER, "OctaneObjectLayer") 
 		{
 		}
-		MSGPACK_DEFINE(iRenderLayerID, fGeneralVisibility, bCameraVisibility, bShadowVisibility, bDirtVisibility, iRandomColorSeed, iLightPassMask, i3Color,
+		MSGPACK_DEFINE(iRenderLayerID, fGeneralVisibility, bCameraVisibility, bShadowVisibility, bDirtVisibility, bCurvatureVisibility, iRandomColorSeed, iLightPassMask, i3Color,
 			iBakingGroupId, oBakingTransform, iCustomAOV, iCustomAOVChannel, MSGPACK_BASE(OctaneNodeBase));
 	};
 

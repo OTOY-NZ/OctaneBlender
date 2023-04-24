@@ -18,13 +18,8 @@ import sys
 import make_utils
 from make_utils import call, check_output
 
-from typing import (
-    List,
-    Optional,
-)
 
-
-def print_stage(text: str) -> None:
+def print_stage(text):
     print("")
     print(text)
     print("")
@@ -32,7 +27,7 @@ def print_stage(text: str) -> None:
 # Parse arguments
 
 
-def parse_arguments() -> argparse.Namespace:
+def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument("--no-libraries", action="store_true")
     parser.add_argument("--no-blender", action="store_true")
@@ -45,13 +40,13 @@ def parse_arguments() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def get_blender_git_root() -> str:
+def get_blender_git_root():
     return check_output([args.git_command, "rev-parse", "--show-toplevel"])
 
 # Setup for precompiled libraries and tests from svn.
 
 
-def svn_update(args: argparse.Namespace, release_version: Optional[str]) -> None:
+def svn_update(args, release_version):
     svn_non_interactive = [args.svn_command, '--non-interactive']
 
     lib_dirpath = os.path.join(get_blender_git_root(), '..', 'lib')
@@ -59,11 +54,10 @@ def svn_update(args: argparse.Namespace, release_version: Optional[str]) -> None
 
     # Checkout precompiled libraries
     if sys.platform == 'darwin':
-        # Check platform.version to detect arm64 with x86_64 python binary.
-        if platform.machine() == 'arm64' or ('ARM64' in platform.version()):
-            lib_platform = "darwin_arm64"
-        elif platform.machine() == 'x86_64':
+        if platform.machine() == 'x86_64':
             lib_platform = "darwin"
+        elif platform.machine() == 'arm64':
+            lib_platform = "darwin_arm64"
         else:
             lib_platform = None
     elif sys.platform == 'win32':
@@ -105,42 +99,39 @@ def svn_update(args: argparse.Namespace, release_version: Optional[str]) -> None
             call(svn_non_interactive + ["checkout", svn_url_tests, lib_tests_dirpath])
 
     # Update precompiled libraries and tests
+    print_stage("Updating Precompiled Libraries and Tests")
 
-    if not os.path.isdir(lib_dirpath):
-        print("Library path: %r, not found, skipping" % lib_dirpath)
-    else:
-        paths_local_and_remote = []
-        if os.path.exists(os.path.join(lib_dirpath, ".svn")):
-            print_stage("Updating Precompiled Libraries and Tests (one repository)")
-            paths_local_and_remote.append((lib_dirpath, svn_url))
-        else:
-            print_stage("Updating Precompiled Libraries and Tests (multiple repositories)")
-            # Separate paths checked out.
-            for dirname in os.listdir(lib_dirpath):
-                if dirname.startswith("."):
-                    # Temporary paths such as ".mypy_cache" will report a warning, skip hidden directories.
-                    continue
+    if os.path.isdir(lib_dirpath):
+        for dirname in os.listdir(lib_dirpath):
+            dirpath = os.path.join(lib_dirpath, dirname)
 
-                dirpath = os.path.join(lib_dirpath, dirname)
-                if not (os.path.isdir(dirpath) and os.path.exists(os.path.join(dirpath, ".svn"))):
-                    continue
+            if dirname == ".svn":
+                # Cleanup must be run from svn root directory if it exists.
+                if not make_utils.command_missing(args.svn_command):
+                    call(svn_non_interactive + ["cleanup", lib_dirpath])
+                continue
 
-                paths_local_and_remote.append((dirpath, svn_url + dirname))
+            svn_dirpath = os.path.join(dirpath, ".svn")
+            svn_root_dirpath = os.path.join(lib_dirpath, ".svn")
 
-        if paths_local_and_remote:
-            if make_utils.command_missing(args.svn_command):
-                sys.stderr.write("svn not found, can't update libraries\n")
-                sys.exit(1)
+            if (
+                    os.path.isdir(dirpath) and
+                    (os.path.exists(svn_dirpath) or os.path.exists(svn_root_dirpath))
+            ):
+                if make_utils.command_missing(args.svn_command):
+                    sys.stderr.write("svn not found, can't update libraries\n")
+                    sys.exit(1)
 
-            for dirpath, svn_url_full in paths_local_and_remote:
-                call(svn_non_interactive + ["cleanup", dirpath])
+                # Cleanup to continue with interrupted downloads.
+                if os.path.exists(svn_dirpath):
+                    call(svn_non_interactive + ["cleanup", dirpath])
                 # Switch to appropriate branch and update.
-                call(svn_non_interactive + ["switch", svn_url_full, dirpath], exit_on_error=False)
+                call(svn_non_interactive + ["switch", svn_url + dirname, dirpath], exit_on_error=False)
                 call(svn_non_interactive + ["update", dirpath])
 
 
 # Test if git repo can be updated.
-def git_update_skip(args: argparse.Namespace, check_remote_exists: bool = True) -> str:
+def git_update_skip(args, check_remote_exists=True):
     if make_utils.command_missing(args.git_command):
         sys.stderr.write("git not found, can't update code\n")
         sys.exit(1)
@@ -172,17 +163,13 @@ def git_update_skip(args: argparse.Namespace, check_remote_exists: bool = True) 
 
 
 # Update blender repository.
-def blender_update(args: argparse.Namespace) -> None:
+def blender_update(args):
     print_stage("Updating Blender Git Repository")
     call([args.git_command, "pull", "--rebase"])
 
 
 # Update submodules.
-def submodules_update(
-        args: argparse.Namespace,
-        release_version: Optional[str],
-        branch: Optional[str],
-) -> str:
+def submodules_update(args, release_version, branch):
     print_stage("Updating Submodules")
     if make_utils.command_missing(args.git_command):
         sys.stderr.write("git not found, can't update code\n")
@@ -224,8 +211,7 @@ def submodules_update(
                 elif make_utils.git_branch_exists(args.git_command, submodule_branch_fallback):
                     submodule_branch = submodule_branch_fallback
                 else:
-                    # Skip.
-                    submodule_branch = ""
+                    submodule_branch = None
 
                 # Switch to branch and pull.
                 if submodule_branch:

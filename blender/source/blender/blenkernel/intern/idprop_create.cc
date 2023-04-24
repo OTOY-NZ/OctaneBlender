@@ -44,14 +44,6 @@ std::unique_ptr<IDProperty, IDPropertyDeleter> create(const StringRefNull prop_n
   return std::unique_ptr<IDProperty, IDPropertyDeleter>(property);
 }
 
-std::unique_ptr<IDProperty, IDPropertyDeleter> create(const StringRefNull prop_name, ID *value)
-{
-  IDPropertyTemplate prop_template{0};
-  prop_template.id = value;
-  IDProperty *property = IDP_New(IDP_ID, &prop_template, prop_name.c_str());
-  return std::unique_ptr<IDProperty, IDPropertyDeleter>(property);
-}
-
 static std::unique_ptr<IDProperty, IDPropertyDeleter> array_create(const StringRefNull prop_name,
                                                                    eIDPropertyType subtype,
                                                                    size_t array_len)
@@ -79,7 +71,7 @@ static void array_values_set(IDProperty *property,
 template<
     /** C-Primitive type of the array. Can be int32_t, float, double. */
     typename PrimitiveType,
-    /** Sub-type of the #ID_ARRAY. Must match #PrimitiveType. */
+    /** Subtype of the ID_ARRAY. Must match PrimitiveType. */
     eIDPropertyType id_property_subtype>
 std::unique_ptr<IDProperty, IDPropertyDeleter> create_array(StringRefNull prop_name,
                                                             Span<PrimitiveType> values)
