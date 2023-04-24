@@ -178,6 +178,8 @@ void Session::run_render()
       if (!bStarted) {
         server->startRender(
             params.interactive,
+            params.use_shared_surface,
+            params.process_id,
             params.width,
             params.height,
             params.interactive ? ::OctaneEngine::IMAGE_8BIT :
@@ -266,7 +268,7 @@ bool Session::draw(BufferParams &buffer_params, DeviceDrawParams &draw_params)
   // then verify the buffers have the expected size, so we don't
   // draw previous results in a resized window
   if (!buffer_params.modified(display->params)) {
-    display->draw(draw_params);
+    display->draw(draw_params, params.use_shared_surface);
 
     if (display_outdated)  // && (time_dt() - reset_time) > params.text_timeout)
       return false;
@@ -636,7 +638,7 @@ void Session::update_render_buffer()
                                        (params.hdr_tonemapped && params.hdr_tonemap_prefer ?
                                             ::OctaneEngine::IMAGE_FLOAT_TONEMAPPED :
                                             ::OctaneEngine::IMAGE_FLOAT),
-                                   passId)) {
+                                   passId, params.use_shared_surface)) {
     if (progress.get_cancel())
       return;
     if (!params.interactive)
@@ -647,7 +649,8 @@ void Session::update_render_buffer()
                                     (params.hdr_tonemapped && params.hdr_tonemap_prefer ?
                                          ::OctaneEngine::IMAGE_FLOAT_TONEMAPPED :
                                          ::OctaneEngine::IMAGE_FLOAT),
-                                passId);
+                                passId,
+                                params.use_shared_surface);
   }
   if (progress.get_cancel())
     return;

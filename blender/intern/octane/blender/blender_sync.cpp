@@ -16,6 +16,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
+#include "render/common_d3d.hpp"
 #include "render/environment.h"
 #include "render/graph.h"
 #include "render/kernel.h"
@@ -401,6 +402,29 @@ SessionParams BlenderSync::get_session_params(
   params.addon_dev_enabled = false;
   params.out_of_core_mem_limit = get_int(oct_scene, "out_of_core_limit");
   params.out_of_core_gpu_headroom = get_int(oct_scene, "out_of_core_gpu_headroom");
+
+#ifdef WIN32
+  params.process_id = GetCurrentProcessId();
+#else
+  params.process_id = 0;
+#endif
+
+#ifdef WIN32
+  if (params.interactive) {
+    /* Find octane preferences. */
+    PointerRNA octane_preferences;
+    for (BL::Addon &b_addon : b_userpref.addons) {
+      if (b_addon.module() == "octane") {
+        octane_preferences = b_addon.preferences().ptr;
+        params.use_shared_surface = CommonD3D::IsD3DInited() &&
+                                    get_boolean(octane_preferences, "use_shared_surface");
+        break;
+      }
+    }
+  }
+#else
+  params.use_shared_surface = false;
+#endif
 
   PointerRNA render_settings = RNA_pointer_get(&b_scene.ptr, "render");
   params.output_path = get_string(render_settings, "filepath");

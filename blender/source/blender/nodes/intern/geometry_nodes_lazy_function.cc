@@ -160,9 +160,11 @@ class LazyFunctionForMultiInput : public LazyFunction {
     BLI_assert(socket.is_multi_input());
     const bNodeTree &btree = socket.owner_tree();
     for (const bNodeLink *link : socket.directly_linked_links()) {
-      if (!(link->is_muted() || nodeIsDanglingReroute(&btree, link->fromnode))) {
-        inputs_.append({"Input", *base_type_});
+      if (link->is_muted() || !link->fromsock->is_available() ||
+          nodeIsDanglingReroute(&btree, link->fromnode)) {
+        continue;
       }
+      inputs_.append({"Input", *base_type_});
     }
     const CPPType *vector_type = get_vector_type(*base_type_);
     BLI_assert(vector_type != nullptr);
@@ -1154,10 +1156,11 @@ struct GeometryNodesLazyFunctionGraphBuilder {
             if (multi_input_link == link) {
               break;
             }
-            if (!(multi_input_link->is_muted() ||
-                  nodeIsDanglingReroute(&btree_, multi_input_link->fromnode))) {
-              link_index++;
+            if (multi_input_link->is_muted() || !multi_input_link->fromsock->is_available() ||
+                nodeIsDanglingReroute(&btree_, multi_input_link->fromnode)) {
+              continue;
             }
+            link_index++;
           }
           if (to_bsocket.owner_node().is_muted()) {
             if (link_index == 0) {

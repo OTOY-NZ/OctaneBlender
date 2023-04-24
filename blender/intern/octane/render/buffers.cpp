@@ -35,6 +35,12 @@
 #include <random>
 using std::uniform_real_distribution;
 
+#if defined(WIN32)
+#  include "common_d3d.hpp"
+#  include <d3d11_1.h>
+#  include <dxgi.h>
+#endif
+
 OCT_NAMESPACE_BEGIN
 
 using namespace OIIO_NAMESPACE;
@@ -89,6 +95,8 @@ bool BufferParams::modified(const BufferParams &params)
 DisplayBuffer::DisplayBuffer(::OctaneEngine::OctaneClient *server, bool linear)
     : draw_width(0),
       draw_height(0),
+      shared_handler(0),
+      gl_texture(0),
       transparent(true), /* todo: determine from background */
       half_float(linear),
       server(server)
@@ -175,18 +183,109 @@ void saveBMP(int w, int h, uint8_t *rgba)
   fclose(f);
 }
 
-void DisplayBuffer::draw(DeviceDrawParams &draw_params)
+void DisplayBuffer::update_gl_texture_from_shared_handler(GLuint &gl_texture,
+                                                          int64_t current_shared_handler)
+{
+#if defined(WIN32)
+  if (shared_handler != current_shared_handler) {
+    shared_handler = current_shared_handler;
+    server->lockImageBuffer();
+    ID3D11Device1 *d3d = (ID3D11Device1 *)CommonD3D::GetD3DDevice();
+    ID3D11Texture2D *octaneTex = nullptr;
+    HRESULT res = d3d->OpenSharedResource1(
+        (HANDLE)shared_handler, __uuidof(ID3D11Texture2D), (void **)&octaneTex);
+    D3D11_TEXTURE2D_DESC desc;
+    octaneTex->GetDesc(&desc);
+    // D3D11 surface always has a pitch that is a multiple of 32
+    int pitch = (desc.Width + 31) & ~31;
+    int hgt = (desc.Height + 31) & ~31;
+    // get the shared handle
+    HANDLE sharedHandle = 0;
+    IDXGIResource1 *resource;
+    if (S_OK != octaneTex->QueryInterface(__uuidof(IDXGIResource1), (void **)&resource)) {
+      fprintf(stderr, "ERROR: Failed to retrieve IDXGIResource from shared texture.\n");
+    }
+    if (S_OK !=
+        resource->CreateSharedHandle(nullptr, DXGI_SHARED_RESOURCE_READ, nullptr, &sharedHandle)) {
+      fprintf(stderr, "ERROR: Failed to created shared handle.\n");
+    }
+    // rebuild gltexture
+    if (gl_texture != 0) {
+      glDeleteTextures(1, &gl_texture);
+    }
+    glGenTextures(1, &gl_texture);
+    glBindTexture(GL_TEXTURE_2D, gl_texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    // rebuild memobject
+    GLuint memObjGL = 0;
+    glCreateMemoryObjectsEXT(1, &memObjGL);
+    // import shared surface to memobject
+    int memobject_w = ((desc.Width + 63) / 64) * 64;
+    int memobject_h = ((desc.Height + 63) / 64) * 64;
+    glImportMemoryWin32HandleEXT(memObjGL,
+                                 memobject_w * memobject_h * 4,
+                                 GL_HANDLE_TYPE_D3D11_IMAGE_EXT,
+                                 (void *)sharedHandle);
+    // attach memobject to texture
+    if (glAcquireKeyedMutexWin32EXT(memObjGL, 0, 500)) {
+      glTextureStorageMem2DEXT(gl_texture, 1, GL_RGBA8, desc.Width, desc.Height, memObjGL, 0);
+      glReleaseKeyedMutexWin32EXT(memObjGL, 0);
+    }
+    glDeleteMemoryObjectsEXT(1, &memObjGL);
+    server->unlockImageBuffer();
+  }
+#endif
+}
+
+void DisplayBuffer::update_gl_texture_from_pixel_array(
+    GLuint &gl_texture, uint8_t *rgba, int32_t components_cnt, int32_t width, int32_t height)
+{
+  server->lockImageBuffer();
+  glActiveTexture(GL_TEXTURE0);
+  glGenTextures(1, &gl_texture);
+  glBindTexture(GL_TEXTURE_2D, gl_texture);
+  uint8_t *data_pointer = (uint8_t *)rgba;
+  if (components_cnt == 2) {
+    uint8_t *new_data_pointer = new uint8_t[width * height * 4];
+    for (int i = 0; i < width * height; ++i) {
+      int m = i * 4;
+      int n = i * 2;
+      new_data_pointer[m] = data_pointer[n];
+      new_data_pointer[m + 1] = data_pointer[n];
+      new_data_pointer[m + 2] = data_pointer[n];
+      new_data_pointer[m + 3] = data_pointer[n + 1];
+    }
+    glTexImage2D(GL_TEXTURE_2D,
+                 0,
+                 GL_RGBA8, width, height, 0,
+                 GL_RGBA,
+                 GL_UNSIGNED_BYTE,
+                 new_data_pointer);
+    delete[] new_data_pointer;
+  }
+  else {
+    glTexImage2D(GL_TEXTURE_2D,
+                 0, GL_RGBA8, width, height,
+                 0,
+                 GL_RGBA,
+                 GL_UNSIGNED_BYTE,
+                 data_pointer);
+  }
+  glBindTexture(GL_TEXTURE_2D, 0);
+  server->unlockImageBuffer();
+}
+
+void DisplayBuffer::draw(DeviceDrawParams &draw_params, bool use_shared_surface)
 {
   int y = 0, w = params.width, h = params.height, width = params.width, height = params.height,
       dx = params.full_x, dy = params.full_y, dw = params.full_width, dh = params.full_height;
-
-  // int reg_width = params.use_border ? params.border.z - params.border.x : params.width,
-  //	reg_height = params.use_border ? params.border.w - params.border.y : params.height;
   int components_cnt;
   int full_width = params.full_width, full_height = params.full_height;
   int reg_width = params.width, reg_height = params.height;
-  uint8_t *rgba = NULL;
-
   if (params.use_camera_dimension_as_preview_resolution) {
     if (params.use_border) {
       full_width = params.camera_resolution_width;
@@ -203,57 +302,30 @@ void DisplayBuffer::draw(DeviceDrawParams &draw_params)
       height = params.camera_dimension_height;
     }
   }
-
-  if (!server->getImgBuffer8bit(
-          components_cnt, rgba, full_width, full_height, reg_width, reg_height))
-    return;
-  if (!rgba)
-    return;
-
-  // saveBMP(reg_width, reg_height, rgba);
-  server->lockImageBuffer();
-  GLuint texid;
-  glActiveTexture(GL_TEXTURE0);
-  glGenTextures(1, &texid);
-  glBindTexture(GL_TEXTURE_2D, texid);
-
-  uint8_t *data_pointer = (uint8_t *)rgba;
-  if (components_cnt == 2) {
-    uint8_t *new_data_pointer = new uint8_t[reg_width * reg_height * 4];
-    for (int i = 0; i < reg_width * reg_height; ++i) {
-      int m = i * 4;
-      int n = i * 2;
-      new_data_pointer[m] = data_pointer[n];
-      new_data_pointer[m + 1] = data_pointer[n];
-      new_data_pointer[m + 2] = data_pointer[n];
-      new_data_pointer[m + 3] = data_pointer[n + 1];
+  if (use_shared_surface) {
+    int64_t current_shared_handler;
+    if (!server->getSharedSurfaceHandler(
+            current_shared_handler, full_width, full_height, reg_width, reg_height)) {
+      return;
     }
-    glTexImage2D(GL_TEXTURE_2D,
-                 0,
-                 GL_RGBA8,
-                 reg_width,
-                 reg_height,
-                 0,
-                 GL_RGBA,
-                 GL_UNSIGNED_BYTE,
-                 new_data_pointer);
-    delete[] new_data_pointer;
+    update_gl_texture_from_shared_handler(gl_texture, current_shared_handler);
   }
   else {
-    data_pointer += 4 * y * w;
-    glTexImage2D(GL_TEXTURE_2D,
-                 0,
-                 GL_RGBA8,
-                 reg_width,
-                 reg_height,
-                 0,
-                 GL_RGBA,
-                 GL_UNSIGNED_BYTE,
-                 data_pointer);
+    uint8_t *rgba = NULL;
+    if (!server->getImgBuffer8bit(
+            components_cnt, rgba, full_width, full_height, reg_width, reg_height)) {
+      return;
+    }
+    if (!rgba) {
+      return;
+    }
+    update_gl_texture_from_pixel_array(gl_texture, rgba, components_cnt, reg_width, reg_height);
   }
-  
-  server->unlockImageBuffer();
 
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D, gl_texture);
+  //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
@@ -268,47 +340,84 @@ void DisplayBuffer::draw(DeviceDrawParams &draw_params)
 
   unsigned int vertex_buffer = 0;
   glGenBuffers(1, &vertex_buffer);
-
   glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
-  /* invalidate old contents - avoids stalling if buffer is still waiting in queue to be rendered
-   */
   glBufferData(GL_ARRAY_BUFFER, 16 * sizeof(float), NULL, GL_STREAM_DRAW);
-
   float *vpointer = (float *)glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
-
   if (vpointer) {
     /* texture coordinate - vertex pair */
-    vpointer[0] = 0.0f;
-    vpointer[1] = 0.0f;
-    vpointer[2] = dx;
-    vpointer[3] = dy;
+    if (use_shared_surface) {
+      if (params.use_border) {
+        vpointer[0] = 0.0f;
+        vpointer[1] = 1.0f;
+        vpointer[2] = 0;
+        vpointer[3] = 0;
 
-    vpointer[4] = 1.0f;
-    vpointer[5] = 0.0f;
-    vpointer[6] = (float)width + dx;
-    vpointer[7] = dy;
+        vpointer[4] = 1.0f;
+        vpointer[5] = 1.0f;
+        vpointer[6] = dw;
+        vpointer[7] = 0;
 
-    vpointer[8] = 1.0f;
-    vpointer[9] = 1.0f;
-    vpointer[10] = (float)width + dx;
-    vpointer[11] = (float)height + dy;
+        vpointer[8] = 1.0f;
+        vpointer[9] = 0.0f;
+        vpointer[10] = dw;
+        vpointer[11] = dh;
 
-    vpointer[12] = 0.0f;
-    vpointer[13] = 1.0f;
-    vpointer[14] = dx;
-    vpointer[15] = (float)height + dy;
+        vpointer[12] = 0.0f;
+        vpointer[13] = 0.0f;
+        vpointer[14] = 0;
+        vpointer[15] = dh;
+      }
+      else {
+        vpointer[0] = 0.0f;
+        vpointer[1] = 1.0f;
+        vpointer[2] = dx;
+        vpointer[3] = dy;
 
+        vpointer[4] = 1.0f;
+        vpointer[5] = 1.0f;
+        vpointer[6] = (float)width + dx;
+        vpointer[7] = dy;
+
+        vpointer[8] = 1.0f;
+        vpointer[9] = 0.0f;
+        vpointer[10] = (float)width + dx;
+        vpointer[11] = (float)height + dy;
+
+        vpointer[12] = 0.0f;
+        vpointer[13] = 0.0f;
+        vpointer[14] = dx;
+        vpointer[15] = (float)height + dy;
+      }
+    }
+    else {
+      vpointer[0] = 0.0f;
+      vpointer[1] = 0.0f;
+      vpointer[2] = dx;
+      vpointer[3] = dy;
+
+      vpointer[4] = 1.0f;
+      vpointer[5] = 0.0f;
+      vpointer[6] = (float)width + dx;
+      vpointer[7] = dy;
+
+      vpointer[8] = 1.0f;
+      vpointer[9] = 1.0f;
+      vpointer[10] = (float)width + dx;
+      vpointer[11] = (float)height + dy;
+
+      vpointer[12] = 0.0f;
+      vpointer[13] = 1.0f;
+      vpointer[14] = dx;
+      vpointer[15] = (float)height + dy;
+    }
     if (vertex_buffer) {
       glUnmapBuffer(GL_ARRAY_BUFFER);
     }
   }
-
   GLuint vertex_array_object;
   GLuint position_attribute, texcoord_attribute;
-
   glGenVertexArrays(1, &vertex_array_object);
   glBindVertexArray(vertex_array_object);
-
   texcoord_attribute = glGetAttribLocation(shader_program, "texCoord");
   position_attribute = glGetAttribLocation(shader_program, "pos");
 
@@ -332,8 +441,9 @@ void DisplayBuffer::draw(DeviceDrawParams &draw_params)
 
   draw_params.unbind_display_space_shader_cb();
   glBindTexture(GL_TEXTURE_2D, 0);
-  glDeleteTextures(1, &texid);
-
+  if (!use_shared_surface) {
+    glDeleteTextures(1, &gl_texture);
+  }
   if (transparent) {
     glDisable(GL_BLEND);
   }

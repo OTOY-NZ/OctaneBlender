@@ -109,6 +109,16 @@ class OctaneBlender(metaclass=utility.Singleton):
             return
         return octane_blender.set_graph_time(time)
 
+    def is_shared_surface_supported(self):
+        return octane_blender.is_shared_surface_supported()
+
+    def use_shared_surface(self, enable):
+        if not self.enabled:
+            return
+        if not self.is_shared_surface_supported():
+            enable = False
+        return octane_blender.use_shared_surface(enable)
+
     def set_render_pass_ids(self, render_pass_ids):
         self.debug_console("OctaneBlender.set_render_pass_ids")
         if not self.enabled:
@@ -120,6 +130,12 @@ class OctaneBlender(metaclass=utility.Singleton):
         if not self.enabled:
             return
         return octane_blender.get_render_result(render_pass_id, is_viewport, data_type, buffer, statistics)
+
+    def get_render_result_shared_surface(self, render_pass_id, is_viewport, data_type, statistics):
+        self.debug_console("OctaneBlender.get_render_result_shared_surface", render_pass_id)
+        if not self.enabled:
+            return
+        return octane_blender.get_render_result_shared_surface(render_pass_id, is_viewport, data_type, statistics)
 
     def print_last_error(self):
         error_msg = octane_blender.get_last_error()

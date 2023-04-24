@@ -31,7 +31,7 @@ from bpy.props import (
     BoolVectorProperty,
     CollectionProperty
 )
-
+import os
 from math import pi
 import nodeitems_utils
 from octane.utils import consts, utility, ocio
@@ -76,11 +76,11 @@ mesh_types = (
     )
 
 object_mesh_types = (    
-    ('Global', "Global", "", 0),
-    ('Scatter', "Scatter", "", 1),
-    ('Movable proxy', "Movable proxy", "", 2),
-    ('Reshapable proxy', "Reshapable proxy", "", 3),
-    ('Auto', "Scatter/Movable", "", 4),
+    ("Global", "Global", "During scene translation, all Meshes with this type collapse into one common Mesh. This increases the rendering speed, but the translation time is much slower and GPU memory usage is much higher. Use this mode if you render a heavy interior scene as a still image. If you have enough GPU memory to fit the entire scene as one common Mesh, it does not matter that the translation time takes much longer because rendering the image may case take hours. You an save time by using Global meshes in heavy still images, as the rendering speed is much faster if the scene is used as one common Mesh. The Viewport refreshes slower if you have a lot of Global meshes in scene", 0),
+    ("Scatter", "Scatter", "Octane reloads Geometry objects with the Scatter type. This increases the scene translation speed and decreases GPU memory usage, but Objects with more scattering render with fewer samples per pixel", 1),
+    ("Movable proxy", "Movable proxy", "Similar to Scatter, but only the geometry types with Movable Proxy are retranslated and reloaded into OctaneServer for every frame when you render an animation sequence", 2),
+    ("Reshapable proxy", "Reshapable proxy", "Octane reloads the full Mesh and evaluates every frame. This is useful for deforming mesh types like fluids", 3),
+    ("Auto", "Scatter/Movable", "Previously named Auto (Experimental), this option can manage both Scatter or Movable (animated on transformations only, not deformed) meshes. This option will retranslate objects with this type specified for every frame when rendering an animation sequence", 4),
 )
 
 bound_interp = (
@@ -110,6 +110,11 @@ hair_interpolations = (
 octane_preset_shaders = (
     ('None', "None", '', 0),
     ('Smoke', "Smoke", '', 1),
+)
+
+primitive_coordinate_modes = (
+    ("Blender", "Blender", "", 0),
+    ("Octane", "Octane", "", 1), 
 )
 
 # The various units we support during the geometry import. It's basically the unit used during the export of the geometry
@@ -376,74 +381,80 @@ class OctanePreferences(bpy.types.AddonPreferences):
     bl_idname = __package__
 
     use_new_addon_nodes: BoolProperty(
-            name="Experience the New Image and Ramp Nodes",
-            description="Use the new addon style image and ramp nodes(reboot blender to take effect)",   
-            default=True,
-            )
+        name="Experience the New Image and Ramp Nodes",
+        description="Use the new addon style image and ramp nodes(reboot blender to take effect)",   
+        default=True,
+    )
+    default_object_mesh_type: EnumProperty(
+        name="Default Object Mesh Type",
+        description="Object mesh type to use for default (Used for rendering speed optimization. See the manual.)(reboot blender to take effect)",   
+        items=object_mesh_types,   
+        default="Reshapable proxy",
+    )    
     default_material_id: EnumProperty(
-            name="Default Material Type",
-            description="Material to use for default (rendering with Octane)(reboot blender to take effect)",   
-            items=default_material_orders,   
-            default="7", # Universal
-            )
+        name="Default Material Type",
+        description="Material to use for default (rendering with Octane)(reboot blender to take effect)",   
+        items=default_material_orders,   
+        default="7", # Universal
+    )
     default_texture_node_layout_id: EnumProperty(
-            name="Texture Node Menu Layout",
-            description="Layout of texture node menus(reboot blender to take effect)",   
-            items=texture_node_layouts,
-            default="1"     
-            )
+        name="Texture Node Menu Layout",
+        description="Layout of texture node menus(reboot blender to take effect)",   
+        items=texture_node_layouts,
+        default="1"     
+    )
 
     default_use_blender_builtin_render_layer: BoolProperty(
-            name="Use Blender Built-in Render Layer",
-            description="Whether to use blender built-in render layer system for default(reboot blender to take effect)",   
-            default=False,         
-            )
+        name="Use Blender Built-in Render Layer",
+        description="Whether to use blender built-in render layer system for default(reboot blender to take effect)",   
+        default=False,         
+    )
 
     enable_empty_gpus_automatically: BoolProperty(
-                name="Empty GPUs After Render",
-                description="Empty GPU resources after rendering automatically",
-                default=False,
-            )
+        name="Empty GPUs After Render",
+        description="Empty GPU resources after rendering automatically",
+        default=False,
+    )
 
     enable_generate_default_uvs: BoolProperty(
-                name="Generate Default UVs",
-                description="Generate a default UV map",
-                default=False,
-            )
+        name="Generate Default UVs",
+        description="Generate a default UV map",
+        default=False,
+    )
 
     enable_node_graph_upload_opt: BoolProperty(
-                name="Node Graph Upload Optimization",
-                description="Do not upload nodes that are not used",
-                default=False,
-            )  
+        name="Node Graph Upload Optimization",
+        description="Do not upload nodes that are not used",
+        default=False,
+    )  
     enable_mesh_upload_optimization: BoolProperty(
-                name="Optimized Mesh Generation Mode",
-                description="Do not regenerate & upload meshes(except reshapble ones) which are already cached",
-                default=True,
-            )   
+        name="Optimized Mesh Generation Mode",
+        description="Do not regenerate & upload meshes(except reshapble ones) which are already cached",
+        default=True,
+    )   
     octane_localdb_path: StringProperty(
-                name="Octane LocalDB Path",
-                description="Customize octane localDB path. Leave empty to use default settings",
-                default='',
-                subtype='DIR_PATH',
-            ) 
+        name="Octane LocalDB Path",
+        description="Customize octane localDB path. Leave empty to use default settings",
+        default='',
+        subtype='DIR_PATH',
+    ) 
     octane_texture_cache_path: StringProperty(
-                name="Octane Texture Cache Folder",
-                description="Customize octane texture cache folder. Leave empty to use default settings",
-                default='',
-                subtype='DIR_PATH',
-            )                
+        name="Octane Texture Cache Folder",
+        description="Customize octane texture cache folder. Leave empty to use default settings",
+        default='',
+        subtype='DIR_PATH',
+    )                
     enable_relese_octane_license_when_exiting: BoolProperty(
-                name="Release Octane License After Exiting",
-                description="Release Octane license after exiting blender",
-                default=False,
-            )       
+        name="Release Octane License After Exiting",
+        description="Release Octane license after exiting blender",
+        default=False,
+    )       
     octane_server_address: StringProperty(
-            name="Server address",
-            description="Octane render-server address",
-            default="127.0.0.1",
-            maxlen=255,
-            )     
+        name="Server address",
+        description="Octane render-server address",
+        default="127.0.0.1",
+        maxlen=255,
+    )     
     
     ocio_use_other_config_file: BoolProperty(
         name="Use other config file",
@@ -489,21 +500,43 @@ class OctanePreferences(bpy.types.AddonPreferences):
     ocio_export_look_configs: CollectionProperty(type=OctaneOCIOConfigName)            
     ocio_color_space_configs: CollectionProperty(type=OctaneOCIOConfigName)                        
 
+    use_shared_surface: BoolProperty(
+        name="Use Shared Surface for Viewport(recommended)",
+        description="On Windows, Octane can now send back shared surface handles for render passes instead of just buffers, which makes viewport rendering faster",
+        default=True,
+    )
+
     def draw(self, context):
         from octane import core
+        from octane.core.client import OctaneBlender
         if core.ENABLE_OCTANE_ADDON_CLIENT:
-            return        
+            layout = self.layout
+            box = layout.box()
+            box.label(text="Viewport Rendering")
+            row = box.row()
+            row.active = OctaneBlender().is_shared_surface_supported()
+            row.prop(self, "use_shared_surface")
+            if not row.active:
+                box.row().label("Shared surface is not supported")
+            return
         layout = self.layout
         layout.row().prop(self, "octane_server_address", expand=False) 
         layout.row().prop(self, "enable_relese_octane_license_when_exiting", expand=False)   
-        layout.row().prop(self, "octane_localdb_path", expand=False)               
-        layout.row().prop(self, "octane_texture_cache_path", expand=False)   
+        layout.row().prop(self, "octane_localdb_path", expand=False)
+        layout.row().prop(self, "default_object_mesh_type", expand=False)
+        layout.row().prop(self, "octane_texture_cache_path", expand=False)
         layout.row().prop(self, "default_material_id", expand=False)
         layout.row().prop(self, "default_texture_node_layout_id", expand=False)
         layout.row().prop(self, "use_new_addon_nodes", expand=False)
-        layout = self.layout
         box = layout.box()
-        box.label(text="Octane Color Management")        
+        box.label(text="Viewport Rendering")
+        row = box.row()
+        row.active = OctaneBlender().is_shared_surface_supported()
+        row.prop(self, "use_shared_surface")
+        if not row.active:
+            box.row().label("Shared surface is not supported")
+        box = layout.box()
+        box.label(text="Octane Color Management")
         box.row().prop(self, "ocio_use_other_config_file")
         box.row().prop(self, "ocio_config_file_path")
         box.row().prop(self, "ocio_use_automatic")        
@@ -902,7 +935,13 @@ class OctaneMeshSettings(bpy.types.PropertyGroup):
         description="Name of a float grid in the VDB to use for the z-component of motion blur vectors",
         default="",
         maxlen=512,
-    )               
+    )
+    primitive_coordinate_mode: EnumProperty(
+        name="Primitive Coordinate Mode",
+        description="Primitive Coordinate Mode",
+        items=primitive_coordinate_modes,
+        default="Blender"
+    )    
     enable_octane_offset_transform: BoolProperty(
         name="Octane Offset Transform enabled",
         description="If TRUE, then an offset transform will be applied(it would be useful in external VDB and Orbx transform adjustment)",

@@ -110,10 +110,11 @@ class OctaneBaseImageNode(OctaneBaseNode):
         cycles_tex_image = node_tree.nodes[self.OCTANE_TEXTURE_PAINT_HELPER]
         return cycles_tex_image
 
-    def get_octane_image_helper(self):
-        node = utility.get_octane_helper_node(self.OCTANE_IMAGE_HELPER)
+    @staticmethod
+    def get_octane_image_helper():
+        node = utility.get_octane_helper_node(OctaneBaseImageNode.OCTANE_IMAGE_HELPER)
         if node is None:
-            node = utility.create_octane_helper_node(self.OCTANE_IMAGE_HELPER, "ShaderNodeTexImage")
+            node = utility.create_octane_helper_node(OctaneBaseImageNode.OCTANE_IMAGE_HELPER, "ShaderNodeTexImage")
         return node
 
     def update_image_info(self):

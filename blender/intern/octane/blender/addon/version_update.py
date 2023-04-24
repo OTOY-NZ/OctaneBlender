@@ -18,7 +18,7 @@
 
 # <pep8 compliant>
 
-OCTANE_BLENDER_VERSION = '27.6'
+OCTANE_BLENDER_VERSION = '27.8'
 OCTANE_VERSION = 12000020
 OCTANE_VERSION_STR = "2022.1"
 
@@ -100,6 +100,9 @@ def check_color_management():
         bpy.context.scene.view_settings.view_transform = 'Raw'
 
 def check_octane_output_settings(file_version):
+    from octane import core
+    if core.ENABLE_OCTANE_ADDON_CLIENT:
+        return
     rd = bpy.context.scene.render
     image_settings = rd.image_settings    
     if check_update(file_version, '23.2'):
@@ -116,6 +119,9 @@ def check_octane_output_settings(file_version):
             image_settings.octane_export_tag = "FileName_"
             image_settings.octane_export_post_tag = "$OCTANE_PASS$_###"
             bpy.context.scene.octane.need_upgrade_octane_output_tag = False
+    if check_update(file_version, '27.8'):
+        if image_settings.octane_export_post_tag in ("$OCTANE_PASS$_###", "$OCTANE_PASS$_$VIEW_LAYER$.###", ""):
+            image_settings.octane_export_post_tag = "$OCTANE_PASS$_$VIEW_LAYER$_###"
 
 def check_compatible_render_settings():
     for scene in bpy.data.scenes:

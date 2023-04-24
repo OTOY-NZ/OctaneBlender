@@ -454,6 +454,14 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
       if (object->motion_blur_times.find(motion_time) != object->motion_blur_times.end()) {
         if (object->mesh && object->mesh->enable_offset_transform) {
           octane_tfm = OCTANE_MATRIX * (tfm * object->mesh->offset_transform);
+          if (object->mesh->is_octane_coordinate_used()) {
+            octane_tfm = octane_tfm * OCTANE_OBJECT_ROTATION_MATRIX;
+          }          
+        }
+        else {
+          if (object->mesh->is_octane_coordinate_used()) {
+            octane_tfm = octane_tfm * OCTANE_OBJECT_ROTATION_MATRIX;
+          }
         }
         object->update_motion_blur_transforms(motion_time, octane_tfm);
         if (object->mesh) {
@@ -519,13 +527,15 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
                            mesh_type);
 
   if (object->mesh && object->mesh->enable_offset_transform) {
-    //   if (b_ob.type() == BL::Object::type_VOLUME) {
-    //     octane_tfm = OCTANE_MATRIX * (tfm * transform_rotate(M_PI_2_F, make_float3(-1, 0, 0)) *
-    //                                   object->mesh->offset_transform);
-    //   } else {
-    //     octane_tfm = OCTANE_MATRIX * object->mesh->offset_transform * tfm;
-    //}
     octane_tfm = OCTANE_MATRIX * (tfm * object->mesh->offset_transform);
+    if (object->mesh->is_octane_coordinate_used()) {
+      octane_tfm = octane_tfm * OCTANE_OBJECT_ROTATION_MATRIX;
+    }
+  }
+  else {
+    if (object->mesh->is_octane_coordinate_used()) {
+      octane_tfm = octane_tfm * OCTANE_OBJECT_ROTATION_MATRIX;
+    }
   }
 
   /* object sync

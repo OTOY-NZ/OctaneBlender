@@ -666,10 +666,12 @@ static int node_add_file_exec(bContext *C, wmOperator *op)
 
   switch (snode.nodetree->type) {
     case NTREE_SHADER:
-      type = STREQ(engine_id, RE_engine_id_OCTANE) ? SH_NODE_OCT_IMAGE_TEX : SH_NODE_TEX_IMAGE;
+      // type = STREQ(engine_id, RE_engine_id_OCTANE) ? SH_NODE_OCT_IMAGE_TEX : SH_NODE_TEX_IMAGE;
+      type = SH_NODE_TEX_IMAGE;
       break;
     case NTREE_TEXTURE:
-      type = STREQ(engine_id, RE_engine_id_OCTANE) ? SH_NODE_OCT_IMAGE_TEX : TEX_NODE_IMAGE;
+      // type = STREQ(engine_id, RE_engine_id_OCTANE) ? SH_NODE_OCT_IMAGE_TEX : SH_NODE_TEX_IMAGE;
+      type = SH_NODE_TEX_IMAGE;
       break;
     case NTREE_COMPOSIT:
       type = CMP_NODE_IMAGE;

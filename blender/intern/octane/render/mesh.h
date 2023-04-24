@@ -64,7 +64,8 @@ class Mesh {
   void clear();
   bool is_subdivision();
   bool is_volume();
-  bool is_global_mesh_type(Scene *scene);  
+  bool is_global_mesh_type(Scene *scene);
+  bool is_octane_coordinate_used();
   void tag_update(Scene *scene);
 
   std::string name;
@@ -76,6 +77,7 @@ class Mesh {
 
   bool empty;
   bool is_mesh_synced;
+  bool use_octane_coordinate;
 
   bool is_octane_volume;
   int last_vdb_frame;

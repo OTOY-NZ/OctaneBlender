@@ -717,6 +717,7 @@ static void node_shader_buts_oct_object_data(uiLayout *layout,
                                              bContext *UNUSED(C),
                                              PointerRNA *ptr)
 {
+  uiItemR(layout, ptr, "target_primitive_coordinate_mode", DEFAULT_FLAGS | UI_ITEM_R_EXPAND, NULL, ICON_NONE);
   uiItemR(layout, ptr, "source_type", DEFAULT_FLAGS | UI_ITEM_R_EXPAND, NULL, ICON_NONE);
   // uiItemR(layout, ptr, "object", 0, NULL, 0);
 }

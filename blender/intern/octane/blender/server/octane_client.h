@@ -116,6 +116,7 @@ class OctaneClient {
         uiH,                 ///< Render height.
         uiRegW,              ///< Render region width.
         uiRegH;              ///< Render region height.
+    int64_t iSharedHandler;
   };                         // struct RenderStatistics
 
   OctaneClient();
@@ -208,6 +209,8 @@ class OctaneClient {
   /// @param [in] iOutOfCoreMemLimit - Memory limit for "out of core" mode.
   /// @param [in] iOutOfCoreGPUHeadroom - GPU headroom for "out of core" mode.
   void startRender(bool bInteractive,
+                   bool bUseSharedSurface,
+                   uint64_t iClientProcessId,
                    int32_t iWidth,
                    int32_t iHeigth,
                    ImageType imgType,
@@ -392,6 +395,8 @@ class OctaneClient {
   /// Get current render-buffer pass type.
   Octane::RenderPassId currentPassType();
 
+  bool getSharedSurfaceHandler(
+      int64_t &iSharedHandler, int iWidth, int iHeight, int iRegionWidth, int iRegionHeight);
   /// Get a pointer to cached image buffer. Use downloadImageBuffer() to download and cache the
   /// image buffer from Octane server. This method is made a way it **always** returns the image
   /// buffer of requested size, even if it has not been downloaded from the server so far (just
@@ -548,6 +553,7 @@ class OctaneClient {
   bool downloadImageBuffer(RenderStatistics &renderStat,
                            ImageType const imgType,
                            RenderPassId &passType,
+                           bool bUseSharedSurface,
                            bool const bForce = false);
 
   /// Get a preiview for material or texture by node Id. The node must be already uploaded to the
@@ -609,6 +615,7 @@ class OctaneClient {
   float *m_pfImageBuf;
   int32_t m_iComponentCnt;
   size_t m_stImgBufLen;
+  int64_t m_iSharedHandler;
 
   SceneExportTypes::SceneExportTypesEnum m_ExportSceneType;
   bool m_bDeepImage;

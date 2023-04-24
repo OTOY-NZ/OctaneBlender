@@ -78,7 +78,7 @@ class OctaneBaseRampNode(OctaneBaseNode):
     node_data_path: StringProperty()
 
     # Sometimes the init/copy functions are not called so we have to add this function
-    def validate_color_ramp(self, init_only=False):
+    def validate_color_ramp(self, init_only=False, data_owner=None):
         # Check if the helper color ramp node is existing. 
         # For the non-helper node case, create one from the color_ramp_data if possible.
         current_color_ramp = utility.get_octane_helper_node(self.color_ramp_name)
@@ -90,8 +90,23 @@ class OctaneBaseRampNode(OctaneBaseNode):
         else:
             # Create the color_ramp_data for the legacy cases
             if len(self.color_ramp_data) == 0:
-                self.dumps_color_ramp_data()            
-        node_data_path = repr(self)
+                self.dumps_color_ramp_data()
+        if data_owner is None:
+            for material in bpy.data.materials:
+                if material.use_nodes and material.node_tree and material.node_tree is self.id_data:
+                    data_owner = material
+                    break
+        if data_owner is None:
+            for world in bpy.data.worlds:
+                if world.use_nodes and world.node_tree and world.node_tree is self.id_data:
+                    data_owner = world
+                    break
+        if data_owner is None:
+            for light in bpy.data.lights:
+                if light.use_nodes and light.node_tree and light.node_tree is self.id_data:
+                    data_owner = light
+                    break
+        node_data_path = data_owner.name + "_" + repr(self)
         if self.node_data_path != node_data_path:
             same_color_ramp_count = 0
             def count_same_color_ramp(node_tree):

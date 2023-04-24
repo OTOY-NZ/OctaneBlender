@@ -46,6 +46,7 @@ OctaneClient::OctaneClient()
       m_bLastUseUniversalCamera(false),
       m_cBlockUpdates(0),
       m_iComponentCnt(0),
+      m_iSharedHandler(0),
       m_stImgBufLen(0),
       m_pucImageBuf(0),
       m_pfImageBuf(0),
@@ -647,6 +648,8 @@ bool OctaneClient::update()
 //
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void OctaneClient::startRender(bool bInteractive,
+                               bool bUseSharedSurface,
+                               uint64_t iClientProcessId,
                                int32_t iWidth,
                                int32_t iHeigth,
                                ImageType imgType,
@@ -665,12 +668,12 @@ void OctaneClient::startRender(bool bInteractive,
   LOCK_MUTEX(m_SocketMutex);
 
   RPCSend snd(m_Socket,
-              sizeof(int32_t) * 7 + sizeof(uint32_t) * 2 + (m_sOutPath.size() + 2) +
-                  m_sCachePath.size() + 2,
+              sizeof(int32_t) * 8 + sizeof(uint32_t) * 2 + sizeof(uint64_t) +
+                  (m_sOutPath.size() + 2) + m_sCachePath.size() + 2,
               OctaneDataTransferObject::START);
-  snd << bInteractive << bOutOfCoreEnabled << iOutOfCoreMemLimit << iOutOfCoreGPUHeadroom
-      << iRenderPriority << iResourceCacheType << iWidth << iHeigth << imgType
-      << m_sOutPath.c_str() << m_sCachePath.c_str();
+  snd << bInteractive << bUseSharedSurface << iClientProcessId << bOutOfCoreEnabled
+      << iOutOfCoreMemLimit << iOutOfCoreGPUHeadroom << iRenderPriority << iResourceCacheType
+      << iWidth << iHeigth << imgType << m_sOutPath.c_str() << m_sCachePath.c_str();
   snd.write();
 
   RPCReceive rcv(m_Socket);
@@ -953,11 +956,11 @@ void OctaneClient::uploadCamera(Camera *pCamera, uint32_t uiFrameIdx, uint32_t u
 
           << pCamera->bEnableImager << pCamera->bOrtho << pCamera->bAutofocus
           << pCamera->bPremultipliedAlpha << pCamera->bACESToneMapping << pCamera->bDithering
-          << pCamera->bUsePostprocess
-          << pCamera->bPerspCorr << pCamera->bNeutralResponse << pCamera->bUseFstopValue
-          << pCamera->bDisablePartialAlpha << pCamera->bSwapEyes << pCamera->bUseOSLCamera
-          << pCamera->bPreviewCameraMode << pCamera->sCustomLut.c_str() 
-		  << pCamera->sOcioViewDisplay.c_str() << pCamera->sOcioViewDisplayView.c_str() << pCamera->sOcioLook.c_str() << pCamera->bForceToneMapping;
+          << pCamera->bUsePostprocess << pCamera->bPerspCorr << pCamera->bNeutralResponse
+          << pCamera->bUseFstopValue << pCamera->bDisablePartialAlpha << pCamera->bSwapEyes
+          << pCamera->bUseOSLCamera << pCamera->bPreviewCameraMode << pCamera->sCustomLut.c_str()
+          << pCamera->sOcioViewDisplay.c_str() << pCamera->sOcioViewDisplayView.c_str()
+          << pCamera->sOcioLook.c_str() << pCamera->bForceToneMapping;
       snd.write();
     }
 
@@ -1007,12 +1010,12 @@ void OctaneClient::uploadCamera(Camera *pCamera, uint32_t uiFrameIdx, uint32_t u
           << pCamera->iMaxTonemapInterval << pCamera->iBokehSidecount
 
           << pCamera->bEnableImager << pCamera->bPremultipliedAlpha << pCamera->bACESToneMapping
-          << pCamera->bDithering
-          << pCamera->bUsePostprocess << pCamera->bKeepUpright << pCamera->bNeutralResponse
-          << pCamera->bDisablePartialAlpha << pCamera->bUseFstopValue << pCamera->bAutofocus
-          << pCamera->bUseOSLCamera << pCamera->bPreviewCameraMode << pCamera->sCustomLut.c_str()
-          << pCamera->sOcioViewDisplay.c_str() << pCamera->sOcioViewDisplayView.c_str()
-          << pCamera->sOcioLook.c_str() << pCamera->bForceToneMapping;
+          << pCamera->bDithering << pCamera->bUsePostprocess << pCamera->bKeepUpright
+          << pCamera->bNeutralResponse << pCamera->bDisablePartialAlpha << pCamera->bUseFstopValue
+          << pCamera->bAutofocus << pCamera->bUseOSLCamera << pCamera->bPreviewCameraMode
+          << pCamera->sCustomLut.c_str() << pCamera->sOcioViewDisplay.c_str()
+          << pCamera->sOcioViewDisplayView.c_str() << pCamera->sOcioLook.c_str()
+          << pCamera->bForceToneMapping;
       snd.write();
     }
 
@@ -1031,11 +1034,12 @@ void OctaneClient::uploadCamera(Camera *pCamera, uint32_t uiFrameIdx, uint32_t u
   }
   else if (pCamera->type == Camera::CAMERA_BAKING) {
     {
-      RPCSend snd(m_Socket,
-                  sizeof(float_3) * 5 + sizeof(float_2) * 2 + sizeof(float) * 17 + sizeof(int32_t) * 32 +
+      RPCSend snd(
+          m_Socket,
+          sizeof(float_3) * 5 + sizeof(float_2) * 2 + sizeof(float) * 17 + sizeof(int32_t) * 32 +
               (pCamera->sCustomLut.length() + 2) + (pCamera->sOcioViewDisplay.length() + 2) +
               (pCamera->sOcioViewDisplayView.length() + 2) + (pCamera->sOcioLook.length() + 2),
-                  OctaneDataTransferObject::LOAD_BAKING_CAMERA);
+          OctaneDataTransferObject::LOAD_BAKING_CAMERA);
       snd << pCamera->f3EyePoint << pCamera->f3WhiteBalance
           << pCamera->f3UVWBakingTransformTranslation << pCamera->f3UVWBakingTransformRotation
           << pCamera->f3UVWBakingTransformScale << pCamera->f2UVboxMin << pCamera->f2UVboxSize
@@ -1059,9 +1063,8 @@ void OctaneClient::uploadCamera(Camera *pCamera, uint32_t uiFrameIdx, uint32_t u
           << pCamera->iPadding << pCamera->iUvSet << pCamera->iUVWBakingTransformRotationOrder
 
           << pCamera->bEnableImager << pCamera->bPremultipliedAlpha << pCamera->bACESToneMapping
-          << pCamera->bDithering
-          << pCamera->bUsePostprocess << pCamera->bNeutralResponse << pCamera->bBakeOutwards
-          << pCamera->bUseBakingPosition << pCamera->bBackfaceCulling
+          << pCamera->bDithering << pCamera->bUsePostprocess << pCamera->bNeutralResponse
+          << pCamera->bBakeOutwards << pCamera->bUseBakingPosition << pCamera->bBackfaceCulling
           << pCamera->bDisablePartialAlpha << pCamera->bUseOSLCamera << pCamera->bPreviewCameraMode
           << pCamera->sCustomLut.c_str() << pCamera->sOcioViewDisplay.c_str()
           << pCamera->sOcioViewDisplayView.c_str() << pCamera->sOcioLook.c_str()
@@ -1140,10 +1143,9 @@ void OctaneClient::uploadCamera(Camera *pCamera, uint32_t uiFrameIdx, uint32_t u
 
           << pCamera->bEnableImager << pCamera->bOrtho << pCamera->bAutofocus
           << pCamera->bPremultipliedAlpha << pCamera->bACESToneMapping << pCamera->bDithering
-          << pCamera->bUsePostprocess
-          << pCamera->bPerspCorr << pCamera->bNeutralResponse << pCamera->bUseFstopValue
-          << pCamera->bDisablePartialAlpha << pCamera->bSwapEyes << pCamera->bUseOSLCamera
-          << pCamera->bPreviewCameraMode << pCamera->sCustomLut.c_str()
+          << pCamera->bUsePostprocess << pCamera->bPerspCorr << pCamera->bNeutralResponse
+          << pCamera->bUseFstopValue << pCamera->bDisablePartialAlpha << pCamera->bSwapEyes
+          << pCamera->bUseOSLCamera << pCamera->bPreviewCameraMode << pCamera->sCustomLut.c_str()
           << pCamera->sOcioViewDisplay.c_str() << pCamera->sOcioViewDisplayView.c_str()
           << pCamera->sOcioLook.c_str() << pCamera->bForceToneMapping;
       snd.write();
@@ -2702,6 +2704,22 @@ bool OctaneClient::checkImgBuffer8bit(uint8_4 *&puc4Buf,
     return true;
 } //getImgBuffer8bit()
 */
+bool OctaneClient::getSharedSurfaceHandler(
+    int64_t &iSharedHandler, int iWidth, int iHeight, int iRegionWidth, int iRegionHeight)
+{    
+  LOCK_MUTEX(m_ImgBufMutex);
+  if (iWidth != m_iCurImgBufWidth || iHeight != m_iCurImgBufHeight ||
+      iRegionWidth != m_iCurRegionWidth || iRegionHeight != m_iCurRegionHeight) {
+    m_iCurImgBufWidth = iWidth;
+    m_iCurImgBufHeight = iHeight;
+    m_iCurRegionWidth = iRegionWidth;
+    m_iCurRegionHeight = iRegionHeight;
+  }
+  iSharedHandler = m_iSharedHandler;
+  UNLOCK_MUTEX(m_ImgBufMutex);  
+  return iSharedHandler != 0;
+}
+
 bool OctaneClient::getImgBuffer8bit(int &iComponentsCnt,
                                     uint8_t *&pucBuf,
                                     int iWidth,
@@ -2755,7 +2773,7 @@ bool OctaneClient::getImgBuffer8bit(int &iComponentsCnt,
         UNLOCK_MUTEX(m_ImgBufMutex);
         return false;
     }
-    
+
 
 
 
@@ -3829,6 +3847,7 @@ bool OctaneClient::getCopyImgBufferFloat(int iComponentsCnt,
 bool OctaneClient::downloadImageBuffer(RenderStatistics &renderStat,
                                        ImageType const imgType,
                                        RenderPassId &passType,
+                                       bool bUseSharedSurface,
                                        bool const bForce)
 {
   if (m_Socket < 0)
@@ -3875,6 +3894,18 @@ bool OctaneClient::downloadImageBuffer(RenderStatistics &renderStat,
         m_iCurImgBufHeight = static_cast<int>(uiH);
         m_iCurRegionWidth = static_cast<int>(uiRegW);
         m_iCurRegionHeight = static_cast<int>(uiRegH);
+      }
+
+      if (bUseSharedSurface) {
+        rcv >> renderStat.iSharedHandler;
+        LOCK_MUTEX(m_ImgBufMutex);
+        m_iSharedHandler = renderStat.iSharedHandler;
+        UNLOCK_MUTEX(m_ImgBufMutex);
+        if (m_CurPassType != passType) {
+          m_CurPassType = passType;
+        }
+        UNLOCK_MUTEX(m_SocketMutex);
+        return true;
       }
 
       LOCK_MUTEX(m_ImgBufMutex);

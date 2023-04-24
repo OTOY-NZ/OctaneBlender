@@ -295,7 +295,7 @@ void BlenderSession::reset_session(BL::BlendData &b_data, BL::Depsgraph &b_depsg
   /* sync object should be re-created */
   if (export_type != ::OctaneEngine::SceneExportTypes::NONE) {
     for (auto it = scene->shaders.begin(); it != scene->shaders.end(); it++) {
-        delete *it;
+      delete *it;
     }
     scene->shaders.clear();
     scene->default_surface = nullptr;
@@ -517,6 +517,8 @@ void BlenderSession::render(BL::Depsgraph &b_depsgraph_)
 
     session->update_scene_to_server(0, 1);
     session->server->startRender(!background,
+                                 session_params.use_shared_surface,
+                                 session_params.process_id,
                                  width,
                                  height,
                                  ::OctaneEngine::IMAGE_8BIT,
@@ -667,7 +669,8 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult b_rr,
           (session->params.hdr_tonemapped && session->params.hdr_tonemap_prefer ?
                ::OctaneEngine::IMAGE_FLOAT_TONEMAPPED :
                ::OctaneEngine::IMAGE_FLOAT),
-      cur_pass_type);
+      cur_pass_type,
+      session->params.use_shared_surface);
 
   if (session->server->getCopyImgBufferFloat(
           4,
@@ -733,7 +736,8 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult b_rr,
                   (session->params.hdr_tonemapped && session->params.hdr_tonemap_prefer ?
                        ::OctaneEngine::IMAGE_FLOAT_TONEMAPPED :
                        ::OctaneEngine::IMAGE_FLOAT),
-              pass_type)) {
+              pass_type,
+              session->params.use_shared_surface)) {
         float *pixels = new float[buf_size];
         memset(pixels, 0, sizeof(float) * buf_size);
         b_pass.rect(pixels);

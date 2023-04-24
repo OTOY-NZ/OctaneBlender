@@ -29,13 +29,6 @@ CONVERTERS_NODE_MAPPER = {
         },
         lambda cur_node, octane_node: setattr(octane_node.inputs["BSDF model"], "default_value", "GGX" if cur_node.distribution == "GGX" else "GGX (energy preserving)")
     ),
-    "TEX_IMAGE": 
-    (
-        "OctaneRGBImage", 
-        {
-            IMAGE_TYPE_TAG + "image": IMAGE_TYPE_TAG + "image",
-        }
-    ),
     "EMISSION": 
     (
         "OctaneTextureEmission", 
@@ -170,7 +163,7 @@ def _convert_cycles_normal_to_octane_node(cur_node, octane_node, cur_node_tree, 
                 octane_from_node = convert_to_octane_node(cur_color_link.from_node, cur_node_tree, octane_node_tree)            
                 if octane_from_node:
                     octane_links.new(octane_from_node.outputs[0], octane_input)
-                    if octane_from_node.bl_idname == "OctaneRGBImage":
+                    if octane_from_node.bl_idname in ("OctaneRGBImage", "OctaneGreyscaleImage"):
                         _convert_socket(cur_link.from_node, octane_from_node, cur_node_tree, octane_node_tree, "Strength", "Power")                    
 
 
@@ -188,7 +181,7 @@ def _convert_cycles_emission_to_octane_node(cur_node, octane_node, cur_node_tree
                 octane_from_node = convert_to_octane_node(cur_color_link.from_node, cur_node_tree, octane_node_tree)            
                 if octane_from_node:
                     octane_links.new(octane_from_node.outputs[0], octane_input)
-                    if octane_from_node.bl_idname == "OctaneRGBImage":
+                    if octane_from_node.bl_idname in ("OctaneRGBImage", "OctaneGreyscaleImage"):
                         _convert_socket(cur_link.from_node, octane_from_node, cur_node_tree, octane_node_tree, "Strength", "Power")       
 
 
@@ -214,14 +207,24 @@ def convert_to_octane_node(cur_node, cur_node_tree, octane_node_tree):
         octane_node = octane_node_tree.nodes.new(CONVERTERS_OUTPUT_MAPPER[cur_node.type])
         for input_socket in octane_node.inputs:
             _convert_to_octane_node(cur_node, octane_node, cur_node_tree, octane_node_tree, input_socket.name, input_socket.name)    
-    if cur_node.type in CONVERTERS_NODE_MAPPER:
+    if cur_node.type == "TEX_IMAGE":
+        octane_image_node_bl_idname = "OctaneRGBImage"
+        if len(cur_node.outputs) > 0 and len(cur_node.outputs[0].links):
+            to_link = cur_node.outputs[0].links[0]
+            if to_link.to_node.type == "DISPLACEMENT" and to_link.to_socket.name in ("Height", ):
+                octane_image_node_bl_idname = "OctaneGreyscaleImage"
+            if to_link.to_socket.name in ("Transmission", "Specular", "Roughness", "Clearcoat Roughness", "Metallic", "Alpha", ):
+                octane_image_node_bl_idname = "OctaneGreyscaleImage"
+        octane_node = octane_node_tree.nodes.new(octane_image_node_bl_idname)
+        _convert_attribute(cur_node, octane_node, "image", "image")
+    elif cur_node.type in CONVERTERS_NODE_MAPPER:
         octane_node = octane_node_tree.nodes.new(CONVERTERS_NODE_MAPPER[cur_node.type][0])
         for cur_name, octane_name in CONVERTERS_NODE_MAPPER[cur_node.type][1].items():
             _convert_to_octane_node(cur_node, octane_node, cur_node_tree, octane_node_tree, cur_name, octane_name)
         if len(CONVERTERS_NODE_MAPPER[cur_node.type]) > 2:
             CONVERTERS_NODE_MAPPER[cur_node.type][2](cur_node, octane_node)
     # Special cases
-    if octane_node and cur_node.type == "TEX_IMAGE" and octane_node.bl_idname == "OctaneRGBImage":
+    if octane_node and cur_node.type == "TEX_IMAGE" and octane_node.bl_idname in ("OctaneRGBImage", "OctaneGreyscaleImage"):
         if cur_node.image:
             if cur_node.image.colorspace_settings.name in ("sRGB", "Filmic sRGB"):
                 octane_node.inputs["Legacy gamma"].default_value = 2.2
@@ -255,6 +258,10 @@ def convert_to_octane_material(cur_material, converted_material):
                         texture_emission_node = octane_node_tree.nodes.new("OctaneTextureEmission")
                         octane_node_tree.links.new(from_node.outputs[0], texture_emission_node.inputs["Texture"])
                         octane_node_tree.links.new(texture_emission_node.outputs[0], octane_material_node.inputs["Emission"])
+                        if output and len(output.inputs["Surface"].links):
+                            original_material_node = output.inputs["Surface"].links[0].from_node
+                            if original_material_node.type == "BSDF_PRINCIPLED":
+                                texture_emission_node.inputs["Power"].default_value = original_material_node.inputs["Emission Strength"].default_value
         if octane_output.inputs["Displacement"].is_linked:
             octane_displacement_node = octane_output.inputs["Displacement"].links[0].from_node
             octane_node_tree.links.remove(octane_output.inputs["Displacement"].links[0])

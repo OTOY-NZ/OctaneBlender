@@ -20,8 +20,8 @@
 #include "blender/OCT_api.h"
 #include <Python.h>
 
-#include "blender/blender_session.h"
 #include "blender/blender_client.h"
+#include "blender/blender_session.h"
 
 #include "util/util_debug.h"
 #include "util/util_foreach.h"
@@ -30,6 +30,8 @@
 #include "util/util_path.h"
 #include "util/util_string.h"
 #include "util/util_types.h"
+
+#include "render/common_d3d.hpp"
 
 #include "render/osl.h"
 
@@ -91,12 +93,28 @@ static PyObject *py_init_func(PyObject * /*self*/, PyObject *args)
             PyC_UnicodeAsByte(user_path, &user_path_coerce));
   Py_XDECREF(path_coerce);
   Py_XDECREF(user_path_coerce);
+  CommonD3D::InitD3D11();
   Py_RETURN_TRUE;
 }
 
 static PyObject *py_exit_func(PyObject * /*self*/, PyObject * /*args*/)
 {
+  CommonD3D::ReleaseD3D11();
   Py_RETURN_TRUE;
+}
+
+static PyObject *py_is_shared_surface_supported(PyObject * /*self*/, PyObject * /*args*/)
+{
+#if defined(WIN32)
+  if (CommonD3D::IsD3DInited()) {
+    Py_RETURN_TRUE;
+  }
+  {
+    Py_RETURN_FALSE;
+  }
+#else
+  Py_RETURN_FALSE;
+#endif
 }
 
 static PyObject *create_func(PyObject * /*self*/, PyObject *args)
@@ -932,20 +950,21 @@ static PyObject *py_add_pin_info(PyObject *self, PyObject *args)
   std::string defaultNodeName = PyC_UnicodeAsByte(pyDefaultNodeName, &pyCoerce);
   Py_XDECREF(pyCoerce);
   OctaneInfo::instance().add_pin_info(nodeType,
-                                       blenderName,
-                                       pinId,
-                                       pinName,
-                                       pinIndex,
-                                       pinType,
-                                       socketType,
-                                       defaultNodeType,
-                                       defaultNodeName);
+                                      blenderName,
+                                      pinId,
+                                      pinName,
+                                      pinIndex,
+                                      pinType,
+                                      socketType,
+                                      defaultNodeType,
+                                      defaultNodeName);
   Py_RETURN_TRUE;
 }
 
 static PyObject *py_add_legacy_data_info(PyObject *self, PyObject *args)
 {
-  int32_t node_type, is_socket, data_type, is_pin, octane_type, is_internal_data, internal_data_is_pin, internal_data_octane_type;
+  int32_t node_type, is_socket, data_type, is_pin, octane_type, is_internal_data,
+      internal_data_is_pin, internal_data_octane_type;
   PyObject *py_name;
   if (!PyArg_ParseTuple(args,
                         "iOiiiiiii",
@@ -974,7 +993,6 @@ static PyObject *py_add_legacy_data_info(PyObject *self, PyObject *args)
                                               internal_data_octane_type);
   Py_RETURN_TRUE;
 }
-
 
 static PyObject *py_start_utils_client(PyObject *self, PyObject *args)
 {
@@ -1047,6 +1065,7 @@ static PyObject *py_copy_color_ramp(PyObject *self, PyObject *args)
 static PyMethodDef methods[] = {
     {"init", py_init_func, METH_VARARGS, ""},
     {"exit", py_exit_func, METH_VARARGS, ""},
+    {"is_shared_surface_supported", py_is_shared_surface_supported, METH_VARARGS, ""},
     {"create", create_func, METH_VARARGS, ""},
     {"free", free_func, METH_O, ""},
     {"render", render_func, METH_VARARGS, ""},

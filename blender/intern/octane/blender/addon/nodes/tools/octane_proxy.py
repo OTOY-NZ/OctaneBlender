@@ -36,11 +36,13 @@ class OctaneProxy(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=consts.NodeType.NT_BLENDER_NODE_OCTANE_PROXY)
+    octane_node_type=consts.NodeType.NT_BLENDER_NODE_OCTANE_PROXY
     octane_socket_list: StringProperty(name="Socket List", default="")
-    octane_attribute_list: StringProperty(name="Attribute List", default="a_data;a_data_md5;")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="10;10;")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=0)
+    # octane_attribute_list: StringProperty(name="Attribute List", default="a_data;a_data_md5;")
+    # octane_attribute_config_list: StringProperty(name="Attribute Config List", default="10;10;")
+    octane_attribute_list=["a_data", "a_data_md5", ]
+    octane_attribute_config={"a_data": [consts.AttributeID.A_UNKNOWN, "a_data", consts.AttributeType.AT_STRING], "a_data_md5": [consts.AttributeID.A_UNKNOWN, "a_data_md5", consts.AttributeType.AT_STRING], }    
+    octane_static_pin_count=0
 
     a_data: StringProperty(name="Data", default="", update=update_proxy_graph_data)
     a_data_md5: StringProperty(name="MD5", default="", update=None)
@@ -103,15 +105,17 @@ class OctaneProxy(bpy.types.Node, OctaneBaseNode):
         self._build_proxy_node(proxy_graph_data_et, report, False)
 
     def open_proxy_node_graph(self, report=None):
+        from octane.core.octane_node import OctaneRpcNode, OctaneRpcNodeType
         import _octane
-        import sys
-        octane_node = OctaneNode(OctaneNodeType.SYNC_NODE)
-        octane_node.set_name("OpenProxyNodeGraph[%s]" % self.name)
-        octane_node.set_node_type(self.octane_node_type)
-        octane_node.set_blender_attribute(self.BLENDER_ATTRIBUTE_EDIT_NODE_GRAPH_DATA, consts.AttributeType.AT_BOOL, True)
-        self.sync_data(octane_node, None, consts.OctaneNodeTreeIDName.GENERAL)
+        octane_rpc_node = OctaneRpcNode(OctaneRpcNodeType.SYNC_NODE)
+        octane_rpc_node.set_name("OpenProxyNodeGraph[%s]" % self.name)
+        octane_rpc_node.set_node_type(self.octane_node_type)
+        octane_rpc_node.set_attribute("a_data", consts.AttributeType.AT_STRING, self.a_data)
+        octane_rpc_node.set_attribute("a_data_md5", consts.AttributeType.AT_STRING, self.a_data_md5)
+        octane_rpc_node.set_blender_attribute(self.BLENDER_ATTRIBUTE_EDIT_NODE_GRAPH_DATA, consts.AttributeType.AT_BOOL, True)
+        # self.sync_data(octane_rpc_node, None, None)
         header_data = "[COMMAND]OPEN_PROXY_NODE_GRAPH"        
-        body_data = octane_node.get_xml_data()
+        body_data = octane_rpc_node.get_xml_data()
         response_data = _octane.update_octane_custom_node(header_data, body_data)        
         root = ET.fromstring(response_data)
         custom_data_et = root.find("custom_data")

@@ -70,6 +70,9 @@ class SessionParams {
   int32_t render_priority;
   int32_t resource_cache_type;
 
+  bool use_shared_surface;
+  uint64_t process_id;
+
   SessionParams()
   {
     interactive = true;
@@ -89,6 +92,9 @@ class SessionParams {
     out_of_core_enabled = false;
     out_of_core_mem_limit = 4096;
     out_of_core_gpu_headroom = 300;
+
+    use_shared_surface = false;
+    process_id = 0;
   }
 
   bool modified(const SessionParams &params)
@@ -107,7 +113,8 @@ class SessionParams {
         hdr_tonemapped == params.hdr_tonemapped &&
         hdr_tonemap_prefer == params.hdr_tonemap_prefer &&
         render_priority == params.render_priority &&
-        resource_cache_type == params.resource_cache_type && width == width && height == height);
+        resource_cache_type == params.resource_cache_type && width == width && height == height &&
+        use_shared_surface == params.use_shared_surface && process_id == params.process_id);
   }
 };  // SessionParams
 

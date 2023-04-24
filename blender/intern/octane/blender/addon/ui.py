@@ -93,6 +93,8 @@ class OCTANE_PT_mesh_properties(OctaneButtonsPanel, Panel):
         # sub.prop(cdata, "scatter_instance_id")
 
         sub = layout.row(align=True)
+        sub.prop(cdata, "primitive_coordinate_mode")
+        sub = layout.row(align=True)
         sub.prop(cdata, "winding_order")
         sub = layout.row(align=True)
         sub.prop(cdata, "infinite_plane")        

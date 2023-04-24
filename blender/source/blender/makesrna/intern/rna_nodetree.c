@@ -152,7 +152,11 @@ static EnumPropertyItem octane_hdr_tex_bit_depth_items[] = {
 
 static EnumPropertyItem octane_ies_items[] = {
     {IES_MAX_1, "IES_MAX_1", 0, "Normalize maximum value to 1.0", ""},
-    {IES_COMPENSATE_LUMINANCE, "IES_COMPENSATE_LUMINANCE", 0, "Normalize using lamp luminance", ""},
+    {IES_COMPENSATE_LUMINANCE,
+     "IES_COMPENSATE_LUMINANCE",
+     0,
+     "Normalize using lamp luminance",
+     ""},
     {IES_CANDELA_ABSOLUTE, "IES_CANDELA_ABSOLUTE", 0, "Absolute photometric", ""},
     {0, NULL, 0, NULL, NULL}};
 
@@ -13420,6 +13424,27 @@ static void def_oct_tex_image_tile(StructRNA *srna)
 static void def_oct_object_data(StructRNA *srna)
 {
   PropertyRNA *prop;
+
+  static const EnumPropertyItem target_coordinate_type_items[] = {
+      {OBJECT_DATA_NODE_TARGET_COORDINATE_BLENDER,
+       "BLENDER",
+       ICON_NONE,
+       "Blender",
+       "The target geometry uses the Blender's coordinates(legacy settings)"},
+      {OBJECT_DATA_NODE_TARGET_COORDINATE_OCTANE,
+       "OCTANE",
+       ICON_NONE,
+       "Octane",
+       "The target geometry uses the Octane's coordinates"},
+      {0, NULL, 0, NULL, NULL},
+  };
+
+  prop = RNA_def_property(srna, "target_primitive_coordinate_mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, NULL, "custom2");
+  RNA_def_property_enum_items(prop, target_coordinate_type_items);
+  RNA_def_property_enum_default(prop, OBJECT_DATA_NODE_TARGET_COORDINATE_BLENDER);
+  RNA_def_property_ui_text(prop, "Target coordinate", "");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
 
   static const EnumPropertyItem source_type_items[] = {
       {OBJECT_DATA_NODE_TYPE_OBJECT,

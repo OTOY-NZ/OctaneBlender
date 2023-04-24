@@ -36,6 +36,7 @@ OCT_NAMESPACE_BEGIN
 Mesh::Mesh()
 {
   is_octane_volume = false;
+  use_octane_coordinate = false;
   is_mesh_synced = false;
   empty = false;
   mesh_type = AUTO;
@@ -83,6 +84,11 @@ bool Mesh::is_global_mesh_type(Scene *scene)
            (scene->meshes_type == MeshType::AS_IS && mesh_type == MeshType::GLOBAL);
   }
   return false;
+}
+
+bool Mesh::is_octane_coordinate_used()
+{
+  return use_octane_coordinate;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

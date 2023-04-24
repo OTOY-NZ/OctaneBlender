@@ -26,8 +26,9 @@ set(SRC
 	scene.cpp
 	session.cpp
 	shader.cpp
-  osl.cpp
+	osl.cpp
 	particles.cpp
+	common_d3d.cpp
 )
 
 set(SRC_HEADERS
@@ -43,16 +44,18 @@ set(SRC_HEADERS
 	scene.h
 	session.h
 	shader.h
-  osl.h
+	osl.h
 	particles.h
-  octane_scatter.h
+	octane_scatter.h
+	common_d3d.hpp	
 
 	kernel/kernel_types.h
 	kernel/kernel_math.h
 )
 
 set(LIB
-
+	d3d11.lib
+	dxgi.lib 
 )
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${RTTI_DISABLE_FLAGS}")

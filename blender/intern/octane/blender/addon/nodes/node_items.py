@@ -119,7 +119,8 @@ class OctaneGeneralNodeCategory(OctaneNodeCategory):
 
 
 class OctaneOutputNodeCategory(OctaneNodeCategory):
-    NODE_TREE_ID_LIST = [consts.OctaneNodeTreeIDName.BLENDER_SHADER, consts.OctaneNodeTreeIDName.BLENDER_TEXTURE, consts.OctaneNodeTreeIDName.COMPOSITE, consts.OctaneNodeTreeIDName.RENDER_AOV, consts.OctaneNodeTreeIDName.CAMERA_IMAGER, consts.OctaneNodeTreeIDName.KERNEL, ]
+    NODE_TREE_ID_LIST = [consts.OctaneNodeTreeIDName.BLENDER_SHADER, consts.OctaneNodeTreeIDName.BLENDER_TEXTURE, consts.OctaneNodeTreeIDName.COMPOSITE, consts.OctaneNodeTreeIDName.RENDER_AOV, consts.OctaneNodeTreeIDName.CAMERA_IMAGER, consts.OctaneNodeTreeIDName.KERNEL, ] \
+    if core.ENABLE_OCTANE_ADDON_CLIENT else [consts.OctaneNodeTreeIDName.COMPOSITE, consts.OctaneNodeTreeIDName.RENDER_AOV, consts.OctaneNodeTreeIDName.CAMERA_IMAGER, consts.OctaneNodeTreeIDName.KERNEL, ]
 
 
 class OctaneTextureNodeCategory(OctaneNodeCategory):

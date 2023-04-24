@@ -92,8 +92,6 @@ enum class OctaneSocketType {
 
 static std::string OCTANE_TEXTURE_HELPER_NAME = "OCTANE_TEXTURE_HELPER[ShaderNodeTexImage]";
 
-#define OCTANE_PROXY_NODE_TYPE -100001
-
 PointerRNA get_object_data_node_source_ptr(BL::BlendData &b_data,
                                            BL::Scene &b_scene,
                                            BL::Node &b_node)
@@ -1028,7 +1026,7 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
   std::string bl_idname = b_node.bl_idname();
   if (node_type_name == "OctaneCustomNode") {
     int octane_node_type = OctaneInfo::instance().get_node_type(bl_idname);
-    if (octane_node_type > 0) {
+    if (octane_node_type > 0 || bl_idname == "OctaneProxy") {
       const AttributeNameInfoMap &attributeInfoMap =
           OctaneInfo::instance().get_attribute_name_info_map(octane_node_type);
       const PinNameInfoMap &pinInfoMap = OctaneInfo::instance().get_pin_name_info_map(
@@ -1191,6 +1189,7 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
             RNA_struct_find_property(&b_input->ptr, "octane_proxy_link_index") != NULL) {
           octane_name = octane_name + OCTANE_BLENDER_OCTANE_PROXY_TAG +
                         std::to_string(get_int(b_input->ptr, "octane_proxy_link_index"));
+          property_type = OctaneSocketType::ST_LINK;
           is_dynamic_pin = true;
         }
         if (is_static_pin || is_dynamic_pin) {
@@ -1237,6 +1236,14 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
   }
   else if (b_node.is_a(&RNA_ShaderNodeOctObjectData) || bl_idname == "OctaneObjectData") {
     int source_type = RNA_enum_get(&b_node.ptr, "source_type");
+    bool is_octane_coordinate_used = false;
+    "target_primitive_coordinate_mode";
+    PropertyRNA *target_primitive_coordinate_mode_prop = RNA_struct_find_property(
+        &b_node.ptr, "target_primitive_coordinate_mode");
+    int target_coordinate_mode = RNA_enum_get(&b_node.ptr, "target_primitive_coordinate_mode");
+    if (target_coordinate_mode == OBJECT_DATA_NODE_TARGET_COORDINATE_OCTANE) {
+      is_octane_coordinate_used = true;
+    }
     PointerRNA source_ptr = get_object_data_node_source_ptr(b_data, b_scene, b_node);
     if (source_ptr.data != NULL) {
       if (source_type == OBJECT_DATA_NODE_TYPE_OBJECT) {
@@ -1266,6 +1273,9 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
               object_data_output_node->oct_node->sName = object_data_output_node->oct_node->sName +
                                                          "_" + name;
               Transform octane_tfm = OCTANE_MATRIX * get_transform(b_ob.matrix_world());
+              if (is_octane_coordinate_used) {
+                octane_tfm = octane_tfm * OCTANE_OBJECT_ROTATION_MATRIX;
+              }
               OctaneDataTransferObject::OctaneValueTransform *oct_transform_node =
                   (OctaneDataTransferObject::OctaneValueTransform *)
                       object_data_output_node->oct_node;
@@ -1289,6 +1299,9 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
               object_data_output_node->oct_node->sName = object_data_output_node->oct_node->sName +
                                                          "_" + name;
               Transform octane_tfm = OCTANE_MATRIX * get_transform(b_ob.matrix_world());
+              if (is_octane_coordinate_used) {
+                octane_tfm = octane_tfm * OCTANE_OBJECT_ROTATION_MATRIX;
+              }
               float3 dir = transform_get_column(&octane_tfm, 2);
               OctaneDataTransferObject::OctaneFloatValue *oct_float_node =
                   (OctaneDataTransferObject::OctaneFloatValue *)object_data_output_node->oct_node;
@@ -1328,6 +1341,9 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
               object_data_geo_output_node->oct_node->sName = placement_name;
               object_data_transform_output_node->oct_node->sName = transform_name;
               Transform octane_tfm = get_transform(b_ob.matrix_world());
+              //if (is_octane_coordinate_used) {
+              //  octane_tfm = octane_tfm * OCTANE_OBJECT_ROTATION_MATRIX;
+              //}
               OctaneDataTransferObject::OctaneValueTransform *oct_transform_node =
                   (OctaneDataTransferObject::OctaneValueTransform *)
                       object_data_transform_output_node->oct_node;
@@ -1572,7 +1588,7 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
             for (b_image.tiles.begin(b_tile); b_tile != b_image.tiles.end(); ++b_tile) {
               int32_t n = b_tile->number() - 1000;
               grid_size_x = std::max(grid_size_x, n % 10);
-              grid_size_y = std::max(std::max(1, grid_size_y), int(n / 10));
+              grid_size_y = std::max(std::max(1, grid_size_y), int(n / 10) + 1);
               int32_t tile_number = b_tile->number();
               b_image_user.tile(tile_number);
               std::string path = image_user_file_path(
@@ -2062,13 +2078,8 @@ static void resolve_octane_outputs(std::string shader_name,
           }
           else {
             bool is_octane_proxy_node = false;
-            PropertyRNA *octane_node_type_prop = RNA_struct_find_property(&b_from_node.ptr,
-                                                                          "octane_node_type");
-            if (octane_node_type_prop != NULL) {
-              int octane_node_type = get_int(b_from_node.ptr, "octane_node_type");
-              if (octane_node_type == OCTANE_PROXY_NODE_TYPE) {
-                is_octane_proxy_node = true;
-              }
+            if (b_from_node.bl_idname() == "OctaneProxy") {
+              is_octane_proxy_node = true;
             }
             if (is_octane_proxy_node && b_to_node.is_a(&RNA_ShaderNodeOutputMaterial)) {
               if (b_to_sock.name() == "Octane Geometry") {
@@ -2166,14 +2177,9 @@ static void generate_sockets_map(std::string prefix_name,
     else {
       // We need to find and process nodes with multiple outputs as Octane supports 1 output only
       bool is_octane_proxy_node = false;
-      PropertyRNA *octane_node_type_prop = RNA_struct_find_property(&b_node->ptr,
-                                                                    "octane_node_type");
-      if (octane_node_type_prop != NULL) {
-        int octane_node_type = get_int(b_node->ptr, "octane_node_type");
-        if (octane_node_type == OCTANE_PROXY_NODE_TYPE) {
-          is_octane_proxy_node = true;
-          link_resolver.tag_multiple_outputs_node(current_name);
-        }
+      if (b_node->bl_idname() == "OctaneProxy") {
+        is_octane_proxy_node = true;
+        link_resolver.tag_multiple_outputs_node(current_name);
       }
       if (b_node->is_a(&RNA_ShaderNodeCameraData) || b_node->is_a(&RNA_ShaderNodeOctObjectData) ||
           bl_idname == "OctaneObjectData" || bl_idname == "OctaneCameraData") {

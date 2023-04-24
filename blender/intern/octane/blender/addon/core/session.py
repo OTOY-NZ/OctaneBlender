@@ -8,6 +8,7 @@ import threading
 import weakref
 import queue
 from octane.utils import consts, utility
+from octane import core
 from octane.core.caches import OctaneNodeCache, ImageCache, MaterialCache, LightCache, WorldCache, CompositeCache, RenderAOVCache, KernelCache, OctaneRenderTargetCache, SceneCache
 from octane.core.object_cache import ObjectCache
 from octane.core.client import OctaneBlender
@@ -18,6 +19,7 @@ from octane.nodes.base_node import OctaneBaseNode
 class RenderSession(object):
     def __init__(self, engine):
         self.session_type = consts.SessionType.UNKNOWN
+        self.use_shared_surface = utility.get_preferences().use_shared_surface and OctaneBlender().is_shared_surface_supported()
         self.graph_time = 0
         self.need_motion_blur = False
         self.motion_blur_start_frame_offset = 0

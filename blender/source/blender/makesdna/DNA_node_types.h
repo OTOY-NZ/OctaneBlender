@@ -2813,6 +2813,11 @@ typedef enum ObjectDataNodeSourceType {
   OBJECT_DATA_NODE_TYPE_COLLECTION = 1,
 } ObjectDataNodeSourceType;
 
+typedef enum ObjectDataNodeTargetPrimitiveCoordinateMode {
+  OBJECT_DATA_NODE_TARGET_COORDINATE_BLENDER = 0,
+  OBJECT_DATA_NODE_TARGET_COORDINATE_OCTANE = 1,  
+} ObjectDataNodeTargetPrimitiveCoordinateMode;
+
 /// IDs we use to identify custom AOVs.
 enum CustomAov
 {

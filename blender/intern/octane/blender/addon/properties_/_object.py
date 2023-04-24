@@ -4,14 +4,15 @@ from bpy.props import IntProperty, FloatProperty, BoolProperty, StringProperty, 
 from bpy.utils import register_class, unregister_class
 from octane.properties_ import common
 from octane.utils import consts, ocio, utility
+from octane.properties import object_mesh_types
 
-object_mesh_types = (    
-    ('Global', "Global", "", 0),
-    ('Scatter', "Scatter", "", 1),
-    ('Movable proxy', "Movable proxy", "", 2),
-    ('Reshapable proxy', "Reshapable proxy", "", 3),
-    ('Auto', "Auto", "", 4),
-)
+# object_mesh_types = (    
+#     ('Global', "Global", "", 0),
+#     ('Scatter', "Scatter", "", 1),
+#     ('Movable proxy', "Movable proxy", "", 2),
+#     ('Reshapable proxy', "Reshapable proxy", "", 3),
+#     ('Auto', "Auto", "", 4),
+# )
 
 custom_aov_modes = (
     ('None', "None", "None", 4096),
@@ -206,9 +207,10 @@ class OctaneObjectSettings(bpy.types.PropertyGroup):
     )   
     object_mesh_type: EnumProperty(
         name="Object Type",
-        description="Used for rendering speed optimization, see the manual",
+        description="Used for rendering speed optimization. See the manual",
         items=object_mesh_types,
-        default='Auto',
+        # default="Auto",
+        default=bpy.context.preferences.addons["octane"].preferences.default_object_mesh_type,
     )   
     node_graph_tree: StringProperty(
         name="Node Graph",

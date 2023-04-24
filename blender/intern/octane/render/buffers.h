@@ -19,13 +19,13 @@
 #ifndef __BUFFERS_H__
 #define __BUFFERS_H__
 
-#include <stdlib.h>
+#include "blender/server/octane_client.h"
+#include "util/util_boundbox.h"
 #include "util/util_function.h"
+#include "util/util_opengl.h"
 #include "util/util_string.h"
 #include "util/util_types.h"
-#include "util/util_boundbox.h"
-
-#include "blender/server/octane_client.h"
+#include <stdlib.h>
 
 namespace OctaneEngine {
 class OctaneClient;
@@ -88,6 +88,9 @@ class DisplayBuffer {
   bool transparent;
   /* use half float? */
   bool half_float;
+  /* shared surface handler */
+  int64_t shared_handler;
+  GLuint gl_texture;
 
   ::OctaneEngine::OctaneClient *server;
 
@@ -97,7 +100,10 @@ class DisplayBuffer {
   void reset(BufferParams &params);
 
   void draw_set(int width, int height);
-  void draw(DeviceDrawParams &draw_params);
+  void draw(DeviceDrawParams &draw_params, bool use_shared_surface = false);
+  void update_gl_texture_from_shared_handler(GLuint &gl_texture, int64_t current_shared_handler);
+  void update_gl_texture_from_pixel_array(
+      GLuint &gl_texture, uint8_t *rgba, int32_t components_cnt, int32_t width, int32_t height);
   bool draw_ready();
 };
 

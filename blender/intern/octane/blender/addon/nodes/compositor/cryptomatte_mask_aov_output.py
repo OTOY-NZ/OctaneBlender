@@ -118,12 +118,12 @@ class OCTANE_OT_BaseCryptomattePicker(bpy.types.Operator):
             print("context.area", context.area, context.area.type)
             context.window.cursor_set("DEFAULT")
             import _octane
-            from octane.core.octane_node import OctaneNode, OctaneNodeType
+            from octane.core.octane_node import OctaneRpcNode, OctaneRpcNodeType
             import xml.etree.ElementTree as ET
             node = self.node
-            octane_node = OctaneNode(OctaneNodeType.SYNC_NODE)
-            octane_node.set_name("OctaneCryptomattePicker[%s]" % node.name)
-            octane_node.set_node_type(node.octane_node_type)
+            octane_rpc_node = OctaneRpcNode(OctaneRpcNodeType.SYNC_NODE)
+            octane_rpc_node.set_name("OctaneCryptomattePicker[%s]" % node.name)
+            octane_rpc_node.set_node_type(node.octane_node_type)
             x_view3d_offset = 0
             y_view3d_offset = 0
             for area in bpy.context.screen.areas:
@@ -136,16 +136,16 @@ class OCTANE_OT_BaseCryptomattePicker(bpy.types.Operator):
                         x_view3d_offset = area.x
                         y_view3d_offset = area.y
                         break
-            octane_node.set_attribute("mouse_x", consts.AttributeType.AT_INT, event.mouse_x - x_view3d_offset)
-            octane_node.set_attribute("mouse_y", consts.AttributeType.AT_INT, event.mouse_y - y_view3d_offset)
-            render_pass_id = utility.get_enum_value(node.inputs["Type"], "default_value", 2006)
-            octane_node.set_attribute("render_pass_id", consts.AttributeType.AT_INT, render_pass_id)
-            octane_node.set_attribute("is_add", consts.AttributeType.AT_BOOL, self.IS_PICKER_ADD)
+            octane_rpc_node.set_attribute("mouse_x", consts.AttributeType.AT_INT, event.mouse_x - x_view3d_offset)
+            octane_rpc_node.set_attribute("mouse_y", consts.AttributeType.AT_INT, event.mouse_y - y_view3d_offset)
+            render_pass_id = utility.get_enum_int_value(node.inputs["Type"], "default_value", 2006)
+            octane_rpc_node.set_attribute("render_pass_id", consts.AttributeType.AT_INT, render_pass_id)
+            octane_rpc_node.set_attribute("is_add", consts.AttributeType.AT_BOOL, self.IS_PICKER_ADD)
             current_mattes = node.inputs["Mattes"].default_value
-            octane_node.set_attribute("mattes", consts.AttributeType.AT_STRING, current_mattes)
-            node.sync_data(octane_node, None, consts.OctaneNodeTreeIDName.GENERAL)
+            octane_rpc_node.set_attribute("mattes", consts.AttributeType.AT_STRING, current_mattes)
+            # node.sync_data(octane_rpc_node, None, consts.OctaneNodeTreeIDName.GENERAL)
             header_data = "[COMMAND]CRYPTOMATTE_PICKER"        
-            body_data = octane_node.get_xml_data()
+            body_data = octane_rpc_node.get_xml_data()
             response_data = _octane.update_octane_custom_node(header_data, body_data)
             if len(response_data):
                 root = ET.fromstring(response_data)

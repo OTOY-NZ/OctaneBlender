@@ -23,7 +23,7 @@
     .quality = 90, \
     .compress = 15, \
     .octane_export_tag = "FileName_", \
-    .octane_export_post_tag = "$OCTANE_PASS$_###", \
+    .octane_export_post_tag = "$OCTANE_PASS$_$VIEW_LAYER$_###", \
   }
 
 #define _DNA_DEFAULT_BakeData \

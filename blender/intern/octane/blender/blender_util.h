@@ -320,7 +320,7 @@ static inline string image_user_file_path(BL::ImageUser &iuser,
   char filepath[1024];
   if (!load_tiled) {
     iuser.tile(0);
-  }  
+  }
   BKE_image_user_frame_calc(ima.ptr.data, iuser.ptr.data, cfra);
   BKE_image_user_file_path(iuser.ptr.data, ima.ptr.data, filepath);
 
@@ -330,7 +330,7 @@ static inline string image_user_file_path(BL::ImageUser &iuser,
     filepath_str = ensure_abs_path(ima.filepath_raw(), filepath_str);
   }
 #endif
-  //if (load_tiled && ima.source() == BL::Image::source_TILED) {
+  // if (load_tiled && ima.source() == BL::Image::source_TILED) {
   //  string_replace(filepath_str, "1001", "<UDIM>");
   //}
   return filepath_str;
@@ -392,19 +392,37 @@ static inline float3 get_float3(const BL::Array<float, 4> &array)
   return make_float3(array[0], array[1], array[2]);
 }
 
-static inline OctaneDataTransferObject::float_3 get_octane_float3(const BL::Array<float, 2> &array)
+static inline OctaneDataTransferObject::float_3 get_octane_float3(
+    const BL::Array<float, 2> &array, bool use_octane_coordinate = false)
 {
-  return OctaneDataTransferObject::float_3(array[0], array[1], 0.0f);
+  if (use_octane_coordinate) {
+    return OctaneDataTransferObject::float_3(array[0], 0.0f, -array[1]);
+  }
+  else {
+    return OctaneDataTransferObject::float_3(array[0], array[1], 0.0f);
+  }
 }
 
-static inline OctaneDataTransferObject::float_3 get_octane_float3(const BL::Array<float, 3> &array)
+static inline OctaneDataTransferObject::float_3 get_octane_float3(
+    const BL::Array<float, 3> &array, bool use_octane_coordinate = false)
 {
-  return OctaneDataTransferObject::float_3(array[0], array[1], array[2]);
+  if (use_octane_coordinate) {
+    return OctaneDataTransferObject::float_3(array[0], array[2], -array[1]);
+  }
+  else {
+    return OctaneDataTransferObject::float_3(array[0], array[1], array[2]);
+  }  
 }
 
-static inline OctaneDataTransferObject::float_3 get_octane_float3(const BL::Array<float, 4> &array)
+static inline OctaneDataTransferObject::float_3 get_octane_float3(
+    const BL::Array<float, 4> &array, bool use_octane_coordinate = false)
 {
-  return OctaneDataTransferObject::float_3(array[0], array[1], array[2]);
+  if (use_octane_coordinate) {
+    return OctaneDataTransferObject::float_3(array[0], array[2], -array[1]);
+  }
+  else {
+    return OctaneDataTransferObject::float_3(array[0], array[1], array[2]);
+  }  
 }
 
 static inline float4 get_float4(const BL::Array<float, 4> &array)
@@ -1070,7 +1088,8 @@ static inline void set_int4(PointerRNA &ptr, const char *name, int4 value)
 
 static inline bool set_blender_node(::OctaneDataTransferObject::OctaneDTOBase *base_dto_ptr,
                                     PointerRNA &ptr,
-                                    bool is_socket = false, bool is_custom_node = false)
+                                    bool is_socket = false,
+                                    bool is_custom_node = false)
 {
   if (!base_dto_ptr || !ptr.data)
     return false;

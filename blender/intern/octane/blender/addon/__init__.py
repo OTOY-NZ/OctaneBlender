@@ -19,10 +19,10 @@
 # <pep8 compliant>
 
 bl_info = {
-    "name": "OctaneBlender (v. 27.8)",
+    "name": "OctaneBlender (v. 27.9)",
     "author": "OTOY Inc.",
-    "version": (27, 8),
-    "blender": (3, 3, 0),
+    "version": (27, 9),
+    "blender": (3, 4, 1),
     "location": "Info header, render engine menu",
     "description": "OctaneBlender",
     "warning": "",
@@ -130,6 +130,7 @@ class OctaneRender(bpy.types.RenderEngine):
         self.session.render_update(depsgraph, scene, layer)
         self.session.set_resolution(width, height)
         render_pass_ids = self.session.get_enabled_render_pass_ids(layer)
+        OctaneBlender().use_shared_surface(False)
         self.session.set_render_pass_ids(render_pass_ids)
         sync_time = time.time()
         sync_elapsed_time = sync_time - init_time
@@ -233,10 +234,12 @@ class OctaneRender(bpy.types.RenderEngine):
             self.tag_redraw()
 
     def draw_render_result(self, view_layer, region, scene):
+        is_shared_surface_supported = OctaneBlender().is_shared_surface_supported()
+        use_shared_surface = (self.session.use_shared_surface and is_shared_surface_supported)
         if region:
             # Get viewport dimensions
             if not self.draw_data or self.draw_data.needs_replacement(region.width, region.height):
-                self.draw_data = OctaneDrawData(region.width, region.height, self, scene)
+                self.draw_data = OctaneDrawData(region.width, region.height, self, scene, use_shared_surface)
         if self.draw_data:
             render_pass_id = self.session.get_current_preview_render_pass_id(view_layer)
             self.draw_data.update(render_pass_id, scene)
@@ -269,7 +272,9 @@ class OctaneRender(bpy.types.RenderEngine):
 
 
 class OctaneDrawData(object):
-    def __init__(self, width, height, engine, scene):
+    ENABLE_PROFILE = False
+
+    def __init__(self, width, height, engine, scene, use_shared_surface):
         self.calculated_sample_per_pixel = 0
         self.tonemapped_sample_per_pixel = 0
         self.region_sample_per_pixel = 0
@@ -281,20 +286,30 @@ class OctaneDrawData(object):
         self.offset_x = 0
         self.offset_y = 0
         self.transparent = True
+        self.use_shared_surface = use_shared_surface
         if self.transparent:
             bufferdepth = 4
             self.buffertype = bgl.GL_RGBA
         else:
             bufferdepth = 3
             self.buffertype = bgl.GL_RGB
-        self.buffer = bgl.Buffer(bgl.GL_FLOAT, [self.width * self.height * bufferdepth])
+        if self.use_shared_surface:
+            self.texture_id = 0
+        else:
+            self.buffer = bgl.Buffer(bgl.GL_FLOAT, [self.width * self.height * bufferdepth])
         self.init_opengl(engine, scene)
+        # Profile data
+        self.total_update_count = 0
+        self.render_result_update_count = 0
+        self.total_update_time = 0
+        self.render_result_update_time = 0
 
     def init_opengl(self, engine, scene):
-        # Create texture
-        self.texture = bgl.Buffer(bgl.GL_INT, 1)
-        bgl.glGenTextures(1, self.texture)
-        self.texture_id = self.texture[0]
+        if not self.use_shared_surface:
+            # Create texture
+            self.texture = bgl.Buffer(bgl.GL_INT, 1)
+            bgl.glGenTextures(1, self.texture)
+            self.texture_id = self.texture[0]
 
         # Bind shader that converts from scene linear to display space,
         # use the scene's color management settings.
@@ -323,7 +338,10 @@ class OctaneDrawData(object):
             self.offset_x, self.offset_y + height
         ]
         position = bgl.Buffer(bgl.GL_FLOAT, len(position), position)
-        texcoord = [0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0]
+        if self.use_shared_surface:
+            texcoord = [0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0]
+        else:
+            texcoord = [0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0]
         texcoord = bgl.Buffer(bgl.GL_FLOAT, len(texcoord), texcoord)
 
         self.vertex_buffer = bgl.Buffer(bgl.GL_INT, 2)
@@ -341,11 +359,23 @@ class OctaneDrawData(object):
         bgl.glBindVertexArray(0)
         engine.unbind_display_space_shader()
 
-    def __del__(self):
+    def __del__(self):        
         bgl.glDeleteBuffers(2, self.vertex_buffer)
         bgl.glDeleteVertexArrays(1, self.vertex_array)
         bgl.glBindTexture(bgl.GL_TEXTURE_2D, 0)
-        bgl.glDeleteTextures(1, self.texture)
+        if not self.use_shared_surface:
+            bgl.glDeleteTextures(1, self.texture)
+        if self.ENABLE_PROFILE:
+            is_denoise_render_pass = utility.is_denoise_render_pass(self.statistics.get("render_pass_id"))
+            if is_denoise_render_pass:
+                msg = "Sample: %d/%d/%d, Render time: %.2f (sec)" % (self.calculated_sample_per_pixel, self.tonemapped_sample_per_pixel, self.max_sample, self.statistics.get("render_time", 0))
+            else:
+                msg = "Denoising Sample: %d/%d, Render time: %.2f (sec)" % (self.calculated_sample_per_pixel, self.max_sample, self.statistics.get("render_time", 0))
+            print("Render Status: \nResolution: %d, %d\n%s\nUse Shared Surface: %d" % (self.width, self.height, msg, self.use_shared_surface))
+            if self.total_update_time > 0:
+                print("Total Update Data: %.2f ms, %d, %.2f ms" % (self.total_update_time, self.total_update_count, self.total_update_time / self.total_update_count))
+            if self.render_result_update_time > 0:
+                print("Render Result Update Data: %.2f ms, %d, %.2f ms" % (self.render_result_update_time, self.render_result_update_count, self.render_result_update_time / self.render_result_update_count))
 
     def needs_replacement(self, width, height):
         if self.width != width or self.height != height:
@@ -353,9 +383,28 @@ class OctaneDrawData(object):
         return False
 
     def update(self, render_pass_id, scene):
-        if OctaneBlender().get_render_result(render_pass_id, True, consts.RenderFrameDataType.RENDER_FRAME_FLOAT_RGBA, self.buffer, self.statistics):
-            self.update_texture(scene)
-            self.update_render_status(scene)
+        is_render_result_updated = False
+        if self.ENABLE_PROFILE:
+            self.total_update_count += 1
+            start_time = time.time()
+        OctaneBlender().use_shared_surface(self.use_shared_surface)
+        if self.use_shared_surface:
+            if OctaneBlender().get_render_result_shared_surface(render_pass_id, True, consts.RenderFrameDataType.RENDER_FRAME_FLOAT_RGBA, self.statistics):
+                is_render_result_updated = True
+                self.update_texture_shared_surface(scene)
+                self.update_render_status(scene)            
+        else:
+            if OctaneBlender().get_render_result(render_pass_id, True, consts.RenderFrameDataType.RENDER_FRAME_FLOAT_RGBA, self.buffer, self.statistics):
+                is_render_result_updated = True
+                self.update_texture(scene)
+                self.update_render_status(scene)
+        if self.ENABLE_PROFILE:
+            end_time = time.time()
+            time_eslapse = (end_time - start_time) * 1000
+            self.total_update_time += time_eslapse
+            if is_render_result_updated:
+                self.render_result_update_count += 1
+                self.render_result_update_time += time_eslapse
 
     def update_render_status(self, scene):
         self.calculated_sample_per_pixel = self.statistics["calculated_sample_per_pixel"]
@@ -364,7 +413,7 @@ class OctaneDrawData(object):
         self.max_sample = self.statistics["max_sample_per_pixel"]
         self.current_change_level = self.statistics["change_level"]
 
-    def draw(self, engine, scene):
+    def draw(self, engine, scene):        
         is_denoise_render_pass = utility.is_denoise_render_pass(self.statistics.get("render_pass_id"))
         if is_denoise_render_pass:
             msg = "Sample: %d/%d/%d, Render time: %.2f (sec)" % (self.calculated_sample_per_pixel, self.tonemapped_sample_per_pixel, self.max_sample, self.statistics.get("render_time", 0))
@@ -416,6 +465,17 @@ class OctaneDrawData(object):
         bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_NEAREST)
         bgl.glBindTexture(bgl.GL_TEXTURE_2D, 0)
 
+    def update_texture_shared_surface(self, scene):
+        texture_id = self.statistics["gl_texture_name"]
+        if self.texture_id != texture_id:
+            self.texture_id = texture_id
+            bgl.glActiveTexture(bgl.GL_TEXTURE0)
+            bgl.glBindTexture(bgl.GL_TEXTURE_2D, self.texture_id)
+            bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_WRAP_S, bgl.GL_CLAMP_TO_EDGE)
+            bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_WRAP_T, bgl.GL_CLAMP_TO_EDGE)
+            bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_NEAREST)
+            bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_NEAREST)
+            bgl.glBindTexture(bgl.GL_TEXTURE_2D, 0)
 
 classes = (
     OctaneRender,

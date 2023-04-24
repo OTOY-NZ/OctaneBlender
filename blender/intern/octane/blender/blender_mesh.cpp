@@ -341,6 +341,7 @@ static void create_mesh(Scene *scene,
                         bool subdivision = false,
                         bool subdivide_uvs = true)
 {
+  bool use_octane_coordinate = mesh->is_octane_coordinate_used();
   mesh->octane_mesh.oMeshData.bUpdate = true;
   /* count vertices and faces */
   int numverts = b_mesh.vertices.length();
@@ -361,7 +362,8 @@ static void create_mesh(Scene *scene,
     mesh->octane_mesh.oMeshData.f3Points.reserve(numverts);
     BL::Mesh::vertices_iterator v;
     for (b_mesh.vertices.begin(v); v != b_mesh.vertices.end(); ++v) {
-      mesh->octane_mesh.oMeshData.f3SphereCenters.push_back(get_octane_float3(v->co()));
+      mesh->octane_mesh.oMeshData.f3SphereCenters.push_back(
+          get_octane_float3(v->co(), use_octane_coordinate));
     }
     return;
   }
@@ -400,8 +402,10 @@ static void create_mesh(Scene *scene,
   /* create vertex coordinates and normals */
   BL::Mesh::vertices_iterator v;
   for (b_mesh.vertices.begin(v); v != b_mesh.vertices.end(); ++v) {
-    mesh->octane_mesh.oMeshData.f3Points.push_back(get_octane_float3(v->co()));
-    mesh->octane_mesh.oMeshData.f3Normals.push_back(get_octane_float3(v->normal()));
+    mesh->octane_mesh.oMeshData.f3Points.push_back(
+        get_octane_float3(v->co(), use_octane_coordinate));
+    mesh->octane_mesh.oMeshData.f3Normals.push_back(
+        get_octane_float3(v->normal(), use_octane_coordinate));
   }
   mesh->octane_mesh.oMeshData.oMotionf3Points[0] = mesh->octane_mesh.oMeshData.f3Points;
 
@@ -771,6 +775,7 @@ static void create_openvdb_volume(BL::FluidDomainSettings &b_domain,
 
 static void sync_mesh_fluid_motion(BL::Object &b_ob, Scene *scene, BL::Mesh &b_mesh, Mesh *mesh)
 {
+  bool use_octane_transform = false;
   static const ustring u_velocity("velocity");
   for (BL::Attribute &b_attribute : b_mesh.attributes) {
     const ustring name{b_attribute.name().c_str()};
@@ -781,7 +786,7 @@ static void sync_mesh_fluid_motion(BL::Object &b_ob, Scene *scene, BL::Mesh &b_m
             mesh->octane_mesh.oMeshData.f3SphereCenters.size());
         for (int i = 0; i < mesh->octane_mesh.oMeshData.f3SphereSpeeds.size(); i++) {
           mesh->octane_mesh.oMeshData.f3SphereSpeeds[i] = get_octane_float3(
-              b_vector_attribute.data[i].vector());
+              b_vector_attribute.data[i].vector(), use_octane_transform);
         }
       }
       else {
@@ -789,7 +794,7 @@ static void sync_mesh_fluid_motion(BL::Object &b_ob, Scene *scene, BL::Mesh &b_m
             mesh->octane_mesh.oMeshData.f3Points.size());
         for (int i = 0; i < mesh->octane_mesh.oMeshData.f3Velocities.size(); i++) {
           mesh->octane_mesh.oMeshData.f3Velocities[i] = get_octane_float3(
-              b_vector_attribute.data[i].vector());
+              b_vector_attribute.data[i].vector(), use_octane_transform);
         }
       }
       break;
@@ -947,12 +952,20 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
     is_mesh_data_updated = true;
     unsync_resource_to_octane_manager(mesh_name, OctaneResourceType::GEOMETRY);
     edited_mesh_names.erase(mesh_name);
+    if (resource_cache_data.find(mesh_name) != resource_cache_data.end()) {
+      resource_cache_data.erase(mesh_name);
+    }
   }
   std::string new_mesh_tag = generate_mesh_tag(b_depsgraph, b_ob, used_shaders);
+  if (b_ob.type() == BL::Object::type_MESH) {
+    std::string coordinate_mode = std::to_string(
+        RNA_enum_get(&oct_mesh, "primitive_coordinate_mode"));
+    new_mesh_tag += ("|" + coordinate_mode);
+  }
 
   std::string new_octane_prop_tag = "";
   if (b_ob.type() == BL::Object::type_MESH) {
-    BL::Mesh b_mesh = BL::Mesh(b_ob.data());
+    BL::Mesh b_mesh = BL::Mesh(b_ob.data());    
     std::string subd_mesh_setting_tag = std::to_string(b_mesh.oct_enable_subd()) +
                                         std::to_string(b_mesh.oct_subd_level()) +
                                         std::to_string(b_mesh.oct_open_subd_scheme()) +
@@ -1119,7 +1132,7 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
       }
     }
     octane_mesh->enable_offset_transform = RNA_boolean_get(&oct_mesh,
-                                                           "enable_octane_offset_transform");
+                                                           "enable_octane_offset_transform");    
     if (octane_mesh->enable_offset_transform) {
       float3 translate, euler, scale;
       int mode = RNA_enum_get(&oct_mesh, "octane_offset_rotation_order");
@@ -1299,6 +1312,8 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
 
   octane_mesh->enable_offset_transform = RNA_boolean_get(&oct_mesh,
                                                          "enable_octane_offset_transform");
+  octane_mesh->use_octane_coordinate = RNA_enum_get(&oct_mesh, "primitive_coordinate_mode") ==
+                                       OBJECT_DATA_NODE_TARGET_COORDINATE_OCTANE;
   if (octane_mesh->enable_offset_transform) {
     float3 translate, euler, scale;
     int mode = RNA_enum_get(&oct_mesh, "octane_offset_rotation_order");

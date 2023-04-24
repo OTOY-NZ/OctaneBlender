@@ -2,9 +2,13 @@ import bpy
 from bpy.app.handlers import persistent
 from bpy.props import StringProperty
 from bpy.utils import register_class, unregister_class
-from bl_ui.space_node import NODE_HT_header, NODE_MT_editor_menus
+from bl_ui.space_node import NODE_HT_header, NODE_MT_editor_menus, NODE_MT_context_menu
 from octane.utils import consts, utility
 from octane import core
+
+
+_NODE_HT_header_draw = None
+_NODE_MT_context_menu_draw = None
 
 
 class OctaneBaseNodeTree(object):
@@ -55,7 +59,7 @@ class OctaneBaseNodeTree(object):
         bpy.app.timers.register(self.update_post)
 
     def update_post(self):
-        self.update_link_validity(self)   
+        self.update_link_validity(self, None)   
     
     # Ensure the viewport update
     def update_viewport(self):
@@ -101,7 +105,7 @@ class OctaneBaseNodeTree(object):
                                 break        
 
     @staticmethod
-    def update_link_validity(node_tree):
+    def update_link_validity(node_tree, data_owner=None):
         for link in node_tree.links:
             from_socket = link.from_socket
             to_socket = link.to_socket
@@ -115,17 +119,16 @@ class OctaneBaseNodeTree(object):
                 if from_socket_pin_type != to_socket_pin_type:
                     link.is_valid = False
         OctaneBaseNodeTree.update_link_validity_for_blender_insert_links(node_tree)
-        OctaneBaseNodeTree.update_ramp_node_validity(node_tree)
+        OctaneBaseNodeTree.update_special_node_validity(node_tree, data_owner)
 
     @staticmethod
-    def update_ramp_node_validity(node_tree):
+    def update_special_node_validity(node_tree, data_owner=None):
         from octane.nodes.base_color_ramp import OctaneBaseRampNode
         original_node_tree = node_tree.original
         for node in original_node_tree.nodes:
             if isinstance(node, OctaneBaseRampNode):
-                node.validate_color_ramp()
+                node.validate_color_ramp(data_owner)
 
-_NODE_HT_header_draw = None
 
 def NODE_HT_header_octane_draw(self, context):
     layout = self.layout
@@ -303,6 +306,38 @@ def NODE_HT_header_octane_draw(self, context):
         row.prop(tool_settings, "snap_target", text="")
 
 
+def NODE_MT_context_menu_draw(self, context):
+    _NODE_MT_context_menu_draw(self, context)
+    layout = self.layout
+    selected_nodes_len = len(context.selected_nodes)
+    if selected_nodes_len > 0:
+        layout.separator()        
+        layout.operator("octane.convert_to_octane_node", text="Convert to Octane Node")
+
+
+class OCTANE_convert_to_octane_node(bpy.types.Operator):
+    """Convert the Cycles' node to the compatible Octane node if applicable"""
+    
+    bl_idname = "octane.convert_to_octane_node"
+    bl_label = "Convert to Octane Node"
+    bl_description = "Convert the Cycles' node to the compatible Octane node if applicable"
+
+    def convert_tex_image_node(self, context, node):
+        node_tree = node.id_data
+        node_name = node.name
+        octane_node = node_tree.nodes.new("OctaneRGBImage")
+        octane_node.image = node.image
+        octane_node.location = node.location
+        node_tree.nodes.remove(node)
+        octane_node.name = node_name
+
+    def execute(self, context):
+        for node in context.selected_nodes:
+            if node.type == "TEX_IMAGE":
+                self.convert_tex_image_node(context, node)            
+        return {"FINISHED"}
+
+
 class OCTANE_quick_add_composite_nodetree(bpy.types.Operator):
     """Add an Octane Composite node tree with the default node configuration"""
     
@@ -374,25 +409,30 @@ class NodeTreeHandler:
     OCTANE_WORLD_INPUT_NAME = "Environment"
 
     @staticmethod
+    def init_node_helper():
+        from octane.nodes.base_image import OctaneBaseImageNode
+        OctaneBaseImageNode.get_octane_image_helper()
+
+    @staticmethod
     def init_color_ramp_helper():
         from octane.nodes.base_color_ramp import OctaneBaseRampNode
-        def _init_color_ramp_helper(node_tree, used_color_ramp_names):            
+        def _init_color_ramp_helper(node_tree, used_color_ramp_names, data_owner=None):            
             original_node_tree = node_tree.original
             for node in original_node_tree.nodes:
                 if isinstance(node, OctaneBaseRampNode):
                     node.init_helper_color_ramp_watcher()
-                    node.validate_color_ramp(True)
+                    node.validate_color_ramp(True, data_owner)
                     used_color_ramp_names.add(node.color_ramp_name)
         used_color_ramp_names = set()
         for material in bpy.data.materials:
             if material.use_nodes and material.node_tree:
-                _init_color_ramp_helper(material.node_tree, used_color_ramp_names)
+                _init_color_ramp_helper(material.node_tree, used_color_ramp_names, material)
         for world in bpy.data.worlds:
             if world.use_nodes and world.node_tree:
-                _init_color_ramp_helper(world.node_tree, used_color_ramp_names)
+                _init_color_ramp_helper(world.node_tree, used_color_ramp_names, world)
         for light in bpy.data.lights:
             if light.use_nodes and light.node_tree:
-                _init_color_ramp_helper(light.node_tree, used_color_ramp_names)
+                _init_color_ramp_helper(light.node_tree, used_color_ramp_names, light)
         OctaneBaseRampNode.clear_unused_color_ramp_helpers(used_color_ramp_names)        
 
     @staticmethod
@@ -410,6 +450,8 @@ class NodeTreeHandler:
         if scene.render.engine != consts.ENGINE_NAME:
             return        
         utility.update_active_render_aov_node_tree(bpy.context.view_layer)
+        # Init node helper
+        NodeTreeHandler.init_node_helper()        
         # Init color ramp watchers
         NodeTreeHandler.init_color_ramp_helper()
         # Init kernel and camera imager
@@ -454,7 +496,7 @@ class NodeTreeHandler:
         return False          
 
     @staticmethod
-    def _on_material_new(node_tree):
+    def _on_material_new(node_tree, data_owner=None):
         if node_tree and NodeTreeHandler.MATERIAL_OUTPUT_NODE_NAME in node_tree.nodes:
             blender_output = node_tree.nodes[NodeTreeHandler.MATERIAL_OUTPUT_NODE_NAME]
             if NodeTreeHandler._is_blender_default_material(node_tree):
@@ -463,7 +505,7 @@ class NodeTreeHandler:
             elif NodeTreeHandler._is_blender_default_volume(node_tree):
                 NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, blender_output, blender_output, NodeTreeHandler.VOLUME_INPUT_NAME, NodeTreeHandler.VOLUME_INPUT_NAME, "OctaneVolumeMedium")
         if node_tree:
-            OctaneBaseNodeTree.update_link_validity(node_tree)
+            OctaneBaseNodeTree.update_link_validity(node_tree, data_owner)
 
     @staticmethod
     def on_material_new(scene):
@@ -477,11 +519,11 @@ class NodeTreeHandler:
                 active_material = active_object.active_material
             if active_material and active_material.use_nodes:
                 node_tree = active_material.node_tree
-            NodeTreeHandler._on_material_new(node_tree)
+            NodeTreeHandler._on_material_new(node_tree, active_material)
             for idx in range(NodeTreeHandler.material_node_tree_count, len(bpy.data.materials)):
                 current_material = bpy.data.materials[idx]
                 if current_material.node_tree is not node_tree:
-                    NodeTreeHandler._on_material_new(current_material.node_tree)
+                    NodeTreeHandler._on_material_new(current_material.node_tree, current_material)
         NodeTreeHandler.material_node_tree_count = len(bpy.data.materials)
         
     @staticmethod
@@ -493,7 +535,7 @@ class NodeTreeHandler:
         return False
 
     @staticmethod
-    def _on_world_new(node_tree):
+    def _on_world_new(node_tree, data_owner=None):
         if node_tree and NodeTreeHandler.WORLD_OUTPUT_NODE_NAME in node_tree.nodes:
             if NodeTreeHandler._is_blender_default_world(node_tree):
                 blender_output = node_tree.nodes[NodeTreeHandler.WORLD_OUTPUT_NODE_NAME]
@@ -505,7 +547,7 @@ class NodeTreeHandler:
                 else:
                     NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, blender_output, blender_output, NodeTreeHandler.WORLD_INPUT_NAME, "Octane Environment", "OctaneTextureEnvironment")
         if node_tree:
-            OctaneBaseNodeTree.update_link_validity(node_tree)
+            OctaneBaseNodeTree.update_link_validity(node_tree, data_owner)
 
     @staticmethod
     def on_world_new(scene):
@@ -515,11 +557,11 @@ class NodeTreeHandler:
             node_tree = None
             if active_world and active_world.use_nodes:
                 node_tree = active_world.node_tree
-            NodeTreeHandler._on_world_new(node_tree)
+            NodeTreeHandler._on_world_new(node_tree, active_world)
             for idx in range(NodeTreeHandler.world_node_tree_count, len(bpy.data.worlds)):
                 current_world = bpy.data.worlds[idx]
                 if current_world.node_tree is not node_tree:
-                    NodeTreeHandler._on_material_new(current_world.node_tree)
+                    NodeTreeHandler._on_world_new(current_world.node_tree, current_world)
         NodeTreeHandler.world_node_tree_count = len(bpy.data.worlds)
 
     @staticmethod
@@ -586,23 +628,28 @@ class NodeTreeHandler:
                 node_tree = update.id.node_tree
             elif isinstance(update.id, bpy.types.World):
                 node_tree = update.id.node_tree
+            elif isinstance(update.id, bpy.types.Material):
+                node_tree = update.id.node_tree                
             if node_tree is not None:
                 if update.id is scene.world:
                     is_active_world_updated = True
                 if update.id is bpy.context.active_object:
                     is_active_object_updated = True
-                OctaneBaseNodeTree.update_link_validity(node_tree)
+                OctaneBaseNodeTree.update_link_validity(node_tree, update.id)
         if bpy.context.active_object and not is_active_object_updated:
             active_object = bpy.context.active_object
+            data_owner = None
             node_tree = None
             if active_object.active_material and active_object.active_material.use_nodes:
+                data_owner = bpy.context.active_object.active_material
                 node_tree = bpy.context.active_object.active_material.node_tree
             if active_object.type == "LIGHT" and active_object.data.use_nodes:
+                data_owner = active_object.data
                 node_tree = active_object.data.node_tree
             if node_tree is not None:
-                OctaneBaseNodeTree.update_link_validity(node_tree)
+                OctaneBaseNodeTree.update_link_validity(node_tree, data_owner)
         if scene.world and scene.world.use_nodes and not is_active_world_updated:
-            OctaneBaseNodeTree.update_link_validity(scene.world.node_tree)
+            OctaneBaseNodeTree.update_link_validity(scene.world.node_tree, scene.world)
 
 @persistent
 def octane_load_post_handler(scene):
@@ -626,6 +673,7 @@ _CLASSES = [
     OCTANE_quick_add_composite_nodetree,
     OCTANE_quick_add_render_aov_nodetree,
     OCTANE_quick_add_kernel_nodetree,
+    OCTANE_convert_to_octane_node,
 ]
 
 
@@ -633,6 +681,9 @@ def register():
     global _NODE_HT_header_draw
     _NODE_HT_header_draw = NODE_HT_header.draw
     NODE_HT_header.draw = NODE_HT_header_octane_draw
+    global _NODE_MT_context_menu_draw
+    _NODE_MT_context_menu_draw = NODE_MT_context_menu.draw
+    NODE_MT_context_menu.draw = NODE_MT_context_menu_draw
     bpy.app.handlers.load_post.append(octane_load_post_handler)
     bpy.app.handlers.depsgraph_update_post.append(node_tree_update_handler)
     for cls in _CLASSES:
@@ -642,6 +693,8 @@ def register():
 def unregister():
     global _NODE_HT_header_draw
     NODE_HT_header.draw = _NODE_HT_header_draw
+    global _NODE_MT_context_menu_draw
+    NODE_MT_context_menu.draw = _NODE_MT_context_menu_draw
     bpy.app.handlers.load_post.remove(octane_load_post_handler)
     bpy.app.handlers.depsgraph_update_post.remove(node_tree_update_handler)
     for cls in _CLASSES:

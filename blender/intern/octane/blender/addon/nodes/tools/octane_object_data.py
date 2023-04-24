@@ -34,12 +34,16 @@ class OctaneObjectData(bpy.types.Node, OctaneBaseNode):
         is_collection_mode = self.source_type == "Collection"
         self.outputs[self.TRANSFORM_OUT].hide = is_collection_mode
         self.outputs[self.ROTATION_OUT].hide = is_collection_mode           
-
     items = [
         ("Object", "Object", "Use an individual object as data source", 0),
         ("Collection", "Collection", "Use an entire collection as data source", 1),
     ]
     source_type: EnumProperty(name="Source type", default="Object", update=update_source_type, description="Determines the data source type(object or collection)", items=items) 
+    primitive_coordinate_modes = [
+        ("Blender", "Blender", "", 0),
+        ("Octane", "Octane", "", 1),        
+    ]
+    target_primitive_coordinate_mode: EnumProperty(name="Target coordinate", default="Blender", update=OctaneBaseNode.update_node_tree, description="Determines the coordinate mode of the target's primitive data", items=primitive_coordinate_modes)
     object_name: StringProperty(name="Object name")
     collection_name: StringProperty(name="Collection name")
 
@@ -53,6 +57,8 @@ class OctaneObjectData(bpy.types.Node, OctaneBaseNode):
         self.outputs.new("OctaneGeometryOutSocket", self.TRANSFORMED_GEO_OUT).init()
 
     def draw_buttons(self, context, layout):
+        row = layout.row()
+        row.prop(self, "target_primitive_coordinate_mode", expand=True)
         row = layout.row()
         row.prop(self, "source_type", expand=True)
         row = layout.row()
