@@ -399,13 +399,46 @@ class OCTANE_OT_ConvertToOctaneMaterial(bpy.types.Operator):
         if cur_obj and len(cur_obj.material_slots):                    
             cur_material = cur_obj.material_slots[cur_obj.active_material_index].material
             converted_material = cur_material.copy()        
-            converters.convert_to_octane_material(cur_material, converted_material) 
-            if len(cur_obj.material_slots) < 1:                    
-                cur_obj.data.materials.append(converted_material)
-            else:                    
-                cur_obj.material_slots[cur_obj.active_material_index].material = converted_material  
-            converters.convert_all_related_material(cur_material, converted_material)            
+            result = converters.convert_to_octane_material(cur_material, converted_material)
+            if result:
+                if len(cur_obj.material_slots) < 1:                    
+                    cur_obj.data.materials.append(converted_material)
+                else:                    
+                    cur_obj.material_slots[cur_obj.active_material_index].material = converted_material  
+                converters.convert_all_related_material(cur_material, converted_material)
+            else:
+                bpy.data.materials.remove(converted_material)
         return {'FINISHED'} 
+
+class OCTANE_OT_ConvertToOctaneScene(bpy.types.Operator):
+    """Try to convert current scene to compatiable Octane scene if possible. Do nothing if not applicable"""
+    bl_idname = "octane.convert_to_octane_scene"
+    bl_label = "Convert to Octane scene"
+    bl_register = True
+    bl_undo = False
+
+    @classmethod
+    def poll(cls, context):
+        return True
+
+    def execute(self, context):
+        scene = context.scene
+        processed_material_names = set()
+        for cur_obj in context.scene.objects:            
+            if cur_obj:
+                for idx in range(len(cur_obj.material_slots)):
+                    cur_material = cur_obj.material_slots[idx].material
+                    if cur_material.name in processed_material_names:
+                        continue
+                    processed_material_names.add(cur_material.name)
+                    converted_material = cur_material.copy()        
+                    result = converters.convert_to_octane_material(cur_material, converted_material)
+                    if result:
+                        cur_obj.material_slots[idx].material = converted_material
+                        converters.convert_all_related_material(cur_material, converted_material)
+                    else:
+                        bpy.data.materials.remove(converted_material)
+        return {'FINISHED'}
 
 class OCTANE_OT_BaseExport(Operator, ExportHelper):
     export_type = 0
@@ -698,6 +731,7 @@ classes = (
     OCTANE_OT_SetMeshesType,
     OCTANE_OT_SetOctaneShader,
     OCTANE_OT_ConvertToOctaneMaterial,
+    OCTANE_OT_ConvertToOctaneScene,
 
     OCTANE_OT_OrbxExport,
     OCTANE_OT_AlembicExport,

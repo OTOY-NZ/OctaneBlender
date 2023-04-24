@@ -1,7 +1,6 @@
 set(INC
 	./rpc/include
 	..
-	../../glew-mx
 	../../guardedalloc
 	../../mikktspace
 	../../../source/blender/makesdna
@@ -20,7 +19,7 @@ set(INC
 set(INC_SYS
 	${PYTHON_INCLUDE_DIRS}
 	${BOOST_INCLUDE_DIR}
-	${GLEW_INCLUDE_DIR}
+  ${Epoxy_INCLUDE_DIRS}
 )
 
 set(SRC

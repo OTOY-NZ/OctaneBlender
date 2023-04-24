@@ -35,6 +35,16 @@ void CryptomatteOperation::execute_pixel(float output[4], int x, int y, void *da
   output[0] = output[1] = output[2] = output[3] = 0.0f;
   for (size_t i = 0; i < inputs.size(); i++) {
     inputs[i]->read(input, x, y, data);
+    if (i == 0) {
+      /* Write the front-most object as false color for picking. */
+      output[0] = input[0];
+      uint32_t m3hash;
+      ::memcpy(&m3hash, &input[0], sizeof(uint32_t));
+      /* Since the red channel is likely to be out of display range,
+       * setting green and blue gives more meaningful images. */
+      output[1] = (float(m3hash << 8) / float(UINT32_MAX));
+      output[2] = (float(m3hash << 16) / float(UINT32_MAX));
+    }
     static bool octane_test_flag = true;
     if (octane_test_flag) {
       /* This part of code is used for the octane cryptomatte.
@@ -93,8 +103,8 @@ void CryptomatteOperation::update_memory_buffer_partial(MemoryBuffer *output,
         ::memcpy(&m3hash, &input[0], sizeof(uint32_t));
         /* Since the red channel is likely to be out of display range,
          * setting green and blue gives more meaningful images. */
-        it.out[1] = ((float)(m3hash << 8) / (float)UINT32_MAX);
-        it.out[2] = ((float)(m3hash << 16) / (float)UINT32_MAX);
+        it.out[1] = (float(m3hash << 8) / float(UINT32_MAX));
+        it.out[2] = (float(m3hash << 16) / float(UINT32_MAX));
       }
       for (const float hash : object_index_) {
         if (input[0] == hash) {

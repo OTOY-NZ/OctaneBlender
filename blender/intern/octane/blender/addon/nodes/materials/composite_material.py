@@ -135,14 +135,13 @@ def unregister():
 
 ##### END OCTANE GENERATED CODE BLOCK #####
 
-from ...utils import utility
-from ..base_socket import OctanePatternInput
+from octane.nodes.base_socket import OctanePatternInput
 
 
 class OctaneCompositeMaterialMaterialMaskMovableInput(OctanePatternInput):
     bl_idname="OctaneCompositeMaterialMaterialMaskMovableInput"
     bl_label="Material Mask"
-    octane_input_pattern=r"Material \d+ mask"
+    octane_input_pattern=r"Material (\d+) mask"
     octane_input_format_pattern="Material {} mask"
     color=consts.OctanePinColor.Texture
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
@@ -153,7 +152,7 @@ class OctaneCompositeMaterialMaterialMovableInput(OctaneMovableInput):
     bl_idname="OctaneCompositeMaterialMaterialMovableInput"
     bl_label="Material"
     octane_movable_input_count_attribute_name="a_material_count"
-    octane_input_pattern=r"Material \d+"
+    octane_input_pattern=r"Material (\d+)"
     octane_input_format_pattern="Material {}"
     octane_sub_movable_inputs=[OctaneCompositeMaterialMaterialMaskMovableInput, ]
     color=consts.OctanePinColor.Material

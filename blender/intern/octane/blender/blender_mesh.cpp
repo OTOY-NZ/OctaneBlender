@@ -15,8 +15,11 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
-#include "BKE_spline.hh"
 #include "DNA_curve_types.h"
+#include "DNA_curves_types.h"
+
+#include "BKE_curve_legacy_convert.hh"
+#include "BKE_curves.hh"
 
 #include "render/graph.h"
 #include "render/mesh.h"
@@ -108,31 +111,24 @@ static void create_curve_hair(Scene *scene,
   mesh->octane_mesh.oMeshData.fHairThickness.clear();
   mesh->octane_mesh.oMeshData.iHairMaterialIndices.clear();
   ::Curve *curve = (::Curve *)b_curve.ptr.data;
-  std::unique_ptr<::CurveEval> curve_eval = curve_eval_from_dna_curve(*curve);
-  if (curve_eval != nullptr) {
-    BL::Curve::splines_iterator s;
-    auto profiles = curve_eval->splines();
-    for (size_t i = 0; i < profiles.size(); ++i) {
-      const Spline &profile = *profiles[i];
-      float cur_thickness = root_width;
-      size_t step_num = profile.evaluated_points_num();
-      auto positions = profile.evaluated_positions();
-      float thickness_step = step_num > 1 ? (tip_width - root_width) / (step_num - 1) : 0;
-      for (size_t j = 0; j < step_num; ++j) {
-        float3 cur_point = make_float3(positions[j][0], positions[j][1], positions[j][2]);
-        mesh->octane_mesh.oMeshData.f3HairPoints.push_back(
-            OctaneDataTransferObject::float_3(cur_point.x, cur_point.y, cur_point.z));
-        mesh->octane_mesh.oMeshData.fHairThickness.push_back(cur_thickness);
-        cur_thickness += thickness_step;
-      }
-      mesh->octane_mesh.oMeshData.iVertexPerHair.push_back(step_num);
-      int shader_idx = 0;
-      if (i < b_curve.splines.length()) {
-        shader_idx = b_curve.splines[i].material_index() - 1;
-      }
-      int shader = clamp(shader_idx, 0, used_shaders.size() - 1);
-      mesh->octane_mesh.oMeshData.iHairMaterialIndices.push_back(shader);
+  if (curve && curve->curve_eval) {
+    Curves *curves_id = blender::bke::curve_legacy_to_curves(*curve);
+    blender::bke::CurvesGeometry &curves = blender::bke::CurvesGeometry::wrap(curves_id->geometry);
+    const blender::Span<blender::float3> positions = curves.evaluated_positions();
+    float cur_thickness = root_width;
+    size_t step_num = positions.size();
+    float thickness_step = step_num > 1 ? (tip_width - root_width) / (step_num - 1) : 0;
+    for (size_t j = 0; j < step_num; ++j) {
+      float3 cur_point = make_float3(positions[j][0], positions[j][1], positions[j][2]);
+      mesh->octane_mesh.oMeshData.f3HairPoints.push_back(
+          OctaneDataTransferObject::float_3(cur_point.x, cur_point.y, cur_point.z));
+      mesh->octane_mesh.oMeshData.fHairThickness.push_back(cur_thickness);
+      cur_thickness += thickness_step;
     }
+    mesh->octane_mesh.oMeshData.iVertexPerHair.push_back(step_num);
+    int shader_idx = b_curve.splines[0].material_index() - 1;
+    int shader = clamp(shader_idx, 0, used_shaders.size() - 1);
+    mesh->octane_mesh.oMeshData.iHairMaterialIndices.push_back(shader);
   }
   else {
     BL::Curve::splines_iterator s;
@@ -151,7 +147,7 @@ static void create_curve_hair(Scene *scene,
       mesh->octane_mesh.oMeshData.iVertexPerHair.push_back(step_num);
       int shader = clamp(s->material_index() - 1, 0, used_shaders.size() - 1);
       mesh->octane_mesh.oMeshData.iHairMaterialIndices.push_back(shader);
-    }
+    } 
   }
   mesh->octane_mesh.oMeshData.bShowVertexData = false;
   mesh->octane_mesh.oMeshData.bUpdate = true;
@@ -297,8 +293,7 @@ static void create_curves_hair(
       }
       if (b_attr_uv) {
         const float2 uv = get_float2(b_attr_uv->data[i].vector());
-        mesh->octane_mesh.oMeshData.f2HairUVs[i] = OctaneDataTransferObject::float_2(
-            uv.x, uv.y);
+        mesh->octane_mesh.oMeshData.f2HairUVs[i] = OctaneDataTransferObject::float_2(uv.x, uv.y);
       }
       mesh->octane_mesh.oMeshData.iVertexPerHair[i] = num_points;
       mesh->octane_mesh.oMeshData.iHairMaterialIndices[i] = 0;

@@ -400,6 +400,8 @@ class NodeTreeHandler:
         NodeTreeHandler.material_node_tree_count = len(bpy.data.materials)
         NodeTreeHandler.world_node_tree_count = len(bpy.data.worlds)
         NodeTreeHandler.light_node_tree_count = NodeTreeHandler.get_light_node_tree_count(scene)
+        if scene.render.engine != consts.ENGINE_NAME:
+            return        
         utility.update_active_render_aov_node_tree(bpy.context.view_layer)
         # Init color ramp watchers
         NodeTreeHandler.init_color_ramp_helper()
@@ -452,7 +454,7 @@ class NodeTreeHandler:
             if active_material and active_material.use_nodes:
                 node_tree = active_material.node_tree
             NodeTreeHandler._on_material_new(node_tree)
-            for idx in (NodeTreeHandler.material_node_tree_count, len(bpy.data.materials) - 1):
+            for idx in range(NodeTreeHandler.material_node_tree_count, len(bpy.data.materials)):
                 current_material = bpy.data.materials[idx]
                 if current_material.node_tree is not node_tree:
                     NodeTreeHandler._on_material_new(current_material.node_tree)
@@ -534,11 +536,9 @@ class NodeTreeHandler:
                 OctaneBaseNodeTree.update_link_validity(scene.world.node_tree)
 
 @persistent
-def node_tree_initialization_handler(scene):
+def octane_load_post_handler(scene):
     if scene is None:
         scene = bpy.context.scene
-    if scene.render.engine != consts.ENGINE_NAME:
-        return
     NodeTreeHandler.on_file_load(scene)
 
 @persistent
@@ -561,7 +561,7 @@ def register():
     global _NODE_HT_header_draw
     _NODE_HT_header_draw = NODE_HT_header.draw
     NODE_HT_header.draw = NODE_HT_header_octane_draw
-    bpy.app.handlers.load_post.append(node_tree_initialization_handler)
+    bpy.app.handlers.load_post.append(octane_load_post_handler)
     bpy.app.handlers.depsgraph_update_post.append(node_tree_update_handler)
     for cls in _CLASSES:
         register_class(cls)
@@ -570,7 +570,7 @@ def register():
 def unregister():
     global _NODE_HT_header_draw
     NODE_HT_header.draw = _NODE_HT_header_draw
-    bpy.app.handlers.load_post.remove(node_tree_initialization_handler)
+    bpy.app.handlers.load_post.remove(octane_load_post_handler)
     bpy.app.handlers.depsgraph_update_post.remove(node_tree_update_handler)
     for cls in _CLASSES:
         unregister_class(cls)    

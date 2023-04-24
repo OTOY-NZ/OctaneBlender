@@ -708,6 +708,7 @@ _octane_node_items = {
                         OctaneNodeItem("OctaneGreyscaleImage"),                        
                         OctaneNodeItem("OctaneImageTiles"),
                         OctaneNodeItem("OctaneRGBImage"),
+                        OctaneNodeItem("OctaneBakingTexture"),
                     ] if utility.use_new_addon_nodes() else [
                         OctaneNodeItem("ShaderNodeOctAlphaImageTex"),
                         OctaneNodeItem("ShaderNodeOctFloatImageTex"),                        

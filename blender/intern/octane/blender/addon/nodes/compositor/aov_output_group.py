@@ -50,14 +50,12 @@ def unregister():
 
 ##### END OCTANE GENERATED CODE BLOCK #####
 
-from ...utils import utility
-
 
 class OctaneAOVOutputGroupAOVOutputMovableInput(OctaneMovableInput):
     bl_idname="OctaneAOVOutputGroupAOVOutputMovableInput"
     bl_label="Input"
     octane_movable_input_count_attribute_name="a_aov_count"
-    octane_input_pattern=r"Input \d+"
+    octane_input_pattern=r"Input (\d+)"
     octane_input_format_pattern="Input {}"
     color=consts.OctanePinColor.AOVOutput
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_OUTPUT_AOV)

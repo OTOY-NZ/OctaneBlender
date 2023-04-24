@@ -525,6 +525,19 @@ class OCTANE_RENDER_PT_server(common.OctanePropertyPanel, Panel):
         col.operator("octane.activate", text="Activation state")
 
 
+class OCTANE_RENDER_PT_converter(common.OctanePropertyPanel, Panel):
+    bl_label = "Octane Converter"
+    bl_context = "render"
+
+    def draw(self, context):        
+        scene = context.scene
+        oct_scene = scene.octane
+        is_viewport_rendering = utility.is_viewport_rendering()
+        layout = self.layout
+        col = layout.column()
+        col.operator("octane.convert_to_octane_scene", text="Convert Cycles to Octane")
+
+
 class OCTANE_RENDER_PT_out_of_core(common.OctanePropertyPanel, Panel):
     bl_label = "Octane Out Of Core"
     bl_context = "render"
@@ -1056,6 +1069,7 @@ _CLASSES = [
     OCTANE_RENDER_PT_kernel,
     OCTANE_RENDER_PT_motion_blur,
     OCTANE_RENDER_PT_server,
+    # OCTANE_RENDER_PT_converter,
     OCTANE_RENDER_PT_out_of_core,
     OCTANE_RENDER_PT_octane_view_layer,
     OCTANE_RENDER_PT_octane_global_view_layers,

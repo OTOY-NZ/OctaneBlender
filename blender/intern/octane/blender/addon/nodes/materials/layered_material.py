@@ -136,14 +136,14 @@ def unregister():
 
 ##### END OCTANE GENERATED CODE BLOCK #####
 
-from ...utils import utility
+from octane.utils import utility
 
 
 class OctaneLayeredMaterialLayerMovableInput(OctaneMovableInput):
     bl_idname="OctaneLayeredMaterialLayerMovableInput"
     bl_label="Layer"
     octane_movable_input_count_attribute_name="a_pin_count"
-    octane_input_pattern=r"Layer \d+"
+    octane_input_pattern=r"Layer (\d+)"
     octane_input_format_pattern="Layer {}"
     color=consts.OctanePinColor.MaterialLayer
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_MATERIAL_LAYER)

@@ -718,7 +718,7 @@ def beautifier_nodetree_layout(id_data):
         else:
             y_offset = Y_SOCKET_GAP * (len(node.inputs) + len(node.outputs)) + Y_OFFSET
             if node.bl_idname.endswith("Image"):
-                y_offset += (-300)
+                y_offset += (-150)
             return y_offset
     node_tree = id_data.node_tree
     owner_type = get_node_tree_owner_type(id_data)

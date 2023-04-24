@@ -1284,4 +1284,3 @@ RenderResult *RE_DuplicateRenderResult(RenderResult *rr)
   new_rr->stamp_data = BKE_stamp_data_copy(new_rr->stamp_data);
   return new_rr;
 }
-

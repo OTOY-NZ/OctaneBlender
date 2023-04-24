@@ -76,7 +76,7 @@ class OctaneCompositeTextureMovableTextureLayerInput(OctaneMovableInput):
     bl_idname="OctaneCompositeTextureMovableTextureLayerInput"
     bl_label="Layer"
     octane_movable_input_count_attribute_name="a_layer_count"
-    octane_input_pattern=r"Layer \d+"
+    octane_input_pattern=r"Layer (\d+)"
     octane_input_format_pattern="Layer {}"
     octane_reversed_input_sockets=True
     color=consts.OctanePinColor.CompositeTextureLayer

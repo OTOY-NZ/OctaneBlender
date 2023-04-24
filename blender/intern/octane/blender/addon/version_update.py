@@ -18,16 +18,17 @@
 
 # <pep8 compliant>
 
-OCTANE_BLENDER_VERSION = '27.5'
+OCTANE_BLENDER_VERSION = '27.6'
 OCTANE_VERSION = 12000020
 OCTANE_VERSION_STR = "2022.1"
 
 import bpy
 import math
 import functools
+import re
 
 from bpy.app.handlers import persistent
-
+from octane.utils import consts
 
 @persistent
 def do_versions(self):
@@ -630,6 +631,7 @@ def check_compatibility_octane_node_tree(file_version):
     check_compatibility_octane_node_tree_21_12(file_version)
     check_compatibility_octane_node_tree_23_5(file_version)
     check_compatibility_octane_node_tree_24_0(file_version)
+    check_compatibility_octane_node_tree_27_6(file_version)
 
 
 def check_compatibility_octane_node_tree_15_2_5(file_version):
@@ -749,6 +751,41 @@ def check_compatibility_octane_node_tree_24_0(file_version):
         node_handler_map = {image: (_check_compatibility_octane_images_node_24_0, )}
         check_compatibility_octane_node_tree_helper(file_version, '24.0', node_handler_map)
 
+def _check_dynamic_pin_index_compatibility(node_tree):
+    from octane.nodes.base_socket import OctaneMovableInput
+    movable_input_node_set = set([consts.NodeType.NT_MAT_COMPOSITE, 
+            consts.NodeType.NT_MAT_LAYER, 
+            consts.NodeType.NT_TEX_COMPOSITE,
+            consts.NodeType.NT_MAT_LAYER_GROUP,
+            consts.NodeType.NT_VERTEX_DISPLACEMENT_MIXER,
+            consts.NodeType.NT_RENDER_AOV_GROUP, 
+            consts.NodeType.NT_OUTPUT_AOV_GROUP, 
+            consts.NodeType.NT_OUTPUT_AOV_COMPOSITE])
+    for node in node_tree.nodes:
+        if hasattr(node, "octane_node_type") and node.octane_node_type in movable_input_node_set:
+            for idx, _input in enumerate(node.inputs):
+                if isinstance(_input, OctaneMovableInput):
+                    if _input.octane_dynamic_pin_index == 0:
+                        result = re.match(_input.octane_input_pattern, _input.name)
+                        if result is not None:
+                            index = int(result.group(1))
+                            group_size = len(_input.octane_sub_movable_inputs) + 1
+                            octane_dynamic_pin_index = _input.generate_octane_dynamic_pin_index(index, 0, group_size)
+                            _input.octane_dynamic_pin_index = octane_dynamic_pin_index
+                            for sub_idx, sub_class in enumerate(_input.octane_sub_movable_inputs):
+                                offset = sub_idx + 1
+                                octane_dynamic_pin_index = _input.generate_octane_dynamic_pin_index(index, offset, group_size)
+                                node.inputs[idx + offset].octane_dynamic_pin_index = octane_dynamic_pin_index
+
+def check_compatibility_octane_node_tree_27_6(file_version):
+    UPDATE_VERSION = '27.6'
+    if not check_update(file_version, UPDATE_VERSION):
+        return
+    for material in bpy.data.materials:
+        if material.use_nodes:
+            _check_dynamic_pin_index_compatibility(material.node_tree)
+    for node_group in bpy.data.node_groups:
+        _check_dynamic_pin_index_compatibility(node_group)    
 
 def _check_compatibility_octane_specular_material_node_15_2_5(node_tree, node):
     try:

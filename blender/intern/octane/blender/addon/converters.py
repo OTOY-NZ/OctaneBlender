@@ -1,10 +1,8 @@
 import bpy
 import math
 import functools
-from octane.utils import consts
+from octane.utils import utility, consts
 
-X_GAP = 200
-Y_GAP = 200
 
 NORMAL_TYPE_TAG = "[NORMAL]"
 IMAGE_TYPE_TAG = "[IMAGE]"
@@ -28,7 +26,7 @@ CONVERTERS_NODE_MAPPER = {
             "Emission": "Emission",
             NORMAL_TYPE_TAG + "Normal": "Normal",
         },
-        lambda cur_node, octane_node: setattr(octane_node, "brdf_model", "OCTANE_BRDF_GGX")
+        lambda cur_node, octane_node: setattr(octane_node.inputs["BSDF model"], "default_value", "GGX" if cur_node.distribution == "GGX" else "GGX (energy preserving)")
     ),
     "TEX_IMAGE": 
     (
@@ -44,7 +42,16 @@ CONVERTERS_NODE_MAPPER = {
             "Color": "Texture",
             "Strength": "Power",
         }
-    ),  
+    ),
+    "DISPLACEMENT":
+    (
+        "OctaneTextureDisplacement", 
+        {
+            "Height": "Texture",
+            "Midlevel": "Mid level",
+            "Scale": "Height",
+        }
+    ),
 }
 
 CONVERTERS_OUTPUT_MAPPER = {
@@ -97,20 +104,18 @@ def _convert_color_input(cur_node, cur_input, octane_node, octane_input, cur_nod
         if cur_input.name == "Emission" and octane_input.name == "Emission":
             octane_emission_node = octane_node_tree.nodes.new("OctaneTextureEmission")
             octane_color_node = octane_node_tree.nodes.new("OctaneRGBColor")
-            octane_emission_node.location.x = cur_node.location.x - X_GAP
-            octane_emission_node.location.y = cur_node.location.y
-            octane_color_node.location.x = octane_emission_node.location.x - X_GAP
-            octane_color_node.location.y = octane_emission_node.location.y
             octane_node_tree.links.new(octane_emission_node.outputs[0], octane_input)
             octane_node_tree.links.new(octane_color_node.outputs[0], octane_emission_node.inputs["Texture"])
+            if cur_node.type == "BSDF_PRINCIPLED":
+                octane_emission_node.inputs["Power"].default_value = cur_node.inputs["Emission Strength"].default_value
+                octane_emission_node.inputs["Surface brightness"].default_value = True
         else:       
             octane_color_node = octane_node_tree.nodes.new("OctaneRGBColor")
-            octane_color_node.location = cur_node.location   
             octane_node_tree.links.new(octane_color_node.outputs[0], octane_input)    
         if octane_color_node:
-            octane_color_node.inputs["Color"].a_value[0] = cur_input.default_value[0]
-            octane_color_node.inputs["Color"].a_value[1] = cur_input.default_value[1]
-            octane_color_node.inputs["Color"].a_value[2] = cur_input.default_value[2]
+            octane_color_node.a_value[0] = cur_input.default_value[0]
+            octane_color_node.a_value[1] = cur_input.default_value[1]
+            octane_color_node.a_value[2] = cur_input.default_value[2]
 
 
 def _convert_attribute(cur_node, octane_node, cur_attribute_name, octane_attribute_name):
@@ -205,12 +210,10 @@ def convert_to_octane_node(cur_node, cur_node_tree, octane_node_tree):
     octane_node = None
     if cur_node.type in CONVERTERS_OUTPUT_MAPPER:
         octane_node = octane_node_tree.nodes.new(CONVERTERS_OUTPUT_MAPPER[cur_node.type])
-        octane_node.location = cur_node.location
         for input_socket in octane_node.inputs:
             _convert_to_octane_node(cur_node, octane_node, cur_node_tree, octane_node_tree, input_socket.name, input_socket.name)    
     if cur_node.type in CONVERTERS_NODE_MAPPER:
         octane_node = octane_node_tree.nodes.new(CONVERTERS_NODE_MAPPER[cur_node.type][0])
-        octane_node.location = cur_node.location  
         for cur_name, octane_name in CONVERTERS_NODE_MAPPER[cur_node.type][1].items():
             _convert_to_octane_node(cur_node, octane_node, cur_node_tree, octane_node_tree, cur_name, octane_name)
         if len(CONVERTERS_NODE_MAPPER[cur_node.type]) > 2:
@@ -224,32 +227,44 @@ def convert_to_octane_node(cur_node, cur_node_tree, octane_node_tree):
                 octane_node.inputs["Legacy gamma"].default_value = 1.0
     return octane_node
 
-
 def convert_to_octane_material(cur_material, converted_material):
     if not cur_material or not cur_material.node_tree:
-        return    
+        return False
     if not converted_material or not converted_material.node_tree:
-        return
+        return False
     cur_node_tree = cur_material.node_tree
     octane_node_tree = converted_material.node_tree    
     octane_node_tree.nodes.clear()
     output = find_output_node(cur_node_tree, "OUTPUT_MATERIAL") 
     if not output:
-        return
-    convert_to_octane_node(output, cur_node_tree, octane_node_tree)
-    octane_output = find_output_node(octane_node_tree, "OUTPUT_MATERIAL")
-    if octane_output.inputs["Surface"].is_linked:
-        octane_material_node = octane_output.inputs["Surface"].links[0].from_node
-        if octane_material_node.bl_idname == "OctaneUniversalMaterial":
-            if octane_material_node.inputs["Emission"].is_linked:
-                from_node = octane_material_node.inputs["Emission"].links[0].from_node
-                if from_node.bl_idname != "OctaneTextureEmission":
-                    texture_emission_node = octane_node_tree.nodes.new("OctaneTextureEmission")
-                    texture_emission_node.location[0] = octane_material_node.location[0] - X_GAP 
-                    texture_emission_node.location[1] = octane_material_node.location[1] - Y_GAP * 2
-                    octane_node_tree.links.new(from_node.outputs[0], texture_emission_node.inputs["Texture"])
-                    octane_node_tree.links.new(texture_emission_node.outputs[0], octane_material_node.inputs["Emission"])
-
+        return False
+    converted_node = convert_to_octane_node(output, cur_node_tree, octane_node_tree)
+    if converted_node is not None:
+        octane_output = find_output_node(octane_node_tree, "OUTPUT_MATERIAL")
+        if octane_output.inputs["Surface"].is_linked:
+            octane_material_node = octane_output.inputs["Surface"].links[0].from_node
+            if octane_material_node.bl_idname == "OctaneUniversalMaterial":
+                # Specular
+                octane_material_node.inputs["Specular"].default_value *= 2
+                # Emission
+                if octane_material_node.inputs["Emission"].is_linked:
+                    from_node = octane_material_node.inputs["Emission"].links[0].from_node
+                    if from_node.bl_idname != "OctaneTextureEmission":
+                        texture_emission_node = octane_node_tree.nodes.new("OctaneTextureEmission")
+                        octane_node_tree.links.new(from_node.outputs[0], texture_emission_node.inputs["Texture"])
+                        octane_node_tree.links.new(texture_emission_node.outputs[0], octane_material_node.inputs["Emission"])
+        if octane_output.inputs["Displacement"].is_linked:
+            octane_displacement_node = octane_output.inputs["Displacement"].links[0].from_node
+            octane_node_tree.links.remove(octane_output.inputs["Displacement"].links[0])
+            octane_material_node = octane_output.inputs["Surface"].links[0].from_node if octane_output.inputs["Surface"].is_linked else None
+            if octane_material_node and octane_material_node.bl_idname == "OctaneUniversalMaterial":
+                octane_node_tree.links.new(octane_displacement_node.outputs[0], octane_material_node.inputs["Displacement"])
+        utility.beautifier_nodetree_layout(converted_material)
+        original_name = cur_material.name
+        cur_material.name = original_name + ".original"
+        converted_material.name = original_name
+        return True
+    return False
 
 def convert_all_related_material(cur_material, converted_material):
     for obj in bpy.data.objects:

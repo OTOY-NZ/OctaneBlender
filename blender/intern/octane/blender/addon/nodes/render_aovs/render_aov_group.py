@@ -195,14 +195,12 @@ def unregister():
 
 ##### END OCTANE GENERATED CODE BLOCK #####
 
-from ...utils import utility
-
 
 class OctaneRenderAOVGroupAOVInput(OctaneMovableInput):
     bl_idname="OctaneRenderAOVGroupAOVInput"
     bl_label="AOV"
     octane_movable_input_count_attribute_name="a_aov_count"
-    octane_input_pattern=r"AOV \d+"
+    octane_input_pattern=r"AOV (\d+)"
     octane_input_format_pattern="AOV {}"
     color=consts.OctanePinColor.RenderAOVs
     octane_pin_type=consts.PinType.PT_RENDER_PASSES

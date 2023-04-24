@@ -29,7 +29,6 @@ set(INC
   ../makesrna
   ../render
   ../windowmanager
-  ../../../intern/glew-mx
   ../../../intern/guardedalloc
 
   # dna_type_offsets.h
@@ -189,7 +188,8 @@ SET_SOURCE_FILES_PROPERTIES(${OCT_SRC} PROPERTIES LANGUAGE CXX )
 
 set(SRC
   intern/derived_node_tree.cc
-  intern/geometry_nodes_eval_log.cc
+  intern/geometry_nodes_lazy_function.cc
+  intern/geometry_nodes_log.cc
   intern/math_functions.cc
   intern/node_common.cc
   intern/node_declaration.cc
@@ -198,8 +198,7 @@ set(SRC
   intern/node_multi_function.cc
   intern/node_socket.cc
   intern/node_socket_declarations.cc
-  intern/node_tree_ref.cc
-  intern/node_util.c
+  intern/node_util.cc
   intern/socket_search_link.cc
 
   NOD_common.h
@@ -208,11 +207,11 @@ set(SRC
   NOD_function.h
   NOD_geometry.h
   NOD_geometry_exec.hh
-  NOD_geometry_nodes_eval_log.hh
+  NOD_geometry_nodes_lazy_function.hh
+  NOD_geometry_nodes_log.hh
   NOD_math_functions.hh
   NOD_multi_function.hh
   NOD_node_declaration.hh
-  NOD_node_tree_ref.hh
   NOD_shader.h
   NOD_socket.h
   NOD_socket_declarations.hh
@@ -252,20 +251,6 @@ if(WITH_BULLET)
     ${BULLET_LIBRARIES}
   )
   add_definitions(-DWITH_BULLET)
-endif()
-
-if(WITH_PYTHON)
-  list(APPEND INC
-    ../python
-  )
-  list(APPEND INC_SYS
-    ${PYTHON_INCLUDE_DIRS}
-  )
-  list(APPEND LIB
-    ${PYTHON_LINKFLAGS}
-    ${PYTHON_LIBRARIES}
-  )
-  add_definitions(-DWITH_PYTHON)
 endif()
 
 if(WITH_TBB)

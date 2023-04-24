@@ -703,7 +703,7 @@ void node_octane_medium_init(bNodeTree *ntree, bNode *node)
 {
   // Use "Lock mode" as default
   node->oct_custom1 = 1;
-}
+} 
 
 void node_octane_medium_update(bNodeTree *ntree, bNode *node)
 {

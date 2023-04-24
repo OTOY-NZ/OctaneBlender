@@ -1296,8 +1296,7 @@ bool BlenderSession::export_scene(BL::Scene &b_scene,
   re->scene = m_scene;
   re->camera_override = NULL;
   render_copy_renderdata(&re->r, &re->scene->r);
-  BLI_freelistN(&re->view_layers);
-  BLI_duplicatelist(&re->view_layers, &re->scene->view_layers);
+  re->single_view_layer[0] = '\0';
   re->rectx = rs.resolution_x() * rs.resolution_percentage() / 100;
   re->recty = rs.resolution_y() * rs.resolution_percentage() / 100;
   re->flag |= R_ANIMATION;
@@ -1373,8 +1372,7 @@ bool BlenderSession::export_localdb(BL::Scene &b_scene,
   re->scene = m_scene;
   re->camera_override = NULL;
   render_copy_renderdata(&re->r, &re->scene->r);
-  BLI_freelistN(&re->view_layers);
-  BLI_duplicatelist(&re->view_layers, &re->scene->view_layers);
+  re->single_view_layer[0] = '\0';
   re->rectx = rs.resolution_x() * rs.resolution_percentage() / 100;
   re->recty = rs.resolution_y() * rs.resolution_percentage() / 100;
   re->flag |= R_ANIMATION;

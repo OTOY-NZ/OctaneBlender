@@ -251,7 +251,7 @@ class OctaneBaseNode(object):
                     elif socket.is_octane_osl_pin():
                         octane_node.node.set_pin(consts.OctaneDataBlockSymbolType.PIN_NAME, socket_idx, socket.osl_pin_name, socket.octane_socket_type, socket.octane_pin_type, socket.octane_default_node_type, data_socket.is_linked, link_node_name, default_value)
                     elif socket.is_octane_dynamic_pin():
-                        octane_node.node.set_pin(consts.OctaneDataBlockSymbolType.PIN_DYNAMIC, socket.generate_octane_dynamic_pin_index(), socket.name, socket.octane_socket_type, socket.octane_pin_type, socket.octane_default_node_type, data_socket.is_linked, link_node_name, default_value)
+                        octane_node.node.set_pin(consts.OctaneDataBlockSymbolType.PIN_DYNAMIC, socket.generate_octane_pin_index(), socket.name, socket.octane_socket_type, socket.octane_pin_type, socket.octane_default_node_type, data_socket.is_linked, link_node_name, default_value)
                 else:
                     octane_node.node.set_pin(consts.OctaneDataBlockSymbolType.PIN_NAME, socket.octane_pin_index, socket.octane_pin_name, socket.octane_socket_type, socket.octane_pin_type, socket.octane_default_node_type, data_socket.is_linked, link_node_name, default_value)
         self.sync_custom_data(octane_node, octane_graph_node_data, depsgraph)

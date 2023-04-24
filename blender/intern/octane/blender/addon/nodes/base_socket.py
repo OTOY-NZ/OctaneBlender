@@ -76,7 +76,7 @@ class OctaneBaseSocket(bpy.types.NodeSocket):
     def is_octane_dynamic_pin(self):
         return False
 
-    def generate_octane_dynamic_pin_index(self):
+    def generate_octane_pin_index(self):
         return -1
 
     def get_dynamic_input_index(self):
@@ -173,7 +173,7 @@ class OctanePatternInput(OctaneBaseSocket):
     def is_octane_dynamic_pin(self):
         return True
 
-    def generate_octane_dynamic_pin_index(self):
+    def generate_octane_pin_index(self):
         dynamic_pin_index = self.octane_dynamic_pin_index
         if getattr(self, "octane_reversed_input_sockets", False):
             dynamic_pin_count = getattr(self.node, self.octane_movable_input_count_attribute_name, 0)
@@ -193,8 +193,11 @@ class OctanePatternInput(OctaneBaseSocket):
     def generate_pattern_input_name(cls, idx):
         return cls.octane_input_format_pattern.format(idx)
 
+    def generate_octane_dynamic_pin_index(self, idx, offset=0, group_size=1):
+        return 1 + (idx - 1) * group_size + offset
+
     def set_pattern_input_name(self, idx, offset=0, group_size=1):        
-        self.octane_dynamic_pin_index = 1 + (idx - 1) * group_size + offset        
+        self.octane_dynamic_pin_index = self.generate_octane_dynamic_pin_index(idx, offset, group_size)
         self.name = self.generate_pattern_input_name(idx)
 
 

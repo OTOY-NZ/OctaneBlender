@@ -207,6 +207,7 @@ static RenderResult *render_result_from_bake(
   /* Add single baking render layer. */
   RenderLayer *rl = MEM_cnew<RenderLayer>("bake render layer");
   STRNCPY(rl->name, layername);
+  STRNCPY(rl->name, layername);
   rl->rectx = w;
   rl->recty = h;
   BLI_addtail(&rr->layers, rl);

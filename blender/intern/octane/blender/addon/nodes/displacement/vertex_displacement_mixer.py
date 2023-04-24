@@ -50,14 +50,13 @@ def unregister():
 
 ##### END OCTANE GENERATED CODE BLOCK #####
 
-from octane.utils import utility
 from octane.nodes.base_socket import OctanePatternInput
 
 
 class OctaneVertexDisplacementMixerBlendWeightMovableInput(OctanePatternInput):
     bl_idname="OctaneVertexDisplacementMixerBlendWeightMovableInput"
     bl_label="Blend weight"
-    octane_input_pattern=r"Blend weight \d+"
+    octane_input_pattern=r"Blend weight (\d+)"
     octane_input_format_pattern="Blend weight {}"
     color=consts.OctanePinColor.Texture
     octane_default_node_type=consts.NodeType.NT_TEX_FLOAT
@@ -72,7 +71,7 @@ class OctaneVertexDisplacementMixerDisplacementMovableInput(OctaneMovableInput):
     bl_idname="OctaneVertexDisplacementMixerDisplacementMovableInput"
     bl_label="Displacement"
     octane_movable_input_count_attribute_name="a_displacement_count"
-    octane_input_pattern=r"Displacement \d+"
+    octane_input_pattern=r"Displacement (\d+)"
     octane_input_format_pattern="Displacement {}"
     octane_sub_movable_inputs=[OctaneVertexDisplacementMixerBlendWeightMovableInput, ]
     color=consts.OctanePinColor.Displacement
