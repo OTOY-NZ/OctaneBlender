@@ -71,6 +71,7 @@
 #include "BKE_lib_override.h"
 #include "BKE_lib_remap.h"
 #include "BKE_main.h"
+#include "BKE_main_namemap.h"
 #include "BKE_packedFile.h"
 #include "BKE_report.h"
 #include "BKE_scene.h"
@@ -293,6 +294,12 @@ static void wm_window_match_keep_current_wm(const bContext *C,
       bScreen *win_screen = WM_window_get_active_screen(win);
       win_screen->winid = win->winid;
     }
+  }
+
+  /* we'll be using the current wm list directly; make sure
+   * the names are validated and in the name map. */
+  LISTBASE_FOREACH (wmWindowManager *, wm_item, current_wm_list) {
+    BKE_main_namemap_get_name(bmain, &wm_item->id, wm_item->id.name + 2);
   }
 
   *r_new_wm_list = *current_wm_list;
@@ -846,8 +853,13 @@ static void file_read_reports_finalize(BlendFileReadReport *bf_reports)
                 bf_reports->count.missing_obproxies);
   }
   else {
-    BLI_assert(bf_reports->count.missing_obdata == 0);
-    BLI_assert(bf_reports->count.missing_obproxies == 0);
+    if (bf_reports->count.missing_obdata != 0 || bf_reports->count.missing_obproxies != 0) {
+      CLOG_ERROR(&LOG,
+                 "%d local ObjectData and %d local Object proxies are reported to be missing, "
+                 "this should never happen",
+                 bf_reports->count.missing_obdata,
+                 bf_reports->count.missing_obproxies);
+    }
   }
 
   if (bf_reports->resynced_lib_overrides_libraries_count != 0) {
@@ -999,6 +1011,8 @@ bool WM_file_read(bContext *C, const char *filepath, ReportList *reports)
 
   WM_cursor_wait(false);
 
+  BLI_assert(BKE_main_namemap_validate(CTX_data_main(C)));
+
   return success;
 }
 
@@ -1091,7 +1105,7 @@ void wm_homefile_read_ex(bContext *C,
   const bool reset_app_template = ((!app_template && U.app_template[0]) ||
                                    (app_template && !STREQ(app_template, U.app_template)));
 
-  /* options exclude eachother */
+  /* Options exclude each other. */
   BLI_assert((use_factory_settings && filepath_startup_override) == 0);
 
   if ((G.f & G_FLAG_SCRIPT_OVERRIDE_PREF) == 0) {
@@ -3058,8 +3072,7 @@ static int wm_save_as_mainfile_exec(bContext *C, wmOperator *op)
   Main *bmain = CTX_data_main(C);
   char path[FILE_MAX];
   const bool is_save_as = (op->type->invoke == wm_save_as_mainfile_invoke);
-  const bool use_save_as_copy = (RNA_struct_property_is_set(op->ptr, "copy") &&
-                                 RNA_boolean_get(op->ptr, "copy"));
+  const bool use_save_as_copy = is_save_as && RNA_boolean_get(op->ptr, "copy");
 
   /* We could expose all options to the users however in most cases remapping
    * existing relative paths is a good default.

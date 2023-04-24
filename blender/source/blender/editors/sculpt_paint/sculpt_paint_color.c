@@ -17,6 +17,7 @@
 #include "DNA_meshdata_types.h"
 
 #include "BKE_brush.h"
+#include "BKE_colorband.h"
 #include "BKE_colortools.h"
 #include "BKE_context.h"
 #include "BKE_mesh.h"
@@ -90,10 +91,6 @@ static void do_color_smooth_task_cb_exec(void *__restrict userdata,
     SCULPT_vertex_color_get(ss, vd.index, col);
     blend_color_interpolate_float(col, col, smooth_color, fade);
     SCULPT_vertex_color_set(ss, vd.index, col);
-
-    if (vd.mvert) {
-      BKE_pbvh_vert_mark_update(ss->pbvh, vd.index);
-    }
   }
   BKE_pbvh_vertex_iter_end;
 }
@@ -111,7 +108,7 @@ static void do_paint_brush_task_cb_ex(void *__restrict userdata,
   PBVHColorBufferNode *color_buffer;
 
   SculptOrigVertData orig_data;
-  SCULPT_orig_vert_data_init(&orig_data, data->ob, data->nodes[n]);
+  SCULPT_orig_vert_data_init(&orig_data, data->ob, data->nodes[n], SCULPT_UNDO_COLOR);
 
   color_buffer = BKE_pbvh_node_color_buffer_get(data->nodes[n]);
 
@@ -121,10 +118,30 @@ static void do_paint_brush_task_cb_ex(void *__restrict userdata,
   const int thread_id = BLI_task_parallel_thread_id(tls);
 
   float brush_color[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+
   copy_v3_v3(brush_color,
              ss->cache->invert ? BKE_brush_secondary_color_get(ss->scene, brush) :
                                  BKE_brush_color_get(ss->scene, brush));
+
   IMB_colormanagement_srgb_to_scene_linear_v3(brush_color, brush_color);
+
+  if (brush->flag & BRUSH_USE_GRADIENT) {
+    switch (brush->gradient_stroke_mode) {
+      case BRUSH_GRADIENT_PRESSURE:
+        BKE_colorband_evaluate(brush->gradient, ss->cache->pressure, brush_color);
+        break;
+      case BRUSH_GRADIENT_SPACING_REPEAT: {
+        float coord = fmod(ss->cache->stroke_distance / brush->gradient_spacing, 1.0);
+        BKE_colorband_evaluate(brush->gradient, coord, brush_color);
+        break;
+      }
+      case BRUSH_GRADIENT_SPACING_CLAMP: {
+        BKE_colorband_evaluate(
+            brush->gradient, ss->cache->stroke_distance / brush->gradient_spacing, brush_color);
+        break;
+      }
+    }
+  }
 
   BKE_pbvh_vertex_iter_begin (ss->pbvh, data->nodes[n], vd, PBVH_ITER_UNIQUE) {
     SCULPT_orig_vert_data_update(&orig_data, &vd);
@@ -186,10 +203,6 @@ static void do_paint_brush_task_cb_ex(void *__restrict userdata,
     IMB_blend_color_float(col, orig_data.col, buffer_color, brush->blend);
     CLAMP4(col, 0.0f, 1.0f);
     SCULPT_vertex_color_set(ss, vd.index, col);
-
-    if (vd.mvert) {
-      BKE_pbvh_vert_mark_update(ss->pbvh, vd.index);
-    }
   }
   BKE_pbvh_vertex_iter_end;
 }
@@ -427,7 +440,7 @@ static void do_smear_brush_task_cb_exec(void *__restrict userdata,
     madd_v3_v3fl(current_disp, no, -dot_v3v3(current_disp, no));
 
     normalize_v3_v3(current_disp_norm, current_disp);
-    mul_v3_v3fl(current_disp, current_disp_norm, ss->cache->bstrength);
+    mul_v3_v3fl(current_disp, current_disp_norm, bstrength);
 
     float accum[4] = {0.0f, 0.0f, 0.0f, 0.0f};
     float totw = 0.0f;
@@ -457,12 +470,12 @@ static void do_smear_brush_task_cb_exec(void *__restrict userdata,
         sub_v3_v3v3(vertex_disp, SCULPT_vertex_co_get(ss, ni.index), vd.co);
 
         /* Weight by how close we are to our target distance from vd.co. */
-        float w = (1.0f + fabsf(len_v3(vertex_disp) / ss->cache->bstrength - 1.0f));
+        float w = (1.0f + fabsf(len_v3(vertex_disp) / bstrength - 1.0f));
 
         /* TODO: use cotangents (or at least face areas) here. */
         float len = len_v3v3(SCULPT_vertex_co_get(ss, ni.index), nco);
         if (len > 0.0f) {
-          len = ss->cache->bstrength / len;
+          len = bstrength / len;
         }
         else { /* Coincident point. */
           len = 1.0f;
@@ -505,10 +518,6 @@ static void do_smear_brush_task_cb_exec(void *__restrict userdata,
     SCULPT_vertex_color_get(ss, vd.index, col);
     blend_color_interpolate_float(col, ss->cache->prev_colors[vd.index], interp_color, fade);
     SCULPT_vertex_color_set(ss, vd.index, col);
-
-    if (vd.mvert) {
-      BKE_pbvh_vert_mark_update(ss->pbvh, vd.index);
-    }
   }
   BKE_pbvh_vertex_iter_end;
 }

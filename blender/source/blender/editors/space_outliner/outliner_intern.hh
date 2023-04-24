@@ -153,15 +153,16 @@ enum {
   /* Closed items display their children as icon within the row. TE_ICONROW is for
    * these child-items that are visible but only within the row of the closed parent. */
   TE_ICONROW = (1 << 1),
-  TE_LAZY_CLOSED = (1 << 2),
+  /** Treat the element as if it had children, e.g. draw an icon to un-collapse it, even if it
+   * doesn't. Used where children are lazy-built only if the parent isn't collapsed (see
+   * #AbstractTreeDisplay::is_lazy_built()). */
+  TE_PRETEND_HAS_CHILDREN = (1 << 2),
   TE_FREE_NAME = (1 << 3),
   TE_DRAGGING = (1 << 4),
   TE_CHILD_NOT_IN_COLLECTION = (1 << 6),
   /* Child elements of the same type in the icon-row are drawn merged as one icon.
    * This flag is set for an element that is part of these merged child icons. */
   TE_ICONROW_MERGED = (1 << 7),
-  /* This element has some warning to be displayed. */
-  TE_HAS_WARNING = (1 << 8),
 };
 
 /* button events */
@@ -278,11 +279,6 @@ struct TreeElement *outliner_add_collection_recursive(SpaceOutliner *space_outli
 
 bool outliner_requires_rebuild_on_select_or_active_change(
     const struct SpaceOutliner *space_outliner);
-/**
- * Check if a display mode needs a full rebuild if the open/collapsed state changes.
- * Element types in these modes don't actually add children if collapsed, so the rebuild is needed.
- */
-bool outliner_requires_rebuild_on_open_change(const struct SpaceOutliner *space_outliner);
 
 typedef struct IDsSelectedData {
   struct ListBase selected_array;
@@ -410,8 +406,12 @@ int outliner_flag_is_any_test(ListBase *lb, short flag, int curlevel);
  * Set or unset \a flag for all outliner elements in \a lb and sub-trees.
  * \return if any flag was modified.
  */
-bool outliner_flag_set(ListBase *lb, short flag, short set);
-bool outliner_flag_flip(ListBase *lb, short flag);
+extern "C++" {
+bool outliner_flag_set(const SpaceOutliner &space_outliner, short flag, short set);
+bool outliner_flag_set(const ListBase &lb, short flag, short set);
+bool outliner_flag_flip(const SpaceOutliner &space_outliner, short flag);
+bool outliner_flag_flip(const ListBase &lb, short flag);
+}
 
 void item_rename_fn(struct bContext *C,
                     struct ReportList *reports,
@@ -435,13 +435,13 @@ void lib_reload_fn(struct bContext *C,
                    struct TreeStoreElem *tselem,
                    void *user_data);
 
-void id_delete_fn(struct bContext *C,
-                  struct ReportList *reports,
-                  struct Scene *scene,
-                  struct TreeElement *te,
-                  struct TreeStoreElem *tsep,
-                  struct TreeStoreElem *tselem,
-                  void *user_data);
+void id_delete_tag_fn(struct bContext *C,
+                      struct ReportList *reports,
+                      struct Scene *scene,
+                      struct TreeElement *te,
+                      struct TreeStoreElem *tsep,
+                      struct TreeStoreElem *tselem,
+                      void *user_data);
 void id_remap_fn(struct bContext *C,
                  struct ReportList *reports,
                  struct Scene *scene,
@@ -453,15 +453,13 @@ void id_remap_fn(struct bContext *C,
 /**
  * To retrieve coordinates with redrawing the entire tree.
  */
-void outliner_set_coordinates(struct ARegion *region, struct SpaceOutliner *space_outliner);
+void outliner_set_coordinates(const struct ARegion *region,
+                              const struct SpaceOutliner *space_outliner);
 
 /**
  * Open or close a tree element, optionally toggling all children recursively.
  */
-void outliner_item_openclose(struct SpaceOutliner *space_outliner,
-                             TreeElement *te,
-                             bool open,
-                             bool toggle_all);
+void outliner_item_openclose(TreeElement *te, bool open, bool toggle_all);
 
 /* outliner_dragdrop.c */
 
@@ -510,6 +508,11 @@ void OUTLINER_OT_drivers_delete_selected(struct wmOperatorType *ot);
 
 void OUTLINER_OT_orphans_purge(struct wmOperatorType *ot);
 
+/* outliner_query.cc ---------------------------------------------- */
+
+bool outliner_shows_mode_column(const SpaceOutliner &space_outliner);
+bool outliner_has_element_warnings(const SpaceOutliner &space_outliner);
+
 /* outliner_tools.c ---------------------------------------------- */
 
 void merged_element_search_menu_invoke(struct bContext *C,
@@ -522,6 +525,8 @@ void OUTLINER_OT_operation(struct wmOperatorType *ot);
 void OUTLINER_OT_scene_operation(struct wmOperatorType *ot);
 void OUTLINER_OT_object_operation(struct wmOperatorType *ot);
 void OUTLINER_OT_lib_operation(struct wmOperatorType *ot);
+void OUTLINER_OT_liboverride_operation(struct wmOperatorType *ot);
+void OUTLINER_OT_liboverride_troubleshoot_operation(struct wmOperatorType *ot);
 void OUTLINER_OT_id_operation(struct wmOperatorType *ot);
 void OUTLINER_OT_id_remap(struct wmOperatorType *ot);
 void OUTLINER_OT_id_copy(struct wmOperatorType *ot);

@@ -7,7 +7,6 @@
 
 #include "gpu_shader_interface.hh"
 #include "gpu_vertex_buffer_private.hh"
-#include "gpu_vertex_format_private.h"
 
 #include "gl_batch.hh"
 #include "gl_context.hh"
@@ -22,7 +21,7 @@ namespace blender::gpu {
 /** \name Vertex Array Bindings
  * \{ */
 
-/* Returns enabled vertex pointers as a bitflag (one bit per attrib). */
+/** Returns enabled vertex pointers as a bit-flag (one bit per attribute). */
 static uint16_t vbo_bind(const ShaderInterface *interface,
                          const GPUVertFormat *format,
                          uint v_first,
@@ -39,8 +38,8 @@ static uint16_t vbo_bind(const ShaderInterface *interface,
     const GPUVertAttr *a = &format->attrs[a_idx];
 
     if (format->deinterleaved) {
-      offset += ((a_idx == 0) ? 0 : format->attrs[a_idx - 1].sz) * v_len;
-      stride = a->sz;
+      offset += ((a_idx == 0) ? 0 : format->attrs[a_idx - 1].size) * v_len;
+      stride = a->size;
     }
     else {
       offset = a->offset;

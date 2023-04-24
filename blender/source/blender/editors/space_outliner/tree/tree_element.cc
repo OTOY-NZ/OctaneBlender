@@ -17,6 +17,7 @@
 #include "tree_element_driver.hh"
 #include "tree_element_gpencil_layer.hh"
 #include "tree_element_id.hh"
+#include "tree_element_label.hh"
 #include "tree_element_nla.hh"
 #include "tree_element_overrides.hh"
 #include "tree_element_rna.hh"
@@ -52,6 +53,8 @@ std::unique_ptr<AbstractTreeElement> AbstractTreeElement::createFromType(const i
   switch (type) {
     case TSE_SOME_ID:
       return TreeElementID::createFromID(legacy_te, *static_cast<ID *>(idv));
+    case TSE_GENERIC_LABEL:
+      return std::make_unique<TreeElementLabel>(legacy_te, static_cast<const char *>(idv));
     case TSE_ANIM_DATA:
       return std::make_unique<TreeElementAnimData>(legacy_te,
                                                    *reinterpret_cast<IdAdtTemplate *>(idv)->adt);
@@ -75,6 +78,9 @@ std::unique_ptr<AbstractTreeElement> AbstractTreeElement::createFromType(const i
       return std::make_unique<TreeElementOverridesBase>(legacy_te, *static_cast<ID *>(idv));
     case TSE_LIBRARY_OVERRIDE:
       return std::make_unique<TreeElementOverridesProperty>(
+          legacy_te, *static_cast<TreeElementOverridesData *>(idv));
+    case TSE_LIBRARY_OVERRIDE_OPERATION:
+      return std::make_unique<TreeElementOverridesPropertyOperation>(
           legacy_te, *static_cast<TreeElementOverridesData *>(idv));
     case TSE_RNA_STRUCT:
       return std::make_unique<TreeElementRNAStruct>(legacy_te,
@@ -100,6 +106,16 @@ std::unique_ptr<AbstractTreeElement> AbstractTreeElement::createFromType(const i
   return nullptr;
 }
 
+StringRefNull AbstractTreeElement::getWarning() const
+{
+  return "";
+}
+
+std::optional<BIFIconID> AbstractTreeElement::getIcon() const
+{
+  return {};
+}
+
 void AbstractTreeElement::uncollapse_by_default(TreeElement *legacy_te)
 {
   if (!TREESTORE(legacy_te)->used) {
@@ -116,41 +132,6 @@ void tree_element_expand(const AbstractTreeElement &tree_element, SpaceOutliner 
     return;
   }
   tree_element.expand(space_outliner);
-}
-
-bool tree_element_warnings_get(TreeElement *te, int *r_icon, const char **r_message)
-{
-  TreeStoreElem *tselem = te->store_elem;
-
-  if (tselem->type != TSE_SOME_ID) {
-    return false;
-  }
-  if (te->idcode != ID_LI) {
-    return false;
-  }
-
-  Library *library = (Library *)tselem->id;
-  if (library->tag & LIBRARY_TAG_RESYNC_REQUIRED) {
-    if (r_icon) {
-      *r_icon = ICON_ERROR;
-    }
-    if (r_message) {
-      *r_message = TIP_(
-          "Contains linked library overrides that need to be resynced, updating the library is "
-          "recommended");
-    }
-    return true;
-  }
-  if (library->id.tag & LIB_TAG_MISSING) {
-    if (r_icon) {
-      *r_icon = ICON_ERROR;
-    }
-    if (r_message) {
-      *r_message = TIP_("Missing library");
-    }
-    return true;
-  }
-  return false;
 }
 
 }  // namespace blender::ed::outliner

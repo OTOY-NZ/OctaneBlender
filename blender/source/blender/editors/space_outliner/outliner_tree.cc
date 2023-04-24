@@ -221,11 +221,6 @@ bool outliner_requires_rebuild_on_select_or_active_change(const SpaceOutliner *s
   return exclude_flags & (SO_FILTER_OB_STATE_SELECTED | SO_FILTER_OB_STATE_ACTIVE);
 }
 
-bool outliner_requires_rebuild_on_open_change(const SpaceOutliner *space_outliner)
-{
-  return ELEM(space_outliner->outlinevis, SO_DATA_API);
-}
-
 /* special handling of hierarchical non-lib data */
 static void outliner_add_bone(SpaceOutliner *space_outliner,
                               ListBase *lb,
@@ -802,7 +797,8 @@ TreeElement *outliner_add_element(SpaceOutliner *space_outliner,
                                   void *idv,
                                   TreeElement *parent,
                                   short type,
-                                  short index)
+                                  short index,
+                                  const bool expand)
 {
   ID *id = reinterpret_cast<ID *>(idv);
 
@@ -816,9 +812,12 @@ TreeElement *outliner_add_element(SpaceOutliner *space_outliner,
     /* idv is the layer itself */
     id = TREESTORE(parent)->id;
   }
+  else if (ELEM(type, TSE_GENERIC_LABEL)) {
+    id = nullptr;
+  }
 
   /* exceptions */
-  if (type == TSE_ID_BASE) {
+  if (ELEM(type, TSE_ID_BASE, TSE_GENERIC_LABEL)) {
     /* pass */
   }
   else if (id == nullptr) {
@@ -868,7 +867,7 @@ TreeElement *outliner_add_element(SpaceOutliner *space_outliner,
   else if (ELEM(type, TSE_LAYER_COLLECTION, TSE_SCENE_COLLECTION_BASE, TSE_VIEW_COLLECTION_BASE)) {
     /* pass */
   }
-  else if (type == TSE_ID_BASE) {
+  else if (ELEM(type, TSE_ID_BASE, TSE_GENERIC_LABEL)) {
     /* pass */
   }
   else if (type == TSE_SOME_ID) {
@@ -876,7 +875,10 @@ TreeElement *outliner_add_element(SpaceOutliner *space_outliner,
       BLI_assert_msg(0, "Expected this ID type to be ported to new Outliner tree-element design");
     }
   }
-  else if (ELEM(type, TSE_LIBRARY_OVERRIDE_BASE, TSE_LIBRARY_OVERRIDE)) {
+  else if (ELEM(type,
+                TSE_LIBRARY_OVERRIDE_BASE,
+                TSE_LIBRARY_OVERRIDE,
+                TSE_LIBRARY_OVERRIDE_OPERATION)) {
     if (!te->abstract_element) {
       BLI_assert_msg(0,
                      "Expected override types to be ported to new Outliner tree-element design");
@@ -894,7 +896,10 @@ TreeElement *outliner_add_element(SpaceOutliner *space_outliner,
     te->idcode = GS(id->name);
   }
 
-  if (te->abstract_element && te->abstract_element->isExpandValid()) {
+  if (!expand) {
+    /* Pass */
+  }
+  else if (te->abstract_element && te->abstract_element->isExpandValid()) {
     tree_element_expand(*te->abstract_element, *space_outliner);
   }
   else if (type == TSE_SOME_ID) {
@@ -915,12 +920,9 @@ TreeElement *outliner_add_element(SpaceOutliner *space_outliner,
                 TSE_RNA_ARRAY_ELEM,
                 TSE_SEQUENCE,
                 TSE_SEQ_STRIP,
-                TSE_SEQUENCE_DUP)) {
+                TSE_SEQUENCE_DUP,
+                TSE_GENERIC_LABEL)) {
     BLI_assert_msg(false, "Element type should already use new AbstractTreeElement design");
-  }
-
-  if (tree_element_warnings_get(te, nullptr, nullptr)) {
-    te->flag |= TE_HAS_WARNING;
   }
 
   return te;
@@ -1686,6 +1688,9 @@ void outliner_build_tree(Main *mainvar,
   space_outliner->storeflag &= ~SO_TREESTORE_REBUILD;
 
   if (region->do_draw & RGN_DRAW_NO_REBUILD) {
+    BLI_assert_msg(space_outliner->runtime->tree_display != nullptr,
+                   "Skipping rebuild before tree was built properly, a full redraw should be "
+                   "triggered instead");
     return;
   }
 

@@ -34,7 +34,7 @@ class PlanarFieldInput final : public GeometryFieldInput {
   }
 
   GVArray get_varray_for_context(const GeometryComponent &component,
-                                 const AttributeDomain domain,
+                                 const eAttrDomain domain,
                                  [[maybe_unused]] IndexMask mask) const final
   {
     if (component.type() != GEO_COMPONENT_TYPE_MESH) {
@@ -51,7 +51,7 @@ class PlanarFieldInput final : public GeometryFieldInput {
     fn::FieldEvaluator evaluator{context, mesh->totpoly};
     evaluator.add(threshold_);
     evaluator.evaluate();
-    const VArray<float> &thresholds = evaluator.get_evaluated<float>(0);
+    const VArray<float> thresholds = evaluator.get_evaluated<float>(0);
 
     Span<float3> poly_normals{(float3 *)BKE_mesh_poly_normals_ensure(mesh), mesh->totpoly};
 
@@ -80,7 +80,7 @@ class PlanarFieldInput final : public GeometryFieldInput {
       return max - min < thresholds[i_poly] / 2.0f;
     };
 
-    return component.attribute_try_adapt_domain<bool>(
+    return component.attributes()->adapt_domain<bool>(
         VArray<bool>::ForFunc(mesh->totpoly, planar_fn), ATTR_DOMAIN_FACE, domain);
   }
 

@@ -17,15 +17,15 @@ extern "C" {
  */
 
 /* Blender major and minor version. */
-#define BLENDER_VERSION 302
+#define BLENDER_VERSION 303
 /* Blender patch version for bugfix releases. */
-#define BLENDER_VERSION_PATCH 2
+#define BLENDER_VERSION_PATCH 0
 /** Blender release cycle stage: alpha/beta/rc/release. */
 #define BLENDER_VERSION_CYCLE release
 
 /* Blender file format version. */
 #define BLENDER_FILE_VERSION BLENDER_VERSION
-#define BLENDER_FILE_SUBVERSION 14
+#define BLENDER_FILE_SUBVERSION 6
 
 /* Minimum Blender version that supports reading file written with the current
  * version. Older Blender versions will test this and show a warning if the file

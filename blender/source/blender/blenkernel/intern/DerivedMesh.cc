@@ -66,6 +66,9 @@
 #  include "DNA_userdef_types.h"
 #endif
 
+using blender::float3;
+using blender::IndexRange;
+
 /* very slow! enable for testing only! */
 //#define USE_MODIFIER_VALIDATE
 
@@ -81,6 +84,8 @@ static ThreadRWMutex loops_cache_lock = PTHREAD_RWLOCK_INITIALIZER;
 static void mesh_init_origspace(Mesh *mesh);
 static void editbmesh_calc_modifier_final_normals(Mesh *mesh_final,
                                                   const CustomData_MeshMasks *final_datamask);
+static void editbmesh_calc_modifier_final_normals_or_defer(
+    Mesh *mesh_final, const CustomData_MeshMasks *final_datamask);
 
 /* -------------------------------------------------------------------- */
 
@@ -424,21 +429,6 @@ static void mesh_set_only_copy(Mesh *mesh, const CustomData_MeshMasks *mask)
 #endif
 }
 
-void DM_add_vert_layer(DerivedMesh *dm, int type, eCDAllocType alloctype, void *layer)
-{
-  CustomData_add_layer(&dm->vertData, type, alloctype, layer, dm->numVertData);
-}
-
-void DM_add_edge_layer(DerivedMesh *dm, int type, eCDAllocType alloctype, void *layer)
-{
-  CustomData_add_layer(&dm->edgeData, type, alloctype, layer, dm->numEdgeData);
-}
-
-void DM_add_poly_layer(DerivedMesh *dm, int type, eCDAllocType alloctype, void *layer)
-{
-  CustomData_add_layer(&dm->polyData, type, alloctype, layer, dm->numPolyData);
-}
-
 void *DM_get_vert_data_layer(DerivedMesh *dm, int type)
 {
   if (type == CD_MVERT) {
@@ -647,14 +637,14 @@ static void mesh_calc_modifier_final_normals(const Mesh *mesh_input,
       /* without this, drawing ngon tri's faces will show ugly tessellated face
        * normals and will also have to calculate normals on the fly, try avoid
        * this where possible since calculating polygon normals isn't fast,
-       * note that this isn't a problem for subsurf (only quads) or editmode
+       * note that this isn't a problem for subsurf (only quads) or edit-mode
        * which deals with drawing differently. */
       BKE_mesh_ensure_normals_for_display(mesh_final);
     }
 
     /* Some modifiers, like data-transfer, may generate those data as temp layer,
      * we do not want to keep them, as they are used by display code when available
-     * (i.e. even if autosmooth is disabled). */
+     * (i.e. even if auto-smooth is disabled). */
     if (CustomData_has_layer(&mesh_final->ldata, CD_NORMAL)) {
       CustomData_free_layers(&mesh_final->ldata, CD_NORMAL, mesh_final->totloop);
     }
@@ -675,8 +665,8 @@ static void mesh_calc_finalize(const Mesh *mesh_input, Mesh *mesh_eval)
   mesh_eval->edit_mesh = mesh_input->edit_mesh;
 }
 
-void BKE_mesh_wrapper_deferred_finalize(Mesh *me_eval,
-                                        const CustomData_MeshMasks *cd_mask_finalize)
+void BKE_mesh_wrapper_deferred_finalize_mdata(Mesh *me_eval,
+                                              const CustomData_MeshMasks *cd_mask_finalize)
 {
   if (me_eval->runtime.wrapper_type_finalize & (1 << ME_WRAPPER_TYPE_BMESH)) {
     editbmesh_calc_modifier_final_normals(me_eval, cd_mask_finalize);
@@ -751,6 +741,7 @@ static void mesh_calc_modifiers(struct Depsgraph *depsgraph,
                                 Mesh **r_final,
                                 GeometrySet **r_geometry_set)
 {
+  using namespace blender::bke;
   /* Input and final mesh. Final mesh is only created the moment the first
    * constructive modifier is executed, or a deform modifier needs normals
    * or certain data layers. */
@@ -828,6 +819,20 @@ static void mesh_calc_modifiers(struct Depsgraph *depsgraph,
 
   /* Clear errors before evaluation. */
   BKE_modifiers_clear_errors(ob);
+
+  if (ob->modifier_flag & OB_MODIFIER_FLAG_ADD_REST_POSITION) {
+    if (mesh_final == nullptr) {
+      mesh_final = BKE_mesh_copy_for_eval(mesh_input, true);
+      ASSERT_IS_VALID_MESH(mesh_final);
+    }
+    MutableAttributeAccessor attributes = mesh_attributes_for_write(*mesh_final);
+    SpanAttributeWriter<float3> rest_positions =
+        attributes.lookup_or_add_for_write_only_span<float3>("rest_position", ATTR_DOMAIN_POINT);
+    if (rest_positions) {
+      attributes.lookup<float3>("position").materialize(rest_positions.span);
+      rest_positions.finish();
+    }
+  }
 
   /* Apply all leading deform modifiers. */
   if (use_deform) {
@@ -1279,12 +1284,6 @@ bool editbmesh_modifier_is_enabled(const Scene *scene,
 static void editbmesh_calc_modifier_final_normals(Mesh *mesh_final,
                                                   const CustomData_MeshMasks *final_datamask)
 {
-  if (mesh_final->runtime.wrapper_type != ME_WRAPPER_TYPE_MDATA) {
-    /* Generated at draw time. */
-    mesh_final->runtime.wrapper_type_finalize = (1 << mesh_final->runtime.wrapper_type);
-    return;
-  }
-
   const bool calc_loop_normals = ((mesh_final->flag & ME_AUTOSMOOTH) != 0 ||
                                   (final_datamask->lmask & CD_MASK_NORMAL) != 0);
 
@@ -1310,6 +1309,18 @@ static void editbmesh_calc_modifier_final_normals(Mesh *mesh_final,
       CustomData_free_layers(&mesh_final->ldata, CD_NORMAL, mesh_final->totloop);
     }
   }
+}
+
+static void editbmesh_calc_modifier_final_normals_or_defer(
+    Mesh *mesh_final, const CustomData_MeshMasks *final_datamask)
+{
+  if (mesh_final->runtime.wrapper_type != ME_WRAPPER_TYPE_MDATA) {
+    /* Generated at draw time. */
+    mesh_final->runtime.wrapper_type_finalize = (1 << mesh_final->runtime.wrapper_type);
+    return;
+  }
+
+  editbmesh_calc_modifier_final_normals(mesh_final, final_datamask);
 }
 
 static void editbmesh_calc_modifiers(struct Depsgraph *depsgraph,
@@ -1591,9 +1602,9 @@ static void editbmesh_calc_modifiers(struct Depsgraph *depsgraph,
   }
 
   /* Compute normals. */
-  editbmesh_calc_modifier_final_normals(mesh_final, &final_datamask);
+  editbmesh_calc_modifier_final_normals_or_defer(mesh_final, &final_datamask);
   if (mesh_cage && (mesh_cage != mesh_final)) {
-    editbmesh_calc_modifier_final_normals(mesh_cage, &final_datamask);
+    editbmesh_calc_modifier_final_normals_or_defer(mesh_cage, &final_datamask);
   }
 
   /* Return final mesh. */

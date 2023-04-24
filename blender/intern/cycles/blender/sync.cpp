@@ -285,7 +285,7 @@ void BlenderSync::sync_data(BL::RenderSettings &b_render,
 
   free_data_after_sync(b_depsgraph);
 
-  VLOG(1) << "Total time spent synchronizing data: " << timer.get_time();
+  VLOG_INFO << "Total time spent synchronizing data: " << timer.get_time();
 
   has_updates_ = false;
 }
@@ -390,7 +390,7 @@ void BlenderSync::sync_integrator(BL::ViewLayer &b_view_layer, bool background)
   }
 
   if (scrambling_distance != 1.0f) {
-    VLOG(3) << "Using scrambling distance: " << scrambling_distance;
+    VLOG_INFO << "Using scrambling distance: " << scrambling_distance;
   }
   integrator->set_scrambling_distance(scrambling_distance);
 
@@ -412,7 +412,15 @@ void BlenderSync::sync_integrator(BL::ViewLayer &b_view_layer, bool background)
   integrator->set_direct_light_sampling_type(direct_light_sampling_type);
 #endif
 
-  const DenoiseParams denoise_params = get_denoise_params(b_scene, b_view_layer, background);
+  DenoiseParams denoise_params = get_denoise_params(b_scene, b_view_layer, background);
+
+  /* No denoising support for vertex color baking, vertices packed into image
+   * buffer have no relation to neighbors. */
+  if (scene->bake_manager->get_baking() &&
+      b_scene.render().bake().target() != BL::BakeSettings::target_IMAGE_TEXTURES) {
+    denoise_params.use = false;
+  }
+
   integrator->set_use_denoise(denoise_params.use);
 
   /* Only update denoiser parameters if the denoiser is actually used. This allows to tweak

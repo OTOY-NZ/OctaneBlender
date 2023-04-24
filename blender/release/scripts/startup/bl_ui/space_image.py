@@ -1,7 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-# <pep8 compliant>
-
 from bpy.types import (
     Header,
     Menu,
@@ -31,7 +29,10 @@ from bl_ui.space_toolsystem_common import (
     ToolActivePanelHelper,
 )
 
-from bpy.app.translations import pgettext_iface as iface_
+from bpy.app.translations import (
+    contexts as i18n_contexts,
+    pgettext_iface as iface_,
+)
 
 
 class ImagePaintPanel:
@@ -161,6 +162,7 @@ class IMAGE_MT_select(Menu):
 
         layout.operator("uv.select_pinned")
         layout.menu("IMAGE_MT_select_linked")
+        layout.operator("uv.select_similar")
 
         layout.separator()
 
@@ -188,7 +190,8 @@ class IMAGE_MT_image(Menu):
         ima = sima.image
         show_render = sima.show_render
 
-        layout.operator("image.new", text="New")
+        layout.operator("image.new", text="New",
+                        text_ctxt=i18n_contexts.id_image)
         layout.operator("image.open", text="Open...", icon='FILE_FOLDER')
 
         layout.operator("image.read_viewlayers")
@@ -307,6 +310,7 @@ class IMAGE_MT_uvs_snap(Menu):
 
         layout.operator("uv.snap_cursor", text="Cursor to Pixels").target = 'PIXELS'
         layout.operator("uv.snap_cursor", text="Cursor to Selected").target = 'SELECTED'
+        layout.operator("uv.snap_cursor", text="Cursor to Origin").target = 'ORIGIN'
 
 
 class IMAGE_MT_uvs_mirror(Menu):
@@ -573,6 +577,11 @@ class IMAGE_MT_uvs_snap_pie(Menu):
             text="Selected to Adjacent Unselected",
             icon='RESTRICT_SELECT_OFF',
         ).target = 'ADJACENT_UNSELECTED'
+        pie.operator(
+            "uv.snap_cursor",
+            text="Cursor to Origin",
+            icon='PIVOT_CURSOR',
+        ).target = 'ORIGIN'
 
 
 class IMAGE_MT_view_pie(Menu):
@@ -805,6 +814,13 @@ class IMAGE_HT_header(Header):
             layout.prop(sima, "use_image_pin", text="", emboss=False)
 
         layout.separator_spacer()
+
+        # Gizmo toggle & popover.
+        row = layout.row(align=True)
+        row.prop(sima, "show_gizmo", icon='GIZMO', text="")
+        sub = row.row(align=True)
+        sub.active = sima.show_gizmo
+        sub.popover(panel="IMAGE_PT_gizmo_display", text="")
 
         # Overlay toggle & popover
         row = layout.row(align=True)
@@ -1453,6 +1469,26 @@ class IMAGE_PT_uv_cursor(Panel):
         col.prop(sima, "cursor_location", text="Location")
 
 
+class IMAGE_PT_gizmo_display(Panel):
+    bl_space_type = 'IMAGE_EDITOR'
+    bl_region_type = 'HEADER'
+    bl_label = "Gizmos"
+    bl_ui_units_x = 8
+
+    def draw(self, context):
+        layout = self.layout
+
+        view = context.space_data
+
+        col = layout.column()
+        col.label(text="Viewport Gizmos")
+        col.separator()
+
+        col.active = view.show_gizmo
+        colsub = col.column()
+        colsub.prop(view, "show_gizmo_navigate", text="Navigate")
+
+
 class IMAGE_PT_overlay(Panel):
     bl_space_type = 'IMAGE_EDITOR'
     bl_region_type = 'HEADER'
@@ -1680,6 +1716,7 @@ classes = (
     IMAGE_PT_scope_sample,
     IMAGE_PT_uv_cursor,
     IMAGE_PT_annotation,
+    IMAGE_PT_gizmo_display,
     IMAGE_PT_overlay,
     IMAGE_PT_overlay_guides,
     IMAGE_PT_overlay_uv_edit,

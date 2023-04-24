@@ -113,7 +113,7 @@ static void create_curve_hair(Scene *scene,
     for (size_t i = 0; i < profiles.size(); ++i) {
       const Spline &profile = *profiles[i];
       float cur_thickness = root_width;
-      size_t step_num = profile.evaluated_points_size();
+      size_t step_num = profile.evaluated_points_num();
       auto positions = profile.evaluated_positions();
       float thickness_step = step_num > 1 ? (tip_width - root_width) / (step_num - 1) : 0;
       for (size_t j = 0; j < step_num; ++j) {
@@ -748,9 +748,25 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
   if (is_instance && use_geometry_node_modifier) {
     modifier_object_tag += "[Instance]";
   }
-  std::string mesh_name = resolve_octane_name(b_ob, modifier_object_tag, MESH_TAG);
-
+  std::string b_ob_name = b_ob.name();
+  std::string b_ob_data_name = b_ob_data.name();
+  std::string mesh_name = resolve_octane_name(b_ob_data, modifier_object_tag, MESH_TAG);
+  synced_object_to_octane_mesh_name_map[b_ob_name].insert(mesh_name);
   bool is_mesh_data_updated = mesh_map.sync(&octane_mesh, key);
+  if (b_ob.mode() == b_ob.mode_EDIT) {
+    is_mesh_data_updated = true;
+    for (auto &it : synced_object_to_octane_mesh_name_map[b_ob_name]) {
+      if (it != mesh_name) {
+        edited_mesh_names.insert(it);
+        synced_mesh_tags[it] = "";
+      }
+    }
+  }
+  if (edited_mesh_names.find(mesh_name) != edited_mesh_names.end()) {
+    is_mesh_data_updated = true;
+    synced_mesh_tags[mesh_name] = "";
+    edited_mesh_names.erase(mesh_name);
+  }
   std::string new_mesh_tag = generate_mesh_tag(b_depsgraph, b_ob, used_shaders);
 
   std::string new_octane_prop_tag = "";
@@ -770,14 +786,14 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
     BL::Curve::splines_iterator s;
     for (b_curve.splines.begin(s); s != b_curve.splines.end(); ++s) {
       size_t step_num = s->points.length();
-      size_t delta = static_cast <size_t>(step_num / 3);
+      size_t delta = std::max(static_cast<size_t>(step_num / 3), static_cast<size_t>(1));
       for (size_t step = 0; step < step_num; step += delta) {
         const BL::Array<float, 4> array = s->points[step].co();
         float sum = array[0] + array[1] + array[2];
         new_octane_prop_tag += ("|" + std::to_string(sum));
       }
       step_num = s->bezier_points.length();
-      delta = static_cast<size_t>(step_num / 3);
+      delta = std::max(static_cast<size_t>(step_num / 3), static_cast<size_t>(1));
       for (size_t step = 0; step < step_num; step += delta) {
         const BL::Array<float, 3> array = s->bezier_points[step].co();
         float sum = array[0] + array[1] + array[2];
@@ -994,7 +1010,7 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
   bool octane_subdivision_need_update = (use_octane_vertex_displacement_subdvision &&
                                          !octane_mesh->is_subdivision());
   bool need_update = preview ? (is_mesh_data_updated || is_mesh_tag_data_updated ||
-                                octane_vdb_force_update_flag || octane_subdivision_need_update ||
+                                octane_vdb_force_update_flag ||
                                 is_octane_property_update) :
                                is_octane_geometry_required(
                                    mesh_name, b_ob.type(), oct_mesh, octane_mesh, mesh_type);

@@ -113,7 +113,7 @@ typedef enum eGPUTextureFormat {
   GPU_R16F,
   GPU_R16, /* Max texture buffer format. */
 
-  /* Special formats texture & renderbuffer */
+  /* Special formats texture & render-buffer. */
   GPU_RGB10_A2,
   GPU_R11F_G11F_B10F,
   GPU_DEPTH32F_STENCIL8,
@@ -193,7 +193,7 @@ unsigned int GPU_texture_memory_usage_get(void);
  * \note \a data is expected to be float. If the \a format is not compatible with float data or if
  * the data is not in float format, use GPU_texture_update to upload the data with the right data
  * format.
- * \a mips is the number of mip level to allocate. It must be >= 1.
+ * \a mip_len is the number of mip level to allocate. It must be >= 1.
  */
 GPUTexture *GPU_texture_create_1d(
     const char *name, int w, int mip_len, eGPUTextureFormat format, const float *data);
@@ -280,9 +280,9 @@ void *GPU_texture_read(GPUTexture *tex, eGPUDataFormat data_format, int miplvl);
 /**
  * Fills the whole texture with the same data for all pixels.
  * \warning Only work for 2D texture for now.
- * \warning Only clears the mip 0 of the texture.
+ * \warning Only clears the MIP 0 of the texture.
  * \param data_format: data format of the pixel data.
- * \note The format is float for unorm textures.
+ * \note The format is float for UNORM textures.
  * \param data: 1 pixel worth of data to fill the texture with.
  */
 void GPU_texture_clear(GPUTexture *tex, eGPUDataFormat data_format, const void *data);

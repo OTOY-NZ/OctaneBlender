@@ -1,7 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-# <pep8 compliant>
-
 import bpy
 from bpy.types import (
     Operator,
@@ -1117,6 +1115,10 @@ class PREFERENCES_OT_studiolight_show(Operator):
     bl_idname = "preferences.studiolight_show"
     bl_label = ""
     bl_options = {'INTERNAL'}
+
+    @classmethod
+    def poll(cls, _context):
+        return bpy.ops.screen.userpref_show.poll()
 
     def execute(self, context):
         context.preferences.active_section = 'LIGHTS'

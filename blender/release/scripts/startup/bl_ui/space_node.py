@@ -1,6 +1,4 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
-
-# <pep8 compliant>
 import bpy
 from bpy.types import Header, Menu, Panel
 from bpy.app.translations import pgettext_iface as iface_
@@ -377,8 +375,8 @@ class NODE_PT_material_slots(Panel):
     def draw_header(self, context):
         ob = context.object
         self.bl_label = (
-            "Slot " + str(ob.active_material_index + 1) if ob.material_slots else
-            "Slot"
+            iface_("Slot %d") % (ob.active_material_index + 1) if ob.material_slots else
+            iface_("Slot")
         )
 
     # Duplicate part of 'EEVEE_MATERIAL_PT_context_material'.

@@ -128,10 +128,10 @@ class OctaneMesh(bpy.types.Node, OctaneBaseNode):
     a_subd_level: IntProperty(name="Subd level", default=0, update=OctaneBaseNode.update_node_tree, description="The subdivision level of geometry")
     a_subd_sharpness: FloatProperty(name="Subd sharpness", default=0.000000, update=OctaneBaseNode.update_node_tree, description="The sharpness of edges and corners of subdivided geometry")
     a_subd_file_sharpness_scale: FloatProperty(name="Subd file sharpness scale", default=10.000000, update=OctaneBaseNode.update_node_tree, description="The scale that should be applied to the sharpness value to get desired sharpness. E.g. 10 for Max/Maya 3.33 for Cinema4D")
-    a_subd_bound_interp: IntProperty(name="Subd bound interp", default=3, update=OctaneBaseNode.update_node_tree, description="The boundary interpolation method for vertex data")
-    a_subd_fvr_bound_interp: IntProperty(name="Subd fvr bound interp", default=3, update=OctaneBaseNode.update_node_tree, description="The boundary interpolation method for face-varying data")
+    a_subd_bound_interp: IntProperty(name="Subd bound interp", default=3, update=OctaneBaseNode.update_node_tree, description="The boundary interpolation method for vertex data (see enum SubDivInterpolateBoundary)")
+    a_subd_fvr_bound_interp: IntProperty(name="Subd fvr bound interp", default=3, update=OctaneBaseNode.update_node_tree, description="The boundary interpolation method for face-varying data (see enum SubDivFVarInterpolateBoundary)")
     a_subd_fvr_propagate_corners: BoolProperty(name="Subd fvr propagate corners", default=False, update=OctaneBaseNode.update_node_tree, description="Additional flag when A_SUBD_FVR_BOUND_INTERP is set to SUBDIV_BOUNDARY_EDGEANDCORNER")
-    a_subd_scheme: IntProperty(name="Subd scheme", default=1, update=OctaneBaseNode.update_node_tree, description="The subdivision scheme")
+    a_subd_scheme: IntProperty(name="Subd scheme", default=1, update=OctaneBaseNode.update_node_tree, description="The subdivision scheme (see enum SubDivInterpolateBoundary)")
     a_objimp_winding_order: IntProperty(name="Objimp winding order", default=1, update=OctaneBaseNode.update_node_tree, description="The order of the vertices in polygons, as seen from the side where the normal is pointing")
     a_objimp_smooth_groups_as_boundaries: BoolProperty(name="Objimp smooth groups as boundaries", default=False, update=OctaneBaseNode.update_node_tree, description="If enabled, the smoothgroups of the OBJ file (if present) will be used to define the boundaries for interpolating vertex normals")
     a_objimp_import_materials: BoolProperty(name="Objimp import materials", default=True, update=OctaneBaseNode.update_node_tree, description="If enabled, materials will be imported from the supplied MTL file (if available)")
@@ -171,7 +171,7 @@ def register():
     utility.octane_register_interface_class(_CLASSES, _SOCKET_INTERFACE_CLASSES)
 
 def unregister():
-    utility.octane_unregister_class(reversed(_SOCKET_INTERFACE_CLASSES))
+    utility.octane_unregister_interface_class(_SOCKET_INTERFACE_CLASSES)
     utility.octane_unregister_class(reversed(_CLASSES))
 
 ##### END OCTANE GENERATED CODE BLOCK #####

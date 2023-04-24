@@ -272,6 +272,8 @@ class BlenderSync {
   std::map<std::string, int> resource_cache_data;
   std::unordered_set<std::string> dirty_resources;
   std::unordered_map<std::string, std::string> synced_mesh_tags;
+  std::unordered_map<std::string, std::unordered_set<std::string>> synced_object_to_octane_mesh_name_map;
+  std::unordered_set<std::string> edited_mesh_names;
 
   BL::NodeTree composite_aov_node_tree;
 

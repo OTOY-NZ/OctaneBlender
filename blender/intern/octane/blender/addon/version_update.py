@@ -41,6 +41,7 @@ def do_versions(self):
     check_compatibility_octane_aovs_graph(file_version)
     check_compatibility_octane_composite_graph(file_version)
     check_octane_output_settings(file_version)
+    check_compatible_render_settings()
     check_color_management()    
     update_current_version()    
 
@@ -51,6 +52,9 @@ def get_current_version():
         return getattr(bpy.context.scene.octane, 'octane_blender_version', '')
     return ''
 
+def check_compatible_render_settings():
+    for scene in bpy.data.scenes:
+        scene.render.use_persistent_data = False
 
 def check_update(current_version, update_version):
     try:

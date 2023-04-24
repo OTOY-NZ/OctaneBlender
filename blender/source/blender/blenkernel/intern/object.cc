@@ -449,7 +449,7 @@ static void object_foreach_id(ID *id, LibraryForeachIDData *data)
 
     if (object->soft->effector_weights) {
       BKE_LIB_FOREACHID_PROCESS_IDSUPER(
-          data, object->soft->effector_weights->group, IDWALK_CB_NOP);
+          data, object->soft->effector_weights->group, IDWALK_CB_USER);
     }
   }
 }
@@ -583,7 +583,7 @@ static void object_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   }
 
   BKE_particle_system_blend_write(writer, &ob->particlesystem);
-  BKE_modifier_blend_write(writer, &ob->modifiers);
+  BKE_modifier_blend_write(writer, &ob->id, &ob->modifiers);
   BKE_gpencil_modifier_blend_write(writer, &ob->greasepencil_modifiers);
   BKE_shaderfx_blend_write(writer, &ob->shader_fx);
 
@@ -1402,6 +1402,7 @@ bool BKE_object_supports_modifiers(const Object *ob)
 {
   return (ELEM(ob->type,
                OB_MESH,
+               OB_CURVES,
                OB_CURVES_LEGACY,
                OB_SURF,
                OB_FONT,
@@ -2114,7 +2115,7 @@ static const char *get_obdata_defname(int type)
     case OB_SPEAKER:
       return DATA_("Speaker");
     case OB_CURVES:
-      return DATA_("HairCurves");
+      return DATA_("Curves");
     case OB_POINTCLOUD:
       return DATA_("PointCloud");
     case OB_VOLUME:
@@ -2273,7 +2274,7 @@ Object *BKE_object_add(Main *bmain, ViewLayer *view_layer, int type, const char 
   LayerCollection *layer_collection = BKE_layer_collection_get_active(view_layer);
   BKE_collection_viewlayer_object_add(bmain, view_layer, layer_collection->collection, ob);
 
-  /* Note: There is no way to be sure that #BKE_collection_viewlayer_object_add will actually
+  /* NOTE: There is no way to be sure that #BKE_collection_viewlayer_object_add will actually
    * manage to find a valid collection in given `view_layer` to add the new object to. */
   Base *base = BKE_view_layer_base_find(view_layer, ob);
   if (base != nullptr) {
@@ -2483,21 +2484,16 @@ static void copy_object_pose(Object *obn, const Object *ob, const int flag)
      *     BKE_library_remap stuff, but...
      *     the flush_constraint_targets callback am not sure about, so will delay that for now. */
     LISTBASE_FOREACH (bConstraint *, con, &chan->constraints) {
-      const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
       ListBase targets = {nullptr, nullptr};
 
-      if (cti && cti->get_constraint_targets) {
-        cti->get_constraint_targets(con, &targets);
-
+      if (BKE_constraint_targets_get(con, &targets)) {
         LISTBASE_FOREACH (bConstraintTarget *, ct, &targets) {
           if (ct->tar == ob) {
             ct->tar = obn;
           }
         }
 
-        if (cti->flush_constraint_targets) {
-          cti->flush_constraint_targets(con, &targets, false);
-        }
+        BKE_constraint_targets_flush(con, &targets, false);
       }
     }
   }
@@ -4387,7 +4383,7 @@ Mesh *BKE_object_get_evaluated_mesh(const Object *object)
   }
 
   if (object->data && GS(((const ID *)object->data)->name) == ID_ME) {
-    mesh = BKE_mesh_wrapper_ensure_subdivision(object, mesh);
+    mesh = BKE_mesh_wrapper_ensure_subdivision(mesh);
   }
 
   return mesh;
@@ -5362,126 +5358,6 @@ KDTree_3d *BKE_object_as_kdtree(Object *ob, int *r_tot)
 /** \name Object Modifier Utilities
  * \{ */
 
-bool BKE_object_modifier_use_time(Scene *scene, Object *ob, ModifierData *md)
-{
-  if (BKE_modifier_depends_ontime(scene, md)) {
-    return true;
-  }
-
-  /* Check whether modifier is animated. */
-  /* TODO: this should be handled as part of build_animdata() -- Aligorith */
-  if (ob->adt) {
-    AnimData *adt = ob->adt;
-    FCurve *fcu;
-
-    char md_name_esc[sizeof(md->name) * 2];
-    BLI_str_escape(md_name_esc, md->name, sizeof(md_name_esc));
-
-    char pattern[sizeof(md_name_esc) + 16];
-    BLI_snprintf(pattern, sizeof(pattern), "modifiers[\"%s\"]", md_name_esc);
-
-    /* action - check for F-Curves with paths containing 'modifiers[' */
-    if (adt->action) {
-      for (fcu = (FCurve *)adt->action->curves.first; fcu != nullptr; fcu = (FCurve *)fcu->next) {
-        if (fcu->rna_path && strstr(fcu->rna_path, pattern)) {
-          return true;
-        }
-      }
-    }
-
-    /* This here allows modifier properties to get driven and still update properly
-     *
-     * Workaround to get T26764 (e.g. subsurf levels not updating when animated/driven)
-     * working, without the updating problems (T28525 T28690 T28774 T28777) caused
-     * by the RNA updates cache introduced in r.38649
-     */
-    for (fcu = (FCurve *)adt->drivers.first; fcu != nullptr; fcu = (FCurve *)fcu->next) {
-      if (fcu->rna_path && strstr(fcu->rna_path, pattern)) {
-        return true;
-      }
-    }
-
-    /* XXX: also, should check NLA strips, though for now assume that nobody uses
-     * that and we can omit that for performance reasons... */
-  }
-
-  return false;
-}
-
-bool BKE_object_modifier_gpencil_use_time(Object *ob, GpencilModifierData *md)
-{
-  if (BKE_gpencil_modifier_depends_ontime(md)) {
-    return true;
-  }
-
-  /* Check whether modifier is animated. */
-  /* TODO(Aligorith): this should be handled as part of build_animdata() */
-  if (ob->adt) {
-    AnimData *adt = ob->adt;
-
-    char md_name_esc[sizeof(md->name) * 2];
-    BLI_str_escape(md_name_esc, md->name, sizeof(md_name_esc));
-
-    char pattern[sizeof(md_name_esc) + 32];
-    BLI_snprintf(pattern, sizeof(pattern), "grease_pencil_modifiers[\"%s\"]", md_name_esc);
-
-    /* action - check for F-Curves with paths containing 'grease_pencil_modifiers[' */
-    if (adt->action) {
-      LISTBASE_FOREACH (FCurve *, fcu, &adt->action->curves) {
-        if (fcu->rna_path && strstr(fcu->rna_path, pattern)) {
-          return true;
-        }
-      }
-    }
-
-    /* This here allows modifier properties to get driven and still update properly */
-    LISTBASE_FOREACH (FCurve *, fcu, &adt->drivers) {
-      if (fcu->rna_path && strstr(fcu->rna_path, pattern)) {
-        return true;
-      }
-    }
-  }
-
-  return false;
-}
-
-bool BKE_object_shaderfx_use_time(Object *ob, ShaderFxData *fx)
-{
-  if (BKE_shaderfx_depends_ontime(fx)) {
-    return true;
-  }
-
-  /* Check whether effect is animated. */
-  /* TODO(Aligorith): this should be handled as part of build_animdata() */
-  if (ob->adt) {
-    AnimData *adt = ob->adt;
-
-    char fx_name_esc[sizeof(fx->name) * 2];
-    BLI_str_escape(fx_name_esc, fx->name, sizeof(fx_name_esc));
-
-    char pattern[sizeof(fx_name_esc) + 32];
-    BLI_snprintf(pattern, sizeof(pattern), "shader_effects[\"%s\"]", fx_name_esc);
-
-    /* action - check for F-Curves with paths containing string[' */
-    if (adt->action) {
-      LISTBASE_FOREACH (FCurve *, fcu, &adt->action->curves) {
-        if (fcu->rna_path && strstr(fcu->rna_path, pattern)) {
-          return true;
-        }
-      }
-    }
-
-    /* This here allows properties to get driven and still update properly */
-    LISTBASE_FOREACH (FCurve *, fcu, &adt->drivers) {
-      if (fcu->rna_path && strstr(fcu->rna_path, pattern)) {
-        return true;
-      }
-    }
-  }
-
-  return false;
-}
-
 /**
  * Set "ignore cache" flag for all caches on this object.
  */
@@ -5552,11 +5428,9 @@ bool BKE_object_modifier_update_subframe(Depsgraph *depsgraph,
 
     /* also update constraint targets */
     LISTBASE_FOREACH (bConstraint *, con, &ob->constraints) {
-      const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
       ListBase targets = {nullptr, nullptr};
 
-      if (cti && cti->get_constraint_targets) {
-        cti->get_constraint_targets(con, &targets);
+      if (BKE_constraint_targets_get(con, &targets)) {
         LISTBASE_FOREACH (bConstraintTarget *, ct, &targets) {
           if (ct->tar) {
             BKE_object_modifier_update_subframe(
@@ -5564,9 +5438,7 @@ bool BKE_object_modifier_update_subframe(Depsgraph *depsgraph,
           }
         }
         /* free temp targets */
-        if (cti->flush_constraint_targets) {
-          cti->flush_constraint_targets(con, &targets, false);
-        }
+        BKE_constraint_targets_flush(con, &targets, false);
       }
     }
   }

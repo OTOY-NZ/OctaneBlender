@@ -248,6 +248,13 @@ static void get_tex_mapping(TextureNode *mapping, BL::TexMapping &b_mapping)
   mapping->set_tex_mapping_z_mapping((TextureMapping::Mapping)b_mapping.mapping_z());
 }
 
+static bool is_image_animated(BL::Image::source_enum b_image_source, BL::ImageUser &b_image_user)
+{
+  return (b_image_source == BL::Image::source_MOVIE ||
+          b_image_source == BL::Image::source_SEQUENCE) &&
+         b_image_user.use_auto_refresh();
+}
+
 static ShaderNode *add_node(Scene *scene,
                             BL::RenderEngine &b_engine,
                             BL::BlendData &b_data,
@@ -354,6 +361,18 @@ static ShaderNode *add_node(Scene *scene,
   }
   else if (b_node.is_a(&RNA_ShaderNodeCombineHSV)) {
     node = graph->create_node<CombineHSVNode>();
+  }
+  else if (b_node.is_a(&RNA_ShaderNodeSeparateColor)) {
+    BL::ShaderNodeSeparateColor b_separate_node(b_node);
+    SeparateColorNode *separate_node = graph->create_node<SeparateColorNode>();
+    separate_node->set_color_type((NodeCombSepColorType)b_separate_node.mode());
+    node = separate_node;
+  }
+  else if (b_node.is_a(&RNA_ShaderNodeCombineColor)) {
+    BL::ShaderNodeCombineColor b_combine_node(b_node);
+    CombineColorNode *combine_node = graph->create_node<CombineColorNode>();
+    combine_node->set_color_type((NodeCombSepColorType)b_combine_node.mode());
+    node = combine_node;
   }
   else if (b_node.is_a(&RNA_ShaderNodeSeparateXYZ)) {
     node = graph->create_node<SeparateXYZNode>();
@@ -736,10 +755,11 @@ static ShaderNode *add_node(Scene *scene,
     get_tex_mapping(image, b_texture_mapping);
 
     if (b_image) {
+      BL::Image::source_enum b_image_source = b_image.source();
       PointerRNA colorspace_ptr = b_image.colorspace_settings().ptr;
       image->set_colorspace(ustring(get_enum_identifier(colorspace_ptr, "name")));
 
-      image->set_animated(b_image_node.image_user().use_auto_refresh());
+      image->set_animated(is_image_animated(b_image_source, b_image_user));
       image->set_alpha_type(get_image_alpha_type(b_image));
 
       array<int> tiles;
@@ -751,9 +771,9 @@ static ShaderNode *add_node(Scene *scene,
       /* builtin images will use callback-based reading because
        * they could only be loaded correct from blender side
        */
-      bool is_builtin = b_image.packed_file() || b_image.source() == BL::Image::source_GENERATED ||
-                        b_image.source() == BL::Image::source_MOVIE ||
-                        (b_engine.is_preview() && b_image.source() != BL::Image::source_SEQUENCE);
+      bool is_builtin = b_image.packed_file() || b_image_source == BL::Image::source_GENERATED ||
+                        b_image_source == BL::Image::source_MOVIE ||
+                        (b_engine.is_preview() && b_image_source != BL::Image::source_SEQUENCE);
 
       if (is_builtin) {
         /* for builtin images we're using image datablock name to find an image to
@@ -764,13 +784,25 @@ static ShaderNode *add_node(Scene *scene,
          */
         int scene_frame = b_scene.frame_current();
         int image_frame = image_user_frame_number(b_image_user, b_image, scene_frame);
-        image->handle = scene->image_manager->add_image(
-            new BlenderImageLoader(b_image, image_frame, b_engine.is_preview()),
-            image->image_params());
+        if (b_image_source != BL::Image::source_TILED) {
+          image->handle = scene->image_manager->add_image(
+              new BlenderImageLoader(b_image, image_frame, 0, b_engine.is_preview()),
+              image->image_params());
+        }
+        else {
+          vector<ImageLoader *> loaders;
+          loaders.reserve(image->get_tiles().size());
+          for (int tile_number : image->get_tiles()) {
+            loaders.push_back(
+                new BlenderImageLoader(b_image, image_frame, tile_number, b_engine.is_preview()));
+          }
+
+          image->handle = scene->image_manager->add_image(loaders, image->image_params());
+        }
       }
       else {
         ustring filename = ustring(
-            image_user_file_path(b_image_user, b_image, b_scene.frame_current()));
+            image_user_file_path(b_data, b_image_user, b_image, b_scene.frame_current()));
         image->set_filename(filename);
       }
     }
@@ -788,26 +820,26 @@ static ShaderNode *add_node(Scene *scene,
     get_tex_mapping(env, b_texture_mapping);
 
     if (b_image) {
+      BL::Image::source_enum b_image_source = b_image.source();
       PointerRNA colorspace_ptr = b_image.colorspace_settings().ptr;
       env->set_colorspace(ustring(get_enum_identifier(colorspace_ptr, "name")));
-
-      env->set_animated(b_env_node.image_user().use_auto_refresh());
+      env->set_animated(is_image_animated(b_image_source, b_image_user));
       env->set_alpha_type(get_image_alpha_type(b_image));
 
-      bool is_builtin = b_image.packed_file() || b_image.source() == BL::Image::source_GENERATED ||
-                        b_image.source() == BL::Image::source_MOVIE ||
-                        (b_engine.is_preview() && b_image.source() != BL::Image::source_SEQUENCE);
+      bool is_builtin = b_image.packed_file() || b_image_source == BL::Image::source_GENERATED ||
+                        b_image_source == BL::Image::source_MOVIE ||
+                        (b_engine.is_preview() && b_image_source != BL::Image::source_SEQUENCE);
 
       if (is_builtin) {
         int scene_frame = b_scene.frame_current();
         int image_frame = image_user_frame_number(b_image_user, b_image, scene_frame);
         env->handle = scene->image_manager->add_image(
-            new BlenderImageLoader(b_image, image_frame, b_engine.is_preview()),
+            new BlenderImageLoader(b_image, image_frame, 0, b_engine.is_preview()),
             env->image_params());
       }
       else {
         env->set_filename(
-            ustring(image_user_file_path(b_image_user, b_image, b_scene.frame_current())));
+            ustring(image_user_file_path(b_data, b_image_user, b_image, b_scene.frame_current())));
       }
     }
     node = env;
@@ -904,8 +936,22 @@ static ShaderNode *add_node(Scene *scene,
     sky->set_sun_disc(b_sky_node.sun_disc());
     sky->set_sun_size(b_sky_node.sun_size());
     sky->set_sun_intensity(b_sky_node.sun_intensity());
-    sky->set_sun_elevation(b_sky_node.sun_elevation());
-    sky->set_sun_rotation(b_sky_node.sun_rotation());
+    /* Patch sun position to be able to animate daylight cycle while keeping the shading code
+     * simple. */
+    float sun_rotation = b_sky_node.sun_rotation();
+    /* Wrap into [-2PI..2PI] range. */
+    float sun_elevation = fmodf(b_sky_node.sun_elevation(), M_2PI_F);
+    /* Wrap into [-PI..PI] range. */
+    if (fabsf(sun_elevation) >= M_PI_F) {
+      sun_elevation -= copysignf(2.0f, sun_elevation) * M_PI_F;
+    }
+    /* Wrap into [-PI/2..PI/2] range while keeping the same absolute position. */
+    if (sun_elevation >= M_PI_2_F || sun_elevation <= -M_PI_2_F) {
+      sun_elevation = copysignf(M_PI_F, sun_elevation) - sun_elevation;
+      sun_rotation += M_PI_F;
+    }
+    sky->set_sun_elevation(sun_elevation);
+    sky->set_sun_rotation(sun_rotation);
     sky->set_altitude(b_sky_node.altitude());
     sky->set_air_density(b_sky_node.air_density());
     sky->set_dust_density(b_sky_node.dust_density());

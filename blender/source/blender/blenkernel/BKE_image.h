@@ -6,6 +6,7 @@
  * \ingroup bke
  */
 
+#include "BLI_compiler_attrs.h"
 #include "BLI_utildefines.h"
 
 #include "BLI_rect.h"
@@ -97,7 +98,7 @@ int BKE_imbuf_write(struct ImBuf *ibuf, const char *name, const struct ImageForm
  */
 int BKE_imbuf_write_as(struct ImBuf *ibuf,
                        const char *name,
-                       struct ImageFormatData *imf,
+                       const struct ImageFormatData *imf,
                        bool save_copy);
 
 /**
@@ -195,6 +196,14 @@ struct Image *BKE_image_add_generated(struct Main *bmain,
 struct Image *BKE_image_add_from_imbuf(struct Main *bmain, struct ImBuf *ibuf, const char *name);
 
 /**
+ * For a non-viewer single-buffer image (single frame file, or generated image) replace its image
+ * buffer with the given one.
+ * If an unsupported image type (multi-layer, image sequence, ...) the function will assert in the
+ * debug mode and will have an undefined behavior in the release mode.
+ */
+void BKE_image_replace_imbuf(struct Image *image, struct ImBuf *ibuf);
+
+/**
  * For reload, refresh, pack.
  */
 void BKE_imageuser_default(struct ImageUser *iuser);
@@ -228,11 +237,13 @@ void BKE_image_ensure_viewer_views(const struct RenderData *rd,
  */
 void BKE_image_user_frame_calc(struct Image *ima, struct ImageUser *iuser, int cfra);
 int BKE_image_user_frame_get(const struct ImageUser *iuser, int cfra, bool *r_is_in_range);
-void BKE_image_user_file_path(struct ImageUser *iuser, struct Image *ima, char *path);
-void BKE_image_user_file_path_ex(struct ImageUser *iuser,
-                                 struct Image *ima,
+void BKE_image_user_file_path(const struct ImageUser *iuser, const struct Image *ima, char *path);
+void BKE_image_user_file_path_ex(const struct Main *bmain,
+                                 const struct ImageUser *iuser,
+                                 const struct Image *ima,
                                  char *path,
-                                 bool resolve_udim);
+                                 const bool resolve_udim,
+                                 const bool resolve_multiview);
 void BKE_image_editors_update_frame(const struct Main *bmain, int cfra);
 
 /**
@@ -250,15 +261,15 @@ struct RenderPass *BKE_image_multilayer_index(struct RenderResult *rr, struct Im
 /**
  * Sets index offset for multi-view files.
  */
-void BKE_image_multiview_index(struct Image *ima, struct ImageUser *iuser);
+void BKE_image_multiview_index(const struct Image *ima, struct ImageUser *iuser);
 
 /**
  * For multi-layer images as well as for render-viewer
  * and because rendered results use fake layer/passes, don't correct for wrong indices here.
  */
-bool BKE_image_is_multilayer(struct Image *ima);
-bool BKE_image_is_multiview(struct Image *ima);
-bool BKE_image_is_stereo(struct Image *ima);
+bool BKE_image_is_multilayer(const struct Image *ima);
+bool BKE_image_is_multiview(const struct Image *ima);
+bool BKE_image_is_stereo(const struct Image *ima);
 struct RenderResult *BKE_image_acquire_renderresult(struct Scene *scene, struct Image *ima);
 void BKE_image_release_renderresult(struct Scene *scene, struct Image *ima);
 
@@ -271,14 +282,6 @@ bool BKE_image_is_openexr(struct Image *ima);
  * For multiple slot render, call this before render.
  */
 void BKE_image_backup_render(struct Scene *scene, struct Image *ima, bool free_current_slot);
-
-/**
- * For single-layer OpenEXR saving.
- */
-bool BKE_image_save_openexr_multiview(struct Image *ima,
-                                      struct ImBuf *ibuf,
-                                      const char *filepath,
-                                      int flags);
 
 /**
  * Goes over all textures that use images.
@@ -392,7 +395,7 @@ void BKE_image_ensure_tile_token(char *filename);
 /**
  * When provided with an absolute virtual `filepath`, check to see if at least
  * one concrete file exists.
- * Note: This function requires directory traversal and may be inefficient in time-critical,
+ * NOTE: This function requires directory traversal and may be inefficient in time-critical,
  * or iterative, code paths.
  */
 bool BKE_image_tile_filepath_exists(const char *filepath);
@@ -424,7 +427,11 @@ void BKE_image_get_tile_uv(const struct Image *ima, const int tile_number, float
 /**
  * Return the tile_number for the closest UDIM tile.
  */
-int BKE_image_find_nearest_tile(const struct Image *image, const float co[2]);
+int BKE_image_find_nearest_tile_with_offset(const struct Image *image,
+                                            const float co[2],
+                                            float r_uv_offset[2]) ATTR_NONNULL(1, 2, 3);
+int BKE_image_find_nearest_tile(const struct Image *image, const float co[2])
+    ATTR_NONNULL(1, 2) ATTR_WARN_UNUSED_RESULT;
 
 void BKE_image_get_size(struct Image *image, struct ImageUser *iuser, int *r_width, int *r_height);
 void BKE_image_get_size_fl(struct Image *image, struct ImageUser *iuser, float r_size[2]);
@@ -459,7 +466,7 @@ bool BKE_image_is_dirty_writable(struct Image *image, bool *r_is_writable);
 int BKE_image_sequence_guess_offset(struct Image *image);
 bool BKE_image_has_anim(struct Image *image);
 bool BKE_image_has_packedfile(const struct Image *image);
-bool BKE_image_has_filepath(struct Image *ima);
+bool BKE_image_has_filepath(const struct Image *ima);
 /**
  * Checks the image buffer changes with time (not keyframed values).
  */

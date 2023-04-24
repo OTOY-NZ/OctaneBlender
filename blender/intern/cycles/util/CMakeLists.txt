@@ -26,6 +26,8 @@ set(SRC
   thread.cpp
   time.cpp
   transform.cpp
+  transform_avx2.cpp
+  transform_sse41.cpp
   windows.cpp
 )
 
@@ -63,6 +65,7 @@ set(SRC_HEADERS
   math_float2.h
   math_float3.h
   math_float4.h
+  math_float8.h
   math_int2.h
   math_int3.h
   math_int4.h
@@ -136,6 +139,13 @@ set(SRC_HEADERS
   windows.h
   xml.h
 )
+
+if(CXX_HAS_SSE)
+  set_source_files_properties(transform_sse41.cpp PROPERTIES COMPILE_FLAGS "${CYCLES_SSE41_KERNEL_FLAGS}")
+endif()
+if(CXX_HAS_AVX2)
+  set_source_files_properties(transform_avx2.cpp PROPERTIES COMPILE_FLAGS "${CYCLES_AVX2_KERNEL_FLAGS}")
+endif()
 
 include_directories(${INC})
 include_directories(SYSTEM ${INC_SYS})

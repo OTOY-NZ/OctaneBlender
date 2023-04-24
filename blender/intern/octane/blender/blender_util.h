@@ -140,6 +140,9 @@ static std::string generate_mesh_tag(BL::Depsgraph &b_depsgraph,
     }
     ::Mesh *me = (::Mesh *)(b_mesh.ptr.data);
     std::stringstream ss;
+    if (b_mesh.use_auto_smooth()) {
+      ss << b_mesh.auto_smooth_angle() << "|";
+    }
     ss << b_mesh.vertices.length() << "|" << b_mesh.polygons.length() << "|"
        << b_mesh.edges.length() << "|" << b_mesh.loops.length() << "|"
        << b_mesh.loop_triangles.length() << "|";

@@ -8,11 +8,9 @@
  */
 
 #include "DNA_object_types.h"
-#include "DNA_scene_types.h"
 
 #include "BLI_listbase.h"
 #include "BLI_rect.h"
-#include "DNA_scene_types.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -54,7 +52,7 @@ typedef struct SnapCursorDataIntern {
 
   struct SnapObjectContext *snap_context_v3d;
   const Scene *scene;
-  short snap_elem_hidden;
+  eSnapMode snap_elem_hidden;
 
   float prevpoint_stack[3];
 
@@ -374,7 +372,7 @@ void ED_view3d_cursor_snap_draw_util(RegionView3D *rv3d,
                                      const float normal[3],
                                      const uchar color_line[4],
                                      const uchar color_point[4],
-                                     const short snap_elem_type)
+                                     const eSnapMode snap_elem_type)
 {
   if (!loc_prev && !loc_curr) {
     return;
@@ -497,6 +495,16 @@ static void v3d_cursor_eventstate_save_xy(SnapCursorDataIntern *cursor_snap,
 }
 
 #ifdef USE_SNAP_DETECT_FROM_KEYMAP_HACK
+static void v3d_cursor_eventstate_save_modifier(SnapCursorDataIntern *data_intern,
+                                                const wmWindowManager *wm)
+{
+  if (!wm || !wm->winactive) {
+    return;
+  }
+  const wmEvent *event = wm->winactive->eventstate;
+  data_intern->last_eventstate.modifier = event->modifier;
+}
+
 static bool v3d_cursor_is_snap_invert(SnapCursorDataIntern *data_intern, const wmWindowManager *wm)
 {
   if (!wm || !wm->winactive) {
@@ -539,9 +547,9 @@ static bool v3d_cursor_is_snap_invert(SnapCursorDataIntern *data_intern, const w
 /** \name Update
  * \{ */
 
-static short v3d_cursor_snap_elements(V3DSnapCursorState *snap_state, Scene *scene)
+static eSnapMode v3d_cursor_snap_elements(V3DSnapCursorState *snap_state, Scene *scene)
 {
-  short snap_elements = snap_state->snap_elem_force;
+  eSnapMode snap_elements = snap_state->snap_elem_force;
   if (!snap_elements) {
     return scene->toolsettings->snap_mode;
   }
@@ -584,10 +592,14 @@ static void v3d_cursor_snap_update(V3DSnapCursorState *state,
 {
   SnapCursorDataIntern *data_intern = &g_data_intern;
   V3DSnapCursorData *snap_data = &data_intern->snap_data;
-  v3d_cursor_snap_context_ensure(scene);
+
+  const bool use_surface_nor = state->plane_orient == V3D_PLACE_ORIENT_SURFACE;
+  const bool use_surface_co = state->plane_depth == V3D_PLACE_DEPTH_SURFACE;
+  const bool calc_plane_omat = v3d_cursor_snap_calc_plane();
 
   float co[3], no[3], face_nor[3], obmat[4][4], omat[3][3];
-  short snap_elem = 0;
+  eSnapMode snap_elem = SCE_SNAP_MODE_NONE;
+  eSnapMode snap_elements = v3d_cursor_snap_elements(state, scene);
   int snap_elem_index[3] = {-1, -1, -1};
   int index = -1;
 
@@ -596,76 +608,84 @@ static void v3d_cursor_snap_update(V3DSnapCursorState *state,
   zero_v3(face_nor);
   unit_m3(omat);
 
-  ushort snap_elements = v3d_cursor_snap_elements(state, scene);
-  data_intern->snap_elem_hidden = 0;
-  const bool calc_plane_omat = v3d_cursor_snap_calc_plane();
-  if (calc_plane_omat && !(snap_elements & SCE_SNAP_MODE_FACE)) {
-    data_intern->snap_elem_hidden = SCE_SNAP_MODE_FACE;
-    snap_elements |= SCE_SNAP_MODE_FACE;
-  }
+  if (use_surface_nor || use_surface_co) {
+    v3d_cursor_snap_context_ensure(scene);
 
-  snap_data->is_enabled = true;
-#ifdef USE_SNAP_DETECT_FROM_KEYMAP_HACK
-  if (!(state->flag & V3D_SNAPCURSOR_TOGGLE_ALWAYS_TRUE)) {
-    snap_data->is_snap_invert = v3d_cursor_is_snap_invert(data_intern, wm);
-
-    const ToolSettings *ts = scene->toolsettings;
-    if (snap_data->is_snap_invert != !(ts->snap_flag & SCE_SNAP)) {
-      snap_data->is_enabled = false;
-      if (!calc_plane_omat) {
-        snap_data->snap_elem = 0;
-        return;
-      }
-      snap_elements = data_intern->snap_elem_hidden = SCE_SNAP_MODE_FACE;
+    data_intern->snap_elem_hidden = SCE_SNAP_MODE_NONE;
+    if (calc_plane_omat && !(snap_elements & SCE_SNAP_MODE_FACE_RAYCAST)) {
+      data_intern->snap_elem_hidden = SCE_SNAP_MODE_FACE_RAYCAST;
+      snap_elements |= SCE_SNAP_MODE_FACE_RAYCAST;
     }
+
+    snap_data->is_enabled = true;
+#ifdef USE_SNAP_DETECT_FROM_KEYMAP_HACK
+    if (!(state->flag & V3D_SNAPCURSOR_TOGGLE_ALWAYS_TRUE)) {
+      snap_data->is_snap_invert = v3d_cursor_is_snap_invert(data_intern, wm);
+
+      const ToolSettings *ts = scene->toolsettings;
+      if (snap_data->is_snap_invert != !(ts->snap_flag & SCE_SNAP)) {
+        snap_data->is_enabled = false;
+        if (!calc_plane_omat) {
+          snap_data->snap_elem = SCE_SNAP_MODE_NONE;
+          return;
+        }
+        snap_elements = data_intern->snap_elem_hidden = SCE_SNAP_MODE_FACE_RAYCAST;
+      }
+    }
+#endif
+
+    if (snap_elements & SCE_SNAP_MODE_GEOM) {
+      float prev_co[3] = {0.0f};
+      if (state->prevpoint) {
+        copy_v3_v3(prev_co, state->prevpoint);
+      }
+      else {
+        snap_elements &= ~SCE_SNAP_MODE_EDGE_PERPENDICULAR;
+      }
+
+      eSnapEditType edit_mode_type = (state->flag & V3D_SNAPCURSOR_SNAP_EDIT_GEOM_FINAL) ?
+                                         SNAP_GEOM_FINAL :
+                                     (state->flag & V3D_SNAPCURSOR_SNAP_EDIT_GEOM_CAGE) ?
+                                         SNAP_GEOM_CAGE :
+                                         SNAP_GEOM_EDIT;
+
+      bool use_occlusion_test = (state->flag & V3D_SNAPCURSOR_OCCLUSION_ALWAYS_TRUE) ? false :
+                                                                                       true;
+
+      float dist_px = 12.0f * U.pixelsize;
+
+      snap_elem = ED_transform_snap_object_project_view3d_ex(
+          data_intern->snap_context_v3d,
+          depsgraph,
+          region,
+          v3d,
+          snap_elements,
+          &(const struct SnapObjectParams){
+              .snap_target_select = SCE_SNAP_TARGET_ALL,
+              .edit_mode_type = edit_mode_type,
+              .use_occlusion_test = use_occlusion_test,
+          },
+          NULL,
+          mval_fl,
+          prev_co,
+          &dist_px,
+          co,
+          no,
+          &index,
+          NULL,
+          obmat,
+          face_nor);
+    }
+  }
+#ifdef USE_SNAP_DETECT_FROM_KEYMAP_HACK
+  else {
+    v3d_cursor_eventstate_save_modifier(data_intern, wm);
   }
 #endif
 
-  if (snap_elements & (SCE_SNAP_MODE_VERTEX | SCE_SNAP_MODE_EDGE | SCE_SNAP_MODE_FACE |
-                       SCE_SNAP_MODE_EDGE_MIDPOINT | SCE_SNAP_MODE_EDGE_PERPENDICULAR)) {
-    float prev_co[3] = {0.0f};
-    if (state->prevpoint) {
-      copy_v3_v3(prev_co, state->prevpoint);
-    }
-    else {
-      snap_elements &= ~SCE_SNAP_MODE_EDGE_PERPENDICULAR;
-    }
-
-    eSnapEditType edit_mode_type = (state->flag & V3D_SNAPCURSOR_SNAP_EDIT_GEOM_FINAL) ?
-                                       SNAP_GEOM_FINAL :
-                                   (state->flag & V3D_SNAPCURSOR_SNAP_EDIT_GEOM_CAGE) ?
-                                       SNAP_GEOM_CAGE :
-                                       SNAP_GEOM_EDIT;
-
-    bool use_occlusion_test = (state->flag & V3D_SNAPCURSOR_OCCLUSION_ALWAYS_TRUE) ? false : true;
-
-    float dist_px = 12.0f * U.pixelsize;
-
-    snap_elem = ED_transform_snap_object_project_view3d_ex(
-        data_intern->snap_context_v3d,
-        depsgraph,
-        region,
-        v3d,
-        snap_elements,
-        &(const struct SnapObjectParams){
-            .snap_select = SNAP_ALL,
-            .edit_mode_type = edit_mode_type,
-            .use_occlusion_test = use_occlusion_test,
-        },
-        mval_fl,
-        prev_co,
-        &dist_px,
-        co,
-        no,
-        &index,
-        NULL,
-        obmat,
-        face_nor);
-  }
-
   if (calc_plane_omat) {
     RegionView3D *rv3d = region->regiondata;
-    bool orient_surface = snap_elem && (state->plane_orient == V3D_PLACE_ORIENT_SURFACE);
+    bool orient_surface = use_surface_nor && (snap_elem != SCE_SNAP_MODE_NONE);
     if (orient_surface) {
       copy_m3_m4(omat, obmat);
     }
@@ -693,7 +713,7 @@ static void v3d_cursor_snap_update(V3DSnapCursorState *state,
         /* Negate the face normal according to the view. */
         float ray_dir[3];
         if (rv3d->is_persp) {
-          BLI_assert_msg(snap_elem != 0,
+          BLI_assert_msg(snap_elem != SCE_SNAP_MODE_NONE,
                          "Use of variable `co` without it being computed");
 
           sub_v3_v3v3(ray_dir, co, rv3d->viewinv[3]); /* No need to normalize. */
@@ -716,9 +736,13 @@ static void v3d_cursor_snap_update(V3DSnapCursorState *state,
     }
   }
 
-  float *co_depth = snap_elem ? co : scene->cursor.location;
+  if (!use_surface_co) {
+    snap_elem = SCE_SNAP_MODE_NONE;
+  }
+
+  float *co_depth = (snap_elem != SCE_SNAP_MODE_NONE) ? co : scene->cursor.location;
   snap_elem &= ~data_intern->snap_elem_hidden;
-  if (snap_elem == 0) {
+  if (snap_elem == SCE_SNAP_MODE_NONE) {
     RegionView3D *rv3d = region->regiondata;
     const float *plane_normal = omat[state->plane_axis];
     bool do_plane_isect = (state->plane_depth != V3D_PLACE_DEPTH_CURSOR_VIEW) &&
@@ -746,7 +770,7 @@ static void v3d_cursor_snap_update(V3DSnapCursorState *state,
            (SCE_SNAP_MODE_EDGE | SCE_SNAP_MODE_EDGE_MIDPOINT | SCE_SNAP_MODE_EDGE_PERPENDICULAR)) {
     snap_elem_index[1] = index;
   }
-  else if (snap_elem == SCE_SNAP_MODE_FACE) {
+  else if (snap_elem == SCE_SNAP_MODE_FACE_RAYCAST) {
     snap_elem_index[2] = index;
   }
 
@@ -832,7 +856,7 @@ static void v3d_cursor_snap_draw_fn(bContext *C, int x, int y, void *UNUSED(cust
   }
 
   const bool draw_plane = state->draw_plane || state->draw_box;
-  if (!snap_data->snap_elem && !draw_plane) {
+  if (snap_data->snap_elem == SCE_SNAP_MODE_NONE && !draw_plane) {
     return;
   }
 
@@ -850,7 +874,7 @@ static void v3d_cursor_snap_draw_fn(bContext *C, int x, int y, void *UNUSED(cust
     v3d_cursor_plane_draw(rv3d, state->plane_axis, matrix);
   }
 
-  if (snap_data->snap_elem && (state->draw_point || state->draw_box)) {
+  if (snap_data->snap_elem != SCE_SNAP_MODE_NONE && (state->draw_point || state->draw_box)) {
     const float *prev_point = (snap_data->snap_elem & SCE_SNAP_MODE_EDGE_PERPENDICULAR) ?
                                   state->prevpoint :
                                   NULL;

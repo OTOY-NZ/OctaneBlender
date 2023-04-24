@@ -1568,7 +1568,7 @@ static void annotation_paint_initstroke(tGPsdata *p,
       add_frame_mode = GP_GETFRAME_ADD_NEW;
     }
 
-    p->gpf = BKE_gpencil_layer_frame_get(p->gpl, CFRA, add_frame_mode);
+    p->gpf = BKE_gpencil_layer_frame_get(p->gpl, scene->r.cfra, add_frame_mode);
 
     if (p->gpf == NULL) {
       p->status = GP_STATUS_ERROR;
@@ -2641,7 +2641,7 @@ static int annotation_draw_modal(bContext *C, wmOperator *op, const wmEvent *eve
   /* handle mode-specific events */
   if (p->status == GP_STATUS_PAINTING) {
     /* handle painting mouse-movements? */
-    if (ELEM(event->type, MOUSEMOVE, INBETWEEN_MOUSEMOVE) || (p->flags & GP_PAINTFLAG_FIRSTRUN)) {
+    if (ISMOUSE_MOTION(event->type) || (p->flags & GP_PAINTFLAG_FIRSTRUN)) {
       /* handle drawing event */
       if ((p->flags & GP_PAINTFLAG_FIRSTRUN) == 0) {
         annotation_add_missing_events(C, op, event, p);

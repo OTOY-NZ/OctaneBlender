@@ -22,10 +22,7 @@
 namespace blender::io::obj {
 
 struct UniqueNodetreeDeleter {
-  void operator()(bNodeTree *node)
-  {
-    MEM_freeN(node);
-  }
+  void operator()(bNodeTree *node);
 };
 
 using unique_nodetree_ptr = std::unique_ptr<bNodeTree, UniqueNodetreeDeleter>;
@@ -49,7 +46,7 @@ class ShaderNodetreeWrap {
    * Initializes a nodetree with a p-BSDF node's BSDF socket connected to shader output node's
    * surface socket.
    */
-  ShaderNodetreeWrap(Main *bmain, const MTLMaterial &mtl_mat, Material *mat);
+  ShaderNodetreeWrap(Main *bmain, const MTLMaterial &mtl_mat, Material *mat, bool relative_paths);
   ~ShaderNodetreeWrap();
 
   /**
@@ -87,7 +84,7 @@ class ShaderNodetreeWrap {
    * Create image texture, vector and normal mapping nodes from MTL materials and link the
    * nodes to p-BSDF node.
    */
-  void add_image_textures(Main *bmain, Material *mat);
+  void add_image_textures(Main *bmain, Material *mat, bool relative_paths);
 };
 
 }  // namespace blender::io::obj

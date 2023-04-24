@@ -207,7 +207,7 @@ std::string LinkResolver::resolve_name(std::string prefix, BL::Node node)
           bool is_modified = BKE_object_is_modified(b_ob, b_scene, b_engine.is_preview());
           BL::ID b_ob_data = b_ob.data();
           if (b_ob_data.ptr.data != NULL) {
-            return resolve_octane_name(b_ob, is_modified ? b_ob.name_full() : "", MESH_TAG);
+            return resolve_octane_name(b_ob_data, is_modified ? b_ob.name_full() : "", MESH_TAG);
           }
           else {
             return b_ob.name_full() + MESH_TAG;
@@ -286,7 +286,7 @@ static std::string resolve_object_geo_data_name(BL::Object &b_ob,
 {
   bool is_modified = BKE_object_is_modified(b_ob, b_scene, b_engine.is_preview());
   BL::ID b_ob_data = b_ob.data();
-  std::string geo_name = resolve_octane_name(b_ob, is_modified ? b_ob.name_full() : "", MESH_TAG);
+  std::string geo_name = resolve_octane_name(b_ob_data, is_modified ? b_ob.name_full() : "", MESH_TAG);
   return geo_name;
 }
 
@@ -382,6 +382,9 @@ static bool update_octane_image_data(
   is_auto_refresh |= b_image_user.use_auto_refresh();
   octane_image_data.Clear();
   if (b_image) {
+    BL::ColorManagedInputColorspaceSettings b_colorspace_settings = b_image.colorspace_settings();
+    int current_color_space_type = b_colorspace_settings.name();
+    b_colorspace_settings.is_data(true);
     /* builtin images will use callback-based reading because
      * they could only be loaded correct from blender side
      */
@@ -457,6 +460,8 @@ static bool update_octane_image_data(
       octane_image_data.sFilePath = image_user_file_path(
           b_image_user, b_image, b_scene.frame_current(), false);
     }
+    b_colorspace_settings.name(
+        static_cast<BL::ColorManagedInputColorspaceSettings::name_enum>(current_color_space_type));
   }
   return true;
 }
@@ -750,7 +755,7 @@ static void generate_collection_nodes(std::string prefix_name,
                                                (b_engine.is_preview()) ? (1 << 0) : (1 << 1));
       BL::ID b_ob_data = b_object->data();
       std::string geo_name = resolve_octane_name(
-          *b_object, is_modified ? b_object->name_full() : "", MESH_TAG);
+          b_ob_data, is_modified ? b_object->name_full() : "", MESH_TAG);
       std::string placement_name = object_data_geo_output_node->oct_node->sName +
                                    "_Collection_Placement_" + geo_name;
       std::string transform_name = placement_name + "_Collection_Transform_" + geo_name;
@@ -914,7 +919,7 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
               bool is_modified = BKE_object_is_modified(b_ob, b_scene, is_preview);
               BL::ID b_ob_data = b_ob.data();
               std::string geo_name = resolve_octane_name(
-                  b_ob, is_modified ? b_ob.name_full() : "", MESH_TAG);
+                  b_ob_data, is_modified ? b_ob.name_full() : "", MESH_TAG);
               OctaneDataTransferObject::OctanePlacement *oct_placement_node =
                   (OctaneDataTransferObject::OctanePlacement *)
                       object_data_geo_output_node->oct_node;
@@ -1040,7 +1045,8 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
         bool use_reversed_dynamic_pin_id = reversed_pin_node_types.find(octane_node_type) !=
                                            reversed_pin_node_types.end();
         for (b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
-          int octane_pin_id = get_int(b_input->ptr, "octane_pin_id");
+          PropertyRNA *prop = RNA_struct_find_property(&b_input->ptr, "octane_pin_id");
+          int octane_pin_id = (prop != NULL) ? get_int(b_input->ptr, "octane_pin_id") : 0;
           if (octane_pin_id > DYNAMIC_PIN_ID_OFFSET) {
             dynamic_pin_count++;
           }
@@ -1060,7 +1066,8 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
             }
           }
           bool is_dynamic_pin = false;
-          int octane_pin_id = get_int(b_input->ptr, "octane_pin_id");
+          PropertyRNA *prop = RNA_struct_find_property(&b_input->ptr, "octane_pin_id");
+          int octane_pin_id = (prop != NULL) ? get_int(b_input->ptr, "octane_pin_id") : 0;
           if (octane_pin_id > DYNAMIC_PIN_ID_OFFSET) {
             octane_pin_id -= DYNAMIC_PIN_ID_OFFSET;
             if (use_reversed_dynamic_pin_id) {
@@ -1502,7 +1509,7 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
       OctaneDataTransferObject::OctaneReadVDBTexture *read_vdb =
           (OctaneDataTransferObject::OctaneReadVDBTexture *)node->oct_node;
       read_vdb->sVDB.sLinkNodeName = resolve_octane_name(
-          b_ob, is_modified ? b_ob.name_full() : "", MESH_TAG);
+          b_ob_data, is_modified ? b_ob.name_full() : "", MESH_TAG);
       read_vdb->sVDB.bUseLinked = true;
     }
   }
@@ -1926,6 +1933,9 @@ static void add_graph_nodes(std::string prefix_name,
     while (!currents_nodes_name_list.empty()) {
       std::string current_name = currents_nodes_name_list.front();
       currents_nodes_name_list.pop();
+      if (current_name.length() == 0) {
+        continue;
+      }
       reachable_nodes.emplace(current_name);
       for (b_ntree.links.begin(b_link); b_link != b_ntree.links.end(); ++b_link) {
         BL::Node b_from_node = b_link->from_node();

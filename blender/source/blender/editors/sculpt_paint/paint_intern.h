@@ -46,7 +46,10 @@ typedef struct CoNo {
 
 /* paint_stroke.c */
 
-typedef bool (*StrokeGetLocation)(struct bContext *C, float location[3], const float mouse[2]);
+typedef bool (*StrokeGetLocation)(struct bContext *C,
+                                  float location[3],
+                                  const float mouse[2],
+                                  bool force_original);
 typedef bool (*StrokeTestStart)(struct bContext *C, struct wmOperator *op, const float mouse[2]);
 typedef void (*StrokeUpdateStep)(struct bContext *C,
                                  struct wmOperator *op,
@@ -98,7 +101,6 @@ void *paint_stroke_mode_data(struct PaintStroke *stroke);
 float paint_stroke_distance_get(struct PaintStroke *stroke);
 void paint_stroke_set_mode_data(struct PaintStroke *stroke, void *mode_data);
 bool PAINT_brush_tool_poll(struct bContext *C);
-void paint_cursor_start(struct Paint *p, bool (*poll)(struct bContext *C));
 /**
  * Delete overlay cursor textures to preserve memory and invalidate all overlay flags.
  */
@@ -371,10 +373,12 @@ void PAINT_OT_face_select_linked(struct wmOperatorType *ot);
 void PAINT_OT_face_select_linked_pick(struct wmOperatorType *ot);
 void PAINT_OT_face_select_all(struct wmOperatorType *ot);
 void PAINT_OT_face_select_hide(struct wmOperatorType *ot);
-void PAINT_OT_face_select_reveal(struct wmOperatorType *ot);
+
+void PAINT_OT_face_vert_reveal(struct wmOperatorType *ot);
 
 void PAINT_OT_vert_select_all(struct wmOperatorType *ot);
 void PAINT_OT_vert_select_ungrouped(struct wmOperatorType *ot);
+void PAINT_OT_vert_select_hide(struct wmOperatorType *ot);
 
 bool vert_paint_poll(struct bContext *C);
 bool mask_paint_poll(struct bContext *C);

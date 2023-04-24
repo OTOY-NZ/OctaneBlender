@@ -553,7 +553,7 @@ static void panel_draw(const bContext *UNUSED(C), Panel *panel)
                    "particle_system",
                    &particle_obj_ptr,
                    "particle_systems",
-                   "Particle System",
+                   IFACE_("Particle System"),
                    ICON_NONE);
   }
   else {
@@ -644,7 +644,7 @@ static void panelRegister(ARegionType *region_type)
 }
 
 ModifierTypeInfo modifierType_ParticleInstance = {
-    /* name */ "ParticleInstance",
+    /* name */ N_("ParticleInstance"),
     /* structName */ "ParticleInstanceModifierData",
     /* structSize */ sizeof(ParticleInstanceModifierData),
     /* srna */ &RNA_ParticleInstanceModifier,

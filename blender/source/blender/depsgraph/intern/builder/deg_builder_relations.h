@@ -15,6 +15,7 @@
 #include "DNA_ID.h"
 
 #include "RNA_access.h"
+#include "RNA_path.h"
 #include "RNA_types.h"
 
 #include "BLI_string.h"
@@ -23,6 +24,7 @@
 #include "intern/builder/deg_builder.h"
 #include "intern/builder/deg_builder_map.h"
 #include "intern/builder/deg_builder_rna.h"
+#include "intern/builder/deg_builder_stack.h"
 #include "intern/depsgraph.h"
 #include "intern/node/deg_node.h"
 #include "intern/node/deg_node_component.h"
@@ -69,8 +71,7 @@ struct bSound;
 
 struct PropertyRNA;
 
-namespace blender {
-namespace deg {
+namespace blender::deg {
 
 struct ComponentNode;
 struct DepsNodeHandle;
@@ -363,6 +364,7 @@ class DepsgraphRelationBuilder : public DepsgraphBuilder {
 
   BuilderMap built_map_;
   RNANodeQuery rna_node_query_;
+  BuilderStack stack_;
 };
 
 struct DepsNodeHandle {
@@ -379,7 +381,6 @@ struct DepsNodeHandle {
   const char *default_name;
 };
 
-}  // namespace deg
-}  // namespace blender
+}  // namespace blender::deg
 
 #include "intern/builder/deg_builder_relations_impl.h"

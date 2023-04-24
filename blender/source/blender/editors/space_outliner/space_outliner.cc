@@ -191,7 +191,7 @@ static void outliner_main_region_listener(const wmRegionListenerParams *params)
       }
       break;
     case NC_ID:
-      if (ELEM(wmn->action, NA_RENAME, NA_ADDED)) {
+      if (ELEM(wmn->action, NA_RENAME, NA_ADDED, NA_REMOVED)) {
         ED_region_tag_redraw(region);
       }
       break;
@@ -438,7 +438,7 @@ static void outliner_deactivate(struct ScrArea *area)
 {
   /* Remove hover highlights */
   SpaceOutliner *space_outliner = reinterpret_cast<SpaceOutliner *>(area->spacedata.first);
-  outliner_flag_set(&space_outliner->tree, TSE_HIGHLIGHTED_ANY, false);
+  outliner_flag_set(*space_outliner, TSE_HIGHLIGHTED_ANY, false);
   ED_region_tag_redraw_no_rebuild(BKE_area_find_region_type(area, RGN_TYPE_WINDOW));
 }
 

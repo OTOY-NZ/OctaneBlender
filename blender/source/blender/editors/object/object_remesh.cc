@@ -344,7 +344,7 @@ static void voxel_size_edit_draw(const bContext *C, ARegion *UNUSED(ar), void *a
   BKE_unit_value_as_string(str,
                            VOXEL_SIZE_EDIT_MAX_STR_LEN,
                            (double)(cd->voxel_size * unit->scale_length),
-                           4,
+                           -3,
                            B_UNIT_LENGTH,
                            unit,
                            true);
@@ -415,14 +415,14 @@ static int voxel_size_edit_modal(bContext *C, wmOperator *op, const wmEvent *eve
   }
 
   if (event->modifier & KM_CTRL) {
-    /* Linear mode, enables jumping to any voxel size. */
-    d = d * 0.0005f;
-  }
-  else {
     /* Multiply d by the initial voxel size to prevent uncontrollable speeds when using low voxel
      * sizes. */
     /* When the voxel size is slower, it needs more precision. */
     d = d * min_ff(pow2f(cd->init_voxel_size), 0.1f) * 0.05f;
+  }
+  else {
+    /* Linear mode, enables jumping to any voxel size. */
+    d = d * 0.0005f;
   }
   if (cd->slow_mode) {
     cd->voxel_size = cd->slow_voxel_size + d * 0.05f;
@@ -577,10 +577,18 @@ static int voxel_size_edit_invoke(bContext *C, wmOperator *op, const wmEvent *ev
   /* Use the Bounding Box face normal as the basis Z. */
   normal_tri_v3(cd->text_mat[2], cd->preview_plane[0], cd->preview_plane[1], cd->preview_plane[2]);
 
+  /* Invert object scale. */
+  float scale[3];
+  mat4_to_size(scale, active_object->obmat);
+  invert_v3(scale);
+  size_to_mat4(scale_mat, scale);
+
+  mul_m4_m4_pre(cd->text_mat, scale_mat);
+
   /* Write the text position into the matrix. */
   copy_v3_v3(cd->text_mat[3], text_pos);
 
-  /* Scale the text. */
+  /* Scale the text to constant viewport size. */
   float text_pos_word_space[3];
   mul_v3_m4v3(text_pos_word_space, active_object->obmat, text_pos);
   const float pixelsize = ED_view3d_pixel_size(rv3d, text_pos_word_space);
@@ -592,7 +600,8 @@ static int voxel_size_edit_invoke(bContext *C, wmOperator *op, const wmEvent *ev
   ED_region_tag_redraw(region);
 
   const char *status_str = TIP_(
-      "Move the mouse to change the voxel size. LMB: confirm size, ESC/RMB: cancel");
+      "Move the mouse to change the voxel size. CTRL: Relative Scale, SHIFT: Precision Mode, "
+      "ENTER/LMB: Confirm Size, ESC/RMB: Cancel");
   ED_workspace_status_text(C, status_str);
 
   return OPERATOR_RUNNING_MODAL;

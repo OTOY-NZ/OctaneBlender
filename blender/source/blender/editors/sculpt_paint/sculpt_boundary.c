@@ -638,7 +638,7 @@ static void do_boundary_brush_bend_task_cb_ex(void *__restrict userdata,
 
   PBVHVertexIter vd;
   SculptOrigVertData orig_data;
-  SCULPT_orig_vert_data_init(&orig_data, data->ob, data->nodes[n]);
+  SCULPT_orig_vert_data_init(&orig_data, data->ob, data->nodes[n], SCULPT_UNDO_COORDS);
 
   const float disp = strength * sculpt_boundary_displacement_from_grab_delta_get(ss, boundary);
   float angle_factor = disp / ss->cache->radius;
@@ -671,7 +671,7 @@ static void do_boundary_brush_bend_task_cb_ex(void *__restrict userdata,
     add_v3_v3(target_co, boundary->bend.pivot_positions[vd.index]);
 
     if (vd.mvert) {
-      BKE_pbvh_vert_mark_update(ss->pbvh, vd.index);
+      BKE_pbvh_vert_tag_update_normal(ss->pbvh, vd.index);
     }
   }
   BKE_pbvh_vertex_iter_end;
@@ -692,7 +692,7 @@ static void do_boundary_brush_slide_task_cb_ex(void *__restrict userdata,
 
   PBVHVertexIter vd;
   SculptOrigVertData orig_data;
-  SCULPT_orig_vert_data_init(&orig_data, data->ob, data->nodes[n]);
+  SCULPT_orig_vert_data_init(&orig_data, data->ob, data->nodes[n], SCULPT_UNDO_COORDS);
 
   const float disp = sculpt_boundary_displacement_from_grab_delta_get(ss, boundary);
 
@@ -717,7 +717,7 @@ static void do_boundary_brush_slide_task_cb_ex(void *__restrict userdata,
                        strength);
 
     if (vd.mvert) {
-      BKE_pbvh_vert_mark_update(ss->pbvh, vd.index);
+      BKE_pbvh_vert_tag_update_normal(ss->pbvh, vd.index);
     }
   }
   BKE_pbvh_vertex_iter_end;
@@ -738,7 +738,7 @@ static void do_boundary_brush_inflate_task_cb_ex(void *__restrict userdata,
 
   PBVHVertexIter vd;
   SculptOrigVertData orig_data;
-  SCULPT_orig_vert_data_init(&orig_data, data->ob, data->nodes[n]);
+  SCULPT_orig_vert_data_init(&orig_data, data->ob, data->nodes[n], SCULPT_UNDO_COORDS);
 
   const float disp = sculpt_boundary_displacement_from_grab_delta_get(ss, boundary);
 
@@ -763,7 +763,7 @@ static void do_boundary_brush_inflate_task_cb_ex(void *__restrict userdata,
                        strength);
 
     if (vd.mvert) {
-      BKE_pbvh_vert_mark_update(ss->pbvh, vd.index);
+      BKE_pbvh_vert_tag_update_normal(ss->pbvh, vd.index);
     }
   }
   BKE_pbvh_vertex_iter_end;
@@ -784,7 +784,7 @@ static void do_boundary_brush_grab_task_cb_ex(void *__restrict userdata,
 
   PBVHVertexIter vd;
   SculptOrigVertData orig_data;
-  SCULPT_orig_vert_data_init(&orig_data, data->ob, data->nodes[n]);
+  SCULPT_orig_vert_data_init(&orig_data, data->ob, data->nodes[n], SCULPT_UNDO_COORDS);
 
   BKE_pbvh_vertex_iter_begin (ss->pbvh, data->nodes[n], vd, PBVH_ITER_UNIQUE) {
     if (boundary->edit_info[vd.index].num_propagation_steps == -1) {
@@ -806,7 +806,7 @@ static void do_boundary_brush_grab_task_cb_ex(void *__restrict userdata,
                    boundary->edit_info[vd.index].strength_factor * mask * automask * strength);
 
     if (vd.mvert) {
-      BKE_pbvh_vert_mark_update(ss->pbvh, vd.index);
+      BKE_pbvh_vert_tag_update_normal(ss->pbvh, vd.index);
     }
   }
   BKE_pbvh_vertex_iter_end;
@@ -827,7 +827,7 @@ static void do_boundary_brush_twist_task_cb_ex(void *__restrict userdata,
 
   PBVHVertexIter vd;
   SculptOrigVertData orig_data;
-  SCULPT_orig_vert_data_init(&orig_data, data->ob, data->nodes[n]);
+  SCULPT_orig_vert_data_init(&orig_data, data->ob, data->nodes[n], SCULPT_UNDO_COORDS);
 
   const float disp = strength * sculpt_boundary_displacement_from_grab_delta_get(ss, boundary);
   float angle_factor = disp / ss->cache->radius;
@@ -860,7 +860,7 @@ static void do_boundary_brush_twist_task_cb_ex(void *__restrict userdata,
     add_v3_v3(target_co, boundary->twist.pivot_position);
 
     if (vd.mvert) {
-      BKE_pbvh_vert_mark_update(ss->pbvh, vd.index);
+      BKE_pbvh_vert_tag_update_normal(ss->pbvh, vd.index);
     }
   }
   BKE_pbvh_vertex_iter_end;
@@ -881,7 +881,7 @@ static void do_boundary_brush_smooth_task_cb_ex(void *__restrict userdata,
 
   PBVHVertexIter vd;
   SculptOrigVertData orig_data;
-  SCULPT_orig_vert_data_init(&orig_data, data->ob, data->nodes[n]);
+  SCULPT_orig_vert_data_init(&orig_data, data->ob, data->nodes[n], SCULPT_UNDO_COORDS);
 
   BKE_pbvh_vertex_iter_begin (ss->pbvh, data->nodes[n], vd, PBVH_ITER_UNIQUE) {
     if (boundary->edit_info[vd.index].num_propagation_steps == -1) {
@@ -919,7 +919,7 @@ static void do_boundary_brush_smooth_task_cb_ex(void *__restrict userdata,
         target_co, vd.co, disp, boundary->edit_info[vd.index].strength_factor * mask * strength);
 
     if (vd.mvert) {
-      BKE_pbvh_vert_mark_update(ss->pbvh, vd.index);
+      BKE_pbvh_vert_tag_update_normal(ss->pbvh, vd.index);
     }
   }
   BKE_pbvh_vertex_iter_end;

@@ -9,6 +9,7 @@ set(INC
   ../../../source/blender/makesdna
   ../../../source/blender/makesrna
   ../../../source/blender/blenlib
+  ../../../source/blender/gpu
   ${CMAKE_BINARY_DIR}/source/blender/makesrna/intern
 )
 
@@ -126,10 +127,6 @@ if(WITH_OPENIMAGEDENOISE)
   list(APPEND INC_SYS
     ${OPENIMAGEDENOISE_INCLUDE_DIRS}
   )
-endif()
-
-if(WITH_EXPERIMENTAL_FEATURES)
-  add_definitions(-DWITH_NEW_CURVES_TYPE)
 endif()
 
 blender_add_lib(bf_intern_cycles "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

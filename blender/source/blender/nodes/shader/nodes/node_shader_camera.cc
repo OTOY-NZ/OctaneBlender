@@ -42,6 +42,19 @@ static int gpu_shader_camera(GPUMaterial *mat,
 
 }  // namespace blender::nodes::node_shader_camera_cc
 
+bool camera_data_node_poll(bNodeType *UNUSED(ntype),
+                           bNodeTree *ntree,
+                           const char **r_disabled_hint)
+{
+  bool is_octane_node_tree = STREQ(ntree->idname, "octane_composite_nodes") ||
+                             STREQ(ntree->idname, "octane_render_aov_nodes");
+  if (!(STREQ(ntree->idname, "ShaderNodeTree") || is_octane_node_tree)) {
+    *r_disabled_hint = "Not a shader node tree";
+    return false;
+  }
+  return true;
+}
+
 void register_node_type_sh_camera()
 {
   namespace file_ns = blender::nodes::node_shader_camera_cc;
@@ -49,6 +62,7 @@ void register_node_type_sh_camera()
   static bNodeType ntype;
 
   sh_node_type_base(&ntype, SH_NODE_CAMERA, "Camera Data", NODE_CLASS_INPUT);
+  ntype.poll = camera_data_node_poll;
   ntype.declare = file_ns::node_declare;
   node_type_gpu(&ntype, file_ns::gpu_shader_camera);
 

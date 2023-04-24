@@ -1,6 +1,4 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
-
-# <pep8 compliant>
 from __future__ import annotations
 
 import bpy
@@ -20,11 +18,70 @@ from bpy.props import (
     FloatVectorProperty,
 )
 from bpy.app.translations import pgettext_iface as iface_
+from bpy.app.translations import pgettext_tip as tip_
+
+
+def _rna_path_prop_search_for_context_impl(context, edit_text, unique_attrs):
+    # Use the same logic as auto-completing in the Python console to expand the data-path.
+    from bl_console_utils.autocomplete import intellisense
+    context_prefix = "context."
+    line = context_prefix + edit_text
+    cursor = len(line)
+    namespace = {"context": context}
+    comp_prefix, _, comp_options = intellisense.expand(line=line, cursor=len(line), namespace=namespace, private=False)
+    prefix = comp_prefix[len(context_prefix):]  # Strip "context."
+    for attr in comp_options.split("\n"):
+        if attr.endswith((
+                # Exclude function calls because they are generally not part of data-paths.
+                "(", ")",
+                # RNA properties for introspection, not useful to expand.
+                ".bl_rna", ".rna_type",
+        )):
+            continue
+        attr_full = prefix + attr.lstrip()
+        if attr_full in unique_attrs:
+            continue
+        unique_attrs.add(attr_full)
+        yield attr_full
+
+
+def rna_path_prop_search_for_context(self, context, edit_text):
+    # NOTE(@campbellbarton): Limiting data-path expansion is rather arbitrary.
+    # It's possible for e.g. that someone would want to set a shortcut in the preferences or
+    # in other region types than those currently expanded. Unless there is a reasonable likelihood
+    # users might expand these space-type/region-type combinations - exclude them from this search.
+    # After all, this list is mainly intended as a hint, users are not prevented from constructing
+    # the data-paths themselves.
+    unique_attrs = set()
+
+    for window in context.window_manager.windows:
+        for area in window.screen.areas:
+            # Users are very unlikely to be setting shortcuts in the preferences, skip this.
+            if area.type == 'PREFERENCES':
+                continue
+            space = area.spaces.active
+            # Ignore the same region type multiple times in an area.
+            # Prevents the 3D-viewport quad-view from attempting to expand 3 extra times for e.g.
+            region_type_unique = set()
+            for region in area.regions:
+                if region.type not in {'WINDOW', 'PREVIEW'}:
+                    continue
+                if region.type in region_type_unique:
+                    continue
+                region_type_unique.add(region.type)
+                with context.temp_override(window=window, area=area, region=region):
+                    yield from _rna_path_prop_search_for_context_impl(context, edit_text, unique_attrs)
+
+    if not unique_attrs:
+        # Users *might* only have a preferences area shown, in that case just expand the current context.
+        yield from _rna_path_prop_search_for_context_impl(context, edit_text, unique_attrs)
+
 
 rna_path_prop = StringProperty(
     name="Context Attributes",
-    description="RNA context string",
+    description="Context data-path (expanded using visible windows in the current .blend file)",
     maxlen=1024,
+    search=rna_path_prop_search_for_context,
 )
 
 rna_reverse_prop = BoolProperty(
@@ -1004,31 +1061,31 @@ class WM_OT_url_open_preset(Operator):
     # Allow dynamically extending.
     preset_items = [
         # Dynamic URL's.
-        (('BUG', "Bug",
-          "Report a bug with pre-filled version information"),
+        (('BUG', iface_("Bug"),
+          tip_("Report a bug with pre-filled version information")),
          _url_from_bug),
-        (('BUG_ADDON', "Add-on Bug",
-          "Report a bug in an add-on"),
+        (('BUG_ADDON', iface_("Add-on Bug"),
+          tip_("Report a bug in an add-on")),
          _url_from_bug_addon),
-        (('RELEASE_NOTES', "Release Notes",
-          "Read about what's new in this version of Blender"),
+        (('RELEASE_NOTES', iface_("Release Notes"),
+          tip_("Read about what's new in this version of Blender")),
          _url_from_release_notes),
-        (('MANUAL', "User Manual",
-          "The reference manual for this version of Blender"),
+        (('MANUAL', iface_("User Manual"),
+          tip_("The reference manual for this version of Blender")),
          _url_from_manual),
-        (('API', "Python API Reference",
-          "The API reference manual for this version of Blender"),
+        (('API', iface_("Python API Reference"),
+          tip_("The API reference manual for this version of Blender")),
          _url_from_api),
 
         # Static URL's.
-        (('FUND', "Development Fund",
-          "The donation program to support maintenance and improvements"),
+        (('FUND', iface_("Development Fund"),
+          tip_("The donation program to support maintenance and improvements")),
          "https://fund.blender.org"),
-        (('BLENDER', "blender.org",
-          "Blender's official web-site"),
+        (('BLENDER', iface_("blender.org"),
+          tip_("Blender's official web-site")),
          "https://www.blender.org"),
-        (('CREDITS', "Credits",
-          "Lists committers to Blender's source code"),
+        (('CREDITS', iface_("Credits"),
+          tip_("Lists committers to Blender's source code")),
          "https://www.blender.org/about/credits/"),
     ]
 
@@ -1296,7 +1353,7 @@ class WM_OT_properties_edit(Operator):
         items=rna_custom_property_type_items,
     )
     is_overridable_library: BoolProperty(
-        name="Is Library Overridable",
+        name="Library Overridable",
         description="Allow the property to be overridden when the data-block is linked",
         default=False,
     )
@@ -1307,7 +1364,7 @@ class WM_OT_properties_edit(Operator):
     # Shared for integer and string properties.
 
     use_soft_limits: BoolProperty(
-        name="Use Soft Limits",
+        name="Soft Limits",
         description=(
             "Limits the Property Value slider to a range, "
             "values outside the range must be inputted numerically"
@@ -2426,8 +2483,8 @@ class BatchRenameAction(bpy.types.PropertyGroup):
     )
 
     # Weak, add/remove as properties.
-    op_add: BoolProperty()
-    op_remove: BoolProperty()
+    op_add: BoolProperty(name="Add")
+    op_remove: BoolProperty(name="Remove")
 
 
 class WM_OT_batch_rename(Operator):
@@ -2513,7 +2570,7 @@ class WM_OT_batch_rename(Operator):
                     if only_selected else
                     scene.sequence_editor.sequences_all,
                     "name",
-                    "Strip(s)",
+                    iface_("Strip(s)"),
                 )
         elif space_type == 'NODE_EDITOR':
             data_type_test = 'NODE'
@@ -2525,7 +2582,7 @@ class WM_OT_batch_rename(Operator):
                     if only_selected else
                     list(space.node_tree.nodes),
                     "name",
-                    "Node(s)",
+                    iface_("Node(s)"),
                 )
         elif space_type == 'OUTLINER':
             data_type_test = 'COLLECTION'
@@ -2537,7 +2594,7 @@ class WM_OT_batch_rename(Operator):
                     if only_selected else
                     scene.collection.children_recursive,
                     "name",
-                    "Collection(s)",
+                    iface_("Collection(s)"),
                 )
         else:
             if mode == 'POSE' or (mode == 'WEIGHT_PAINT' and context.pose_object):
@@ -2550,7 +2607,7 @@ class WM_OT_batch_rename(Operator):
                         if only_selected else
                         [pbone.bone for ob in context.objects_in_mode_unique_data for pbone in ob.pose.bones],
                         "name",
-                        "Bone(s)",
+                        iface_("Bone(s)"),
                     )
             elif mode == 'EDIT_ARMATURE':
                 data_type_test = 'BONE'
@@ -2562,24 +2619,24 @@ class WM_OT_batch_rename(Operator):
                         if only_selected else
                         [ebone for ob in context.objects_in_mode_unique_data for ebone in ob.data.edit_bones],
                         "name",
-                        "Edit Bone(s)",
+                        iface_("Edit Bone(s)"),
                     )
 
         if check_context:
             return 'OBJECT'
 
         object_data_type_attrs_map = {
-            'MESH': ("meshes", "Mesh(es)", bpy.types.Mesh),
-            'CURVE': ("curves", "Curve(s)", bpy.types.Curve),
-            'META': ("metaballs", "Metaball(s)", bpy.types.MetaBall),
-            'VOLUME': ("volumes", "Volume(s)", bpy.types.Volume),
-            'GPENCIL': ("grease_pencils", "Grease Pencil(s)", bpy.types.GreasePencil),
-            'ARMATURE': ("armatures", "Armature(s)", bpy.types.Armature),
-            'LATTICE': ("lattices", "Lattice(s)", bpy.types.Lattice),
-            'LIGHT': ("lights", "Light(s)", bpy.types.Light),
-            'LIGHT_PROBE': ("light_probes", "Light Probe(s)", bpy.types.LightProbe),
-            'CAMERA': ("cameras", "Camera(s)", bpy.types.Camera),
-            'SPEAKER': ("speakers", "Speaker(s)", bpy.types.Speaker),
+            'MESH': ("meshes", iface_("Mesh(es)"), bpy.types.Mesh),
+            'CURVE': ("curves", iface_("Curve(s)"), bpy.types.Curve),
+            'META': ("metaballs", iface_("Metaball(s)"), bpy.types.MetaBall),
+            'VOLUME': ("volumes", iface_("Volume(s)"), bpy.types.Volume),
+            'GPENCIL': ("grease_pencils", iface_("Grease Pencil(s)"), bpy.types.GreasePencil),
+            'ARMATURE': ("armatures", iface_("Armature(s)"), bpy.types.Armature),
+            'LATTICE': ("lattices", iface_("Lattice(s)"), bpy.types.Lattice),
+            'LIGHT': ("lights", iface_("Light(s)"), bpy.types.Light),
+            'LIGHT_PROBE': ("light_probes", iface_("Light Probe(s)"), bpy.types.LightProbe),
+            'CAMERA': ("cameras", iface_("Camera(s)"), bpy.types.Camera),
+            'SPEAKER': ("speakers", iface_("Speaker(s)"), bpy.types.Speaker),
         }
 
         # Finish with space types.
@@ -2597,7 +2654,7 @@ class WM_OT_batch_rename(Operator):
                     if only_selected else
                     [id for id in bpy.data.objects if id.library is None],
                     "name",
-                    "Object(s)",
+                    iface_("Object(s)"),
                 )
             elif data_type == 'COLLECTION':
                 data = (
@@ -2612,7 +2669,7 @@ class WM_OT_batch_rename(Operator):
                     if only_selected else
                     [id for id in bpy.data.collections if id.library is None],
                     "name",
-                    "Collection(s)",
+                    iface_("Collection(s)"),
                 )
             elif data_type == 'MATERIAL':
                 data = (
@@ -2631,7 +2688,7 @@ class WM_OT_batch_rename(Operator):
                     if only_selected else
                     [id for id in bpy.data.materials if id.library is None],
                     "name",
-                    "Material(s)",
+                    iface_("Material(s)"),
                 )
             elif data_type in object_data_type_attrs_map.keys():
                 attr, descr, ty = object_data_type_attrs_map[data_type]
@@ -2856,7 +2913,7 @@ class WM_OT_batch_rename(Operator):
             row.prop(action, "op_remove", text="", icon='REMOVE')
             row.prop(action, "op_add", text="", icon='ADD')
 
-        layout.label(text="Rename %d %s" % (len(self._data[0]), self._data[2]))
+        layout.label(text=iface_("Rename %d %s") % (len(self._data[0]), self._data[2]))
 
     def check(self, context):
         changed = False
@@ -2917,7 +2974,7 @@ class WM_OT_batch_rename(Operator):
                 change_len += 1
             total_len += 1
 
-        self.report({'INFO'}, "Renamed %d of %d %s" % (change_len, total_len, descr))
+        self.report({'INFO'}, tip_("Renamed %d of %d %s") % (change_len, total_len, descr))
 
         return {'FINISHED'}
 

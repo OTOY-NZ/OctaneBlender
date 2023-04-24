@@ -81,6 +81,7 @@
 #include "RNA_access.h"
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
+#include "RNA_path.h"
 #include "RNA_prototypes.h"
 
 #include "UI_interface.h"
@@ -108,47 +109,38 @@
 /** \name Operator API
  * \{ */
 
-void WM_operator_py_idname(char *to, const char *from)
+size_t WM_operator_py_idname(char *dst, const char *src)
 {
-  const char *sep = strstr(from, "_OT_");
+  const char *sep = strstr(src, "_OT_");
   if (sep) {
-    int ofs = (sep - from);
+    int ofs = (sep - src);
 
     /* NOTE: we use ascii `tolower` instead of system `tolower`, because the
      * latter depends on the locale, and can lead to `idname` mismatch. */
-    memcpy(to, from, sizeof(char) * ofs);
-    BLI_str_tolower_ascii(to, ofs);
+    memcpy(dst, src, sizeof(char) * ofs);
+    BLI_str_tolower_ascii(dst, ofs);
 
-    to[ofs] = '.';
-    BLI_strncpy(to + (ofs + 1), sep + 4, OP_MAX_TYPENAME - (ofs + 1));
+    dst[ofs] = '.';
+    return BLI_strncpy_rlen(dst + (ofs + 1), sep + 4, OP_MAX_TYPENAME - (ofs + 1)) + (ofs + 1);
   }
-  else {
-    /* should not happen but support just in case */
-    BLI_strncpy(to, from, OP_MAX_TYPENAME);
-  }
+  /* Should not happen but support just in case. */
+  return BLI_strncpy_rlen(dst, src, OP_MAX_TYPENAME);
 }
 
-void WM_operator_bl_idname(char *to, const char *from)
+size_t WM_operator_bl_idname(char *dst, const char *src)
 {
-  if (from) {
-    const char *sep = strchr(from, '.');
-
-    int from_len;
-    if (sep && (from_len = strlen(from)) < OP_MAX_TYPENAME - 3) {
-      const int ofs = (sep - from);
-      memcpy(to, from, sizeof(char) * ofs);
-      BLI_str_toupper_ascii(to, ofs);
-      memcpy(to + ofs, "_OT_", 4);
-      memcpy(to + (ofs + 4), sep + 1, (from_len - ofs));
-    }
-    else {
-      /* should not happen but support just in case */
-      BLI_strncpy(to, from, OP_MAX_TYPENAME);
-    }
+  const char *sep = strchr(src, '.');
+  int from_len;
+  if (sep && (from_len = strlen(src)) < OP_MAX_TYPENAME - 3) {
+    const int ofs = (sep - src);
+    memcpy(dst, src, sizeof(char) * ofs);
+    BLI_str_toupper_ascii(dst, ofs);
+    memcpy(dst + ofs, "_OT_", 4);
+    memcpy(dst + (ofs + 4), sep + 1, (from_len - ofs));
+    return (from_len - ofs) - 1;
   }
-  else {
-    to[0] = 0;
-  }
+  /* Should not happen but support just in case. */
+  return BLI_strncpy_rlen(dst, src, OP_MAX_TYPENAME);
 }
 
 bool WM_operator_py_idname_ok_or_report(ReportList *reports,
@@ -950,7 +942,7 @@ int WM_generic_select_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
     return ret_value | OPERATOR_PASS_THROUGH;
   }
-  if (ELEM(event->type, MOUSEMOVE, INBETWEEN_MOUSEMOVE)) {
+  if (ISMOUSE_MOTION(event->type)) {
     const int drag_delta[2] = {
         mval[0] - event->mval[0],
         mval[1] - event->mval[1],
@@ -1277,6 +1269,7 @@ ID *WM_operator_drop_load_path(struct bContext *C, wmOperator *op, const short i
 {
   Main *bmain = CTX_data_main(C);
   ID *id = NULL;
+
   /* check input variables */
   if (RNA_struct_property_is_set(op->ptr, "filepath")) {
     const bool is_relative_path = RNA_boolean_get(op->ptr, "relative_path");
@@ -1314,19 +1307,33 @@ ID *WM_operator_drop_load_path(struct bContext *C, wmOperator *op, const short i
         }
       }
     }
+
+    return id;
   }
-  else if (RNA_struct_property_is_set(op->ptr, "name")) {
-    char name[MAX_ID_NAME - 2];
-    RNA_string_get(op->ptr, "name", name);
-    id = BKE_libblock_find_name(bmain, idcode, name);
-    if (!id) {
+
+  if (!WM_operator_properties_id_lookup_is_set(op->ptr)) {
+    return NULL;
+  }
+
+  /* Lookup an already existing ID. */
+  id = WM_operator_properties_id_lookup_from_name_or_session_uuid(bmain, op->ptr, idcode);
+
+  if (!id) {
+    /* Print error with the name if the name is available. */
+
+    if (RNA_struct_property_is_set(op->ptr, "name")) {
+      char name[MAX_ID_NAME - 2];
+      RNA_string_get(op->ptr, "name", name);
       BKE_reportf(
           op->reports, RPT_ERROR, "%s '%s' not found", BKE_idtype_idcode_to_name(idcode), name);
       return NULL;
     }
-    id_us_plus(id);
+
+    BKE_reportf(op->reports, RPT_ERROR, "%s not found", BKE_idtype_idcode_to_name(idcode));
+    return NULL;
   }
 
+  id_us_plus(id);
   return id;
 }
 
@@ -1870,7 +1877,14 @@ static void WM_OT_call_menu(wmOperatorType *ot)
 
   ot->flag = OPTYPE_INTERNAL;
 
-  RNA_def_string(ot->srna, "name", NULL, BKE_ST_MAXNAME, "Name", "Name of the menu");
+  PropertyRNA *prop;
+
+  prop = RNA_def_string(ot->srna, "name", NULL, BKE_ST_MAXNAME, "Name", "Name of the menu");
+  RNA_def_property_string_search_func_runtime(
+      prop,
+      WM_menutype_idname_visit_for_search,
+      /* Only a suggestion as menu items may be referenced from add-ons that have been disabled. */
+      (PROP_STRING_SEARCH_SORT | PROP_STRING_SEARCH_SUGGESTION));
 }
 
 static int wm_call_pie_menu_invoke(bContext *C, wmOperator *op, const wmEvent *event)
@@ -1902,7 +1916,14 @@ static void WM_OT_call_menu_pie(wmOperatorType *ot)
 
   ot->flag = OPTYPE_INTERNAL;
 
-  RNA_def_string(ot->srna, "name", NULL, BKE_ST_MAXNAME, "Name", "Name of the pie menu");
+  PropertyRNA *prop;
+
+  prop = RNA_def_string(ot->srna, "name", NULL, BKE_ST_MAXNAME, "Name", "Name of the pie menu");
+  RNA_def_property_string_search_func_runtime(
+      prop,
+      WM_menutype_idname_visit_for_search,
+      /* Only a suggestion as menu items may be referenced from add-ons that have been disabled. */
+      (PROP_STRING_SEARCH_SORT | PROP_STRING_SEARCH_SUGGESTION));
 }
 
 static int wm_call_panel_exec(bContext *C, wmOperator *op)
@@ -1938,6 +1959,11 @@ static void WM_OT_call_panel(wmOperatorType *ot)
   PropertyRNA *prop;
 
   prop = RNA_def_string(ot->srna, "name", NULL, BKE_ST_MAXNAME, "Name", "Name of the menu");
+  RNA_def_property_string_search_func_runtime(
+      prop,
+      WM_paneltype_idname_visit_for_search,
+      /* Only a suggestion as menu items may be referenced from add-ons that have been disabled. */
+      (PROP_STRING_SEARCH_SORT | PROP_STRING_SEARCH_SUGGESTION));
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
   prop = RNA_def_boolean(ot->srna, "keep_open", true, "Keep Open", "");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
@@ -2065,7 +2091,7 @@ static void WM_OT_octane_livedb(wmOperatorType *ot)
 
 static int wm_console_toggle_exec(bContext *UNUSED(C), wmOperator *UNUSED(op))
 {
-  setConsoleWindowState(GHOST_kConsoleWindowStateToggle);
+  GHOST_setConsoleWindowState(GHOST_kConsoleWindowStateToggle);
   return OPERATOR_FINISHED;
 }
 
@@ -3896,7 +3922,7 @@ static void gesture_box_modal_keymap(wmKeyConfig *keyconf)
   WM_modalkeymap_assign(keymap, "VIEW3D_OT_clip_border");
   WM_modalkeymap_assign(keymap, "VIEW3D_OT_render_border");
   WM_modalkeymap_assign(keymap, "VIEW3D_OT_select_box");
-  /* XXX TODO: zoom border should perhaps map rightmouse to zoom out instead of in+cancel */
+  /* XXX TODO: zoom border should perhaps map right-mouse to zoom out instead of in+cancel. */
   WM_modalkeymap_assign(keymap, "VIEW3D_OT_zoom_border");
   WM_modalkeymap_assign(keymap, "IMAGE_OT_render_border");
   WM_modalkeymap_assign(keymap, "IMAGE_OT_view_zoom_border");

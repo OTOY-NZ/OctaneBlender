@@ -24,6 +24,7 @@
 #include "BKE_attribute.h"
 #include "BKE_callbacks.h"
 #include "BKE_context.h"
+#include "BKE_editmesh.h"
 #include "BKE_global.h"
 #include "BKE_image.h"
 #include "BKE_image_format.h"
@@ -324,7 +325,7 @@ static bool write_external_bake_pixels(const char *filepath,
                                        const int height,
                                        const int margin,
                                        const int margin_type,
-                                       ImageFormatData *im_format,
+                                       ImageFormatData const *im_format,
                                        const bool is_noncolor,
                                        Mesh const *mesh_eval,
                                        char const *uv_layer,
@@ -451,8 +452,8 @@ static bool bake_object_check(ViewLayer *view_layer,
     if (BKE_id_attributes_active_color_get(&me->id) == NULL) {
       BKE_reportf(reports,
                   RPT_ERROR,
-                  "No vertex colors layer found in the object \"%s\"",
-                  ob->id.name + 2);
+                  "Mesh does not have an active color attribute \"%s\"",
+                  me->id.name + 2);
       return false;
     }
   }
@@ -933,20 +934,24 @@ static bool bake_targets_output_external(const BakeAPIRender *bkr,
 
 /* Vertex Color Bake Targets */
 
-static bool bake_targets_init_vertex_colors(BakeTargets *targets, Object *ob, ReportList *reports)
+static bool bake_targets_init_vertex_colors(Main *bmain,
+                                            BakeTargets *targets,
+                                            Object *ob,
+                                            ReportList *reports)
 {
   if (ob->type != OB_MESH) {
-    BKE_report(
-        reports, RPT_ERROR, "Vertex color baking not support with object types other than mesh");
+    BKE_report(reports, RPT_ERROR, "Color attribute baking is only supported for mesh objects");
     return false;
   }
 
   Mesh *me = ob->data;
-
   if (BKE_id_attributes_active_color_get(&me->id) == NULL) {
-    BKE_report(reports, RPT_ERROR, "No vertex colors layer found to bake to");
+    BKE_report(reports, RPT_ERROR, "No active color attribute to bake to");
     return false;
   }
+
+  /* Ensure mesh and editmesh topology are in sync. */
+  ED_object_editmode_load(bmain, ob);
 
   targets->images = MEM_callocN(sizeof(BakeImage), "BakeTargets.images");
   targets->images_num = 1;
@@ -1111,9 +1116,10 @@ static void convert_float_color_to_byte_color(const MPropCol *float_colors,
 static bool bake_targets_output_vertex_colors(BakeTargets *targets, Object *ob)
 {
   Mesh *me = ob->data;
+  BMEditMesh *em = me->edit_mesh;
   CustomDataLayer *active_color_layer = BKE_id_attributes_active_color_get(&me->id);
   BLI_assert(active_color_layer != NULL);
-  const AttributeDomain domain = BKE_id_attribute_domain(&me->id, active_color_layer);
+  const eAttrDomain domain = BKE_id_attribute_domain(&me->id, active_color_layer);
 
   const int channels_num = targets->channels_num;
   const bool is_noncolor = targets->is_noncolor;
@@ -1123,9 +1129,7 @@ static bool bake_targets_output_vertex_colors(BakeTargets *targets, Object *ob)
     const int totvert = me->totvert;
     const int totloop = me->totloop;
 
-    MPropCol *mcol = active_color_layer->type == CD_PROP_COLOR ?
-                         active_color_layer->data :
-                         MEM_malloc_arrayN(totvert, sizeof(MPropCol), __func__);
+    MPropCol *mcol = MEM_malloc_arrayN(totvert, sizeof(MPropCol), __func__);
 
     /* Accumulate float vertex colors in scene linear color space. */
     int *num_loops_for_vertex = MEM_callocN(sizeof(int) * me->totvert, "num_loops_for_vertex");
@@ -1145,24 +1149,75 @@ static bool bake_targets_output_vertex_colors(BakeTargets *targets, Object *ob)
       }
     }
 
-    if (mcol != active_color_layer->data) {
-      convert_float_color_to_byte_color(mcol, totvert, is_noncolor, active_color_layer->data);
-      MEM_freeN(mcol);
+    if (em) {
+      /* Copy to bmesh. */
+      const int active_color_offset = CustomData_get_offset_named(
+          &em->bm->vdata, active_color_layer->type, active_color_layer->name);
+      BMVert *v;
+      BMIter viter;
+      int i = 0;
+      BM_ITER_MESH (v, &viter, em->bm, BM_VERTS_OF_MESH) {
+        void *data = BM_ELEM_CD_GET_VOID_P(v, active_color_offset);
+        if (active_color_layer->type == CD_PROP_COLOR) {
+          memcpy(data, &mcol[i], sizeof(MPropCol));
+        }
+        else {
+          convert_float_color_to_byte_color(&mcol[i], 1, is_noncolor, data);
+        }
+        i++;
+      }
     }
+    else {
+      /* Copy to mesh. */
+      if (active_color_layer->type == CD_PROP_COLOR) {
+        memcpy(active_color_layer->data, mcol, sizeof(MPropCol) * me->totvert);
+      }
+      else {
+        convert_float_color_to_byte_color(mcol, totvert, is_noncolor, active_color_layer->data);
+      }
+    }
+
+    MEM_freeN(mcol);
 
     MEM_SAFE_FREE(num_loops_for_vertex);
   }
   else if (domain == ATTR_DOMAIN_CORNER) {
-    switch (active_color_layer->type) {
-      case CD_PROP_COLOR: {
+    if (em) {
+      /* Copy to bmesh. */
+      const int active_color_offset = CustomData_get_offset_named(
+          &em->bm->ldata, active_color_layer->type, active_color_layer->name);
+      BMFace *f;
+      BMIter fiter;
+      int i = 0;
+      BM_ITER_MESH (f, &fiter, em->bm, BM_FACES_OF_MESH) {
+        BMLoop *l;
+        BMIter liter;
+        BM_ITER_ELEM (l, &liter, f, BM_LOOPS_OF_FACE) {
+          MPropCol color;
+          zero_v4(color.color);
+          bake_result_add_to_rgba(color.color, &result[i * channels_num], channels_num);
+          i++;
+
+          void *data = BM_ELEM_CD_GET_VOID_P(l, active_color_offset);
+          if (active_color_layer->type == CD_PROP_COLOR) {
+            memcpy(data, &color, sizeof(MPropCol));
+          }
+          else {
+            convert_float_color_to_byte_color(&color, 1, is_noncolor, data);
+          }
+        }
+      }
+    }
+    else {
+      /* Copy to mesh. */
+      if (active_color_layer->type == CD_PROP_COLOR) {
         MPropCol *colors = active_color_layer->data;
         for (int i = 0; i < me->totloop; i++) {
           zero_v4(colors[i].color);
           bake_result_add_to_rgba(colors[i].color, &result[i * channels_num], channels_num);
         }
-        break;
       }
-      case CD_PROP_BYTE_COLOR: {
+      else {
         MLoopCol *colors = active_color_layer->data;
         for (int i = 0; i < me->totloop; i++) {
           MPropCol color;
@@ -1170,10 +1225,7 @@ static bool bake_targets_output_vertex_colors(BakeTargets *targets, Object *ob)
           bake_result_add_to_rgba(color.color, &result[i * channels_num], channels_num);
           convert_float_color_to_byte_color(&color, 1, is_noncolor, &colors[i]);
         }
-        break;
       }
-      default:
-        BLI_assert_unreachable();
     }
   }
 
@@ -1203,7 +1255,7 @@ static bool bake_targets_init(const BakeAPIRender *bkr,
     }
   }
   else if (bkr->target == R_BAKE_TARGET_VERTEX_COLORS) {
-    if (!bake_targets_init_vertex_colors(targets, ob, reports)) {
+    if (!bake_targets_init_vertex_colors(bkr->main, targets, ob, reports)) {
       return false;
     }
   }
@@ -1565,7 +1617,7 @@ static int bake(const BakeAPIRender *bkr,
                                           ob_low_eval->obmat);
         }
         else {
-          /* from multiresolution */
+          /* From multi-resolution. */
           Mesh *me_nores = NULL;
           ModifierData *md = NULL;
           int mode;
@@ -1836,6 +1888,17 @@ static void bake_startjob(void *bkv, short *UNUSED(stop), short *do_update, floa
   RE_SetReports(bkr->render, NULL);
 }
 
+static void bake_job_complete(void *bkv)
+{
+  BakeAPIRender *bkr = (BakeAPIRender *)bkv;
+  BKE_callback_exec_id(bkr->main, &bkr->ob->id, BKE_CB_EVT_OBJECT_BAKE_COMPLETE);
+}
+static void bake_job_canceled(void *bkv)
+{
+  BakeAPIRender *bkr = (BakeAPIRender *)bkv;
+  BKE_callback_exec_id(bkr->main, &bkr->ob->id, BKE_CB_EVT_OBJECT_BAKE_CANCEL);
+}
+
 static void bake_freejob(void *bkv)
 {
   BakeAPIRender *bkr = (BakeAPIRender *)bkv;
@@ -1971,6 +2034,7 @@ static int bake_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event)
 
   /* init bake render */
   bake_init_api_data(op, C, bkr);
+  BKE_callback_exec_id(CTX_data_main(C), &bkr->ob->id, BKE_CB_EVT_OBJECT_BAKE_PRE);
   re = bkr->render;
 
   /* setup new render */
@@ -1988,7 +2052,8 @@ static int bake_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event)
   /* TODO: only draw bake image, can we enforce this. */
   WM_jobs_timer(
       wm_job, 0.5, (bkr->target == R_BAKE_TARGET_VERTEX_COLORS) ? NC_GEOM | ND_DATA : NC_IMAGE, 0);
-  WM_jobs_callbacks(wm_job, bake_startjob, NULL, NULL, NULL);
+  WM_jobs_callbacks_ex(
+      wm_job, bake_startjob, NULL, NULL, NULL, bake_job_complete, bake_job_canceled);
 
   G.is_break = false;
   G.is_rendering = true;

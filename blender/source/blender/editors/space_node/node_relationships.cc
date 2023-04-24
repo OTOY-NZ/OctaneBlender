@@ -454,7 +454,7 @@ static bool socket_can_be_viewed(const OutputSocketRef &socket)
               SOCK_RGBA);
 }
 
-static CustomDataType socket_type_to_custom_data_type(const eNodeSocketDatatype socket_type)
+static eCustomDataType socket_type_to_custom_data_type(const eNodeSocketDatatype socket_type)
 {
   switch (socket_type) {
     case SOCK_FLOAT:
@@ -491,7 +491,7 @@ static bNodeSocket *node_link_viewer_get_socket(bNodeTree &ntree,
         return viewer_socket;
       }
       NodeGeometryViewer *storage = (NodeGeometryViewer *)viewer_node.storage;
-      const CustomDataType data_type = socket_type_to_custom_data_type(
+      const eCustomDataType data_type = socket_type_to_custom_data_type(
           (eNodeSocketDatatype)src_socket.type);
       BLI_assert(data_type != CD_AUTO_FROM_NAME);
       storage->data_type = data_type;
@@ -639,8 +639,13 @@ static int link_socket_to_viewer(const bContext &C,
   if (viewer_bnode == nullptr) {
     /* Create a new viewer node if none exists. */
     const int viewer_type = get_default_viewer_type(&C);
-    viewer_bnode = node_add_node(
-        C, nullptr, viewer_type, bsocket_to_view.locx + 100, bsocket_to_view.locy);
+    /* The socket location is in view space, so dividing by #UI_DPI_FAC
+     * brings it into the coordinate space of the node editor. */
+    viewer_bnode = node_add_node(C,
+                                 nullptr,
+                                 viewer_type,
+                                 bsocket_to_view.locx / UI_DPI_FAC + 100,
+                                 bsocket_to_view.locy / UI_DPI_FAC);
     if (viewer_bnode == nullptr) {
       return OPERATOR_CANCELLED;
     }
@@ -2048,7 +2053,7 @@ static bNodeSocket *get_main_socket(bNodeTree &ntree, bNode &node, eNodeSocketIn
 
   /* Try to get the main socket based on the socket declaration. */
   nodeDeclarationEnsure(&ntree, &node);
-  const nodes::NodeDeclaration *node_decl = node.declaration;
+  const nodes::NodeDeclaration *node_decl = node.runtime->declaration;
   if (node_decl != nullptr) {
     Span<nodes::SocketDeclarationPtr> socket_decls = (in_out == SOCK_IN) ? node_decl->inputs() :
                                                                            node_decl->outputs();

@@ -1455,94 +1455,114 @@ class OctaneMaterialSettings(bpy.types.PropertyGroup):
 
 class OctaneObjectSettings(bpy.types.PropertyGroup):
 
+    def update_object_settings(self, context):
+        self.id_data.update_tag()
+
     render_layer_id: IntProperty(
         name="Render layer ID",
         description="Render layer number for current object. Will use the layer number from blender built-in render layer system if the value is 0",
         min=1, max=255,
+        update=update_object_settings,
         default=1,
     )
     general_visibility: FloatProperty(
         name="General visibility",
         description="",
         min=0.0, max=1.0, soft_max=1.0,
+        update=update_object_settings,
         default=1.0,
     )    
     camera_visibility: BoolProperty(
         name="Camera Visibility",
         description="",
+        update=update_object_settings,
         default=True
     )
     shadow_visibility: BoolProperty(
         name="Shadow Visibility",
         description="",
+        update=update_object_settings,
         default=True
     )
     dirt_visibility: BoolProperty(
         name="Dirt Visibility",
         description="",
+        update=update_object_settings,
         default=True
     )            
     random_color_seed: IntProperty(
         name="Random color seed",
         description="Random color seed",
         min=0, max=65535,
+        update=update_object_settings,
         default=0,
     )    
     color: FloatVectorProperty(
         name="Color",
         description="The color that is rendered in the object layer render pass",
         min=0.0, max=1.0,
+        update=update_object_settings,
         default=(1.0, 1.0, 1.0),
         subtype='COLOR',
     )
     light_id_sunlight: BoolProperty(
         name="Sunlight",
         description="Sunlight",
+        update=update_object_settings,
         default=True,
     )           
     light_id_env: BoolProperty(
         name="Environment",
         description="Environment",
+        update=update_object_settings,
         default=True,
     )    
     light_id_pass_1: BoolProperty(
         name="Pass 1",
         description="Pass 1",
+        update=update_object_settings,
         default=True,
     ) 
     light_id_pass_2: BoolProperty(
         name="Pass 2",
         description="Pass 2",
+        update=update_object_settings,
         default=True,
     ) 
     light_id_pass_3: BoolProperty(
         name="Pass 3",
         description="Pass 3",
+        update=update_object_settings,
         default=True,
     ) 
     light_id_pass_4: BoolProperty(
         name="Pass 4",
         description="Pass 4",
+        update=update_object_settings,
         default=True,
     ) 
     light_id_pass_5: BoolProperty(
         name="Pass 5",
         description="Pass 5",
+        update=update_object_settings,
         default=True,
     ) 
     light_id_pass_6: BoolProperty(
         name="Pass 6",
         description="Pass 6",
+        update=update_object_settings,
         default=True,
     ) 
     light_id_pass_7: BoolProperty(
         name="Pass 7",
         description="Pass 7",
+        update=update_object_settings,
         default=True,
     ) 
     light_id_pass_8: BoolProperty(
         name="Pass 8",
         description="Pass 8",
+        update=update_object_settings,
         default=True,
     )      
 
@@ -1550,46 +1570,54 @@ class OctaneObjectSettings(bpy.types.PropertyGroup):
         name="Baking group ID",
         description="",
         min=1, max=65535,
+        update=update_object_settings,
         default=1,                
     )
     baking_uv_transform_rz: FloatProperty(
         name="R.Z",
         description="Rotation Z",
         min=-360, max=360,
+        update=update_object_settings,
         default=0,                
     )
     baking_uv_transform_sx: FloatProperty(
         name="S.X",
         description="Scale X",
         min=-0.001, max=1000,
+        update=update_object_settings,
         default=1,                
     )    
     baking_uv_transform_sy: FloatProperty(
         name="S.Y",
         description="Scale Y",
         min=-0.001, max=1000,
+        update=update_object_settings,
         default=1,                
     )   
     baking_uv_transform_tx: FloatProperty(
         name="T.X",
         description="Translation X",
+        update=update_object_settings,
         default=0,                
     )    
     baking_uv_transform_ty: FloatProperty(
         name="T.Y",
         description="Translation Y",
+        update=update_object_settings,
         default=0,                
     )      
     custom_aov: EnumProperty(
         name="Custom AOV",
         description="If a custom AOV is selected, it will write a mask to it where the material is visible",
         items=custom_aov_modes,
+        update=update_object_settings,
         default='None',
     )  
     custom_aov_channel: EnumProperty(
         name="Custom AOV Channel",
         description="If a custom AOV is selected, the selected channel(s) will receive the mask",
         items=custom_aov_channel_modes,
+        update=update_object_settings,
         default='All',
     )           
 

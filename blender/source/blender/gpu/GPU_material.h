@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include "DNA_customdata_types.h" /* for CustomDataType */
+#include "DNA_customdata_types.h" /* for eCustomDataType */
 #include "DNA_image_types.h"
 #include "DNA_listBase.h"
 
@@ -77,11 +77,19 @@ typedef enum eGPUMaterialFlag {
   GPU_MATFLAG_HOLDOUT = (1 << 6),
   GPU_MATFLAG_SHADER_TO_RGBA = (1 << 7),
   GPU_MATFLAG_AO = (1 << 8),
+  GPU_MATFLAG_CLEARCOAT = (1 << 9),
 
   GPU_MATFLAG_OBJECT_INFO = (1 << 10),
   GPU_MATFLAG_AOV = (1 << 11),
 
   GPU_MATFLAG_BARYCENTRIC = (1 << 20),
+
+  /* Optimization to only add the branches of the principled shader that are necessary. */
+  GPU_MATFLAG_PRINCIPLED_CLEARCOAT = (1 << 21),
+  GPU_MATFLAG_PRINCIPLED_METALLIC = (1 << 22),
+  GPU_MATFLAG_PRINCIPLED_DIELECTRIC = (1 << 23),
+  GPU_MATFLAG_PRINCIPLED_GLASS = (1 << 24),
+  GPU_MATFLAG_PRINCIPLED_ANY = (1 << 25),
 
   /* Tells the render engine the material was just compiled or updated. */
   GPU_MATFLAG_UPDATED = (1 << 29),
@@ -130,9 +138,14 @@ typedef void (*GPUCodegenCallbackFn)(void *thunk, GPUMaterial *mat, GPUCodegenOu
 
 GPUNodeLink *GPU_constant(const float *num);
 GPUNodeLink *GPU_uniform(const float *num);
-GPUNodeLink *GPU_attribute(GPUMaterial *mat, CustomDataType type, const char *name);
+GPUNodeLink *GPU_attribute(GPUMaterial *mat, eCustomDataType type, const char *name);
+/**
+ * Add a GPU attribute that refers to the default color attribute on a geometry.
+ * The name, type, and domain are unknown and do not depend on the material.
+ */
+GPUNodeLink *GPU_attribute_default_color(GPUMaterial *mat);
 GPUNodeLink *GPU_attribute_with_default(GPUMaterial *mat,
-                                        CustomDataType type,
+                                        eCustomDataType type,
                                         const char *name,
                                         eGPUDefaultValue default_value);
 GPUNodeLink *GPU_uniform_attribute(GPUMaterial *mat, const char *name, bool use_dupli);
@@ -259,13 +272,19 @@ void GPU_pass_cache_free(void);
 
 typedef struct GPUMaterialAttribute {
   struct GPUMaterialAttribute *next, *prev;
-  int type;                /* CustomDataType */
+  int type;                /* eCustomDataType */
   char name[64];           /* MAX_CUSTOMDATA_LAYER_NAME */
   char input_name[12 + 1]; /* GPU_MAX_SAFE_ATTR_NAME + 1 */
   eGPUType gputype;
   eGPUDefaultValue default_value; /* Only for volumes attributes. */
   int id;
   int users;
+  /**
+   * If true, the corresponding attribute is the specified default color attribute on the mesh,
+   * if it exists. In that case the type and name data can vary per geometry, so it will not be
+   * valid here.
+   */
+  bool is_default_color;
 } GPUMaterialAttribute;
 
 typedef struct GPUMaterialTexture {

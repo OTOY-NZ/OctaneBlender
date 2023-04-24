@@ -25,7 +25,7 @@ typedef struct TransDataGenericSlideVert {
 
 /* transform_mode.c */
 
-int transform_mode_really_used(struct bContext *C, int mode);
+eTfmMode transform_mode_really_used(struct bContext *C, eTfmMode mode);
 bool transdata_check_local_center(const TransInfo *t, short around);
 /**
  * Informs if the mode can be switched during modal.
@@ -117,6 +117,7 @@ void drawEdgeSlide(TransInfo *t);
 void initEdgeSlide_ex(
     TransInfo *t, bool use_double_side, bool use_even, bool flipped, bool use_clamp);
 void initEdgeSlide(TransInfo *t);
+void transform_mode_edge_slide_reproject_input(TransInfo *t);
 
 /* transform_mode_gpopacity.c */
 
@@ -191,3 +192,4 @@ void initTranslation(TransInfo *t);
 void drawVertSlide(TransInfo *t);
 void initVertSlide_ex(TransInfo *t, bool use_even, bool flipped, bool use_clamp);
 void initVertSlide(TransInfo *t);
+void transform_mode_vert_slide_reproject_input(TransInfo *t);

@@ -91,6 +91,8 @@ if(CYCLES_STANDALONE_REPOSITORY)
     _set_default(USD_ROOT_DIR "${_cycles_lib_dir}/usd")
     _set_default(WEBP_ROOT_DIR "${_cycles_lib_dir}/webp")
     _set_default(ZLIB_ROOT "${_cycles_lib_dir}/zlib")
+    _set_default(LEVEL_ZERO_ROOT_DIR "${_cycles_lib_dir}/level-zero")
+    _set_default(SYCL_ROOT_DIR "${_cycles_lib_dir}/dpcpp")
 
     # Ignore system libraries
     set(CMAKE_IGNORE_PATH "${CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES};${CMAKE_SYSTEM_INCLUDE_PATH};${CMAKE_C_IMPLICIT_INCLUDE_DIRECTORIES};${CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES}")
@@ -145,8 +147,8 @@ if(CYCLES_STANDALONE_REPOSITORY)
       -DOIIO_STATIC_DEFINE
     )
 
-    set(OPENIMAGEIO_INCLUDE_DIR ${OPENIMAGEIO_ROOT_DIR}/include) 
-    set(OPENIMAGEIO_INCLUDE_DIRS ${OPENIMAGEIO_INCLUDE_DIR} ${OPENIMAGEIO_INCLUDE_DIR}/OpenImageIO) 
+    set(OPENIMAGEIO_INCLUDE_DIR ${OPENIMAGEIO_ROOT_DIR}/include)
+    set(OPENIMAGEIO_INCLUDE_DIRS ${OPENIMAGEIO_INCLUDE_DIR} ${OPENIMAGEIO_INCLUDE_DIR}/OpenImageIO)
     # Special exceptions for libraries which needs explicit debug version
     set(OPENIMAGEIO_LIBRARIES
       optimized ${OPENIMAGEIO_ROOT_DIR}/lib/OpenImageIO.lib
@@ -647,3 +649,36 @@ if(WITH_CYCLES_DEVICE_METAL)
     message(STATUS "Found Metal: ${METAL_LIBRARY}")
   endif()
 endif()
+
+###########################################################################
+# oneAPI
+###########################################################################
+
+if(WITH_CYCLES_DEVICE_ONEAPI)
+  find_package(SYCL)
+  find_package(LevelZero)
+
+  if(SYCL_FOUND AND LEVEL_ZERO_FOUND)
+    message(STATUS "Found oneAPI: ${SYCL_LIBRARY}")
+    message(STATUS "Found Level Zero: ${LEVEL_ZERO_LIBRARY}")
+
+    if(WITH_CYCLES_ONEAPI_BINARIES)
+      if(NOT OCLOC_INSTALL_DIR)
+        get_filename_component(_sycl_compiler_root ${SYCL_COMPILER} DIRECTORY)
+        get_filename_component(OCLOC_INSTALL_DIR "${_sycl_compiler_root}/../lib/ocloc" ABSOLUTE)
+        unset(_sycl_compiler_root)
+      endif()
+
+      if(NOT EXISTS ${OCLOC_INSTALL_DIR})
+        message(STATUS "oneAPI ocloc not found in ${OCLOC_INSTALL_DIR}, disabling WITH_CYCLES_ONEAPI_BINARIES."
+                       " A different ocloc directory can be set using OCLOC_INSTALL_DIR cmake variable.")
+        set(WITH_CYCLES_ONEAPI_BINARIES OFF)
+      endif()
+    endif()
+  else()
+    message(STATUS "oneAPI or Level Zero not found, disabling WITH_CYCLES_DEVICE_ONEAPI")
+    set(WITH_CYCLES_DEVICE_ONEAPI OFF)
+  endif()
+endif()
+
+unset(_cycles_lib_dir)

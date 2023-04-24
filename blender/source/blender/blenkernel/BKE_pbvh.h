@@ -221,7 +221,8 @@ void BKE_pbvh_draw_cb(PBVH *pbvh,
                       PBVHFrustumPlanes *update_frustum,
                       PBVHFrustumPlanes *draw_frustum,
                       void (*draw_fn)(void *user_data, struct GPU_PBVH_Buffers *buffers),
-                      void *user_data);
+                      void *user_data,
+                      bool full_render);
 
 void BKE_pbvh_draw_debug_cb(
     PBVH *pbvh,
@@ -307,7 +308,7 @@ void BKE_pbvh_node_fully_unmasked_set(PBVHNode *node, int fully_masked);
 bool BKE_pbvh_node_fully_unmasked_get(PBVHNode *node);
 
 void BKE_pbvh_mark_rebuild_pixels(PBVH *pbvh);
-void BKE_pbvh_vert_mark_update(PBVH *pbvh, int index);
+void BKE_pbvh_vert_tag_update_normal(PBVH *pbvh, int index);
 
 void BKE_pbvh_node_get_grids(PBVH *pbvh,
                              PBVHNode *node,
@@ -525,7 +526,7 @@ void BKE_pbvh_node_get_bm_orco_data(PBVHNode *node,
  * however this is important to avoid having to recalculate bound-box & sync the buffers to the
  * GPU (which is far more expensive!) See: T47232.
  */
-bool BKE_pbvh_node_vert_update_check_any(PBVH *pbvh, PBVHNode *node);
+bool BKE_pbvh_node_has_vert_with_normal_update_tag(PBVH *pbvh, PBVHNode *node);
 
 // void BKE_pbvh_node_BB_reset(PBVHNode *node);
 // void BKE_pbvh_node_BB_expand(PBVHNode *node, float co[3]);
@@ -549,7 +550,7 @@ PBVHColorBufferNode *BKE_pbvh_node_color_buffer_get(PBVHNode *node);
 void BKE_pbvh_node_color_buffer_free(PBVH *pbvh);
 bool BKE_pbvh_get_color_layer(const struct Mesh *me,
                               CustomDataLayer **r_layer,
-                              AttributeDomain *r_attr);
+                              eAttrDomain *r_attr);
 
 /* Swaps colors at each element in indices (of domain pbvh->vcol_domain)
  * with values in colors. */

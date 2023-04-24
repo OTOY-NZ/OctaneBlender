@@ -103,11 +103,7 @@ void BKE_mesh_wrapper_ensure_mdata(Mesh *me)
 
   /* Must isolate multithreaded tasks while holding a mutex lock. */
   blender::threading::isolate_task([&]() {
-    const eMeshWrapperType geom_type_orig = static_cast<eMeshWrapperType>(
-        me->runtime.wrapper_type);
-    me->runtime.wrapper_type = ME_WRAPPER_TYPE_MDATA;
-
-    switch (geom_type_orig) {
+    switch (static_cast<eMeshWrapperType>(me->runtime.wrapper_type)) {
       case ME_WRAPPER_TYPE_MDATA:
       case ME_WRAPPER_TYPE_SUBD: {
         break; /* Quiet warning. */
@@ -132,7 +128,7 @@ void BKE_mesh_wrapper_ensure_mdata(Mesh *me)
          * There is also a performance aspect, where this also assumes that original indices are
          * always needed when converting an edit mesh to a mesh. That might be wrong, but it's not
          * harmful. */
-        BKE_mesh_ensure_default_orig_index_customdata(me);
+        BKE_mesh_ensure_default_orig_index_customdata_no_check(me);
 
         EditMeshData *edit_data = me->runtime.edit_data;
         if (edit_data->vertexCos) {
@@ -144,8 +140,12 @@ void BKE_mesh_wrapper_ensure_mdata(Mesh *me)
     }
 
     if (me->runtime.wrapper_type_finalize) {
-      BKE_mesh_wrapper_deferred_finalize(me, &me->runtime.cd_mask_extra);
+      BKE_mesh_wrapper_deferred_finalize_mdata(me, &me->runtime.cd_mask_extra);
     }
+
+    /* Keep type assignment last, so that read-only access only uses the mdata code paths after all
+     * the underlying data has been initialized. */
+    me->runtime.wrapper_type = ME_WRAPPER_TYPE_MDATA;
   });
 
   BLI_mutex_unlock(mesh_eval_mutex);
@@ -307,7 +307,7 @@ int BKE_mesh_wrapper_poly_len(const Mesh *me)
 /** \name CPU Subdivision Evaluation
  * \{ */
 
-static Mesh *mesh_wrapper_ensure_subdivision(const Object *ob, Mesh *me)
+static Mesh *mesh_wrapper_ensure_subdivision(Mesh *me)
 {
   SubsurfRuntimeData *runtime_data = (SubsurfRuntimeData *)me->runtime.subsurf_runtime_data;
   if (runtime_data == nullptr || runtime_data->settings.level == 0) {
@@ -367,7 +367,7 @@ static Mesh *mesh_wrapper_ensure_subdivision(const Object *ob, Mesh *me)
   return me->runtime.mesh_eval;
 }
 
-Mesh *BKE_mesh_wrapper_ensure_subdivision(const Object *ob, Mesh *me)
+Mesh *BKE_mesh_wrapper_ensure_subdivision(Mesh *me)
 {
   ThreadMutex *mesh_eval_mutex = (ThreadMutex *)me->runtime.eval_mutex;
   BLI_mutex_lock(mesh_eval_mutex);
@@ -380,7 +380,7 @@ Mesh *BKE_mesh_wrapper_ensure_subdivision(const Object *ob, Mesh *me)
   Mesh *result;
 
   /* Must isolate multithreaded tasks while holding a mutex lock. */
-  blender::threading::isolate_task([&]() { result = mesh_wrapper_ensure_subdivision(ob, me); });
+  blender::threading::isolate_task([&]() { result = mesh_wrapper_ensure_subdivision(me); });
 
   BLI_mutex_unlock(mesh_eval_mutex);
   return result;

@@ -65,6 +65,7 @@ class OctaneNodeItem(NodeItem):
             return NodeItem.draw(self, layout, _context)
         else:  
             op = layout.operator("octane.add_default_node_helper", text=self.label, text_ctxt=self.translation_context)
+            op.use_transform = True
             op.node_type = self.nodetype
 
 
@@ -735,7 +736,6 @@ _octane_node_items = {
 _draw_node_categories_menu = None
 _ShaderNodeCategory_poll =  None
 _octane_node_enum_items = None
-_node_create_node = None
 
 def init_octane_node_enum_items():
     global _octane_node_enum_items
@@ -799,6 +799,5 @@ def register():
 def unregister():
     nodeitems_utils.draw_node_categories_menu = _draw_node_categories_menu
     nodeitems_builtins.ShaderNodeCategory.poll = _ShaderNodeCategory_poll
-    node.NodeAddOperator.create_node = _node_create_node
     for _id, _items in _octane_node_items.items():
         unregister_octane_node_categories(_id)        

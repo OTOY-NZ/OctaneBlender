@@ -17,11 +17,14 @@
 #include "BKE_context.h"
 #include "BKE_cryptomatte.hh"
 #include "BKE_global.h"
+#include "BKE_image.h"
 #include "BKE_lib_id.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
 
 #include "MEM_guardedalloc.h"
+
+#include "RE_pipeline.h"
 
 #include <optional>
 
@@ -376,6 +379,8 @@ void register_node_type_cmp_cryptomatte_legacy()
   node_type_init(&ntype, file_ns::node_init_cryptomatte_legacy);
   node_type_storage(
       &ntype, "NodeCryptomatte", file_ns::node_free_cryptomatte, file_ns::node_copy_cryptomatte);
+  ntype.gather_link_search_ops = nullptr;
+
   nodeRegisterType(&ntype);
 }
 

@@ -68,6 +68,10 @@ def octane_register_interface_class(classes, socket_interface_classes):
             socket_interface_classes.append(ntype)
     octane_register_class(socket_interface_classes)
 
+def octane_unregister_interface_class(classes):
+    octane_unregister_class(classes)
+    classes.clear()
+
 def add_socket_list(node, new_socket_list_str):
     node.octane_socket_list += new_socket_list_str
 
@@ -410,6 +414,8 @@ def find_active_output_node(node_tree, owner_type):
             active_output_node = _find_active_blender_output_node(node_tree)
             if not active_output_node:
                 active_output_node = _find_active_octane_output_node(node_tree, base_output_node.OctaneEditorWorldOutputNode.bl_idname)
+        elif owner_type == consts.OctaneNodeTreeIDName.LIGHT:
+            active_output_node = _find_active_blender_output_node(node_tree)        
         elif owner_type == consts.OctaneNodeTreeIDName.COMPOSITE:
             active_output_node = node_tree.active_output_node
         elif owner_type == consts.OctaneNodeTreeIDName.RENDER_AOV:

@@ -1437,7 +1437,7 @@ static void project_line_gesture_apply_task_cb(void *__restrict userdata,
     }
     add_v3_v3(vd.co, disp);
     if (vd.mvert) {
-      BKE_pbvh_vert_mark_update(sgcontext->ss->pbvh, vd.index);
+      BKE_pbvh_vert_tag_update_normal(sgcontext->ss->pbvh, vd.index);
     }
     any_updated = true;
   }
@@ -1584,9 +1584,9 @@ static int sculpt_trim_gesture_box_invoke(bContext *C, wmOperator *op, const wmE
   SculptSession *ss = ob->sculpt;
 
   SculptCursorGeometryInfo sgi;
-  float mouse[2] = {event->mval[0], event->mval[1]};
+  const float mval_fl[2] = {UNPACK2(event->mval)};
   SCULPT_vertex_random_access_ensure(ss);
-  ss->gesture_initial_hit = SCULPT_cursor_geometry_info_update(C, &sgi, mouse, false);
+  ss->gesture_initial_hit = SCULPT_cursor_geometry_info_update(C, &sgi, mval_fl, false);
   if (ss->gesture_initial_hit) {
     copy_v3_v3(ss->gesture_initial_location, sgi.location);
     copy_v3_v3(ss->gesture_initial_normal, sgi.normal);
@@ -1625,9 +1625,9 @@ static int sculpt_trim_gesture_lasso_invoke(bContext *C, wmOperator *op, const w
   SculptSession *ss = ob->sculpt;
 
   SculptCursorGeometryInfo sgi;
-  float mouse[2] = {event->mval[0], event->mval[1]};
+  const float mval_fl[2] = {UNPACK2(event->mval)};
   SCULPT_vertex_random_access_ensure(ss);
-  ss->gesture_initial_hit = SCULPT_cursor_geometry_info_update(C, &sgi, mouse, false);
+  ss->gesture_initial_hit = SCULPT_cursor_geometry_info_update(C, &sgi, mval_fl, false);
   if (ss->gesture_initial_hit) {
     copy_v3_v3(ss->gesture_initial_location, sgi.location);
     copy_v3_v3(ss->gesture_initial_normal, sgi.normal);

@@ -132,7 +132,7 @@ static void ED_keylist_runtime_init_listbase(AnimKeylist *keylist)
     return;
   }
 
-  keylist->runtime.list_wrapper.first = &keylist->runtime.key_columns[0];
+  keylist->runtime.list_wrapper.first = keylist->runtime.key_columns.data();
   keylist->runtime.list_wrapper.last = &keylist->runtime.key_columns[keylist->column_len - 1];
 }
 
@@ -309,7 +309,7 @@ static void keylist_first_last(const struct AnimKeylist *keylist,
                                const struct ActKeyColumn **last_column)
 {
   if (keylist->is_runtime_initialized) {
-    *first_column = &keylist->runtime.key_columns[0];
+    *first_column = keylist->runtime.key_columns.data();
     *last_column = &keylist->runtime.key_columns[keylist->column_len - 1];
   }
   else {
@@ -943,7 +943,8 @@ void scene_to_keylist(bDopeSheet *ads, Scene *sce, AnimKeylist *keylist, const i
   ac.datatype = ANIMCONT_CHANNEL;
 
   /* get F-Curves to take keyframes from */
-  const eAnimFilter_Flags filter = ANIMFILTER_DATA_VISIBLE; /* curves only */
+  const eAnimFilter_Flags filter = ANIMFILTER_DATA_VISIBLE | ANIMFILTER_FCURVESONLY;
+
   ANIM_animdata_filter(
       &ac, &anim_data, filter, ac.data, static_cast<eAnimCont_Types>(ac.datatype));
 
@@ -980,7 +981,7 @@ void ob_to_keylist(bDopeSheet *ads, Object *ob, AnimKeylist *keylist, const int 
   ac.datatype = ANIMCONT_CHANNEL;
 
   /* get F-Curves to take keyframes from */
-  const eAnimFilter_Flags filter = ANIMFILTER_DATA_VISIBLE; /* curves only */
+  const eAnimFilter_Flags filter = ANIMFILTER_DATA_VISIBLE | ANIMFILTER_FCURVESONLY;
   ANIM_animdata_filter(
       &ac, &anim_data, filter, ac.data, static_cast<eAnimCont_Types>(ac.datatype));
 
@@ -1015,7 +1016,7 @@ void cachefile_to_keylist(bDopeSheet *ads,
 
   /* get F-Curves to take keyframes from */
   ListBase anim_data = {nullptr, nullptr};
-  const eAnimFilter_Flags filter = ANIMFILTER_DATA_VISIBLE; /* curves only */
+  const eAnimFilter_Flags filter = ANIMFILTER_DATA_VISIBLE | ANIMFILTER_FCURVESONLY;
   ANIM_animdata_filter(
       &ac, &anim_data, filter, ac.data, static_cast<eAnimCont_Types>(ac.datatype));
 

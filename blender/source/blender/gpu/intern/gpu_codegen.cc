@@ -12,8 +12,6 @@
 #include "DNA_customdata_types.h"
 #include "DNA_image_types.h"
 
-#include "BLI_blenlib.h"
-#include "BLI_dynstr.h"
 #include "BLI_ghash.h"
 #include "BLI_hash_mm2a.h"
 #include "BLI_link_utils.h"
@@ -23,7 +21,6 @@
 #include "PIL_time.h"
 
 #include "BKE_material.h"
-#include "BKE_world.h"
 
 #include "GPU_capabilities.h"
 #include "GPU_material.h"
@@ -35,13 +32,12 @@
 #include "BLI_vector.hh"
 
 #include "gpu_codegen.h"
-#include "gpu_material_library.h"
 #include "gpu_node_graph.h"
 #include "gpu_shader_create_info.hh"
 #include "gpu_shader_dependency_private.h"
 
-#include <stdarg.h>
-#include <string.h>
+#include <cstdarg>
+#include <cstring>
 
 #include <sstream>
 #include <string>
@@ -306,7 +302,7 @@ void GPUCodegen::generate_attribs()
   info.vertex_out(iface);
 
   /* Input declaration, loading / assignment to interface and geometry shader passthrough. */
-  std::stringstream decl_ss, iface_ss, load_ss;
+  std::stringstream load_ss;
 
   int slot = 15;
   LISTBASE_FOREACH (GPUMaterialAttribute *, attr, &graph.attributes) {
@@ -354,6 +350,24 @@ void GPUCodegen::generate_attribs()
 void GPUCodegen::generate_resources()
 {
   GPUCodegenCreateInfo &info = *create_info;
+
+  /* Ref. T98190: Defines are optimizations for old compilers.
+   * Might become unecessary with EEVEE-Next. */
+  if (GPU_material_flag_get(&mat, GPU_MATFLAG_PRINCIPLED_CLEARCOAT)) {
+    info.define("PRINCIPLED_CLEARCOAT");
+  }
+  if (GPU_material_flag_get(&mat, GPU_MATFLAG_PRINCIPLED_METALLIC)) {
+    info.define("PRINCIPLED_METALLIC");
+  }
+  if (GPU_material_flag_get(&mat, GPU_MATFLAG_PRINCIPLED_DIELECTRIC)) {
+    info.define("PRINCIPLED_DIELECTRIC");
+  }
+  if (GPU_material_flag_get(&mat, GPU_MATFLAG_PRINCIPLED_GLASS)) {
+    info.define("PRINCIPLED_GLASS");
+  }
+  if (GPU_material_flag_get(&mat, GPU_MATFLAG_PRINCIPLED_ANY)) {
+    info.define("PRINCIPLED_ANY");
+  }
 
   std::stringstream ss;
 

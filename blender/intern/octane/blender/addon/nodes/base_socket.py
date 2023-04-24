@@ -265,6 +265,7 @@ class OCTANE_OT_add_default_node_helper(bpy.types.Operator):
     """Add a node to the active tree"""
     bl_idname = "octane.add_default_node_helper"
     bl_label = "Add"
+    bl_options = {'REGISTER', 'UNDO'}
 
     offset_x = -50
     offset_y = -20
@@ -278,6 +279,12 @@ class OCTANE_OT_add_default_node_helper(bpy.types.Operator):
     output_socket_pin_type = 0  
     # The type of the node to add
     node_type: StringProperty()
+      
+    use_transform: BoolProperty(
+        name="Use Transform",
+        description="Start transform operator after inserting the node",
+        default=False,
+    )
       
     @staticmethod
     def store_mouse_cursor(context, event):
@@ -364,7 +371,10 @@ class OCTANE_OT_add_default_node_helper(bpy.types.Operator):
     def invoke(self, context, event):
         self.store_mouse_cursor(context, event)
         result = self.execute(context)
-        return result        
+        if self.use_transform and ('FINISHED' in result):
+            # removes the node again if transform is canceled
+            bpy.ops.node.translate_attach_remove_on_cancel('INVOKE_DEFAULT')
+        return result
 
 
 class OCTANE_OT_add_default_node(bpy.types.Operator):

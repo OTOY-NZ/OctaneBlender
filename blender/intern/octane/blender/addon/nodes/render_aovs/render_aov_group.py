@@ -183,7 +183,7 @@ def register():
     utility.octane_register_interface_class(_CLASSES, _SOCKET_INTERFACE_CLASSES)
 
 def unregister():
-    utility.octane_unregister_class(reversed(_SOCKET_INTERFACE_CLASSES))
+    utility.octane_unregister_interface_class(_SOCKET_INTERFACE_CLASSES)
     utility.octane_unregister_class(reversed(_CLASSES))
 
 ##### END OCTANE GENERATED CODE BLOCK #####

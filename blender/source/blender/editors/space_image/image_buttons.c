@@ -921,7 +921,7 @@ void uiTemplateImage(uiLayout *layout,
     }
   }
 
-  /* Colorspace and alpha */
+  /* Color-space and alpha. */
   {
     uiItemS(layout);
 
@@ -1236,7 +1236,7 @@ void uiTemplateImageInfo(uiLayout *layout, bContext *C, Image *ima, ImageUser *i
   if (ELEM(ima->source, IMA_SRC_SEQUENCE, IMA_SRC_MOVIE)) {
     /* don't use iuser->framenr directly because it may not be updated if auto-refresh is off */
     Scene *scene = CTX_data_scene(C);
-    const int framenr = BKE_image_user_frame_get(iuser, CFRA, NULL);
+    const int framenr = BKE_image_user_frame_get(iuser, scene->r.cfra, NULL);
     char str[MAX_IMAGE_INFO_LEN];
     int duration = 0;
 
