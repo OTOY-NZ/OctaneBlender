@@ -10,7 +10,7 @@ set(INC
 )
 
 set(INC_SYS
-	${GLEW_INCLUDE_DIR}
+  ${Epoxy_INCLUDE_DIRS}
 )
 
 set(SRC

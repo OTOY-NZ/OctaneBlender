@@ -816,7 +816,7 @@ void BlenderSync::update_octane_camera_properties(Camera *cam,
                                                   PointerRNA oct_view_camera,
                                                   bool view)
 {
-  if (!view) {
+  if (!view && oct_camera.data != NULL) {
     cam->oct_node.bUseFstopValue = false;
     cam->oct_node.bUseUniversalCamera = RNA_boolean_get(&oct_camera, "used_as_universal_camera");
     cam->oct_node.bUseCameraDimensionAsPreviewResolution =

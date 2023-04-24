@@ -75,7 +75,7 @@ class Mesh {
   OctaneDataTransferObject::OctaneVolume octane_volume;
 
   bool empty;
-  bool is_edit_mode_modified;
+  bool is_mesh_synced;
 
   bool is_octane_volume;
   int last_vdb_frame;

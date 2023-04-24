@@ -99,7 +99,10 @@ def get_dirty_resources():
 
 def set_all_mesh_resource_cache_tags(is_dirty):
     for obj in bpy.data.objects:
-        set_mesh_resource_cache_tag(obj, is_dirty) 
+        if obj.mode == "OBJECT":
+            set_mesh_resource_cache_tag(obj, is_dirty)
+        else:
+            set_mesh_resource_cache_tag(obj, True)
 
 @persistent
 def sync_octane_aov_output_number(self):
@@ -210,7 +213,7 @@ class OCTANE_OT_ShowOctaneViewport(OCTANE_OT_BaseCommand):
     command_type = COMMAND_TYPES['SHOW_OCTANE_VIEWPORT']
 
 class OCTANE_OT_ShowOctaneNetworkPreference(OCTANE_OT_BaseCommand):
-    """Show Octane Network Preference"""
+    """Show Octane Network Preference(For the Studio+ License Only)"""
     bl_idname = "octane.show_octane_network_preference"
     bl_label = "Show Octane Network Preference"
     command_type = COMMAND_TYPES['SHOW_NETWORK_PREFERENCE']       

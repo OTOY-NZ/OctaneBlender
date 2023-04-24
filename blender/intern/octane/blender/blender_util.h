@@ -43,10 +43,6 @@
 extern "C" {
 size_t BLI_timecode_string_from_time_simple(char *str, size_t maxlen, double time_seconds);
 void BLI_split_dir_part(const char *string, char *dir, const size_t dirlen);
-void BLI_join_dirfile(char *__restrict string,
-                      const size_t maxlen,
-                      const char *__restrict dir,
-                      const char *__restrict file);
 bool BLI_path_frame(char *path, int frame, int digits);
 const char *BLI_path_extension(const char *filepath);
 void BKE_image_user_frame_calc(void *ima, void *iuser, int cfra);
@@ -173,11 +169,7 @@ static std::string generate_mesh_tag(BL::Depsgraph &b_depsgraph,
         b_ob.to_mesh_clear();
       }
     }
-    if (me->totpoly > 1) {
-      if (me->mpoly) {
-        ss << me->mpoly[0].flag << "|";
-      }
-    }
+    ss << me->flag << "|";
     result = ss.str();
   }
   for (int i = 0; i < shaders.size(); ++i) {
@@ -760,6 +752,22 @@ static inline BL::FluidDomainSettings object_fluid_domain_find(BL::Object &b_ob)
   return BL::FluidDomainSettings(PointerRNA_NULL);
 }
 
+static inline BL::FluidDomainSettings object_fluid_gas_domain_find(BL::Object &b_ob)
+{
+  for (BL::Modifier &b_mod : b_ob.modifiers) {
+    if (b_mod.is_a(&RNA_FluidModifier)) {
+      BL::FluidModifier b_mmd(b_mod);
+
+      if (b_mmd.fluid_type() == BL::FluidModifier::fluid_type_DOMAIN &&
+          b_mmd.domain_settings().domain_type() == BL::FluidDomainSettings::domain_type_GAS) {
+        return b_mmd.domain_settings();
+      }
+    }
+  }
+
+  return BL::FluidDomainSettings(PointerRNA_NULL);
+}
+
 static inline Mesh::SubdivisionType object_subdivision_type(BL::Object &b_ob,
                                                             bool preview,
                                                             bool experimental)
@@ -1317,9 +1325,7 @@ static inline std::string split_dir_part(std::string path)
 
 static inline std::string join_dir_file(std::string dir, std::string file)
 {
-  char path[256];
-  BLI_join_dirfile(path, sizeof(path), dir.c_str(), file.c_str());
-  return std::string(path);
+  return path_join(dir, file);
 }
 
 static std::string resolve_octane_vdb_path(PointerRNA &oct_mesh,

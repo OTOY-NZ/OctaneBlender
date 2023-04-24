@@ -94,7 +94,7 @@ void WM_init_state_maximized_set(void);
 void WM_init_state_start_with_console_set(bool value);
 void WM_init_window_focus_set(bool do_it);
 void WM_init_native_pixels(bool do_it);
-void WM_init_tablet_api(void);
+void WM_init_input_devices(void);
 
 /**
  * Initialize Blender and load the startup file & preferences
@@ -119,6 +119,13 @@ void WM_init_splash(struct bContext *C);
 
 void WM_init_opengl(void);
 
+/**
+ * Return an identifier for the underlying GHOST implementation.
+ * \warning Use of this function should be limited & never for compatibility checks.
+ * see: #GHOST_ISystem::getSystemBackend for details.
+ */
+const char *WM_ghost_backend(void);
+
 void WM_check(struct bContext *C);
 void WM_reinit_gizmomap_all(struct Main *bmain);
 
@@ -134,7 +141,24 @@ void WM_window_pixel_sample_read(const wmWindowManager *wm,
                                  const int pos[2],
                                  float r_col[3]);
 
+/**
+ * Read pixels from the front-buffer (fast).
+ *
+ * \note Internally this depends on the front-buffer state,
+ * for a slower but more reliable method of reading pixels, use #WM_window_pixels_read_offscreen.
+ * Fast pixel access may be preferred for file-save thumbnails.
+ *
+ * \warning Drawing (swap-buffers) immediately before calling this function causes
+ * the front-buffer state to be invalid under some EGL configurations.
+ */
 uint *WM_window_pixels_read(struct wmWindowManager *wm, struct wmWindow *win, int r_size[2]);
+/**
+ * Draw the window & read pixels from an off-screen buffer (slower than #WM_window_pixels_read).
+ *
+ * \note This is needed because the state of the front-buffer may be damaged
+ * (see in-line code comments for details).
+ */
+uint *WM_window_pixels_read_offscreen(struct bContext *C, struct wmWindow *win, int r_size[2]);
 
 /**
  * Support for native pixel size
@@ -844,7 +868,7 @@ void WM_operator_properties_select_action(struct wmOperatorType *ot,
                                           int default_action,
                                           bool hide_gui);
 /**
- * Only #SELECT / #DESELECT.
+ * Only for select/de-select.
  */
 void WM_operator_properties_select_action_simple(struct wmOperatorType *ot,
                                                  int default_action,

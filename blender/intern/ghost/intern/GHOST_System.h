@@ -76,7 +76,7 @@ class GHOST_System : public GHOST_ISystem {
   GHOST_ITimerTask *installTimer(uint64_t delay,
                                  uint64_t interval,
                                  GHOST_TimerProcPtr timerProc,
-                                 GHOST_TUserDataPtr userData = NULL);
+                                 GHOST_TUserDataPtr userData = nullptr);
 
   /**
    * Removes a timer.
@@ -120,11 +120,10 @@ class GHOST_System : public GHOST_ISystem {
    */
   GHOST_TSuccess beginFullScreen(const GHOST_DisplaySetting &setting,
                                  GHOST_IWindow **window,
-                                 const bool stereoVisual,
-                                 const bool alphaBackground);
+                                 const bool stereoVisual);
 
   /**
-   * Updates the resolution while in fullscreen mode.
+   * Updates the resolution while in full-screen mode.
    * \param setting: The new setting of the display.
    * \param window: Window displayed in full screen.
    *
@@ -239,6 +238,12 @@ class GHOST_System : public GHOST_ISystem {
    * \return Indication of success.
    */
   GHOST_TSuccess getButtonState(GHOST_TButton mask, bool &isDown) const;
+
+  /**
+   * Enable multi-touch gestures if supported.
+   * \param use: Enable or disable.
+   */
+  void setMultitouchGestures(const bool use);
 
   /**
    * Set which tablet API to use. Only affects Windows, other platforms have a single API.
@@ -370,14 +375,13 @@ class GHOST_System : public GHOST_ISystem {
   virtual GHOST_TSuccess exit();
 
   /**
-   * Creates a fullscreen window.
+   * Creates a full-screen window.
    * \param window: The window created.
    * \return Indication of success.
    */
   GHOST_TSuccess createFullScreenWindow(GHOST_Window **window,
                                         const GHOST_DisplaySetting &settings,
-                                        const bool stereoVisual,
-                                        const bool alphaBackground = 0);
+                                        const bool stereoVisual);
 
   /** The display manager (platform dependent). */
   GHOST_DisplayManager *m_displayManager;
@@ -401,8 +405,11 @@ class GHOST_System : public GHOST_ISystem {
   GHOST_EventPrinter *m_eventPrinter;
 #endif  // WITH_GHOST_DEBUG
 
-  /** Settings of the display before the display went fullscreen. */
+  /** Settings of the display before the display went full-screen. */
   GHOST_DisplaySetting m_preFullScreenSetting;
+
+  /* Use multi-touch gestures? */
+  bool m_multitouchGestures;
 
   /** Which tablet API to use. */
   GHOST_TTabletAPI m_tabletAPI;

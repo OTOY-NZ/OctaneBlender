@@ -19,7 +19,7 @@
 # <pep8 compliant>
 
 bl_info = {
-    "name": "OctaneRender Engine (v. 26.5)",
+    "name": "OctaneRender Engine (v. 26.6)",
     "author": "OTOY Inc.",
     "blender": (3, 3, 0),
     "location": "Info header, render engine menu",

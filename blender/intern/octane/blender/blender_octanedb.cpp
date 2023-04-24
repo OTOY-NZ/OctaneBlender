@@ -210,8 +210,8 @@ bool BlenderOctaneDb::generate_blender_material_from_octanedb(
 
   target_material->is_octanedb_updating = 0;
 
-  auto ob = OBACT(view_layer);
-  if (ob) {
+  if (view_layer->basact && view_layer->basact->object) {
+    auto ob = view_layer->basact->object;
     BKE_object_material_slot_remove(bmain, ob);
     short actcol = ob->totcol + 1;
     BKE_object_material_assign(bmain, ob, target_material, actcol, BKE_MAT_ASSIGN_OBDATA);

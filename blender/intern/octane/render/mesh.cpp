@@ -36,7 +36,7 @@ OCT_NAMESPACE_BEGIN
 Mesh::Mesh()
 {
   is_octane_volume = false;
-  is_edit_mode_modified = false;
+  is_mesh_synced = false;
   empty = false;
   mesh_type = AUTO;
   octane_mesh.oMeshData.bUpdate = false;
@@ -155,9 +155,6 @@ void MeshManager::server_update_mesh(::OctaneEngine::OctaneClient *server,
     Mesh *mesh = *it;
     if (!mesh) {
       continue;
-    }
-    if (mesh->empty || !mesh->need_update) {
-      mesh->need_update = false;
     }
     else if (mesh->is_volume()) {
       volume_collections.emplace_back(mesh);

@@ -84,9 +84,8 @@ bool BlenderSync::object_is_mesh(BL::Object &b_ob)
   }
 
   /* Other object types that are not meshes but evaluate to meshes are presented to render engines
-   * as separate instance objects. Metaballs and surface objects have not been affected by that
-   * change yet. */
-  if (type == BL::Object::type_SURFACE || type == BL::Object::type_META) {
+   * as separate instance objects. */
+  if (type == BL::Object::type_SURFACE) {
     return true;
   }
 

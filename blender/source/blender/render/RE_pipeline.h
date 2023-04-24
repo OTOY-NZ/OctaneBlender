@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include "DEG_depsgraph.h"
+#include "DNA_ID.h"
 #include "DNA_listBase.h"
 #include "DNA_vec_types.h"
 
@@ -104,7 +104,6 @@ typedef struct RenderResult {
 
   /* target image size */
   int rectx, recty;
-  short sample_nr;
 
   /* The following rect32, rectf and rectz buffers are for temporary storage only,
    * for RenderResult structs created in #RE_AcquireResultImage - which do not have RenderView */
@@ -127,8 +126,7 @@ typedef struct RenderResult {
   /* multiView maps to a StringVector in OpenEXR */
   ListBase views; /* RenderView */
 
-  /* allowing live updates: */
-  rcti renrect;
+  /* Render layer to display. */
   RenderLayer *renlay;
 
   /* for render results in Image, verify validity for sequences */
@@ -464,9 +462,9 @@ bool RE_allow_render_generic_object(struct Object *ob);
 
 /******* defined in render_result.c *********/
 
-bool RE_HasCombinedLayer(const RenderResult *res);
-bool RE_HasFloatPixels(const RenderResult *res);
-bool RE_RenderResult_is_stereo(const RenderResult *res);
+bool RE_HasCombinedLayer(const RenderResult *result);
+bool RE_HasFloatPixels(const RenderResult *result);
+bool RE_RenderResult_is_stereo(const RenderResult *result);
 struct RenderView *RE_RenderViewGetById(struct RenderResult *rr, int view_id);
 struct RenderView *RE_RenderViewGetByName(struct RenderResult *rr, const char *viewname);
 

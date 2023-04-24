@@ -371,8 +371,9 @@ typedef struct LineartData {
 
     /* Keep an copy of these data so when line art is running it's self-contained. */
     bool cam_is_persp;
-    bool cam_is_persp_secondary; /* "Secondary" ones are from viewing camera (as opposed to shadow
-                                    camera), during shadow calculation. */
+    /* "Secondary" ones are from viewing camera
+     * (as opposed to shadow camera), during shadow calculation. */
+    bool cam_is_persp_secondary;
     float cam_obmat[4][4];
     float cam_obmat_secondary[4][4];
     double camera_pos[3];
@@ -441,6 +442,7 @@ typedef enum eLineartTriangleFlags {
   LRT_TRIANGLE_INTERSECTION_ONLY = (1 << 3),
   LRT_TRIANGLE_NO_INTERSECTION = (1 << 4),
   LRT_TRIANGLE_MAT_BACK_FACE_CULLING = (1 << 5),
+  LRT_TRIANGLE_FORCE_INTERSECTION = (1 << 6),
 } eLineartTriangleFlags;
 
 #define LRT_SHADOW_MASK_UNDEFINED 0
