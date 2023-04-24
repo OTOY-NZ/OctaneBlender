@@ -5,6 +5,7 @@ from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, F
 from octane.utils import utility, consts
 from octane.nodes.base_node import OctaneBaseNode
 from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_image import OctaneBaseImageNode
 from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
@@ -49,6 +50,34 @@ class OctaneClippingMaterialPriority(OctaneBaseSocket):
     octane_end_version=4294967295
     octane_deprecated=False
 
+class OctaneClippingMaterialRayepsilon(OctaneBaseSocket):
+    bl_idname="OctaneClippingMaterialRayepsilon"
+    bl_label="Custom ray epsilon"
+    color=consts.OctanePinColor.Float
+    octane_default_node_type="OctaneFloatValue"
+    octane_pin_id: IntProperty(name="Octane Pin ID", default=144)
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    default_value: FloatProperty(default=0.000100, update=None, description="Clipping material offset distance", min=0.000000, max=1000.000000, soft_min=0.000001, soft_max=0.100000, step=1, precision=2, subtype="NONE")
+    octane_hide_value=False
+    octane_min_version=11000014
+    octane_end_version=4294967295
+    octane_deprecated=False
+
+class OctaneClippingMaterialRayEpsilonCustomEnabled(OctaneBaseSocket):
+    bl_idname="OctaneClippingMaterialRayEpsilonCustomEnabled"
+    bl_label="Custom ray epsilon enabled"
+    color=consts.OctanePinColor.Bool
+    octane_default_node_type="OctaneBoolValue"
+    octane_pin_id: IntProperty(name="Octane Pin ID", default=744)
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
+    default_value: BoolProperty(default=False, update=None, description="If true, the clipping material uses the specified custom ray epsilon instead of the global ray epsilon in kernel node")
+    octane_hide_value=False
+    octane_min_version=11000014
+    octane_end_version=4294967295
+    octane_deprecated=False
+
 class OctaneClippingMaterial(bpy.types.Node, OctaneBaseNode):
     bl_idname="OctaneClippingMaterial"
     bl_label="Clipping material"
@@ -60,15 +89,17 @@ class OctaneClippingMaterial(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_sub_type_name=""
     octane_min_version=0
     octane_node_type: IntProperty(name="Octane Node Type", default=178)
-    octane_socket_list: StringProperty(name="Socket List", default="Enabled;Intersection;Priority;")
+    octane_socket_list: StringProperty(name="Socket List", default="Enabled;Intersection;Priority;Custom ray epsilon;Custom ray epsilon enabled;")
     octane_attribute_list: StringProperty(name="Attribute List", default="")
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=3)
+    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=5)
 
     def init(self, context):
         self.inputs.new("OctaneClippingMaterialEnabled", OctaneClippingMaterialEnabled.bl_label).init()
         self.inputs.new("OctaneClippingMaterialIntersectionMaterial", OctaneClippingMaterialIntersectionMaterial.bl_label).init()
         self.inputs.new("OctaneClippingMaterialPriority", OctaneClippingMaterialPriority.bl_label).init()
+        self.inputs.new("OctaneClippingMaterialRayepsilon", OctaneClippingMaterialRayepsilon.bl_label).init()
+        self.inputs.new("OctaneClippingMaterialRayEpsilonCustomEnabled", OctaneClippingMaterialRayEpsilonCustomEnabled.bl_label).init()
         self.outputs.new("OctaneMaterialOutSocket", "Material out").init()
 
 
@@ -76,6 +107,8 @@ _CLASSES=[
     OctaneClippingMaterialEnabled,
     OctaneClippingMaterialIntersectionMaterial,
     OctaneClippingMaterialPriority,
+    OctaneClippingMaterialRayepsilon,
+    OctaneClippingMaterialRayEpsilonCustomEnabled,
     OctaneClippingMaterial,
 ]
 

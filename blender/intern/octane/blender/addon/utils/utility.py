@@ -62,6 +62,38 @@ def octane_register_interface_class(classes, socket_interface_classes):
             socket_interface_classes.append(ntype)
     octane_register_class(socket_interface_classes)
 
+def add_attribute(node, new_attribute_list_str, new_attribute_config_list_str):
+    node.octane_attribute_list += new_attribute_list_str
+    node.octane_attribute_config_list += new_attribute_config_list_str
+
+def remove_attribute(node, remove_attribute_list_str):
+    original_attribute_list = node.octane_attribute_list.split(";")
+    original_attribute_config_list = node.octane_attribute_config_list.split(";")
+    remove_attribute_list = remove_attribute_list_str.split(";")
+    new_attribute_list = []
+    new_attribute_config_list = []
+    for idx, original_attribute in enumerate(original_attribute_list):
+        if original_attribute not in remove_attribute_list:
+            new_attribute_list.append(original_attribute)
+            new_attribute_config_list.append(original_attribute_config_list[idx])
+    node.octane_attribute_list = ";".join(new_attribute_list)
+    node.octane_attribute_config_list = ";".join(new_attribute_config_list)
+
+def override_attribute(node, old_attribute, new_attribute, new_attribute_config):
+    original_attribute_list = node.octane_attribute_list.split(";")
+    original_attribute_config_list = node.octane_attribute_config_list.split(";")
+    new_attribute_list = []
+    new_attribute_config_list = []
+    for idx, original_attribute in enumerate(original_attribute_list):
+        if original_attribute == new_attribute:
+            new_attribute_list.append(new_attribute)
+            new_attribute_config_list.append(new_attribute_config)
+        else:
+            new_attribute_list.append(original_attribute)
+            new_attribute_config_list.append(original_attribute_config_list[idx])
+    node.octane_attribute_list = ";".join(new_attribute_list)
+    node.octane_attribute_config_list = ";".join(new_attribute_config_list)    
+
 def convert_octane_color_to_rgba(color):
     a = (0xff & (color >> 24)) / 255.0
     r = (0xff & (color >> 16)) / 255.0
@@ -108,6 +140,12 @@ def make_blender_style_enum_items(_items, use_heading=False):
             blender_style_enum_items.append(_item)
     return blender_style_enum_items
 
+def cast_enum_value_to_int(enum_items, enum_value, default_value):
+    if enum_items is not None:
+        for item in enum_items:
+            if enum_value == item[0]:
+                return item[3]
+    return default_value
 
 ##### NodeTrees & Nodes & Sockets #####
 

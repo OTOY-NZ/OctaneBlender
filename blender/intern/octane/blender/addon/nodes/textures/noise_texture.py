@@ -5,8 +5,23 @@ from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, F
 from octane.utils import utility, consts
 from octane.nodes.base_node import OctaneBaseNode
 from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_image import OctaneBaseImageNode
 from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
+
+class OctaneNoiseTexturePower(OctaneBaseSocket):
+    bl_idname="OctaneNoiseTexturePower"
+    bl_label="Power"
+    color=consts.OctanePinColor.Texture
+    octane_default_node_type="OctaneGreyscaleColor"
+    octane_pin_id: IntProperty(name="Octane Pin ID", default=138)
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    default_value: FloatProperty(default=1.000000, update=None, description="Power/brightness", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
+    octane_hide_value=False
+    octane_min_version=11000014
+    octane_end_version=4294967295
+    octane_deprecated=False
 
 class OctaneNoiseTextureNoiseType(OctaneBaseSocket):
     bl_idname="OctaneNoiseTextureNoiseType"
@@ -21,6 +36,7 @@ class OctaneNoiseTextureNoiseType(OctaneBaseSocket):
         ("Turbulence", "Turbulence", "", 1),
         ("Circular", "Circular", "", 2),
         ("Chips", "Chips", "", 3),
+        ("Voronoi", "Voronoi", "", 4),
     ]
     default_value: EnumProperty(default="Perlin", update=None, description="Noise type", items=items)
     octane_hide_value=False
@@ -135,12 +151,13 @@ class OctaneNoiseTexture(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_sub_type_name=""
     octane_min_version=0
     octane_node_type: IntProperty(name="Octane Node Type", default=87)
-    octane_socket_list: StringProperty(name="Socket List", default="Noise type;Octaves;Omega;UVW transform;Projection;Invert;Gamma;Contrast;")
+    octane_socket_list: StringProperty(name="Socket List", default="Power;Noise type;Octaves;Omega;UVW transform;Projection;Invert;Gamma;Contrast;")
     octane_attribute_list: StringProperty(name="Attribute List", default="")
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=8)
+    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=9)
 
     def init(self, context):
+        self.inputs.new("OctaneNoiseTexturePower", OctaneNoiseTexturePower.bl_label).init()
         self.inputs.new("OctaneNoiseTextureNoiseType", OctaneNoiseTextureNoiseType.bl_label).init()
         self.inputs.new("OctaneNoiseTextureOctaves", OctaneNoiseTextureOctaves.bl_label).init()
         self.inputs.new("OctaneNoiseTextureOmega", OctaneNoiseTextureOmega.bl_label).init()
@@ -153,6 +170,7 @@ class OctaneNoiseTexture(bpy.types.Node, OctaneBaseNode):
 
 
 _CLASSES=[
+    OctaneNoiseTexturePower,
     OctaneNoiseTextureNoiseType,
     OctaneNoiseTextureOctaves,
     OctaneNoiseTextureOmega,

@@ -62,6 +62,7 @@ from . import fractal
 from . import hagelslag
 from . import glowing_circle
 from . import curvature_texture
+from . import cell_noise
 from . import composite_texture_layer
 from . import floats_to_color
 from . import float3_to_color
@@ -144,6 +145,7 @@ def register():
     hagelslag.register()
     glowing_circle.register()
     curvature_texture.register()
+    cell_noise.register()
     composite_texture_layer.register()
     floats_to_color.register()
     float3_to_color.register()
@@ -226,6 +228,7 @@ def unregister():
     hagelslag.unregister()
     glowing_circle.unregister()
     curvature_texture.unregister()
+    cell_noise.unregister()
     composite_texture_layer.unregister()
     floats_to_color.unregister()
     float3_to_color.unregister()

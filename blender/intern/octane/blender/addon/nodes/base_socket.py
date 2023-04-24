@@ -12,6 +12,9 @@ from octane.utils.consts import SocketType, PinType
 class OctaneBaseSocket(bpy.types.NodeSocket):
     """Base class for Octane sockets"""
     DYNAMIC_PIN_ID_OFFSET=10000
+    DYNAMIC_PIN_TAG = "###DYNAMIC_PIN###"
+    OSL_PIN_TAG = "###OSL_PIN###"
+    PROXY_PIN_TAG = "###OCTANE_PROXY###"
 
     bl_label=""
     bl_idname=""
@@ -59,6 +62,28 @@ class OctaneBaseSocket(bpy.types.NodeSocket):
 
     def draw_color(self, context, node):
         return self.color
+
+    def generate_octane_pin_symbol(self):
+        if self.is_octane_proxy_pin():
+            return self.name + self.PROXY_PIN_TAG + str(self.octane_proxy_link_index)
+        elif self.is_octane_osl_pin():
+            return self.OSL_PIN_TAG + self.osl_pin_name
+        elif self.is_octane_dynamic_pin():
+            dynamic_pin_id = self.octane_pin_id - self.DYNAMIC_PIN_ID_OFFSET
+            if getattr(self, "octane_reversed_input_sockets", False):
+                dynamic_pin_count = getattr(self.node, self.octane_movable_input_count_attribute_name, 0)
+                group_input_num = len(self.octane_sub_movable_inputs) + 1
+                dynamic_pin_count *= group_input_num
+                dynamic_pin_id = dynamic_pin_count - dynamic_pin_id + 1
+            return self.DYNAMIC_PIN_TAG + str(dynamic_pin_id)
+        else:
+            return str(self.octane_pin_id)
+
+    def is_octane_proxy_pin(self):
+        return False
+
+    def is_octane_osl_pin(self):
+        return False
 
     def is_octane_dynamic_pin(self):
         return self.octane_pin_id - self.DYNAMIC_PIN_ID_OFFSET >= 0

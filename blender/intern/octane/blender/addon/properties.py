@@ -41,6 +41,8 @@ from .utils.ocio import OctaneOCIOManagement
 
 from operator import add
 
+from octane.octane_server import OctaneServer
+
 universal_camera_modes = (
     ('Thin lens', "Thin lens", '', 1),
     ('Orthographic', "Orthographic", '', 2),
@@ -5359,9 +5361,8 @@ classes = (
 @persistent
 def load_handler(dummy):
     try:
-        import _octane
         from . import operators
-        _octane.activate(True)  
+        OctaneServer().activate(True)
     except:
         pass
 
@@ -5380,9 +5381,8 @@ def register():
         pass     
     # nodeitems_utils.register_node_categories("OCT_SHADER", shader_node_categories)    
     # nodeitems_utils.register_node_categories("OCT_TEXTURE", texture_node_categories)
-    # octane_server_address = str(bpy.context.preferences.addons['octane'].preferences.octane_server_address)
-    # from octane.bin import octane_blender_client
-    # octane_blender_client.connect_server(octane_server_address)
+    octane_server_address = str(bpy.context.preferences.addons['octane'].preferences.octane_server_address)
+    OctaneServer().connect(octane_server_address)
     update_octane_data()
     OctaneOCIOManagement_update_ocio_info()  
     bpy.app.handlers.load_post.append(load_handler)

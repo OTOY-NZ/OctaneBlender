@@ -19,7 +19,7 @@
 # <pep8 compliant>
 
 import bpy
-# from octane.bin import octane_blender_client
+from octane.octane_server import OctaneServer
 
 IS_RENDERING = False
 
@@ -35,7 +35,7 @@ def heart_beat():
 
 def init():
     print("OctaneBlender Engine Init")
-    # octane_blender_client.start()
+    OctaneServer().start()
     import _octane
     import os.path
 
@@ -46,7 +46,7 @@ def init():
 
 def exit():
     print("OctaneBlender Engine Exit")
-    # octane_blender_client.stop()
+    OctaneServer().stop()
     import _octane
     from . import operators
     _octane.command_to_octane(operators.COMMAND_TYPES['CLEAR_RESOURCE_CACHE_SYSTEM'])

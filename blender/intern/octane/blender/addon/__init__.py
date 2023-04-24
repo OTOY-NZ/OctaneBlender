@@ -19,7 +19,7 @@
 # <pep8 compliant>
 
 bl_info = {
-    "name": "OctaneRender Engine (v. 24.4)",
+    "name": "OctaneRender Engine (v. 24.5)",
     "author": "OTOY Inc.",
     "blender": (2, 93, 1),
     "location": "Info header, render engine menu",
@@ -50,8 +50,10 @@ import bpy
 
 from . import (
     engine,
-    version_update
+    version_update,    
 )
+
+from octane.octane_server import OctaneServer
 
 
 class OctaneRender(bpy.types.RenderEngine):
@@ -112,8 +114,9 @@ class OctaneRender(bpy.types.RenderEngine):
                           context.region, context.space_data, context.region_data)
             self._force_update_all_script_nodes()
 
-        engine.reset(self, context.blend_data, depsgraph)        
+        engine.reset(self, context.blend_data, depsgraph)
         engine.sync(self, depsgraph, context.blend_data)
+        # OctaneServer().view_update(context, depsgraph)
 
     def view_draw(self, context, depsgraph):
         if not self.check_active_status():

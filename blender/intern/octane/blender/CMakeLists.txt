@@ -43,10 +43,10 @@ set(SRC
 	./server/octane_data_type.h
 	./server/octane_network_const.h
 	./server/octane_network.h
-  ./server/octane_manager.h
+	./server/octane_manager.h
 	./server/octane_network.cpp
 	./server/octane_client.cpp
-  ./server/octane_manager.cpp
+	./server/octane_manager.cpp
 
 	./rpc/definitions/OctaneNode.h
 	./rpc/definitions/OctaneTransform.h
@@ -58,7 +58,7 @@ set(SRC
 )
 
 set(LIB
-  bf_render
+	bf_render
 	octane_graph
 	octane_render	
 	octane_util  
@@ -72,6 +72,7 @@ endif()
 
 set(ADDON_FILES
 	addon/__init__.py
+	addon/octane_server.py
 	addon/engine.py
 	addon/operators.py
 	addon/presets.py
@@ -79,8 +80,8 @@ set(ADDON_FILES
 	addon/ui.py
 	addon/nodeitems_octane.py
 	addon/osl.py
-  addon/version_update.py
-  addon/converters.py
+	addon/version_update.py
+	addon/converters.py
 )
 
 set(ADDON_BIN_FILES
@@ -94,6 +95,7 @@ set(ADDON_NODES_FILES
   addon/nodes/base_node_tree.py
   addon/nodes/base_socket.py
   addon/nodes/base_osl.py
+  addon/nodes/base_image.py
   addon/nodes/base_output_node.py
   addon/nodes/base_output_socket.py
   addon/nodes/node_items.py
@@ -409,6 +411,7 @@ set(ADDON_NODES_TEXTURES_FILES
     addon/nodes/textures/hagelslag.py
     addon/nodes/textures/glowing_circle.py
     addon/nodes/textures/curvature_texture.py
+    addon/nodes/textures/cell_noise.py
     addon/nodes/textures/composite_texture.py
     addon/nodes/textures/composite_texture_layer.py
     addon/nodes/textures/floats_to_color.py

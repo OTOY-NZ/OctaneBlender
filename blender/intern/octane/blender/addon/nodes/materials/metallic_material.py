@@ -5,6 +5,7 @@ from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, F
 from octane.utils import utility, consts
 from octane.nodes.base_node import OctaneBaseNode
 from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_image import OctaneBaseImageNode
 from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 

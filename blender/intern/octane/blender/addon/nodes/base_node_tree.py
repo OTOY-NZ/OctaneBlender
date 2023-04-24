@@ -382,6 +382,18 @@ class NodeTreeHandler:
             if scene.world and scene.world.use_nodes:
                 OctaneBaseNodeTree.update_link_validity(scene.world.node_tree)
 
+    @staticmethod
+    def octane_image_node_frame_change_post(scene, depsgraph=None):
+        pass
+        # for material in bpy.data.materials:            
+        #     node_tree = material.node_tree
+        #     for node in node_tree.nodes:
+        #         if not hasattr(node, "octane_node_type"):
+        #             continue
+        #         if not node.auto_refresh():
+        #             continue
+        #         node.is_image_data_updated = True
+        #         node.sync_data(material.name, scene)
 
 @persistent
 def node_tree_initialization_handler(scene):
@@ -399,6 +411,14 @@ def node_tree_update_handler(scene):
         return
     NodeTreeHandler.blender_internal_node_tree_update_handler(scene)
 
+@persistent
+def node_tree_frame_change_post_handler(scene):
+    if scene is None:
+        scene = bpy.context.scene
+    if scene.render.engine != consts.ENGINE_NAME:
+        return
+    NodeTreeHandler.octane_image_node_frame_change_post(scene)
+
 
 _CLASSES = [
     OCTANE_quick_add_composite_nodetree,
@@ -412,6 +432,7 @@ def register():
     NODE_HT_header.draw = NODE_HT_header_octane_draw
     bpy.app.handlers.load_post.append(node_tree_initialization_handler)
     bpy.app.handlers.depsgraph_update_post.append(node_tree_update_handler)
+    bpy.app.handlers.frame_change_post.append(node_tree_frame_change_post_handler)
     for cls in _CLASSES:
         register_class(cls)
     
@@ -421,5 +442,6 @@ def unregister():
     NODE_HT_header.draw = _NODE_HT_header_draw
     bpy.app.handlers.load_post.remove(node_tree_initialization_handler)
     bpy.app.handlers.depsgraph_update_post.remove(node_tree_update_handler)
+    bpy.app.handlers.frame_change_post.remove(node_tree_frame_change_post_handler)
     for cls in _CLASSES:
         unregister_class(cls)    

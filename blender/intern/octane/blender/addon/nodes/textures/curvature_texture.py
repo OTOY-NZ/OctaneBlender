@@ -5,6 +5,7 @@ from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, F
 from octane.utils import utility, consts
 from octane.nodes.base_node import OctaneBaseNode
 from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_image import OctaneBaseImageNode
 from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
@@ -49,7 +50,7 @@ class OctaneCurvatureTextureRadius(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=142)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=1.000000, update=None, description="Specifies the maximum area affected by the curvature effect", min=0.001000, max=100000.000000, soft_min=0.001000, soft_max=100000.000000, step=1, precision=3, subtype="NONE")
+    default_value: FloatProperty(default=1.000000, update=None, description="Specifies the maximum area affected by the curvature effect", min=0.000100, max=100000.000000, soft_min=0.000100, soft_max=100000.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -77,7 +78,7 @@ class OctaneCurvatureTextureOffset(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=122)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.005000, update=None, description="Specifies the offset from the surface used to sample the neighbouring geometry", min=0.001000, max=0.100000, soft_min=0.001000, soft_max=0.100000, step=1, precision=3, subtype="NONE")
+    default_value: FloatProperty(default=0.005000, update=None, description="Specifies the offset from the surface used to sample the neighbouring geometry", min=0.000010, max=1.000000, soft_min=0.000010, soft_max=1.000000, step=1, precision=3, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295

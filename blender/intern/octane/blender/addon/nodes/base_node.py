@@ -3,6 +3,7 @@ import re
 import xml.etree.ElementTree as ET
 from bpy.utils import register_class, unregister_class
 from bpy.props import BoolProperty, IntProperty, StringProperty, EnumProperty
+from octane.octane_server import OctaneServer, RpcProtocol, RpcProtocolType
 from octane.utils import consts
 
 
@@ -30,6 +31,9 @@ class OctaneBaseNode(object):
 
     def draw_buttons(self, context, layout):
         pass
+
+    def auto_refresh(self):
+        return False
 
     def add_input(self, type, name, default, enabled=True):
         _input = self.inputs.new(type, name)
@@ -87,6 +91,54 @@ class OctaneBaseNode(object):
         if sub_type is None:
             return self.octane_render_pass_description
         return self.octane_render_pass_description[sub_type] 
+
+    def get_octane_name(self, prefix_name):
+        return prefix_name + "_" + self.name
+
+    def get_attribute_value(self, attribute_name, attribute_type):
+        attribute_value = getattr(self, attribute_name, None)
+        if attribute_type == consts.AttributeType.AT_INT and type(attribute_value) == str:
+            attribute_value = self.rna_type.properties[attribute_name].enum_items[attribute_value].value
+        return attribute_value
+
+    def sync_data(self, prefix_name="", scene=None):
+        rpc_protocol = RpcProtocol(RpcProtocolType.SYNC_NODE)
+        rpc_protocol.set_name(self.get_octane_name(prefix_name))
+        rpc_protocol.set_node_type(self.octane_node_type)
+        if not hasattr(self.__class__, "attribute_names"):
+            self.__class__.attribute_names = self.octane_attribute_list.split(";")
+        if not hasattr(self.__class__, "attribute_types"):
+            self.__class__.attribute_types = self.octane_attribute_config_list.split(";")
+        if not hasattr(self.__class__, "socket_names"):
+            self.__class__.socket_names = self.octane_socket_list.split(";")
+        for idx, attribute_name in enumerate(self.__class__.attribute_names):
+            if not hasattr(self, attribute_name):
+                continue
+            attribute_type = int(self.__class__.attribute_types[idx])
+            attribute_value = self.get_attribute_value(attribute_name, attribute_type)
+            rpc_protocol.set_attribute(attribute_name, attribute_type, attribute_value)
+        for socket in self.inputs:
+            socket_name = socket.name 
+            if socket.is_octane_proxy_pin() or socket.is_octane_osl_pin() or socket.is_octane_dynamic_pin() or socket_name in self.__class__.socket_names:
+                link_node_name = ""
+                default_value = getattr(socket, "default_value", "")
+                if socket.octane_socket_type == consts.SocketType.ST_ENUM:
+                    for item in socket.items:
+                        if item[0] == default_value:
+                            default_value = int(item[3])
+                            break
+                    else:
+                        default_value = 0
+                if socket.is_linked:
+                    link_node_name = socket.links[0].from_node.get_octane_name(prefix_name)
+                rpc_protocol.set_pin(socket.generate_octane_pin_symbol(), socket_name, socket.octane_socket_type, default_value, socket.is_linked, link_node_name)
+        self.sync_custom_data(rpc_protocol, scene)
+        rpc_protocol.print()
+        reply = OctaneServer().handle_rpc(rpc_protocol)        
+        # return reply
+
+    def sync_custom_data(self, rpc_protocol, scene):
+        pass
 
     # Export methods
     def export(self):

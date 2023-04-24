@@ -5,6 +5,7 @@ from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, F
 from octane.utils import utility, consts
 from octane.nodes.base_node import OctaneBaseNode
 from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_image import OctaneBaseImageNode
 from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
@@ -77,7 +78,7 @@ class OctaneInstanceColorLinearSpaceInvert(OctaneBaseSocket):
     octane_end_version=4294967295
     octane_deprecated=False
 
-class OctaneInstanceColor(bpy.types.Node, OctaneBaseNode):
+class OctaneInstanceColor(bpy.types.Node, OctaneBaseImageNode):
     bl_idname="OctaneInstanceColor"
     bl_label="Instance color"
     bl_width_default=200
@@ -89,8 +90,8 @@ class OctaneInstanceColor(bpy.types.Node, OctaneBaseNode):
     octane_min_version=0
     octane_node_type: IntProperty(name="Octane Node Type", default=113)
     octane_socket_list: StringProperty(name="Socket List", default="Power;Color space;Legacy gamma;Invert;Linear sRGB invert;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="a_filename;a_reload;a_size;a_type;a_image_file_type;a_can_wrap_x;a_can_wrap_y;a_image_flip;a_source_info;a_image_layer_names;a_channel_format;a_image_chosen_layer_name;a_ies_photometry_mode;")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="11;1;3;2;2;1;1;1;10;10;2;10;2;")
+    octane_attribute_list: StringProperty(name="Attribute List", default="a_filename;a_reload;a_size;a_type;a_image_file_type;a_can_wrap_x;a_can_wrap_y;a_image_flip;a_source_info;a_image_layer_names;a_image_chosen_layer_name;")
+    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="11;1;3;2;2;1;1;1;10;10;10;")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=5)
 
     a_filename: StringProperty(name="Filename", default="", update=None, description="Stores the filename of the texture image", subtype="FILE_PATH")
@@ -103,9 +104,7 @@ class OctaneInstanceColor(bpy.types.Node, OctaneBaseNode):
     a_image_flip: BoolProperty(name="Image flip", default=False, update=None, description="TRUE if the image needs to be flipped")
     a_source_info: StringProperty(name="Source info", default="", update=None, description="Information about the image source (file), which is used only in the UI")
     a_image_layer_names: StringProperty(name="Image layer names", default="", update=None, description="Will contain the layer names if the image was loaded from a file that contained layers. Will be empty otherwise")
-    a_channel_format: IntProperty(name="Channel format", default=2, update=None, description="Indicate the preferred channel format for loading this image. This is ignored for 8-bit images. For other images, use IMAGE_CHANNEL_HALF and IMAGE_CHANNEL_FLOAT to always load images in that format, use IMAGE_CHANNEL_AUTO to infer the format from the source data")
     a_image_chosen_layer_name: StringProperty(name="Image chosen layer name", default="", update=None, description="Indicate the chosen layer name, if the current image has multiple layers")
-    a_ies_photometry_mode: IntProperty(name="Ies photometry mode", default=1, update=None, description="How to normalize data from IES files. (see Octane::IesPhotometryMode)")
 
     def init(self, context):
         self.inputs.new("OctaneInstanceColorPower", OctaneInstanceColorPower.bl_label).init()

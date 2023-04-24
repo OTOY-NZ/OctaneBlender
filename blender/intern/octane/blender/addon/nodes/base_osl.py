@@ -17,6 +17,9 @@ class OctaneOSLBaseSocket(base_socket.OctaneBaseSocket):
     osl_value_min: FloatProperty(name="OSL Value Min", default=-2147483647)
     osl_value_max: FloatProperty(name="OSL Value Max", default=2147483647)
 
+    def is_octane_osl_pin(self):
+        return True
+
     def set_osl_value(self, value):
         self["value"] = min(self.osl_value_max, max(self.osl_value_min, value))
 

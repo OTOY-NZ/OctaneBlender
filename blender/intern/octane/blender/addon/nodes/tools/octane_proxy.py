@@ -18,6 +18,8 @@ class OctaneProxyBaseSocket(base_socket.OctaneBaseSocket):
     octane_node_unique_id: IntProperty(name="Octane Node Unique ID")
     octane_proxy_link_index: IntProperty(name="Link Index")
 
+    def is_octane_proxy_pin(self):
+        return True
 
 def update_proxy_graph_data(self, context):
     self.a_data_md5 = hashlib.md5(self.a_data.encode('utf-8')).hexdigest()

@@ -592,6 +592,7 @@ _octane_node_items = {
                         OctaneNodeItem("ShaderNodeOctAlphaImageTex"),
                         OctaneNodeItem("ShaderNodeOctFloatImageTex"),
                         OctaneNodeItem("ShaderNodeOctImageTex"),
+                        # OctaneNodeItem("OctaneRGBImage"),                        
                         OctaneNodeItem("ShaderNodeOctImageTileTex"),  
                     ]
                 ), 
@@ -627,6 +628,7 @@ _octane_node_items = {
                 OctaneTextureNodeCategory("OCTANE_TEXTURE_PROCEDURAL", "Procedural", 
                     octane_pin_type=consts.PinType.PT_TEXTURE,
                     items=[
+                        OctaneNodeItem("OctaneCellNoise"),
                         OctaneNodeItem("OctaneChainmail"),
                         OctaneNodeItem("OctaneChecksTexture"),
                         # OctaneNodeItem("OctaneCinema4DNoise"),

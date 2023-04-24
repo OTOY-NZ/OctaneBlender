@@ -5,6 +5,7 @@ from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, F
 from octane.utils import utility, consts
 from octane.nodes.base_node import OctaneBaseNode
 from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_image import OctaneBaseImageNode
 from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
@@ -117,7 +118,7 @@ class OctaneImageTilesEmptyTileColor(OctaneBaseSocket):
     octane_end_version=4294967295
     octane_deprecated=False
 
-class OctaneImageTiles(bpy.types.Node, OctaneBaseNode):
+class OctaneImageTiles(bpy.types.Node, OctaneBaseImageNode):
     bl_idname="OctaneImageTiles"
     bl_label="Image tiles"
     bl_width_default=200
@@ -129,17 +130,15 @@ class OctaneImageTiles(bpy.types.Node, OctaneBaseNode):
     octane_min_version=0
     octane_node_type: IntProperty(name="Octane Node Type", default=131)
     octane_socket_list: StringProperty(name="Socket List", default="Power;Color space;Legacy gamma;Invert;Linear sRGB invert;UV transform;Projection;Empty tile color;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="a_filename;a_image_color_format;a_grid_size;a_reload;a_channel_format;a_image_chosen_layer_name;a_ies_photometry_mode;")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="11;2;3;1;2;10;2;")
+    octane_attribute_list: StringProperty(name="Attribute List", default="a_filename;a_image_color_format;a_grid_size;a_reload;a_image_chosen_layer_name;")
+    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="11;2;3;1;10;")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=8)
 
     a_filename: StringProperty(name="Filename", default="", update=None, description="Stores the filenames of the texture image tiles. Entries may be left empty if no image is available for a particular tile. If the length doesn't cover the entire grid then the remaining entries are assumed to be empty", subtype="FILE_PATH")
     a_image_color_format: IntProperty(name="Image color format", default=0, update=None, description="Control in which color format the textures are loaded, see Octane::ImageColorType. If set to IMAGE_COLOR_KEEP_SOURCE images are loaded either as RGB color or greyscale, depending on the format used to save the image file")
     a_grid_size: IntVectorProperty(name="Grid size", default=(1, 1), size=2, update=None, description="The size of the image tile grid")
     a_reload: BoolProperty(name="Reload", default=False, update=None, description="TRUE if the files needs a reload. After evaluation the attribute will be false again")
-    a_channel_format: IntProperty(name="Channel format", default=2, update=None, description="Indicate the preferred channel format for loading this image. This is ignored for 8-bit images. For other images, use IMAGE_CHANNEL_HALF and IMAGE_CHANNEL_FLOAT to always load images in that format, use IMAGE_CHANNEL_AUTO to infer the format from the source data")
     a_image_chosen_layer_name: StringProperty(name="Image chosen layer name", default="", update=None, description="Indicate the chosen layer name, if the current image has multiple layers")
-    a_ies_photometry_mode: IntProperty(name="Ies photometry mode", default=1, update=None, description="How to normalize data from IES files. (see Octane::IesPhotometryMode)")
 
     def init(self, context):
         self.inputs.new("OctaneImageTilesPower", OctaneImageTilesPower.bl_label).init()
