@@ -15,8 +15,10 @@ class OctaneFloat3ToColorInput(OctaneBaseSocket):
     bl_idname="OctaneFloat3ToColorInput"
     bl_label="Values"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=82)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="input")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
     default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="Float values stored in the red, green and blue channels of the output color", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", precision=2, size=3)

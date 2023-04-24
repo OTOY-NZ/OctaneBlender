@@ -15,8 +15,10 @@ class OctaneVectronMaterial1(OctaneBaseSocket):
     bl_idname="OctaneVectronMaterial1"
     bl_label="Geometry material"
     color=consts.OctanePinColor.Material
-    octane_default_node_type="OctaneDiffuseMaterial"
+    octane_default_node_type=17
+    octane_default_node_name="OctaneDiffuseMaterial"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=100)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="material1")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_MATERIAL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -28,8 +30,10 @@ class OctaneVectronSize(OctaneBaseSocket):
     bl_idname="OctaneVectronSize"
     bl_label="Bounds"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=216)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="size")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
     default_value: FloatVectorProperty(default=(10.000000, 10.000000, 10.000000), update=OctaneBaseSocket.update_node_tree, description="Bounds of the geometry in meters", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", precision=2, size=3)

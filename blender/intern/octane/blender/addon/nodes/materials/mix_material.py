@@ -15,8 +15,10 @@ class OctaneMixMaterialAmount(OctaneBaseSocket):
     bl_idname="OctaneMixMaterialAmount"
     bl_label="Amount"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type="OctaneGreyscaleColor"
+    octane_default_node_type=31
+    octane_default_node_name="OctaneGreyscaleColor"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=6)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="amount")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.500000, update=OctaneBaseSocket.update_node_tree, description="Mix amount", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
@@ -29,8 +31,10 @@ class OctaneMixMaterialMaterial1(OctaneBaseSocket):
     bl_idname="OctaneMixMaterialMaterial1"
     bl_label="First material"
     color=consts.OctanePinColor.Material
-    octane_default_node_type="OctaneDiffuseMaterial"
+    octane_default_node_type=17
+    octane_default_node_name="OctaneDiffuseMaterial"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=100)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="material1")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_MATERIAL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -42,8 +46,10 @@ class OctaneMixMaterialMaterial2(OctaneBaseSocket):
     bl_idname="OctaneMixMaterialMaterial2"
     bl_label="Second material"
     color=consts.OctanePinColor.Material
-    octane_default_node_type="OctaneDiffuseMaterial"
+    octane_default_node_type=17
+    octane_default_node_name="OctaneDiffuseMaterial"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=101)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="material2")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_MATERIAL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -55,8 +61,10 @@ class OctaneMixMaterialDisplacement(OctaneBaseSocket):
     bl_idname="OctaneMixMaterialDisplacement"
     bl_label="Displacement"
     color=consts.OctanePinColor.Displacement
-    octane_default_node_type=""
+    octane_default_node_type=0
+    octane_default_node_name=""
     octane_pin_id: IntProperty(name="Octane Pin ID", default=34)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="displacement")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_DISPLACEMENT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -68,8 +76,10 @@ class OctaneMixMaterialCustomAov(OctaneBaseSocket):
     bl_idname="OctaneMixMaterialCustomAov"
     bl_label="Custom AOV"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type="OctaneEnumValue"
+    octane_default_node_type=57
+    octane_default_node_name="OctaneEnumValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=632)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="customAov")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
     items = [
@@ -105,8 +115,10 @@ class OctaneMixMaterialCustomAovChannel(OctaneBaseSocket):
     bl_idname="OctaneMixMaterialCustomAovChannel"
     bl_label="Custom AOV channel"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type="OctaneEnumValue"
+    octane_default_node_type=57
+    octane_default_node_name="OctaneEnumValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=633)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="customAovChannel")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
     items = [

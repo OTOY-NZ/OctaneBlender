@@ -15,8 +15,10 @@ class OctaneVolumeMedium(OctaneBaseSocket):
     bl_idname="OctaneVolumeMedium"
     bl_label="Volume medium"
     color=consts.OctanePinColor.Medium
-    octane_default_node_type="OctaneVolumeMedium"
+    octane_default_node_type=98
+    octane_default_node_name="OctaneVolumeMedium"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=110)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="medium")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_MEDIUM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -28,8 +30,10 @@ class OctaneVolumeObjectLayer(OctaneBaseSocket):
     bl_idname="OctaneVolumeObjectLayer"
     bl_label="Object layer"
     color=consts.OctanePinColor.ObjectLayer
-    octane_default_node_type="OctaneObjectLayer"
+    octane_default_node_type=65
+    octane_default_node_name="OctaneObjectLayer"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=328)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="objectLayer")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_OBJECTLAYER)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True

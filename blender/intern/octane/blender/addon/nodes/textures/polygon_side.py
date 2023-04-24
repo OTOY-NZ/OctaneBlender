@@ -15,8 +15,10 @@ class OctanePolygonSideInvert(OctaneBaseSocket):
     bl_idname="OctanePolygonSideInvert"
     bl_label="Invert"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=83)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="invert")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="If switched off, the front side is white and the back side is black. If switched on, the front side is black and the back side is white")

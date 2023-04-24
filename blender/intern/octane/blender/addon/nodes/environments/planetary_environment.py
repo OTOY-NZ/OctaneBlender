@@ -15,8 +15,10 @@ class OctanePlanetaryEnvironmentSundir(OctaneBaseSocket):
     bl_idname="OctanePlanetaryEnvironmentSundir"
     bl_label="Sun direction"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneSunDirection"
+    octane_default_node_type=30
+    octane_default_node_name="OctaneSunDirection"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=231)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="sundir")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
     default_value: FloatVectorProperty(default=(1.000000, 0.800000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="Vector which defines the direction from which the sun is shining", min=-1.000000, max=1.000000, soft_min=-1.000000, soft_max=1.000000, step=1, subtype="DIRECTION", precision=2, size=3)
@@ -29,8 +31,10 @@ class OctanePlanetaryEnvironmentTurbidity(OctaneBaseSocket):
     bl_idname="OctanePlanetaryEnvironmentTurbidity"
     bl_label="Sky turbidity"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=246)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="turbidity")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=2.400000, update=OctaneBaseSocket.update_node_tree, description="Sky turbidity, i.e. the amount of sun light that is scattered. A high value will reduce the contrast between objects in the shadow and in sun light", min=2.000000, max=15.000000, soft_min=2.000000, soft_max=15.000000, step=1, precision=2, subtype="FACTOR")
@@ -43,8 +47,10 @@ class OctanePlanetaryEnvironmentPower(OctaneBaseSocket):
     bl_idname="OctanePlanetaryEnvironmentPower"
     bl_label="Power"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=138)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="power")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Scale factor that is applied to the sun and sky", min=0.000000, max=1000.000000, soft_min=0.000000, soft_max=1000.000000, step=1, precision=2, subtype="NONE")
@@ -57,8 +63,10 @@ class OctanePlanetaryEnvironmentSunIntensity(OctaneBaseSocket):
     bl_idname="OctanePlanetaryEnvironmentSunIntensity"
     bl_label="Sun intensity"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=514)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="sunIntensity")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Scale factor that is applied to the sun only. Use this to adjust the relative power of the sun compared to the sky.\n\nNote: values other than 1.0 can produce unrealistic results because in the real world the sky is lit by the sun. Adjusting the balance between the yellowish sun and the bluish sky can also produce a hue shift in the scene", min=0.000000, max=1000.000000, soft_min=0.000000, soft_max=1000.000000, step=1, precision=2, subtype="NONE")
@@ -71,8 +79,10 @@ class OctanePlanetaryEnvironmentNorthoffset(OctaneBaseSocket):
     bl_idname="OctanePlanetaryEnvironmentNorthoffset"
     bl_label="North offset"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=120)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="northoffset")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Additional rotation offset on longitude", min=-1.000000, max=1.000000, soft_min=-1.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
@@ -85,8 +95,10 @@ class OctanePlanetaryEnvironmentSunSize(OctaneBaseSocket):
     bl_idname="OctanePlanetaryEnvironmentSunSize"
     bl_label="Sun size"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=233)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="sun_size")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Size of the sun given as a factor of the actual sun diameter (which is ~0.5 degree)", min=0.100000, max=30.000000, soft_min=0.100000, soft_max=30.000000, step=1, precision=2, subtype="NONE")
@@ -99,8 +111,10 @@ class OctanePlanetaryEnvironmentPlanetaryAltitude(OctaneBaseSocket):
     bl_idname="OctanePlanetaryEnvironmentPlanetaryAltitude"
     bl_label="Altitude"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=401)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="planetaryAltitude")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="The camera altitude", min=0.100000, max=340282346638528859811704183484516925440.000000, soft_min=0.100000, soft_max=340282346638528859811704183484516925440.000000, step=1, precision=2, subtype="NONE")
@@ -113,8 +127,10 @@ class OctanePlanetaryEnvironmentPlanetaryStarField(OctaneBaseSocket):
     bl_idname="OctanePlanetaryEnvironmentPlanetaryStarField"
     bl_label="Star field"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=""
+    octane_default_node_type=0
+    octane_default_node_name=""
     octane_pin_id: IntProperty(name="Octane Pin ID", default=407)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="planetaryStarField")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -126,8 +142,10 @@ class OctanePlanetaryEnvironmentImportanceSampling(OctaneBaseSocket):
     bl_idname="OctanePlanetaryEnvironmentImportanceSampling"
     bl_label="Importance sampling"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=79)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="importance_sampling")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Use importance sampling for image textures")
@@ -140,8 +158,10 @@ class OctanePlanetaryEnvironmentMedium(OctaneBaseSocket):
     bl_idname="OctanePlanetaryEnvironmentMedium"
     bl_label="Medium"
     color=consts.OctanePinColor.Medium
-    octane_default_node_type=""
+    octane_default_node_type=0
+    octane_default_node_name=""
     octane_pin_id: IntProperty(name="Octane Pin ID", default=110)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="medium")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_MEDIUM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -153,8 +173,10 @@ class OctanePlanetaryEnvironmentMediumRadius(OctaneBaseSocket):
     bl_idname="OctanePlanetaryEnvironmentMediumRadius"
     bl_label="Medium radius"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=269)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="mediumRadius")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Radius of the environment medium. The environment medium acts as a sphere around the camera position with the specified radius", min=0.000100, max=10000000000.000000, soft_min=0.000100, soft_max=10000000000.000000, step=1, precision=2, subtype="NONE")
@@ -167,8 +189,10 @@ class OctanePlanetaryEnvironmentLightPassMask(OctaneBaseSocket):
     bl_idname="OctanePlanetaryEnvironmentLightPassMask"
     bl_label="Medium light pass mask"
     color=consts.OctanePinColor.BitMask
-    octane_default_node_type="OctaneBitValue"
+    octane_default_node_type=132
+    octane_default_node_name="OctaneBitValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=433)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="lightPassMask")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BIT_MASK)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -180,8 +204,10 @@ class OctanePlanetaryEnvironmentLatitude(OctaneBaseSocket):
     bl_idname="OctanePlanetaryEnvironmentLatitude"
     bl_label="Latitude"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=91)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="latitude")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Latitude coordinate where we are currently positioned", min=-90.000000, max=90.000000, soft_min=-90.000000, soft_max=90.000000, step=1, precision=2, subtype="FACTOR")
@@ -194,8 +220,10 @@ class OctanePlanetaryEnvironmentLongitude(OctaneBaseSocket):
     bl_idname="OctanePlanetaryEnvironmentLongitude"
     bl_label="Longitude"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=99)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="longitude")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Longitude coordinate where we are currently positioned", min=-180.000000, max=180.000000, soft_min=-180.000000, soft_max=180.000000, step=1, precision=2, subtype="FACTOR")
@@ -208,8 +236,10 @@ class OctanePlanetaryEnvironmentPlanetaryDiffuse(OctaneBaseSocket):
     bl_idname="OctanePlanetaryEnvironmentPlanetaryDiffuse"
     bl_label="Ground albedo"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type="OctaneRGBColor"
+    octane_default_node_type=33
+    octane_default_node_name="OctaneRGBColor"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=402)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="planetaryDiffuse")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
     default_value: FloatVectorProperty(default=(0.031928, 0.130434, 0.557292), update=OctaneBaseSocket.update_node_tree, description="Surface texture map on the planet", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
@@ -222,8 +252,10 @@ class OctanePlanetaryEnvironmentPlanetarySpecular(OctaneBaseSocket):
     bl_idname="OctanePlanetaryEnvironmentPlanetarySpecular"
     bl_label="Ground reflection"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=""
+    octane_default_node_type=0
+    octane_default_node_name=""
     octane_pin_id: IntProperty(name="Octane Pin ID", default=403)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="planetarySpecular")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -235,8 +267,10 @@ class OctanePlanetaryEnvironmentPlanetaryGlossiness(OctaneBaseSocket):
     bl_idname="OctanePlanetaryEnvironmentPlanetaryGlossiness"
     bl_label="Ground glossiness"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=""
+    octane_default_node_type=0
+    octane_default_node_name=""
     octane_pin_id: IntProperty(name="Octane Pin ID", default=406)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="planetaryGlossiness")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -248,8 +282,10 @@ class OctanePlanetaryEnvironmentPlanetaryEmission(OctaneBaseSocket):
     bl_idname="OctanePlanetaryEnvironmentPlanetaryEmission"
     bl_label="Ground emission"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type="OctaneRGBColor"
+    octane_default_node_type=33
+    octane_default_node_name="OctaneRGBColor"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=412)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="planetaryEmission")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
     default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="Surface texture map on the planet at night time", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
@@ -262,8 +298,10 @@ class OctanePlanetaryEnvironmentPlanetaryNormal(OctaneBaseSocket):
     bl_idname="OctanePlanetaryEnvironmentPlanetaryNormal"
     bl_label="Ground normal map"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=""
+    octane_default_node_type=0
+    octane_default_node_name=""
     octane_pin_id: IntProperty(name="Octane Pin ID", default=404)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="planetaryNormal")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -275,8 +313,10 @@ class OctanePlanetaryEnvironmentPlanetaryElevation(OctaneBaseSocket):
     bl_idname="OctanePlanetaryEnvironmentPlanetaryElevation"
     bl_label="Ground elevation"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=""
+    octane_default_node_type=0
+    octane_default_node_name=""
     octane_pin_id: IntProperty(name="Octane Pin ID", default=408)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="planetaryElevation")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -288,8 +328,10 @@ class OctanePlanetaryEnvironmentVisibleEnvironmentBackplate(OctaneBaseSocket):
     bl_idname="OctanePlanetaryEnvironmentVisibleEnvironmentBackplate"
     bl_label="Backplate"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=317)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="visibleEnvironmentBackplate")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="When used as a visible environment, this environment will behave as a backplate image")
@@ -302,8 +344,10 @@ class OctanePlanetaryEnvironmentVisibleEnvironmentReflections(OctaneBaseSocket):
     bl_idname="OctanePlanetaryEnvironmentVisibleEnvironmentReflections"
     bl_label="Reflections"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=318)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="visibleEnvironmentReflections")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="When used as a visible environment, this environment will be visible in reflections (specular and glossy materials)")
@@ -316,8 +360,10 @@ class OctanePlanetaryEnvironmentVisibleEnvironmentRefractions(OctaneBaseSocket):
     bl_idname="OctanePlanetaryEnvironmentVisibleEnvironmentRefractions"
     bl_label="Refractions"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=319)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="visibleEnvironmentRefractions")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="When used as a visible environment, this environment will be visible in refractions")
@@ -330,8 +376,10 @@ class OctanePlanetaryEnvironmentPlanetaryAxis(OctaneBaseSocket):
     bl_idname="OctanePlanetaryEnvironmentPlanetaryAxis"
     bl_label="Planetary axis"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=400)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="planetaryAxis")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
     default_value: FloatVectorProperty(default=(0.000000, 0.000000, 1.000000), update=OctaneBaseSocket.update_node_tree, description="(deprecated) The rotational axis of the planet running through the North and South pole", min=-1.000000, max=1.000000, soft_min=-1.000000, soft_max=1.000000, step=1, subtype="NONE", precision=2, size=3)
@@ -344,8 +392,10 @@ class OctanePlanetaryEnvironmentPlanetaryAngle(OctaneBaseSocket):
     bl_idname="OctanePlanetaryEnvironmentPlanetaryAngle"
     bl_label="Planetary angle"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=399)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="planetaryAngle")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="(deprecated) The rotation around the planetary axis", min=-3.141593, max=3.141593, soft_min=-3.141593, soft_max=3.141593, step=1, precision=4, subtype="FACTOR")

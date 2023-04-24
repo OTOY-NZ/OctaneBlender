@@ -15,8 +15,10 @@ class OctaneGradientMapGradientInterpolationType(OctaneBaseSocket):
     bl_idname="OctaneGradientMapGradientInterpolationType"
     bl_label="Interpolation"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type="OctaneEnumValue"
+    octane_default_node_type=57
+    octane_default_node_name="OctaneEnumValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=299)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="gradientInterpolationType")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
     items = [
@@ -34,8 +36,10 @@ class OctaneGradientMapInput(OctaneBaseSocket):
     bl_idname="OctaneGradientMapInput"
     bl_label="Input texture"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=""
+    octane_default_node_type=0
+    octane_default_node_name=""
     octane_pin_id: IntProperty(name="Octane Pin ID", default=82)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="input")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -47,8 +51,10 @@ class OctaneGradientMapMin(OctaneBaseSocket):
     bl_idname="OctaneGradientMapMin"
     bl_label="Start value"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type="OctaneRGBColor"
+    octane_default_node_type=33
+    octane_default_node_name="OctaneRGBColor"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=113)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="min")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
     default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="Output value at 0", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
@@ -61,8 +67,10 @@ class OctaneGradientMapMax(OctaneBaseSocket):
     bl_idname="OctaneGradientMapMax"
     bl_label="End value"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type="OctaneRGBColor"
+    octane_default_node_type=33
+    octane_default_node_name="OctaneRGBColor"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=106)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="max")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
     default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=OctaneBaseSocket.update_node_tree, description="Output value at 1.0", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
@@ -75,8 +83,10 @@ class OctaneGradientMapSmooth(OctaneBaseSocket):
     bl_idname="OctaneGradientMapSmooth"
     bl_label="Smoothing"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=218)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="smooth")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="(deprecated) Make the gradient more smooth around the control points")

@@ -15,8 +15,10 @@ class OctaneBinaryMathOperationTexture1(OctaneBaseSocket):
     bl_idname="OctaneBinaryMathOperationTexture1"
     bl_label="Argument A"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=""
+    octane_default_node_type=0
+    octane_default_node_name=""
     octane_pin_id: IntProperty(name="Octane Pin ID", default=238)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="texture1")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -28,8 +30,10 @@ class OctaneBinaryMathOperationTexture2(OctaneBaseSocket):
     bl_idname="OctaneBinaryMathOperationTexture2"
     bl_label="Argument B"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=""
+    octane_default_node_type=0
+    octane_default_node_name=""
     octane_pin_id: IntProperty(name="Octane Pin ID", default=239)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="texture2")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -41,8 +45,10 @@ class OctaneBinaryMathOperationOperationType(OctaneBaseSocket):
     bl_idname="OctaneBinaryMathOperationOperationType"
     bl_label="Operation"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type="OctaneEnumValue"
+    octane_default_node_type=57
+    octane_default_node_name="OctaneEnumValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=613)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="operationType")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
     items = [

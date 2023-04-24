@@ -28,7 +28,7 @@ class OctaneImageResolution(bpy.types.Node, OctaneBaseNode):
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=0)
 
     a_value: IntVectorProperty(name="Value", default=(1024, 512, 0), size=3, update=OctaneBaseNode.update_node_tree, description="The resolution stored in the node. X and Y need to be > 0, Z is ignored")
-    a_preset: IntProperty(name="Preset", default=10000, update=OctaneBaseNode.update_node_tree, description="The preset chosen by the user - used only by the standalone UI, since many resolutions have multiple entries in the resolution menu")
+    a_preset: IntProperty(name="Preset", default=403, update=OctaneBaseNode.update_node_tree, description="The preset chosen by the user - used only by the standalone UI, since many resolutions have multiple entries in the resolution menu")
     a_aspect_ratio: FloatProperty(name="Aspect ratio", default=0.000000, update=OctaneBaseNode.update_node_tree, description="The aspect ratio width/height or 0 if the aspect ratio is not locked. Needs to be >= 0")
 
     def init(self, context):

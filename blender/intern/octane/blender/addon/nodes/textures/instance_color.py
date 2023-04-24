@@ -15,8 +15,10 @@ class OctaneInstanceColorPower(OctaneBaseSocket):
     bl_idname="OctaneInstanceColorPower"
     bl_label="Power"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type="OctaneGreyscaleColor"
+    octane_default_node_type=31
+    octane_default_node_name="OctaneGreyscaleColor"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=138)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="power")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Power/brightness", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
@@ -29,8 +31,10 @@ class OctaneInstanceColorColorSpace(OctaneBaseSocket):
     bl_idname="OctaneInstanceColorColorSpace"
     bl_label="Color space"
     color=consts.OctanePinColor.OCIOColorSpace
-    octane_default_node_type="OctaneOCIOColorSpace"
+    octane_default_node_type=163
+    octane_default_node_name="OctaneOCIOColorSpace"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=616)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="colorSpace")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_OCIO_COLOR_SPACE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -42,8 +46,10 @@ class OctaneInstanceColorGamma(OctaneBaseSocket):
     bl_idname="OctaneInstanceColorGamma"
     bl_label="Legacy gamma"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=57)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="gamma")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Gamma value. Only used when the color space is set to \"Linear sRGB + legacy gamma\"", min=0.100000, max=8.000000, soft_min=0.100000, soft_max=8.000000, step=1, precision=2, subtype="NONE")
@@ -56,8 +62,10 @@ class OctaneInstanceColorInvert(OctaneBaseSocket):
     bl_idname="OctaneInstanceColorInvert"
     bl_label="Invert"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=83)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="invert")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Invert image")
@@ -70,8 +78,10 @@ class OctaneInstanceColorLinearSpaceInvert(OctaneBaseSocket):
     bl_idname="OctaneInstanceColorLinearSpaceInvert"
     bl_label="Linear sRGB invert"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=466)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="linearSpaceInvert")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Invert image after conversion to the linear sRGB color space, not before")

@@ -15,8 +15,10 @@ class OctaneLightIndirectAOVEnabled(OctaneBaseSocket):
     bl_idname="OctaneLightIndirectAOVEnabled"
     bl_label="Enabled"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=42)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="enabled")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Enables the render AOV")
@@ -29,8 +31,10 @@ class OctaneLightIndirectAOVSubType(OctaneBaseSocket):
     bl_idname="OctaneLightIndirectAOVSubType"
     bl_label="ID"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type="OctaneEnumValue"
+    octane_default_node_type=57
+    octane_default_node_name="OctaneEnumValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=703)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="subType")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
     items = [

@@ -86,6 +86,13 @@ struct Mesh *BKE_mesh_from_bmesh_for_eval_nomain(struct BMesh *bm,
                                                  const struct Mesh *me_settings);
 
 /**
+ * Add original index (#CD_ORIGINDEX) layers if they don't already exist. This is meant to be used
+ * when creating an evaluated mesh from an original edit mode mesh, to allow mapping from the
+ * evaluated vertices to the originals.
+ */
+void BKE_mesh_ensure_default_orig_index_customdata(struct Mesh *mesh);
+
+/**
  * Find the index of the loop in 'poly' which references vertex,
  * returns -1 if not found
  */
@@ -479,6 +486,21 @@ void BKE_mesh_calc_normals_poly(const struct MVert *mvert,
                                 const struct MPoly *mpoly,
                                 int mpoly_len,
                                 float (*r_poly_normals)[3]);
+
+/**
+ * Calculate face and vertex normals directly into result arrays.
+ *
+ * \note Usually #BKE_mesh_vertex_normals_ensure is the preferred way to access vertex normals,
+ * since they may already be calculated and cached on the mesh.
+ */
+void BKE_mesh_calc_normals_poly_and_vertex(struct MVert *mvert,
+                                           int mvert_len,
+                                           const struct MLoop *mloop,
+                                           int mloop_len,
+                                           const struct MPoly *mpoly,
+                                           int mpoly_len,
+                                           float (*r_poly_normals)[3],
+                                           float (*r_vert_normals)[3]);
 
 /**
  * Calculate vertex and face normals, storing the result in custom data layers on the mesh.

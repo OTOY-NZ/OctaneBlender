@@ -15,8 +15,10 @@ class OctaneLightMixerAOVOutputImager(OctaneBaseSocket):
     bl_idname="OctaneLightMixerAOVOutputImager"
     bl_label="Enable imager"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=78)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="imager")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="")
@@ -29,8 +31,10 @@ class OctaneLightMixerAOVOutputPostproc(OctaneBaseSocket):
     bl_idname="OctaneLightMixerAOVOutputPostproc"
     bl_label="Enable post FX"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=136)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="postproc")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="")
@@ -43,8 +47,10 @@ class OctaneLightMixerAOVOutputSunlightEnabled(OctaneBaseSocket):
     bl_idname="OctaneLightMixerAOVOutputSunlightEnabled"
     bl_label="Sunlight enabled"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=669)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="sunlightEnabled")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="")
@@ -57,8 +63,10 @@ class OctaneLightMixerAOVOutputSunlightTint(OctaneBaseSocket):
     bl_idname="OctaneLightMixerAOVOutputSunlightTint"
     bl_label="Sunlight tint"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=670)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="sunlightTint")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
     default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=OctaneBaseSocket.update_node_tree, description="", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", precision=2, size=3)
@@ -71,8 +79,10 @@ class OctaneLightMixerAOVOutputSunlightScale(OctaneBaseSocket):
     bl_idname="OctaneLightMixerAOVOutputSunlightScale"
     bl_label="Sunlight scale"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=671)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="sunlightScale")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="", min=0.000000, max=1000.000000, soft_min=0.000000, soft_max=1000.000000, step=1, precision=2, subtype="NONE")
@@ -85,8 +95,10 @@ class OctaneLightMixerAOVOutputEnvLightEnabled(OctaneBaseSocket):
     bl_idname="OctaneLightMixerAOVOutputEnvLightEnabled"
     bl_label="Ambient light enabled"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=672)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="envLightEnabled")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="")
@@ -99,8 +111,10 @@ class OctaneLightMixerAOVOutputEnvLightTint(OctaneBaseSocket):
     bl_idname="OctaneLightMixerAOVOutputEnvLightTint"
     bl_label="Ambient light tint"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=674)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="envLightTint")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
     default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=OctaneBaseSocket.update_node_tree, description="", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", precision=2, size=3)
@@ -113,8 +127,10 @@ class OctaneLightMixerAOVOutputEnvLightScale(OctaneBaseSocket):
     bl_idname="OctaneLightMixerAOVOutputEnvLightScale"
     bl_label="Ambient light scale"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=673)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="envLightScale")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="", min=0.000000, max=1000.000000, soft_min=0.000000, soft_max=1000.000000, step=1, precision=2, subtype="NONE")
@@ -127,8 +143,10 @@ class OctaneLightMixerAOVOutputLight1Enabled(OctaneBaseSocket):
     bl_idname="OctaneLightMixerAOVOutputLight1Enabled"
     bl_label="Light ID 1 enabled"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=675)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="light1Enabled")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="")
@@ -141,8 +159,10 @@ class OctaneLightMixerAOVOutputLight1Tint(OctaneBaseSocket):
     bl_idname="OctaneLightMixerAOVOutputLight1Tint"
     bl_label="Light ID 1 tint"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=677)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="light1Tint")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
     default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=OctaneBaseSocket.update_node_tree, description="", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", precision=2, size=3)
@@ -155,8 +175,10 @@ class OctaneLightMixerAOVOutputLight1Scale(OctaneBaseSocket):
     bl_idname="OctaneLightMixerAOVOutputLight1Scale"
     bl_label="Light ID 1 scale"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=676)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="Light1Scale")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="", min=0.000000, max=1000.000000, soft_min=0.000000, soft_max=1000.000000, step=1, precision=2, subtype="NONE")
@@ -169,8 +191,10 @@ class OctaneLightMixerAOVOutputLight2Enabled(OctaneBaseSocket):
     bl_idname="OctaneLightMixerAOVOutputLight2Enabled"
     bl_label="Light ID 2 enabled"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=678)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="light2Enabled")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="")
@@ -183,8 +207,10 @@ class OctaneLightMixerAOVOutputLight2Tint(OctaneBaseSocket):
     bl_idname="OctaneLightMixerAOVOutputLight2Tint"
     bl_label="Light ID 2 tint"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=680)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="light2Tint")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
     default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=OctaneBaseSocket.update_node_tree, description="", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", precision=2, size=3)
@@ -197,8 +223,10 @@ class OctaneLightMixerAOVOutputLight2Scale(OctaneBaseSocket):
     bl_idname="OctaneLightMixerAOVOutputLight2Scale"
     bl_label="Light ID 2 scale"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=679)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="Light2Scale")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="", min=0.000000, max=1000.000000, soft_min=0.000000, soft_max=1000.000000, step=1, precision=2, subtype="NONE")
@@ -211,8 +239,10 @@ class OctaneLightMixerAOVOutputLight3Enabled(OctaneBaseSocket):
     bl_idname="OctaneLightMixerAOVOutputLight3Enabled"
     bl_label="Light ID 3 enabled"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=681)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="light3Enabled")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="")
@@ -225,8 +255,10 @@ class OctaneLightMixerAOVOutputLight3Tint(OctaneBaseSocket):
     bl_idname="OctaneLightMixerAOVOutputLight3Tint"
     bl_label="Light ID 3 tint"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=683)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="light3Tint")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
     default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=OctaneBaseSocket.update_node_tree, description="", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", precision=2, size=3)
@@ -239,8 +271,10 @@ class OctaneLightMixerAOVOutputLight3Scale(OctaneBaseSocket):
     bl_idname="OctaneLightMixerAOVOutputLight3Scale"
     bl_label="Light ID 3 scale"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=682)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="Light3Scale")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="", min=0.000000, max=1000.000000, soft_min=0.000000, soft_max=1000.000000, step=1, precision=2, subtype="NONE")
@@ -253,8 +287,10 @@ class OctaneLightMixerAOVOutputLight4Enabled(OctaneBaseSocket):
     bl_idname="OctaneLightMixerAOVOutputLight4Enabled"
     bl_label="Light ID 4 enabled"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=684)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="light4Enabled")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="")
@@ -267,8 +303,10 @@ class OctaneLightMixerAOVOutputLight4Tint(OctaneBaseSocket):
     bl_idname="OctaneLightMixerAOVOutputLight4Tint"
     bl_label="Light ID 4 tint"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=686)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="light4Tint")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
     default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=OctaneBaseSocket.update_node_tree, description="", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", precision=2, size=3)
@@ -281,8 +319,10 @@ class OctaneLightMixerAOVOutputLight4Scale(OctaneBaseSocket):
     bl_idname="OctaneLightMixerAOVOutputLight4Scale"
     bl_label="Light ID 4 scale"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=685)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="Light4Scale")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="", min=0.000000, max=1000.000000, soft_min=0.000000, soft_max=1000.000000, step=1, precision=2, subtype="NONE")
@@ -295,8 +335,10 @@ class OctaneLightMixerAOVOutputLight5Enabled(OctaneBaseSocket):
     bl_idname="OctaneLightMixerAOVOutputLight5Enabled"
     bl_label="Light ID 5 enabled"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=687)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="light5Enabled")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="")
@@ -309,8 +351,10 @@ class OctaneLightMixerAOVOutputLight5Tint(OctaneBaseSocket):
     bl_idname="OctaneLightMixerAOVOutputLight5Tint"
     bl_label="Light ID 5 tint"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=689)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="light5Tint")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
     default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=OctaneBaseSocket.update_node_tree, description="", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", precision=2, size=3)
@@ -323,8 +367,10 @@ class OctaneLightMixerAOVOutputLight5Scale(OctaneBaseSocket):
     bl_idname="OctaneLightMixerAOVOutputLight5Scale"
     bl_label="Light ID 5 scale"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=688)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="Light5Scale")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="", min=0.000000, max=1000.000000, soft_min=0.000000, soft_max=1000.000000, step=1, precision=2, subtype="NONE")
@@ -337,8 +383,10 @@ class OctaneLightMixerAOVOutputLight6Enabled(OctaneBaseSocket):
     bl_idname="OctaneLightMixerAOVOutputLight6Enabled"
     bl_label="Light ID 6 enabled"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=690)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="light6Enabled")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="")
@@ -351,8 +399,10 @@ class OctaneLightMixerAOVOutputLight6Tint(OctaneBaseSocket):
     bl_idname="OctaneLightMixerAOVOutputLight6Tint"
     bl_label="Light ID 6 tint"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=692)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="light6Tint")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
     default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=OctaneBaseSocket.update_node_tree, description="", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", precision=2, size=3)
@@ -365,8 +415,10 @@ class OctaneLightMixerAOVOutputLight6Scale(OctaneBaseSocket):
     bl_idname="OctaneLightMixerAOVOutputLight6Scale"
     bl_label="Light ID 6 scale"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=691)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="Light6Scale")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="", min=0.000000, max=1000.000000, soft_min=0.000000, soft_max=1000.000000, step=1, precision=2, subtype="NONE")
@@ -379,8 +431,10 @@ class OctaneLightMixerAOVOutputLight7Enabled(OctaneBaseSocket):
     bl_idname="OctaneLightMixerAOVOutputLight7Enabled"
     bl_label="Light ID 7 enabled"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=693)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="light7Enabled")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="")
@@ -393,8 +447,10 @@ class OctaneLightMixerAOVOutputLight7Tint(OctaneBaseSocket):
     bl_idname="OctaneLightMixerAOVOutputLight7Tint"
     bl_label="Light ID 7 tint"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=695)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="light7Tint")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
     default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=OctaneBaseSocket.update_node_tree, description="", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", precision=2, size=3)
@@ -407,8 +463,10 @@ class OctaneLightMixerAOVOutputLight7Scale(OctaneBaseSocket):
     bl_idname="OctaneLightMixerAOVOutputLight7Scale"
     bl_label="Light ID 7 scale"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=694)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="Light7Scale")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="", min=0.000000, max=1000.000000, soft_min=0.000000, soft_max=1000.000000, step=1, precision=2, subtype="NONE")
@@ -421,8 +479,10 @@ class OctaneLightMixerAOVOutputLight8Enabled(OctaneBaseSocket):
     bl_idname="OctaneLightMixerAOVOutputLight8Enabled"
     bl_label="Light ID 8 enabled"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=696)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="light8Enabled")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="")
@@ -435,8 +495,10 @@ class OctaneLightMixerAOVOutputLight8Tint(OctaneBaseSocket):
     bl_idname="OctaneLightMixerAOVOutputLight8Tint"
     bl_label="Light ID 8 tint"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=698)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="light8Tint")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
     default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=OctaneBaseSocket.update_node_tree, description="", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", precision=2, size=3)
@@ -449,8 +511,10 @@ class OctaneLightMixerAOVOutputLight8Scale(OctaneBaseSocket):
     bl_idname="OctaneLightMixerAOVOutputLight8Scale"
     bl_label="Light ID 8 scale"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=697)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="Light8Scale")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="", min=0.000000, max=1000.000000, soft_min=0.000000, soft_max=1000.000000, step=1, precision=2, subtype="NONE")

@@ -15,8 +15,10 @@ class OctaneMultiplyTextureTexture1(OctaneBaseSocket):
     bl_idname="OctaneMultiplyTextureTexture1"
     bl_label="Texture 1"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=""
+    octane_default_node_type=0
+    octane_default_node_name=""
     octane_pin_id: IntProperty(name="Octane Pin ID", default=238)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="texture1")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -28,8 +30,10 @@ class OctaneMultiplyTextureTexture2(OctaneBaseSocket):
     bl_idname="OctaneMultiplyTextureTexture2"
     bl_label="Texture 2"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type="OctaneGreyscaleColor"
+    octane_default_node_type=31
+    octane_default_node_name="OctaneGreyscaleColor"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=239)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="texture2")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="The second texture that will be multiplied. White by default", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")

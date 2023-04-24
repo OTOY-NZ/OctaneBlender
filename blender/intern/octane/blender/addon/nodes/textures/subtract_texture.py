@@ -15,8 +15,10 @@ class OctaneSubtractTextureTexture1(OctaneBaseSocket):
     bl_idname="OctaneSubtractTextureTexture1"
     bl_label="Texture 1"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=""
+    octane_default_node_type=0
+    octane_default_node_name=""
     octane_pin_id: IntProperty(name="Octane Pin ID", default=238)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="texture1")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -28,8 +30,10 @@ class OctaneSubtractTextureTexture2(OctaneBaseSocket):
     bl_idname="OctaneSubtractTextureTexture2"
     bl_label="Texture 2"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=""
+    octane_default_node_type=0
+    octane_default_node_name=""
     octane_pin_id: IntProperty(name="Octane Pin ID", default=239)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="texture2")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True

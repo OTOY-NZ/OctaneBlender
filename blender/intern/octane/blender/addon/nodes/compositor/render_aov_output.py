@@ -15,8 +15,10 @@ class OctaneRenderAOVOutputInput(OctaneBaseSocket):
     bl_idname="OctaneRenderAOVOutputInput"
     bl_label="Input"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type="OctaneEnumValue"
+    octane_default_node_type=57
+    octane_default_node_name="OctaneEnumValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=82)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="input")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
     items = [
@@ -164,8 +166,10 @@ class OctaneRenderAOVOutputOutputChannels(OctaneBaseSocket):
     bl_idname="OctaneRenderAOVOutputOutputChannels"
     bl_label="Output channels"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type="OctaneEnumValue"
+    octane_default_node_type=57
+    octane_default_node_name="OctaneEnumValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=615)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="outputChannels")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
     items = [
@@ -183,8 +187,10 @@ class OctaneRenderAOVOutputImager(OctaneBaseSocket):
     bl_idname="OctaneRenderAOVOutputImager"
     bl_label="Enable imager"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=78)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="imager")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="If enabled, The imager settings is applied on the final AOV output. Otherwise ignored  Only used/vaild if this node is the root output AOV node (I.e. directly connected to the AOV output group node)")
@@ -197,8 +203,10 @@ class OctaneRenderAOVOutputPostproc(OctaneBaseSocket):
     bl_idname="OctaneRenderAOVOutputPostproc"
     bl_label="Enable post processing"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=136)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="postproc")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="If enabled, The post processing settings is applied on the final AOV output. Otherwise ignored Only used/vaild if this node is the root output AOV node (I.e. directly connected to the AOV output group node)")

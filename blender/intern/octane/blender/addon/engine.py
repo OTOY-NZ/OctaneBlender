@@ -305,9 +305,9 @@ def register_render_aov_node_graph_passes(engine, scene):
     oct_active_cam = scene.camera.data.octane
     enable_denoiser = False
     if oct_scene.use_preview_setting_for_camera_imager:
-        enable_denoiser = oct_view_cam.enable_denoising and oct_scene.hdr_tonemap_preview_enable
+        enable_denoiser = oct_view_cam.imager.denoiser and oct_scene.hdr_tonemap_preview_enable
     else:
-        enable_denoiser = oct_active_cam.enable_denoising and oct_scene.hdr_tonemap_render_enable
+        enable_denoiser = oct_active_cam.imager.denoiser and oct_scene.hdr_tonemap_render_enable
     for layer in scene.view_layers:
         octane_view_layer = layer.octane
         if octane_view_layer.render_pass_style == "RENDER_PASSES":

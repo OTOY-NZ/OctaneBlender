@@ -15,8 +15,10 @@ class OctaneRidgedFractalTexturePower(OctaneBaseSocket):
     bl_idname="OctaneRidgedFractalTexturePower"
     bl_label="Power"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type="OctaneGreyscaleColor"
+    octane_default_node_type=31
+    octane_default_node_name="OctaneGreyscaleColor"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=138)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="power")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Power/brightness", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
@@ -29,8 +31,10 @@ class OctaneRidgedFractalTextureOffset(OctaneBaseSocket):
     bl_idname="OctaneRidgedFractalTextureOffset"
     bl_label="Ridge height"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type="OctaneGreyscaleColor"
+    octane_default_node_type=31
+    octane_default_node_name="OctaneGreyscaleColor"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=122)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="offset")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.800000, update=OctaneBaseSocket.update_node_tree, description="Ridge height", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
@@ -43,8 +47,10 @@ class OctaneRidgedFractalTextureOctaves(OctaneBaseSocket):
     bl_idname="OctaneRidgedFractalTextureOctaves"
     bl_label="Octaves"
     color=consts.OctanePinColor.Int
-    octane_default_node_type="OctaneIntValue"
+    octane_default_node_type=9
+    octane_default_node_name="OctaneIntValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=121)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="octaves")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
     default_value: IntProperty(default=5, update=OctaneBaseSocket.update_node_tree, description="Number of octaves", min=0, max=16, soft_min=0, soft_max=16, step=1, subtype="FACTOR")
@@ -57,8 +63,10 @@ class OctaneRidgedFractalTextureOmega(OctaneBaseSocket):
     bl_idname="OctaneRidgedFractalTextureOmega"
     bl_label="Omega"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type="OctaneGreyscaleColor"
+    octane_default_node_type=31
+    octane_default_node_name="OctaneGreyscaleColor"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=123)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="omega")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.500000, update=OctaneBaseSocket.update_node_tree, description="Difference per interval", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
@@ -71,8 +79,10 @@ class OctaneRidgedFractalTextureLacunarity(OctaneBaseSocket):
     bl_idname="OctaneRidgedFractalTextureLacunarity"
     bl_label="Lacunarity"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type="OctaneGreyscaleColor"
+    octane_default_node_type=31
+    octane_default_node_name="OctaneGreyscaleColor"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=90)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="lacunarity")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.500000, update=OctaneBaseSocket.update_node_tree, description="Noise frequency scale factor per interval", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
@@ -85,8 +95,10 @@ class OctaneRidgedFractalTextureTransform(OctaneBaseSocket):
     bl_idname="OctaneRidgedFractalTextureTransform"
     bl_label="UVW transform"
     color=consts.OctanePinColor.Transform
-    octane_default_node_type="OctaneTransformValue"
+    octane_default_node_type=67
+    octane_default_node_name="OctaneTransformValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=243)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="transform")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TRANSFORM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -98,8 +110,10 @@ class OctaneRidgedFractalTextureProjection(OctaneBaseSocket):
     bl_idname="OctaneRidgedFractalTextureProjection"
     bl_label="Projection"
     color=consts.OctanePinColor.Projection
-    octane_default_node_type="OctaneXYZToUVW"
+    octane_default_node_type=75
+    octane_default_node_name="OctaneXYZToUVW"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=141)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="projection")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_PROJECTION)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True

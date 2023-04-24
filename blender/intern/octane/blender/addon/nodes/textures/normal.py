@@ -15,8 +15,10 @@ class OctaneNormalNormalType(OctaneBaseSocket):
     bl_idname="OctaneNormalNormalType"
     bl_label="Normal type"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type="OctaneEnumValue"
+    octane_default_node_type=57
+    octane_default_node_name="OctaneEnumValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=649)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="normalType")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
     items = [
@@ -34,8 +36,10 @@ class OctaneNormalCoordinateSystem(OctaneBaseSocket):
     bl_idname="OctaneNormalCoordinateSystem"
     bl_label="Coordinate system"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type="OctaneEnumValue"
+    octane_default_node_type=57
+    octane_default_node_name="OctaneEnumValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=645)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="coordinateSystem")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
     items = [
@@ -54,8 +58,10 @@ class OctaneNormalNormalize(OctaneBaseSocket):
     bl_idname="OctaneNormalNormalize"
     bl_label="Normalize result"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=118)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="normalize")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Whether to remap the result to the [0..1] range or leave it in the [-1..+1] range")

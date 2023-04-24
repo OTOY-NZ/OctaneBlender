@@ -15,8 +15,10 @@ class OctaneMeshUVProjectionUvSet(OctaneBaseSocket):
     bl_idname="OctaneMeshUVProjectionUvSet"
     bl_label="UV set"
     color=consts.OctanePinColor.Int
-    octane_default_node_type="OctaneIntValue"
+    octane_default_node_type=9
+    octane_default_node_name="OctaneIntValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=249)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="uvSet")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
     default_value: IntProperty(default=1, update=OctaneBaseSocket.update_node_tree, description="Determines which set of UV coordinates to use", min=1, max=3, soft_min=1, soft_max=3, step=1, subtype="FACTOR")

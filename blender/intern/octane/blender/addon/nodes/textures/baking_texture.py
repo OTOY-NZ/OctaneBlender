@@ -15,8 +15,10 @@ class OctaneBakingTextureTexture(OctaneBaseSocket):
     bl_idname="OctaneBakingTextureTexture"
     bl_label="Texture"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=""
+    octane_default_node_type=0
+    octane_default_node_name=""
     octane_pin_id: IntProperty(name="Octane Pin ID", default=240)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="texture")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -28,8 +30,10 @@ class OctaneBakingTextureEnabled(OctaneBaseSocket):
     bl_idname="OctaneBakingTextureEnabled"
     bl_label="Enable baking"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=42)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="enabled")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Enable texture baking. False means pausing texture baking")
@@ -42,8 +46,10 @@ class OctaneBakingTextureResolution(OctaneBaseSocket):
     bl_idname="OctaneBakingTextureResolution"
     bl_label="Resolution"
     color=consts.OctanePinColor.Int
-    octane_default_node_type="OctaneIntValue"
+    octane_default_node_type=9
+    octane_default_node_name="OctaneIntValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=198)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="resolution")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT2)
     default_value: IntVectorProperty(default=(1024, 1024), update=OctaneBaseSocket.update_node_tree, description="Resolution of the baked texture", min=4, max=65536, soft_min=4, soft_max=65536, step=1, subtype="NONE", size=2)
@@ -56,8 +62,10 @@ class OctaneBakingTextureSamplingRate(OctaneBaseSocket):
     bl_idname="OctaneBakingTextureSamplingRate"
     bl_label="Samples per pixel"
     color=consts.OctanePinColor.Int
-    octane_default_node_type="OctaneIntValue"
+    octane_default_node_type=9
+    octane_default_node_name="OctaneIntValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=206)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="sampling_rate")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
     default_value: IntProperty(default=32, update=OctaneBaseSocket.update_node_tree, description="Current samples/px used for the baked texture", min=1, max=10000, soft_min=1, soft_max=1000, step=1, subtype="FACTOR")
@@ -70,8 +78,10 @@ class OctaneBakingTextureTonemapType(OctaneBaseSocket):
     bl_idname="OctaneBakingTextureTonemapType"
     bl_label="Texture type"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type="OctaneEnumValue"
+    octane_default_node_type=57
+    octane_default_node_name="OctaneEnumValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=356)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="tonemapType")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
     items = [
@@ -88,8 +98,10 @@ class OctaneBakingTextureRgbBaking(OctaneBaseSocket):
     bl_idname="OctaneBakingTextureRgbBaking"
     bl_label="RGB baking"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=355)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="rgbBaking")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Baking the texture in RGB mode. False means baking in gray scale mode")
@@ -102,8 +114,10 @@ class OctaneBakingTexturePower(OctaneBaseSocket):
     bl_idname="OctaneBakingTexturePower"
     bl_label="Power"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type="OctaneGreyscaleColor"
+    octane_default_node_type=31
+    octane_default_node_name="OctaneGreyscaleColor"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=138)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="power")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Power/brightness", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
@@ -116,8 +130,10 @@ class OctaneBakingTextureGamma(OctaneBaseSocket):
     bl_idname="OctaneBakingTextureGamma"
     bl_label="Gamma"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=57)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="gamma")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=2.200000, update=OctaneBaseSocket.update_node_tree, description="Gamma correction coefficient", min=0.100000, max=8.000000, soft_min=0.100000, soft_max=8.000000, step=1, precision=2, subtype="NONE")
@@ -130,8 +146,10 @@ class OctaneBakingTextureInvert(OctaneBaseSocket):
     bl_idname="OctaneBakingTextureInvert"
     bl_label="Invert"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=83)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="invert")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Invert image")
@@ -144,8 +162,10 @@ class OctaneBakingTextureLinearSpaceInvert(OctaneBaseSocket):
     bl_idname="OctaneBakingTextureLinearSpaceInvert"
     bl_label="Linear space invert"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=466)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="linearSpaceInvert")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Invert image in the linear color space")
@@ -158,8 +178,10 @@ class OctaneBakingTextureTransform(OctaneBaseSocket):
     bl_idname="OctaneBakingTextureTransform"
     bl_label="UV transform"
     color=consts.OctanePinColor.Transform
-    octane_default_node_type="OctaneTransformValue"
+    octane_default_node_type=67
+    octane_default_node_name="OctaneTransformValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=243)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="transform")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TRANSFORM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -171,8 +193,10 @@ class OctaneBakingTextureProjection(OctaneBaseSocket):
     bl_idname="OctaneBakingTextureProjection"
     bl_label="Projection"
     color=consts.OctanePinColor.Projection
-    octane_default_node_type="OctaneMeshUVProjection"
+    octane_default_node_type=78
+    octane_default_node_name="OctaneMeshUVProjection"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=141)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="projection")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_PROJECTION)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -184,8 +208,10 @@ class OctaneBakingTextureBorderMode(OctaneBaseSocket):
     bl_idname="OctaneBakingTextureBorderMode"
     bl_label="Border mode"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type="OctaneEnumValue"
+    octane_default_node_type=57
+    octane_default_node_name="OctaneEnumValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=15)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="borderMode")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
     items = [

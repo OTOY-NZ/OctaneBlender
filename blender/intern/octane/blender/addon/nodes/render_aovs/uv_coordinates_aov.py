@@ -15,8 +15,10 @@ class OctaneUVCoordinatesAOVEnabled(OctaneBaseSocket):
     bl_idname="OctaneUVCoordinatesAOVEnabled"
     bl_label="Enabled"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=42)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="enabled")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Enables the render AOV")
@@ -29,8 +31,10 @@ class OctaneUVCoordinatesAOVUVMax(OctaneBaseSocket):
     bl_idname="OctaneUVCoordinatesAOVUVMax"
     bl_label="UV max"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=250)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="UV_max")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="UV coordinate value mapped to maximum intensity", min=0.000010, max=1000.000000, soft_min=0.000010, soft_max=1000.000000, step=1, precision=2, subtype="NONE")
@@ -43,8 +47,10 @@ class OctaneUVCoordinatesAOVUvSet(OctaneBaseSocket):
     bl_idname="OctaneUVCoordinatesAOVUvSet"
     bl_label="UV coordinate selection"
     color=consts.OctanePinColor.Int
-    octane_default_node_type="OctaneIntValue"
+    octane_default_node_type=9
+    octane_default_node_name="OctaneIntValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=249)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="uvSet")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
     default_value: IntProperty(default=1, update=OctaneBaseSocket.update_node_tree, description="Determines which set of UV coordinates to use", min=1, max=3, soft_min=1, soft_max=3, step=1, subtype="FACTOR")

@@ -15,8 +15,10 @@ class OctaneColorCorrectionAOVOutputInput(OctaneBaseSocket):
     bl_idname="OctaneColorCorrectionAOVOutputInput"
     bl_label="Input"
     color=consts.OctanePinColor.AOVOutput
-    octane_default_node_type=""
+    octane_default_node_type=0
+    octane_default_node_name=""
     octane_pin_id: IntProperty(name="Octane Pin ID", default=82)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="input")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_OUTPUT_AOV)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -28,8 +30,10 @@ class OctaneColorCorrectionAOVOutputInvert(OctaneBaseSocket):
     bl_idname="OctaneColorCorrectionAOVOutputInvert"
     bl_label="Invert"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=83)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="invert")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Invert the colors from the input texture")
@@ -42,8 +46,10 @@ class OctaneColorCorrectionAOVOutputHue(OctaneBaseSocket):
     bl_idname="OctaneColorCorrectionAOVOutputHue"
     bl_label="Hue"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=76)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="hue")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Hue correction", min=-1.000000, max=1.000000, soft_min=-1.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
@@ -56,8 +62,10 @@ class OctaneColorCorrectionAOVOutputSaturation(OctaneBaseSocket):
     bl_idname="OctaneColorCorrectionAOVOutputSaturation"
     bl_label="Saturation"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=208)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="saturation")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Saturation correction", min=0.000000, max=3.000000, soft_min=0.000000, soft_max=3.000000, step=1, precision=2, subtype="FACTOR")
@@ -70,8 +78,10 @@ class OctaneColorCorrectionAOVOutputContrast(OctaneBaseSocket):
     bl_idname="OctaneColorCorrectionAOVOutputContrast"
     bl_label="Contrast"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=26)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="contrast")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.001000, update=OctaneBaseSocket.update_node_tree, description="Contrast correction", min=0.000000, max=1000.000000, soft_min=0.000000, soft_max=1000.000000, step=1, precision=3, subtype="NONE")
@@ -84,8 +94,10 @@ class OctaneColorCorrectionAOVOutputGain(OctaneBaseSocket):
     bl_idname="OctaneColorCorrectionAOVOutputGain"
     bl_label="Gain"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=568)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="gain")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Gain correction", min=0.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, precision=2, subtype="NONE")
@@ -98,8 +110,10 @@ class OctaneColorCorrectionAOVOutputExposure(OctaneBaseSocket):
     bl_idname="OctaneColorCorrectionAOVOutputExposure"
     bl_label="Exposure"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=45)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="exposure")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Exposure correction", min=-10.000000, max=10.000000, soft_min=-10.000000, soft_max=10.000000, step=1, precision=2, subtype="FACTOR")
@@ -112,8 +126,10 @@ class OctaneColorCorrectionAOVOutputMask(OctaneBaseSocket):
     bl_idname="OctaneColorCorrectionAOVOutputMask"
     bl_label="Mask"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=614)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="mask")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Blends between the input (if set to 0) and the color corrected result (if set to 1)", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")

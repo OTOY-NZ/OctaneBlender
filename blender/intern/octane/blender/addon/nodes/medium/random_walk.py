@@ -15,8 +15,10 @@ class OctaneRandomWalkScale(OctaneBaseSocket):
     bl_idname="OctaneRandomWalkScale"
     bl_label="Density"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=209)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="scale")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=100.000000, update=OctaneBaseSocket.update_node_tree, description="Absorption and scattering scale", min=0.000100, max=10000.000000, soft_min=0.000100, soft_max=10000.000000, step=1, precision=2, subtype="NONE")
@@ -29,8 +31,10 @@ class OctaneRandomWalkRayMarchStepLength(OctaneBaseSocket):
     bl_idname="OctaneRandomWalkRayMarchStepLength"
     bl_label="Volume step length"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=274)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="rayMarchStepLength")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=4.000000, update=OctaneBaseSocket.update_node_tree, description="Step length that is used for marching through volumes", min=0.000010, max=1000000.000000, soft_min=0.010000, soft_max=1000.000000, step=1, precision=2, subtype="NONE")
@@ -43,8 +47,10 @@ class OctaneRandomWalkShadowRayMarchStepLength(OctaneBaseSocket):
     bl_idname="OctaneRandomWalkShadowRayMarchStepLength"
     bl_label="Vol. shadow ray step length"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=496)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="shadowRayMarchStepLength")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=4.000000, update=OctaneBaseSocket.update_node_tree, description="Step length that is used by the shadow ray for marching through volumes", min=0.000010, max=1000000.000000, soft_min=0.010000, soft_max=1000.000000, step=1, precision=2, subtype="NONE")
@@ -57,8 +63,10 @@ class OctaneRandomWalkUseRayStepLengthForShadowRays(OctaneBaseSocket):
     bl_idname="OctaneRandomWalkUseRayStepLengthForShadowRays"
     bl_label="Use Vol. step length for Vol. shadow ray step length"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=515)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="useRayStepLengthForShadowRays")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Uses Volume step length as Volume shadow ray step length as well")
@@ -71,8 +79,10 @@ class OctaneRandomWalkDisplacement(OctaneBaseSocket):
     bl_idname="OctaneRandomWalkDisplacement"
     bl_label="Sample position displacement"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=""
+    octane_default_node_type=0
+    octane_default_node_name=""
     octane_pin_id: IntProperty(name="Octane Pin ID", default=34)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="displacement")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -84,8 +94,10 @@ class OctaneRandomWalkAlbedo(OctaneBaseSocket):
     bl_idname="OctaneRandomWalkAlbedo"
     bl_label="Albedo"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type="OctaneRGBColor"
+    octane_default_node_type=33
+    octane_default_node_name="OctaneRGBColor"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=409)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="albedo")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
     default_value: FloatVectorProperty(default=(0.500000, 0.500000, 0.500000), update=OctaneBaseSocket.update_node_tree, description="Scattering albedo. The coefficients are determined from this using the mean free  path", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
@@ -98,8 +110,10 @@ class OctaneRandomWalkRadius(OctaneBaseSocket):
     bl_idname="OctaneRandomWalkRadius"
     bl_label="Radius"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type="OctaneRGBColor"
+    octane_default_node_type=33
+    octane_default_node_name="OctaneRGBColor"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=142)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="radius")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
     default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=OctaneBaseSocket.update_node_tree, description="Determines the depth that the light scatters in the medium", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
@@ -112,8 +126,10 @@ class OctaneRandomWalkBias(OctaneBaseSocket):
     bl_idname="OctaneRandomWalkBias"
     bl_label="Bias"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=489)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="bias")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.500000, update=OctaneBaseSocket.update_node_tree, description="Bias of the subsurface scattering. Higher values use biased sampling, which usually gives better results for lower depth settings, and more speed for objects with low curvature", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
@@ -126,8 +142,10 @@ class OctaneRandomWalkLockStepLength(OctaneBaseSocket):
     bl_idname="OctaneRandomWalkLockStepLength"
     bl_label="Lock step length pins"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=500)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="lockStepLength")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Locks volume step length and shadow step length pins. So if the value of one is changed then the other one is also changed automatically")

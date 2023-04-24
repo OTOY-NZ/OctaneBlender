@@ -15,8 +15,10 @@ class OctaneUnionRadius(OctaneBaseSocket):
     bl_idname="OctaneUnionRadius"
     bl_label="Radius"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=142)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="radius")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="", min=0.000000, max=1000.000000, soft_min=0.000000, soft_max=10.000000, step=1, precision=2, subtype="NONE")
@@ -29,8 +31,10 @@ class OctaneUnionInput1(OctaneBaseSocket):
     bl_idname="OctaneUnionInput1"
     bl_label="Input1"
     color=consts.OctanePinColor.Geometry
-    octane_default_node_type=""
+    octane_default_node_type=0
+    octane_default_node_name=""
     octane_pin_id: IntProperty(name="Octane Pin ID", default=527)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="input1")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_GEOMETRY)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -42,8 +46,10 @@ class OctaneUnionInput2(OctaneBaseSocket):
     bl_idname="OctaneUnionInput2"
     bl_label="Input2"
     color=consts.OctanePinColor.Geometry
-    octane_default_node_type=""
+    octane_default_node_type=0
+    octane_default_node_name=""
     octane_pin_id: IntProperty(name="Octane Pin ID", default=528)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="input2")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_GEOMETRY)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True

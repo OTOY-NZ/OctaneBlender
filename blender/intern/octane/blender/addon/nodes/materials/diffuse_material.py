@@ -15,8 +15,10 @@ class OctaneDiffuseMaterialDiffuse(OctaneBaseSocket):
     bl_idname="OctaneDiffuseMaterialDiffuse"
     bl_label="Diffuse"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type="OctaneRGBColor"
+    octane_default_node_type=33
+    octane_default_node_name="OctaneRGBColor"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=30)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="diffuse")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
     default_value: FloatVectorProperty(default=(0.700000, 0.700000, 0.700000), update=OctaneBaseSocket.update_node_tree, description="Diffuse reflection channel", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
@@ -29,8 +31,10 @@ class OctaneDiffuseMaterialTransmission(OctaneBaseSocket):
     bl_idname="OctaneDiffuseMaterialTransmission"
     bl_label="Transmission"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=""
+    octane_default_node_type=0
+    octane_default_node_name=""
     octane_pin_id: IntProperty(name="Octane Pin ID", default=245)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="transmission")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -42,8 +46,10 @@ class OctaneDiffuseMaterialRoughness(OctaneBaseSocket):
     bl_idname="OctaneDiffuseMaterialRoughness"
     bl_label="Roughness"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type="OctaneGreyscaleColor"
+    octane_default_node_type=31
+    octane_default_node_name="OctaneGreyscaleColor"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=204)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="roughness")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Diffuse roughness to allow simulation of very rough surfaces like sand or clay", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
@@ -56,8 +62,10 @@ class OctaneDiffuseMaterialMedium(OctaneBaseSocket):
     bl_idname="OctaneDiffuseMaterialMedium"
     bl_label="Medium"
     color=consts.OctanePinColor.Medium
-    octane_default_node_type=""
+    octane_default_node_type=0
+    octane_default_node_name=""
     octane_pin_id: IntProperty(name="Octane Pin ID", default=110)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="medium")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_MEDIUM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -69,8 +77,10 @@ class OctaneDiffuseMaterialOpacity(OctaneBaseSocket):
     bl_idname="OctaneDiffuseMaterialOpacity"
     bl_label="Opacity"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type="OctaneGreyscaleColor"
+    octane_default_node_type=31
+    octane_default_node_name="OctaneGreyscaleColor"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=125)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="opacity")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Opacity channel controlling the transparency of the material via greyscale texture", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
@@ -83,8 +93,10 @@ class OctaneDiffuseMaterialBump(OctaneBaseSocket):
     bl_idname="OctaneDiffuseMaterialBump"
     bl_label="Bump"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=""
+    octane_default_node_type=0
+    octane_default_node_name=""
     octane_pin_id: IntProperty(name="Octane Pin ID", default=18)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="bump")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -96,8 +108,10 @@ class OctaneDiffuseMaterialNormal(OctaneBaseSocket):
     bl_idname="OctaneDiffuseMaterialNormal"
     bl_label="Normal"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=""
+    octane_default_node_type=0
+    octane_default_node_name=""
     octane_pin_id: IntProperty(name="Octane Pin ID", default=119)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="normal")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -109,8 +123,10 @@ class OctaneDiffuseMaterialDisplacement(OctaneBaseSocket):
     bl_idname="OctaneDiffuseMaterialDisplacement"
     bl_label="Displacement"
     color=consts.OctanePinColor.Displacement
-    octane_default_node_type=""
+    octane_default_node_type=0
+    octane_default_node_name=""
     octane_pin_id: IntProperty(name="Octane Pin ID", default=34)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="displacement")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_DISPLACEMENT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -122,8 +138,10 @@ class OctaneDiffuseMaterialSmooth(OctaneBaseSocket):
     bl_idname="OctaneDiffuseMaterialSmooth"
     bl_label="Smooth"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=218)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="smooth")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="If disabled normal interpolation will be disabled and triangle meshes will appear \"facetted\"")
@@ -136,8 +154,10 @@ class OctaneDiffuseMaterialSmoothShadowTerminator(OctaneBaseSocket):
     bl_idname="OctaneDiffuseMaterialSmoothShadowTerminator"
     bl_label="Smooth shadow terminator"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=731)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="smoothShadowTerminator")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="If enabled self-intersecting shadow terminator for low polygon is smoothed according to the polygon's curvature")
@@ -150,8 +170,10 @@ class OctaneDiffuseMaterialRoundEdges(OctaneBaseSocket):
     bl_idname="OctaneDiffuseMaterialRoundEdges"
     bl_label="Round edges"
     color=consts.OctanePinColor.RoundEdges
-    octane_default_node_type="OctaneRoundEdges"
+    octane_default_node_type=137
+    octane_default_node_name="OctaneRoundEdges"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=467)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="roundEdges")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ROUND_EDGES)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -163,8 +185,10 @@ class OctaneDiffuseMaterialPriority(OctaneBaseSocket):
     bl_idname="OctaneDiffuseMaterialPriority"
     bl_label="Priority"
     color=consts.OctanePinColor.Int
-    octane_default_node_type="OctaneIntValue"
+    octane_default_node_type=9
+    octane_default_node_name="OctaneIntValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=564)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="priority")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
     default_value: IntProperty(default=0, update=OctaneBaseSocket.update_node_tree, description="The material priority for this surface material", min=-100, max=100, soft_min=-100, soft_max=100, step=1, subtype="FACTOR")
@@ -177,8 +201,10 @@ class OctaneDiffuseMaterialEmission(OctaneBaseSocket):
     bl_idname="OctaneDiffuseMaterialEmission"
     bl_label="Emission"
     color=consts.OctanePinColor.Emission
-    octane_default_node_type=""
+    octane_default_node_type=0
+    octane_default_node_name=""
     octane_pin_id: IntProperty(name="Octane Pin ID", default=41)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="emission")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_EMISSION)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -190,8 +216,10 @@ class OctaneDiffuseMaterialMatte(OctaneBaseSocket):
     bl_idname="OctaneDiffuseMaterialMatte"
     bl_label="Shadow catcher"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=102)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="matte")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Switches the material to a shadow catcher, i.e. it will be transparent unless there is some (direct) shadow cast onto the material, which will make it less transparent depending on the shadow strength")
@@ -204,8 +232,10 @@ class OctaneDiffuseMaterialCustomAov(OctaneBaseSocket):
     bl_idname="OctaneDiffuseMaterialCustomAov"
     bl_label="Custom AOV"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type="OctaneEnumValue"
+    octane_default_node_type=57
+    octane_default_node_name="OctaneEnumValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=632)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="customAov")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
     items = [
@@ -241,8 +271,10 @@ class OctaneDiffuseMaterialCustomAovChannel(OctaneBaseSocket):
     bl_idname="OctaneDiffuseMaterialCustomAovChannel"
     bl_label="Custom AOV channel"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type="OctaneEnumValue"
+    octane_default_node_type=57
+    octane_default_node_name="OctaneEnumValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=633)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="customAovChannel")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
     items = [
@@ -261,8 +293,10 @@ class OctaneDiffuseMaterialLayer(OctaneBaseSocket):
     bl_idname="OctaneDiffuseMaterialLayer"
     bl_label="Material layer"
     color=consts.OctanePinColor.MaterialLayer
-    octane_default_node_type="OctaneMaterialLayerGroup"
+    octane_default_node_type=144
+    octane_default_node_name="OctaneMaterialLayerGroup"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=474)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="layer")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_MATERIAL_LAYER)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -274,8 +308,10 @@ class OctaneDiffuseMaterialEdgesRounding(OctaneBaseSocket):
     bl_idname="OctaneDiffuseMaterialEdgesRounding"
     bl_label="Rounded edges radius"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=39)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="edgesRounding")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="(deprecated) Radius of rounded edges that are rendered as shading effect", min=0.000000, max=100.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="NONE")

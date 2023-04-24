@@ -15,8 +15,10 @@ class OctaneCameraImagerExposure(OctaneBaseSocket):
     bl_idname="OctaneCameraImagerExposure"
     bl_label="Exposure"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=45)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="exposure")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="The exposure or overall brightness. The required value is highly dependent on the lighting of the scene. Outdoor scenes in daylight work well with an exposure between 0.6 and 1. Indoor scenes - even during the day - often need an exposure of 4 to 20", min=0.000010, max=4096.000000, soft_min=0.000010, soft_max=4096.000000, step=1, precision=2, subtype="NONE")
@@ -29,8 +31,10 @@ class OctaneCameraImagerHotpixelRemoval(OctaneBaseSocket):
     bl_idname="OctaneCameraImagerHotpixelRemoval"
     bl_label="Hot pixel removal"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=74)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="hotpixel_removal")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Luminance threshold for firefly reduction", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
@@ -43,8 +47,10 @@ class OctaneCameraImagerVignetting(OctaneBaseSocket):
     bl_idname="OctaneCameraImagerVignetting"
     bl_label="Vignetting"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=252)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="vignetting")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Amount of lens vignetting", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
@@ -57,8 +63,10 @@ class OctaneCameraImagerWhiteBalance(OctaneBaseSocket):
     bl_idname="OctaneCameraImagerWhiteBalance"
     bl_label="White point"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type="OctaneRGBColor"
+    octane_default_node_type=33
+    octane_default_node_name="OctaneRGBColor"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=255)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="white_balance")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
     default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=OctaneBaseSocket.update_node_tree, description="The color (before white balance) that will become white after white balance", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
@@ -71,8 +79,10 @@ class OctaneCameraImagerSaturation(OctaneBaseSocket):
     bl_idname="OctaneCameraImagerSaturation"
     bl_label="Saturation"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=208)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="saturation")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Amount of saturation", min=0.000000, max=4.000000, soft_min=0.000000, soft_max=4.000000, step=1, precision=2, subtype="FACTOR")
@@ -85,8 +95,10 @@ class OctaneCameraImagerPremultipliedAlpha(OctaneBaseSocket):
     bl_idname="OctaneCameraImagerPremultipliedAlpha"
     bl_label="Pre-multiplied alpha"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=139)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="premultiplied_alpha")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="If enabled, the alpha channel will be pre-multiplied with the color channels")
@@ -99,8 +111,10 @@ class OctaneCameraImagerDisablePartialAlpha(OctaneBaseSocket):
     bl_idname="OctaneCameraImagerDisablePartialAlpha"
     bl_label="Disable partial alpha"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=310)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="disablePartialAlpha")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Make pixels that are partially transparent (alpha > 0) fully opaque")
@@ -113,8 +127,10 @@ class OctaneCameraImagerDithering(OctaneBaseSocket):
     bl_idname="OctaneCameraImagerDithering"
     bl_label="Dithering"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=38)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="dithering")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Enables dithering to remove banding")
@@ -127,8 +143,10 @@ class OctaneCameraImagerMinDisplaySamples(OctaneBaseSocket):
     bl_idname="OctaneCameraImagerMinDisplaySamples"
     bl_label="Minimum display samples"
     color=consts.OctanePinColor.Int
-    octane_default_node_type="OctaneIntValue"
+    octane_default_node_type=9
+    octane_default_node_name="OctaneIntValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=112)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="min_display_samples")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
     default_value: IntProperty(default=1, update=OctaneBaseSocket.update_node_tree, description="Minimum number of samples before the first image is displayed", min=1, max=32, soft_min=1, soft_max=32, step=1, subtype="FACTOR")
@@ -141,8 +159,10 @@ class OctaneCameraImagerMaxTonemapInterval(OctaneBaseSocket):
     bl_idname="OctaneCameraImagerMaxTonemapInterval"
     bl_label="Max. image interval"
     color=consts.OctanePinColor.Int
-    octane_default_node_type="OctaneIntValue"
+    octane_default_node_type=9
+    octane_default_node_name="OctaneIntValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=268)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="maxTonemapInterval")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
     default_value: IntProperty(default=10, update=OctaneBaseSocket.update_node_tree, description="Maximum interval between imaging operations (in seconds)", min=1, max=120, soft_min=1, soft_max=120, step=1, subtype="FACTOR")
@@ -155,8 +175,10 @@ class OctaneCameraImagerOcioView(OctaneBaseSocket):
     bl_idname="OctaneCameraImagerOcioView"
     bl_label="OCIO view"
     color=consts.OctanePinColor.OCIOView
-    octane_default_node_type="OctaneOCIOView"
+    octane_default_node_type=160
+    octane_default_node_name="OctaneOCIOView"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=565)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="ocioView")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_OCIO_VIEW)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -168,8 +190,10 @@ class OctaneCameraImagerOcioLook(OctaneBaseSocket):
     bl_idname="OctaneCameraImagerOcioLook"
     bl_label="OCIO look"
     color=consts.OctanePinColor.OCIOLook
-    octane_default_node_type="OctaneOCIOLook"
+    octane_default_node_type=161
+    octane_default_node_name="OctaneOCIOLook"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=566)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="ocioLook")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_OCIO_LOOK)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -181,8 +205,10 @@ class OctaneCameraImagerOcioForceToneMapping(OctaneBaseSocket):
     bl_idname="OctaneCameraImagerOcioForceToneMapping"
     bl_label="Force tone mapping"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=572)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="ocioForceToneMapping")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Whether to apply Octane's built-in tone mapping (before applying any OCIO look(s)) when using an OCIO view. This may produce undesirable results due to an intermediate reduction to the sRGB color space")
@@ -195,8 +221,10 @@ class OctaneCameraImagerHighlightCompression(OctaneBaseSocket):
     bl_idname="OctaneCameraImagerHighlightCompression"
     bl_label="Highlight compression"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=73)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="highlightCompression")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Reduces burned out highlights by compressing them and reducing their contrast", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
@@ -209,8 +237,10 @@ class OctaneCameraImagerSaturateToWhite(OctaneBaseSocket):
     bl_idname="OctaneCameraImagerSaturateToWhite"
     bl_label="Saturate to white"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=207)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="saturate_to_white")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Controls if clipping is done per channel or not", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
@@ -223,8 +253,10 @@ class OctaneCameraImagerOrder(OctaneBaseSocket):
     bl_idname="OctaneCameraImagerOrder"
     bl_label="Order"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type="OctaneEnumValue"
+    octane_default_node_type=57
+    octane_default_node_name="OctaneEnumValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=370)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="order")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
     items = [
@@ -245,8 +277,10 @@ class OctaneCameraImagerResponse(OctaneBaseSocket):
     bl_idname="OctaneCameraImagerResponse"
     bl_label="Response curve"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type="OctaneEnumValue"
+    octane_default_node_type=57
+    octane_default_node_name="OctaneEnumValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=199)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="response")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
     items = [
@@ -319,8 +353,10 @@ class OctaneCameraImagerNeutralResponse(OctaneBaseSocket):
     bl_idname="OctaneCameraImagerNeutralResponse"
     bl_label="Neutral response"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=271)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="neutralResponse")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="If enabled, the selected camera response curve will not affect the colors")
@@ -333,8 +369,10 @@ class OctaneCameraImagerGamma(OctaneBaseSocket):
     bl_idname="OctaneCameraImagerGamma"
     bl_label="Gamma"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=57)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="gamma")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Gamma correction, which is applied additionally to the camera response curve. Please note that the camera response curves themselves already do a gamma correction, i.e. a gamma of 1 should be used unless you are using the response curve \"Linear/off\"", min=0.100000, max=32.000000, soft_min=0.100000, soft_max=32.000000, step=1, precision=2, subtype="NONE")
@@ -347,8 +385,10 @@ class OctaneCameraImagerLut(OctaneBaseSocket):
     bl_idname="OctaneCameraImagerLut"
     bl_label="Custom LUT"
     color=consts.OctanePinColor.LUT
-    octane_default_node_type=""
+    octane_default_node_type=0
+    octane_default_node_name=""
     octane_pin_id: IntProperty(name="Octane Pin ID", default=369)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="lut")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_LUT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -360,8 +400,10 @@ class OctaneCameraImagerDenoiser(OctaneBaseSocket):
     bl_idname="OctaneCameraImagerDenoiser"
     bl_label="Enable denoising"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=389)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="denoiser")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Enables the spectral AI denoiser, which will denoise some beauty passes including the main beauty pass and writes the outputs into separate denoiser render passes")
@@ -374,8 +416,10 @@ class OctaneCameraImagerDenoiseVolume(OctaneBaseSocket):
     bl_idname="OctaneCameraImagerDenoiseVolume"
     bl_label="Denoise volumes"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=444)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="denoiseVolume")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="If enabled the spectral AI denoiser will denoise volumes in the scene otherwise not")
@@ -388,8 +432,10 @@ class OctaneCameraImagerDenoiserOnce(OctaneBaseSocket):
     bl_idname="OctaneCameraImagerDenoiserOnce"
     bl_label="Denoise on completion"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=388)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="denoiserOnce")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="If enabled, beauty passes will be denoised only once at the end of a render. This option should be disabled while rendering with an interactive region")
@@ -402,8 +448,10 @@ class OctaneCameraImagerMinDenoiserSamples(OctaneBaseSocket):
     bl_idname="OctaneCameraImagerMinDenoiserSamples"
     bl_label="Min. denoiser samples"
     color=consts.OctanePinColor.Int
-    octane_default_node_type="OctaneIntValue"
+    octane_default_node_type=9
+    octane_default_node_name="OctaneIntValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=392)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="minDenoiserSamples")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
     default_value: IntProperty(default=10, update=OctaneBaseSocket.update_node_tree, description="Minimum number of samples per pixel until denoiser kicks in. Only valid when the denoise once option is false", min=1, max=1000000, soft_min=1, soft_max=100000, step=1, subtype="FACTOR")
@@ -416,8 +464,10 @@ class OctaneCameraImagerMaxDenoiserInterval(OctaneBaseSocket):
     bl_idname="OctaneCameraImagerMaxDenoiserInterval"
     bl_label="Max. denoiser interval"
     color=consts.OctanePinColor.Int
-    octane_default_node_type="OctaneIntValue"
+    octane_default_node_type=9
+    octane_default_node_name="OctaneIntValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=391)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="maxDenoiserInterval")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
     default_value: IntProperty(default=20, update=OctaneBaseSocket.update_node_tree, description="Maximum interval between denoiser runs (in seconds). Only valid when the denoise once option is false", min=1, max=120, soft_min=1, soft_max=120, step=1, subtype="FACTOR")
@@ -430,8 +480,10 @@ class OctaneCameraImagerDenoiserOriginalBlend(OctaneBaseSocket):
     bl_idname="OctaneCameraImagerDenoiserOriginalBlend"
     bl_label="Blend"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=390)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="denoiserOriginalBlend")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="A value between 0 to 1 to blend the original image into the denoiser output. Setting 0 results with fully denoised image and setting 1 results with the original image. An intermediate value will produce a blend between the denoised image and the original image", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
@@ -444,8 +496,10 @@ class OctaneCameraImagerFilmUpSamplingMode(OctaneBaseSocket):
     bl_idname="OctaneCameraImagerFilmUpSamplingMode"
     bl_label="Upsampler mode"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type="OctaneEnumValue"
+    octane_default_node_type=57
+    octane_default_node_name="OctaneEnumValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=488)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="filmUpSamplingMode")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
     items = [
@@ -463,8 +517,10 @@ class OctaneCameraImagerUpsamplingEnabled(OctaneBaseSocket):
     bl_idname="OctaneCameraImagerUpsamplingEnabled"
     bl_label="Enable AI upsampling"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=499)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="upsamplingEnabled")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Uses AI to upsample the frame when this toggle is on. Otherwise we just trivially scale up the frame")
@@ -477,8 +533,10 @@ class OctaneCameraImagerUpsamplingOnCompletion(OctaneBaseSocket):
     bl_idname="OctaneCameraImagerUpsamplingOnCompletion"
     bl_label="Upsample on completion"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=498)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="upsamplingOnCompletion")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="If enabled, beauty passes will only use upsampler once at the end of a render")
@@ -491,8 +549,10 @@ class OctaneCameraImagerMinUpsamplingSamples(OctaneBaseSocket):
     bl_idname="OctaneCameraImagerMinUpsamplingSamples"
     bl_label="Min. upsampler samples"
     color=consts.OctanePinColor.Int
-    octane_default_node_type="OctaneIntValue"
+    octane_default_node_type=9
+    octane_default_node_name="OctaneIntValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=497)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="minUpsamplingSamples")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
     default_value: IntProperty(default=10, update=OctaneBaseSocket.update_node_tree, description="Minimum number of samples per pixel until the upsampler kicks in. Only valid when the the upsampler is enabled", min=1, max=1000000, soft_min=1, soft_max=100000, step=1, subtype="FACTOR")
@@ -505,8 +565,10 @@ class OctaneCameraImagerMaxUpsamplingInterval(OctaneBaseSocket):
     bl_idname="OctaneCameraImagerMaxUpsamplingInterval"
     bl_label="Max. upsampler interval"
     color=consts.OctanePinColor.Int
-    octane_default_node_type="OctaneIntValue"
+    octane_default_node_type=9
+    octane_default_node_name="OctaneIntValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=494)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="maxUpsamplingInterval")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
     default_value: IntProperty(default=10, update=OctaneBaseSocket.update_node_tree, description="Maximum interval between upsampler runs (in seconds). Only valid when the the upsampler is enabled", min=1, max=120, soft_min=1, soft_max=120, step=1, subtype="FACTOR")
@@ -519,8 +581,10 @@ class OctaneCameraImagerFstop(OctaneBaseSocket):
     bl_idname="OctaneCameraImagerFstop"
     bl_label="F-stop"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=56)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="fstop")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=2.800000, update=OctaneBaseSocket.update_node_tree, description="(deprecated)", min=1.000000, max=64.000000, soft_min=1.000000, soft_max=64.000000, step=1, precision=2, subtype="NONE")
@@ -533,8 +597,10 @@ class OctaneCameraImagerISO(OctaneBaseSocket):
     bl_idname="OctaneCameraImagerISO"
     bl_label="ISO"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=85)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="ISO")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=100.000000, update=OctaneBaseSocket.update_node_tree, description="(deprecated)", min=1.000000, max=800.000000, soft_min=1.000000, soft_max=800.000000, step=1, precision=2, subtype="FACTOR")
@@ -547,8 +613,10 @@ class OctaneCameraImagerGammaBeforeResponse(OctaneBaseSocket):
     bl_idname="OctaneCameraImagerGammaBeforeResponse"
     bl_label="Gamma before response"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=290)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="gammaBeforeResponse")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="(deprecated) If enabled, gamma will be applied before the camera response. This is technically incorrect, but was the behaviour in version 2 and we introduced this option to be able to render older scenes without changing colors. The default (and correct) behaviour is to apply gamma last, by disabling this option")

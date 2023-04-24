@@ -15,8 +15,10 @@ class OctaneRandomColorTextureRandomSeed(OctaneBaseSocket):
     bl_idname="OctaneRandomColorTextureRandomSeed"
     bl_label="Random seed"
     color=consts.OctanePinColor.Int
-    octane_default_node_type="OctaneIntValue"
+    octane_default_node_type=9
+    octane_default_node_name="OctaneIntValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=143)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="randomSeed")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
     default_value: IntProperty(default=0, update=OctaneBaseSocket.update_node_tree, description="Random seed", min=0, max=65535, soft_min=0, soft_max=65535, step=1, subtype="FACTOR")

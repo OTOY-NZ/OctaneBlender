@@ -15,8 +15,10 @@ class OctaneMeshVolumeSDFMaterial1(OctaneBaseSocket):
     bl_idname="OctaneMeshVolumeSDFMaterial1"
     bl_label="Material"
     color=consts.OctanePinColor.Material
-    octane_default_node_type="OctaneDiffuseMaterial"
+    octane_default_node_type=17
+    octane_default_node_name="OctaneDiffuseMaterial"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=100)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="material1")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_MATERIAL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -28,8 +30,10 @@ class OctaneMeshVolumeSDFObjectLayer(OctaneBaseSocket):
     bl_idname="OctaneMeshVolumeSDFObjectLayer"
     bl_label="Object layer"
     color=consts.OctanePinColor.ObjectLayer
-    octane_default_node_type="OctaneObjectLayer"
+    octane_default_node_type=65
+    octane_default_node_name="OctaneObjectLayer"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=328)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="objectLayer")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_OBJECTLAYER)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True

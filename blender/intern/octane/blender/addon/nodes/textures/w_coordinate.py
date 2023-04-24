@@ -15,8 +15,10 @@ class OctaneWCoordinateTranslation(OctaneBaseSocket):
     bl_idname="OctaneWCoordinateTranslation"
     bl_label="Translation"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=244)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="translation")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Translation", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, precision=2, subtype="NONE")
@@ -29,8 +31,10 @@ class OctaneWCoordinateScale(OctaneBaseSocket):
     bl_idname="OctaneWCoordinateScale"
     bl_label="Scale"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=209)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="scale")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Scale", min=0.001000, max=1000.000000, soft_min=0.001000, soft_max=1000.000000, step=1, precision=3, subtype="NONE")
@@ -43,8 +47,10 @@ class OctaneWCoordinateBorderModeWCoord(OctaneBaseSocket):
     bl_idname="OctaneWCoordinateBorderModeWCoord"
     bl_label="Border mode"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type="OctaneEnumValue"
+    octane_default_node_type=57
+    octane_default_node_name="OctaneEnumValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=699)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="borderModeWCoord")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
     items = [
@@ -63,8 +69,10 @@ class OctaneWCoordinateInvert(OctaneBaseSocket):
     bl_idname="OctaneWCoordinateInvert"
     bl_label="Invert"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=83)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="invert")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Invert")

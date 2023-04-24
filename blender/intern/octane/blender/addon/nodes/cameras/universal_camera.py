@@ -15,8 +15,10 @@ class OctaneUniversalCameraMode(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraMode"
     bl_label="Camera mode"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type="OctaneEnumValue"
+    octane_default_node_type=57
+    octane_default_node_name="OctaneEnumValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=324)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="mode")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
     items = [
@@ -36,8 +38,10 @@ class OctaneUniversalCameraSensorWidth(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraSensorWidth"
     bl_label="Sensor width"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=212)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="sensorWidth")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=36.000000, update=OctaneBaseSocket.update_node_tree, description="The width of the sensor or film [mm]", min=1.000000, max=100.000000, soft_min=1.000000, soft_max=100.000000, step=1, precision=2, subtype="FACTOR")
@@ -50,8 +54,10 @@ class OctaneUniversalCameraFocalLength(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraFocalLength"
     bl_label="Focal length"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=52)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="focalLength")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=50.000000, update=OctaneBaseSocket.update_node_tree, description="The focal length of the lens [mm]", min=0.010000, max=10000.000000, soft_min=10.000000, soft_max=1200.000000, step=1, precision=2, subtype="NONE")
@@ -64,8 +70,10 @@ class OctaneUniversalCameraFstop(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraFstop"
     bl_label="F-stop"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=56)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="fstop")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=2.800000, update=OctaneBaseSocket.update_node_tree, description="Aperture to focal length ratio", min=0.010000, max=10000.000000, soft_min=0.500000, soft_max=64.000000, step=1, precision=2, subtype="NONE")
@@ -78,8 +86,10 @@ class OctaneUniversalCameraFov(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraFov"
     bl_label="Field of view"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=53)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="fov")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=39.597752, update=OctaneBaseSocket.update_node_tree, description="The horizontal field of view [deg.]", min=0.010000, max=180.000000, soft_min=1.000000, soft_max=179.000000, step=1, precision=4, subtype="FACTOR")
@@ -92,8 +102,10 @@ class OctaneUniversalCameraScale(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraScale"
     bl_label="Scale of view"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=209)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="scale")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.804984, update=OctaneBaseSocket.update_node_tree, description="The width of the orthographic view [m]", min=0.010000, max=10000.000000, soft_min=0.010000, soft_max=10000.000000, step=1, precision=3, subtype="NONE")
@@ -106,8 +118,10 @@ class OctaneUniversalCameraLensShift(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraLensShift"
     bl_label="Lens shift"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=95)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="lensShift")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
     default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="Lens shift to the right/top as a factor of the image width/height.\nFor fisheye this is the projection center offset", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", precision=2, size=3)
@@ -120,8 +134,10 @@ class OctaneUniversalCameraPixelAspectRatio(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraPixelAspectRatio"
     bl_label="Pixel aspect ratio"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=132)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="pixelAspectRatio")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="The X:Y aspect ratio of pixels", min=0.100000, max=10.000000, soft_min=0.100000, soft_max=10.000000, step=1, precision=2, subtype="NONE")
@@ -134,8 +150,10 @@ class OctaneUniversalCameraFisheyeAngle(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraFisheyeAngle"
     bl_label="Fisheye angle"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=533)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="fisheyeAngle")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=240.000000, update=OctaneBaseSocket.update_node_tree, description="Field of view [deg.]", min=0.010000, max=360.000000, soft_min=1.000000, soft_max=360.000000, step=1, precision=2, subtype="FACTOR")
@@ -148,8 +166,10 @@ class OctaneUniversalCameraFisheyeType(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraFisheyeType"
     bl_label="Fisheye type"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type="OctaneEnumValue"
+    octane_default_node_type=57
+    octane_default_node_name="OctaneEnumValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=534)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="fisheyeType")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
     items = [
@@ -166,8 +186,10 @@ class OctaneUniversalCameraHardVignette(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraHardVignette"
     bl_label="Hard vignette"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=535)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="hardVignette")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="For circular fisheye, whether the area outside the lens is rendered or not")
@@ -180,8 +202,10 @@ class OctaneUniversalCameraFisheyeProjection(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraFisheyeProjection"
     bl_label="Fisheye projection"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type="OctaneEnumValue"
+    octane_default_node_type=57
+    octane_default_node_name="OctaneEnumValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=536)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="fisheyeProjection")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
     items = [
@@ -200,8 +224,10 @@ class OctaneUniversalCameraFovx(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraFovx"
     bl_label="Horizontal field of view"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=54)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="fovx")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=360.000000, update=OctaneBaseSocket.update_node_tree, description="The horizontal field of view [deg.]", min=0.010000, max=360.000000, soft_min=1.000000, soft_max=360.000000, step=1, precision=2, subtype="FACTOR")
@@ -214,8 +240,10 @@ class OctaneUniversalCameraFovy(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraFovy"
     bl_label="Vertical field of view"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=55)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="fovy")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=180.000000, update=OctaneBaseSocket.update_node_tree, description="The vertical field of view [deg.]", min=0.010000, max=180.000000, soft_min=1.000000, soft_max=180.000000, step=1, precision=2, subtype="FACTOR")
@@ -228,8 +256,10 @@ class OctaneUniversalCameraCubemapLayout(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraCubemapLayout"
     bl_label="Cubemap layout"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type="OctaneEnumValue"
+    octane_default_node_type=57
+    octane_default_node_name="OctaneEnumValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=537)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="cubemapLayout")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
     items = [
@@ -248,8 +278,10 @@ class OctaneUniversalCameraEquiAngularCubemap(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraEquiAngularCubemap"
     bl_label="Equi-angular cubemap"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=538)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="equiAngularCubemap")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="If enabled the cubemap will use an equi-angular projection")
@@ -262,8 +294,10 @@ class OctaneUniversalCameraUseDistortionTexture(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraUseDistortionTexture"
     bl_label="Use distortion texture"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=539)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="useDistortionTexture")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="")
@@ -276,8 +310,10 @@ class OctaneUniversalCameraDistortionTexture(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraDistortionTexture"
     bl_label="Distortion texture"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=""
+    octane_default_node_type=0
+    octane_default_node_name=""
     octane_pin_id: IntProperty(name="Octane Pin ID", default=540)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="distortionTexture")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -289,8 +325,10 @@ class OctaneUniversalCameraSphericalDistortion(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraSphericalDistortion"
     bl_label="Spherical distortion"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=541)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="sphericalDistortion")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="The amount of spherical distortion", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
@@ -303,8 +341,10 @@ class OctaneUniversalCameraBarrelDistortion(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraBarrelDistortion"
     bl_label="Barrel distortion"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=542)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="barrelDistortion")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Straight lines will appear curved. Negative values produce pincushion distortion", min=-1.000000, max=1.000000, soft_min=-0.500000, soft_max=0.500000, step=1, precision=2, subtype="FACTOR")
@@ -317,8 +357,10 @@ class OctaneUniversalCameraBarrelDistortionCorners(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraBarrelDistortionCorners"
     bl_label="Barrel distortion corners"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=543)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="barrelDistortionCorners")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="This value mostly affects corners. A different sign from the Barrel value produces moustache distortion", min=-1.000000, max=1.000000, soft_min=-0.500000, soft_max=0.500000, step=1, precision=2, subtype="FACTOR")
@@ -331,8 +373,10 @@ class OctaneUniversalCameraSphericalAberration(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraSphericalAberration"
     bl_label="Spherical aberration"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=544)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="sphericalAberration")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Rays hitting the edge of the lens focus closer to the lens", min=-1.000000, max=1.000000, soft_min=-0.200000, soft_max=0.200000, step=1, precision=2, subtype="FACTOR")
@@ -345,8 +389,10 @@ class OctaneUniversalCameraComa(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraComa"
     bl_label="Coma"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=545)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="coma")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Rays hitting the edge of the lens have a wider field of view", min=-1.000000, max=10.000000, soft_min=-0.250000, soft_max=0.250000, step=1, precision=2, subtype="FACTOR")
@@ -359,8 +405,10 @@ class OctaneUniversalCameraAstigmatism(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraAstigmatism"
     bl_label="Astigmatism"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=546)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="astigmatism")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Saggital and tangential rays focus at different distances from the lens", min=-1.000000, max=1.000000, soft_min=-1.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
@@ -373,8 +421,10 @@ class OctaneUniversalCameraFieldCurvature(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraFieldCurvature"
     bl_label="Field curvature"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=547)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="fieldCurvature")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Curvature of the plane in focus", min=-1.000000, max=1.000000, soft_min=-1.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
@@ -387,8 +437,10 @@ class OctaneUniversalCameraNearClipDepth(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraNearClipDepth"
     bl_label="Near clip depth"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=116)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="nearClipDepth")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Distance from the camera to the near clipping plane [m]", min=0.000000, max=10000000000.000000, soft_min=0.000000, soft_max=10000000000.000000, step=1, precision=2, subtype="NONE")
@@ -401,8 +453,10 @@ class OctaneUniversalCameraFarClipDepth(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraFarClipDepth"
     bl_label="Far clip depth"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=315)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="farClipDepth")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=10000000000.000000, update=OctaneBaseSocket.update_node_tree, description="Distance from the camera to the far clipping plane [m]", min=0.000000, max=10000000000.000000, soft_min=0.000000, soft_max=10000000000.000000, step=1, precision=2, subtype="NONE")
@@ -415,8 +469,10 @@ class OctaneUniversalCameraAutofocus(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraAutofocus"
     bl_label="Auto-focus"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=12)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="autofocus")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="If enabled, the focus will be kept on the closest visible surface at the center of the image")
@@ -429,8 +485,10 @@ class OctaneUniversalCameraFocalDepth(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraFocalDepth"
     bl_label="Focal depth"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=51)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="focalDepth")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=1.118034, update=OctaneBaseSocket.update_node_tree, description="The depth of the plane in focus [m]", min=0.000001, max=340282346638528859811704183484516925440.000000, soft_min=0.000001, soft_max=10000000000.000000, step=1, precision=3, subtype="NONE")
@@ -443,8 +501,10 @@ class OctaneUniversalCameraAperture(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraAperture"
     bl_label="Aperture"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=8)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="aperture")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.100000, update=OctaneBaseSocket.update_node_tree, description="The radius of the lens opening [cm]", min=0.000000, max=100.000000, soft_min=0.000000, soft_max=100.000000, step=1, precision=2, subtype="NONE")
@@ -457,8 +517,10 @@ class OctaneUniversalCameraApertureAspectRatio(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraApertureAspectRatio"
     bl_label="Aperture aspect ratio"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=9)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="apertureAspectRatio")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="The aspect ratio of the aperture. Values other than 1 simulate an anamorphic lens", min=0.100000, max=10.000000, soft_min=0.100000, soft_max=10.000000, step=1, precision=2, subtype="FACTOR")
@@ -471,8 +533,10 @@ class OctaneUniversalCameraApertureShape(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraApertureShape"
     bl_label="Aperture shape"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type="OctaneEnumValue"
+    octane_default_node_type=57
+    octane_default_node_name="OctaneEnumValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=548)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="apertureShape")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
     items = [
@@ -491,8 +555,10 @@ class OctaneUniversalCameraApertureEdge(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraApertureEdge"
     bl_label="Aperture edge"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=10)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="aperture_edge")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Modifies the relative distribution of rays across the aperture, impacting the hardness of the edge of bokeh shapes.\nHigher values increase the contrast towards the edge.\nValues between 0 and 1 simulates an apodization filter", min=0.000000, max=3.000000, soft_min=0.000000, soft_max=3.000000, step=1, precision=2, subtype="FACTOR")
@@ -505,8 +571,10 @@ class OctaneUniversalCameraBokehSidecount(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraBokehSidecount"
     bl_label="Aperture blade count"
     color=consts.OctanePinColor.Int
-    octane_default_node_type="OctaneIntValue"
+    octane_default_node_type=9
+    octane_default_node_name="OctaneIntValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=335)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="bokehSidecount")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
     default_value: IntProperty(default=6, update=OctaneBaseSocket.update_node_tree, description="The number of blades forming the iris diaphragm", min=3, max=12, soft_min=3, soft_max=12, step=1, subtype="FACTOR")
@@ -519,8 +587,10 @@ class OctaneUniversalCameraBokehRotation(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraBokehRotation"
     bl_label="Aperture rotation"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=333)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="bokehRotation")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="The rotation of the aperture shape [degrees]", min=-360.000000, max=360.000000, soft_min=-360.000000, soft_max=360.000000, step=10, precision=2, subtype="FACTOR")
@@ -533,8 +603,10 @@ class OctaneUniversalCameraBokehRoundedness(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraBokehRoundedness"
     bl_label="Aperture roundedness"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=334)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="bokehRoundedness")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="The roundedness of the blades forming the iris diaphragm", min=-1.000000, max=1.000000, soft_min=-1.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
@@ -547,8 +619,10 @@ class OctaneUniversalCameraCentralObstruction(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraCentralObstruction"
     bl_label="Central obstruction"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=549)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="centralObstruction")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Simulates the obstruction from the secondary mirror of a catadioptric system. Only enabled on circular apertures", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
@@ -561,8 +635,10 @@ class OctaneUniversalCameraNotchPosition(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraNotchPosition"
     bl_label="Notch position"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=550)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="notchPosition")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=-1.000000, update=OctaneBaseSocket.update_node_tree, description="Position of the notch on the blades", min=-1.000000, max=1.000000, soft_min=-1.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
@@ -575,8 +651,10 @@ class OctaneUniversalCameraNotchScale(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraNotchScale"
     bl_label="Notch scale"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=551)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="notchScale")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.500000, update=OctaneBaseSocket.update_node_tree, description="Scale of the notch", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
@@ -589,8 +667,10 @@ class OctaneUniversalCameraCustomAperture(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraCustomAperture"
     bl_label="Custom aperture"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=""
+    octane_default_node_type=0
+    octane_default_node_name=""
     octane_pin_id: IntProperty(name="Octane Pin ID", default=552)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="customAperture")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -602,8 +682,10 @@ class OctaneUniversalCameraOpticalVignetteDistance(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraOpticalVignetteDistance"
     bl_label="Optical vignette distance"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=553)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="opticalVignetteDistance")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="The distance between the lens and the opening of the lens barrel [m]", min=-0.500000, max=0.500000, soft_min=-0.500000, soft_max=0.500000, step=1, precision=2, subtype="FACTOR")
@@ -616,8 +698,10 @@ class OctaneUniversalCameraOpticalVignetteScale(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraOpticalVignetteScale"
     bl_label="Optical vignette scale"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=554)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="opticalVignetteScale")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="The scale of the opening of the lens barrel relatively to the aperture", min=1.000000, max=4.000000, soft_min=1.000000, soft_max=4.000000, step=1, precision=2, subtype="NONE")
@@ -630,8 +714,10 @@ class OctaneUniversalCameraDiopterEnable(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraDiopterEnable"
     bl_label="Enable split-focus diopter"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=555)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="diopterEnable")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Enable the split-focus diopter")
@@ -644,8 +730,10 @@ class OctaneUniversalCameraDiopterFocalDepth(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraDiopterFocalDepth"
     bl_label="Diopter focal depth"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=556)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="diopterFocalDepth")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=1.110000, update=OctaneBaseSocket.update_node_tree, description="The depth of the second focal plane [m]", min=0.010000, max=10000000000.000000, soft_min=0.010000, soft_max=1000.000000, step=1, precision=2, subtype="NONE")
@@ -658,8 +746,10 @@ class OctaneUniversalCameraDiopterRotation(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraDiopterRotation"
     bl_label="Diopter rotation"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=557)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="diopterRotation")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Rotation of the split-focus diopter [degrees]", min=-360.000000, max=360.000000, soft_min=-360.000000, soft_max=360.000000, step=10, precision=2, subtype="FACTOR")
@@ -672,8 +762,10 @@ class OctaneUniversalCameraDiopterTranslation(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraDiopterTranslation"
     bl_label="Diopter translation"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=558)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="diopterTranslation")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT2)
     default_value: FloatVectorProperty(default=(0.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="Translation of the split-focus diopter in image space", min=-1.000000, max=1.000000, soft_min=-1.000000, soft_max=1.000000, step=1, subtype="NONE", precision=2, size=2)
@@ -686,8 +778,10 @@ class OctaneUniversalCameraDiopterBoundaryWidth(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraDiopterBoundaryWidth"
     bl_label="Diopter boundary width"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=559)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="diopterBoundaryWidth")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.500000, update=OctaneBaseSocket.update_node_tree, description="Width of the boundary between the two fields relaticve to the image width", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
@@ -700,8 +794,10 @@ class OctaneUniversalCameraDiopterBoundaryFalloff(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraDiopterBoundaryFalloff"
     bl_label="Diopter boundary falloff"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=560)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="diopterBoundaryFalloff")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Controls how quickly the split-focus diopter focal depth blends into the main focal depth", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
@@ -714,8 +810,10 @@ class OctaneUniversalCameraDiopterShowGuide(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraDiopterShowGuide"
     bl_label="Show diopter guide"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=561)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="diopterShowGuide")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Display guide lines. Toggling this option on or off restarts the render")
@@ -728,8 +826,10 @@ class OctaneUniversalCameraPos(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraPos"
     bl_label="Position"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=133)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="pos")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
     default_value: FloatVectorProperty(default=(0.000000, 0.500000, 1.000000), update=OctaneBaseSocket.update_node_tree, description="The position of the camera", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", precision=2, size=3)
@@ -742,8 +842,10 @@ class OctaneUniversalCameraTarget(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraTarget"
     bl_label="Target"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=235)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="target")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
     default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="The target position, i.e. the point the camera looks at", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", precision=2, size=3)
@@ -756,8 +858,10 @@ class OctaneUniversalCameraUp(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraUp"
     bl_label="Up-vector"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=248)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="up")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
     default_value: FloatVectorProperty(default=(0.000000, 1.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="The up vector, i.e. the vector that defines where is up", min=-1.000000, max=1.000000, soft_min=-1.000000, soft_max=1.000000, step=1, subtype="NONE", precision=2, size=3)
@@ -770,8 +874,10 @@ class OctaneUniversalCameraKeepUpright(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraKeepUpright"
     bl_label="Keep upright"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=87)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="keepUpright")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="If enabled, the camera is always oriented towards the horizon and the up-vector will stay (0, 1, 0), i.e. vertical")

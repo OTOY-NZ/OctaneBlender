@@ -75,18 +75,22 @@ bool BlenderSync::object_is_mesh(BL::Object &b_ob)
     return false;
   }
 
-  if (b_ob.type() == BL::Object::type_CURVE) {
-    /* Skip exporting curves without faces, overhead can be
-     * significant if there are many for path animation. */
-    BL::Curve b_curve(b_ob.data());
+  BL::Object::type_enum type = b_ob.type();
 
-    return (b_curve.bevel_object() || b_curve.extrude() != 0.0f || b_curve.bevel_depth() != 0.0f ||
-            b_curve.dimensions() == BL::Curve::dimensions_2D || b_ob.modifiers.length());
+  if (type == BL::Object::type_VOLUME || type == BL::Object::type_HAIR ||
+      type == BL::Object::type_POINTCLOUD) {
+    /* Will be exported attached to mesh. */
+    return true;
   }
-  else {
-    return (b_ob_data.is_a(&RNA_Mesh) || b_ob_data.is_a(&RNA_Curve) ||
-            b_ob_data.is_a(&RNA_MetaBall));
+
+  /* Other object types that are not meshes but evaluate to meshes are presented to render engines
+   * as separate instance objects. Metaballs and surface objects have not been affected by that
+   * change yet. */
+  if (type == BL::Object::type_SURFACE || type == BL::Object::type_META) {
+    return true;
   }
+
+  return b_ob_data.is_a(&RNA_Mesh);
 }
 
 /* Light */

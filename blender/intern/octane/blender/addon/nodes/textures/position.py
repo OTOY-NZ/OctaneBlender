@@ -15,8 +15,10 @@ class OctanePositionCoordinateSystem(OctaneBaseSocket):
     bl_idname="OctanePositionCoordinateSystem"
     bl_label="Coordinate system"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type="OctaneEnumValue"
+    octane_default_node_type=57
+    octane_default_node_name="OctaneEnumValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=645)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="coordinateSystem")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
     items = [

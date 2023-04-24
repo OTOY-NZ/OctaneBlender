@@ -15,8 +15,10 @@ class OctanePostProcessingOnOff(OctaneBaseSocket):
     bl_idname="OctanePostProcessingOnOff"
     bl_label="Enable"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=124)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="on_off")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Enables post processing")
@@ -29,8 +31,10 @@ class OctanePostProcessingCutoff(OctaneBaseSocket):
     bl_idname="OctanePostProcessingCutoff"
     bl_label="Cutoff"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=486)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="cutoff")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="The minimum brightness of a pixel to have bloom and glare applied. The brightness is measured after the application of the exposure.\n\nIncreasing this value will decrease the overall brightness of bloom and glare, which can be compensated by increasing the bloom/glare power, but that's scene dependent", min=0.000000, max=4096.000000, soft_min=0.000000, soft_max=1000.000000, step=1, precision=2, subtype="NONE")
@@ -43,8 +47,10 @@ class OctanePostProcessingBloomPower(OctaneBaseSocket):
     bl_idname="OctanePostProcessingBloomPower"
     bl_label="Bloom power"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=14)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="bloom_power")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Bloom power", min=0.000000, max=100000.000000, soft_min=0.000000, soft_max=100000.000000, step=1, precision=2, subtype="NONE")
@@ -57,8 +63,10 @@ class OctanePostProcessingGlarePower(OctaneBaseSocket):
     bl_idname="OctanePostProcessingGlarePower"
     bl_label="Glare power"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=64)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="glare_power")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Glare power", min=0.000000, max=100000.000000, soft_min=0.000000, soft_max=100000.000000, step=1, precision=2, subtype="NONE")
@@ -71,8 +79,10 @@ class OctanePostProcessingGlareRayAmount(OctaneBaseSocket):
     bl_idname="OctanePostProcessingGlareRayAmount"
     bl_label="Glare ray count"
     color=consts.OctanePinColor.Int
-    octane_default_node_type="OctaneIntValue"
+    octane_default_node_type=9
+    octane_default_node_name="OctaneIntValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=65)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="glare_ray_amount")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
     default_value: IntProperty(default=3, update=OctaneBaseSocket.update_node_tree, description="Glare ray count", min=1, max=8, soft_min=1, soft_max=8, step=1, subtype="FACTOR")
@@ -85,8 +95,10 @@ class OctanePostProcessingGlareAngle(OctaneBaseSocket):
     bl_idname="OctanePostProcessingGlareAngle"
     bl_label="Glare rotation angle"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=62)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="glare_angle")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=15.000000, update=OctaneBaseSocket.update_node_tree, description="Glare rotation angle", min=-90.000000, max=90.000000, soft_min=-90.000000, soft_max=90.000000, step=1, precision=2, subtype="FACTOR")
@@ -99,8 +111,10 @@ class OctanePostProcessingGlareBlur(OctaneBaseSocket):
     bl_idname="OctanePostProcessingGlareBlur"
     bl_label="Glare blur"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=63)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="glare_blur")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.001000, update=OctaneBaseSocket.update_node_tree, description="Glare blur", min=0.001000, max=0.200000, soft_min=0.001000, soft_max=0.200000, step=1, precision=3, subtype="FACTOR")
@@ -113,8 +127,10 @@ class OctanePostProcessingSpectralIntensity(OctaneBaseSocket):
     bl_idname="OctanePostProcessingSpectralIntensity"
     bl_label="Spectral intensity"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=219)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="spectral_intensity")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Spectral intensity", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
@@ -127,8 +143,10 @@ class OctanePostProcessingSpectralShift(OctaneBaseSocket):
     bl_idname="OctanePostProcessingSpectralShift"
     bl_label="Spectral shift"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=220)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="spectral_shift")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=2.000000, update=OctaneBaseSocket.update_node_tree, description="Spectral shift", min=0.000000, max=6.000000, soft_min=0.000000, soft_max=6.000000, step=1, precision=2, subtype="FACTOR")

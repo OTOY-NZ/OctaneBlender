@@ -15,8 +15,10 @@ class OctaneLayeredMaterialMaterial1(OctaneBaseSocket):
     bl_idname="OctaneLayeredMaterialMaterial1"
     bl_label="Base Material"
     color=consts.OctanePinColor.Material
-    octane_default_node_type="OctaneDiffuseMaterial"
+    octane_default_node_type=17
+    octane_default_node_name="OctaneDiffuseMaterial"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=100)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="material1")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_MATERIAL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -28,8 +30,10 @@ class OctaneLayeredMaterialCustomAov(OctaneBaseSocket):
     bl_idname="OctaneLayeredMaterialCustomAov"
     bl_label="Custom AOV"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type="OctaneEnumValue"
+    octane_default_node_type=57
+    octane_default_node_name="OctaneEnumValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=632)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="customAov")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
     items = [
@@ -65,8 +69,10 @@ class OctaneLayeredMaterialCustomAovChannel(OctaneBaseSocket):
     bl_idname="OctaneLayeredMaterialCustomAovChannel"
     bl_label="Custom AOV channel"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type="OctaneEnumValue"
+    octane_default_node_type=57
+    octane_default_node_name="OctaneEnumValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=633)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="customAovChannel")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
     items = [

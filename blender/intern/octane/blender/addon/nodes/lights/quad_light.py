@@ -15,8 +15,10 @@ class OctaneQuadLightSize(OctaneBaseSocket):
     bl_idname="OctaneQuadLightSize"
     bl_label="Quad size"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=216)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="size")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT2)
     default_value: FloatVectorProperty(default=(1.000000, 1.000000), update=OctaneBaseSocket.update_node_tree, description="Size of the quad. The quad light is always centered around the origin in the XY plane with the +Z axis as normal", min=0.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", precision=2, size=2)
@@ -29,8 +31,10 @@ class OctaneQuadLightMaterial1(OctaneBaseSocket):
     bl_idname="OctaneQuadLightMaterial1"
     bl_label="Material"
     color=consts.OctanePinColor.Material
-    octane_default_node_type="OctaneDiffuseMaterial"
+    octane_default_node_type=17
+    octane_default_node_name="OctaneDiffuseMaterial"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=100)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="material1")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_MATERIAL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -42,8 +46,10 @@ class OctaneQuadLightObjectLayer(OctaneBaseSocket):
     bl_idname="OctaneQuadLightObjectLayer"
     bl_label="Object layer"
     color=consts.OctanePinColor.ObjectLayer
-    octane_default_node_type="OctaneObjectLayer"
+    octane_default_node_type=65
+    octane_default_node_name="OctaneObjectLayer"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=328)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="objectLayer")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_OBJECTLAYER)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -55,8 +61,10 @@ class OctaneQuadLightTransform(OctaneBaseSocket):
     bl_idname="OctaneQuadLightTransform"
     bl_label="Transformation"
     color=consts.OctanePinColor.Transform
-    octane_default_node_type="OctaneTransformValue"
+    octane_default_node_type=67
+    octane_default_node_name="OctaneTransformValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=243)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="transform")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TRANSFORM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True

@@ -1105,22 +1105,22 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
 #undef ADD_OCTANE_PIN_DTO
       }
     }
-    if (bl_idname == "OctaneOCIOColorSpace") {      
+    if (bl_idname == "OctaneOCIOColorSpace") {
       OctaneDataTransferObject::OctaneNodeBase *cur_node =
           OctaneDataTransferObject::GlobalOctaneNodeFactory.CreateOctaneNode(
-          "OctaneOCIOColorSpace");
-	  cur_node->sName = node->oct_node->sName;
+              "OctaneOCIOColorSpace");
+      cur_node->sName = node->oct_node->sName;
       delete node->oct_node;
       node->oct_node = cur_node;
-	  char char_array[512];
+      char char_array[512];
       RNA_string_get(&b_node.ptr, "formatted_ocio_color_space_name", char_array);
       ::OctaneDataTransferObject::OctaneOcioColorSpace *octane_node =
           (::OctaneDataTransferObject::OctaneOcioColorSpace *)(node->oct_node);
       octane_node->sOcioName.sVal = char_array;
     }
-	if (bl_idname == "OctaneVertexDisplacement") {
+    if (bl_idname == "OctaneVertexDisplacement") {
       graph->need_subdivision = true;
-	}
+    }
   }
   else if (b_node.is_a(&RNA_ShaderNodeOctLayeredMat)) {
     int layer_number = RNA_enum_get(&b_node.ptr, "layer_number");
@@ -2040,7 +2040,8 @@ void BlenderSync::sync_material(BL::Material b_material, Shader *shader)
   std::string material_name = b_material.name();
   ShaderGraph *graph = new ShaderGraph(SHADER_GRAPH_MATERIAL);
   shader->name = material_name;
-  shader->graph = graph;
+  shader->set_graph(graph);
+  // shader->graph = graph;
   BL::ShaderNodeTree b_ntree(b_material.node_tree());
   bool is_auto_refresh = false;
   LinkResolver link_resolver(b_engine, b_scene);

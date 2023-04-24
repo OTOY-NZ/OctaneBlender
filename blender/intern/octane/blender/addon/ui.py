@@ -1184,7 +1184,12 @@ class OCTANE_LIGHT_PT_nodes(OctaneButtonsPanel, Panel):
         light = context.light
         if light.node_tree and light.node_tree.get_output_node("ALL"):
             output_node = light.node_tree.get_output_node("ALL")
+            # if light.type in ("AREA", "MESH", "SPHERE"):
+            #     utility._panel_ui_node_view(context, layout, light.node_tree, output_node)
             layout.template_node_view(light.node_tree, output_node, output_node.inputs[consts.OctaneOutputNodeSocketNames.SURFACE])
+        else:
+            if not light.node_tree or not light.node_tree.use_nodes:
+                layout.operator("octane.use_shading_nodes", icon='NODETREE')
         # utility.panel_ui_node_view(context, layout, light, consts.OctaneOutputNodeSocketNames.SURFACE)
 
 

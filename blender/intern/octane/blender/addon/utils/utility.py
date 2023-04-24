@@ -681,7 +681,7 @@ def engine_add_layer_passes(scene, engine, layer, enable_denoiser=False):
     render_pass_ids = OctaneRenderAOVsOutputNode_Override_RenderPassItems.get_render_pass_ids()    
     for _id in render_pass_ids:
         name = OctaneRenderAOVsOutputNode_Override_RenderPassItems.RENDER_ID_TO_LEGACY_STYLE_PASS_NAME[_id]
-        is_denoiser = name.startswith("OctDenoiser")     
+        is_denoiser = name.startswith("OctDenoiser")            
         if is_denoiser and not enable_denoiser:
             continue        
         engine.add_pass(name, 4, "RGBA", layer=layer.name)

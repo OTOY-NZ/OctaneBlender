@@ -15,8 +15,10 @@ class Octane2DTransformationRotation(OctaneBaseSocket):
     bl_idname="Octane2DTransformationRotation"
     bl_label="Rotation"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=203)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="rotation")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Rotation", min=-360.000000, max=360.000000, soft_min=-360.000000, soft_max=360.000000, step=1, precision=2, subtype="FACTOR")
@@ -29,8 +31,10 @@ class Octane2DTransformationScale(OctaneBaseSocket):
     bl_idname="Octane2DTransformationScale"
     bl_label="Scale"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=209)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="scale")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT2)
     default_value: FloatVectorProperty(default=(1.000000, 1.000000), update=OctaneBaseSocket.update_node_tree, description="Scale", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.001000, soft_max=1000.000000, step=1, subtype="NONE", precision=3, size=2)
@@ -43,8 +47,10 @@ class Octane2DTransformationTranslation(OctaneBaseSocket):
     bl_idname="Octane2DTransformationTranslation"
     bl_label="Translation"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=244)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="translation")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT2)
     default_value: FloatVectorProperty(default=(0.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="Translation", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", precision=2, size=2)

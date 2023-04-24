@@ -15,8 +15,10 @@ class OctaneObjectLayerLayerId(OctaneBaseSocket):
     bl_idname="OctaneObjectLayerLayerId"
     bl_label="Render layer ID"
     color=consts.OctanePinColor.Int
-    octane_default_node_type="OctaneIntValue"
+    octane_default_node_type=9
+    octane_default_node_name="OctaneIntValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=92)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="layerId")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
     default_value: IntProperty(default=1, update=OctaneBaseSocket.update_node_tree, description="ID of the render layer the object belongs to", min=1, max=255, soft_min=1, soft_max=255, step=1, subtype="FACTOR")
@@ -29,8 +31,10 @@ class OctaneObjectLayerGeneralVisibility(OctaneBaseSocket):
     bl_idname="OctaneObjectLayerGeneralVisibility"
     bl_label="General visibility"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=58)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="general_visibility")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="General visibility", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
@@ -43,8 +47,10 @@ class OctaneObjectLayerCameraVisibility(OctaneBaseSocket):
     bl_idname="OctaneObjectLayerCameraVisibility"
     bl_label="Camera visibility"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=21)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="camera_visibility")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Camera visibility")
@@ -57,8 +63,10 @@ class OctaneObjectLayerShadowVisibility(OctaneBaseSocket):
     bl_idname="OctaneObjectLayerShadowVisibility"
     bl_label="Shadow visibility"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=213)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="shadow_visibility")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Shadow visibility")
@@ -71,8 +79,10 @@ class OctaneObjectLayerDirtVisibility(OctaneBaseSocket):
     bl_idname="OctaneObjectLayerDirtVisibility"
     bl_label="Dirt visibility"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=513)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="dirtVisibility")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Dirt visibility")
@@ -85,8 +95,10 @@ class OctaneObjectLayerLightPassMask(OctaneBaseSocket):
     bl_idname="OctaneObjectLayerLightPassMask"
     bl_label="Light pass mask"
     color=consts.OctanePinColor.BitMask
-    octane_default_node_type="OctaneBitValue"
+    octane_default_node_type=132
+    octane_default_node_name="OctaneBitValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=433)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="lightPassMask")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BIT_MASK)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -98,8 +110,10 @@ class OctaneObjectLayerRandomSeed(OctaneBaseSocket):
     bl_idname="OctaneObjectLayerRandomSeed"
     bl_label="Random color seed"
     color=consts.OctanePinColor.Int
-    octane_default_node_type="OctaneIntValue"
+    octane_default_node_type=9
+    octane_default_node_name="OctaneIntValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=143)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="randomSeed")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
     default_value: IntProperty(default=0, update=OctaneBaseSocket.update_node_tree, description="Random color seed", min=0, max=65535, soft_min=0, soft_max=65535, step=1, subtype="FACTOR")
@@ -112,8 +126,10 @@ class OctaneObjectLayerObjectColor(OctaneBaseSocket):
     bl_idname="OctaneObjectLayerObjectColor"
     bl_label="Color"
     color=consts.OctanePinColor.Int
-    octane_default_node_type="OctaneIntValue"
+    octane_default_node_type=9
+    octane_default_node_name="OctaneIntValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=297)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="objectColor")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
     default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="The color that is rendered in the object layer render pass", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="NONE", size=3)
@@ -126,8 +142,10 @@ class OctaneObjectLayerCustomAov(OctaneBaseSocket):
     bl_idname="OctaneObjectLayerCustomAov"
     bl_label="Custom AOV"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type="OctaneEnumValue"
+    octane_default_node_type=57
+    octane_default_node_name="OctaneEnumValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=632)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="customAov")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
     items = [
@@ -163,8 +181,10 @@ class OctaneObjectLayerCustomAovChannel(OctaneBaseSocket):
     bl_idname="OctaneObjectLayerCustomAovChannel"
     bl_label="Custom AOV channel"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type="OctaneEnumValue"
+    octane_default_node_type=57
+    octane_default_node_name="OctaneEnumValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=633)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="customAovChannel")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
     items = [
@@ -183,8 +203,10 @@ class OctaneObjectLayerBakingGroupId(OctaneBaseSocket):
     bl_idname="OctaneObjectLayerBakingGroupId"
     bl_label="Baking group ID"
     color=consts.OctanePinColor.Int
-    octane_default_node_type="OctaneIntValue"
+    octane_default_node_type=9
+    octane_default_node_name="OctaneIntValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=262)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="bakingGroupId")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
     default_value: IntProperty(default=1, update=OctaneBaseSocket.update_node_tree, description="ID of the baking group the object belongs to", min=1, max=65535, soft_min=1, soft_max=65535, step=1, subtype="FACTOR")
@@ -197,8 +219,10 @@ class OctaneObjectLayerTransform(OctaneBaseSocket):
     bl_idname="OctaneObjectLayerTransform"
     bl_label="Baking UV transform"
     color=consts.OctanePinColor.Transform
-    octane_default_node_type="OctaneTransformValue"
+    octane_default_node_type=67
+    octane_default_node_name="OctaneTransformValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=243)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="transform")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TRANSFORM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True

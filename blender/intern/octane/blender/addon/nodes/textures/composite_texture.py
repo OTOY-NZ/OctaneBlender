@@ -15,8 +15,10 @@ class OctaneCompositeTextureClamp(OctaneBaseSocket):
     bl_idname="OctaneCompositeTextureClamp"
     bl_label="Clamp"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=628)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="clamp")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Clamp the result of blending each layer to [0,1] (ignored when used as a normal map)")

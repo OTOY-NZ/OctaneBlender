@@ -15,8 +15,10 @@ class OctaneRoundEdgesRoundEdgesMode(OctaneBaseSocket):
     bl_idname="OctaneRoundEdgesRoundEdgesMode"
     bl_label="Mode"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type="OctaneEnumValue"
+    octane_default_node_type=57
+    octane_default_node_name="OctaneEnumValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=485)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="roundEdgesMode")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
     items = [
@@ -36,8 +38,10 @@ class OctaneRoundEdgesRoundEdgesRadius(OctaneBaseSocket):
     bl_idname="OctaneRoundEdgesRoundEdgesRadius"
     bl_label="Radius"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=473)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="roundEdgesRadius")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Edge rounding radius", min=0.000000, max=100.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="NONE")
@@ -50,8 +54,10 @@ class OctaneRoundEdgesRoundEdgesCurvatureRoundness(OctaneBaseSocket):
     bl_idname="OctaneRoundEdgesRoundEdgesCurvatureRoundness"
     bl_label="Roundness"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=475)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="roundEdgesCurvatureRoundness")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Specifies the roundness of the edge being 1 completely round and 0 a chamfer", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
@@ -64,8 +70,10 @@ class OctaneRoundEdgesRoundEdgesSampleCount(OctaneBaseSocket):
     bl_idname="OctaneRoundEdgesRoundEdgesSampleCount"
     bl_label="Samples"
     color=consts.OctanePinColor.Int
-    octane_default_node_type="OctaneIntValue"
+    octane_default_node_type=9
+    octane_default_node_name="OctaneIntValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=508)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="roundEdgesSampleCount")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
     default_value: IntProperty(default=8, update=OctaneBaseSocket.update_node_tree, description="The number of rays to use when sampling the neighboring geometry", min=4, max=16, soft_min=4, soft_max=16, step=2, subtype="FACTOR")
@@ -78,8 +86,10 @@ class OctaneRoundEdgesRoundEdgesConsiderOtherObjects(OctaneBaseSocket):
     bl_idname="OctaneRoundEdgesRoundEdgesConsiderOtherObjects"
     bl_label="Consider other objects"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=476)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="roundEdgesConsiderOtherObjects")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Whether to consider other objects in the scene or just the current object")

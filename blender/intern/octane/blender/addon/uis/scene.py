@@ -98,6 +98,9 @@ class OCTANE_RENDER_PT_kernel(common.OctanePropertyPanel, Panel):
         def draw_minimize_net_traffic():
             col.prop(oct_scene, "minimize_net_traffic")  
 
+        def draw_emulate_old_volume_behavior():
+            col.prop(oct_scene, "emulate_old_volume_behavior")
+
         def draw_color():
             col.prop(oct_scene, "white_light_spectrum")
             col.prop(oct_scene, "use_old_color_pipeline")
@@ -220,7 +223,12 @@ class OCTANE_RENDER_PT_kernel(common.OctanePropertyPanel, Panel):
             box = layout.box()
             box.label(text="Toon Shading")            
             col = box.column(align=True)       
-            draw_toon_shadow_ambient()           
+            draw_toon_shadow_ambient()
+
+            box = layout.box()
+            box.label(text="Compatibility settings")            
+            col = box.column(align=True)                  
+            draw_emulate_old_volume_behavior()                       
         elif oct_scene.kernel_type == '2':
             # Path tracing kernel
             col = layout.column(align=True)
@@ -279,6 +287,11 @@ class OCTANE_RENDER_PT_kernel(common.OctanePropertyPanel, Panel):
             box.label(text="Toon Shading")            
             col = box.column(align=True)       
             draw_toon_shadow_ambient()
+
+            box = layout.box()
+            box.label(text="Compatibility settings")            
+            col = box.column(align=True)                  
+            draw_emulate_old_volume_behavior()            
         elif oct_scene.kernel_type == '3':
             # PMC kernel
             col = layout.column(align=True)
@@ -327,6 +340,11 @@ class OCTANE_RENDER_PT_kernel(common.OctanePropertyPanel, Panel):
             box.label(text="Toon Shading")            
             col = box.column(align=True)       
             draw_toon_shadow_ambient()
+
+            box = layout.box()
+            box.label(text="Compatibility settings")            
+            col = box.column(align=True)                  
+            draw_emulate_old_volume_behavior()            
         elif oct_scene.kernel_type == '4':
             # Info channels kernel
             box = layout.box()
@@ -367,7 +385,7 @@ class OCTANE_RENDER_PT_kernel(common.OctanePropertyPanel, Panel):
             box = layout.box()
             box.label(text="Deep Image")            
             col = box.column(align=True)       
-            draw_deep_image()                
+            draw_deep_image()                            
         else:
             pass
 

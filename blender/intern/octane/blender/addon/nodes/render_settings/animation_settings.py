@@ -15,8 +15,10 @@ class OctaneAnimationSettingsShutterAlignment(OctaneBaseSocket):
     bl_idname="OctaneAnimationSettingsShutterAlignment"
     bl_label="Shutter alignment"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type="OctaneEnumValue"
+    octane_default_node_type=57
+    octane_default_node_name="OctaneEnumValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=304)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="shutterAlignment")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
     items = [
@@ -34,8 +36,10 @@ class OctaneAnimationSettingsShutterTime(OctaneBaseSocket):
     bl_idname="OctaneAnimationSettingsShutterTime"
     bl_label="Shutter time"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=305)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="shutterTime")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.200000, update=OctaneBaseSocket.update_node_tree, description="The shutter time percentage relative to the duration of a single frame", min=0.000000, max=1000.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="PERCENTAGE")
@@ -48,8 +52,10 @@ class OctaneAnimationSettingsSubFrameStart(OctaneBaseSocket):
     bl_idname="OctaneAnimationSettingsSubFrameStart"
     bl_label="Subframe start"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=308)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="subFrameStart")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Minimum sub-frame % time to sample", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="PERCENTAGE")
@@ -62,8 +68,10 @@ class OctaneAnimationSettingsSubFrameEnd(OctaneBaseSocket):
     bl_idname="OctaneAnimationSettingsSubFrameEnd"
     bl_label="Subframe end"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=309)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="subFrameEnd")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Maximum sub-frame % time to sample", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="PERCENTAGE")

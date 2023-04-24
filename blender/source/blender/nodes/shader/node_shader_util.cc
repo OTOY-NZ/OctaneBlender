@@ -162,7 +162,7 @@ void node_data_from_gpu_stack(bNodeStack *ns, GPUNodeStack *gs)
 
 static void gpu_stack_from_data_list(GPUNodeStack *gs, ListBase *sockets, bNodeStack **ns)
 {
-  int i;
+  int i, j = 0;
   LISTBASE_FOREACH_INDEX (bNodeSocket *, socket, sockets, i) {
     if (STREQ(socket->name, "Octane Environment") ||
         STREQ(socket->name, "Octane VisibleEnvironment") ||
@@ -170,9 +170,10 @@ static void gpu_stack_from_data_list(GPUNodeStack *gs, ListBase *sockets, bNodeS
       continue;
     }
     node_gpu_stack_from_data(&gs[i], socket->type, ns[i]);
+    j++;
   }
 
-  gs[i].end = true;
+  gs[j].end = true;
 }
 
 static void data_from_gpu_stack_list(ListBase *sockets, bNodeStack **ns, GPUNodeStack *gs)

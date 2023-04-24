@@ -15,8 +15,10 @@ class OctaneClippingMaterialEnabled(OctaneBaseSocket):
     bl_idname="OctaneClippingMaterialEnabled"
     bl_label="Enabled"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=42)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="enabled")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="If true, geometries located inside the clipping material will be clipped away")
@@ -29,8 +31,10 @@ class OctaneClippingMaterialIntersectionMaterial(OctaneBaseSocket):
     bl_idname="OctaneClippingMaterialIntersectionMaterial"
     bl_label="Intersection"
     color=consts.OctanePinColor.Material
-    octane_default_node_type=""
+    octane_default_node_type=0
+    octane_default_node_name=""
     octane_pin_id: IntProperty(name="Octane Pin ID", default=658)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="intersectionMaterial")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_MATERIAL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -42,8 +46,10 @@ class OctaneClippingMaterialPriority(OctaneBaseSocket):
     bl_idname="OctaneClippingMaterialPriority"
     bl_label="Priority"
     color=consts.OctanePinColor.Int
-    octane_default_node_type="OctaneIntValue"
+    octane_default_node_type=9
+    octane_default_node_name="OctaneIntValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=564)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="priority")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
     default_value: IntProperty(default=100, update=OctaneBaseSocket.update_node_tree, description="The material priority for this surface material", min=-100, max=100, soft_min=-100, soft_max=100, step=1, subtype="FACTOR")
@@ -56,8 +62,10 @@ class OctaneClippingMaterialRayepsilon(OctaneBaseSocket):
     bl_idname="OctaneClippingMaterialRayepsilon"
     bl_label="Custom ray epsilon"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=144)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="rayepsilon")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.000100, update=OctaneBaseSocket.update_node_tree, description="Clipping material offset distance", min=0.000000, max=1000.000000, soft_min=0.000001, soft_max=0.100000, step=1, precision=2, subtype="NONE")
@@ -70,8 +78,10 @@ class OctaneClippingMaterialRayEpsilonCustomEnabled(OctaneBaseSocket):
     bl_idname="OctaneClippingMaterialRayEpsilonCustomEnabled"
     bl_label="Custom ray epsilon enabled"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=744)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="rayEpsilonCustomEnabled")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="If true, the clipping material uses the specified custom ray epsilon instead of the global ray epsilon in kernel node")

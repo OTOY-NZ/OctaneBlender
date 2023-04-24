@@ -15,8 +15,10 @@ class OctaneChannelPickerTexture(OctaneBaseSocket):
     bl_idname="OctaneChannelPickerTexture"
     bl_label="Input"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=""
+    octane_default_node_type=0
+    octane_default_node_name=""
     octane_pin_id: IntProperty(name="Octane Pin ID", default=240)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="texture")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -28,8 +30,10 @@ class OctaneChannelPickerColorChannel(OctaneBaseSocket):
     bl_idname="OctaneChannelPickerColorChannel"
     bl_label="Channel"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type="OctaneEnumValue"
+    octane_default_node_type=57
+    octane_default_node_name="OctaneEnumValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=618)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="colorChannel")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
     items = [

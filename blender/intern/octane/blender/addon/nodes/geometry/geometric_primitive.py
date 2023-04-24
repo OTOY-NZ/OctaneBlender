@@ -15,8 +15,10 @@ class OctaneGeometricPrimitivePrimitive(OctaneBaseSocket):
     bl_idname="OctaneGeometricPrimitivePrimitive"
     bl_label="Primitive"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type="OctaneEnumValue"
+    octane_default_node_type=57
+    octane_default_node_name="OctaneEnumValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=526)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="primitive")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
     items = [
@@ -54,8 +56,10 @@ class OctaneGeometricPrimitiveMaterial(OctaneBaseSocket):
     bl_idname="OctaneGeometricPrimitiveMaterial"
     bl_label="Material"
     color=consts.OctanePinColor.Material
-    octane_default_node_type="OctaneDiffuseMaterial"
+    octane_default_node_type=17
+    octane_default_node_name="OctaneDiffuseMaterial"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=397)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="material")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_MATERIAL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -67,8 +71,10 @@ class OctaneGeometricPrimitiveObjectLayer(OctaneBaseSocket):
     bl_idname="OctaneGeometricPrimitiveObjectLayer"
     bl_label="Object layer"
     color=consts.OctanePinColor.ObjectLayer
-    octane_default_node_type="OctaneObjectLayer"
+    octane_default_node_type=65
+    octane_default_node_name="OctaneObjectLayer"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=328)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="objectLayer")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_OBJECTLAYER)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -80,8 +86,10 @@ class OctaneGeometricPrimitiveTransform(OctaneBaseSocket):
     bl_idname="OctaneGeometricPrimitiveTransform"
     bl_label="Transform"
     color=consts.OctanePinColor.Transform
-    octane_default_node_type="OctaneTransformValue"
+    octane_default_node_type=67
+    octane_default_node_name="OctaneTransformValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=243)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="transform")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TRANSFORM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True

@@ -958,7 +958,7 @@ _CLASSES.append(OctaneEditorTextureOutputNode)
 
 
 # AOV Output Group Output
-OctaneAOVOutputGroupSocket.octane_default_node_type="OctaneAOVOutputGroup"
+OctaneAOVOutputGroupSocket.octane_default_node_name="OctaneAOVOutputGroup"
 
 # Render AOV Output
 

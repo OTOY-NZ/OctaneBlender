@@ -15,8 +15,10 @@ class OctaneScaleScale(OctaneBaseSocket):
     bl_idname="OctaneScaleScale"
     bl_label="Scale"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=209)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="scale")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
     default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=OctaneBaseSocket.update_node_tree, description="The scale factors for the X/Y/Z axis provided as a XYZ vector", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.001000, soft_max=1000.000000, step=1, subtype="NONE", precision=3, size=3)

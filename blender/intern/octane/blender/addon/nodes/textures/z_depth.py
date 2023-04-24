@@ -15,8 +15,10 @@ class OctaneZDepthNormalize(OctaneBaseSocket):
     bl_idname="OctaneZDepthNormalize"
     bl_label="Normalize result"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=118)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="normalize")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Whether the result should be remapped to the [0..1] range")
@@ -29,8 +31,10 @@ class OctaneZDepthNormalizationRange(OctaneBaseSocket):
     bl_idname="OctaneZDepthNormalizationRange"
     bl_label="Normalization range"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=640)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="normalizationRange")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT2)
     default_value: FloatVectorProperty(default=(0.000000, 5.000000), update=OctaneBaseSocket.update_node_tree, description="Start and end values used for normalization", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", precision=2, size=2)

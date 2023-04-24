@@ -15,8 +15,10 @@ class OctaneRayDirectionViewDirection(OctaneBaseSocket):
     bl_idname="OctaneRayDirectionViewDirection"
     bl_label="View direction"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=700)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="viewDirection")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="If checked the resulting vector goes from the viewing position to the shaded point position, if not checked it goes in the opposite direction")
@@ -29,8 +31,10 @@ class OctaneRayDirectionCoordinateSystem(OctaneBaseSocket):
     bl_idname="OctaneRayDirectionCoordinateSystem"
     bl_label="Coordinate system"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type="OctaneEnumValue"
+    octane_default_node_type=57
+    octane_default_node_name="OctaneEnumValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=645)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="coordinateSystem")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
     items = [
@@ -49,8 +53,10 @@ class OctaneRayDirectionNormalize(OctaneBaseSocket):
     bl_idname="OctaneRayDirectionNormalize"
     bl_label="Normalize result"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=118)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="normalize")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Whether to remap the result to the [0..1] range or leave it in the [-1..+1] range")

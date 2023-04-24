@@ -15,8 +15,10 @@ class OctaneRotationRotationOrder(OctaneBaseSocket):
     bl_idname="OctaneRotationRotationOrder"
     bl_label="Order"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type="OctaneEnumValue"
+    octane_default_node_type=57
+    octane_default_node_name="OctaneEnumValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=202)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="rotationOrder")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
     items = [
@@ -37,8 +39,10 @@ class OctaneRotationRotation(OctaneBaseSocket):
     bl_idname="OctaneRotationRotation"
     bl_label="Angles"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=203)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="rotation")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
     default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="Provides the X/Y/Z rotation angles", min=-360.000000, max=360.000000, soft_min=-360.000000, soft_max=360.000000, step=10, subtype="NONE", precision=2, size=3)

@@ -15,8 +15,10 @@ class OctaneAmbientOcclusionAOVEnabled(OctaneBaseSocket):
     bl_idname="OctaneAmbientOcclusionAOVEnabled"
     bl_label="Enabled"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=42)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="enabled")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Enables the render AOV")
@@ -29,8 +31,10 @@ class OctaneAmbientOcclusionAOVAodist(OctaneBaseSocket):
     bl_idname="OctaneAmbientOcclusionAOVAodist"
     bl_label="AO distance"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=7)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="aodist")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=3.000000, update=OctaneBaseSocket.update_node_tree, description="The maximum distance for which the occlusion should be tested", min=0.010000, max=1024.000000, soft_min=0.010000, soft_max=1024.000000, step=1, precision=2, subtype="NONE")
@@ -43,8 +47,10 @@ class OctaneAmbientOcclusionAOVAoAlphaShadows(OctaneBaseSocket):
     bl_idname="OctaneAmbientOcclusionAOVAoAlphaShadows"
     bl_label="AO alpha shadows"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=258)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="aoAlphaShadows")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Take alpha maps into account when calculating ambient occlusion")

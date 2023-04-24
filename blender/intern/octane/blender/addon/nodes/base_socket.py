@@ -21,7 +21,8 @@ class OctaneBaseSocket(bpy.types.NodeSocket):
     bl_label=""
     bl_idname=""
     color=consts.OctanePinColor.Default    
-    octane_default_node_type=""
+    octane_default_node_type=0
+    octane_default_node_name=""
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=0
@@ -55,7 +56,7 @@ class OctaneBaseSocket(bpy.types.NodeSocket):
                 if hasattr(self, "octane_osl_default_node_type"):
                     op.node_type = self.octane_osl_default_node_type
                 else:
-                    op.node_type = self.octane_default_node_type
+                    op.node_type = self.octane_default_node_name
                 op.input_socket_name = self.name
                 op.output_socket_pin_type = self.octane_pin_type
 
@@ -207,7 +208,7 @@ class OctaneMovableInput(OctanePatternInput):
         split = split.split(factor=0.4)
         c = split.column()
         op = c.operator("octane.add_default_node", icon="ADD", text="")
-        op.node_type = self.octane_default_node_type
+        op.node_type = self.octane_default_node_name
         op.input_socket_name = self.name
         op.output_socket_pin_type = self.octane_pin_type
         if not self.octane_show_action_ops:

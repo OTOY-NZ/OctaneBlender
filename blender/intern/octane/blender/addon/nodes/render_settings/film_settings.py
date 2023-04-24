@@ -15,8 +15,10 @@ class OctaneFilmSettingsResolution(OctaneBaseSocket):
     bl_idname="OctaneFilmSettingsResolution"
     bl_label="Resolution"
     color=consts.OctanePinColor.Int
-    octane_default_node_type="OctaneImageResolution"
+    octane_default_node_type=12
+    octane_default_node_name="OctaneImageResolution"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=198)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="resolution")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT2)
     default_value: IntVectorProperty(default=(1024, 512), update=OctaneBaseSocket.update_node_tree, description="Resolution of the render result", min=4, max=65536, soft_min=4, soft_max=65536, step=1, subtype="NONE", size=2)
@@ -29,8 +31,10 @@ class OctaneFilmSettingsRegionOffset(OctaneBaseSocket):
     bl_idname="OctaneFilmSettingsRegionOffset"
     bl_label="Region start"
     color=consts.OctanePinColor.Int
-    octane_default_node_type="OctaneIntValue"
+    octane_default_node_type=9
+    octane_default_node_name="OctaneIntValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=312)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="regionOffset")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT2)
     default_value: IntVectorProperty(default=(0, 0), update=OctaneBaseSocket.update_node_tree, description="The start coordinate where the render region starts", min=0, max=65535, soft_min=0, soft_max=65535, step=1, subtype="NONE", size=2)
@@ -43,8 +47,10 @@ class OctaneFilmSettingsRegionSize(OctaneBaseSocket):
     bl_idname="OctaneFilmSettingsRegionSize"
     bl_label="Region size"
     color=consts.OctanePinColor.Int
-    octane_default_node_type="OctaneIntValue"
+    octane_default_node_type=9
+    octane_default_node_name="OctaneIntValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=313)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="regionSize")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT2)
     default_value: IntVectorProperty(default=(65536, 65536), update=OctaneBaseSocket.update_node_tree, description="The size of the render region", min=1, max=65536, soft_min=1, soft_max=65536, step=1, subtype="NONE", size=2)

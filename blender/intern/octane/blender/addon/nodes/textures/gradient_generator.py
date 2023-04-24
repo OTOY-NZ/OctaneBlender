@@ -15,8 +15,10 @@ class OctaneGradientGeneratorGradientType(OctaneBaseSocket):
     bl_idname="OctaneGradientGeneratorGradientType"
     bl_label="Gradient type"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type="OctaneEnumValue"
+    octane_default_node_type=57
+    octane_default_node_name="OctaneEnumValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=667)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="gradientType")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
     items = [
@@ -36,8 +38,10 @@ class OctaneGradientGeneratorRepetitions(OctaneBaseSocket):
     bl_idname="OctaneGradientGeneratorRepetitions"
     bl_label="Repetitions"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=659)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="repetitions")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Number of times the gradient is repeated", min=1.000000, max=20.000000, soft_min=1.000000, soft_max=20.000000, step=1, precision=2, subtype="FACTOR")
@@ -50,8 +54,10 @@ class OctaneGradientGeneratorPolygonSides(OctaneBaseSocket):
     bl_idname="OctaneGradientGeneratorPolygonSides"
     bl_label="Polygon sides"
     color=consts.OctanePinColor.Int
-    octane_default_node_type="OctaneIntValue"
+    octane_default_node_type=9
+    octane_default_node_name="OctaneIntValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=660)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="polygonSides")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
     default_value: IntProperty(default=4, update=OctaneBaseSocket.update_node_tree, description="Number of sides to the polygon when using the polygonal gradient type", min=3, max=20, soft_min=3, soft_max=20, step=1, subtype="FACTOR")
@@ -64,8 +70,10 @@ class OctaneGradientGeneratorGamma(OctaneBaseSocket):
     bl_idname="OctaneGradientGeneratorGamma"
     bl_label="Gamma"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=57)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="gamma")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=2.200000, update=OctaneBaseSocket.update_node_tree, description="Gamma correction coefficient", min=0.100000, max=8.000000, soft_min=0.100000, soft_max=8.000000, step=1, precision=2, subtype="NONE")
@@ -78,8 +86,10 @@ class OctaneGradientGeneratorInvert(OctaneBaseSocket):
     bl_idname="OctaneGradientGeneratorInvert"
     bl_label="Invert"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=83)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="invert")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Invert the output color")
@@ -92,8 +102,10 @@ class OctaneGradientGeneratorTransform(OctaneBaseSocket):
     bl_idname="OctaneGradientGeneratorTransform"
     bl_label="UVW transform"
     color=consts.OctanePinColor.Transform
-    octane_default_node_type="OctaneTransformValue"
+    octane_default_node_type=67
+    octane_default_node_name="OctaneTransformValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=243)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="transform")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TRANSFORM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -105,8 +117,10 @@ class OctaneGradientGeneratorProjection(OctaneBaseSocket):
     bl_idname="OctaneGradientGeneratorProjection"
     bl_label="Projection"
     color=consts.OctanePinColor.Projection
-    octane_default_node_type="OctaneXYZToUVW"
+    octane_default_node_type=75
+    octane_default_node_name="OctaneXYZToUVW"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=141)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="projection")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_PROJECTION)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -118,8 +132,10 @@ class OctaneGradientGeneratorBorderMode(OctaneBaseSocket):
     bl_idname="OctaneGradientGeneratorBorderMode"
     bl_label="Repetition mode"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type="OctaneEnumValue"
+    octane_default_node_type=57
+    octane_default_node_name="OctaneEnumValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=15)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="borderMode")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
     items = [

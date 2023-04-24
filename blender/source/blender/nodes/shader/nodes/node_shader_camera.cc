@@ -27,6 +27,17 @@ namespace blender::nodes::node_shader_camera_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  b.add_input<decl::Float>(N_("Max Z-Depth"))
+      .default_value(10.0f)
+      .min(0.001f)
+      .max(100000.0f)
+      .subtype(PROP_NONE);
+  b.add_input<decl::Float>(N_("Max Distance"))
+      .default_value(100.f)
+      .min(0.001f)
+      .max(100000.0f)
+      .subtype(PROP_NONE);
+  b.add_input<decl::Bool>(N_("Keep Front Projection")).default_value(true);
   b.add_output<decl::Vector>(N_("View Vector"));
   b.add_output<decl::Float>(N_("View Z Depth"));
   b.add_output<decl::Float>(N_("View Distance"));

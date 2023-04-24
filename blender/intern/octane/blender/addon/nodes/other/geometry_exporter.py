@@ -15,8 +15,10 @@ class OctaneGeometryExporterGeometry(OctaneBaseSocket):
     bl_idname="OctaneGeometryExporterGeometry"
     bl_label="Geometry"
     color=consts.OctanePinColor.Geometry
-    octane_default_node_type=""
+    octane_default_node_type=0
+    octane_default_node_name=""
     octane_pin_id: IntProperty(name="Octane Pin ID", default=59)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="geometry")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_GEOMETRY)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -28,8 +30,10 @@ class OctaneGeometryExporterOutputFile(OctaneBaseSocket):
     bl_idname="OctaneGeometryExporterOutputFile"
     bl_label="Output file"
     color=consts.OctanePinColor.String
-    octane_default_node_type="OctaneFileName"
+    octane_default_node_type=88
+    octane_default_node_name="OctaneFileName"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=529)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="outputFile")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_STRING)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_STRING)
     default_value: StringProperty(default="", update=OctaneBaseSocket.update_node_tree, description="")
@@ -42,8 +46,10 @@ class OctaneGeometryExporterExportMaterials(OctaneBaseSocket):
     bl_idname="OctaneGeometryExporterExportMaterials"
     bl_label="Export materials"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=530)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="exportMaterials")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="")
@@ -56,8 +62,10 @@ class OctaneGeometryExporterTextureQuality(OctaneBaseSocket):
     bl_idname="OctaneGeometryExporterTextureQuality"
     bl_label="Texture quality"
     color=consts.OctanePinColor.Int
-    octane_default_node_type="OctaneImageResolution"
+    octane_default_node_type=12
+    octane_default_node_name="OctaneImageResolution"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=531)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="textureQuality")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT2)
     default_value: IntVectorProperty(default=(256, 256), update=OctaneBaseSocket.update_node_tree, description="When exporting materials this is the resolution. \n                                 Ignored, if export materials is disabled", min=-2147483648, max=2147483647, soft_min=-2147483648, soft_max=2147483647, step=1, subtype="NONE", size=2)
@@ -70,8 +78,10 @@ class OctaneGeometryExporterPreserveOctaneData(OctaneBaseSocket):
     bl_idname="OctaneGeometryExporterPreserveOctaneData"
     bl_label="Preserve Octane material data"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=532)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="preserveOctaneData")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Ignored, if export materials is disabled")

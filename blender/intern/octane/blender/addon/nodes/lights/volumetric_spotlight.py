@@ -15,8 +15,10 @@ class OctaneVolumetricSpotlightThrowDistance(OctaneBaseSocket):
     bl_idname="OctaneVolumetricSpotlightThrowDistance"
     bl_label="Throw distance"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=516)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="throwDistance")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="", min=0.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, precision=2, subtype="NONE")
@@ -29,8 +31,10 @@ class OctaneVolumetricSpotlightConeWidth(OctaneBaseSocket):
     bl_idname="OctaneVolumetricSpotlightConeWidth"
     bl_label="Cone width"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=517)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="coneWidth")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.500000, update=OctaneBaseSocket.update_node_tree, description="", min=0.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, precision=2, subtype="NONE")
@@ -43,8 +47,10 @@ class OctaneVolumetricSpotlightMedium(OctaneBaseSocket):
     bl_idname="OctaneVolumetricSpotlightMedium"
     bl_label="Light medium"
     color=consts.OctanePinColor.Medium
-    octane_default_node_type="OctaneScattering"
+    octane_default_node_type=59
+    octane_default_node_name="OctaneScattering"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=110)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="medium")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_MEDIUM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -56,8 +62,10 @@ class OctaneVolumetricSpotlightEmitterMaterial(OctaneBaseSocket):
     bl_idname="OctaneVolumetricSpotlightEmitterMaterial"
     bl_label="Emitter material"
     color=consts.OctanePinColor.Material
-    octane_default_node_type="OctaneDiffuseMaterial"
+    octane_default_node_type=17
+    octane_default_node_name="OctaneDiffuseMaterial"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=518)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="emitterMaterial")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_MATERIAL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -69,8 +77,10 @@ class OctaneVolumetricSpotlightBarnDoorsMaterial(OctaneBaseSocket):
     bl_idname="OctaneVolumetricSpotlightBarnDoorsMaterial"
     bl_label="Barn doors material"
     color=consts.OctanePinColor.Material
-    octane_default_node_type="OctaneDiffuseMaterial"
+    octane_default_node_type=17
+    octane_default_node_name="OctaneDiffuseMaterial"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=519)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="barnDoorsMaterial")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_MATERIAL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -82,8 +92,10 @@ class OctaneVolumetricSpotlightObjectLayer(OctaneBaseSocket):
     bl_idname="OctaneVolumetricSpotlightObjectLayer"
     bl_label="Object layer"
     color=consts.OctanePinColor.ObjectLayer
-    octane_default_node_type="OctaneObjectLayer"
+    octane_default_node_type=65
+    octane_default_node_name="OctaneObjectLayer"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=328)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="objectLayer")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_OBJECTLAYER)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -95,8 +107,10 @@ class OctaneVolumetricSpotlightTransform(OctaneBaseSocket):
     bl_idname="OctaneVolumetricSpotlightTransform"
     bl_label="Light transform"
     color=consts.OctanePinColor.Transform
-    octane_default_node_type="OctaneTransformValue"
+    octane_default_node_type=67
+    octane_default_node_name="OctaneTransformValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=243)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="transform")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TRANSFORM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -108,8 +122,10 @@ class OctaneVolumetricSpotlightEnableBarnDoors(OctaneBaseSocket):
     bl_idname="OctaneVolumetricSpotlightEnableBarnDoors"
     bl_label="Enable barn doors"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=520)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="enableBarnDoors")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="")
@@ -122,8 +138,10 @@ class OctaneVolumetricSpotlightBarnDoorsSize(OctaneBaseSocket):
     bl_idname="OctaneVolumetricSpotlightBarnDoorsSize"
     bl_label="Barn doors size"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=521)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="barnDoorsSize")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.080000, update=OctaneBaseSocket.update_node_tree, description="", min=0.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, precision=2, subtype="NONE")
@@ -136,8 +154,10 @@ class OctaneVolumetricSpotlightBarnDoor1Angle(OctaneBaseSocket):
     bl_idname="OctaneVolumetricSpotlightBarnDoor1Angle"
     bl_label="Barn door 1 angle"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=522)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="barnDoor1Angle")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.750000, update=OctaneBaseSocket.update_node_tree, description="", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-1.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
@@ -150,8 +170,10 @@ class OctaneVolumetricSpotlightBarnDoor2Angle(OctaneBaseSocket):
     bl_idname="OctaneVolumetricSpotlightBarnDoor2Angle"
     bl_label="Barn door 2 angle"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=523)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="barnDoor2Angle")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.750000, update=OctaneBaseSocket.update_node_tree, description="", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-1.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
@@ -164,8 +186,10 @@ class OctaneVolumetricSpotlightBarnDoor3Angle(OctaneBaseSocket):
     bl_idname="OctaneVolumetricSpotlightBarnDoor3Angle"
     bl_label="Barn door 3 angle"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=524)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="barnDoor3Angle")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.750000, update=OctaneBaseSocket.update_node_tree, description="", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-1.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
@@ -178,8 +202,10 @@ class OctaneVolumetricSpotlightBarnDoor4Angle(OctaneBaseSocket):
     bl_idname="OctaneVolumetricSpotlightBarnDoor4Angle"
     bl_label="Barn door 4 angle"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=525)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="barnDoor4Angle")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.750000, update=OctaneBaseSocket.update_node_tree, description="", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-1.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")

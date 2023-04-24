@@ -15,8 +15,10 @@ class OctanePMCKernelMaxsamples(OctaneBaseSocket):
     bl_idname="OctanePMCKernelMaxsamples"
     bl_label="Max. samples"
     color=consts.OctanePinColor.Int
-    octane_default_node_type="OctaneIntValue"
+    octane_default_node_type=9
+    octane_default_node_name="OctaneIntValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=108)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="maxsamples")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
     default_value: IntProperty(default=5000, update=OctaneBaseSocket.update_node_tree, description="The maximum samples per pixel that will be calculated until rendering is stopped", min=1, max=1000000, soft_min=1, soft_max=100000, step=1, subtype="FACTOR")
@@ -29,8 +31,10 @@ class OctanePMCKernelMaxDiffuseDepth(OctaneBaseSocket):
     bl_idname="OctanePMCKernelMaxDiffuseDepth"
     bl_label="Diffuse depth"
     color=consts.OctanePinColor.Int
-    octane_default_node_type="OctaneIntValue"
+    octane_default_node_type=9
+    octane_default_node_name="OctaneIntValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=104)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="maxDiffuseDepth")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
     default_value: IntProperty(default=8, update=OctaneBaseSocket.update_node_tree, description="The maximum path depth for which diffuse reflections are allowed", min=1, max=2048, soft_min=1, soft_max=2048, step=1, subtype="FACTOR")
@@ -43,8 +47,10 @@ class OctanePMCKernelMaxGlossyDepth(OctaneBaseSocket):
     bl_idname="OctanePMCKernelMaxGlossyDepth"
     bl_label="Specular depth"
     color=consts.OctanePinColor.Int
-    octane_default_node_type="OctaneIntValue"
+    octane_default_node_type=9
+    octane_default_node_name="OctaneIntValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=105)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="maxGlossyDepth")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
     default_value: IntProperty(default=24, update=OctaneBaseSocket.update_node_tree, description="The maximum path depth for which specular reflections/refractions are allowed", min=1, max=2048, soft_min=1, soft_max=2048, step=1, subtype="FACTOR")
@@ -57,8 +63,10 @@ class OctanePMCKernelMaxScatterDepth(OctaneBaseSocket):
     bl_idname="OctanePMCKernelMaxScatterDepth"
     bl_label="Scatter depth"
     color=consts.OctanePinColor.Int
-    octane_default_node_type="OctaneIntValue"
+    octane_default_node_type=9
+    octane_default_node_name="OctaneIntValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=464)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="maxScatterDepth")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
     default_value: IntProperty(default=8, update=OctaneBaseSocket.update_node_tree, description="The maximum path depth for which scattering is allowed", min=1, max=256, soft_min=1, soft_max=256, step=1, subtype="FACTOR")
@@ -71,8 +79,10 @@ class OctanePMCKernelMaxOverlappingVolumes(OctaneBaseSocket):
     bl_idname="OctanePMCKernelMaxOverlappingVolumes"
     bl_label="Maximal overlapping volumes"
     color=consts.OctanePinColor.Int
-    octane_default_node_type="OctaneIntValue"
+    octane_default_node_type=9
+    octane_default_node_name="OctaneIntValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=702)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="maxOverlappingVolumes")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
     default_value: IntProperty(default=4, update=OctaneBaseSocket.update_node_tree, description="How much space to allocate for overlapping volumes. Ray marching is faster with low values but you can get artefacts where lots of volumes overlap", min=4, max=16, soft_min=4, soft_max=16, step=1, subtype="FACTOR")
@@ -85,8 +95,10 @@ class OctanePMCKernelRayepsilon(OctaneBaseSocket):
     bl_idname="OctanePMCKernelRayepsilon"
     bl_label="Ray epsilon"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=144)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="rayepsilon")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.000100, update=OctaneBaseSocket.update_node_tree, description="Shadow Ray Offset Distance", min=0.000000, max=1000.000000, soft_min=0.000001, soft_max=0.100000, step=1, precision=2, subtype="NONE")
@@ -99,8 +111,10 @@ class OctanePMCKernelFiltersize(OctaneBaseSocket):
     bl_idname="OctanePMCKernelFiltersize"
     bl_label="Filter size"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=50)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="filtersize")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=1.200000, update=OctaneBaseSocket.update_node_tree, description="Film splatting width (to reduce aliasing)", min=1.000000, max=8.000000, soft_min=1.000000, soft_max=8.000000, step=1, precision=2, subtype="FACTOR")
@@ -113,8 +127,10 @@ class OctanePMCKernelAlphashadows(OctaneBaseSocket):
     bl_idname="OctanePMCKernelAlphashadows"
     bl_label="Alpha shadows"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=3)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="alphashadows")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Enables direct light through opacity maps. If disabled, ray tracing will be faster but renders incorrect shadows for alpha-mapped geometry or specular materials with \"fake shadows\" enabled")
@@ -127,8 +143,10 @@ class OctanePMCKernelCausticBlur(OctaneBaseSocket):
     bl_idname="OctanePMCKernelCausticBlur"
     bl_label="Caustic blur"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=22)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="caustic_blur")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.010000, update=OctaneBaseSocket.update_node_tree, description="Caustic blur for noise reduction", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="NONE")
@@ -141,8 +159,10 @@ class OctanePMCKernelGiClamp(OctaneBaseSocket):
     bl_idname="OctanePMCKernelGiClamp"
     bl_label="GI clamp"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=60)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="giClamp")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=1000000.000000, update=OctaneBaseSocket.update_node_tree, description="GI clamp reducing fireflies", min=0.001000, max=1000000.000000, soft_min=0.001000, soft_max=1000000.000000, step=1, precision=3, subtype="NONE")
@@ -155,8 +175,10 @@ class OctanePMCKernelNestedDielectrics(OctaneBaseSocket):
     bl_idname="OctanePMCKernelNestedDielectrics"
     bl_label="Nested dielectrics"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=571)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="nestedDielectrics")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Enables nested dielectrics. If disabled, the surface IORs not tracked and surface priorities are ignored")
@@ -169,8 +191,10 @@ class OctanePMCKernelIrradiance(OctaneBaseSocket):
     bl_idname="OctanePMCKernelIrradiance"
     bl_label="Irradiance mode"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=381)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="irradiance")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Render the first surface as a white diffuse material")
@@ -183,8 +207,10 @@ class OctanePMCKernelMaxsubdLevel(OctaneBaseSocket):
     bl_idname="OctanePMCKernelMaxsubdLevel"
     bl_label="Max subdivision level"
     color=consts.OctanePinColor.Int
-    octane_default_node_type="OctaneIntValue"
+    octane_default_node_type=9
+    octane_default_node_name="OctaneIntValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=495)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="MaxsubdLevel")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
     default_value: IntProperty(default=10, update=OctaneBaseSocket.update_node_tree, description="The maximum subdivision level that should be applied on the geometries in the scene. Setting zero will disable the subdivision", min=0, max=10, soft_min=0, soft_max=10, step=1, subtype="FACTOR")
@@ -197,8 +223,10 @@ class OctanePMCKernelAlphachannel(OctaneBaseSocket):
     bl_idname="OctanePMCKernelAlphachannel"
     bl_label="Alpha channel"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=2)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="alphachannel")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Enables a compositing alpha channel")
@@ -211,8 +239,10 @@ class OctanePMCKernelKeepEnvironment(OctaneBaseSocket):
     bl_idname="OctanePMCKernelKeepEnvironment"
     bl_label="Keep environment"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=86)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="keep_environment")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Keeps environment with enabled alpha channel")
@@ -225,8 +255,10 @@ class OctanePMCKernelAiLight(OctaneBaseSocket):
     bl_idname="OctanePMCKernelAiLight"
     bl_label="AI light"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=386)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="aiLight")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Enables AI light")
@@ -239,8 +271,10 @@ class OctanePMCKernelAiLightUpdate(OctaneBaseSocket):
     bl_idname="OctanePMCKernelAiLightUpdate"
     bl_label="AI light update"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=384)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="aiLightUpdate")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Enables dynamic AI light update")
@@ -253,8 +287,10 @@ class OctanePMCKernelGlobalLightIdMaskAction(OctaneBaseSocket):
     bl_idname="OctanePMCKernelGlobalLightIdMaskAction"
     bl_label="Light IDs action"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type="OctaneEnumValue"
+    octane_default_node_type=57
+    octane_default_node_name="OctaneEnumValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=435)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="globalLightIdMaskAction")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
     items = [
@@ -271,8 +307,10 @@ class OctanePMCKernelGlobalLightIdMask(OctaneBaseSocket):
     bl_idname="OctanePMCKernelGlobalLightIdMask"
     bl_label="Light IDs"
     color=consts.OctanePinColor.BitMask
-    octane_default_node_type="OctaneBitValue"
+    octane_default_node_type=132
+    octane_default_node_name="OctaneBitValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=434)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="globalLightIdMask")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BIT_MASK)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -284,8 +322,10 @@ class OctanePMCKernelLightPassMask(OctaneBaseSocket):
     bl_idname="OctanePMCKernelLightPassMask"
     bl_label="Light linking invert"
     color=consts.OctanePinColor.BitMask
-    octane_default_node_type="OctaneBitValue"
+    octane_default_node_type=132
+    octane_default_node_name="OctaneBitValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=433)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="lightPassMask")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BIT_MASK)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -297,8 +337,10 @@ class OctanePMCKernelPathTermPower(OctaneBaseSocket):
     bl_idname="OctanePMCKernelPathTermPower"
     bl_label="Path term. power"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=129)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="pathTermPower")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.300000, update=OctaneBaseSocket.update_node_tree, description="Path may get terminated when ray power is less then this value", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
@@ -311,8 +353,10 @@ class OctanePMCKernelExplorationStrength(OctaneBaseSocket):
     bl_idname="OctanePMCKernelExplorationStrength"
     bl_label="Exploration strength"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=44)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="exploration_strength")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.700000, update=OctaneBaseSocket.update_node_tree, description="Effort on investigating good paths", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
@@ -325,8 +369,10 @@ class OctanePMCKernelDirectLightImportance(OctaneBaseSocket):
     bl_idname="OctanePMCKernelDirectLightImportance"
     bl_label="Direct light importance"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=32)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="direct_light_importance")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.100000, update=OctaneBaseSocket.update_node_tree, description="Computational effort on direct lighting", min=0.010000, max=1.000000, soft_min=0.010000, soft_max=1.000000, step=1, precision=2, subtype="NONE")
@@ -339,8 +385,10 @@ class OctanePMCKernelMaxrejects(OctaneBaseSocket):
     bl_idname="OctanePMCKernelMaxrejects"
     bl_label="Max. rejects"
     color=consts.OctanePinColor.Int
-    octane_default_node_type="OctaneIntValue"
+    octane_default_node_type=9
+    octane_default_node_name="OctaneIntValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=107)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="maxrejects")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
     default_value: IntProperty(default=500, update=OctaneBaseSocket.update_node_tree, description="Maximum number of consecutive rejects", min=100, max=10000, soft_min=100, soft_max=10000, step=1, subtype="FACTOR")
@@ -353,8 +401,10 @@ class OctanePMCKernelParallelism(OctaneBaseSocket):
     bl_idname="OctanePMCKernelParallelism"
     bl_label="Parallel samples"
     color=consts.OctanePinColor.Int
-    octane_default_node_type="OctaneIntValue"
+    octane_default_node_type=9
+    octane_default_node_name="OctaneIntValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=128)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="parallelism")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
     default_value: IntProperty(default=4, update=OctaneBaseSocket.update_node_tree, description="Specifies the number of samples that are run in parallel. A small number means less parallel samples, less memory usage and it makes caustics visible faster, but renders probably slower. A large number means more memory usage, slower visible caustics and probably a higher speed.\n\nNOTE: Changing this value restarts rendering", min=1, max=8, soft_min=1, soft_max=8, step=1, subtype="FACTOR")
@@ -367,8 +417,10 @@ class OctanePMCKernelWorkChunkSize(OctaneBaseSocket):
     bl_idname="OctanePMCKernelWorkChunkSize"
     bl_label="Work chunk size"
     color=consts.OctanePinColor.Int
-    octane_default_node_type="OctaneIntValue"
+    octane_default_node_type=9
+    octane_default_node_name="OctaneIntValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=281)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="workChunkSize")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
     default_value: IntProperty(default=8, update=OctaneBaseSocket.update_node_tree, description="The number of work blocks (of 512K samples each) we do per kernel run. Increasing this value may increase render speed but it will increase system memory usage", min=1, max=64, soft_min=1, soft_max=64, step=1, subtype="FACTOR")
@@ -381,8 +433,10 @@ class OctanePMCKernelWhiteLightSpectrum(OctaneBaseSocket):
     bl_idname="OctanePMCKernelWhiteLightSpectrum"
     bl_label="White light spectrum"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type="OctaneEnumValue"
+    octane_default_node_type=57
+    octane_default_node_name="OctaneEnumValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=701)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="whiteLightSpectrum")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
     items = [
@@ -399,8 +453,10 @@ class OctanePMCKernelUseOldColorPipeline(OctaneBaseSocket):
     bl_idname="OctanePMCKernelUseOldColorPipeline"
     bl_label="Use old color pipeline"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=708)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="useOldColorPipeline")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Use the old behavior for converting colors to and from spectra and for applying white balance. Use this to preserve the appearance of old projects (textures with colors outside the sRGB gamut will be rendered inaccurately)")
@@ -413,8 +469,10 @@ class OctanePMCKernelToonShadowAmbient(OctaneBaseSocket):
     bl_idname="OctanePMCKernelToonShadowAmbient"
     bl_label="Toon shadow ambient"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=368)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="toonShadowAmbient")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
     default_value: FloatVectorProperty(default=(0.500000, 0.500000, 0.500000), update=OctaneBaseSocket.update_node_tree, description="The ambient modifier of toon shadowing", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", precision=2, size=3)
@@ -427,8 +485,10 @@ class OctanePMCKernelOldVolumeBehavior(OctaneBaseSocket):
     bl_idname="OctanePMCKernelOldVolumeBehavior"
     bl_label="Emulate old volume behavior"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=448)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="oldVolumeBehavior")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Emulate the behavior of emission and scattering of version 4.0 and earlier")
@@ -441,8 +501,10 @@ class OctanePMCKernelAffectRoughness(OctaneBaseSocket):
     bl_idname="OctanePMCKernelAffectRoughness"
     bl_label="Affect roughness"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=487)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="affectRoughness")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="The percentage of roughness affecting subsequent layers' roughness", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
@@ -455,8 +517,10 @@ class OctanePMCKernelAiLightUpdateStrength(OctaneBaseSocket):
     bl_idname="OctanePMCKernelAiLightUpdateStrength"
     bl_label="AI light strength"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=385)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="aiLightUpdateStrength")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.800000, update=OctaneBaseSocket.update_node_tree, description="The strength for dynamic AI light update", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
@@ -469,8 +533,10 @@ class OctanePMCKernelMaxdepth(OctaneBaseSocket):
     bl_idname="OctanePMCKernelMaxdepth"
     bl_label="Path depth"
     color=consts.OctanePinColor.Int
-    octane_default_node_type="OctaneIntValue"
+    octane_default_node_type=9
+    octane_default_node_name="OctaneIntValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=103)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="maxdepth")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
     default_value: IntProperty(default=16, update=OctaneBaseSocket.update_node_tree, description="(deprecated) Maximum path depth", min=1, max=2048, soft_min=1, soft_max=2048, step=1, subtype="FACTOR")
@@ -483,8 +549,10 @@ class OctanePMCKernelRrprob(OctaneBaseSocket):
     bl_idname="OctanePMCKernelRrprob"
     bl_label="RR probability"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=205)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="rrprob")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="(deprecated) Russian Roulette Termination Probability (0=auto)", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")

@@ -15,8 +15,10 @@ class OctaneGlobalTextureAOVEnabled(OctaneBaseSocket):
     bl_idname="OctaneGlobalTextureAOVEnabled"
     bl_label="Enabled"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=42)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="enabled")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Enables the render AOV")
@@ -29,8 +31,10 @@ class OctaneGlobalTextureAOVSubType(OctaneBaseSocket):
     bl_idname="OctaneGlobalTextureAOVSubType"
     bl_label="ID"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type="OctaneEnumValue"
+    octane_default_node_type=57
+    octane_default_node_name="OctaneEnumValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=703)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="subType")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
     items = [
@@ -65,8 +69,10 @@ class OctaneGlobalTextureAOVTexture(OctaneBaseSocket):
     bl_idname="OctaneGlobalTextureAOVTexture"
     bl_label="Texture"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=""
+    octane_default_node_type=0
+    octane_default_node_name=""
     octane_pin_id: IntProperty(name="Octane Pin ID", default=240)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="texture")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -78,8 +84,10 @@ class OctaneGlobalTextureAOVAlphachannel(OctaneBaseSocket):
     bl_idname="OctaneGlobalTextureAOVAlphachannel"
     bl_label="Alpha channel"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=""
+    octane_default_node_type=0
+    octane_default_node_name=""
     octane_pin_id: IntProperty(name="Octane Pin ID", default=2)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="alphachannel")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -91,8 +99,10 @@ class OctaneGlobalTextureAOVIncludeEnvironment(OctaneBaseSocket):
     bl_idname="OctaneGlobalTextureAOVIncludeEnvironment"
     bl_label="Include environment"
     color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=634)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="includeEnvironment")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="If enabled, the texture will also be evaluated for camera rays that leave the scene. This can be useful for textures that need to be evaluated over the whole screen")

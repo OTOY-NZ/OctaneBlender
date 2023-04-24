@@ -290,6 +290,18 @@ void BlenderSession::reset_session(BL::BlendData &b_data, BL::Depsgraph &b_depsg
    * See note on create_session().
    */
   /* sync object should be re-created */
+  if (export_type != ::OctaneEngine::SceneExportTypes::NONE) {
+    for (auto it = scene->shaders.begin(); it != scene->shaders.end(); it++) {
+        delete *it;
+    }
+    scene->shaders.clear();
+    scene->default_surface = nullptr;
+    scene->default_light = nullptr;
+    scene->default_environment = nullptr;
+    scene->default_composite = nullptr;
+    scene->default_render_aov_node_tree = nullptr;
+    scene->shader_manager->add_default(scene);
+  }
   sync = new BlenderSync(b_engine,
                          b_userpref,
                          b_data,
@@ -1126,7 +1138,8 @@ bool BlenderSession::update_octane_custom_node(const std::string server_address,
   bool ret = BlenderSession::connect_to_server(server_address, RENDER_SERVER_PORT, server);
   if (ret) {
     OctaneDataTransferObject::OctaneNodeBase *cur_node =
-        OctaneDataTransferObject::GlobalOctaneNodeFactory.CreateOctaneNode(Octane::ENT_CUSTOM_NODE);
+        OctaneDataTransferObject::GlobalOctaneNodeFactory.CreateOctaneNode(
+            Octane::ENT_CUSTOM_NODE);
     OctaneDataTransferObject::OctaneCustomNode *cur_custom_node =
         (OctaneDataTransferObject::OctaneCustomNode *)cur_node;
     cur_custom_node->sCustomDataHeader = command;

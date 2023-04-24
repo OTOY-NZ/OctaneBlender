@@ -15,8 +15,10 @@ class OctaneTriplanarMapBlendAngle(OctaneBaseSocket):
     bl_idname="OctaneTriplanarMapBlendAngle"
     bl_label="Blend angle"
     color=consts.OctanePinColor.Float
-    octane_default_node_type="OctaneFloatValue"
+    octane_default_node_type=6
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=345)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="blendAngle")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
     default_value: FloatProperty(default=5.000000, update=OctaneBaseSocket.update_node_tree, description="The angle on an edge to linearly blend two adjacent textures", min=0.000000, max=90.000000, soft_min=0.000000, soft_max=90.000000, step=1, precision=2, subtype="FACTOR")
@@ -29,8 +31,10 @@ class OctaneTriplanarMapPositionType(OctaneBaseSocket):
     bl_idname="OctaneTriplanarMapPositionType"
     bl_label="Coordinate space"
     color=consts.OctanePinColor.Enum
-    octane_default_node_type="OctaneEnumValue"
+    octane_default_node_type=57
+    octane_default_node_name="OctaneEnumValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=135)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="positionType")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
     items = [
@@ -47,8 +51,10 @@ class OctaneTriplanarMapTransform(OctaneBaseSocket):
     bl_idname="OctaneTriplanarMapTransform"
     bl_label="Blend cube transform"
     color=consts.OctanePinColor.Transform
-    octane_default_node_type="OctaneTransformValue"
+    octane_default_node_type=67
+    octane_default_node_name="OctaneTransformValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=243)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="transform")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TRANSFORM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -60,8 +66,10 @@ class OctaneTriplanarMapTexturePosX(OctaneBaseSocket):
     bl_idname="OctaneTriplanarMapTexturePosX"
     bl_label="Positive X axis texture"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=""
+    octane_default_node_type=0
+    octane_default_node_name=""
     octane_pin_id: IntProperty(name="Octane Pin ID", default=339)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="texturePosX")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -73,8 +81,10 @@ class OctaneTriplanarMapTextureNegX(OctaneBaseSocket):
     bl_idname="OctaneTriplanarMapTextureNegX"
     bl_label="Negative X axis texture"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=""
+    octane_default_node_type=0
+    octane_default_node_name=""
     octane_pin_id: IntProperty(name="Octane Pin ID", default=342)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="textureNegX")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -86,8 +96,10 @@ class OctaneTriplanarMapTexturePosY(OctaneBaseSocket):
     bl_idname="OctaneTriplanarMapTexturePosY"
     bl_label="Positive Y axis texture"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=""
+    octane_default_node_type=0
+    octane_default_node_name=""
     octane_pin_id: IntProperty(name="Octane Pin ID", default=340)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="texturePosY")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -99,8 +111,10 @@ class OctaneTriplanarMapTextureNegY(OctaneBaseSocket):
     bl_idname="OctaneTriplanarMapTextureNegY"
     bl_label="Negative Y axis texture"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=""
+    octane_default_node_type=0
+    octane_default_node_name=""
     octane_pin_id: IntProperty(name="Octane Pin ID", default=343)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="textureNegY")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -112,8 +126,10 @@ class OctaneTriplanarMapTexturePosZ(OctaneBaseSocket):
     bl_idname="OctaneTriplanarMapTexturePosZ"
     bl_label="Positive Z axis texture"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=""
+    octane_default_node_type=0
+    octane_default_node_name=""
     octane_pin_id: IntProperty(name="Octane Pin ID", default=341)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="texturePosZ")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -125,8 +141,10 @@ class OctaneTriplanarMapTextureNegZ(OctaneBaseSocket):
     bl_idname="OctaneTriplanarMapTextureNegZ"
     bl_label="Negative Z axis texture"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=""
+    octane_default_node_type=0
+    octane_default_node_name=""
     octane_pin_id: IntProperty(name="Octane Pin ID", default=344)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="textureNegZ")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
