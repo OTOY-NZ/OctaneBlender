@@ -454,7 +454,7 @@ class OCTANE_OT_node_add_search(NodeAddOperator, bpy.types.Operator):
                                  "",
                                  index,
                                  ))
-                else:
+                elif item.label != "[OCTANE_HELPER_NODE_GROUP]":
                     # Do not show Blender's menu under quick adding mode(octane_pin_type is assigned)
                     if self.octane_pin_type == consts.PinType.PT_UNKNOWN:
                         enum_items.append(

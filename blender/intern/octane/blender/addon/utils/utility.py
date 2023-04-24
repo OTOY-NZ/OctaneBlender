@@ -51,8 +51,9 @@ def octane_register_class(classes):
                     OctaneInfoManger().add_legacy_data_info(_class.octane_node_type, name, is_socket, data_type, is_pin, octane_type, is_internal_data, internal_data_is_pin, internal_data_octane_type)
             _class.octane_socket_set = set(_class.octane_socket_list)
             for blender_prop_name, attribute_config in _class.octane_attribute_config.items():
-                attribute_id, attribute_name, attribute_type = attribute_config
-                OctaneInfoManger().add_attribute_info(_class.octane_node_type, blender_prop_name, attribute_id, attribute_name, attribute_type)
+                if blender_prop_name in _class.octane_attribute_list:
+                    attribute_id, attribute_name, attribute_type = attribute_config
+                    OctaneInfoManger().add_attribute_info(_class.octane_node_type, blender_prop_name, attribute_id, attribute_name, attribute_type)
             for socket_class in _class.octane_socket_class_list:                
                 pin_id = socket_class.octane_pin_id
                 if pin_id == consts.PinID.P_UNKNOWN:
@@ -134,7 +135,6 @@ def add_attribute_list(node, new_attribute_list):
 
 def remove_attribute_list(node, remove_attribute_names):
     new_attribute_list = []
-    new_octane_attribute_name_list = []
     for idx, original_attribute in enumerate(node.octane_attribute_list):
         if original_attribute not in remove_attribute_names:
             new_attribute_list.append(original_attribute)
@@ -723,7 +723,7 @@ def beautifier_nodetree_layout(id_data):
     node_tree = id_data.node_tree
     owner_type = get_node_tree_owner_type(id_data)
     output_node = find_active_output_node(node_tree, owner_type)
-    output_node.location = node_tree.view_center
+    output_node.location = (300, 300) # node_tree.view_center
     pending_nodes = deque()
     arranged_nodes = set()
     pending_nodes.append([output_node, 0])

@@ -94,11 +94,21 @@ class OctaneBaseRampNode(OctaneBaseNode):
         node_data_path = repr(self)
         if self.node_data_path != node_data_path:
             same_color_ramp_count = 0
+            def count_same_color_ramp(node_tree):
+                count = 0
+                for node in node_tree.nodes:
+                    if isinstance(node, OctaneBaseRampNode) and node.color_ramp_name == self.color_ramp_name:
+                        count += 1
+                return count
             for material in bpy.data.materials:
                 if material.use_nodes and material.node_tree:
-                    for node in material.node_tree.nodes:
-                        if isinstance(node, OctaneBaseRampNode) and node.color_ramp_name == self.color_ramp_name:
-                            same_color_ramp_count += 1
+                    same_color_ramp_count += count_same_color_ramp(material.node_tree)
+            for world in bpy.data.worlds:
+                if world.use_nodes and world.node_tree:
+                    same_color_ramp_count += count_same_color_ramp(world.node_tree)
+            for light in bpy.data.lights:
+                if light.use_nodes and light.node_tree:
+                    same_color_ramp_count += count_same_color_ramp(light.node_tree)
             if same_color_ramp_count > 1:
                 current_color_ramp = utility.get_octane_helper_node(self.color_ramp_name)
                 if current_color_ramp:

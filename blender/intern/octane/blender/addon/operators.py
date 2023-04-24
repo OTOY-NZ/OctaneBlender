@@ -387,58 +387,69 @@ class OCTANE_OT_ConvertToOctaneMaterial(bpy.types.Operator):
     bl_register = True
     bl_undo = False
 
+    converter_modes = (
+        ("MATERIAL", "Only the selected material", "Only the selected material", 0),
+        ("OBJECT", "All materials in this Object", "All materials in this Object", 1),
+        ("SCENE", "All materials in this Scene", "All materials in this Scene", 2),
+    )    
+    converter_mode: bpy.props.EnumProperty(
+        name="Converter Type",
+        description="Converter Mode",
+        items=converter_modes,
+        default="MATERIAL",
+    )
+
+    def invoke(self, context, event):
+        wm = context.window_manager
+        return wm.invoke_props_dialog(self)
+
+    def draw(self, context):
+        layout = self.layout
+        col = layout.column()
+        row = layout.row()
+        row.prop(self, "converter_mode")
+
     @classmethod
     def poll(cls, context):
         return True
 
     def execute(self, context):
-        import _octane
         scene = context.scene
         oct_scene = scene.octane                
         cur_obj = bpy.context.object
-        if cur_obj and len(cur_obj.material_slots):                    
-            cur_material = cur_obj.material_slots[cur_obj.active_material_index].material
-            converted_material = cur_material.copy()        
-            result = converters.convert_to_octane_material(cur_material, converted_material)
-            if result:
-                if len(cur_obj.material_slots) < 1:                    
-                    cur_obj.data.materials.append(converted_material)
-                else:                    
-                    cur_obj.material_slots[cur_obj.active_material_index].material = converted_material  
-                converters.convert_all_related_material(cur_material, converted_material)
-            else:
-                bpy.data.materials.remove(converted_material)
-        return {'FINISHED'} 
-
-class OCTANE_OT_ConvertToOctaneScene(bpy.types.Operator):
-    """Try to convert current scene to compatiable Octane scene if possible. Do nothing if not applicable"""
-    bl_idname = "octane.convert_to_octane_scene"
-    bl_label = "Convert to Octane scene"
-    bl_register = True
-    bl_undo = False
-
-    @classmethod
-    def poll(cls, context):
-        return True
-
-    def execute(self, context):
-        scene = context.scene
-        processed_material_names = set()
-        for cur_obj in context.scene.objects:            
-            if cur_obj:
-                for idx in range(len(cur_obj.material_slots)):
-                    cur_material = cur_obj.material_slots[idx].material
+        if self.converter_mode == "MATERIAL":
+            if cur_obj and len(cur_obj.material_slots):                    
+                cur_material = cur_obj.material_slots[cur_obj.active_material_index].material
+                converted_material = cur_material.copy()        
+                result = converters.convert_to_octane_material(cur_material, converted_material)
+                if result:
+                    if len(cur_obj.material_slots) < 1:                    
+                        cur_obj.data.materials.append(converted_material)
+                    else:                    
+                        cur_obj.material_slots[cur_obj.active_material_index].material = converted_material  
+                    converters.convert_all_related_material(cur_material, converted_material)
+                else:
+                    bpy.data.materials.remove(converted_material)
+        else:
+            scene = context.scene
+            processed_material_names = set()
+            for _object in context.scene.objects:
+                if self.converter_mode == "OBJECT" and cur_obj.name != _object.name:
+                    continue
+                for idx in range(len(_object.material_slots)):
+                    cur_material = _object.material_slots[idx].material
                     if cur_material.name in processed_material_names:
                         continue
                     processed_material_names.add(cur_material.name)
                     converted_material = cur_material.copy()        
                     result = converters.convert_to_octane_material(cur_material, converted_material)
                     if result:
-                        cur_obj.material_slots[idx].material = converted_material
+                        _object.material_slots[idx].material = converted_material
                         converters.convert_all_related_material(cur_material, converted_material)
                     else:
                         bpy.data.materials.remove(converted_material)
-        return {'FINISHED'}
+        return {'FINISHED'} 
+
 
 class OCTANE_OT_BaseExport(Operator, ExportHelper):
     export_type = 0
@@ -731,7 +742,6 @@ classes = (
     OCTANE_OT_SetMeshesType,
     OCTANE_OT_SetOctaneShader,
     OCTANE_OT_ConvertToOctaneMaterial,
-    OCTANE_OT_ConvertToOctaneScene,
 
     OCTANE_OT_OrbxExport,
     OCTANE_OT_AlembicExport,

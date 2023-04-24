@@ -4,6 +4,7 @@ import nodeitems_utils
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 import nodeitems_builtins
 from bl_operators import node
+from bl_ui import space_node
 from octane import core
 from octane.utils import consts, utility
 
@@ -260,6 +261,27 @@ def octane_ShaderNodeCategory_poll(cls, context):
             return False
     else:
         return context.space_data.type == 'NODE_EDITOR' and context.space_data.tree_type == 'ShaderNodeTree'
+
+
+def octane_NODE_MT_add_draw(self, context):
+    import nodeitems_utils
+
+    layout = self.layout
+    layout.operator_context = 'INVOKE_REGION_WIN'
+
+    snode = context.space_data
+    if snode.tree_type == 'GeometryNodeTree':
+        props = layout.operator("node.add_search", text="Search...", icon='VIEWZOOM')
+        layout.separator()
+        layout.menu_contents("NODE_MT_geometry_node_add_all")
+    elif nodeitems_utils.has_node_categories(context):
+        props = layout.operator("octane.node_add_search", text="Search...", icon='VIEWZOOM')
+        props.use_transform = True
+
+        layout.separator()
+
+        # actual node submenus are defined by draw functions from node categories
+        nodeitems_utils.draw_node_categories_menu(self, context)
 
 
 ### Octane Nodes 
@@ -817,6 +839,7 @@ _octane_node_items = {
 _draw_node_categories_menu = None
 _ShaderNodeCategory_poll =  None
 _octane_node_enum_items = None
+_octane_NODE_MT_add_draw = None
 
 def init_octane_node_enum_items():
     global _octane_node_enum_items
@@ -875,6 +898,9 @@ def register():
     global _ShaderNodeCategory_poll
     _ShaderNodeCategory_poll = nodeitems_builtins.ShaderNodeCategory.poll
     nodeitems_builtins.ShaderNodeCategory.poll = octane_ShaderNodeCategory_poll
+    global _octane_NODE_MT_add_draw
+    _octane_NODE_MT_add_draw = space_node.NODE_MT_add.draw 
+    space_node.NODE_MT_add.draw = octane_NODE_MT_add_draw
     for _id, _items in _octane_node_items.items():
         register_octane_node_categories(_id, _items)
 
@@ -882,5 +908,6 @@ def register():
 def unregister():
     nodeitems_utils.draw_node_categories_menu = _draw_node_categories_menu
     nodeitems_builtins.ShaderNodeCategory.poll = _ShaderNodeCategory_poll
+    space_node.NODE_MT_add.draw = _octane_NODE_MT_add_draw
     for _id, _items in _octane_node_items.items():
         unregister_octane_node_categories(_id)        

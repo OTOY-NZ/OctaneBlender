@@ -24,6 +24,7 @@ CONVERTERS_NODE_MAPPER = {
             "Transmission": "Transmission",
             "IOR": "Dielectric IOR",
             "Emission": "Emission",
+            "Alpha": "Opacity",
             NORMAL_TYPE_TAG + "Normal": "Normal",
         },
         lambda cur_node, octane_node: setattr(octane_node.inputs["BSDF model"], "default_value", "GGX" if cur_node.distribution == "GGX" else "GGX (energy preserving)")
@@ -102,13 +103,14 @@ def _convert_color_input(cur_node, cur_input, octane_node, octane_input, cur_nod
     if cur_input.type == "RGBA" and not cur_input.is_linked and octane_input.octane_socket_type != consts.SocketType.ST_RGBA:
         octane_color_node = None
         if cur_input.name == "Emission" and octane_input.name == "Emission":
-            octane_emission_node = octane_node_tree.nodes.new("OctaneTextureEmission")
-            octane_color_node = octane_node_tree.nodes.new("OctaneRGBColor")
-            octane_node_tree.links.new(octane_emission_node.outputs[0], octane_input)
-            octane_node_tree.links.new(octane_color_node.outputs[0], octane_emission_node.inputs["Texture"])
-            if cur_node.type == "BSDF_PRINCIPLED":
-                octane_emission_node.inputs["Power"].default_value = cur_node.inputs["Emission Strength"].default_value
-                octane_emission_node.inputs["Surface brightness"].default_value = True
+            if cur_input.default_value[0] != 0 or cur_input.default_value[1] != 0 or cur_input.default_value[2] != 0:
+                octane_emission_node = octane_node_tree.nodes.new("OctaneTextureEmission")
+                octane_color_node = octane_node_tree.nodes.new("OctaneRGBColor")
+                octane_node_tree.links.new(octane_emission_node.outputs[0], octane_input)
+                octane_node_tree.links.new(octane_color_node.outputs[0], octane_emission_node.inputs["Texture"])
+                if cur_node.type == "BSDF_PRINCIPLED":
+                    octane_emission_node.inputs["Power"].default_value = cur_node.inputs["Emission Strength"].default_value
+                    octane_emission_node.inputs["Surface brightness"].default_value = True
         else:       
             octane_color_node = octane_node_tree.nodes.new("OctaneRGBColor")
             octane_node_tree.links.new(octane_color_node.outputs[0], octane_input)    

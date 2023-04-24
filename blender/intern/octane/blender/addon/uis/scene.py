@@ -525,19 +525,6 @@ class OCTANE_RENDER_PT_server(common.OctanePropertyPanel, Panel):
         col.operator("octane.activate", text="Activation state")
 
 
-class OCTANE_RENDER_PT_converter(common.OctanePropertyPanel, Panel):
-    bl_label = "Octane Converter"
-    bl_context = "render"
-
-    def draw(self, context):        
-        scene = context.scene
-        oct_scene = scene.octane
-        is_viewport_rendering = utility.is_viewport_rendering()
-        layout = self.layout
-        col = layout.column()
-        col.operator("octane.convert_to_octane_scene", text="Convert Cycles to Octane")
-
-
 class OCTANE_RENDER_PT_out_of_core(common.OctanePropertyPanel, Panel):
     bl_label = "Octane Out Of Core"
     bl_context = "render"
@@ -601,14 +588,14 @@ class OCTANE_RENDER_PT_AOV_node_graph(OctaneRenderAOVNodeGraphPanel, Panel):
 
     def draw(self, context):
         view_layer = context.view_layer
-        octane_view_layer = view_layer.octane
+        octane_view_layer = view_layer.octane  
         layout = self.layout
         row = layout.row()
         row.prop(octane_view_layer, "render_pass_style")  
         row = layout.row()
-        row.prop(octane_scene.render_aov_node_graph_property, "node_tree", text="AOV Node Tree", icon='NODETREE')
-        node_tree = utility.find_active_render_aov_node_tree(context.scene)
-        utility.panel_ui_node_tree_view(context, layout, node_tree, consts.OctaneNodeTreeIDName.RENDER_AOV)
+        render_aov_node_graph_property = octane_view_layer.render_aov_node_graph_property
+        row.prop(render_aov_node_graph_property, "node_tree", text="AOV Node Tree", icon='NODETREE')
+        utility.panel_ui_node_tree_view(context, layout, render_aov_node_graph_property.node_tree, consts.OctaneNodeTreeIDName.RENDER_AOV)
 
 
 class OctaneRenderPassesPanel(common.OctanePropertyPanel):
@@ -1069,7 +1056,6 @@ _CLASSES = [
     OCTANE_RENDER_PT_kernel,
     OCTANE_RENDER_PT_motion_blur,
     OCTANE_RENDER_PT_server,
-    # OCTANE_RENDER_PT_converter,
     OCTANE_RENDER_PT_out_of_core,
     OCTANE_RENDER_PT_octane_view_layer,
     OCTANE_RENDER_PT_octane_global_view_layers,

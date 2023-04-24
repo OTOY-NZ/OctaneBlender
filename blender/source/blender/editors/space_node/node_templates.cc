@@ -422,6 +422,9 @@ static Vector<NodeLinkItem> ui_node_link_items(NodeLinkArg *arg,
 
     i = 0;
     for (stemp = socket_templates; stemp && stemp->type != -1; stemp++, i++) {
+      if ((stemp->flag & (SOCK_HIDDEN | SOCK_UNAVAIL)) != 0) {
+        continue;
+      }
       NodeLinkItem item;
       item.socket_index = i;
       item.socket_type = stemp->type;
@@ -487,6 +490,73 @@ static int ui_compatible_sockets(int typeA, int typeB)
   return (typeA == typeB);
 }
 
+static int octane_ui_compatible_sockets(int typeA,
+                                        int typeB,
+                                        const char *typeAName,
+                                        const char *typeBName)
+{
+  // typedef enum eNodeSocketDatatype {
+  //  SOCK_CUSTOM = -1, /* socket has no integer type */
+  //  SOCK_FLOAT = 0,
+  //  SOCK_VECTOR = 1,
+  //  SOCK_RGBA = 2,
+  //  SOCK_SHADER = 3,
+  //  SOCK_BOOLEAN = 4,
+  //  __SOCK_MESH = 5, /* deprecated */
+  //  SOCK_INT = 6,
+  //  SOCK_STRING = 7,
+  //  SOCK_OBJECT = 8,
+  //  SOCK_IMAGE = 9,
+  //  SOCK_GEOMETRY = 10,
+  //  SOCK_COLLECTION = 11,
+  //  SOCK_TEXTURE = 12,
+  //  SOCK_MATERIAL = 13,
+  //} eNodeSocketDatatype;
+  switch (typeB) {
+    case SOCK_FLOAT:
+      return (typeA == typeB) ||
+             ((strcmp(typeAName, "OutTex") == 0 || strcmp(typeAName, "Texture out") == 0));
+      break;
+    case SOCK_SHADER:
+      if (strcmp(typeBName, "Material") == 0 || strcmp(typeBName, "Surface") == 0 ||
+          BLI_str_startswith(typeBName, "Material")) {
+        return (strcmp(typeAName, "OutMat") == 0 || strcmp(typeAName, "Material out") == 0);
+      }
+      else if (strcmp(typeBName, "Medium") == 0 || strcmp(typeBName, "Volume") == 0 ||
+               BLI_str_endswith(typeBName, "Medium")) {
+        return (strcmp(typeAName, "OutMedium") == 0 || strcmp(typeAName, "Medium out") == 0);
+      }
+      else if (strcmp(typeBName, "Displacement") == 0) {
+        return (strcmp(typeAName, "OutDisplacement") == 0 ||
+                strcmp(typeAName, "Displacement out") == 0);
+      }
+      else if (strcmp(typeBName, "Emission") == 0) {
+        return (strcmp(typeAName, "OutEmission") == 0 || strcmp(typeAName, "Emission out") == 0);
+      }
+      else if (strcmp(typeBName, "Transform") == 0 ||
+               BLI_str_endswith(typeBName, "Transformation") ||
+               BLI_str_endswith(typeBName, "Transform")) {
+        return (strcmp(typeAName, "OutTransform") == 0 || strcmp(typeAName, "Transform out") == 0);
+      }
+      else if (strcmp(typeBName, "Projection") == 0 || BLI_str_endswith(typeBName, "Projection")) {
+        return (strcmp(typeAName, "OutProjection") == 0 ||
+                strcmp(typeAName, "Projection out") == 0);
+      }
+      else if (strcmp(typeBName, "Material layer") == 0 ||
+               BLI_str_endswith(typeBName, "Material layer")) {
+        return (strcmp(typeAName, "OutMatLayer") == 0 ||
+                strcmp(typeAName, "Material layer out") == 0);
+      }
+      else {
+        return ((strcmp(typeAName, "OutTex") == 0 || strcmp(typeAName, "Texture out") == 0));
+      }
+      break;
+    default:
+      break;
+  }
+  return (typeA == typeB);
+}
+
 static int ui_node_item_name_compare(const void *a, const void *b)
 {
   const bNodeType *type_a = *(const bNodeType **)a;
@@ -504,19 +574,6 @@ static bool ui_node_item_special_poll(const bNodeTree * /*ntree*/, const bNodeTy
      */
     return false;
   }
-  if (ELEM(ntype->nclass,
-           NODE_CLASS_OCT_TEXTURE,
-           NODE_CLASS_OCT_TRANSFORM,
-           NODE_CLASS_OCT_PROJECTION,
-           NODE_CLASS_OCT_VALUE,
-           NODE_CLASS_OCT_CAMERA,
-           NODE_CLASS_OCT_GEOMETRY,
-           NODE_CLASS_OCT_ROUNDEDGES,
-           NODE_CLASS_OCT_LAYER,
-           NODE_CLASS_OCT_ENVIRONMENT,
-           NODE_CLASS_OCT_COMPOSITE)) {
-    return false;
-  }
   return true;
 }
 
@@ -530,6 +587,27 @@ static void ui_node_menu_column(NodeLinkArg *arg, int nclass, const char *cname)
   uiBut *but;
   NodeLinkArg *argN;
   int first = 1;
+
+  bool is_octane_scene = (arg->scene && strcmp(arg->scene->r.engine, "octane") == 0);
+  bool use_octane_menu = false;
+  if (is_octane_scene) {
+    if (ELEM(arg->node->typeinfo->nclass,
+             NODE_CLASS_OCT_SHADER,
+             NODE_CLASS_OCT_TEXTURE,
+             NODE_CLASS_OCT_MEDIUM,
+             NODE_CLASS_OCT_EMISSION,
+             NODE_CLASS_OCT_TRANSFORM,
+             NODE_CLASS_OCT_PROJECTION,
+             NODE_CLASS_OCT_VALUE,
+             NODE_CLASS_OCT_CAMERA,
+             NODE_CLASS_OCT_GEOMETRY,
+             NODE_CLASS_OCT_ROUNDEDGES,
+             NODE_CLASS_OCT_LAYER,
+             NODE_CLASS_OCT_ENVIRONMENT,
+             NODE_CLASS_OCT_COMPOSITE)) {
+      use_octane_menu = true;
+    }
+  }
 
   /* generate array of node types sorted by UI name */
   blender::Vector<bNodeType *> sorted_ntypes;
@@ -558,6 +636,25 @@ static void ui_node_menu_column(NodeLinkArg *arg, int nclass, const char *cname)
   /* generate UI */
   for (int j = 0; j < sorted_ntypes.size(); j++) {
     bNodeType *ntype = sorted_ntypes[j];
+
+    if (!ELEM(ntype->nclass,
+              NODE_CLASS_OCT_SHADER,
+              NODE_CLASS_OCT_TEXTURE,
+              NODE_CLASS_OCT_MEDIUM,
+              NODE_CLASS_OCT_EMISSION,
+              NODE_CLASS_OCT_TRANSFORM,
+              NODE_CLASS_OCT_PROJECTION,
+              NODE_CLASS_OCT_VALUE,
+              NODE_CLASS_OCT_CAMERA,
+              NODE_CLASS_OCT_GEOMETRY,
+              NODE_CLASS_OCT_ROUNDEDGES,
+              NODE_CLASS_OCT_LAYER,
+              NODE_CLASS_OCT_ENVIRONMENT,
+              NODE_CLASS_OCT_COMPOSITE,
+              NODE_CLASS_GROUP)) {
+      continue;
+    }
+
     char name[UI_MAX_NAME_STR];
     const char *cur_node_name = nullptr;
     int num = 0;
@@ -568,20 +665,18 @@ static void ui_node_menu_column(NodeLinkArg *arg, int nclass, const char *cname)
     std::optional<blender::nodes::NodeDeclaration> node_decl;
     Vector<NodeLinkItem> items = ui_node_link_items(arg, SOCK_OUT, node_decl);
 
-    for (const NodeLinkItem &item : items) {      
-      if (STREQ(item.socket_name, "OutTex")) {
-        continue;
-      }
-      if (ui_compatible_sockets(item.socket_type, sock->type)) {
+    for (const NodeLinkItem &item : items) {
+      if ((is_octane_scene ? octane_ui_compatible_sockets(
+                                 item.socket_type, sock->type, item.socket_name, sock->name) :
+                             ui_compatible_sockets(item.socket_type, sock->type))) {
         num++;
       }
     }
 
     for (const NodeLinkItem &item : items) {
-      if (STREQ(item.socket_name, "OutTex")) {
-        continue;
-      }
-      if (!ui_compatible_sockets(item.socket_type, sock->type)) {
+      if (!(is_octane_scene ? octane_ui_compatible_sockets(
+                                  item.socket_type, sock->type, item.socket_name, sock->name) :
+                              ui_compatible_sockets(item.socket_type, sock->type))) {
         continue;
       }
 

@@ -377,3 +377,12 @@ def unregister():
     utility.octane_unregister_class(reversed(_CLASSES))
 
 ##### END OCTANE GENERATED CODE BLOCK #####
+
+class OctaneBakingTexture_Override(OctaneBakingTexture):
+
+    @classmethod
+    def update_node_definition(cls):
+        utility.remove_attribute_list(cls, ["a_size", "a_type", "a_image_file_type", "a_can_wrap_x", "a_can_wrap_y", "a_image_flip", "a_source_info", "a_image_layer_names",])
+
+OctaneBakingTexture_Override.update_node_definition()
+utility.override_class(_CLASSES, OctaneBakingTexture, OctaneBakingTexture_Override)
