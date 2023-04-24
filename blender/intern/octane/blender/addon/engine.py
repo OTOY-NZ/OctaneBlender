@@ -137,7 +137,6 @@ def reset(engine, data, depsgraph):
 
 
 def sync(engine, depsgraph, data):
-    # print("OctaneBlender Engine Sync")
     from octane import core
     if not core.EXCLUSIVE_OCTANE_ADDON_CLIENT_MODE:    
         import _octane

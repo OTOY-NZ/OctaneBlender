@@ -157,7 +157,10 @@ class BlenderSync {
   static BL::NodeTree find_active_kernel_node_tree(PointerRNA oct_scene);
   static BL::NodeTree find_active_render_aov_node_tree(PointerRNA oct_viewlayer);
   static BL::NodeTree find_active_composite_node_tree(PointerRNA oct_viewlayer);
-  static void get_samples(PointerRNA oct_scene, int &max_sample, int &max_preview_sample, int& max_info_sample);
+  static void get_samples(PointerRNA oct_scene,
+                          int &max_sample,
+                          int &max_preview_sample,
+                          int &max_info_sample);
 
   void set_resource_cache(std::map<std::string, int> &resource_cache_data,
                           std::unordered_set<std::string> &dirty_resources);
@@ -195,7 +198,7 @@ class BlenderSync {
   void sync_composites(BL::Depsgraph &b_depsgraph, bool update_all);
   void sync_render_aov_node_tree(BL::Depsgraph &b_depsgraph, bool update_all);
   void sync_kernel_node_tree(BL::Depsgraph &b_depsgraph, bool update_all);
-  
+
   void get_samples();
 
   void sync_hair(Mesh *mesh, BL::Mesh b_mesh, BL::Object b_ob, bool motion, float motion_time = 0);
@@ -208,7 +211,11 @@ class BlenderSync {
 
   /* Early data free. */
   void free_data_after_sync(BL::Depsgraph &b_depsgraph);
-
+  void find_used_shaders(BL::Object &b_ob,
+                         std::vector<Shader *> &used_shaders,
+                         bool &use_octane_vertex_displacement_subdvision,
+                         bool &use_default_shader);
+  void find_shader_by_id_and_name(BL::ID &id, std::vector<Shader *> &used_shaders, Shader *default_shader);
   void find_shader(BL::ID &id, std::vector<Shader *> &used_shaders, Shader *default_shader);
   bool BKE_object_is_modified(BL::Object &b_ob);
   bool object_is_mesh(BL::Object &b_ob);
@@ -284,7 +291,8 @@ class BlenderSync {
   std::map<std::string, int> resource_cache_data;
   std::unordered_set<std::string> dirty_resources;
   std::unordered_map<std::string, std::string> synced_mesh_tags;
-  std::unordered_map<std::string, std::unordered_set<std::string>> synced_object_to_octane_mesh_name_map;
+  std::unordered_map<std::string, std::unordered_set<std::string>>
+      synced_object_to_octane_mesh_name_map;
   std::unordered_set<std::string> edited_mesh_names;
 
   BL::NodeTree composite_aov_node_tree;

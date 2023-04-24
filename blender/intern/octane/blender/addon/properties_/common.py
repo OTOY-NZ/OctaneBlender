@@ -11,7 +11,7 @@ class OctanePropertySettings(object):
     PROPERTY_CONFIGS = {}    
     PROPERTY_NAME_TO_PIN_SYMBOL_MAP = {}
 
-    def sync_data(self, octane_node, scene=None, region=None, v3d=None, rv3d=None, is_viewport=True):
+    def sync_data(self, octane_node, scene=None, region=None, v3d=None, rv3d=None, session_type=consts.SessionType.UNKNOWN):
         if not hasattr(self.__class__, "octane_property_config_inited"):
             self.__class__.octane_property_config_inited = True
             self.__class__.octane_property_type_list = []
@@ -94,9 +94,9 @@ class OctanePropertySettings(object):
             if socket_type == consts.SocketType.ST_ENUM:
                 property_value = self.rna_type.properties[property_name].enum_items[property_value].value
             octane_node.node.set_pin(consts.OctaneDataBlockSymbolType.PIN_NAME, pin_index, pin_symbol, socket_type, octane_pin_type, octane_default_node_type, False, "", property_value)
-        self.sync_custom_data(octane_node, scene, region, v3d, rv3d, is_viewport)
+        self.sync_custom_data(octane_node, scene, region, v3d, rv3d, session_type)
 
-    def sync_custom_data(self, octane_node, scene, region, v3d, rv3d, is_viewport):
+    def sync_custom_data(self, octane_node, scene, region, v3d, rv3d, session_type):
         pass
 
     def update_legacy_data(self, context, legacy_data, is_viewport=None):

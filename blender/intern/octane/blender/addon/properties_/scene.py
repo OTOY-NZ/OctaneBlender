@@ -297,6 +297,16 @@ class OctaneAnimationSettings(bpy.types.PropertyGroup, common.OctanePropertySett
         min=0.0, soft_min=0.0, max=100.0, soft_max=100.0,
         subtype='PERCENTAGE',
     )
+    emulate_old_motion_blur_behavior: BoolProperty(
+        name="Old motion blur behavior",
+        description="Emulate the behavior of of Octane Blender motion blur of version 27.8",
+        default=False,
+    )
+    clamp_motion_blur_data_source : BoolProperty(
+        name="Auto Clamp Mode",
+        description="Clamp motion blur data source within the start-frame and end-frame",
+        default=True,
+    )
 
     def draw(self, context, layout, is_viewport=None):
         row = layout.row()
@@ -307,9 +317,20 @@ class OctaneAnimationSettings(bpy.types.PropertyGroup, common.OctanePropertySett
         row.prop(self, "subframe_start")
         row = layout.row()
         row.prop(self, "subframe_end")
+        row = layout.row()
+        row.prop(self, "emulate_old_motion_blur_behavior")
+        row = layout.row()
+        row.prop(self, "clamp_motion_blur_data_source")
 
-    def sync_custom_data(self, octane_node, scene, region, v3d, rv3d, is_viewport):
-        octane_node.set_pin_id(consts.PinID.P_SHUTTER_TIME, False, "", scene.render.fps * self.shutter_time / 100.0)
+    def sync_custom_data(self, octane_node, scene, region, v3d, rv3d, session_type):        
+        if session_type == consts.SessionType.EXPORT:
+            shutter_time = self.shutter_time / 100.0
+        else:
+            if self.emulate_old_motion_blur_behavior:
+                shutter_time = scene.render.fps * self.shutter_time / 100.0
+            else:
+                shutter_time = scene.render.fps * min(1.0, self.shutter_time / 100.0)
+        octane_node.set_pin_id(consts.PinID.P_SHUTTER_TIME, False, "", shutter_time)
         # octane_node.set_pin_id(consts.PinID.P_SHUTTER_TIME, False, "", self.shutter_time / 100.0)
         octane_node.set_pin_id(consts.PinID.P_SUBFRAME_START, False, "", self.subframe_start / 100.0)
         octane_node.set_pin_id(consts.PinID.P_SUBFRAME_END, False, "", self.subframe_end / 100.0)
@@ -1594,7 +1615,7 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
         name="Emulate old volume behavior",
         description="Emulate the behavior of of emission and scattering of version 4.0 and earlier",
         default=False,
-    )        
+    )
     deep_image: BoolProperty(
         name="Deep image",
         description="Render and save deep image file into output folder after frame render is finished",

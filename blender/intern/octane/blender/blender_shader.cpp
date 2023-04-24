@@ -104,25 +104,10 @@ PointerRNA get_object_data_node_source_ptr(BL::BlendData &b_data,
                                                                             "Collection";
   if (is_addon_node) {
     if (source_type == OBJECT_DATA_NODE_TYPE_OBJECT) {
-      std::string source_ptr_str_name = get_string(b_node.ptr, "object_name");
-      BL::Scene::objects_iterator b_oject;
-      for (b_scene.objects.begin(b_oject); b_oject != b_scene.objects.end(); ++b_oject) {
-        if (source_ptr_str_name == b_oject->name()) {
-          source_ptr = b_oject->ptr;
-          break;
-        }
-      }
+      source_ptr = RNA_pointer_get(&b_node.ptr, "object_ptr");
     }
     else {
-      std::string source_ptr_str_name = get_string(b_node.ptr, "collection_name");
-      BL::BlendData::collections_iterator b_collection;
-      for (b_data.collections.begin(b_collection); b_collection != b_data.collections.end();
-           ++b_collection) {
-        if (source_ptr_str_name == b_collection->name()) {
-          source_ptr = b_collection->ptr;
-          break;
-        }
-      }
+      source_ptr = RNA_pointer_get(&b_node.ptr, "collection_ptr");
     }
   }
   else {
@@ -270,7 +255,7 @@ std::string LinkResolver::resolve_name(std::string prefix, BL::Node node)
         }
       }
     }
-    return std::string("");
+    return "";
   }
   std::string node_name = node.name();
   if (node_name == "") {
@@ -317,6 +302,9 @@ std::string LinkResolver::get_output_node_name(void *value)
       return identifier;
     }
     else {
+      if (identifier == "") {
+        return "";
+      }
       if (sockets[value].name.find(OCTANE_BLENDER_OCTANE_PROXY_TAG) == std::string::npos) {
         return identifier + "_" + sockets[value].name;
       }
@@ -1037,7 +1025,7 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
       int octane_static_pin_count = OctaneInfo::instance().get_static_pin_count(octane_node_type);
       std::vector<::OctaneDataTransferObject::OctaneDTOBase *> octane_dtos;
       BlenderSocketVisitor visitor(prefix_name, b_node, link_resolver);
-      // clang-format off
+// clang-format off
 	    #define ADD_OCTANE_ATTR_DTO(PROPERTY_TYPE, DTO_CLASS, SOCKET_CONTAINER) \
 	    if (property_type == PROPERTY_TYPE) { \
 		    octane_node->SOCKET_CONTAINER.emplace_back(::OctaneDataTransferObject::DTO_CLASS(dto_name, false)); \
@@ -1341,7 +1329,7 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
               object_data_geo_output_node->oct_node->sName = placement_name;
               object_data_transform_output_node->oct_node->sName = transform_name;
               Transform octane_tfm = get_transform(b_ob.matrix_world());
-              //if (is_octane_coordinate_used) {
+              // if (is_octane_coordinate_used) {
               //  octane_tfm = octane_tfm * OCTANE_OBJECT_ROTATION_MATRIX;
               //}
               OctaneDataTransferObject::OctaneValueTransform *oct_transform_node =
@@ -3015,6 +3003,23 @@ void BlenderSync::sync_shaders(BL::Depsgraph &b_depsgraph)
 
   /* false = don't delete unused shaders, not supported */
   shader_map.post_sync(false);
+}
+
+void BlenderSync::find_shader_by_id_and_name(BL::ID &id,
+                                             std::vector<Shader *> &used_shaders,
+                                             Shader *default_shader)
+{
+  Shader *shader = (id) ? shader_map.find(id) : default_shader;
+  if (shader == NULL) {
+    for (auto &it : shader_map.key_to_scene_data()) {
+      if (it.second->name == id.name()) {
+        shader = it.second;
+        break;
+      }    
+    }
+  }
+  used_shaders.push_back(shader);
+  shader->tag_used(scene);
 }
 
 void BlenderSync::find_shader(BL::ID &id,

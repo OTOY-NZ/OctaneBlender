@@ -425,6 +425,7 @@ SessionParams BlenderSync::get_session_params(
 #else
   params.use_shared_surface = false;
 #endif
+  params.use_shared_surface = false;
 
   PointerRNA render_settings = RNA_pointer_get(&b_scene.ptr, "render");
   params.output_path = get_string(render_settings, "filepath");
@@ -543,16 +544,25 @@ void BlenderSync::sync_kernel()
   float fps = (float)b_scene.render().fps() / b_scene.render().fps_base();
   this->motion_blur = r.use_motion_blur() && !preview;
 
+  int32_t start_frame = b_scene.frame_start();
+  int32_t current_frame = b_scene.frame_current();
+  int32_t end_frame = b_scene.frame_end();
+
   if (r.use_motion_blur()) {
     float shuttertime = r.motion_blur_shutter();
     PointerRNA oct_animation_settings = RNA_pointer_get(&oct_scene, "animation_settings");
-    float shutter_time = RNA_float_get(&oct_animation_settings, "shutter_time");
-    kernel->oct_node->fShutterTime = shutter_time / 100.0;
+    float shutter_time = RNA_float_get(&oct_animation_settings, "shutter_time") / 100.0;
+    kernel->oct_node->fShutterTime = shutter_time;
     // kernel->oct_node->fShutterTime = (float)b_scene.render().fps() * shutter_time / 100.0;
     kernel->oct_node->fSubframeStart = RNA_float_get(&oct_animation_settings, "subframe_start") /
                                        100.0;
     kernel->oct_node->fSubframeEnd = RNA_float_get(&oct_animation_settings, "subframe_end") /
                                      100.0;
+    kernel->oct_node->bEmulateOldMotionBlurBehavior = is_export_mode ?
+                                                          false :
+                                                          RNA_boolean_get(
+                                                              &oct_animation_settings,
+                                                              "emulate_old_motion_blur_behavior");
     int32_t mb_direction_addon_format = RNA_enum_get(&oct_animation_settings, "mb_direction");
     BlenderSession::MotionBlurDirection mb_direction = BlenderSession::MotionBlurDirection::BEFORE;
     // Addon Motion Blur Direction Format
@@ -566,7 +576,59 @@ void BlenderSync::sync_kernel()
     else if (mb_direction_addon_format == 3) {
       mb_direction = BlenderSession::AFTER;
     }
+    bool clamp_motion_blur_data_source = RNA_boolean_get(&oct_animation_settings,
+                                                         "clamp_motion_blur_data_source");
     int motion_blur_frame_offset = ceil(kernel->oct_node->fShutterTime);
+    int clamped_motion_blur_frame_offset;
+    if (clamp_motion_blur_data_source) {
+      switch (mb_direction) {
+        case oct::BlenderSession::AFTER: {
+          clamped_motion_blur_frame_offset = std::max(
+              0, std::min(end_frame - current_frame, motion_blur_frame_offset));
+          if (motion_blur_frame_offset != clamped_motion_blur_frame_offset) {
+            kernel->oct_node->fShutterTime = clamped_motion_blur_frame_offset;
+            motion_blur_frame_offset = clamped_motion_blur_frame_offset;
+          }
+          break;
+        }
+        case oct::BlenderSession::BEFORE: {
+          clamped_motion_blur_frame_offset = std::max(
+              0, std::min(current_frame - start_frame, motion_blur_frame_offset));
+          if (motion_blur_frame_offset != clamped_motion_blur_frame_offset) {
+            kernel->oct_node->fShutterTime = clamped_motion_blur_frame_offset;
+            motion_blur_frame_offset = clamped_motion_blur_frame_offset;
+          }
+          break;    
+        }
+        case oct::BlenderSession::SYMMETRIC: {
+          motion_blur_frame_offset = ceil((motion_blur_frame_offset * 1.0) / 2);
+          clamped_motion_blur_frame_offset = std::max(
+              0,
+              std::min(end_frame - current_frame,
+                       std::min(current_frame - start_frame, motion_blur_frame_offset)));
+          if (motion_blur_frame_offset != clamped_motion_blur_frame_offset) {
+            kernel->oct_node->fShutterTime = clamped_motion_blur_frame_offset * 2.0;
+            motion_blur_frame_offset = clamped_motion_blur_frame_offset;
+          }
+          break;
+        } 
+        default:
+          break;
+      }
+    }
+    else {
+      switch (mb_direction) {
+        case oct::BlenderSession::AFTER:
+          break;
+        case oct::BlenderSession::BEFORE:
+          break;
+        case oct::BlenderSession::SYMMETRIC:
+          motion_blur_frame_offset = ceil((motion_blur_frame_offset * 1.0) / 2);
+          break;
+        default:
+          break;
+      }
+    }
     switch (mb_direction) {
       case BlenderSession::BEFORE:
         kernel->oct_node->mbAlignment = ::OctaneEngine::Kernel::BEFORE;
@@ -580,7 +642,7 @@ void BlenderSync::sync_kernel()
         break;
       case BlenderSession::SYMMETRIC:
         kernel->oct_node->mbAlignment = ::OctaneEngine::Kernel::SYMMETRIC;
-        motion_blur_frame_offset = ceil((motion_blur_frame_offset * 1.0) / 2);
+
         this->motion_blur_frame_start_offset = -motion_blur_frame_offset;
         this->motion_blur_frame_end_offset = motion_blur_frame_offset;
         break;
@@ -594,6 +656,7 @@ void BlenderSync::sync_kernel()
     kernel->oct_node->fShutterTime = 0.0f;
     kernel->oct_node->fCurrentTime = fps > 0 ? (b_scene.frame_current() / fps) : 0;
     kernel->oct_node->mbAlignment = ::OctaneEngine::Kernel::OFF;
+    kernel->oct_node->bEmulateOldMotionBlurBehavior = false;
   }
 
   kernel->oct_node->type = static_cast<::OctaneEngine::Kernel::KernelType>(

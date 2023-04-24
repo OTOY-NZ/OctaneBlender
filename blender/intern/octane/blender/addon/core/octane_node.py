@@ -6,6 +6,12 @@ if core.ENABLE_OCTANE_ADDON_CLIENT:
     from octane.bin import octane_blender
 
 
+class CArray(object):
+    UINT8 = 0
+    INT = 1
+    FLOAT = 2    
+
+
 class OctaneNode(object):
     def __init__(self, name, node_type=consts.NodeType.NT_UNKNOWN):
         if node_type == consts.NodeType.NT_GEO_SCATTER:
@@ -35,6 +41,13 @@ class OctaneNode(object):
         if node_name in self.subnodes:            
             return self.subnodes[node_name]
         return None
+
+    def clear_all_subnodes(self):
+        if len(self.subnodes) > 0:
+            self.subnodes.clear()
+            self.need_update = True
+            return True
+        return False
 
     @property
     def name(self):
@@ -179,10 +192,10 @@ class OctaneRpcNodeType:
     SYNC_NODE = 3
 
 
-class CArray(object):
-    FLOAT = "FLOAT"
-    INT = "INT"
-    UINT8 = "UINT8"
+# class CArray(object):
+#     FLOAT = "FLOAT"
+#     INT = "INT"
+#     UINT8 = "UINT8"
 
     def __init__(self, identifier, array_type, array, size, dimension=1):
         self.identifier = identifier

@@ -28,7 +28,7 @@ from octane import core
 from octane.utils import utility, consts
 
 
-def osl_node_draw(layout, node_tree_name, node_name):
+def osl_node_draw(context, layout, node_tree_name, node_name):
     if bpy.data.materials:      
         for mat in bpy.data.materials.values():
             if not getattr(mat, 'node_tree', None) or not getattr(mat.node_tree, 'nodes', None):
@@ -38,7 +38,7 @@ def osl_node_draw(layout, node_tree_name, node_name):
             for node in mat.node_tree.nodes.values():
                 if node.name == node_name:
                     layout.label(text="Octane Geometric Node")
-                    layout.template_node_view(mat.node_tree, node, None)
+                    utility._panel_ui_node_view(context, layout, mat.node_tree, node)
                     return True
     layout.label(text="No Octane Geometric Node")
     return False
@@ -134,28 +134,23 @@ class OCTANE_PT_mesh_properties(OctaneButtonsPanel, Panel):
             sub = row.column(align=True)
             sub.prop(cdata, "auto_smooth_angle")
 
-        if core.ENABLE_OCTANE_ADDON_CLIENT:
-            sphere_attribute_mesh_data = cdata
-        else:
-            sphere_attribute_mesh_data = mesh
-        if sphere_attribute_mesh_data:
-            box = layout.box()
-            box.label(text="Sphere Attributes:")
+        box = layout.box()
+        box.label(text="Sphere Attributes:")
+        sub = box.row(align=True)
+        sub.prop(cdata, "octane_enable_sphere_attribute")
+        sub = box.row(align=True)
+        sub.active = cdata.octane_enable_sphere_attribute
+        sub.prop(cdata, "octane_hide_original_mesh")
+        sub = box.row(align=True)
+        sub.prop(cdata, "octane_sphere_radius") 
+        sub = box.row(align=True)
+        sub.prop(cdata, "octane_use_randomized_radius")
+        if cdata.octane_use_randomized_radius:
             sub = box.row(align=True)
-            sub.prop(sphere_attribute_mesh_data, "octane_enable_sphere_attribute")
+            sub.prop(cdata, "octane_sphere_randomized_radius_seed")
             sub = box.row(align=True)
-            sub.active = sphere_attribute_mesh_data.octane_enable_sphere_attribute
-            sub.prop(sphere_attribute_mesh_data, "octane_hide_original_mesh")
-            sub = box.row(align=True)
-            sub.prop(sphere_attribute_mesh_data, "octane_sphere_radius") 
-            sub = box.row(align=True)
-            sub.prop(sphere_attribute_mesh_data, "octane_use_randomized_radius")
-            if sphere_attribute_mesh_data.octane_use_randomized_radius:
-                sub = box.row(align=True)
-                sub.prop(sphere_attribute_mesh_data, "octane_sphere_randomized_radius_seed")
-                sub = box.row(align=True)
-                sub.prop(sphere_attribute_mesh_data, "octane_sphere_randomized_radius_min")
-                sub.prop(sphere_attribute_mesh_data, "octane_sphere_randomized_radius_max")
+            sub.prop(cdata, "octane_sphere_randomized_radius_min")
+            sub.prop(cdata, "octane_sphere_randomized_radius_max")
 
         box = layout.box()
         box.label(text="OpenSubDiv:")
@@ -214,7 +209,7 @@ class OCTANE_PT_mesh_properties(OctaneButtonsPanel, Panel):
         sub.operator('update.octane_geo_nodes', icon='FILE_REFRESH')
         sub = col.row(align = True)        
         sub.prop_search(cdata.octane_geo_node_collections, "osl_geo_node", cdata.octane_geo_node_collections, "osl_geo_nodes")            
-        osl_node_draw(box, str(cdata.octane_geo_node_collections.node_graph_tree), str(cdata.octane_geo_node_collections.osl_geo_node))
+        osl_node_draw(context, box, str(cdata.octane_geo_node_collections.node_graph_tree), str(cdata.octane_geo_node_collections.osl_geo_node))
 
         box = layout.box()
         box.label(text="Orbx properties:")   

@@ -1,12 +1,12 @@
 #ifndef __OCTANE_DATA_TYPE_H__
 #define __OCTANE_DATA_TYPE_H__
 
-#include "blender/rpc/definitions/OctaneNode.h"
-#include "blender/rpc/definitions/OctaneTransform.h"
-#include "blender/rpc/definitions/OctaneProjection.h"
-#include "blender/rpc/definitions/OctanePinInfo.h"
 #include "blender/rpc/definitions/OctaneMesh.h"
+#include "blender/rpc/definitions/OctaneNode.h"
 #include "blender/rpc/definitions/OctaneNodeFactory.h"
+#include "blender/rpc/definitions/OctanePinInfo.h"
+#include "blender/rpc/definitions/OctaneProjection.h"
+#include "blender/rpc/definitions/OctaneTransform.h"
 
 namespace OctaneEngine {
 
@@ -171,7 +171,7 @@ struct Camera {
   float_2 f2BlenderCameraCenter;
 
   ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-  // Camera  
+  // Camera
   float_3 f3EyePoint;
   float_3 f3LookAt;
   float_3 f3UpVector;
@@ -284,10 +284,10 @@ struct Camera {
     return (
         type != otherCam.type
 
-        || bUseRegion != otherCam.bUseRegion ||
-        bUseBlenderCamera != otherCam.bUseBlenderCamera ||
+        || bUseRegion != otherCam.bUseRegion || bUseBlenderCamera != otherCam.bUseBlenderCamera ||
         bUseUniversalCamera != otherCam.bUseUniversalCamera ||
-        bUseCameraDimensionAsPreviewResolution != otherCam.bUseCameraDimensionAsPreviewResolution ||
+        bUseCameraDimensionAsPreviewResolution !=
+            otherCam.bUseCameraDimensionAsPreviewResolution ||
         ui4Region != otherCam.ui4Region ||
         ui2BlenderCameraDimension != otherCam.ui2BlenderCameraDimension ||
         f2BlenderCameraCenter != otherCam.f2BlenderCameraCenter ||
@@ -327,8 +327,7 @@ struct Camera {
         bNeutralResponse != otherCam.bNeutralResponse ||
         bDisablePartialAlpha != otherCam.bDisablePartialAlpha || bSwapEyes != otherCam.bSwapEyes ||
         sCustomLut != otherCam.sCustomLut || fLutStrength != otherCam.fLutStrength ||
-        sOcioLook != otherCam.sOcioLook ||
-        sOcioViewDisplay != otherCam.sOcioViewDisplay ||
+        sOcioLook != otherCam.sOcioLook || sOcioViewDisplay != otherCam.sOcioViewDisplay ||
         sOcioViewDisplayView != otherCam.sOcioViewDisplayView ||
         bForceToneMapping != otherCam.bForceToneMapping
 
@@ -349,7 +348,7 @@ struct Camera {
         fCutoff != otherCam.fCutoff || fGlarePower != otherCam.fGlarePower ||
         iGlareRayCount != otherCam.iGlareRayCount || fGlareAngle != otherCam.fGlareAngle ||
         fGlareBlur != otherCam.fGlareBlur || fSpectralIntencity != otherCam.fSpectralIntencity ||
-        fSpectralShift != otherCam.fSpectralShift || 
+        fSpectralShift != otherCam.fSpectralShift ||
         universalCamera.iCameraMode.iVal != otherCam.universalCamera.iCameraMode.iVal ||
         universalCamera.fSensorWidth.fVal != otherCam.universalCamera.fSensorWidth.fVal ||
         universalCamera.fFocalLength.fVal != otherCam.universalCamera.fFocalLength.fVal ||
@@ -357,21 +356,32 @@ struct Camera {
         universalCamera.fFieldOfView.fVal != otherCam.universalCamera.fFieldOfView.fVal ||
         universalCamera.fScaleOfView.fVal != otherCam.universalCamera.fScaleOfView.fVal ||
         universalCamera.f2LensShift.fVal != otherCam.universalCamera.f2LensShift.fVal ||
-        universalCamera.fPixelAspectRatio.fVal != otherCam.universalCamera.fPixelAspectRatio.fVal ||
+        universalCamera.fPixelAspectRatio.fVal !=
+            otherCam.universalCamera.fPixelAspectRatio.fVal ||
         universalCamera.fFisheyeAngle.fVal != otherCam.universalCamera.fFisheyeAngle.fVal ||
         universalCamera.iFisheyeType.iVal != otherCam.universalCamera.iFisheyeType.iVal ||
         universalCamera.bHardVignette.bVal != otherCam.universalCamera.bHardVignette.bVal ||
-        universalCamera.iFisheyeProjection.iVal != otherCam.universalCamera.iFisheyeProjection.iVal ||
-        universalCamera.fHorizontalFiledOfView.fVal != otherCam.universalCamera.fHorizontalFiledOfView.fVal ||
-        universalCamera.fVerticalFiledOfView.fVal != otherCam.universalCamera.fVerticalFiledOfView.fVal ||
+        universalCamera.iFisheyeProjection.iVal !=
+            otherCam.universalCamera.iFisheyeProjection.iVal ||
+        universalCamera.fHorizontalFiledOfView.fVal !=
+            otherCam.universalCamera.fHorizontalFiledOfView.fVal ||
+        universalCamera.fVerticalFiledOfView.fVal !=
+            otherCam.universalCamera.fVerticalFiledOfView.fVal ||
         universalCamera.iCubemapLayout.iVal != otherCam.universalCamera.iCubemapLayout.iVal ||
-        universalCamera.bEquiAngularCubemap.bVal != otherCam.universalCamera.bEquiAngularCubemap.bVal ||
-        universalCamera.bUseDistortionTexture.bVal != otherCam.universalCamera.bUseDistortionTexture.bVal ||
-        universalCamera.sDistortionTexture.sLinkNodeName != otherCam.universalCamera.sDistortionTexture.sLinkNodeName ||
-        universalCamera.fSphereDistortion.fVal != otherCam.universalCamera.fSphereDistortion.fVal ||
-        universalCamera.fBarrelDistortion.fVal != otherCam.universalCamera.fBarrelDistortion.fVal ||
-        universalCamera.fBarrelDistortionCorners.fVal != otherCam.universalCamera.fBarrelDistortionCorners.fVal ||
-        universalCamera.fSphereAberration.fVal != otherCam.universalCamera.fSphereAberration.fVal ||
+        universalCamera.bEquiAngularCubemap.bVal !=
+            otherCam.universalCamera.bEquiAngularCubemap.bVal ||
+        universalCamera.bUseDistortionTexture.bVal !=
+            otherCam.universalCamera.bUseDistortionTexture.bVal ||
+        universalCamera.sDistortionTexture.sLinkNodeName !=
+            otherCam.universalCamera.sDistortionTexture.sLinkNodeName ||
+        universalCamera.fSphereDistortion.fVal !=
+            otherCam.universalCamera.fSphereDistortion.fVal ||
+        universalCamera.fBarrelDistortion.fVal !=
+            otherCam.universalCamera.fBarrelDistortion.fVal ||
+        universalCamera.fBarrelDistortionCorners.fVal !=
+            otherCam.universalCamera.fBarrelDistortionCorners.fVal ||
+        universalCamera.fSphereAberration.fVal !=
+            otherCam.universalCamera.fSphereAberration.fVal ||
         universalCamera.fComa.fVal != otherCam.universalCamera.fComa.fVal ||
         universalCamera.fAstigmatism.fVal != otherCam.universalCamera.fAstigmatism.fVal ||
         universalCamera.fFieldCurvature.fVal != otherCam.universalCamera.fFieldCurvature.fVal ||
@@ -380,44 +390,60 @@ struct Camera {
         universalCamera.bAutoFocus.bVal != otherCam.universalCamera.bAutoFocus.bVal ||
         universalCamera.fFocalDepth.fVal != otherCam.universalCamera.fFocalDepth.fVal ||
         universalCamera.fAperture.fVal != otherCam.universalCamera.fAperture.fVal ||
-        universalCamera.fApertureAspectRatio.fVal != otherCam.universalCamera.fApertureAspectRatio.fVal ||
+        universalCamera.fApertureAspectRatio.fVal !=
+            otherCam.universalCamera.fApertureAspectRatio.fVal ||
         universalCamera.iApertureShape.iVal != otherCam.universalCamera.iApertureShape.iVal ||
         universalCamera.fApertureEdge.fVal != otherCam.universalCamera.fApertureEdge.fVal ||
-        universalCamera.iApertureBladeCount.iVal != otherCam.universalCamera.iApertureBladeCount.iVal ||
-        universalCamera.fApertureRotation.fVal != otherCam.universalCamera.fApertureRotation.fVal ||
-        universalCamera.fApertureRoundedness.fVal != otherCam.universalCamera.fApertureRoundedness.fVal ||
-        universalCamera.fCentralObstruction.fVal != otherCam.universalCamera.fCentralObstruction.fVal ||
+        universalCamera.iApertureBladeCount.iVal !=
+            otherCam.universalCamera.iApertureBladeCount.iVal ||
+        universalCamera.fApertureRotation.fVal !=
+            otherCam.universalCamera.fApertureRotation.fVal ||
+        universalCamera.fApertureRoundedness.fVal !=
+            otherCam.universalCamera.fApertureRoundedness.fVal ||
+        universalCamera.fCentralObstruction.fVal !=
+            otherCam.universalCamera.fCentralObstruction.fVal ||
         universalCamera.fNorchPosition.fVal != otherCam.universalCamera.fNorchPosition.fVal ||
         universalCamera.fNorchScale.fVal != otherCam.universalCamera.fNorchScale.fVal ||
-        universalCamera.sCustomAperture.sLinkNodeName != otherCam.universalCamera.sCustomAperture.sLinkNodeName ||
-        universalCamera.fOpticalVignetteDistance.fVal != otherCam.universalCamera.fOpticalVignetteDistance.fVal ||
-        universalCamera.fOpticalVignetteScale.fVal != otherCam.universalCamera.fOpticalVignetteScale.fVal ||
-        universalCamera.bEnableSplitFocusDiopter.bVal != otherCam.universalCamera.bEnableSplitFocusDiopter.bVal ||
-        universalCamera.fDiopterFocalDepth.fVal != otherCam.universalCamera.fDiopterFocalDepth.fVal ||
+        universalCamera.sCustomAperture.sLinkNodeName !=
+            otherCam.universalCamera.sCustomAperture.sLinkNodeName ||
+        universalCamera.fOpticalVignetteDistance.fVal !=
+            otherCam.universalCamera.fOpticalVignetteDistance.fVal ||
+        universalCamera.fOpticalVignetteScale.fVal !=
+            otherCam.universalCamera.fOpticalVignetteScale.fVal ||
+        universalCamera.bEnableSplitFocusDiopter.bVal !=
+            otherCam.universalCamera.bEnableSplitFocusDiopter.bVal ||
+        universalCamera.fDiopterFocalDepth.fVal !=
+            otherCam.universalCamera.fDiopterFocalDepth.fVal ||
         universalCamera.fDiopterRotation.fVal != otherCam.universalCamera.fDiopterRotation.fVal ||
-        universalCamera.f2DiopterTranslation.fVal != otherCam.universalCamera.f2DiopterTranslation.fVal ||
-        universalCamera.fDiopterBoundaryWidth.fVal != otherCam.universalCamera.fDiopterBoundaryWidth.fVal ||
-        universalCamera.fDiopterBoundaryFalloff.fVal != otherCam.universalCamera.fDiopterBoundaryFalloff.fVal ||
-        universalCamera.bShowDiopterGuide.bVal != otherCam.universalCamera.bShowDiopterGuide.bVal ||
+        universalCamera.f2DiopterTranslation.fVal !=
+            otherCam.universalCamera.f2DiopterTranslation.fVal ||
+        universalCamera.fDiopterBoundaryWidth.fVal !=
+            otherCam.universalCamera.fDiopterBoundaryWidth.fVal ||
+        universalCamera.fDiopterBoundaryFalloff.fVal !=
+            otherCam.universalCamera.fDiopterBoundaryFalloff.fVal ||
+        universalCamera.bShowDiopterGuide.bVal !=
+            otherCam.universalCamera.bShowDiopterGuide.bVal ||
         universalCamera.f3Position.fVal != otherCam.universalCamera.f3Position.fVal ||
         universalCamera.f3Target.fVal != otherCam.universalCamera.f3Target.fVal ||
         universalCamera.f3Up.fVal != otherCam.universalCamera.f3Up.fVal ||
         universalCamera.bKeepUpright.bVal != otherCam.universalCamera.bKeepUpright.bVal ||
-        universalCamera.oPositoin.oMotionPositions != otherCam.universalCamera.oPositoin.oMotionPositions ||
-        universalCamera.oPositoin.oMotionTargets != otherCam.universalCamera.oPositoin.oMotionTargets ||
+        universalCamera.oPositoin.oMotionPositions !=
+            otherCam.universalCamera.oPositoin.oMotionPositions ||
+        universalCamera.oPositoin.oMotionTargets !=
+            otherCam.universalCamera.oPositoin.oMotionTargets ||
         universalCamera.oPositoin.oMotionUps != otherCam.universalCamera.oPositoin.oMotionUps ||
-        universalCamera.oPositoin.oMotionFOVs != otherCam.universalCamera.oPositoin.oMotionFOVs
-      );
+        universalCamera.oPositoin.oMotionFOVs != otherCam.universalCamera.oPositoin.oMotionFOVs);
   }
   inline bool operator==(const Camera &otherCam)
   {
     return (
         type == otherCam.type
 
-        && bUseRegion == otherCam.bUseRegion && ui4Region == otherCam.ui4Region
-        && bUseBlenderCamera == otherCam.bUseBlenderCamera &&
+        && bUseRegion == otherCam.bUseRegion && ui4Region == otherCam.ui4Region &&
+        bUseBlenderCamera == otherCam.bUseBlenderCamera &&
         bUseUniversalCamera == otherCam.bUseUniversalCamera &&
-        bUseCameraDimensionAsPreviewResolution == otherCam.bUseCameraDimensionAsPreviewResolution &&
+        bUseCameraDimensionAsPreviewResolution ==
+            otherCam.bUseCameraDimensionAsPreviewResolution &&
         ui2BlenderCameraDimension == otherCam.ui2BlenderCameraDimension &&
         f2BlenderCameraCenter == otherCam.f2BlenderCameraCenter &&
         f3EyePoint == otherCam.f3EyePoint && f3LookAt == otherCam.f3LookAt &&
@@ -463,8 +489,7 @@ struct Camera {
         bNeutralResponse == otherCam.bNeutralResponse &&
         bDisablePartialAlpha == otherCam.bDisablePartialAlpha && bSwapEyes == otherCam.bSwapEyes &&
         sCustomLut == otherCam.sCustomLut && fLutStrength == otherCam.fLutStrength &&
-        sOcioLook == otherCam.sOcioLook &&
-        sOcioViewDisplay == otherCam.sOcioViewDisplay &&
+        sOcioLook == otherCam.sOcioLook && sOcioViewDisplay == otherCam.sOcioViewDisplay &&
         sOcioViewDisplayView == otherCam.sOcioViewDisplayView &&
         bForceToneMapping == otherCam.bForceToneMapping
 
@@ -493,21 +518,32 @@ struct Camera {
         universalCamera.fFieldOfView.fVal == otherCam.universalCamera.fFieldOfView.fVal &&
         universalCamera.fScaleOfView.fVal == otherCam.universalCamera.fScaleOfView.fVal &&
         universalCamera.f2LensShift.fVal == otherCam.universalCamera.f2LensShift.fVal &&
-        universalCamera.fPixelAspectRatio.fVal == otherCam.universalCamera.fPixelAspectRatio.fVal &&
+        universalCamera.fPixelAspectRatio.fVal ==
+            otherCam.universalCamera.fPixelAspectRatio.fVal &&
         universalCamera.fFisheyeAngle.fVal == otherCam.universalCamera.fFisheyeAngle.fVal &&
         universalCamera.iFisheyeType.iVal == otherCam.universalCamera.iFisheyeType.iVal &&
         universalCamera.bHardVignette.bVal == otherCam.universalCamera.bHardVignette.bVal &&
-        universalCamera.iFisheyeProjection.iVal == otherCam.universalCamera.iFisheyeProjection.iVal &&
-        universalCamera.fHorizontalFiledOfView.fVal == otherCam.universalCamera.fHorizontalFiledOfView.fVal &&
-        universalCamera.fVerticalFiledOfView.fVal == otherCam.universalCamera.fVerticalFiledOfView.fVal &&
+        universalCamera.iFisheyeProjection.iVal ==
+            otherCam.universalCamera.iFisheyeProjection.iVal &&
+        universalCamera.fHorizontalFiledOfView.fVal ==
+            otherCam.universalCamera.fHorizontalFiledOfView.fVal &&
+        universalCamera.fVerticalFiledOfView.fVal ==
+            otherCam.universalCamera.fVerticalFiledOfView.fVal &&
         universalCamera.iCubemapLayout.iVal == otherCam.universalCamera.iCubemapLayout.iVal &&
-        universalCamera.bEquiAngularCubemap.bVal == otherCam.universalCamera.bEquiAngularCubemap.bVal &&
-        universalCamera.bUseDistortionTexture.bVal == otherCam.universalCamera.bUseDistortionTexture.bVal &&
-        universalCamera.sDistortionTexture.sLinkNodeName == otherCam.universalCamera.sDistortionTexture.sLinkNodeName &&
-        universalCamera.fSphereDistortion.fVal == otherCam.universalCamera.fSphereDistortion.fVal &&
-        universalCamera.fBarrelDistortion.fVal == otherCam.universalCamera.fBarrelDistortion.fVal &&
-        universalCamera.fBarrelDistortionCorners.fVal == otherCam.universalCamera.fBarrelDistortionCorners.fVal &&
-        universalCamera.fSphereAberration.fVal == otherCam.universalCamera.fSphereAberration.fVal &&
+        universalCamera.bEquiAngularCubemap.bVal ==
+            otherCam.universalCamera.bEquiAngularCubemap.bVal &&
+        universalCamera.bUseDistortionTexture.bVal ==
+            otherCam.universalCamera.bUseDistortionTexture.bVal &&
+        universalCamera.sDistortionTexture.sLinkNodeName ==
+            otherCam.universalCamera.sDistortionTexture.sLinkNodeName &&
+        universalCamera.fSphereDistortion.fVal ==
+            otherCam.universalCamera.fSphereDistortion.fVal &&
+        universalCamera.fBarrelDistortion.fVal ==
+            otherCam.universalCamera.fBarrelDistortion.fVal &&
+        universalCamera.fBarrelDistortionCorners.fVal ==
+            otherCam.universalCamera.fBarrelDistortionCorners.fVal &&
+        universalCamera.fSphereAberration.fVal ==
+            otherCam.universalCamera.fSphereAberration.fVal &&
         universalCamera.fComa.fVal == otherCam.universalCamera.fComa.fVal &&
         universalCamera.fAstigmatism.fVal == otherCam.universalCamera.fAstigmatism.fVal &&
         universalCamera.fFieldCurvature.fVal == otherCam.universalCamera.fFieldCurvature.fVal &&
@@ -516,34 +552,49 @@ struct Camera {
         universalCamera.bAutoFocus.bVal == otherCam.universalCamera.bAutoFocus.bVal &&
         universalCamera.fFocalDepth.fVal == otherCam.universalCamera.fFocalDepth.fVal &&
         universalCamera.fAperture.fVal == otherCam.universalCamera.fAperture.fVal &&
-        universalCamera.fApertureAspectRatio.fVal == otherCam.universalCamera.fApertureAspectRatio.fVal &&
+        universalCamera.fApertureAspectRatio.fVal ==
+            otherCam.universalCamera.fApertureAspectRatio.fVal &&
         universalCamera.iApertureShape.iVal == otherCam.universalCamera.iApertureShape.iVal &&
         universalCamera.fApertureEdge.fVal == otherCam.universalCamera.fApertureEdge.fVal &&
-        universalCamera.iApertureBladeCount.iVal == otherCam.universalCamera.iApertureBladeCount.iVal &&
-        universalCamera.fApertureRotation.fVal == otherCam.universalCamera.fApertureRotation.fVal &&
-        universalCamera.fApertureRoundedness.fVal == otherCam.universalCamera.fApertureRoundedness.fVal &&
-        universalCamera.fCentralObstruction.fVal == otherCam.universalCamera.fCentralObstruction.fVal &&
+        universalCamera.iApertureBladeCount.iVal ==
+            otherCam.universalCamera.iApertureBladeCount.iVal &&
+        universalCamera.fApertureRotation.fVal ==
+            otherCam.universalCamera.fApertureRotation.fVal &&
+        universalCamera.fApertureRoundedness.fVal ==
+            otherCam.universalCamera.fApertureRoundedness.fVal &&
+        universalCamera.fCentralObstruction.fVal ==
+            otherCam.universalCamera.fCentralObstruction.fVal &&
         universalCamera.fNorchPosition.fVal == otherCam.universalCamera.fNorchPosition.fVal &&
         universalCamera.fNorchScale.fVal == otherCam.universalCamera.fNorchScale.fVal &&
-        universalCamera.sCustomAperture.sLinkNodeName == otherCam.universalCamera.sCustomAperture.sLinkNodeName &&
-        universalCamera.fOpticalVignetteDistance.fVal == otherCam.universalCamera.fOpticalVignetteDistance.fVal &&
-        universalCamera.fOpticalVignetteScale.fVal == otherCam.universalCamera.fOpticalVignetteScale.fVal &&
-        universalCamera.bEnableSplitFocusDiopter.bVal == otherCam.universalCamera.bEnableSplitFocusDiopter.bVal &&
-        universalCamera.fDiopterFocalDepth.fVal == otherCam.universalCamera.fDiopterFocalDepth.fVal &&
+        universalCamera.sCustomAperture.sLinkNodeName ==
+            otherCam.universalCamera.sCustomAperture.sLinkNodeName &&
+        universalCamera.fOpticalVignetteDistance.fVal ==
+            otherCam.universalCamera.fOpticalVignetteDistance.fVal &&
+        universalCamera.fOpticalVignetteScale.fVal ==
+            otherCam.universalCamera.fOpticalVignetteScale.fVal &&
+        universalCamera.bEnableSplitFocusDiopter.bVal ==
+            otherCam.universalCamera.bEnableSplitFocusDiopter.bVal &&
+        universalCamera.fDiopterFocalDepth.fVal ==
+            otherCam.universalCamera.fDiopterFocalDepth.fVal &&
         universalCamera.fDiopterRotation.fVal == otherCam.universalCamera.fDiopterRotation.fVal &&
-        universalCamera.f2DiopterTranslation.fVal == otherCam.universalCamera.f2DiopterTranslation.fVal &&
-        universalCamera.fDiopterBoundaryWidth.fVal == otherCam.universalCamera.fDiopterBoundaryWidth.fVal &&
-        universalCamera.fDiopterBoundaryFalloff.fVal == otherCam.universalCamera.fDiopterBoundaryFalloff.fVal &&
-        universalCamera.bShowDiopterGuide.bVal == otherCam.universalCamera.bShowDiopterGuide.bVal &&
+        universalCamera.f2DiopterTranslation.fVal ==
+            otherCam.universalCamera.f2DiopterTranslation.fVal &&
+        universalCamera.fDiopterBoundaryWidth.fVal ==
+            otherCam.universalCamera.fDiopterBoundaryWidth.fVal &&
+        universalCamera.fDiopterBoundaryFalloff.fVal ==
+            otherCam.universalCamera.fDiopterBoundaryFalloff.fVal &&
+        universalCamera.bShowDiopterGuide.bVal ==
+            otherCam.universalCamera.bShowDiopterGuide.bVal &&
         universalCamera.f3Position.fVal == otherCam.universalCamera.f3Position.fVal &&
         universalCamera.f3Target.fVal == otherCam.universalCamera.f3Target.fVal &&
         universalCamera.f3Up.fVal == otherCam.universalCamera.f3Up.fVal &&
         universalCamera.bKeepUpright.bVal == otherCam.universalCamera.bKeepUpright.bVal &&
-        universalCamera.oPositoin.oMotionPositions == otherCam.universalCamera.oPositoin.oMotionPositions &&
-        universalCamera.oPositoin.oMotionTargets == otherCam.universalCamera.oPositoin.oMotionTargets &&
+        universalCamera.oPositoin.oMotionPositions ==
+            otherCam.universalCamera.oPositoin.oMotionPositions &&
+        universalCamera.oPositoin.oMotionTargets ==
+            otherCam.universalCamera.oPositoin.oMotionTargets &&
         universalCamera.oPositoin.oMotionUps == otherCam.universalCamera.oPositoin.oMotionUps &&
-        universalCamera.oPositoin.oMotionFOVs == otherCam.universalCamera.oPositoin.oMotionFOVs
-      );
+        universalCamera.oPositoin.oMotionFOVs == otherCam.universalCamera.oPositoin.oMotionFOVs);
   }
   inline Camera &operator=(const Camera &otherCam)
   {
@@ -1394,6 +1445,7 @@ struct Kernel {
   MBAlignmentType mbAlignment;
   float fSubframeStart;
   float fSubframeEnd;
+  bool bEmulateOldMotionBlurBehavior;
 
   // COMMON
   int32_t iMaxSamples;
@@ -1512,7 +1564,7 @@ struct Kernel {
         iMaxSubdivisionLevel == otherKernel.iMaxSubdivisionLevel &&
 
         iWhiteLightSpectrum == otherKernel.iWhiteLightSpectrum &&
-        bUseOldPipeline == otherKernel.bUseOldPipeline 
+        bUseOldPipeline == otherKernel.bUseOldPipeline
 
         && bAlphaShadows == otherKernel.bAlphaShadows &&
         bKeepEnvironment == otherKernel.bKeepEnvironment &&
@@ -1555,8 +1607,7 @@ struct Kernel {
         && iDiffuseDepth == otherKernel.iDiffuseDepth &&
         iGlossyDepth == otherKernel.iGlossyDepth && iSpecularDepth == otherKernel.iSpecularDepth &&
         GIMode == otherKernel.GIMode && iClayMode == otherKernel.iClayMode &&
-        iSubsampleMode == otherKernel.iSubsampleMode &&
-        sAoTexture == otherKernel.sAoTexture
+        iSubsampleMode == otherKernel.iSubsampleMode && sAoTexture == otherKernel.sAoTexture
 
         && fExploration == otherKernel.fExploration &&
         fDLImportance == otherKernel.fDLImportance && iMaxRejects == otherKernel.iMaxRejects &&
@@ -1583,6 +1634,7 @@ struct Kernel {
 
         && fShutterTime == otherKernel.fShutterTime && fCurrentTime == otherKernel.fCurrentTime &&
         fSubframeStart == otherKernel.fSubframeStart && fSubframeEnd == otherKernel.fSubframeEnd &&
+        bEmulateOldMotionBlurBehavior == otherKernel.bEmulateOldMotionBlurBehavior &&
         mbAlignment == otherKernel.mbAlignment
 
         && f3ToonShadowAmbient == otherKernel.f3ToonShadowAmbient);
@@ -1761,6 +1813,8 @@ struct Kernel {
       fSubframeEnd = otherKernel.fSubframeEnd;
     if (mbAlignment != otherKernel.mbAlignment)
       mbAlignment = otherKernel.mbAlignment;
+    if (bEmulateOldMotionBlurBehavior != otherKernel.bEmulateOldMotionBlurBehavior)
+      bEmulateOldMotionBlurBehavior = otherKernel.bEmulateOldMotionBlurBehavior;
 
     if (f3ToonShadowAmbient != otherKernel.f3ToonShadowAmbient)
       f3ToonShadowAmbient = otherKernel.f3ToonShadowAmbient;

@@ -55,11 +55,11 @@ class OctaneProxy(bpy.types.Node, OctaneBaseNode):
         row.operator("octane.open_proxy_node_graph")
 
     def build_socket(self, socket_et, is_input=True):
-        name = socket_et.findtext("name")
-        unique_id = int(socket_et.findtext("id"))
-        index = int(socket_et.findtext("index"))
-        pin_type = int(socket_et.findtext("pin_type"))
-        color = int(socket_et.findtext("color"))
+        name = socket_et.get("name")
+        unique_id = int(socket_et.get("id"))
+        index = int(socket_et.get("index"))
+        pin_type = int(socket_et.get("pin_type"))
+        color = int(socket_et.get("color"))
         socket = None
         if is_input:            
             for _input in self.inputs:

@@ -75,6 +75,7 @@ class Mesh {
   OctaneDataTransferObject::OctaneMesh octane_mesh;
   OctaneDataTransferObject::OctaneVolume octane_volume;
 
+  bool use_geo_nodes;
   bool empty;
   bool is_mesh_synced;
   bool use_octane_coordinate;

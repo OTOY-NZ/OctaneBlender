@@ -633,7 +633,7 @@ class OctaneMeshSettings(bpy.types.PropertyGroup):
     octane_sphere_radius: FloatProperty(
             name="Octane Sphere Radius",
             description="The radius of the sphere primitive",
-            min=0.0, max=1000000.0, soft_max=1000000.0,
+            min=0.00001, max=1000000.0, soft_max=1000000.0,
             default=0.1,
             )   
     use_randomized_radius: BoolProperty(
@@ -650,13 +650,13 @@ class OctaneMeshSettings(bpy.types.PropertyGroup):
     octane_sphere_randomized_radius_min: FloatProperty(
             name="Min Radius",
             description="The min randomized radius of the sphere primitive",
-            min=0.0, max=1000000.0, soft_max=1000000.0,
+            min=0.00001, max=1000000.0, soft_max=1000000.0,
             default=0.1,
             )                
     octane_sphere_randomized_radius_max: FloatProperty(
             name="Max Radius",
             description="The max randomized radius of the sphere primitive",
-            min=0.0, max=1000000.0, soft_max=1000000.0,
+            min=0.00001, max=1000000.0, soft_max=1000000.0,
             default=0.1,
             )                    
     tessface_in_preview: BoolProperty(
@@ -664,47 +664,34 @@ class OctaneMeshSettings(bpy.types.PropertyGroup):
             description="Enable tessfaces(if available) in interactive rendering mode",
             default=False,
             )
-    def update_open_subd_settings(self, context):
-        oct_mesh = self
-        mesh = self.id_data
-        mesh.oct_enable_subd = int(oct_mesh.open_subd_enable)
-        mesh.oct_subd_level = oct_mesh.open_subd_level
-        mesh.oct_open_subd_scheme = int(oct_mesh.open_subd_scheme)
-        mesh.oct_open_subd_bound_interp = int(oct_mesh.open_subd_bound_interp)
-        mesh.oct_open_subd_sharpness = oct_mesh.open_subd_sharpness
     open_subd_enable: BoolProperty(
             name="Enable OpenSubDiv",
             description="Subdivide mesh before rendering",
             default=False,
-            update=update_open_subd_settings,
             )
     open_subd_scheme: EnumProperty(
             name="Scheme",
             description="",
             items=subd_scheme,
             default='1',
-            update=update_open_subd_settings,
             )
     open_subd_level: IntProperty(
             name="Subd level",
             description="",
             min=0, max=10,
             default=0,
-            update=update_open_subd_settings,
             )
     open_subd_sharpness: FloatProperty(
             name="Sharpness",
             description="",
             min=0.0, max=11.0, soft_max=11.0,
             default=0.0,
-            update=update_open_subd_settings,
             )
     open_subd_bound_interp: EnumProperty(
             name="Boundary interp.",
             description="",
             items=bound_interp,
             default='3',
-            update=update_open_subd_settings,
             )
     vis_general: FloatProperty(
             name="General visibility",

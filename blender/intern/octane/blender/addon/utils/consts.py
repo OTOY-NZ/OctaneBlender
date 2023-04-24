@@ -241,6 +241,7 @@ class OctanePresetNodeNames:
 
 # Octane OutputNode Socket Names
 class OctaneOutputNodeSocketNames:
+    KERNEL = "Kernel"
     TEXTURE = "Texture"
     SURFACE = "Surface"
     VOLUME = "Volume"

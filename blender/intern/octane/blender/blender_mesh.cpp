@@ -147,7 +147,7 @@ static void create_curve_hair(Scene *scene,
       mesh->octane_mesh.oMeshData.iVertexPerHair.push_back(step_num);
       int shader = clamp(s->material_index() - 1, 0, used_shaders.size() - 1);
       mesh->octane_mesh.oMeshData.iHairMaterialIndices.push_back(shader);
-    } 
+    }
   }
   mesh->octane_mesh.oMeshData.bShowVertexData = false;
   mesh->octane_mesh.oMeshData.bUpdate = true;
@@ -863,24 +863,12 @@ static void sync_mesh_particles(BL::Object &b_ob, Mesh *mesh, bool background)
   }
 }
 
-Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
-                             BL::Object &b_ob,
-                             BL::Object &b_ob_instance,
-                             bool object_updated,
-                             bool show_self,
-                             bool show_particles,
-                             OctaneDataTransferObject::OctaneObjectLayer &object_layer,
-                             MeshType mesh_type)
+void BlenderSync::find_used_shaders(BL::Object &b_ob,
+                                    std::vector<Shader *> &used_shaders,
+                                    bool &use_octane_vertex_displacement_subdvision,
+                                    bool &use_default_shader)
 {
-  BL::ID b_ob_data = b_ob.data();
-  bool is_instance = (b_ob == b_ob_instance);
-  BL::ID key = (BKE_object_is_modified(b_ob) && !is_instance) ? b_ob_data : b_ob_instance;
   BL::Material material_override = view_layer.material_override;
-  bool is_edit_mode_modified = false;
-
-  /* find shader indices */
-  std::vector<Shader *> used_shaders;
-
   BL::Object::material_slots_iterator slot;
   for (b_ob.material_slots.begin(slot); slot != b_ob.material_slots.end(); ++slot) {
     if (material_override) {
@@ -890,9 +878,11 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
       BL::ID b_material(slot->material());
       find_shader(b_material, used_shaders, scene->default_surface);
     }
+    use_default_shader = false;
   }
 
   if (used_shaders.size() == 0) {
+    use_default_shader = true;
     if (material_override)
       find_shader(material_override, used_shaders, scene->default_surface);
     else
@@ -905,21 +895,67 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
     }
   }
 
-  bool use_octane_vertex_displacement_subdvision = false;
   for (auto used_shader : used_shaders) {
     if (used_shader->graph && used_shader->graph->need_subdivision) {
       use_octane_vertex_displacement_subdvision = true;
     }
   }
+}
+
+Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
+                             BL::Object &b_ob,
+                             BL::Object &b_ob_instance,
+                             bool object_updated,
+                             bool show_self,
+                             bool show_particles,
+                             OctaneDataTransferObject::OctaneObjectLayer &object_layer,
+                             MeshType mesh_type)
+{
+  BL::ID b_ob_data = b_ob.data();
+  bool is_instance = (b_ob == b_ob_instance);
+  BL::ID key = (BKE_object_is_modified(b_ob) && !is_instance) ? b_ob_data : b_ob_instance;
+  bool is_edit_mode_modified = false;
+  /* find shader indices */
+  std::vector<Shader *> used_shaders;
+  bool use_octane_vertex_displacement_subdvision = false;
+  bool use_default_shader = false;
+  find_used_shaders(
+      b_ob, used_shaders, use_octane_vertex_displacement_subdvision, use_default_shader);
 
   Mesh *octane_mesh;
+  bool is_modified = BKE_object_is_modified(b_ob);
   PointerRNA oct_mesh = RNA_pointer_get(&b_ob_data.ptr, "octane");
   if (oct_mesh.data == NULL) {
     BL::ID b_ob_instance_data = b_ob_instance.data();
     oct_mesh = RNA_pointer_get(&b_ob_instance_data.ptr, "octane");
   }
+  if (is_modified) {
+    for (auto &obj : b_depsgraph.scene().objects) {
+      if (obj.name() == b_ob.name()) {
+        BL::ID obj_data = obj.data();
+        oct_mesh = RNA_pointer_get(&obj_data.ptr, "octane");
+        if (use_default_shader) {
+          BL::Material material_override = view_layer.material_override;
+          BL::Object::material_slots_iterator slot;
+          if (obj.material_slots.length()) {
+            used_shaders.clear();
+            for (obj.material_slots.begin(slot); slot != obj.material_slots.end(); ++slot) {
+              if (material_override) {
+                find_shader(material_override, used_shaders, scene->default_surface);
+              }
+              else {
+                BL::ID b_material(slot->material());
+                find_shader_by_id_and_name(b_material, used_shaders, scene->default_surface);
+              }
+              use_default_shader = false;
+            }
+          }
+        }
+        break;
+      }
+    }
+  }
 
-  bool is_modified = BKE_object_is_modified(b_ob);
   bool use_geometry_node_modifier = false;
   BL::Object::modifiers_iterator b_mod;
   for (b_ob.modifiers.begin(b_mod); b_mod != b_ob.modifiers.end(); ++b_mod) {
@@ -964,14 +1000,61 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
   }
 
   std::string new_octane_prop_tag = "";
+
+  bool bHideOriginalMesh = false;
   if (b_ob.type() == BL::Object::type_MESH) {
-    BL::Mesh b_mesh = BL::Mesh(b_ob.data());    
-    std::string subd_mesh_setting_tag = std::to_string(b_mesh.oct_enable_subd()) +
-                                        std::to_string(b_mesh.oct_subd_level()) +
-                                        std::to_string(b_mesh.oct_open_subd_scheme()) +
-                                        std::to_string(b_mesh.oct_open_subd_bound_interp()) +
-                                        std::to_string(b_mesh.oct_open_subd_sharpness());
-    new_octane_prop_tag += ("|" + subd_mesh_setting_tag);
+    octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.bEnable = get_boolean(
+        oct_mesh, "octane_enable_sphere_attribute");
+    bHideOriginalMesh = get_boolean(oct_mesh, "octane_hide_original_mesh");
+    octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.fRadius = get_float(
+        oct_mesh, "octane_sphere_radius");
+    bool use_randomized_radius = get_boolean(oct_mesh, "octane_use_randomized_radius");
+    octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.iRandomSeed =
+        use_randomized_radius ? get_int(oct_mesh, "octane_sphere_randomized_radius_seed") : -1;
+    octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.fMinRandomizedRadius = get_float(
+        oct_mesh, "octane_sphere_randomized_radius_min");
+    octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.fMaxRandomizedRadius = get_float(
+        oct_mesh, "octane_sphere_randomized_radius_max");
+
+    octane_mesh->octane_mesh.oMeshOpenSubdivision.bOpenSubdEnable =
+        get_boolean(oct_mesh, "open_subd_enable") || use_octane_vertex_displacement_subdvision;
+    octane_mesh->octane_mesh.oMeshOpenSubdivision.iOpenSubdScheme = get_enum(oct_mesh,
+                                                                             "open_subd_scheme");
+    octane_mesh->octane_mesh.oMeshOpenSubdivision.iOpenSubdLevel = get_int(oct_mesh,
+                                                                           "open_subd_level");
+    octane_mesh->octane_mesh.oMeshOpenSubdivision.fOpenSubdSharpness = get_float(
+        oct_mesh, "open_subd_sharpness");
+    octane_mesh->octane_mesh.oMeshOpenSubdivision.iOpenSubdBoundInterp = get_enum(
+        oct_mesh, "open_subd_bound_interp");
+  }
+  else {
+    octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.bEnable = false;
+    octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.fRadius = 0.f;
+    octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.iRandomSeed = -1;
+    octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.fMinRandomizedRadius = 0.f;
+    octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.fMaxRandomizedRadius = 0.f;
+    octane_mesh->octane_mesh.oMeshOpenSubdivision.bOpenSubdEnable = false;
+    octane_mesh->octane_mesh.oMeshOpenSubdivision.iOpenSubdScheme = 1;
+    octane_mesh->octane_mesh.oMeshOpenSubdivision.iOpenSubdLevel = 0;
+    octane_mesh->octane_mesh.oMeshOpenSubdivision.fOpenSubdSharpness = 0;
+    octane_mesh->octane_mesh.oMeshOpenSubdivision.iOpenSubdBoundInterp = 3;
+  }
+
+  if (b_ob.type() == BL::Object::type_MESH) {
+    BL::Mesh b_mesh = BL::Mesh(b_ob.data());
+    const auto &oMeshSphereAttribute = octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute;
+    const auto &oMeshOpenSubdivision = octane_mesh->octane_mesh.oMeshOpenSubdivision;
+    std::string octane_mesh_setting_tag =
+        std::to_string(oMeshSphereAttribute.bEnable) +
+        std::to_string(oMeshSphereAttribute.fRadius) +
+        std::to_string(oMeshSphereAttribute.iRandomSeed) +
+        std::to_string(oMeshSphereAttribute.fMinRandomizedRadius) +
+        std::to_string(oMeshSphereAttribute.fMaxRandomizedRadius) +
+        std::to_string(oMeshOpenSubdivision.bOpenSubdEnable) +
+        std::to_string(oMeshOpenSubdivision.iOpenSubdLevel) +
+        std::to_string(oMeshOpenSubdivision.fOpenSubdSharpness) +
+        std::to_string(oMeshOpenSubdivision.iOpenSubdBoundInterp);
+    new_octane_prop_tag += ("|" + octane_mesh_setting_tag);
   }
   else if (b_ob.type() == BL::Object::type_CURVE) {
     new_octane_prop_tag += ("|" + std::to_string(get_float(oct_mesh, "hair_root_width")) + "|" +
@@ -1082,6 +1165,9 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
     if (mesh_synced.find(octane_mesh) != mesh_synced.end()) {
       return octane_mesh;
     }
+    if (use_geometry_node_modifier && b_ob_data_name == "Volume") {
+      octane_mesh->is_mesh_to_volume = true;
+    }
     BL::Volume b_volume = BL::Volume(b_ob.data());
     b_volume.grids.load(b_data.ptr.data);
     octane_mesh->is_octane_volume = true;
@@ -1110,10 +1196,12 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
       octane_mesh->octane_volume.sVolumePath = blender_absolute_path(b_data, b_scene, volume_path);
     }
     resolve_volume_attributes(oct_mesh, octane_mesh->octane_volume);
-    bool apply_import_scale_to_blender_transfrom = RNA_boolean_get(
-        &oct_mesh, "apply_import_scale_to_blender_transfrom");
-    if (apply_import_scale_to_blender_transfrom) {
-      octane_mesh->octane_volume.iImportScale = 4;  // Default meters
+    if (RNA_struct_find_property(&oct_mesh, "apply_import_scale_to_blender_transfrom") != NULL) {
+      bool apply_import_scale_to_blender_transfrom = RNA_boolean_get(
+          &oct_mesh, "apply_import_scale_to_blender_transfrom");
+      if (apply_import_scale_to_blender_transfrom) {
+        octane_mesh->octane_volume.iImportScale = 4;  // Default meters
+      }
     }
     if (selected_grid_name.length()) {
       if (octane_mesh->octane_volume.sAbsorptionGridId.sVal.length() == 0) {
@@ -1132,7 +1220,7 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
       }
     }
     octane_mesh->enable_offset_transform = RNA_boolean_get(&oct_mesh,
-                                                           "enable_octane_offset_transform");    
+                                                           "enable_octane_offset_transform");
     if (octane_mesh->enable_offset_transform) {
       float3 translate, euler, scale;
       int mode = RNA_enum_get(&oct_mesh, "octane_offset_rotation_order");
@@ -1350,44 +1438,6 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
   }
   octane_mesh->octane_mesh.iHairInterpolations = RNA_enum_get(&oct_mesh, "hair_interpolation");
   octane_mesh->final_visibility = !(preview ? b_ob.hide_viewport() : b_ob.hide_render());
-
-  bool bHideOriginalMesh = false;
-  if (b_ob.type() == BL::Object::type_MESH) {
-    BL::Mesh b_mesh = BL::Mesh(b_ob.data());
-    octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.bEnable =
-        b_mesh.octane_enable_sphere_attribute();
-    bHideOriginalMesh = b_mesh.octane_hide_original_mesh();
-    octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.fRadius =
-        b_mesh.octane_sphere_radius();
-    bool use_randomized_radius = b_mesh.octane_use_randomized_radius();
-    octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.iRandomSeed =
-        use_randomized_radius ? b_mesh.octane_sphere_randomized_radius_seed() : -1;
-    octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.fMinRandomizedRadius =
-        b_mesh.octane_sphere_randomized_radius_min();
-    octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.fMaxRandomizedRadius =
-        b_mesh.octane_sphere_randomized_radius_max();
-
-    octane_mesh->octane_mesh.oMeshOpenSubdivision.bOpenSubdEnable =
-        b_mesh.oct_enable_subd() || use_octane_vertex_displacement_subdvision;
-    octane_mesh->octane_mesh.oMeshOpenSubdivision.iOpenSubdScheme = b_mesh.oct_open_subd_scheme();
-    octane_mesh->octane_mesh.oMeshOpenSubdivision.iOpenSubdLevel = b_mesh.oct_subd_level();
-    octane_mesh->octane_mesh.oMeshOpenSubdivision.fOpenSubdSharpness =
-        b_mesh.oct_open_subd_sharpness();
-    octane_mesh->octane_mesh.oMeshOpenSubdivision.iOpenSubdBoundInterp =
-        b_mesh.oct_open_subd_bound_interp();
-  }
-  else {
-    octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.bEnable = false;
-    octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.fRadius = 0.f;
-    octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.iRandomSeed = -1;
-    octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.fMinRandomizedRadius = 0.f;
-    octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.fMaxRandomizedRadius = 0.f;
-    octane_mesh->octane_mesh.oMeshOpenSubdivision.bOpenSubdEnable = false;
-    octane_mesh->octane_mesh.oMeshOpenSubdivision.iOpenSubdScheme = 1;
-    octane_mesh->octane_mesh.oMeshOpenSubdivision.iOpenSubdLevel = 0;
-    octane_mesh->octane_mesh.oMeshOpenSubdivision.fOpenSubdSharpness = 0;
-    octane_mesh->octane_mesh.oMeshOpenSubdivision.iOpenSubdBoundInterp = 3;
-  }
 
   bool is_octane_vdb = RNA_boolean_get(&oct_mesh, "is_octane_vdb");
   octane_mesh->is_octane_volume = is_octane_vdb;

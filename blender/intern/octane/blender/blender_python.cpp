@@ -93,13 +93,17 @@ static PyObject *py_init_func(PyObject * /*self*/, PyObject *args)
             PyC_UnicodeAsByte(user_path, &user_path_coerce));
   Py_XDECREF(path_coerce);
   Py_XDECREF(user_path_coerce);
+#if defined(WIN32)
   CommonD3D::InitD3D11();
+#endif
   Py_RETURN_TRUE;
 }
 
 static PyObject *py_exit_func(PyObject * /*self*/, PyObject * /*args*/)
 {
+#if defined(WIN32)
   CommonD3D::ReleaseD3D11();
+#endif
   Py_RETURN_TRUE;
 }
 

@@ -429,8 +429,12 @@ class ObjectCache(OctaneNodeCache):
         octane_objectlayer_node = self.get_octane_node(objectlayer_name, consts.NodeType.NT_OBJECTLAYER)
         octane_objectlayer_map_node = self.get_octane_node(objectlayer_map_name, consts.NodeType.NT_OBJECTLAYER_MAP)
         octane_mesh_node = None
-        if _object.type == "MESH":
+        octane_property = getattr(_object.data, "octane")
+        if _object.type == "MESH":            
             # Mesh Data
+            geometry_node_data = octane_property.octane_geo_node_collections
+            if len(geometry_node_data.node_graph_tree) and len(geometry_node_data.osl_geo_node):
+                objectlayer_map_linked_mesh_name = geometry_node_data.node_graph_tree + "_" + geometry_node_data.osl_geo_node
             domain_modifier = utility.find_smoke_domain_modifier(_object)
             if domain_modifier is None or domain_modifier.domain_settings.use_mesh:
                 octane_mesh_node = self.get_octane_node(geometry_name, consts.NodeType.NT_GEO_MESH)

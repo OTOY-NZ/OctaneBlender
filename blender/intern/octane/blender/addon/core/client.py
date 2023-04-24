@@ -110,7 +110,7 @@ class OctaneBlender(metaclass=utility.Singleton):
         return octane_blender.set_graph_time(time)
 
     def is_shared_surface_supported(self):
-        return octane_blender.is_shared_surface_supported()
+        return False #octane_blender.is_shared_surface_supported()
 
     def use_shared_surface(self, enable):
         if not self.enabled:

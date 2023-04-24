@@ -651,7 +651,7 @@ class OctaneImagerSettings(bpy.types.PropertyGroup, common.OctanePropertySetting
         default=10,
     )
 
-    def sync_ocio_settings(self, octane_node, scene, is_viewport):
+    def sync_ocio_settings(self, octane_node, scene, session_type):
         ocio_view_display_name = self.ocio_view_display_name
         ocio_view_display_view_name = self.ocio_view_display_view_name
         ocio_look_name = self.ocio_look
@@ -666,10 +666,10 @@ class OctaneImagerSettings(bpy.types.PropertyGroup, common.OctanePropertySetting
         octane_node.set_attribute_blender_name(self.BLNEDER_ATTRIBUTE_OCIO_VIEW_NAME, consts.AttributeType.AT_STRING, ocio_view_display_view_name)
         octane_node.set_attribute_blender_name(self.BLNEDER_ATTRIBUTE_OCIO_LOOK_NAME, consts.AttributeType.AT_STRING, ocio_look_name)
 
-    def sync_custom_data(self, octane_node, scene, region, v3d, rv3d, is_viewport):
+    def sync_custom_data(self, octane_node, scene, region, v3d, rv3d, session_type):
         octane_node.set_attribute_blender_name(self.BLNEDER_ATTRIBUTE_LUT_FILEPATH, consts.AttributeType.AT_FILENAME, bpy.path.abspath(self.custom_lut))
         octane_node.set_attribute_blender_name(self.BLNEDER_ATTRIBUTE_LUT_STRENGTH, consts.AttributeType.AT_FLOAT, self.lut_strength)
-        self.sync_ocio_settings(octane_node, scene, is_viewport)
+        self.sync_ocio_settings(octane_node, scene, session_type)
 
     def update_legacy_data(self, context, legacy_data, is_viewport=None):
         utility.sync_legacy_property(self, "exposure", legacy_data, "exposure")
@@ -1277,8 +1277,8 @@ class OctaneBaseCameraSettings(common.OctanePropertySettings):
         camera_node.targets[motion_time_offset] = target_vector
         camera_node.ups[motion_time_offset] = up_vector
 
-    def sync_custom_data(self, octane_node, scene, region, v3d, rv3d, is_viewport):
-        if is_viewport:
+    def sync_custom_data(self, octane_node, scene, region, v3d, rv3d, session_type):
+        if session_type == consts.SessionType.VIEWPORT:
             self.sync_view(octane_node, scene, region, v3d, rv3d)
         else:
             width = utility.render_resolution_x(scene)

@@ -438,7 +438,7 @@ class OCTANE_OT_node_add_search(NodeAddOperator, bpy.types.Operator):
         enum_items = OCTANE_OT_node_add_search._enum_item_hack
         enum_items.clear()        
 
-        for index, item in enumerate(nodeitems_utils.node_items_iter(context)):
+        for index, item in enumerate(nodeitems_utils.node_items_iter(context)):            
             if isinstance(item, nodeitems_utils.NodeItem):
                 if isinstance(item, node_items.OctaneNodeItem):
                     if item.is_pin_type_compatible(self.octane_pin_type):
@@ -454,7 +454,7 @@ class OCTANE_OT_node_add_search(NodeAddOperator, bpy.types.Operator):
                                  "",
                                  index,
                                  ))
-                elif item.label != "[OCTANE_HELPER_NODE_GROUP]":
+                elif item.label not in ("[OCTANE_HELPER_NODE_GROUP]", "Octane Object Data", "Camera Data"):
                     # Do not show Blender's menu under quick adding mode(octane_pin_type is assigned)
                     if self.octane_pin_type == consts.PinType.PT_UNKNOWN:
                         enum_items.append(

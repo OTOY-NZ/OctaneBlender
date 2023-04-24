@@ -18,7 +18,7 @@
 
 # <pep8 compliant>
 
-OCTANE_BLENDER_VERSION = '27.8'
+OCTANE_BLENDER_VERSION = '27.9'
 OCTANE_VERSION = 12000020
 OCTANE_VERSION_STR = "2022.1"
 
@@ -325,6 +325,9 @@ def check_compatibility_octane_passes_24_2(file_version):
 
 # world
 def check_compatibility_octane_world(file_version):
+    from octane import core
+    if core.ENABLE_OCTANE_ADDON_CLIENT:
+        return
     check_compatibility_octane_world_15_2_4(file_version)
     check_compatibility_octane_world_20_1(file_version)
     check_compatibility_octane_world_24_3(file_version)
@@ -518,6 +521,7 @@ def check_compatibility_octane_world_24_3(file_version):
 # mesh
 def check_compatibility_octane_mesh(file_version):
     check_compatibility_octane_mesh_25_2(file_version)
+    check_compatibility_octane_mesh_27_9(file_version)
 
 def check_compatibility_octane_mesh_25_2(file_version):
     UPDATE_VERSION = '25.2'
@@ -533,6 +537,29 @@ def check_compatibility_octane_mesh_25_2(file_version):
             mesh.oct_open_subd_sharpness = oct_mesh.open_subd_sharpness
         except:
             pass
+
+def check_compatibility_octane_mesh_27_9(file_version):
+    # Use the Python-defined properties again for the add-on compatibility
+    UPDATE_VERSION = '27.9'
+    if not check_update(file_version, UPDATE_VERSION):
+        return
+    from octane import core
+    if core.ENABLE_OCTANE_ADDON_CLIENT:
+        return        
+    for mesh in bpy.data.meshes:
+        oct_mesh = mesh.octane
+        oct_mesh.octane_enable_sphere_attribute = mesh.octane_enable_sphere_attribute
+        oct_mesh.octane_hide_original_mesh = mesh.octane_hide_original_mesh
+        oct_mesh.octane_sphere_radius = mesh.octane_sphere_radius
+        oct_mesh.octane_use_randomized_radius = mesh.octane_use_randomized_radius
+        oct_mesh.octane_sphere_randomized_radius_seed = mesh.octane_sphere_randomized_radius_seed
+        oct_mesh.octane_sphere_randomized_radius_min = mesh.octane_sphere_randomized_radius_min
+        oct_mesh.octane_sphere_randomized_radius_max = mesh.octane_sphere_randomized_radius_max
+        oct_mesh.open_subd_enable = mesh.oct_enable_subd
+        oct_mesh.open_subd_level = mesh.oct_subd_level
+        oct_mesh.open_subd_scheme = str(mesh.oct_open_subd_scheme)
+        oct_mesh.open_subd_bound_interp = str(mesh.oct_open_subd_bound_interp)
+        oct_mesh.open_subd_sharpness = mesh.oct_open_subd_sharpness
 
 # object
 def check_compatibility_octane_object(file_version):
@@ -638,6 +665,7 @@ def check_compatibility_octane_node_tree(file_version):
     check_compatibility_octane_node_tree_23_5(file_version)
     check_compatibility_octane_node_tree_24_0(file_version)
     check_compatibility_octane_node_tree_27_6(file_version)
+    check_compatibility_octane_node_tree_27_9(file_version)
 
 
 def check_compatibility_octane_node_tree_15_2_5(file_version):
@@ -791,7 +819,22 @@ def check_compatibility_octane_node_tree_27_6(file_version):
         if material.use_nodes:
             _check_dynamic_pin_index_compatibility(material.node_tree)
     for node_group in bpy.data.node_groups:
-        _check_dynamic_pin_index_compatibility(node_group)    
+        _check_dynamic_pin_index_compatibility(node_group)
+
+def check_compatibility_octane_node_tree_27_9(file_version):
+    UPDATE_VERSION = '27.9'
+    if not check_update(file_version, UPDATE_VERSION):
+        return
+    def _check_compatibility_octane_object_data_node_27_9(node_tree):
+        for node in node_tree.nodes:
+            if node.bl_idname == "OctaneObjectData":
+                node.object_ptr = bpy.data.objects.get(node.object_name, None)
+                node.collection_ptr = bpy.data.collections.get(node.collection_name, None)
+    for material in bpy.data.materials:
+        if material.use_nodes:
+            _check_compatibility_octane_object_data_node_27_9(material.node_tree)
+    for node_group in bpy.data.node_groups:
+        _check_compatibility_octane_object_data_node_27_9(node_group)
 
 def _check_compatibility_octane_specular_material_node_15_2_5(node_tree, node):
     try:
@@ -887,8 +930,7 @@ def _check_compatibility_octane_images_node_24_0(node_tree, node):
         if node.octane_ies_mode == "":  
             node.octane_ies_mode = "IES_MAX_1"
     except Exception as e:
-        pass                        
-
+        pass
 
 def upgrade_octane_node_tree(octane_version, tree_name, node_tree):
     from octane.nodes.base_node import OctaneBaseNode

@@ -57,6 +57,8 @@ from ...utils import utility
 from . import _3d_transformation
 
 class OctaneTransformValue_Override(OctaneTransformValue):
+    octane_attribute_list=["a_rotation_order", "a_rotation", "a_scale", "a_translation", "a_transform"]
+
     rotation_order_items=_3d_transformation.Octane3DTransformationRotationOrder.items
     a_rotation_order: EnumProperty(name="Rotation Order", default="YXZ", update=OctaneBaseNode.update_node_tree, description="Provides the rotation order that is used when the transformation matrix calculated", items=rotation_order_items)
 

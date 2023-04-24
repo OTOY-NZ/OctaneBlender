@@ -1315,22 +1315,22 @@ void OctaneClient::uploadKernel(Kernel *pKernel)
   LOCK_MUTEX(m_SocketMutex);
 
   if (pKernel->bUseNodeTree) {
-    RPCSend snd(m_Socket, sizeof(int32_t), OctaneDataTransferObject::LOAD_KERNEL);
-    snd << pKernel->bUseNodeTree;
+    RPCSend snd(m_Socket, sizeof(int32_t) * 2, OctaneDataTransferObject::LOAD_KERNEL);
+    snd << pKernel->bUseNodeTree << pKernel->bEmulateOldMotionBlurBehavior;
     snd.write();
   }
   else {
     switch (pKernel->type) {
       case Kernel::DIRECT_LIGHT: {
         RPCSend snd(m_Socket,
-                    sizeof(float) * 14 + sizeof(int32_t) * 38 + pKernel->sAoTexture.length() +
+                    sizeof(float) * 14 + sizeof(int32_t) * 39 + pKernel->sAoTexture.length() +
                         sizeof(float_3) + 2,
                     OctaneDataTransferObject::LOAD_KERNEL);
-        snd << pKernel->bUseNodeTree << pKernel->type << pKernel->iMaxSamples
-            << pKernel->fCurrentTime << pKernel->fShutterTime << pKernel->fSubframeStart
-            << pKernel->fSubframeEnd << pKernel->fFilterSize << pKernel->fRayEpsilon
-            << pKernel->fPathTermPower << pKernel->fCoherentRatio << pKernel->fAODist
-            << pKernel->fDepthTolerance << pKernel->fAdaptiveNoiseThreshold
+        snd << pKernel->bUseNodeTree << pKernel->bEmulateOldMotionBlurBehavior << pKernel->type
+            << pKernel->iMaxSamples << pKernel->fCurrentTime << pKernel->fShutterTime
+            << pKernel->fSubframeStart << pKernel->fSubframeEnd << pKernel->fFilterSize
+            << pKernel->fRayEpsilon << pKernel->fPathTermPower << pKernel->fCoherentRatio
+            << pKernel->fAODist << pKernel->fDepthTolerance << pKernel->fAdaptiveNoiseThreshold
             << pKernel->fAdaptiveExpectedExposure << pKernel->fAILightStrength
             << pKernel->bAlphaChannel << pKernel->bAlphaShadows << pKernel->bStaticNoise
             << pKernel->bKeepEnvironment << pKernel->bIrradianceMode << pKernel->bNestDielectrics
@@ -1350,83 +1350,15 @@ void OctaneClient::uploadKernel(Kernel *pKernel)
       } break;
       case Kernel::PATH_TRACE: {
         RPCSend snd(m_Socket,
-                    sizeof(float) * 15 + sizeof(int32_t) * 37 + sizeof(float_3),
+                    sizeof(float) * 15 + sizeof(int32_t) * 38 + sizeof(float_3),
                     OctaneDataTransferObject::LOAD_KERNEL);
-        snd << pKernel->bUseNodeTree << pKernel->type << pKernel->iMaxSamples
-            << pKernel->fCurrentTime << pKernel->fShutterTime << pKernel->fSubframeStart
-            << pKernel->fSubframeEnd << pKernel->fFilterSize << pKernel->fRayEpsilon
-            << pKernel->fPathTermPower << pKernel->fCoherentRatio << pKernel->fCausticBlur
-            << pKernel->fGIClamp << pKernel->fDepthTolerance << pKernel->fAdaptiveNoiseThreshold
-            << pKernel->fAdaptiveExpectedExposure << pKernel->fAILightStrength
-            << pKernel->bAlphaChannel << pKernel->bAlphaShadows << pKernel->bStaticNoise
-            << pKernel->bKeepEnvironment << pKernel->bIrradianceMode << pKernel->bNestDielectrics
-            << pKernel->bEmulateOldVolumeBehavior << pKernel->fAffectRoughness
-            << pKernel->bAILightEnable << pKernel->bAILightUpdate << pKernel->iLightIDsAction
-            << pKernel->iLightIDsMask << pKernel->iLightLinkingInvertMask
-            << pKernel->bMinimizeNetTraffic << pKernel->bDeepImageEnable
-            << pKernel->bDeepRenderPasses << pKernel->bAdaptiveSampling
-            << pKernel->iMaxDiffuseDepth << pKernel->iMaxGlossyDepth << pKernel->iMaxScatterDepth
-            << pKernel->iParallelSamples << pKernel->iMaxTileSamples << pKernel->iMaxDepthSamples
-            << pKernel->iAdaptiveMinSamples << pKernel->adaptiveGroupPixels << pKernel->mbAlignment
-            << pKernel->bLayersEnable << pKernel->iLayersCurrent << pKernel->bLayersInvert
-            << pKernel->layersMode << pKernel->iClayMode << pKernel->iSubsampleMode
-            << pKernel->iMaxSubdivisionLevel << pKernel->iWhiteLightSpectrum
-            << pKernel->bUseOldPipeline << pKernel->f3ToonShadowAmbient;
-        snd.write();
-      } break;
-      case Kernel::PMC: {
-        RPCSend snd(m_Socket,
-                    sizeof(float) * 12 + sizeof(int32_t) * 30 + sizeof(float_3),
-                    OctaneDataTransferObject::LOAD_KERNEL);
-        snd << pKernel->bUseNodeTree << pKernel->type << pKernel->iMaxSamples
-            << pKernel->fCurrentTime << pKernel->fShutterTime << pKernel->fSubframeStart
-            << pKernel->fSubframeEnd << pKernel->fFilterSize << pKernel->fRayEpsilon
-            << pKernel->fPathTermPower << pKernel->fExploration << pKernel->fDLImportance
-            << pKernel->fCausticBlur << pKernel->fGIClamp << pKernel->bAlphaChannel
-            << pKernel->bAlphaShadows << pKernel->bKeepEnvironment << pKernel->bIrradianceMode
-            << pKernel->bNestDielectrics << pKernel->bEmulateOldVolumeBehavior
-            << pKernel->fAffectRoughness << pKernel->bAILightEnable << pKernel->bAILightUpdate
-            << pKernel->iLightIDsAction << pKernel->iLightIDsMask
-            << pKernel->iLightLinkingInvertMask << pKernel->iMaxDiffuseDepth
-            << pKernel->iMaxGlossyDepth << pKernel->iMaxScatterDepth << pKernel->iMaxRejects
-            << pKernel->iParallelism << pKernel->iWorkChunkSize << pKernel->mbAlignment
-            << pKernel->bLayersEnable << pKernel->iLayersCurrent << pKernel->bLayersInvert
-            << pKernel->layersMode << pKernel->iClayMode << pKernel->iSubsampleMode
-            << pKernel->iMaxSubdivisionLevel << pKernel->iWhiteLightSpectrum
-            << pKernel->bUseOldPipeline << pKernel->f3ToonShadowAmbient;
-        snd.write();
-      } break;
-      case Kernel::INFO_CHANNEL: {
-        RPCSend snd(m_Socket,
-                    sizeof(float) * 11 + sizeof(int32_t) * 22 + sizeof(float_3),
-                    OctaneDataTransferObject::LOAD_KERNEL);
-        snd << pKernel->bUseNodeTree << pKernel->type << pKernel->infoChannelType
-            << pKernel->fCurrentTime << pKernel->fShutterTime << pKernel->fSubframeStart
-            << pKernel->fSubframeEnd << pKernel->fFilterSize << pKernel->fZdepthMax
-            << pKernel->fUVMax << pKernel->fRayEpsilon << pKernel->fAODist << pKernel->fMaxSpeed
-            << pKernel->fOpacityThreshold << pKernel->bAlphaChannel << pKernel->bBumpNormalMapping
-            << pKernel->bBkFaceHighlight << pKernel->bAoAlphaShadows
-            << pKernel->bMinimizeNetTraffic << pKernel->iSamplingMode << pKernel->iMaxSamples
-            << pKernel->iParallelSamples << pKernel->iMaxTileSamples << pKernel->mbAlignment
-            << pKernel->bLayersEnable << pKernel->iLayersCurrent << pKernel->bLayersInvert
-            << pKernel->layersMode << pKernel->iClayMode << pKernel->iSubsampleMode
-            << pKernel->iMaxSubdivisionLevel << pKernel->iWhiteLightSpectrum
-            << pKernel->bUseOldPipeline << pKernel->f3ToonShadowAmbient;
-        snd.write();
-      } break;
-      case Kernel::PHOTON_TRACING: {
-        RPCSend snd(m_Socket,
-                    sizeof(float) * 18 + sizeof(int32_t) * 40 + sizeof(float_3),
-                    OctaneDataTransferObject::LOAD_KERNEL);
-        snd << pKernel->bUseNodeTree << pKernel->type << pKernel->iMaxSamples
-            << pKernel->fCurrentTime << pKernel->fShutterTime << pKernel->fSubframeStart
-            << pKernel->fSubframeEnd << pKernel->fFilterSize << pKernel->fRayEpsilon
-            << pKernel->fPathTermPower << pKernel->fCoherentRatio << pKernel->fCausticBlur
-            << pKernel->fGIClamp << pKernel->fDepthTolerance << pKernel->fAdaptiveNoiseThreshold
-            << pKernel->fAdaptiveExpectedExposure << pKernel->fAILightStrength
-            << pKernel->iPhotonDepth << pKernel->bAccurateColors << pKernel->fPhotonGatherRadius
-            << pKernel->fPhotonGatherMultiplier << pKernel->iPhotonGatherSamples
-            << pKernel->fExplorationStrength << pKernel->bAlphaChannel << pKernel->bAlphaShadows
+        snd << pKernel->bUseNodeTree << pKernel->bEmulateOldMotionBlurBehavior << pKernel->type
+            << pKernel->iMaxSamples << pKernel->fCurrentTime << pKernel->fShutterTime
+            << pKernel->fSubframeStart << pKernel->fSubframeEnd << pKernel->fFilterSize
+            << pKernel->fRayEpsilon << pKernel->fPathTermPower << pKernel->fCoherentRatio
+            << pKernel->fCausticBlur << pKernel->fGIClamp << pKernel->fDepthTolerance
+            << pKernel->fAdaptiveNoiseThreshold << pKernel->fAdaptiveExpectedExposure
+            << pKernel->fAILightStrength << pKernel->bAlphaChannel << pKernel->bAlphaShadows
             << pKernel->bStaticNoise << pKernel->bKeepEnvironment << pKernel->bIrradianceMode
             << pKernel->bNestDielectrics << pKernel->bEmulateOldVolumeBehavior
             << pKernel->fAffectRoughness << pKernel->bAILightEnable << pKernel->bAILightUpdate
@@ -1443,17 +1375,88 @@ void OctaneClient::uploadKernel(Kernel *pKernel)
             << pKernel->f3ToonShadowAmbient;
         snd.write();
       } break;
-      default: {
+      case Kernel::PMC: {
         RPCSend snd(m_Socket,
-                    sizeof(int32_t) * 12 + sizeof(float) * 4 + sizeof(float_3),
+                    sizeof(float) * 12 + sizeof(int32_t) * 31 + sizeof(float_3),
                     OctaneDataTransferObject::LOAD_KERNEL);
-        OctaneEngine::Kernel::KernelType defType = OctaneEngine::Kernel::DEFAULT;
-        snd << pKernel->bUseNodeTree << defType << pKernel->mbAlignment << pKernel->fCurrentTime
-            << pKernel->fShutterTime << pKernel->fSubframeStart << pKernel->fSubframeEnd
+        snd << pKernel->bUseNodeTree << pKernel->bEmulateOldMotionBlurBehavior << pKernel->type
+            << pKernel->iMaxSamples << pKernel->fCurrentTime << pKernel->fShutterTime
+            << pKernel->fSubframeStart << pKernel->fSubframeEnd << pKernel->fFilterSize
+            << pKernel->fRayEpsilon << pKernel->fPathTermPower << pKernel->fExploration
+            << pKernel->fDLImportance << pKernel->fCausticBlur << pKernel->fGIClamp
+            << pKernel->bAlphaChannel << pKernel->bAlphaShadows << pKernel->bKeepEnvironment
+            << pKernel->bIrradianceMode << pKernel->bNestDielectrics
+            << pKernel->bEmulateOldVolumeBehavior << pKernel->fAffectRoughness
+            << pKernel->bAILightEnable << pKernel->bAILightUpdate << pKernel->iLightIDsAction
+            << pKernel->iLightIDsMask << pKernel->iLightLinkingInvertMask
+            << pKernel->iMaxDiffuseDepth << pKernel->iMaxGlossyDepth << pKernel->iMaxScatterDepth
+            << pKernel->iMaxRejects << pKernel->iParallelism << pKernel->iWorkChunkSize
+            << pKernel->mbAlignment << pKernel->bLayersEnable << pKernel->iLayersCurrent
+            << pKernel->bLayersInvert << pKernel->layersMode << pKernel->iClayMode
+            << pKernel->iSubsampleMode << pKernel->iMaxSubdivisionLevel
+            << pKernel->iWhiteLightSpectrum << pKernel->bUseOldPipeline
+            << pKernel->f3ToonShadowAmbient;
+        snd.write();
+      } break;
+      case Kernel::INFO_CHANNEL: {
+        RPCSend snd(m_Socket,
+                    sizeof(float) * 11 + sizeof(int32_t) * 23 + sizeof(float_3),
+                    OctaneDataTransferObject::LOAD_KERNEL);
+        snd << pKernel->bUseNodeTree << pKernel->bEmulateOldMotionBlurBehavior << pKernel->type
+            << pKernel->infoChannelType << pKernel->fCurrentTime << pKernel->fShutterTime
+            << pKernel->fSubframeStart << pKernel->fSubframeEnd << pKernel->fFilterSize
+            << pKernel->fZdepthMax << pKernel->fUVMax << pKernel->fRayEpsilon << pKernel->fAODist
+            << pKernel->fMaxSpeed << pKernel->fOpacityThreshold << pKernel->bAlphaChannel
+            << pKernel->bBumpNormalMapping << pKernel->bBkFaceHighlight << pKernel->bAoAlphaShadows
+            << pKernel->bMinimizeNetTraffic << pKernel->iSamplingMode << pKernel->iMaxSamples
+            << pKernel->iParallelSamples << pKernel->iMaxTileSamples << pKernel->mbAlignment
             << pKernel->bLayersEnable << pKernel->iLayersCurrent << pKernel->bLayersInvert
             << pKernel->layersMode << pKernel->iClayMode << pKernel->iSubsampleMode
             << pKernel->iMaxSubdivisionLevel << pKernel->iWhiteLightSpectrum
             << pKernel->bUseOldPipeline << pKernel->f3ToonShadowAmbient;
+        snd.write();
+      } break;
+      case Kernel::PHOTON_TRACING: {
+        RPCSend snd(m_Socket,
+                    sizeof(float) * 18 + sizeof(int32_t) * 41 + sizeof(float_3),
+                    OctaneDataTransferObject::LOAD_KERNEL);
+        snd << pKernel->bUseNodeTree << pKernel->bEmulateOldMotionBlurBehavior << pKernel->type
+            << pKernel->iMaxSamples << pKernel->fCurrentTime << pKernel->fShutterTime
+            << pKernel->fSubframeStart << pKernel->fSubframeEnd << pKernel->fFilterSize
+            << pKernel->fRayEpsilon << pKernel->fPathTermPower << pKernel->fCoherentRatio
+            << pKernel->fCausticBlur << pKernel->fGIClamp << pKernel->fDepthTolerance
+            << pKernel->fAdaptiveNoiseThreshold << pKernel->fAdaptiveExpectedExposure
+            << pKernel->fAILightStrength << pKernel->iPhotonDepth << pKernel->bAccurateColors
+            << pKernel->fPhotonGatherRadius << pKernel->fPhotonGatherMultiplier
+            << pKernel->iPhotonGatherSamples << pKernel->fExplorationStrength
+            << pKernel->bAlphaChannel << pKernel->bAlphaShadows << pKernel->bStaticNoise
+            << pKernel->bKeepEnvironment << pKernel->bIrradianceMode << pKernel->bNestDielectrics
+            << pKernel->bEmulateOldVolumeBehavior << pKernel->fAffectRoughness
+            << pKernel->bAILightEnable << pKernel->bAILightUpdate << pKernel->iLightIDsAction
+            << pKernel->iLightIDsMask << pKernel->iLightLinkingInvertMask
+            << pKernel->bMinimizeNetTraffic << pKernel->bDeepImageEnable
+            << pKernel->bDeepRenderPasses << pKernel->bAdaptiveSampling
+            << pKernel->iMaxDiffuseDepth << pKernel->iMaxGlossyDepth << pKernel->iMaxScatterDepth
+            << pKernel->iParallelSamples << pKernel->iMaxTileSamples << pKernel->iMaxDepthSamples
+            << pKernel->iAdaptiveMinSamples << pKernel->adaptiveGroupPixels << pKernel->mbAlignment
+            << pKernel->bLayersEnable << pKernel->iLayersCurrent << pKernel->bLayersInvert
+            << pKernel->layersMode << pKernel->iClayMode << pKernel->iSubsampleMode
+            << pKernel->iMaxSubdivisionLevel << pKernel->iWhiteLightSpectrum
+            << pKernel->bUseOldPipeline << pKernel->f3ToonShadowAmbient;
+        snd.write();
+      } break;
+      default: {
+        RPCSend snd(m_Socket,
+                    sizeof(int32_t) * 13 + sizeof(float) * 4 + sizeof(float_3),
+                    OctaneDataTransferObject::LOAD_KERNEL);
+        OctaneEngine::Kernel::KernelType defType = OctaneEngine::Kernel::DEFAULT;
+        snd << pKernel->bUseNodeTree << pKernel->bEmulateOldMotionBlurBehavior << defType
+            << pKernel->mbAlignment << pKernel->fCurrentTime << pKernel->fShutterTime
+            << pKernel->fSubframeStart << pKernel->fSubframeEnd << pKernel->bLayersEnable
+            << pKernel->iLayersCurrent << pKernel->bLayersInvert << pKernel->layersMode
+            << pKernel->iClayMode << pKernel->iSubsampleMode << pKernel->iMaxSubdivisionLevel
+            << pKernel->iWhiteLightSpectrum << pKernel->bUseOldPipeline
+            << pKernel->f3ToonShadowAmbient;
         snd.write();
       } break;
     }
@@ -2706,7 +2709,7 @@ bool OctaneClient::checkImgBuffer8bit(uint8_4 *&puc4Buf,
 */
 bool OctaneClient::getSharedSurfaceHandler(
     int64_t &iSharedHandler, int iWidth, int iHeight, int iRegionWidth, int iRegionHeight)
-{    
+{
   LOCK_MUTEX(m_ImgBufMutex);
   if (iWidth != m_iCurImgBufWidth || iHeight != m_iCurImgBufHeight ||
       iRegionWidth != m_iCurRegionWidth || iRegionHeight != m_iCurRegionHeight) {
@@ -2716,7 +2719,7 @@ bool OctaneClient::getSharedSurfaceHandler(
     m_iCurRegionHeight = iRegionHeight;
   }
   iSharedHandler = m_iSharedHandler;
-  UNLOCK_MUTEX(m_ImgBufMutex);  
+  UNLOCK_MUTEX(m_ImgBufMutex);
   return iSharedHandler != 0;
 }
 

@@ -62,6 +62,7 @@ Mesh::~Mesh()
 void Mesh::clear()
 {
   is_octane_volume = false;
+  use_geo_nodes = false;
   octane_mesh.Clear();
   octane_volume.Clear();
   used_shaders.clear();

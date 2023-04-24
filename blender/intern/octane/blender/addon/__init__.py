@@ -19,9 +19,9 @@
 # <pep8 compliant>
 
 bl_info = {
-    "name": "OctaneBlender (v. 27.9)",
+    "name": "OctaneBlender (v. 27.10)",
     "author": "OTOY Inc.",
-    "version": (27, 9),
+    "version": (27, 10),
     "blender": (3, 4, 1),
     "location": "Info header, render engine menu",
     "description": "OctaneBlender",
@@ -236,14 +236,17 @@ class OctaneRender(bpy.types.RenderEngine):
     def draw_render_result(self, view_layer, region, scene):
         is_shared_surface_supported = OctaneBlender().is_shared_surface_supported()
         use_shared_surface = (self.session.use_shared_surface and is_shared_surface_supported)
+        is_draw_data_just_created = False
         if region:
-            # Get viewport dimensions
+            # Get viewport dimensions            
             if not self.draw_data or self.draw_data.needs_replacement(region.width, region.height):
                 self.draw_data = OctaneDrawData(region.width, region.height, self, scene, use_shared_surface)
+                is_draw_data_just_created = True
         if self.draw_data:
             render_pass_id = self.session.get_current_preview_render_pass_id(view_layer)
             self.draw_data.update(render_pass_id, scene)
-            self.draw_data.draw(self, scene)
+            if not is_draw_data_just_created:
+                self.draw_data.draw(self, scene)
 
     def _update_all_script_nodes(self, obj):
         if not getattr(obj, 'node_tree', None) or not getattr(obj.node_tree, 'nodes', None):

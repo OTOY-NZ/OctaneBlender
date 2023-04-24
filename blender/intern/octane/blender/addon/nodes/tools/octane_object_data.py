@@ -33,7 +33,9 @@ class OctaneObjectData(bpy.types.Node, OctaneBaseNode):
     def update_source_type(self, context):
         is_collection_mode = self.source_type == "Collection"
         self.outputs[self.TRANSFORM_OUT].hide = is_collection_mode
-        self.outputs[self.ROTATION_OUT].hide = is_collection_mode           
+        self.outputs[self.ROTATION_OUT].hide = is_collection_mode
+        self.update_node_tree(context)
+
     items = [
         ("Object", "Object", "Use an individual object as data source", 0),
         ("Collection", "Collection", "Use an entire collection as data source", 1),
@@ -43,8 +45,11 @@ class OctaneObjectData(bpy.types.Node, OctaneBaseNode):
         ("Blender", "Blender", "", 0),
         ("Octane", "Octane", "", 1),        
     ]
-    target_primitive_coordinate_mode: EnumProperty(name="Target coordinate", default="Blender", update=OctaneBaseNode.update_node_tree, description="Determines the coordinate mode of the target's primitive data", items=primitive_coordinate_modes)
-    object_name: StringProperty(name="Object name")
+    target_primitive_coordinate_mode: EnumProperty(name="Target coordinate", default="Blender", update=OctaneBaseNode.update_node_tree, description="Determines the coordinate mode of the target's primitive data", items=primitive_coordinate_modes)    
+    object_ptr: bpy.props.PointerProperty(type=bpy.types.Object, name="Object", update=OctaneBaseNode.update_node_tree)
+    collection_ptr: bpy.props.PointerProperty(type=bpy.types.Collection, name="Collection", update=OctaneBaseNode.update_node_tree)
+    # Replaced by the above Pointer properties since 27.9
+    object_name: StringProperty(name="Object name")    
     collection_name: StringProperty(name="Collection name")
 
     def use_mulitple_outputs(self):
@@ -63,19 +68,13 @@ class OctaneObjectData(bpy.types.Node, OctaneBaseNode):
         row.prop(self, "source_type", expand=True)
         row = layout.row()
         if self.source_type == "Object":            
-            row.prop_search(self, "object_name", bpy.data, "objects")
+            row.prop(self, "object_ptr")
         else:
-            row.prop_search(self, "collection_name", bpy.data, "collections")
-
-    def get_target_object_name(self):
-        if self.source_type == "Object":
-            return self.object_name
-        return ""
-
-    def get_target_collection_name(self):
-        if self.source_type == "Collection":
-            return self.collection_name
-        return ""        
+            row.prop(self, "collection_ptr")
+        # if self.source_type == "Object":            
+        #     row.prop_search(self, "object_name", bpy.data, "objects")            
+        # else:
+        #     row.prop_search(self, "collection_name", bpy.data, "collections")
 
     def get_blender_attribute_name(self, node_name, attribute_name):
         return node_name + consts.DERIVED_NODE_SEPARATOR + attribute_name
@@ -122,10 +121,11 @@ class OctaneObjectData(bpy.types.Node, OctaneBaseNode):
 
     def sync_custom_data(self, octane_node, octane_graph_node_data, depsgraph):
         super().sync_custom_data(octane_node, octane_graph_node_data, depsgraph)
+        octane_node.clear_all_subnodes()
         octane_name = octane_node.name
-        _object = bpy.data.objects.get(self.get_target_object_name(), None)
+        _object = self.object_ptr
         object_eval = _object.evaluated_get(depsgraph) if _object is not None else None        
-        collection = bpy.data.collections.get(self.get_target_collection_name(), None)
+        collection = self.collection_ptr
         if octane_name.endswith(self.TRANSFORM_OUT):
             if object_eval is not None:
                 subnode_name = octane_name
@@ -155,13 +155,15 @@ class OctaneObjectData(bpy.types.Node, OctaneBaseNode):
         else:
             self.source_type = "Collection"
         if legacy_node.inputs["Object"].default_value is not None:
-            self.object_name = legacy_node.inputs["Object"].default_value.name
+            object_name = legacy_node.inputs["Object"].default_value.name
+            self.object_ptr = bpy.data.objects.get(object_name, None)
         else:
-            self.object_name = ""
+            self.object_ptr = None
         if legacy_node.inputs["Collection"].default_value is not None:
-            self.collection_name = legacy_node.inputs["Collection"].default_value.name
+            collection_name = legacy_node.inputs["Collection"].default_value.name
+            self.collection_ptr = bpy.data.collections.get(collection_name, None)
         else:
-            self.collection_name = ""
+            self.collection_ptr = None
         outputs_mapping = {
             "OutTransform": "Transform out",
             "OutRotation": "Rotation out",
@@ -171,6 +173,11 @@ class OctaneObjectData(bpy.types.Node, OctaneBaseNode):
         for legacy_output_name, current_output_name in outputs_mapping.items():
             for link in legacy_node.outputs[legacy_output_name].links:                
                 node_tree.links.new(self.outputs[current_output_name], link.to_socket)
+
+    def get_target_object_name(self):
+        if self.source_type == "Object":
+            return self.object_ptr.name if self.object_ptr is not None else ""
+        return ""
 
 
 _CLASSES=[

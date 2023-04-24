@@ -187,13 +187,18 @@ void DisplayBuffer::update_gl_texture_from_shared_handler(GLuint &gl_texture,
                                                           int64_t current_shared_handler)
 {
 #if defined(WIN32)
-  if (shared_handler != current_shared_handler) {
-    shared_handler = current_shared_handler;
+  if (shared_handler != current_shared_handler) {    
     server->lockImageBuffer();
     ID3D11Device1 *d3d = (ID3D11Device1 *)CommonD3D::GetD3DDevice();
     ID3D11Texture2D *octaneTex = nullptr;
     HRESULT res = d3d->OpenSharedResource1(
-        (HANDLE)shared_handler, __uuidof(ID3D11Texture2D), (void **)&octaneTex);
+        (HANDLE)current_shared_handler, __uuidof(ID3D11Texture2D), (void **)&octaneTex);
+    if (S_OK != res) {
+      fprintf(stderr,
+              "ERROR: Failed to open SharedResource from the handler: %lld.\n",
+              current_shared_handler);
+      return;
+    }
     D3D11_TEXTURE2D_DESC desc;
     octaneTex->GetDesc(&desc);
     // D3D11 surface always has a pitch that is a multiple of 32
@@ -204,10 +209,12 @@ void DisplayBuffer::update_gl_texture_from_shared_handler(GLuint &gl_texture,
     IDXGIResource1 *resource;
     if (S_OK != octaneTex->QueryInterface(__uuidof(IDXGIResource1), (void **)&resource)) {
       fprintf(stderr, "ERROR: Failed to retrieve IDXGIResource from shared texture.\n");
+      return;
     }
     if (S_OK !=
         resource->CreateSharedHandle(nullptr, DXGI_SHARED_RESOURCE_READ, nullptr, &sharedHandle)) {
       fprintf(stderr, "ERROR: Failed to created shared handle.\n");
+      return;
     }
     // rebuild gltexture
     if (gl_texture != 0) {
@@ -220,15 +227,15 @@ void DisplayBuffer::update_gl_texture_from_shared_handler(GLuint &gl_texture,
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glBindTexture(GL_TEXTURE_2D, 0);
+
     // rebuild memobject
     GLuint memObjGL = 0;
     glCreateMemoryObjectsEXT(1, &memObjGL);
     // import shared surface to memobject
     int memobject_w = ((desc.Width + 63) / 64) * 64;
     int memobject_h = ((desc.Height + 63) / 64) * 64;
-    glImportMemoryWin32HandleEXT(memObjGL,
-                                 memobject_w * memobject_h * 4,
-                                 GL_HANDLE_TYPE_D3D11_IMAGE_EXT,
+    glImportMemoryWin32HandleEXT(
+        memObjGL, pitch * hgt * 4 * 2, GL_HANDLE_TYPE_D3D11_IMAGE_EXT,
                                  (void *)sharedHandle);
     // attach memobject to texture
     if (glAcquireKeyedMutexWin32EXT(memObjGL, 0, 500)) {
@@ -236,6 +243,8 @@ void DisplayBuffer::update_gl_texture_from_shared_handler(GLuint &gl_texture,
       glReleaseKeyedMutexWin32EXT(memObjGL, 0);
     }
     glDeleteMemoryObjectsEXT(1, &memObjGL);
+
+    shared_handler = current_shared_handler;
     server->unlockImageBuffer();
   }
 #endif

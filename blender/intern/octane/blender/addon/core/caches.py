@@ -247,7 +247,7 @@ class NodeTreeCache(OctaneNodeCache):
                     continue
                 root_octane_node.octane_name = root_name
                 root_octane_node.is_root = True
-                if active_input_name in ("Geometry", "Octane Geometry"):
+                if active_input_name in ("Geometry", "Octane Geometry", "Displacement"):
                     if len(active_output_node.inputs[active_input_name].links):
                         root_octane_node.octane_name = root_name + "_" + active_output_node.inputs[active_input_name].links[0].from_node.name
                     root_octane_node.is_root = False
@@ -270,7 +270,9 @@ class NodeTreeCache(OctaneNodeCache):
                         node_tree_attributes.image_names.append(octane_graph_node.node.image.name)
                     # Set object attribute
                     if octane_graph_node.node.bl_idname == "OctaneObjectData":
-                        node_tree_attributes.object_names.append(octane_graph_node.node.get_target_object_name())                
+                        target_object_name = octane_graph_node.node.get_target_object_name()
+                        if target_object_name != "":
+                            node_tree_attributes.object_names.append(target_object_name)
         # update node to the server
         is_updated = False
         for octane_graph_node_data in final_node_list:
@@ -596,9 +598,9 @@ class SceneCache(BaseDataCache):
         if is_viewport:
             if context is None:
                 context = bpy.context
-            camera_data.sync_data(self.camera_node, scene=scene, region=context.region, v3d=context.space_data, rv3d=context.region_data, is_viewport=True)
+            camera_data.sync_data(self.camera_node, scene=scene, region=context.region, v3d=context.space_data, rv3d=context.region_data, session_type=self.session.session_type)
         else:
-            camera_data.sync_data(self.camera_node, scene=scene, is_viewport=False)        
+            camera_data.sync_data(self.camera_node, scene=scene, session_type=self.session.session_type)        
         if self.camera_node.need_update:
             self.camera_node.update_to_engine(True)            
         current_active_camera_name = getattr(self.camera_node, "current_active_camera_name", "")
@@ -658,7 +660,7 @@ class SceneCache(BaseDataCache):
             self.post_processing_node.set_pin_id(consts.PinID.P_ON_OFF, False, "", False)
         else:
             self.post_processing_node.set_pin_id(consts.PinID.P_ON_OFF, False, "", getattr(camera_data, "postprocess", False))
-            camera_data.post_processing.sync_data(self.post_processing_node, scene=scene, is_viewport=self.session.is_viewport())
+            camera_data.post_processing.sync_data(self.post_processing_node, scene=scene, session_type=self.session.session_type)
         if self.post_processing_node.need_update:
             self.post_processing_node.update_to_engine(True)
         self.session.rendertarget_cache.update_link(OctaneRenderTargetCache.P_POST_PROCESSING_NAME, self.post_processing_node.name, self.post_processing_node.name)
@@ -669,7 +671,7 @@ class SceneCache(BaseDataCache):
         if not enable_imager or camera_data is None:
             self.session.rendertarget_cache.update_link(OctaneRenderTargetCache.P_IMAGER_NAME, "", "")
         else:
-            camera_data.imager.sync_data(self.imager_node, scene=scene, is_viewport=self.session.is_viewport())
+            camera_data.imager.sync_data(self.imager_node, scene=scene, session_type=self.session.session_type)
             if self.imager_node.need_update:
                 self.imager_node.update_to_engine(True)
             self.session.rendertarget_cache.update_link(OctaneRenderTargetCache.P_IMAGER_NAME, self.imager_node.name, self.imager_node.name)
@@ -677,7 +679,7 @@ class SceneCache(BaseDataCache):
     def update_animation_settings(self, depsgraph, scene, view_layer, context=None):
         enable_animation_settings = scene.render.use_motion_blur
         if enable_animation_settings:
-            scene.octane.animation_settings.sync_data(self.animation_setting_node, scene=scene, is_viewport=self.session.is_viewport())
+            scene.octane.animation_settings.sync_data(self.animation_setting_node, scene=scene, session_type=self.session.session_type)
             if self.animation_setting_node.need_update:
                 self.animation_setting_node.update_to_engine(True)
             self.session.rendertarget_cache.update_link(OctaneRenderTargetCache.P_ANIMATION_SETTINGS_NAME, self.animation_setting_node.name, self.animation_setting_node.name)
@@ -689,9 +691,9 @@ class SceneCache(BaseDataCache):
         enable_viewlayer_render_layer = view_layer.octane.layers_enable
         if enable_global_render_layer or enable_viewlayer_render_layer:
             if enable_global_render_layer:
-                scene.octane.render_layer.sync_data(self.render_layer_node, scene=scene, is_viewport=self.session.is_viewport())
+                scene.octane.render_layer.sync_data(self.render_layer_node, scene=scene, session_type=self.session.session_type)
             elif enable_viewlayer_render_layer:
-                view_layer.octane.sync_data(self.render_layer_node, scene=scene, is_viewport=self.session.is_viewport())
+                view_layer.octane.sync_data(self.render_layer_node, scene=scene, session_type=self.session.session_type)
             if self.render_layer_node.need_update:
                 self.render_layer_node.update_to_engine(True)
             self.session.rendertarget_cache.update_link(OctaneRenderTargetCache.P_RENDER_LAYER_NAME, self.render_layer_node.name, self.render_layer_node.name)
