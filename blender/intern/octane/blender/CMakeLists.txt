@@ -9,10 +9,11 @@ set(INC
 	../../../source/blender/blenlib
 	../../../source/blender/blentranslation  
 	../../../source/blender/blenkernel
-    ../../../source/blender/depsgraph
-    ../../../source/blender/windowmanager
-    ../../../source/blender/render
-    ../../../source/blender/render/intern  
+	../../../source/blender/functions
+  ../../../source/blender/depsgraph
+  ../../../source/blender/windowmanager
+  ../../../source/blender/render
+  ../../../source/blender/render/intern  
 	${CMAKE_BINARY_DIR}/source/blender/makesrna/intern
 )
 

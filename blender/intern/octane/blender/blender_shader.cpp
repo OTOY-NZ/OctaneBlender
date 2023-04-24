@@ -1054,6 +1054,10 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
               is_static_pin = true;
               break;
             }
+            if (boost::to_lower_copy(static_socket_name) == boost::to_lower_copy(socket_name)) {
+              is_static_pin = true;
+              break;     
+            }
           }
           bool is_dynamic_pin = false;
           int octane_pin_id = get_int(b_input->ptr, "octane_pin_id");

@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2021 by Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2021 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup draw
@@ -142,7 +126,8 @@ static void extract_lines_paint_mask_iter_subdiv_mesh(const DRWSubdivCache *subd
       if (!((mr->use_hide && (me->flag & ME_HIDE)) ||
             ((mr->extract_type == MR_EXTRACT_MAPPED) && (mr->e_origindex) &&
              (mr->e_origindex[coarse_edge_index] == ORIGINDEX_NONE)))) {
-        const uint ml_index_other = (loop_idx == end_loop_idx) ? start_loop_idx : loop_idx + 1;
+        const uint ml_index_other = (loop_idx == (end_loop_idx - 1)) ? start_loop_idx :
+                                                                       loop_idx + 1;
         if (coarse_quad->flag & ME_FACE_SEL) {
           if (BLI_BITMAP_TEST_AND_SET_ATOMIC(data->select_map, coarse_edge_index)) {
             /* Hide edge as it has more than 2 selected loop. */

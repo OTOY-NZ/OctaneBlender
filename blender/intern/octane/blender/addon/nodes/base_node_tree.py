@@ -453,9 +453,10 @@ class NodeTreeHandler:
                     elif light_data.type in ("AREA", "MESH", "SPHERE"):
                         NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, output, output, NodeTreeHandler.SURFACE_INPUT_NAME, NodeTreeHandler.SURFACE_INPUT_NAME, "OctaneDiffuseMaterial")
                         material_node = node_tree.nodes["Diffuse material"]
-                        emission_node = node_tree.nodes.new("OctaneTextureEmission")
-                        emission_node.location = (material_node.location.x - 300, material_node.location.y)
-                        node_tree.links.new(emission_node.outputs[0], material_node.inputs["Emission"])
+                        if not material_node.inputs["Emission"].is_linked:
+                            emission_node = node_tree.nodes.new("OctaneTextureEmission")
+                            emission_node.location = (material_node.location.x - 300, material_node.location.y)
+                            node_tree.links.new(emission_node.outputs[0], material_node.inputs["Emission"])
         NodeTreeHandler.light_node_tree_count = current_light_node_tree_count
 
     @staticmethod

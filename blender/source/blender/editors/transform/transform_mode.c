@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup edtransform
@@ -73,7 +57,7 @@ bool transdata_check_local_center(const TransInfo *t, short around)
   return ((around == V3D_AROUND_LOCAL_ORIGINS) &&
           ((t->options & (CTX_OBJECT | CTX_POSE_BONE)) ||
            /* implicit: (t->flag & T_EDIT) */
-           (ELEM(t->obedit_type, OB_MESH, OB_CURVE, OB_MBALL, OB_ARMATURE, OB_GPENCIL)) ||
+           (ELEM(t->obedit_type, OB_MESH, OB_CURVES_LEGACY, OB_MBALL, OB_ARMATURE, OB_GPENCIL)) ||
            (t->spacetype == SPACE_GRAPH) ||
            (t->options & (CTX_MOVIECLIP | CTX_MASK | CTX_PAINT_CURVE | CTX_SEQUENCER_IMAGE))));
 }
@@ -565,18 +549,14 @@ void ElementRotation_ex(const TransInfo *t,
     mul_m3_m3m3(totmat, mat, td->mtx);
     mul_m3_m3m3(smat, td->smtx, totmat);
 
-    /* apply gpencil falloff */
+    /* Apply gpencil falloff. */
     if (t->options & CTX_GPENCIL_STROKES) {
       bGPDstroke *gps = (bGPDstroke *)td->extra;
-      float sx = smat[0][0];
-      float sy = smat[1][1];
-      float sz = smat[2][2];
-
-      mul_m3_fl(smat, gps->runtime.multi_frame_falloff);
-      /* fix scale */
-      smat[0][0] = sx;
-      smat[1][1] = sy;
-      smat[2][2] = sz;
+      if (gps->runtime.multi_frame_falloff != 1.0f) {
+        float ident_mat[3][3];
+        unit_m3(ident_mat);
+        interp_m3_m3m3(smat, ident_mat, smat, gps->runtime.multi_frame_falloff);
+      }
     }
 
     sub_v3_v3v3(vec, td->iloc, center);
@@ -1228,8 +1208,8 @@ void transform_mode_init(TransInfo *t, wmOperator *op, const int mode)
   }
 
   /* TODO(germano): Some of these operations change the `t->mode`.
-   * This can be bad for Redo.
-   * BLI_assert(t->mode == mode); */
+   * This can be bad for Redo. */
+  // BLI_assert(t->mode == mode);
 }
 
 void transform_mode_default_modal_orientation_set(TransInfo *t, int type)

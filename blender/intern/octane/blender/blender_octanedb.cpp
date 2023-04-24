@@ -379,7 +379,7 @@ void OctaneOSLNodeBase::UpdateOctaneDBNode(void *data)
   }
   oct::BNodeSocketSetter *setter = (oct::BNodeSocketSetter *)data;
   Text *text = BKE_text_add(setter->bmain, this->sName.c_str());
-  BKE_text_write(text, this->sShaderCode.c_str());
+  BKE_text_write(text, this->sShaderCode.c_str(), this->sShaderCode.length());
   setter->bnode->id = &text->id;
   // PointerRNA ptr;
   // RNA_pointer_create(NULL, setter->bnode->typeinfo->ext.srna, setter->bnode, &ptr);

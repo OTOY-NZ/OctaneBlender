@@ -77,7 +77,7 @@ bool BlenderSync::object_is_mesh(BL::Object &b_ob)
 
   BL::Object::type_enum type = b_ob.type();
 
-  if (type == BL::Object::type_VOLUME || type == BL::Object::type_HAIR ||
+  if (type == BL::Object::type_VOLUME || type == BL::Object::type_CURVES ||
       type == BL::Object::type_POINTCLOUD) {
     /* Will be exported attached to mesh. */
     return true;

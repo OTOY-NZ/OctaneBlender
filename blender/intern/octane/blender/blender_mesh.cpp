@@ -15,6 +15,9 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
+#include "DNA_curve_types.h"
+#include "BKE_spline.hh"
+
 #include "render/graph.h"
 #include "render/mesh.h"
 #include "render/scene.h"
@@ -88,40 +91,65 @@ static void create_curve_hair(Scene *scene,
                               PointerRNA &oct_mesh,
                               const std::vector<Shader *> &used_shaders)
 {
-  BL::Curve b_curve = BL::Curve(b_ob.data());
+  BL::Curve b_curve = BL::Curve(b_ob.data()); 
   int hair_num = b_curve.splines.length();
   if (hair_num == 0) {
     mesh->empty = true;
+    return;
   }
+  float root_width = get_float(oct_mesh, "hair_root_width");
+  float tip_width = get_float(oct_mesh, "hair_tip_width");
   mesh->empty = false;
   mesh->octane_mesh.oMeshData.iSamplesNum = 1;
   mesh->octane_mesh.oMeshData.f3HairPoints.clear();
   mesh->octane_mesh.oMeshData.iVertexPerHair.clear();
   mesh->octane_mesh.oMeshData.fHairThickness.clear();
   mesh->octane_mesh.oMeshData.iHairMaterialIndices.clear();
-
-  // Transform tfm = get_transform(b_ob.matrix_world());
-  // Transform itfm = transform_quick_inverse(tfm);
-  float root_width = get_float(oct_mesh, "hair_root_width");
-  float tip_width = get_float(oct_mesh, "hair_tip_width");
-
-  BL::Curve::splines_iterator s;
-  for (b_curve.splines.begin(s); s != b_curve.splines.end(); ++s) {
-    float cur_thickness = root_width;
-    size_t step_num = s->points.length();
-    float thickness_step = step_num > 1 ? (tip_width - root_width) / (step_num - 1) : 0;
-    for (size_t step = 0; step < step_num; ++step) {
-      const BL::Array<float, 4> array = s->points[step].co();
-      float3 cur_point = make_float3(array[0], array[1], array[2]);
-      // cur_point = transform_point(&itfm, cur_point);
-      mesh->octane_mesh.oMeshData.f3HairPoints.push_back(
-          OctaneDataTransferObject::float_3(cur_point.x, cur_point.y, cur_point.z));
-      cur_thickness += thickness_step;
-      mesh->octane_mesh.oMeshData.fHairThickness.push_back(cur_thickness);
+  ::Curve *curve = (::Curve *)b_curve.ptr.data;
+  std::unique_ptr<::CurveEval> curve_eval = curve_eval_from_dna_curve(*curve);
+  if (curve_eval != nullptr) {
+    BL::Curve::splines_iterator s;
+    auto profiles = curve_eval->splines();
+    for (size_t i = 0; i < profiles.size(); ++i) {
+      const Spline &profile = *profiles[i];
+      float cur_thickness = root_width;
+      size_t step_num = profile.evaluated_points_size();
+      auto positions = profile.evaluated_positions();
+      float thickness_step = step_num > 1 ? (tip_width - root_width) / (step_num - 1) : 0;
+      for (size_t j = 0; j < step_num; ++j) {
+        float3 cur_point = make_float3(positions[j][0], positions[j][1], positions[j][2]);
+        mesh->octane_mesh.oMeshData.f3HairPoints.push_back(
+            OctaneDataTransferObject::float_3(cur_point.x, cur_point.y, cur_point.z));
+        mesh->octane_mesh.oMeshData.fHairThickness.push_back(cur_thickness);
+        cur_thickness += thickness_step;
+      }
+      mesh->octane_mesh.oMeshData.iVertexPerHair.push_back(step_num);
+      int shader_idx = 0;
+      if (i < b_curve.splines.length()) {
+        shader_idx = b_curve.splines[i].material_index() - 1;
+      }
+      int shader = clamp(shader_idx, 0, used_shaders.size() - 1);
+      mesh->octane_mesh.oMeshData.iHairMaterialIndices.push_back(shader);
     }
-    mesh->octane_mesh.oMeshData.iVertexPerHair.push_back(step_num);
-    int shader = clamp(s->material_index() - 1, 0, used_shaders.size() - 1);
-    mesh->octane_mesh.oMeshData.iHairMaterialIndices.push_back(shader);
+  }
+  else {
+    BL::Curve::splines_iterator s;
+    for (b_curve.splines.begin(s); s != b_curve.splines.end(); ++s) {
+      float cur_thickness = root_width;
+      size_t step_num = s->points.length();
+      float thickness_step = step_num > 1 ? (tip_width - root_width) / (step_num - 1) : 0;
+      for (size_t step = 0; step < step_num; ++step) {
+        const BL::Array<float, 4> array = s->points[step].co();
+        float3 cur_point = make_float3(array[0], array[1], array[2]);
+        mesh->octane_mesh.oMeshData.f3HairPoints.push_back(
+            OctaneDataTransferObject::float_3(cur_point.x, cur_point.y, cur_point.z));
+        mesh->octane_mesh.oMeshData.fHairThickness.push_back(cur_thickness);
+        cur_thickness += thickness_step;
+      }
+      mesh->octane_mesh.oMeshData.iVertexPerHair.push_back(step_num);
+      int shader = clamp(s->material_index() - 1, 0, used_shaders.size() - 1);
+      mesh->octane_mesh.oMeshData.iHairMaterialIndices.push_back(shader);
+    }  
   }
   mesh->octane_mesh.oMeshData.bShowVertexData = false;
   mesh->octane_mesh.oMeshData.bUpdate = true;
@@ -736,8 +764,26 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
     new_octane_prop_tag += ("|" + subd_mesh_setting_tag);
   }
   else if (b_ob.type() == BL::Object::type_CURVE) {
-    new_octane_prop_tag += ("|" + std::to_string(get_float(oct_mesh, "hair_root_width")) +
+    new_octane_prop_tag += ("|" + std::to_string(get_float(oct_mesh, "hair_root_width")) + "|" + 
                             std::to_string(get_float(oct_mesh, "hair_tip_width")));
+    BL::Curve b_curve = BL::Curve(b_ob.data());
+    BL::Curve::splines_iterator s;
+    for (b_curve.splines.begin(s); s != b_curve.splines.end(); ++s) {
+      size_t step_num = s->points.length();
+      size_t delta = static_cast <size_t>(step_num / 3);
+      for (size_t step = 0; step < step_num; step += delta) {
+        const BL::Array<float, 4> array = s->points[step].co();
+        float sum = array[0] + array[1] + array[2];
+        new_octane_prop_tag += ("|" + std::to_string(sum));
+      }
+      step_num = s->bezier_points.length();
+      delta = static_cast<size_t>(step_num / 3);
+      for (size_t step = 0; step < step_num; step += delta) {
+        const BL::Array<float, 3> array = s->bezier_points[step].co();
+        float sum = array[0] + array[1] + array[2];
+        new_octane_prop_tag += ("|" + std::to_string(sum));
+      }
+    }  
   }
 
   bool is_mesh_tag_data_updated = octane_mesh->mesh_tag != new_mesh_tag;
@@ -963,6 +1009,10 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
         if (synced_mesh_tags.find(mesh_name) != synced_mesh_tags.end()) {
           is_mesh_tag_data_updated = synced_mesh_tags[mesh_name] != new_mesh_tag;
         }
+      }
+      if (b_ob.type() == BL::Object::type_CURVE) {
+        need_update |= is_octane_property_update;        
+        is_mesh_tag_data_updated |= is_octane_property_update;
       }
       synced_mesh_tags[mesh_name] = new_mesh_tag;
       bool paint_mode = b_ob.mode() == b_ob.mode_VERTEX_PAINT ||
