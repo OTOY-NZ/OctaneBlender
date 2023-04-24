@@ -2,10 +2,10 @@
 import bpy
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
-from ...utils import consts
-from ...utils.consts import SocketType
-from ..base_node import OctaneBaseNode
-from ..base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
+from octane.utils import utility, consts
+from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
 class OctaneRangeInput(OctaneBaseSocket):
@@ -49,7 +49,7 @@ class OctaneRangeInputMin(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=662)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.000000, update=None, description="Input min", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
+    default_value: FloatProperty(default=0.000000, update=None, description="Input min", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -63,7 +63,7 @@ class OctaneRangeInputMax(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=663)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=1.000000, update=None, description="Input max", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
+    default_value: FloatProperty(default=1.000000, update=None, description="Input max", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -77,7 +77,7 @@ class OctaneRangeOutputMin(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=664)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.000000, update=None, description="Output min", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
+    default_value: FloatProperty(default=0.000000, update=None, description="Output min", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -91,7 +91,7 @@ class OctaneRangeOutputMax(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=665)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=1.000000, update=None, description="Output max", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
+    default_value: FloatProperty(default=1.000000, update=None, description="Output max", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -119,7 +119,7 @@ class OctaneRangeClamp(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=628)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=True, update=None, description="Clamp the result to the output range")
+    default_value: BoolProperty(default=True, update=None, description="Clamp the input to the input range")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -153,7 +153,7 @@ class OctaneRange(bpy.types.Node, OctaneBaseNode):
         self.outputs.new("OctaneTextureOutSocket", "Texture out").init()
 
 
-_classes=[
+_CLASSES=[
     OctaneRangeInput,
     OctaneRangeInterpolationType,
     OctaneRangeInputMin,
@@ -165,14 +165,14 @@ _classes=[
     OctaneRange,
 ]
 
+_SOCKET_INTERFACE_CLASSES = []
+
 def register():
-    from bpy.utils import register_class
-    for _class in _classes:
-        register_class(_class)
+    utility.octane_register_class(_CLASSES)
+    utility.octane_register_interface_class(_CLASSES, _SOCKET_INTERFACE_CLASSES)
 
 def unregister():
-    from bpy.utils import unregister_class
-    for _class in reversed(_classes):
-        unregister_class(_class)
+    utility.octane_unregister_class(reversed(_SOCKET_INTERFACE_CLASSES))
+    utility.octane_unregister_class(reversed(_CLASSES))
 
 ##### END OCTANE GENERATED CODE BLOCK #####

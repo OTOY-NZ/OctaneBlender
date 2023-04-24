@@ -2,10 +2,10 @@
 import bpy
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
-from ...utils import consts
-from ...utils.consts import SocketType
-from ..base_node import OctaneBaseNode
-from ..base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
+from octane.utils import utility, consts
+from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
 class OctaneLightAOVEnabled(OctaneBaseSocket):
@@ -31,8 +31,8 @@ class OctaneLightAOVSubType(OctaneBaseSocket):
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
     items = [
-        ("Sun", "Sun", "", 0),
-        ("Environment", "Environment", "", 1),
+        ("Sunlight", "Sunlight", "", 0),
+        ("Ambient light", "Ambient light", "", 1),
         ("Light ID 1", "Light ID 1", "", 2),
         ("Light ID 2", "Light ID 2", "", 3),
         ("Light ID 3", "Light ID 3", "", 4),
@@ -70,20 +70,20 @@ class OctaneLightAOV(bpy.types.Node, OctaneBaseNode):
         self.outputs.new("OctaneRenderAOVsOutSocket", "Render AOVs out").init()
 
 
-_classes=[
+_CLASSES=[
     OctaneLightAOVEnabled,
     OctaneLightAOVSubType,
     OctaneLightAOV,
 ]
 
+_SOCKET_INTERFACE_CLASSES = []
+
 def register():
-    from bpy.utils import register_class
-    for _class in _classes:
-        register_class(_class)
+    utility.octane_register_class(_CLASSES)
+    utility.octane_register_interface_class(_CLASSES, _SOCKET_INTERFACE_CLASSES)
 
 def unregister():
-    from bpy.utils import unregister_class
-    for _class in reversed(_classes):
-        unregister_class(_class)
+    utility.octane_unregister_class(reversed(_SOCKET_INTERFACE_CLASSES))
+    utility.octane_unregister_class(reversed(_CLASSES))
 
 ##### END OCTANE GENERATED CODE BLOCK #####

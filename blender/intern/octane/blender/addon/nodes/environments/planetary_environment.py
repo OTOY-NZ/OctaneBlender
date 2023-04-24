@@ -2,10 +2,10 @@
 import bpy
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
-from ...utils import consts
-from ...utils.consts import SocketType
-from ..base_node import OctaneBaseNode
-from ..base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
+from octane.utils import utility, consts
+from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
 class OctanePlanetaryEnvironmentSundir(OctaneBaseSocket):
@@ -16,7 +16,7 @@ class OctanePlanetaryEnvironmentSundir(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=231)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
-    default_value: FloatVectorProperty(default=(1.000000, 0.800000, 0.000000), update=None, description="Vector which defines the direction from which the sun is shining", min=-1.000000, max=1.000000, soft_min=-1.000000, soft_max=1.000000, step=1, subtype="DIRECTION", size=3)
+    default_value: FloatVectorProperty(default=(1.000000, 0.800000, 0.000000), update=None, description="Vector which defines the direction from which the sun is shining", min=-1.000000, max=1.000000, soft_min=-1.000000, soft_max=1.000000, step=1, subtype="DIRECTION", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=4000003
     octane_end_version=4294967295
@@ -331,7 +331,7 @@ class OctanePlanetaryEnvironmentPlanetaryAxis(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=400)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
-    default_value: FloatVectorProperty(default=(0.000000, 0.000000, 1.000000), update=None, description="(deprecated) The rotational axis of the planet running through the North and South pole", min=-1.000000, max=1.000000, soft_min=-1.000000, soft_max=1.000000, step=1, subtype="NONE", size=3)
+    default_value: FloatVectorProperty(default=(0.000000, 0.000000, 1.000000), update=None, description="(deprecated) The rotational axis of the planet running through the North and South pole", min=-1.000000, max=1.000000, soft_min=-1.000000, soft_max=1.000000, step=1, subtype="NONE", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=4000003
     octane_end_version=4010000
@@ -345,7 +345,7 @@ class OctanePlanetaryEnvironmentPlanetaryAngle(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=399)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.000000, update=None, description="(deprecated) The rotation around the planetary axis", min=-3.141593, max=3.141593, soft_min=-3.141593, soft_max=3.141593, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.000000, update=None, description="(deprecated) The rotation around the planetary axis", min=-3.141593, max=3.141593, soft_min=-3.141593, soft_max=3.141593, step=1, precision=4, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=4000003
     octane_end_version=4010000
@@ -408,7 +408,7 @@ class OctanePlanetaryEnvironment(bpy.types.Node, OctaneBaseNode):
         self.outputs.new("OctaneEnvironmentOutSocket", "Environment out").init()
 
 
-_classes=[
+_CLASSES=[
     OctanePlanetaryEnvironmentSundir,
     OctanePlanetaryEnvironmentTurbidity,
     OctanePlanetaryEnvironmentPower,
@@ -439,14 +439,14 @@ _classes=[
     OctanePlanetaryEnvironment,
 ]
 
+_SOCKET_INTERFACE_CLASSES = []
+
 def register():
-    from bpy.utils import register_class
-    for _class in _classes:
-        register_class(_class)
+    utility.octane_register_class(_CLASSES)
+    utility.octane_register_interface_class(_CLASSES, _SOCKET_INTERFACE_CLASSES)
 
 def unregister():
-    from bpy.utils import unregister_class
-    for _class in reversed(_classes):
-        unregister_class(_class)
+    utility.octane_unregister_class(reversed(_SOCKET_INTERFACE_CLASSES))
+    utility.octane_unregister_class(reversed(_CLASSES))
 
 ##### END OCTANE GENERATED CODE BLOCK #####

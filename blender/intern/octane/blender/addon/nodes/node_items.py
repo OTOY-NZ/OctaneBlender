@@ -2,7 +2,7 @@ import bpy
 from bpy.props import IntProperty, StringProperty
 import nodeitems_utils
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
-from ..utils import consts
+from octane.utils import consts
 
 
 def check_pin_type_compatible(octane_pin_type1, octane_pin_type2):
@@ -22,6 +22,9 @@ def render_aov_poll(context):
 def composite_poll(context):
         return context.scene.render.engine == consts.ENGINE_NAME and \
             (not hasattr(context.space_data, "tree_type") or context.space_data.tree_type == consts.OctaneNodeTreeIDName.COMPOSITE)
+
+def render_aov_and_composite_poll(context):
+    return render_aov_poll(context) or composite_poll(context)
 
 def shader_poll(context):
         return context.scene.render.engine == consts.ENGINE_NAME and \
@@ -226,7 +229,25 @@ _octane_node_items = {
     #             OctaneNodeItem("ShaderNodeOctObjectData"),   
     #         ]
     #     ),
-    # ],  
+    # ], 
+    "OCTANE_TOOL": [
+        OctaneGeneralNodeCategory("OCTANE_TOOL", "Octane Advanced Tools", 
+            octane_pin_type=consts.PinType.PT_BLENDER_UTILITY,
+            items=[
+                OctaneNodeItem("OctaneProxy"),
+                OctaneNodeItem("ShaderNodeOctObjectData", poll=render_aov_and_composite_poll),
+                OctaneNodeItem("ShaderNodeCameraData", poll=render_aov_and_composite_poll),                
+            ]
+        ),
+    ],
+    "OCTANE_RENDER_SETTINGS": [
+        OctaneGeneralNodeCategory("OCTANE_RENDER_SETTINGS", "Octane Render Settings", 
+            octane_pin_type=consts.PinType.PT_BLENDER_VALUES,
+            items=[
+                OctaneNodeItem("OctaneNodeOcioColorSpace", octane_pin_type=consts.PinType.PT_OCIO_COLOR_SPACE),
+            ]
+        ),
+    ],
     "OCTANE_VALUE": [
         OctaneGeneralNodeCategory("OCTANE_VALUE", "Octane Values", 
             octane_pin_type=consts.PinType.PT_BLENDER_VALUES,
@@ -260,8 +281,7 @@ _octane_node_items = {
                 OctaneNodeItem("OctaneMatCap"),
                 OctaneNodeItem("OctaneMeshUVProjection"),
                 OctaneNodeItem("OctaneOSLDelayedUV"),
-                # OctaneNodeItem("OctaneOSLProjection"),
-                OctaneNodeItem("ShaderNodeOctOSLProjection", poll=shader_poll),
+                OctaneNodeItem("OctaneOSLProjection"),
                 OctaneNodeItem("OctanePerspective"),
                 OctaneNodeItem("OctaneSamplePosToUV"),
                 OctaneNodeItem("OctaneSpherical"),
@@ -381,11 +401,14 @@ _octane_node_items = {
                         OctaneNodeItem("OctaneAmbientOcclusionAOV"),
                         OctaneNodeItem("OctaneBakingGroupIDAOV"),
                         OctaneNodeItem("OctaneDiffuseFilterInfoAOV"),
-                        OctaneNodeItem("OctaneGeometricNormalAOV"),
                         OctaneNodeItem("OctaneIndexOfRefractionAOV"),
                         OctaneNodeItem("OctaneLightPassIDAOV"),
                         OctaneNodeItem("OctaneMaterialIDAOV"),
                         OctaneNodeItem("OctaneMotionVectorAOV"),
+                        OctaneNodeItem("OctaneNormalGeometricAOV"),
+                        OctaneNodeItem("OctaneNormalShadingAOV"),
+                        OctaneNodeItem("OctaneNormalSmoothAOV"),
+                        OctaneNodeItem("OctaneNormalTangentAOV"),
                         OctaneNodeItem("OctaneObjectIDAOV"),
                         OctaneNodeItem("OctaneObjectLayerColorAOV"),
                         OctaneNodeItem("OctaneOpacityAOV"),
@@ -395,9 +418,6 @@ _octane_node_items = {
                         OctaneNodeItem("OctaneRenderLayerIDAOV"),
                         OctaneNodeItem("OctaneRenderLayerMaskAOV"),
                         OctaneNodeItem("OctaneRoughnessAOV"),
-                        OctaneNodeItem("OctaneShadingNormalAOV"),
-                        OctaneNodeItem("OctaneSmoothNormalAOV"),
-                        OctaneNodeItem("OctaneTangentNormalAOV"),
                         OctaneNodeItem("OctaneTextureTangentAOV"),
                         OctaneNodeItem("OctaneTransmissionFilterInfoAOV"),
                         OctaneNodeItem("OctaneUVCoordinatesAOV"),
@@ -500,8 +520,10 @@ _octane_node_items = {
         OctaneShaderNodeCategory("OCTANE_CAMERA", "Octane Camera", 
             octane_pin_type=consts.PinType.PT_CAMERA,
             items=[
-                OctaneNodeItem("ShaderNodeOctOSLCamera"),
-                OctaneNodeItem("ShaderNodeOctOSLBakingCamera"),
+                OctaneNodeItem("OctaneOSLCamera"),
+                OctaneNodeItem("OctaneOSLBakingCamera"),
+                # OctaneNodeItem("ShaderNodeOctOSLCamera"),
+                # OctaneNodeItem("ShaderNodeOctOSLBakingCamera"),
             ]  
         ),
     ],
@@ -517,7 +539,7 @@ _octane_node_items = {
         OctaneShaderNodeCategory("OCTANE_GEOMETRY", "Octane Geometry", 
             octane_pin_type=consts.PinType.PT_GEOMETRY,
             items=[
-                OctaneNodeItem("ShaderNodeOctVectron", poll=shader_poll),
+                OctaneNodeItem("OctaneVectron"),
                 OctaneNodeItem("OctaneScatterInVolume"),
                 OctaneNodeItem("OctaneScatterOnSurface"),
             ]  
@@ -529,8 +551,7 @@ _octane_node_items = {
             items=[
                 OctaneNodeItem("OctaneGaussianSpectrum"),
                 OctaneNodeItem("OctaneGreyscaleColor"),
-                # OctaneNodeItem("OctaneOSLTexture"),
-                OctaneNodeItem("ShaderNodeOctOSLTex", poll=shader_poll),
+                OctaneNodeItem("OctaneOSLTexture"),
                 OctaneNodeItem("OctaneRGBColor"),
                 OctaneTextureNodeCategory("OCTANE_TEXTURE_CONVERTERS", "Converters", 
                     octane_pin_type=consts.PinType.PT_TEXTURE,
@@ -577,6 +598,7 @@ _octane_node_items = {
                 OctaneTextureNodeCategory("OCTANE_TEXTURE_MAPPING", "Mapping", 
                     octane_pin_type=consts.PinType.PT_TEXTURE,
                     items=[
+                        OctaneNodeItem("ShaderNodeOctBakingTex"),
                         OctaneNodeItem("OctaneChaosTexture"),
                         OctaneNodeItem("OctaneTriplanarMap"),
                         OctaneNodeItem("OctaneUVWTransform"),  

@@ -80,11 +80,25 @@ static int gpu_shader_camera(GPUMaterial *mat,
   return GPU_stack_link(mat, node, "camera", in, out, viewvec);
 }
 
+bool shader_camera_node_poll(bNodeType *UNUSED(ntype),
+                           bNodeTree *ntree,
+                           const char **r_disabled_hint)
+{
+  bool is_octane_node_tree = STREQ(ntree->idname, "octane_composite_nodes") ||
+                             STREQ(ntree->idname, "octane_render_aov_nodes");
+  if (!(STREQ(ntree->idname, "ShaderNodeTree") || is_octane_node_tree)) {
+    *r_disabled_hint = "Not a shader node tree";
+    return false;
+  }
+  return true;
+}
+
 void register_node_type_sh_camera(void)
 {
   static bNodeType ntype;
 
   sh_node_type_base(&ntype, SH_NODE_CAMERA, "Camera Data", NODE_CLASS_INPUT, 0);
+  ntype.poll = shader_camera_node_poll;
   node_type_socket_templates(&ntype, sh_node_camera_in, sh_node_camera_out);
   node_type_storage(&ntype, "", NULL, NULL);
   node_type_gpu(&ntype, gpu_shader_camera);

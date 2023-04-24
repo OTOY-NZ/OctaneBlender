@@ -229,6 +229,7 @@ typedef struct Mesh {
    * default and Face Sets can be used without affecting the color of the mesh. */
   int face_sets_color_default;
 
+  void *_pad2;
   Mesh_Runtime runtime;
 
   /* Octane Attributes */
@@ -239,7 +240,7 @@ typedef struct Mesh {
   short oct_enable_octane_sphere_attribute;
   short oct_hide_original_mesh;
   short oct_use_randomized_radius;
-  char _pad2[2];
+  char _pad4[2];
 } Mesh;
 
 /* deprecated by MTFace, only here for file reading */

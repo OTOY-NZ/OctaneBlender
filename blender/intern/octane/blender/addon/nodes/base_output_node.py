@@ -1,9 +1,9 @@
 ##### BEGIN OCTANE GENERATED CODE BLOCK #####
 import bpy
 from bpy.props import IntProperty
-from ..utils import consts
-from .base_node import OctaneBaseOutputNode
-from .base_socket import OctaneBaseSocket
+from octane.utils import consts, utility
+from octane.nodes.base_node import OctaneBaseOutputNode
+from octane.nodes.base_socket import OctaneBaseSocket
 
 
 class OctaneBoolSocket(OctaneBaseSocket):
@@ -808,7 +808,7 @@ class OctaneCompositeAOVLayerOutputNode(bpy.types.Node, OctaneBaseOutputNode):
         self.inputs.new("OctaneCompositeAOVLayerSocket", OctaneCompositeAOVLayerSocket.bl_label).init()
 
 
-_classes=[
+_CLASSES=[
     OctaneBoolSocket,
     OctaneFloatSocket,
     OctaneIntSocket,
@@ -891,15 +891,15 @@ _classes=[
     OctaneCompositeAOVLayerOutputNode,
 ]
 
+_SOCKET_INTERFACE_CLASSES = []
+
 def register():
-    from bpy.utils import register_class
-    for _class in _classes:
-        register_class(_class)
+    utility.octane_register_class(_CLASSES)
+    utility.octane_register_interface_class(_CLASSES, _SOCKET_INTERFACE_CLASSES)
 
 def unregister():
-    from bpy.utils import unregister_class
-    for _class in reversed(_classes):
-        unregister_class(_class)
+    utility.octane_unregister_class(reversed(_SOCKET_INTERFACE_CLASSES))
+    utility.octane_unregister_class(reversed(_CLASSES))
 
 
 ##### END OCTANE GENERATED CODE BLOCK #####
@@ -991,6 +991,16 @@ class OctaneRenderAOVsOutputNode_Override_RenderPassItems:
         508: "OctCustom8",
         509: "OctCustom9",
         510: "OctCustom10",
+        511: "OctCustom11",
+        512: "OctCustom12",
+        513: "OctCustom13",
+        514: "OctCustom14",
+        515: "OctCustom15",
+        516: "OctCustom16",
+        517: "OctCustom17",
+        518: "OctCustom18",
+        519: "OctCustom19",
+        520: "OctCustom20",        
         1000: "OctGeoNormal",
         1001: "OctShadingNormal",
         1002: "OctPosition",
@@ -1026,6 +1036,16 @@ class OctaneRenderAOVsOutputNode_Override_RenderPassItems:
         1108: "OctGlobalTex8",
         1109: "OctGlobalTex9",
         1110: "OctGlobalTex10",
+        1111: "OctGlobalTex11",
+        1112: "OctGlobalTex12",
+        1113: "OctGlobalTex13",
+        1114: "OctGlobalTex14",
+        1115: "OctGlobalTex15",
+        1116: "OctGlobalTex16",
+        1117: "OctGlobalTex17",
+        1118: "OctGlobalTex18",
+        1119: "OctGlobalTex19",
+        1120: "OctGlobalTex20",        
         2001: "OctCryptoMatNodeName",
         2002: "OctCryptoMatPinNode",
         2003: "OctCryptoObjNodeName",
@@ -1123,11 +1143,7 @@ class OctaneRenderAOVsOutputNode_Override(OctaneRenderAOVsOutputNode):
         for item in self.enum_preview_render_pass_items(bpy.context):
             if item[0] == self.preview_render_pass:
                 break
-        else:
-            self.preview_render_pass = "Beauty"
-        # scene = bpy.context.scene
-        # view_layer = bpy.context.view_layer
-        # view_layer.update_render_passes()                   
+        utility.update_render_passes(None, bpy.context)           
 
 
-utility.override_class(_classes, OctaneRenderAOVsOutputNode, OctaneRenderAOVsOutputNode_Override)
+utility.override_class(_CLASSES, OctaneRenderAOVsOutputNode, OctaneRenderAOVsOutputNode_Override)

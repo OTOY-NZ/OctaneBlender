@@ -2,10 +2,10 @@
 import bpy
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
-from ...utils import consts
-from ...utils.consts import SocketType
-from ..base_node import OctaneBaseNode
-from ..base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
+from octane.utils import utility, consts
+from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
 class OctaneCameraImagerExposure(OctaneBaseSocket):
@@ -403,7 +403,7 @@ class OctaneCameraImagerMinDenoiserSamples(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=392)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
-    default_value: IntProperty(default=10, update=None, description="Minimum number of samples per pixel until denoiser kicks in. Only valid when the denoise once option is false", min=1, max=100000, soft_min=1, soft_max=1000000, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=10, update=None, description="Minimum number of samples per pixel until denoiser kicks in. Only valid when the denoise once option is false", min=1, max=1000000, soft_min=1, soft_max=100000, step=1, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=4000001
     octane_end_version=4294967295
@@ -492,7 +492,7 @@ class OctaneCameraImagerMinUpsamplingSamples(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=497)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
-    default_value: IntProperty(default=10, update=None, description="Minimum number of samples per pixel until the upsampler kicks in. Only valid when the the upsampler is enabled", min=1, max=100000, soft_min=1, soft_max=1000000, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=10, update=None, description="Minimum number of samples per pixel until the upsampler kicks in. Only valid when the the upsampler is enabled", min=1, max=1000000, soft_min=1, soft_max=100000, step=1, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=6000001
     octane_end_version=4294967295
@@ -632,7 +632,7 @@ class OctaneCameraImager(bpy.types.Node, OctaneBaseNode):
         self.outputs.new("OctaneImagerOutSocket", "Imager out").init()
 
 
-_classes=[
+_CLASSES=[
     OctaneCameraImagerExposure,
     OctaneCameraImagerHotpixelRemoval,
     OctaneCameraImagerVignetting,
@@ -674,14 +674,14 @@ _classes=[
     OctaneCameraImager,
 ]
 
+_SOCKET_INTERFACE_CLASSES = []
+
 def register():
-    from bpy.utils import register_class
-    for _class in _classes:
-        register_class(_class)
+    utility.octane_register_class(_CLASSES)
+    utility.octane_register_interface_class(_CLASSES, _SOCKET_INTERFACE_CLASSES)
 
 def unregister():
-    from bpy.utils import unregister_class
-    for _class in reversed(_classes):
-        unregister_class(_class)
+    utility.octane_unregister_class(reversed(_SOCKET_INTERFACE_CLASSES))
+    utility.octane_unregister_class(reversed(_CLASSES))
 
 ##### END OCTANE GENERATED CODE BLOCK #####

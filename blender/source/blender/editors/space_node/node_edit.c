@@ -482,20 +482,10 @@ void ED_node_shader_default(const bContext *C, ID *id)
     Material *ma_default;
 
     if (ob && ob->type == OB_VOLUME) {
-      if (is_octane_engine) {
-        ma_default = BKE_material_default_octane_volume();
-      }
-      else {
-        ma_default = BKE_material_default_volume();
-      }
+      ma_default = BKE_material_default_volume();
     }
     else {
-      if (is_octane_engine) {
-        ma_default = BKE_material_default_octane_surface();
-      }
-      else {
-        ma_default = BKE_material_default_surface();
-      }
+      ma_default = BKE_material_default_surface();
     }
 
     ma->nodetree = ntreeCopyTree(bmain, ma_default->nodetree);

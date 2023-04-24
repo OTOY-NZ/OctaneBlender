@@ -2,10 +2,10 @@
 import bpy
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
-from ...utils import consts
-from ...utils.consts import SocketType
-from ..base_node import OctaneBaseNode
-from ..base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
+from octane.utils import utility, consts
+from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
 class OctanePostProcessingOnOff(OctaneBaseSocket):
@@ -30,7 +30,7 @@ class OctanePostProcessingCutoff(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=486)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.000000, update=None, description="The minimum brightness of a pixel to have bloom and glare applied. The brightness is measured after the application of the exposure.\n\nIncreasing this value will decrease the overall brightness of bloom and glare, which can be compensated by increasing the bloom/glare power, but that's scene dependent", min=0.000000, max=1000.000000, soft_min=0.000000, soft_max=4096.000000, step=1, precision=2, subtype="NONE")
+    default_value: FloatProperty(default=0.000000, update=None, description="The minimum brightness of a pixel to have bloom and glare applied. The brightness is measured after the application of the exposure.\n\nIncreasing this value will decrease the overall brightness of bloom and glare, which can be compensated by increasing the bloom/glare power, but that's scene dependent", min=0.000000, max=4096.000000, soft_min=0.000000, soft_max=1000.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=5100001
     octane_end_version=4294967295
@@ -163,7 +163,7 @@ class OctanePostProcessing(bpy.types.Node, OctaneBaseNode):
         self.outputs.new("OctanePostProcessingOutSocket", "Post processing out").init()
 
 
-_classes=[
+_CLASSES=[
     OctanePostProcessingOnOff,
     OctanePostProcessingCutoff,
     OctanePostProcessingBloomPower,
@@ -176,14 +176,14 @@ _classes=[
     OctanePostProcessing,
 ]
 
+_SOCKET_INTERFACE_CLASSES = []
+
 def register():
-    from bpy.utils import register_class
-    for _class in _classes:
-        register_class(_class)
+    utility.octane_register_class(_CLASSES)
+    utility.octane_register_interface_class(_CLASSES, _SOCKET_INTERFACE_CLASSES)
 
 def unregister():
-    from bpy.utils import unregister_class
-    for _class in reversed(_classes):
-        unregister_class(_class)
+    utility.octane_unregister_class(reversed(_SOCKET_INTERFACE_CLASSES))
+    utility.octane_unregister_class(reversed(_CLASSES))
 
 ##### END OCTANE GENERATED CODE BLOCK #####

@@ -403,7 +403,9 @@ class OCTANE_OT_BaseExport(Operator):
         import _octane
         scene = context.scene            
         data = context.blend_data.as_pointer()
-        prefs = bpy.context.preferences.as_pointer()        
+        prefs = bpy.context.preferences.as_pointer()
+        if not self.filepath.endswith(self.file_ext):
+            self.filepath += self.file_ext
         _octane.export(scene.as_pointer(), context.as_pointer(), prefs, data, self.filepath, self.export_type)  
         return {'FINISHED'} 
 

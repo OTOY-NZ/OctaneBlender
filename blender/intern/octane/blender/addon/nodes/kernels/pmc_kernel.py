@@ -2,10 +2,10 @@
 import bpy
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
-from ...utils import consts
-from ...utils.consts import SocketType
-from ..base_node import OctaneBaseNode
-from ..base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
+from octane.utils import utility, consts
+from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
 class OctanePMCKernelMaxsamples(OctaneBaseSocket):
@@ -16,7 +16,7 @@ class OctanePMCKernelMaxsamples(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=108)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
-    default_value: IntProperty(default=5000, update=None, description="The maximum of samples per that will be calculated until rendering is stopped", min=1, max=100000, soft_min=1, soft_max=1000000, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=5000, update=None, description="The maximum samples per pixel that will be calculated until rendering is stopped", min=1, max=1000000, soft_min=1, soft_max=100000, step=1, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -86,7 +86,7 @@ class OctanePMCKernelRayepsilon(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=144)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.000100, update=None, description="Shadow Ray Offset Distance", min=0.000000, max=0.100000, soft_min=0.000000, soft_max=1000.000000, step=1, precision=5, subtype="NONE")
+    default_value: FloatProperty(default=0.000100, update=None, description="Shadow Ray Offset Distance", min=0.000000, max=1000.000000, soft_min=0.000001, soft_max=0.100000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -128,7 +128,7 @@ class OctanePMCKernelCausticBlur(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=22)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.010000, update=None, description="Caustic blur for noise reduction", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=3, subtype="NONE")
+    default_value: FloatProperty(default=0.010000, update=None, description="Caustic blur for noise reduction", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -142,7 +142,7 @@ class OctanePMCKernelGiClamp(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=60)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=1000000.000000, update=None, description="GI clamp reducing fireflies", min=0.001000, max=1000000.000000, soft_min=0.001000, soft_max=1000000.000000, step=1, precision=2, subtype="NONE")
+    default_value: FloatProperty(default=1000000.000000, update=None, description="GI clamp reducing fireflies", min=0.001000, max=1000000.000000, soft_min=0.001000, soft_max=1000000.000000, step=1, precision=3, subtype="NONE")
     octane_hide_value=False
     octane_min_version=2040000
     octane_end_version=4294967295
@@ -414,7 +414,7 @@ class OctanePMCKernelToonShadowAmbient(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=368)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
-    default_value: FloatVectorProperty(default=(0.500000, 0.500000, 0.500000), update=None, description="The ambient modifier of toon shadowing", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", size=3)
+    default_value: FloatVectorProperty(default=(0.500000, 0.500000, 0.500000), update=None, description="The ambient modifier of toon shadowing", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=3080000
     octane_end_version=4294967295
@@ -586,7 +586,7 @@ class OctanePMCKernel(bpy.types.Node, OctaneBaseNode):
         self.outputs.new("OctaneKernelOutSocket", "Kernel out").init()
 
 
-_classes=[
+_CLASSES=[
     OctanePMCKernelMaxsamples,
     OctanePMCKernelMaxDiffuseDepth,
     OctanePMCKernelMaxGlossyDepth,
@@ -631,14 +631,14 @@ _classes=[
     OctanePMCKernel,
 ]
 
+_SOCKET_INTERFACE_CLASSES = []
+
 def register():
-    from bpy.utils import register_class
-    for _class in _classes:
-        register_class(_class)
+    utility.octane_register_class(_CLASSES)
+    utility.octane_register_interface_class(_CLASSES, _SOCKET_INTERFACE_CLASSES)
 
 def unregister():
-    from bpy.utils import unregister_class
-    for _class in reversed(_classes):
-        unregister_class(_class)
+    utility.octane_unregister_class(reversed(_SOCKET_INTERFACE_CLASSES))
+    utility.octane_unregister_class(reversed(_CLASSES))
 
 ##### END OCTANE GENERATED CODE BLOCK #####

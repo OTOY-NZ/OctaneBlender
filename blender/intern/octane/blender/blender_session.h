@@ -140,6 +140,10 @@ class BlenderSession {
                                        int intermediate_color_space_octane,
                                        std::string intermediate_color_space_ocio_name,
                                        std::vector<std::vector<std::string>> &results);
+  static bool update_octane_custom_node(const std::string server_address,
+                                        std::string command,
+                                        std::string data,
+                                        std::string& result);
 
   Session *session;
   Scene *scene;

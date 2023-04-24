@@ -844,6 +844,32 @@ static PyObject *orbx_preview_func(PyObject *self, PyObject *args)
   Py_RETURN_NONE;
 }
 
+static PyObject *update_octane_custom_node(PyObject *self, PyObject *args)
+{
+  std::vector<std::vector<std::string>> results;
+  int use_other_config, use_automatic, intermediate_color_space_octane;
+  PyObject *py_command, *py_data;
+  if (!PyArg_ParseTuple(args,
+                        "OO",
+                        &py_command,
+                        &py_data)) {
+    return PyBool_FromLong(0);
+  }
+
+  PyObject *path_coerce = NULL;
+  std::string command = PyC_UnicodeAsByte(py_command, &path_coerce);
+  std::string data = PyC_UnicodeAsByte(py_data, &path_coerce);
+  Py_XDECREF(path_coerce);
+
+  std::string result_data;
+  Py_BEGIN_ALLOW_THREADS;  
+  BlenderSession::update_octane_custom_node(G.octane_server_address, command, data, result_data);
+  Py_END_ALLOW_THREADS;
+
+  PyObject *ret = PyUnicode_FromString(result_data.c_str());
+  return ret;
+}
+
 static PyMethodDef methods[] = {
     {"init", init_func, METH_VARARGS, ""},
     {"exit", exit_func, METH_VARARGS, ""},
@@ -869,6 +895,7 @@ static PyMethodDef methods[] = {
     {"update_vdb_info", update_vdb_info_func, METH_VARARGS, ""},
     {"orbx_preview", orbx_preview_func, METH_VARARGS, ""},
     {"update_ocio_info", update_ocio_info_func, METH_VARARGS, ""},
+    {"update_octane_custom_node", update_octane_custom_node, METH_VARARGS, ""},
     {NULL, NULL, 0, NULL},
 };
 

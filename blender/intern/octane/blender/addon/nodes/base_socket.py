@@ -5,8 +5,8 @@ from bpy.props import IntProperty, BoolProperty, StringProperty, EnumProperty, P
 from bpy.utils import register_class, unregister_class
 from bpy.app.translations import contexts as i18n_contexts
 from bl_operators.node import NodeAddOperator
-from ..utils import consts, utility
-from ..utils.consts import SocketType, PinType
+from octane.utils import consts, utility
+from octane.utils.consts import SocketType, PinType
 
 
 class OctaneBaseSocket(bpy.types.NodeSocket):
@@ -15,7 +15,6 @@ class OctaneBaseSocket(bpy.types.NodeSocket):
 
     bl_label=""
     bl_idname=""
-    bl_socket_idname=""
     color=consts.OctanePinColor.Default    
     octane_default_node_type=""
     octane_hide_value=False
@@ -48,7 +47,10 @@ class OctaneBaseSocket(bpy.types.NodeSocket):
             layout.label(text=text)
             if self.octane_socket_type != SocketType.ST_OUTPUT:
                 op = layout.operator("octane.add_default_node", icon="ADD", text="")
-                op.node_type = self.octane_default_node_type
+                if hasattr(self, "octane_osl_default_node_type"):
+                    op.node_type = self.octane_osl_default_node_type
+                else:
+                    op.node_type = self.octane_default_node_type
                 op.input_socket_name = self.name
                 op.output_socket_pin_type = self.octane_pin_type
 
@@ -72,10 +74,22 @@ class OctaneBaseSocket(bpy.types.NodeSocket):
             self.node.id_data.update()
 
 
+class OctaneBaseSocketInterface:
+    bl_label=""
+    bl_idname=""
+    bl_socket_idname=""    
+    color=consts.OctanePinColor.Default
+
+    def draw_color(self, context):
+        return self.color
+
+    def draw(self, context, layout):
+        layout.label(text=self.name)
+
+
 class OctaneGroupTitleSocket(OctaneBaseSocket):    
     bl_label="Octane Group Title"  
     bl_idname="OctaneGroupTitleSocket"
-    bl_socket_idname="OctaneGroupTitleSocket"
     color=consts.OctanePinColor.GroupTitle
     display_shape="CIRCLE_DOT"
     octane_hide_value=True
@@ -88,7 +102,7 @@ class OctaneGroupTitleSocket(OctaneBaseSocket):
         layout.alignment = "LEFT"
         # reformat self.bl_label, removing Octane tag "[OctaneGroupTitle]"
         label = self.bl_label.replace("[OctaneGroupTitle]", "")    
-        layout.prop(self, "show_group_sockets", icon="TRIA_RIGHT" if self.show_group_sockets else "TRIA_DOWN", text=label, emboss=False)
+        layout.prop(self, "show_group_sockets", icon="TRIA_DOWN" if self.show_group_sockets else "TRIA_RIGHT", text=label, emboss=False)
 
     def draw(self, context, layout, node, text):
         self.draw_prop(context, layout, text)
@@ -140,6 +154,8 @@ class OctaneMovableInput(OctanePatternInput):
         op.input_socket_name = self.name
         op.output_socket_pin_type = self.octane_pin_type
         if not self.octane_show_action_ops:
+            return
+        if not hasattr(self.node, "octane_node_type"):
             return
         split = split.split()
         c1 = split.column()
@@ -325,9 +341,9 @@ class OCTANE_OT_add_default_node(bpy.types.Operator):
         return {"FINISHED"}
 
 
-class NODE_OT_octane_add_search(NodeAddOperator, bpy.types.Operator):
+class OCTANE_OT_node_add_search(NodeAddOperator, bpy.types.Operator):
     '''Add a node to the active tree'''
-    bl_idname = "node.octane_add_search"
+    bl_idname = "octane.node_add_search"
     bl_label = "Search and Add Node"
     bl_options = {'REGISTER', 'UNDO'}
     bl_property = "node_item"
@@ -339,7 +355,7 @@ class NODE_OT_octane_add_search(NodeAddOperator, bpy.types.Operator):
         import nodeitems_utils
         from . import node_items
 
-        enum_items = NODE_OT_octane_add_search._enum_item_hack
+        enum_items = OCTANE_OT_node_add_search._enum_item_hack
         enum_items.clear()        
 
         for index, item in enumerate(nodeitems_utils.node_items_iter(context)):
@@ -430,7 +446,7 @@ class OCTANE_NODE_MT_node_add(bpy.types.Menu):
         layout = self.layout
         layout.operator_context = 'INVOKE_DEFAULT'
         if nodeitems_utils.has_node_categories(context):
-            props = layout.operator("node.octane_add_search", text="Search...", icon='VIEWZOOM')
+            props = layout.operator("octane.node_add_search", text="Search...", icon='VIEWZOOM')
             props.octane_pin_type = self.octane_pin_type
             props.use_transform = True
 
@@ -726,8 +742,8 @@ class OCTANE_OT_visible_environment_node_link_menu(OCTANE_OT_base_node_link_menu
 _CLASSES = [
     OCTANE_OT_add_default_node_helper,
     OCTANE_OT_add_default_node,
-    NODE_OT_octane_add_search,
-    OCTANE_NODE_MT_node_add,  
+    OCTANE_OT_node_add_search,
+    OCTANE_NODE_MT_node_add,
     OCTANE_OT_quick_add_movable_input,
     OCTANE_OT_quick_remove_movable_input,
     OCTANE_OT_remove_movable_input,

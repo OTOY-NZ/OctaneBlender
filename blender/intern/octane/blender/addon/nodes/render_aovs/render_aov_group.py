@@ -2,10 +2,10 @@
 import bpy
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
-from ...utils import consts
-from ...utils.consts import SocketType
-from ..base_node import OctaneBaseNode
-from ..base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
+from octane.utils import utility, consts
+from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
 class OctaneRenderAOVGroupEnabled(OctaneBaseSocket):
@@ -30,7 +30,7 @@ class OctaneRenderAOVGroupRenderPassesRaw(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=277)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=False, update=None, description="Make the beauty pass raw render passes by dividing out the color of the BxDF of the surface hit by the camera ray")
+    default_value: BoolProperty(default=False, update=None, description="Convert the beauty AOVs to raw AOVs by factoring out the color of the BxDF of the surface hit by the camera ray")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -91,7 +91,7 @@ class OctaneRenderAOVGroupSamplingMode(OctaneBaseSocket):
         ("Non-distributed with pixel filtering", "Non-distributed with pixel filtering", "", 1),
         ("Non-distributed without pixel filtering", "Non-distributed without pixel filtering", "", 2),
     ]
-    default_value: EnumProperty(default="Distributed rays", update=None, description="Enables motion blur and depth of field, and sets pixel filtering modes.\n\n'Distributed rays': Enables motion blur and DOF, and also enables pixel filtering.\n'Non-distributed with pixel filtering': Disables motion blur and DOF, but leaves pixel filtering enabled.\n'Non-distributed without pixel filtering': Disables motion blur and DOF, and disables pixel filtering for all render passes except for render layer mask and ambient occlusion", items=items)
+    default_value: EnumProperty(default="Distributed rays", update=None, description="Enables motion blur and depth of field, and sets pixel filtering modes.\n\n'Distributed rays': Enables motion blur and DOF, and also enables pixel filtering.\n'Non-distributed with pixel filtering': Disables motion blur and DOF, but leaves pixel filtering enabled.\n'Non-distributed without pixel filtering': Disables motion blur and DOF, and disables pixel filtering for all render AOVs except for render layer mask and ambient occlusion", items=items)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -146,7 +146,7 @@ class OctaneRenderAOVGroup(bpy.types.Node, OctaneBaseNode):
         self.outputs.new("OctaneRenderAOVsOutSocket", "Render AOVs out").init()
 
 
-_classes=[
+_CLASSES=[
     OctaneRenderAOVGroupEnabled,
     OctaneRenderAOVGroupRenderPassesRaw,
     OctaneRenderAOVGroupRenderPassCryptomatteCount,
@@ -158,15 +158,15 @@ _classes=[
     OctaneRenderAOVGroup,
 ]
 
+_SOCKET_INTERFACE_CLASSES = []
+
 def register():
-    from bpy.utils import register_class
-    for _class in _classes:
-        register_class(_class)
+    utility.octane_register_class(_CLASSES)
+    utility.octane_register_interface_class(_CLASSES, _SOCKET_INTERFACE_CLASSES)
 
 def unregister():
-    from bpy.utils import unregister_class
-    for _class in reversed(_classes):
-        unregister_class(_class)
+    utility.octane_unregister_class(reversed(_SOCKET_INTERFACE_CLASSES))
+    utility.octane_unregister_class(reversed(_CLASSES))
 
 ##### END OCTANE GENERATED CODE BLOCK #####
 
@@ -203,6 +203,6 @@ class OctaneRenderAOVGroup_Override(OctaneRenderAOVGroup):
         self.draw_movable_inputs(context, layout, OctaneRenderAOVGroupAOVInput, self.MAX_AOV_INPUT_COUNT)
 
 
-_added_classes = [OctaneRenderAOVGroupAOVInput, OctaneRenderAOVGroupGroupAOVs]
-_classes = _added_classes + _classes
-utility.override_class(_classes, OctaneRenderAOVGroup, OctaneRenderAOVGroup_Override)    
+_ADDED_CLASSES = [OctaneRenderAOVGroupAOVInput, OctaneRenderAOVGroupGroupAOVs]
+_CLASSES = _ADDED_CLASSES + _CLASSES
+utility.override_class(_CLASSES, OctaneRenderAOVGroup, OctaneRenderAOVGroup_Override)    

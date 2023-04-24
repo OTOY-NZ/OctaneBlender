@@ -654,6 +654,10 @@ void OVERLAY_light_cache_populate(OVERLAY_Data *vedata, Object *ob)
     instdata.area_size_x = instdata.area_size_y = la->area_size;
     DRW_buffer_add_entry(cb->light_point, color, &instdata);
   }
+  else if (la->type == LA_SPHERE) {
+    instdata.area_size_x = instdata.area_size_y = la->area_size;
+    DRW_buffer_add_entry(cb->light_point, color, &instdata);
+  }
   else if (la->type == LA_SUN) {
     DRW_buffer_add_entry(cb->light_sun, color, &instdata);
   }

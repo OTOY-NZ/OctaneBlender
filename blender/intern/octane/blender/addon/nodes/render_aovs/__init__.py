@@ -16,7 +16,7 @@ from . import denoised_diffuse_indirect_aov
 from . import denoised_emission_aov
 from . import emitters_aov
 from . import environment_aov
-from . import geometric_normal_aov
+from . import normal_geometric_aov
 from . import global_texture_aov
 from . import index_of_refraction_aov
 from . import irradiance_aov
@@ -50,10 +50,10 @@ from . import denoised_remainder_aov
 from . import render_layer_id_aov
 from . import render_layer_mask_aov
 from . import roughness_aov
-from . import shading_normal_aov
+from . import normal_shading_aov
 from . import shadow_aov
 from . import subsurface_scattering_aov
-from . import tangent_normal_aov
+from . import normal_tangent_aov
 from . import texture_tangent_aov
 from . import transmission_filter_beauty_aov
 from . import transmission_filter_info_aov
@@ -66,7 +66,7 @@ from . import denoised_volume_emission_aov
 from . import volume_mask_aov
 from . import volume_z_depth_front_aov
 from . import volume_z_depth_back_aov
-from . import smooth_normal_aov
+from . import normal_smooth_aov
 from . import wireframe_aov
 from . import z_depth_aov
 
@@ -86,7 +86,7 @@ def register():
     denoised_emission_aov.register()
     emitters_aov.register()
     environment_aov.register()
-    geometric_normal_aov.register()
+    normal_geometric_aov.register()
     global_texture_aov.register()
     index_of_refraction_aov.register()
     irradiance_aov.register()
@@ -120,10 +120,10 @@ def register():
     render_layer_id_aov.register()
     render_layer_mask_aov.register()
     roughness_aov.register()
-    shading_normal_aov.register()
+    normal_shading_aov.register()
     shadow_aov.register()
     subsurface_scattering_aov.register()
-    tangent_normal_aov.register()
+    normal_tangent_aov.register()
     texture_tangent_aov.register()
     transmission_filter_beauty_aov.register()
     transmission_filter_info_aov.register()
@@ -136,7 +136,7 @@ def register():
     volume_mask_aov.register()
     volume_z_depth_front_aov.register()
     volume_z_depth_back_aov.register()
-    smooth_normal_aov.register()
+    normal_smooth_aov.register()
     wireframe_aov.register()
     z_depth_aov.register()
 
@@ -156,7 +156,7 @@ def unregister():
     denoised_emission_aov.unregister()
     emitters_aov.unregister()
     environment_aov.unregister()
-    geometric_normal_aov.unregister()
+    normal_geometric_aov.unregister()
     global_texture_aov.unregister()
     index_of_refraction_aov.unregister()
     irradiance_aov.unregister()
@@ -190,10 +190,10 @@ def unregister():
     render_layer_id_aov.unregister()
     render_layer_mask_aov.unregister()
     roughness_aov.unregister()
-    shading_normal_aov.unregister()
+    normal_shading_aov.unregister()
     shadow_aov.unregister()
     subsurface_scattering_aov.unregister()
-    tangent_normal_aov.unregister()
+    normal_tangent_aov.unregister()
     texture_tangent_aov.unregister()
     transmission_filter_beauty_aov.unregister()
     transmission_filter_info_aov.unregister()
@@ -206,7 +206,7 @@ def unregister():
     volume_mask_aov.unregister()
     volume_z_depth_front_aov.unregister()
     volume_z_depth_back_aov.unregister()
-    smooth_normal_aov.unregister()
+    normal_smooth_aov.unregister()
     wireframe_aov.unregister()
     z_depth_aov.unregister()
 

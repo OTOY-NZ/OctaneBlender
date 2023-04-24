@@ -2,10 +2,10 @@
 import bpy
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
-from ...utils import consts
-from ...utils.consts import SocketType
-from ..base_node import OctaneBaseNode
-from ..base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
+from octane.utils import utility, consts
+from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
 class OctaneBlackBodyEmissionEfficiencyOrTexture(OctaneBaseSocket):
@@ -16,7 +16,7 @@ class OctaneBlackBodyEmissionEfficiencyOrTexture(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=237)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.025000, update=None, description="The emission texture (on the emitting surface)", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
+    default_value: FloatProperty(default=0.025000, update=None, description="The emission texture (on the emitting surface)", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -30,7 +30,7 @@ class OctaneBlackBodyEmissionPower(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=138)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=100.000000, update=None, description="The total emitted power of the light source (radiant flux) or surface brightness (irradiance) if \"surface brightness\" is enabled", min=0.000000, max=100000.000000, soft_min=0.000000, soft_max=100000000.000000, step=1, precision=2, subtype="NONE")
+    default_value: FloatProperty(default=100.000000, update=None, description="The total emitted power of the light source (radiant flux) or surface brightness (irradiance) if \"surface brightness\" is enabled", min=0.000000, max=100000000.000000, soft_min=0.000000, soft_max=100000.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -86,7 +86,7 @@ class OctaneBlackBodyEmissionTemperature(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=236)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=6500.000000, update=None, description="Black body radiation temperature", min=500.000000, max=12000.000000, soft_min=500.000000, soft_max=25000.000000, step=100, precision=2, subtype="NONE")
+    default_value: FloatProperty(default=6500.000000, update=None, description="Black body radiation temperature", min=500.000000, max=25000.000000, soft_min=1000.000000, soft_max=12000.000000, step=100, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -114,7 +114,7 @@ class OctaneBlackBodyEmissionDistribution(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=37)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=1.000000, update=None, description="The directional emission pattern of the light source", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
+    default_value: FloatProperty(default=1.000000, update=None, description="The directional emission pattern of the light source", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -128,7 +128,7 @@ class OctaneBlackBodyEmissionSamplingRate(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=206)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=1.000000, update=None, description="Indicates how often this light source should be sampled. 1 is the default value, 0 means this light source is not sampled directly", min=0.000000, max=10000.000000, soft_min=0.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, precision=2, subtype="NONE")
+    default_value: FloatProperty(default=1.000000, update=None, description="Indicates how often this light source should be sampled. 1 is the default value, 0 means this light source is not sampled directly", min=0.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=10000.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -226,7 +226,7 @@ class OctaneBlackBodyEmissionOrientation(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=126)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
-    default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=None, description="(deprecated) Orientation", min=-360.000000, max=360.000000, soft_min=-360.000000, soft_max=360.000000, step=10, subtype="NONE", size=3)
+    default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=None, description="(deprecated) Orientation", min=-360.000000, max=360.000000, soft_min=-360.000000, soft_max=360.000000, step=10, subtype="NONE", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=1210000
@@ -274,7 +274,7 @@ class OctaneBlackBodyEmission(bpy.types.Node, OctaneBaseNode):
         self.outputs.new("OctaneEmissionOutSocket", "Emission out").init()
 
 
-_classes=[
+_CLASSES=[
     OctaneBlackBodyEmissionEfficiencyOrTexture,
     OctaneBlackBodyEmissionPower,
     OctaneBlackBodyEmissionSurfaceBrightness,
@@ -295,14 +295,14 @@ _classes=[
     OctaneBlackBodyEmission,
 ]
 
+_SOCKET_INTERFACE_CLASSES = []
+
 def register():
-    from bpy.utils import register_class
-    for _class in _classes:
-        register_class(_class)
+    utility.octane_register_class(_CLASSES)
+    utility.octane_register_interface_class(_CLASSES, _SOCKET_INTERFACE_CLASSES)
 
 def unregister():
-    from bpy.utils import unregister_class
-    for _class in reversed(_classes):
-        unregister_class(_class)
+    utility.octane_unregister_class(reversed(_SOCKET_INTERFACE_CLASSES))
+    utility.octane_unregister_class(reversed(_CLASSES))
 
 ##### END OCTANE GENERATED CODE BLOCK #####

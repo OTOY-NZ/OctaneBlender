@@ -2,10 +2,10 @@
 import bpy
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
-from ...utils import consts
-from ...utils.consts import SocketType
-from ..base_node import OctaneBaseNode
-from ..base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
+from octane.utils import utility, consts
+from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
 class OctaneSunDirectionLatitude(OctaneBaseSocket):
@@ -16,7 +16,7 @@ class OctaneSunDirectionLatitude(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=91)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=-37.043659, update=None, description="Latitude of the location", min=-90.000000, max=90.000000, soft_min=-90.000000, soft_max=90.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=-37.043659, update=None, description="Latitude of the location", min=-90.000000, max=90.000000, soft_min=-90.000000, soft_max=90.000000, step=1, precision=4, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -30,7 +30,7 @@ class OctaneSunDirectionLongitude(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=99)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=174.509171, update=None, description="Longitude of the location", min=-180.000000, max=180.000000, soft_min=-180.000000, soft_max=180.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=174.509171, update=None, description="Longitude of the location", min=-180.000000, max=180.000000, soft_min=-180.000000, soft_max=180.000000, step=1, precision=4, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -120,7 +120,7 @@ class OctaneSunDirection(bpy.types.Node, OctaneBaseNode):
         self.outputs.new("OctaneFloatOutSocket", "Float out").init()
 
 
-_classes=[
+_CLASSES=[
     OctaneSunDirectionLatitude,
     OctaneSunDirectionLongitude,
     OctaneSunDirectionMonth,
@@ -130,15 +130,15 @@ _classes=[
     OctaneSunDirection,
 ]
 
+_SOCKET_INTERFACE_CLASSES = []
+
 def register():
-    from bpy.utils import register_class
-    for _class in _classes:
-        register_class(_class)
+    utility.octane_register_class(_CLASSES)
+    utility.octane_register_interface_class(_CLASSES, _SOCKET_INTERFACE_CLASSES)
 
 def unregister():
-    from bpy.utils import unregister_class
-    for _class in reversed(_classes):
-        unregister_class(_class)
+    utility.octane_unregister_class(reversed(_SOCKET_INTERFACE_CLASSES))
+    utility.octane_unregister_class(reversed(_CLASSES))
 
 ##### END OCTANE GENERATED CODE BLOCK #####
 
@@ -147,4 +147,4 @@ from ...utils import utility
 class OctaneSunDirection_Override(OctaneSunDirection):
     octane_attribute_list: StringProperty(name="Attribute List", default="")
 
-utility.override_class(_classes, OctaneSunDirection, OctaneSunDirection_Override)  
+utility.override_class(_CLASSES, OctaneSunDirection, OctaneSunDirection_Override)  

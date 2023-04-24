@@ -19,7 +19,7 @@
 # <pep8 compliant>
 
 bl_info = {
-    "name": "OctaneRender Engine (v. 24.2)",
+    "name": "OctaneRender Engine (v. 24.4)",
     "author": "OTOY Inc.",
     "blender": (2, 93, 1),
     "location": "Info header, render engine menu",
@@ -141,11 +141,7 @@ class OctaneRender(bpy.types.RenderEngine):
         osl.update_script_node(node, self.report)
 
     def update_render_passes(self, scene=None, renderlayer=None):
-        pass
-
-
-def engine_exit():
-    engine.exit()
+        engine.octane_register_passes(self, scene, renderlayer)
 
 
 classes = (
@@ -160,12 +156,7 @@ def register():
     from . import properties
     from . import presets
     from . import nodes
-    import atexit
 
-    # Make sure we only registered the callback once.
-    atexit.unregister(engine_exit)
-    atexit.register(engine_exit)
-    
     engine.init()
 
     nodes.register()
@@ -190,7 +181,8 @@ def unregister():
     from . import operators
     from . import properties
     from . import presets
-    import atexit
+
+    engine.exit()
 
     bpy.app.handlers.version_update.remove(version_update.do_versions)
     bpy.app.handlers.load_post.remove(operators.clear_resource_cache_system)

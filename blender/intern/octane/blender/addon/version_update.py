@@ -219,6 +219,7 @@ def check_compatibility_octane_passes_24_2(file_version):
 def check_compatibility_octane_world(file_version):
     check_compatibility_octane_world_15_2_4(file_version)
     check_compatibility_octane_world_20_1(file_version)
+    check_compatibility_octane_world_24_3(file_version)
 
 
 def check_compatibility_octane_world_15_2_4(file_version):
@@ -400,6 +401,11 @@ def check_compatibility_octane_world_20_1(file_version):
         if getattr(octane_world, 'use_vis_env', False):
             generate_environment_node(world.node_tree, output, octane_world, True)
 
+def check_compatibility_octane_world_24_3(file_version):
+    # Workarounds to fix node type initialization issue for world nodes
+    for world in bpy.data.worlds:
+        if world.node_tree and world.use_nodes and len(world.node_tree.nodes):
+            world.node_tree.nodes[0].width = world.node_tree.nodes[0].width
 
 # object
 def check_compatibility_octane_object(file_version):

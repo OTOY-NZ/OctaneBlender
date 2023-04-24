@@ -43,10 +43,10 @@ set(SRC
 	./server/octane_data_type.h
 	./server/octane_network_const.h
 	./server/octane_network.h
-    ./server/octane_manager.h
+  ./server/octane_manager.h
 	./server/octane_network.cpp
 	./server/octane_client.cpp
-    ./server/octane_manager.cpp
+  ./server/octane_manager.cpp
 
 	./rpc/definitions/OctaneNode.h
 	./rpc/definitions/OctaneTransform.h
@@ -79,8 +79,13 @@ set(ADDON_FILES
 	addon/ui.py
 	addon/nodeitems_octane.py
 	addon/osl.py
-    addon/version_update.py
-    addon/converters.py
+  addon/version_update.py
+  addon/converters.py
+)
+
+set(ADDON_BIN_FILES
+  addon/bin/__init__.py
+  addon/bin/octane_blender_client.pyd
 )
 
 set(ADDON_NODES_FILES
@@ -88,6 +93,7 @@ set(ADDON_NODES_FILES
   addon/nodes/base_node.py
   addon/nodes/base_node_tree.py
   addon/nodes/base_socket.py
+  addon/nodes/base_osl.py
   addon/nodes/base_output_node.py
   addon/nodes/base_output_socket.py
   addon/nodes/node_items.py
@@ -263,7 +269,7 @@ set(ADDON_NODES_RENDER_AOVS_FILES
     addon/nodes/render_aovs/denoised_emission_aov.py
     addon/nodes/render_aovs/emitters_aov.py
     addon/nodes/render_aovs/environment_aov.py
-    addon/nodes/render_aovs/geometric_normal_aov.py
+    addon/nodes/render_aovs/normal_geometric_aov.py
     addon/nodes/render_aovs/global_texture_aov.py
     addon/nodes/render_aovs/index_of_refraction_aov.py
     addon/nodes/render_aovs/irradiance_aov.py
@@ -297,10 +303,10 @@ set(ADDON_NODES_RENDER_AOVS_FILES
     addon/nodes/render_aovs/render_layer_id_aov.py
     addon/nodes/render_aovs/render_layer_mask_aov.py
     addon/nodes/render_aovs/roughness_aov.py
-    addon/nodes/render_aovs/shading_normal_aov.py
+    addon/nodes/render_aovs/normal_shading_aov.py
     addon/nodes/render_aovs/shadow_aov.py
     addon/nodes/render_aovs/subsurface_scattering_aov.py
-    addon/nodes/render_aovs/tangent_normal_aov.py
+    addon/nodes/render_aovs/normal_tangent_aov.py
     addon/nodes/render_aovs/texture_tangent_aov.py
     addon/nodes/render_aovs/transmission_filter_beauty_aov.py
     addon/nodes/render_aovs/transmission_filter_info_aov.py
@@ -313,7 +319,7 @@ set(ADDON_NODES_RENDER_AOVS_FILES
     addon/nodes/render_aovs/volume_mask_aov.py
     addon/nodes/render_aovs/volume_z_depth_front_aov.py
     addon/nodes/render_aovs/volume_z_depth_back_aov.py
-    addon/nodes/render_aovs/smooth_normal_aov.py
+    addon/nodes/render_aovs/normal_smooth_aov.py
     addon/nodes/render_aovs/wireframe_aov.py
     addon/nodes/render_aovs/z_depth_aov.py
 )
@@ -448,6 +454,11 @@ set(ADDON_NODES_VALUES_FILES
     addon/nodes/values/bit_value.py
 )
 
+set(ADDON_NODES_TOOLS_FILES
+    addon/nodes/tools/__init__.py
+    addon/nodes/tools/octane_proxy.py
+)
+
 set(ADDON_NODES_NODE_TREES_FILES
   addon/nodes/node_trees/__init__.py
   addon/nodes/node_trees/composite_node_tree.py
@@ -490,6 +501,7 @@ endif()
 add_dependencies(bf_intern_octane bf_rna)
 
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_FILES}" ${OCTANE_INSTALL_PATH})
+delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_BIN_FILES}" ${OCTANE_INSTALL_PATH}/bin)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_NODES_FILES}" ${OCTANE_INSTALL_PATH}/nodes)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_NODES_RENDER_SETTINGS_FILES}" ${OCTANE_INSTALL_PATH}/nodes/render_settings)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_NODES_NODE_TREES_FILES}" ${OCTANE_INSTALL_PATH}/nodes/node_trees)
@@ -518,3 +530,4 @@ delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_NODES_ROUND_EDGES_FILES}" $
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_NODES_TEXTURES_FILES}" ${OCTANE_INSTALL_PATH}/nodes/textures)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_NODES_TRANSFORMS_FILES}" ${OCTANE_INSTALL_PATH}/nodes/transforms)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_NODES_VALUES_FILES}" ${OCTANE_INSTALL_PATH}/nodes/values)
+delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_NODES_TOOLS_FILES}" ${OCTANE_INSTALL_PATH}/nodes/tools)

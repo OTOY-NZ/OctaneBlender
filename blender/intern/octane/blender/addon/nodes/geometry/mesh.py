@@ -2,10 +2,10 @@
 import bpy
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
-from ...utils import consts
-from ...utils.consts import SocketType
-from ..base_node import OctaneBaseNode
-from ..base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
+from octane.utils import utility, consts
+from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
 class OctaneMesh(bpy.types.Node, OctaneBaseNode):
@@ -20,10 +20,11 @@ class OctaneMesh(bpy.types.Node, OctaneBaseNode):
     octane_min_version=0
     octane_node_type: IntProperty(name="Octane Node Type", default=1)
     octane_socket_list: StringProperty(name="Socket List", default="")
-    octane_attribute_list: StringProperty(name="Attribute List", default="a_mesh_id;a_reload;a_winding_order;a_constant_topology;a_vertices_per_poly;a_vertices;a_poly_vertex_indices;a_poly_vertex_speed;a_normals;a_poly_normal_indices;a_smooth_groups;a_uvws;a_poly_uvw_indices;a_uvws_2;a_poly_uvw_indices_2;a_uvws_3;a_poly_uvw_indices_3;a_material_names;a_poly_material_indices;a_object_names;a_poly_object_indices;a_poly_joint_counts;a_poly_joint_indices;a_poly_joint_weights;a_rest_matrix_indices;a_float_attribute_name1;a_float_attribute_name2;a_float_attribute_name3;a_float_attribute_name4;a_color_attribute_name1;a_color_attribute_name2;a_float_attribute1;a_float_attribute2;a_float_attribute3;a_float_attribute4;a_color_attribute1;a_color_attribute2;a_color_attribute_indices1;a_color_attribute_indices2;a_float_attribute_indices1;a_float_attribute_indices2;a_float_attribute_indices3;a_float_attribute_indices4;a_vertices_per_hair;a_hair_vertices;a_hair_vertex_speed;a_hair_thickness;a_hair_uvs;a_hair_ws;a_hair_interpolation;a_hair_material_indices;a_hair_object_indices;a_hair_float_attribute1;a_hair_float_attribute2;a_hair_float_attribute3;a_hair_float_attribute4;a_hair_color_attribute1;a_hair_color_attribute2;a_hair_float_attribute_indices1;a_hair_float_attribute_indices2;a_hair_float_attribute_indices3;a_hair_float_attribute_indices4;a_hair_color_attribute_indices1;a_hair_color_attribute_indices2;a_sphere_centers;a_sphere_speed;a_sphere_radiuses;a_sphere_material_indices;a_sphere_object_indices;a_sphere_uvs;a_sphere_float_attribute1;a_sphere_float_attribute2;a_sphere_float_attribute3;a_sphere_float_attribute4;a_sphere_color_attribute1;a_sphere_color_attribute2;a_sphere_color_attribute_indices1;a_sphere_color_attribute_indices2;a_sphere_float_attribute_indices1;a_sphere_float_attribute_indices2;a_sphere_float_attribute_indices3;a_sphere_float_attribute_indices4;a_subd_corner_indices;a_subd_corner_sharpness;a_subd_crease_indices;a_subd_crease_length;a_subd_crease_sharpness;a_user_instance_id;a_geoimp_object_layer_import;a_geoimp_scale_unit;a_geoimp_load_vertex_normals;a_geoimp_max_smooth_angle;a_geoimp_join_unwelded_vertices;a_geoimp_default_hair_thickness;a_geoimp_default_hair_interpolation;a_sphere_default_radius;a_subd_level;a_subd_sharpness;a_subd_file_sharpness_scale;a_subd_bound_interp;a_subd_fvr_bound_interp;a_subd_fvr_propagate_corners;a_subd_scheme;a_objimp_winding_order;a_objimp_smooth_groups_as_boundaries;a_objimp_import_materials;a_objimp_diffuse;a_objimp_glossy;a_objimp_specular;a_objimp_import_image_textures;a_objimp_tex_diffuse;a_objimp_tex_diffuse_as_float;a_objimp_tex_specular;a_objimp_tex_specular_as_float;a_objimp_tex_roughness;a_objimp_tex_roughness_as_float;a_objimp_tex_bump;a_objimp_tex_bump_as_float;a_objimp_tex_bump_use_scale;a_objimp_tex_opacity;a_objimp_tex_opacity_as_float;a_objimp_tex_auto_alpha_image;a_objimp_glossy_specular_scale;a_objimp_invert_opacity_value;a_objimp_invert_opacity_tex;a_objimp_color_space;")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="10;1;2;1;2;8;2;8;8;2;2;8;2;8;2;8;2;10;2;10;2;2;14;6;2;10;10;10;10;10;10;6;6;6;6;8;8;2;2;2;2;2;2;2;8;8;6;7;7;2;2;2;6;6;6;6;8;8;2;2;2;2;2;2;8;8;6;2;2;7;6;6;6;6;8;8;2;2;2;2;2;2;2;6;2;2;6;2;2;2;1;6;1;6;2;6;2;6;6;2;2;1;2;2;1;1;1;1;1;1;1;1;1;1;1;1;1;1;1;1;1;1;6;1;1;2;")
+    octane_attribute_list: StringProperty(name="Attribute List", default="a_filename;a_mesh_id;a_reload;a_winding_order;a_constant_topology;a_vertices_per_poly;a_vertices;a_poly_vertex_indices;a_poly_vertex_speed;a_normals;a_poly_normal_indices;a_smooth_groups;a_uvws;a_poly_uvw_indices;a_uvws_2;a_poly_uvw_indices_2;a_uvws_3;a_poly_uvw_indices_3;a_material_names;a_poly_material_indices;a_object_names;a_poly_object_indices;a_poly_joint_counts;a_poly_joint_indices;a_poly_joint_weights;a_rest_matrix_indices;a_float_attribute_name1;a_float_attribute_name2;a_float_attribute_name3;a_float_attribute_name4;a_color_attribute_name1;a_color_attribute_name2;a_float_attribute1;a_float_attribute2;a_float_attribute3;a_float_attribute4;a_color_attribute1;a_color_attribute2;a_color_attribute_indices1;a_color_attribute_indices2;a_float_attribute_indices1;a_float_attribute_indices2;a_float_attribute_indices3;a_float_attribute_indices4;a_vertices_per_hair;a_hair_vertices;a_hair_vertex_speed;a_hair_thickness;a_hair_uvs;a_hair_ws;a_hair_interpolation;a_hair_material_indices;a_hair_object_indices;a_hair_float_attribute1;a_hair_float_attribute2;a_hair_float_attribute3;a_hair_float_attribute4;a_hair_color_attribute1;a_hair_color_attribute2;a_hair_float_attribute_indices1;a_hair_float_attribute_indices2;a_hair_float_attribute_indices3;a_hair_float_attribute_indices4;a_hair_color_attribute_indices1;a_hair_color_attribute_indices2;a_sphere_centers;a_sphere_speed;a_sphere_radiuses;a_sphere_material_indices;a_sphere_object_indices;a_sphere_uvs;a_sphere_float_attribute1;a_sphere_float_attribute2;a_sphere_float_attribute3;a_sphere_float_attribute4;a_sphere_color_attribute1;a_sphere_color_attribute2;a_sphere_color_attribute_indices1;a_sphere_color_attribute_indices2;a_sphere_float_attribute_indices1;a_sphere_float_attribute_indices2;a_sphere_float_attribute_indices3;a_sphere_float_attribute_indices4;a_subd_corner_indices;a_subd_corner_sharpness;a_subd_crease_indices;a_subd_crease_length;a_subd_crease_sharpness;a_user_instance_id;a_geoimp_object_layer_import;a_geoimp_scale_unit;a_geoimp_load_vertex_normals;a_geoimp_max_smooth_angle;a_geoimp_join_unwelded_vertices;a_geoimp_default_hair_thickness;a_geoimp_default_hair_interpolation;a_sphere_default_radius;a_subd_level;a_subd_sharpness;a_subd_file_sharpness_scale;a_subd_bound_interp;a_subd_fvr_bound_interp;a_subd_fvr_propagate_corners;a_subd_scheme;a_objimp_winding_order;a_objimp_smooth_groups_as_boundaries;a_objimp_import_materials;a_objimp_diffuse;a_objimp_glossy;a_objimp_specular;a_objimp_import_image_textures;a_objimp_tex_diffuse;a_objimp_tex_diffuse_as_float;a_objimp_tex_specular;a_objimp_tex_specular_as_float;a_objimp_tex_roughness;a_objimp_tex_roughness_as_float;a_objimp_tex_bump;a_objimp_tex_bump_as_float;a_objimp_tex_bump_use_scale;a_objimp_tex_opacity;a_objimp_tex_opacity_as_float;a_objimp_tex_auto_alpha_image;a_objimp_glossy_specular_scale;a_objimp_invert_opacity_value;a_objimp_invert_opacity_tex;a_objimp_color_space;")
+    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="11;10;1;2;1;2;8;2;8;8;2;2;8;2;8;2;8;2;10;2;10;2;2;14;6;2;10;10;10;10;10;10;6;6;6;6;8;8;2;2;2;2;2;2;2;8;8;6;7;7;2;2;2;6;6;6;6;8;8;2;2;2;2;2;2;8;8;6;2;2;7;6;6;6;6;8;8;2;2;2;2;2;2;2;6;2;2;6;2;2;2;1;6;1;6;2;6;2;6;6;2;2;1;2;2;1;1;1;1;1;1;1;1;1;1;1;1;1;1;1;1;1;1;6;1;1;2;")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=0)
 
+    a_filename: StringProperty(name="Filename", default="", update=None, description="Stores the geometry file to load the mesh from. Currently only OBJ and Alembic files are supported. To load a new file, just change this attribute and set A_MESH_ID and evaluate the node. After the evaluation the geometry attributes have been replaced. If the loading fails, A_FILENAME, A_MESH_ID and all geometry attributes will be reset to their value of the last successful evaluation", subtype="FILE_PATH")
     a_mesh_id: StringProperty(name="Mesh id", default="", update=None, description="The ID which identifies the mesh geometry to be loaded from the geometry file defined in A_FILENAME. Ignored for OBJ files. In Alembic files it defines the path of the AbcGeometry node containing the mesh")
     a_reload: BoolProperty(name="Reload", default=False, update=None, description="Set it to TRUE if the file needs a reload or the preference of the meshhas been changed. After the node was evaluated the attribute will be false again")
     a_winding_order: IntProperty(name="Winding order", default=1, update=None, description="The order of the vertices in polygons, as seen from the side where the normal is pointing")
@@ -155,18 +156,18 @@ class OctaneMesh(bpy.types.Node, OctaneBaseNode):
         self.outputs.new("OctaneGeometryOutSocket", "Geometry out").init()
 
 
-_classes=[
+_CLASSES=[
     OctaneMesh,
 ]
 
+_SOCKET_INTERFACE_CLASSES = []
+
 def register():
-    from bpy.utils import register_class
-    for _class in _classes:
-        register_class(_class)
+    utility.octane_register_class(_CLASSES)
+    utility.octane_register_interface_class(_CLASSES, _SOCKET_INTERFACE_CLASSES)
 
 def unregister():
-    from bpy.utils import unregister_class
-    for _class in reversed(_classes):
-        unregister_class(_class)
+    utility.octane_unregister_class(reversed(_SOCKET_INTERFACE_CLASSES))
+    utility.octane_unregister_class(reversed(_CLASSES))
 
 ##### END OCTANE GENERATED CODE BLOCK #####

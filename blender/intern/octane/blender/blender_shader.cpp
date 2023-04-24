@@ -81,6 +81,8 @@ enum class OctaneSocketType {
   ST_OUTPUT = 100
 };
 
+#define OCTANE_PROXY_NODE_TYPE -100001
+
 struct SocketData {
   std::string identifier;
   std::string name;
@@ -267,7 +269,12 @@ std::string LinkResolver::get_output_node_name(void *value)
       return identifier;
     }
     else {
-      return identifier + "_" + sockets[value].name;
+      if (sockets[value].name.find(OCTANE_BLENDER_OCTANE_PROXY_TAG) == std::string::npos) {
+        return identifier + "_" + sockets[value].name;
+      }
+      else {
+        return identifier + sockets[value].name;
+      }
     }
   }
   return std::string("");
@@ -1009,15 +1016,26 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
           ADD_OCTANE_ATTR_DTO(OctaneAttributeType::AT_FLOAT2, OctaneDTOFloat2, oFloat2Sockets);
           ADD_OCTANE_ATTR_DTO(OctaneAttributeType::AT_FLOAT3, OctaneDTOFloat3, oFloat3Sockets);
           ADD_OCTANE_ATTR_DTO(OctaneAttributeType::AT_STRING, OctaneDTOString, oStringSockets);
+          ADD_OCTANE_ATTR_DTO(OctaneAttributeType::AT_FILENAME, OctaneDTOString, oStringSockets);
           if (base_dto_ptr) {
             visitor.handle("", base_dto_ptr);
+            if (property_type == OctaneAttributeType::AT_FILENAME) {
+              PropertyRNA *socket_prop = RNA_struct_find_property(&b_node.ptr, dto_name.c_str());
+              if (RNA_property_subtype(socket_prop) == PROP_FILEPATH) {
+                std::string file_path =
+                    (*(::OctaneDataTransferObject::OctaneDTOString *)base_dto_ptr).sVal;
+                *(::OctaneDataTransferObject::OctaneDTOString *)base_dto_ptr =
+                    blender_absolute_path(b_data, b_ntree, file_path);
+              }
+            }
           }
         }
         // Add pins
         BL::Node::inputs_iterator b_input;
         // DYNAMIC_PIN_ID_OFFSET = 10000
         static const int DYNAMIC_PIN_ID_OFFSET = 10000;
-        static std::set<int> reversed_pin_node_types = {Octane::NT_TEX_COMPOSITE, Octane::NT_OUTPUT_AOV_COMPOSITE};
+        static std::set<int> reversed_pin_node_types = {Octane::NT_TEX_COMPOSITE,
+                                                        Octane::NT_OUTPUT_AOV_COMPOSITE};
         int dynamic_pin_count = 0;
         bool use_reversed_dynamic_pin_id = reversed_pin_node_types.find(octane_node_type) !=
                                            reversed_pin_node_types.end();
@@ -1043,10 +1061,20 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
             octane_pin_id -= DYNAMIC_PIN_ID_OFFSET;
             if (use_reversed_dynamic_pin_id) {
               octane_pin_id = dynamic_pin_count - octane_pin_id + 1;
-			}
+            }
             octane_pin_id += octane_static_pin_count;
             is_dynamic_pin = true;
             octane_name = OCTANE_BLENDER_DYNAMIC_PIN_TAG + std::to_string(octane_pin_id);
+          }
+          if (RNA_struct_find_property(&b_input->ptr, "osl_pin_name") != NULL) {
+            octane_name = get_string(b_input->ptr, "osl_pin_name");
+            is_dynamic_pin = true;
+          }
+          if (RNA_struct_find_property(&b_input->ptr, "octane_node_unique_id") != NULL &&
+              RNA_struct_find_property(&b_input->ptr, "octane_proxy_link_index") != NULL) {
+            octane_name = octane_name + OCTANE_BLENDER_OCTANE_PROXY_TAG +
+                          std::to_string(get_int(b_input->ptr, "octane_proxy_link_index"));
+            is_dynamic_pin = true;
           }
           if (is_static_pin || is_dynamic_pin) {
             BL::NodeSocket sock(*b_input);
@@ -1067,7 +1095,7 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
             ADD_OCTANE_PIN_DTO(OctaneSocketType::ST_LINK, OctaneDTOShader, oLinkSockets);
             if (base_dto_ptr) {
               visitor.handle("", base_dto_ptr);
-              // Reset dto name for dynamic pins
+              // Reset dto name for dynamic pins and osl nodes
               base_dto_ptr->sName = octane_name;
             }
           }
@@ -1668,13 +1696,32 @@ static void resolve_octane_outputs(std::string shader_name,
             link_resolver.add_octane_output(current_name, OCTANE_BLENDER_AOV_OUTPUT_NODE);
           }
           else {
-            if ((b_from_sock.name() == "OutGeo" || b_from_sock.name() == "OutVectron" ||
-                 b_from_sock.name() == "Geometry out") &&
-                b_to_node.is_a(&RNA_ShaderNodeOutputMaterial)) {
-              link_resolver.add_octane_output(current_name, current_name);
+            bool is_octane_proxy_node = false;
+            PropertyRNA *octane_node_type_prop = RNA_struct_find_property(&b_from_node.ptr,
+                                                                          "octane_node_type");
+            if (octane_node_type_prop != NULL) {
+              int octane_node_type = get_int(b_from_node.ptr, "octane_node_type");
+              if (octane_node_type == OCTANE_PROXY_NODE_TYPE) {
+                is_octane_proxy_node = true;
+              }
+            }
+            if (is_octane_proxy_node && b_to_node.is_a(&RNA_ShaderNodeOutputMaterial)) {
+              if (b_to_sock.name() == "Octane Geometry") {
+                link_resolver.add_octane_output(current_name, current_name);
+              }
+              else {
+                link_resolver.add_octane_output(current_name, shader_name);
+              }
             }
             else {
-              link_resolver.add_octane_output(current_name, shader_name);
+              if ((b_from_sock.name() == "OutGeo" || b_from_sock.name() == "OutVectron" ||
+                   b_from_sock.name() == "Geometry out") &&
+                  b_to_node.is_a(&RNA_ShaderNodeOutputMaterial)) {
+                link_resolver.add_octane_output(current_name, current_name);
+              }
+              else {
+                link_resolver.add_octane_output(current_name, shader_name);
+              }
             }
           }
         }
@@ -1752,16 +1799,38 @@ static void generate_sockets_map(std::string prefix_name,
     }
     else {
       // We need to find and process nodes with multiple outputs as Octane supports 1 output only
+      bool is_octane_proxy_node = false;
+      PropertyRNA *octane_node_type_prop = RNA_struct_find_property(&b_node->ptr,
+                                                                    "octane_node_type");
+      if (octane_node_type_prop != NULL) {
+        int octane_node_type = get_int(b_node->ptr, "octane_node_type");
+        if (octane_node_type == OCTANE_PROXY_NODE_TYPE) {
+          is_octane_proxy_node = true;
+          link_resolver.tag_multiple_outputs_node(current_name);
+        }
+      }
       if (b_node->is_a(&RNA_ShaderNodeCameraData) || b_node->is_a(&RNA_ShaderNodeOctObjectData)) {
         link_resolver.tag_multiple_outputs_node(current_name);
       }
       for (b_node->inputs.begin(b_input); b_input != b_node->inputs.end(); ++b_input) {
+        std::string b_input_socket_name = b_input->name();
+        if (is_octane_proxy_node) {
+          int octane_proxy_link_index = get_int(b_input->ptr, "octane_proxy_link_index");
+          b_input_socket_name = OCTANE_BLENDER_OCTANE_PROXY_TAG + b_input_socket_name + "_" +
+                                std::to_string(octane_proxy_link_index);
+        }
         link_resolver.add_socket(
-            b_input->ptr.data, current_name, b_input->name(), true, b_input->ptr);
+            b_input->ptr.data, current_name, b_input_socket_name, true, b_input->ptr);
       }
       for (b_node->outputs.begin(b_output); b_output != b_node->outputs.end(); ++b_output) {
+        std::string output_socket_name = b_output->name();
+        if (is_octane_proxy_node) {
+          int octane_proxy_link_index = get_int(b_output->ptr, "octane_proxy_link_index");
+          output_socket_name = OCTANE_BLENDER_OCTANE_PROXY_TAG + output_socket_name + "_" +
+                               std::to_string(octane_proxy_link_index);
+        }
         link_resolver.add_socket(
-            b_output->ptr.data, current_name, b_output->name(), false, b_output->ptr);
+            b_output->ptr.data, current_name, output_socket_name, false, b_output->ptr);
       }
     }
   }
@@ -2270,7 +2339,7 @@ void BlenderSync::sync_composites(BL::Depsgraph &b_depsgraph, bool update_all)
 
   Shader *shader;
   bool need_sync = shader_map.sync(&shader, this->composite_aov_node_tree);
-  need_sync |= shader && shader->need_update;
+  need_sync |= shader && (shader->need_update || shader->has_object_dependency);
   if (need_sync || update_all) {
     BL::NodeTree b_ntree = this->composite_aov_node_tree;
     ShaderGraph *graph = new ShaderGraph(SHADER_GRAPH_COMPOSITE);
@@ -2304,7 +2373,7 @@ void BlenderSync::sync_render_aov_node_tree(BL::Depsgraph &b_depsgraph, bool upd
 
   Shader *shader;
   bool need_sync = shader_map.sync(&shader, this->render_aov_node_tree);
-  need_sync |= shader && shader->need_update;
+  need_sync |= shader && (shader->need_update || shader->has_object_dependency);
   if (need_sync || update_all) {
     BL::NodeTree b_ntree = this->render_aov_node_tree;
     ShaderGraph *graph = new ShaderGraph(SHADER_GRAPH_RENDER_AOV);

@@ -2,10 +2,10 @@
 import bpy
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
-from ...utils import consts
-from ...utils.consts import SocketType
-from ..base_node import OctaneBaseNode
-from ..base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
+from octane.utils import utility, consts
+from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
 class OctaneBakingCameraBakingGroupId(OctaneBaseSocket):
@@ -86,7 +86,7 @@ class OctaneBakingCameraBakingUvBoxMin(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=288)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT2)
-    default_value: FloatVectorProperty(default=(0.000000, 0.000000), update=None, description="Coordinates in UV space of the the origin of the bounding region for baking", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", size=2)
+    default_value: FloatVectorProperty(default=(0.000000, 0.000000), update=None, description="Coordinates in UV space of the the origin of the bounding region for baking", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", precision=2, size=2)
     octane_hide_value=False
     octane_min_version=3000005
     octane_end_version=4294967295
@@ -100,7 +100,7 @@ class OctaneBakingCameraBakingUvBoxSize(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=289)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT2)
-    default_value: FloatVectorProperty(default=(1.000000, 1.000000), update=None, description="Size in UV space of the bounding region for baking", min=0.000100, max=340282346638528859811704183484516925440.000000, soft_min=0.000100, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", size=2)
+    default_value: FloatVectorProperty(default=(1.000000, 1.000000), update=None, description="Size in UV space of the bounding region for baking", min=0.000100, max=340282346638528859811704183484516925440.000000, soft_min=0.000100, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", precision=2, size=2)
     octane_hide_value=False
     octane_min_version=3000005
     octane_end_version=4294967295
@@ -128,7 +128,7 @@ class OctaneBakingCameraPos(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=133)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
-    default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=None, description="Camera position for position-dependent artifacts such as reflections, etc", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", size=3)
+    default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=None, description="Camera position for position-dependent artifacts such as reflections, etc", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -199,7 +199,7 @@ class OctaneBakingCamera(bpy.types.Node, OctaneBaseNode):
         self.outputs.new("OctaneCameraOutSocket", "Camera out").init()
 
 
-_classes=[
+_CLASSES=[
     OctaneBakingCameraBakingGroupId,
     OctaneBakingCameraUvSet,
     OctaneBakingCameraBakeOutwards,
@@ -216,14 +216,14 @@ _classes=[
     OctaneBakingCamera,
 ]
 
+_SOCKET_INTERFACE_CLASSES = []
+
 def register():
-    from bpy.utils import register_class
-    for _class in _classes:
-        register_class(_class)
+    utility.octane_register_class(_CLASSES)
+    utility.octane_register_interface_class(_CLASSES, _SOCKET_INTERFACE_CLASSES)
 
 def unregister():
-    from bpy.utils import unregister_class
-    for _class in reversed(_classes):
-        unregister_class(_class)
+    utility.octane_unregister_class(reversed(_SOCKET_INTERFACE_CLASSES))
+    utility.octane_unregister_class(reversed(_CLASSES))
 
 ##### END OCTANE GENERATED CODE BLOCK #####

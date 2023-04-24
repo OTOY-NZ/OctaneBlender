@@ -153,6 +153,8 @@ class OctaneNodeTreeIDName:
 
 # Node type
 NT_UNKNOWN = 0
+NT_BLENDER_NODE_OFFSET = -100000
+NT_BLENDER_NODE_OCTANE_PROXY = -100001
 
 # Pin Id
 P_INVALID = -1
@@ -160,6 +162,13 @@ P_UNKNOWN = 0
 
 # Attribute Id
 A_UNKNOWN = 0
+
+
+# OSL Compilation Results
+COMPILE_NONE = 0
+COMPILE_SUCCESS = 1
+COMPILE_FAILED = 2
+COMPILE_FORCE = 3
 
 
 # Socket colors

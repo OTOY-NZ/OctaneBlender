@@ -1496,7 +1496,7 @@ static void lineart_geometry_object_load(Depsgraph *dg,
 #define LRT_MESH_FINISH \
   BM_mesh_free(bm); \
   if (ob->type != OB_MESH) { \
-    BKE_mesh_free(use_mesh); \
+    BKE_mesh_free_data(use_mesh); \
     MEM_freeN(use_mesh); \
   }
 
@@ -2141,8 +2141,8 @@ static bool lineart_triangle_edge_image_space_occlusion(SpinLock *UNUSED(spl),
       }
     }
     else if (st_r == 0) {
-      INTERSECT_JUST_GREATER(is, order, 0, LCross);
-      if (LRT_ABC(LCross) && is[LCross] > 0) {
+      INTERSECT_JUST_GREATER(is, order, DBL_TRIANGLE_LIM, LCross);
+      if (LRT_ABC(LCross) && is[LCross] > DBL_TRIANGLE_LIM) {
         INTERSECT_JUST_GREATER(is, order, is[LCross], RCross);
       }
       else {

@@ -2,10 +2,10 @@
 import bpy
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
-from ...utils import consts
-from ...utils.consts import SocketType
-from ..base_node import OctaneBaseNode
-from ..base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
+from octane.utils import utility, consts
+from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
 class OctaneMaterialLayerGroup(bpy.types.Node, OctaneBaseNode):
@@ -30,19 +30,19 @@ class OctaneMaterialLayerGroup(bpy.types.Node, OctaneBaseNode):
         self.outputs.new("OctaneMaterialLayerOutSocket", "Material layer out").init()
 
 
-_classes=[
+_CLASSES=[
     OctaneMaterialLayerGroup,
 ]
 
+_SOCKET_INTERFACE_CLASSES = []
+
 def register():
-    from bpy.utils import register_class
-    for _class in _classes:
-        register_class(_class)
+    utility.octane_register_class(_CLASSES)
+    utility.octane_register_interface_class(_CLASSES, _SOCKET_INTERFACE_CLASSES)
 
 def unregister():
-    from bpy.utils import unregister_class
-    for _class in reversed(_classes):
-        unregister_class(_class)
+    utility.octane_unregister_class(reversed(_SOCKET_INTERFACE_CLASSES))
+    utility.octane_unregister_class(reversed(_CLASSES))
 
 ##### END OCTANE GENERATED CODE BLOCK #####
 
@@ -72,6 +72,6 @@ class OctaneMaterialLayerGroup_Override(OctaneMaterialLayerGroup):
         self.draw_movable_inputs(context, layout, OctaneMaterialLayerGroupLayerMovableInput, self.MAX_AOV_OUTPUT_COUNT)
 
 
-_added_classes = [OctaneMaterialLayerGroupLayerMovableInput, ]
-_classes = _added_classes + _classes
-utility.override_class(_classes, OctaneMaterialLayerGroup, OctaneMaterialLayerGroup_Override)    
+_ADDED_CLASSES = [OctaneMaterialLayerGroupLayerMovableInput, ]
+_CLASSES = _ADDED_CLASSES + _CLASSES
+utility.override_class(_CLASSES, OctaneMaterialLayerGroup, OctaneMaterialLayerGroup_Override)    

@@ -2,10 +2,10 @@
 import bpy
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
-from ...utils import consts
-from ...utils.consts import SocketType
-from ..base_node import OctaneBaseNode
-from ..base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
+from octane.utils import utility, consts
+from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
 class OctaneOSLCameraPos(OctaneBaseSocket):
@@ -16,7 +16,7 @@ class OctaneOSLCameraPos(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=133)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
-    default_value: FloatVectorProperty(default=(0.000000, 0.500000, 1.000000), update=None, description="The position of the camera", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", size=3)
+    default_value: FloatVectorProperty(default=(0.000000, 0.500000, 1.000000), update=None, description="The position of the camera", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -30,7 +30,7 @@ class OctaneOSLCameraTarget(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=235)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
-    default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=None, description="The target position,i.e. the point the camera looks at", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", size=3)
+    default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=None, description="The target position,i.e. the point the camera looks at", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -44,7 +44,7 @@ class OctaneOSLCameraUp(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=248)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
-    default_value: FloatVectorProperty(default=(0.000000, 1.000000, 0.000000), update=None, description="The up-vector, i.e. the vector that defines where is up", min=-1.000000, max=1.000000, soft_min=-1.000000, soft_max=1.000000, step=1, subtype="NONE", size=3)
+    default_value: FloatVectorProperty(default=(0.000000, 1.000000, 0.000000), update=None, description="The up-vector, i.e. the vector that defines where is up", min=-1.000000, max=1.000000, soft_min=-1.000000, soft_max=1.000000, step=1, subtype="NONE", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -98,7 +98,7 @@ class OctaneOSLCameraStereodist(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=224)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.065000, update=None, description="Distance between the left and right eye in stereo mode [m]", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, precision=2, subtype="NONE")
+    default_value: FloatProperty(default=0.065000, update=None, description="Distance between the left and right eye in stereo mode [m]", min=0.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=3, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -156,7 +156,7 @@ class OctaneOSLCameraGroupStereo(OctaneGroupTitleSocket):
     bl_label="[OctaneGroupTitle]Stereo"
     octane_group_sockets: StringProperty(name="Group Sockets", default="Stereo output;Stereo mode;Eye distance;Swap eyes;Left stereo filter;Right stereo filter;")
 
-class OctaneOSLCamera(bpy.types.Node, OctaneBaseNode):
+class OctaneOSLCamera(bpy.types.Node, OctaneScriptNode):
     bl_idname="OctaneOSLCamera"
     bl_label="OSL camera"
     bl_width_default=200
@@ -168,13 +168,13 @@ class OctaneOSLCamera(bpy.types.Node, OctaneBaseNode):
     octane_min_version=0
     octane_node_type: IntProperty(name="Octane Node Type", default=126)
     octane_socket_list: StringProperty(name="Socket List", default="Position;Target;Up-vector;Stereo output;Stereo mode;Eye distance;Swap eyes;Left stereo filter;Right stereo filter;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="a_reload;a_shader_code;a_errors;a_result;a_load_initial_state;a_save_initial_state;")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="1;10;10;2;1;1;")
+    octane_attribute_list: StringProperty(name="Attribute List", default="a_filename;a_reload;a_shader_code;a_result;a_load_initial_state;a_save_initial_state;")
+    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="11;1;10;2;1;1;")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=9)
 
+    a_filename: StringProperty(name="Filename", default="", update=None, description="The file where the OSL shader is stored. If set, A_SHADER_CODE will be replaced with the content of the file", subtype="FILE_PATH")
     a_reload: BoolProperty(name="Reload", default=False, update=None, description="Set it to TRUE if the file needs a reload. After the node was evaluated the attribute will be false again")
     a_shader_code: StringProperty(name="Shader code", default="shader OslCamera(\n    output point pos = 0,\n    output vector dir = 0,\n    output float tMax = 1.0/0.0)\n{\n    pos = P;\n    vector right = cross(I, N);\n    dir = I + right * (u - .5) + N * (v - .5);\n}\n", update=None, description="The OSL code for this node")
-    a_errors: StringProperty(name="Errors", default="", update=None, description="Any warnings or errors emitted while compiling the contained OSL code")
     a_result: IntProperty(name="Result", default=0, update=None, description="The OSL code for this node. If set to COMPILE_NONE, the shader code will be recompiled at the next evaluation. If set to COMPILE_FORCE, the code will be recompiled even if it didn't change")
     a_load_initial_state: BoolProperty(name="Load initial state", default=False, update=None, description="If enabled and the node gets evaluated, the camera is reset to the previously saved position and orientation")
     a_save_initial_state: BoolProperty(name="Save initial state", default=True, update=None, description="If enabled and the node gets evaluated, the current camera position and orientation will be saved")
@@ -194,7 +194,7 @@ class OctaneOSLCamera(bpy.types.Node, OctaneBaseNode):
         self.outputs.new("OctaneCameraOutSocket", "Camera out").init()
 
 
-_classes=[
+_CLASSES=[
     OctaneOSLCameraPos,
     OctaneOSLCameraTarget,
     OctaneOSLCameraUp,
@@ -209,14 +209,14 @@ _classes=[
     OctaneOSLCamera,
 ]
 
+_SOCKET_INTERFACE_CLASSES = []
+
 def register():
-    from bpy.utils import register_class
-    for _class in _classes:
-        register_class(_class)
+    utility.octane_register_class(_CLASSES)
+    utility.octane_register_interface_class(_CLASSES, _SOCKET_INTERFACE_CLASSES)
 
 def unregister():
-    from bpy.utils import unregister_class
-    for _class in reversed(_classes):
-        unregister_class(_class)
+    utility.octane_unregister_class(reversed(_SOCKET_INTERFACE_CLASSES))
+    utility.octane_unregister_class(reversed(_CLASSES))
 
 ##### END OCTANE GENERATED CODE BLOCK #####

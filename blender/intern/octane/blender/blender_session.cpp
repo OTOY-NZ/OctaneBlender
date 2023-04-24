@@ -1119,6 +1119,38 @@ bool BlenderSession::resolve_octane_ocio_info(const std::string server_address,
   return ret;
 }
 
+bool BlenderSession::update_octane_custom_node(const std::string server_address,
+                                               std::string command,
+                                               std::string data,
+                                               std::string &result)
+{
+  ::OctaneEngine::OctaneClient *server = new ::OctaneEngine::OctaneClient;
+  bool ret = BlenderSession::connect_to_server(server_address, RENDER_SERVER_PORT, server);
+  if (ret) {
+    OctaneDataTransferObject::OctaneNodeBase *cur_node =
+        OctaneDataTransferObject::GlobalOctaneNodeFactory.CreateOctaneNode(Octane::ENT_CUSTOM_NODE);
+    OctaneDataTransferObject::OctaneCustomNode *cur_custom_node =
+        (OctaneDataTransferObject::OctaneCustomNode *)cur_node;
+    cur_custom_node->sCustomDataHeader = command;
+    cur_custom_node->sCustomDataBody = data;
+    std::vector<OctaneDataTransferObject::OctaneNodeBase *> response;
+    server->uploadOctaneNode(cur_custom_node, &response);
+    if (response.size() == 1) {
+      OctaneDataTransferObject::OctaneCustomNode *pCustomNode =
+          (OctaneDataTransferObject::OctaneCustomNode *)(response[0]);
+      result = pCustomNode->sCustomDataBody;
+    }
+    delete cur_node;
+    for (auto pResponseNode : response) {
+      delete pResponseNode;
+    }
+  }
+  if (server) {
+    delete server;
+  }
+  return ret;
+}
+
 static void export_startjob(void *customdata, short *stop, short *do_update, float *progress)
 {
   OctaneExportJobData *data = static_cast<OctaneExportJobData *>(customdata);

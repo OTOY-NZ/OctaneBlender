@@ -2,10 +2,10 @@
 import bpy
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
-from ...utils import consts
-from ...utils.consts import SocketType
-from ..base_node import OctaneBaseNode
-from ..base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
+from octane.utils import utility, consts
+from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
 class OctaneImageAOVOutputColorSpace(OctaneBaseSocket):
@@ -104,10 +104,11 @@ class OctaneImageAOVOutput(bpy.types.Node, OctaneBaseNode):
     octane_min_version=0
     octane_node_type: IntProperty(name="Octane Node Type", default=168)
     octane_socket_list: StringProperty(name="Socket List", default="Color space;Output channels;Enable imager;Enable post processing;Pre multiply alpha;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="a_reload;a_size;a_type;a_image_file_type;a_can_wrap_x;a_can_wrap_y;a_image_flip;a_source_info;a_image_layer_names;a_channel_format;a_image_chosen_layer_name;a_ies_photometry_mode;")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="1;3;2;2;1;1;1;10;10;2;10;2;")
+    octane_attribute_list: StringProperty(name="Attribute List", default="a_filename;a_reload;a_size;a_type;a_image_file_type;a_can_wrap_x;a_can_wrap_y;a_image_flip;a_source_info;a_image_layer_names;a_channel_format;a_image_chosen_layer_name;a_ies_photometry_mode;")
+    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="11;1;3;2;2;1;1;1;10;10;2;10;2;")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=5)
 
+    a_filename: StringProperty(name="Filename", default="", update=None, description="Stores the filename of the texture image", subtype="FILE_PATH")
     a_reload: BoolProperty(name="Reload", default=False, update=None, description="TRUE if the file needs a reload or the preference of the image file has been changed.After evaluation the attribute will be false again")
     a_size: IntVectorProperty(name="Size", default=(0, 0), size=2, update=None, description="Size of the image in pixels or if the image is compressed the size of the image in blocks")
     a_type: IntProperty(name="Type", default=0, update=None, description="The image type, i.e. the data format used in A_BUFFER. Must be of type ImageType")
@@ -131,7 +132,7 @@ class OctaneImageAOVOutput(bpy.types.Node, OctaneBaseNode):
         self.outputs.new("OctaneAOVOutputOutSocket", "AOV output out").init()
 
 
-_classes=[
+_CLASSES=[
     OctaneImageAOVOutputColorSpace,
     OctaneImageAOVOutputOutputChannels,
     OctaneImageAOVOutputImager,
@@ -141,14 +142,14 @@ _classes=[
     OctaneImageAOVOutput,
 ]
 
+_SOCKET_INTERFACE_CLASSES = []
+
 def register():
-    from bpy.utils import register_class
-    for _class in _classes:
-        register_class(_class)
+    utility.octane_register_class(_CLASSES)
+    utility.octane_register_interface_class(_CLASSES, _SOCKET_INTERFACE_CLASSES)
 
 def unregister():
-    from bpy.utils import unregister_class
-    for _class in reversed(_classes):
-        unregister_class(_class)
+    utility.octane_unregister_class(reversed(_SOCKET_INTERFACE_CLASSES))
+    utility.octane_unregister_class(reversed(_CLASSES))
 
 ##### END OCTANE GENERATED CODE BLOCK #####

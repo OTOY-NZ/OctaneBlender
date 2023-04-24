@@ -3029,6 +3029,7 @@ void ntreeFreeEmbeddedTree(bNodeTree *ntree)
 {
   ntreeFreeTree(ntree);
   BKE_libblock_free_data(&ntree->id, true);
+  BKE_libblock_free_data_py(&ntree->id);
 }
 
 void ntreeFreeLocalTree(bNodeTree *ntree)

@@ -2,10 +2,10 @@
 import bpy
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
-from ...utils import consts
-from ...utils.consts import SocketType
-from ..base_node import OctaneBaseNode
-from ..base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
+from octane.utils import utility, consts
+from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
 class OctaneWCoordinateTranslation(OctaneBaseSocket):
@@ -30,7 +30,7 @@ class OctaneWCoordinateScale(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=209)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=1.000000, update=None, description="Scale", min=0.001000, max=1000.000000, soft_min=0.001000, soft_max=1000.000000, step=1, precision=2, subtype="NONE")
+    default_value: FloatProperty(default=1.000000, update=None, description="Scale", min=0.001000, max=1000.000000, soft_min=0.001000, soft_max=1000.000000, step=1, precision=3, subtype="NONE")
     octane_hide_value=False
     octane_min_version=11000003
     octane_end_version=4294967295
@@ -94,7 +94,7 @@ class OctaneWCoordinate(bpy.types.Node, OctaneBaseNode):
         self.outputs.new("OctaneTextureOutSocket", "Texture out").init()
 
 
-_classes=[
+_CLASSES=[
     OctaneWCoordinateTranslation,
     OctaneWCoordinateScale,
     OctaneWCoordinateBorderModeWCoord,
@@ -102,14 +102,14 @@ _classes=[
     OctaneWCoordinate,
 ]
 
+_SOCKET_INTERFACE_CLASSES = []
+
 def register():
-    from bpy.utils import register_class
-    for _class in _classes:
-        register_class(_class)
+    utility.octane_register_class(_CLASSES)
+    utility.octane_register_interface_class(_CLASSES, _SOCKET_INTERFACE_CLASSES)
 
 def unregister():
-    from bpy.utils import unregister_class
-    for _class in reversed(_classes):
-        unregister_class(_class)
+    utility.octane_unregister_class(reversed(_SOCKET_INTERFACE_CLASSES))
+    utility.octane_unregister_class(reversed(_CLASSES))
 
 ##### END OCTANE GENERATED CODE BLOCK #####

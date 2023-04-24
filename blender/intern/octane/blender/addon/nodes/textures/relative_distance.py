@@ -2,10 +2,10 @@
 import bpy
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
-from ...utils import consts
-from ...utils.consts import SocketType
-from ..base_node import OctaneBaseNode
-from ..base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
+from octane.utils import utility, consts
+from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
 class OctaneRelativeDistanceDistanceMode(OctaneBaseSocket):
@@ -77,7 +77,7 @@ class OctaneRelativeDistanceNormalizationRange(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=640)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT2)
-    default_value: FloatVectorProperty(default=(0.000000, 1.000000), update=None, description="Min and max values used for normalization", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", size=2)
+    default_value: FloatVectorProperty(default=(0.000000, 1.000000), update=None, description="Min and max values used for normalization", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", precision=2, size=2)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -108,7 +108,7 @@ class OctaneRelativeDistance(bpy.types.Node, OctaneBaseNode):
         self.outputs.new("OctaneTextureOutSocket", "Texture out").init()
 
 
-_classes=[
+_CLASSES=[
     OctaneRelativeDistanceDistanceMode,
     OctaneRelativeDistanceTransform,
     OctaneRelativeDistanceUseFullTransform,
@@ -117,14 +117,14 @@ _classes=[
     OctaneRelativeDistance,
 ]
 
+_SOCKET_INTERFACE_CLASSES = []
+
 def register():
-    from bpy.utils import register_class
-    for _class in _classes:
-        register_class(_class)
+    utility.octane_register_class(_CLASSES)
+    utility.octane_register_interface_class(_CLASSES, _SOCKET_INTERFACE_CLASSES)
 
 def unregister():
-    from bpy.utils import unregister_class
-    for _class in reversed(_classes):
-        unregister_class(_class)
+    utility.octane_unregister_class(reversed(_SOCKET_INTERFACE_CLASSES))
+    utility.octane_unregister_class(reversed(_CLASSES))
 
 ##### END OCTANE GENERATED CODE BLOCK #####

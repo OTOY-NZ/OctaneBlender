@@ -1,6 +1,5 @@
 import bpy
-from . import utility
-from . import consts
+from octane.utils import consts, utility
 
 
 class OctaneOCIOManagement(metaclass=utility.Singleton):

@@ -1,6 +1,8 @@
 import bpy
+from bpy.utils import register_class, unregister_class
+from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
 from bpy_extras.node_utils import find_node_input
-from . import consts
+from octane.utils import consts
 
 ##### General #####
 
@@ -14,7 +16,58 @@ class Singleton(type):
 def override_class(classes, old_class, new_class):
     for idx, _class in enumerate(classes):
         if _class == old_class:
-            classes[idx] = new_class
+            classes[idx] = new_class   
+
+def octane_register_class(classes):
+    from bpy.utils import register_class
+    for _class in classes:
+        register_class(_class)
+
+def octane_unregister_class(classes):
+    from bpy.utils import unregister_class
+    for _class in classes:
+        unregister_class(_class)
+
+def octane_register_interface_class(classes, socket_interface_classes):
+    from bpy.utils import register_class
+    from octane.nodes.base_socket import OctaneBaseSocketInterface
+    for _class in classes:
+        if issubclass(_class, bpy.types.NodeSocket):
+            bl_idname = _class.bl_idname + "Interface"
+            bl_socket_idname = _class.bl_idname
+            bl_label = _class.bl_label
+            ntype = type(bl_idname, (bpy.types.NodeSocketInterface, OctaneBaseSocketInterface), {
+                'bl_idname': bl_idname,
+                'bl_socket_idname': bl_socket_idname,
+                'bl_label': bl_label,
+                'color': _class.color,
+            })
+            if "__annotations__" not in ntype.__dict__:
+                setattr(ntype, "__annotations__", {})
+            socket_type = getattr(_class, "octane_socket_type", consts.SocketType.ST_UNKNOWN)
+            if socket_type == consts.SocketType.ST_BOOL:
+                ntype.__annotations__["default_value"] = BoolProperty()
+            elif socket_type == consts.SocketType.ST_ENUM:
+                ntype.__annotations__["default_value"] = EnumProperty()
+            elif socket_type == consts.SocketType.ST_INT:
+                ntype.__annotations__["default_value"] = IntProperty()
+            elif socket_type in (consts.SocketType.ST_INT2, consts.SocketType.ST_INT3):
+                ntype.__annotations__["default_value"] = IntVectorProperty()
+            elif socket_type == consts.SocketType.ST_FLOAT:
+                ntype.__annotations__["default_value"] = FloatProperty()
+            elif socket_type in (consts.SocketType.ST_FLOAT2, consts.SocketType.ST_FLOAT3, consts.SocketType.ST_RGBA):
+                ntype.__annotations__["default_value"] = FloatVectorProperty()
+            elif socket_type == consts.SocketType.ST_STRING:
+                ntype.__annotations__["default_value"] = StringProperty()
+            socket_interface_classes.append(ntype)
+    octane_register_class(socket_interface_classes)
+
+def convert_octane_color_to_rgba(color):
+    a = (0xff & (color >> 24)) / 255.0
+    r = (0xff & (color >> 16)) / 255.0
+    g = (0xff & (color >> 8)) / 255.0
+    b = (0xff & (color)) / 255.0
+    return (r, g, b, a)
 
 ##### Properties #####
 
@@ -81,7 +134,7 @@ def get_split_panel_ui_layout(layout):
     return left, right
 
 def _panel_ui_node_view(context, layout, node_tree, output_node):
-    from ..nodes import base_socket
+    from octane.nodes import base_socket
     if not output_node:
         return
     is_octane_new_style_node = hasattr(output_node, "octane_node_type")
@@ -97,7 +150,7 @@ def _panel_ui_node_view(context, layout, node_tree, output_node):
             continue
         row = layout.row()
         if isinstance(socket, base_socket.OctaneGroupTitleSocket):            
-            socket.draw_prop(context, row, socket.name)
+            socket.draw(context, row, output_node, socket.name)
         else:            
             left, right = get_split_panel_ui_layout(row)
             left.label(text=socket.name)
@@ -107,7 +160,7 @@ def _panel_ui_node_view(context, layout, node_tree, output_node):
             if socket.is_linked and len(socket.links):
                 current_link = socket.links[0]
                 if current_link.is_valid:
-                    right.prop(socket, "show_expanded", icon="TRIA_DOWN" if socket.show_expanded else "TRIA_RIGHT", text=socket.links[0].from_node.bl_label, emboss=False)                    
+                    right.prop(socket, "show_expanded", icon="TRIA_DOWN" if socket.show_expanded else "TRIA_RIGHT", text=socket.links[0].from_node.bl_label, emboss=False)
                     if socket.show_expanded:
                         _panel_ui_node_view(context, layout, node_tree, socket.links[0].from_node)
                 else:
@@ -121,7 +174,7 @@ def _panel_ui_node_view(context, layout, node_tree, output_node):
                     right.prop(socket, "octane_input_enum_items", text="")
 
 def panel_ui_node_view(context, layout, id_data, output_type, input_name):
-    from ..nodes import base_socket
+    from octane.nodes import base_socket
     if not id_data.use_nodes:
         layout.operator("octane.use_shading_nodes", icon='NODETREE')
         return False
@@ -198,6 +251,8 @@ def group_title_socket_show_group_sockets_update_callback(self, context):
                 node.inputs[socket_name].hide = hide_group_sockets
 
 def swap_node_socket_position(node, s1, s2):
+    if s1 == s2 or s1 is None or s2 is None:
+        return
     input_index_1 = 0
     input_index_2 = 0
     for input_index, _input in enumerate(node.inputs):
@@ -215,6 +270,14 @@ def swap_node_socket_position(node, s1, s2):
     for index in range(input_index_end - 1, input_index_begin, -1):        
         node.inputs.move(index, index - 1)
 
+def show_nodetree(context, node_tree):
+    for area in context.screen.areas:
+        if area.type == "NODE_EDITOR":
+            for space in area.spaces:
+                if space.type == "NODE_EDITOR" and space.tree_type == node_tree.bl_idname:
+                    space.node_tree = node_tree
+                    return True
+    return False
 
 ##### Scenes #####
 def scene_max_aov_output_count(context):
@@ -227,12 +290,20 @@ def scene_max_aov_output_count(context):
 
 
 ##### Render passes #####
-def engine_add_layer_passes(engine, layer, enable_denoiser=False):
+
+def update_render_passes(_self, context):
+    scene = context.scene
+    view_layer = context.view_layer
+    view_layer.update_render_passes()
+
+
+def engine_add_layer_passes(scene, engine, layer, enable_denoiser=False):
     from ..nodes.base_output_node import OctaneRenderAOVsOutputNode_Override_RenderPassItems
     render_pass_ids = OctaneRenderAOVsOutputNode_Override_RenderPassItems.get_render_pass_ids()    
     for _id in render_pass_ids:
         name = OctaneRenderAOVsOutputNode_Override_RenderPassItems.RENDER_ID_TO_LEGACY_STYLE_PASS_NAME[_id]
         is_denoiser = name.startswith("OctDenoiser")     
         if is_denoiser and not enable_denoiser:
-            continue
+            continue        
         engine.add_pass(name, 4, "RGBA", layer=layer.name)
+        engine.register_pass(scene, layer, name, 4, "RGBA", "COLOR")

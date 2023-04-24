@@ -2,10 +2,10 @@
 import bpy
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
-from ...utils import consts
-from ...utils.consts import SocketType
-from ..base_node import OctaneBaseNode
-from ..base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
+from octane.utils import utility, consts
+from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
 class OctaneUniversalMaterialTransmission(OctaneBaseSocket):
@@ -62,7 +62,7 @@ class OctaneUniversalMaterialMetallic(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=410)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.000000, update=None, description="The metallic-ness of the material, blends between dielectric and metallic material", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
+    default_value: FloatProperty(default=0.000000, update=None, description="The metallic-ness of the material, blends between dielectric and metallic material", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=4000004
     octane_end_version=4294967295
@@ -90,7 +90,7 @@ class OctaneUniversalMaterialSpecular(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=222)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=1.000000, update=None, description="Specular reflection channel which determines the color of glossy reflection for dielectric material. If the index of reflection is set to a value > 0, then the brightness of this color is adjusted so it matches the Fresnel equations", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
+    default_value: FloatProperty(default=1.000000, update=None, description="Specular reflection channel which determines the color of glossy reflection for dielectric material. If the index of reflection is set to a value > 0, then the brightness of this color is adjusted so it matches the Fresnel equations", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=4000004
     octane_end_version=4294967295
@@ -125,7 +125,7 @@ class OctaneUniversalMaterialRoughness(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=204)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.063200, update=None, description="Roughness of the specular reflection and transmission channel", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
+    default_value: FloatProperty(default=0.063200, update=None, description="Roughness of the specular reflection and transmission channel", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=4000004
     octane_end_version=4294967295
@@ -153,7 +153,7 @@ class OctaneUniversalMaterialRotation(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=203)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.000000, update=None, description="Rotation of the anisotropic specular reflection and transmission channel", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
+    default_value: FloatProperty(default=0.000000, update=None, description="Rotation of the anisotropic specular reflection and transmission channel", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=4000004
     octane_end_version=4294967295
@@ -227,7 +227,7 @@ class OctaneUniversalMaterialIndex(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=80)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT2)
-    default_value: FloatVectorProperty(default=(0.000000, 0.000000), update=None, description="Complex-valued index of refraction (n - k*i) controlling the Fresnel effect of the specular reflection for metallic material.\nFor RGB mode, the IOR for red light (650 nm)", min=0.000000, max=8.000000, soft_min=0.000000, soft_max=8.000000, step=1, subtype="NONE", size=2)
+    default_value: FloatVectorProperty(default=(0.000000, 0.000000), update=None, description="Complex-valued index of refraction (n - k*i) controlling the Fresnel effect of the specular reflection for metallic material.\nFor RGB mode, the IOR for red light (650 nm)", min=0.000000, max=8.000000, soft_min=0.000000, soft_max=8.000000, step=1, subtype="NONE", precision=2, size=2)
     octane_hide_value=False
     octane_min_version=4000004
     octane_end_version=4294967295
@@ -241,7 +241,7 @@ class OctaneUniversalMaterialIndex2(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=374)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT2)
-    default_value: FloatVectorProperty(default=(0.000000, 0.000000), update=None, description="For RGB mode, the IOR for green light (550 nm)", min=0.000000, max=8.000000, soft_min=0.000000, soft_max=8.000000, step=1, subtype="NONE", size=2)
+    default_value: FloatVectorProperty(default=(0.000000, 0.000000), update=None, description="For RGB mode, the IOR for green light (550 nm)", min=0.000000, max=8.000000, soft_min=0.000000, soft_max=8.000000, step=1, subtype="NONE", precision=2, size=2)
     octane_hide_value=False
     octane_min_version=4000004
     octane_end_version=4294967295
@@ -255,7 +255,7 @@ class OctaneUniversalMaterialIndex3(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=375)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT2)
-    default_value: FloatVectorProperty(default=(0.000000, 0.000000), update=None, description="For RGB mode, the IOR for blue light (450 nm)", min=0.000000, max=8.000000, soft_min=0.000000, soft_max=8.000000, step=1, subtype="NONE", size=2)
+    default_value: FloatVectorProperty(default=(0.000000, 0.000000), update=None, description="For RGB mode, the IOR for blue light (450 nm)", min=0.000000, max=8.000000, soft_min=0.000000, soft_max=8.000000, step=1, subtype="NONE", precision=2, size=2)
     octane_hide_value=False
     octane_min_version=4000004
     octane_end_version=4294967295
@@ -283,7 +283,7 @@ class OctaneUniversalMaterialCoatingRoughness(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=438)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.063200, update=None, description="Roughness of the coating layer", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
+    default_value: FloatProperty(default=0.063200, update=None, description="Roughness of the coating layer", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -337,7 +337,7 @@ class OctaneUniversalMaterialFilmwidth(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=49)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.000000, update=None, description="Thickness of the film coating", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
+    default_value: FloatProperty(default=0.000000, update=None, description="Thickness of the film coating", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=4000004
     octane_end_version=4294967295
@@ -379,7 +379,7 @@ class OctaneUniversalMaterialSheenRoughness(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=387)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.200000, update=None, description="Roughness of the sheen channel", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
+    default_value: FloatProperty(default=0.200000, update=None, description="Roughness of the sheen channel", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=4000004
     octane_end_version=4294967295
@@ -621,6 +621,16 @@ class OctaneUniversalMaterialCustomAov(OctaneBaseSocket):
         ("Custom AOV 8", "Custom AOV 8", "", 7),
         ("Custom AOV 9", "Custom AOV 9", "", 8),
         ("Custom AOV 10", "Custom AOV 10", "", 9),
+        ("Custom AOV 11", "Custom AOV 11", "", 10),
+        ("Custom AOV 12", "Custom AOV 12", "", 11),
+        ("Custom AOV 13", "Custom AOV 13", "", 12),
+        ("Custom AOV 14", "Custom AOV 14", "", 13),
+        ("Custom AOV 15", "Custom AOV 15", "", 14),
+        ("Custom AOV 16", "Custom AOV 16", "", 15),
+        ("Custom AOV 17", "Custom AOV 17", "", 16),
+        ("Custom AOV 18", "Custom AOV 18", "", 17),
+        ("Custom AOV 19", "Custom AOV 19", "", 18),
+        ("Custom AOV 20", "Custom AOV 20", "", 19),
     ]
     default_value: EnumProperty(default="None", update=None, description="If a custom AOV is selected, it will write a mask to it where the material is visible", items=items)
     octane_hide_value=False
@@ -689,7 +699,7 @@ class OctaneUniversalMaterialEdgesRounding(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=39)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.000000, update=None, description="(deprecated) Radius of rounded edges that are rendered as shading effect", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=100.000000, step=1, precision=2, subtype="NONE")
+    default_value: FloatProperty(default=0.000000, update=None, description="(deprecated) Radius of rounded edges that are rendered as shading effect", min=0.000000, max=100.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=2000000
     octane_end_version=5100001
@@ -837,7 +847,7 @@ class OctaneUniversalMaterial(bpy.types.Node, OctaneBaseNode):
         self.outputs.new("OctaneMaterialOutSocket", "Material out").init()
 
 
-_classes=[
+_CLASSES=[
     OctaneUniversalMaterialTransmission,
     OctaneUniversalMaterialTransmissionType,
     OctaneUniversalMaterialAlbedo,
@@ -899,14 +909,14 @@ _classes=[
     OctaneUniversalMaterial,
 ]
 
+_SOCKET_INTERFACE_CLASSES = []
+
 def register():
-    from bpy.utils import register_class
-    for _class in _classes:
-        register_class(_class)
+    utility.octane_register_class(_CLASSES)
+    utility.octane_register_interface_class(_CLASSES, _SOCKET_INTERFACE_CLASSES)
 
 def unregister():
-    from bpy.utils import unregister_class
-    for _class in reversed(_classes):
-        unregister_class(_class)
+    utility.octane_unregister_class(reversed(_SOCKET_INTERFACE_CLASSES))
+    utility.octane_unregister_class(reversed(_CLASSES))
 
 ##### END OCTANE GENERATED CODE BLOCK #####

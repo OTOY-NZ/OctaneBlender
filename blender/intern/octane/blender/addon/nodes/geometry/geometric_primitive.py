@@ -2,10 +2,10 @@
 import bpy
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
-from ...utils import consts
-from ...utils.consts import SocketType
-from ..base_node import OctaneBaseNode
-from ..base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
+from octane.utils import utility, consts
+from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
 class OctaneGeometricPrimitivePrimitive(OctaneBaseSocket):
@@ -17,31 +17,31 @@ class OctaneGeometricPrimitivePrimitive(OctaneBaseSocket):
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
     items = [
-        ("Plane", "Plane", "", 1),
-        ("Quad", "Quad", "", 2),
-        ("Polygon", "Polygon", "", 3),
-        ("Box", "Box", "", 4),
-        ("Disc", "Disc", "", 5),
-        ("Sphere", "Sphere", "", 6),
-        ("Dome", "Dome", "", 7),
-        ("Capsule", "Capsule", "", 8),
-        ("Cylinder", "Cylinder", "", 9),
-        ("Cone", "Cone", "", 10),
-        ("Truncated cone", "Truncated cone", "", 11),
-        ("Prism", "Prism", "", 12),
-        ("Tetrahedron", "Tetrahedron", "", 13),
+        ("Box", "Box", "", 1),
+        ("Capsule", "Capsule", "", 2),
+        ("Cone", "Cone", "", 3),
+        ("Cylinder", "Cylinder", "", 4),
+        ("Ding dong", "Ding dong", "", 5),
+        ("Disc", "Disc", "", 6),
+        ("Dodecahedron", "Dodecahedron", "", 7),
+        ("Dome", "Dome", "", 8),
+        ("Ellipsoid", "Ellipsoid", "", 9),
+        ("Elliptic torus", "Elliptic torus", "", 10),
+        ("Figure eight", "Figure eight", "", 11),
+        ("Hyperboloid", "Hyperboloid", "", 12),
+        ("Icosahedron", "Icosahedron", "", 13),
         ("Octahedron", "Octahedron", "", 14),
-        ("Icosahedron", "Icosahedron", "", 15),
-        ("Dodecahedron", "Dodecahedron", "", 16),
-        ("Torus", "Torus", "", 17),
-        ("Elliptic torus", "Elliptic torus", "", 18),
-        ("Ellipsoid", "Ellipsoid", "", 19),
-        ("Figure eight", "Figure eight", "", 20),
-        ("Saddle", "Saddle", "", 21),
-        ("Hyperboloid", "Hyperboloid", "", 22),
-        ("Ding dong", "Ding dong", "", 23),
+        ("Plane", "Plane", "", 15),
+        ("Polygon", "Polygon", "", 16),
+        ("Prism", "Prism", "", 17),
+        ("Quad", "Quad", "", 18),
+        ("Saddle", "Saddle", "", 19),
+        ("Sphere", "Sphere", "", 20),
+        ("Tetrahedron", "Tetrahedron", "", 21),
+        ("Torus", "Torus", "", 22),
+        ("Truncated cone", "Truncated cone", "", 23),
     ]
-    default_value: EnumProperty(default="Plane", update=None, description="", items=items)
+    default_value: EnumProperty(default="Box", update=None, description="", items=items)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -110,7 +110,7 @@ class OctaneGeometricPrimitive(bpy.types.Node, OctaneBaseNode):
         self.outputs.new("OctaneGeometryOutSocket", "Geometry out").init()
 
 
-_classes=[
+_CLASSES=[
     OctaneGeometricPrimitivePrimitive,
     OctaneGeometricPrimitiveMaterial,
     OctaneGeometricPrimitiveObjectLayer,
@@ -118,14 +118,14 @@ _classes=[
     OctaneGeometricPrimitive,
 ]
 
+_SOCKET_INTERFACE_CLASSES = []
+
 def register():
-    from bpy.utils import register_class
-    for _class in _classes:
-        register_class(_class)
+    utility.octane_register_class(_CLASSES)
+    utility.octane_register_interface_class(_CLASSES, _SOCKET_INTERFACE_CLASSES)
 
 def unregister():
-    from bpy.utils import unregister_class
-    for _class in reversed(_classes):
-        unregister_class(_class)
+    utility.octane_unregister_class(reversed(_SOCKET_INTERFACE_CLASSES))
+    utility.octane_unregister_class(reversed(_CLASSES))
 
 ##### END OCTANE GENERATED CODE BLOCK #####

@@ -2,10 +2,10 @@
 import bpy
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
-from ...utils import consts
-from ...utils.consts import SocketType
-from ..base_node import OctaneBaseNode
-from ..base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
+from octane.utils import utility, consts
+from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
 class OctaneLightMixerAOVOutputImager(OctaneBaseSocket):
@@ -58,7 +58,7 @@ class OctaneLightMixerAOVOutputSunlightTint(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=670)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
-    default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=None, description="", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", size=3)
+    default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=None, description="", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -80,7 +80,7 @@ class OctaneLightMixerAOVOutputSunlightScale(OctaneBaseSocket):
 
 class OctaneLightMixerAOVOutputEnvLightEnabled(OctaneBaseSocket):
     bl_idname="OctaneLightMixerAOVOutputEnvLightEnabled"
-    bl_label="Environment enabled"
+    bl_label="Ambient light enabled"
     color=consts.OctanePinColor.Bool
     octane_default_node_type="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=672)
@@ -94,13 +94,13 @@ class OctaneLightMixerAOVOutputEnvLightEnabled(OctaneBaseSocket):
 
 class OctaneLightMixerAOVOutputEnvLightTint(OctaneBaseSocket):
     bl_idname="OctaneLightMixerAOVOutputEnvLightTint"
-    bl_label="Environment tint"
+    bl_label="Ambient light tint"
     color=consts.OctanePinColor.Float
     octane_default_node_type="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=674)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
-    default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=None, description="", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", size=3)
+    default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=None, description="", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -108,7 +108,7 @@ class OctaneLightMixerAOVOutputEnvLightTint(OctaneBaseSocket):
 
 class OctaneLightMixerAOVOutputEnvLightScale(OctaneBaseSocket):
     bl_idname="OctaneLightMixerAOVOutputEnvLightScale"
-    bl_label="Environment scale"
+    bl_label="Ambient light scale"
     color=consts.OctanePinColor.Float
     octane_default_node_type="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=673)
@@ -142,7 +142,7 @@ class OctaneLightMixerAOVOutputLight1Tint(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=677)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
-    default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=None, description="", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", size=3)
+    default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=None, description="", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -184,7 +184,7 @@ class OctaneLightMixerAOVOutputLight2Tint(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=680)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
-    default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=None, description="", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", size=3)
+    default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=None, description="", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -226,7 +226,7 @@ class OctaneLightMixerAOVOutputLight3Tint(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=683)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
-    default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=None, description="", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", size=3)
+    default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=None, description="", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -268,7 +268,7 @@ class OctaneLightMixerAOVOutputLight4Tint(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=686)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
-    default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=None, description="", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", size=3)
+    default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=None, description="", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -310,7 +310,7 @@ class OctaneLightMixerAOVOutputLight5Tint(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=689)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
-    default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=None, description="", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", size=3)
+    default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=None, description="", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -352,7 +352,7 @@ class OctaneLightMixerAOVOutputLight6Tint(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=692)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
-    default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=None, description="", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", size=3)
+    default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=None, description="", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -394,7 +394,7 @@ class OctaneLightMixerAOVOutputLight7Tint(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=695)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
-    default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=None, description="", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", size=3)
+    default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=None, description="", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -436,7 +436,7 @@ class OctaneLightMixerAOVOutputLight8Tint(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=698)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
-    default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=None, description="", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", size=3)
+    default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=None, description="", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -466,10 +466,10 @@ class OctaneLightMixerAOVOutputGroupSunlight(OctaneGroupTitleSocket):
     bl_label="[OctaneGroupTitle]Sunlight"
     octane_group_sockets: StringProperty(name="Group Sockets", default="Sunlight enabled;Sunlight tint;Sunlight scale;")
 
-class OctaneLightMixerAOVOutputGroupEnvironment(OctaneGroupTitleSocket):
-    bl_idname="OctaneLightMixerAOVOutputGroupEnvironment"
-    bl_label="[OctaneGroupTitle]Environment"
-    octane_group_sockets: StringProperty(name="Group Sockets", default="Environment enabled;Environment tint;Environment scale;")
+class OctaneLightMixerAOVOutputGroupAmbientLight(OctaneGroupTitleSocket):
+    bl_idname="OctaneLightMixerAOVOutputGroupAmbientLight"
+    bl_label="[OctaneGroupTitle]Ambient light"
+    octane_group_sockets: StringProperty(name="Group Sockets", default="Ambient light enabled;Ambient light tint;Ambient light scale;")
 
 class OctaneLightMixerAOVOutputGroupLightID1(OctaneGroupTitleSocket):
     bl_idname="OctaneLightMixerAOVOutputGroupLightID1"
@@ -522,7 +522,7 @@ class OctaneLightMixerAOVOutput(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_sub_type_name=""
     octane_min_version=0
     octane_node_type: IntProperty(name="Octane Node Type", default=376)
-    octane_socket_list: StringProperty(name="Socket List", default="Enable imager;Enable post FX;Sunlight enabled;Sunlight tint;Sunlight scale;Environment enabled;Environment tint;Environment scale;Light ID 1 enabled;Light ID 1 tint;Light ID 1 scale;Light ID 2 enabled;Light ID 2 tint;Light ID 2 scale;Light ID 3 enabled;Light ID 3 tint;Light ID 3 scale;Light ID 4 enabled;Light ID 4 tint;Light ID 4 scale;Light ID 5 enabled;Light ID 5 tint;Light ID 5 scale;Light ID 6 enabled;Light ID 6 tint;Light ID 6 scale;Light ID 7 enabled;Light ID 7 tint;Light ID 7 scale;Light ID 8 enabled;Light ID 8 tint;Light ID 8 scale;")
+    octane_socket_list: StringProperty(name="Socket List", default="Enable imager;Enable post FX;Sunlight enabled;Sunlight tint;Sunlight scale;Ambient light enabled;Ambient light tint;Ambient light scale;Light ID 1 enabled;Light ID 1 tint;Light ID 1 scale;Light ID 2 enabled;Light ID 2 tint;Light ID 2 scale;Light ID 3 enabled;Light ID 3 tint;Light ID 3 scale;Light ID 4 enabled;Light ID 4 tint;Light ID 4 scale;Light ID 5 enabled;Light ID 5 tint;Light ID 5 scale;Light ID 6 enabled;Light ID 6 tint;Light ID 6 scale;Light ID 7 enabled;Light ID 7 tint;Light ID 7 scale;Light ID 8 enabled;Light ID 8 tint;Light ID 8 scale;")
     octane_attribute_list: StringProperty(name="Attribute List", default="")
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=32)
@@ -535,7 +535,7 @@ class OctaneLightMixerAOVOutput(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneLightMixerAOVOutputSunlightEnabled", OctaneLightMixerAOVOutputSunlightEnabled.bl_label).init()
         self.inputs.new("OctaneLightMixerAOVOutputSunlightTint", OctaneLightMixerAOVOutputSunlightTint.bl_label).init()
         self.inputs.new("OctaneLightMixerAOVOutputSunlightScale", OctaneLightMixerAOVOutputSunlightScale.bl_label).init()
-        self.inputs.new("OctaneLightMixerAOVOutputGroupEnvironment", OctaneLightMixerAOVOutputGroupEnvironment.bl_label).init()
+        self.inputs.new("OctaneLightMixerAOVOutputGroupAmbientLight", OctaneLightMixerAOVOutputGroupAmbientLight.bl_label).init()
         self.inputs.new("OctaneLightMixerAOVOutputEnvLightEnabled", OctaneLightMixerAOVOutputEnvLightEnabled.bl_label).init()
         self.inputs.new("OctaneLightMixerAOVOutputEnvLightTint", OctaneLightMixerAOVOutputEnvLightTint.bl_label).init()
         self.inputs.new("OctaneLightMixerAOVOutputEnvLightScale", OctaneLightMixerAOVOutputEnvLightScale.bl_label).init()
@@ -574,7 +574,7 @@ class OctaneLightMixerAOVOutput(bpy.types.Node, OctaneBaseNode):
         self.outputs.new("OctaneAOVOutputOutSocket", "AOV output out").init()
 
 
-_classes=[
+_CLASSES=[
     OctaneLightMixerAOVOutputImager,
     OctaneLightMixerAOVOutputPostproc,
     OctaneLightMixerAOVOutputSunlightEnabled,
@@ -609,7 +609,7 @@ _classes=[
     OctaneLightMixerAOVOutputLight8Scale,
     OctaneLightMixerAOVOutputGroupOutputSettings,
     OctaneLightMixerAOVOutputGroupSunlight,
-    OctaneLightMixerAOVOutputGroupEnvironment,
+    OctaneLightMixerAOVOutputGroupAmbientLight,
     OctaneLightMixerAOVOutputGroupLightID1,
     OctaneLightMixerAOVOutputGroupLightID2,
     OctaneLightMixerAOVOutputGroupLightID3,
@@ -621,14 +621,21 @@ _classes=[
     OctaneLightMixerAOVOutput,
 ]
 
+_SOCKET_INTERFACE_CLASSES = []
+
 def register():
-    from bpy.utils import register_class
-    for _class in _classes:
-        register_class(_class)
+    utility.octane_register_class(_CLASSES)
+    utility.octane_register_interface_class(_CLASSES, _SOCKET_INTERFACE_CLASSES)
 
 def unregister():
-    from bpy.utils import unregister_class
-    for _class in reversed(_classes):
-        unregister_class(_class)
+    utility.octane_unregister_class(reversed(_SOCKET_INTERFACE_CLASSES))
+    utility.octane_unregister_class(reversed(_CLASSES))
 
 ##### END OCTANE GENERATED CODE BLOCK #####
+
+class OctaneLightMixerAOVOutputGroupEnvironment(OctaneGroupTitleSocket):
+    bl_idname="OctaneLightMixerAOVOutputGroupEnvironment"
+    bl_label="[OctaneGroupTitle]Environment"
+    octane_group_sockets: StringProperty(name="Group Sockets", default="Environment enabled;Environment tint;Environment scale;")
+
+_CLASSES.append(OctaneLightMixerAOVOutputGroupEnvironment)

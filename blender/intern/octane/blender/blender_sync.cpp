@@ -195,10 +195,20 @@ void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph)
       bool has_object_dependency = false;
       if (shader->graph) {
         for (auto updated_id : updated_object_ids) {
-          for (auto dependent_id : shader->graph->dependent_ids) {
-            if (updated_id == dependent_id) {
-              has_object_dependency = true;
-              break;
+          // The object ID seems to be incorrect in the custom node group tree.
+          // Use this for temporal fix as we are going to refactor object data node into add-on
+          // style.
+          if (shader->graph && shader->graph->dependent_ids.size() &&
+              (shader->graph->type == ShaderGraphType::SHADER_GRAPH_COMPOSITE ||
+               shader->graph->type == ShaderGraphType::SHADER_GRAPH_RENDER_AOV)) {
+            has_object_dependency = true;
+          }
+          else {
+            for (auto dependent_id : shader->graph->dependent_ids) {
+              if (updated_id == dependent_id) {
+                has_object_dependency = true;
+                break;
+              }
             }
           }
         }
@@ -826,6 +836,36 @@ std::string BlenderSync::get_env_texture_name(PointerRNA *env,
   MAP_PASS(
       "OctCustom10",
       static_cast<::Octane::RenderPassId>(::Octane::RenderPassId::RENDER_PASS_CUSTOM_OFFSET + 10));
+  MAP_PASS(
+      "OctCustom11",
+      static_cast<::Octane::RenderPassId>(::Octane::RenderPassId::RENDER_PASS_CUSTOM_OFFSET + 11));
+  MAP_PASS(
+      "OctCustom12",
+      static_cast<::Octane::RenderPassId>(::Octane::RenderPassId::RENDER_PASS_CUSTOM_OFFSET + 12));
+  MAP_PASS(
+      "OctCustom13",
+      static_cast<::Octane::RenderPassId>(::Octane::RenderPassId::RENDER_PASS_CUSTOM_OFFSET + 13));
+  MAP_PASS(
+      "OctCustom14",
+      static_cast<::Octane::RenderPassId>(::Octane::RenderPassId::RENDER_PASS_CUSTOM_OFFSET + 14));
+  MAP_PASS(
+      "OctCustom15",
+      static_cast<::Octane::RenderPassId>(::Octane::RenderPassId::RENDER_PASS_CUSTOM_OFFSET + 15));
+  MAP_PASS(
+      "OctCustom16",
+      static_cast<::Octane::RenderPassId>(::Octane::RenderPassId::RENDER_PASS_CUSTOM_OFFSET + 16));
+  MAP_PASS(
+      "OctCustom17",
+      static_cast<::Octane::RenderPassId>(::Octane::RenderPassId::RENDER_PASS_CUSTOM_OFFSET + 17));
+  MAP_PASS(
+      "OctCustom18",
+      static_cast<::Octane::RenderPassId>(::Octane::RenderPassId::RENDER_PASS_CUSTOM_OFFSET + 18));
+  MAP_PASS(
+      "OctCustom19",
+      static_cast<::Octane::RenderPassId>(::Octane::RenderPassId::RENDER_PASS_CUSTOM_OFFSET + 19));
+  MAP_PASS(
+      "OctCustom20",
+      static_cast<::Octane::RenderPassId>(::Octane::RenderPassId::RENDER_PASS_CUSTOM_OFFSET + 20));
   MAP_PASS("OctGlobalTex1",
            static_cast<::Octane::RenderPassId>(
                ::Octane::RenderPassId::RENDER_PASS_GLOBAL_TEX_OFFSET + 1));
@@ -856,6 +896,36 @@ std::string BlenderSync::get_env_texture_name(PointerRNA *env,
   MAP_PASS("OctGlobalTex10",
            static_cast<::Octane::RenderPassId>(
                ::Octane::RenderPassId::RENDER_PASS_GLOBAL_TEX_OFFSET + 10));
+  MAP_PASS("OctGlobalTex11",
+           static_cast<::Octane::RenderPassId>(
+               ::Octane::RenderPassId::RENDER_PASS_GLOBAL_TEX_OFFSET + 11));
+  MAP_PASS("OctGlobalTex12",
+           static_cast<::Octane::RenderPassId>(
+               ::Octane::RenderPassId::RENDER_PASS_GLOBAL_TEX_OFFSET + 12));
+  MAP_PASS("OctGlobalTex13",
+           static_cast<::Octane::RenderPassId>(
+               ::Octane::RenderPassId::RENDER_PASS_GLOBAL_TEX_OFFSET + 13));
+  MAP_PASS("OctGlobalTex14",
+           static_cast<::Octane::RenderPassId>(
+               ::Octane::RenderPassId::RENDER_PASS_GLOBAL_TEX_OFFSET + 14));
+  MAP_PASS("OctGlobalTex15",
+           static_cast<::Octane::RenderPassId>(
+               ::Octane::RenderPassId::RENDER_PASS_GLOBAL_TEX_OFFSET + 15));
+  MAP_PASS("OctGlobalTex16",
+           static_cast<::Octane::RenderPassId>(
+               ::Octane::RenderPassId::RENDER_PASS_GLOBAL_TEX_OFFSET + 16));
+  MAP_PASS("OctGlobalTex17",
+           static_cast<::Octane::RenderPassId>(
+               ::Octane::RenderPassId::RENDER_PASS_GLOBAL_TEX_OFFSET + 17));
+  MAP_PASS("OctGlobalTex18",
+           static_cast<::Octane::RenderPassId>(
+               ::Octane::RenderPassId::RENDER_PASS_GLOBAL_TEX_OFFSET + 18));
+  MAP_PASS("OctGlobalTex19",
+           static_cast<::Octane::RenderPassId>(
+               ::Octane::RenderPassId::RENDER_PASS_GLOBAL_TEX_OFFSET + 19));
+  MAP_PASS("OctGlobalTex20",
+           static_cast<::Octane::RenderPassId>(
+               ::Octane::RenderPassId::RENDER_PASS_GLOBAL_TEX_OFFSET + 20));
 #undef MAP_PASS
   return ::Octane::RenderPassId::PASS_NONE;
 }

@@ -1,8 +1,8 @@
 ##### BEGIN OCTANE GENERATED CODE BLOCK #####
 import bpy
 from bpy.props import IntProperty
-from ..utils import consts
-from .base_socket import OctaneBaseSocket, OctaneGroupTitleSocket
+from octane.utils import consts, utility
+from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket
 
 
 class OctaneBoolOutSocket(OctaneBaseSocket):
@@ -318,7 +318,7 @@ class OctaneCompositeAOVLayerOutSocket(OctaneBaseSocket):
     octane_hide_value=True
 
 
-_classes=[
+_CLASSES=[
     OctaneBoolOutSocket,
     OctaneFloatOutSocket,
     OctaneIntOutSocket,
@@ -360,15 +360,15 @@ _classes=[
     OctaneCompositeAOVLayerOutSocket,
 ]
 
+_SOCKET_INTERFACE_CLASSES = []
+
 def register():
-    from bpy.utils import register_class
-    for _class in _classes:
-        register_class(_class)
+    utility.octane_register_class(_CLASSES)
+    utility.octane_register_interface_class(_CLASSES, _SOCKET_INTERFACE_CLASSES)
 
 def unregister():
-    from bpy.utils import unregister_class
-    for _class in reversed(_classes):
-        unregister_class(_class)
+    utility.octane_unregister_class(reversed(_SOCKET_INTERFACE_CLASSES))
+    utility.octane_unregister_class(reversed(_CLASSES))
 
 
 ##### END OCTANE GENERATED CODE BLOCK #####

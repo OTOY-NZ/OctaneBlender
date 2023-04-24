@@ -1165,7 +1165,7 @@ static inline bool set_octane_data_transfer_object(
     case OctaneDataTransferObject::DTO_INT_3:
       i = get_int4(ptr, name);
       *(::OctaneDataTransferObject::OctaneDTOInt3 *)base_dto_ptr =
-          ::OctaneDataTransferObject::int32_3(i[0], i[1], i[3]);
+          ::OctaneDataTransferObject::int32_3(i[0], i[1], i[2]);
       break;
     case OctaneDataTransferObject::DTO_FLOAT:
       *(::OctaneDataTransferObject::OctaneDTOFloat *)base_dto_ptr = get_float(ptr, name);

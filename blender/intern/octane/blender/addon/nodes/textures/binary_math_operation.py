@@ -2,10 +2,10 @@
 import bpy
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
-from ...utils import consts
-from ...utils.consts import SocketType
-from ..base_node import OctaneBaseNode
-from ..base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
+from octane.utils import utility, consts
+from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
 class OctaneBinaryMathOperationTexture1(OctaneBaseSocket):
@@ -43,21 +43,21 @@ class OctaneBinaryMathOperationOperationType(OctaneBaseSocket):
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
     items = [
-        ("Add", "Add", "", 0),
-        ("Arc tangent", "Arc tangent", "", 1),
-        ("Cross product", "Cross product", "", 2),
-        ("Divide", "Divide", "", 3),
-        ("Dot product", "Dot product", "", 4),
-        ("Exponential [a^b]", "Exponential [a^b]", "", 11),
-        ("Logarithm [log_b(a)]", "Logarithm [log_b(a)]", "", 6),
-        ("Maximum value", "Maximum value", "", 7),
-        ("Minimum value", "Minimum value", "", 8),
-        ("Multiply", "Multiply", "", 10),
-        ("Remainder (always positive)", "Remainder (always positive)", "", 9),
-        ("Remainder (keeps sign of a)", "Remainder (keeps sign of a)", "", 5),
-        ("Subtract", "Subtract", "", 12),
+        ("Functions|Add", "Functions|Add", "", 0),
+        ("Functions|Cross product", "Functions|Cross product", "", 2),
+        ("Functions|Divide", "Functions|Divide", "", 3),
+        ("Functions|Dot product", "Functions|Dot product", "", 4),
+        ("Functions|Exponential [a^b]", "Functions|Exponential [a^b]", "", 11),
+        ("Functions|Logarithm [log_b(a)]", "Functions|Logarithm [log_b(a)]", "", 6),
+        ("Functions|Multiply", "Functions|Multiply", "", 10),
+        ("Functions|Remainder (always positive)", "Functions|Remainder (always positive)", "", 9),
+        ("Functions|Remainder (keeps sign of a)", "Functions|Remainder (keeps sign of a)", "", 5),
+        ("Functions|Subtract", "Functions|Subtract", "", 12),
+        ("Comparison|Maximum value", "Comparison|Maximum value", "", 7),
+        ("Comparison|Minimum value", "Comparison|Minimum value", "", 8),
+        ("Trigonometric|Arc tangent", "Trigonometric|Arc tangent", "", 1),
     ]
-    default_value: EnumProperty(default="Add", update=None, description="The operation to perform on the input", items=items)
+    default_value: EnumProperty(default="Functions|Add", update=None, description="The operation to perform on the input", items=items)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -86,21 +86,28 @@ class OctaneBinaryMathOperation(bpy.types.Node, OctaneBaseNode):
         self.outputs.new("OctaneTextureOutSocket", "Texture out").init()
 
 
-_classes=[
+_CLASSES=[
     OctaneBinaryMathOperationTexture1,
     OctaneBinaryMathOperationTexture2,
     OctaneBinaryMathOperationOperationType,
     OctaneBinaryMathOperation,
 ]
 
+_SOCKET_INTERFACE_CLASSES = []
+
 def register():
-    from bpy.utils import register_class
-    for _class in _classes:
-        register_class(_class)
+    utility.octane_register_class(_CLASSES)
+    utility.octane_register_interface_class(_CLASSES, _SOCKET_INTERFACE_CLASSES)
 
 def unregister():
-    from bpy.utils import unregister_class
-    for _class in reversed(_classes):
-        unregister_class(_class)
+    utility.octane_unregister_class(reversed(_SOCKET_INTERFACE_CLASSES))
+    utility.octane_unregister_class(reversed(_CLASSES))
 
 ##### END OCTANE GENERATED CODE BLOCK #####
+
+OctaneBinaryMathOperationOperationType_simplified_items = utility.make_blender_style_enum_items(OctaneBinaryMathOperationOperationType.items)
+
+class OctaneBinaryMathOperationOperationType_Override(OctaneBinaryMathOperationOperationType):
+    default_value: EnumProperty(default="Add", update=None, description="The operation to perform on the input", items=OctaneBinaryMathOperationOperationType_simplified_items)
+
+utility.override_class(_CLASSES, OctaneBinaryMathOperationOperationType, OctaneBinaryMathOperationOperationType_Override)  

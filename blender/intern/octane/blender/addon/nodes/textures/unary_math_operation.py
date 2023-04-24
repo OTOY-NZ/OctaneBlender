@@ -2,10 +2,10 @@
 import bpy
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
-from ...utils import consts
-from ...utils.consts import SocketType
-from ..base_node import OctaneBaseNode
-from ..base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
+from octane.utils import utility, consts
+from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
 class OctaneUnaryMathOperationTexture(OctaneBaseSocket):
@@ -30,38 +30,38 @@ class OctaneUnaryMathOperationOperationType(OctaneBaseSocket):
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
     items = [
-        ("Absolute value", "Absolute value", "", 0),
-        ("Arc cosine", "Arc cosine", "", 1),
-        ("Arc sine", "Arc sine", "", 2),
-        ("Arc tangent", "Arc tangent", "", 3),
-        ("Cosine", "Cosine", "", 5),
-        ("Degrees", "Degrees", "", 7),
-        ("Exponential [2^x]", "Exponential [2^x]", "", 9),
-        ("Exponential [e^x]", "Exponential [e^x]", "", 8),
-        ("Exponential [e^x - 1]", "Exponential [e^x - 1]", "", 10),
-        ("Fraction", "Fraction", "", 12),
-        ("Hyperbolic cosine", "Hyperbolic cosine", "", 6),
-        ("Hyperbolic sine", "Hyperbolic sine", "", 25),
-        ("Hyperbolic tangent", "Hyperbolic tangent", "", 28),
-        ("Inverse square root", "Inverse square root", "", 13),
-        ("Invert", "Invert", "", 14),
-        ("Logarithm base 10", "Logarithm base 10", "", 17),
-        ("Logarithm base 2", "Logarithm base 2", "", 16),
-        ("Logarithm base e", "Logarithm base e", "", 15),
-        ("Logarithm base radix", "Logarithm base radix", "", 18),
-        ("Negate", "Negate", "", 19),
-        ("Radians", "Radians", "", 20),
-        ("Reciprocal", "Reciprocal", "", 21),
-        ("Round", "Round", "", 22),
-        ("Round down", "Round down", "", 11),
-        ("Round up", "Round up", "", 4),
-        ("Sign", "Sign", "", 23),
-        ("Sine", "Sine", "", 24),
-        ("Square root", "Square root", "", 26),
-        ("Tangent", "Tangent", "", 27),
-        ("Truncate", "Truncate", "", 29),
+        ("Functions|Absolute value", "Functions|Absolute value", "", 0),
+        ("Functions|Exponential [2^x]", "Functions|Exponential [2^x]", "", 9),
+        ("Functions|Exponential [e^x]", "Functions|Exponential [e^x]", "", 8),
+        ("Functions|Exponential [e^x - 1]", "Functions|Exponential [e^x - 1]", "", 10),
+        ("Functions|Fraction", "Functions|Fraction", "", 12),
+        ("Functions|Inverse square root", "Functions|Inverse square root", "", 13),
+        ("Functions|Invert", "Functions|Invert", "", 14),
+        ("Functions|Logarithm base 10", "Functions|Logarithm base 10", "", 17),
+        ("Functions|Logarithm base 2", "Functions|Logarithm base 2", "", 16),
+        ("Functions|Logarithm base e", "Functions|Logarithm base e", "", 15),
+        ("Functions|Logarithm base radix", "Functions|Logarithm base radix", "", 18),
+        ("Functions|Negate", "Functions|Negate", "", 19),
+        ("Functions|Reciprocal", "Functions|Reciprocal", "", 21),
+        ("Functions|Sign", "Functions|Sign", "", 23),
+        ("Functions|Square root", "Functions|Square root", "", 26),
+        ("Conversion|Degrees", "Conversion|Degrees", "", 7),
+        ("Conversion|Radians", "Conversion|Radians", "", 20),
+        ("Rounding|Round", "Rounding|Round", "", 22),
+        ("Rounding|Round down", "Rounding|Round down", "", 11),
+        ("Rounding|Round up", "Rounding|Round up", "", 4),
+        ("Rounding|Truncate", "Rounding|Truncate", "", 29),
+        ("Trigonometric|Arc cosine", "Trigonometric|Arc cosine", "", 1),
+        ("Trigonometric|Arc sine", "Trigonometric|Arc sine", "", 2),
+        ("Trigonometric|Arc tangent", "Trigonometric|Arc tangent", "", 3),
+        ("Trigonometric|Cosine", "Trigonometric|Cosine", "", 5),
+        ("Trigonometric|Hyperbolic cosine", "Trigonometric|Hyperbolic cosine", "", 6),
+        ("Trigonometric|Hyperbolic sine", "Trigonometric|Hyperbolic sine", "", 25),
+        ("Trigonometric|Hyperbolic tangent", "Trigonometric|Hyperbolic tangent", "", 28),
+        ("Trigonometric|Sine", "Trigonometric|Sine", "", 24),
+        ("Trigonometric|Tangent", "Trigonometric|Tangent", "", 27),
     ]
-    default_value: EnumProperty(default="Absolute value", update=None, description="The operation to perform on the input", items=items)
+    default_value: EnumProperty(default="Functions|Absolute value", update=None, description="The operation to perform on the input", items=items)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -89,20 +89,27 @@ class OctaneUnaryMathOperation(bpy.types.Node, OctaneBaseNode):
         self.outputs.new("OctaneTextureOutSocket", "Texture out").init()
 
 
-_classes=[
+_CLASSES=[
     OctaneUnaryMathOperationTexture,
     OctaneUnaryMathOperationOperationType,
     OctaneUnaryMathOperation,
 ]
 
+_SOCKET_INTERFACE_CLASSES = []
+
 def register():
-    from bpy.utils import register_class
-    for _class in _classes:
-        register_class(_class)
+    utility.octane_register_class(_CLASSES)
+    utility.octane_register_interface_class(_CLASSES, _SOCKET_INTERFACE_CLASSES)
 
 def unregister():
-    from bpy.utils import unregister_class
-    for _class in reversed(_classes):
-        unregister_class(_class)
+    utility.octane_unregister_class(reversed(_SOCKET_INTERFACE_CLASSES))
+    utility.octane_unregister_class(reversed(_CLASSES))
 
 ##### END OCTANE GENERATED CODE BLOCK #####
+
+OctaneUnaryMathOperationOperationType_simplified_items = utility.make_blender_style_enum_items(OctaneUnaryMathOperationOperationType.items)
+
+class OctaneUnaryMathOperationOperationType_Override(OctaneUnaryMathOperationOperationType):
+    default_value: EnumProperty(default="Absolute value", update=None, description="The operation to perform on the input", items=OctaneUnaryMathOperationOperationType_simplified_items)
+
+utility.override_class(_CLASSES, OctaneUnaryMathOperationOperationType, OctaneUnaryMathOperationOperationType_Override)  

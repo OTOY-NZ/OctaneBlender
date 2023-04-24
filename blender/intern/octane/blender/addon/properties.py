@@ -36,6 +36,7 @@ from math import pi
 import nodeitems_utils
 from . import nodeitems_octane
 from .utils import consts
+from .utils import utility
 from .utils.ocio import OctaneOCIOManagement
 
 from operator import add
@@ -1002,7 +1003,7 @@ class OctaneGeoNodeCollection(bpy.types.PropertyGroup):
                 if mat.name != self.node_graph_tree:
                     continue
                 for node in mat.node_tree.nodes.values():
-                    if node.bl_idname in ('ShaderNodeOctVectron', 'ShaderNodeOctScatterToolSurface', 'ShaderNodeOctScatterToolVolume', 'OctaneScatterOnSurface', 'OctaneScatterInVolume', ):                        
+                    if node.bl_idname in ('OctaneProxy', 'OctaneVectron', 'ShaderNodeOctVectron', 'ShaderNodeOctScatterToolSurface', 'ShaderNodeOctScatterToolVolume', 'OctaneScatterOnSurface', 'OctaneScatterInVolume', ):                        
                         self.osl_geo_nodes.add()
                         self.osl_geo_nodes[-1].name = node.name
         self.sync_geo_node_info(context)
@@ -1236,7 +1237,7 @@ class OctaneOSLCameraNodeCollection(bpy.types.PropertyGroup):
                 if mat.name != cls.osl_camera_material_tree:
                     continue
                 for node in mat.node_tree.nodes.values():
-                    if node.bl_idname in ('ShaderNodeOctOSLCamera', 'ShaderNodeOctOSLBakingCamera'):                        
+                    if node.bl_idname in ("OctaneOSLCamera", "OctaneOSLBakingCamera", 'ShaderNodeOctOSLCamera', 'ShaderNodeOctOSLBakingCamera'):                        
                         cls.osl_camera_nodes.add()
                         cls.osl_camera_nodes[-1].name = node.name
 
@@ -5065,6 +5066,7 @@ class OctaneRenderLayerSettings(bpy.types.PropertyGroup):
             description="Use the classic Render Passes or the new Render AOV Graph",
             items=render_passes_style,
             default="RENDER_PASSES",
+            update=utility.update_render_passes
             )
     render_aov_node_graph_property: PointerProperty(
             name="Render AOV Node Graph Property",
@@ -5378,6 +5380,9 @@ def register():
         pass     
     # nodeitems_utils.register_node_categories("OCT_SHADER", shader_node_categories)    
     # nodeitems_utils.register_node_categories("OCT_TEXTURE", texture_node_categories)
+    # octane_server_address = str(bpy.context.preferences.addons['octane'].preferences.octane_server_address)
+    # from octane.bin import octane_blender_client
+    # octane_blender_client.connect_server(octane_server_address)
     update_octane_data()
     OctaneOCIOManagement_update_ocio_info()  
     bpy.app.handlers.load_post.append(load_handler)

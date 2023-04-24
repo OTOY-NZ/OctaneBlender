@@ -2,10 +2,10 @@
 import bpy
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
-from ...utils import consts
-from ...utils.consts import SocketType
-from ..base_node import OctaneBaseNode
-from ..base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
+from octane.utils import utility, consts
+from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
 class OctaneVolumeMedium(OctaneBaseSocket):
@@ -46,10 +46,11 @@ class OctaneVolume(bpy.types.Node, OctaneBaseNode):
     octane_min_version=0
     octane_node_type: IntProperty(name="Octane Node Type", default=91)
     octane_socket_list: StringProperty(name="Socket List", default="Volume medium;Object layer;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="a_reload;a_user_instance_id;a_geoimp_scale_unit;a_volume_isovalue;a_volume_absorption_id;a_volume_absorption_scale;a_volume_scatter_id;a_volume_scatter_scale;a_volume_emission_id;a_volume_emission_scale;a_volume_velocity_id;a_volume_velocity_id_x;a_volume_velocity_id_y;a_volume_velocity_id_z;a_volume_velocity_scale;a_volume_motion_blur_enabled;a_volume_leaves;a_volume_nodes;a_volume_absorption_offset;a_volume_absorption_max;a_volume_absorption_default;a_volume_scatter_offset;a_volume_scatter_max;a_volume_scatter_default;a_volume_emission_offset;a_volume_emission_max;a_volume_emission_default;a_volume_velocity_offset_x;a_volume_velocity_offset_y;a_volume_velocity_offset_z;a_volume_velocity_default;a_volume_regular_grid;a_volume_resolution;")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="1;2;2;6;10;6;10;6;10;6;10;10;10;10;6;1;6;2;2;6;8;2;6;8;2;6;8;2;2;2;8;6;4;")
+    octane_attribute_list: StringProperty(name="Attribute List", default="a_filename;a_reload;a_user_instance_id;a_geoimp_scale_unit;a_volume_isovalue;a_volume_absorption_id;a_volume_absorption_scale;a_volume_scatter_id;a_volume_scatter_scale;a_volume_emission_id;a_volume_emission_scale;a_volume_velocity_id;a_volume_velocity_id_x;a_volume_velocity_id_y;a_volume_velocity_id_z;a_volume_velocity_scale;a_volume_motion_blur_enabled;a_volume_leaves;a_volume_nodes;a_volume_absorption_offset;a_volume_absorption_max;a_volume_absorption_default;a_volume_scatter_offset;a_volume_scatter_max;a_volume_scatter_default;a_volume_emission_offset;a_volume_emission_max;a_volume_emission_default;a_volume_velocity_offset_x;a_volume_velocity_offset_y;a_volume_velocity_offset_z;a_volume_velocity_default;a_volume_regular_grid;a_volume_resolution;")
+    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="11;1;2;2;6;10;6;10;6;10;6;10;10;10;10;6;1;6;2;2;6;8;2;6;8;2;6;8;2;2;2;8;6;4;")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=2)
 
+    a_filename: StringProperty(name="Filename", default="", update=None, description="Stores the name of the file from which to load the volume data from. Currently, only OpenVDB files are supported. To load a new file, just change this attribute and evaluate the node", subtype="FILE_PATH")
     a_reload: BoolProperty(name="Reload", default=False, update=None, description="Set to TRUE if the file needs a reload. After the node was evaluated, the attribute will be false again")
     a_user_instance_id: IntProperty(name="User instance id", default=-1, update=None, description="The user ID of this geometry node. A valid ID should be a non-negative number. It's a non-unique ID attribute, multiple geometry nodes can have same ID, so it's a user responsibility to set unique ID if needed. In a tree hierarchy, the ID of current node will override the input geometry node's ID")
     a_geoimp_scale_unit: IntProperty(name="Geoimp scale unit", default=4, update=None, description="Defines the length unit used to interpret the worldbounds of the volume. (see Octane::GeometryImportScale)")
@@ -90,20 +91,20 @@ class OctaneVolume(bpy.types.Node, OctaneBaseNode):
         self.outputs.new("OctaneGeometryOutSocket", "Geometry out").init()
 
 
-_classes=[
+_CLASSES=[
     OctaneVolumeMedium,
     OctaneVolumeObjectLayer,
     OctaneVolume,
 ]
 
+_SOCKET_INTERFACE_CLASSES = []
+
 def register():
-    from bpy.utils import register_class
-    for _class in _classes:
-        register_class(_class)
+    utility.octane_register_class(_CLASSES)
+    utility.octane_register_interface_class(_CLASSES, _SOCKET_INTERFACE_CLASSES)
 
 def unregister():
-    from bpy.utils import unregister_class
-    for _class in reversed(_classes):
-        unregister_class(_class)
+    utility.octane_unregister_class(reversed(_SOCKET_INTERFACE_CLASSES))
+    utility.octane_unregister_class(reversed(_CLASSES))
 
 ##### END OCTANE GENERATED CODE BLOCK #####

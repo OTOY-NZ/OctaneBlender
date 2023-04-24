@@ -2,10 +2,10 @@
 import bpy
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
-from ...utils import consts
-from ...utils.consts import SocketType
-from ..base_node import OctaneBaseNode
-from ..base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
+from octane.utils import utility, consts
+from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
 class OctaneUniversalCameraMode(OctaneBaseSocket):
@@ -51,7 +51,7 @@ class OctaneUniversalCameraFocalLength(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=52)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=50.000000, update=None, description="The focal length of the lens [mm]", min=0.010000, max=1200.000000, soft_min=0.010000, soft_max=10000.000000, step=1, precision=2, subtype="NONE")
+    default_value: FloatProperty(default=50.000000, update=None, description="The focal length of the lens [mm]", min=0.010000, max=10000.000000, soft_min=10.000000, soft_max=1200.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -65,7 +65,7 @@ class OctaneUniversalCameraFstop(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=56)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=2.800000, update=None, description="Aperture to focal length ratio", min=0.010000, max=64.000000, soft_min=0.010000, soft_max=10000.000000, step=1, precision=2, subtype="NONE")
+    default_value: FloatProperty(default=2.800000, update=None, description="Aperture to focal length ratio", min=0.010000, max=10000.000000, soft_min=0.500000, soft_max=64.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -79,7 +79,7 @@ class OctaneUniversalCameraFov(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=53)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=39.597752, update=None, description="The horizontal field of view [deg.]", min=0.010000, max=179.000000, soft_min=0.010000, soft_max=180.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=39.597752, update=None, description="The horizontal field of view [deg.]", min=0.010000, max=180.000000, soft_min=1.000000, soft_max=179.000000, step=1, precision=4, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -93,7 +93,7 @@ class OctaneUniversalCameraScale(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=209)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.804984, update=None, description="The width of the orthographic view [m]", min=0.010000, max=10000.000000, soft_min=0.010000, soft_max=10000.000000, step=1, precision=2, subtype="NONE")
+    default_value: FloatProperty(default=0.804984, update=None, description="The width of the orthographic view [m]", min=0.010000, max=10000.000000, soft_min=0.010000, soft_max=10000.000000, step=1, precision=3, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -107,7 +107,7 @@ class OctaneUniversalCameraLensShift(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=95)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
-    default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=None, description="Lens shift to the right/top as a factor of the image width/height.\nFor fisheye this is the projection center offset", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", size=3)
+    default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=None, description="Lens shift to the right/top as a factor of the image width/height.\nFor fisheye this is the projection center offset", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -135,7 +135,7 @@ class OctaneUniversalCameraFisheyeAngle(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=533)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=240.000000, update=None, description="Field of view [deg.]", min=0.010000, max=360.000000, soft_min=0.010000, soft_max=360.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=240.000000, update=None, description="Field of view [deg.]", min=0.010000, max=360.000000, soft_min=1.000000, soft_max=360.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -201,7 +201,7 @@ class OctaneUniversalCameraFovx(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=54)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=360.000000, update=None, description="The horizontal field of view [deg.]", min=0.010000, max=360.000000, soft_min=0.010000, soft_max=360.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=360.000000, update=None, description="The horizontal field of view [deg.]", min=0.010000, max=360.000000, soft_min=1.000000, soft_max=360.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -215,7 +215,7 @@ class OctaneUniversalCameraFovy(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=55)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=180.000000, update=None, description="The vertical field of view [deg.]", min=0.010000, max=180.000000, soft_min=0.010000, soft_max=180.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=180.000000, update=None, description="The vertical field of view [deg.]", min=0.010000, max=180.000000, soft_min=1.000000, soft_max=180.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -305,7 +305,7 @@ class OctaneUniversalCameraBarrelDistortion(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=542)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.000000, update=None, description="Straight lines will appear curved. Negative values produce pincushion distortion", min=-1.000000, max=0.500000, soft_min=-1.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.000000, update=None, description="Straight lines will appear curved. Negative values produce pincushion distortion", min=-1.000000, max=1.000000, soft_min=-0.500000, soft_max=0.500000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -319,7 +319,7 @@ class OctaneUniversalCameraBarrelDistortionCorners(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=543)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.000000, update=None, description="This value mostly affects corners. A different sign from the Barrel value produces moustache distortion", min=-1.000000, max=0.500000, soft_min=-1.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.000000, update=None, description="This value mostly affects corners. A different sign from the Barrel value produces moustache distortion", min=-1.000000, max=1.000000, soft_min=-0.500000, soft_max=0.500000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -333,7 +333,7 @@ class OctaneUniversalCameraSphericalAberration(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=544)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.000000, update=None, description="Rays hitting the edge of the lens focus closer to the lens", min=-1.000000, max=0.200000, soft_min=-1.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.000000, update=None, description="Rays hitting the edge of the lens focus closer to the lens", min=-1.000000, max=1.000000, soft_min=-0.200000, soft_max=0.200000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -347,7 +347,7 @@ class OctaneUniversalCameraComa(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=545)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.000000, update=None, description="Rays hitting the edge of the lens have a wider field of view", min=-1.000000, max=0.250000, soft_min=-1.000000, soft_max=10.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.000000, update=None, description="Rays hitting the edge of the lens have a wider field of view", min=-1.000000, max=10.000000, soft_min=-0.250000, soft_max=0.250000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -431,7 +431,7 @@ class OctaneUniversalCameraFocalDepth(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=51)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=1.118034, update=None, description="The depth of the plane in focus [m]", min=0.000001, max=10000000000.000000, soft_min=0.000001, soft_max=340282346638528859811704183484516925440.000000, step=1, precision=2, subtype="NONE")
+    default_value: FloatProperty(default=1.118034, update=None, description="The depth of the plane in focus [m]", min=0.000001, max=340282346638528859811704183484516925440.000000, soft_min=0.000001, soft_max=10000000000.000000, step=1, precision=3, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -647,7 +647,7 @@ class OctaneUniversalCameraDiopterFocalDepth(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=556)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=1.110000, update=None, description="The depth of the second focal plane [m]", min=0.010000, max=1000.000000, soft_min=0.010000, soft_max=10000000000.000000, step=1, precision=2, subtype="NONE")
+    default_value: FloatProperty(default=1.110000, update=None, description="The depth of the second focal plane [m]", min=0.010000, max=10000000000.000000, soft_min=0.010000, soft_max=1000.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -675,7 +675,7 @@ class OctaneUniversalCameraDiopterTranslation(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=558)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT2)
-    default_value: FloatVectorProperty(default=(0.000000, 0.000000), update=None, description="Translation of the split-focus diopter in image space", min=-1.000000, max=1.000000, soft_min=-1.000000, soft_max=1.000000, step=1, subtype="NONE", size=2)
+    default_value: FloatVectorProperty(default=(0.000000, 0.000000), update=None, description="Translation of the split-focus diopter in image space", min=-1.000000, max=1.000000, soft_min=-1.000000, soft_max=1.000000, step=1, subtype="NONE", precision=2, size=2)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -731,7 +731,7 @@ class OctaneUniversalCameraPos(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=133)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
-    default_value: FloatVectorProperty(default=(0.000000, 0.500000, 1.000000), update=None, description="The position of the camera", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", size=3)
+    default_value: FloatVectorProperty(default=(0.000000, 0.500000, 1.000000), update=None, description="The position of the camera", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -745,7 +745,7 @@ class OctaneUniversalCameraTarget(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=235)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
-    default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=None, description="The target position, i.e. the point the camera looks at", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", size=3)
+    default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=None, description="The target position, i.e. the point the camera looks at", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -759,7 +759,7 @@ class OctaneUniversalCameraUp(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=248)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
-    default_value: FloatVectorProperty(default=(0.000000, 1.000000, 0.000000), update=None, description="The up vector, i.e. the vector that defines where is up", min=-1.000000, max=1.000000, soft_min=-1.000000, soft_max=1.000000, step=1, subtype="NONE", size=3)
+    default_value: FloatVectorProperty(default=(0.000000, 1.000000, 0.000000), update=None, description="The up vector, i.e. the vector that defines where is up", min=-1.000000, max=1.000000, soft_min=-1.000000, soft_max=1.000000, step=1, subtype="NONE", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -921,7 +921,7 @@ class OctaneUniversalCamera(bpy.types.Node, OctaneBaseNode):
         self.outputs.new("OctaneCameraOutSocket", "Camera out").init()
 
 
-_classes=[
+_CLASSES=[
     OctaneUniversalCameraMode,
     OctaneUniversalCameraSensorWidth,
     OctaneUniversalCameraFocalLength,
@@ -989,14 +989,14 @@ _classes=[
     OctaneUniversalCamera,
 ]
 
+_SOCKET_INTERFACE_CLASSES = []
+
 def register():
-    from bpy.utils import register_class
-    for _class in _classes:
-        register_class(_class)
+    utility.octane_register_class(_CLASSES)
+    utility.octane_register_interface_class(_CLASSES, _SOCKET_INTERFACE_CLASSES)
 
 def unregister():
-    from bpy.utils import unregister_class
-    for _class in reversed(_classes):
-        unregister_class(_class)
+    utility.octane_unregister_class(reversed(_SOCKET_INTERFACE_CLASSES))
+    utility.octane_unregister_class(reversed(_CLASSES))
 
 ##### END OCTANE GENERATED CODE BLOCK #####

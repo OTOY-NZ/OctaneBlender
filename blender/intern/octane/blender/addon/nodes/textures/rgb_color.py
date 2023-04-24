@@ -2,10 +2,10 @@
 import bpy
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
-from ...utils import consts
-from ...utils.consts import SocketType
-from ..base_node import OctaneBaseNode
-from ..base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
+from octane.utils import utility, consts
+from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
 class OctaneRGBColor(bpy.types.Node, OctaneBaseNode):
@@ -30,26 +30,28 @@ class OctaneRGBColor(bpy.types.Node, OctaneBaseNode):
         self.outputs.new("OctaneTextureOutSocket", "Texture out").init()
 
 
-_classes=[
+_CLASSES=[
     OctaneRGBColor,
 ]
 
+_SOCKET_INTERFACE_CLASSES = []
+
 def register():
-    from bpy.utils import register_class
-    for _class in _classes:
-        register_class(_class)
+    utility.octane_register_class(_CLASSES)
+    utility.octane_register_interface_class(_CLASSES, _SOCKET_INTERFACE_CLASSES)
 
 def unregister():
-    from bpy.utils import unregister_class
-    for _class in reversed(_classes):
-        unregister_class(_class)
+    utility.octane_unregister_class(reversed(_SOCKET_INTERFACE_CLASSES))
+    utility.octane_unregister_class(reversed(_CLASSES))
 
 ##### END OCTANE GENERATED CODE BLOCK #####
 
 from ...utils import utility
 
 class OctaneRGBColor_Override(OctaneRGBColor):
+    a_value: FloatVectorProperty(name="Value", default=(0.700000, 0.700000, 0.700000), min=0, max=1, size=3, update=None, description="Value of the RGB texture node stored in 3 floats (R,G,B)", subtype="COLOR")
+    
     def draw_buttons(self, context, layout):
         layout.row().prop(self, "a_value")
 
-utility.override_class(_classes, OctaneRGBColor, OctaneRGBColor_Override)               
+utility.override_class(_CLASSES, OctaneRGBColor, OctaneRGBColor_Override)               

@@ -34,6 +34,8 @@
 #include "node_exec.h"
 #include "node_util.h"
 
+#include <string.h>
+
 /* supported socket types in old nodes */
 int node_exec_socket_use_stack(bNodeSocket *sock)
 {
@@ -128,6 +130,10 @@ static struct bNodeStack *setup_stack(bNodeStack *stack,
 {
   bNodeStack *ns = node_get_socket_stack(stack, sock);
   if (!ns) {
+    return nullptr;
+  }
+
+  if (node && strncmp("Octane", node->idname, strlen("Octane")) == 0) {
     return nullptr;
   }
 

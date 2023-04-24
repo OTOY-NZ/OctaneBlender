@@ -2,10 +2,10 @@
 import bpy
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
-from ...utils import consts
-from ...utils.consts import SocketType
-from ..base_node import OctaneBaseNode
-from ..base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
+from octane.utils import utility, consts
+from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
 class OctaneShadowCatcherMaterialEnabled(OctaneBaseSocket):
@@ -56,6 +56,16 @@ class OctaneShadowCatcherMaterialCustomAov(OctaneBaseSocket):
         ("Custom AOV 8", "Custom AOV 8", "", 7),
         ("Custom AOV 9", "Custom AOV 9", "", 8),
         ("Custom AOV 10", "Custom AOV 10", "", 9),
+        ("Custom AOV 11", "Custom AOV 11", "", 10),
+        ("Custom AOV 12", "Custom AOV 12", "", 11),
+        ("Custom AOV 13", "Custom AOV 13", "", 12),
+        ("Custom AOV 14", "Custom AOV 14", "", 13),
+        ("Custom AOV 15", "Custom AOV 15", "", 14),
+        ("Custom AOV 16", "Custom AOV 16", "", 15),
+        ("Custom AOV 17", "Custom AOV 17", "", 16),
+        ("Custom AOV 18", "Custom AOV 18", "", 17),
+        ("Custom AOV 19", "Custom AOV 19", "", 18),
+        ("Custom AOV 20", "Custom AOV 20", "", 19),
     ]
     default_value: EnumProperty(default="None", update=None, description="If a custom AOV is selected, it will write a mask to it where the material is visible", items=items)
     octane_hide_value=False
@@ -107,7 +117,7 @@ class OctaneShadowCatcherMaterial(bpy.types.Node, OctaneBaseNode):
         self.outputs.new("OctaneMaterialOutSocket", "Material out").init()
 
 
-_classes=[
+_CLASSES=[
     OctaneShadowCatcherMaterialEnabled,
     OctaneShadowCatcherMaterialOpacity,
     OctaneShadowCatcherMaterialCustomAov,
@@ -115,14 +125,14 @@ _classes=[
     OctaneShadowCatcherMaterial,
 ]
 
+_SOCKET_INTERFACE_CLASSES = []
+
 def register():
-    from bpy.utils import register_class
-    for _class in _classes:
-        register_class(_class)
+    utility.octane_register_class(_CLASSES)
+    utility.octane_register_interface_class(_CLASSES, _SOCKET_INTERFACE_CLASSES)
 
 def unregister():
-    from bpy.utils import unregister_class
-    for _class in reversed(_classes):
-        unregister_class(_class)
+    utility.octane_unregister_class(reversed(_SOCKET_INTERFACE_CLASSES))
+    utility.octane_unregister_class(reversed(_CLASSES))
 
 ##### END OCTANE GENERATED CODE BLOCK #####

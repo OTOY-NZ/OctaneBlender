@@ -2,10 +2,10 @@
 import bpy
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
-from ...utils import consts
-from ...utils.consts import SocketType
-from ..base_node import OctaneBaseNode
-from ..base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
+from octane.utils import utility, consts
+from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
 class OctaneCompositeAOVOutputLayerEnabled(OctaneBaseSocket):
@@ -108,7 +108,7 @@ class OctaneCompositeAOVOutputLayerColorMultiplier(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=612)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
-    default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=None, description="The selected color will be multipiled with the input color", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", size=3)
+    default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=None, description="The selected color will be multipiled with the input color", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -210,7 +210,7 @@ class OctaneCompositeAOVOutputLayer(bpy.types.Node, OctaneBaseNode):
         self.outputs.new("OctaneCompositeAOVLayerOutSocket", "Composite AOV layer out").init()
 
 
-_classes=[
+_CLASSES=[
     OctaneCompositeAOVOutputLayerEnabled,
     OctaneCompositeAOVOutputLayerInput,
     OctaneCompositeAOVOutputLayerMask,
@@ -224,14 +224,14 @@ _classes=[
     OctaneCompositeAOVOutputLayer,
 ]
 
+_SOCKET_INTERFACE_CLASSES = []
+
 def register():
-    from bpy.utils import register_class
-    for _class in _classes:
-        register_class(_class)
+    utility.octane_register_class(_CLASSES)
+    utility.octane_register_interface_class(_CLASSES, _SOCKET_INTERFACE_CLASSES)
 
 def unregister():
-    from bpy.utils import unregister_class
-    for _class in reversed(_classes):
-        unregister_class(_class)
+    utility.octane_unregister_class(reversed(_SOCKET_INTERFACE_CLASSES))
+    utility.octane_unregister_class(reversed(_CLASSES))
 
 ##### END OCTANE GENERATED CODE BLOCK #####

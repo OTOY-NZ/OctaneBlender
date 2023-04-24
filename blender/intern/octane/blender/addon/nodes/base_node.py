@@ -1,8 +1,9 @@
 import bpy
 import re
+import xml.etree.ElementTree as ET
 from bpy.utils import register_class, unregister_class
-from bpy.props import BoolProperty, IntProperty, StringProperty
-from ..utils import consts
+from bpy.props import BoolProperty, IntProperty, StringProperty, EnumProperty
+from octane.utils import consts
 
 
 class OctaneBaseNode(object):	
@@ -87,6 +88,62 @@ class OctaneBaseNode(object):
             return self.octane_render_pass_description
         return self.octane_render_pass_description[sub_type] 
 
+    # Export methods
+    def export(self):
+        node_data = ET.Element('node', name=self.name, type=str(self.octane_node_type))
+        self.export_custom_data(node_data)
+        attributes_data = ET.SubElement(node_data, 'attributes')
+        attribute_names = self.octane_attribute_list.split(";")
+        attribute_types = self.octane_attribute_config_list.split(";")
+        for idx, attribute_name in enumerate(attribute_names):
+            if hasattr(self, attribute_name):
+                self.export_attribute(attributes_data, attribute_name, int(attribute_types[idx]))
+        xml_str_data = ET.tostring(node_data)
+        return xml_str_data
+
+    def export_custom_data(self, root_element):
+        pass
+
+    def export_attribute(self, attributes_data, attribute_name, attribute_type):
+        data_text = ""
+        value = getattr(self, attribute_name, None)
+        if attribute_type == consts.AttributeType.AT_UNKNOWN:
+            pass
+        elif attribute_type == consts.AttributeType.AT_BOOL:
+            data_text = ("1" if value else "0")
+        elif attribute_type == consts.AttributeType.AT_INT:
+            data_text = "%d" % value
+        elif attribute_type == consts.AttributeType.AT_INT2:
+            data_text = "%d %d" % (value[0], value[1])
+        elif attribute_type == consts.AttributeType.AT_INT3:
+            data_text = "%d %d %d" % (value[0], value[1], value[2])
+        elif attribute_type == consts.AttributeType.AT_INT3:
+            data_text = "%d %d %d" % (value[0], value[1], value[2])
+        elif attribute_type == consts.AttributeType.AT_INT4:
+            data_text = "%d %d %d %d" % (value[0], value[1], value[2], value[3])
+        elif attribute_type == consts.AttributeType.AT_LONG:
+            data_text = "%d" % value
+        elif attribute_type == consts.AttributeType.AT_LONG2:
+            data_text = "%d %d" % (value[0], value[1])
+        elif attribute_type == consts.AttributeType.AT_FLOAT:
+            data_text = "%f" % value
+        elif attribute_type == consts.AttributeType.AT_FLOAT2:
+            data_text = "%f %f" % (value[0], value[1])
+        elif attribute_type == consts.AttributeType.AT_FLOAT3:
+            data_text = "%f %f %f" % (value[0], value[1], value[2])
+        elif attribute_type == consts.AttributeType.AT_FLOAT4:
+            data_text = "%f %f %f %f" % (value[0], value[1], value[2], value[3])
+        elif attribute_type == consts.AttributeType.AT_STRING:
+            data_text = value
+        elif attribute_type == consts.AttributeType.AT_FILENAME:
+            data_text = value
+        elif attribute_type == consts.AttributeType.AT_BYTE:
+            pass
+        elif attribute_type == consts.AttributeType.AT_MATRIX:
+            pass
+        ET.SubElement(attributes_data, "attribute", name=attribute_name, type=str(attribute_type)).text = data_text
+
+    # Output node methods
     @staticmethod
     def update_output_node_active(output_node, context):
         output_node.set_active(context, output_node.active)
@@ -174,10 +231,15 @@ class OctaneBaseOutputNode(OctaneBaseNode):
         split.prop(self, "active")     
 
 
-def register():
-    pass
-    
+_CLASSES = [
+]
+
+
+def register(): 
+    for cls in _CLASSES:
+        register_class(cls)
+
 
 def unregister():
-    pass
-
+    for cls in _CLASSES:
+        unregister_class(cls)

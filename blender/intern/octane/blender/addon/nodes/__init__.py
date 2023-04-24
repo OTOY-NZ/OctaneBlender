@@ -2,6 +2,7 @@ import nodeitems_utils
 from . import (
 	base_node, 
 	base_socket, 
+	base_osl,
 	base_output_socket, 
 	base_output_node,
 	base_node_tree,
@@ -31,6 +32,7 @@ from . import round_edges
 from . import textures
 from . import transforms
 from . import values
+from . import tools
 
 
 def register():
@@ -38,6 +40,7 @@ def register():
 	node_items.register()
 	base_node.register()
 	base_socket.register()
+	base_osl.register()
 	base_output_socket.register()
 	base_output_node.register()
 	base_node_tree.register()
@@ -64,6 +67,7 @@ def register():
 	textures.register()
 	transforms.register()
 	values.register()	
+	tools.register()
 
 def unregister():	
 	# Octane auto generated code
@@ -88,11 +92,13 @@ def unregister():
 	textures.unregister()
 	transforms.unregister()
 	values.unregister()	
+	tools.unregister()
 	# Basic nodes
 	node_items.unregister()
 	base_node.unregister()
 	base_node_tree.unregister()
 	base_output_node.unregister()
 	base_output_socket.unregister()
+	base_osl.unregister()
 	base_socket.unregister()
 	node_trees.unregister()

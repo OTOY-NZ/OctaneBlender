@@ -2,10 +2,10 @@
 import bpy
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
-from ...utils import consts
-from ...utils.consts import SocketType
-from ..base_node import OctaneBaseNode
-from ..base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
+from octane.utils import utility, consts
+from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
 class OctaneScatterGeometry(OctaneBaseSocket):
@@ -33,10 +33,11 @@ class OctaneScatter(bpy.types.Node, OctaneBaseNode):
     octane_min_version=0
     octane_node_type: IntProperty(name="Octane Node Type", default=5)
     octane_socket_list: StringProperty(name="Socket List", default="Geometry;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="a_reload;a_geoimp_scale_unit;a_inherit;a_user_instance_ids;")
-    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="1;2;1;2;")
+    octane_attribute_list: StringProperty(name="Attribute List", default="a_filename;a_reload;a_geoimp_scale_unit;a_inherit;a_user_instance_ids;")
+    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="11;1;2;1;2;")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=1)
 
+    a_filename: StringProperty(name="Filename", default="", update=None, description="Stores the CSV file to load the transforms from. After loading successfully the A_TRANSFORMS and A_USER_INSTANCE_IDS attributes will be replaced by the file contents, otherwise the A_TRANSFORMS and AT_FILENAME and A_USER_INSTANCE_IDS attributes are reverted to their original value", subtype="FILE_PATH")
     a_reload: BoolProperty(name="Reload", default=False, update=None, description="Set it to TRUE if the file needs a reload. After the node was evaluated the attribute will be false again")
     a_geoimp_scale_unit: IntProperty(name="Geoimp scale unit", default=4, update=None, description="Defines the length unit used to create the transform matrices. This applies to the rightmost column of the transform matrix, which defines the translation component. (see Octane::GeometryImportScale)")
     a_inherit: BoolProperty(name="Inherit", default=True, update=None, description="If enabled the transforms are relative to the object space of the destination node, otherwise they are absolute transforms from world space to object space")
@@ -47,19 +48,19 @@ class OctaneScatter(bpy.types.Node, OctaneBaseNode):
         self.outputs.new("OctaneGeometryOutSocket", "Geometry out").init()
 
 
-_classes=[
+_CLASSES=[
     OctaneScatterGeometry,
     OctaneScatter,
 ]
 
+_SOCKET_INTERFACE_CLASSES = []
+
 def register():
-    from bpy.utils import register_class
-    for _class in _classes:
-        register_class(_class)
+    utility.octane_register_class(_CLASSES)
+    utility.octane_register_interface_class(_CLASSES, _SOCKET_INTERFACE_CLASSES)
 
 def unregister():
-    from bpy.utils import unregister_class
-    for _class in reversed(_classes):
-        unregister_class(_class)
+    utility.octane_unregister_class(reversed(_SOCKET_INTERFACE_CLASSES))
+    utility.octane_unregister_class(reversed(_CLASSES))
 
 ##### END OCTANE GENERATED CODE BLOCK #####

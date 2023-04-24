@@ -2,10 +2,10 @@
 import bpy
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
-from ...utils import consts
-from ...utils.consts import SocketType
-from ..base_node import OctaneBaseNode
-from ..base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
+from octane.utils import utility, consts
+from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
 class OctaneTransformValue(bpy.types.Node, OctaneBaseNode):
@@ -33,19 +33,19 @@ class OctaneTransformValue(bpy.types.Node, OctaneBaseNode):
         self.outputs.new("OctaneTransformOutSocket", "Transform out").init()
 
 
-_classes=[
+_CLASSES=[
     OctaneTransformValue,
 ]
 
+_SOCKET_INTERFACE_CLASSES = []
+
 def register():
-    from bpy.utils import register_class
-    for _class in _classes:
-        register_class(_class)
+    utility.octane_register_class(_CLASSES)
+    utility.octane_register_interface_class(_CLASSES, _SOCKET_INTERFACE_CLASSES)
 
 def unregister():
-    from bpy.utils import unregister_class
-    for _class in reversed(_classes):
-        unregister_class(_class)
+    utility.octane_unregister_class(reversed(_SOCKET_INTERFACE_CLASSES))
+    utility.octane_unregister_class(reversed(_CLASSES))
 
 ##### END OCTANE GENERATED CODE BLOCK #####
 
@@ -63,4 +63,4 @@ class OctaneTransformValue_Override(OctaneTransformValue):
         layout.row().column().prop(self, "a_scale")
         layout.row().column().prop(self, "a_translation")
 
-utility.override_class(_classes, OctaneTransformValue, OctaneTransformValue_Override)          
+utility.override_class(_CLASSES, OctaneTransformValue, OctaneTransformValue_Override)          
