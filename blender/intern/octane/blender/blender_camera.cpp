@@ -473,10 +473,10 @@ static void blender_camera_sync(Camera *cam,
   }
 
   cam->oct_node.bUseBlenderCamera = camera_from_object;
-  cam->oct_node.ui2BlenderCameraDimension.x = (uint32_t)(
-      width * (cam->viewport_camera_border.right - cam->viewport_camera_border.left));
-  cam->oct_node.ui2BlenderCameraDimension.y = (uint32_t)(
-      height * (cam->viewport_camera_border.top - cam->viewport_camera_border.bottom));
+  cam->oct_node.ui2BlenderCameraDimension.x =
+      (uint32_t)(width * (cam->viewport_camera_border.right - cam->viewport_camera_border.left));
+  cam->oct_node.ui2BlenderCameraDimension.y =
+      (uint32_t)(height * (cam->viewport_camera_border.top - cam->viewport_camera_border.bottom));
   cam->oct_node.f2BlenderCameraCenter.x = (cam->viewport_camera_border.right +
                                            cam->viewport_camera_border.left) /
                                           2;
@@ -542,6 +542,25 @@ void BlenderSync::sync_camera(BL::RenderSettings &b_render,
     oct_camera = RNA_pointer_get(&b_camera.ptr, "octane");
     cam->octane_matrix = OCTANE_MATRIX * get_transform(b_ob.matrix_world());
     camera_from_object = true;
+
+    if (b_ob.type() == BL::Object::type_CAMERA) {
+      BL::Object b_parent = b_ob.parent();
+      int motion_steps = object_motion_steps(b_parent, b_ob);
+      if (motion_steps) {
+        set<float> candidate_motion_times;
+        for (size_t step = 0; step < motion_steps; step++) {
+          float subframe = 2.0f * step / (motion_steps - 1) - 1.0f;
+          candidate_motion_times.insert(subframe);
+          for (int offset = motion_blur_frame_start_offset; offset <= motion_blur_frame_end_offset;
+               ++offset) {
+            candidate_motion_times.insert(subframe + offset);
+          }
+        }
+        for (auto candidate_motion_time : candidate_motion_times) {
+          cam->motion_blur_times.insert(candidate_motion_time);
+        }
+      }
+    }
   }
 
   update_octane_camera_properties(scene->camera, oct_camera, oct_view_camera, false);
@@ -931,23 +950,23 @@ void BlenderSync::update_octane_camera_properties(Camera *cam,
   }
 
   PointerRNA oct_scene = RNA_pointer_get(&b_scene.ptr, "octane");
-  bool hdr_tonemap_preview_enable = get_boolean(oct_scene, "hdr_tonemap_preview_enable");
-  bool hdr_tonemap_render_enable = get_boolean(oct_scene, "hdr_tonemap_render_enable");
+  bool use_preview_camera_imager = get_boolean(oct_scene, "use_preview_camera_imager");
+  bool use_render_camera_imager = get_boolean(oct_scene, "use_render_camera_imager");
   bool force_use_preview_setting = get_boolean(oct_scene,
                                                "use_preview_setting_for_camera_imager") &&
-                                   hdr_tonemap_preview_enable;
+                                   use_preview_camera_imager;
   bool force_use_preview_post_process_setting = get_boolean(oct_scene,
                                                             "use_preview_post_process_setting");
   PointerRNA &target_camera = (view || force_use_preview_setting) ? oct_view_camera : oct_camera;
-  bool enable_camera_imager = (view || force_use_preview_setting) ? hdr_tonemap_preview_enable :
-                                                                    hdr_tonemap_render_enable;
+  bool enable_camera_imager = (view || force_use_preview_setting) ? use_preview_camera_imager :
+                                                                    use_render_camera_imager;
   if (target_camera.data != NULL) {
     if (scene && scene->session && scene->session->params.interactive) {
       cam->oct_node.bEnableImager = enable_camera_imager;
       cam->oct_node.bPreviewCameraMode = view;
     }
     else {
-      cam->oct_node.bEnableImager = scene->session->params.hdr_tonemapped;
+      cam->oct_node.bEnableImager = scene->session->params.enable_camera_imager;
       cam->oct_node.bPreviewCameraMode = false;
     }
 
@@ -991,8 +1010,13 @@ void BlenderSync::update_octane_camera_properties(Camera *cam,
     cam->oct_node.iMinDenoiserSample = RNA_int_get(&imager, "min_denoise_samples");
     cam->oct_node.iMaxDenoiserInterval = RNA_int_get(&imager, "max_denoise_interval");
     cam->oct_node.fDenoiserBlend = RNA_float_get(&imager, "denoiser_original_blend");
-    cam->oct_node.iSamplingMode = RNA_enum_get(&imager, "up_sample_mode");
-    cam->oct_node.bEnableAIUpSampling = RNA_boolean_get(&imager, "enable_ai_up_sampling");
+    if (scene && scene->session && scene->session->params.use_shared_surface) {
+      cam->oct_node.iSamplingMode = 1;  // No UpSampling Mode
+    }
+    else {
+      cam->oct_node.iSamplingMode = RNA_enum_get(&imager, "up_sample_mode");
+      cam->oct_node.bEnableAIUpSampling = RNA_boolean_get(&imager, "enable_ai_up_sampling");
+    }
     cam->oct_node.bUpSamplingOnCompletion = RNA_boolean_get(&imager, "up_sampling_on_completion");
     cam->oct_node.iMinUpSamplerSamples = RNA_int_get(&imager, "min_up_sampler_samples");
     cam->oct_node.iMaxUpSamplerInterval = RNA_int_get(&imager, "max_up_sampler_interval");
@@ -1004,7 +1028,7 @@ void BlenderSync::update_octane_camera_properties(Camera *cam,
     cam->oct_node.bUsePostprocess = RNA_boolean_get(&target_camera, "postprocess");
     PointerRNA post_processing = RNA_pointer_get(&target_camera, "post_processing");
     cam->oct_node.fCutoff = RNA_float_get(&post_processing, "cutoff");
-	cam->oct_node.fBloomPower = RNA_float_get(&post_processing, "bloom_power");    
+    cam->oct_node.fBloomPower = RNA_float_get(&post_processing, "bloom_power");
     cam->oct_node.fGlarePower = RNA_float_get(&post_processing, "glare_power");
     cam->oct_node.iGlareRayCount = RNA_int_get(&post_processing, "glare_ray_amount");
     cam->oct_node.fGlareAngle = RNA_float_get(&post_processing, "glare_angle");
@@ -1042,7 +1066,8 @@ void BlenderSync::update_octane_universal_camera_properties(Camera *cam, Pointer
   universalCamera.f2LensShift.fVal.x = cam->oct_node.f2LensShift.x;
   universalCamera.f2LensShift.fVal.y = cam->oct_node.f2LensShift.y;
   universalCamera.fPixelAspectRatio.fVal = cam->oct_node.fPixelAspect;
-  universalCamera.bPerspectiveCorrection.bVal = RNA_boolean_get(&oct_camera, "universal_perspective_correction");
+  universalCamera.bPerspectiveCorrection.bVal = RNA_boolean_get(
+      &oct_camera, "universal_perspective_correction");
   universalCamera.fFisheyeAngle.fVal = RNA_float_get(&oct_camera, "fisheye_angle");
   universalCamera.iFisheyeType.iVal = RNA_enum_get(&oct_camera, "fisheye_type");
   universalCamera.bHardVignette.bVal = RNA_boolean_get(&oct_camera, "hard_vignette");
@@ -1235,18 +1260,20 @@ void BlenderSync::sync_camera_motion(
     f3UpVector.y = up.y;
     f3UpVector.z = up.z;
 
-    ::OctaneEngine::CameraMotionParam &motionParam =
-        cam->oct_node.oMotionParams.motions[motion_time];
-    motionParam.f3EyePoint.x = f3EyePoint.x;
-    motionParam.f3EyePoint.y = f3EyePoint.y;
-    motionParam.f3EyePoint.z = f3EyePoint.z;
-    motionParam.f3LookAt.x = f3LookAt.x;
-    motionParam.f3LookAt.y = f3LookAt.y;
-    motionParam.f3LookAt.z = f3LookAt.z;
-    motionParam.f3UpVector.x = f3UpVector.x;
-    motionParam.f3UpVector.y = f3UpVector.y;
-    motionParam.f3UpVector.z = f3UpVector.z;
-    motionParam.fFOV = fFOV;
+    if (cam->motion_blur_times.find(motion_time) != cam->motion_blur_times.end()) {
+      ::OctaneEngine::CameraMotionParam &motionParam =
+          cam->oct_node.oMotionParams.motions[motion_time];
+      motionParam.f3EyePoint.x = f3EyePoint.x;
+      motionParam.f3EyePoint.y = f3EyePoint.y;
+      motionParam.f3EyePoint.z = f3EyePoint.z;
+      motionParam.f3LookAt.x = f3LookAt.x;
+      motionParam.f3LookAt.y = f3LookAt.y;
+      motionParam.f3LookAt.z = f3LookAt.z;
+      motionParam.f3UpVector.x = f3UpVector.x;
+      motionParam.f3UpVector.y = f3UpVector.y;
+      motionParam.f3UpVector.z = f3UpVector.z;
+      motionParam.fFOV = fFOV;
+    }
   }
 }
 

@@ -33,6 +33,10 @@ class OctaneBitValue(bpy.types.Node, OctaneBaseNode):
     def init(self, context):
         self.outputs.new("OctaneBitMaskOutSocket", "BitMask out").init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
+
 
 _CLASSES=[
     OctaneBitValue,

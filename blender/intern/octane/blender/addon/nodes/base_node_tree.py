@@ -77,34 +77,45 @@ class OctaneBaseNodeTree(object):
 
     @staticmethod
     def update_link_validity_for_blender_insert_links(node_tree, last_op_bl_idname=None):
-        if last_op_bl_idname != "NODE_OT_translate_attach":
+        try:
+            is_node_op = last_op_bl_idname is None or last_op_bl_idname.startswith("NODE_OT") or last_op_bl_idname.startswith("OCTANE_OT_node")
+        except:
+            is_node_op = True
+        if not is_node_op:
             return
         # Check the "Insert link" feature of the Blender
         if len(node_tree.links) > 2:
             selected_nodes = [node for node in node_tree.nodes if node.select]
             if len(selected_nodes) == 1:
                 selected_node = selected_nodes[0]
+                link1 = None
+                link2 = None
+                for _input in selected_node.inputs:
+                    if _input.is_linked:
+                        link1 = _input.links[0]                           
+                        break
+                if len(selected_node.outputs) >= 1 and selected_node.outputs[0].is_linked:
+                    link2 = selected_node.outputs[0].links[0]
                 # Detect the link status
-                link1 = node_tree.links[-1]
-                link2 = node_tree.links[-2]
-                insert_in_link = None
-                insert_out_link = None
-                if link1.from_node == selected_node and link2.to_node == selected_node:
-                    insert_in_link = link2
-                    insert_out_link = link1
-                elif link2.from_node == selected_node and link1.to_node == selected_node:
-                    insert_in_link = link1
-                    insert_out_link = link2
-                if insert_in_link and insert_out_link:
-                    if not insert_in_link.is_valid:
-                        # Find the compatible socket to link
-                        from_socket_pin_type = OctaneBaseNodeTree.resovle_socket_octane_pin_type(node_tree, insert_in_link.from_socket)                        
-                        for to_socket in selected_node.inputs:
-                            to_socket_pin_type = OctaneBaseNodeTree.resovle_socket_octane_pin_type(node_tree, to_socket)
-                            if from_socket_pin_type == to_socket_pin_type:                                
-                                node_tree.links.new(insert_in_link.from_socket, to_socket)
-                                node_tree.links.remove(insert_in_link)
-                                break        
+                if link1 and link2:
+                    insert_in_link = None
+                    insert_out_link = None
+                    if link1.from_node == selected_node and link2.to_node == selected_node:
+                        insert_in_link = link2
+                        insert_out_link = link1
+                    elif link2.from_node == selected_node and link1.to_node == selected_node:
+                        insert_in_link = link1
+                        insert_out_link = link2
+                    if insert_in_link and insert_out_link:
+                        if not insert_in_link.is_valid:
+                            # Find the compatible socket to link
+                            from_socket_pin_type = OctaneBaseNodeTree.resovle_socket_octane_pin_type(node_tree, insert_in_link.from_socket)                        
+                            for to_socket in selected_node.inputs:
+                                to_socket_pin_type = OctaneBaseNodeTree.resovle_socket_octane_pin_type(node_tree, to_socket)
+                                if from_socket_pin_type == to_socket_pin_type:                                
+                                    node_tree.links.new(insert_in_link.from_socket, to_socket)
+                                    node_tree.links.remove(insert_in_link)
+                                    break        
 
     @staticmethod
     def update_link_validity(node_tree, data_owner=None, last_op_bl_idname=None):
@@ -600,8 +611,14 @@ class NodeTreeHandler:
                 if node_tree and NodeTreeHandler.LIGHT_OUTPUT_NODE_NAME in node_tree.nodes:
                     if NodeTreeHandler._is_blender_default_light(node_tree):
                         output = node_tree.nodes[NodeTreeHandler.LIGHT_OUTPUT_NODE_NAME]
-                        if light_data.type == "POINT":
-                            NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, output, output, NodeTreeHandler.SURFACE_INPUT_NAME, NodeTreeHandler.SURFACE_INPUT_NAME, "OctaneToonPointLight")
+                        if light_data.type in ("POINT", "AREA", "MESH", "SPHERE"):
+                            if light_data.type == "POINT" and light_data.octane.octane_point_light_type == "Toon Point":
+                                NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, output, output, NodeTreeHandler.SURFACE_INPUT_NAME, NodeTreeHandler.SURFACE_INPUT_NAME, "OctaneToonPointLight")
+                            else:
+                                NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, output, output, NodeTreeHandler.SURFACE_INPUT_NAME, NodeTreeHandler.SURFACE_INPUT_NAME, "OctaneDiffuseMaterial")
+                                material_node = node_tree.nodes["Diffuse material"]
+                                emission_node = node_tree.nodes.new("OctaneTextureEmission")
+                                node_tree.links.new(emission_node.outputs[0], material_node.inputs["Emission"])                                
                         elif light_data.type == "SUN":
                             NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, output, output, NodeTreeHandler.SURFACE_INPUT_NAME, NodeTreeHandler.SURFACE_INPUT_NAME, "OctaneToonDirectionalLight")
                             light_node = node_tree.nodes["Toon directional light"]
@@ -610,11 +627,6 @@ class NodeTreeHandler:
                             NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, output, output, NodeTreeHandler.SURFACE_INPUT_NAME, NodeTreeHandler.SURFACE_INPUT_NAME, "OctaneVolumetricSpotlight")
                             light_data.spot_blend = 0
                             light_data.shadow_soft_size = 0
-                        elif light_data.type in ("AREA", "MESH", "SPHERE"):
-                            NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, output, output, NodeTreeHandler.SURFACE_INPUT_NAME, NodeTreeHandler.SURFACE_INPUT_NAME, "OctaneDiffuseMaterial")
-                            material_node = node_tree.nodes["Diffuse material"]
-                            emission_node = node_tree.nodes.new("OctaneTextureEmission")
-                            node_tree.links.new(emission_node.outputs[0], material_node.inputs["Emission"])
                         utility.beautifier_nodetree_layout(light_data)
         NodeTreeHandler.light_node_tree_count = current_light_node_tree_count
 
@@ -670,7 +682,8 @@ def octane_load_post_handler(scene):
 
 @persistent
 def node_tree_update_handler(scene):
-    last_op_bl_idname = bpy.context.window_manager.operators[-1].bl_idname if len(bpy.context.window_manager.operators) else None
+    # last_op_bl_idname = bpy.context.window_manager.operators[-1].bl_idname if len(bpy.context.window_manager.operators) else None
+    last_op_bl_idname = bpy.context.active_operator.bl_idname if getattr(bpy.context, "active_operator", None) is not None else None    
     if scene is None:
         scene = bpy.context.scene
     if scene.render.engine != consts.ENGINE_NAME:

@@ -84,6 +84,10 @@ class OctaneSDFOffset(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneSDFOffsetOffset", OctaneSDFOffsetOffset.bl_label).init()
         self.outputs.new("OctaneGeometryOutSocket", "Geometry out").init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
+
 
 _CLASSES=[
     OctaneSDFOffsetSize,

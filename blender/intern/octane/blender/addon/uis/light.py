@@ -18,35 +18,39 @@ class OCTANE_LIGHT_PT_light(common.OctanePropertyPanel, Panel):
     def draw(self, context):
         layout = self.layout
         light = context.light
+        oct_light = light.octane
         layout.use_property_split = True
         layout.use_property_decorate = False
         if light.type == "SUN":
-            layout.label(text="Used as Toon Directional Light")
+            layout.label(text="Used as Octane Toon Directional Light")
         if light.type == "POINT":
-            layout.label(text="Used as Toon Point Light")
+            if oct_light.octane_point_light_type == "Toon Point":
+                layout.label(text="Used as Octane Toon Point Light")
+            else:
+                layout.label(text="Used as Octane Sphere Light")
+                col = layout.column()
+                col.prop(light, "shadow_soft_size", text="Radius")
         if light.type == "SPOT":            
             if core.ENABLE_OCTANE_ADDON_CLIENT:
-                layout.label(text="Used as Volumetric Spotlight")
+                layout.label(text="Used as Octane Volumetric Spotlight")
             else:
                 layout.label(text="Not supported")
-        if light.type == "AREA":
+        if light.type == "AREA":            
             col = layout.column()
-            col.prop(light, "shape", text="Shape")
-            sub = col.column(align=True)
-            if light.shape in {"SQUARE", "DISK"}:
-                sub.prop(light, "size")
-            elif light.shape in {"RECTANGLE", "ELLIPSE"}:
-                sub.prop(light, "size", text="Size X")
-                sub.prop(light, "size_y", text="Y")
-        if not core.ENABLE_OCTANE_ADDON_CLIENT:
-            col = layout.column()
-            oct_light = light.octane
-            if light.type == 'MESH':            
-                col.prop(oct_light, "light_mesh")
+            col.prop(oct_light, "used_as_octane_mesh_light")
+            if oct_light.used_as_octane_mesh_light:
                 col.prop(oct_light, "use_external_mesh")
-                col.prop(oct_light, "external_mesh_file")
-            if light.type == 'SPHERE':
-                col.prop(light, "sphere_radius", text="Radius")
+                if oct_light.use_external_mesh:
+                    col.prop(oct_light, "external_mesh_file")
+                else:
+                    col.prop(oct_light, "light_mesh_object")
+            else:
+                col.prop(light, "shape", text="Shape")
+                if light.shape in {"SQUARE", "DISK"}:
+                    col.prop(light, "size")
+                elif light.shape in {"RECTANGLE", "ELLIPSE"}:
+                    col.prop(light, "size", text="Size X")
+                    col.prop(light, "size_y", text="Y")
 
 
 class OCTANE_LIGHT_PT_nodes(common.OctanePropertyPanel, Panel):

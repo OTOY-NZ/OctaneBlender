@@ -321,7 +321,7 @@ void DisplayBuffer::draw(DeviceDrawParams &draw_params, bool use_shared_surface)
 {
   int y = 0, w = params.width, h = params.height, width = params.width, height = params.height,
       dx = params.full_x, dy = params.full_y, dw = params.full_width, dh = params.full_height;
-  int components_cnt;
+  int components_cnt = 0;
   int full_width = params.full_width, full_height = params.full_height;
   int reg_width = params.width, reg_height = params.height;
 #ifdef __APPLE__
@@ -360,7 +360,7 @@ void DisplayBuffer::draw(DeviceDrawParams &draw_params, bool use_shared_surface)
               components_cnt, rgba, full_width, full_height, reg_width, reg_height)) {
         return;
       }
-      if (!rgba) {
+      if (!rgba || components_cnt == 0) {
         return;
       }
       update_gl_texture_from_pixel_array(gl_texture, rgba, components_cnt, reg_width, reg_height);

@@ -183,6 +183,10 @@ class OctaneRange(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneRangeClamp", OctaneRangeClamp.bl_label).init()
         self.outputs.new("OctaneTextureOutSocket", "Texture out").init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
+
 
 _CLASSES=[
     OctaneRangeInput,

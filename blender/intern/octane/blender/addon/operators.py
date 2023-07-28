@@ -385,7 +385,7 @@ class OCTANE_OT_ConvertToOctaneMaterial(bpy.types.Operator):
 
     converter_modes = (
         ("MATERIAL", "Only the selected material", "Only the selected material", 0),
-        ("OBJECT", "All materials in this Object", "All materials in this Object", 1),
+        ("SELECTED_OBJECTS", "All materials in the selected objects", "All materials in the selected objects", 1),
         ("SCENE", "All materials in this Scene", "All materials in this Scene", 2),
     )    
     converter_mode: bpy.props.EnumProperty(
@@ -442,11 +442,11 @@ class OCTANE_OT_ConvertToOctaneMaterial(bpy.types.Operator):
             return {"FINISHED"}
         if event.type == 'TIMER':
             done = True
-            cur_obj = bpy.context.object
+            selected_objs = bpy.context.selected_objects
             for _object in context.scene.objects:
                 if _object.name in self.processed_object_names:
                     continue                
-                if self.converter_mode == "OBJECT" and cur_obj.name != _object.name:
+                if self.converter_mode == "SELECTED_OBJECTS" and _object not in selected_objs:
                     pass
                 else:
                     for idx in range(len(_object.material_slots)):
@@ -491,9 +491,9 @@ class OCTANE_OT_ConvertToOctaneMaterial(bpy.types.Operator):
                 return {"RUNNING_MODAL"}
             else:
                 for _object in context.scene.objects:
-                    cur_obj = bpy.context.object
-                    if self.converter_mode == "OBJECT" and cur_obj.name != _object.name:
-                        pass
+                    selected_objs = bpy.context.selected_objects
+                    if self.converter_mode == "SELECTED_OBJECTS" and _object not in selected_objs:
+                        pass                        
                     else:
                         for idx in range(len(_object.material_slots)):
                             cur_material = getattr(_object.material_slots[idx], "material", None)
@@ -745,9 +745,11 @@ class OCTANE_OT_SaveAsAddonFile(Operator):
     bl_label = "Save As"
     postfix = "_addon"
     filename: StringProperty()
-    filepath: StringProperty(subtype="FILE_PATH")    
+    filepath: StringProperty(subtype="FILE_PATH")
 
     def convert_to_addon_file(self, context):
+        for node_tree in bpy.data.node_groups:
+            utility.convert_to_addon_node_tree(node_tree, node_tree, context, self.report)        
         for material in bpy.data.materials:
             if material.node_tree and material.use_nodes:
                 utility.convert_to_addon_node_tree(material, material.node_tree, context, self.report)
@@ -775,6 +777,25 @@ class OCTANE_OT_SaveAsAddonFile(Operator):
         self.filename = bpy.path.ensure_ext(filename, ".blend")
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
+
+
+class OCTANE_OT_LoadOctaneStartup(Operator):
+    """Load the Octane Startup blend file"""
+    bl_idname = "octane.load_octane_startup"
+    bl_label = "Load Octane Startup"
+    bl_register = True
+    bl_undo = False 
+
+    @classmethod
+    def poll(cls, context):
+        return True
+
+    def execute(self, context):
+        addon_folder = utility.get_addon_folder()
+        path = os.path.join(addon_folder, "assets\\startup.blend")
+        path = bpy.path.abspath(path)
+        bpy.ops.wm.read_homefile(filepath=path)
+        return {"FINISHED"}
 
 
 class OCTANE_OT_QuickAddOctaneGeometry(Operator):
@@ -870,6 +891,84 @@ class OCTANE_OT_QuickAddOctaneTube(OCTANE_OT_QuickAddOctaneGeometry):
     default_object_name = "Tube"
 
 
+class OCTANE_OT_QuickAddOctaneSphereLight(Operator):
+    """Add an Octane Sphere Light to the scene"""
+    bl_idname = "octane.quick_add_octane_sphere_light"    
+    bl_label = "Octane Sphere Light"
+    bl_register = True
+    bl_undo = False 
+
+    @classmethod
+    def poll(cls, context):
+        return True
+
+    def execute(self, context):
+        # Create new light datablock.
+        light_data = bpy.data.lights.new(name="Octane Sphere Light", type="POINT")
+        # Create new object with our light datablock.
+        light_object = bpy.data.objects.new(name="Octane Sphere Light", object_data=light_data)
+        # Link light object to the active collection of current view layer,
+        # so that it'll appear in the current scene.
+        view_layer = context.view_layer
+        view_layer.active_layer_collection.collection.objects.link(light_object)
+        # Place light to a specified location.
+        light_object.location = context.scene.cursor.location
+        # And finally select it and make it active.
+        bpy.ops.object.select_all(action="DESELECT")
+        light_object.select_set(True)
+        view_layer.objects.active = light_object
+        octane_light_data = light_data.octane
+        octane_light_data.octane_point_light_type = "Sphere"
+        light_data.shadow_soft_size = 1.0
+        light_data.use_nodes = True
+        return {"FINISHED"}
+
+
+class OCTANE_OT_QuickAddOctaneMeshLight(Operator):
+    """Add an Octane Mesh Light to the scene"""
+    bl_idname = "octane.quick_add_octane_mesh_light"    
+    bl_label = "Octane Mesh Light"
+    bl_register = True
+    bl_undo = False 
+
+    @classmethod
+    def poll(cls, context):
+        return True
+
+    def execute(self, context):
+        # Create new light datablock.
+        light_data = bpy.data.lights.new(name="Octane Mesh Light", type="AREA")
+        # Create new object with our light datablock.
+        light_object = bpy.data.objects.new(name="Octane Mesh Light", object_data=light_data)
+        # Link light object to the active collection of current view layer,
+        # so that it'll appear in the current scene.
+        view_layer = context.view_layer
+        view_layer.active_layer_collection.collection.objects.link(light_object)
+        # Place light to a specified location.
+        light_object.location = context.scene.cursor.location
+        # And finally select it and make it active.
+        bpy.ops.object.select_all(action="DESELECT")
+        light_object.select_set(True)
+        view_layer.objects.active = light_object
+        octane_light_data = light_data.octane
+        octane_light_data.used_as_octane_mesh_light = True
+        light_data.size = 0
+        light_data.use_nodes = True
+        return {"FINISHED"}
+
+
+def new_menu_func(self, context):
+    self.layout.operator_context = 'INVOKE_DEFAULT'
+    self.layout.operator(OCTANE_OT_LoadOctaneStartup.bl_idname, text="Octane Default Startup")
+
+
+def export_menu_func(self, context):
+    self.layout.operator_context = 'INVOKE_DEFAULT'
+    self.layout.operator(OCTANE_OT_OrbxExport.bl_idname, text="Octane Orbx(.orbx)")
+    self.layout.operator(OCTANE_OT_AlembicExport.bl_idname, text="Octane Alembic(.abc)")
+    self.layout.operator(OCTANE_OT_SaveAsAddonFile.bl_idname, text="OctaneBlender Addon(.blend)")
+
+
 classes = (
     OCTANE_OT_use_shading_nodes,
 
@@ -898,6 +997,7 @@ classes = (
     OCTANE_OT_OrbxPreivew,
 
     OCTANE_OT_SaveAsAddonFile,
+    OCTANE_OT_LoadOctaneStartup,
 
     OCTANE_OT_QuickAddOctaneVectron,
     OCTANE_OT_QuickAddOctaneBox,
@@ -907,17 +1007,16 @@ classes = (
     OCTANE_OT_QuickAddOctaneSphere,
     OCTANE_OT_QuickAddOctaneTorus,
     OCTANE_OT_QuickAddOctaneTube,
+
+    OCTANE_OT_QuickAddOctaneSphereLight,
+    OCTANE_OT_QuickAddOctaneMeshLight,
 )
 
 def register():
     from bpy.utils import register_class
     for cls in classes:
         register_class(cls)
-    def export_menu_func(self, context):
-        self.layout.operator_context = 'INVOKE_DEFAULT'
-        self.layout.operator(OCTANE_OT_OrbxExport.bl_idname, text="Octane Orbx(.orbx)")
-        self.layout.operator(OCTANE_OT_AlembicExport.bl_idname, text="Octane Alembic(.abc)")
-        self.layout.operator(OCTANE_OT_SaveAsAddonFile.bl_idname, text="OctaneBlender Addon(.blend)")
+    bpy.types.TOPBAR_MT_file_new.append(new_menu_func)
     bpy.types.TOPBAR_MT_file_export.append(export_menu_func)
 
 
@@ -925,3 +1024,5 @@ def unregister():
     from bpy.utils import unregister_class
     for cls in classes:
         unregister_class(cls)
+    bpy.types.TOPBAR_MT_file_new.remove(new_menu_func)
+    bpy.types.TOPBAR_MT_file_export.remove(export_menu_func)

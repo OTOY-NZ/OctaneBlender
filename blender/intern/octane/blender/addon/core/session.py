@@ -21,6 +21,9 @@ class RenderSession(object):
     def __init__(self, engine):
         self.session_type = consts.SessionType.UNKNOWN
         self.use_shared_surface = utility.get_preferences().use_shared_surface and OctaneBlender().is_shared_surface_supported()
+        # Minimum update gap(second)
+        self.view_update_min_gap = utility.get_preferences().min_viewport_update_interval
+        self.last_view_update_time = time.time()
         self.graph_time = 0
         self.need_motion_blur = False
         self.motion_blur_start_frame_offset = 0
@@ -104,8 +107,9 @@ class RenderSession(object):
     def start_render(self, cache_path=None, is_viewport=True, resource_cache_type=consts.ResourceCacheType.NONE):
         if cache_path is None:
             cache_path = bpy.app.tempdir
+        OctaneBlender().update_server_settings(resource_cache_type, self.use_shared_surface)
+        OctaneBlender().reset_render()
         ResourceCache().update_cached_node_resouce()
-        OctaneBlender().update_server_settings(resource_cache_type)
         OctaneBlender().start_render(cache_path)
         if is_viewport:
             bpy.app.timers.register(self.update_viewport_render_result)
@@ -128,9 +132,11 @@ class RenderSession(object):
         OctaneBlender().set_render_pass_ids(render_pass_ids)
 
     def view_update(self, engine, depsgraph, context):
+        current_view_update_time = time.time()
         scene = depsgraph.scene_eval
         view_layer = depsgraph.view_layer_eval
         need_redraw = False
+        is_first_update = self.scene_cache.need_update_all
         # check diff
         self.image_cache.diff(depsgraph, scene, view_layer, context)
         self.object_cache.diff(depsgraph, scene, view_layer, context)
@@ -141,6 +147,10 @@ class RenderSession(object):
         self.render_aov_cache.diff(depsgraph, scene, view_layer, context)
         self.kernel_cache.diff(depsgraph, scene, view_layer, context)
         self.scene_cache.diff(depsgraph, scene, view_layer, context)
+        if not is_first_update and current_view_update_time - self.last_view_update_time < self.view_update_min_gap:
+            engine.tag_update()
+            return
+        self.last_view_update_time = current_view_update_time
         # update
         if self.image_cache.need_update:
             self.image_cache.update(depsgraph, scene, view_layer, context)

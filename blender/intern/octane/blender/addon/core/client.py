@@ -32,6 +32,10 @@ class OctaneBlender(metaclass=utility.Singleton):
         if not octane_blender.exit():        
             self.print_last_error()
 
+    def set_blender_version(self, major, minor, patch):
+        if core.ENABLE_OCTANE_ADDON_CLIENT:
+            octane_blender.set_blender_version(major, minor, patch)
+
     def start_render(self, cache_path):
         self.debug_console("OctaneBlender.start_render")
         if not self.enabled:
@@ -137,11 +141,11 @@ class OctaneBlender(metaclass=utility.Singleton):
             return
         return octane_blender.get_render_result_shared_surface(render_pass_id, is_viewport, data_type, statistics)
 
-    def update_server_settings(self, resource_cache_type):
-        self.debug_console("OctaneBlender.update_server_settings", resource_cache_type)
+    def update_server_settings(self, resource_cache_type, update_shared_surface_device_id=False):
+        self.debug_console("OctaneBlender.update_server_settings", resource_cache_type, update_shared_surface_device_id)
         if not self.enabled:
             return
-        return octane_blender.update_server_settings(resource_cache_type)
+        return octane_blender.update_server_settings(resource_cache_type, update_shared_surface_device_id)
 
     def get_cached_node_resource(self, node_resouce_dict):
         self.debug_console("OctaneBlender.get_cached_node_resource", node_resouce_dict)

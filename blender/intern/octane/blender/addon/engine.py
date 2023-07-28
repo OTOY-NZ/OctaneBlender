@@ -50,6 +50,23 @@ def create(engine, data, region=None, v3d=None, rv3d=None):
     print("OctaneBlender Engine Create")
 
     global IS_RENDERING
+
+    from octane import core
+    if not core.EXCLUSIVE_OCTANE_ADDON_CLIENT_MODE:
+        if IS_RENDERING:
+            if v3d and rv3d:
+                engine.report({'ERROR'}, "Only one active render task is supported at the same time! Please turn off viewport shading and try again!")
+                engine.session = None
+                return
+            else:
+                import bpy
+                for window in bpy.context.window_manager.windows:
+                    for area in window.screen.areas:
+                        if area.type == 'VIEW_3D':
+                            for space in area.spaces:
+                                if space.type == 'VIEW_3D' and space.shading.type == 'RENDERED':
+                                    space.shading.type = "SOLID"
+
     IS_RENDERING = True
 
     from octane.utils import ocio    
@@ -73,7 +90,6 @@ def create(engine, data, region=None, v3d=None, rv3d=None):
         screen = screen or rv3d.id_data.as_pointer()
         rv3d = rv3d.as_pointer()
 
-    from octane import core
     if not core.EXCLUSIVE_OCTANE_ADDON_CLIENT_MODE:
         import _octane
         engine.session = _octane.create(
@@ -132,15 +148,17 @@ def reset(engine, data, depsgraph):
     depsgraph = depsgraph.as_pointer()
     from octane import core
     if not core.EXCLUSIVE_OCTANE_ADDON_CLIENT_MODE:
-        import _octane
-        _octane.reset(engine.session, data, depsgraph)
+        if getattr(engine, "session", None):
+            import _octane
+            _octane.reset(engine.session, data, depsgraph)
 
 
 def sync(engine, depsgraph, data):
     from octane import core
-    if not core.EXCLUSIVE_OCTANE_ADDON_CLIENT_MODE:    
-        import _octane
-        _octane.sync(engine.session, depsgraph.as_pointer())
+    if not core.EXCLUSIVE_OCTANE_ADDON_CLIENT_MODE:
+        if getattr(engine, "session", None):    
+            import _octane
+            _octane.sync(engine.session, depsgraph.as_pointer())
 
 
 def draw(engine, depsgraph, region, v3d, rv3d):
@@ -150,9 +168,10 @@ def draw(engine, depsgraph, region, v3d, rv3d):
     rv3d = rv3d.as_pointer()
     from octane import core
     if not core.EXCLUSIVE_OCTANE_ADDON_CLIENT_MODE:
-        import _octane
-        # draw render image
-        _octane.draw(engine.session, depsgraph, v3d, rv3d)
+        if getattr(engine, "session", None):
+            import _octane
+            # draw render image
+            _octane.draw(engine.session, depsgraph, v3d, rv3d)
 
 
 PASS_DATA = {
@@ -293,9 +312,9 @@ def register_render_aov_node_graph_passes(engine, scene):
     oct_active_cam = scene.camera.data.octane
     enable_denoiser = False
     if oct_scene.use_preview_setting_for_camera_imager:
-        enable_denoiser = oct_view_cam.imager.denoiser and oct_scene.hdr_tonemap_preview_enable
+        enable_denoiser = oct_view_cam.imager.denoiser and oct_scene.use_preview_camera_imager
     else:
-        enable_denoiser = oct_active_cam.imager.denoiser and oct_scene.hdr_tonemap_render_enable
+        enable_denoiser = oct_active_cam.imager.denoiser and oct_scene.use_render_camera_imager
     for layer in scene.view_layers:
         octane_view_layer = layer.octane
         if octane_view_layer.render_pass_style == "RENDER_PASSES":

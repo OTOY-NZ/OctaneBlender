@@ -49,6 +49,10 @@ class OctaneScale(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneScaleScale", OctaneScaleScale.bl_label).init()
         self.outputs.new("OctaneTransformOutSocket", "Transform out").init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
+
 
 _CLASSES=[
     OctaneScaleScale,

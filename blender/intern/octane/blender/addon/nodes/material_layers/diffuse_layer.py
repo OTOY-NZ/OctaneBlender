@@ -176,6 +176,10 @@ class OctaneDiffuseLayer(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneDiffuseLayerOpacity", OctaneDiffuseLayerOpacity.bl_label).init()
         self.outputs.new("OctaneMaterialLayerOutSocket", "Material layer out").init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
+
 
 _CLASSES=[
     OctaneDiffuseLayerDiffuse,

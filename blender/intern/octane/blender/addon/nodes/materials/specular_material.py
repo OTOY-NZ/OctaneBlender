@@ -595,6 +595,10 @@ class OctaneSpecularMaterial(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneSpecularMaterialEdgesRounding", OctaneSpecularMaterialEdgesRounding.bl_label).init()
         self.outputs.new("OctaneMaterialOutSocket", "Material out").init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
+
 
 _CLASSES=[
     OctaneSpecularMaterialReflection,

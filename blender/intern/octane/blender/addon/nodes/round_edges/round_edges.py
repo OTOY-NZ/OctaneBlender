@@ -134,6 +134,10 @@ class OctaneRoundEdges(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneRoundEdgesRoundEdgesConsiderOtherObjects", OctaneRoundEdgesRoundEdgesConsiderOtherObjects.bl_label).init()
         self.outputs.new("OctaneRoundEdgesOutSocket", "Round edges out").init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
+
 
 _CLASSES=[
     OctaneRoundEdgesRoundEdgesMode,
@@ -156,3 +160,16 @@ def unregister():
     utility.octane_unregister_class(reversed(_CLASSES))
 
 ##### END OCTANE GENERATED CODE BLOCK #####
+
+
+class OctaneRoundEdgesRoundEdgesMode_Override(OctaneRoundEdgesRoundEdgesMode):
+    items = [
+        ("Off", "Off", "", 0),
+        ("Fast", "Fast", "", 1),
+        ("Accurate", "Accurate", "", 2),
+        ("Accurate convex only", "Accurate convex only", "", 3),
+        ("Accurate concave only", "Accurate concave only", "", 4),
+    ]    
+    default_value: EnumProperty(default="Accurate", update=OctaneBaseSocket.update_node_tree, description="Whether rounding is applied to convex and/or concave edges", items=items)
+
+utility.override_class(_CLASSES, OctaneRoundEdgesRoundEdgesMode, OctaneRoundEdgesRoundEdgesMode_Override)

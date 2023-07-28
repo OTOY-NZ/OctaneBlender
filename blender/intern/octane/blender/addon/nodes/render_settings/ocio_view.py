@@ -34,6 +34,10 @@ class OctaneOCIOView(bpy.types.Node, OctaneBaseNode):
     def init(self, context):
         self.outputs.new("OctaneOCIOViewOutSocket", "OCIO view out").init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
+
 
 _CLASSES=[
     OctaneOCIOView,

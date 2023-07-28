@@ -35,6 +35,7 @@ class Scene;
 class BlenderSession;
 
 enum AnimationMode { FULL = 0, MOVABLE_PROXIES, CAM_ONLY };
+enum PreferImageType { OCTANE_DEFAULT = 0, LDR = 1, HDR = 2 };
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Session Parameters
@@ -53,8 +54,8 @@ class SessionParams {
   int width;
   int height;
   bool use_passes;
-  bool hdr_tonemapped;
-  bool hdr_tonemap_prefer;
+  bool enable_camera_imager;
+  PreferImageType prefer_image_type;
   bool use_viewport_hide;
   MeshType meshes_type;
   float fps;
@@ -83,8 +84,8 @@ class SessionParams {
     samples = INT_MAX;
     anim_mode = FULL;
     fps = 24.0f;
-    hdr_tonemapped = false;
-    hdr_tonemap_prefer = true;
+    enable_camera_imager = false;
+    prefer_image_type = PreferImageType::OCTANE_DEFAULT;
     render_priority = 0;
     resource_cache_type = ::OctaneDataTransferObject::DISABLE_CACHE_SYSTEM;
     export_type = ::OctaneEngine::SceneExportTypes::NONE;
@@ -112,12 +113,36 @@ class SessionParams {
         addon_dev_enabled == params.addon_dev_enabled &&
         out_of_core_mem_limit == params.out_of_core_mem_limit &&
         out_of_core_gpu_headroom == params.out_of_core_gpu_headroom &&
-        hdr_tonemapped == params.hdr_tonemapped &&
-        hdr_tonemap_prefer == params.hdr_tonemap_prefer &&
+        enable_camera_imager == params.enable_camera_imager &&
+        prefer_image_type == params.prefer_image_type &&
         render_priority == params.render_priority &&
         resource_cache_type == params.resource_cache_type && width == width && height == height && use_shared_surface == params.use_shared_surface &&
              process_id == params.process_id && device_luid == params.device_luid);
   }
+
+  ::OctaneEngine::ImageType resolve_octane_image_type()
+  {
+    if (interactive) {
+      return ::OctaneEngine::IMAGE_8BIT;
+    }
+    else {      
+      if (prefer_image_type == PreferImageType::LDR) {
+        return ::OctaneEngine::IMAGE_FLOAT_TONEMAPPED;
+      }
+      else if (prefer_image_type == PreferImageType::HDR) {
+        return ::OctaneEngine::IMAGE_FLOAT;
+      }
+      else {
+        if (enable_camera_imager) {
+          return ::OctaneEngine::IMAGE_FLOAT_TONEMAPPED;
+        }
+        else {
+          return ::OctaneEngine::IMAGE_FLOAT;
+        }
+      }
+    }
+  }
+
 };  // SessionParams
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

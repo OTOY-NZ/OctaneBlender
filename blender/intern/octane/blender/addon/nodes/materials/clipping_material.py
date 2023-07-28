@@ -138,6 +138,10 @@ class OctaneClippingMaterial(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneClippingMaterialRayEpsilonCustomEnabled", OctaneClippingMaterialRayEpsilonCustomEnabled.bl_label).init()
         self.outputs.new("OctaneMaterialOutSocket", "Material out").init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
+
 
 _CLASSES=[
     OctaneClippingMaterialEnabled,

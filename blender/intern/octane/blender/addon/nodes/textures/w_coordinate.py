@@ -109,6 +109,10 @@ class OctaneWCoordinate(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneWCoordinateInvert", OctaneWCoordinateInvert.bl_label).init()
         self.outputs.new("OctaneTextureOutSocket", "Texture out").init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
+
 
 _CLASSES=[
     OctaneWCoordinateTranslation,

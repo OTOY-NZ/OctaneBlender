@@ -31,6 +31,10 @@ class OctaneMatCap(bpy.types.Node, OctaneBaseNode):
     def init(self, context):
         self.outputs.new("OctaneProjectionOutSocket", "Projection out").init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
+
 
 _CLASSES=[
     OctaneMatCap,

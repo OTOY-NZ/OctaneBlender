@@ -33,6 +33,10 @@ class OctaneEnumValue(bpy.types.Node, OctaneBaseNode):
     def init(self, context):
         self.outputs.new("OctaneEnumOutSocket", "Enum out").init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
+
 
 _CLASSES=[
     OctaneEnumValue,

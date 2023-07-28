@@ -110,6 +110,7 @@ static inline BL::Mesh object_to_mesh(BL::BlendData & /*data*/,
 
   if ((bool)mesh && !enable_subdivision) {
     if (mesh.use_auto_smooth()) {
+      mesh.calc_normals_split();
       mesh.split_faces(false);
     }
 
@@ -721,7 +722,7 @@ static inline uint object_motion_steps(BL::Object &b_parent, BL::Object &b_ob)
 
   /* Also check parent object, so motion blur and steps can be
    * controlled by dupligroup duplicator for linked groups. */
-  if (b_parent.ptr.data != b_ob.ptr.data) {
+  if (b_parent.ptr.data != nullptr && b_parent.ptr.data != b_ob.ptr.data) {
     PointerRNA parent_octane_object = RNA_pointer_get(&b_parent.ptr, "octane");
     use_motion &= get_boolean(parent_octane_object, "use_motion_blur");
 

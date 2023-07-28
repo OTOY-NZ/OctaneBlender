@@ -1099,6 +1099,10 @@ class OctaneUniversalCamera(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneUniversalCameraKeepUpright", OctaneUniversalCameraKeepUpright.bl_label).init()
         self.outputs.new("OctaneCameraOutSocket", "Camera out").init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
+
 
 _CLASSES=[
     OctaneUniversalCameraMode,

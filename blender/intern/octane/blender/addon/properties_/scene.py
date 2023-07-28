@@ -31,6 +31,15 @@ cryptomatte_pass_channel_modes = (
     ('10', "10", "", 10),        
 )
 
+octane_export_with_deep_image_modes = (
+    ("SEPARATE_IMAGE_FILES", "Export separate image files", "Export separate image files", 0),
+    ("MULTILAYER_EXR", "Export multilayer EXR", "Export multilayer EXR", 1),
+    ("DEEP_EXR", "Export deep EXR", "Export deep EXR", 2),
+)    
+octane_export_without_deep_image_modes = (
+    ("SEPARATE_IMAGE_FILES", "Export separate image files", "Export separate image files", 0),
+    ("MULTILAYER_EXR", "Export multilayer EXR", "Export multilayer EXR", 1),
+)
 
 class OctaneAovOutputGroupNode(bpy.types.PropertyGroup):    
     name: StringProperty(name="Node Name")   
@@ -1139,6 +1148,17 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
         description="Hide from final render objects hidden in viewport",
         default=False,
     )
+    prefer_image_types = (
+        ("DEFAULT", "Octane Default", "Render as Octane default settings", 0),
+        ("LDR", "LDR", "Render as LDR(tonemapped) image if applicable", 1),
+        ("HDR", "HDR", "Render as HDR image if applicable", 2),        
+    )
+    prefer_image_type: EnumProperty(
+        name="Prefer Image Type",
+        description="",
+        items=prefer_image_types,
+        default="DEFAULT",
+    )
     prefer_tonemap: BoolProperty(
         name="Prefer tonemap if applicable",
         description="Render as tonemapped image if applicable",
@@ -1568,7 +1588,7 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
         name="Subsample Mode",
         description="The subsampe mode should be used in rendering",
         items=sub_sample_modes,
-        default='No subsampling',
+        default='2x2 subsampling',
     )          
     gi_clamp: FloatProperty(
         name="GI clamp",
@@ -1813,6 +1833,16 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
         description="Preview active render layer in viewport",
         default=False,
     )
+    use_preview_camera_imager: BoolProperty(
+        name="Enable Camera Imager in Interactive Mode",
+        description="Tick to enable Octane Camera Imager in interactive preview mode",
+        default=True,
+    )
+    use_render_camera_imager: BoolProperty(
+        name="Enable Camera Imager in Render Mode",
+        description="Tick to enable Octane Camera Imager in render mode",
+        default=True,
+    )
     hdr_tonemap_preview_enable: BoolProperty(
         name="Enable HDR tonemapping in Interactive Mode",
         description="Tick to enable Octane HDR tonemapping in interactive preview mode",
@@ -1864,7 +1894,7 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
         ('1', "None", ""),
         ('2', "2 x 2", ""),
         ('4', "4 x 4", ""),
-    )    
+    )
     adaptive_group_pixels: EnumProperty(
         name="Group pixels",
         description="Size of the pixel groups that are evaluated together to decide whether sampling should stop or not",
@@ -1902,13 +1932,100 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
         name="Premultiplied Aplha",
         description="Premultiplied Aplha",
         default=False,
-    )    
+    )
     octane_export_dwa_compression_level: IntProperty(
         name="DWA compression level",
         description="DWA compression level",
         min=0, max=2000, 
         default=45,
+    )
+    use_octane_export: BoolProperty(
+        name="Enable Octane Export",
+        description="Enable Octane Export",
+        default=False,
+    )
+    octane_export_prefix_tag: StringProperty(
+        name="Octane Prefix Tag",
+        description="Octane export prefix tag. If given, this name will be concatenated to the file name as prefix(to distinguish the Blender outputs and Octane export outputs)",
+        default="",
+    )
+    octane_export_postfix_tag: StringProperty(
+        name="Octane Postfix Tag",
+        description="""Octane export postfix. If given, this name will be concatenated to the file name as postfix.\n"""
+            """###   Frame number. e.g. image_##_test.png translates to image_01_test.png\n"""
+            """$OCTANE_PASS$   Octane pass name.\n"""
+            """$VIEW_LAYER$   Blender viewlayer name""",
+        default="",
+    )
+    def octane_export_mode_enum_items_callback(self, context):
+        if utility.is_deep_image_enabled(getattr(context, "scene", None)):
+            return octane_export_with_deep_image_modes
+        else:
+            return octane_export_without_deep_image_modes
+    octane_export_mode: EnumProperty(
+        name="Octane Export Mode",
+        description="Export image as separate files, multilayer EXR, or deep EXR",
+        items=octane_export_mode_enum_items_callback,
+    )
+    octane_export_file_types = (
+        ("PNG", "PNG", "", 0),
+        ("EXR", "EXR", "", 1),
     )    
+    octane_export_file_type: EnumProperty(
+        name="File type",
+        description="File type",
+        items=octane_export_file_types,
+        default="PNG",
+    )    
+    octane_png_bit_depth_modes = (
+        ("8_BIT", "8-bit(integer)", "8-bit(integer)(default)", 0),
+        ("16_BIT", "16-bit(integer)", "16-bit(integer)", 1),
+    )
+    octane_png_bit_depth: EnumProperty(
+        name="Bit depth",
+        description="Bit depth",
+        items=octane_png_bit_depth_modes,
+        default="8_BIT",
+    )
+    octane_exr_bit_depth_modes = (
+        ("16_BIT", "16-bit(floating point)", "16-bit(floating point)(default)", 0),
+        ("32_BIT", "32-bit(floating point)", "32-bit(floating point)", 1),
+    )
+    octane_exr_bit_depth: EnumProperty(
+        name="Bit depth",
+        description="Bit depth",
+        items=octane_exr_bit_depth_modes,
+        default="16_BIT",
+    )
+    octane_exr_compression_modes = (
+        ("UNCOMPRESSED", "Uncompressed", "no compression", 1),
+        ("RLE_LOSSLESS", "RLE(lossless)", "run length encoding (lossless)", 2),
+        ("ZIPS_LOSSLESS", "ZIPS(lossless)", "zlib compression, one scan line at a time (lossless)", 3),
+        ("ZIP_LOSSLESS", "ZIP(lossless)", "zlib compression in blocks of 16 scan lines (lossless)(default)", 4),
+        ("PIZ_LOSSLESS", "PIZ(lossless)", "piz-based wavelet compression (lossless)", 5),
+        ("PXR24_LOSSY", "PXR24(lossy)", "lossy 24-bit float compression (lossy)", 6),
+        ("B44_LOSSY", "B44(lossy)", "lossy 4-by-4 pixel block compression (lossy)", 7),
+        ("B44A_LOSSY", "B44A(lossy)", "lossy 4-by-4 pixel block compression (lossy)", 8),
+        ("DWAA_LOSSY", "DWAA(lossy)", "lossy DCT based compression in blocks of 32 scanlines", 9),
+        ("DWAB_LOSSY", "DWAB(lossy)", "lossy DCT based compression in blocks of 256 scanlines", 10),
+    )
+    octane_exr_compression_mode: EnumProperty(
+        name="Compression",
+        description="EXR compression type",
+        items=octane_exr_compression_modes,
+        default="ZIP_LOSSLESS",
+    )
+    octane_deep_exr_compression_modes = (
+        ("UNCOMPRESSED", "Uncompressed", "no compression", 1),
+        ("RLE_LOSSLESS", "RLE(lossless)", "run length encoding (lossless)", 2),
+        ("ZIPS_LOSSLESS", "ZIPS(lossless)", "zlib compression, one scan line at a time (lossless)(default)", 3),
+    )
+    octane_deep_exr_compression_mode: EnumProperty(
+        name="Compression",
+        description="Deep EXR compression type",
+        items=octane_deep_exr_compression_modes,
+        default="ZIPS_LOSSLESS",
+    )
     white_light_spectrum_modes = (
         ('D65', "D65", "D65", 1),
         ('Legacy/flat', "Legacy/flat", "Legacy/flat", 0),

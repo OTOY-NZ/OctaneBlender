@@ -33,6 +33,10 @@ class OctaneMaterialLayerGroup(bpy.types.Node, OctaneBaseNode):
     def init(self, context):
         self.outputs.new("OctaneMaterialLayerOutSocket", "Material layer out").init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
+
 
 _CLASSES=[
     OctaneMaterialLayerGroup,

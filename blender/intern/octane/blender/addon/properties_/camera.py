@@ -181,7 +181,7 @@ class BlenderCamera(object):
             if dof_distance <= 0:
                 dof_distance = 1.118034
             return dof_distance
-        object_matrix = camera.matrix_world
+        object_matrix = camera_object.matrix_world
         object_matrix = utility.transform_clear_scale(object_matrix)
         dof_matrix = focus_object.matrix_world
         view_dir = utility.transform_get_column(object_matrix, 2).normalized()
@@ -766,17 +766,22 @@ class OctaneImagerSettings(bpy.types.PropertyGroup, common.OctanePropertySetting
         layout.prop(self, "enable_ai_up_sampling", text="")
 
     def draw_upsampler(self, context, layout, is_viewport=None):
-        col = layout.column()
-        col.use_property_split = True
-        col.prop(self, "up_sample_mode")
-        col.prop(self, "up_sampling_on_completion")
-        col.prop(self, "min_up_sampler_samples")
-        col.prop(self, "max_up_sampler_interval")
+        from octane.core.client import OctaneBlender
+        if utility.get_preferences().use_shared_surface and OctaneBlender().is_shared_surface_supported():
+            layout.label(text="Upsampler disabled - please turn Shared Surface Viewport option off to use it")
+        else:
+            col = layout.column()
+            col.use_property_split = True
+            col.prop(self, "up_sample_mode")
+            col.prop(self, "up_sampling_on_completion")
+            col.prop(self, "min_up_sampler_samples")
 
 
 class OctanePostProcessingSettings(bpy.types.PropertyGroup, common.OctanePropertySettings):
-    PROPERTY_CONFIGS = {consts.NodeType.NT_IMAGER_CAMERA : ["cutoff", "bloom_power", "glare_power", "glare_ray_amount", "glare_angle", "glare_blur", "spectral_intencity", "spectral_shift"]}
-    PROPERTY_NAME_TO_PIN_SYMBOL_MAP = {}
+    PROPERTY_CONFIGS = {consts.NodeType.NT_POSTPROCESSING : ["cutoff", "bloom_power", "glare_power", "glare_ray_amount", "glare_angle", "glare_blur", "spectral_intencity", "spectral_shift"]}
+    PROPERTY_NAME_TO_PIN_SYMBOL_MAP = {
+        "spectral_intencity": "spectral_intensity"
+    }
 
     on_off: BoolProperty(
         name="Postprocess",
@@ -1117,7 +1122,7 @@ class OctaneBaseCameraSettings(common.OctanePropertySettings):
     def sync_octane_camera_dof(self, blender_camera, octane_node, camera_node, is_viewport):
         camera_node_type = camera_node.node_type
         auto_focus = getattr(self, "autofocus", False)
-        focal_depth = 1.118034 if is_viewport else blender_camera.focal_distance
+        focal_depth = blender_camera.focal_distance
         aperture = getattr(self, "aperture", 0)
         use_fstop = getattr(self, "use_fstop", False)
         if use_fstop:

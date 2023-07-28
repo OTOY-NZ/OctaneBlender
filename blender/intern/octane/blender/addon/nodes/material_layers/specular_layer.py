@@ -395,6 +395,10 @@ class OctaneSpecularLayer(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneSpecularLayerOpacity", OctaneSpecularLayerOpacity.bl_label).init()
         self.outputs.new("OctaneMaterialLayerOutSocket", "Material layer out").init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
+
 
 _CLASSES=[
     OctaneSpecularLayerSpecular,

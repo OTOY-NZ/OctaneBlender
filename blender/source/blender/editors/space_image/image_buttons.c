@@ -1065,24 +1065,6 @@ void uiTemplateImageSettings(uiLayout *layout, PointerRNA *imfptr, bool color_ma
   }
 }
 
-void uiTemplateOctaneExportSettings(uiLayout *layout, struct PointerRNA *imfptr)
-{
-  ImageFormatData *imf = imfptr->data;
-  ID *id = imfptr->owner_id;
-  PropertyRNA *prop;
-  uiLayout *col;
-  col = uiLayoutColumn(layout, false);
-  uiItemR(col, imfptr, "octane_export_tag", 0, NULL, ICON_NONE);
-  uiItemR(col, imfptr, "octane_export_post_tag", 0, NULL, ICON_NONE);
-  uiItemR(col, imfptr, "octane_save_mode", 0, NULL, ICON_NONE);
-  //uiItemR(col, imfptr, "octane_file_format", 0, NULL, ICON_NONE);
-  uiItemR(col, imfptr, "octane_image_save_format", 0, NULL, ICON_NONE);
-  if (imf->octane_image_save_format != OCT_IMAGE_SAVE_FORMAT_PNG_8 &&
-      imf->octane_image_save_format != OCT_IMAGE_SAVE_FORMAT_PNG_16) {
-    uiItemR(col, imfptr, "octane_exr_compression_type", 0, NULL, ICON_NONE);
-  }
-}
-
 void uiTemplateImageStereo3d(uiLayout *layout, PointerRNA *stereo3d_format_ptr)
 {
   Stereo3dFormat *stereo3d_format = stereo3d_format_ptr->data;

@@ -991,6 +991,9 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
     else if (node_type_name == "OctaneImageTiles") {
       node_type_name = "ShaderNodeOctImageTileTex";
     }
+    else if (node_type_name == "OctaneVertexDisplacementMixer") {
+      node_type_name = "ShaderNodeOctVertexDisplacementMixerTex";
+    }
     else {
       node_type_name = "OctaneCustomNode";
     }
@@ -1030,7 +1033,7 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
       int octane_static_pin_count = OctaneInfo::instance().get_static_pin_count(octane_node_type);
       std::vector<::OctaneDataTransferObject::OctaneDTOBase *> octane_dtos;
       BlenderSocketVisitor visitor(prefix_name, b_node, link_resolver);
-// clang-format off
+      // clang-format off
 	    #define ADD_OCTANE_ATTR_DTO(PROPERTY_TYPE, DTO_CLASS, SOCKET_CONTAINER) \
 	    if (property_type == PROPERTY_TYPE) { \
 		    octane_node->SOCKET_CONTAINER.emplace_back(::OctaneDataTransferObject::DTO_CLASS(dto_name, false)); \
@@ -1533,10 +1536,18 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
       }
     }
   }
-  else if (b_node.is_a(&RNA_ShaderNodeOctVertexDisplacementMixerTex)) {
-    int displacement_number = RNA_enum_get(&b_node.ptr, "displacement_number");
+  else if (b_node.is_a(&RNA_ShaderNodeOctVertexDisplacementMixerTex) ||
+           bl_idname == "OctaneVertexDisplacementMixer") {
+    bool is_addon_node = (bl_idname == "OctaneVertexDisplacementMixer");
+    int displacement_number;
     ::OctaneDataTransferObject::OctaneVertexDisplacementMixer *octane_node =
         (::OctaneDataTransferObject::OctaneVertexDisplacementMixer *)(node->oct_node);
+    if (is_addon_node) {
+      displacement_number = RNA_int_get(&b_node.ptr, "a_displacement_count");
+    }
+    else {
+      displacement_number = RNA_enum_get(&b_node.ptr, "displacement_number");
+    }
     octane_node->sDisplacements.resize(displacement_number);
     octane_node->sWeightLinks.resize(displacement_number);
     octane_node->fWeights.resize(displacement_number);

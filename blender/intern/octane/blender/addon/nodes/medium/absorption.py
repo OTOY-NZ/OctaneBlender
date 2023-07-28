@@ -180,6 +180,10 @@ class OctaneAbsorption(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneAbsorptionLockStepLength", OctaneAbsorptionLockStepLength.bl_label).init()
         self.outputs.new("OctaneMediumOutSocket", "Medium out").init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
+
 
 _CLASSES=[
     OctaneAbsorptionScale,

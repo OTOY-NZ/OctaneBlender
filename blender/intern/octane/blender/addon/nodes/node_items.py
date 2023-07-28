@@ -277,6 +277,7 @@ def octane_NODE_MT_add_draw(self, context):
         layout.menu_contents("NODE_MT_geometry_node_add_all")
     elif nodeitems_utils.has_node_categories(context):
         props = layout.operator("octane.node_add_search", text="Search...", icon='VIEWZOOM')
+        props.octane_pin_type = 0
         props.use_transform = True
 
         layout.separator()
@@ -621,11 +622,12 @@ _octane_node_items = {
             items=[
                 OctaneNodeItem("OctaneBlackBodyEmission"),
                 OctaneNodeItem("OctaneTextureEmission"),
+            ] if core.ENABLE_OCTANE_ADDON_CLIENT else [
+                OctaneNodeItem("OctaneBlackBodyEmission"),
+                OctaneNodeItem("OctaneTextureEmission"),
                 OctaneNodeItem("ShaderNodeOctToonDirectionLight", octane_pin_type=consts.PinType.PT_GEOMETRY),
-                OctaneNodeItem("ShaderNodeOctToonPointLight", octane_pin_type=consts.PinType.PT_GEOMETRY),                
-                # OctaneNodeItem("OctaneToonDirectionalLight", octane_pin_type=consts.PinType.PT_GEOMETRY),
-                # OctaneNodeItem("OctaneToonPointLight", octane_pin_type=consts.PinType.PT_GEOMETRY),
-            ]  
+                OctaneNodeItem("ShaderNodeOctToonPointLight", octane_pin_type=consts.PinType.PT_GEOMETRY),            
+            ]
         ),
     ],
     "OCTANE_ENVIRONMENT": [

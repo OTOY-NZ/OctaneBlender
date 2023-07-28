@@ -103,6 +103,10 @@ class OctaneInstanceHighlight(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneInstanceHighlightSwapInputs", OctaneInstanceHighlightSwapInputs.bl_label).init()
         self.outputs.new("OctaneTextureOutSocket", "Texture out").init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
+
 
 _CLASSES=[
     OctaneInstanceHighlightInput1,

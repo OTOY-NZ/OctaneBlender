@@ -591,53 +591,56 @@ class OCTANE_RENDER_PT_output(OctaneButtonsPanel, Panel):
 
     def draw_header(self, context):
         layout = self.layout
-        rd = context.scene.render
-        if hasattr(rd, "use_octane_export"):
-            layout.active = rd.use_octane_export
-            layout.prop(rd, "use_octane_export", text="")
+        oct_scene = context.scene.octane
+        layout.active = oct_scene.use_octane_export
+        layout.prop(oct_scene, "use_octane_export", text="")
 
     def draw(self, context):
         layout = self.layout
-        rd = context.scene.render
-        image_settings = rd.image_settings
-
-        if image_settings.octane_save_mode == "DEEP_EXR" and not context.scene.octane.deep_image:
-            sub = layout.row(align=True)
-            sub.label(text="The Deep EXR export is invalid!", icon='ERROR')
-            sub = layout.row(align=True)
-            sub.label(text="Please enable the deep image in the kernel settings", icon='ERROR')
-
-        layout.template_octane_export_settings(image_settings)
-
         oct_scene = context.scene.octane
-        preferences = bpy.context.preferences.addons['octane'].preferences
-        is_png_format = image_settings.octane_image_save_format in ('OCT_IMAGE_SAVE_FORMAT_PNG_8', 'OCT_IMAGE_SAVE_FORMAT_PNG_16')
-        is_dwa_format = image_settings.octane_exr_compression_type in ('DWAA_LOSSY', 'DWAB_LOSSY')
-        ocio_export_color_space_configs = "ocio_export_png_color_space_configs" if is_png_format else "ocio_export_exr_color_space_configs" 
-        sub = layout.row(align=True)
-        sub.prop_search(oct_scene, "gui_octane_export_ocio_color_space_name", preferences, ocio_export_color_space_configs)
-        if is_png_format:
-            if oct_scene.gui_octane_export_ocio_color_space_name not in (' sRGB(default) ', '' ):
-                sub = layout.row(align=True)
-                sub.prop_search(oct_scene, "gui_octane_export_ocio_look", preferences, "ocio_export_look_configs")
-                sub = layout.row(align=True)
-                sub.prop(oct_scene, "octane_export_force_use_tone_map")
-                sub = layout.row(align=True)
-                sub.prop(oct_scene, "octane_export_premultiplied_alpha")
-                if is_dwa_format:
-                    sub = layout.row(align=True)
-                    sub.prop(oct_scene, "octane_export_dwa_compression_level")
+        preferences = utility.get_preferences()
+        row = layout.row(align=True)
+        row.prop(oct_scene, "octane_export_prefix_tag")
+        row = layout.row(align=True)
+        row.prop(oct_scene, "octane_export_postfix_tag")
+        row = layout.row(align=True)
+        row.prop(oct_scene, "octane_export_mode")
+        col = layout.column(align=True)
+        col.use_property_split = True
+        col.use_property_decorate = False
+        is_png_file_type = False
+        if oct_scene.octane_export_mode == "SEPARATE_IMAGE_FILES":
+            col.prop(oct_scene, "octane_export_file_type")
+            if oct_scene.octane_export_file_type == "PNG":
+                is_png_file_type = True
+                col.prop(oct_scene, "octane_png_bit_depth")
+            elif oct_scene.octane_export_file_type == "EXR":
+                col.prop(oct_scene, "octane_exr_bit_depth")
         else:
-            if oct_scene.gui_octane_export_ocio_color_space_name not in (' Linear sRGB(default) ', ' ACES2065-1 ', ' ACEScg ', ''):
-                sub = layout.row(align=True)
-                sub.prop_search(oct_scene, "gui_octane_export_ocio_look", preferences, "ocio_export_look_configs")
-            sub = layout.row(align=True)
-            sub.prop(oct_scene, "octane_export_force_use_tone_map")
-            sub = layout.row(align=True)
-            sub.prop(oct_scene, "octane_export_premultiplied_alpha")
-            if is_dwa_format:
-                sub = layout.row(align=True)
-                sub.prop(oct_scene, "octane_export_dwa_compression_level")
+            col.label(text="Exported File type: EXR")
+            col.prop(oct_scene, "octane_exr_bit_depth")
+        ocio_export_color_space_configs = "ocio_export_png_color_space_configs" if is_png_file_type else "ocio_export_exr_color_space_configs"        
+        col.prop_search(oct_scene, "gui_octane_export_ocio_color_space_name", preferences, ocio_export_color_space_configs)
+        if is_png_file_type:
+            if oct_scene.gui_octane_export_ocio_color_space_name not in (" sRGB(default) ", ""):
+                col.prop_search(oct_scene, "gui_octane_export_ocio_look", preferences, "ocio_export_look_configs")
+                row = col.row(heading="Force use tone map")
+                row.prop(oct_scene, "octane_export_force_use_tone_map", text="")
+                row = col.row(heading="Premultiplied Aplha")
+                row.prop(oct_scene, "octane_export_premultiplied_alpha", text="")
+        else:
+            if oct_scene.gui_octane_export_ocio_color_space_name not in (" Linear sRGB(default) ", " ACES2065-1 ", " ACEScg ", ""):
+                col.prop_search(oct_scene, "gui_octane_export_ocio_look", preferences, "ocio_export_look_configs")
+            row = col.row(heading="Force use tone map")
+            row.prop(oct_scene, "octane_export_force_use_tone_map", text="")
+            row = col.row(heading="Premultiplied Aplha")
+            row.prop(oct_scene, "octane_export_premultiplied_alpha", text="")
+            if oct_scene.octane_export_mode == "DEEP_EXR":
+                col.prop(oct_scene, "octane_deep_exr_compression_mode")
+            else:
+                col.prop(oct_scene, "octane_exr_compression_mode")
+                if oct_scene.octane_exr_compression_mode in ("DWAA_LOSSY", "DWAB_LOSSY"):
+                    col.prop(oct_scene, "octane_export_dwa_compression_level")
 
 
 def get_panels():

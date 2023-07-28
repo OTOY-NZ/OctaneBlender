@@ -34,6 +34,10 @@ class OctaneGeometryGroup(bpy.types.Node, OctaneBaseNode):
     def init(self, context):
         self.outputs.new("OctaneGeometryOutSocket", "Geometry out").init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
+
 
 _CLASSES=[
     OctaneGeometryGroup,

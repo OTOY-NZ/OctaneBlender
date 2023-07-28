@@ -340,6 +340,10 @@ class OctaneBoolOutputNode(bpy.types.Node, OctaneBaseOutputNode):
         super().init(context)
         self.inputs.new("OctaneBoolSocket", OctaneBoolSocket.bl_label).init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseOutputNode.poll(node_tree)
+
 class OctaneFloatOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneFloatOutputNode"
     bl_label="Float Output"
@@ -352,6 +356,10 @@ class OctaneFloatOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     def init(self, context):
         super().init(context)
         self.inputs.new("OctaneFloatSocket", OctaneFloatSocket.bl_label).init()
+
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseOutputNode.poll(node_tree)
 
 class OctaneIntOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneIntOutputNode"
@@ -366,6 +374,10 @@ class OctaneIntOutputNode(bpy.types.Node, OctaneBaseOutputNode):
         super().init(context)
         self.inputs.new("OctaneIntSocket", OctaneIntSocket.bl_label).init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseOutputNode.poll(node_tree)
+
 class OctaneTransformOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneTransformOutputNode"
     bl_label="Transform Output"
@@ -378,6 +390,10 @@ class OctaneTransformOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     def init(self, context):
         super().init(context)
         self.inputs.new("OctaneTransformSocket", OctaneTransformSocket.bl_label).init()
+
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseOutputNode.poll(node_tree)
 
 class OctaneTextureOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneTextureOutputNode"
@@ -392,6 +408,10 @@ class OctaneTextureOutputNode(bpy.types.Node, OctaneBaseOutputNode):
         super().init(context)
         self.inputs.new("OctaneTextureSocket", OctaneTextureSocket.bl_label).init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseOutputNode.poll(node_tree)
+
 class OctaneEmissionOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneEmissionOutputNode"
     bl_label="Emission Output"
@@ -404,6 +424,10 @@ class OctaneEmissionOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     def init(self, context):
         super().init(context)
         self.inputs.new("OctaneEmissionSocket", OctaneEmissionSocket.bl_label).init()
+
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseOutputNode.poll(node_tree)
 
 class OctaneMaterialOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneMaterialOutputNode"
@@ -418,6 +442,10 @@ class OctaneMaterialOutputNode(bpy.types.Node, OctaneBaseOutputNode):
         super().init(context)
         self.inputs.new("OctaneMaterialSocket", OctaneMaterialSocket.bl_label).init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseOutputNode.poll(node_tree)
+
 class OctaneCameraOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneCameraOutputNode"
     bl_label="Camera Output"
@@ -430,6 +458,10 @@ class OctaneCameraOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     def init(self, context):
         super().init(context)
         self.inputs.new("OctaneCameraSocket", OctaneCameraSocket.bl_label).init()
+
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseOutputNode.poll(node_tree)
 
 class OctaneEnvironmentOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneEnvironmentOutputNode"
@@ -444,6 +476,10 @@ class OctaneEnvironmentOutputNode(bpy.types.Node, OctaneBaseOutputNode):
         super().init(context)
         self.inputs.new("OctaneEnvironmentSocket", OctaneEnvironmentSocket.bl_label).init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseOutputNode.poll(node_tree)
+
 class OctaneImagerOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneImagerOutputNode"
     bl_label="Imager Output"
@@ -456,6 +492,10 @@ class OctaneImagerOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     def init(self, context):
         super().init(context)
         self.inputs.new("OctaneImagerSocket", OctaneImagerSocket.bl_label).init()
+
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseOutputNode.poll(node_tree)
 
 class OctaneKernelOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneKernelOutputNode"
@@ -470,6 +510,10 @@ class OctaneKernelOutputNode(bpy.types.Node, OctaneBaseOutputNode):
         super().init(context)
         self.inputs.new("OctaneKernelSocket", OctaneKernelSocket.bl_label).init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseOutputNode.poll(node_tree)
+
 class OctaneGeometryOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneGeometryOutputNode"
     bl_label="Geometry Output"
@@ -482,6 +526,10 @@ class OctaneGeometryOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     def init(self, context):
         super().init(context)
         self.inputs.new("OctaneGeometrySocket", OctaneGeometrySocket.bl_label).init()
+
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseOutputNode.poll(node_tree)
 
 class OctaneMediumOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneMediumOutputNode"
@@ -496,6 +544,10 @@ class OctaneMediumOutputNode(bpy.types.Node, OctaneBaseOutputNode):
         super().init(context)
         self.inputs.new("OctaneMediumSocket", OctaneMediumSocket.bl_label).init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseOutputNode.poll(node_tree)
+
 class OctanePhaseFunctionOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctanePhaseFunctionOutputNode"
     bl_label="Phase function Output"
@@ -508,6 +560,10 @@ class OctanePhaseFunctionOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     def init(self, context):
         super().init(context)
         self.inputs.new("OctanePhaseFunctionSocket", OctanePhaseFunctionSocket.bl_label).init()
+
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseOutputNode.poll(node_tree)
 
 class OctaneFilmSettingsOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneFilmSettingsOutputNode"
@@ -522,6 +578,10 @@ class OctaneFilmSettingsOutputNode(bpy.types.Node, OctaneBaseOutputNode):
         super().init(context)
         self.inputs.new("OctaneFilmSettingsSocket", OctaneFilmSettingsSocket.bl_label).init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseOutputNode.poll(node_tree)
+
 class OctaneEnumOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneEnumOutputNode"
     bl_label="Enum Output"
@@ -534,6 +594,10 @@ class OctaneEnumOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     def init(self, context):
         super().init(context)
         self.inputs.new("OctaneEnumSocket", OctaneEnumSocket.bl_label).init()
+
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseOutputNode.poll(node_tree)
 
 class OctaneObjectLayerOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneObjectLayerOutputNode"
@@ -548,6 +612,10 @@ class OctaneObjectLayerOutputNode(bpy.types.Node, OctaneBaseOutputNode):
         super().init(context)
         self.inputs.new("OctaneObjectLayerSocket", OctaneObjectLayerSocket.bl_label).init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseOutputNode.poll(node_tree)
+
 class OctanePostProcessingOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctanePostProcessingOutputNode"
     bl_label="Post processing Output"
@@ -560,6 +628,10 @@ class OctanePostProcessingOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     def init(self, context):
         super().init(context)
         self.inputs.new("OctanePostProcessingSocket", OctanePostProcessingSocket.bl_label).init()
+
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseOutputNode.poll(node_tree)
 
 class OctaneRenderTargetOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneRenderTargetOutputNode"
@@ -574,6 +646,10 @@ class OctaneRenderTargetOutputNode(bpy.types.Node, OctaneBaseOutputNode):
         super().init(context)
         self.inputs.new("OctaneRenderTargetSocket", OctaneRenderTargetSocket.bl_label).init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseOutputNode.poll(node_tree)
+
 class OctaneWorkPaneOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneWorkPaneOutputNode"
     bl_label="Work Pane Output"
@@ -586,6 +662,10 @@ class OctaneWorkPaneOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     def init(self, context):
         super().init(context)
         self.inputs.new("OctaneWorkPaneSocket", OctaneWorkPaneSocket.bl_label).init()
+
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseOutputNode.poll(node_tree)
 
 class OctaneProjectionOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneProjectionOutputNode"
@@ -600,6 +680,10 @@ class OctaneProjectionOutputNode(bpy.types.Node, OctaneBaseOutputNode):
         super().init(context)
         self.inputs.new("OctaneProjectionSocket", OctaneProjectionSocket.bl_label).init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseOutputNode.poll(node_tree)
+
 class OctaneDisplacementOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneDisplacementOutputNode"
     bl_label="Displacement Output"
@@ -612,6 +696,10 @@ class OctaneDisplacementOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     def init(self, context):
         super().init(context)
         self.inputs.new("OctaneDisplacementSocket", OctaneDisplacementSocket.bl_label).init()
+
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseOutputNode.poll(node_tree)
 
 class OctaneStringOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneStringOutputNode"
@@ -626,6 +714,10 @@ class OctaneStringOutputNode(bpy.types.Node, OctaneBaseOutputNode):
         super().init(context)
         self.inputs.new("OctaneStringSocket", OctaneStringSocket.bl_label).init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseOutputNode.poll(node_tree)
+
 class OctaneRenderAOVOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneRenderAOVOutputNode"
     bl_label="Render AOV Output"
@@ -638,6 +730,10 @@ class OctaneRenderAOVOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     def init(self, context):
         super().init(context)
         self.inputs.new("OctaneRenderAOVSocket", OctaneRenderAOVSocket.bl_label).init()
+
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseOutputNode.poll(node_tree)
 
 class OctaneRenderLayerOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneRenderLayerOutputNode"
@@ -652,6 +748,10 @@ class OctaneRenderLayerOutputNode(bpy.types.Node, OctaneBaseOutputNode):
         super().init(context)
         self.inputs.new("OctaneRenderLayerSocket", OctaneRenderLayerSocket.bl_label).init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseOutputNode.poll(node_tree)
+
 class OctaneVolumeRampOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneVolumeRampOutputNode"
     bl_label="Volume ramp Output"
@@ -664,6 +764,10 @@ class OctaneVolumeRampOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     def init(self, context):
         super().init(context)
         self.inputs.new("OctaneVolumeRampSocket", OctaneVolumeRampSocket.bl_label).init()
+
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseOutputNode.poll(node_tree)
 
 class OctaneAnimationSettingsOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneAnimationSettingsOutputNode"
@@ -678,6 +782,10 @@ class OctaneAnimationSettingsOutputNode(bpy.types.Node, OctaneBaseOutputNode):
         super().init(context)
         self.inputs.new("OctaneAnimationSettingsSocket", OctaneAnimationSettingsSocket.bl_label).init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseOutputNode.poll(node_tree)
+
 class OctaneLUTOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneLUTOutputNode"
     bl_label="LUT Output"
@@ -690,6 +798,10 @@ class OctaneLUTOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     def init(self, context):
         super().init(context)
         self.inputs.new("OctaneLUTSocket", OctaneLUTSocket.bl_label).init()
+
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseOutputNode.poll(node_tree)
 
 class OctaneRenderJobOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneRenderJobOutputNode"
@@ -704,6 +816,10 @@ class OctaneRenderJobOutputNode(bpy.types.Node, OctaneBaseOutputNode):
         super().init(context)
         self.inputs.new("OctaneRenderJobSocket", OctaneRenderJobSocket.bl_label).init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseOutputNode.poll(node_tree)
+
 class OctaneToonRampOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneToonRampOutputNode"
     bl_label="Toon ramp Output"
@@ -716,6 +832,10 @@ class OctaneToonRampOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     def init(self, context):
         super().init(context)
         self.inputs.new("OctaneToonRampSocket", OctaneToonRampSocket.bl_label).init()
+
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseOutputNode.poll(node_tree)
 
 class OctaneBitMaskOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneBitMaskOutputNode"
@@ -730,6 +850,10 @@ class OctaneBitMaskOutputNode(bpy.types.Node, OctaneBaseOutputNode):
         super().init(context)
         self.inputs.new("OctaneBitMaskSocket", OctaneBitMaskSocket.bl_label).init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseOutputNode.poll(node_tree)
+
 class OctaneRoundEdgesOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneRoundEdgesOutputNode"
     bl_label="Round edges Output"
@@ -742,6 +866,10 @@ class OctaneRoundEdgesOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     def init(self, context):
         super().init(context)
         self.inputs.new("OctaneRoundEdgesSocket", OctaneRoundEdgesSocket.bl_label).init()
+
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseOutputNode.poll(node_tree)
 
 class OctaneMaterialLayerOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneMaterialLayerOutputNode"
@@ -756,6 +884,10 @@ class OctaneMaterialLayerOutputNode(bpy.types.Node, OctaneBaseOutputNode):
         super().init(context)
         self.inputs.new("OctaneMaterialLayerSocket", OctaneMaterialLayerSocket.bl_label).init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseOutputNode.poll(node_tree)
+
 class OctaneOCIOViewOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneOCIOViewOutputNode"
     bl_label="OCIO view Output"
@@ -768,6 +900,10 @@ class OctaneOCIOViewOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     def init(self, context):
         super().init(context)
         self.inputs.new("OctaneOCIOViewSocket", OctaneOCIOViewSocket.bl_label).init()
+
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseOutputNode.poll(node_tree)
 
 class OctaneOCIOLookOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneOCIOLookOutputNode"
@@ -782,6 +918,10 @@ class OctaneOCIOLookOutputNode(bpy.types.Node, OctaneBaseOutputNode):
         super().init(context)
         self.inputs.new("OctaneOCIOLookSocket", OctaneOCIOLookSocket.bl_label).init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseOutputNode.poll(node_tree)
+
 class OctaneOCIOColorSpaceOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneOCIOColorSpaceOutputNode"
     bl_label="OCIO color space Output"
@@ -794,6 +934,10 @@ class OctaneOCIOColorSpaceOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     def init(self, context):
         super().init(context)
         self.inputs.new("OctaneOCIOColorSpaceSocket", OctaneOCIOColorSpaceSocket.bl_label).init()
+
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseOutputNode.poll(node_tree)
 
 class OctaneAOVOutputGroupOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneAOVOutputGroupOutputNode"
@@ -808,6 +952,10 @@ class OctaneAOVOutputGroupOutputNode(bpy.types.Node, OctaneBaseOutputNode):
         super().init(context)
         self.inputs.new("OctaneAOVOutputGroupSocket", OctaneAOVOutputGroupSocket.bl_label).init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseOutputNode.poll(node_tree)
+
 class OctaneAOVOutputOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneAOVOutputOutputNode"
     bl_label="Output AOV Output"
@@ -820,6 +968,10 @@ class OctaneAOVOutputOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     def init(self, context):
         super().init(context)
         self.inputs.new("OctaneAOVOutputSocket", OctaneAOVOutputSocket.bl_label).init()
+
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseOutputNode.poll(node_tree)
 
 class OctaneCompositeTextureLayerOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneCompositeTextureLayerOutputNode"
@@ -834,6 +986,10 @@ class OctaneCompositeTextureLayerOutputNode(bpy.types.Node, OctaneBaseOutputNode
         super().init(context)
         self.inputs.new("OctaneCompositeTextureLayerSocket", OctaneCompositeTextureLayerSocket.bl_label).init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseOutputNode.poll(node_tree)
+
 class OctaneCompositeAOVOutputLayerOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneCompositeAOVOutputLayerOutputNode"
     bl_label="Composite output AOV layer Output"
@@ -846,6 +1002,10 @@ class OctaneCompositeAOVOutputLayerOutputNode(bpy.types.Node, OctaneBaseOutputNo
     def init(self, context):
         super().init(context)
         self.inputs.new("OctaneCompositeAOVOutputLayerSocket", OctaneCompositeAOVOutputLayerSocket.bl_label).init()
+
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseOutputNode.poll(node_tree)
 
 
 _CLASSES=[
@@ -1305,6 +1465,10 @@ class OctaneRenderAOVsOutputNode(bpy.types.Node, OctaneBaseOutputNode):
         super().init(context)
         self.inputs.new("OctaneRenderAOVSocket", OctaneRenderAOVSocket.bl_label).init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseOutputNode.poll(node_tree)
+
 
 class OctaneRenderAOVsOutputNode_Override(OctaneRenderAOVsOutputNode, OctaneRenderAOVOutputNodeComponent):
     preview_render_pass: EnumProperty(name="Preview Render Pass", items=OctaneRenderAOVsOutputNode_Override_RenderPassItems._enum_preview_render_pass_items)
@@ -1313,6 +1477,10 @@ class OctaneRenderAOVsOutputNode_Override(OctaneRenderAOVsOutputNode, OctaneRend
         super().draw_buttons(context, layout)
         row = layout.row()
         row.prop(self, "preview_render_pass") 
+
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseOutputNode.poll(node_tree)
 
 
 class OctaneCompositeAOVLayerOutputNode(OctaneCompositeAOVOutputLayerOutputNode):
@@ -1327,6 +1495,10 @@ class OctaneCompositeAOVLayerOutputNode(OctaneCompositeAOVOutputLayerOutputNode)
     def init(self, context):
         super().init(context)
         self.inputs.new("OctaneCompositeAOVOutputLayerSocket", OctaneCompositeAOVOutputLayerSocket.bl_label).init()
+    
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseOutputNode.poll(node_tree)
 
 
 _CLASSES.append(OctaneRenderAOVsSocket)

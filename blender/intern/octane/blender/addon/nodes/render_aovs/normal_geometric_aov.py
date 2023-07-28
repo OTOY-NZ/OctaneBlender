@@ -49,6 +49,10 @@ class OctaneNormalGeometricAOV(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneNormalGeometricAOVEnabled", OctaneNormalGeometricAOVEnabled.bl_label).init()
         self.outputs.new("OctaneRenderAOVOutSocket", "Render AOV out").init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
+
 
 _CLASSES=[
     OctaneNormalGeometricAOVEnabled,
@@ -101,6 +105,11 @@ class OctaneGeometricNormalAOV(bpy.types.Node, OctaneBaseNode):
     def init(self, context):
         self.inputs.new("OctaneGeometricNormalAOVEnabled", OctaneGeometricNormalAOVEnabled.bl_label).init()
         self.outputs.new("OctaneRenderAOVOutSocket", "Render AOVs out").init()
+
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
+        
 
 _LEGACY_CLASSES=[
     OctaneGeometricNormalAOVEnabled,

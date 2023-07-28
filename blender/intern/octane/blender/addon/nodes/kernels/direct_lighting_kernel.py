@@ -912,6 +912,10 @@ class OctaneDirectLightingKernel(bpy.types.Node, OctaneBaseKernelNode):
         self.inputs.new("OctaneDirectLightingKernelOldVolumeBehavior", OctaneDirectLightingKernelOldVolumeBehavior.bl_label).init()
         self.outputs.new("OctaneKernelOutSocket", "Kernel out").init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
+
 
 _CLASSES=[
     OctaneDirectLightingKernelMaxsamples,

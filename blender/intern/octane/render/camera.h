@@ -91,6 +91,8 @@ class Camera : public Node {
   float3 frustum_right_normal;
   float3 frustum_top_normal;
 
+  std::set<float> motion_blur_times;
+
   /* update */
   bool need_update;
   /* functions */

@@ -108,6 +108,10 @@ class OctaneAnimationSettings(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneAnimationSettingsSubFrameEnd", OctaneAnimationSettingsSubFrameEnd.bl_label).init()
         self.outputs.new("OctaneAnimationSettingsOutSocket", "Animation settings out").init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
+
 
 _CLASSES=[
     OctaneAnimationSettingsShutterAlignment,

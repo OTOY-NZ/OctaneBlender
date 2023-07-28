@@ -117,8 +117,8 @@ class OctaneCircleSpiralTransform(OctaneBaseSocket):
     bl_idname="OctaneCircleSpiralTransform"
     bl_label="UV transform"
     color=consts.OctanePinColor.Transform
-    octane_default_node_type=consts.NodeType.NT_TRANSFORM_VALUE
-    octane_default_node_name="OctaneTransformValue"
+    octane_default_node_type=consts.NodeType.NT_TRANSFORM_3D
+    octane_default_node_name="Octane3DTransformation"
     octane_pin_id=consts.PinID.P_TRANSFORM
     octane_pin_name="transform"
     octane_pin_type=consts.PinType.PT_TRANSFORM
@@ -172,6 +172,10 @@ class OctaneCircleSpiral(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneCircleSpiralTransform", OctaneCircleSpiralTransform.bl_label).init()
         self.inputs.new("OctaneCircleSpiralProjection", OctaneCircleSpiralProjection.bl_label).init()
         self.outputs.new("OctaneTextureOutSocket", "Texture out").init()
+
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
 
 
 _CLASSES=[

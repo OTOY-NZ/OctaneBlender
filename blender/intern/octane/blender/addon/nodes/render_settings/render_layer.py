@@ -127,6 +127,10 @@ class OctaneRenderLayer(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneRenderLayerVisibilityOnly", OctaneRenderLayerVisibilityOnly.bl_label).init()
         self.outputs.new("OctaneRenderLayerOutSocket", "Render layer out").init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
+
 
 _CLASSES=[
     OctaneRenderLayerEnabled,

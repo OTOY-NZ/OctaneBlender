@@ -45,6 +45,12 @@ custom_aov_channel_modes = (
     ('Blue', "Blue", "Blue", 3),
 )
 
+octane_point_light_types = (
+    ("Toon Point", "Toon Point", "Toon Point", 0),
+    ("Sphere", "Sphere", "Sphere", 1),
+)
+
+
 class OctaneObjectSettings(bpy.types.PropertyGroup):
     render_layer_id: IntProperty(
         name="Render layer ID",
@@ -237,22 +243,39 @@ class OctaneObjectSettings(bpy.types.PropertyGroup):
 
 
 class OctaneLightSettings(bpy.types.PropertyGroup):
+    octane_point_light_type: EnumProperty(
+        name="Used as Octane Point Light",
+        description="Use this Light as Octane Toon Point Light or Sphere Light",
+        items=octane_point_light_types,
+        default="Toon Point",
+    )
+    used_as_octane_mesh_light: BoolProperty(
+        name="Used as Octane Mesh Light",
+        description="Use this Light as Octane Mesh Light",
+        default=False,
+    )
+    light_mesh_object: PointerProperty(
+        name="Light Object",
+        description="Use this object's mesh with octane emission",
+        type=bpy.types.Object,
+        poll=lambda self, obj: obj.type == "MESH",
+    )    
     light_mesh: PointerProperty(
-            name="Light Mesh",
-            description="Use this mesh with octane emission",
-            type=bpy.types.Mesh,                
-            )   
+        name="Light Mesh",
+        description="Use this mesh with octane emission",
+        type=bpy.types.Mesh,
+    )
     use_external_mesh: BoolProperty(
-            name="Use External Mesh",
-            description="",
-            default=False,
-            )                     
+        name="Use External Mesh",
+        description="",
+        default=False,
+    )
     external_mesh_file: StringProperty(
-            name="External Obj File",
-            description="Use external mesh with octane emission",
-            default='',
-            subtype='FILE_PATH',
-            )         
+        name="External Obj File",
+        description="Use external mesh with octane emission",
+        default='',
+        subtype='FILE_PATH',
+    )
 
     @classmethod
     def register(cls):
@@ -260,7 +283,7 @@ class OctaneLightSettings(bpy.types.PropertyGroup):
             name="Octane Light Settings",
             description="Octane Light settings",
             type=cls,
-            )
+        )
 
     @classmethod
     def unregister(cls):

@@ -114,6 +114,10 @@ class OctaneMeshVolumeSDF(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneMeshVolumeSDFObjectLayer", OctaneMeshVolumeSDFObjectLayer.bl_label).init()
         self.outputs.new("OctaneGeometryOutSocket", "Geometry out").init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
+
 
 _CLASSES=[
     OctaneMeshVolumeSDFMaterial1,

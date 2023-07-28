@@ -111,6 +111,10 @@ class Octane3DTransformation(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("Octane3DTransformationTranslation", Octane3DTransformationTranslation.bl_label).init()
         self.outputs.new("OctaneTransformOutSocket", "Transform out").init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
+
 
 _CLASSES=[
     Octane3DTransformationRotationOrder,

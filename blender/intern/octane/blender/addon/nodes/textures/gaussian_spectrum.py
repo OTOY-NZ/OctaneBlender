@@ -85,6 +85,10 @@ class OctaneGaussianSpectrum(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneGaussianSpectrumPower", OctaneGaussianSpectrumPower.bl_label).init()
         self.outputs.new("OctaneTextureOutSocket", "Texture out").init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
+
 
 _CLASSES=[
     OctaneGaussianSpectrumWavelength,

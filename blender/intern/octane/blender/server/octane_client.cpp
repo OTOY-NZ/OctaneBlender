@@ -3903,7 +3903,7 @@ bool OctaneClient::downloadImageBuffer(RenderStatistics &renderStat,
         m_iCurRegionHeight = static_cast<int>(uiRegH);
       }
 
-      if (bUseSharedSurface) {
+      if (bUseSharedSurface && passType != RENDER_PASS_Z_DEPTH) {
         rcv >> renderStat.iSharedHandler;
         LOCK_MUTEX(m_ImgBufMutex);
         m_iSharedHandler = renderStat.iSharedHandler;

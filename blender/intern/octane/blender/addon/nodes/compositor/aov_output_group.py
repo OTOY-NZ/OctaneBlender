@@ -33,6 +33,10 @@ class OctaneAOVOutputGroup(bpy.types.Node, OctaneBaseNode):
     def init(self, context):
         self.outputs.new("OctaneAOVOutputGroupOutSocket", "Output AOV group out").init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
+
 
 _CLASSES=[
     OctaneAOVOutputGroup,
@@ -75,7 +79,10 @@ class OctaneAOVOutputGroup_Override(OctaneAOVOutputGroup):
     def draw_buttons(self, context, layout):
         self.draw_movable_inputs(context, layout, OctaneAOVOutputGroupAOVOutputMovableInput, self.MAX_AOV_OUTPUT_COUNT)
 
-
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
+        
 _ADDED_CLASSES = [OctaneAOVOutputGroupAOVOutputMovableInput, ]
 _CLASSES = _ADDED_CLASSES + _CLASSES
 utility.override_class(_CLASSES, OctaneAOVOutputGroup, OctaneAOVOutputGroup_Override)    

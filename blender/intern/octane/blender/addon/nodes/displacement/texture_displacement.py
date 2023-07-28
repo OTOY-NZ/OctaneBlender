@@ -192,6 +192,10 @@ class OctaneTextureDisplacement(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneTextureDisplacementShift", OctaneTextureDisplacementShift.bl_label).init()
         self.outputs.new("OctaneDisplacementOutSocket", "Displacement out").init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
+
 
 _CLASSES=[
     OctaneTextureDisplacementTexture,

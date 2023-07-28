@@ -85,6 +85,10 @@ class OctaneUtilityFloatMerger(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneUtilityFloatMergerInput3", OctaneUtilityFloatMergerInput3.bl_label).init()
         self.outputs.new("OctaneFloatOutSocket", "Float out").init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
+
 
 _CLASSES=[
     OctaneUtilityFloatMergerInput1,

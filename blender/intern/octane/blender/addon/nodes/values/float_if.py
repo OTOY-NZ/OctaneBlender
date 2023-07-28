@@ -85,6 +85,10 @@ class OctaneUtilityFloatIf(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneUtilityFloatIfInput2", OctaneUtilityFloatIfInput2.bl_label).init()
         self.outputs.new("OctaneFloatOutSocket", "Float out").init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
+
 
 _CLASSES=[
     OctaneUtilityFloatIfSwitch,

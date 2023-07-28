@@ -992,6 +992,10 @@ class OctaneScatterOnSurface(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneScatterOnSurfaceInstanceTranslationMap", OctaneScatterOnSurfaceInstanceTranslationMap.bl_label).init()
         self.outputs.new("OctaneGeometryOutSocket", "Geometry out").init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
+
 
 _CLASSES=[
     OctaneScatterOnSurfaceGeometry,

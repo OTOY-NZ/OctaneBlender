@@ -2391,7 +2391,6 @@ void uiTemplateImage(uiLayout *layout,
                      bool compact,
                      bool multiview);
 void uiTemplateImageSettings(uiLayout *layout, struct PointerRNA *imfptr, bool color_management);
-void uiTemplateOctaneExportSettings(uiLayout *layout, struct PointerRNA *imfptr);
 void uiTemplateImageStereo3d(uiLayout *layout, struct PointerRNA *stereo3d_format_ptr);
 void uiTemplateImageViews(uiLayout *layout, struct PointerRNA *imaptr);
 void uiTemplateImageFormatViews(uiLayout *layout,

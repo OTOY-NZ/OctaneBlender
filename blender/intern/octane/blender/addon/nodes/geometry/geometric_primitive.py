@@ -89,8 +89,8 @@ class OctaneGeometricPrimitiveTransform(OctaneBaseSocket):
     bl_idname="OctaneGeometricPrimitiveTransform"
     bl_label="Transform"
     color=consts.OctanePinColor.Transform
-    octane_default_node_type=consts.NodeType.NT_TRANSFORM_VALUE
-    octane_default_node_name="OctaneTransformValue"
+    octane_default_node_type=consts.NodeType.NT_TRANSFORM_3D
+    octane_default_node_name="Octane3DTransformation"
     octane_pin_id=consts.PinID.P_TRANSFORM
     octane_pin_name="transform"
     octane_pin_type=consts.PinType.PT_TRANSFORM
@@ -124,6 +124,10 @@ class OctaneGeometricPrimitive(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneGeometricPrimitiveObjectLayer", OctaneGeometricPrimitiveObjectLayer.bl_label).init()
         self.inputs.new("OctaneGeometricPrimitiveTransform", OctaneGeometricPrimitiveTransform.bl_label).init()
         self.outputs.new("OctaneGeometryOutSocket", "Geometry out").init()
+
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
 
 
 _CLASSES=[

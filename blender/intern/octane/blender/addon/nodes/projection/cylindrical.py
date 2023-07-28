@@ -15,8 +15,8 @@ class OctaneCylindricalTransform(OctaneBaseSocket):
     bl_idname="OctaneCylindricalTransform"
     bl_label="Cylinder transformation"
     color=consts.OctanePinColor.Transform
-    octane_default_node_type=consts.NodeType.NT_TRANSFORM_VALUE
-    octane_default_node_name="OctaneTransformValue"
+    octane_default_node_type=consts.NodeType.NT_TRANSFORM_3D
+    octane_default_node_name="Octane3DTransformation"
     octane_pin_id=consts.PinID.P_TRANSFORM
     octane_pin_name="transform"
     octane_pin_type=consts.PinType.PT_TRANSFORM
@@ -70,6 +70,10 @@ class OctaneCylindrical(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneCylindricalTransform", OctaneCylindricalTransform.bl_label).init()
         self.inputs.new("OctaneCylindricalPositionType", OctaneCylindricalPositionType.bl_label).init()
         self.outputs.new("OctaneProjectionOutSocket", "Projection out").init()
+
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
 
 
 _CLASSES=[

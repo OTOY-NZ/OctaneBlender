@@ -85,6 +85,10 @@ class OctaneUtilityIntMerger(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneUtilityIntMergerInput3", OctaneUtilityIntMergerInput3.bl_label).init()
         self.outputs.new("OctaneIntOutSocket", "Int out").init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
+
 
 _CLASSES=[
     OctaneUtilityIntMergerInput1,

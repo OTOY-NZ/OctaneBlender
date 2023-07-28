@@ -49,6 +49,10 @@ class OctaneFloat3ToColor(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneFloat3ToColorInput", OctaneFloat3ToColorInput.bl_label).init()
         self.outputs.new("OctaneTextureOutSocket", "Texture out").init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
+
 
 _CLASSES=[
     OctaneFloat3ToColorInput,

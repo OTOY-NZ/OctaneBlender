@@ -663,15 +663,10 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult b_rr,
            scene->camera->oct_node.ui4Region.w - scene->camera->oct_node.ui4Region.y :
            height),
       false);
-  session->server->downloadImageBuffer(
-      session->params.image_stat,
-      session->params.interactive ?
-          ::OctaneEngine::IMAGE_8BIT :
-          (session->params.hdr_tonemapped && session->params.hdr_tonemap_prefer ?
-               ::OctaneEngine::IMAGE_FLOAT_TONEMAPPED :
-               ::OctaneEngine::IMAGE_FLOAT),
-      cur_pass_type,
-      session->params.use_shared_surface);
+  session->server->downloadImageBuffer(session->params.image_stat,
+                                       session->params.resolve_octane_image_type(),
+                                       cur_pass_type,
+                                       session->params.use_shared_surface);
 
   if (session->server->getCopyImgBufferFloat(
           4,
@@ -730,15 +725,10 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult b_rr,
 
       // if (pass_type == ::Octane::RenderPassId::RENDER_PASS_BEAUTY)
       //  continue;
-      if (!session->server->downloadImageBuffer(
-              session->params.image_stat,
-              session->params.interactive ?
-                  ::OctaneEngine::IMAGE_8BIT :
-                  (session->params.hdr_tonemapped && session->params.hdr_tonemap_prefer ?
-                       ::OctaneEngine::IMAGE_FLOAT_TONEMAPPED :
-                       ::OctaneEngine::IMAGE_FLOAT),
-              pass_type,
-              session->params.use_shared_surface)) {
+      if (!session->server->downloadImageBuffer(session->params.image_stat,
+                                                session->params.resolve_octane_image_type(),
+                                                pass_type,
+                                                session->params.use_shared_surface)) {
         float *pixels = new float[buf_size];
         memset(pixels, 0, sizeof(float) * buf_size);
         b_pass.rect(pixels);
@@ -761,16 +751,37 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult b_rr,
       delete[] pixels;
     }
 
-    bool use_octane_export = b_scene.render().use_octane_export();
-
+    bool use_octane_export = get_boolean(oct_scene, "use_octane_export");
     if (use_octane_export) {
-      saveImage.iExportType = b_scene.render().image_settings().octane_save_mode();
-      saveImage.iImageType = b_scene.render().image_settings().octane_image_save_format();
-      saveImage.iExrCompressionType =
-          b_scene.render().image_settings().octane_exr_compression_type();
+      saveImage.iExportType = get_enum(oct_scene, "octane_export_mode");
+      std::string export_file_type = get_enum_identifier(oct_scene, "octane_export_file_type");
+      if (export_file_type == "PNG") {
+        std::string octane_png_bit_depth = get_enum_identifier(oct_scene, "octane_png_bit_depth");
+        if (octane_png_bit_depth == "8_BIT") {
+          saveImage.iImageType = OCT_IMAGE_SAVE_FORMAT_PNG_8;
+        }
+        else {
+          saveImage.iImageType = OCT_IMAGE_SAVE_FORMAT_PNG_16;
+        }
+      }
+      else {
+        std::string octane_exr_bit_depth = get_enum_identifier(oct_scene, "octane_exr_bit_depth");
+        if (octane_exr_bit_depth == "16_BIT") {
+          saveImage.iImageType = OCT_IMAGE_SAVE_FORMAT_EXR_16;
+        }
+        else {
+          saveImage.iImageType = OCT_IMAGE_SAVE_FORMAT_EXR_32;
+        }
+      }
+      if (saveImage.iExportType == OCT_IMAGE_SAVE_MODE_DEEP_EXR) {
+        saveImage.iExrCompressionType = get_enum(oct_scene, "octane_deep_exr_compression_mode");
+      }
+      else {
+        saveImage.iExrCompressionType = get_enum(oct_scene, "octane_exr_compression_mode");
+      }
       string raw_export_file_path = blender_absolute_path(
           b_data, b_scene, b_scene.render().filepath().c_str());
-      std::string post_tag = b_scene.render().image_settings().octane_export_post_tag();
+      std::string post_tag = get_string(oct_scene, "octane_export_postfix_tag");
       int digits = 4;
       if (post_tag.find("#") != std::string::npos) {
         digits = 0;
@@ -782,7 +793,7 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult b_rr,
         raw_file_name = raw_file_name.substr(0, suffix_idx);
       }
       const std::string VIEW_LAYER_TAG = "$VIEW_LAYER$";
-      raw_file_name += b_scene.render().image_settings().octane_export_post_tag();
+      raw_file_name += post_tag;
       std::string viewlayer_name = b_rlay.name();
       if (raw_file_name.find(VIEW_LAYER_TAG) != std::string::npos) {
         boost::replace_all(raw_file_name, VIEW_LAYER_TAG, viewlayer_name);
@@ -794,7 +805,7 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult b_rr,
           saveImage.sFileName += ("_" + viewlayer_name);
         }
       }
-      saveImage.sOctaneTag = b_scene.render().image_settings().octane_export_tag();
+      saveImage.sOctaneTag = get_string(oct_scene, "octane_export_prefix_tag");
       session->server->uploadOctaneNode(&saveImage, NULL);
     }
   }

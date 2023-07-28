@@ -73,6 +73,10 @@ class OctaneConverterFloatToInt(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneConverterFloatToIntOperationType", OctaneConverterFloatToIntOperationType.bl_label).init()
         self.outputs.new("OctaneIntOutSocket", "Int out").init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
+
 
 _CLASSES=[
     OctaneConverterFloatToIntInput,

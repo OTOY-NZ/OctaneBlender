@@ -125,6 +125,10 @@ class OctaneGeometryExporter(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneGeometryExporterTextureQuality", OctaneGeometryExporterTextureQuality.bl_label).init()
         self.inputs.new("OctaneGeometryExporterPreserveOctaneData", OctaneGeometryExporterPreserveOctaneData.bl_label).init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
+
 
 _CLASSES=[
     OctaneGeometryExporterGeometry,

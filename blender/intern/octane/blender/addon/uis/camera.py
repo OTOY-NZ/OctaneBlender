@@ -255,7 +255,7 @@ class OCTANE_CAMERA_PT_imager(common.OctanePropertyPanel, Panel):
         return super().poll(context) and context.camera
 
     def draw_header(self, context):
-        self.layout.prop(context.scene.octane, "hdr_tonemap_render_enable", text="")
+        self.layout.prop(context.scene.octane, "use_render_camera_imager", text="")
 
     def draw(self, context):
         row = self.layout.row(align=True)
@@ -341,7 +341,7 @@ class OCTANE_VIEW3D_PT_imager(common.OctanePropertyPanel, Panel):
         return super().poll(context) and context.space_data
 
     def draw_header(self, context):
-        self.layout.prop(context.scene.octane, "hdr_tonemap_preview_enable", text="")
+        self.layout.prop(context.scene.octane, "use_preview_camera_imager", text="")
 
     def draw(self, context):        
         camera_data, camera_name = utility.find_active_imager_data(context.scene, context)

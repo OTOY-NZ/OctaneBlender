@@ -673,6 +673,10 @@ class OctaneLightMixerAOVOutput(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneLightMixerAOVOutputLight8Scale", OctaneLightMixerAOVOutputLight8Scale.bl_label).init()
         self.outputs.new("OctaneAOVOutputOutSocket", "Output AOV out").init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
+
 
 _CLASSES=[
     OctaneLightMixerAOVOutputImager,

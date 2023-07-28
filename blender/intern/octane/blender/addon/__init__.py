@@ -19,10 +19,10 @@
 # <pep8 compliant>
 
 bl_info = {
-    "name": "OctaneBlender (v. 27.15)",
+    "name": "OctaneBlender (v. 27.16)",
     "author": "OTOY Inc.",
-    "version": (27, 15),
-    "blender": (3, 5, 0),
+    "version": (27, 16),
+    "blender": (3, 5, 1),
     "location": "Info header, render engine menu",
     "description": "OctaneBlender",
     "warning": "",
@@ -40,6 +40,7 @@ import gpu
 import numpy as np
 import os
 import time
+from gpu_extras.batch import batch_for_shader
 from gpu_extras.presets import draw_texture_2d
 from octane import version_update
 from octane import core
@@ -276,6 +277,7 @@ class OctaneRender(bpy.types.RenderEngine):
 
 class OctaneDrawData(object):
     ENABLE_PROFILE = False
+    USE_OPENGL = False
 
     def __init__(self, width, height, engine, scene, use_shared_surface):
         self.calculated_sample_per_pixel = 0
@@ -283,98 +285,130 @@ class OctaneDrawData(object):
         self.region_sample_per_pixel = 0
         self.current_change_level = 0
         self.max_sample = scene.octane.max_preview_samples
+        self.tri_count = 0
+        self.disp_tri_count = 0
+        self.hair_seg_count = 0
+        self.voxel_count = 0
+        self.sphere_count = 0
+        self.instance_count = 0
+        self.emit_pri_count = 0
+        self.emit_instance_count = 0
+        self.used_rgba32_textures = 0
+        self.used_rgba64_textures = 0
+        self.used_y8_textures = 0
+        self.used_y16_Textures = 0
+        self.used_memory = 0
+        self.free_memory = 0
+        self.total_memory = 0
         self.statistics = {}
         self.width = width
         self.height = height
         self.offset_x = 0
         self.offset_y = 0
         self.transparent = True
+        if use_shared_surface:
+            self.use_opengl = True
+        else:
+            self.use_opengl = self.USE_OPENGL
         self.use_shared_surface = use_shared_surface
         if self.transparent:
             bufferdepth = 4
-            self.buffertype = bgl.GL_RGBA
         else:
             bufferdepth = 3
-            self.buffertype = bgl.GL_RGB
         if self.use_shared_surface:
             self.texture_id = 0
         else:
-            self.buffer = bgl.Buffer(bgl.GL_FLOAT, [self.width * self.height * bufferdepth])
-        self.init_opengl(engine, scene)
+            if self.use_opengl:
+                self.buffer = bgl.Buffer(bgl.GL_FLOAT, [self.width * self.height * bufferdepth])
+            else:
+                self.buffer = gpu.types.Buffer("FLOAT", [self.width * self.height * bufferdepth])
+        self.init(engine, scene)
         # Profile data
         self.total_update_count = 0
         self.render_result_update_count = 0
         self.total_update_time = 0
         self.render_result_update_time = 0
 
-    def init_opengl(self, engine, scene):
-        if not self.use_shared_surface:
-            # Create texture
-            self.texture = bgl.Buffer(bgl.GL_INT, 1)
-            bgl.glGenTextures(1, self.texture)
-            self.texture_id = self.texture[0]
-
-        # Bind shader that converts from scene linear to display space,
-        # use the scene's color management settings.
-        engine.bind_display_space_shader(scene)
-        shader_program = bgl.Buffer(bgl.GL_INT, 1)
-        bgl.glGetIntegerv(bgl.GL_CURRENT_PROGRAM, shader_program)
-
-        # Generate vertex array
-        self.vertex_array = bgl.Buffer(bgl.GL_INT, 1)
-        bgl.glGenVertexArrays(1, self.vertex_array)
-        bgl.glBindVertexArray(self.vertex_array[0])
-
-        texturecoord_location = bgl.glGetAttribLocation(shader_program[0], "texCoord")
-        position_location = bgl.glGetAttribLocation(shader_program[0], "pos")
-
-        bgl.glEnableVertexAttribArray(texturecoord_location)
-        bgl.glEnableVertexAttribArray(position_location)
-
-        # Generate geometry buffers for drawing textured quad
-        width = self.width
-        height = self.height
-        position = [
-            self.offset_x, self.offset_y,
-            self.offset_x + width, self.offset_y,
-            self.offset_x + width, self.offset_y + height,
-            self.offset_x, self.offset_y + height
-        ]
-        position = bgl.Buffer(bgl.GL_FLOAT, len(position), position)
-        if self.use_shared_surface:
-            texcoord = [0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0]
+    def init(self, engine, scene):
+        if self.use_opengl:
+            if not self.use_shared_surface:
+                # Create texture
+                self.texture = bgl.Buffer(bgl.GL_INT, 1)
+                bgl.glGenTextures(1, self.texture)
+                self.texture_id = self.texture[0]
+            # Bind shader that converts from scene linear to display space,
+            # use the scene's color management settings.
+            engine.bind_display_space_shader(scene)
+            shader_program = bgl.Buffer(bgl.GL_INT, 1)
+            bgl.glGetIntegerv(bgl.GL_CURRENT_PROGRAM, shader_program)
+            # Generate vertex array
+            self.vertex_array = bgl.Buffer(bgl.GL_INT, 1)
+            bgl.glGenVertexArrays(1, self.vertex_array)
+            bgl.glBindVertexArray(self.vertex_array[0])
+            texturecoord_location = bgl.glGetAttribLocation(shader_program[0], "texCoord")
+            position_location = bgl.glGetAttribLocation(shader_program[0], "pos")
+            bgl.glEnableVertexAttribArray(texturecoord_location)
+            bgl.glEnableVertexAttribArray(position_location)
+            # Generate geometry buffers for drawing textured quad
+            width = self.width
+            height = self.height
+            position = [
+                self.offset_x, self.offset_y,
+                self.offset_x + width, self.offset_y,
+                self.offset_x + width, self.offset_y + height,
+                self.offset_x, self.offset_y + height
+            ]
+            position = bgl.Buffer(bgl.GL_FLOAT, len(position), position)
+            if self.use_shared_surface:
+                texcoord = [0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0]
+            else:
+                texcoord = [0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0]
+            texcoord = bgl.Buffer(bgl.GL_FLOAT, len(texcoord), texcoord)
+            self.vertex_buffer = bgl.Buffer(bgl.GL_INT, 2)
+            bgl.glGenBuffers(2, self.vertex_buffer)
+            bgl.glBindBuffer(bgl.GL_ARRAY_BUFFER, self.vertex_buffer[0])
+            bgl.glBufferData(bgl.GL_ARRAY_BUFFER, 32, position, bgl.GL_STATIC_DRAW)
+            bgl.glVertexAttribPointer(position_location, 2, bgl.GL_FLOAT, bgl.GL_FALSE, 0, None)
+            bgl.glBindBuffer(bgl.GL_ARRAY_BUFFER, self.vertex_buffer[1])
+            bgl.glBufferData(bgl.GL_ARRAY_BUFFER, 32, texcoord, bgl.GL_STATIC_DRAW)
+            bgl.glVertexAttribPointer(texturecoord_location, 2, bgl.GL_FLOAT, bgl.GL_FALSE, 0, None)
+            bgl.glBindBuffer(bgl.GL_ARRAY_BUFFER, 0)
+            bgl.glBindVertexArray(0)
+            engine.unbind_display_space_shader()
         else:
-            texcoord = [0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0]
-        texcoord = bgl.Buffer(bgl.GL_FLOAT, len(texcoord), texcoord)
+            width = self.width
+            height = self.height
+            position = [
+                (self.offset_x, self.offset_y),
+                (self.offset_x + width, self.offset_y),
+                (self.offset_x + width, self.offset_y + height),
+                (self.offset_x, self.offset_y + height)
+            ]
+            self.shader = gpu.shader.from_builtin("2D_IMAGE")
+            self.batch = batch_for_shader(
+                self.shader, "TRI_FAN",
+                {
+                    "pos": position,
+                    "texCoord": ((0, 0), (1, 0), (1, 1), (0, 1)),
+                },
+            )
 
-        self.vertex_buffer = bgl.Buffer(bgl.GL_INT, 2)
-
-        bgl.glGenBuffers(2, self.vertex_buffer)
-        bgl.glBindBuffer(bgl.GL_ARRAY_BUFFER, self.vertex_buffer[0])
-        bgl.glBufferData(bgl.GL_ARRAY_BUFFER, 32, position, bgl.GL_STATIC_DRAW)
-        bgl.glVertexAttribPointer(position_location, 2, bgl.GL_FLOAT, bgl.GL_FALSE, 0, None)
-
-        bgl.glBindBuffer(bgl.GL_ARRAY_BUFFER, self.vertex_buffer[1])
-        bgl.glBufferData(bgl.GL_ARRAY_BUFFER, 32, texcoord, bgl.GL_STATIC_DRAW)
-        bgl.glVertexAttribPointer(texturecoord_location, 2, bgl.GL_FLOAT, bgl.GL_FALSE, 0, None)
-
-        bgl.glBindBuffer(bgl.GL_ARRAY_BUFFER, 0)
-        bgl.glBindVertexArray(0)
-        engine.unbind_display_space_shader()
-
-    def __del__(self):        
-        bgl.glDeleteBuffers(2, self.vertex_buffer)
-        bgl.glDeleteVertexArrays(1, self.vertex_array)
-        bgl.glBindTexture(bgl.GL_TEXTURE_2D, 0)
-        if not self.use_shared_surface:
-            bgl.glDeleteTextures(1, self.texture)
+    def __del__(self):
+        if self.use_opengl:
+            bgl.glDeleteBuffers(2, self.vertex_buffer)
+            bgl.glDeleteVertexArrays(1, self.vertex_array)
+            bgl.glBindTexture(bgl.GL_TEXTURE_2D, 0)
+            if not self.use_shared_surface:
+                bgl.glDeleteTextures(1, self.texture)
+        else:
+            del self.buffer
         if self.ENABLE_PROFILE:
             is_denoise_render_pass = utility.is_denoise_render_pass(self.statistics.get("render_pass_id"))
             if is_denoise_render_pass:
                 msg = "Sample: %d/%d/%d, Render time: %.2f (sec)" % (self.calculated_sample_per_pixel, self.tonemapped_sample_per_pixel, self.max_sample, self.statistics.get("render_time", 0))
             else:
                 msg = "Denoising Sample: %d/%d, Render time: %.2f (sec)" % (self.calculated_sample_per_pixel, self.max_sample, self.statistics.get("render_time", 0))
-            print("Render Status: \nResolution: %d, %d\n%s\nUse Shared Surface: %d" % (self.width, self.height, msg, self.use_shared_surface))
+            print("Render Status: \nResolution: %d, %d\n%s\nUse OpenGL: %d\nUse Shared Surface: %d" % (self.width, self.height, msg, self.use_opengl, self.use_shared_surface))
             if self.total_update_time > 0:
                 print("Total Update Data: %.2f ms, %d, %.2f ms" % (self.total_update_time, self.total_update_count, self.total_update_time / self.total_update_count))
             if self.render_result_update_time > 0:
@@ -415,58 +449,75 @@ class OctaneDrawData(object):
         self.region_sample_per_pixel = self.statistics["region_sample_per_pixel"]
         self.max_sample = self.statistics["max_sample_per_pixel"]
         self.current_change_level = self.statistics["change_level"]
+        self.tri_count = self.statistics["tri_count"]
+        self.disp_tri_count = self.statistics["disp_tri_count"]
+        self.hair_seg_count = self.statistics["hair_seg_count"]
+        self.voxel_count = self.statistics["voxel_count"]
+        self.sphere_count = self.statistics["sphere_count"]
+        self.instance_count = self.statistics["instance_count"]
+        self.emit_pri_count = self.statistics["emit_pri_count"]
+        self.emit_instance_count = self.statistics["emit_instance_count"]
+        self.used_rgba32_textures = self.statistics["used_rgba32_textures"]
+        self.used_rgba64_textures = self.statistics["used_rgba64_textures"]
+        self.used_y8_textures = self.statistics["used_y8_textures"]
+        self.used_y16_Textures = self.statistics["used_y16_Textures"]
+        self.used_memory = int(self.statistics["used_memory"] / 1048576.0)
+        self.free_memory = int(self.statistics["free_memory"] / 1048576.0)
+        self.total_memory = int(self.statistics["total_memory"] / 1048576.0)
 
     def draw(self, engine, scene):        
         is_denoise_render_pass = utility.is_denoise_render_pass(self.statistics.get("render_pass_id"))
         if is_denoise_render_pass:
-            msg = "Sample: %d/%d/%d, Render time: %.2f (sec)" % (self.calculated_sample_per_pixel, self.tonemapped_sample_per_pixel, self.max_sample, self.statistics.get("render_time", 0))
+            sample_msg = "Denoising Sample: %d/%d/%d, Render time: %.2f (sec)" % (self.calculated_sample_per_pixel, self.tonemapped_sample_per_pixel, self.max_sample, self.statistics.get("render_time", 0))
         else:
-            msg = "Denoising Sample: %d/%d, Render time: %.2f (sec)" % (self.calculated_sample_per_pixel, self.max_sample, self.statistics.get("render_time", 0))
+            sample_msg = "Sample: %d/%d, Render time: %.2f (sec)" % (self.calculated_sample_per_pixel, self.max_sample, self.statistics.get("render_time", 0))
+        msg = "Mem: %dM/%dM/%dM, Meshes: %d, Tris: %d | Tex: (Rgb32: %d, Rgb64: %d, grey8: %d, grey16: %d)" \
+            % (self.used_memory, self.free_memory, self.total_memory, self.instance_count, self.tri_count, self.used_rgba32_textures, self.used_rgba64_textures, self.used_y8_textures, self.used_y16_Textures)
+        msg = sample_msg + "\n" + msg
         engine.update_stats("Octane Render Statistics", msg)
-
         if self.calculated_sample_per_pixel == 0 and self.tonemapped_sample_per_pixel == 0:
             return
-
-        if self.transparent:
-            bgl.glEnable(bgl.GL_BLEND)
-            bgl.glBlendFunc(bgl.GL_ONE, bgl.GL_ONE_MINUS_SRC_ALPHA)
-
-        engine.bind_display_space_shader(scene)
-
-        bgl.glActiveTexture(bgl.GL_TEXTURE0)
-        bgl.glBindTexture(bgl.GL_TEXTURE_2D, self.texture_id)
-        bgl.glBindVertexArray(self.vertex_array[0])
-        bgl.glDrawArrays(bgl.GL_TRIANGLE_FAN, 0, 4)
-        bgl.glBindVertexArray(0)
-        bgl.glBindTexture(bgl.GL_TEXTURE_2D, 0)
-
-        engine.unbind_display_space_shader()
-
-        err = bgl.glGetError()
-        if err != bgl.GL_NO_ERROR:
-            print("GL Error:", err)
-
-        if self.transparent:
-            bgl.glDisable(bgl.GL_BLEND)
+        if self.use_opengl:
+            if self.transparent:
+                bgl.glEnable(bgl.GL_BLEND)
+                bgl.glBlendFunc(bgl.GL_ONE, bgl.GL_ONE_MINUS_SRC_ALPHA)
+            engine.bind_display_space_shader(scene)
+            bgl.glActiveTexture(bgl.GL_TEXTURE0)
+            bgl.glBindTexture(bgl.GL_TEXTURE_2D, self.texture_id)
+            bgl.glBindVertexArray(self.vertex_array[0])
+            bgl.glDrawArrays(bgl.GL_TRIANGLE_FAN, 0, 4)
+            bgl.glBindVertexArray(0)
+            bgl.glBindTexture(bgl.GL_TEXTURE_2D, 0)
+            engine.unbind_display_space_shader()
+            err = bgl.glGetError()
+            if err != bgl.GL_NO_ERROR:
+                print("GL Error:", err)
+        else:
+            if self.transparent:
+                _format = "RGBA16F"
+            else:
+                _format = "RGB16F"            
+            image = gpu.types.GPUTexture(size=(self.width, self.height), layers=0, is_cubemap=False, format=_format, data=self.buffer)
+            self.shader.uniform_sampler("image", image)
+            self.batch.draw(self.shader)
 
     def update_texture(self, scene):
-        if self.transparent:
-            gl_format = bgl.GL_RGBA
-            internal_format = bgl.GL_RGBA32F
-        else:
-            gl_format = bgl.GL_RGB
-            internal_format = bgl.GL_RGB32F
-
-        bgl.glActiveTexture(bgl.GL_TEXTURE0)
-        bgl.glBindTexture(bgl.GL_TEXTURE_2D, self.texture_id)
-        bgl.glTexImage2D(bgl.GL_TEXTURE_2D, 0, internal_format, self.width, self.height,
-                         0, gl_format, bgl.GL_FLOAT, self.buffer)
-        bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_WRAP_S, bgl.GL_CLAMP_TO_EDGE)
-        bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_WRAP_T, bgl.GL_CLAMP_TO_EDGE)
-
-        bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_NEAREST)
-        bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_NEAREST)
-        bgl.glBindTexture(bgl.GL_TEXTURE_2D, 0)
+        if self.use_opengl:
+            if self.transparent:
+                gl_format = bgl.GL_RGBA
+                internal_format = bgl.GL_RGBA32F
+            else:
+                gl_format = bgl.GL_RGB
+                internal_format = bgl.GL_RGB32F
+            bgl.glActiveTexture(bgl.GL_TEXTURE0)
+            bgl.glBindTexture(bgl.GL_TEXTURE_2D, self.texture_id)
+            bgl.glTexImage2D(bgl.GL_TEXTURE_2D, 0, internal_format, self.width, self.height,
+                             0, gl_format, bgl.GL_FLOAT, self.buffer)
+            bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_WRAP_S, bgl.GL_CLAMP_TO_EDGE)
+            bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_WRAP_T, bgl.GL_CLAMP_TO_EDGE)
+            bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_NEAREST)
+            bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_NEAREST)
+            bgl.glBindTexture(bgl.GL_TEXTURE_2D, 0)        
 
     def update_texture_shared_surface(self, scene):
         texture_id = self.statistics["gl_texture_name"]
@@ -491,6 +542,8 @@ def register():
     path = os.path.dirname(__file__)
     user_path = os.path.dirname(os.path.abspath(bpy.utils.user_resource('CONFIG', path='')))
     OctaneBlender().init(path, user_path)
+    major, minor, patch = bpy.app.version
+    OctaneBlender().set_blender_version(major, minor, patch)
 
     from octane import properties
     properties.register()

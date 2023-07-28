@@ -75,6 +75,10 @@ class OctaneRotation(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneRotationRotation", OctaneRotationRotation.bl_label).init()
         self.outputs.new("OctaneTransformOutSocket", "Transform out").init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
+
 
 _CLASSES=[
     OctaneRotationRotationOrder,

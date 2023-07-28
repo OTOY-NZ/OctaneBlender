@@ -16,16 +16,16 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#include <string.h>
 #include <limits.h>
+#include <string.h>
 
-#include "session.h"
 #include "buffers.h"
-#include "scene.h"
-#include "kernel.h"
 #include "camera.h"
-#include "passes.h"
 #include "environment.h"
+#include "kernel.h"
+#include "passes.h"
+#include "scene.h"
+#include "session.h"
 
 #include "util/util_math.h"
 #include "util/util_opengl.h"
@@ -183,10 +183,7 @@ void Session::run_render()
             params.device_luid,
             params.width,
             params.height,
-            params.interactive ? ::OctaneEngine::IMAGE_8BIT :
-                                 (params.hdr_tonemapped && params.hdr_tonemap_prefer ?
-                                      ::OctaneEngine::IMAGE_FLOAT_TONEMAPPED :
-                                      ::OctaneEngine::IMAGE_FLOAT),
+            params.resolve_octane_image_type(),
             params.out_of_core_enabled,
             params.out_of_core_mem_limit,
             params.out_of_core_gpu_headroom,
@@ -269,7 +266,15 @@ bool Session::draw(BufferParams &buffer_params, DeviceDrawParams &draw_params)
   // then verify the buffers have the expected size, so we don't
   // draw previous results in a resized window
   if (!buffer_params.modified(display->params)) {
-    display->draw(draw_params, params.use_shared_surface);
+    bool use_shared_surface = params.use_shared_surface && params.interactive;
+    if (scene && scene->passes) {
+      ::Octane::RenderPassId cur_pass_type = static_cast<Octane::RenderPassId>(
+          (int)scene->passes->oct_node->iPreviewPass);
+      if (cur_pass_type == Octane::RENDER_PASS_Z_DEPTH) {
+        use_shared_surface = false;
+      }
+    }
+    display->draw(draw_params, use_shared_surface);
 
     if (display_outdated)  // && (time_dt() - reset_time) > params.text_timeout)
       return false;
@@ -315,16 +320,16 @@ void Session::reset(BufferParams &buffer_params, int samples)
   if (scene) {
     if (scene->camera) {
       scene->camera->need_update = true;
-	}
+    }
     if (scene->environment) {
       scene->environment->need_update = true;
     }
     if (scene->passes) {
       scene->passes->need_update = true;
-	}
+    }
     if (scene->kernel) {
-		scene->kernel->need_update = true;
-	}
+      scene->kernel->need_update = true;
+    }
   }
 
   reset_parameters(buffer_params);
@@ -466,7 +471,7 @@ void Session::update_status_time(bool show_pause, bool show_done)
   string status, substatus;
 
   if (server->checkServerConnection()) {
-    //server->testProfileTransferData();
+    // server->testProfileTransferData();
     if (params.image_stat.uiCurSamples > 0) {
       char szSamples[16];
       unsigned long ulSPSdivider;
@@ -632,26 +637,16 @@ void Session::update_render_buffer()
 
   ::Octane::RenderPassId passId = static_cast<::Octane::RenderPassId>(
       int(scene->passes->oct_node->iPreviewPass));
-  if (params.interactive &&
-      !server->downloadImageBuffer(params.image_stat,
-                                   params.interactive ?
-                                       ::OctaneEngine::IMAGE_8BIT :
-                                       (params.hdr_tonemapped && params.hdr_tonemap_prefer ?
-                                            ::OctaneEngine::IMAGE_FLOAT_TONEMAPPED :
-                                            ::OctaneEngine::IMAGE_FLOAT),
-                                   passId, params.use_shared_surface)) {
+  if (params.interactive && !server->downloadImageBuffer(params.image_stat,
+                                                         params.resolve_octane_image_type(),
+                                                         passId,
+                                                         params.use_shared_surface)) {
     if (progress.get_cancel())
       return;
     if (!params.interactive)
       update_img_sample();
-    server->downloadImageBuffer(params.image_stat,
-                                params.interactive ?
-                                    ::OctaneEngine::IMAGE_8BIT :
-                                    (params.hdr_tonemapped && params.hdr_tonemap_prefer ?
-                                         ::OctaneEngine::IMAGE_FLOAT_TONEMAPPED :
-                                         ::OctaneEngine::IMAGE_FLOAT),
-                                passId,
-                                params.use_shared_surface);
+    server->downloadImageBuffer(
+        params.image_stat, params.resolve_octane_image_type(), passId, params.use_shared_surface);
   }
   if (progress.get_cancel())
     return;

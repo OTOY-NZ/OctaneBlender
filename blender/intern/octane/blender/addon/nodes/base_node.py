@@ -28,7 +28,7 @@ class OctaneBaseNode(object):
 
     @classmethod
     def poll(cls, tree):
-        pass    
+        return tree.type not in ("COMPOSITING", "GEOMETRY")
 
     def draw_buttons(self, context, layout):
         pass
@@ -567,6 +567,10 @@ class OctaneBaseNode(object):
 
 class OctaneBaseOutputNode(OctaneBaseNode):
     """Base class for Octane output nodes"""
+
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
 
     # Output node methods
     def update_output_node_active(output_node, context):

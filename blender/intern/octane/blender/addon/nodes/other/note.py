@@ -35,6 +35,10 @@ class OctaneNote(bpy.types.Node, OctaneBaseNode):
     def init(self, context):
         pass
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
+
 
 _CLASSES=[
     OctaneNote,

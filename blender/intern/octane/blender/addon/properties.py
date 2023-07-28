@@ -506,6 +506,12 @@ class OctanePreferences(bpy.types.AddonPreferences):
 For multiple-GPUs platforms, Octane may change the 'Imaging' device during the viewport rendering. These changes are temporary and they will be reverted back after the viewport rendering",
         default=True,
     )
+    min_viewport_update_interval: FloatProperty(
+        name="Min Viewport Update Interval(seconds)",
+        description="The minimum interval for the viewport update. Basically, smaller update interval produces a smoother Viewport rendering unless the performance hits the bottleneck",
+        default=0.04,
+        min=0.01, max=10.0,
+    )
 
     def draw(self, context):
         from octane import core
@@ -517,6 +523,8 @@ For multiple-GPUs platforms, Octane may change the 'Imaging' device during the v
             box.row().prop(self, "default_object_mesh_type", expand=False)
             box = layout.box()
             box.label(text="Viewport Rendering")
+            row = box.row()
+            row.prop(self, "min_viewport_update_interval")
             row = box.row()
             row.active = OctaneBlender().is_shared_surface_supported()
             row.prop(self, "use_shared_surface")
@@ -1418,7 +1426,12 @@ classes = (
 
 @persistent
 def load_handler(scene):
-    pass
+    for window in bpy.context.window_manager.windows:
+        for area in window.screen.areas:
+            if area.type == "VIEW_3D":
+                for space in area.spaces:
+                    if space.type == "VIEW_3D" and space.shading.type in ("RENDERED", "MATERIAL"):
+                        space.shading.type = "SOLID"
 
 def register():    
     from bpy.utils import register_class    

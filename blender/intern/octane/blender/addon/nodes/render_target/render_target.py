@@ -271,6 +271,10 @@ class OctaneRenderTarget(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneRenderTargetResolution", OctaneRenderTargetResolution.bl_label).init()
         self.outputs.new("OctaneRenderTargetOutSocket", "Render target out").init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
+
 
 _CLASSES=[
     OctaneRenderTargetCamera,

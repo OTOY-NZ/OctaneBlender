@@ -219,6 +219,10 @@ class OctaneCompositeTextureLayer(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneCompositeTextureLayerAlphaOperation", OctaneCompositeTextureLayerAlphaOperation.bl_label).init()
         self.outputs.new("OctaneCompositeTextureLayerOutSocket", "Composite texture layer out").init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
+
 
 _CLASSES=[
     OctaneCompositeTextureLayerInput,

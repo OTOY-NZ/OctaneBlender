@@ -273,6 +273,8 @@ def _convert_to_octane_material(cur_material, converted_material):
                             original_material_node = output.inputs["Surface"].links[0].from_node
                             if original_material_node.type == "BSDF_PRINCIPLED":
                                 texture_emission_node.inputs["Power"].default_value = original_material_node.inputs["Emission Strength"].default_value
+                                texture_emission_node.inputs["Surface brightness"].default_value = True
+                                texture_emission_node.inputs["Double sided"].default_value = True
         if octane_output.inputs["Displacement"].is_linked:
             octane_displacement_node = octane_output.inputs["Displacement"].links[0].from_node
             octane_node_tree.links.remove(octane_output.inputs["Displacement"].links[0])

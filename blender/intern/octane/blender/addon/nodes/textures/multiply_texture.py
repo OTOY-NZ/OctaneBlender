@@ -66,6 +66,10 @@ class OctaneMultiplyTexture(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneMultiplyTextureTexture2", OctaneMultiplyTextureTexture2.bl_label).init()
         self.outputs.new("OctaneTextureOutSocket", "Texture out").init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
+
 
 _CLASSES=[
     OctaneMultiplyTextureTexture1,

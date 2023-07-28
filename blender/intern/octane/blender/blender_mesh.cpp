@@ -414,6 +414,23 @@ static void create_curves_hair(
   }
 }
 
+static std::optional<BL::IntAttribute> find_material_index_attribute(BL::Mesh b_mesh)
+{
+  for (BL::Attribute &b_attribute : b_mesh.attributes) {
+    if (b_attribute.domain() != BL::Attribute::domain_FACE) {
+      continue;
+    }
+    if (b_attribute.data_type() != BL::Attribute::data_type_INT) {
+      continue;
+    }
+    if (b_attribute.name() != "material_index") {
+      continue;
+    }
+    return BL::IntAttribute{b_attribute};
+  }
+  return std::nullopt;
+}
+
 static void create_mesh(Scene *scene,
                         BL::Object &b_ob,
                         Mesh *mesh,
@@ -491,24 +508,33 @@ static void create_mesh(Scene *scene,
   }
   mesh->octane_mesh.oMeshData.oMotionf3Points[0] = mesh->octane_mesh.oMeshData.f3Points;
 
+  std::optional<BL::IntAttribute> material_indices = find_material_index_attribute(b_mesh);
+  auto get_material_index = [&](const int poly_index) -> int {
+    if (material_indices) {
+      return clamp(material_indices->data[poly_index].value(), 0, used_shaders.size() - 1);
+    }
+    return 0;
+  };
+
   /* create faces */
+  const MPoly *polys = static_cast<const MPoly *>(b_mesh.polygons[0].ptr.data);
   if (!subdivision) {
-    BL::Mesh::loop_triangles_iterator t;
     vector<int> vi3;
     vi3.resize(3);
+    for (BL::MeshLoopTriangle &t : b_mesh.loop_triangles) {
+      const int poly_index = t.polygon_index();
+      const MPoly &b_poly = polys[poly_index];
 
-    for (b_mesh.loop_triangles.begin(t); t != b_mesh.loop_triangles.end(); ++t) {
-      BL::MeshPolygon p = b_mesh.polygons[t->polygon_index()];
-      int3 vi = get_int3(t->vertices());
+      int3 vi = get_int3(t.vertices());
       for (int i = 0; i < 3; ++i) {
         vi3[i] = vi[i];
       }
 
-      int shader = clamp(p.material_index(), 0, used_shaders.size() - 1);
-      bool smooth = p.use_smooth() || use_loop_normals;
+      int shader = get_material_index(poly_index);
+      bool smooth = (b_poly.flag & ME_SMOOTH) || use_loop_normals;
 
       if (use_loop_normals) {
-        BL::Array<float, 9> loop_normals = t->split_normals();
+        BL::Array<float, 9> loop_normals = t.split_normals();
         for (int i = 0; i < 3; i++) {
           if (use_octane_coordinate) {
             mesh->octane_mesh.oMeshData.f3Normals[vi[i]] = OctaneDataTransferObject::float_3(
@@ -529,18 +555,19 @@ static void create_mesh(Scene *scene,
     }
   }
   else {
-    BL::Mesh::polygons_iterator p;
+    const MLoop *loops = static_cast<const MLoop *>(b_mesh.loops[0].ptr.data);
     vector<int> vi;
 
-    for (b_mesh.polygons.begin(p); p != b_mesh.polygons.end(); ++p) {
-      int n = p->loop_total();
-      int shader = clamp(p->material_index(), 0, used_shaders.size() - 1);
-      bool smooth = p->use_smooth() || use_loop_normals;
+    for (int i = 0; i < numfaces; i++) {
+      const MPoly &b_poly = polys[i];
+      int n = b_poly.totloop;
+      int shader = get_material_index(i);
+      bool smooth = (b_poly.flag & ME_SMOOTH) || use_loop_normals;
 
       vi.resize(n);
       for (int i = 0; i < n; i++) {
         /* NOTE: Autosmooth is already taken care about. */
-        vi[i] = b_mesh.loops[p->loop_start() + i].vertex_index();
+        vi[i] = loops[b_poly.loopstart + i].v;
       }
 
       /* create subd faces */
@@ -1271,6 +1298,8 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
   if (octane_mesh->mesh_type == MeshType::AUTO || mesh_type >= octane_mesh->mesh_type) {
     octane_mesh->mesh_type = mesh_type;
   }
+  octane_mesh->use_octane_coordinate = RNA_enum_get(&oct_mesh, "primitive_coordinate_mode") ==
+                                       OBJECT_DATA_NODE_TARGET_COORDINATE_OCTANE;
 
   if (b_ob.type() == BL::Object::type_CURVE) {
     bool use_curve_as_octane_hair = RNA_boolean_get(&oct_mesh, "render_curve_as_octane_hair");

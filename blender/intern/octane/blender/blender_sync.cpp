@@ -386,18 +386,16 @@ SessionParams BlenderSync::get_session_params(
 
   params.fps = (float)b_scene.render().fps() / b_scene.render().fps_base();
 
-  bool hdr_tonemap_preview_enable = get_boolean(oct_scene, "hdr_tonemap_preview_enable");
-  bool hdr_tonemap_render_enable = get_boolean(oct_scene, "hdr_tonemap_render_enable");
-  params.hdr_tonemap_prefer = get_boolean(oct_scene, "prefer_tonemap");
+  bool use_preview_camera_imager = get_boolean(oct_scene, "use_preview_camera_imager");
+  bool use_render_camera_imager = get_boolean(oct_scene, "use_render_camera_imager");
+  params.prefer_image_type = static_cast<PreferImageType>(get_enum(oct_scene, "prefer_image_type"));
   params.render_priority = RNA_enum_get(&oct_scene, "priority_mode");
   params.resource_cache_type = RNA_enum_get(&oct_scene, "resource_cache_type");
-  bool use_preview_setting_for_camera_imager = get_boolean(
-                                                   oct_scene,
-                                                   "use_preview_setting_for_camera_imager") &&
-                                               hdr_tonemap_preview_enable;
-  params.hdr_tonemapped = !params.interactive &&
-                          (use_preview_setting_for_camera_imager ? hdr_tonemap_preview_enable :
-                                                                   hdr_tonemap_render_enable);
+  bool use_preview_setting_for_camera_imager =
+      get_boolean(oct_scene, "use_preview_setting_for_camera_imager") && use_preview_camera_imager;
+  params.enable_camera_imager = !params.interactive &&
+                          (use_preview_setting_for_camera_imager ? use_preview_camera_imager :
+                                                                   use_render_camera_imager);
   params.out_of_core_enabled = get_boolean(oct_scene, "out_of_core_enable");
   params.addon_dev_enabled = false;
   params.out_of_core_mem_limit = get_int(oct_scene, "out_of_core_limit");
@@ -602,7 +600,7 @@ void BlenderSync::sync_kernel()
             kernel->oct_node->fShutterTime = clamped_motion_blur_frame_offset;
             motion_blur_frame_offset = clamped_motion_blur_frame_offset;
           }
-          break;    
+          break;
         }
         case oct::BlenderSession::SYMMETRIC: {
           motion_blur_frame_offset = ceil((motion_blur_frame_offset * 1.0) / 2);
@@ -615,7 +613,7 @@ void BlenderSync::sync_kernel()
             motion_blur_frame_offset = clamped_motion_blur_frame_offset;
           }
           break;
-        } 
+        }
         default:
           break;
       }

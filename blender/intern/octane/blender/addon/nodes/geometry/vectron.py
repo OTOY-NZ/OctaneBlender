@@ -71,6 +71,10 @@ class OctaneVectron(bpy.types.Node, OctaneScriptNode):
         self.inputs.new("OctaneVectronSize", OctaneVectronSize.bl_label).init()
         self.outputs.new("OctaneGeometryOutSocket", "Geometry out").init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
+
 
 _CLASSES=[
     OctaneVectronMaterial1,

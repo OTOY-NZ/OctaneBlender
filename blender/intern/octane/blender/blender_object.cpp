@@ -744,6 +744,15 @@ void BlenderSync::sync_motion(BL::RenderSettings &b_render,
   int frame_center = b_scene.frame_current();
   float subframe_center = b_scene.frame_subframe();
 
+  if (scene && scene->camera) {
+    for (auto candidate_motion_time : scene->camera->motion_blur_times) {
+      if (candidate_motion_time >= motion_blur_frame_start_offset &&
+          candidate_motion_time <= motion_blur_frame_end_offset) {
+        motion_times.insert(candidate_motion_time);
+      }
+    }
+  }
+
   /* note iteration over motion_times set happens in sorted order */
   for (auto relative_time : motion_times) {
     /* center time is already handled. */

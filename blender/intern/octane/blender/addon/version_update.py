@@ -18,7 +18,7 @@
 
 # <pep8 compliant>
 
-OCTANE_BLENDER_VERSION = '27.12'
+OCTANE_BLENDER_VERSION = '27.16'
 OCTANE_VERSION = 12000102
 OCTANE_VERSION_STR = "2022.1.1"
 
@@ -122,6 +122,50 @@ def check_octane_output_settings(file_version):
     if check_update(file_version, '27.8'):
         if image_settings.octane_export_post_tag in ("$OCTANE_PASS$_###", "$OCTANE_PASS$_$VIEW_LAYER$.###", ""):
             image_settings.octane_export_post_tag = "$OCTANE_PASS$_$VIEW_LAYER$_###"
+    if check_update(file_version, "27.16"):
+        oct_scene = bpy.context.scene.octane
+        oct_scene.use_octane_export = rd.use_octane_export
+        oct_scene.octane_export_prefix_tag = image_settings.octane_export_tag
+        oct_scene.octane_export_postfix_tag = image_settings.octane_export_post_tag
+        if image_settings.octane_save_mode == "SEPARATE_IMAGE_FILES":
+            oct_scene.octane_export_mode = "SEPARATE_IMAGE_FILES"
+            if image_settings.octane_image_save_format == "OCT_IMAGE_SAVE_FORMAT_PNG_8":
+                oct_scene.octane_export_file_type = "PNG"
+                oct_scene.octane_png_bit_depth = "8_BIT"
+            elif image_settings.octane_image_save_format == "OCT_IMAGE_SAVE_FORMAT_PNG_16":
+                oct_scene.octane_export_file_type = "PNG"
+                oct_scene.octane_png_bit_depth = "16_BIT"
+            elif image_settings.octane_image_save_format == "OCT_IMAGE_SAVE_FORMAT_EXR_16":
+                oct_scene.octane_export_file_type = "EXR"
+                oct_scene.octane_exr_bit_depth = "16_BIT"
+            elif image_settings.octane_image_save_format == "OCT_IMAGE_SAVE_FORMAT_EXR_32":
+                oct_scene.octane_export_file_type = "EXR"
+                oct_scene.octane_exr_bit_depth = "32_BIT"                
+        elif image_settings.octane_save_mode in ("MULTILAYER_EXR", "DEEP_EXR"):
+            octane_export_mode = image_settings.octane_save_mode
+            if octane_export_mode == "DEEP_EXR":
+                from octane.utils import utility
+                if not utility.is_deep_image_enabled(bpy.context.scene):
+                    octane_export_mode == "MULTILAYER_EXR"
+                oct_scene.octane_export_mode = octane_export_mode
+            if image_settings.octane_image_save_format == "OCT_IMAGE_SAVE_FORMAT_EXR_16":
+                oct_scene.octane_export_file_type = "EXR"
+                oct_scene.octane_exr_bit_depth = "16_BIT"
+            elif image_settings.octane_image_save_format == "OCT_IMAGE_SAVE_FORMAT_EXR_32":
+                oct_scene.octane_export_file_type = "EXR"
+                oct_scene.octane_exr_bit_depth = "32_BIT"
+            else:
+                oct_scene.octane_export_file_type = "EXR"
+                oct_scene.octane_exr_bit_depth = "16_BIT"
+        try:
+            oct_scene.octane_exr_compression_mode = image_settings.octane_exr_compression_type
+        except:
+            oct_scene.octane_exr_compression_mode = "ZIP_LOSSLESS"
+        try:
+            oct_scene.octane_deep_exr_compression_mode = image_settings.octane_exr_compression_type
+        except:
+            oct_scene.octane_deep_exr_compression_mode = "ZIPS_LOSSLESS"
+
 
 def check_compatible_render_settings():
     for scene in bpy.data.scenes:
@@ -225,6 +269,7 @@ def node_output_socket_update(node_tree, node, previous_name, current_name):
 def check_compatibility_camera_imagers(file_version):
     check_compatibility_camera_imagers_15_2_4(file_version)
     check_compatibility_camera_imagers_25_0(file_version)
+    check_compatibility_camera_imagers_27_16(file_version)
 
 
 def check_compatibility_camera_imagers_15_2_4(file_version):
@@ -245,6 +290,15 @@ def check_compatibility_camera_imagers_25_0(file_version):
     for camera in bpy.data.cameras:
         if getattr(camera, "octane", None) is not None:
             camera.octane.imager.update_legacy_data(bpy.context, camera.octane)
+
+
+def check_compatibility_camera_imagers_27_16(file_version):
+    UPDATE_VERSION = '27.16'
+    if not check_update(file_version, UPDATE_VERSION):
+        return
+    if bpy.context.scene.octane:
+        bpy.context.scene.octane.use_preview_camera_imager = getattr(bpy.context.scene.octane, "hdr_tonemap_preview_enable", False)
+        bpy.context.scene.octane.use_render_camera_imager  = getattr(bpy.context.scene.octane, "hdr_tonemap_render_enable", False)
 
 
 # post processing

@@ -71,6 +71,10 @@ class OctaneXYZToUVW(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneXYZToUVWPositionType", OctaneXYZToUVWPositionType.bl_label).init()
         self.outputs.new("OctaneProjectionOutSocket", "Projection out").init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
+
 
 _CLASSES=[
     OctaneXYZToUVWTransform,

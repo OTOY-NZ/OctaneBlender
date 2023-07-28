@@ -155,6 +155,10 @@ class OctaneSheenLayer(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneSheenLayerOpacity", OctaneSheenLayerOpacity.bl_label).init()
         self.outputs.new("OctaneMaterialLayerOutSocket", "Material layer out").init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
+
 
 _CLASSES=[
     OctaneSheenLayerSheen,

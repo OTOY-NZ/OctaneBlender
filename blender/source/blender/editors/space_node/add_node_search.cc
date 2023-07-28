@@ -170,6 +170,15 @@ static void gather_add_node_operations(const bContext &C,
       continue;
     }
 
+    if (node_type->type >= SH_NODE_OCT_AOV_OUTPUT_GROUP &&
+        node_type->type <= SH_NODE_OCT_LIGHT_MIXING_AOV_OUTPUT) {
+      continue;
+    }
+
+    if (node_type->nclass >= NODE_CLASS_OCT_START && node_type->nclass <= NODE_CLASS_OCT_END) {
+      continue;
+    }
+
     AddNodeItem item{};
     item.ui_name = IFACE_(node_type->ui_name);
     item.identifier = node_type->idname;

@@ -153,6 +153,12 @@ def convert_octane_color_to_rgba(color):
 def get_preferences():
     return bpy.context.preferences.addons[consts.ADDON_NAME].preferences
 
+def get_addon_folder():
+    import sys
+    mod = sys.modules[consts.ADDON_NAME]
+    addon_folder = mod.__path__[0]
+    return addon_folder
+
 def get_default_material_node_bl_idname():
     preferences = get_preferences()
     default_material_id = int(preferences.default_material_id)
@@ -484,7 +490,7 @@ def get_octane_name_for_root_node(output_node, input_name=None, owner_id=None):
     node_type = getattr(output_node, "type", None)
     if node_type in ("OUTPUT_MATERIAL", "OUTPUT_TEXTURE", "OUTPUT_LIGHT"):
         return owner_id.name if owner_id else ""
-    elif node_type == "OUTPUT_WORLD":
+    elif node_type == "OUTPUT_WORLD" or output_node.bl_idname == "OctaneEditorWorldOutputNode":
         world_name = owner_id.name if owner_id else ""
         if input_name:
             world_name = world_name + "_" + input_name
@@ -552,9 +558,9 @@ def find_active_imager_data(scene, context=None):
 def is_active_imager_enabled(scene, context=None):
     camera, name = find_active_imager_data(scene, context)
     if name == "VIEW_3D":
-        return scene.octane.hdr_tonemap_preview_enable
+        return scene.octane.use_preview_camera_imager
     else:
-        return scene.octane.hdr_tonemap_render_enable
+        return scene.octane.use_render_camera_imager
 
 def get_split_panel_ui_layout(layout):
     # Simulate the use_property_split feature
@@ -782,9 +788,9 @@ def beautifier_nodetree_layout(id_data):
 def is_viewport_rendering():
     for window in bpy.context.window_manager.windows:
         for area in window.screen.areas:
-            if area.type == 'VIEW_3D':
+            if area.type == "VIEW_3D":
                 for space in area.spaces:
-                    if space.type == 'VIEW_3D' and space.shading.type == 'RENDERED':
+                    if space.type == "VIEW_3D" and space.shading.type in ("RENDERED", "MATERIAL"):
                         return True
     return False
 
@@ -792,9 +798,9 @@ def is_multiple_viewport_rendering():
     count = 0
     for window in bpy.context.window_manager.windows:
         for area in window.screen.areas:
-            if area.type == 'VIEW_3D':
+            if area.type == "VIEW_3D":
                 for space in area.spaces:
-                    if space.type == 'VIEW_3D' and space.shading.type == 'RENDERED':
+                    if space.type == "VIEW_3D" and space.shading.type in ("RENDERED", "MATERIAL"):
                         count += 1
     return count > 1
 
@@ -804,6 +810,20 @@ def scene_max_aov_output_count(view_layer):
     if node_tree is None:
         return 0
     return node_tree.max_aov_output_count
+
+def is_deep_image_enabled(scene):
+    octane_scene = scene.octane
+    if octane_scene.kernel_data_mode == "PROPERTY_PANEL":
+        return octane_scene.deep_image
+    else:
+        kernel_node_tree = find_active_kernel_node_tree(scene)
+        if kernel_node_tree is not None:
+            output_node = find_active_output_node(kernel_node_tree, consts.OctaneNodeTreeIDName.KERNEL)
+            if output_node is not None and output_node.inputs[0].is_linked:
+                kernel_node = output_node.inputs[0].links[0].from_node
+                if "Deep image" in kernel_node.inputs:
+                    return kernel_node.inputs["Deep image"].default_value
+    return False
 
 def render_resolution_x(scene):
   return int(scene.render.resolution_x * scene.render.resolution_percentage / 100.0)
@@ -925,9 +945,9 @@ def add_render_passes(engine, scene, current_layer=None):
     oct_active_cam = scene.camera.data.octane
     enable_denoiser = False
     if oct_scene.use_preview_setting_for_camera_imager:
-        enable_denoiser = oct_view_cam.imager.denoiser and oct_scene.hdr_tonemap_preview_enable
+        enable_denoiser = oct_view_cam.imager.denoiser and oct_scene.use_preview_camera_imager
     else:
-        enable_denoiser = oct_active_cam.imager.denoiser and oct_scene.hdr_tonemap_render_enable
+        enable_denoiser = oct_active_cam.imager.denoiser and oct_scene.use_render_camera_imager
     if current_layer is None:
         for layer in scene.view_layers:
             if layer.use:                
@@ -948,8 +968,8 @@ def resolve_object_mesh_type(_object):
             object_mesh_type = "Reshapable proxy"
     return object_mesh_type
 
-def is_reshapable_proxy(_object):
-    return resolve_object_mesh_type(_object) == "Reshapable proxy"
+def is_reshapable_proxy(_object):    
+    return _object.type == "META" or resolve_object_mesh_type(_object) == "Reshapable proxy"
 
 # Math
 
@@ -1020,38 +1040,34 @@ COLLECTION_TAG = "[Collection]"
 SCATTER_TAG = "[Scatter]"
 OBJECTLAYER_TAG = "[ObjLayer]"
 OBJECTLAYER_MAP_TAG = "[ObjLM]"
+MATERIAL_MAP_TAG = "[MatMap]"
 SEPERATOR = "."
 
-def resolve_octane_name(obj, modifier_tag, type_tag):    
-    if obj.library is not None:
-        lib_prefix = obj.library.name + SEPERATOR
+def resolve_octane_name(id_data, modifier_tag, type_tag):    
+    if id_data.library is not None:
+        lib_prefix = id_data.library.name + SEPERATOR
     else:
         lib_prefix = ""
     if len(modifier_tag):
         modifier_tag += SEPERATOR
-    obj_name_full = obj.name_full
-    return lib_prefix + modifier_tag + obj_name_full + type_tag
+    id_data_name_full = id_data.name_full
+    return lib_prefix + modifier_tag + id_data_name_full + type_tag
 
-def resolve_octane_generic_geometry_name(obj, scene, is_viewport):
-    obj_name_full = obj.name_full
-    is_modified = obj.is_modified(scene, "PREVIEW" if is_viewport else "RENDER")
-    # modifier_tag = obj_name_full if is_modified else ""
-    modifier_tag = obj.data.name_full if is_modified else ""
-    return resolve_octane_name(obj, modifier_tag, GEOMETRY_TAG)
+def resolve_octane_generic_geometry_name(ob, scene, is_viewport):
+    is_modified = ob.is_modified(scene, "PREVIEW" if is_viewport else "RENDER")
+    modifier_tag = ob.name_full if is_modified else ""
+    return resolve_octane_name(ob.data, modifier_tag, GEOMETRY_TAG)
 
-def resolve_octane_geometry_name(obj, scene, is_viewport):
-    generic_geometry_name = resolve_octane_generic_geometry_name(obj, scene, is_viewport)
-    if obj.type == "MESH":
+def resolve_octane_geometry_name(ob, scene, is_viewport):
+    generic_geometry_name = resolve_octane_generic_geometry_name(ob, scene, is_viewport)
+    if ob.type == "MESH":
         return generic_geometry_name + MESH_TAG
-    elif obj.type == "LIGHT":
+    elif ob.type == "LIGHT":
         return generic_geometry_name + LIGHT_TAG
     return generic_geometry_name
 
-def resolve_octane_object_name(obj, scene, is_viewport):
-    obj_name_full = obj.name_full
-    # is_modified = obj.is_modified(scene, "PREVIEW" if is_viewport else "RENDER")
-    # modifier_tag = obj_name_full if is_modified else ""
-    return resolve_octane_name(obj, "", OBJECT_TAG)
+def resolve_octane_object_name(ob, scene, is_viewport):
+    return resolve_octane_name(ob, "", OBJECT_TAG)
 
 def resolve_octane_scatter_name(instance_object, scene, is_viewport):    
     parent_name = getattr(instance_object.parent, "name", None)
@@ -1060,17 +1076,21 @@ def resolve_octane_scatter_name(instance_object, scene, is_viewport):
         object_name = object_name + "[%s]" % parent_name
     return object_name + SCATTER_TAG
 
-def resolve_octane_objectlayer_name(obj, scene, is_viewport):
-    object_name = resolve_octane_object_name(obj, scene, is_viewport)
+def resolve_octane_objectlayer_name(ob, scene, is_viewport):
+    object_name = resolve_octane_object_name(ob, scene, is_viewport)
     return object_name + OBJECTLAYER_TAG
 
-def resolve_octane_objectlayer_map_name(obj, scene, is_viewport):
-    object_name = resolve_octane_object_name(obj, scene, is_viewport)
-    return object_name + OBJECTLAYER_MAP_TAG    
+def resolve_octane_objectlayer_map_name(ob, scene, is_viewport):
+    object_name = resolve_octane_object_name(ob, scene, is_viewport)
+    return object_name + OBJECTLAYER_MAP_TAG
 
-def resolve_octane_vectron_name(obj):
-    if obj and obj.type == "MESH":
-        octane_data = obj.data.octane.octane_geo_node_collections
+def resolve_octane_material_map_name(ob, scene, is_viewport):
+    object_name = resolve_octane_object_name(ob, scene, is_viewport)
+    return object_name + MATERIAL_MAP_TAG
+
+def resolve_octane_vectron_name(ob):
+    if ob and ob.type == "MESH":
+        octane_data = ob.data.octane.octane_geo_node_collections
         if len(octane_data.node_graph_tree) and len(octane_data.osl_geo_node):
             return octane_data.node_graph_tree + octane_data.osl_geo_node
     return ""

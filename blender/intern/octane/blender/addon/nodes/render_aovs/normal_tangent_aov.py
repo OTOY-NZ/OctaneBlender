@@ -49,6 +49,10 @@ class OctaneNormalTangentAOV(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneNormalTangentAOVEnabled", OctaneNormalTangentAOVEnabled.bl_label).init()
         self.outputs.new("OctaneRenderAOVOutSocket", "Render AOV out").init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
+
 
 _CLASSES=[
     OctaneNormalTangentAOVEnabled,
@@ -101,6 +105,10 @@ class OctaneTangentNormalAOV(bpy.types.Node, OctaneBaseNode):
     def init(self, context):
         self.inputs.new("OctaneTangentNormalAOVEnabled", OctaneTangentNormalAOVEnabled.bl_label).init()
         self.outputs.new("OctaneRenderAOVOutSocket", "Render AOVs out").init()
+
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
 
 _LEGACY_CLASSES=[
     OctaneTangentNormalAOVEnabled,

@@ -91,6 +91,10 @@ class OctaneOperatorBooleanLogicOperator(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneOperatorBooleanLogicOperatorOperationType", OctaneOperatorBooleanLogicOperatorOperationType.bl_label).init()
         self.outputs.new("OctaneBoolOutSocket", "Bool out").init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
+
 
 _CLASSES=[
     OctaneOperatorBooleanLogicOperatorInput1,

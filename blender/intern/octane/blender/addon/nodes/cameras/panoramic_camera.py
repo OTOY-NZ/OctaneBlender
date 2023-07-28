@@ -557,6 +557,10 @@ class OctanePanoramicCamera(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctanePanoramicCameraRightFilter", OctanePanoramicCameraRightFilter.bl_label).init()
         self.outputs.new("OctaneCameraOutSocket", "Camera out").init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
+
 
 _CLASSES=[
     OctanePanoramicCameraCameramode,

@@ -49,6 +49,10 @@ class OctaneNormalSmoothAOV(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneNormalSmoothAOVEnabled", OctaneNormalSmoothAOVEnabled.bl_label).init()
         self.outputs.new("OctaneRenderAOVOutSocket", "Render AOV out").init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
+
 
 _CLASSES=[
     OctaneNormalSmoothAOVEnabled,
@@ -102,7 +106,10 @@ class OctaneSmoothNormalAOV(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneSmoothNormalAOVEnabled", OctaneSmoothNormalAOVEnabled.bl_label).init()
         self.outputs.new("OctaneRenderAOVOutSocket", "Render AOVs out").init()
 
-
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
+        
 _LEGACY_CLASSES=[
     OctaneSmoothNormalAOVEnabled,
     OctaneSmoothNormalAOV,

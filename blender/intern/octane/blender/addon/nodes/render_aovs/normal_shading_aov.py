@@ -67,6 +67,10 @@ class OctaneNormalShadingAOV(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneNormalShadingAOVBump", OctaneNormalShadingAOVBump.bl_label).init()
         self.outputs.new("OctaneRenderAOVOutSocket", "Render AOV out").init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
+
 
 _CLASSES=[
     OctaneNormalShadingAOVEnabled,
@@ -137,6 +141,9 @@ class OctaneShadingNormalAOV(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneShadingNormalAOVBump", OctaneShadingNormalAOVBump.bl_label).init()
         self.outputs.new("OctaneRenderAOVOutSocket", "Render AOVs out").init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
 
 _LEGACY_CLASSES=[
     OctaneShadingNormalAOVEnabled,

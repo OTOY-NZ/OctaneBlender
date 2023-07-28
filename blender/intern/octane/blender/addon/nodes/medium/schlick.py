@@ -49,6 +49,10 @@ class OctaneSchlick(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneSchlickScatteringDirection", OctaneSchlickScatteringDirection.bl_label).init()
         self.outputs.new("OctanePhaseFunctionOutSocket", "Phase function out").init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
+
 
 _CLASSES=[
     OctaneSchlickScatteringDirection,

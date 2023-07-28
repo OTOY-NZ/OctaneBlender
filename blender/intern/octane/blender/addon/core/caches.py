@@ -9,6 +9,7 @@ from octane.nodes.base_node import OctaneBaseNode
 class NodeTreeAttributes(object):
     def __init__(self):
         self.auto_refresh = consts.AutoRereshStrategy.DISABLE
+        self.use_vertex_displacement = False
         self.image_names = []
         self.object_names = []
 
@@ -18,7 +19,10 @@ class BaseDataCache(object):
         self.session = session        
         self.type_name = ""
         self.type_class = None
-        self.type_collection_name = ""        
+        self.type_collection_name = ""
+        # Sometimes Blender's id_type_updated cannot return the correct result even if the corresponding data block is changed(e.g. OBJECT)
+        # So we need an extra tag here
+        self.force_check = False
         self.last_update_frame = 0
         self.cached_data = {}
         self.changed_data_names = set()
@@ -79,11 +83,10 @@ class BaseDataCache(object):
         pass
 
     def diff(self, depsgraph, scene, view_layer, context=None):
-        self.changed_data_names.clear()
         if self.need_update_all or self.session.session_type == consts.SessionType.EXPORT:
             self.add_all(depsgraph)
         else:
-            if depsgraph.id_type_updated(self.type_name):
+            if depsgraph.id_type_updated(self.type_name) or self.force_check:
                 for dg_update in depsgraph.updates:
                     if isinstance(dg_update.id, self.type_class):
                         self.changed_data_names.add(dg_update.id.name)
@@ -98,6 +101,7 @@ class BaseDataCache(object):
             self.dependency_diff(depsgraph, scene, view_layer, context)
             self.custom_diff(depsgraph, scene, view_layer, context)
         self.last_update_frame = scene.frame_current
+        self.need_update |= (len(self.changed_data_names) > 0)
         return self.need_update
 
     def create_octane_node(self, name, node_type=None):
@@ -107,8 +111,15 @@ class BaseDataCache(object):
         return octane_node
 
     def update(self, depsgraph, scene, view_layer, context=None):
-        pass
+        self.custom_update(depsgraph, scene, view_layer, context)
+        self.post_update()
 
+    def post_update(self):
+        self.changed_data_names.clear()
+        self.need_update = False        
+
+    def custom_update(self, depsgraph, scene, view_layer, context=None):
+        pass
 
 class OctaneNodeCache(BaseDataCache):
 
@@ -156,7 +167,8 @@ class OctaneRenderTargetCache(BaseDataCache):
     def diff(self, depsgraph, scene, view_layer, context=None):
         return self.rendertarget_node.need_update
 
-    def update(self, depsgraph, scene, view_layer, context=None):        
+    def custom_update(self, depsgraph, scene, view_layer, context=None):
+        super().custom_update(depsgraph, scene, view_layer, context)
         if self.rendertarget_node.need_update:
             self.rendertarget_node.update_to_engine(True)
 
@@ -196,6 +208,11 @@ class ImageCache(BaseDataCache):
 
 
 class NodeTreeCache(OctaneNodeCache):
+    def __init__(self, session):
+        super().__init__(session)
+        self.is_node_tree_octane_name_changed = False
+        self.node_tree_to_octane_name_map = {}
+        self.is_node_tree_with_vertex_displacement_node = {}
 
     def _dependency_diff(self, depsgraph, cache_depend_on):
         if cache_depend_on and len(cache_depend_on.changed_data_names):
@@ -274,6 +291,8 @@ class NodeTreeCache(OctaneNodeCache):
                         target_object_name = octane_graph_node.node.get_target_object_name()
                         if target_object_name != "":
                             node_tree_attributes.object_names.append(target_object_name)
+                    if octane_graph_node.node.bl_idname == "OctaneVertexDisplacement":
+                        node_tree_attributes.use_vertex_displacement = True
         # update node to the server
         is_updated = False
         # at first, build all OctaneProxy nodes
@@ -306,26 +325,32 @@ class NodeTreeCache(OctaneNodeCache):
                     continue
                 root_node = _input.links[0].from_node if len(_input.links) else None
                 root_name = utility.get_octane_name_for_root_node(active_output_node, _input.name, owner_id)
-                self.session.rendertarget_cache.update_links(owner_type, _input.name, root_node, root_name)
+                if owner_type == consts.OctaneNodeTreeIDName.MATERIAL:
+                    pass
+                else:
+                    self.session.rendertarget_cache.update_links(owner_type, _input.name, root_node, root_name)
                 if not root_node:
-                    continue                
-                is_updated = self._update_node_tree(depsgraph, view_layer, node_tree, owner_id, owner_type, active_output_node, _input.name, root_name, node_tree_attributes)
+                    continue
+                if owner_type == consts.OctaneNodeTreeIDName.MATERIAL and root_node is not None:                    
+                    final_root_name = root_name + "[%d]" % getattr(root_node, "octane_node_type", 0)
+                else:
+                    final_root_name = root_name
+                node_tree_addr = node_tree.original.as_pointer()
+                if self.node_tree_to_octane_name_map.get(node_tree_addr, None) != final_root_name:
+                    self.is_node_tree_octane_name_changed = True
+                self.node_tree_to_octane_name_map[node_tree_addr] = final_root_name
+                is_updated = self._update_node_tree(depsgraph, view_layer, node_tree, owner_id, owner_type, active_output_node, _input.name, final_root_name, node_tree_attributes)
 
-    def update(self, depsgraph, scene, view_layer, context=None):
+    def custom_update(self, depsgraph, scene, view_layer, context=None):
+        super().custom_update(depsgraph, scene, view_layer, context)
         from octane.core.object_cache import ObjectCache
-        self.custom_update(depsgraph, scene, view_layer, context)
+        self.is_node_tree_octane_name_changed = False
         for name in self.changed_data_names:
             if len(name) == 0:
                 continue
-            _id = None
-            for depsgraph_id in depsgraph.ids:
-                if depsgraph_id.name == name and isinstance(depsgraph_id.original, self.type_class):
-                    _id = depsgraph_id
-                    break
-            if _id is None:
-                _id = getattr(bpy.data, self.type_collection_name).get(name, None)
-                if _id is not None:
-                    _id = _id.evaluated_get(depsgraph)
+            _id = getattr(bpy.data, self.type_collection_name).get(name, None)
+            if _id is not None:
+                _id = _id.evaluated_get(depsgraph)
             if self.use_node_tree(scene, view_layer, _id):
                 data_name = _id.name
                 node_tree_attributes = NodeTreeAttributes()
@@ -340,6 +365,8 @@ class NodeTreeCache(OctaneNodeCache):
                 self.data_to_dependent[ImageCache.TYPE_NAME][data_name] = set(node_tree_attributes.image_names)
                 # Update object attribute
                 self.data_to_dependent[ObjectCache.TYPE_NAME][data_name] = set(node_tree_attributes.object_names)
+                # Update Vertex Displcement Map
+                self.is_node_tree_with_vertex_displacement_node[data_name] = node_tree_attributes.use_vertex_displacement
         # Update image attribute
         self.dependent_to_data[ImageCache.TYPE_NAME].clear()
         for data_name, dependent_set in self.data_to_dependent[ImageCache.TYPE_NAME].items():
@@ -350,11 +377,8 @@ class NodeTreeCache(OctaneNodeCache):
         for data_name, dependent_set in self.data_to_dependent[ObjectCache.TYPE_NAME].items():
             for dependent_name in dependent_set:
                 self.dependent_to_data[ObjectCache.TYPE_NAME][dependent_name].add(data_name)
-        self.changed_data_names.clear()
-        self.need_update = False
-
-    def custom_update(self, depsgraph, scene, view_layer, context=None):
-        pass
+        if self.is_node_tree_octane_name_changed:
+            self.session.object_cache.update_object_to_material_configurations(depsgraph)
 
 
 class MaterialCache(NodeTreeCache):
@@ -392,6 +416,7 @@ class WorldCache(NodeTreeCache):
         return super().use_node_tree(scene, view_layer, _id) and getattr(scene.world, "name", "") == getattr(_id, "name", "")
 
     def custom_diff(self, depsgraph, scene, view_layer, context=None):
+        super().custom_diff(depsgraph, scene, view_layer, context)
         current_name = getattr(scene.world, "name", "")
         if current_name != self.last_name:
             self.last_name = current_name
@@ -402,6 +427,7 @@ class WorldCache(NodeTreeCache):
             self.changed_data_names.add(current_name)
 
     def custom_update(self, depsgraph, scene, view_layer, context=None):
+        super().custom_update(depsgraph, scene, view_layer, context)
         if scene.world is None:
             self.session.rendertarget_cache.update_links(consts.OctaneNodeTreeIDName.WORLD, consts.OctaneOutputNodeSocketNames.ENVIRONMENT, None, "")
             self.session.rendertarget_cache.update_links(consts.OctaneNodeTreeIDName.WORLD, consts.OctaneOutputNodeSocketNames.VISIBLE_ENVIRONMENT, None, "")
@@ -420,6 +446,7 @@ class WorldCache(NodeTreeCache):
             self.last_links_set = links_set
             is_changed = True
         return is_changed
+
 
 class CompositeCache(NodeTreeCache):
     TYPE_NAME = "NODETREE"
@@ -445,6 +472,7 @@ class CompositeCache(NodeTreeCache):
         return None
 
     def custom_diff(self, depsgraph, scene, view_layer, context=None):
+        super().custom_diff(depsgraph, scene, view_layer, context)
         current_name = getattr(self.find_active_composite_node_tree(view_layer), "name", "")
         if depsgraph.id_type_updated(self.type_name) or current_name != self.last_name:            
             self.changed_data_names.add(current_name)
@@ -452,6 +480,7 @@ class CompositeCache(NodeTreeCache):
         self.last_name = current_name
 
     def custom_update(self, depsgraph, scene, view_layer, context=None):
+        super().custom_update(depsgraph, scene, view_layer, context)
         if self.find_active_composite_node_tree(view_layer) is None:
             self.session.rendertarget_cache.update_links(consts.OctaneNodeTreeIDName.COMPOSITE, consts.OctaneOutputNodeSocketNames.COMPOSITE, None, "")
 
@@ -492,6 +521,7 @@ class RenderAOVCache(NodeTreeCache):
         return node_tree.get_enabled_render_pass_ids(view_layer)
 
     def custom_diff(self, depsgraph, scene, view_layer, context=None):
+        super().custom_diff(depsgraph, scene, view_layer, context)
         current_name = getattr(self.find_active_render_aov_node_tree(view_layer), "name", "")
         if depsgraph.id_type_updated(self.type_name) or current_name != self.last_name:            
             self.changed_data_names.add(current_name)
@@ -499,6 +529,7 @@ class RenderAOVCache(NodeTreeCache):
         self.last_name = current_name
 
     def custom_update(self, depsgraph, scene, view_layer, context=None):
+        super().custom_update(depsgraph, scene, view_layer, context)
         if self.find_active_render_aov_node_tree(view_layer) is None:
             self.session.rendertarget_cache.update_links(consts.OctaneNodeTreeIDName.RENDER_AOV, consts.OctaneOutputNodeSocketNames.RENDER_AOV, None, "")            
 
@@ -527,6 +558,7 @@ class KernelCache(NodeTreeCache):
         return None
 
     def custom_diff(self, depsgraph, scene, view_layer, context=None):
+        super().custom_diff(depsgraph, scene, view_layer, context)
         current_name = getattr(self.find_active_kernel_node_tree(scene), "name", "")
         if depsgraph.id_type_updated(self.type_name) or current_name != self.last_name:            
             self.changed_data_names.add(current_name)
@@ -534,6 +566,7 @@ class KernelCache(NodeTreeCache):
         self.last_name = current_name
 
     def custom_update(self, depsgraph, scene, view_layer, context=None):
+        super().custom_update(depsgraph, scene, view_layer, context)
         if self.find_active_kernel_node_tree(scene) is None:
             self.session.rendertarget_cache.update_links(consts.OctaneNodeTreeIDName.KERNEL, consts.OctaneOutputNodeSocketNames.KERNEL, None, "")
 
@@ -585,14 +618,13 @@ class SceneCache(BaseDataCache):
                 self.need_update = True            
         return self.need_update
 
-    def update(self, depsgraph, scene, view_layer, context=None):
+    def custom_update(self, depsgraph, scene, view_layer, context=None):
         if self.need_update:
             self.update_post_processing(depsgraph, scene, view_layer, context)
             self.update_imager(depsgraph, scene, view_layer, context)
             self.update_animation_settings(depsgraph, scene, view_layer, context)
             self.update_render_layer(depsgraph, scene, view_layer, context)
             self.update_render_settings(depsgraph, scene, view_layer, context)
-        self.need_update = False
 
     def update_camera(self, depsgraph, scene, view_layer, context=None):        
         camera_data, camera_name = utility.find_active_camera_data(scene, context)

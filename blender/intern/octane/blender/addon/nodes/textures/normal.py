@@ -96,6 +96,10 @@ class OctaneNormal(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneNormalNormalize", OctaneNormalNormalize.bl_label).init()
         self.outputs.new("OctaneTextureOutSocket", "Texture out").init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
+
 
 _CLASSES=[
     OctaneNormalNormalType,

@@ -597,6 +597,10 @@ set(ORBX_LIBRARY
 	addon/libraries/orbx/CameraData.orbx
 )
 
+set(ASSETS
+	addon/assets/startup.blend
+)
+
 add_definitions(${GL_DEFINITIONS} ${BOOST_DEFINITIONS})
 
 if(WIN32)
@@ -623,6 +627,7 @@ delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_UI_FILES}" ${OCTANE_INSTALL
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_PROPERTY_FILES}" ${OCTANE_INSTALL_PATH}/properties_)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${OBJECT_LIBRARY}" ${OCTANE_INSTALL_PATH}/libraries/objects)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ORBX_LIBRARY}" ${OCTANE_INSTALL_PATH}/libraries/orbx)
+delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ASSETS}" ${OCTANE_INSTALL_PATH}/assets)
 
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_NODES_CAMERAS_FILES}" ${OCTANE_INSTALL_PATH}/nodes/cameras)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_NODES_COMPOSITOR_FILES}" ${OCTANE_INSTALL_PATH}/nodes/compositor)

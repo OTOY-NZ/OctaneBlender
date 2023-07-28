@@ -59,6 +59,10 @@ class OctaneCustomLUT(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneCustomLUTStrength", OctaneCustomLUTStrength.bl_label).init()
         self.outputs.new("OctaneLUTOutSocket", "LUT out").init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
+
 
 _CLASSES=[
     OctaneCustomLUTStrength,

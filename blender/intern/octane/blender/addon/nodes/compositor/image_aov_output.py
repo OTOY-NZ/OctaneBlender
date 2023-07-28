@@ -150,6 +150,10 @@ class OctaneImageAOVOutput(bpy.types.Node, OctaneBaseImageNode):
         self.inputs.new("OctaneImageAOVOutputPremultipliedAlpha", OctaneImageAOVOutputPremultipliedAlpha.bl_label).init()
         self.outputs.new("OctaneAOVOutputOutSocket", "Output AOV out").init()
 
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
+
 
 _CLASSES=[
     OctaneImageAOVOutputColorSpace,

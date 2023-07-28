@@ -1,11 +1,11 @@
 import bpy
+import math
 import numpy as np
 import xml.etree.ElementTree as ET
 from collections import defaultdict
 from array import array
 from octane.utils import consts, utility
 from octane.utils import curve as curve_utils
-from octane.core.client import OctaneBlender
 from octane.core.resource_cache import ResourceCache
 from octane.core.caches import OctaneNodeCache
 from octane.core.octane_info import OctaneInfoManger
@@ -34,14 +34,13 @@ class ObjectCache(OctaneNodeCache):
         self.type_name = self.TYPE_NAME
         self.type_class = bpy.types.Object
         self.type_collection_name = "objects"
-        self.object_name_to_material_data_map = {}
-        self.changed_particle_object_names = set()
-        self.changed_material_slot_object_names = set()
+        self.force_check = True
         self.changed_mesh_names = set()
         self.object_instance_num = 0
+        # Material tags for objects
+        self.object_name_to_material_data_map = {}
+        # Blender object instances' persistent ids => Octane scatter ids
         self.persistent_id_to_octane_scatter_id_map = defaultdict(dict)
-        # Material's node tree id to Material's name(used for renaming cases)
-        self.node_tree_to_material_name_map = {}
         # Blender object name => Octane scatter node name
         self.synced_object_name_map = {}
         self.synced_mesh_names = set()
@@ -63,8 +62,15 @@ class ObjectCache(OctaneNodeCache):
         return self.persistent_id_to_octane_scatter_id_map[object_name][persistent_id_str_key]
 
     def resolve_object_material_data_tag(self, _object):
-        if _object.type != "EMPTY" and len(_object.material_slots) > 0:
-            return ",".join([mat_slot.name for mat_slot in _object.material_slots])
+        if _object.material_slots and len(_object.material_slots) > 0:
+            material_names = []
+            for mat_slot in _object.material_slots:
+                mat = mat_slot.material
+                if mat is not None and mat.use_nodes:
+                    node_tree_addr = mat.node_tree.original.as_pointer()
+                    mat_name = self.session.material_cache.node_tree_to_octane_name_map.get(node_tree_addr, mat.name)
+                    material_names.append(mat_name)
+            return ";".join(material_names)
         return ""
 
     def resolve_octane_id(self, name, node_type, prefix=""):
@@ -85,7 +91,7 @@ class ObjectCache(OctaneNodeCache):
             octane_node.is_newly_created = True
         return octane_node
 
-    def update_geometry_data(self, depsgraph, _object, object_eval, mesh, octane_node, motion_time_offset=0):
+    def update_geometry_data(self, depsgraph, _object, object_eval, mesh, octane_node, need_subdivision=False, motion_time_offset=0):
         mesh_data = _object.data
         octane_data = mesh_data.octane
         use_octane_coordinate = utility.use_octane_coordinate(_object)
@@ -107,6 +113,10 @@ class ObjectCache(OctaneNodeCache):
             polygons_addr = mesh.polygons[0].as_pointer() if polygons_num > 0 else 0
             winding_order = int(octane_data.winding_order)
             used_shaders_num = max(1, len(object_eval.data.materials))
+            if "material_index" in mesh.attributes:
+                material_indices = list([i.value for i in mesh.attributes["material_index"].data])
+            else:
+                material_indices = [0] * polygons_num
             # UV Data
             uv_data = []
             active_uv_layer_index = -1
@@ -120,7 +130,9 @@ class ObjectCache(OctaneNodeCache):
                 loop_triangles_addr, loop_triangles_num,
                 loops_addr, loops_num,
                 polygons_addr, polygons_num,
-                use_octane_coordinate, False, False, winding_order, used_shaders_num, active_uv_layer_index, uv_data)
+                material_indices,
+                mesh.auto_smooth_angle / math.pi * 180.0,
+                use_octane_coordinate, False, need_subdivision, winding_order, used_shaders_num, active_uv_layer_index, uv_data)
         else:
             octane_node.node.set_mesh_motion_attribute(vertices_addr, vertices_num, motion_time_offset, use_octane_coordinate)
 
@@ -247,9 +259,17 @@ class ObjectCache(OctaneNodeCache):
                 # Clear Mesh
                 if object_eval and curve:
                     object_eval.to_curve_clear()
-        elif _object.type == "MESH":
+        elif _object.type in ("MESH", "META"):
             mesh = None
             need_subdivision = False
+            # Check the vertex displacement setting
+            if not need_subdivision:
+                for mat_slot in _object.material_slots:
+                    mat = mat_slot.material
+                    if mat is not None and mat.use_nodes:
+                        if self.session.material_cache.is_node_tree_with_vertex_displacement_node.get(mat.name, False):
+                            need_subdivision = True
+                            break
             if object_eval:
                 mesh = object_eval.to_mesh()
                 if mesh and not need_subdivision:
@@ -265,7 +285,7 @@ class ObjectCache(OctaneNodeCache):
                     object_eval.to_mesh_clear()
                 return
             # Geometry Data
-            self.update_geometry_data(depsgraph, _object, object_eval, mesh, octane_node, motion_time_offset)
+            self.update_geometry_data(depsgraph, _object, object_eval, mesh, octane_node, need_subdivision, motion_time_offset)
             # Hair Data
             self.update_hair_data(depsgraph, _object, object_eval, mesh, octane_node, motion_time_offset)
             # Clear Mesh
@@ -284,14 +304,8 @@ class ObjectCache(OctaneNodeCache):
             self.changed_mesh_names.remove(mesh_name)
         self.synced_mesh_names.add(mesh_name)
         # Materials
-        material_names = []
-        for mesh_material in mesh_data.materials:
-            if mesh_material is not None and mesh_material.use_nodes:
-                material = mesh_material.original
-                material_names.append(material.name)
-                self.node_tree_to_material_name_map[material.node_tree] = material.name
         self.object_name_to_material_data_map[_object.name] = self.resolve_object_material_data_tag(_object)
-        octane_node.set_attribute_blender_name("SHADER_NAMES", consts.AttributeType.AT_STRING, ";".join(material_names))
+        octane_node.set_attribute_blender_name("SHADER_NAMES", consts.AttributeType.AT_STRING, self.object_name_to_material_data_map[_object.name])
         # Objects
         octane_node.set_attribute_blender_name("OBJECT_NAMES", consts.AttributeType.AT_STRING, "__" + octane_node.name)
         # Mesh Data
@@ -404,6 +418,8 @@ class ObjectCache(OctaneNodeCache):
                 octane_node.set_attribute_id(consts.AttributeID.A_RELOAD, True)
 
     def update_light(self, depsgraph, _object, light_node_name):
+        scene = depsgraph.scene
+        is_viewport = depsgraph.mode == "VIEWPORT"        
         light = _object.data
         linked_name = ""
         linked_light_name = ""
@@ -414,44 +430,82 @@ class ObjectCache(OctaneNodeCache):
             if active_output_node and len(active_output_node.inputs):                
                 linked_light_name = utility.get_octane_name_for_root_node(active_output_node, "Surface", light)
                 linked_name = linked_light_name
-        if light.type == "AREA":
-            need_init = not self.has_octane_node(light_node_name, consts.NodeType.NT_GEO_OBJECT)
-            geo_object_node = self.get_octane_node(light_node_name, consts.NodeType.NT_GEO_OBJECT)
-            if need_init:
-                # Force Init
-                geo_object_node.set_pin_id(consts.PinID.P_PRIMITIVE, False, "", 0)
-                geo_object_node.update_to_engine(True)
-            transform_node_name = light_node_name + "[Transform]"
-            _3d_transform_node = self.get_octane_node(transform_node_name, consts.NodeType.NT_TRANSFORM_3D)
-            linked_name = light_node_name
-            primitive_type = 0
-            rotation = [0, 0, 0]
-            scale = [1, 1, 1]
-            if light.shape == "DISK":
-                primitive_type = 6 # ("Disc", "Disc", "", 6),
-                rotation = [-90, 0, 0]
-                scale = [light.size, 1, light.size]
-            elif light.shape == "ELLIPSE":
-                primitive_type = 6 # ("Disc", "Disc", "", 6),
-                rotation = [-90, 0, 0]
-                scale = [light.size, 1, light.size_y]
-            elif light.shape == "RECTANGLE":
-                primitive_type = 18 # ("Quad", "Quad", "", 18),
-                rotation = [0, 180, 0]
-                scale = [light.size, light.size_y, 1]
-            elif light.shape == "SQUARE":
-                primitive_type = 18 # ("Quad", "Quad", "", 18),
-                rotation = [0, 180, 0]
-                scale = [light.size, light.size, 1]
-            geo_object_node.set_pin_id(consts.PinID.P_PRIMITIVE, False, "", primitive_type)
-            geo_object_node.set_pin_id(consts.PinID.P_TRANSFORM, True, transform_node_name, transform_node_name)
-            geo_object_node.set_pin_id(consts.PinID.P_MATERIAL, True, linked_light_name, linked_light_name)
-            _3d_transform_node.set_pin_id(consts.PinID.P_ROTATION, False, "", rotation)
-            _3d_transform_node.set_pin_id(consts.PinID.P_SCALE, False, "", scale)
-            if geo_object_node.need_update:
-                geo_object_node.update_to_engine(True)
-            if _3d_transform_node.need_update:
-                _3d_transform_node.update_to_engine(True)
+        if light.type == "POINT" and light.octane.octane_point_light_type == "Sphere":
+            sphere_light_name = light_node_name + "[SphereLight]"
+            sphere_light_node = self.get_octane_node(sphere_light_name, consts.NodeType.NT_LIGHT_SPHERE)
+            sphere_light_node.set_pin_id(consts.PinID.P_RADIUS, False, "", light.shadow_soft_size)
+            sphere_light_node.set_pin_id(consts.PinID.P_MATERIAL1, True, linked_light_name, "")
+            sphere_light_node.update_to_engine(True)
+            linked_name = sphere_light_name
+        elif light.type == "AREA":
+            if light.octane.used_as_octane_mesh_light:
+                material_map_name = utility.resolve_octane_material_map_name(_object, scene, is_viewport)
+                material_map_node = self.get_octane_node(material_map_name, consts.NodeType.NT_MAT_MAP)
+                material_map_node_material_pin_num = 1
+                if light.octane.use_external_mesh:
+                    external_mesh_file = light.octane.external_mesh_file
+                    external_mesh_file = bpy.path.abspath(external_mesh_file)
+                    mesh_light_name = ""
+                    if len(external_mesh_file) > 0:
+                        mesh_light_name = light_node_name + "[MeshLight]"
+                        mesh_light_node = self.get_octane_node(mesh_light_name, consts.NodeType.NT_GEO_MESH)
+                        mesh_light_node.set_attribute_id(consts.AttributeID.A_FILENAME, external_mesh_file)
+                        mesh_light_node.update_to_engine(True)
+                    material_map_node.set_pin_id(consts.PinID.P_GEOMETRY, len(mesh_light_name) > 0, mesh_light_name, "")
+                    material_map_node.update_to_engine(True)
+                    material_map_node_info = utility.fetch_node_info(material_map_name)
+                    if material_map_node_info is not None:
+                        material_map_node_material_pin_num = material_map_node_info["dynPinCount"]
+                else:
+                    light_mesh_name = ""
+                    light_mesh_object = light.octane.light_mesh_object
+                    if light_mesh_object is not None and light_mesh_object.type == "MESH":
+                        light_mesh_name = utility.resolve_octane_geometry_name(light_mesh_object, scene, is_viewport)
+                        material_map_node_material_pin_num = max(material_map_node_material_pin_num, len(light_mesh_object.material_slots))
+                    material_map_node.set_pin_id(consts.PinID.P_GEOMETRY, len(light_mesh_name) > 0, light_mesh_name, "")
+                for idx in range(material_map_node_material_pin_num):
+                    material_map_node.set_pin_index(idx + 1, "Material" + str(idx), consts.SocketType.ST_LINK, consts.PinType.PT_MATERIAL, 0, True, linked_light_name, "")
+                material_map_node.update_to_engine(True)
+                linked_name = material_map_name
+            else:
+                area_light_geo_name = light_node_name + "[AreaLightGeo]"
+                need_init = not self.has_octane_node(area_light_geo_name, consts.NodeType.NT_GEO_OBJECT)
+                geo_object_node = self.get_octane_node(area_light_geo_name, consts.NodeType.NT_GEO_OBJECT)
+                if need_init:
+                    # Force Init
+                    geo_object_node.set_pin_id(consts.PinID.P_PRIMITIVE, False, "", 0)
+                    geo_object_node.update_to_engine(True)
+                transform_node_name = area_light_geo_name + "[Transform]"
+                _3d_transform_node = self.get_octane_node(transform_node_name, consts.NodeType.NT_TRANSFORM_3D)
+                linked_name = area_light_geo_name
+                primitive_type = 0
+                rotation = [0, 0, 0]
+                scale = [1, 1, 1]
+                if light.shape == "DISK":
+                    primitive_type = 6 # ("Disc", "Disc", "", 6),
+                    rotation = [-90, 0, 0]
+                    scale = [light.size, 1, light.size]
+                elif light.shape == "ELLIPSE":
+                    primitive_type = 6 # ("Disc", "Disc", "", 6),
+                    rotation = [-90, 0, 0]
+                    scale = [light.size, 1, light.size_y]
+                elif light.shape == "RECTANGLE":
+                    primitive_type = 18 # ("Quad", "Quad", "", 18),
+                    rotation = [0, 180, 0]
+                    scale = [light.size, light.size_y, 1]
+                elif light.shape == "SQUARE":
+                    primitive_type = 18 # ("Quad", "Quad", "", 18),
+                    rotation = [0, 180, 0]
+                    scale = [light.size, light.size, 1]
+                geo_object_node.set_pin_id(consts.PinID.P_PRIMITIVE, False, "", primitive_type)
+                geo_object_node.set_pin_id(consts.PinID.P_TRANSFORM, True, transform_node_name, transform_node_name)
+                geo_object_node.set_pin_id(consts.PinID.P_MATERIAL, True, linked_light_name, linked_light_name)
+                _3d_transform_node.set_pin_id(consts.PinID.P_ROTATION, False, "", rotation)
+                _3d_transform_node.set_pin_id(consts.PinID.P_SCALE, False, "", scale)
+                if geo_object_node.need_update:
+                    geo_object_node.update_to_engine(True)
+                if _3d_transform_node.need_update:
+                    _3d_transform_node.update_to_engine(True)
         return linked_name
 
     def update_object_layer(self, node, octane_data):
@@ -524,6 +578,11 @@ class ObjectCache(OctaneNodeCache):
                     self.update_volume(depsgraph, _object, octane_mesh_node)
                 if octane_mesh_node.need_update:
                     octane_mesh_node.update_to_engine(True)
+        elif _object.type == "META":
+            octane_mesh_node = self.get_octane_node(geometry_name, consts.NodeType.NT_GEO_MESH)
+            self.update_mesh(depsgraph, _object, octane_mesh_node)
+            if octane_mesh_node.need_update:
+                    octane_mesh_node.update_to_engine(True)
         elif _object.type == "CURVE":
             octane_mesh_node = self.get_octane_node(geometry_name, consts.NodeType.NT_GEO_MESH)
             self.update_mesh(depsgraph, _object, octane_mesh_node)
@@ -560,7 +619,7 @@ class ObjectCache(OctaneNodeCache):
             for idx in range(objectlayer_map_node_object_layer_num):
                 octane_objectlayer_node.link_to(objectlayer_map_name, idx + 1)
        # Set and build the Scatter node
-        if use_objectlayer:            
+        if use_objectlayer:
             octane_scatter_node.set_pin_id(consts.PinID.P_GEOMETRY, True, objectlayer_map_name, "")
         else:
             octane_scatter_node.set_pin_id(consts.PinID.P_GEOMETRY, True, geometry_name, "")
@@ -569,19 +628,8 @@ class ObjectCache(OctaneNodeCache):
             octane_scatter_node.update_to_engine(True)
         self.synced_object_name_map[_object.name] = octane_scatter_node.name
 
-    def update_objects(self, scene, depsgraph): 
+    def custom_update(self, depsgraph, scene, view_layer, context=None): 
         is_viewport = depsgraph.mode == "VIEWPORT"
-        # Find all changed meshes
-        self.changed_mesh_names.clear()
-        if depsgraph.id_type_updated("MESH") or depsgraph.id_type_updated("VOLUME"):
-            for dg_update in depsgraph.updates:
-                self.changed_mesh_names.add(dg_update.id.name)
-        for object_name in self.changed_particle_object_names:
-            if object_name in depsgraph.scene.objects:
-                self.changed_mesh_names.add(depsgraph.scene.objects[object_name].data.name)
-        for object_name in self.changed_material_slot_object_names:
-            if object_name in depsgraph.scene.objects:
-                self.changed_mesh_names.add(depsgraph.scene.objects[object_name].data.name)
         scatter_map = {}
         removed_object_names = set(self.synced_object_name_map.keys())
         updated_motion_blur_node_names = set()
@@ -592,7 +640,9 @@ class ObjectCache(OctaneNodeCache):
             object_data_name = getattr(_object.data, "name", "")
             if object_name in removed_object_names:
                 removed_object_names.remove(object_name)
-            if is_viewport and not is_instance and object_name not in self.changed_data_names and object_data_name not in self.changed_mesh_names:
+            if is_viewport and not is_instance \
+                and object_name not in self.changed_data_names \
+                and object_data_name not in self.changed_mesh_names:
                 continue
             scatter_name = utility.resolve_octane_scatter_name(instance_object, scene, is_viewport)
             octane_scatter_node = None
@@ -666,39 +716,54 @@ class ObjectCache(OctaneNodeCache):
                 octane_node.update_to_engine(True)
 
     def custom_diff(self, depsgraph, scene, view_layer, context=None):
-        # Detecion for changes of material naming
-        need_update_material_data_tags = False
-        if depsgraph.id_type_updated("MATERIAL"):
+        # Find all changed lights and geometries
+        # Detection for changes of meshes, volumes, and lights
+        if depsgraph.id_type_updated("MESH") or depsgraph.id_type_updated("VOLUME") or depsgraph.id_type_updated("LIGHT"):
             for dg_update in depsgraph.updates:
-                if isinstance(dg_update.id, bpy.types.Material):
-                    material = dg_update.id.original
-                    if material.use_nodes and self.node_tree_to_material_name_map.get(material.node_tree, None) != material.name:
-                        need_update_material_data_tags = True
-                        break
-        if need_update_material_data_tags:            
-            for _object in depsgraph.scene.objects:
-                if _object.name in self.object_name_to_material_data_map:
-                    material_tag = self.resolve_object_material_data_tag(_object)
-                    if self.object_name_to_material_data_map[_object.name] != material_tag:
-                        self.changed_material_slot_object_names.add(_object.name)
-                        self.object_name_to_material_data_map[_object.name] = material_tag
-                        self.need_update = True
-        # Detecion for changes of particle systems
+                _id = dg_update.id
+                if isinstance(_id, bpy.types.Mesh):                    
+                    # Mesh name will be changed during the Edit mode. In this case, we need to find its original mesh name.
+                    if _id.is_editmode:
+                        active_object = bpy.context.object
+                        if active_object and active_object.mode == "EDIT":
+                            self.changed_data_names.add(active_object.name)
+                            self.changed_mesh_names.add(active_object.data.name)
+                    else:                        
+                        self.changed_mesh_names.add(_id.name)
+                elif isinstance(_id, bpy.types.Volume) or isinstance(_id, bpy.types.Light):
+                    self.changed_mesh_names.add(_id.name)
+        # Detection for changes of particle systems
         if depsgraph.id_type_updated("PARTICLE"):
             changed_particle_settings_names = set()
             for dg_update in depsgraph.updates:
                 if isinstance(dg_update.id, bpy.types.ParticleSettings):
                     changed_particle_settings_names.add(dg_update.id.name)
             if len(changed_particle_settings_names) > 0:
+                changed_particle_object_names = set()
                 for _object in depsgraph.scene.objects:
                     for particle_system in _object.particle_systems:
                         if particle_system.settings.name in changed_particle_settings_names:
-                            self.changed_particle_object_names.add(_object.name)
-                            self.need_update = True
+                            changed_particle_object_names.add(_object.name)
+                for object_name in changed_particle_object_names:
+                    if object_name in depsgraph.scene.objects:
+                        self.changed_mesh_names.add(depsgraph.scene.objects[object_name].data.name)
+        # Detection for changes of numbers of instances
         if self.object_instance_num != len(depsgraph.object_instances):
-            self.need_update = True
             self.object_instance_num = len(depsgraph.object_instances)
+            self.need_update = True
+        self.need_update |= (len(self.changed_mesh_names) > 0 or len(self.changed_data_names) > 0)
 
-    def update(self, depsgraph, scene, view_layer, context=None):        
-        self.update_objects(scene, depsgraph)
-        self.need_update = False
+    def update_object_to_material_configurations(self, depsgraph):
+        changed_material_slot_object_names = set()
+        for _object in depsgraph.scene.objects:
+            if _object.name in self.object_name_to_material_data_map:
+                material_tag = self.resolve_object_material_data_tag(_object)
+                if self.object_name_to_material_data_map[_object.name] != material_tag:
+                    changed_material_slot_object_names.add(_object.name)
+                    self.object_name_to_material_data_map[_object.name] = material_tag
+        for object_name in changed_material_slot_object_names:
+            depsgraph.scene.objects[object_name].update_tag()
+
+    def post_update(self):
+        super().post_update()
+        self.changed_mesh_names.clear()

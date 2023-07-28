@@ -922,29 +922,6 @@ static int screen_render_invoke(bContext *C, wmOperator *op, const wmEvent *even
   const char *name;
   ScrArea *area;
 
-  wmWindowManager *wm = (wmWindowManager *)bmain->wm.first;
-  wmWindow *window;
-  for (window = (wmWindow*)wm->windows.first; window != NULL; window = window->next) {
-    const bScreen *screen = BKE_workspace_active_screen_get(window->workspace_hook);
-    Scene *scene = window->scene;
-    if (!BKE_scene_uses_octane(scene)) {
-      continue;
-    }
-    for (ScrArea *area = (ScrArea *)screen->areabase.first; area != NULL; area = area->next) {
-      View3D *v3d = (View3D *)area->spacedata.first;
-      if (area->spacetype != SPACE_VIEW3D) {
-        continue;
-      }
-      if (v3d->shading.type == OB_RENDER) {
-        BKE_report(op->reports,
-                   RPT_ERROR,
-                   "Viewport shading is active! Only one active render task is supported at the "
-                   "same time! Please turn off viewport shading and try again!");
-        return OPERATOR_CANCELLED;
-      }
-    }
-  }
-
   /* Cannot do render if there is not this function. */
   if (re_type->render == nullptr) {
     return OPERATOR_CANCELLED;

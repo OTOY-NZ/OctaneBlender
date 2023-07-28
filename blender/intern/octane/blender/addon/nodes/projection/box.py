@@ -15,8 +15,8 @@ class OctaneBoxTransform(OctaneBaseSocket):
     bl_idname="OctaneBoxTransform"
     bl_label="Normal box transformation"
     color=consts.OctanePinColor.Transform
-    octane_default_node_type=consts.NodeType.NT_TRANSFORM_VALUE
-    octane_default_node_name="OctaneTransformValue"
+    octane_default_node_type=consts.NodeType.NT_TRANSFORM_3D
+    octane_default_node_name="Octane3DTransformation"
     octane_pin_id=consts.PinID.P_TRANSFORM
     octane_pin_name="transform"
     octane_pin_type=consts.PinType.PT_TRANSFORM
@@ -70,6 +70,10 @@ class OctaneBox(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneBoxTransform", OctaneBoxTransform.bl_label).init()
         self.inputs.new("OctaneBoxPositionType", OctaneBoxPositionType.bl_label).init()
         self.outputs.new("OctaneProjectionOutSocket", "Projection out").init()
+
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseNode.poll(node_tree)
 
 
 _CLASSES=[
