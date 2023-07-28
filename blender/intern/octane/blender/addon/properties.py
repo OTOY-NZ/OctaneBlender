@@ -502,7 +502,8 @@ class OctanePreferences(bpy.types.AddonPreferences):
 
     use_shared_surface: BoolProperty(
         name="Use Shared Surface for Viewport(recommended)",
-        description="On Windows, Octane can now send back shared surface handles for render passes instead of just buffers, which makes viewport rendering faster",
+        description="On Windows, Octane can now send back shared surface handles for render passes instead of just buffers, which makes viewport rendering faster.\n\
+For multiple-GPUs platforms, Octane may change the 'Imaging' device during the viewport rendering. These changes are temporary and they will be reverted back after the viewport rendering",
         default=True,
     )
 

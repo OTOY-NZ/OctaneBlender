@@ -24,7 +24,9 @@ CONVERTERS_NODE_MAPPER = {
             "IOR": "Dielectric IOR",
             "Emission": "Emission",
             "Alpha": "Opacity",
+            "Transmission": "Transmission",
             NORMAL_TYPE_TAG + "Normal": "Normal",
+            NORMAL_TYPE_TAG + "Clearcoat Normal": "Coating normal",
         },
         lambda cur_node, octane_node: setattr(octane_node.inputs["BSDF model"], "default_value", "GGX" if cur_node.distribution == "GGX" else "GGX (energy preserving)")
     ),
@@ -103,6 +105,7 @@ def _convert_color_input(cur_node, cur_input, octane_node, octane_input, cur_nod
                 if cur_node.type == "BSDF_PRINCIPLED":
                     octane_emission_node.inputs["Power"].default_value = cur_node.inputs["Emission Strength"].default_value
                     octane_emission_node.inputs["Surface brightness"].default_value = True
+                    octane_emission_node.inputs["Double sided"].default_value = True
         else:       
             octane_color_node = octane_node_tree.nodes.new("OctaneRGBColor")
             octane_node_tree.links.new(octane_color_node.outputs[0], octane_input)    

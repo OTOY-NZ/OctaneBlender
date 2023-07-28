@@ -763,16 +763,16 @@ def beautifier_nodetree_layout(id_data):
     for node in node_tree.nodes:
         if node not in arranged_nodes:
             node.location = unlink_node_location
-    nodes_in_row = defaultdict(list)    
-    min_y_for_nodes_in_row = {}
+    nodes_in_column = defaultdict(list)    
+    min_y_for_nodes_in_column = {}
     for node, level in node_to_level_map.items():
-        nodes_in_row[node.location.x].append(node)
-        if node.location.x in min_y_for_nodes_in_row:
-            min_y_for_nodes_in_row[node.location.x] = min(min_y_for_nodes_in_row[node.location.x], node.location.y)
+        nodes_in_column[node.location.x].append(node)
+        if node.location.x in min_y_for_nodes_in_column:
+            min_y_for_nodes_in_column[node.location.x] = min(min_y_for_nodes_in_column[node.location.x], node.location.y)
         else:
-            min_y_for_nodes_in_row[node.location.x] = node.location.y
-    for x, nodes in nodes_in_row.items():
-        offset = 300 - min_y_for_nodes_in_row[x]
+            min_y_for_nodes_in_column[node.location.x] = node.location.y
+    for x, nodes in nodes_in_column.items():        
+        offset = 300 - len(nodes_in_column[x]) * 300 - min_y_for_nodes_in_column[x]
         if offset > 0:
             for node in nodes:
                 node.location.y += offset
