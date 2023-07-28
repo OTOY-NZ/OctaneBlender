@@ -62,7 +62,20 @@ template<> uint denormalize<uint>(float val)
   return uint(float(DEPTH_SCALE_FACTOR) * val);
 }
 
+/* Float to other type case. */
 template<typename T> T convert_type(float type)
+{
+  return T(type);
+}
+
+/* Uint to other types. */
+template<typename T> T convert_type(uint type)
+{
+  return T(type);
+}
+
+/* Int to other types. */
+template<typename T> T convert_type(int type)
 {
   return T(type);
 }
@@ -75,6 +88,11 @@ template<> uchar convert_type<uchar>(float val)
 template<> uint convert_type<uint>(float val)
 {
   return uint(val * float(0xFFFFFFFFu));
+}
+
+template<typename D, typename S> uint pack_depth_stencil(D depth, S stencil)
+{
+  return (((uint(depth)) << 8) & (~(0xFFu - 1))) | (uint(stencil) & (0xFFu - 1));
 }
 
 struct TextureReadParams {
@@ -118,8 +136,14 @@ kernel void compute_texture_read(constant TextureReadParams &params [[buffer(0)]
 
   /* Read data */
 #  if IS_DEPTH_FORMAT == 1
-  output_data[index] = denormalize<OUTPUT_DATA_TYPE>(
+  OUTPUT_DATA_TYPE value = denormalize<OUTPUT_DATA_TYPE>(
       read_tex.sample(pixelSampler, float2(params.offset[0], params.offset[1]) + float2(xx, yy)));
+#    if IS_DEPTHSTENCIL_24_8 == 1
+  /* Shift depth value into 24 bit region and mask out 8 bit stencil.
+   * NOTE: Stencil currently not read as no use cases exist for this. */
+  value = pack_depth_stencil(value, 0);
+#    endif
+  output_data[index] = value;
 #  else
   read_colour = read_tex.read(uint2(params.offset[0], params.offset[1]) + uint2(xx, yy));
 #  endif
@@ -130,8 +154,8 @@ kernel void compute_texture_read(constant TextureReadParams &params [[buffer(0)]
   uint xx = position[0];
   uint yy = position[1];
   uint zz = position[2];
-  int index = (zz * (params.extent[0] * params.extent[1]) + yy * params.extnt[0] + xx) *
-              COMPONENT_COUNT_INPUT;
+  int index = (zz * (params.extent[0] * params.extent[1]) + yy * params.extent[0] + xx) *
+              COMPONENT_COUNT_OUTPUT;
   read_colour = read_tex.read(uint3(params.offset[0], params.offset[1], params.offset[2]) +
                               uint3(xx, yy, zz));
 
@@ -152,14 +176,20 @@ kernel void compute_texture_read(constant TextureReadParams &params [[buffer(0)]
   uint yy = position[1];
   uint layer = position[2];
   int index = (layer * (params.extent[0] * params.extent[1]) + yy * params.extent[0] + xx) *
-              COMPONENT_COUNT_INPUT;
+              COMPONENT_COUNT_OUTPUT;
 
   /* Read data */
 #  if IS_DEPTH_FORMAT == 1
-  output_data[index] = denormalize<OUTPUT_DATA_TYPE>(
+  OUTPUT_DATA_TYPE value = denormalize<OUTPUT_DATA_TYPE>(
       read_tex.sample(pixelSampler,
                       float2(params.offset[0], params.offset[1]) + float2(xx, yy),
                       uint(params.offset[2] + layer)));
+#    if IS_DEPTHSTENCIL_24_8 == 1
+  /* Shift depth value into 24 bit region and mask out 8 bit stencil.
+   * NOTE: Stencil currently not read as no use cases exist for this. */
+  value = pack_depth_stencil(value, 0);
+#    endif
+  output_data[index] = value;
 #  else
   read_colour = read_tex.read(uint2(params.offset[0], params.offset[1]) + uint2(xx, yy),
                               uint(params.offset[2] + layer));

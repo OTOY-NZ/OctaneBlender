@@ -140,6 +140,13 @@ typedef struct Global {
    */
   char autoexec_fail[200];
 
+  /**
+   * Has there been an opengl deprecation call detected when running on a none OpenGL backend.
+   */
+  bool opengl_deprecation_usage_detected;
+  const char *opengl_deprecation_usage_filename;
+  int opengl_deprecation_usage_lineno;
+
   int export_type;
   char export_path[256];
 

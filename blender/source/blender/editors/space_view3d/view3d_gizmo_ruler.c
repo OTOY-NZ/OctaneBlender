@@ -301,10 +301,13 @@ static void ruler_state_set(RulerInfo *ruler_info, int state)
   }
 
   if (state == RULER_STATE_NORMAL) {
-    /* pass */
+    WM_gizmo_set_flag(ruler_info->snap_data.gizmo, WM_GIZMO_DRAW_VALUE, false);
   }
   else if (state == RULER_STATE_DRAG) {
     memset(&ruler_info->drag_state_prev, 0x0, sizeof(ruler_info->drag_state_prev));
+
+    /* Force the snap cursor to appear even though it is not highlighted. */
+    WM_gizmo_set_flag(ruler_info->snap_data.gizmo, WM_GIZMO_DRAW_VALUE, true);
   }
   else {
     BLI_assert(0);
@@ -464,7 +467,7 @@ static bool view3d_ruler_item_mousemove(const bContext *C,
  * in 3.0 this happened because left-click drag would both select and add a new ruler,
  * significantly increasing the likelihood of this happening.
  * Workaround this crash by checking the gizmo's custom-data has not been cleared.
- * The key-map has also been modified not to trigger this bug, see T95591.
+ * The key-map has also been modified not to trigger this bug, see #95591.
  */
 static bool gizmo_ruler_check_for_operator(const wmGizmoGroup *gzgroup)
 {
@@ -695,7 +698,7 @@ static void gizmo_ruler_draw(const bContext *C, wmGizmo *gz)
     immUniform4f("color", 0.67f, 0.67f, 0.67f, 1.0f);
     immUniform4f("color2", col[0], col[1], col[2], col[3]);
     immUniform1f("dash_width", 6.0f);
-    immUniform1f("dash_factor", 0.5f);
+    immUniform1f("udash_factor", 0.5f);
 
     immBegin(GPU_PRIM_LINE_STRIP, 3);
 
@@ -764,7 +767,7 @@ static void gizmo_ruler_draw(const bContext *C, wmGizmo *gz)
     immUniform4f("color", 0.67f, 0.67f, 0.67f, 1.0f);
     immUniform4f("color2", col[0], col[1], col[2], col[3]);
     immUniform1f("dash_width", 6.0f);
-    immUniform1f("dash_factor", 0.5f);
+    immUniform1f("udash_factor", 0.5f);
 
     immBegin(GPU_PRIM_LINES, 2);
 
@@ -1292,7 +1295,6 @@ static int view3d_ruler_add_invoke(bContext *C, wmOperator *op, const wmEvent *e
 {
   ARegion *region = CTX_wm_region(C);
   View3D *v3d = CTX_wm_view3d(C);
-  RegionView3D *rv3d = region->regiondata;
 
   if (v3d->gizmo_flag & (V3D_GIZMO_HIDE | V3D_GIZMO_HIDE_TOOL)) {
     BKE_report(op->reports, RPT_WARNING, "Gizmos hidden in this view");
@@ -1301,7 +1303,6 @@ static int view3d_ruler_add_invoke(bContext *C, wmOperator *op, const wmEvent *e
 
   wmGizmoMap *gzmap = region->gizmo_map;
   wmGizmoGroup *gzgroup = WM_gizmomap_group_find(gzmap, view3d_gzgt_ruler_id);
-  const bool use_depth = (v3d->shading.type >= OB_SOLID);
 
   if (!gizmo_ruler_check_for_operator(gzgroup)) {
     return OPERATOR_CANCELLED;
@@ -1321,31 +1322,23 @@ static int view3d_ruler_add_invoke(bContext *C, wmOperator *op, const wmEvent *e
       OPERATOR_RUNNING_MODAL) {
     RulerInfo *ruler_info = gzgroup->customdata;
     RulerInteraction *inter = ruler_item->gz.interaction_data;
-    if (use_depth) {
-      struct Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-      /* snap the first point added, not essential but handy */
-      inter->co_index = 0;
-      view3d_ruler_item_mousemove(C,
-                                  depsgraph,
-                                  ruler_info,
-                                  ruler_item,
-                                  mval,
-                                  false
+    struct Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+    inter->co_index = 0;
+    view3d_ruler_item_mousemove(C,
+                                depsgraph,
+                                ruler_info,
+                                ruler_item,
+                                mval,
+                                false
 #ifndef USE_SNAP_DETECT_FROM_KEYMAP_HACK
-                                  ,
-                                  true
+                                ,
+                                true
 #endif
-      );
-      copy_v3_v3(inter->drag_start_co, ruler_item->co[inter->co_index]);
-      RNA_property_float_set_array(ruler_info->snap_data.gizmo->ptr,
-                                   ruler_info->snap_data.prop_prevpoint,
-                                   inter->drag_start_co);
-    }
-    else {
-      negate_v3_v3(inter->drag_start_co, rv3d->ofs);
-      copy_v3_v3(ruler_item->co[0], inter->drag_start_co);
-      view3d_ruler_item_project(ruler_info, ruler_item->co[0], mval);
-    }
+    );
+    copy_v3_v3(inter->drag_start_co, ruler_item->co[inter->co_index]);
+    RNA_property_float_set_array(ruler_info->snap_data.gizmo->ptr,
+                                 ruler_info->snap_data.prop_prevpoint,
+                                 inter->drag_start_co);
 
     copy_v3_v3(ruler_item->co[2], ruler_item->co[0]);
     ruler_item->gz.highlight_part = inter->co_index = 2;

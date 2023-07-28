@@ -83,7 +83,7 @@ class OctaneZDepthAOV(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneZDepthAOVEnabled", OctaneZDepthAOVEnabled.bl_label).init()
         self.inputs.new("OctaneZDepthAOVZDepthMax", OctaneZDepthAOVZDepthMax.bl_label).init()
         self.inputs.new("OctaneZDepthAOVEnvironmentDepth", OctaneZDepthAOVEnvironmentDepth.bl_label).init()
-        self.outputs.new("OctaneRenderAOVsOutSocket", "Render AOVs out").init()
+        self.outputs.new("OctaneRenderAOVOutSocket", "Render AOV out").init()
 
 
 _CLASSES=[

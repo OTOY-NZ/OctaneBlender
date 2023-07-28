@@ -190,10 +190,10 @@ class OctaneStringSocket(OctaneBaseSocket):
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
 
-class OctaneRenderAOVsSocket(OctaneBaseSocket):
-    bl_idname="OctaneRenderAOVsSocket"
-    bl_label="RenderAOVs"
-    color=consts.OctanePinColor.RenderAOVs
+class OctaneRenderAOVSocket(OctaneBaseSocket):
+    bl_idname="OctaneRenderAOVSocket"
+    bl_label="RenderAOV"
+    color=consts.OctanePinColor.RenderAOV
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_RENDER_PASSES)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -318,10 +318,10 @@ class OctaneCompositeTextureLayerSocket(OctaneBaseSocket):
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
 
-class OctaneCompositeAOVLayerSocket(OctaneBaseSocket):
-    bl_idname="OctaneCompositeAOVLayerSocket"
-    bl_label="CompositeAOVLayer"
-    color=consts.OctanePinColor.CompositeAOVLayer
+class OctaneCompositeAOVOutputLayerSocket(OctaneBaseSocket):
+    bl_idname="OctaneCompositeAOVOutputLayerSocket"
+    bl_label="CompositeAOVOutputLayer"
+    color=consts.OctanePinColor.CompositeAOVOutputLayer
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_COMPOSITE_AOV_LAYER)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -626,18 +626,18 @@ class OctaneStringOutputNode(bpy.types.Node, OctaneBaseOutputNode):
         super().init(context)
         self.inputs.new("OctaneStringSocket", OctaneStringSocket.bl_label).init()
 
-class OctaneRenderAOVsOutputNode(bpy.types.Node, OctaneBaseOutputNode):
-    bl_idname="OctaneRenderAOVsOutputNode"
-    bl_label="Render AOVs Output"
+class OctaneRenderAOVOutputNode(bpy.types.Node, OctaneBaseOutputNode):
+    bl_idname="OctaneRenderAOVOutputNode"
+    bl_label="Render AOV Output"
     octane_node_type=consts.NodeType.NT_OUT_RENDER_PASSES
-    octane_color=consts.OctanePinColor.RenderAOVs
+    octane_color=consts.OctanePinColor.RenderAOV
     use_custom_color=True
     bl_width_default=200
     bl_height_default=100
 
     def init(self, context):
         super().init(context)
-        self.inputs.new("OctaneRenderAOVsSocket", OctaneRenderAOVsSocket.bl_label).init()
+        self.inputs.new("OctaneRenderAOVSocket", OctaneRenderAOVSocket.bl_label).init()
 
 class OctaneRenderLayerOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     bl_idname="OctaneRenderLayerOutputNode"
@@ -834,18 +834,18 @@ class OctaneCompositeTextureLayerOutputNode(bpy.types.Node, OctaneBaseOutputNode
         super().init(context)
         self.inputs.new("OctaneCompositeTextureLayerSocket", OctaneCompositeTextureLayerSocket.bl_label).init()
 
-class OctaneCompositeAOVLayerOutputNode(bpy.types.Node, OctaneBaseOutputNode):
-    bl_idname="OctaneCompositeAOVLayerOutputNode"
-    bl_label="Composite AOV layer Output"
+class OctaneCompositeAOVOutputLayerOutputNode(bpy.types.Node, OctaneBaseOutputNode):
+    bl_idname="OctaneCompositeAOVOutputLayerOutputNode"
+    bl_label="Composite output AOV layer Output"
     octane_node_type=consts.NodeType.NT_OUT_COMPOSITE_AOV_LAYER
-    octane_color=consts.OctanePinColor.CompositeAOVLayer
+    octane_color=consts.OctanePinColor.CompositeAOVOutputLayer
     use_custom_color=True
     bl_width_default=200
     bl_height_default=100
 
     def init(self, context):
         super().init(context)
-        self.inputs.new("OctaneCompositeAOVLayerSocket", OctaneCompositeAOVLayerSocket.bl_label).init()
+        self.inputs.new("OctaneCompositeAOVOutputLayerSocket", OctaneCompositeAOVOutputLayerSocket.bl_label).init()
 
 
 _CLASSES=[
@@ -872,7 +872,7 @@ _CLASSES=[
     OctaneProjectionSocket,
     OctaneDisplacementSocket,
     OctaneStringSocket,
-    OctaneRenderAOVsSocket,
+    OctaneRenderAOVSocket,
     OctaneRenderLayerSocket,
     OctaneVolumeRampSocket,
     OctaneAnimationSettingsSocket,
@@ -888,7 +888,7 @@ _CLASSES=[
     OctaneAOVOutputGroupSocket,
     OctaneAOVOutputSocket,
     OctaneCompositeTextureLayerSocket,
-    OctaneCompositeAOVLayerSocket,
+    OctaneCompositeAOVOutputLayerSocket,
     OctaneBoolOutputNode,
     OctaneFloatOutputNode,
     OctaneIntOutputNode,
@@ -912,7 +912,7 @@ _CLASSES=[
     OctaneProjectionOutputNode,
     OctaneDisplacementOutputNode,
     OctaneStringOutputNode,
-    OctaneRenderAOVsOutputNode,
+    OctaneRenderAOVOutputNode,
     OctaneRenderLayerOutputNode,
     OctaneVolumeRampOutputNode,
     OctaneAnimationSettingsOutputNode,
@@ -928,7 +928,7 @@ _CLASSES=[
     OctaneAOVOutputGroupOutputNode,
     OctaneAOVOutputOutputNode,
     OctaneCompositeTextureLayerOutputNode,
-    OctaneCompositeAOVLayerOutputNode,
+    OctaneCompositeAOVOutputLayerOutputNode,
 ]
 
 _SOCKET_INTERFACE_CLASSES = []
@@ -1189,13 +1189,7 @@ class OctaneRenderAOVsOutputNode_Override_RenderPassItems:
         return OctaneRenderAOVsOutputNode_Override_RenderPassItems.render_pass_enums
 
 
-class OctaneRenderAOVsOutputNode_Override(OctaneRenderAOVsOutputNode):
-    preview_render_pass: EnumProperty(name="Preview Render Pass", items=OctaneRenderAOVsOutputNode_Override_RenderPassItems._enum_preview_render_pass_items)    
-
-    def draw_buttons(self, context, layout):
-        super().draw_buttons(context, layout)
-        row = layout.row()
-        row.prop(self, "preview_render_pass") 
+class OctaneRenderAOVOutputNodeComponent(object):    
 
     def generate_aov_output_pass_configs(self, view_layer, current_render_pass_configs):
         RENDER_PASS_OUTPUT_AOV_IDS_OFFSET = 10000
@@ -1269,4 +1263,74 @@ class OctaneRenderAOVsOutputNode_Override(OctaneRenderAOVsOutputNode):
         return render_pass_ids
 
 
-utility.override_class(_CLASSES, OctaneRenderAOVsOutputNode, OctaneRenderAOVsOutputNode_Override)
+class OctaneRenderAOVOutputNode_Override(OctaneRenderAOVOutputNode, OctaneRenderAOVOutputNodeComponent):
+    preview_render_pass: EnumProperty(name="Preview Render Pass", items=OctaneRenderAOVsOutputNode_Override_RenderPassItems._enum_preview_render_pass_items)
+    
+    def draw_buttons(self, context, layout):
+        super().draw_buttons(context, layout)
+        row = layout.row()
+        row.prop(self, "preview_render_pass") 
+
+
+class OctaneRenderAOVsSocket(OctaneBaseSocket):
+    bl_idname="OctaneRenderAOVsSocket"
+    bl_label="RenderAOVs"
+    color=consts.OctanePinColor.RenderAOV
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_RENDER_PASSES)
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_hide_value=True
+
+
+class OctaneCompositeAOVLayerSocket(OctaneBaseSocket):
+    bl_idname="OctaneCompositeAOVLayerSocket"
+    bl_label="CompositeAOVLayer"
+    color=consts.OctanePinColor.CompositeAOVOutputLayer
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_COMPOSITE_AOV_LAYER)
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_hide_value=True
+
+
+class OctaneRenderAOVsOutputNode(bpy.types.Node, OctaneBaseOutputNode):
+    bl_idname="OctaneRenderAOVsOutputNode"
+    bl_label="Render AOVs Output"
+    octane_node_type=consts.NodeType.NT_OUT_RENDER_PASSES
+    octane_color=consts.OctanePinColor.RenderAOV
+    use_custom_color=True
+    bl_width_default=200
+    bl_height_default=100
+
+    preview_render_pass: EnumProperty(name="Preview Render Pass", items=OctaneRenderAOVsOutputNode_Override_RenderPassItems._enum_preview_render_pass_items)
+
+    def init(self, context):
+        super().init(context)
+        self.inputs.new("OctaneRenderAOVSocket", OctaneRenderAOVSocket.bl_label).init()
+
+
+class OctaneRenderAOVsOutputNode_Override(OctaneRenderAOVsOutputNode, OctaneRenderAOVOutputNodeComponent):
+    preview_render_pass: EnumProperty(name="Preview Render Pass", items=OctaneRenderAOVsOutputNode_Override_RenderPassItems._enum_preview_render_pass_items)
+
+    def draw_buttons(self, context, layout):
+        super().draw_buttons(context, layout)
+        row = layout.row()
+        row.prop(self, "preview_render_pass") 
+
+
+class OctaneCompositeAOVLayerOutputNode(OctaneCompositeAOVOutputLayerOutputNode):
+    bl_idname="OctaneCompositeAOVLayerOutputNode"
+    bl_label="Composite AOV layer Output"
+    octane_node_type=consts.NodeType.NT_OUT_COMPOSITE_AOV_LAYER
+    octane_color=consts.OctanePinColor.CompositeAOVOutputLayer
+    use_custom_color=True
+    bl_width_default=200
+    bl_height_default=100
+
+    def init(self, context):
+        super().init(context)
+        self.inputs.new("OctaneCompositeAOVOutputLayerSocket", OctaneCompositeAOVOutputLayerSocket.bl_label).init()
+
+
+_CLASSES.append(OctaneRenderAOVsSocket)
+_CLASSES.append(OctaneCompositeAOVLayerSocket)
+_CLASSES.append(OctaneRenderAOVsOutputNode_Override)
+_CLASSES.append(OctaneCompositeAOVLayerOutputNode)
+utility.override_class(_CLASSES, OctaneRenderAOVOutputNode, OctaneRenderAOVOutputNode_Override)

@@ -80,7 +80,8 @@ static GPUTexture *edit_uv_mask_texture(
 
   /* Free memory. */
   BKE_maskrasterize_handle_free(handle);
-  GPUTexture *texture = GPU_texture_create_2d(mask->id.name, width, height, 1, GPU_R16F, buffer);
+  GPUTexture *texture = GPU_texture_create_2d_ex(
+      mask->id.name, width, height, 1, GPU_R16F, GPU_TEXTURE_USAGE_SHADER_READ, buffer);
   MEM_freeN(buffer);
   return texture;
 }
@@ -101,7 +102,7 @@ void OVERLAY_edit_uv_init(OVERLAY_Data *vedata)
   const bool show_overlays = !pd->hide_overlays;
 
   Image *image = sima->image;
-  /* By design no image is an image type. This so editor shows UV's by default. */
+  /* By design no image is an image type. This so editor shows UVs by default. */
   const bool is_image_type = (image == nullptr) || ELEM(image->type,
                                                         IMA_TYPE_IMAGE,
                                                         IMA_TYPE_MULTILAYER,
@@ -323,7 +324,7 @@ void OVERLAY_edit_uv_cache_init(OVERLAY_Data *vedata)
         obmat[3][0] = float((active_tile->tile_number - 1001) % 10);
         obmat[3][1] = float((active_tile->tile_number - 1001) / 10);
         grp = DRW_shgroup_create(sh, psl->edit_uv_tiled_image_borders_ps);
-        DRW_shgroup_uniform_vec4_copy(grp, "color", selected_color);
+        DRW_shgroup_uniform_vec4_copy(grp, "ucolor", selected_color);
         DRW_shgroup_call_obmat(grp, geom, obmat);
       }
     }
@@ -369,7 +370,7 @@ void OVERLAY_edit_uv_cache_init(OVERLAY_Data *vedata)
       DRW_shgroup_uniform_bool_copy(grp, "imgPremultiplied", true);
       DRW_shgroup_uniform_bool_copy(grp, "imgAlphaBlend", true);
       const float4 color = {1.0f, 1.0f, 1.0f, brush->clone.alpha};
-      DRW_shgroup_uniform_vec4_copy(grp, "color", color);
+      DRW_shgroup_uniform_vec4_copy(grp, "ucolor", color);
 
       float size_image[2];
       BKE_image_get_size_fl(image, nullptr, size_image);
@@ -413,7 +414,7 @@ void OVERLAY_edit_uv_cache_init(OVERLAY_Data *vedata)
 
   /* HACK: When editing objects that share the same mesh we should only draw the
    * first one in the order that is used during uv editing. We can only trust that the first object
-   * has the correct batches with the correct selection state. See T83187. */
+   * has the correct batches with the correct selection state. See #83187. */
   if ((pd->edit_uv.do_uv_overlay || pd->edit_uv.do_uv_shadow_overlay) &&
       draw_ctx->obact->type == OB_MESH) {
     uint objects_len = 0;
@@ -441,10 +442,11 @@ static void overlay_edit_uv_cache_populate(OVERLAY_Data *vedata, Object *ob)
   const DRWContextState *draw_ctx = DRW_context_state_get();
   const bool is_edit_object = DRW_object_is_in_edit_mode(ob);
   Mesh *me = (Mesh *)ob->data;
-  const bool has_active_object_uvmap = CustomData_get_active_layer(&me->ldata, CD_MLOOPUV) != -1;
+  const bool has_active_object_uvmap = CustomData_get_active_layer(&me->ldata, CD_PROP_FLOAT2) !=
+                                       -1;
   const bool has_active_edit_uvmap = is_edit_object &&
                                      (CustomData_get_active_layer(&me->edit_mesh->bm->ldata,
-                                                                  CD_MLOOPUV) != -1);
+                                                                  CD_PROP_FLOAT2) != -1);
   const bool draw_shadows = (draw_ctx->object_mode != OB_MODE_OBJECT) &&
                             (ob->mode == draw_ctx->object_mode);
 

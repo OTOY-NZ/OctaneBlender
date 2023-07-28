@@ -7,6 +7,8 @@
 
 #include "DNA_customdata_types.h"
 
+#include "DEG_depsgraph_query.h"
+
 #include "UI_interface.h"
 #include "UI_resources.h"
 
@@ -25,7 +27,11 @@ static void node_shader_buts_uvmap(uiLayout *layout, bContext *C, PointerRNA *pt
     PointerRNA obptr = CTX_data_pointer_get(C, "active_object");
 
     if (obptr.data && RNA_enum_get(&obptr, "type") == OB_MESH) {
-      PointerRNA dataptr = RNA_pointer_get(&obptr, "data");
+      PointerRNA eval_obptr;
+
+      Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+      DEG_get_evaluated_rna_pointer(depsgraph, &obptr, &eval_obptr);
+      PointerRNA dataptr = RNA_pointer_get(&eval_obptr, "data");
       uiItemPointerR(layout, ptr, "uv_map", &dataptr, "uv_layers", "", ICON_NONE);
     }
   }
@@ -47,7 +53,7 @@ static int node_shader_gpu_uvmap(GPUMaterial *mat,
 
   /* NOTE: using CD_AUTO_FROM_NAME instead of CD_MTFACE as geometry nodes may overwrite data which
    * will also change the eCustomDataType. This will also make EEVEE and Cycles consistent. See
-   * T93179. */
+   * #93179. */
   GPUNodeLink *mtface = GPU_attribute(mat, CD_AUTO_FROM_NAME, attr->uv_map);
 
   GPU_stack_link(mat, node, "node_uvmap", in, out, mtface);
@@ -70,10 +76,10 @@ void register_node_type_sh_uvmap()
   ntype.declare = file_ns::node_declare;
   ntype.draw_buttons = file_ns::node_shader_buts_uvmap;
   node_type_size_preset(&ntype, NODE_SIZE_MIDDLE);
-  node_type_init(&ntype, file_ns::node_shader_init_uvmap);
+  ntype.initfunc = file_ns::node_shader_init_uvmap;
   node_type_storage(
       &ntype, "NodeShaderUVMap", node_free_standard_storage, node_copy_standard_storage);
-  node_type_gpu(&ntype, file_ns::node_shader_gpu_uvmap);
+  ntype.gpu_fn = file_ns::node_shader_gpu_uvmap;
 
   nodeRegisterType(&ntype);
 }

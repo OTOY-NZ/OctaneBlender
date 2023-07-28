@@ -205,6 +205,7 @@ struct MSLUniformBlock {
   std::string name;
   ShaderStage stage;
   bool is_array;
+  uint slot;
 
   bool operator==(const MSLUniformBlock &right) const
   {
@@ -228,6 +229,7 @@ struct MSLTextureSampler {
   uint location;
 
   eGPUTextureType get_texture_binding_type() const;
+  eGPUSamplerFormat get_sampler_format() const;
 
   void resolve_binding_indices();
 
@@ -354,6 +356,14 @@ struct MSLFragmentOutputAttribute {
   }
 };
 
+struct MSLSharedMemoryBlock {
+  /* e.g. shared vec4 color_cache[cache_size][cache_size]; */
+  std::string type_name;
+  std::string varname;
+  bool is_array;
+  std::string array_decl; /* String containing array declaration. e.g. [cache_size][cache_size]*/
+};
+
 class MSLGeneratorInterface {
   static char *msl_patch_default;
 
@@ -373,7 +383,9 @@ class MSLGeneratorInterface {
   /* Transform feedback interface. */
   blender::Vector<MSLVertexOutputAttribute> vertex_output_varyings_tf;
   /* Clip Distances. */
-  blender::Vector<std::string> clip_distances;
+  blender::Vector<char> clip_distances;
+  /* Shared Memory Blocks. */
+  blender::Vector<MSLSharedMemoryBlock> shared_memory_blocks;
 
   /** GL Global usage. */
   /* Whether GL position is used, or an alternative vertex output should be the default. */
@@ -390,17 +402,29 @@ class MSLGeneratorInterface {
   bool uses_gl_InstanceID;
   bool uses_gl_BaseInstanceARB;
   bool uses_gl_FrontFacing;
+  bool uses_gl_PrimitiveID;
   /* Sets the output render target array index when using multilayered rendering. */
   bool uses_gl_FragDepth;
   bool uses_mtl_array_index_;
   bool uses_transform_feedback;
   bool uses_barycentrics;
+  /* Compute shader global variables. */
+  bool uses_gl_GlobalInvocationID;
+  bool uses_gl_WorkGroupSize;
+  bool uses_gl_WorkGroupID;
+  bool uses_gl_NumWorkGroups;
+  bool uses_gl_LocalInvocationIndex;
+  bool uses_gl_LocalInvocationID;
 
   /* Parameters. */
   shader::DepthWrite depth_write;
 
-  /* Shader buffer bind indices for argument buffers. */
-  int sampler_argument_buffer_bind_index[2] = {-1, -1};
+  /* Bind index trackers. */
+  int max_ubo_slot = -1;
+
+  /* Shader buffer bind indices for argument buffers per shader stage.
+   * NOTE: Compute stage will re-use index 0. */
+  int sampler_argument_buffer_bind_index[3] = {-1, -1, -1};
 
   /*** SSBO Vertex fetch mode. ***/
   /* Indicates whether to pass in Vertex Buffer's as a regular buffers instead of using vertex
@@ -451,8 +475,10 @@ class MSLGeneratorInterface {
   std::string generate_msl_fragment_out_struct();
   std::string generate_msl_vertex_inputs_string();
   std::string generate_msl_fragment_inputs_string();
+  std::string generate_msl_compute_inputs_string();
   std::string generate_msl_vertex_entry_stub();
   std::string generate_msl_fragment_entry_stub();
+  std::string generate_msl_compute_entry_stub();
   std::string generate_msl_global_uniform_population(ShaderStage stage);
   std::string generate_ubo_block_macro_chain(MSLUniformBlock block);
   std::string generate_msl_uniform_block_population(ShaderStage stage);
@@ -464,8 +490,12 @@ class MSLGeneratorInterface {
   std::string generate_msl_uniform_undefs(ShaderStage stage);
   std::string generate_ubo_block_undef_chain(ShaderStage stage);
   std::string generate_msl_texture_vars(ShaderStage shader_stage);
-  void generate_msl_textures_input_string(std::stringstream &out, ShaderStage stage);
-  void generate_msl_uniforms_input_string(std::stringstream &out, ShaderStage stage);
+  void generate_msl_textures_input_string(std::stringstream &out,
+                                          ShaderStage stage,
+                                          bool &is_first_parameter);
+  void generate_msl_uniforms_input_string(std::stringstream &out,
+                                          ShaderStage stage,
+                                          bool &is_first_parameter);
 
   /* Location is not always specified, so this will resolve outstanding locations. */
   void resolve_input_attribute_locations();
@@ -480,13 +510,31 @@ class MSLGeneratorInterface {
   MEM_CXX_CLASS_ALLOC_FUNCS("MSLGeneratorInterface");
 };
 
-inline std::string get_stage_class_name(ShaderStage stage)
+inline const char *get_stage_class_name(ShaderStage stage)
 {
   switch (stage) {
     case ShaderStage::VERTEX:
       return "MTLShaderVertexImpl";
     case ShaderStage::FRAGMENT:
       return "MTLShaderFragmentImpl";
+    case ShaderStage::COMPUTE:
+      return "MTLShaderComputeImpl";
+    default:
+      BLI_assert_unreachable();
+      return "";
+  }
+  return "";
+}
+
+inline const char *get_shader_stage_instance_name(ShaderStage stage)
+{
+  switch (stage) {
+    case ShaderStage::VERTEX:
+      return "vertex_shader_instance";
+    case ShaderStage::FRAGMENT:
+      return "fragment_shader_instance";
+    case ShaderStage::COMPUTE:
+      return "compute_shader_instance";
     default:
       BLI_assert_unreachable();
       return "";
@@ -657,7 +705,7 @@ inline const char *to_string_msl(const shader::Interpolation &interp)
 {
   switch (interp) {
     case shader::Interpolation::SMOOTH:
-      return "[[smooth]]";
+      return "[[center_perspective]]";
     case shader::Interpolation::FLAT:
       return "[[flat]]";
     case shader::Interpolation::NO_PERSPECTIVE:
@@ -722,6 +770,28 @@ inline const char *to_string(const shader::Type &type)
       BLI_assert(false);
       return "unkown";
   }
+}
+
+inline char *next_symbol_in_range(char *begin, char *end, char symbol)
+{
+  for (char *a = begin; a < end; a++) {
+    if (*a == symbol) {
+      return a;
+    }
+  }
+  return nullptr;
+}
+
+inline char *next_word_in_range(char *begin, char *end)
+{
+  for (char *a = begin; a < end; a++) {
+    char chr = *a;
+    if ((chr >= 'a' && chr <= 'z') || (chr >= 'A' && chr <= 'Z') || (chr >= '0' && chr <= '9') ||
+        (chr == '_')) {
+      return a;
+    }
+  }
+  return nullptr;
 }
 
 }  // namespace blender::gpu

@@ -201,7 +201,7 @@ static bNodeSocketTemplate node_in[] = {{SOCK_VECTOR,
 
 static bNodeSocketTemplate node_out[] = {{SOCK_SHADER, N_("OutEnv")}, {-1, ""}};
 
-static void node_oct_environment_daylight_init(bNodeTree *UNUSED(ntree), bNode *node)
+static void node_oct_environment_daylight_init(bNodeTree *ntree, bNode *node)
 {
   node->oct_custom1 = OCT_DAYLIGHTMODEL_NEW;
 }
@@ -217,8 +217,8 @@ void register_node_type_environment_oct_daylight(void)
                    NODE_CLASS_OCT_ENVIRONMENT);
   node_type_socket_templates(&ntype, node_in, node_out);
   node_type_size(&ntype, 160, 160, 500);
-  node_type_init(&ntype, node_oct_environment_daylight_init);
-  node_type_exec(&ntype, 0, 0, 0);
+  ntype.initfunc = (node_oct_environment_daylight_init);
+  // node_type_exec(&ntype, 0, 0, 0);
   
 
   nodeRegisterType(&ntype);

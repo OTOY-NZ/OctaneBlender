@@ -47,7 +47,7 @@ class OctaneReflectionAOV(bpy.types.Node, OctaneBaseNode):
 
     def init(self, context):
         self.inputs.new("OctaneReflectionAOVEnabled", OctaneReflectionAOVEnabled.bl_label).init()
-        self.outputs.new("OctaneRenderAOVsOutSocket", "Render AOVs out").init()
+        self.outputs.new("OctaneRenderAOVOutSocket", "Render AOV out").init()
 
 
 _CLASSES=[

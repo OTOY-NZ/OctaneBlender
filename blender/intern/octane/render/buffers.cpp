@@ -29,6 +29,11 @@
 #  endif
 #endif  // NOPNG
 
+#include "GPU_context.h"
+#include "GPU_immediate.h"
+#include "GPU_shader.h"
+#include "GPU_state.h"
+
 #include "util/util_opengl.h"
 #include "util/util_path.h"
 #include "util/util_types.h"
@@ -97,6 +102,7 @@ DisplayBuffer::DisplayBuffer(::OctaneEngine::OctaneClient *server, bool linear)
       draw_height(0),
       shared_handler(0),
       gl_texture(0),
+      gpu_texture(nullptr),
       transparent(true), /* todo: determine from background */
       half_float(linear),
       server(server)
@@ -105,6 +111,7 @@ DisplayBuffer::DisplayBuffer(::OctaneEngine::OctaneClient *server, bool linear)
 
 DisplayBuffer::~DisplayBuffer()
 {
+  GPU_TEXTURE_FREE_SAFE(gpu_texture);
 }
 
 void DisplayBuffer::reset(BufferParams &params_)
@@ -187,7 +194,7 @@ void DisplayBuffer::update_gl_texture_from_shared_handler(GLuint &gl_texture,
                                                           int64_t current_shared_handler)
 {
 #if defined(WIN32)
-  if (shared_handler != current_shared_handler) {    
+  if (shared_handler != current_shared_handler) {
     server->lockImageBuffer();
     ID3D11Device1 *d3d = (ID3D11Device1 *)CommonD3D::GetD3DDevice();
     ID3D11Texture2D *octaneTex = nullptr;
@@ -235,8 +242,7 @@ void DisplayBuffer::update_gl_texture_from_shared_handler(GLuint &gl_texture,
     int memobject_w = ((desc.Width + 63) / 64) * 64;
     int memobject_h = ((desc.Height + 63) / 64) * 64;
     glImportMemoryWin32HandleEXT(
-        memObjGL, pitch * hgt * 4 * 2, GL_HANDLE_TYPE_D3D11_IMAGE_EXT,
-                                 (void *)sharedHandle);
+        memObjGL, pitch * hgt * 4 * 2, GL_HANDLE_TYPE_D3D11_IMAGE_EXT, (void *)sharedHandle);
     // attach memobject to texture
     if (glAcquireKeyedMutexWin32EXT(memObjGL, 0, 500)) {
       glTextureStorageMem2DEXT(gl_texture, 1, GL_RGBA8, desc.Width, desc.Height, memObjGL, 0);
@@ -268,24 +274,47 @@ void DisplayBuffer::update_gl_texture_from_pixel_array(
       new_data_pointer[m + 2] = data_pointer[n];
       new_data_pointer[m + 3] = data_pointer[n + 1];
     }
-    glTexImage2D(GL_TEXTURE_2D,
-                 0,
-                 GL_RGBA8, width, height, 0,
-                 GL_RGBA,
-                 GL_UNSIGNED_BYTE,
-                 new_data_pointer);
+    glTexImage2D(
+        GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, new_data_pointer);
     delete[] new_data_pointer;
   }
   else {
-    glTexImage2D(GL_TEXTURE_2D,
-                 0, GL_RGBA8, width, height,
-                 0,
-                 GL_RGBA,
-                 GL_UNSIGNED_BYTE,
-                 data_pointer);
+    glTexImage2D(
+        GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data_pointer);
   }
   glBindTexture(GL_TEXTURE_2D, 0);
   server->unlockImageBuffer();
+}
+
+void DisplayBuffer::update_gpu_texture_from_pixel_array(uint8_t *rgba,
+                                                        int32_t components_cnt,
+                                                        int32_t width,
+                                                        int32_t height)
+{
+  server->lockImageBuffer();
+  uint8_t *data_pointer = (uint8_t *)rgba;
+  if (components_cnt == 2) {
+    data_pointer = new uint8_t[width * height * 4];
+    for (int i = 0; i < width * height; ++i) {
+      int m = i * 4;
+      int n = i * 2;
+      data_pointer[m] = rgba[n];
+      data_pointer[m + 1] = rgba[n];
+      data_pointer[m + 2] = rgba[n];
+      data_pointer[m + 3] = rgba[n + 1];
+    }
+  }
+  if (components_cnt == 2) {
+    delete[] data_pointer;
+  }
+  server->unlockImageBuffer();
+  if (gpu_texture) {
+    GPU_TEXTURE_FREE_SAFE(gpu_texture);
+  }
+  gpu_texture = GPU_texture_create_2d("OctaneTexture", width, height, 1, GPU_RGBA8, nullptr);
+  GPU_texture_update(gpu_texture, GPU_DATA_UBYTE, rgba);
+  GPU_texture_filter_mode(gpu_texture, false);
+  GPU_texture_wrap_mode(gpu_texture, false, true);
 }
 
 void DisplayBuffer::draw(DeviceDrawParams &draw_params, bool use_shared_surface)
@@ -295,6 +324,11 @@ void DisplayBuffer::draw(DeviceDrawParams &draw_params, bool use_shared_surface)
   int components_cnt;
   int full_width = params.full_width, full_height = params.full_height;
   int reg_width = params.width, reg_height = params.height;
+#ifdef __APPLE__
+  bool use_opengl = false;
+#else
+  bool use_opengl = true;
+#endif
   if (params.use_camera_dimension_as_preview_resolution) {
     if (params.use_border) {
       full_width = params.camera_resolution_width;
@@ -311,150 +345,181 @@ void DisplayBuffer::draw(DeviceDrawParams &draw_params, bool use_shared_surface)
       height = params.camera_dimension_height;
     }
   }
-  if (use_shared_surface) {
-    int64_t current_shared_handler;
-    if (!server->getSharedSurfaceHandler(
-            current_shared_handler, full_width, full_height, reg_width, reg_height)) {
-      return;
-    }
-    update_gl_texture_from_shared_handler(gl_texture, current_shared_handler);
-  }
-  else {
-    uint8_t *rgba = NULL;
-    if (!server->getImgBuffer8bit(
-            components_cnt, rgba, full_width, full_height, reg_width, reg_height)) {
-      return;
-    }
-    if (!rgba) {
-      return;
-    }
-    update_gl_texture_from_pixel_array(gl_texture, rgba, components_cnt, reg_width, reg_height);
-  }
-
-  glActiveTexture(GL_TEXTURE0);
-  glBindTexture(GL_TEXTURE_2D, gl_texture);
-  //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-  //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-  if (transparent) {
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-  }
-
-  GLint shader_program;
-  draw_params.bind_display_space_shader_cb();
-  glGetIntegerv(GL_CURRENT_PROGRAM, &shader_program);
-
-  unsigned int vertex_buffer = 0;
-  glGenBuffers(1, &vertex_buffer);
-  glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
-  glBufferData(GL_ARRAY_BUFFER, 16 * sizeof(float), NULL, GL_STREAM_DRAW);
-  float *vpointer = (float *)glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
-  if (vpointer) {
-    /* texture coordinate - vertex pair */
+  if (use_opengl) {
     if (use_shared_surface) {
-      if (params.use_border) {
-        vpointer[0] = 0.0f;
-        vpointer[1] = 1.0f;
-        vpointer[2] = 0;
-        vpointer[3] = 0;
+      int64_t current_shared_handler;
+      if (!server->getSharedSurfaceHandler(
+              current_shared_handler, full_width, full_height, reg_width, reg_height)) {
+        return;
+      }
+      update_gl_texture_from_shared_handler(gl_texture, current_shared_handler);
+    }
+    else {
+      uint8_t *rgba = NULL;
+      if (!server->getImgBuffer8bit(
+              components_cnt, rgba, full_width, full_height, reg_width, reg_height)) {
+        return;
+      }
+      if (!rgba) {
+        return;
+      }
+      update_gl_texture_from_pixel_array(gl_texture, rgba, components_cnt, reg_width, reg_height);
+    }
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, gl_texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    if (transparent) {
+      glEnable(GL_BLEND);
+      glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+    }
+    GLint shader_program;
+    draw_params.bind_display_space_shader_cb();
+    glGetIntegerv(GL_CURRENT_PROGRAM, &shader_program);
+    unsigned int vertex_buffer = 0;
+    glGenBuffers(1, &vertex_buffer);
+    glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
+    glBufferData(GL_ARRAY_BUFFER, 16 * sizeof(float), NULL, GL_STREAM_DRAW);
+    float *vpointer = (float *)glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
+    if (vpointer) {
+      /* texture coordinate - vertex pair */
+      if (use_shared_surface) {
+        if (params.use_border) {
+          vpointer[0] = 0.0f;
+          vpointer[1] = 1.0f;
+          vpointer[2] = 0;
+          vpointer[3] = 0;
 
-        vpointer[4] = 1.0f;
-        vpointer[5] = 1.0f;
-        vpointer[6] = dw;
-        vpointer[7] = 0;
+          vpointer[4] = 1.0f;
+          vpointer[5] = 1.0f;
+          vpointer[6] = dw;
+          vpointer[7] = 0;
 
-        vpointer[8] = 1.0f;
-        vpointer[9] = 0.0f;
-        vpointer[10] = dw;
-        vpointer[11] = dh;
+          vpointer[8] = 1.0f;
+          vpointer[9] = 0.0f;
+          vpointer[10] = dw;
+          vpointer[11] = dh;
 
-        vpointer[12] = 0.0f;
-        vpointer[13] = 0.0f;
-        vpointer[14] = 0;
-        vpointer[15] = dh;
+          vpointer[12] = 0.0f;
+          vpointer[13] = 0.0f;
+          vpointer[14] = 0;
+          vpointer[15] = dh;
+        }
+        else {
+          vpointer[0] = 0.0f;
+          vpointer[1] = 1.0f;
+          vpointer[2] = dx;
+          vpointer[3] = dy;
+
+          vpointer[4] = 1.0f;
+          vpointer[5] = 1.0f;
+          vpointer[6] = (float)width + dx;
+          vpointer[7] = dy;
+
+          vpointer[8] = 1.0f;
+          vpointer[9] = 0.0f;
+          vpointer[10] = (float)width + dx;
+          vpointer[11] = (float)height + dy;
+
+          vpointer[12] = 0.0f;
+          vpointer[13] = 0.0f;
+          vpointer[14] = dx;
+          vpointer[15] = (float)height + dy;
+        }
       }
       else {
         vpointer[0] = 0.0f;
-        vpointer[1] = 1.0f;
+        vpointer[1] = 0.0f;
         vpointer[2] = dx;
         vpointer[3] = dy;
 
         vpointer[4] = 1.0f;
-        vpointer[5] = 1.0f;
+        vpointer[5] = 0.0f;
         vpointer[6] = (float)width + dx;
         vpointer[7] = dy;
 
         vpointer[8] = 1.0f;
-        vpointer[9] = 0.0f;
+        vpointer[9] = 1.0f;
         vpointer[10] = (float)width + dx;
         vpointer[11] = (float)height + dy;
 
         vpointer[12] = 0.0f;
-        vpointer[13] = 0.0f;
+        vpointer[13] = 1.0f;
         vpointer[14] = dx;
         vpointer[15] = (float)height + dy;
       }
+      if (vertex_buffer) {
+        glUnmapBuffer(GL_ARRAY_BUFFER);
+      }
     }
-    else {
-      vpointer[0] = 0.0f;
-      vpointer[1] = 0.0f;
-      vpointer[2] = dx;
-      vpointer[3] = dy;
-
-      vpointer[4] = 1.0f;
-      vpointer[5] = 0.0f;
-      vpointer[6] = (float)width + dx;
-      vpointer[7] = dy;
-
-      vpointer[8] = 1.0f;
-      vpointer[9] = 1.0f;
-      vpointer[10] = (float)width + dx;
-      vpointer[11] = (float)height + dy;
-
-      vpointer[12] = 0.0f;
-      vpointer[13] = 1.0f;
-      vpointer[14] = dx;
-      vpointer[15] = (float)height + dy;
-    }
+    GLuint vertex_array_object;
+    GLuint position_attribute, texcoord_attribute;
+    glGenVertexArrays(1, &vertex_array_object);
+    glBindVertexArray(vertex_array_object);
+    texcoord_attribute = glGetAttribLocation(shader_program, "texCoord");
+    position_attribute = glGetAttribLocation(shader_program, "pos");
+    glEnableVertexAttribArray(texcoord_attribute);
+    glEnableVertexAttribArray(position_attribute);
+    glVertexAttribPointer(
+        texcoord_attribute, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (const GLvoid *)0);
+    glVertexAttribPointer(position_attribute,
+                          2,
+                          GL_FLOAT,
+                          GL_FALSE,
+                          4 * sizeof(float),
+                          (const GLvoid *)(sizeof(float) * 2));
+    glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
     if (vertex_buffer) {
-      glUnmapBuffer(GL_ARRAY_BUFFER);
+      glBindBuffer(GL_ARRAY_BUFFER, 0);
+    }
+    draw_params.unbind_display_space_shader_cb();
+    glBindTexture(GL_TEXTURE_2D, 0);
+    if (!use_shared_surface) {
+      glDeleteTextures(1, &gl_texture);
+    }
+    if (transparent) {
+      glDisable(GL_BLEND);
     }
   }
-  GLuint vertex_array_object;
-  GLuint position_attribute, texcoord_attribute;
-  glGenVertexArrays(1, &vertex_array_object);
-  glBindVertexArray(vertex_array_object);
-  texcoord_attribute = glGetAttribLocation(shader_program, "texCoord");
-  position_attribute = glGetAttribLocation(shader_program, "pos");
-
-  glEnableVertexAttribArray(texcoord_attribute);
-  glEnableVertexAttribArray(position_attribute);
-
-  glVertexAttribPointer(
-      texcoord_attribute, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (const GLvoid *)0);
-  glVertexAttribPointer(position_attribute,
-                        2,
-                        GL_FLOAT,
-                        GL_FALSE,
-                        4 * sizeof(float),
-                        (const GLvoid *)(sizeof(float) * 2));
-
-  glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-
-  if (vertex_buffer) {
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-  }
-
-  draw_params.unbind_display_space_shader_cb();
-  glBindTexture(GL_TEXTURE_2D, 0);
-  if (!use_shared_surface) {
-    glDeleteTextures(1, &gl_texture);
-  }
-  if (transparent) {
-    glDisable(GL_BLEND);
+  else {
+    if (!use_shared_surface) {
+      uint8_t *rgba = NULL;
+      if (!server->getImgBuffer8bit(
+              components_cnt, rgba, full_width, full_height, reg_width, reg_height)) {
+        return;
+      }
+      if (!rgba) {
+        return;
+      }
+      update_gpu_texture_from_pixel_array(rgba, components_cnt, reg_width, reg_height);
+      static constexpr const char *position_attribute_name = "pos";
+      static constexpr const char *tex_coord_attribute_name = "texCoord";
+      GPU_blend(GPU_BLEND_ALPHA_PREMULT);
+      draw_params.bind_display_space_shader_cb();
+      GPUVertFormat *format = immVertexFormat();
+      const int texcoord_attribute = GPU_vertformat_attr_add(
+          format, tex_coord_attribute_name, GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+      const int position_attribute = GPU_vertformat_attr_add(
+          format, position_attribute_name, GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+      GPUShader *active_shader = GPU_shader_get_bound();
+      immBindShader(active_shader);
+      GPU_texture_bind_ex(gpu_texture, GPU_SAMPLER_DEFAULT, 0, false);
+      immBegin(GPU_PRIM_TRI_STRIP, 4);
+      immAttr2f(texcoord_attribute, 1.0f, 0.0f);
+      immVertex2f(position_attribute, (float)width + dx, dy);
+      immAttr2f(texcoord_attribute, 1.0f, 1.0f);
+      immVertex2f(position_attribute, (float)width + dx, (float)height + dy);
+      immAttr2f(texcoord_attribute, 0.0f, 0.0f);
+      immVertex2f(position_attribute, dx, dy);
+      immAttr2f(texcoord_attribute, 0.0f, 1.0f);
+      immVertex2f(position_attribute, dx, (float)height + dy);
+      immEnd();
+      GPU_texture_unbind(gpu_texture);
+      immUnbindProgram();
+      draw_params.unbind_display_space_shader_cb();
+      GPU_blend(GPU_BLEND_NONE);
+      GPU_flush();
+    }
   }
 }
 

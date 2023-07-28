@@ -173,7 +173,7 @@ class OctaneSpecularMaterialHasCaustics(OctaneBaseSocket):
 
 class OctaneSpecularMaterialFilmwidth(OctaneBaseSocket):
     bl_idname="OctaneSpecularMaterialFilmwidth"
-    bl_label="Film width"
+    bl_label="Film width (μm)"
     color=consts.OctanePinColor.Texture
     octane_default_node_type=consts.NodeType.NT_TEX_FLOAT
     octane_default_node_name="OctaneGreyscaleColor"
@@ -182,7 +182,7 @@ class OctaneSpecularMaterialFilmwidth(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_TEXTURE
     octane_pin_index=9
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Thickness of the film coating", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
+    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Thickness of the film coating in micrometers", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -530,7 +530,7 @@ class OctaneSpecularMaterialGroupIOR(OctaneGroupTitleSocket):
 class OctaneSpecularMaterialGroupThinFilmLayer(OctaneGroupTitleSocket):
     bl_idname="OctaneSpecularMaterialGroupThinFilmLayer"
     bl_label="[OctaneGroupTitle]Thin Film Layer"
-    octane_group_sockets: StringProperty(name="Group Sockets", default="Film width;Film IOR;")
+    octane_group_sockets: StringProperty(name="Group Sockets", default="Film width (μm);Film IOR;")
 
 class OctaneSpecularMaterialGroupTransmissionProperties(OctaneGroupTitleSocket):
     bl_idname="OctaneSpecularMaterialGroupTransmissionProperties"
@@ -554,7 +554,7 @@ class OctaneSpecularMaterial(bpy.types.Node, OctaneBaseNode):
     octane_socket_class_list=[OctaneSpecularMaterialReflection,OctaneSpecularMaterialTransmission,OctaneSpecularMaterialBrdf,OctaneSpecularMaterialGroupRoughness,OctaneSpecularMaterialRoughness,OctaneSpecularMaterialAnisotropy,OctaneSpecularMaterialRotation,OctaneSpecularMaterialSpread,OctaneSpecularMaterialGroupIOR,OctaneSpecularMaterialIndex,OctaneSpecularMaterialHasCaustics,OctaneSpecularMaterialGroupThinFilmLayer,OctaneSpecularMaterialFilmwidth,OctaneSpecularMaterialFilmindex,OctaneSpecularMaterialGroupTransmissionProperties,OctaneSpecularMaterialDispersionCoefficientB,OctaneSpecularMaterialMedium,OctaneSpecularMaterialOpacity,OctaneSpecularMaterialFakeShadows,OctaneSpecularMaterialRefractionAlpha,OctaneSpecularMaterialThinWall,OctaneSpecularMaterialGroupGeometryProperties,OctaneSpecularMaterialBump,OctaneSpecularMaterialNormal,OctaneSpecularMaterialDisplacement,OctaneSpecularMaterialSmooth,OctaneSpecularMaterialSmoothShadowTerminator,OctaneSpecularMaterialRoundEdges,OctaneSpecularMaterialPriority,OctaneSpecularMaterialCustomAov,OctaneSpecularMaterialCustomAovChannel,OctaneSpecularMaterialLayer,OctaneSpecularMaterialEdgesRounding,]
     octane_min_version=0
     octane_node_type=consts.NodeType.NT_MAT_SPECULAR
-    octane_socket_list=["Reflection", "Transmission", "BRDF model", "Roughness", "Anisotropy", "Rotation", "Spread", "Index of refraction", "Allow caustics", "Film width", "Film IOR", "Dispersion coefficient", "Medium", "Opacity", "Fake shadows", "Affect alpha", "Thin wall", "Bump", "Normal", "Displacement", "Smooth", "Smooth shadow terminator", "Round edges", "Priority", "Custom AOV", "Custom AOV channel", "Material layer", "[Deprecated]Rounded edges radius", ]
+    octane_socket_list=["Reflection", "Transmission", "BRDF model", "Roughness", "Anisotropy", "Rotation", "Spread", "Index of refraction", "Allow caustics", "Film width (μm)", "Film IOR", "Dispersion coefficient", "Medium", "Opacity", "Fake shadows", "Affect alpha", "Thin wall", "Bump", "Normal", "Displacement", "Smooth", "Smooth shadow terminator", "Round edges", "Priority", "Custom AOV", "Custom AOV channel", "Material layer", "[Deprecated]Rounded edges radius", ]
     octane_attribute_list=[]
     octane_attribute_config={}
     octane_static_pin_count=27

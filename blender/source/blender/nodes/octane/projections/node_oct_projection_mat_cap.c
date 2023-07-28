@@ -44,8 +44,8 @@ void register_node_type_projection_oct_mat_cap(void)
                    NODE_CLASS_OCT_PROJECTION);
   node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
   node_type_size(&ntype, 100, 100, 200);
-  node_type_init(&ntype, 0);
-  node_type_exec(&ntype, 0, 0, 0);
+  ntype.initfunc = (0);
+  // node_type_exec(&ntype, 0, 0, 0);
   
 
   nodeRegisterType(&ntype);

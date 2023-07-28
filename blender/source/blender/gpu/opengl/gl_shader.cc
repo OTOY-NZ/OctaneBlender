@@ -360,9 +360,16 @@ static std::ostream &print_qualifier(std::ostream &os, const Qualifier &qualifie
   return os;
 }
 
-static void print_resource(std::ostream &os, const ShaderCreateInfo::Resource &res)
+static void print_resource(std::ostream &os,
+                           const ShaderCreateInfo::Resource &res,
+                           bool auto_resource_location)
 {
-  if (GLContext::explicit_location_support) {
+  if (auto_resource_location && res.bind_type == ShaderCreateInfo::Resource::BindType::SAMPLER) {
+    /* Skip explicit binding location for samplers when not needed, since drivers can usually
+     * handle more sampler declarations this way (as long as they're not actually used by the
+     * shader). See #105661. */
+  }
+  else if (GLContext::explicit_location_support) {
     os << "layout(binding = " << res.slot;
     if (res.bind_type == ShaderCreateInfo::Resource::BindType::IMAGE) {
       os << ", " << to_string(res.image.format);
@@ -466,14 +473,14 @@ std::string GLShader::resources_declare(const ShaderCreateInfo &info) const
 
   ss << "\n/* Pass Resources. */\n";
   for (const ShaderCreateInfo::Resource &res : info.pass_resources_) {
-    print_resource(ss, res);
+    print_resource(ss, res, info.auto_resource_location_);
   }
   for (const ShaderCreateInfo::Resource &res : info.pass_resources_) {
     print_resource_alias(ss, res);
   }
   ss << "\n/* Batch Resources. */\n";
   for (const ShaderCreateInfo::Resource &res : info.batch_resources_) {
-    print_resource(ss, res);
+    print_resource(ss, res, info.auto_resource_location_);
   }
   for (const ShaderCreateInfo::Resource &res : info.batch_resources_) {
     print_resource_alias(ss, res);
@@ -486,9 +493,9 @@ std::string GLShader::resources_declare(const ShaderCreateInfo &info) const
     }
     ss << ";\n";
   }
-#if 0 /* T95278: This is not be enough to prevent some compilers think it is recursive. */
+#if 0 /* #95278: This is not be enough to prevent some compilers think it is recursive. */
   for (const ShaderCreateInfo::PushConst &uniform : info.push_constants_) {
-    /* T95278: Double macro to avoid some compilers think it is recursive. */
+    /* #95278: Double macro to avoid some compilers think it is recursive. */
     ss << "#define " << uniform.name << "_ " << uniform.name << "\n";
     ss << "#define " << uniform.name << " (" << uniform.name << "_)\n";
   }
@@ -817,7 +824,7 @@ static char *glsl_patch_default_get()
   if (GLContext::texture_gather_support) {
     STR_CONCAT(patch, slen, "#extension GL_ARB_texture_gather: enable\n");
     /* Some drivers don't agree on epoxy_has_gl_extension("GL_ARB_texture_gather") and the actual
-     * support in the shader so double check the preprocessor define (see T56544). */
+     * support in the shader so double check the preprocessor define (see #56544). */
     STR_CONCAT(patch, slen, "#ifdef GL_ARB_texture_gather\n");
     STR_CONCAT(patch, slen, "#  define GPU_ARB_texture_gather\n");
     STR_CONCAT(patch, slen, "#endif\n");

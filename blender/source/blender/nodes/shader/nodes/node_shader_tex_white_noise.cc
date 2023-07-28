@@ -63,7 +63,7 @@ static void node_shader_update_tex_white_noise(bNodeTree *ntree, bNode *node)
   nodeSetSocketAvailability(ntree, sockW, node->custom1 == 1 || node->custom1 == 4);
 }
 
-class WhiteNoiseFunction : public fn::MultiFunction {
+class WhiteNoiseFunction : public mf::MultiFunction {
  private:
   int dimensions_;
 
@@ -71,7 +71,7 @@ class WhiteNoiseFunction : public fn::MultiFunction {
   WhiteNoiseFunction(int dimensions) : dimensions_(dimensions)
   {
     BLI_assert(dimensions >= 1 && dimensions <= 4);
-    static std::array<fn::MFSignature, 4> signatures{
+    static std::array<mf::Signature, 4> signatures{
         create_signature(1),
         create_signature(2),
         create_signature(3),
@@ -80,24 +80,25 @@ class WhiteNoiseFunction : public fn::MultiFunction {
     this->set_signature(&signatures[dimensions - 1]);
   }
 
-  static fn::MFSignature create_signature(int dimensions)
+  static mf::Signature create_signature(int dimensions)
   {
-    fn::MFSignatureBuilder signature{"WhiteNoise"};
+    mf::Signature signature;
+    mf::SignatureBuilder builder{"WhiteNoise", signature};
 
     if (ELEM(dimensions, 2, 3, 4)) {
-      signature.single_input<float3>("Vector");
+      builder.single_input<float3>("Vector");
     }
     if (ELEM(dimensions, 1, 4)) {
-      signature.single_input<float>("W");
+      builder.single_input<float>("W");
     }
 
-    signature.single_output<float>("Value");
-    signature.single_output<ColorGeometry4f>("Color");
+    builder.single_output<float>("Value", mf::ParamFlag::SupportsUnusedOutput);
+    builder.single_output<ColorGeometry4f>("Color", mf::ParamFlag::SupportsUnusedOutput);
 
-    return signature.build();
+    return signature;
   }
 
-  void call(IndexMask mask, fn::MFParams params, fn::MFContext /*context*/) const override
+  void call(IndexMask mask, mf::Params params, mf::Context /*context*/) const override
   {
     int param = ELEM(dimensions_, 2, 3, 4) + ELEM(dimensions_, 1, 4);
 
@@ -194,9 +195,9 @@ void register_node_type_sh_tex_white_noise()
   sh_fn_node_type_base(&ntype, SH_NODE_TEX_WHITE_NOISE, "White Noise Texture", NODE_CLASS_TEXTURE);
   ntype.declare = file_ns::sh_node_tex_white_noise_declare;
   ntype.draw_buttons = file_ns::node_shader_buts_white_noise;
-  node_type_init(&ntype, file_ns::node_shader_init_tex_white_noise);
-  node_type_gpu(&ntype, file_ns::gpu_shader_tex_white_noise);
-  node_type_update(&ntype, file_ns::node_shader_update_tex_white_noise);
+  ntype.initfunc = file_ns::node_shader_init_tex_white_noise;
+  ntype.gpu_fn = file_ns::gpu_shader_tex_white_noise;
+  ntype.updatefunc = file_ns::node_shader_update_tex_white_noise;
   ntype.build_multi_function = file_ns::sh_node_noise_build_multi_function;
 
   nodeRegisterType(&ntype);

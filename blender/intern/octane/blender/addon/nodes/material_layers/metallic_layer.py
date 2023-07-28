@@ -230,7 +230,7 @@ class OctaneMetallicLayerHasCaustics(OctaneBaseSocket):
 
 class OctaneMetallicLayerFilmwidth(OctaneBaseSocket):
     bl_idname="OctaneMetallicLayerFilmwidth"
-    bl_label="Film width"
+    bl_label="Film width (μm)"
     color=consts.OctanePinColor.Texture
     octane_default_node_type=consts.NodeType.NT_TEX_FLOAT
     octane_default_node_name="OctaneGreyscaleColor"
@@ -239,7 +239,7 @@ class OctaneMetallicLayerFilmwidth(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_TEXTURE
     octane_pin_index=12
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Thickness of the film coating", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
+    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Thickness of the film coating in micrometers", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -324,7 +324,7 @@ class OctaneMetallicLayerGroupIOR(OctaneGroupTitleSocket):
 class OctaneMetallicLayerGroupThinFilmLayer(OctaneGroupTitleSocket):
     bl_idname="OctaneMetallicLayerGroupThinFilmLayer"
     bl_label="[OctaneGroupTitle]Thin Film Layer"
-    octane_group_sockets: StringProperty(name="Group Sockets", default="Film width;Film IOR;")
+    octane_group_sockets: StringProperty(name="Group Sockets", default="Film width (μm);Film IOR;")
 
 class OctaneMetallicLayerGroupGeometryProperties(OctaneGroupTitleSocket):
     bl_idname="OctaneMetallicLayerGroupGeometryProperties"
@@ -348,7 +348,7 @@ class OctaneMetallicLayer(bpy.types.Node, OctaneBaseNode):
     octane_socket_class_list=[OctaneMetallicLayerSpecular,OctaneMetallicLayerEdgeTint,OctaneMetallicLayerBrdf,OctaneMetallicLayerGroupRoughness,OctaneMetallicLayerRoughness,OctaneMetallicLayerAnisotropy,OctaneMetallicLayerRotation,OctaneMetallicLayerSpread,OctaneMetallicLayerGroupIOR,OctaneMetallicLayerMetallicMode,OctaneMetallicLayerIndex,OctaneMetallicLayerIndex2,OctaneMetallicLayerIndex3,OctaneMetallicLayerHasCaustics,OctaneMetallicLayerGroupThinFilmLayer,OctaneMetallicLayerFilmwidth,OctaneMetallicLayerFilmindex,OctaneMetallicLayerGroupGeometryProperties,OctaneMetallicLayerBump,OctaneMetallicLayerNormal,OctaneMetallicLayerGroupLayerProperties,OctaneMetallicLayerOpacity,]
     octane_min_version=0
     octane_node_type=consts.NodeType.NT_MAT_METALLIC_LAYER
-    octane_socket_list=["Specular ", "Edge tint", "BRDF model", "Roughness", "Anisotropy", "Rotation", "Spread", "Metallic reflection mode", "Index of refraction", "Index of refraction (green)", "Index of refraction (blue)", "Allow caustics", "Film width", "Film IOR", "Bump", "Normal", "Layer opacity", ]
+    octane_socket_list=["Specular ", "Edge tint", "BRDF model", "Roughness", "Anisotropy", "Rotation", "Spread", "Metallic reflection mode", "Index of refraction", "Index of refraction (green)", "Index of refraction (blue)", "Allow caustics", "Film width (μm)", "Film IOR", "Bump", "Normal", "Layer opacity", ]
     octane_attribute_list=[]
     octane_attribute_config={}
     octane_static_pin_count=17

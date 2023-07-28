@@ -120,10 +120,7 @@ static void engine_bind_display_space_shader(RenderEngine *UNUSED(engine), Scene
 {
   GPUShader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_3D_IMAGE);
   GPU_shader_bind(shader);
-
-  int img_loc = GPU_shader_get_uniform(shader, "image");
-
-  GPU_shader_uniform_int(shader, img_loc, 0);
+  /** \note "image" binding slot is 0. */
 }
 
 static void engine_unbind_display_space_shader(RenderEngine *UNUSED(engine))
@@ -310,12 +307,12 @@ static void engine_update_render_passes(RenderEngine *engine,
 
 /* RenderEngine registration */
 
-static void rna_RenderEngine_unregister(Main *bmain, StructRNA *type)
+static bool rna_RenderEngine_unregister(Main *bmain, StructRNA *type)
 {
   RenderEngineType *et = RNA_struct_blender_type_get(type);
 
   if (!et) {
-    return;
+    return false;
   }
 
   /* Stop all renders in case we were using this one. */
@@ -325,6 +322,7 @@ static void rna_RenderEngine_unregister(Main *bmain, StructRNA *type)
   RNA_struct_free_extension(type, &et->rna_ext);
   RNA_struct_free(&BLENDER_RNA, type);
   BLI_freelinkN(&R_engines, et);
+  return true;
 }
 
 static StructRNA *rna_RenderEngine_register(Main *bmain,
@@ -335,6 +333,7 @@ static StructRNA *rna_RenderEngine_register(Main *bmain,
                                             StructCallbackFunc call,
                                             StructFreeFunc free)
 {
+  const char *error_prefix = "Registering render engine class:";
   RenderEngineType *et, dummyet = {NULL};
   RenderEngine dummyengine = {NULL};
   PointerRNA dummyptr;
@@ -353,19 +352,26 @@ static StructRNA *rna_RenderEngine_register(Main *bmain,
   if (strlen(identifier) >= sizeof(dummyet.idname)) {
     BKE_reportf(reports,
                 RPT_ERROR,
-                "Registering render engine class: '%s' is too long, maximum length is %d",
+                "%s '%s' is too long, maximum length is %d",
+                error_prefix,
                 identifier,
                 (int)sizeof(dummyet.idname));
     return NULL;
   }
 
-  /* check if we have registered this engine type before, and remove it */
-  for (et = R_engines.first; et; et = et->next) {
-    if (STREQ(et->idname, dummyet.idname)) {
-      if (et->rna_ext.srna) {
-        rna_RenderEngine_unregister(bmain, et->rna_ext.srna);
-      }
-      break;
+  /* Check if we have registered this engine type before, and remove it. */
+  et = BLI_findstring(&R_engines, dummyet.idname, offsetof(RenderEngineType, idname));
+  if (et) {
+    StructRNA *srna = et->rna_ext.srna;
+    if (!(srna && rna_RenderEngine_unregister(bmain, srna))) {
+      BKE_reportf(reports,
+                  RPT_ERROR,
+                  "%s '%s', bl_idname '%s' %s",
+                  error_prefix,
+                  identifier,
+                  dummyet.idname,
+                  srna ? "is built-in" : "could not be unregistered");
+      return NULL;
     }
   }
 

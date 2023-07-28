@@ -315,12 +315,6 @@ typedef enum eGP_Sculpt_Mode_Flag {
   GP_SCULPT_FLAGMODE_APPLY_THICKNESS = (1 << 2),
   /* apply brush to uv data */
   GP_SCULPT_FLAGMODE_APPLY_UV = (1 << 3),
-  /* Stroke Auto-Masking for sculpt. */
-  GP_SCULPT_FLAGMODE_AUTOMASK_STROKE = (1 << 4),
-  /* Layer Auto-Masking for sculpt. */
-  GP_SCULPT_FLAGMODE_AUTOMASK_LAYER = (1 << 5),
-  /* Material Auto-Masking for sculpt. */
-  GP_SCULPT_FLAGMODE_AUTOMASK_MATERIAL = (1 << 6),
 } eGP_Sculpt_Mode_Flag;
 
 typedef enum eAutomasking_flag {
@@ -418,6 +412,7 @@ typedef enum eBrushFlags2 {
   BRUSH_CLOTH_USE_COLLISION = (1 << 6),
   BRUSH_AREA_RADIUS_PRESSURE = (1 << 7),
   BRUSH_GRAB_SILHOUETTE = (1 << 8),
+  BRUSH_USE_COLOR_AS_DISPLACEMENT = (1 << 9),
 } eBrushFlags2;
 
 typedef enum {

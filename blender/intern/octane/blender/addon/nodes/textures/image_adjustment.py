@@ -278,7 +278,7 @@ class OctaneImageAdjustmentBrightness(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=13
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="A linear brightness scale factor", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, precision=2, subtype="NONE")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="A linear brightness scale factor", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=10.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -295,7 +295,7 @@ class OctaneImageAdjustmentContrast(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=14
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="The contrast adjustment factor. The pivot determines where the contrast is applied", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, precision=2, subtype="NONE")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="The contrast adjustment factor. The pivot determines where the contrast is applied", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=10.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -363,7 +363,7 @@ class OctaneImageAdjustmentGamma(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=18
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="The gamma adjustment exponent", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, precision=2, subtype="NONE")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="The gamma adjustment exponent", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=100.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -397,7 +397,7 @@ class OctaneImageAdjustmentHueShift(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=20
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Offset by which to shift the hue", min=-360.000000, max=360.000000, soft_min=-360.000000, soft_max=360.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Offset by which to shift the hue", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-180.000000, soft_max=180.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295

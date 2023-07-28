@@ -57,7 +57,7 @@ class OctaneBaseNode(object):
 
     def is_octane_aov_render_node(self):        
         for _output in self.outputs:
-            if _output.bl_idname == "OctaneRenderAOVsOutSocket":
+            if _output.bl_idname in ("OctaneRenderAOVsOutSocket", "OctaneRenderAOVOutSocket"):
                 return True
         return False
 

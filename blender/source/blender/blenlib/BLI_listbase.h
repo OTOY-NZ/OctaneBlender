@@ -136,6 +136,8 @@ void BLI_freelistN(struct ListBase *listbase) ATTR_NONNULL(1);
 void BLI_addtail(struct ListBase *listbase, void *vlink) ATTR_NONNULL(1);
 /**
  * Removes \a vlink from \a listbase. Assumes it is linked into there!
+ *
+ * \warning Does _not_ clear the `prev`/`next` pointers of the removed `vlink`.
  */
 void BLI_remlink(struct ListBase *listbase, void *vlink) ATTR_NONNULL(1);
 /**
@@ -243,6 +245,16 @@ void BLI_movelisttolist(struct ListBase *dst, struct ListBase *src) ATTR_NONNULL
  * Moves the entire contents of \a src at the beginning of \a dst.
  */
 void BLI_movelisttolist_reverse(struct ListBase *dst, struct ListBase *src) ATTR_NONNULL(1, 2);
+/**
+ * Split `original_listbase` after given `vlink`, putting the remaining of the list into given
+ * `split_listbase`.
+ *
+ * \note If `vlink` is nullptr, it is considered as 'the item before the first item', so the whole
+ * list is moved from `original_listbase` to `split_listbase`.
+ */
+void BLI_listbase_split_after(struct ListBase *original_listbase,
+                              struct ListBase *split_listbase,
+                              void *vlink) ATTR_NONNULL(1, 2);
 /**
  * Sets dst to a duplicate of the entire contents of src. dst may be the same as src.
  */

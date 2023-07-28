@@ -27,21 +27,26 @@ using namespace blender;
 
 AssetMetaData *BKE_asset_metadata_create()
 {
-  AssetMetaData *asset_data = (AssetMetaData *)MEM_callocN(sizeof(*asset_data), __func__);
-  memcpy(asset_data, DNA_struct_default_get(AssetMetaData), sizeof(*asset_data));
-  return asset_data;
+  const AssetMetaData *default_metadata = DNA_struct_default_get(AssetMetaData);
+  return MEM_new<AssetMetaData>(__func__, *default_metadata);
 }
 
 void BKE_asset_metadata_free(AssetMetaData **asset_data)
 {
-  if ((*asset_data)->properties) {
-    IDP_FreeProperty((*asset_data)->properties);
-  }
-  MEM_SAFE_FREE((*asset_data)->author);
-  MEM_SAFE_FREE((*asset_data)->description);
-  BLI_freelistN(&(*asset_data)->tags);
+  MEM_delete(*asset_data);
+  *asset_data = nullptr;
+}
 
-  MEM_SAFE_FREE(*asset_data);
+AssetMetaData::~AssetMetaData()
+{
+  if (properties) {
+    IDP_FreeProperty(properties);
+  }
+  MEM_SAFE_FREE(author);
+  MEM_SAFE_FREE(description);
+  MEM_SAFE_FREE(copyright);
+  MEM_SAFE_FREE(license);
+  BLI_freelistN(&tags);
 }
 
 static AssetTag *asset_metadata_tag_add(AssetMetaData *asset_data, const char *const name)
@@ -158,13 +163,19 @@ void BKE_asset_metadata_write(BlendWriter *writer, AssetMetaData *asset_data)
   if (asset_data->properties) {
     IDP_BlendWrite(writer, asset_data->properties);
   }
-
   if (asset_data->author) {
     BLO_write_string(writer, asset_data->author);
   }
   if (asset_data->description) {
     BLO_write_string(writer, asset_data->description);
   }
+  if (asset_data->copyright) {
+    BLO_write_string(writer, asset_data->copyright);
+  }
+  if (asset_data->license) {
+    BLO_write_string(writer, asset_data->license);
+  }
+
   LISTBASE_FOREACH (AssetTag *, tag, &asset_data->tags) {
     BLO_write_struct(writer, AssetTag, tag);
   }
@@ -182,6 +193,8 @@ void BKE_asset_metadata_read(BlendDataReader *reader, AssetMetaData *asset_data)
 
   BLO_read_data_address(reader, &asset_data->author);
   BLO_read_data_address(reader, &asset_data->description);
+  BLO_read_data_address(reader, &asset_data->copyright);
+  BLO_read_data_address(reader, &asset_data->license);
   BLO_read_list(reader, &asset_data->tags);
   BLI_assert(BLI_listbase_count(&asset_data->tags) == asset_data->tot_tags);
 }

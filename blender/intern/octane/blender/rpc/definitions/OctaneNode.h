@@ -989,6 +989,7 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOFloat)	fScaleOfView,
 		(OctaneDTOFloat2)	f2LensShift,
 		(OctaneDTOFloat)	fPixelAspectRatio,
+    (OctaneDTOBool)		bPerspectiveCorrection,
 		//Fisheye
 		(OctaneDTOFloat)	fFisheyeAngle,
 		(OctaneDTOEnum)		iFisheyeType,
@@ -1140,7 +1141,7 @@ namespace OctaneDataTransferObject {
 		MSGPACK_DEFINE(
 			iCameraMode, 
 			fSensorWidth, fFocalLength, fFstop,
-			fFieldOfView, fScaleOfView, f2LensShift, fPixelAspectRatio,
+			fFieldOfView, fScaleOfView, f2LensShift, fPixelAspectRatio, bPerspectiveCorrection,
 			fFisheyeAngle, iFisheyeType, bHardVignette, iFisheyeProjection,
 			fHorizontalFiledOfView, fVerticalFiledOfView, iCubemapLayout, bEquiAngularCubemap, 
 			oDistortion,

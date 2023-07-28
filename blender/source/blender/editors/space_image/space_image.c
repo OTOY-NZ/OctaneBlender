@@ -336,6 +336,7 @@ static void image_listener(const wmSpaceTypeListenerParams *params)
         case ND_COMPO_RESULT:
           if (ED_space_image_show_render(sima)) {
             image_scopes_tag_refresh(area);
+            BKE_image_partial_update_mark_full_update(sima->image);
           }
           ED_area_tag_redraw(area);
           break;
@@ -405,7 +406,10 @@ static void image_listener(const wmSpaceTypeListenerParams *params)
           ViewLayer *view_layer = WM_window_get_active_view_layer(win);
           BKE_view_layer_synced_ensure(scene, view_layer);
           Object *ob = BKE_view_layer_active_object_get(view_layer);
-          if (ob && (ob == wmn->reference) && (ob->mode & OB_MODE_EDIT)) {
+          /* \note With a geometry nodes modifier, the UVs on `ob` can change in response to
+           * any change on `wmn->reference`. If we could track the upstream dependencies,
+           * unnecessary redraws could be reduced. Until then, just redraw. See #98594. */
+          if (ob && (ob->mode & OB_MODE_EDIT)) {
             if (sima->lock && (sima->flag & SI_DRAWSHADOW)) {
               ED_area_tag_refresh(area);
               ED_area_tag_redraw(area);

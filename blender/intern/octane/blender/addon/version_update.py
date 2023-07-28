@@ -18,9 +18,9 @@
 
 # <pep8 compliant>
 
-OCTANE_BLENDER_VERSION = '27.9'
-OCTANE_VERSION = 12000020
-OCTANE_VERSION_STR = "2022.1"
+OCTANE_BLENDER_VERSION = '27.12'
+OCTANE_VERSION = 12000102
+OCTANE_VERSION_STR = "2022.1.1"
 
 import bpy
 import math
@@ -669,6 +669,7 @@ def check_compatibility_octane_node_tree(file_version):
     check_compatibility_octane_node_tree_24_0(file_version)
     check_compatibility_octane_node_tree_27_6(file_version)
     check_compatibility_octane_node_tree_27_9(file_version)
+    check_compatibility_octane_node_tree_27_12(file_version)
 
 
 def check_compatibility_octane_node_tree_15_2_5(file_version):
@@ -838,6 +839,31 @@ def check_compatibility_octane_node_tree_27_9(file_version):
             _check_compatibility_octane_object_data_node_27_9(material.node_tree)
     for node_group in bpy.data.node_groups:
         _check_compatibility_octane_object_data_node_27_9(node_group)
+
+def check_compatibility_octane_node_tree_27_12(file_version):
+    UPDATE_VERSION = '27.12'
+    if not check_update(file_version, UPDATE_VERSION):
+        return
+    film_width_update_map = {
+        "OctaneMetallicLayer": "OctaneMetallicLayerFilmwidth",
+        "OctaneSpecularLayer": "OctaneSpecularLayerFilmwidth",
+        "OctaneGlossyMaterial": "OctaneGlossyMaterialFilmwidth",
+        "OctaneMetallicMaterial": "OctaneMetallicMaterialFilmwidth",
+        "OctaneSpecularMaterial": "OctaneSpecularMaterialFilmwidth",
+        "OctaneStandardSurfaceMaterial": "OctaneStandardSurfaceMaterialFilmwidth",
+        "OctaneUniversalMaterial": "OctaneUniversalMaterialFilmwidth",
+    }
+    def _check_compatibility_octane_object_data_node_27_12(node_tree):
+        for node in node_tree.nodes:
+            if node.bl_idname in film_width_update_map:
+                for _input in node.inputs:
+                    if _input.bl_idname == film_width_update_map[node.bl_idname]:
+                        _input.name = _input.bl_label
+    for material in bpy.data.materials:
+        if material.use_nodes:
+            _check_compatibility_octane_object_data_node_27_12(material.node_tree)
+    for node_group in bpy.data.node_groups:
+        _check_compatibility_octane_object_data_node_27_12(node_group)
 
 def _check_compatibility_octane_specular_material_node_15_2_5(node_tree, node):
     try:

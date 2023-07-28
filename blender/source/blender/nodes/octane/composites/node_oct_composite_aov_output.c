@@ -216,7 +216,7 @@ static void node_type_oct_composite_aov_output_init(bNodeTree *ntree, bNode *nod
   node->custom1 = 2;
 }
 
-static void node_shader_update_oct_composite_aov_output(bNodeTree *UNUSED(ntree), bNode *node)
+static void node_shader_update_oct_composite_aov_output(bNodeTree *ntree, bNode *node)
 {
   bNodeSocket *sock;
   int layer_number = node->custom1;
@@ -248,9 +248,9 @@ void register_node_type_composite_aov_output(void)
                    NODE_CLASS_OCT_COMPOSITE);
   node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
   node_type_size(&ntype, 160, 160, 500);
-  node_type_init(&ntype, node_type_oct_composite_aov_output_init);
-  node_type_exec(&ntype, 0, 0, 0);
-  node_type_update(&ntype, node_shader_update_oct_composite_aov_output);
+  ntype.initfunc = (node_type_oct_composite_aov_output_init);
+  // node_type_exec(&ntype, 0, 0, 0);
+  ntype.updatefunc = (node_shader_update_oct_composite_aov_output);
   
 
   nodeRegisterType(&ntype);

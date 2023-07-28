@@ -48,6 +48,10 @@ class OCTANE_CAMERA_PT_camera(common.OctanePropertyPanel, Panel):
             if cam.type == 'PANO':
                 sub.prop(oct_cam, "universal_camera_mode")
             box = layout.box()
+            box.label(text="Viewing angle")
+            sub = box.row(align=True)
+            sub.prop(oct_cam, "universal_perspective_correction")
+            box = layout.box()
             box.label(text="Fisheye")
             sub = box.row(align=True)
             sub.prop(oct_cam, "fisheye_angle")

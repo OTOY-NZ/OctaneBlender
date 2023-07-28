@@ -8,8 +8,14 @@
  */
 
 #include <new>
+#include <string>
+
+#include "AS_asset_representation.h"
+#include "AS_asset_representation.hh"
 
 #include "DNA_space_types.h"
+
+#include "ED_asset.h"
 
 #include "BKE_report.h"
 
@@ -19,17 +25,16 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "ED_asset_handle.h"
 #include "ED_asset_temp_id_consumer.h"
 
 using namespace blender;
 
 class AssetTemporaryIDConsumer : NonCopyable, NonMovable {
-  const AssetHandle &handle_;
+  const AssetRepresentation *asset_;
   TempLibraryContext *temp_lib_context_ = nullptr;
 
  public:
-  AssetTemporaryIDConsumer(const AssetHandle &handle) : handle_(handle)
+  AssetTemporaryIDConsumer(const AssetRepresentation *asset) : asset_(asset)
   {
   }
   ~AssetTemporaryIDConsumer()
@@ -41,24 +46,20 @@ class AssetTemporaryIDConsumer : NonCopyable, NonMovable {
 
   ID *get_local_id()
   {
-    return ED_asset_handle_get_local_id(&handle_);
+    return AS_asset_representation_local_id_get(asset_);
   }
 
-  ID *import_id(const bContext *C,
-                const AssetLibraryReference &asset_library_ref,
-                ID_Type id_type,
-                Main &bmain,
-                ReportList &reports)
+  ID *import_id(ID_Type id_type, Main &bmain, ReportList &reports)
   {
-    const char *asset_name = ED_asset_handle_get_name(&handle_);
-    char blend_file_path[FILE_MAX_LIBEXTRA];
-    ED_asset_handle_get_full_library_path(C, &asset_library_ref, &handle_, blend_file_path);
+    const char *asset_name = AS_asset_representation_name_get(asset_);
+    std::string blend_file_path = AS_asset_representation_full_library_path_get(asset_);
 
     temp_lib_context_ = BLO_library_temp_load_id(
-        &bmain, blend_file_path, id_type, asset_name, &reports);
+        &bmain, blend_file_path.c_str(), id_type, asset_name, &reports);
 
     if (temp_lib_context_ == nullptr || temp_lib_context_->temp_id == nullptr) {
-      BKE_reportf(&reports, RPT_ERROR, "Unable to load %s from %s", asset_name, blend_file_path);
+      BKE_reportf(
+          &reports, RPT_ERROR, "Unable to load %s from %s", asset_name, blend_file_path.c_str());
       return nullptr;
     }
 
@@ -72,9 +73,9 @@ AssetTempIDConsumer *ED_asset_temp_id_consumer_create(const AssetHandle *handle)
   if (!handle) {
     return nullptr;
   }
-  BLI_assert(handle->file_data->asset_data != nullptr);
+  BLI_assert(handle->file_data->asset != nullptr);
   return reinterpret_cast<AssetTempIDConsumer *>(
-      MEM_new<AssetTemporaryIDConsumer>(__func__, *handle));
+      MEM_new<AssetTemporaryIDConsumer>(__func__, ED_asset_handle_get_representation(handle)));
 }
 
 void ED_asset_temp_id_consumer_free(AssetTempIDConsumer **consumer)
@@ -84,13 +85,11 @@ void ED_asset_temp_id_consumer_free(AssetTempIDConsumer **consumer)
 }
 
 ID *ED_asset_temp_id_consumer_ensure_local_id(AssetTempIDConsumer *consumer_,
-                                              const bContext *C,
-                                              const AssetLibraryReference *asset_library_ref,
                                               ID_Type id_type,
                                               Main *bmain,
                                               ReportList *reports)
 {
-  if (!(consumer_ && asset_library_ref && bmain && reports)) {
+  if (!(consumer_ && bmain && reports)) {
     return nullptr;
   }
   AssetTemporaryIDConsumer *consumer = reinterpret_cast<AssetTemporaryIDConsumer *>(consumer_);
@@ -98,5 +97,5 @@ ID *ED_asset_temp_id_consumer_ensure_local_id(AssetTempIDConsumer *consumer_,
   if (ID *local_id = consumer->get_local_id()) {
     return local_id;
   }
-  return consumer->import_id(C, *asset_library_ref, id_type, *bmain, *reports);
+  return consumer->import_id(id_type, *bmain, *reports);
 }

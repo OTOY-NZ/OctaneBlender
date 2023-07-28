@@ -358,6 +358,8 @@ struct Camera {
         universalCamera.f2LensShift.fVal != otherCam.universalCamera.f2LensShift.fVal ||
         universalCamera.fPixelAspectRatio.fVal !=
             otherCam.universalCamera.fPixelAspectRatio.fVal ||
+        universalCamera.bPerspectiveCorrection.bVal !=
+            otherCam.universalCamera.bPerspectiveCorrection.bVal ||
         universalCamera.fFisheyeAngle.fVal != otherCam.universalCamera.fFisheyeAngle.fVal ||
         universalCamera.iFisheyeType.iVal != otherCam.universalCamera.iFisheyeType.iVal ||
         universalCamera.bHardVignette.bVal != otherCam.universalCamera.bHardVignette.bVal ||
@@ -520,6 +522,8 @@ struct Camera {
         universalCamera.f2LensShift.fVal == otherCam.universalCamera.f2LensShift.fVal &&
         universalCamera.fPixelAspectRatio.fVal ==
             otherCam.universalCamera.fPixelAspectRatio.fVal &&
+        universalCamera.bPerspectiveCorrection.bVal ==
+            otherCam.universalCamera.bPerspectiveCorrection.bVal &&
         universalCamera.fFisheyeAngle.fVal == otherCam.universalCamera.fFisheyeAngle.fVal &&
         universalCamera.iFisheyeType.iVal == otherCam.universalCamera.iFisheyeType.iVal &&
         universalCamera.bHardVignette.bVal == otherCam.universalCamera.bHardVignette.bVal &&
@@ -816,6 +820,8 @@ struct Camera {
     universalCamera.fScaleOfView.fVal = otherCam.universalCamera.fScaleOfView.fVal;
     universalCamera.f2LensShift.fVal = otherCam.universalCamera.f2LensShift.fVal;
     universalCamera.fPixelAspectRatio.fVal = otherCam.universalCamera.fPixelAspectRatio.fVal;
+    universalCamera.bPerspectiveCorrection.bVal =
+        otherCam.universalCamera.bPerspectiveCorrection.bVal;
     universalCamera.fFisheyeAngle.fVal = otherCam.universalCamera.fFisheyeAngle.fVal;
     universalCamera.iFisheyeType.iVal = otherCam.universalCamera.iFisheyeType.iVal;
     universalCamera.bHardVignette.bVal = otherCam.universalCamera.bHardVignette.bVal;

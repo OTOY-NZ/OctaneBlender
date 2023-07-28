@@ -405,8 +405,13 @@ SessionParams BlenderSync::get_session_params(
 
 #ifdef WIN32
   params.process_id = GetCurrentProcessId();
+  unsigned long lowPart;
+  long highPart;
+  CommonD3D::GetD3DDeviceLuid(lowPart, highPart);
+  params.device_luid = (static_cast<uint64_t>(highPart) << 32) | lowPart;
 #else
   params.process_id = 0;
+  params.device_luid = 0;
 #endif
 
 #ifdef WIN32
@@ -425,7 +430,6 @@ SessionParams BlenderSync::get_session_params(
 #else
   params.use_shared_surface = false;
 #endif
-  params.use_shared_surface = false;
 
   PointerRNA render_settings = RNA_pointer_get(&b_scene.ptr, "render");
   params.output_path = get_string(render_settings, "filepath");

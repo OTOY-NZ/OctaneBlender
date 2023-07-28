@@ -8,8 +8,8 @@
 #include <cmath>
 
 #include "BLI_assert.h"
-#include "BLI_math_vec_types.hh"
 #include "BLI_math_vector.hh"
+#include "BLI_math_vector_types.hh"
 
 #include "UI_interface.h"
 #include "UI_resources.h"
@@ -201,7 +201,7 @@ void register_node_type_cmp_view_levels()
   ntype.declare = file_ns::cmp_node_levels_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_view_levels;
   ntype.flag |= NODE_PREVIEW;
-  node_type_init(&ntype, file_ns::node_composit_init_view_levels);
+  ntype.initfunc = file_ns::node_composit_init_view_levels;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
   nodeRegisterType(&ntype);

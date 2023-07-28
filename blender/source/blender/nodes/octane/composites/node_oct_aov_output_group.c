@@ -197,7 +197,7 @@ static void node_type_aov_output_group_init(bNodeTree *ntree, bNode *node)
   node->flag |= NODE_DO_OUTPUT;
 }
 
-static void node_shader_update_aov_output_group(bNodeTree *UNUSED(ntree), bNode *node)
+static void node_shader_update_aov_output_group(bNodeTree *ntree, bNode *node)
 {
   bNodeSocket *sock;
   int layer_number = node->custom1;
@@ -227,10 +227,8 @@ void register_node_type_aov_output_group(void)
                    SH_NODE_OCT_AOV_OUTPUT_GROUP, "AOV Output Group", NODE_CLASS_OUTPUT);
   node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
   node_type_size(&ntype, 160, 160, 500);
-  node_type_init(&ntype, node_type_aov_output_group_init);
-  node_type_exec(&ntype, 0, 0, 0);
-  node_type_update(&ntype, node_shader_update_aov_output_group);
+  ntype.initfunc = node_type_aov_output_group_init;
+  ntype.updatefunc = node_shader_update_aov_output_group;
   
-
   nodeRegisterType(&ntype);
 } /* register_node_type_aov_output_group() */

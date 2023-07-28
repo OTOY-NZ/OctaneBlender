@@ -83,7 +83,7 @@ class OctaneUVCoordinatesAOV(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneUVCoordinatesAOVEnabled", OctaneUVCoordinatesAOVEnabled.bl_label).init()
         self.inputs.new("OctaneUVCoordinatesAOVUVMax", OctaneUVCoordinatesAOVUVMax.bl_label).init()
         self.inputs.new("OctaneUVCoordinatesAOVUvSet", OctaneUVCoordinatesAOVUvSet.bl_label).init()
-        self.outputs.new("OctaneRenderAOVsOutSocket", "Render AOVs out").init()
+        self.outputs.new("OctaneRenderAOVOutSocket", "Render AOV out").init()
 
 
 _CLASSES=[

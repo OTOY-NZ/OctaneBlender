@@ -34,7 +34,7 @@
 
 #include "IMB_colormanagement.h"
 
-#include "interface_intern.h"
+#include "interface_intern.hh"
 
 enum ePickerType {
   PICKER_TYPE_RGB = 0,
@@ -397,7 +397,7 @@ static void ui_colorpicker_circle(uiBlock *block,
                                              0,
                                              "Lightness");
     hsv_but->gradient_type = UI_GRAD_L_ALT;
-    UI_but_func_set(&hsv_but->but, ui_colorpicker_rgba_update_cb, &hsv_but->but, nullptr);
+    UI_but_func_set(hsv_but, ui_colorpicker_rgba_update_cb, hsv_but, nullptr);
   }
   else {
     hsv_but = (uiButHSVCube *)uiDefButR_prop(block,
@@ -415,11 +415,11 @@ static void ui_colorpicker_circle(uiBlock *block,
                                              0.0,
                                              0,
                                              0,
-                                             TIP_("Value"));
+                                             CTX_TIP_(BLT_I18NCONTEXT_COLOR, "Value"));
     hsv_but->gradient_type = UI_GRAD_V_ALT;
-    UI_but_func_set(&hsv_but->but, ui_colorpicker_rgba_update_cb, &hsv_but->but, nullptr);
+    UI_but_func_set(hsv_but, ui_colorpicker_rgba_update_cb, hsv_but, nullptr);
   }
-  hsv_but->but.custom_data = cpicker;
+  hsv_but->custom_data = cpicker;
 }
 
 static void ui_colorpicker_square(uiBlock *block,
@@ -450,8 +450,8 @@ static void ui_colorpicker_square(uiBlock *block,
                                            0,
                                            TIP_("Color"));
   hsv_but->gradient_type = type;
-  UI_but_func_set(&hsv_but->but, ui_colorpicker_rgba_update_cb, &hsv_but->but, nullptr);
-  hsv_but->but.custom_data = cpicker;
+  UI_but_func_set(hsv_but, ui_colorpicker_rgba_update_cb, hsv_but, nullptr);
+  hsv_but->custom_data = cpicker;
 
   /* value */
   hsv_but = (uiButHSVCube *)uiDefButR_prop(block,
@@ -469,10 +469,10 @@ static void ui_colorpicker_square(uiBlock *block,
                                            0.0,
                                            0,
                                            0,
-                                           TIP_("Value"));
+                                           CTX_TIP_(BLT_I18NCONTEXT_COLOR, "Value"));
   hsv_but->gradient_type = (eButGradientType)(type + 3);
-  UI_but_func_set(&hsv_but->but, ui_colorpicker_rgba_update_cb, &hsv_but->but, nullptr);
-  hsv_but->but.custom_data = cpicker;
+  UI_but_func_set(hsv_but, ui_colorpicker_rgba_update_cb, hsv_but, nullptr);
+  hsv_but->custom_data = cpicker;
 }
 
 /* a HS circle, V slider, rgb/hsv/hex sliders */
@@ -726,7 +726,7 @@ static void ui_block_colorpicker(uiBlock *block,
     bt = uiDefButF(block,
                    UI_BTYPE_NUM_SLIDER,
                    0,
-                   IFACE_("Value:"),
+                   CTX_IFACE_(BLT_I18NCONTEXT_COLOR, "Value:"),
                    0,
                    yco -= UI_UNIT_Y,
                    butwidth,
@@ -736,7 +736,7 @@ static void ui_block_colorpicker(uiBlock *block,
                    softmax,
                    10,
                    3,
-                   TIP_("Value"));
+                   CTX_TIP_(BLT_I18NCONTEXT_COLOR, "Value"));
   }
   UI_but_flag_disable(bt, UI_BUT_UNDO);
 

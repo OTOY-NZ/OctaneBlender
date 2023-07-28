@@ -40,7 +40,8 @@ struct Render {
   int slot;
 
   /* state settings */
-  short flag, ok, result_ok;
+  short flag;
+  bool ok, result_ok;
 
   /* result of rendering */
   RenderResult *result;
@@ -108,7 +109,7 @@ struct Render {
 
   void (*draw_lock)(void *handle, bool lock);
   void *dlh;
-  int (*test_break)(void *handle);
+  bool (*test_break)(void *handle);
   void *tbh;
 
   RenderStats i;

@@ -32,7 +32,7 @@ void register_node_type_cmp_group()
 
   node_type_size(&ntype, 140, 60, 400);
   ntype.labelfunc = node_group_label;
-  node_type_group_update(&ntype, node_group_update);
+  ntype.declare_dynamic = blender::nodes::node_group_declare_dynamic;
 
   nodeRegisterType(&ntype);
 }
@@ -46,4 +46,5 @@ void register_node_type_cmp_custom_group(bNodeType *ntype)
   if (ntype->insert_link == nullptr) {
     ntype->insert_link = node_insert_link_default;
   }
+  ntype->declare_dynamic = blender::nodes::node_group_declare_dynamic;
 }

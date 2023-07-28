@@ -79,7 +79,7 @@ struct FCurve *ED_action_fcurve_find(struct bAction *act, const char rna_path[],
  * \brief Lesser Key-framing API call.
  *
  * Update integer/discrete flags of the FCurve (used when creating/inserting keyframes,
- * but also through RNA when editing an ID prop, see T37103).
+ * but also through RNA when editing an ID prop, see #37103).
  */
 void update_autoflags_fcurve(struct FCurve *fcu,
                              struct bContext *C,
@@ -223,7 +223,7 @@ typedef struct KeyingSetInfo {
   /* identifier so that user can hook this up to a KeyingSet (used as label). */
   char name[64];
   /* short help/description. */
-  char description[240]; /* RNA_DYN_DESCR_MAX */
+  char description[1024]; /* #RNA_DYN_DESCR_MAX */
   /* keying settings */
   short keyingflag;
 

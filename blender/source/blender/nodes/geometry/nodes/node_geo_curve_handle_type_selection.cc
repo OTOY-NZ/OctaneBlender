@@ -52,12 +52,13 @@ static void select_by_handle_type(const bke::CurvesGeometry &curves,
                                   const GeometryNodeCurveHandleMode mode,
                                   const MutableSpan<bool> r_selection)
 {
+  const OffsetIndices points_by_curve = curves.points_by_curve();
   VArray<int8_t> curve_types = curves.curve_types();
   VArray<int8_t> left = curves.handle_types_left();
   VArray<int8_t> right = curves.handle_types_right();
 
   for (const int i_curve : curves.curves_range()) {
-    const IndexRange points = curves.points_for_curve(i_curve);
+    const IndexRange points = points_by_curve[i_curve];
     if (curve_types[i_curve] != CURVE_TYPE_BEZIER) {
       r_selection.slice(points).fill(false);
     }
@@ -138,7 +139,7 @@ void register_node_type_geo_curve_handle_type_selection()
       &ntype, GEO_NODE_CURVE_HANDLE_TYPE_SELECTION, "Handle Type Selection", NODE_CLASS_INPUT);
   ntype.declare = file_ns::node_declare;
   ntype.geometry_node_execute = file_ns::node_geo_exec;
-  node_type_init(&ntype, file_ns::node_init);
+  ntype.initfunc = file_ns::node_init;
   node_type_storage(&ntype,
                     "NodeGeometryCurveSelectHandles",
                     node_free_standard_storage,

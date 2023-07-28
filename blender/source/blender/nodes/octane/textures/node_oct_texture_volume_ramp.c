@@ -72,10 +72,10 @@ void register_node_type_tex_oct_volume_ramp(void)
                    NODE_CLASS_OCT_TEXTURE);
   node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
   node_type_size(&ntype, 160, 160, 500);
-  node_type_init(&ntype, node_oct_init_volume_ramp);
+  ntype.initfunc = (node_oct_init_volume_ramp);
   node_type_storage(&ntype, "ColorBand", node_free_standard_storage, node_copy_standard_storage);
-  node_type_exec(&ntype, 0, 0, 0);
-  node_type_update(&ntype, 0);
+  // node_type_exec(&ntype, 0, 0, 0);
+  ntype.updatefunc = (0);
   
 
   nodeRegisterType(&ntype);

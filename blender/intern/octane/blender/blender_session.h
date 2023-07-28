@@ -230,8 +230,8 @@ struct OctaneExportJobData {
   char export_path[256];
 
   bool was_canceled;
-  short *stop;
-  short *do_update;
+  bool *stop;
+  bool *do_update;
   float *progress;
 };  // struct OctaneExportJobData
 

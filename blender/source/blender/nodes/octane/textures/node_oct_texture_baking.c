@@ -168,9 +168,9 @@ void register_node_type_tex_oct_baking(void)
         &ntype, SH_NODE_OCT_BAKING_TEX, "Baking Tex", NODE_CLASS_OCT_TEXTURE);
   node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
   node_type_size(&ntype, 160, 160, 500);
-  node_type_init(&ntype, node_type_tex_oct_baking_init);
-  node_type_exec(&ntype, 0, 0, 0);
-  // node_type_update(&ntype, node_octane_baking_tex_conversion_update,
+  ntype.initfunc = (node_type_tex_oct_baking_init);
+  // node_type_exec(&ntype, 0, 0, 0);
+  // ntype.updatefunc = (node_octane_baking_tex_conversion_update,
   // node_octane_baking_tex_conversion_verify);
   
 

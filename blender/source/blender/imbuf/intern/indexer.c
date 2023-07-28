@@ -559,7 +559,7 @@ static struct proxy_output_ctx *alloc_proxy_output_ffmpeg(
   av_dict_set(&codec_opts, "preset", "veryfast", 0);
   av_dict_set(&codec_opts, "tune", "fastdecode", 0);
 
-  if (rv->codec->capabilities & AV_CODEC_CAP_AUTO_THREADS) {
+  if (rv->codec->capabilities & AV_CODEC_CAP_OTHER_THREADS) {
     rv->c->thread_count = 0;
   }
   else {
@@ -872,7 +872,7 @@ static IndexBuildContext *index_ffmpeg_create_context(struct anim *anim,
   avcodec_parameters_to_context(context->iCodecCtx, context->iStream->codecpar);
   context->iCodecCtx->workaround_bugs = FF_BUG_AUTODETECT;
 
-  if (context->iCodec->capabilities & AV_CODEC_CAP_AUTO_THREADS) {
+  if (context->iCodec->capabilities & AV_CODEC_CAP_OTHER_THREADS) {
     context->iCodecCtx->thread_count = 0;
   }
   else {
@@ -931,7 +931,7 @@ static IndexBuildContext *index_ffmpeg_create_context(struct anim *anim,
   return (IndexBuildContext *)context;
 }
 
-static void index_rebuild_ffmpeg_finish(FFmpegIndexBuilderContext *context, int stop)
+static void index_rebuild_ffmpeg_finish(FFmpegIndexBuilderContext *context, const bool stop)
 {
   int i;
 
@@ -1012,8 +1012,8 @@ static void index_rebuild_ffmpeg_proc_decoded_frame(FFmpegIndexBuilderContext *c
 }
 
 static int index_rebuild_ffmpeg(FFmpegIndexBuilderContext *context,
-                                const short *stop,
-                                short *do_update,
+                                const bool *stop,
+                                bool *do_update,
                                 float *progress)
 {
   AVFrame *in_frame = av_frame_alloc();
@@ -1040,16 +1040,6 @@ static int index_rebuild_ffmpeg(FFmpegIndexBuilderContext *context,
     }
 
     if (next_packet->stream_index == context->videoStream) {
-      if (next_packet->flags & AV_PKT_FLAG_KEY) {
-        context->last_seek_pos = context->seek_pos;
-        context->last_seek_pos_pts = context->seek_pos_pts;
-        context->last_seek_pos_dts = context->seek_pos_dts;
-
-        context->seek_pos = next_packet->pos;
-        context->seek_pos_pts = next_packet->pts;
-        context->seek_pos_dts = next_packet->dts;
-      }
-
       int ret = avcodec_send_packet(context->iCodecCtx, next_packet);
       while (ret >= 0) {
         ret = avcodec_receive_frame(context->iCodecCtx, in_frame);
@@ -1062,6 +1052,17 @@ static int index_rebuild_ffmpeg(FFmpegIndexBuilderContext *context,
           fprintf(stderr, "Error decoding proxy frame: %s\n", av_err2str(ret));
           break;
         }
+
+        if (next_packet->flags & AV_PKT_FLAG_KEY) {
+          context->last_seek_pos = context->seek_pos;
+          context->last_seek_pos_pts = context->seek_pos_pts;
+          context->last_seek_pos_dts = context->seek_pos_dts;
+
+          context->seek_pos = in_frame->pkt_pos;
+          context->seek_pos_pts = in_frame->pts;
+          context->seek_pos_dts = in_frame->pkt_dts;
+        }
+
         index_rebuild_ffmpeg_proc_decoded_frame(context, next_packet, in_frame);
       }
     }
@@ -1303,7 +1304,7 @@ static IndexBuildContext *index_fallback_create_context(struct anim *anim,
   return (IndexBuildContext *)context;
 }
 
-static void index_rebuild_fallback_finish(FallbackIndexBuilderContext *context, int stop)
+static void index_rebuild_fallback_finish(FallbackIndexBuilderContext *context, const bool stop)
 {
   struct anim *anim = context->anim;
   char filepath[FILE_MAX];
@@ -1330,8 +1331,8 @@ static void index_rebuild_fallback_finish(FallbackIndexBuilderContext *context, 
 }
 
 static void index_rebuild_fallback(FallbackIndexBuilderContext *context,
-                                   const short *stop,
-                                   short *do_update,
+                                   const bool *stop,
+                                   bool *do_update,
                                    float *progress)
 {
   int count = IMB_anim_get_duration(context->anim, IMB_TC_NONE);
@@ -1470,9 +1471,9 @@ IndexBuildContext *IMB_anim_index_rebuild_context(struct anim *anim,
 
 void IMB_anim_index_rebuild(struct IndexBuildContext *context,
                             /* NOLINTNEXTLINE: readability-non-const-parameter. */
-                            short *stop,
+                            bool *stop,
                             /* NOLINTNEXTLINE: readability-non-const-parameter. */
-                            short *do_update,
+                            bool *do_update,
                             /* NOLINTNEXTLINE: readability-non-const-parameter. */
                             float *progress)
 {
@@ -1494,7 +1495,7 @@ void IMB_anim_index_rebuild(struct IndexBuildContext *context,
   UNUSED_VARS(stop, do_update, progress);
 }
 
-void IMB_anim_index_rebuild_finish(IndexBuildContext *context, short stop)
+void IMB_anim_index_rebuild_finish(IndexBuildContext *context, const bool stop)
 {
   switch (context->anim_type) {
 #ifdef WITH_FFMPEG

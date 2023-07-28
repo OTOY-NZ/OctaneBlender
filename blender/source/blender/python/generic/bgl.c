@@ -12,16 +12,61 @@
 
 #include <Python.h>
 
+#include "BLI_string.h"
 #include "BLI_utildefines.h"
+
 #include "MEM_guardedalloc.h"
 
+#include "GPU_context.h"
 #include "GPU_state.h"
+
+#include "py_capi_utils.h"
+
+#include "BKE_global.h"
 
 #include "../generic/py_capi_utils.h"
 
 #include <epoxy/gl.h>
 
 #include "bgl.h"
+
+#include "CLG_log.h"
+
+static CLG_LogRef LOG = {"bgl"};
+
+/* -------------------------------------------------------------------- */
+/** \name Local utility defines for wrapping OpenGL
+ * \{ */
+
+static void report_deprecated_call(const char *function_name)
+{
+  /* Only report first 10 deprecated calls. BGL is typically used inside an handler that is
+   * triggered at refresh. */
+  static int times = 0;
+  while (times >= 10) {
+    return;
+  }
+  char message[256];
+  SNPRINTF(message,
+           "'bgl.gl%s' is deprecated and will be removed in Blender 4.0. Report or update your "
+           "script to use 'gpu' module.",
+           function_name);
+  CLOG_WARN(&LOG, "%s", message);
+  PyErr_WarnEx(PyExc_DeprecationWarning, message, 1);
+  times++;
+}
+
+static void report_deprecated_call_to_user(void)
+{
+  /* Only report the first deprecated usage. */
+  if (G.opengl_deprecation_usage_detected) {
+    return;
+  }
+  G.opengl_deprecation_usage_detected = true;
+  PyC_FileAndNum(&G.opengl_deprecation_usage_filename, &G.opengl_deprecation_usage_lineno);
+}
+
+/** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name Local utility defines for wrapping OpenGL
@@ -366,14 +411,17 @@ typedef struct BufferOrOffset {
 
 #define ret_def_void
 #define ret_set_void
+#define ret_default_void
 #define ret_ret_void return Py_INCREF(Py_None), Py_None
 
 #define ret_def_GLint int ret_int
 #define ret_set_GLint ret_int =
+#define ret_default_GLint -1
 #define ret_ret_GLint return PyLong_FromLong(ret_int)
 
 #define ret_def_GLuint uint ret_uint
 #define ret_set_GLuint ret_uint =
+#define ret_default_GLuint 0
 #define ret_ret_GLuint return PyLong_FromLong((long)ret_uint)
 
 #if 0
@@ -390,14 +438,19 @@ typedef struct BufferOrOffset {
 
 #define ret_def_GLenum uint ret_uint
 #define ret_set_GLenum ret_uint =
+#define ret_default_GLenum 0
 #define ret_ret_GLenum return PyLong_FromLong((long)ret_uint)
 
 #define ret_def_GLboolean uchar ret_bool
 #define ret_set_GLboolean ret_bool =
+#define ret_default_GLboolean GL_FALSE
 #define ret_ret_GLboolean return PyLong_FromLong((long)ret_bool)
 
-#define ret_def_GLstring const uchar *ret_str
+#define ret_def_GLstring \
+  const char *default_GLstring = ""; \
+  const uchar *ret_str
 #define ret_set_GLstring ret_str =
+#define ret_default_GLstring (const uchar *)default_GLstring
 
 #define ret_ret_GLstring \
   if (ret_str) { \
@@ -491,22 +544,22 @@ static bool compare_dimensions(int ndim, const int *dim1, const Py_ssize_t *dim2
  * \{ */
 
 static PySequenceMethods Buffer_SeqMethods = {
-    (lenfunc)Buffer_len,              /* sq_length */
-    (binaryfunc)NULL,                 /* sq_concat */
-    (ssizeargfunc)NULL,               /* sq_repeat */
-    (ssizeargfunc)Buffer_item,        /* sq_item */
-    (ssizessizeargfunc)NULL,          /* sq_slice, deprecated, handled in Buffer_item */
-    (ssizeobjargproc)Buffer_ass_item, /* sq_ass_item */
-    (ssizessizeobjargproc)NULL,       /* sq_ass_slice, deprecated handled in Buffer_ass_item */
-    (objobjproc)NULL,                 /* sq_contains */
-    (binaryfunc)NULL,                 /* sq_inplace_concat */
-    (ssizeargfunc)NULL,               /* sq_inplace_repeat */
+    /*sq_length*/ (lenfunc)Buffer_len,
+    /*sq_concat*/ NULL,
+    /*sq_repeat*/ NULL,
+    /*sq_item*/ (ssizeargfunc)Buffer_item,
+    /*was_sq_slice*/ NULL, /* DEPRECATED. Handled by #Buffer_item. */
+    /*sq_ass_item*/ (ssizeobjargproc)Buffer_ass_item,
+    /*was_sq_ass_slice*/ NULL, /* DEPRECATED. Handled by #Buffer_ass_item. */
+    /*sq_contains*/ NULL,
+    /*sq_inplace_concat*/ NULL,
+    /*sq_inplace_repeat*/ NULL,
 };
 
 static PyMappingMethods Buffer_AsMapping = {
-    (lenfunc)Buffer_len,
-    (binaryfunc)Buffer_subscript,
-    (objobjargproc)Buffer_ass_subscript,
+    /*mp_len*/ (lenfunc)Buffer_len,
+    /*mp_subscript*/ (binaryfunc)Buffer_subscript,
+    /*mp_ass_subscript*/ (objobjargproc)Buffer_ass_subscript,
 };
 
 static void Buffer_dealloc(Buffer *self);
@@ -568,72 +621,55 @@ static PyGetSetDef Buffer_getseters[] = {
 };
 
 PyTypeObject BGL_bufferType = {
-    PyVarObject_HEAD_INIT(NULL, 0) "bgl.Buffer", /* tp_name */
-    sizeof(Buffer),                              /* tp_basicsize */
-    0,                                           /* tp_itemsize */
-    (destructor)Buffer_dealloc,                  /* tp_dealloc */
-    (printfunc)NULL,                             /* tp_print */
-    NULL,                                        /* tp_getattr */
-    NULL,                                        /* tp_setattr */
-    NULL,                                        /* tp_compare */
-    (reprfunc)Buffer_repr,                       /* tp_repr */
-    NULL,                                        /* tp_as_number */
-    &Buffer_SeqMethods,                          /* tp_as_sequence */
-    &Buffer_AsMapping,                           /* PyMappingMethods *tp_as_mapping; */
-
-    /* More standard operations (here for binary compatibility) */
-
-    NULL, /* hashfunc tp_hash; */
-    NULL, /* ternaryfunc tp_call; */
-    NULL, /* reprfunc tp_str; */
-    NULL, /* getattrofunc tp_getattro; */
-    NULL, /* setattrofunc tp_setattro; */
-
-    /* Functions to access object as input/output buffer */
-    NULL, /* PyBufferProcs *tp_as_buffer; */
-
-    /*** Flags to define presence of optional/expanded features ***/
-    Py_TPFLAGS_DEFAULT, /* long tp_flags; */
-
-    NULL, /*  char *tp_doc;  Documentation string */
-    /*** Assigned meaning in release 2.0 ***/
-    /* call function for all accessible objects */
-    NULL, /* traverseproc tp_traverse; */
-
-    /* delete references to contained objects */
-    NULL, /* inquiry tp_clear; */
-
-    /***  Assigned meaning in release 2.1 ***/
-    /*** rich comparisons ***/
-    NULL, /* richcmpfunc tp_richcompare; */
-
-    /***  weak reference enabler ***/
-    0, /* long tp_weaklistoffset; */
-
-    /*** Added in release 2.2 ***/
-    /*   Iterators */
-    NULL, /* getiterfunc tp_iter; */
-    NULL, /* iternextfunc tp_iternext; */
-    /*** Attribute descriptor and subclassing stuff ***/
-    Buffer_methods,   /* struct PyMethodDef *tp_methods; */
-    NULL,             /* struct PyMemberDef *tp_members; */
-    Buffer_getseters, /* struct PyGetSetDef *tp_getset; */
-    NULL,             /*tp_base*/
-    NULL,             /*tp_dict*/
-    NULL,             /*tp_descr_get*/
-    NULL,             /*tp_descr_set*/
-    0,                /*tp_dictoffset*/
-    NULL,             /*tp_init*/
-    NULL,             /*tp_alloc*/
-    Buffer_new,       /*tp_new*/
-    NULL,             /*tp_free*/
-    NULL,             /*tp_is_gc*/
-    NULL,             /*tp_bases*/
-    NULL,             /*tp_mro*/
-    NULL,             /*tp_cache*/
-    NULL,             /*tp_subclasses*/
-    NULL,             /*tp_weaklist*/
-    NULL,             /*tp_del*/
+    PyVarObject_HEAD_INIT(NULL, 0)
+    /*tp_name*/ "bgl.Buffer",
+    /*tp_basicsize*/ sizeof(Buffer),
+    /*tp_itemsize*/ 0,
+    /*tp_dealloc*/ (destructor)Buffer_dealloc,
+    /*tp_vectorcall_offset*/ 0,
+    /*tp_getattr*/ NULL,
+    /*tp_setattr*/ NULL,
+    /*tp_as_async*/ NULL,
+    /*tp_repr*/ (reprfunc)Buffer_repr,
+    /*tp_as_number*/ NULL,
+    /*tp_as_sequence*/ &Buffer_SeqMethods,
+    /*tp_as_mapping*/ &Buffer_AsMapping,
+    /*tp_hash*/ NULL,
+    /*tp_call*/ NULL,
+    /*tp_str*/ NULL,
+    /*tp_getattro*/ NULL,
+    /*tp_setattro*/ NULL,
+    /*tp_as_buffer*/ NULL,
+    /*tp_flags*/ Py_TPFLAGS_DEFAULT,
+    /*tp_doc*/ NULL,
+    /*tp_traverse*/ NULL,
+    /*tp_clear*/ NULL,
+    /*tp_richcompare*/ NULL,
+    /*tp_weaklistoffset*/ 0,
+    /*tp_iter*/ NULL,
+    /*tp_iternext*/ NULL,
+    /*tp_methods*/ Buffer_methods,
+    /*tp_members*/ NULL,
+    /*tp_getset*/ Buffer_getseters,
+    /*tp_base*/ NULL,
+    /*tp_dict*/ NULL,
+    /*tp_descr_get*/ NULL,
+    /*tp_descr_set*/ NULL,
+    /*tp_dictoffset*/ 0,
+    /*tp_init*/ NULL,
+    /*tp_alloc*/ NULL,
+    /*tp_new*/ Buffer_new,
+    /*tp_free*/ NULL,
+    /*tp_is_gc*/ NULL,
+    /*tp_bases*/ NULL,
+    /*tp_mro*/ NULL,
+    /*tp_cache*/ NULL,
+    /*tp_subclasses*/ NULL,
+    /*tp_weaklist*/ NULL,
+    /*tp_del*/ NULL,
+    /*tp_version_tag*/ 0,
+    /*tp_finalize*/ NULL,
+    /*tp_vectorcall*/ NULL,
 };
 
 static Buffer *BGL_MakeBuffer_FromData(
@@ -1088,11 +1124,19 @@ static PyObject *Buffer_repr(Buffer *self)
     { \
       arg_def arg_list; \
       ret_def_##ret; \
+      report_deprecated_call(#funcname); \
       if (!PyArg_ParseTuple(args, arg_str arg_list, arg_ref arg_list)) { \
         return NULL; \
       } \
-      GPU_bgl_start(); \
-      ret_set_##ret gl##funcname(arg_var arg_list); \
+      const bool has_opengl_backend = GPU_backend_get_type() == GPU_BACKEND_OPENGL; \
+      if (has_opengl_backend) { \
+        GPU_bgl_start(); \
+        ret_set_##ret gl##funcname(arg_var arg_list); \
+      } \
+      else { \
+        report_deprecated_call_to_user(); \
+        ret_set_##ret ret_default_##ret; \
+      } \
       ret_ret_##ret; \
     }
 #else
@@ -1393,14 +1437,14 @@ BGL_Wrap(TexImage3DMultisample,
 
 static struct PyModuleDef BGL_module_def = {
     PyModuleDef_HEAD_INIT,
-    "bgl", /* m_name */
-    NULL,  /* m_doc */
-    0,     /* m_size */
-    NULL,  /* m_methods */
-    NULL,  /* m_slots */
-    NULL,  /* m_traverse */
-    NULL,  /* m_clear */
-    NULL,  /* m_free */
+    /*m_name*/ "bgl",
+    /*m_doc*/ NULL,
+    /*m_size*/ 0,
+    /*m_methods*/ NULL,
+    /*m_slots*/ NULL,
+    /*m_traverse*/ NULL,
+    /*m_clear*/ NULL,
+    /*m_free*/ NULL,
 };
 
 static void py_module_dict_add_int(PyObject *dict, const char *name, int value)
@@ -2604,6 +2648,12 @@ PyObject *BPyInit_bgl(void)
 
   if (PyType_Ready(&BGL_bufferType) < 0) {
     return NULL; /* should never happen */
+  }
+
+  if (GPU_backend_get_type() != GPU_BACKEND_OPENGL) {
+    CLOG_WARN(&LOG,
+              "'bgl' imported without an OpenGL backend. Please update your add-ons to use the "
+              "'gpu' module. In Blender 4.0 'bgl' will be removed.");
   }
 
   PyModule_AddObject(submodule, "Buffer", (PyObject *)&BGL_bufferType);

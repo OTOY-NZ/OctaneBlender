@@ -5,8 +5,7 @@
  * \ingroup cmpnodes
  */
 
-#include "BLI_float3x3.hh"
-#include "BLI_math_vec_types.hh"
+#include "BLI_math_matrix.hh"
 
 #include "UI_interface.h"
 #include "UI_resources.h"
@@ -71,7 +70,7 @@ class TranslateOperation : public NodeOperation {
     }
 
     const float2 translation = float2(x, y);
-    const float3x3 transformation = float3x3::from_translation(translation);
+    const float3x3 transformation = math::from_location<float3x3>(translation);
 
     result.transform(transformation);
     result.get_realization_options().repeat_x = get_repeat_x();
@@ -110,7 +109,7 @@ void register_node_type_cmp_translate()
   cmp_node_type_base(&ntype, CMP_NODE_TRANSLATE, "Translate", NODE_CLASS_DISTORT);
   ntype.declare = file_ns::cmp_node_translate_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_translate;
-  node_type_init(&ntype, file_ns::node_composit_init_translate);
+  ntype.initfunc = file_ns::node_composit_init_translate;
   node_type_storage(
       &ntype, "NodeTranslateData", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;

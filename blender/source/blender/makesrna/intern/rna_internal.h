@@ -20,11 +20,9 @@ extern "C" {
 
 #define RNA_MAGIC ((int)~0)
 
-struct AssetLibraryReference;
 struct FreestyleSettings;
 struct ID;
 struct IDOverrideLibrary;
-struct IDOverrideLibraryenOperation;
 struct IDProperty;
 struct Main;
 struct Object;
@@ -294,7 +292,7 @@ struct IDProperty **rna_ID_idprops(struct PointerRNA *ptr);
 void rna_ID_fake_user_set(struct PointerRNA *ptr, bool value);
 void **rna_ID_instance(PointerRNA *ptr);
 struct IDProperty **rna_PropertyGroup_idprops(struct PointerRNA *ptr);
-void rna_PropertyGroup_unregister(struct Main *bmain, struct StructRNA *type);
+bool rna_PropertyGroup_unregister(struct Main *bmain, struct StructRNA *type);
 struct StructRNA *rna_PropertyGroup_register(struct Main *bmain,
                                              struct ReportList *reports,
                                              void *data,
@@ -552,7 +550,7 @@ int rna_property_override_diff_default(struct Main *bmain,
                                        const char *rna_path,
                                        size_t rna_path_len,
                                        int flags,
-                                       bool *r_override_changed);
+                                       eRNAOverrideMatchResult *r_report_flag);
 
 bool rna_property_override_store_default(struct Main *bmain,
                                          struct PointerRNA *ptr_local,
@@ -664,7 +662,7 @@ const char *rna_translate_ui_text(const char *text,
                                   struct PropertyRNA *prop,
                                   bool translate);
 
-/* Internal functions that cycles uses so we need to declare (tsk!). */
+/* Internal functions that cycles uses so we need to declare (not ideal!). */
 void rna_RenderPass_rect_set(PointerRNA *ptr, const float *values);
 
 #ifdef RNA_RUNTIME

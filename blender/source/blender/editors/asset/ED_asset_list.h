@@ -6,12 +6,12 @@
 
 #pragma once
 
+#include "DNA_asset_types.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-struct AssetFilterSettings;
-struct AssetHandle;
 struct AssetLibraryReference;
 struct ID;
 struct bContext;
@@ -50,8 +50,10 @@ void ED_assetlist_storage_id_remap(struct ID *id_old, struct ID *id_new);
  */
 void ED_assetlist_storage_exit(void);
 
+AssetHandle ED_assetlist_asset_get_by_index(const AssetLibraryReference *library_reference,
+                                            int asset_index);
+
 struct ImBuf *ED_assetlist_asset_image_get(const AssetHandle *asset_handle);
-const char *ED_assetlist_library_path(const struct AssetLibraryReference *library_reference);
 
 /**
  * \return True if the region needs a UI redraw.

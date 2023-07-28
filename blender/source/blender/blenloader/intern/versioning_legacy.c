@@ -58,6 +58,7 @@
 #include "BKE_lattice.h"
 #include "BKE_main.h" /* for Main */
 #include "BKE_mesh.h" /* for ME_ defines (patching) */
+#include "BKE_mesh_legacy_convert.h"
 #include "BKE_modifier.h"
 #include "BKE_object.h"
 #include "BKE_particle.h"
@@ -1466,7 +1467,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
 
     for (me = bmain->meshes.first; me; me = me->id.next) {
       if (!me->medge) {
-        BKE_mesh_calc_edges_legacy(me, true); /* true = use #MFace.edcode. */
+        BKE_mesh_calc_edges_legacy(me);
       }
       else {
         BKE_mesh_strip_loose_faces(me);

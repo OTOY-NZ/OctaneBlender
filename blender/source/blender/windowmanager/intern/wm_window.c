@@ -83,12 +83,6 @@
 #  include "BLI_threads.h"
 #endif
 
-/**
- * When windows are activated, simulate modifier press/release to match the current state of
- * held modifier keys, see T40317.
- */
-#define USE_WIN_ACTIVATE
-
 /* the global to talk to ghost */
 static GHOST_SystemHandle g_system = NULL;
 #if !(defined(WIN32) || defined(__APPLE__))
@@ -158,6 +152,7 @@ enum ModSide {
 
 static void wm_window_set_drawable(wmWindowManager *wm, wmWindow *win, bool activate);
 static bool wm_window_timer(const bContext *C);
+static uint8_t wm_ghost_modifier_query(const enum ModSide side);
 
 void wm_get_screensize(int *r_width, int *r_height)
 {
@@ -198,8 +193,8 @@ static void wm_ghostwindow_destroy(wmWindowManager *wm, wmWindow *win)
     return;
   }
 
-  /* Prevents non-drawable state of main windows (bugs T22967,
-   * T25071 and possibly T22477 too). Always clear it even if
+  /* Prevents non-drawable state of main windows (bugs #22967,
+   * #25071 and possibly #22477 too). Always clear it even if
    * this window was not the drawable one, because we mess with
    * drawing context to discard the GW context. */
   wm_window_clear_drawable(wm);
@@ -236,6 +231,9 @@ void wm_window_free(bContext *C, wmWindowManager *wm, wmWindow *win)
 
   /* end running jobs, a job end also removes its timer */
   LISTBASE_FOREACH_MUTABLE (wmTimer *, wt, &wm->timers) {
+    if (wt->flags & WM_TIMER_TAGGED_FOR_REMOVAL) {
+      continue;
+    }
     if (wt->win == win && wt->event_type == TIMERJOBS) {
       wm_jobs_timer_end(wm, wt);
     }
@@ -243,16 +241,23 @@ void wm_window_free(bContext *C, wmWindowManager *wm, wmWindow *win)
 
   /* timer removing, need to call this api function */
   LISTBASE_FOREACH_MUTABLE (wmTimer *, wt, &wm->timers) {
+    if (wt->flags & WM_TIMER_TAGGED_FOR_REMOVAL) {
+      continue;
+    }
     if (wt->win == win) {
       WM_event_remove_timer(wm, win, wt);
     }
   }
+  wm_window_delete_removed_timers(wm);
 
   if (win->eventstate) {
     MEM_freeN(win->eventstate);
   }
   if (win->event_last_handled) {
     MEM_freeN(win->event_last_handled);
+  }
+  if (win->event_queue_consecutive_gesture_data) {
+    WM_event_consecutive_data_free(win);
   }
 
   if (win->cursor_keymap_status) {
@@ -524,6 +529,106 @@ void WM_window_set_dpi(const wmWindow *win)
   U.widget_unit = (int)roundf(18.0f * U.dpi_fac) + (2 * pixelsize);
 }
 
+/**
+ * When windows are activated, simulate modifier press/release to match the current state of
+ * held modifier keys, see #40317.
+ *
+ * NOTE(@ideasman42): There is a bug in Windows11 where Alt-Tab sends an Alt-press event
+ * to the window after it's deactivated, this means window de-activation is not a fool-proof
+ * way of ensuring modifier keys are cleared for inactive windows. So any event added to an
+ * inactive window must run #wm_window_update_eventstate_modifiers first to ensure no modifier
+ * keys are held. See: #105277.
+ */
+static void wm_window_update_eventstate_modifiers(wmWindowManager *wm, wmWindow *win)
+{
+  const uint8_t keymodifier_sided[2] = {
+      wm_ghost_modifier_query(MOD_SIDE_LEFT),
+      wm_ghost_modifier_query(MOD_SIDE_RIGHT),
+  };
+  const uint8_t keymodifier = keymodifier_sided[0] | keymodifier_sided[1];
+  const uint8_t keymodifier_eventstate = win->eventstate->modifier;
+  if (keymodifier != keymodifier_eventstate) {
+    GHOST_TEventKeyData kdata = {
+        .key = GHOST_kKeyUnknown,
+        .utf8_buf = {'\0'},
+        .is_repeat = false,
+    };
+    for (int i = 0; i < ARRAY_SIZE(g_modifier_table); i++) {
+      if (keymodifier_eventstate & g_modifier_table[i].flag) {
+        if ((keymodifier & g_modifier_table[i].flag) == 0) {
+          for (int side = 0; side < 2; side++) {
+            if ((keymodifier_sided[side] & g_modifier_table[i].flag) == 0) {
+              kdata.key = g_modifier_table[i].ghost_key_pair[side];
+              wm_event_add_ghostevent(wm, win, GHOST_kEventKeyUp, &kdata);
+              /* Only ever send one release event
+               * (currently releasing multiple isn't needed and only confuses logic). */
+              break;
+            }
+          }
+        }
+      }
+      else {
+        if (keymodifier & g_modifier_table[i].flag) {
+          for (int side = 0; side < 2; side++) {
+            if (keymodifier_sided[side] & g_modifier_table[i].flag) {
+              kdata.key = g_modifier_table[i].ghost_key_pair[side];
+              wm_event_add_ghostevent(wm, win, GHOST_kEventKeyDown, &kdata);
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+/**
+ * When the window is de-activated, release all held modifiers.
+ *
+ * Needed so events generated over unfocused (non-active) windows don't have modifiers held.
+ * Since modifier press/release events aren't send to unfocused windows it's best to assume
+ * modifiers are not pressed. This means when modifiers *are* held, events will incorrectly
+ * reported as not being held. Since this is standard behavior for Linux/MS-Window,
+ * opt to use this.
+ *
+ * NOTE(@ideasman42): Events generated for non-active windows are rare,
+ * this happens when using the mouse-wheel over an unfocused window, see: #103722.
+ */
+static void wm_window_update_eventstate_modifiers_clear(wmWindowManager *wm, wmWindow *win)
+{
+  /* Release all held modifiers before de-activating the window. */
+  if (win->eventstate->modifier != 0) {
+    const uint8_t keymodifier_eventstate = win->eventstate->modifier;
+    const uint8_t keymodifier_l = wm_ghost_modifier_query(MOD_SIDE_LEFT);
+    const uint8_t keymodifier_r = wm_ghost_modifier_query(MOD_SIDE_RIGHT);
+    /* NOTE(@ideasman42): when non-zero, there are modifiers held in
+     * `win->eventstate` which are not considered held by the GHOST internal state.
+     * While this should not happen, it's important all modifier held in event-state
+     * receive release events. Without this, so any events generated while the window
+     * is *not* active will have modifiers held. */
+    const uint8_t keymodifier_unhandled = keymodifier_eventstate &
+                                          ~(keymodifier_l | keymodifier_r);
+    const uint8_t keymodifier_sided[2] = {
+        keymodifier_l | keymodifier_unhandled,
+        keymodifier_r,
+    };
+    GHOST_TEventKeyData kdata = {
+        .key = GHOST_kKeyUnknown,
+        .utf8_buf = {'\0'},
+        .is_repeat = false,
+    };
+    for (int i = 0; i < ARRAY_SIZE(g_modifier_table); i++) {
+      if (keymodifier_eventstate & g_modifier_table[i].flag) {
+        for (int side = 0; side < 2; side++) {
+          if ((keymodifier_sided[side] & g_modifier_table[i].flag) == 0) {
+            kdata.key = g_modifier_table[i].ghost_key_pair[side];
+            wm_event_add_ghostevent(wm, win, GHOST_kEventKeyUp, &kdata);
+          }
+        }
+      }
+    }
+  }
+}
+
 static void wm_window_update_eventstate(wmWindow *win)
 {
   /* Update mouse position when a window is activated. */
@@ -618,7 +723,7 @@ static void wm_window_ghostwindow_add(wmWindowManager *wm,
 
     wm_window_swap_buffers(win);
 
-    /* Clear double buffer to avoids flickering of new windows on certain drivers. (See T97600) */
+    /* Clear double buffer to avoids flickering of new windows on certain drivers. (See #97600) */
     GPU_clear_color(0.55f, 0.55f, 0.55f, 1.0f);
 
     // GHOST_SetWindowState(ghostwin, GHOST_kWindowStateModified);
@@ -652,7 +757,7 @@ static void wm_window_ghostwindow_ensure(wmWindowManager *wm, wmWindow *win, boo
       wm_init_state.override_flag &= ~WIN_OVERRIDE_WINSTATE;
     }
 
-    /* without this, cursor restore may fail, T45456 */
+    /* without this, cursor restore may fail, #45456 */
     if (win->cursor == 0) {
       win->cursor = WM_CURSOR_DEFAULT;
     }
@@ -1129,67 +1234,42 @@ static bool ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr C_void_pt
     wmWindow *win = GHOST_GetWindowUserData(ghostwin);
 
     switch (type) {
-      case GHOST_kEventWindowDeactivate:
+      case GHOST_kEventWindowDeactivate: {
+        wm_window_update_eventstate_modifiers_clear(wm, win);
+
         wm_event_add_ghostevent(wm, win, type, data);
-        win->active = 0; /* XXX */
+        win->active = 0;
         break;
+      }
       case GHOST_kEventWindowActivate: {
 
-        /* No context change! C->wm->windrawable is drawable, or for area queues. */
-        wm->winactive = win;
-
-        win->active = 1;
-
-        /* bad ghost support for modifier keys... so on activate we set the modifiers again */
-
-        const uint8_t keymodifier_sided[2] = {
-            wm_ghost_modifier_query(MOD_SIDE_LEFT),
-            wm_ghost_modifier_query(MOD_SIDE_RIGHT),
-        };
-        const uint8_t keymodifier = keymodifier_sided[0] | keymodifier_sided[1];
-        const uint8_t keymodifier_eventstate = win->eventstate->modifier;
-        if (keymodifier != keymodifier_eventstate) {
-          GHOST_TEventKeyData kdata = {
-              .key = GHOST_kKeyUnknown,
-              .utf8_buf = {'\0'},
-              .is_repeat = false,
-          };
-          for (int i = 0; i < ARRAY_SIZE(g_modifier_table); i++) {
-            if (keymodifier_eventstate & g_modifier_table[i].flag) {
-              if ((keymodifier & g_modifier_table[i].flag) == 0) {
-                for (int side = 0; side < 2; side++) {
-                  if ((keymodifier_sided[side] & g_modifier_table[i].flag) == 0) {
-                    kdata.key = g_modifier_table[i].ghost_key_pair[side];
-                    wm_event_add_ghostevent(wm, win, GHOST_kEventKeyUp, &kdata);
-                    /* Only ever send one release event
-                     * (currently releasing multiple isn't needed and only confuses logic). */
-                    break;
-                  }
-                }
-              }
-            }
-#ifdef USE_WIN_ACTIVATE
-            else {
-              if (keymodifier & g_modifier_table[i].flag) {
-                for (int side = 0; side < 2; side++) {
-                  if (keymodifier_sided[side] & g_modifier_table[i].flag) {
-                    kdata.key = g_modifier_table[i].ghost_key_pair[side];
-                    wm_event_add_ghostevent(wm, win, GHOST_kEventKeyDown, &kdata);
-                  }
-                }
-              }
-            }
+#ifdef WIN32
+        /* NOTE(@ideasman42): Alt-Tab on Windows-10 (22H2) can deactivate the window,
+         * then (in rare cases - approx 1 in 20) immediately call `WM_ACTIVATE` on the window
+         * (which isn't active) and doesn't receive modifier release events.
+         * This looks like a bug in MS-Windows, searching online other apps
+         * have run into similar issues although it's not clear exactly which.
+         *
+         * - Therefor activation must always clear modifiers
+         *   or Alt-Tab can occasionally get stuck, see: #105381.
+         * - Unfortunately modifiers that are held before
+         *   the window is active are ignored, see: #40059.
+         */
+        wm_window_update_eventstate_modifiers_clear(wm, win);
+#else
+        /* Ensure the event state matches modifiers (window was inactive). */
+        wm_window_update_eventstate_modifiers(wm, win);
 #endif
 
-#undef USE_WIN_ACTIVATE
-          }
-        }
+        /* Entering window, update mouse position (without sending an event). */
+        wm_window_update_eventstate(win);
+
+        /* No context change! `C->wm->windrawable` is drawable, or for area queues. */
+        wm->winactive = win;
+        win->active = 1;
 
         /* keymodifier zero, it hangs on hotkeys that open windows otherwise */
         win->eventstate->keymodifier = 0;
-
-        /* entering window, update mouse pos. but no event */
-        wm_window_update_eventstate(win);
 
         win->addmousemove = 1; /* enables highlighted buttons */
 
@@ -1226,6 +1306,22 @@ static bool ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr C_void_pt
 
         wm_window_make_drawable(wm, win);
         WM_event_add_notifier(C, NC_WINDOW, NULL);
+
+        break;
+      }
+      case GHOST_kEventWindowUpdateDecor: {
+        if (G.debug & G_DEBUG_EVENTS) {
+          printf("%s: ghost redraw decor %d\n", __func__, win->winid);
+        }
+
+        wm_window_make_drawable(wm, win);
+#if 0
+        /* NOTE(@ideasman42): Ideally we could swap-buffers to avoid a full redraw.
+         * however this causes window flickering on resize with LIBDECOR under WAYLAND. */
+        wm_window_swap_buffers(win);
+#else
+        WM_event_add_notifier(C, NC_WINDOW, NULL);
+#endif
 
         break;
       }
@@ -1331,7 +1427,9 @@ static bool ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr C_void_pt
       case GHOST_kEventDraggingDropDone: {
         GHOST_TEventDragnDropData *ddd = GHOST_GetEventData(evt);
 
-        /* entering window, update mouse pos */
+        /* Ensure the event state matches modifiers (window was inactive). */
+        wm_window_update_eventstate_modifiers(wm, win);
+        /* Entering window, update mouse position (without sending an event). */
         wm_window_update_eventstate(win);
 
         wmEvent event;
@@ -1352,9 +1450,8 @@ static bool ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr C_void_pt
 
         event.flag = 0;
 
-        /* No context change! C->wm->windrawable is drawable, or for area queues. */
+        /* No context change! `C->wm->windrawable` is drawable, or for area queues. */
         wm->winactive = win;
-
         win->active = 1;
 
         wm_event_add(win, &event);
@@ -1427,8 +1524,9 @@ static bool ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr C_void_pt
       case GHOST_kEventButtonDown:
       case GHOST_kEventButtonUp: {
         if (win->active == 0) {
-          /* Entering window, update cursor and tablet state.
+          /* Entering window, update cursor/tablet state & modifiers.
            * (ghost sends win-activate *after* the mouse-click in window!) */
+          wm_window_update_eventstate_modifiers(wm, win);
           wm_window_update_eventstate(win);
         }
 
@@ -1459,6 +1557,9 @@ static bool wm_window_timer(const bContext *C)
 
   /* Mutable in case the timer gets removed. */
   LISTBASE_FOREACH_MUTABLE (wmTimer *, wt, &wm->timers) {
+    if (wt->flags & WM_TIMER_TAGGED_FOR_REMOVAL) {
+      continue;
+    }
     wmWindow *win = wt->win;
 
     if (wt->sleep != 0) {
@@ -1500,6 +1601,10 @@ static bool wm_window_timer(const bContext *C)
       }
     }
   }
+
+  /* Effectively delete all timers marked for removal. */
+  wm_window_delete_removed_timers(wm);
+
   return has_event;
 }
 
@@ -1579,7 +1684,7 @@ void wm_ghost_init(bContext *C)
   GHOST_UseWindowFocus(wm_init_state.window_focus);
 }
 
-/* TODO move this to wm_init_exit.c. */
+/* TODO move this to wm_init_exit.cc. */
 void wm_ghost_init_background(void)
 {
   if (g_system) {
@@ -1626,6 +1731,9 @@ GHOST_TDrawingContextType wm_ghost_drawing_context_type(const eGPUBackendType gp
     case GPU_BACKEND_OPENGL:
       return GHOST_kDrawingContextTypeOpenGL;
     case GPU_BACKEND_VULKAN:
+#ifdef WITH_VULKAN_BACKEND
+      return GHOST_kDrawingContextTypeVulkan;
+#endif
       BLI_assert_unreachable();
       return GHOST_kDrawingContextTypeNone;
     case GPU_BACKEND_METAL:
@@ -1641,6 +1749,75 @@ GHOST_TDrawingContextType wm_ghost_drawing_context_type(const eGPUBackendType gp
    * to error. */
   BLI_assert_unreachable();
   return GHOST_kDrawingContextTypeNone;
+}
+
+static uiBlock *block_create_opengl_usage_warning(struct bContext *C,
+                                                  struct ARegion *region,
+                                                  void *UNUSED(arg1))
+{
+  uiBlock *block = UI_block_begin(C, region, "autorun_warning_popup", UI_EMBOSS);
+  UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
+  UI_block_emboss_set(block, UI_EMBOSS);
+
+  uiLayout *layout = uiItemsAlertBox(block, 44, ALERT_ICON_ERROR);
+
+  /* Title and explanation text. */
+  uiLayout *col = uiLayoutColumn(layout, false);
+  uiItemL_ex(col, TIP_("Python script uses OpenGL for drawing"), ICON_NONE, true, false);
+  uiItemL(col, TIP_("This may lead to unexpected behavior"), ICON_NONE);
+  uiItemL(col,
+          TIP_("One of the add-ons or scripts is using OpenGL and will not work correct on Metal"),
+          ICON_NONE);
+  uiItemL(col,
+          TIP_("Please contact the developer of the add-on to migrate to use 'gpu' module"),
+          ICON_NONE);
+  if (G.opengl_deprecation_usage_filename) {
+    char location[1024];
+    SNPRINTF(
+        location, "%s:%d", G.opengl_deprecation_usage_filename, G.opengl_deprecation_usage_lineno);
+    uiItemL(col, location, ICON_NONE);
+  }
+  uiItemL(col, TIP_("See system tab in preferences to switch to OpenGL backend"), ICON_NONE);
+
+  uiItemS(layout);
+
+  UI_block_bounds_set_centered(block, 14 * U.dpi_fac);
+
+  return block;
+}
+
+void wm_test_opengl_deprecation_warning(bContext *C)
+{
+  static bool message_shown = false;
+
+  /* Exit when no failure detected. */
+  if (!G.opengl_deprecation_usage_detected) {
+    return;
+  }
+
+  /* Have we already shown a message during this Blender session. `bgl` calls are done in a draw
+   * handler that will run many times. */
+  if (message_shown) {
+    return;
+  }
+
+  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindow *win = (wm->winactive) ? wm->winactive : wm->windows.first;
+
+  BKE_report(
+      &wm->reports,
+      RPT_ERROR,
+      TIP_("One of the add-ons or scripts is using OpenGL and will not work correct on Metal. "
+           "Please contact the developer of the add-on to migrate to use 'gpu' module"));
+
+  if (win) {
+    wmWindow *prevwin = CTX_wm_window(C);
+    CTX_wm_window_set(C, win);
+    UI_popup_block_invoke(C, block_create_opengl_usage_warning, NULL, NULL);
+    CTX_wm_window_set(C, prevwin);
+  }
+
+  message_shown = true;
 }
 
 eWM_CapabilitiesFlag WM_capabilities_flag(void)
@@ -1672,6 +1849,9 @@ void WM_event_timer_sleep(wmWindowManager *wm,
                           bool do_sleep)
 {
   LISTBASE_FOREACH (wmTimer *, wt, &wm->timers) {
+    if (wt->flags & WM_TIMER_TAGGED_FOR_REMOVAL) {
+      continue;
+    }
     if (wt == timer) {
       wt->sleep = do_sleep;
       break;
@@ -1718,37 +1898,47 @@ wmTimer *WM_event_add_timer_notifier(wmWindowManager *wm,
   return wt;
 }
 
+void wm_window_delete_removed_timers(wmWindowManager *wm)
+{
+  LISTBASE_FOREACH_MUTABLE (wmTimer *, wt, &wm->timers) {
+    if ((wt->flags & WM_TIMER_TAGGED_FOR_REMOVAL) == 0) {
+      continue;
+    }
+
+    /* Actual removal and freeing of the timer. */
+    BLI_remlink(&wm->timers, wt);
+    MEM_freeN(wt);
+  }
+}
+
 void WM_event_remove_timer(wmWindowManager *wm, wmWindow *UNUSED(win), wmTimer *timer)
 {
-  /* extra security check */
-  wmTimer *wt = NULL;
-  LISTBASE_FOREACH (wmTimer *, timer_iter, &wm->timers) {
-    if (timer_iter == timer) {
-      wt = timer_iter;
-    }
-  }
-  if (wt == NULL) {
+  /* Extra security check. */
+  if (BLI_findindex(&wm->timers, timer) < 0) {
     return;
   }
 
-  if (wm->reports.reporttimer == wt) {
+  timer->flags |= WM_TIMER_TAGGED_FOR_REMOVAL;
+
+  /* Clear existing references to the timer. */
+  if (wm->reports.reporttimer == timer) {
     wm->reports.reporttimer = NULL;
   }
-
-  BLI_remlink(&wm->timers, wt);
-  if (wt->customdata != NULL && (wt->flags & WM_TIMER_NO_FREE_CUSTOM_DATA) == 0) {
-    MEM_freeN(wt->customdata);
-  }
-  MEM_freeN(wt);
-
-  /* there might be events in queue with this timer as customdata */
+  /* There might be events in queue with this timer as customdata. */
   LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
     LISTBASE_FOREACH (wmEvent *, event, &win->event_queue) {
-      if (event->customdata == wt) {
+      if (event->customdata == timer) {
         event->customdata = NULL;
         event->type = EVENT_NONE; /* Timer users customdata, don't want `NULL == NULL`. */
       }
     }
+  }
+
+  /* Immediately free customdata if requested, so that invalid usages of that data after
+   * calling `WM_event_remove_timer` can be easily spotted (through ASAN errors e.g.). */
+  if (timer->customdata != NULL && (timer->flags & WM_TIMER_NO_FREE_CUSTOM_DATA) == 0) {
+    MEM_freeN(timer->customdata);
+    timer->customdata = NULL;
   }
 }
 
@@ -1996,7 +2186,7 @@ uint *WM_window_pixels_read(wmWindowManager *wm, wmWindow *win, int r_size[2])
 {
   /* WARNING: Reading from the front-buffer immediately after drawing may fail,
    * for a slower but more reliable version of this function #WM_window_pixels_read_offscreen
-   * should be preferred. See it's comments for details on why it's needed, see also T98462. */
+   * should be preferred. See it's comments for details on why it's needed, see also #98462. */
   bool setup_context = wm->windrawable != win;
 
   if (setup_context) {
@@ -2100,6 +2290,8 @@ void WM_init_input_devices(void)
 
 void WM_cursor_warp(wmWindow *win, int x, int y)
 {
+  /* This function requires access to the GHOST_SystemHandle (`g_system`). */
+
   if (!(win && win->ghostwin)) {
     return;
   }

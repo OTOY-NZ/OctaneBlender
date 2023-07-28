@@ -854,7 +854,7 @@ static double get_cur_time(Scene *scene)
 {
   /* We divide by the current framelen to take into account time remapping.
    * Otherwise we will get the wrong starting time which will break A/V sync.
-   * See T74111 for further details. */
+   * See #74111 for further details. */
   return FRA2TIME((scene->r.cfra + scene->r.subframe) / (double)scene->r.framelen);
 }
 
@@ -1025,7 +1025,7 @@ void BKE_sound_free_waveform(bSound *sound)
   sound->tags &= ~SOUND_TAGS_WAVEFORM_NO_RELOAD;
 }
 
-void BKE_sound_read_waveform(Main *bmain, bSound *sound, short *stop)
+void BKE_sound_read_waveform(Main *bmain, bSound *sound, bool *stop)
 {
   bool need_close_audio_handles = false;
   if (sound->playback_handle == NULL) {
@@ -1041,8 +1041,11 @@ void BKE_sound_read_waveform(Main *bmain, bSound *sound, short *stop)
     int length = info.length * SOUND_WAVE_SAMPLES_PER_SECOND;
 
     waveform->data = MEM_mallocN(sizeof(float[3]) * length, "SoundWaveform.samples");
+    /* Ideally this would take a boolean argument. */
+    short stop_i16 = *stop;
     waveform->length = AUD_readSound(
-        sound->playback_handle, waveform->data, length, SOUND_WAVE_SAMPLES_PER_SECOND, stop);
+        sound->playback_handle, waveform->data, length, SOUND_WAVE_SAMPLES_PER_SECOND, &stop_i16);
+    *stop = stop_i16 != 0;
   }
   else {
     /* Create an empty waveform here if the sound couldn't be
@@ -1227,7 +1230,7 @@ bool BKE_sound_info_get(struct Main *main, struct bSound *sound, SoundInfo *soun
   }
   /* TODO(sergey): Make it fully independent audio handle. */
   /* Don't free waveforms during non-destructive queries.
-   * This causes unnecessary recalculation - see T69921 */
+   * This causes unnecessary recalculation - see #69921 */
   sound_load_audio(main, sound, false);
   const bool result = sound_info_from_playback_handle(sound->playback_handle, sound_info);
   sound_free_audio(sound);
@@ -1381,7 +1384,7 @@ int BKE_sound_scene_playing(Scene *UNUSED(scene))
 void BKE_sound_read_waveform(Main *bmain,
                              bSound *sound,
                              /* NOLINTNEXTLINE: readability-non-const-parameter. */
-                             short *stop)
+                             bool *stop)
 {
   UNUSED_VARS(sound, stop, bmain);
 }

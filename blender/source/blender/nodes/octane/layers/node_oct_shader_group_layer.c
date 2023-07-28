@@ -128,7 +128,7 @@ static void node_oct_init_group_layer(bNodeTree *ntree, bNode *node)
   node->custom1 = 1;
 }
 
-static void node_shader_update_group_layer(bNodeTree *UNUSED(ntree), bNode *node)
+static void node_shader_update_group_layer(bNodeTree *ntree, bNode *node)
 {
   bNodeSocket *sock;
   int layer_number = node->custom1;
@@ -158,9 +158,9 @@ void register_node_type_sh_oct_group_layer(void)
         &ntype, SH_NODE_OCT_GROUP_LAYER, "Octane Layer Group", NODE_CLASS_OCT_LAYER);
   node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
   node_type_size(&ntype, 160, 160, 500);
-  node_type_init(&ntype, node_oct_init_group_layer);
+  ntype.initfunc = (node_oct_init_group_layer);
   node_type_storage(&ntype, "", NULL, NULL);
-  node_type_update(&ntype, node_shader_update_group_layer);
+  ntype.updatefunc = (node_shader_update_group_layer);
 
   nodeRegisterType(&ntype);
 } /* register_node_type_sh_oct_group_layer() */

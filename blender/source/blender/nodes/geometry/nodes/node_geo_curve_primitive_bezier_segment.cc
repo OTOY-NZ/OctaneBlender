@@ -63,7 +63,7 @@ static Curves *create_bezier_segment_curve(const float3 start,
                                            const GeometryNodeCurvePrimitiveBezierSegmentMode mode)
 {
   Curves *curves_id = bke::curves_new_nomain_single(2, CURVE_TYPE_BEZIER);
-  bke::CurvesGeometry &curves = bke::CurvesGeometry::wrap(curves_id->geometry);
+  bke::CurvesGeometry &curves = curves_id->geometry.wrap();
   curves.resolution_for_write().fill(resolution);
 
   MutableSpan<float3> positions = curves.positions_for_write();
@@ -119,7 +119,7 @@ void register_node_type_geo_curve_primitive_bezier_segment()
   static bNodeType ntype;
   geo_node_type_base(
       &ntype, GEO_NODE_CURVE_PRIMITIVE_BEZIER_SEGMENT, "Bezier Segment", NODE_CLASS_GEOMETRY);
-  node_type_init(&ntype, file_ns::node_init);
+  ntype.initfunc = file_ns::node_init;
   node_type_storage(&ntype,
                     "NodeGeometryCurvePrimitiveBezierSegment",
                     node_free_standard_storage,

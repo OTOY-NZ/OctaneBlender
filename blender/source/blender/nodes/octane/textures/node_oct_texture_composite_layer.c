@@ -70,8 +70,8 @@ void register_node_type_tex_oct_composite_layer(void)
                    NODE_CLASS_OCT_TEXTURE);
   node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
   node_type_size(&ntype, 160, 160, 500);
-  node_type_init(&ntype, node_type_tex_oct_composite_layer_init);
-  node_type_exec(&ntype, 0, 0, 0);
+  ntype.initfunc = (node_type_tex_oct_composite_layer_init);
+  // node_type_exec(&ntype, 0, 0, 0);
   
 
   nodeRegisterType(&ntype);

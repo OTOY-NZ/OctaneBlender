@@ -72,6 +72,7 @@ class SessionParams {
 
   bool use_shared_surface;
   uint64_t process_id;
+  uint64_t device_luid;
 
   SessionParams()
   {
@@ -95,6 +96,7 @@ class SessionParams {
 
     use_shared_surface = false;
     process_id = 0;
+    device_luid = 0;
   }
 
   bool modified(const SessionParams &params)
@@ -113,8 +115,8 @@ class SessionParams {
         hdr_tonemapped == params.hdr_tonemapped &&
         hdr_tonemap_prefer == params.hdr_tonemap_prefer &&
         render_priority == params.render_priority &&
-        resource_cache_type == params.resource_cache_type && width == width && height == height &&
-        use_shared_surface == params.use_shared_surface && process_id == params.process_id);
+        resource_cache_type == params.resource_cache_type && width == width && height == height && use_shared_surface == params.use_shared_surface &&
+             process_id == params.process_id && device_luid == params.device_luid);
   }
 };  // SessionParams
 

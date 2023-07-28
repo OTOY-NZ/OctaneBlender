@@ -9,9 +9,11 @@
 #include "BKE_context.h"
 #include "BKE_idprop.h"
 #include "BKE_lib_id.h"
+#include "BKE_node_runtime.hh"
 #include "BKE_node_tree_update.h"
 #include "BKE_screen.h"
 
+#include "NOD_socket.h"
 #include "NOD_socket_search_link.hh"
 
 #include "BLT_translation.h"
@@ -91,7 +93,7 @@ static void add_group_input_node_fn(nodes::LinkSearchOpParams &params)
   ED_node_tree_propagate_change(&params.C, CTX_data_main(&params.C), &params.node_tree);
 
   /* Hide the new input in all other group input nodes, to avoid making them taller. */
-  LISTBASE_FOREACH (bNode *, node, &params.node_tree.nodes) {
+  for (bNode *node : params.node_tree.all_nodes()) {
     if (node->type == NODE_GROUP_INPUT) {
       bNodeSocket *new_group_input_socket = (bNodeSocket *)BLI_findlink(&node->outputs,
                                                                         group_input_index);
@@ -141,11 +143,10 @@ static void add_existing_group_input_fn(nodes::LinkSearchOpParams &params,
  */
 static void search_link_ops_for_asset_metadata(const bNodeTree &node_tree,
                                                const bNodeSocket &socket,
-                                               const AssetLibraryReference &library_ref,
-                                               const AssetHandle asset,
+                                               const AssetHandle asset_handle,
                                                Vector<SocketLinkOperation> &search_link_ops)
 {
-  const AssetMetaData &asset_data = *ED_asset_handle_get_metadata(&asset);
+  const AssetMetaData &asset_data = *ED_asset_handle_get_metadata(&asset_handle);
   const IDProperty *tree_type = BKE_asset_metadata_idprop_find(&asset_data, "type");
   if (tree_type == nullptr || IDP_Int(tree_type) != node_tree.type) {
     return;
@@ -181,24 +182,25 @@ static void search_link_ops_for_asset_metadata(const bNodeTree &node_tree,
       continue;
     }
 
-    const StringRef asset_name = ED_asset_handle_get_name(&asset);
+    AssetRepresentation *asset = ED_asset_handle_get_representation(&asset_handle);
+    const StringRef asset_name = ED_asset_handle_get_name(&asset_handle);
     const StringRef socket_name = socket_property->name;
 
     search_link_ops.append(
         {asset_name + " " + UI_MENU_ARROW_SEP + socket_name,
-         [library_ref, asset, socket_property, in_out](nodes::LinkSearchOpParams &params) {
+         [asset, socket_property, in_out](nodes::LinkSearchOpParams &params) {
            Main &bmain = *CTX_data_main(&params.C);
 
            bNode &node = params.add_node(params.node_tree.typeinfo->group_idname);
            node.flag &= ~NODE_OPTIONS;
 
-           node.id = asset::get_local_id_from_asset_or_append_and_reuse(bmain, library_ref, asset);
+           node.id = ED_asset_get_local_id_from_asset_or_append_and_reuse(&bmain, asset, ID_NT);
            id_us_plus(node.id);
            BKE_ntree_update_tag_node_property(&params.node_tree, &node);
            DEG_relations_tag_update(&bmain);
 
            /* Create the inputs and outputs on the new node. */
-           node.typeinfo->group_update_func(&params.node_tree, &node);
+           nodes::update_node_declaration_and_sockets(params.node_tree, node);
 
            bNodeSocket *new_node_socket = bke::node_find_enabled_socket(
                node, in_out, socket_property->name);
@@ -232,7 +234,7 @@ static void gather_search_link_ops_for_asset_library(const bContext &C,
     if (skip_local && ED_asset_handle_get_local_id(&asset) != nullptr) {
       return true;
     }
-    search_link_ops_for_asset_metadata(node_tree, socket, library_ref, asset, search_link_ops);
+    search_link_ops_for_asset_metadata(node_tree, socket, asset, search_link_ops);
     return true;
   });
 }
@@ -252,11 +254,20 @@ static void gather_search_link_ops_for_all_assets(const bContext &C,
         C, node_tree, socket, library_ref, true, search_link_ops);
   }
 
-  AssetLibraryReference library_ref{};
-  library_ref.custom_library_index = -1;
-  library_ref.type = ASSET_LIBRARY_LOCAL;
-  gather_search_link_ops_for_asset_library(
-      C, node_tree, socket, library_ref, false, search_link_ops);
+  {
+    AssetLibraryReference library_ref{};
+    library_ref.custom_library_index = -1;
+    library_ref.type = ASSET_LIBRARY_ESSENTIALS;
+    gather_search_link_ops_for_asset_library(
+        C, node_tree, socket, library_ref, true, search_link_ops);
+  }
+  {
+    AssetLibraryReference library_ref{};
+    library_ref.custom_library_index = -1;
+    library_ref.type = ASSET_LIBRARY_LOCAL;
+    gather_search_link_ops_for_asset_library(
+        C, node_tree, socket, library_ref, false, search_link_ops);
+  }
 }
 
 /**
@@ -299,7 +310,7 @@ static void gather_socket_link_operations(const bContext &C,
         continue;
       }
       search_link_ops.append(
-          {std::string(IFACE_("Group Input ")) + UI_MENU_ARROW_SEP + interface_socket->name,
+          {std::string(IFACE_("Group Input")) + " " + UI_MENU_ARROW_SEP + interface_socket->name,
            [interface_socket](nodes::LinkSearchOpParams &params) {
              add_existing_group_input_fn(params, *interface_socket);
            },
@@ -349,17 +360,18 @@ static void link_drag_search_exec_fn(bContext *C, void *arg1, void *arg2)
 {
   Main &bmain = *CTX_data_main(C);
   SpaceNode &snode = *CTX_wm_space_node(C);
+  bNodeTree &node_tree = *snode.edittree;
   LinkDragSearchStorage &storage = *static_cast<LinkDragSearchStorage *>(arg1);
   SocketLinkOperation *item = static_cast<SocketLinkOperation *>(arg2);
   if (item == nullptr) {
     return;
   }
 
-  node_deselect_all(snode);
+  node_deselect_all(node_tree);
 
   Vector<bNode *> new_nodes;
   nodes::LinkSearchOpParams params{
-      *C, *snode.edittree, storage.from_node, storage.from_socket, new_nodes};
+      *C, node_tree, storage.from_node, storage.from_socket, new_nodes};
   item->fn(params);
   if (new_nodes.is_empty()) {
     return;
@@ -376,11 +388,11 @@ static void link_drag_search_exec_fn(bContext *C, void *arg1, void *arg2)
   }
 
   nodeSetSelected(new_node, true);
-  nodeSetActive(snode.edittree, new_node);
+  nodeSetActive(&node_tree, new_node);
 
   /* Ideally it would be possible to tag the node tree in some way so it updates only after the
    * translate operation is finished, but normally moving nodes around doesn't cause updates. */
-  ED_node_tree_propagate_change(C, &bmain, snode.edittree);
+  ED_node_tree_propagate_change(C, &bmain, &node_tree);
 
   /* Start translation operator with the new node. */
   wmOperatorType *ot = WM_operatortype_find("NODE_OT_translate_attach_remove_on_cancel", true);

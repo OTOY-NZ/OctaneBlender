@@ -46,7 +46,7 @@ typedef struct UnicodeSample {
  * those need to be checked last. */
 static const UnicodeSample unicode_samples[] = {
     /* Chinese, Japanese, Korean, ordered specific to general. */
-    {U"\uc870\uc120\uae00", 2, TT_UCR_HANGUL},                 /* 조선글 */
+    {U"\ud55c\uad6d\uc5b4", 2, TT_UCR_HANGUL},                 /* 한국어 */
     {U"\u3042\u30a2\u4e9c", 2, TT_UCR_HIRAGANA},               /* あア亜 */
     {U"\u30a2\u30a4\u4e9c", 2, TT_UCR_KATAKANA},               /* アイ亜 */
     {U"\u1956\u195b\u1966", 3, TT_UCR_TAI_LE},                 /* ᥖᥛᥦ */
@@ -256,6 +256,22 @@ static const char32_t *blf_get_sample_text(FT_Face face)
                        count_bits_i((uint)os2_table->ulUnicodeRange2) +
                        count_bits_i((uint)os2_table->ulUnicodeRange3) +
                        count_bits_i((uint)os2_table->ulUnicodeRange4);
+
+  /* Use OS/2 Table code page range bits to differentiate between (combined) CJK fonts.
+   * See https://learn.microsoft.com/en-us/typography/opentype/spec/os2#cpr */
+  FT_ULong codepages = os2_table->ulCodePageRange1;
+  if (codepages & (1 << 19) || codepages & (1 << 21)) {
+    return U"\ud55c\uad6d\uc5b4"; /* 한국어 Korean. */
+  }
+  if (codepages & (1 << 20)) {
+    return U"\u7E41\u9AD4\u5B57"; /* 繁體字 Traditional Chinese. */
+  }
+  if (codepages & (1 << 17) && !(codepages & (1 << 18))) {
+    return U"\u65E5\u672C\u8A9E"; /* 日本語 Japanese. */
+  }
+  if (codepages & (1 << 18) && !(codepages & (1 << 17))) {
+    return U"\u7B80\u4F53\u5B57"; /* 简体字 Simplified Chinese. */
+  }
 
   for (uint i = 0; i < ARRAY_SIZE(unicode_samples); ++i) {
     const UnicodeSample *s = &unicode_samples[i];

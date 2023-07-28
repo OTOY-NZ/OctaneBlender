@@ -16,17 +16,16 @@
 #include <OSL/oslexec.h>
 #include <OSL/rendererservices.h>
 
+#include "scene/image.h"
+
 #ifdef WITH_PTEX
 class PtexCache;
 #endif
 
 CCL_NAMESPACE_BEGIN
 
-class Object;
 class Scene;
-class Shader;
 struct ShaderData;
-struct float3;
 struct KernelGlobalsCPU;
 
 /* OSL Texture Handle
@@ -57,10 +56,20 @@ struct OSLTextureHandle : public OIIO::RefCnt {
   {
   }
 
+  OSLTextureHandle(const ImageHandle &handle)
+      : type(SVM),
+        svm_slots(handle.get_svm_slots()),
+        oiio_handle(nullptr),
+        processor(nullptr),
+        handle(handle)
+  {
+  }
+
   Type type;
   vector<int4> svm_slots;
   OSL::TextureSystem::TextureHandle *oiio_handle;
   ColorSpaceProcessor *processor;
+  ImageHandle handle;
 };
 
 typedef OIIO::intrusive_ptr<OSLTextureHandle> OSLTextureHandleRef;
@@ -73,10 +82,12 @@ typedef OIIO::unordered_map_concurrent<ustring, OSLTextureHandleRef, ustringHash
 
 class OSLRenderServices : public OSL::RendererServices {
  public:
-  OSLRenderServices(OSL::TextureSystem *texture_system);
+  OSLRenderServices(OSL::TextureSystem *texture_system, int device_type);
   ~OSLRenderServices();
 
   static void register_closures(OSL::ShadingSystem *ss);
+
+  int supports(string_view feature) const override;
 
   bool get_matrix(OSL::ShaderGlobals *sg,
                   OSL::Matrix44 &result,
@@ -324,6 +335,11 @@ class OSLRenderServices : public OSL::RendererServices {
    * and is required because texture handles are cached as part of the shared
    * shading system. */
   OSLTextureHandleMap textures;
+
+  static ImageManager *image_manager;
+
+ private:
+  int device_type_;
 };
 
 CCL_NAMESPACE_END

@@ -100,10 +100,9 @@ void register_node_type_transform_oct_3d(void)
         &ntype, SH_NODE_OCT_3D_TRN, "3D Transform", NODE_CLASS_OCT_TRANSFORM);
   node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
   node_type_size(&ntype, 160, 160, 500);
-  node_type_init(&ntype, node_transform_oct_3d_init);
-  node_type_exec(&ntype, 0, 0, 0);
-  node_type_update(
-      &ntype, node_octane_transform_conversion_update);
+  ntype.initfunc = (node_transform_oct_3d_init);
+  // node_type_exec(&ntype, 0, 0, 0);
+  ntype.updatefunc = node_octane_transform_conversion_update;
   
 
   nodeRegisterType(&ntype);

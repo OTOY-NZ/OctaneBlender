@@ -44,27 +44,25 @@ static int node_shader_gpu_tex_checker(GPUMaterial *mat,
   return GPU_stack_link(mat, node, "node_tex_checker", in, out);
 }
 
-class NodeTexChecker : public fn::MultiFunction {
+class NodeTexChecker : public mf::MultiFunction {
  public:
   NodeTexChecker()
   {
-    static fn::MFSignature signature = create_signature();
+    static const mf::Signature signature = []() {
+      mf::Signature signature;
+      mf::SignatureBuilder builder{"Checker", signature};
+      builder.single_input<float3>("Vector");
+      builder.single_input<ColorGeometry4f>("Color1");
+      builder.single_input<ColorGeometry4f>("Color2");
+      builder.single_input<float>("Scale");
+      builder.single_output<ColorGeometry4f>("Color", mf::ParamFlag::SupportsUnusedOutput);
+      builder.single_output<float>("Fac");
+      return signature;
+    }();
     this->set_signature(&signature);
   }
 
-  static fn::MFSignature create_signature()
-  {
-    fn::MFSignatureBuilder signature{"Checker"};
-    signature.single_input<float3>("Vector");
-    signature.single_input<ColorGeometry4f>("Color1");
-    signature.single_input<ColorGeometry4f>("Color2");
-    signature.single_input<float>("Scale");
-    signature.single_output<ColorGeometry4f>("Color");
-    signature.single_output<float>("Fac");
-    return signature.build();
-  }
-
-  void call(IndexMask mask, fn::MFParams params, fn::MFContext /*context*/) const override
+  void call(IndexMask mask, mf::Params params, mf::Context /*context*/) const override
   {
     const VArray<float3> &vector = params.readonly_single_input<float3>(0, "Vector");
     const VArray<ColorGeometry4f> &color1 = params.readonly_single_input<ColorGeometry4f>(
@@ -111,10 +109,10 @@ void register_node_type_sh_tex_checker()
 
   sh_fn_node_type_base(&ntype, SH_NODE_TEX_CHECKER, "Checker Texture", NODE_CLASS_TEXTURE);
   ntype.declare = file_ns::sh_node_tex_checker_declare;
-  node_type_init(&ntype, file_ns::node_shader_init_tex_checker);
+  ntype.initfunc = file_ns::node_shader_init_tex_checker;
   node_type_storage(
       &ntype, "NodeTexChecker", node_free_standard_storage, node_copy_standard_storage);
-  node_type_gpu(&ntype, file_ns::node_shader_gpu_tex_checker);
+  ntype.gpu_fn = file_ns::node_shader_gpu_tex_checker;
   ntype.build_multi_function = file_ns::sh_node_tex_checker_build_multi_function;
 
   nodeRegisterType(&ntype);

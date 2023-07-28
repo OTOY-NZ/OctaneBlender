@@ -185,12 +185,12 @@ enum {
 };
 
 /** For #WM_cursor_grab_enable wrap axis. */
-enum {
+typedef enum eWM_CursorWrapAxis {
   WM_CURSOR_WRAP_NONE = 0,
   WM_CURSOR_WRAP_X,
   WM_CURSOR_WRAP_Y,
   WM_CURSOR_WRAP_XY,
-};
+} eWM_CursorWrapAxis;
 
 /**
  * Context to call operator in for #WM_operator_name_call.
@@ -588,13 +588,13 @@ typedef struct wmGesture {
   /**
    * customdata
    * - for border is a #rcti.
-   * - for circle is recti, (xmin, ymin) is center, xmax radius.
+   * - for circle is #rcti, (xmin, ymin) is center, xmax radius.
    * - for lasso is short array.
-   * - for straight line is a recti: (xmin,ymin) is start, (xmax, ymax) is end.
+   * - for straight line is a #rcti: (xmin, ymin) is start, (xmax, ymax) is end.
    */
   void *customdata;
 
-  /** Free pointer to use for operator allocs (if set, its freed on exit). */
+  /** Free pointer to use for operator allocations (if set, its freed on exit). */
   wmGenericUserData user_data;
 } wmGesture;
 
@@ -615,10 +615,18 @@ typedef enum eWM_EventFlag {
    */
   WM_EVENT_IS_REPEAT = (1 << 1),
   /**
+   * Generated for consecutive track-pad or NDOF-motion events,
+   * the repeat chain is broken by key/button events,
+   * or cursor motion exceeding #WM_EVENT_CURSOR_MOTION_THRESHOLD.
+   *
+   * Changing the type of track-pad or gesture event also breaks the chain.
+   */
+  WM_EVENT_IS_CONSECUTIVE = (1 << 2),
+  /**
    * Mouse-move events may have this flag set to force creating a click-drag event
    * even when the threshold has not been met.
    */
-  WM_EVENT_FORCE_DRAG_THRESHOLD = (1 << 2),
+  WM_EVENT_FORCE_DRAG_THRESHOLD = (1 << 3),
 } eWM_EventFlag;
 ENUM_OPERATORS(eWM_EventFlag, WM_EVENT_FORCE_DRAG_THRESHOLD);
 
@@ -668,7 +676,7 @@ typedef struct wmTabletData {
  * - The reason to differentiate between "press" and the previous event state is
  *   the previous event may be set by key-release events. In the case of a single key click
  *   this isn't a problem however releasing other keys such as modifiers prevents click/click-drag
- *   events from being detected, see: T89989.
+ *   events from being detected, see: #89989.
  *
  * - Mouse-wheel events are excluded even though they generate #KM_PRESS
  *   as clicking and dragging don't make sense for mouse wheel events.
@@ -848,6 +856,11 @@ typedef struct wmXrActionData {
 typedef enum {
   /** Do not attempt to free custom-data pointer even if non-NULL. */
   WM_TIMER_NO_FREE_CUSTOM_DATA = 1 << 0,
+
+  /* Internal falgs, should not be used outside of WM code. */
+  /** This timer has been tagged for removal and deletion, handled by WM code to ensure timers are
+   * deleted in a safe context. */
+  WM_TIMER_TAGGED_FOR_REMOVAL = 1 << 16,
 } wmTimerFlags;
 
 typedef struct wmTimer {
@@ -881,10 +894,11 @@ typedef struct wmTimer {
 } wmTimer;
 
 typedef struct wmOperatorType {
-  /** Text for UI, undo. */
+  /** Text for UI, undo (should not exceed #OP_MAX_TYPENAME). */
   const char *name;
-  /** Unique identifier. */
+  /** Unique identifier (must not exceed #OP_MAX_TYPENAME). */
   const char *idname;
+  /** Translation context (must not exceed #BKE_ST_MAXNAME) */
   const char *translation_context;
   /** Use for tool-tips and Python docs. */
   const char *description;
@@ -1074,7 +1088,7 @@ typedef struct wmDragAsset {
   const char *path;
   int id_type;
   struct AssetMetaData *metadata;
-  int import_type; /* eFileAssetImportType */
+  int import_method; /* eAssetImportType */
 
   /* FIXME: This is temporary evil solution to get scene/view-layer/etc in the copy callback of the
    * #wmDropBox.
@@ -1270,7 +1284,7 @@ typedef struct RecentFile {
 
 /* Logging */
 struct CLG_LogRef;
-/* wm_init_exit.c */
+/* wm_init_exit.cc */
 
 extern struct CLG_LogRef *WM_LOG_OPERATORS;
 extern struct CLG_LogRef *WM_LOG_HANDLERS;

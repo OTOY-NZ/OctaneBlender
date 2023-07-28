@@ -196,6 +196,7 @@ set(SRC
   intern/node_exec.cc
   intern/node_geometry_exec.cc
   intern/node_multi_function.cc
+  intern/node_register.cc
   intern/node_socket.cc
   intern/node_socket_declarations.cc
   intern/node_util.cc
@@ -204,7 +205,6 @@ set(SRC
   NOD_common.h
   NOD_composite.h
   NOD_derived_node_tree.hh
-  NOD_function.h
   NOD_geometry.h
   NOD_geometry_exec.hh
   NOD_geometry_nodes_lazy_function.hh
@@ -212,6 +212,7 @@ set(SRC
   NOD_math_functions.hh
   NOD_multi_function.hh
   NOD_node_declaration.hh
+  NOD_register.hh
   NOD_shader.h
   NOD_socket.h
   NOD_socket_declarations.hh
@@ -241,12 +242,6 @@ if(WITH_BULLET)
     ${BULLET_INCLUDE_DIRS}
     ../../../intern/rigidbody
   )
-  if(NOT WITH_SYSTEM_BULLET)
-  list(APPEND LIB
-    extern_bullet
-  )
-  endif()
-
   list(APPEND LIB
     ${BULLET_LIBRARIES}
   )

@@ -73,6 +73,7 @@
 
 #include "object_intern.h" /* own include */
 
+using blender::float3;
 using blender::IndexRange;
 using blender::Span;
 
@@ -92,7 +93,7 @@ static bool object_remesh_poll(bContext *C)
   }
 
   if (ID_IS_LINKED(ob) || ID_IS_LINKED(ob->data) || ID_IS_OVERRIDE_LIBRARY(ob->data)) {
-    CTX_wm_operator_poll_msg_set(C, "The remesher cannot worked on linked or override data");
+    CTX_wm_operator_poll_msg_set(C, "The remesher cannot work on linked or override data");
     return false;
   }
 
@@ -157,11 +158,6 @@ static int voxel_remesh_exec(bContext *C, wmOperator *op)
     new_mesh = mesh_fixed_poles;
   }
 
-  if (mesh->flag & ME_REMESH_REPROJECT_VOLUME || mesh->flag & ME_REMESH_REPROJECT_PAINT_MASK ||
-      mesh->flag & ME_REMESH_REPROJECT_SCULPT_FACE_SETS) {
-    BKE_mesh_runtime_clear_geometry(mesh);
-  }
-
   if (mesh->flag & ME_REMESH_REPROJECT_VOLUME) {
     BKE_shrinkwrap_remesh_target_project(new_mesh, mesh, ob);
   }
@@ -175,7 +171,6 @@ static int voxel_remesh_exec(bContext *C, wmOperator *op)
   }
 
   if (mesh->flag & ME_REMESH_REPROJECT_VERTEX_COLORS) {
-    BKE_mesh_runtime_clear_geometry(mesh);
     BKE_remesh_reproject_vertex_paint(new_mesh, mesh);
   }
 
@@ -654,7 +649,7 @@ enum eSymmetryAxes {
 struct QuadriFlowJob {
   /* from wmJob */
   struct Object *owner;
-  short *stop, *do_update;
+  bool *stop, *do_update;
   float *progress;
 
   const struct wmOperator *op;
@@ -681,7 +676,7 @@ static bool mesh_is_manifold_consistent(Mesh *mesh)
    * check that the direction of the faces are consistent and doesn't suddenly
    * flip
    */
-  const Span<MVert> verts = mesh->verts();
+  const Span<float3> positions = mesh->vert_positions();
   const Span<MEdge> edges = mesh->edges();
   const Span<MLoop> loops = mesh->loops();
 
@@ -719,9 +714,7 @@ static bool mesh_is_manifold_consistent(Mesh *mesh)
         break;
       }
       /* Check for zero length edges */
-      const MVert &v1 = verts[edges[i].v1];
-      const MVert &v2 = verts[edges[i].v2];
-      if (compare_v3v3(v1.co, v2.co, 1e-4f)) {
+      if (compare_v3v3(positions[edges[i].v1], positions[edges[i].v2], 1e-4f)) {
         is_manifold_consistent = false;
         break;
       }
@@ -836,7 +829,7 @@ static Mesh *remesh_symmetry_mirror(Object *ob, Mesh *mesh, eSymmetryAxes symmet
   return mesh_mirror;
 }
 
-static void quadriflow_start_job(void *customdata, short *stop, short *do_update, float *progress)
+static void quadriflow_start_job(void *customdata, bool *stop, bool *do_update, float *progress)
 {
   QuadriFlowJob *qj = static_cast<QuadriFlowJob *>(customdata);
 
@@ -884,7 +877,7 @@ static void quadriflow_start_job(void *customdata, short *stop, short *do_update
 
   if (new_mesh == nullptr) {
     *do_update = true;
-    *stop = 0;
+    *stop = false;
     if (qj->success == 1) {
       /* This is not a user cancellation event. */
       qj->success = 0;
@@ -900,7 +893,6 @@ static void quadriflow_start_job(void *customdata, short *stop, short *do_update
   }
 
   if (qj->preserve_paint_mask) {
-    BKE_mesh_runtime_clear_geometry(mesh);
     BKE_mesh_remesh_reproject_paint_mask(new_mesh, mesh);
   }
 
@@ -917,7 +909,7 @@ static void quadriflow_start_job(void *customdata, short *stop, short *do_update
   BKE_mesh_batch_cache_dirty_tag(static_cast<Mesh *>(ob->data), BKE_MESH_BATCH_DIRTY_ALL);
 
   *do_update = true;
-  *stop = 0;
+  *stop = false;
 }
 
 static void quadriflow_end_job(void *customdata)
@@ -992,7 +984,7 @@ static int quadriflow_remesh_exec(bContext *C, wmOperator *op)
   if (op->flag == 0) {
     /* This is called directly from the exec operator, this operation is now blocking */
     job->is_nonblocking_job = false;
-    short stop = 0, do_update = true;
+    bool stop = false, do_update = true;
     float progress;
     quadriflow_start_job(job, &stop, &do_update, &progress);
     quadriflow_end_job(job);

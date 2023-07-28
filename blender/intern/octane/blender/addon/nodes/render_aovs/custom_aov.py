@@ -111,7 +111,7 @@ class OctaneCustomAOV(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneCustomAOVEnabled", OctaneCustomAOVEnabled.bl_label).init()
         self.inputs.new("OctaneCustomAOVSubType", OctaneCustomAOVSubType.bl_label).init()
         self.inputs.new("OctaneCustomAOVSecondaryRays", OctaneCustomAOVSecondaryRays.bl_label).init()
-        self.outputs.new("OctaneRenderAOVsOutSocket", "Render AOVs out").init()
+        self.outputs.new("OctaneRenderAOVOutSocket", "Render AOV out").init()
 
 
 _CLASSES=[

@@ -22,8 +22,8 @@ extern "C" {
 struct wmWindow;
 struct wmWindowManager;
 
+struct wmEvent_ConsecutiveData;
 struct wmEvent;
-struct wmGesture;
 struct wmKeyConfig;
 struct wmKeyMap;
 struct wmMsgBus;
@@ -263,7 +263,7 @@ typedef struct wmWindow {
 
   struct bScreen *screen DNA_DEPRECATED;
 
-  /** Winid also in screens, is for retrieving this window after read. */
+  /** Window-ID also in screens, is for retrieving this window after read. */
   int winid;
   /** Window coords. */
   short posx, posy, sizex, sizey;
@@ -277,10 +277,19 @@ typedef struct wmWindow {
   short lastcursor;
   /** The current modal cursor. */
   short modalcursor;
-  /** Cursor grab mode. */
+  /** Cursor grab mode #GHOST_TGrabCursorMode (run-time only) */
   short grabcursor;
   /** Internal: tag this for extra mouse-move event,
    * makes cursors/buttons active on UI switching. */
+
+  /** Internal, lock pie creation from this event until released. */
+  short pie_event_type_lock;
+  /**
+   * Exception to the above rule for nested pies, store last pie event for operators
+   * that spawn a new pie right after destruction of last pie.
+   */
+  short pie_event_type_last;
+
   char addmousemove;
   char tag_cursor_refresh;
 
@@ -293,19 +302,16 @@ typedef struct wmWindow {
   /**
    * Enable when the drag was handled,
    * to avoid mouse-motion continually triggering drag events which are not handled
-   * but add overhead to gizmo handling (for example), see T87511.
+   * but add overhead to gizmo handling (for example), see #87511.
    */
   char event_queue_check_drag_handled;
 
-  char _pad0[1];
-
-  /** Internal, lock pie creation from this event until released. */
-  short pie_event_type_lock;
-  /**
-   * Exception to the above rule for nested pies, store last pie event for operators
-   * that spawn a new pie right after destruction of last pie.
-   */
-  short pie_event_type_last;
+  /** The last event type (that passed #WM_event_consecutive_gesture_test check). */
+  char event_queue_consecutive_gesture_type;
+  /** The cursor location when `event_queue_consecutive_gesture_type` was set. */
+  int event_queue_consecutive_gesture_xy[2];
+  /** See #WM_event_consecutive_data_get and related API. Freed when consecutive events end. */
+  struct wmEvent_ConsecutiveData *event_queue_consecutive_gesture_data;
 
   /**
    * Storage for event system.
@@ -390,11 +396,14 @@ typedef struct wmKeyMapItem {
   short propvalue;
 
   /* event */
-  /** Event code itself. */
+  /** Event code itself (#EVT_LEFTCTRLKEY, #LEFTMOUSE etc). */
   short type;
-  /** KM_ANY, KM_PRESS, KM_NOTHING etc. */
+  /** Button state (#KM_ANY, #KM_PRESS, #KM_DBL_CLICK, #KM_CLICK_DRAG, #KM_NOTHING etc). */
   int8_t val;
-  /** Use when `val == KM_CLICK_DRAG`. */
+  /**
+   * The 2D direction of the event to use when `val == KM_CLICK_DRAG`.
+   * Set to #KM_DIRECTION_N, #KM_DIRECTION_S & related values, #KM_NOTHING for any direction.
+   */
   int8_t direction;
   /** `oskey` also known as apple, windows-key or super. */
   short shift, ctrl, alt, oskey;
@@ -510,7 +519,7 @@ enum {
 
 /**
  * This is similar to addon-preferences,
- * however unlike add-ons key-config's aren't saved to disk.
+ * however unlike add-ons key-configurations aren't saved to disk.
  *
  * #wmKeyConfigPref is written to DNA,
  * #wmKeyConfigPrefType_Runtime has the RNA type.
@@ -618,7 +627,7 @@ enum {
    * This difference can be important because previous settings may be used,
    * even with #PROP_SKIP_SAVE the repeat last operator will use the previous settings.
    * Unlike #OP_IS_REPEAT the selection (and context generally) may be different each time.
-   * See T60777 for an example of when this is needed.
+   * See #60777 for an example of when this is needed.
    */
   OP_IS_REPEAT_LAST = (1 << 1),
 

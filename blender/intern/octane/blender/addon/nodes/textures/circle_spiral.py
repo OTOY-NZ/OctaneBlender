@@ -13,7 +13,7 @@ from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, O
 
 class OctaneCircleSpiralTexture1(OctaneBaseSocket):
     bl_idname="OctaneCircleSpiralTexture1"
-    bl_label="Primary color"
+    bl_label="Color 1"
     color=consts.OctanePinColor.Texture
     octane_default_node_type=consts.NodeType.NT_TEX_RGB
     octane_default_node_name="OctaneRGBColor"
@@ -22,7 +22,7 @@ class OctaneCircleSpiralTexture1(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_TEXTURE
     octane_pin_index=0
     octane_socket_type=consts.SocketType.ST_RGBA
-    default_value: FloatVectorProperty(default=(1.000000, 0.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="The primary color", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
+    default_value: FloatVectorProperty(default=(1.000000, 0.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="First texture input", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -30,7 +30,7 @@ class OctaneCircleSpiralTexture1(OctaneBaseSocket):
 
 class OctaneCircleSpiralTexture2(OctaneBaseSocket):
     bl_idname="OctaneCircleSpiralTexture2"
-    bl_label="Secondary color"
+    bl_label="Color 2"
     color=consts.OctanePinColor.Texture
     octane_default_node_type=consts.NodeType.NT_TEX_RGB
     octane_default_node_name="OctaneRGBColor"
@@ -39,7 +39,7 @@ class OctaneCircleSpiralTexture2(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_TEXTURE
     octane_pin_index=1
     octane_socket_type=consts.SocketType.ST_RGBA
-    default_value: FloatVectorProperty(default=(0.000000, 0.300000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="The secondary color", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
+    default_value: FloatVectorProperty(default=(0.000000, 0.300000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="Second texture input", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -157,7 +157,7 @@ class OctaneCircleSpiral(bpy.types.Node, OctaneBaseNode):
     octane_socket_class_list=[OctaneCircleSpiralTexture1,OctaneCircleSpiralTexture2,OctaneCircleSpiralCircleCount,OctaneCircleSpiralRadius1,OctaneCircleSpiralRadius2,OctaneCircleSpiralTime,OctaneCircleSpiralTransform,OctaneCircleSpiralProjection,]
     octane_min_version=12000003
     octane_node_type=consts.NodeType.NT_TEX_CIRCLE_SPIRAL
-    octane_socket_list=["Primary color", "Secondary color", "Circle count", "Spiral radius", "Circle radius", "Time", "UV transform", "Projection", ]
+    octane_socket_list=["Color 1", "Color 2", "Circle count", "Spiral radius", "Circle radius", "Time", "UV transform", "Projection", ]
     octane_attribute_list=[]
     octane_attribute_config={}
     octane_static_pin_count=8

@@ -47,27 +47,25 @@ static int node_shader_gpu_tex_gradient(GPUMaterial *mat,
   return GPU_stack_link(mat, node, "node_tex_gradient", in, out, GPU_constant(&gradient_type));
 }
 
-class GradientFunction : public fn::MultiFunction {
+class GradientFunction : public mf::MultiFunction {
  private:
   int gradient_type_;
 
  public:
   GradientFunction(int gradient_type) : gradient_type_(gradient_type)
   {
-    static fn::MFSignature signature = create_signature();
+    static const mf::Signature signature = []() {
+      mf::Signature signature;
+      mf::SignatureBuilder builder{"GradientFunction", signature};
+      builder.single_input<float3>("Vector");
+      builder.single_output<ColorGeometry4f>("Color", mf::ParamFlag::SupportsUnusedOutput);
+      builder.single_output<float>("Fac");
+      return signature;
+    }();
     this->set_signature(&signature);
   }
 
-  static fn::MFSignature create_signature()
-  {
-    fn::MFSignatureBuilder signature{"GradientFunction"};
-    signature.single_input<float3>("Vector");
-    signature.single_output<ColorGeometry4f>("Color");
-    signature.single_output<float>("Fac");
-    return signature.build();
-  }
-
-  void call(IndexMask mask, fn::MFParams params, fn::MFContext /*context*/) const override
+  void call(IndexMask mask, mf::Params params, mf::Context /*context*/) const override
   {
     const VArray<float3> &vector = params.readonly_single_input<float3>(0, "Vector");
 
@@ -157,10 +155,10 @@ void register_node_type_sh_tex_gradient()
   sh_fn_node_type_base(&ntype, SH_NODE_TEX_GRADIENT, "Gradient Texture", NODE_CLASS_TEXTURE);
   ntype.declare = file_ns::sh_node_tex_gradient_declare;
   ntype.draw_buttons = file_ns::node_shader_buts_tex_gradient;
-  node_type_init(&ntype, file_ns::node_shader_init_tex_gradient);
+  ntype.initfunc = file_ns::node_shader_init_tex_gradient;
   node_type_storage(
       &ntype, "NodeTexGradient", node_free_standard_storage, node_copy_standard_storage);
-  node_type_gpu(&ntype, file_ns::node_shader_gpu_tex_gradient);
+  ntype.gpu_fn = file_ns::node_shader_gpu_tex_gradient;
   ntype.build_multi_function = file_ns::sh_node_gradient_tex_build_multi_function;
 
   nodeRegisterType(&ntype);

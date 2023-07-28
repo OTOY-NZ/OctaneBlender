@@ -19,6 +19,7 @@ set(INC
   ../../windowmanager
   ../../compositor/realtime_compositor
   ../../compositor/realtime_compositor/algorithms
+  ../../compositor/realtime_compositor/cached_resources
   ../../../../intern/guardedalloc
 
   # dna_type_offsets.h
@@ -27,6 +28,8 @@ set(INC
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
+set(INC_SYS
+)
 
 set(SRC
   nodes/node_composite_alpha_over.cc
@@ -118,9 +121,11 @@ set(SRC
   nodes/node_composite_viewer.cc
   nodes/node_composite_zcombine.cc
 
+  node_composite_register.cc
   node_composite_tree.cc
   node_composite_util.cc
 
+  node_composite_register.hh
   node_composite_util.hh
 )
 

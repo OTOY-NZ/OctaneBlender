@@ -84,8 +84,8 @@ void main()
   vec3 world_pos1 = point_object_to_world(in_pos1);
   vec4 out_pos0 = point_world_to_ndc(world_pos0);
   vec4 out_pos1 = point_world_to_ndc(world_pos1);
-  ivec4 m_data0 = ivec4(in_data0) & dataMask;
-  ivec4 m_data1 = ivec4(in_data1) & dataMask;
+  uvec4 m_data0 = uvec4(in_data0) & uvec4(dataMask);
+  uvec4 m_data1 = uvec4(in_data1) & uvec4(dataMask);
 
 #if defined(EDGE)
 #  ifdef FLAT
@@ -176,10 +176,10 @@ void main()
   /* Enlarge edge for flag display. */
   half_size += (geometry_out.finalColorOuter.a > 0.0) ? max(sizeEdge, 1.0) : 0.0;
 
-#ifdef USE_SMOOTH_WIRE
-  /* Add 1 px for AA */
-  half_size += 0.5;
-#endif
+  if (do_smooth_wire) {
+    /* Add 1 px for AA */
+    half_size += 0.5;
+  }
 
   vec3 edge_ofs = vec3(half_size * sizeViewportInv, 0.0);
 

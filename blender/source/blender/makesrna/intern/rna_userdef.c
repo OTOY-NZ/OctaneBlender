@@ -29,6 +29,8 @@
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
 
+#include "GPU_platform.h"
+
 #include "UI_interface_icons.h"
 
 #include "rna_internal.h"
@@ -135,6 +137,13 @@ static const EnumPropertyItem rna_enum_userdef_viewport_aa_items[] = {
      0,
      "32 Samples",
      "Scene will be rendered using 32 anti-aliasing samples"},
+    {0, NULL, 0, NULL, NULL},
+};
+
+static const EnumPropertyItem rna_enum_preference_gpu_backend_items[] = {
+    {GPU_BACKEND_OPENGL, "OPENGL", 0, "OpenGL", "Use OpenGL backend"},
+    {GPU_BACKEND_METAL, "METAL", 0, "Metal", "Use Metal backend"},
+    {GPU_BACKEND_VULKAN, "VULKAN", 0, "Vulkan", "Use Vulkan backend"},
     {0, NULL, 0, NULL, NULL},
 };
 
@@ -364,7 +373,7 @@ static void rna_userdef_undo_steps_set(PointerRNA *ptr, int value)
 {
   UserDef *userdef = (UserDef *)ptr->data;
 
-  /* Do not allow 1 undo steps, useless and breaks undo/redo process (see T42531). */
+  /* Do not allow 1 undo steps, useless and breaks undo/redo process (see #42531). */
   userdef->undosteps = (value == 1) ? 2 : value;
 }
 
@@ -596,7 +605,7 @@ static void rna_UserDef_weight_color_update(Main *bmain, Scene *scene, PointerRN
 
 static void rna_UserDef_viewport_lights_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
-  /* If all lights are off gpu_draw resets them all, see: T27627,
+  /* If all lights are off gpu_draw resets them all, see: #27627,
    * so disallow them all to be disabled. */
   if (U.light_param[0].flag == 0 && U.light_param[1].flag == 0 && U.light_param[2].flag == 0 &&
       U.light_param[3].flag == 0) {
@@ -753,6 +762,13 @@ static const EnumPropertyItem *rna_lang_enum_properties_itemf(bContext *UNUSED(C
   }
   return items;
 }
+#  else
+static int rna_lang_enum_properties_get_no_international(PointerRNA *UNUSED(ptr))
+{
+  /* This simply prevents warnings when accessing language
+   * (since the actual value wont be in the enum, unless already `DEFAULT`). */
+  return 0;
+}
 #  endif
 
 static IDProperty **rna_AddonPref_idprops(PointerRNA *ptr)
@@ -776,12 +792,12 @@ static PointerRNA rna_Addon_preferences_get(PointerRNA *ptr)
   }
 }
 
-static void rna_AddonPref_unregister(Main *UNUSED(bmain), StructRNA *type)
+static bool rna_AddonPref_unregister(Main *UNUSED(bmain), StructRNA *type)
 {
   bAddonPrefType *apt = RNA_struct_blender_type_get(type);
 
   if (!apt) {
-    return;
+    return false;
   }
 
   RNA_struct_free_extension(type, &apt->rna_ext);
@@ -791,6 +807,7 @@ static void rna_AddonPref_unregister(Main *UNUSED(bmain), StructRNA *type)
 
   /* update while blender is running */
   WM_main_add_notifier(NC_WINDOW, NULL);
+  return true;
 }
 
 static StructRNA *rna_AddonPref_register(Main *bmain,
@@ -801,6 +818,7 @@ static StructRNA *rna_AddonPref_register(Main *bmain,
                                          StructCallbackFunc call,
                                          StructFreeFunc free)
 {
+  const char *error_prefix = "Registering add-on preferences class:";
   bAddonPrefType *apt, dummy_apt = {{'\0'}};
   bAddon dummy_addon = {NULL};
   PointerRNA dummy_ptr;
@@ -818,7 +836,8 @@ static StructRNA *rna_AddonPref_register(Main *bmain,
   if (strlen(identifier) >= sizeof(dummy_apt.idname)) {
     BKE_reportf(reports,
                 RPT_ERROR,
-                "Registering add-on preferences class: '%s' is too long, maximum length is %d",
+                "%s '%s' is too long, maximum length is %d",
+                error_prefix,
                 identifier,
                 (int)sizeof(dummy_apt.idname));
     return NULL;
@@ -826,8 +845,19 @@ static StructRNA *rna_AddonPref_register(Main *bmain,
 
   /* Check if we have registered this add-on preference type before, and remove it. */
   apt = BKE_addon_pref_type_find(dummy_addon.module, true);
-  if (apt && apt->rna_ext.srna) {
-    rna_AddonPref_unregister(bmain, apt->rna_ext.srna);
+  if (apt) {
+    StructRNA *srna = apt->rna_ext.srna;
+    if (!(srna && rna_AddonPref_unregister(bmain, srna))) {
+      BKE_reportf(reports,
+                  RPT_ERROR,
+                  "%s '%s', bl_idname '%s' %s",
+                  error_prefix,
+                  identifier,
+                  dummy_apt.idname,
+                  srna ? "is built-in" : "could not be unregistered");
+
+      return NULL;
+    }
   }
 
   /* Create a new add-on preference type. */
@@ -1029,6 +1059,33 @@ static void rna_UserDef_studiolight_light_ambient_get(PointerRNA *ptr, float *va
 int rna_show_statusbar_vram_editable(struct PointerRNA *UNUSED(ptr), const char **UNUSED(r_info))
 {
   return GPU_mem_stats_supported() ? PROP_EDITABLE : 0;
+}
+
+static const EnumPropertyItem *rna_preference_gpu_backend_itemf(struct bContext *UNUSED(C),
+                                                                PointerRNA *UNUSED(ptr),
+                                                                PropertyRNA *UNUSED(prop),
+                                                                bool *r_free)
+{
+  int totitem = 0;
+  EnumPropertyItem *result = NULL;
+  for (int i = 0; rna_enum_preference_gpu_backend_items[i].identifier != NULL; i++) {
+    const EnumPropertyItem *item = &rna_enum_preference_gpu_backend_items[i];
+#  ifndef WITH_METAL_BACKEND
+    if (item->value == GPU_BACKEND_METAL) {
+      continue;
+    }
+#  endif
+#  ifndef WITH_VULKAN_BACKEND
+    if (item->value == GPU_BACKEND_VULKAN) {
+      continue;
+    }
+#  endif
+    RNA_enum_item_add(&result, &totitem, item);
+  }
+
+  RNA_enum_item_end(&result, &totitem);
+  *r_free = true;
+  return result;
 }
 
 #else
@@ -2300,6 +2357,11 @@ static void rna_def_userdef_theme_space_view3d(BlenderRNA *brna)
   RNA_def_property_float_sdna(prop, NULL, "camera_path");
   RNA_def_property_array(prop, 3);
   RNA_def_property_ui_text(prop, "Camera Path", "");
+  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+
+  prop = RNA_def_property(srna, "camera_passepartout", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_array(prop, 3);
+  RNA_def_property_ui_text(prop, "Camera Passepartout", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
   prop = RNA_def_property(srna, "skin_root", PROP_FLOAT, PROP_COLOR_GAMMA);
@@ -4717,7 +4779,7 @@ static void rna_def_userdef_view(BlenderRNA *brna)
   /* mini axis */
   static const EnumPropertyItem mini_axis_type_items[] = {
       {USER_MINI_AXIS_TYPE_NONE, "NONE", 0, "Off", ""},
-      {USER_MINI_AXIS_TYPE_MINIMAL, "MINIMAL", 0, "Simple Axis", ""},
+      {USER_MINI_AXIS_TYPE_MINIMAL, "MINIMAL", 0, "Simple Axes", ""},
       {USER_MINI_AXIS_TYPE_GIZMO, "GIZMO", 0, "Interactive Navigation", ""},
       {0, NULL, 0, NULL, NULL},
   };
@@ -4727,7 +4789,7 @@ static void rna_def_userdef_view(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop,
       "Mini Axes Type",
-      "Show a small rotating 3D axes in the top right corner of the 3D viewport");
+      "Show small rotating 3D axes in the top right corner of the 3D viewport");
   RNA_def_property_update(prop, 0, "rna_userdef_gizmo_update");
 
   prop = RNA_def_property(srna, "mini_axis_size", PROP_INT, PROP_PIXEL);
@@ -4844,6 +4906,8 @@ static void rna_def_userdef_view(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, rna_enum_language_default_items);
 #  ifdef WITH_INTERNATIONAL
   RNA_def_property_enum_funcs(prop, NULL, NULL, "rna_lang_enum_properties_itemf");
+#  else
+  RNA_def_property_enum_funcs(prop, "rna_lang_enum_properties_get_no_international", NULL, NULL);
 #  endif
   RNA_def_property_ui_text(prop, "Language", "Language used for translation");
   RNA_def_property_update(prop, NC_WINDOW, "rna_userdef_language_update");
@@ -5604,6 +5668,16 @@ static void rna_def_userdef_system(BlenderRNA *brna)
                            "modifiers in the stack");
   RNA_def_property_update(prop, 0, "rna_UserDef_subdivision_update");
 
+  /* GPU backend selection */
+  prop = RNA_def_property(srna, "gpu_backend", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, NULL, "gpu_backend");
+  RNA_def_property_enum_items(prop, rna_enum_preference_gpu_backend_items);
+  RNA_def_property_enum_funcs(prop, NULL, NULL, "rna_preference_gpu_backend_itemf");
+  RNA_def_property_ui_text(
+      prop,
+      "GPU Backend",
+      "GPU backend to use (requires restarting Blender for changes to take effect)");
+
   /* Audio */
 
   prop = RNA_def_property(srna, "audio_mixing_buffer", PROP_ENUM, PROP_NONE);
@@ -6074,6 +6148,31 @@ static void rna_def_userdef_filepaths_asset_library(BlenderRNA *brna)
       prop, "Path", "Path to a directory with .blend files to use as an asset library");
   RNA_def_property_string_funcs(prop, NULL, NULL, "rna_userdef_asset_library_path_set");
   RNA_def_property_update(prop, 0, "rna_userdef_update");
+
+  static const EnumPropertyItem import_method_items[] = {
+      {ASSET_IMPORT_LINK, "LINK", 0, "Link", "Import the assets as linked data-block"},
+      {ASSET_IMPORT_APPEND,
+       "APPEND",
+       0,
+       "Append",
+       "Import the assets as copied data-block, with no link to the original asset data-block"},
+      {ASSET_IMPORT_APPEND_REUSE,
+       "APPEND_REUSE",
+       0,
+       "Append (Reuse Data)",
+       "Import the assets as copied data-block while avoiding multiple copies of nested, "
+       "typically heavy data. For example the textures of a material asset, or the mesh of an "
+       "object asset, don't have to be copied every time this asset is imported. The instances of "
+       "the asset share the data instead"},
+      {0, NULL, 0, NULL, NULL},
+  };
+  prop = RNA_def_property(srna, "import_method", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, import_method_items);
+  RNA_def_property_ui_text(
+      prop,
+      "Default Import Method",
+      "Determine how the asset will be imported, unless overridden by the Asset Browser");
+  RNA_def_property_update(prop, 0, "rna_userdef_update");
 }
 
 static void rna_def_userdef_filepaths(BlenderRNA *brna)
@@ -6181,7 +6280,7 @@ static void rna_def_userdef_filepaths(BlenderRNA *brna)
       prop,
       "Python Scripts Directory",
       "Alternate script path, matching the default layout with subdirectories: "
-      "startup, add-ons, modules, and presets (requires restart)");
+      "`startup`, `addons`, `modules`, and `presets` (requires restart)");
   /* TODO: editing should reset sys.path! */
 
   prop = RNA_def_property(srna, "i18n_branches_directory", PROP_STRING, PROP_DIRPATH);
@@ -6261,6 +6360,13 @@ static void rna_def_userdef_filepaths(BlenderRNA *brna)
   prop = RNA_def_property(srna, "asset_libraries", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_struct_type(prop, "UserAssetLibrary");
   RNA_def_property_ui_text(prop, "Asset Libraries", "");
+
+  prop = RNA_def_property(srna, "active_asset_library", PROP_INT, PROP_NONE);
+  RNA_def_property_ui_text(prop,
+                           "Active Asset Library",
+                           "Index of the asset library being edited in the Preferences UI");
+  /* Tag for UI-only update, meaning preferences will not be tagged as changed. */
+  RNA_def_property_update(prop, 0, "rna_userdef_ui_update");
 }
 
 static void rna_def_userdef_apps(BlenderRNA *brna)
@@ -6346,18 +6452,9 @@ static void rna_def_userdef_experimental(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Sculpt Mode Tilt Support", "Support for pen tablet tilt events in Sculpt Mode");
 
-  prop = RNA_def_property(srna, "use_realtime_compositor", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "use_realtime_compositor", 1);
-  RNA_def_property_ui_text(prop, "Realtime Compositor", "Enable the new realtime compositor");
-
   prop = RNA_def_property(srna, "use_sculpt_texture_paint", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "use_sculpt_texture_paint", 1);
   RNA_def_property_ui_text(prop, "Sculpt Texture Paint", "Use texture painting in Sculpt Mode");
-
-  prop = RNA_def_property(srna, "use_draw_manager_acquire_lock", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "use_draw_manager_acquire_lock", 1);
-  RNA_def_property_ui_text(
-      prop, "Draw Manager Locking", "Don't lock UI during background rendering");
 
   prop = RNA_def_property(srna, "use_extended_asset_browser", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_ui_text(prop,
@@ -6389,6 +6486,13 @@ static void rna_def_userdef_experimental(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, NULL, "enable_eevee_next", 1);
   RNA_def_property_ui_text(prop, "EEVEE Next", "Enable the new EEVEE codebase, requires restart");
 
+  prop = RNA_def_property(srna, "enable_workbench_next", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "enable_workbench_next", 1);
+  RNA_def_property_ui_text(prop,
+                           "Workbench Next",
+                           "Enable the new Workbench codebase, requires "
+                           "restart");
+
   prop = RNA_def_property(srna, "use_viewport_debug", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "use_viewport_debug", 1);
   RNA_def_property_ui_text(prop,
@@ -6396,6 +6500,17 @@ static void rna_def_userdef_experimental(BlenderRNA *brna)
                            "Enable viewport debugging options for developers in the overlays "
                            "pop-over");
   RNA_def_property_update(prop, 0, "rna_userdef_ui_update");
+
+  prop = RNA_def_property(srna, "use_all_linked_data_direct", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_ui_text(
+      prop,
+      "All Linked Data Direct",
+      "Forces all linked data to be considered as directly linked. Workaround for current "
+      "issues/limitations in BAT (Blender studio pipeline tool)");
+
+  prop = RNA_def_property(srna, "use_new_volume_nodes", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_ui_text(
+      prop, "New Volume Nodes", "Enables visibility of the new Volume nodes in the UI");
 }
 
 static void rna_def_userdef_addon_collection(BlenderRNA *brna, PropertyRNA *cprop)

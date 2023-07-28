@@ -9,6 +9,8 @@
 
 #pragma once
 
+#include "BLI_math_vector_types.hh"
+
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
@@ -47,6 +49,7 @@ struct MeshRenderData {
   bool use_hide;
   bool use_subsurf_fdots;
   bool use_final_mesh;
+  bool hide_unmapped_edges;
 
   /** Use for #MeshStatVis calculation which use world-space coords. */
   float obmat[4][4];
@@ -72,7 +75,7 @@ struct MeshRenderData {
   int freestyle_face_ofs;
   /** Mesh */
   Mesh *me;
-  const MVert *mvert;
+  const blender::float3 *vert_positions;
   const MEdge *medge;
   const MLoop *mloop;
   const MPoly *mpoly;
@@ -267,10 +270,7 @@ using ExtractLVertBMeshFn = void(const MeshRenderData *mr,
                                  const BMVert *eve,
                                  int lvert_index,
                                  void *data);
-using ExtractLVertMeshFn = void(const MeshRenderData *mr,
-                                const MVert *mv,
-                                int lvert_index,
-                                void *data);
+using ExtractLVertMeshFn = void(const MeshRenderData *mr, int lvert_index, void *data);
 using ExtractLooseGeomSubdivFn = void(const DRWSubdivCache *subdiv_cache,
                                       const MeshRenderData *mr,
                                       void *buffer,
@@ -390,15 +390,15 @@ const MeshExtract *mesh_extract_override_get(const MeshExtract *extractor,
                                              bool do_single_mat);
 void mesh_render_data_face_flag(const MeshRenderData *mr,
                                 const BMFace *efa,
-                                int cd_ofs,
+                                BMUVOffsets offsets,
                                 EditLoopData *eattr);
 void mesh_render_data_loop_flag(const MeshRenderData *mr,
                                 BMLoop *l,
-                                int cd_ofs,
+                                BMUVOffsets offsets,
                                 EditLoopData *eattr);
 void mesh_render_data_loop_edge_flag(const MeshRenderData *mr,
                                      BMLoop *l,
-                                     int cd_ofs,
+                                     BMUVOffsets offsets,
                                      EditLoopData *eattr);
 
 extern const MeshExtract extract_tris;

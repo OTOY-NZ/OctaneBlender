@@ -456,7 +456,7 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
           octane_tfm = OCTANE_MATRIX * (tfm * object->mesh->offset_transform);
           if (object->mesh->is_octane_coordinate_used()) {
             octane_tfm = octane_tfm * OCTANE_OBJECT_ROTATION_MATRIX;
-          }          
+          }
         }
         else {
           if (object->mesh->is_octane_coordinate_used()) {
@@ -488,9 +488,9 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
   }
   else {
     if (use_geometry_node_modifier && is_instance) {
-      object_name = parent_name + b_ob.name_full() + "_" + b_ob.data().name_full() +
-                    instance_tag + OBJECT_TAG;
-	}
+      object_name = parent_name + b_ob.name_full() + "_" + b_ob.data().name_full() + instance_tag +
+                    OBJECT_TAG;
+    }
     else {
       object_name = parent_name + b_ob.name_full() + instance_tag + OBJECT_TAG;
     }
@@ -509,7 +509,7 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
       bool is_library = b_ob.library().ptr.data != NULL;
       if (!is_instance || is_library) {
         tag_movable_candidate(object_name);
-      }   
+      }
     }
   }
   object->scene = scene;
@@ -541,9 +541,15 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
   /* object sync
    * transform comparison should not be needed, but duplis don't work perfect
    * in the depsgraph and may not signal changes, so this is a workaround */
-  if (object && object->mesh &&
-      (object->mesh->octane_mesh.sOrbxPath.length() || object->mesh->octane_mesh.bInfinitePlane)) {
-    octane_tfm = octane_tfm * OCTANE_OBJECT_ROTATION_MATRIX;
+  if (object && object->mesh) {
+    if (object->mesh->octane_mesh.sOrbxPath.length()) {
+      octane_tfm = octane_tfm * OCTANE_OBJECT_ROTATION_MATRIX;
+    }
+    else if (object->mesh->octane_mesh.bInfinitePlane) {
+      if (!object->mesh->is_octane_coordinate_used()) {
+        octane_tfm = octane_tfm * OCTANE_OBJECT_ROTATION_MATRIX;
+      }
+    }
   }
 
   if (preview && octane_tfm != object->transform) {

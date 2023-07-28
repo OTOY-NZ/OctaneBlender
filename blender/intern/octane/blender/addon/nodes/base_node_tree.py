@@ -381,7 +381,7 @@ class OCTANE_quick_add_render_aov_nodetree(bpy.types.Operator):
         node_tree = bpy.data.node_groups.new(name=name, type=consts.OctaneNodeTreeIDName.RENDER_AOV)
         node_tree.use_fake_user = True
         nodes = node_tree.nodes
-        output = nodes.new("OctaneRenderAOVsOutputNode")
+        output = nodes.new("OctaneRenderAOVOutputNode")
         output.location = (0, 0)
         render_aov_group = nodes.new("OctaneRenderAOVGroup")
         render_aov_group.location = (-300, 0)

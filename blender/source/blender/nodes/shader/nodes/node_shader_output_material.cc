@@ -102,9 +102,9 @@ void register_node_type_sh_output_material()
 
   sh_node_type_base(&ntype, SH_NODE_OUTPUT_MATERIAL, "Material Output", NODE_CLASS_OUTPUT);
   ntype.declare = file_ns::node_declare;
-  node_type_gpu(&ntype, file_ns::node_shader_gpu_output_material);
-  node_type_init(&ntype, file_ns::node_oct_init_output_material);
-  node_type_update(&ntype, file_ns::node_oct_update_output_material);
+  ntype.gpu_fn = file_ns::node_shader_gpu_output_material;
+  ntype.initfunc = file_ns::node_oct_init_output_material;
+  ntype.updatefunc = file_ns::node_oct_update_output_material;
 
   ntype.no_muting = true;
 

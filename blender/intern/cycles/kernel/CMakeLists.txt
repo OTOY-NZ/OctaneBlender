@@ -14,9 +14,7 @@ set(INC_SYS
 set(SRC_KERNEL_DEVICE_CPU
   device/cpu/kernel.cpp
   device/cpu/kernel_sse2.cpp
-  device/cpu/kernel_sse3.cpp
   device/cpu/kernel_sse41.cpp
-  device/cpu/kernel_avx.cpp
   device/cpu/kernel_avx2.cpp
 )
 
@@ -36,6 +34,14 @@ set(SRC_KERNEL_DEVICE_OPTIX
   device/optix/kernel.cu
   device/optix/kernel_shader_raytrace.cu
 )
+
+if(WITH_CYCLES_OSL AND (OSL_LIBRARY_VERSION_MINOR GREATER_EQUAL 13 OR OSL_LIBRARY_VERSION_MAJOR GREATER 1))
+  set(SRC_KERNEL_DEVICE_OPTIX
+    ${SRC_KERNEL_DEVICE_OPTIX}
+    osl/services_optix.cu
+    device/optix/kernel_osl.cu
+  )
+endif()
 
 set(SRC_KERNEL_DEVICE_ONEAPI
   device/oneapi/kernel.cpp
@@ -181,6 +187,16 @@ set(SRC_KERNEL_SVM_HEADERS
   svm/vertex_color.h
 )
 
+if(WITH_CYCLES_OSL)
+  set(SRC_KERNEL_OSL_HEADERS
+    osl/osl.h
+    osl/closures_setup.h
+    osl/closures_template.h
+    osl/services_gpu.h
+    osl/types.h
+  )
+endif()
+
 set(SRC_KERNEL_GEOM_HEADERS
   geom/geom.h
   geom/attribute.h
@@ -267,19 +283,26 @@ set(SRC_KERNEL_INTEGRATOR_HEADERS
 )
 
 set(SRC_KERNEL_LIGHT_HEADERS
-  light/light.h
+  light/area.h
   light/background.h
   light/common.h
+  light/distant.h
+  light/distribution.h
+  light/light.h
+  light/point.h
   light/sample.h
+  light/spot.h
+  light/tree.h
+  light/triangle.h
 )
 
 set(SRC_KERNEL_SAMPLE_HEADERS
-  sample/jitter.h
   sample/lcg.h
   sample/mapping.h
   sample/mis.h
   sample/pattern.h
   sample/sobol_burley.h
+  sample/tabulated_sobol.h
   sample/util.h
 )
 
@@ -306,6 +329,7 @@ set(SRC_KERNEL_HEADERS
   ${SRC_KERNEL_GEOM_HEADERS}
   ${SRC_KERNEL_INTEGRATOR_HEADERS}
   ${SRC_KERNEL_LIGHT_HEADERS}
+  ${SRC_KERNEL_OSL_HEADERS}
   ${SRC_KERNEL_SAMPLE_HEADERS}
   ${SRC_KERNEL_SVM_HEADERS}
   ${SRC_KERNEL_TYPES_HEADERS}
@@ -328,6 +352,7 @@ set(SRC_UTIL_HEADERS
   ../util/math_int2.h
   ../util/math_int3.h
   ../util/math_int4.h
+  ../util/math_int8.h
   ../util/math_matrix.h
   ../util/projection.h
   ../util/rect.h
@@ -350,6 +375,8 @@ set(SRC_UTIL_HEADERS
   ../util/types_int3_impl.h
   ../util/types_int4.h
   ../util/types_int4_impl.h
+  ../util/types_int8.h
+  ../util/types_int8_impl.h
   ../util/types_spectrum.h
   ../util/types_uchar2.h
   ../util/types_uchar2_impl.h
@@ -385,11 +412,12 @@ if(WITH_CYCLES_CUDA_BINARIES)
   # warn for other versions
   if((CUDA_VERSION STREQUAL "101") OR
      (CUDA_VERSION STREQUAL "102") OR
-     (CUDA_VERSION_MAJOR STREQUAL "11"))
+     (CUDA_VERSION_MAJOR STREQUAL "11") OR
+     (CUDA_VERSION_MAJOR STREQUAL "12"))
   else()
     message(WARNING
       "CUDA version ${CUDA_VERSION_MAJOR}.${CUDA_VERSION_MINOR} detected, "
-      "build may succeed but only CUDA 11, 10.2 and 10.1 have been tested")
+      "build may succeed but only CUDA 12, 11, 10.2 and 10.1 have been tested")
   endif()
 
   # build for each arch
@@ -444,6 +472,7 @@ if(WITH_CYCLES_CUDA_BINARIES)
 
     if(WITH_CYCLES_DEBUG)
       set(cuda_flags ${cuda_flags} -D WITH_CYCLES_DEBUG)
+      set(cuda_flags ${cuda_flags} --ptxas-options="-v")
     endif()
 
     set(_cuda_nvcc_args
@@ -451,7 +480,6 @@ if(WITH_CYCLES_CUDA_BINARIES)
           ${CUDA_NVCC_FLAGS}
           --${format}
           ${CMAKE_CURRENT_SOURCE_DIR}${cuda_kernel_src}
-          --ptxas-options="-v"
           ${cuda_flags})
 
     if(WITH_COMPILER_CCACHE AND CCACHE_PROGRAM)
@@ -486,6 +514,16 @@ if(WITH_CYCLES_CUDA_BINARIES)
         set(cuda_toolkit_root_dir ${CUDA_TOOLKIT_ROOT_DIR})
       else()
         message(STATUS "CUDA binaries for ${arch} require CUDA 10 or earlier, skipped.")
+      endif()
+    elseif(${arch} MATCHES ".*_3.")
+      if(DEFINED CUDA11_NVCC_EXECUTABLE)
+        set(cuda_nvcc_executable ${CUDA11_NVCC_EXECUTABLE})
+        set(cuda_toolkit_root_dir ${CUDA11_TOOLKIT_ROOT_DIR})
+      elseif("${CUDA_VERSION}" LESS 120) # Support for sm_35, sm_37 was removed in CUDA 12
+        set(cuda_nvcc_executable ${CUDA_NVCC_EXECUTABLE})
+        set(cuda_toolkit_root_dir ${CUDA_TOOLKIT_ROOT_DIR})
+      else()
+        message(STATUS "CUDA binaries for ${arch} require CUDA 11 or earlier, skipped.")
       endif()
     elseif(${arch} MATCHES ".*_7." AND "${CUDA_VERSION}" LESS 100)
       message(STATUS "CUDA binaries for ${arch} require CUDA 10.0+, skipped.")
@@ -660,6 +698,16 @@ if(WITH_CYCLES_DEVICE_OPTIX AND WITH_CYCLES_CUDA_BINARIES)
     kernel_optix_shader_raytrace
     "device/optix/kernel_shader_raytrace.cu"
     "--keep-device-functions")
+  if(WITH_CYCLES_OSL AND (OSL_LIBRARY_VERSION_MINOR GREATER_EQUAL 13 OR OSL_LIBRARY_VERSION_MAJOR GREATER 1))
+    CYCLES_OPTIX_KERNEL_ADD(
+      kernel_optix_osl
+      "device/optix/kernel_osl.cu"
+      "--relocatable-device-code=true")
+    CYCLES_OPTIX_KERNEL_ADD(
+      kernel_optix_osl_services
+      "osl/services_optix.cu"
+      "--relocatable-device-code=true")
+  endif()
 
   add_custom_target(cycles_kernel_optix ALL DEPENDS ${optix_ptx})
   cycles_set_solution_folder(cycles_kernel_optix)
@@ -689,8 +737,8 @@ if(WITH_CYCLES_DEVICE_ONEAPI)
     ${SRC_UTIL_HEADERS}
   )
 
-  set (SYCL_OFFLINE_COMPILER_PARALLEL_JOBS 1 CACHE STRING "Number of parallel compiler instances to use for device binaries compilation (expect ~8GB peak memory usage per instance).")
-  if (WITH_CYCLES_ONEAPI_BINARIES)
+  set(SYCL_OFFLINE_COMPILER_PARALLEL_JOBS 1 CACHE STRING "Number of parallel compiler instances to use for device binaries compilation (expect ~8GB peak memory usage per instance).")
+  if(WITH_CYCLES_ONEAPI_BINARIES)
     message(STATUS "${SYCL_OFFLINE_COMPILER_PARALLEL_JOBS} instance(s) of oneAPI offline compiler will be used.")
   endif()
   # SYCL_CPP_FLAGS is a variable that the user can set to pass extra compiler options
@@ -706,40 +754,44 @@ if(WITH_CYCLES_DEVICE_ONEAPI)
       -shared
       -DWITH_ONEAPI
       -ffast-math
-      -DNDEBUG
       -O2
-      -o ${cycles_kernel_oneapi_lib}
-      -I${CMAKE_CURRENT_SOURCE_DIR}/..
+      -o"${cycles_kernel_oneapi_lib}"
+      -I"${CMAKE_CURRENT_SOURCE_DIR}/.."
       ${SYCL_CPP_FLAGS}
-      )
+  )
+
+  if(WITH_CYCLES_ONEAPI_HOST_TASK_EXECUTION)
+    list(APPEND sycl_compiler_flags -DWITH_ONEAPI_SYCL_HOST_TASK)
+  endif()
 
   # Set defaults for spir64 and spir64_gen options
-  if (NOT DEFINED CYCLES_ONEAPI_SYCL_OPTIONS_spir64)
+  if(NOT DEFINED CYCLES_ONEAPI_SYCL_OPTIONS_spir64)
     set(CYCLES_ONEAPI_SYCL_OPTIONS_spir64 "-options '-ze-opt-large-register-file -ze-opt-regular-grf-kernel integrator_intersect'")
   endif()
-  if (NOT DEFINED CYCLES_ONEAPI_SYCL_OPTIONS_spir64_gen)
-    SET (CYCLES_ONEAPI_SYCL_OPTIONS_spir64_gen "${CYCLES_ONEAPI_SYCL_OPTIONS_spir64}" CACHE STRING "Extra build options for spir64_gen target")
+  if(NOT DEFINED CYCLES_ONEAPI_SYCL_OPTIONS_spir64_gen)
+    set(CYCLES_ONEAPI_SYCL_OPTIONS_spir64_gen "${CYCLES_ONEAPI_SYCL_OPTIONS_spir64}" CACHE STRING "Extra build options for spir64_gen target")
   endif()
   # Enable zebin, a graphics binary format with improved compatibility.
   string(PREPEND CYCLES_ONEAPI_SYCL_OPTIONS_spir64_gen "--format zebin ")
   string(PREPEND CYCLES_ONEAPI_SYCL_OPTIONS_spir64_gen "-device ${CYCLES_ONEAPI_SPIR64_GEN_DEVICES} ")
 
-  if (WITH_CYCLES_ONEAPI_BINARIES)
+  # Host execution won't use GPU binaries, no need to compile them.
+  if(WITH_CYCLES_ONEAPI_BINARIES AND NOT WITH_CYCLES_ONEAPI_HOST_TASK_EXECUTION)
     # AoT binaries aren't currently reused when calling sycl::build.
-    list (APPEND sycl_compiler_flags -DSYCL_SKIP_KERNELS_PRELOAD)
+    list(APPEND sycl_compiler_flags -DSYCL_SKIP_KERNELS_PRELOAD)
     # Iterate over all targest and their options
-    list (JOIN CYCLES_ONEAPI_SYCL_TARGETS "," targets_string)
-    list (APPEND sycl_compiler_flags -fsycl-targets=${targets_string})
+    list(JOIN CYCLES_ONEAPI_SYCL_TARGETS "," targets_string)
+    list(APPEND sycl_compiler_flags -fsycl-targets=${targets_string})
     foreach(target ${CYCLES_ONEAPI_SYCL_TARGETS})
       if(DEFINED CYCLES_ONEAPI_SYCL_OPTIONS_${target})
-        list (APPEND sycl_compiler_flags -Xsycl-target-backend=${target} "${CYCLES_ONEAPI_SYCL_OPTIONS_${target}}")
+        list(APPEND sycl_compiler_flags "-Xsycl-target-backend=${target} \"${CYCLES_ONEAPI_SYCL_OPTIONS_${target}}\"")
       endif()
     endforeach()
   else()
     # If AOT is disabled, build for spir64
     list(APPEND sycl_compiler_flags
       -fsycl-targets=spir64
-      -Xsycl-target-backend=spir64 "${CYCLES_ONEAPI_SYCL_OPTIONS_spir64}")
+      "-Xsycl-target-backend=spir64 \"${CYCLES_ONEAPI_SYCL_OPTIONS_spir64}\"")
   endif()
 
   if(WITH_NANOVDB)
@@ -753,7 +805,6 @@ if(WITH_CYCLES_DEVICE_ONEAPI)
   endif()
 
   get_filename_component(sycl_compiler_root ${SYCL_COMPILER} DIRECTORY)
-  get_filename_component(sycl_compiler_compiler_name ${SYCL_COMPILER} NAME_WE)
 
   if(UNIX AND NOT APPLE)
     if(NOT WITH_CXX11_ABI)
@@ -765,7 +816,7 @@ if(WITH_CYCLES_DEVICE_ONEAPI)
     endif()
   endif()
 
-  if(WIN32)
+  if(WIN32) # Add Windows specific compiler flags.
     list(APPEND sycl_compiler_flags
     -fuse-ld=link
     -fms-extensions
@@ -792,53 +843,79 @@ if(WITH_CYCLES_DEVICE_ONEAPI)
       get_filename_component(WINDOWS_KIT_DIR "${WINDOWS_KIT_DIR}/../" ABSOLUTE)
     endif()
     list(APPEND sycl_compiler_flags
-                -L "${MSVC_TOOLS_DIR}/lib/x64"
-                -L "${WINDOWS_KIT_DIR}/um/x64"
-                -L "${WINDOWS_KIT_DIR}/ucrt/x64")
+                -L"${MSVC_TOOLS_DIR}/lib/x64"
+                -L"${WINDOWS_KIT_DIR}/um/x64"
+                -L"${WINDOWS_KIT_DIR}/ucrt/x64")
+  else() # Add Linux specific compiler flags.
+    list(APPEND sycl_compiler_flags -fPIC)
 
-    set(sycl_compiler_flags_Release ${sycl_compiler_flags})
-    set(sycl_compiler_flags_Debug ${sycl_compiler_flags})
-    set(sycl_compiler_flags_RelWithDebInfo ${sycl_compiler_flags})
-    set(sycl_compiler_flags_MinSizeRel ${sycl_compiler_flags})
-    list(APPEND sycl_compiler_flags_RelWithDebInfo -g)
+    # We avoid getting __FAST_MATH__ to be defined when building on CentOS-7 and Rocky-8
+    # until the compilation issues it triggers at either AoT or JIT stages gets fixed.
+    list(APPEND sycl_compiler_flags -fhonor-nans)
+
+    # add $ORIGIN to cycles_kernel_oneapi.so rpath so libsycl.so and
+    # libpi_level_zero.so can be placed next to it and get found.
+    list(APPEND sycl_compiler_flags -Wl,-rpath,'$$ORIGIN')
+  endif()
+
+  # Create CONFIG specific compiler flags.
+  set(sycl_compiler_flags_Release ${sycl_compiler_flags})
+  set(sycl_compiler_flags_Debug ${sycl_compiler_flags})
+  set(sycl_compiler_flags_RelWithDebInfo ${sycl_compiler_flags})
+
+  list(APPEND sycl_compiler_flags_Release
+              -DNDEBUG
+              )
+  list(APPEND sycl_compiler_flags_RelWithDebInfo
+              -DNDEBUG
+              -g
+              )
+  list(APPEND sycl_compiler_flags_Debug
+              -g
+              )
+
+  if(WIN32)
     list(APPEND sycl_compiler_flags_Debug
-                -g
                 -D_DEBUG
-                -nostdlib -Xclang --dependent-lib=msvcrtd)
-
+                -nostdlib
+                -Xclang --dependent-lib=msvcrtd
+                )
     add_custom_command(
       OUTPUT ${cycles_kernel_oneapi_lib} ${cycles_kernel_oneapi_linker_lib}
       COMMAND ${CMAKE_COMMAND} -E env
-              "LIB=${sycl_compiler_root}/../lib" # for compiler to find sycl.lib
+              "LIB=${sycl_compiler_root}/../lib\;${sycl_compiler_root}/../compiler/lib/intel64_win" # for compiler to find sycl.lib and in case of icpx, libircmt.lib
               "PATH=${OCLOC_INSTALL_DIR}\;${sycl_compiler_root}"
               ${SYCL_COMPILER}
               "$<$<CONFIG:Release>:${sycl_compiler_flags_Release}>"
               "$<$<CONFIG:RelWithDebInfo>:${sycl_compiler_flags_RelWithDebInfo}>"
               "$<$<CONFIG:Debug>:${sycl_compiler_flags_Debug}>"
               "$<$<CONFIG:MinSizeRel>:${sycl_compiler_flags_Release}>"
-              COMMAND_EXPAND_LISTS
-              DEPENDS ${cycles_oneapi_kernel_sources})
+      COMMAND_EXPAND_LISTS
+      DEPENDS ${cycles_oneapi_kernel_sources})
   else()
-    list(APPEND sycl_compiler_flags -fPIC)
-
-    # We avoid getting __FAST_MATH__ to be defined when building on CentOS 7 until the compilation
-    # crash it triggers at either AoT or JIT stages gets fixed.
-    list(APPEND sycl_compiler_flags -fhonor-nans)
-
-    # add $ORIGIN to cycles_kernel_oneapi.so rpath so libsycl.so and
-    # libpi_level_zero.so can be placed next to it and get found.
-    list(APPEND sycl_compiler_flags -Wl,-rpath,'$$ORIGIN')
-
     if(NOT IGC_INSTALL_DIR)
       get_filename_component(IGC_INSTALL_DIR "${sycl_compiler_root}/../lib/igc" ABSOLUTE)
     endif()
+    # The following join/replace operations are to prevent cmake from
+    # escaping space chars with backslashes in add_custom_command.
+    list(JOIN sycl_compiler_flags_Release " " sycl_compiler_flags_Release_str)
+    string(REPLACE " " ";" sycl_compiler_flags_Release_str ${sycl_compiler_flags_Release_str})
+    list(JOIN sycl_compiler_flags_RelWithDebInfo " " sycl_compiler_flags_RelWithDebInfo_str)
+    string(REPLACE " " ";" sycl_compiler_flags_RelWithDebInfo_str ${sycl_compiler_flags_RelWithDebInfo_str})
+    list(JOIN sycl_compiler_flags_Debug " " sycl_compiler_flags_Debug_str)
+    string(REPLACE " " ";" sycl_compiler_flags_Debug_str ${sycl_compiler_flags_Debug_str})
     add_custom_command(
       OUTPUT ${cycles_kernel_oneapi_lib}
       COMMAND ${CMAKE_COMMAND} -E env
               "LD_LIBRARY_PATH=${sycl_compiler_root}/../lib:${OCLOC_INSTALL_DIR}/lib:${IGC_INSTALL_DIR}/lib"
               # `$ENV{PATH}` is for compiler to find `ld`.
               "PATH=${OCLOC_INSTALL_DIR}/bin:${sycl_compiler_root}:$ENV{PATH}"
-              ${SYCL_COMPILER} $<$<CONFIG:Debug>:-g>$<$<CONFIG:RelWithDebInfo>:-g> ${sycl_compiler_flags}
+              ${SYCL_COMPILER}
+              "$<$<CONFIG:Release>:${sycl_compiler_flags_Release_str}>"
+              "$<$<CONFIG:RelWithDebInfo>:${sycl_compiler_flags_RelWithDebInfo_str}>"
+              "$<$<CONFIG:Debug>:${sycl_compiler_flags_Debug_str}>"
+              "$<$<CONFIG:MinSizeRel>:${sycl_compiler_flags_Release_str}>"
+      COMMAND_EXPAND_LISTS
       DEPENDS ${cycles_oneapi_kernel_sources})
   endif()
 
@@ -895,12 +972,7 @@ set_source_files_properties(device/cpu/kernel.cpp PROPERTIES COMPILE_FLAGS "${CY
 
 if(CXX_HAS_SSE)
   set_source_files_properties(device/cpu/kernel_sse2.cpp PROPERTIES COMPILE_FLAGS "${CYCLES_SSE2_KERNEL_FLAGS}")
-  set_source_files_properties(device/cpu/kernel_sse3.cpp PROPERTIES COMPILE_FLAGS "${CYCLES_SSE3_KERNEL_FLAGS}")
   set_source_files_properties(device/cpu/kernel_sse41.cpp PROPERTIES COMPILE_FLAGS "${CYCLES_SSE41_KERNEL_FLAGS}")
-endif()
-
-if(CXX_HAS_AVX)
-  set_source_files_properties(device/cpu/kernel_avx.cpp PROPERTIES COMPILE_FLAGS "${CYCLES_AVX_KERNEL_FLAGS}")
 endif()
 
 if(CXX_HAS_AVX2)
@@ -947,6 +1019,7 @@ source_group("geom" FILES ${SRC_KERNEL_GEOM_HEADERS})
 source_group("integrator" FILES ${SRC_KERNEL_INTEGRATOR_HEADERS})
 source_group("kernel" FILES ${SRC_KERNEL_TYPES_HEADERS})
 source_group("light" FILES ${SRC_KERNEL_LIGHT_HEADERS})
+source_group("osl" FILES ${SRC_KERNEL_OSL_HEADERS})
 source_group("sample" FILES ${SRC_KERNEL_SAMPLE_HEADERS})
 source_group("svm" FILES ${SRC_KERNEL_SVM_HEADERS})
 source_group("util" FILES ${SRC_KERNEL_UTIL_HEADERS})
@@ -983,6 +1056,7 @@ delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${SRC_KERNEL_FILM_HEADERS}" ${CYCLE
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${SRC_KERNEL_GEOM_HEADERS}" ${CYCLES_INSTALL_PATH}/source/kernel/geom)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${SRC_KERNEL_INTEGRATOR_HEADERS}" ${CYCLES_INSTALL_PATH}/source/kernel/integrator)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${SRC_KERNEL_LIGHT_HEADERS}" ${CYCLES_INSTALL_PATH}/source/kernel/light)
+delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${SRC_KERNEL_OSL_HEADERS}" ${CYCLES_INSTALL_PATH}/source/kernel/osl)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${SRC_KERNEL_SAMPLE_HEADERS}" ${CYCLES_INSTALL_PATH}/source/kernel/sample)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${SRC_KERNEL_SVM_HEADERS}" ${CYCLES_INSTALL_PATH}/source/kernel/svm)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${SRC_KERNEL_TYPES_HEADERS}" ${CYCLES_INSTALL_PATH}/source/kernel)

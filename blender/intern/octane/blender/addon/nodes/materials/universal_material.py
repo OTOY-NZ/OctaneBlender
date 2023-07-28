@@ -418,7 +418,7 @@ class OctaneUniversalMaterialCoatingNormal(OctaneBaseSocket):
 
 class OctaneUniversalMaterialFilmwidth(OctaneBaseSocket):
     bl_idname="OctaneUniversalMaterialFilmwidth"
-    bl_label="Film width"
+    bl_label="Film width (μm)"
     color=consts.OctanePinColor.Texture
     octane_default_node_type=consts.NodeType.NT_TEX_FLOAT
     octane_default_node_name="OctaneGreyscaleColor"
@@ -427,7 +427,7 @@ class OctaneUniversalMaterialFilmwidth(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_TEXTURE
     octane_pin_index=23
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Thickness of the film coating", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
+    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Thickness of the film coating in micrometers", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=4000004
     octane_end_version=4294967295
@@ -917,7 +917,7 @@ class OctaneUniversalMaterialGroupCoatingLayer(OctaneGroupTitleSocket):
 class OctaneUniversalMaterialGroupThinFilmLayer(OctaneGroupTitleSocket):
     bl_idname="OctaneUniversalMaterialGroupThinFilmLayer"
     bl_label="[OctaneGroupTitle]Thin Film Layer"
-    octane_group_sockets: StringProperty(name="Group Sockets", default="Film width;Film IOR;")
+    octane_group_sockets: StringProperty(name="Group Sockets", default="Film width (μm);Film IOR;")
 
 class OctaneUniversalMaterialGroupSheenLayer(OctaneGroupTitleSocket):
     bl_idname="OctaneUniversalMaterialGroupSheenLayer"
@@ -946,7 +946,7 @@ class OctaneUniversalMaterial(bpy.types.Node, OctaneBaseNode):
     octane_socket_class_list=[OctaneUniversalMaterialGroupTransmissionLayer,OctaneUniversalMaterialTransmission,OctaneUniversalMaterialTransmissionType,OctaneUniversalMaterialBtdf,OctaneUniversalMaterialGroupBaseLayer,OctaneUniversalMaterialAlbedo,OctaneUniversalMaterialMetallic,OctaneUniversalMaterialEdgeTint,OctaneUniversalMaterialGroupSpecularLayer,OctaneUniversalMaterialSpecular,OctaneUniversalMaterialBrdf,OctaneUniversalMaterialGroupRoughness,OctaneUniversalMaterialRoughness,OctaneUniversalMaterialAnisotropy,OctaneUniversalMaterialRotation,OctaneUniversalMaterialSpread,OctaneUniversalMaterialGroupIOR,OctaneUniversalMaterialIndex4,OctaneUniversalMaterialIndexMap,OctaneUniversalMaterialMetallicMode,OctaneUniversalMaterialIndex,OctaneUniversalMaterialIndex2,OctaneUniversalMaterialIndex3,OctaneUniversalMaterialHasCaustics,OctaneUniversalMaterialGroupCoatingLayer,OctaneUniversalMaterialCoating,OctaneUniversalMaterialCoatingRoughness,OctaneUniversalMaterialCoatingIndex,OctaneUniversalMaterialCoatingBump,OctaneUniversalMaterialCoatingNormal,OctaneUniversalMaterialGroupThinFilmLayer,OctaneUniversalMaterialFilmwidth,OctaneUniversalMaterialFilmindex,OctaneUniversalMaterialGroupSheenLayer,OctaneUniversalMaterialSheen,OctaneUniversalMaterialSheenRoughness,OctaneUniversalMaterialSheenBump,OctaneUniversalMaterialSheenNormal,OctaneUniversalMaterialGroupTransmissionProperties,OctaneUniversalMaterialDispersionCoefficientB,OctaneUniversalMaterialMedium,OctaneUniversalMaterialOpacity,OctaneUniversalMaterialFakeShadows,OctaneUniversalMaterialRefractionAlpha,OctaneUniversalMaterialThinWall,OctaneUniversalMaterialGroupGeometryProperties,OctaneUniversalMaterialBump,OctaneUniversalMaterialNormal,OctaneUniversalMaterialDisplacement,OctaneUniversalMaterialSmooth,OctaneUniversalMaterialSmoothShadowTerminator,OctaneUniversalMaterialRoundEdges,OctaneUniversalMaterialPriority,OctaneUniversalMaterialEmission,OctaneUniversalMaterialMatte,OctaneUniversalMaterialCustomAov,OctaneUniversalMaterialCustomAovChannel,OctaneUniversalMaterialLayer,OctaneUniversalMaterialEdgesRounding,]
     octane_min_version=0
     octane_node_type=consts.NodeType.NT_MAT_UNIVERSAL
-    octane_socket_list=["Transmission", "Transmission type", "Albedo", "Metallic", "Metallic edge tint", "Specular", "BSDF model", "Roughness", "Anisotropy", "Rotation", "Spread", "Dielectric IOR", "Dielectric 1/IOR map", "Metallic reflection mode", "Metallic IOR", "Metallic IOR (green)", "Metallic IOR (blue)", "Allow caustics", "Coating", "Coating roughness", "Coating IOR", "Coating bump", "Coating normal", "Film width", "Film IOR", "Sheen", "Sheen roughness", "Sheen bump", "Sheen normal", "Dispersion coefficient", "Medium", "Opacity", "Fake shadows", "Affect alpha", "Bump", "Normal", "Displacement", "Smooth", "Smooth shadow terminator", "Round edges", "Priority", "Emission", "Shadow catcher", "Custom AOV", "Custom AOV channel", "Material layer", "[Deprecated]Transmission model", "[Deprecated]Rounded edges radius", "[Deprecated]Thin wall", ]
+    octane_socket_list=["Transmission", "Transmission type", "Albedo", "Metallic", "Metallic edge tint", "Specular", "BSDF model", "Roughness", "Anisotropy", "Rotation", "Spread", "Dielectric IOR", "Dielectric 1/IOR map", "Metallic reflection mode", "Metallic IOR", "Metallic IOR (green)", "Metallic IOR (blue)", "Allow caustics", "Coating", "Coating roughness", "Coating IOR", "Coating bump", "Coating normal", "Film width (μm)", "Film IOR", "Sheen", "Sheen roughness", "Sheen bump", "Sheen normal", "Dispersion coefficient", "Medium", "Opacity", "Fake shadows", "Affect alpha", "Bump", "Normal", "Displacement", "Smooth", "Smooth shadow terminator", "Round edges", "Priority", "Emission", "Shadow catcher", "Custom AOV", "Custom AOV channel", "Material layer", "[Deprecated]Transmission model", "[Deprecated]Rounded edges radius", "[Deprecated]Thin wall", ]
     octane_attribute_list=[]
     octane_attribute_config={}
     octane_static_pin_count=46

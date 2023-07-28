@@ -92,6 +92,10 @@ class ColorRampShaderNode : public ShaderNode {
                          GPU_uniform(&color_band->data[0].r),
                          GPU_uniform(&color_band->data[1].r));
           return;
+        case COLBAND_INTERP_B_SPLINE:
+        case COLBAND_INTERP_CARDINAL:
+          /* Not optimized yet. Fallback to gradient texture. */
+          break;
         default:
           BLI_assert_unreachable();
           return;
@@ -134,7 +138,7 @@ void register_node_type_cmp_valtorgb()
   cmp_node_type_base(&ntype, CMP_NODE_VALTORGB, "ColorRamp", NODE_CLASS_CONVERTER);
   ntype.declare = file_ns::cmp_node_valtorgb_declare;
   node_type_size(&ntype, 240, 200, 320);
-  node_type_init(&ntype, file_ns::node_composit_init_valtorgb);
+  ntype.initfunc = file_ns::node_composit_init_valtorgb;
   node_type_storage(&ntype, "ColorBand", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_shader_node = file_ns::get_compositor_shader_node;
 
@@ -191,7 +195,7 @@ void register_node_type_cmp_rgbtobw()
 
   cmp_node_type_base(&ntype, CMP_NODE_RGBTOBW, "RGB to BW", NODE_CLASS_CONVERTER);
   ntype.declare = file_ns::cmp_node_rgbtobw_declare;
-  node_type_size_preset(&ntype, NODE_SIZE_SMALL);
+  node_type_size_preset(&ntype, NODE_SIZE_DEFAULT);
   ntype.get_compositor_shader_node = file_ns::get_compositor_shader_node;
 
   nodeRegisterType(&ntype);

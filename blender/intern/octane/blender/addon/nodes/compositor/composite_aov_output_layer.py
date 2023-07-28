@@ -268,7 +268,7 @@ class OctaneCompositeAOVOutputLayer(bpy.types.Node, OctaneBaseNode):
     octane_attribute_config={"a_compatibility_version": [consts.AttributeID.A_COMPATIBILITY_VERSION, "compatibilityVersion", consts.AttributeType.AT_INT], }
     octane_static_pin_count=11
 
-    a_compatibility_version: IntProperty(name="Compatibility version", default=12000020, update=OctaneBaseNode.update_node_tree, description="The Octane version that the behavior of this node should match")
+    a_compatibility_version: IntProperty(name="Compatibility version", default=12000102, update=OctaneBaseNode.update_node_tree, description="The Octane version that the behavior of this node should match")
 
     def init(self, context):
         self.inputs.new("OctaneCompositeAOVOutputLayerEnabled", OctaneCompositeAOVOutputLayerEnabled.bl_label).init()
@@ -283,7 +283,7 @@ class OctaneCompositeAOVOutputLayer(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneCompositeAOVOutputLayerBlendMode", OctaneCompositeAOVOutputLayerBlendMode.bl_label).init()
         self.inputs.new("OctaneCompositeAOVOutputLayerAlphaOperation", OctaneCompositeAOVOutputLayerAlphaOperation.bl_label).init()
         self.inputs.new("OctaneCompositeAOVOutputLayerForcePremultiplyOpacity", OctaneCompositeAOVOutputLayerForcePremultiplyOpacity.bl_label).init()
-        self.outputs.new("OctaneCompositeAOVLayerOutSocket", "Composite AOV layer out").init()
+        self.outputs.new("OctaneCompositeAOVOutputLayerOutSocket", "Composite output AOV layer out").init()
 
 
 _CLASSES=[

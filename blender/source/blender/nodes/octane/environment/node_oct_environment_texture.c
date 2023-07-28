@@ -122,8 +122,8 @@ void register_node_type_environment_oct_texture(void)
                    NODE_CLASS_OCT_ENVIRONMENT);
   node_type_socket_templates(&ntype, node_in, node_out);
   node_type_size(&ntype, 160, 160, 500);
-  node_type_init(&ntype, 0);
-  node_type_exec(&ntype, 0, 0, 0);
+  ntype.initfunc = (0);
+  // node_type_exec(&ntype, 0, 0, 0);
   
 
   nodeRegisterType(&ntype);

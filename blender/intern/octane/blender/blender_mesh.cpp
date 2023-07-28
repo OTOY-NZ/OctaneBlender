@@ -122,10 +122,11 @@ static void create_curve_hair(Scene *scene,
   ::Curve *curve = (::Curve *)b_curve.ptr.data;
   if (curve && curve->curve_eval) {
     Curves *curves_id = blender::bke::curve_legacy_to_curves(*curve);
-    blender::bke::CurvesGeometry &curves = blender::bke::CurvesGeometry::wrap(curves_id->geometry);
+    blender::bke::CurvesGeometry &curves = curves_id->geometry.wrap();
     const blender::Span<blender::float3> positions = curves.evaluated_positions();
-    for (int32_t i = 0; i < curves.curves_num(); ++i) {
-      const auto index_range = curves.evaluated_points_for_curve(i);
+    auto offsets = curves.evaluated_points_by_curve();
+    for (int32_t i = 0; i < curves.curves_num(); ++i) {      
+      const auto index_range = offsets[i];
       float cur_thickness = root_width;
       size_t step_num = index_range.size();
       float thickness_step = step_num > 1 ? (tip_width - root_width) / (step_num - 1) : 0;
@@ -1117,7 +1118,8 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
   if (b_ob.type() == BL::Object::type_MESH) {
     std::string coordinate_mode = std::to_string(
         RNA_enum_get(&oct_mesh, "primitive_coordinate_mode"));
-    new_mesh_tag += ("|" + coordinate_mode);
+    std::string infinite_plane = std::to_string(RNA_boolean_get(&oct_mesh, "infinite_plane"));
+    new_mesh_tag += ("|" + coordinate_mode + infinite_plane);
   }
 
   std::string new_octane_prop_tag = "";

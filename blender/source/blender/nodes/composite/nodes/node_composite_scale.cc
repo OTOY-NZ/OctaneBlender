@@ -6,9 +6,9 @@
  */
 
 #include "BLI_assert.h"
-#include "BLI_float3x3.hh"
 #include "BLI_math_base.hh"
-#include "BLI_math_vec_types.hh"
+#include "BLI_math_matrix.hh"
+#include "BLI_math_vector_types.hh"
 
 #include "RNA_access.h"
 
@@ -84,8 +84,8 @@ class ScaleOperation : public NodeOperation {
     Result &result = get_result("Image");
     input.pass_through(result);
 
-    const float3x3 transformation = float3x3::from_translation_rotation_scale(
-        get_translation(), 0.0f, get_scale());
+    const float3x3 transformation = math::from_loc_rot_scale<float3x3>(
+        get_translation(), math::AngleRadian(0.0f), get_scale());
 
     result.transform(transformation);
   }
@@ -149,7 +149,7 @@ class ScaleOperation : public NodeOperation {
   float2 get_scale_render_size_stretch()
   {
     const float2 input_size = float2(get_input("Image").domain().size);
-    const float2 render_size = float2(context().get_output_size());
+    const float2 render_size = float2(context().get_compositing_region_size());
     return render_size / input_size;
   }
 
@@ -160,7 +160,7 @@ class ScaleOperation : public NodeOperation {
   float2 get_scale_render_size_fit()
   {
     const float2 input_size = float2(get_input("Image").domain().size);
-    const float2 render_size = float2(context().get_output_size());
+    const float2 render_size = float2(context().get_compositing_region_size());
     const float2 scale = render_size / input_size;
     return float2(math::min(scale.x, scale.y));
   }
@@ -172,7 +172,7 @@ class ScaleOperation : public NodeOperation {
   float2 get_scale_render_size_crop()
   {
     const float2 input_size = float2(get_input("Image").domain().size);
-    const float2 render_size = float2(context().get_output_size());
+    const float2 render_size = float2(context().get_compositing_region_size());
     const float2 scale = render_size / input_size;
     return float2(math::max(scale.x, scale.y));
   }
@@ -221,7 +221,7 @@ void register_node_type_cmp_scale()
   cmp_node_type_base(&ntype, CMP_NODE_SCALE, "Scale", NODE_CLASS_DISTORT);
   ntype.declare = file_ns::cmp_node_scale_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_scale;
-  node_type_update(&ntype, file_ns::node_composite_update_scale);
+  ntype.updatefunc = file_ns::node_composite_update_scale;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
   nodeRegisterType(&ntype);

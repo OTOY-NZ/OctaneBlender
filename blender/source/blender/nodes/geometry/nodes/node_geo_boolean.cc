@@ -20,8 +20,8 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Geometry>(N_("Mesh 2")).multi_input().supported_type(GEO_COMPONENT_TYPE_MESH);
   b.add_input<decl::Bool>(N_("Self Intersection"));
   b.add_input<decl::Bool>(N_("Hole Tolerant"));
-  b.add_output<decl::Geometry>(N_("Mesh"));
-  b.add_output<decl::Bool>(N_("Intersecting Edges")).field_source();
+  b.add_output<decl::Geometry>(N_("Mesh")).propagate_all();
+  b.add_output<decl::Bool>(N_("Intersecting Edges")).field_on_all();
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
@@ -30,7 +30,7 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 }
 
 struct AttributeOutputs {
-  StrongAnonymousAttributeID intersecting_edges_id;
+  AutoAnonymousAttributeID intersecting_edges_id;
 };
 
 static void node_update(bNodeTree *ntree, bNode *node)
@@ -125,9 +125,8 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   AttributeOutputs attribute_outputs;
-  if (params.output_is_required("Intersecting Edges")) {
-    attribute_outputs.intersecting_edges_id = StrongAnonymousAttributeID("Intersecting Edges");
-  }
+  attribute_outputs.intersecting_edges_id = params.get_output_anonymous_attribute_id_if_needed(
+      "Intersecting Edges");
 
   Vector<int> intersecting_edges;
   Mesh *result = blender::meshintersect::direct_mesh_boolean(
@@ -188,7 +187,7 @@ void register_node_type_geo_boolean()
   ntype.declare = file_ns::node_declare;
   ntype.draw_buttons = file_ns::node_layout;
   ntype.updatefunc = file_ns::node_update;
-  node_type_init(&ntype, file_ns::node_init);
+  ntype.initfunc = file_ns::node_init;
   ntype.geometry_node_execute = file_ns::node_geo_exec;
   nodeRegisterType(&ntype);
 }

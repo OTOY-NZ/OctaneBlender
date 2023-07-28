@@ -650,6 +650,7 @@ bool OctaneClient::update()
 void OctaneClient::startRender(bool bInteractive,
                                bool bUseSharedSurface,
                                uint64_t iClientProcessId,
+                               uint64_t iDeviceLuid,
                                int32_t iWidth,
                                int32_t iHeigth,
                                ImageType imgType,
@@ -668,10 +669,10 @@ void OctaneClient::startRender(bool bInteractive,
   LOCK_MUTEX(m_SocketMutex);
 
   RPCSend snd(m_Socket,
-              sizeof(int32_t) * 8 + sizeof(uint32_t) * 2 + sizeof(uint64_t) +
+              sizeof(int32_t) * 8 + sizeof(uint32_t) * 2 + sizeof(uint64_t) * 2 +
                   (m_sOutPath.size() + 2) + m_sCachePath.size() + 2,
               OctaneDataTransferObject::START);
-  snd << bInteractive << bUseSharedSurface << iClientProcessId << bOutOfCoreEnabled
+  snd << bInteractive << bUseSharedSurface << iClientProcessId << iDeviceLuid << bOutOfCoreEnabled
       << iOutOfCoreMemLimit << iOutOfCoreGPUHeadroom << iRenderPriority << iResourceCacheType
       << iWidth << iHeigth << imgType << m_sOutPath.c_str() << m_sCachePath.c_str();
   snd.write();
@@ -1182,6 +1183,7 @@ bool OctaneClient::checkUniversalCameraUpdated(
       lastUniversalCamera.fScaleOfView.fVal == current.fScaleOfView.fVal &&
       lastUniversalCamera.f2LensShift.fVal == current.f2LensShift.fVal &&
       lastUniversalCamera.fPixelAspectRatio.fVal == current.fPixelAspectRatio.fVal &&
+      lastUniversalCamera.bPerspectiveCorrection.bVal == current.bPerspectiveCorrection.bVal &&
       lastUniversalCamera.fFisheyeAngle.fVal == current.fFisheyeAngle.fVal &&
       lastUniversalCamera.iFisheyeType.iVal == current.iFisheyeType.iVal &&
       lastUniversalCamera.bHardVignette.bVal == current.bHardVignette.bVal &&
@@ -1241,7 +1243,8 @@ bool OctaneClient::checkUniversalCameraUpdated(
   lastUniversalCamera.fScaleOfView.fVal = current.fScaleOfView.fVal;
   lastUniversalCamera.f2LensShift.fVal = current.f2LensShift.fVal;
   lastUniversalCamera.fPixelAspectRatio.fVal = current.fPixelAspectRatio.fVal;
-  lastUniversalCamera.fFisheyeAngle.fVal = current.fFisheyeAngle.fVal;
+  lastUniversalCamera.bPerspectiveCorrection.bVal = current.bPerspectiveCorrection.bVal;
+  lastUniversalCamera.fFisheyeAngle.fVal = current.fFisheyeAngle.fVal;  
   lastUniversalCamera.iFisheyeType.iVal = current.iFisheyeType.iVal;
   lastUniversalCamera.bHardVignette.bVal = current.bHardVignette.bVal;
   lastUniversalCamera.iFisheyeProjection.iVal = current.iFisheyeProjection.iVal;
@@ -1400,7 +1403,7 @@ void OctaneClient::uploadKernel(Kernel *pKernel)
       } break;
       case Kernel::INFO_CHANNEL: {
         RPCSend snd(m_Socket,
-                    sizeof(float) * 11 + sizeof(int32_t) * 23 + sizeof(float_3),
+                    sizeof(float) * 11 + sizeof(int32_t) * 24 + sizeof(float_3),
                     OctaneDataTransferObject::LOAD_KERNEL);
         snd << pKernel->bUseNodeTree << pKernel->bEmulateOldMotionBlurBehavior << pKernel->type
             << pKernel->infoChannelType << pKernel->fCurrentTime << pKernel->fShutterTime
@@ -1409,7 +1412,8 @@ void OctaneClient::uploadKernel(Kernel *pKernel)
             << pKernel->fMaxSpeed << pKernel->fOpacityThreshold << pKernel->bAlphaChannel
             << pKernel->bBumpNormalMapping << pKernel->bBkFaceHighlight << pKernel->bAoAlphaShadows
             << pKernel->bMinimizeNetTraffic << pKernel->iSamplingMode << pKernel->iMaxSamples
-            << pKernel->iParallelSamples << pKernel->iMaxTileSamples << pKernel->mbAlignment
+            << pKernel->bStaticNoise << pKernel->iParallelSamples << pKernel->iMaxTileSamples
+            << pKernel->mbAlignment
             << pKernel->bLayersEnable << pKernel->iLayersCurrent << pKernel->bLayersInvert
             << pKernel->layersMode << pKernel->iClayMode << pKernel->iSubsampleMode
             << pKernel->iMaxSubdivisionLevel << pKernel->iWhiteLightSpectrum

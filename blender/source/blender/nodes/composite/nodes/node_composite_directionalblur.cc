@@ -5,10 +5,8 @@
  * \ingroup cmpnodes
  */
 
-#include "BLI_float3x3.hh"
 #include "BLI_math_base.hh"
-#include "BLI_math_vec_types.hh"
-#include "BLI_math_vector.hh"
+#include "BLI_math_matrix.hh"
 
 #include "UI_interface.h"
 #include "UI_resources.h"
@@ -46,7 +44,6 @@ static void node_composit_buts_dblur(uiLayout *layout, bContext * /*C*/, Pointer
   uiLayout *col;
 
   uiItemR(layout, ptr, "iterations", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "use_wrap", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
 
   col = uiLayoutColumn(layout, true);
   uiItemL(col, IFACE_("Center:"), ICON_NONE);
@@ -112,7 +109,8 @@ class DirectionalBlurOperation : public NodeOperation {
   {
     const float diagonal_length = math::length(float2(get_input("Image").domain().size));
     const float translation_amount = diagonal_length * node_storage(bnode()).distance;
-    const float3x3 rotation = float3x3::from_rotation(-node_storage(bnode()).angle);
+    const float2x2 rotation = math::from_rotation<float2x2>(
+        math::AngleRadian(-node_storage(bnode()).angle));
     return rotation * float2(-translation_amount / get_iterations(), 0.0f);
   }
 
@@ -138,13 +136,13 @@ class DirectionalBlurOperation : public NodeOperation {
   float3x3 get_transformation()
   {
     /* Construct the transformation that will be applied on each iteration. */
-    const float3x3 transformation = float3x3::from_translation_rotation_scale(
-        get_translation(), get_rotation(), get_scale());
+    const float3x3 transformation = math::from_loc_rot_scale<float3x3>(
+        get_translation(), math::AngleRadian(get_rotation()), get_scale());
     /* Change the origin of the transformation to the user-specified origin. */
-    const float3x3 origin_transformation = float3x3::from_origin_transformation(transformation,
-                                                                                get_origin());
+    const float3x3 origin_transformation = math::from_origin_transform<float3x3>(transformation,
+                                                                                 get_origin());
     /* The shader will transform the coordinates, not the image itself, so take the inverse. */
-    return origin_transformation.inverted();
+    return math::invert(origin_transformation);
   }
 
   /* The actual number of iterations is 2 to the power of the user supplied iterations. The power
@@ -199,7 +197,7 @@ void register_node_type_cmp_dblur()
   cmp_node_type_base(&ntype, CMP_NODE_DBLUR, "Directional Blur", NODE_CLASS_OP_FILTER);
   ntype.declare = file_ns::cmp_node_directional_blur_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_dblur;
-  node_type_init(&ntype, file_ns::node_composit_init_dblur);
+  ntype.initfunc = file_ns::node_composit_init_dblur;
   node_type_storage(
       &ntype, "NodeDBlurData", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;

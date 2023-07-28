@@ -161,7 +161,7 @@ class OctanePinColor:
     Projection = (1.00, 1.00, 1.00, 0.70)
     Displacement = (1.00, 1.00, 1.00, 0.70)
     String = (1.00, 1.00, 1.00, 0.70)
-    RenderAOVs = (1.00, 1.00, 1.00, 0.70)
+    RenderAOV = (1.00, 1.00, 1.00, 0.70)
     RenderLayer = (0.90, 0.50, 0.00, 0.70)
     VolumeRamp = (1.00, 1.00, 1.00, 0.70)
     AnimationSettings = (1.00, 1.00, 1.00, 0.70)
@@ -177,7 +177,7 @@ class OctanePinColor:
     AOVOutputGroup = (1.00, 1.00, 1.00, 0.70)
     AOVOutput = (1.00, 1.00, 1.00, 0.70)
     CompositeTextureLayer = (1.00, 1.00, 1.00, 0.70)
-    CompositeAOVLayer = (1.00, 1.00, 1.00, 0.70)
+    CompositeAOVOutputLayer = (1.00, 1.00, 1.00, 0.70)
 
 
 class ArrayIdentifier:
@@ -295,8 +295,8 @@ class UtilsFunctionType:
     SHOW_ACTIVATION = 7
     SAVE_LIVEDB = 8
     SHOW_VIEWPORT = 9
-    UPDATE_RESOURCE_CACHE_SYSTEM = 10
-    UPDATE_RENDER_SETTINGS = 11
+    UPDATE_RENDER_SETTINGS = 10
+    UPDATE_RESOURCE_CACHE_SYSTEM = 11
     FETCH_IMAGE_INFO = 100
     FETCH_VDB_INFO = 101
     FETCH_OSL_INFO = 102

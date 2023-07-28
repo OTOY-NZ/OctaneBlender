@@ -68,7 +68,7 @@ class OctaneCompositeAOVOutput(bpy.types.Node, OctaneBaseNode):
     octane_static_pin_count=2
 
     a_layer_count: IntProperty(name="Layer count", default=0, update=OctaneBaseNode.update_node_tree, description="The number of layers. Changing this value and evaluating the node will update the number of layers. New layers will be added to the front of the dynamic pin list")
-    a_compatibility_version: IntProperty(name="Compatibility version", default=12000020, update=OctaneBaseNode.update_node_tree, description="The Octane version that the behavior of this node should match")
+    a_compatibility_version: IntProperty(name="Compatibility version", default=12000102, update=OctaneBaseNode.update_node_tree, description="The Octane version that the behavior of this node should match")
 
     def init(self, context):
         self.inputs.new("OctaneCompositeAOVOutputGroupOutputSettings", OctaneCompositeAOVOutputGroupOutputSettings.bl_label).init()
@@ -104,7 +104,7 @@ class OctaneCompositeAOVOutputMovableLayerInput(OctaneMovableInput):
     octane_input_pattern=r"Layer (\d+)"
     octane_input_format_pattern="Layer {}"
     octane_reversed_input_sockets=True
-    color=consts.OctanePinColor.CompositeAOVLayer
+    color=consts.OctanePinColor.CompositeAOVOutputLayer
     octane_default_node_type=consts.NodeType.NT_COMPOSITE_AOV_LAYER
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_COMPOSITE_AOV_LAYER)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)    

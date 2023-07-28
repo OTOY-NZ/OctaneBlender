@@ -119,9 +119,9 @@ void register_node_type_composite_aov_output_layer(void)
                    NODE_CLASS_OCT_COMPOSITE);
   node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
   node_type_size(&ntype, 160, 160, 500);
-  node_type_init(&ntype, node_type_oct_composite_aov_output_layer_init);
-  node_type_exec(&ntype, 0, 0, 0);
-  node_type_update(&ntype, 0);
+  ntype.initfunc = (node_type_oct_composite_aov_output_layer_init);
+  // node_type_exec(&ntype, 0, 0, 0);
+  ntype.updatefunc = (0);
   
 
   nodeRegisterType(&ntype);

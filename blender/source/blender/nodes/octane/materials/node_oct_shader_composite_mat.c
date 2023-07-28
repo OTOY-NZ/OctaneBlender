@@ -367,7 +367,7 @@ static void node_oct_init_composite_mat(bNodeTree *ntree, bNode *node)
   node_octane_avo_settings_init(ntree, node);
 }
 
-static void node_shader_update_composite_mat(bNodeTree *UNUSED(ntree), bNode *node)
+static void node_shader_update_composite_mat(bNodeTree *ntree, bNode *node)
 {
   bNodeSocket *sock;
   int layer_number = node->custom1;
@@ -408,9 +408,9 @@ void register_node_type_sh_oct_composite_mat(void)
         &ntype, SH_NODE_OCT_COMPOSITE_MAT, "Composite Material", NODE_CLASS_OCT_SHADER);
   node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
   node_type_size(&ntype, 160, 160, 500);
-  node_type_init(&ntype, node_oct_init_composite_mat);
+  ntype.initfunc = (node_oct_init_composite_mat);
   node_type_storage(&ntype, "", NULL, NULL);
-  node_type_update(&ntype, node_shader_update_composite_mat);
+  ntype.updatefunc = (node_shader_update_composite_mat);
 
   nodeRegisterType(&ntype);
 } /* register_node_type_sh_oct_composite_mat() */

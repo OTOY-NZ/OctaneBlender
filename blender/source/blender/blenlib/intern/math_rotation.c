@@ -272,7 +272,7 @@ void quat_to_mat4(float m[4][4], const float q[4])
 void mat3_normalized_to_quat_fast(float q[4], const float mat[3][3])
 {
   BLI_ASSERT_UNIT_M3(mat);
-  /* Caller must ensure matrices aren't negative for valid results, see: T24291, T94231. */
+  /* Caller must ensure matrices aren't negative for valid results, see: #24291, #94231. */
   BLI_assert(!is_negative_m3(mat));
 
   /* Method outlined by Mike Day, ref: https://math.stackexchange.com/a/3183435/220949
@@ -292,6 +292,10 @@ void mat3_normalized_to_quat_fast(float q[4], const float mat[3][3])
       q[0] = (mat[1][2] - mat[2][1]) * s;
       q[2] = (mat[0][1] + mat[1][0]) * s;
       q[3] = (mat[2][0] + mat[0][2]) * s;
+      if (UNLIKELY((trace == 1.0f) && (q[0] == 0.0f && q[2] == 0.0f && q[3] == 0.0f))) {
+        /* Avoids the need to normalize the degenerate case. */
+        q[1] = 1.0f;
+      }
     }
     else {
       const float trace = 1.0f - mat[0][0] + mat[1][1] - mat[2][2];
@@ -305,6 +309,10 @@ void mat3_normalized_to_quat_fast(float q[4], const float mat[3][3])
       q[0] = (mat[2][0] - mat[0][2]) * s;
       q[1] = (mat[0][1] + mat[1][0]) * s;
       q[3] = (mat[1][2] + mat[2][1]) * s;
+      if (UNLIKELY((trace == 1.0f) && (q[0] == 0.0f && q[1] == 0.0f && q[3] == 0.0f))) {
+        /* Avoids the need to normalize the degenerate case. */
+        q[2] = 1.0f;
+      }
     }
   }
   else {
@@ -320,10 +328,14 @@ void mat3_normalized_to_quat_fast(float q[4], const float mat[3][3])
       q[0] = (mat[0][1] - mat[1][0]) * s;
       q[1] = (mat[2][0] + mat[0][2]) * s;
       q[2] = (mat[1][2] + mat[2][1]) * s;
+      if (UNLIKELY((trace == 1.0f) && (q[0] == 0.0f && q[1] == 0.0f && q[2] == 0.0f))) {
+        /* Avoids the need to normalize the degenerate case. */
+        q[3] = 1.0f;
+      }
     }
     else {
-      /* NOTE(@campbellbarton): A zero matrix will fall through to this block,
-       * needed so a zero scaled matrices to return a quaternion without rotation, see: T101848. */
+      /* NOTE(@ideasman42): A zero matrix will fall through to this block,
+       * needed so a zero scaled matrices to return a quaternion without rotation, see: #101848. */
       const float trace = 1.0f + mat[0][0] + mat[1][1] + mat[2][2];
       float s = 2.0f * sqrtf(trace);
       q[0] = 0.25f * s;
@@ -331,11 +343,15 @@ void mat3_normalized_to_quat_fast(float q[4], const float mat[3][3])
       q[1] = (mat[1][2] - mat[2][1]) * s;
       q[2] = (mat[2][0] - mat[0][2]) * s;
       q[3] = (mat[0][1] - mat[1][0]) * s;
+      if (UNLIKELY((trace == 1.0f) && (q[1] == 0.0f && q[2] == 0.0f && q[3] == 0.0f))) {
+        /* Avoids the need to normalize the degenerate case. */
+        q[0] = 1.0f;
+      }
     }
   }
 
   BLI_assert(!(q[0] < 0.0f));
-  normalize_qt(q);
+  BLI_ASSERT_UNIT_QUAT(q);
 }
 
 static void mat3_normalized_to_quat_with_checks(float q[4], float mat[3][3])
@@ -948,7 +964,7 @@ void sin_cos_from_fraction(int numerator, int denominator, float *r_sin, float *
   /* By default, creating a circle from an integer: calling #sinf & #cosf on the fraction doesn't
    * create symmetrical values (because floats can't represent Pi exactly).
    * Resolve this when the rotation is calculated from a fraction by mapping the `numerator`
-   * to lower values so X/Y values for points around a circle are exactly symmetrical, see T87779.
+   * to lower values so X/Y values for points around a circle are exactly symmetrical, see #87779.
    *
    * Multiply both the `numerator` and `denominator` by eight to ensure we can divide the circle
    * into 8 octants. For each octant, we then use symmetry and negation to bring the `numerator`

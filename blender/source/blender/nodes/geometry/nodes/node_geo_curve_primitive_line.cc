@@ -71,7 +71,7 @@ static void node_update(bNodeTree *ntree, bNode *node)
 static Curves *create_point_line_curve(const float3 start, const float3 end)
 {
   Curves *curves_id = bke::curves_new_nomain_single(2, CURVE_TYPE_POLY);
-  bke::CurvesGeometry &curves = bke::CurvesGeometry::wrap(curves_id->geometry);
+  bke::CurvesGeometry &curves = curves_id->geometry.wrap();
 
   curves.positions_for_write().first() = start;
   curves.positions_for_write().last() = end;
@@ -84,7 +84,7 @@ static Curves *create_direction_line_curve(const float3 start,
                                            const float length)
 {
   Curves *curves_id = bke::curves_new_nomain_single(2, CURVE_TYPE_POLY);
-  bke::CurvesGeometry &curves = bke::CurvesGeometry::wrap(curves_id->geometry);
+  bke::CurvesGeometry &curves = curves_id->geometry.wrap();
 
   curves.positions_for_write().first() = start;
   curves.positions_for_write().last() = math::normalize(direction) * length + start;
@@ -119,8 +119,8 @@ void register_node_type_geo_curve_primitive_line()
 
   static bNodeType ntype;
   geo_node_type_base(&ntype, GEO_NODE_CURVE_PRIMITIVE_LINE, "Curve Line", NODE_CLASS_GEOMETRY);
-  node_type_init(&ntype, file_ns::node_init);
-  node_type_update(&ntype, file_ns::node_update);
+  ntype.initfunc = file_ns::node_init;
+  ntype.updatefunc = file_ns::node_update;
   node_type_storage(&ntype,
                     "NodeGeometryCurvePrimitiveLine",
                     node_free_standard_storage,

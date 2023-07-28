@@ -388,8 +388,9 @@ class OCTANE_RENDER_PT_kernel(common.OctanePropertyPanel, Panel):
             draw_alpha_channel()
 
             box = layout.box()     
-            box.label(text="Sampling")            
-            col = box.column(align=True)  
+            box.label(text="Sampling")
+            col = box.column(align=True)
+            draw_static_noise()
             draw_parallel_samples()
             draw_tile_samples()
             draw_minimize_net_traffic()

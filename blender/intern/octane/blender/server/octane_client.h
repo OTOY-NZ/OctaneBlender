@@ -211,6 +211,7 @@ class OctaneClient {
   void startRender(bool bInteractive,
                    bool bUseSharedSurface,
                    uint64_t iClientProcessId,
+                   uint64_t iDeviceLuid,
                    int32_t iWidth,
                    int32_t iHeigth,
                    ImageType imgType,

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BLI_math_matrix.h"
+#include "BLI_math_matrix.hh"
 
 #include "BKE_geometry_set_instances.hh"
 #include "BKE_instances.hh"
@@ -45,19 +45,20 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  const float4x4 &object_matrix = object->object_to_world;
+  const float4x4 object_matrix = float4x4(object->object_to_world);
   const float4x4 transform = float4x4(self_object->world_to_object) * object_matrix;
 
+  float3 location, scale;
+  math::EulerXYZ rotation;
   if (transform_space_relative) {
-    params.set_output("Location", transform.translation());
-    params.set_output("Rotation", transform.to_euler());
-    params.set_output("Scale", transform.scale());
+    math::to_loc_rot_scale(transform, location, rotation, scale);
   }
   else {
-    params.set_output("Location", object_matrix.translation());
-    params.set_output("Rotation", object_matrix.to_euler());
-    params.set_output("Scale", object_matrix.scale());
+    math::to_loc_rot_scale(object_matrix, location, rotation, scale);
   }
+  params.set_output("Location", location);
+  params.set_output("Rotation", float3(rotation));
+  params.set_output("Scale", scale);
 
   if (params.output_is_required("Geometry")) {
     if (object == self_object) {
@@ -106,7 +107,7 @@ void register_node_type_geo_object_info()
   static bNodeType ntype;
 
   geo_node_type_base(&ntype, GEO_NODE_OBJECT_INFO, "Object Info", NODE_CLASS_INPUT);
-  node_type_init(&ntype, file_ns::node_node_init);
+  ntype.initfunc = file_ns::node_node_init;
   node_type_storage(
       &ntype, "NodeGeometryObjectInfo", node_free_standard_storage, node_copy_standard_storage);
   ntype.geometry_node_execute = file_ns::node_geo_exec;

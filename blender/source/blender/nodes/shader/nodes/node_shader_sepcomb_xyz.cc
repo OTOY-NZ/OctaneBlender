@@ -27,25 +27,23 @@ static int gpu_shader_sepxyz(GPUMaterial *mat,
   return GPU_stack_link(mat, node, "separate_xyz", in, out);
 }
 
-class MF_SeparateXYZ : public fn::MultiFunction {
+class MF_SeparateXYZ : public mf::MultiFunction {
  public:
   MF_SeparateXYZ()
   {
-    static fn::MFSignature signature = create_signature();
+    static const mf::Signature signature = []() {
+      mf::Signature signature;
+      mf::SignatureBuilder builder{"Separate XYZ", signature};
+      builder.single_input<float3>("XYZ");
+      builder.single_output<float>("X", mf::ParamFlag::SupportsUnusedOutput);
+      builder.single_output<float>("Y", mf::ParamFlag::SupportsUnusedOutput);
+      builder.single_output<float>("Z", mf::ParamFlag::SupportsUnusedOutput);
+      return signature;
+    }();
     this->set_signature(&signature);
   }
 
-  static fn::MFSignature create_signature()
-  {
-    fn::MFSignatureBuilder signature{"Separate XYZ"};
-    signature.single_input<float3>("XYZ");
-    signature.single_output<float>("X");
-    signature.single_output<float>("Y");
-    signature.single_output<float>("Z");
-    return signature.build();
-  }
-
-  void call(IndexMask mask, fn::MFParams params, fn::MFContext /*context*/) const override
+  void call(IndexMask mask, mf::Params params, mf::Context /*context*/) const override
   {
     const VArray<float3> &vectors = params.readonly_single_input<float3>(0, "XYZ");
     MutableSpan<float> xs = params.uninitialized_single_output_if_required<float>(1, "X");
@@ -97,7 +95,7 @@ void register_node_type_sh_sepxyz()
 
   sh_fn_node_type_base(&ntype, SH_NODE_SEPXYZ, "Separate XYZ", NODE_CLASS_CONVERTER);
   ntype.declare = file_ns::sh_node_sepxyz_declare;
-  node_type_gpu(&ntype, file_ns::gpu_shader_sepxyz);
+  ntype.gpu_fn = file_ns::gpu_shader_sepxyz;
   ntype.build_multi_function = file_ns::sh_node_sepxyz_build_multi_function;
 
   nodeRegisterType(&ntype);
@@ -125,10 +123,10 @@ static int gpu_shader_combxyz(GPUMaterial *mat,
 
 static void sh_node_combxyz_build_multi_function(NodeMultiFunctionBuilder &builder)
 {
-  static fn::CustomMF_SI_SI_SI_SO<float, float, float, float3> fn{
+  static auto fn = mf::build::SI3_SO<float, float, float, float3>(
       "Combine Vector",
       [](float x, float y, float z) { return float3(x, y, z); },
-      fn::CustomMF_presets::AllSpanOrSingle()};
+      mf::build::exec_presets::AllSpanOrSingle());
   builder.set_matching_fn(fn);
 }
 
@@ -142,7 +140,7 @@ void register_node_type_sh_combxyz()
 
   sh_fn_node_type_base(&ntype, SH_NODE_COMBXYZ, "Combine XYZ", NODE_CLASS_CONVERTER);
   ntype.declare = file_ns::sh_node_combxyz_declare;
-  node_type_gpu(&ntype, file_ns::gpu_shader_combxyz);
+  ntype.gpu_fn = file_ns::gpu_shader_combxyz;
   ntype.build_multi_function = file_ns::sh_node_combxyz_build_multi_function;
 
   nodeRegisterType(&ntype);

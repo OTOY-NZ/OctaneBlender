@@ -2048,7 +2048,8 @@ static void resolve_octane_outputs(std::string shader_name,
               link_resolver.add_octane_output(current_name, ENVIRONMENT_NODE_NAME);
             }
           }
-          else if (b_to_node.bl_idname() == "OctaneRenderAOVsOutputNode") {
+          else if (b_to_node.bl_idname() == "OctaneRenderAOVsOutputNode" ||
+                   b_to_node.bl_idname() == "OctaneRenderAOVOutputNode") {
             link_resolver.add_octane_output(current_name, OCTANE_BLENDER_RENDER_AOV_NODE);
           }
           else if (b_to_node.bl_idname() == "OctaneAOVOutputGroupOutputNode") {
@@ -3091,7 +3092,8 @@ BL::Node BlenderSync::find_active_render_aov_output(BL::NodeTree &node_tree)
   BL::Node active_output(PointerRNA_NULL);
   BL::NodeTree::nodes_iterator b_node;
   for (node_tree.nodes.begin(b_node); b_node != node_tree.nodes.end(); ++b_node) {
-    if (b_node->bl_idname() == "OctaneRenderAOVsOutputNode") {
+    if (b_node->bl_idname() == "OctaneRenderAOVsOutputNode" ||
+        b_node->bl_idname() == "OctaneRenderAOVOutputNode") {
       bool active = get_boolean(b_node->ptr, "active");
       if (active) {
         active_output = BL::Node(b_node->ptr);

@@ -180,6 +180,7 @@ void Session::run_render()
             params.interactive,
             params.use_shared_surface,
             params.process_id,
+            params.device_luid,
             params.width,
             params.height,
             params.interactive ? ::OctaneEngine::IMAGE_8BIT :

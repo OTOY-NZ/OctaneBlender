@@ -3,48 +3,56 @@
 #pragma BLENDER_REQUIRE(common_math_lib.glsl)
 #pragma BLENDER_REQUIRE(common_math_lib.glsl)
 
-#define SURFACE_INTERFACE \
-  vec3 worldPosition; \
-  vec3 viewPosition; \
-  vec3 worldNormal; \
-  vec3 viewNormal;
-
-#ifndef IN_OUT
-#  if defined(GPU_VERTEX_SHADER)
-#    define IN_OUT out
-#  elif defined(GPU_FRAGMENT_SHADER)
-#    define IN_OUT in
-#  endif
-#endif
-
-#ifndef EEVEE_GENERATED_INTERFACE
-#  if defined(STEP_RESOLVE) || defined(STEP_RAYTRACE)
-/* SSR will set these global variables itself.
+/* Global interface for SSR.
+ * SSR will set these global variables itself.
  * Also make false positive compiler warnings disappear by setting values. */
-vec3 worldPosition = vec3(0);
-vec3 viewPosition = vec3(0);
-vec3 worldNormal = vec3(0);
-vec3 viewNormal = vec3(0);
+#define SSR_INTERFACE \
+  vec3 worldPosition = vec3(0); \
+  vec3 viewPosition = vec3(0); \
+  vec3 worldNormal = vec3(0); \
+  vec3 viewNormal = vec3(0);
 
-#  elif defined(GPU_GEOMETRY_SHADER)
+/* Skip interface declaration when using create-info. */
+#ifndef USE_GPU_SHADER_CREATE_INFO
+
+#  define SURFACE_INTERFACE \
+    vec3 worldPosition; \
+    vec3 viewPosition; \
+    vec3 worldNormal; \
+    vec3 viewNormal;
+
+#  ifndef IN_OUT
+#    if defined(GPU_VERTEX_SHADER)
+#      define IN_OUT out
+#    elif defined(GPU_FRAGMENT_SHADER)
+#      define IN_OUT in
+#    endif
+#  endif
+
+#  ifndef EEVEE_GENERATED_INTERFACE
+#    if defined(STEP_RESOLVE) || defined(STEP_RAYTRACE)
+
+SSR_INTERFACE
+
+#    elif defined(GPU_GEOMETRY_SHADER)
 in ShaderStageInterface{SURFACE_INTERFACE} dataIn[];
 
 out ShaderStageInterface{SURFACE_INTERFACE} dataOut;
 
-#    define PASS_SURFACE_INTERFACE(vert) \
-      dataOut.worldPosition = dataIn[vert].worldPosition; \
-      dataOut.viewPosition = dataIn[vert].viewPosition; \
-      dataOut.worldNormal = dataIn[vert].worldNormal; \
-      dataOut.viewNormal = dataIn[vert].viewNormal;
+#      define PASS_SURFACE_INTERFACE(vert) \
+        dataOut.worldPosition = dataIn[vert].worldPosition; \
+        dataOut.viewPosition = dataIn[vert].viewPosition; \
+        dataOut.worldNormal = dataIn[vert].worldNormal; \
+        dataOut.viewNormal = dataIn[vert].viewNormal;
 
-#  else /* GPU_VERTEX_SHADER || GPU_FRAGMENT_SHADER*/
+#    else /* GPU_VERTEX_SHADER || GPU_FRAGMENT_SHADER */
 
 IN_OUT ShaderStageInterface{SURFACE_INTERFACE};
 
-#  endif
-#endif /* EEVEE_GENERATED_INTERFACE */
+#    endif
+#  endif /* EEVEE_GENERATED_INTERFACE */
 
-#ifdef HAIR_SHADER
+#  ifdef HAIR_SHADER
 IN_OUT ShaderHairInterface
 {
   /* world space */
@@ -55,9 +63,9 @@ IN_OUT ShaderHairInterface
   flat int hairStrandID;
   vec2 hairBary;
 };
-#endif
+#  endif
 
-#ifdef POINTCLOUD_SHADER
+#  ifdef POINTCLOUD_SHADER
 IN_OUT ShaderPointCloudInterface
 {
   /* world space */
@@ -65,13 +73,35 @@ IN_OUT ShaderPointCloudInterface
   float pointPosition;
   flat int pointID;
 };
-#endif
+#  endif
+
+#else
+/** Checks to ensure create-info is setup correctly. **/
+#  ifdef HAIR_SHADER
+#    ifndef USE_SURFACE_LIB_HAIR
+#error Ensure CreateInfo eevee_legacy_surface_lib_hair is included if using surface library with a hair shader.
+#    endif
+#  endif
+
+#  ifdef POINTCLOUD_SHADER
+#    ifndef USE_SURFACE_LIB_POINTCLOUD
+#error Ensure CreateInfo eevee_legacy_surface_lib_pointcloud is included if using surface library with a hair shader.
+#    endif
+#  endif
+
+/* SSR Global Interface. */
+#  if defined(STEP_RESOLVE) || defined(STEP_RAYTRACE)
+SSR_INTERFACE
+#  endif
+
+#endif /* USE_GPU_SHADER_CREATE_INFO */
 
 #if defined(GPU_FRAGMENT_SHADER) && defined(CODEGEN_LIB)
 
 #  if defined(USE_BARYCENTRICS) && !defined(HAIR_SHADER)
 vec3 barycentric_distances_get()
 {
+#    if defined(GPU_OPENGL)
   /* NOTE: No need to undo perspective divide since it is not applied yet. */
   vec3 pos0 = (ProjectionMatrixInverse * gpu_position_at_vertex(0)).xyz;
   vec3 pos1 = (ProjectionMatrixInverse * gpu_position_at_vertex(1)).xyz;
@@ -90,6 +120,17 @@ vec3 barycentric_distances_get()
   d = dot(d10, edge21);
   dists.z = sqrt(dot(edge21, edge21) - d * d);
   return dists.xyz;
+#    elif defined(GPU_METAL)
+  /* Calculate Barycentric distances from available parameters in Metal. */
+  float3 wp_delta = (length(dfdx(worldPosition.xyz)) + length(dfdy(worldPosition.xyz)));
+  float3 bc_delta = (length(dfdx(gpu_BaryCoord)) + length(dfdy(gpu_BaryCoord)));
+  float3 rate_of_change = wp_delta / bc_delta;
+  vec3 dists;
+  dists.x = length(rate_of_change * (1.0 - gpu_BaryCoord.x));
+  dists.y = length(rate_of_change * (1.0 - gpu_BaryCoord.y));
+  dists.z = length(rate_of_change * (1.0 - gpu_BaryCoord.z));
+  return dists.xyz;
+#    endif
 }
 #  endif
 

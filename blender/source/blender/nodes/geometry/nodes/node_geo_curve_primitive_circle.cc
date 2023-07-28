@@ -137,7 +137,7 @@ static Curves *create_point_circle_curve(
   }
 
   Curves *curves_id = bke::curves_new_nomain_single(resolution, CURVE_TYPE_POLY);
-  bke::CurvesGeometry &curves = bke::CurvesGeometry::wrap(curves_id->geometry);
+  bke::CurvesGeometry &curves = curves_id->geometry.wrap();
   curves.cyclic_for_write().first() = true;
 
   MutableSpan<float3> positions = curves.positions_for_write();
@@ -163,7 +163,7 @@ static Curves *create_point_circle_curve(
 static Curves *create_radius_circle_curve(const int resolution, const float radius)
 {
   Curves *curves_id = bke::curves_new_nomain_single(resolution, CURVE_TYPE_POLY);
-  bke::CurvesGeometry &curves = bke::CurvesGeometry::wrap(curves_id->geometry);
+  bke::CurvesGeometry &curves = curves_id->geometry.wrap();
   curves.cyclic_for_write().first() = true;
 
   MutableSpan<float3> positions = curves.positions_for_write();
@@ -217,8 +217,8 @@ void register_node_type_geo_curve_primitive_circle()
   static bNodeType ntype;
   geo_node_type_base(&ntype, GEO_NODE_CURVE_PRIMITIVE_CIRCLE, "Curve Circle", NODE_CLASS_GEOMETRY);
 
-  node_type_init(&ntype, file_ns::node_init);
-  node_type_update(&ntype, file_ns::node_update);
+  ntype.initfunc = file_ns::node_init;
+  ntype.updatefunc = file_ns::node_update;
   node_type_storage(&ntype,
                     "NodeGeometryCurvePrimitiveCircle",
                     node_free_standard_storage,

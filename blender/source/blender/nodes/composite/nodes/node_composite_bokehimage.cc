@@ -6,7 +6,7 @@
  */
 
 #include "BLI_math_base.h"
-#include "BLI_math_vec_types.hh"
+#include "BLI_math_vector_types.hh"
 
 #include "UI_interface.h"
 #include "UI_resources.h"
@@ -122,7 +122,7 @@ void register_node_type_cmp_bokehimage()
   ntype.declare = file_ns::cmp_node_bokehimage_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_bokehimage;
   ntype.flag |= NODE_PREVIEW;
-  node_type_init(&ntype, file_ns::node_composit_init_bokehimage);
+  ntype.initfunc = file_ns::node_composit_init_bokehimage;
   node_type_storage(
       &ntype, "NodeBokehImage", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;

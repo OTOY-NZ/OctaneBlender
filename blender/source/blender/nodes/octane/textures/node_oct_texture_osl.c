@@ -36,7 +36,7 @@ static bNodeSocketTemplate sh_node_in[] = {{-1, ""}};
 
 static bNodeSocketTemplate sh_node_out[] = {{SOCK_RGBA, N_("OutTex")}, {-1, ""}};
 
-static void init(bNodeTree *UNUSED(ntree), bNode *node)
+static void init(bNodeTree *ntree, bNode *node)
 {
   NodeShaderScript *nss = MEM_cnew<NodeShaderScript>("shader script node");
   node->storage = nss;
@@ -55,7 +55,7 @@ static void node_free_script(bNode *node)
   }
 }
 
-static void node_copy_script(bNodeTree *UNUSED(dest_ntree),
+static void node_copy_script(bNodeTree *dest_ntree,
                              bNode *dest_node,
                              const bNode *src_node)
 {
@@ -75,7 +75,7 @@ void register_node_type_tex_oct_osl_texture(void)
 
   sh_node_type_base(&ntype, SH_NODE_OCT_OSL_TEX, "OSL Tex", NODE_CLASS_OCT_TEXTURE);
   node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
-  node_type_init(&ntype, init);
+  ntype.initfunc = (init);
   node_type_storage(&ntype, "NodeShaderScript", node_free_script, node_copy_script);
 
   nodeRegisterType(&ntype);

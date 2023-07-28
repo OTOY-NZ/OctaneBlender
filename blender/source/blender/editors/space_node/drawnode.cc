@@ -232,7 +232,7 @@ NodeResizeDirection node_get_resize_direction(const bNode *node, const int x, co
 
     NodeResizeDirection dir = NODE_RESIZE_NONE;
 
-    const rctf &totr = node->totr;
+    const rctf &totr = node->runtime->totr;
     const float size = NODE_RESIZE_MARGIN;
 
     if (x > totr.xmax - size && x <= totr.xmax && y >= totr.ymin && y < totr.ymax) {
@@ -253,8 +253,8 @@ NodeResizeDirection node_get_resize_direction(const bNode *node, const int x, co
 
   if (node->flag & NODE_HIDDEN) {
     /* right part of node */
-    rctf totr = node->totr;
-    totr.xmin = node->totr.xmax - 1.0f * U.widget_unit;
+    rctf totr = node->runtime->totr;
+    totr.xmin = node->runtime->totr.xmax - 1.0f * U.widget_unit;
     if (BLI_rctf_isect_pt(&totr, x, y)) {
       return NODE_RESIZE_RIGHT;
     }
@@ -263,7 +263,7 @@ NodeResizeDirection node_get_resize_direction(const bNode *node, const int x, co
   }
 
   const float size = NODE_RESIZE_MARGIN;
-  const rctf &totr = node->totr;
+  const rctf &totr = node->runtime->totr;
   NodeResizeDirection dir = NODE_RESIZE_NONE;
 
   if (x >= totr.xmax - size && x < totr.xmax && y >= totr.ymin && y < totr.ymax) {
@@ -682,7 +682,7 @@ static void node_shader_buts_oct_toon_direction_light(uiLayout *layout,
 }
 
 static void node_shader_buts_oct_texture_reference(uiLayout *layout,
-                                                   bContext *UNUSED(C),
+                                                   bContext *C,
                                                    PointerRNA *ptr)
 {
   uiItemR(layout, ptr, "texture", 0, NULL, 0);
@@ -714,7 +714,7 @@ static void node_shader_buts_oct_hair_mat(uiLayout *layout, bContext *C, Pointer
 }
 
 static void node_shader_buts_oct_object_data(uiLayout *layout,
-                                             bContext *UNUSED(C),
+                                             bContext *C,
                                              PointerRNA *ptr)
 {
   uiItemR(layout, ptr, "target_primitive_coordinate_mode", DEFAULT_FLAGS | UI_ITEM_R_EXPAND, NULL, ICON_NONE);
@@ -723,7 +723,7 @@ static void node_shader_buts_oct_object_data(uiLayout *layout,
 }
 
 static void node_shader_buts_oct_scatter_tool_surface(uiLayout *layout,
-                                                      bContext *UNUSED(C),
+                                                      bContext *C,
                                                       PointerRNA *ptr)
 {
   uiItemR(layout, ptr, "object_selection_method", 0, NULL, 0);
@@ -739,7 +739,7 @@ static void node_shader_buts_oct_scatter_tool_surface(uiLayout *layout,
 }
 
 static void node_shader_buts_oct_scatter_tool_volume(uiLayout *layout,
-                                                     bContext *UNUSED(C),
+                                                     bContext *C,
                                                      PointerRNA *ptr)
 {
   uiItemR(layout, ptr, "object_selection_method", 0, NULL, 0);
@@ -753,21 +753,21 @@ static void node_shader_buts_oct_scatter_tool_volume(uiLayout *layout,
 }
 
 static void node_shader_buts_oct_channel_picker_tex(uiLayout *layout,
-                                                    bContext *UNUSED(C),
+                                                    bContext *C,
                                                     PointerRNA *ptr)
 {
   uiItemR(layout, ptr, "channel", 0, NULL, 0);
 }
 
 static void node_shader_buts_oct_spotlight_tex(uiLayout *layout,
-                                               bContext *UNUSED(C),
+                                               bContext *C,
                                                PointerRNA *ptr)
 {
   uiItemR(layout, ptr, "orientation", 0, NULL, 0);
 }
 
 static void node_shader_buts_oct_composite_layer_tex(uiLayout *layout,
-                                                     bContext *UNUSED(C),
+                                                     bContext *C,
                                                      PointerRNA *ptr)
 {
   uiItemR(layout, ptr, "blend_mode", 0, NULL, 0);
@@ -776,28 +776,28 @@ static void node_shader_buts_oct_composite_layer_tex(uiLayout *layout,
 }
 
 static void node_shader_buts_oct_composite_tex(uiLayout *layout,
-                                               bContext *UNUSED(C),
+                                               bContext *C,
                                                PointerRNA *ptr)
 {
   uiItemR(layout, ptr, "layer_number", 0, NULL, 0);
 }
 
 static void node_shader_buts_oct_aov_output_group(uiLayout *layout,
-                                                  bContext *UNUSED(C),
+                                                  bContext *C,
                                                   PointerRNA *ptr)
 {
   uiItemR(layout, ptr, "group_number", 0, NULL, 0);
 }
 
 static void node_shader_buts_oct_composite_aov_output(uiLayout *layout,
-                                                      bContext *UNUSED(C),
+                                                      bContext *C,
                                                       PointerRNA *ptr)
 {
   uiItemR(layout, ptr, "layer_number", 0, NULL, 0);
 }
 
 static void node_shader_buts_oct_composite_aov_output_layer(uiLayout *layout,
-                                                            bContext *UNUSED(C),
+                                                            bContext *C,
                                                             PointerRNA *ptr)
 {
   uiItemR(layout, ptr, "mask_channel", 0, NULL, 0);
@@ -806,7 +806,7 @@ static void node_shader_buts_oct_composite_aov_output_layer(uiLayout *layout,
 }
 
 static void node_shader_buts_oct_render_aov_output(uiLayout *layout,
-                                                   bContext *UNUSED(C),
+                                                   bContext *C,
                                                    PointerRNA *ptr)
 {
   uiItemR(layout, ptr, "input", 0, NULL, 0);
@@ -821,28 +821,28 @@ static void node_shader_buts_oct_image_aov_output(uiLayout *layout, bContext *C,
 }
 
 static void node_shader_buts_oct_raed_vdb_tex(uiLayout *layout,
-                                              bContext *UNUSED(C),
+                                              bContext *C,
                                               PointerRNA *ptr)
 {
   uiItemR(layout, ptr, "grid_id", 0, NULL, 0);
 }
 
 static void node_shader_buts_oct_binary_math_operation_tex(uiLayout *layout,
-                                                           bContext *UNUSED(C),
+                                                           bContext *C,
                                                            PointerRNA *ptr)
 {
   uiItemR(layout, ptr, "operation", 0, NULL, 0);
 }
 
 static void node_shader_buts_oct_unary_math_operation_tex(uiLayout *layout,
-                                                          bContext *UNUSED(C),
+                                                          bContext *C,
                                                           PointerRNA *ptr)
 {
   uiItemR(layout, ptr, "operation", 0, NULL, 0);
 }
 
 static void node_shader_buts_oct_gradient_generator_tex(uiLayout *layout,
-                                                        bContext *UNUSED(C),
+                                                        bContext *C,
                                                         PointerRNA *ptr)
 {
   uiItemR(layout, ptr, "gradient_type", 0, NULL, 0);
@@ -850,66 +850,66 @@ static void node_shader_buts_oct_gradient_generator_tex(uiLayout *layout,
 }
 
 static void node_shader_buts_oct_capture_to_custom_aov_tex(uiLayout *layout,
-                                                           bContext *UNUSED(C),
+                                                           bContext *C,
                                                            PointerRNA *ptr)
 {
   uiItemR(layout, ptr, "custom_aov", 0, NULL, 0);
 }
 
 static void node_shader_buts_oct_position_tex(uiLayout *layout,
-                                              bContext *UNUSED(C),
+                                              bContext *C,
                                               PointerRNA *ptr)
 {
   uiItemR(layout, ptr, "coordinate_system", 0, NULL, 0);
 }
 
 static void node_shader_buts_oct_relative_distance_tex(uiLayout *layout,
-                                                       bContext *UNUSED(C),
+                                                       bContext *C,
                                                        PointerRNA *ptr)
 {
   uiItemR(layout, ptr, "distance_mode", 0, NULL, 0);
 }
 
-static void node_shader_buts_oct_normal_tex(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+static void node_shader_buts_oct_normal_tex(uiLayout *layout, bContext *C, PointerRNA *ptr)
 {
   uiItemR(layout, ptr, "coordinate_system", 0, NULL, 0);
   uiItemR(layout, ptr, "normal_type", 0, NULL, 0);
 }
 
-static void node_shader_buts_oct_range_tex(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+static void node_shader_buts_oct_range_tex(uiLayout *layout, bContext *C, PointerRNA *ptr)
 {
   uiItemR(layout, ptr, "interpolation", 0, NULL, 0);
 }
 
 static void node_shader_buts_oct_random_map_tex(uiLayout *layout,
-                                                bContext *UNUSED(C),
+                                                bContext *C,
                                                 PointerRNA *ptr)
 {
   uiItemR(layout, ptr, "noise_function", 0, NULL, 0);
 }
 
 static void node_shader_buts_oct_ray_direction_tex(uiLayout *layout,
-                                                   bContext *UNUSED(C),
+                                                   bContext *C,
                                                    PointerRNA *ptr)
 {
   uiItemR(layout, ptr, "coordinate_system", 0, NULL, 0);
 }
 
 static void node_shader_buts_oct_clamp_aov_output(uiLayout *layout,
-                                                   bContext *UNUSED(C),
+                                                   bContext *C,
                                                    PointerRNA *ptr)
 {
   uiItemR(layout, ptr, "color_channels", 0, NULL, 0);
 }
 
 static void node_shader_buts_oct_map_range_aov_output(uiLayout *layout,
-                                                   bContext *UNUSED(C),
+                                                   bContext *C,
                                                    PointerRNA *ptr)
 {
   uiItemR(layout, ptr, "channel", 0, NULL, 0);
 }
 
-static void _node_shader_buts_script(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+static void _node_shader_buts_script(uiLayout *layout, bContext *C, PointerRNA *ptr)
 {
   uiLayout *row;
 
@@ -1964,7 +1964,7 @@ static bool socket_needs_attribute_search(bNode &node, bNodeSocket &socket)
     return false;
   }
   const int socket_index = BLI_findindex(&node.inputs, &socket);
-  return node.runtime->declaration->inputs()[socket_index]->is_attribute_name();
+  return node.declaration()->inputs[socket_index]->is_attribute_name;
 }
 
 static void std_node_socket_draw(
@@ -1981,7 +1981,8 @@ static void std_node_socket_draw(
     return;
   }
 
-  if ((sock->in_out == SOCK_OUT) || (sock->flag & SOCK_IN_USE) || (sock->flag & SOCK_HIDE_VALUE)) {
+  if ((sock->in_out == SOCK_OUT) || (sock->flag & SOCK_IS_LINKED) ||
+      (sock->flag & SOCK_HIDE_VALUE)) {
     node_socket_button_label(C, layout, ptr, node_ptr, text);
     return;
   }
@@ -2143,6 +2144,7 @@ static void std_node_socket_interface_draw(bContext * /*C*/, uiLayout *layout, P
     case SOCK_STRING:
     case SOCK_OBJECT:
     case SOCK_COLLECTION:
+    case SOCK_IMAGE:
     case SOCK_TEXTURE:
     case SOCK_MATERIAL: {
       uiItemR(col, ptr, "default_value", DEFAULT_FLAGS, IFACE_("Default"), 0);
@@ -2150,7 +2152,13 @@ static void std_node_socket_interface_draw(bContext * /*C*/, uiLayout *layout, P
     }
   }
 
-  uiItemR(layout, ptr, "hide_value", DEFAULT_FLAGS, nullptr, 0);
+  col = uiLayoutColumn(layout, false);
+  uiItemR(col, ptr, "hide_value", DEFAULT_FLAGS, nullptr, 0);
+
+  const bNodeTree *node_tree = reinterpret_cast<const bNodeTree *>(ptr->owner_id);
+  if (sock->in_out == SOCK_IN && node_tree->type == NTREE_GEOMETRY) {
+    uiItemR(col, ptr, "hide_in_modifier", DEFAULT_FLAGS, nullptr, 0);
+  }
 }
 
 static void node_socket_virtual_draw_color(bContext * /*C*/,
@@ -2273,10 +2281,10 @@ static float2 socket_link_connection_location(const bNode &node,
                                               const bNodeSocket &socket,
                                               const bNodeLink &link)
 {
-  const float2 socket_location(socket.locx, socket.locy);
+  const float2 socket_location = socket.runtime->location;
   if (socket.is_multi_input() && socket.is_input() && !(node.flag & NODE_HIDDEN)) {
     return node_link_calculate_multi_input_position(
-        socket_location, link.multi_input_socket_index, socket.total_inputs);
+        socket_location, link.multi_input_socket_index, socket.runtime->total_inputs);
   }
   return socket_location;
 }
@@ -2715,6 +2723,8 @@ static NodeLinkDrawConfig nodelink_get_draw_config(const bContext &C,
   draw_config.th_col2 = th_col2;
   draw_config.th_col3 = th_col3;
 
+  const bNodeTree &node_tree = *snode.edittree;
+
   draw_config.dim_factor = selected ? 1.0f : node_link_dim_factor(v2d, link);
 
   bTheme *btheme = UI_GetTheme();
@@ -2737,24 +2747,21 @@ static NodeLinkDrawConfig nodelink_get_draw_config(const bContext &C,
   if (snode.overlay.flag & SN_OVERLAY_SHOW_OVERLAYS &&
       snode.overlay.flag & SN_OVERLAY_SHOW_WIRE_COLORS) {
     PointerRNA from_node_ptr, to_node_ptr;
-    RNA_pointer_create((ID *)snode.edittree, &RNA_Node, link.fromnode, &from_node_ptr);
-    RNA_pointer_create((ID *)snode.edittree, &RNA_Node, link.tonode, &to_node_ptr);
+    RNA_pointer_create((ID *)&node_tree, &RNA_Node, link.fromnode, &from_node_ptr);
+    RNA_pointer_create((ID *)&node_tree, &RNA_Node, link.tonode, &to_node_ptr);
 
     if (link.fromsock) {
-      node_socket_color_get(
-          C, *snode.edittree, from_node_ptr, *link.fromsock, draw_config.start_color);
+      node_socket_color_get(C, node_tree, from_node_ptr, *link.fromsock, draw_config.start_color);
     }
     else {
-      node_socket_color_get(
-          C, *snode.edittree, to_node_ptr, *link.tosock, draw_config.start_color);
+      node_socket_color_get(C, node_tree, to_node_ptr, *link.tosock, draw_config.start_color);
     }
 
     if (link.tosock) {
-      node_socket_color_get(C, *snode.edittree, to_node_ptr, *link.tosock, draw_config.end_color);
+      node_socket_color_get(C, node_tree, to_node_ptr, *link.tosock, draw_config.end_color);
     }
     else {
-      node_socket_color_get(
-          C, *snode.edittree, from_node_ptr, *link.fromsock, draw_config.end_color);
+      node_socket_color_get(C, node_tree, from_node_ptr, *link.fromsock, draw_config.end_color);
     }
   }
   else {
@@ -2887,7 +2894,7 @@ void node_draw_link(const bContext &C,
   }
 
   /* Links from field to non-field sockets are not allowed. */
-  if (snode.edittree->type == NTREE_GEOMETRY && !(link.flag & NODE_LINK_DRAGGED)) {
+  if (snode.edittree->type == NTREE_GEOMETRY) {
     if ((link.fromsock && link.fromsock->display_shape == SOCK_DISPLAY_SHAPE_DIAMOND) &&
         (link.tosock && link.tosock->display_shape == SOCK_DISPLAY_SHAPE_CIRCLE)) {
       th_col1 = th_col2 = th_col3 = TH_REDALERT;

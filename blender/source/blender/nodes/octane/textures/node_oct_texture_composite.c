@@ -206,7 +206,7 @@ static void node_type_tex_oct_composite_init(bNodeTree *ntree, bNode *node)
   node->custom1 = 2;
 }
 
-static void node_shader_update_composite_tex(bNodeTree *UNUSED(ntree), bNode *node)
+static void node_shader_update_composite_tex(bNodeTree *ntree, bNode *node)
 {
   bNodeSocket *sock;
   int layer_number = node->custom1;
@@ -236,9 +236,9 @@ void register_node_type_tex_oct_composite(void)
         &ntype, SH_NODE_OCT_COMPOSITE_TEX, "Composite Tex", NODE_CLASS_OCT_TEXTURE);
   node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
   node_type_size(&ntype, 160, 160, 500);
-  node_type_init(&ntype, node_type_tex_oct_composite_init);
-  node_type_exec(&ntype, 0, 0, 0);
-  node_type_update(&ntype, node_shader_update_composite_tex);
+  ntype.initfunc = (node_type_tex_oct_composite_init);
+  // node_type_exec(&ntype, 0, 0, 0);
+  ntype.updatefunc = (node_shader_update_composite_tex);
   
 
   nodeRegisterType(&ntype);

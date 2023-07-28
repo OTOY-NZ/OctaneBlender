@@ -1042,7 +1042,7 @@ void BlenderSync::update_octane_universal_camera_properties(Camera *cam, Pointer
   universalCamera.f2LensShift.fVal.x = cam->oct_node.f2LensShift.x;
   universalCamera.f2LensShift.fVal.y = cam->oct_node.f2LensShift.y;
   universalCamera.fPixelAspectRatio.fVal = cam->oct_node.fPixelAspect;
-
+  universalCamera.bPerspectiveCorrection.bVal = RNA_boolean_get(&oct_camera, "universal_perspective_correction");
   universalCamera.fFisheyeAngle.fVal = RNA_float_get(&oct_camera, "fisheye_angle");
   universalCamera.iFisheyeType.iVal = RNA_enum_get(&oct_camera, "fisheye_type");
   universalCamera.bHardVignette.bVal = RNA_boolean_get(&oct_camera, "hard_vignette");

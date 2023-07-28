@@ -102,15 +102,15 @@ static int gpu_shader_math(GPUMaterial *mat,
   return 0;
 }
 
-static const fn::MultiFunction *get_base_multi_function(const bNode &node)
+static const mf::MultiFunction *get_base_multi_function(const bNode &node)
 {
   const int mode = node.custom1;
-  const fn::MultiFunction *base_fn = nullptr;
+  const mf::MultiFunction *base_fn = nullptr;
 
   try_dispatch_float_math_fl_to_fl(
       mode, [&](auto devi_fn, auto function, const FloatMathOperationInfo &info) {
-        static fn::CustomMF_SI_SO<float, float> fn{
-            info.title_case_name.c_str(), function, devi_fn};
+        static auto fn = mf::build::SI1_SO<float, float>(
+            info.title_case_name.c_str(), function, devi_fn);
         base_fn = &fn;
       });
   if (base_fn != nullptr) {
@@ -119,8 +119,8 @@ static const fn::MultiFunction *get_base_multi_function(const bNode &node)
 
   try_dispatch_float_math_fl_fl_to_fl(
       mode, [&](auto devi_fn, auto function, const FloatMathOperationInfo &info) {
-        static fn::CustomMF_SI_SI_SO<float, float, float> fn{
-            info.title_case_name.c_str(), function, devi_fn};
+        static auto fn = mf::build::SI2_SO<float, float, float>(
+            info.title_case_name.c_str(), function, devi_fn);
         base_fn = &fn;
       });
   if (base_fn != nullptr) {
@@ -129,8 +129,8 @@ static const fn::MultiFunction *get_base_multi_function(const bNode &node)
 
   try_dispatch_float_math_fl_fl_fl_to_fl(
       mode, [&](auto devi_fn, auto function, const FloatMathOperationInfo &info) {
-        static fn::CustomMF_SI_SI_SI_SO<float, float, float, float> fn{
-            info.title_case_name.c_str(), function, devi_fn};
+        static auto fn = mf::build::SI3_SO<float, float, float, float>(
+            info.title_case_name.c_str(), function, devi_fn);
         base_fn = &fn;
       });
   if (base_fn != nullptr) {
@@ -140,17 +140,17 @@ static const fn::MultiFunction *get_base_multi_function(const bNode &node)
   return nullptr;
 }
 
-class ClampWrapperFunction : public fn::MultiFunction {
+class ClampWrapperFunction : public mf::MultiFunction {
  private:
-  const fn::MultiFunction &fn_;
+  const mf::MultiFunction &fn_;
 
  public:
-  ClampWrapperFunction(const fn::MultiFunction &fn) : fn_(fn)
+  ClampWrapperFunction(const mf::MultiFunction &fn) : fn_(fn)
   {
     this->set_signature(&fn.signature());
   }
 
-  void call(IndexMask mask, fn::MFParams params, fn::MFContext context) const override
+  void call(IndexMask mask, mf::Params params, mf::Context context) const override
   {
     fn_.call(mask, params, context);
 
@@ -168,7 +168,7 @@ class ClampWrapperFunction : public fn::MultiFunction {
 
 static void sh_node_math_build_multi_function(NodeMultiFunctionBuilder &builder)
 {
-  const fn::MultiFunction *base_function = get_base_multi_function(builder.node());
+  const mf::MultiFunction *base_function = get_base_multi_function(builder.node());
 
   const bool clamp_output = builder.node().custom2 != 0;
   if (clamp_output) {
@@ -190,8 +190,8 @@ void register_node_type_sh_math()
   sh_fn_node_type_base(&ntype, SH_NODE_MATH, "Math", NODE_CLASS_CONVERTER);
   ntype.declare = file_ns::sh_node_math_declare;
   ntype.labelfunc = node_math_label;
-  node_type_gpu(&ntype, file_ns::gpu_shader_math);
-  node_type_update(&ntype, node_math_update);
+  ntype.gpu_fn = file_ns::gpu_shader_math;
+  ntype.updatefunc = node_math_update;
   ntype.build_multi_function = file_ns::sh_node_math_build_multi_function;
   ntype.gather_link_search_ops = file_ns::sh_node_math_gather_link_searches;
 

@@ -315,6 +315,23 @@ class OctaneInfoChannelsKernelAlphachannel(OctaneBaseSocket):
     octane_end_version=4294967295
     octane_deprecated=False
 
+class OctaneInfoChannelsKernelStaticNoise(OctaneBaseSocket):
+    bl_idname="OctaneInfoChannelsKernelStaticNoise"
+    bl_label="Static noise"
+    color=consts.OctanePinColor.Bool
+    octane_default_node_type=consts.NodeType.NT_BOOL
+    octane_default_node_name="OctaneBoolValue"
+    octane_pin_id=consts.PinID.P_STATIC_NOISE
+    octane_pin_name="staticNoise"
+    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_index=16
+    octane_socket_type=consts.SocketType.ST_BOOL
+    default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="If enabled, the noise patterns are kept stable between frames")
+    octane_hide_value=False
+    octane_min_version=12000101
+    octane_end_version=4294967295
+    octane_deprecated=False
+
 class OctaneInfoChannelsKernelParallelSamples(OctaneBaseSocket):
     bl_idname="OctaneInfoChannelsKernelParallelSamples"
     bl_label="Parallel samples"
@@ -324,7 +341,7 @@ class OctaneInfoChannelsKernelParallelSamples(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_PARALLEL_SAMPLES
     octane_pin_name="parallelSamples"
     octane_pin_type=consts.PinType.PT_INT
-    octane_pin_index=16
+    octane_pin_index=17
     octane_socket_type=consts.SocketType.ST_INT
     default_value: IntProperty(default=16, update=OctaneBaseSocket.update_node_tree, description="Specifies the number of samples that are run in parallel. A small number means less parallel samples and less memory usage, but potentially slower speed. A large number means more memory usage and potentially a higher speed", min=1, max=32, soft_min=1, soft_max=32, step=1, subtype="FACTOR")
     octane_hide_value=False
@@ -341,7 +358,7 @@ class OctaneInfoChannelsKernelMaxTileSamples(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_MAX_TILE_SAMPLES
     octane_pin_name="maxTileSamples"
     octane_pin_type=consts.PinType.PT_INT
-    octane_pin_index=17
+    octane_pin_index=18
     octane_socket_type=consts.SocketType.ST_INT
     default_value: IntProperty(default=32, update=OctaneBaseSocket.update_node_tree, description="The maximum samples we calculate until we switch to a new tile", min=1, max=64, soft_min=1, soft_max=64, step=1, subtype="FACTOR")
     octane_hide_value=False
@@ -358,7 +375,7 @@ class OctaneInfoChannelsKernelMinimizeNetTraffic(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_MINIMIZE_NET_TRAFFIC
     octane_pin_name="minimizeNetTraffic"
     octane_pin_type=consts.PinType.PT_BOOL
-    octane_pin_index=18
+    octane_pin_index=19
     octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="If enabled, the work is distributed to the network render nodes in such a way to minimize the amount of data that is sent to the network render master")
     octane_hide_value=False
@@ -375,7 +392,7 @@ class OctaneInfoChannelsKernelWhiteLightSpectrum(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_WHITE_LIGHT_SPECTRUM
     octane_pin_name="whiteLightSpectrum"
     octane_pin_type=consts.PinType.PT_ENUM
-    octane_pin_index=19
+    octane_pin_index=20
     octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("D65", "D65", "", 1),
@@ -396,7 +413,7 @@ class OctaneInfoChannelsKernelDeepEnable(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_DEEP_ENABLE
     octane_pin_name="deepEnable"
     octane_pin_type=consts.PinType.PT_BOOL
-    octane_pin_index=20
+    octane_pin_index=21
     octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Render a deep image")
     octane_hide_value=False
@@ -413,7 +430,7 @@ class OctaneInfoChannelsKernelDeepEnablePasses(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_DEEP_ENABLE_PASSES
     octane_pin_name="deepEnablePasses"
     octane_pin_type=consts.PinType.PT_BOOL
-    octane_pin_index=21
+    octane_pin_index=22
     octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Include render AOVs in deep pixels")
     octane_hide_value=False
@@ -430,7 +447,7 @@ class OctaneInfoChannelsKernelMaxDepthSamples(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_MAX_DEPTH_SAMPLES
     octane_pin_name="maxDepthSamples"
     octane_pin_type=consts.PinType.PT_INT
-    octane_pin_index=22
+    octane_pin_index=23
     octane_socket_type=consts.SocketType.ST_INT
     default_value: IntProperty(default=8, update=OctaneBaseSocket.update_node_tree, description="Maximum number of depth samples per pixels", min=1, max=32, soft_min=1, soft_max=32, step=1, subtype="FACTOR")
     octane_hide_value=False
@@ -447,7 +464,7 @@ class OctaneInfoChannelsKernelDepthTolerance(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_DEPTH_TOLERANCE
     octane_pin_name="depthTolerance"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=23
+    octane_pin_index=24
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.050000, update=OctaneBaseSocket.update_node_tree, description="Depth samples whose relative depth difference falls below the tolerance value are merged together", min=0.001000, max=1.000000, soft_min=0.001000, soft_max=1.000000, step=1, precision=3, subtype="NONE")
     octane_hide_value=False
@@ -464,7 +481,7 @@ class OctaneInfoChannelsKernelDistributedTracing(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_DISTRUBUTED_TRACING
     octane_pin_name="distributedTracing"
     octane_pin_type=consts.PinType.PT_BOOL
-    octane_pin_index=24
+    octane_pin_index=25
     octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Enable depth of field and motion blur")
     octane_hide_value=False
@@ -481,7 +498,7 @@ class OctaneInfoChannelsKernelAlphashadows(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_ALPHA_SHADOWS
     octane_pin_name="alphashadows"
     octane_pin_type=consts.PinType.PT_BOOL
-    octane_pin_index=25
+    octane_pin_index=26
     octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Take into account alpha maps when calculating ambient occlusion")
     octane_hide_value=False
@@ -498,7 +515,7 @@ class OctaneInfoChannelsKernelUseOldColorPipeline(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_USE_OLD_COLOR_PIPELINE
     octane_pin_name="useOldColorPipeline"
     octane_pin_type=consts.PinType.PT_BOOL
-    octane_pin_index=26
+    octane_pin_index=27
     octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Use the old behavior for converting colors to and from spectra and for applying white balance. Use this to preserve the appearance of old projects (textures with colors outside the sRGB gamut will be rendered inaccurately)")
     octane_hide_value=False
@@ -519,7 +536,7 @@ class OctaneInfoChannelsKernelGroupAlphaChannel(OctaneGroupTitleSocket):
 class OctaneInfoChannelsKernelGroupSampling(OctaneGroupTitleSocket):
     bl_idname="OctaneInfoChannelsKernelGroupSampling"
     bl_label="[OctaneGroupTitle]Sampling"
-    octane_group_sockets: StringProperty(name="Group Sockets", default="Parallel samples;Max. tile samples;Minimize net traffic;")
+    octane_group_sockets: StringProperty(name="Group Sockets", default="Static noise;Parallel samples;Max. tile samples;Minimize net traffic;")
 
 class OctaneInfoChannelsKernelGroupColor(OctaneGroupTitleSocket):
     bl_idname="OctaneInfoChannelsKernelGroupColor"
@@ -540,15 +557,15 @@ class OctaneInfoChannelsKernel(bpy.types.Node, OctaneBaseKernelNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
-    octane_socket_class_list=[OctaneInfoChannelsKernelGroupQuality,OctaneInfoChannelsKernelMaxsamples,OctaneInfoChannelsKernelType,OctaneInfoChannelsKernelRayepsilon,OctaneInfoChannelsKernelFiltersize,OctaneInfoChannelsKernelAodist,OctaneInfoChannelsKernelAoAlphaShadows,OctaneInfoChannelsKernelOpacity,OctaneInfoChannelsKernelZDepthMax,OctaneInfoChannelsKernelUVMax,OctaneInfoChannelsKernelUvSet,OctaneInfoChannelsKernelMaxSpeed,OctaneInfoChannelsKernelSamplingMode,OctaneInfoChannelsKernelBump,OctaneInfoChannelsKernelHighlightBackfaces,OctaneInfoChannelsKernelMaxsubdLevel,OctaneInfoChannelsKernelDistributedTracing,OctaneInfoChannelsKernelAlphashadows,OctaneInfoChannelsKernelGroupAlphaChannel,OctaneInfoChannelsKernelAlphachannel,OctaneInfoChannelsKernelGroupSampling,OctaneInfoChannelsKernelParallelSamples,OctaneInfoChannelsKernelMaxTileSamples,OctaneInfoChannelsKernelMinimizeNetTraffic,OctaneInfoChannelsKernelGroupColor,OctaneInfoChannelsKernelWhiteLightSpectrum,OctaneInfoChannelsKernelUseOldColorPipeline,OctaneInfoChannelsKernelGroupDeepImage,OctaneInfoChannelsKernelDeepEnable,OctaneInfoChannelsKernelDeepEnablePasses,OctaneInfoChannelsKernelMaxDepthSamples,OctaneInfoChannelsKernelDepthTolerance,]
+    octane_socket_class_list=[OctaneInfoChannelsKernelGroupQuality,OctaneInfoChannelsKernelMaxsamples,OctaneInfoChannelsKernelType,OctaneInfoChannelsKernelRayepsilon,OctaneInfoChannelsKernelFiltersize,OctaneInfoChannelsKernelAodist,OctaneInfoChannelsKernelAoAlphaShadows,OctaneInfoChannelsKernelOpacity,OctaneInfoChannelsKernelZDepthMax,OctaneInfoChannelsKernelUVMax,OctaneInfoChannelsKernelUvSet,OctaneInfoChannelsKernelMaxSpeed,OctaneInfoChannelsKernelSamplingMode,OctaneInfoChannelsKernelBump,OctaneInfoChannelsKernelHighlightBackfaces,OctaneInfoChannelsKernelMaxsubdLevel,OctaneInfoChannelsKernelDistributedTracing,OctaneInfoChannelsKernelAlphashadows,OctaneInfoChannelsKernelGroupAlphaChannel,OctaneInfoChannelsKernelAlphachannel,OctaneInfoChannelsKernelGroupSampling,OctaneInfoChannelsKernelStaticNoise,OctaneInfoChannelsKernelParallelSamples,OctaneInfoChannelsKernelMaxTileSamples,OctaneInfoChannelsKernelMinimizeNetTraffic,OctaneInfoChannelsKernelGroupColor,OctaneInfoChannelsKernelWhiteLightSpectrum,OctaneInfoChannelsKernelUseOldColorPipeline,OctaneInfoChannelsKernelGroupDeepImage,OctaneInfoChannelsKernelDeepEnable,OctaneInfoChannelsKernelDeepEnablePasses,OctaneInfoChannelsKernelMaxDepthSamples,OctaneInfoChannelsKernelDepthTolerance,]
     octane_min_version=0
     octane_node_type=consts.NodeType.NT_KERN_INFO
-    octane_socket_list=["Max. samples", "Type", "Ray epsilon", "Filter size", "AO distance", "AO alpha shadows", "Opacity threshold", "Maximum Z-depth", "UV max", "UV coordinate selection", "Max speed", "Sampling mode", "Bump and normal mapping", "Wireframe backface highlighting", "Max subdivision level", "Alpha channel", "Parallel samples", "Max. tile samples", "Minimize net traffic", "White light spectrum", "Deep image", "Deep render AOVs", "Max. depth samples", "Depth tolerance", "[Deprecated]Distributed ray tracing", "[Deprecated]AO alpha shadows", "[Deprecated]Use old color pipeline", ]
+    octane_socket_list=["Max. samples", "Type", "Ray epsilon", "Filter size", "AO distance", "AO alpha shadows", "Opacity threshold", "Maximum Z-depth", "UV max", "UV coordinate selection", "Max speed", "Sampling mode", "Bump and normal mapping", "Wireframe backface highlighting", "Max subdivision level", "Alpha channel", "Static noise", "Parallel samples", "Max. tile samples", "Minimize net traffic", "White light spectrum", "Deep image", "Deep render AOVs", "Max. depth samples", "Depth tolerance", "[Deprecated]Distributed ray tracing", "[Deprecated]AO alpha shadows", "[Deprecated]Use old color pipeline", ]
     octane_attribute_list=["a_compatibility_version", ]
     octane_attribute_config={"a_compatibility_version": [consts.AttributeID.A_COMPATIBILITY_VERSION, "compatibilityVersion", consts.AttributeType.AT_INT], }
-    octane_static_pin_count=24
+    octane_static_pin_count=25
 
-    a_compatibility_version: IntProperty(name="Compatibility version", default=12000020, update=OctaneBaseNode.update_node_tree, description="The Octane version that the behavior of this node should match")
+    a_compatibility_version: IntProperty(name="Compatibility version", default=12000102, update=OctaneBaseNode.update_node_tree, description="The Octane version that the behavior of this node should match")
 
     def init(self, context):
         self.inputs.new("OctaneInfoChannelsKernelGroupQuality", OctaneInfoChannelsKernelGroupQuality.bl_label).init()
@@ -572,6 +589,7 @@ class OctaneInfoChannelsKernel(bpy.types.Node, OctaneBaseKernelNode):
         self.inputs.new("OctaneInfoChannelsKernelGroupAlphaChannel", OctaneInfoChannelsKernelGroupAlphaChannel.bl_label).init()
         self.inputs.new("OctaneInfoChannelsKernelAlphachannel", OctaneInfoChannelsKernelAlphachannel.bl_label).init()
         self.inputs.new("OctaneInfoChannelsKernelGroupSampling", OctaneInfoChannelsKernelGroupSampling.bl_label).init()
+        self.inputs.new("OctaneInfoChannelsKernelStaticNoise", OctaneInfoChannelsKernelStaticNoise.bl_label).init()
         self.inputs.new("OctaneInfoChannelsKernelParallelSamples", OctaneInfoChannelsKernelParallelSamples.bl_label).init()
         self.inputs.new("OctaneInfoChannelsKernelMaxTileSamples", OctaneInfoChannelsKernelMaxTileSamples.bl_label).init()
         self.inputs.new("OctaneInfoChannelsKernelMinimizeNetTraffic", OctaneInfoChannelsKernelMinimizeNetTraffic.bl_label).init()
@@ -603,6 +621,7 @@ _CLASSES=[
     OctaneInfoChannelsKernelHighlightBackfaces,
     OctaneInfoChannelsKernelMaxsubdLevel,
     OctaneInfoChannelsKernelAlphachannel,
+    OctaneInfoChannelsKernelStaticNoise,
     OctaneInfoChannelsKernelParallelSamples,
     OctaneInfoChannelsKernelMaxTileSamples,
     OctaneInfoChannelsKernelMinimizeNetTraffic,

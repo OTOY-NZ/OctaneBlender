@@ -296,7 +296,7 @@ _octane_node_items = {
                 OctaneNodeItem("OctaneEditorTextureOutputNode", poll=texture_poll),
                 OctaneNodeItem("OctaneEditorWorldOutputNode", poll=world_shader_poll),
                 OctaneNodeItem("OctaneAOVOutputGroupOutputNode", poll=composite_poll),
-                OctaneNodeItem("OctaneRenderAOVsOutputNode", poll=render_aov_poll),
+                OctaneNodeItem("OctaneRenderAOVOutputNode", poll=render_aov_poll),
                 OctaneNodeItem("OctaneImagerOutputNode", poll=camera_imager_poll),
                 OctaneNodeItem("OctaneKernelOutputNode", poll=kernel_poll),
             ]
@@ -306,7 +306,7 @@ _octane_node_items = {
             octane_pin_type=consts.PinType.PT_BLENDER_OUTPUT,
             items=[
                 OctaneNodeItem("OctaneAOVOutputGroupOutputNode", poll=composite_poll),
-                OctaneNodeItem("OctaneRenderAOVsOutputNode", poll=render_aov_poll),
+                OctaneNodeItem("OctaneRenderAOVOutputNode", poll=render_aov_poll),
             ]
         ),    
     ],

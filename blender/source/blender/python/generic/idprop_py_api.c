@@ -54,7 +54,7 @@ static PyObject *idprop_py_from_idp_string(const IDProperty *prop)
   }
 
 #ifdef USE_STRING_COERCE
-  return PyC_UnicodeFromByteAndSize(IDP_Array(prop), prop->len - 1);
+  return PyC_UnicodeFromBytesAndSize(IDP_Array(prop), prop->len - 1);
 #else
   return PyUnicode_FromStringAndSize(IDP_String(prop), prop->len - 1);
 #endif
@@ -73,6 +73,11 @@ static PyObject *idprop_py_from_idp_float(const IDProperty *prop)
 static PyObject *idprop_py_from_idp_double(const IDProperty *prop)
 {
   return PyFloat_FromDouble(IDP_Double(prop));
+}
+
+static PyObject *idprop_py_from_idp_bool(const IDProperty *prop)
+{
+  return PyBool_FromLong(IDP_Bool(prop));
 }
 
 static PyObject *idprop_py_from_idp_group(ID *id, IDProperty *prop, IDProperty *parent)
@@ -155,6 +160,8 @@ PyObject *BPy_IDGroup_WrapData(ID *id, IDProperty *prop, IDProperty *parent)
       return idprop_py_from_idp_float(prop);
     case IDP_DOUBLE:
       return idprop_py_from_idp_double(prop);
+    case IDP_BOOLEAN:
+      return idprop_py_from_idp_bool(prop);
     case IDP_GROUP:
       return idprop_py_from_idp_group(id, prop, parent);
     case IDP_ARRAY:
@@ -185,7 +192,7 @@ static int BPy_IDGroup_SetData(BPy_IDProperty *self, IDProperty *prop, PyObject 
         int alloc_len;
         PyObject *value_coerce = NULL;
 
-        st = (char *)PyC_UnicodeAsByte(value, &value_coerce);
+        st = (char *)PyC_UnicodeAsBytes(value, &value_coerce);
         alloc_len = strlen(st) + 1;
 
         st = PyUnicode_AsUTF8(value);
@@ -333,6 +340,12 @@ static char idp_sequence_type(PyObject *seq_fast)
       }
       type = IDP_DOUBLE;
     }
+    else if (PyBool_Check(item)) {
+      if (i != 0 && (type != IDP_BOOLEAN)) {
+        return -1;
+      }
+      type = IDP_BOOLEAN;
+    }
     else if (PyLong_Check(item)) {
       if (type == IDP_IDPARRAY) { /* mixed dict/int */
         return -1;
@@ -396,6 +409,13 @@ static IDProperty *idp_from_PyFloat(const char *name, PyObject *ob)
   return IDP_New(IDP_DOUBLE, &val, name);
 }
 
+static IDProperty *idp_from_PyBool(const char *name, PyObject *ob)
+{
+  IDPropertyTemplate val = {0};
+  val.i = PyC_Long_AsBool(ob);
+  return IDP_New(IDP_BOOLEAN, &val, name);
+}
+
 static IDProperty *idp_from_PyLong(const char *name, PyObject *ob)
 {
   IDPropertyTemplate val = {0};
@@ -413,7 +433,7 @@ static IDProperty *idp_from_PyUnicode(const char *name, PyObject *ob)
 #ifdef USE_STRING_COERCE
   Py_ssize_t value_size;
   PyObject *value_coerce = NULL;
-  val.string.str = PyC_UnicodeAsByteAndSize(ob, &value_size, &value_coerce);
+  val.string.str = PyC_UnicodeAsBytesAndSize(ob, &value_size, &value_coerce);
   val.string.len = (int)value_size + 1;
   val.string.subtype = IDP_STRING_SUB_UTF8;
   prop = IDP_New(IDP_STRING, &val, name);
@@ -465,6 +485,9 @@ static const char *idp_format_from_array_type(int type)
   }
   if (type == IDP_DOUBLE) {
     return "d";
+  }
+  if (type == IDP_BOOLEAN) {
+    return "b";
   }
   return NULL;
 }
@@ -546,6 +569,20 @@ static IDProperty *idp_from_PySequence_Fast(const char *name, PyObject *ob)
           IDP_FreeProperty(prop);
           return NULL;
         }
+      }
+      break;
+    }
+    case IDP_BOOLEAN: {
+      prop = IDP_New(IDP_ARRAY, &val, name);
+      bool *prop_data = IDP_Array(prop);
+      for (i = 0; i < val.array.len; i++) {
+        item = ob_seq_fast_items[i];
+        const int value = PyC_Long_AsBool(item);
+        if ((value == -1) && PyErr_Occurred()) {
+          IDP_FreeProperty(prop);
+          return NULL;
+        }
+        prop_data[i] = (value != 0);
       }
       break;
     }
@@ -642,6 +679,9 @@ static IDProperty *idp_from_PyObject(PyObject *name_obj, PyObject *ob)
   if (PyFloat_Check(ob)) {
     return idp_from_PyFloat(name, ob);
   }
+  if (PyBool_Check(ob)) {
+    return idp_from_PyBool(name, ob);
+  }
   if (PyLong_Check(ob)) {
     return idp_from_PyLong(name, ob);
   }
@@ -687,12 +727,12 @@ bool BPy_IDProperty_Map_ValidateAndCreate(PyObject *name_obj, IDProperty *group,
   else {
     IDProperty *prop_exist;
 
-    /* avoid freeing when types match in case they are referenced by the UI, see: T37073
+    /* avoid freeing when types match in case they are referenced by the UI, see: #37073
      * obviously this isn't a complete solution, but helps for common cases. */
     prop_exist = IDP_GetPropertyFromGroup(group, prop->name);
     if ((prop_exist != NULL) && (prop_exist->type == prop->type) &&
         (prop_exist->subtype == prop->subtype)) {
-      /* Preserve prev/next links!!! See T42593. */
+      /* Preserve prev/next links!!! See #42593. */
       prop->prev = prop_exist->prev;
       prop->next = prop_exist->next;
       prop->flag = prop_exist->flag;
@@ -706,7 +746,13 @@ bool BPy_IDProperty_Map_ValidateAndCreate(PyObject *name_obj, IDProperty *group,
       MEM_freeN(prop);
     }
     else {
+      const bool overridable = prop_exist ?
+                                   (prop_exist->flag & IDP_FLAG_OVERRIDABLE_LIBRARY) != 0 :
+                                   false;
       IDP_ReplaceInGroup_ex(group, prop, prop_exist);
+      if (overridable) {
+        prop->flag |= IDP_FLAG_OVERRIDABLE_LIBRARY;
+      }
     }
   }
 
@@ -779,6 +825,8 @@ PyObject *BPy_IDGroup_MapDataToPy(IDProperty *prop)
       return idprop_py_from_idp_float(prop);
     case IDP_DOUBLE:
       return idprop_py_from_idp_double(prop);
+    case IDP_BOOLEAN:
+      return idprop_py_from_idp_bool(prop);
     case IDP_ID:
       return idprop_py_from_idp_id(prop);
     case IDP_ARRAY: {
@@ -810,6 +858,13 @@ PyObject *BPy_IDGroup_MapDataToPy(IDProperty *prop)
           const int *array = (int *)IDP_Array(prop);
           for (i = 0; i < prop->len; i++) {
             PyList_SET_ITEM(seq, i, PyLong_FromLong(array[i]));
+          }
+          break;
+        }
+        case IDP_BOOLEAN: {
+          const int8_t *array = (const int8_t *)IDP_Array(prop);
+          for (i = 0; i < prop->len; i++) {
+            PyList_SET_ITEM(seq, i, PyBool_FromLong(array[i]));
           }
           break;
         }
@@ -1156,36 +1211,36 @@ static int BPy_Group_ViewItems_Contains(BPy_IDGroup_View *self, PyObject *value)
 }
 
 static PySequenceMethods BPy_IDGroup_ViewKeys_as_sequence = {
-    (lenfunc)BPy_Group_View_len,             /* sq_length */
-    0,                                       /* sq_concat */
-    0,                                       /* sq_repeat */
-    0,                                       /* sq_item */
-    0,                                       /* sq_slice */
-    0,                                       /* sq_ass_item */
-    0,                                       /* sq_ass_slice */
-    (objobjproc)BPy_Group_ViewKeys_Contains, /* sq_contains */
+    /*sq_length*/ (lenfunc)BPy_Group_View_len,
+    /*sq_concat*/ NULL,
+    /*sq_repeat*/ NULL,
+    /*sq_item*/ NULL,
+    /*was_sq_slice*/ NULL,
+    /*sq_ass_item*/ NULL,
+    /*was_sq_ass_slice*/ NULL,
+    /*sq_contains*/ (objobjproc)BPy_Group_ViewKeys_Contains,
 };
 
 static PySequenceMethods BPy_IDGroup_ViewValues_as_sequence = {
-    (lenfunc)BPy_Group_View_len,               /* sq_length */
-    0,                                         /* sq_concat */
-    0,                                         /* sq_repeat */
-    0,                                         /* sq_item */
-    0,                                         /* sq_slice */
-    0,                                         /* sq_ass_item */
-    0,                                         /* sq_ass_slice */
-    (objobjproc)BPy_Group_ViewValues_Contains, /* sq_contains */
+    /*sq_length*/ (lenfunc)BPy_Group_View_len,
+    /*sq_concat*/ NULL,
+    /*sq_repeat*/ NULL,
+    /*sq_item*/ NULL,
+    /*was_sq_slice*/ NULL,
+    /*sq_ass_item*/ NULL,
+    /*was_sq_ass_slice*/ NULL,
+    /*sq_contains*/ (objobjproc)BPy_Group_ViewValues_Contains,
 };
 
 static PySequenceMethods BPy_IDGroup_ViewItems_as_sequence = {
-    (lenfunc)BPy_Group_View_len,              /* sq_length */
-    0,                                        /* sq_concat */
-    0,                                        /* sq_repeat */
-    0,                                        /* sq_item */
-    0,                                        /* sq_slice */
-    0,                                        /* sq_ass_item */
-    0,                                        /* sq_ass_slice */
-    (objobjproc)BPy_Group_ViewItems_Contains, /* sq_contains */
+    /*sq_length*/ (lenfunc)BPy_Group_View_len,
+    /*sq_concat*/ NULL,
+    /*sq_repeat*/ NULL,
+    /*sq_item*/ NULL,
+    /*was_sq_slice*/ NULL,
+    /*sq_ass_item*/ NULL,
+    /*was_sq_ass_slice*/ NULL,
+    /*sq_contains*/ (objobjproc)BPy_Group_ViewItems_Contains,
 };
 
 /* Methods. */
@@ -1551,84 +1606,76 @@ static struct PyMethodDef BPy_IDGroup_methods[] = {
  * \{ */
 
 static PySequenceMethods BPy_IDGroup_Seq = {
-    (lenfunc)BPy_IDGroup_Map_Len, /* lenfunc sq_length */
-    NULL,                         /* binaryfunc sq_concat */
-    NULL,                         /* ssizeargfunc sq_repeat */
-    NULL,
-    /* ssizeargfunc sq_item */ /* TODO: setting this will allow PySequence_Check to return True. */
-    NULL,                      /* intintargfunc ***was_sq_slice*** */
-    NULL,                      /* intobjargproc sq_ass_item */
-    NULL,                      /* ssizeobjargproc ***was_sq_ass_slice*** */
-    (objobjproc)BPy_IDGroup_Contains, /* objobjproc sq_contains */
-    NULL,                             /* binaryfunc sq_inplace_concat */
-    NULL,                             /* ssizeargfunc sq_inplace_repeat */
+    /*sq_length*/ (lenfunc)BPy_IDGroup_Map_Len,
+    /*sq_concat*/ NULL,
+    /*sq_repeat*/ NULL,
+    /* TODO: setting this will allow `PySequence_Check()` to return True. */
+    /*sq_item*/ NULL,
+    /*was_sq_slice*/ NULL, /* DEPRECATED. */
+    /*sq_ass_item*/ NULL,
+    /*was_sq_ass_slice*/ NULL, /* DEPRECATED. */
+    /*sq_contains*/ (objobjproc)BPy_IDGroup_Contains,
+    /*sq_inplace_concat*/ NULL,
+    /*sq_inplace_repeat*/ NULL,
 };
 
 static PyMappingMethods BPy_IDGroup_Mapping = {
-    (lenfunc)BPy_IDGroup_Map_Len,           /* inquiry mp_length */
-    (binaryfunc)BPy_IDGroup_Map_GetItem,    /* binaryfunc mp_subscript */
-    (objobjargproc)BPy_IDGroup_Map_SetItem, /* objobjargproc mp_ass_subscript */
+    /*mp_len*/ (lenfunc)BPy_IDGroup_Map_Len,
+    /*mp_subscript*/ (binaryfunc)BPy_IDGroup_Map_GetItem,
+    /*mp_ass_subscript*/ (objobjargproc)BPy_IDGroup_Map_SetItem,
 };
 
 PyTypeObject BPy_IDGroup_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    /*  For printing, in format "<module>.<name>" */
-    "IDPropertyGroup",      /* char *tp_name; */
-    sizeof(BPy_IDProperty), /* int tp_basicsize; */
-    0,                      /* tp_itemsize;  For allocation */
-
-    /* Methods to implement standard operations */
-
-    NULL,                       /* destructor tp_dealloc; */
-    0,                          /* tp_vectorcall_offset */
-    NULL,                       /* getattrfunc tp_getattr; */
-    NULL,                       /* setattrfunc tp_setattr; */
-    NULL,                       /* cmpfunc tp_compare; */
-    (reprfunc)BPy_IDGroup_repr, /* reprfunc tp_repr; */
-
-    /* Method suites for standard classes */
-
-    NULL,                 /* PyNumberMethods *tp_as_number; */
-    &BPy_IDGroup_Seq,     /* PySequenceMethods *tp_as_sequence; */
-    &BPy_IDGroup_Mapping, /* PyMappingMethods *tp_as_mapping; */
-
-    /* More standard operations (here for binary compatibility) */
-
-    (hashfunc)BPy_IDGroup_hash, /* hashfunc tp_hash; */
-    NULL,                       /* ternaryfunc tp_call; */
-    NULL,                       /* reprfunc tp_str; */
-    NULL,                       /* getattrofunc tp_getattro; */
-    NULL,                       /* setattrofunc tp_setattro; */
-
-    /* Functions to access object as input/output buffer */
-    NULL, /* PyBufferProcs *tp_as_buffer; */
-
-    /*** Flags to define presence of optional/expanded features ***/
-    Py_TPFLAGS_DEFAULT, /* long tp_flags; */
-
-    NULL, /*  char *tp_doc;  Documentation string */
-    /*** Assigned meaning in release 2.0 ***/
-    /* call function for all accessible objects */
-    NULL, /* traverseproc tp_traverse; */
-
-    /* delete references to contained objects */
-    NULL, /* inquiry tp_clear; */
-
-    /***  Assigned meaning in release 2.1 ***/
-    /*** rich comparisons ***/
-    NULL, /* richcmpfunc tp_richcompare; */
-
-    /***  weak reference enabler ***/
-    0, /* long tp_weaklistoffset; */
-
-    /*** Added in release 2.2 ***/
-    /*   Iterators */
-    (getiterfunc)BPy_IDGroup_iter, /* getiterfunc tp_iter; */
-    NULL,                          /* iternextfunc tp_iternext; */
-    /*** Attribute descriptor and subclassing stuff ***/
-    BPy_IDGroup_methods,   /* struct PyMethodDef *tp_methods; */
-    NULL,                  /* struct PyMemberDef *tp_members; */
-    BPy_IDGroup_getseters, /* struct PyGetSetDef *tp_getset; */
+    /* For printing, in format `<module>.<name>`. */
+    /*tp_name*/ "IDPropertyGroup",
+    /*tp_basicsize*/ sizeof(BPy_IDProperty),
+    /*tp_itemsize*/ 0,
+    /*tp_dealloc*/ NULL,
+    /*tp_vectorcall_offset*/ 0,
+    /*tp_getattr*/ NULL,
+    /*tp_setattr*/ NULL,
+    /*tp_as_async*/ NULL,
+    /*tp_repr*/ (reprfunc)BPy_IDGroup_repr,
+    /*tp_as_number*/ NULL,
+    /*tp_as_sequence*/ &BPy_IDGroup_Seq,
+    /*tp_as_mapping*/ &BPy_IDGroup_Mapping,
+    /*tp_hash*/ (hashfunc)BPy_IDGroup_hash,
+    /*tp_call*/ NULL,
+    /*tp_str*/ NULL,
+    /*tp_getattro*/ NULL,
+    /*tp_setattro*/ NULL,
+    /*tp_as_buffer*/ NULL,
+    /*tp_flags*/ Py_TPFLAGS_DEFAULT,
+    /*tp_doc*/ NULL,
+    /*tp_traverse*/ NULL,
+    /*tp_clear*/ NULL,
+    /*tp_richcompare*/ NULL,
+    /*tp_weaklistoffset*/ 0,
+    /*tp_iter*/ (getiterfunc)BPy_IDGroup_iter,
+    /*tp_iternext*/ NULL,
+    /*tp_methods*/ BPy_IDGroup_methods,
+    /*tp_members*/ NULL,
+    /*tp_getset*/ BPy_IDGroup_getseters,
+    /*tp_base*/ NULL,
+    /*tp_dict*/ NULL,
+    /*tp_descr_get*/ NULL,
+    /*tp_descr_set*/ NULL,
+    /*tp_dictoffset*/ 0,
+    /*tp_init*/ NULL,
+    /*tp_alloc*/ NULL,
+    /*tp_new*/ NULL,
+    /*tp_free*/ NULL,
+    /*tp_is_gc*/ NULL,
+    /*tp_bases*/ NULL,
+    /*tp_mro*/ NULL,
+    /*tp_cache*/ NULL,
+    /*tp_subclasses*/ NULL,
+    /*tp_weaklist*/ NULL,
+    /*tp_del*/ NULL,
+    /*tp_version_tag*/ 0,
+    /*tp_finalize*/ NULL,
+    /*tp_vectorcall*/ NULL,
 };
 
 /** \} */
@@ -1637,20 +1684,23 @@ PyTypeObject BPy_IDGroup_Type = {
 /** \name ID Array Methods
  * \{ */
 
-static PyTypeObject *idp_array_py_type(BPy_IDArray *self, bool *r_is_double)
+static PyTypeObject *idp_array_py_type(BPy_IDArray *self, size_t *elem_size)
 {
   switch (self->prop->subtype) {
     case IDP_FLOAT:
-      *r_is_double = false;
+      *elem_size = sizeof(float);
       return &PyFloat_Type;
     case IDP_DOUBLE:
-      *r_is_double = true;
+      *elem_size = sizeof(double);
       return &PyFloat_Type;
+    case IDP_BOOLEAN:
+      *elem_size = sizeof(int8_t);
+      return &PyBool_Type;
     case IDP_INT:
-      *r_is_double = false;
+      *elem_size = sizeof(int);
       return &PyLong_Type;
     default:
-      *r_is_double = false;
+      *elem_size = 0;
       return NULL;
   }
 }
@@ -1661,7 +1711,7 @@ static PyObject *BPy_IDArray_repr(BPy_IDArray *self)
 }
 
 PyDoc_STRVAR(BPy_IDArray_get_typecode_doc,
-             "The type of the data in the array {'f': float, 'd': double, 'i': int}.");
+             "The type of the data in the array {'f': float, 'd': double, 'i': int, 'b': bool}.");
 static PyObject *BPy_IDArray_get_typecode(BPy_IDArray *self)
 {
   switch (self->prop->subtype) {
@@ -1671,6 +1721,8 @@ static PyObject *BPy_IDArray_get_typecode(BPy_IDArray *self)
       return PyUnicode_FromString("d");
     case IDP_INT:
       return PyUnicode_FromString("i");
+    case IDP_BOOLEAN:
+      return PyUnicode_FromString("b");
   }
 
   PyErr_Format(
@@ -1722,6 +1774,8 @@ static PyObject *BPy_IDArray_GetItem(BPy_IDArray *self, Py_ssize_t index)
       return PyFloat_FromDouble(((double *)IDP_Array(self->prop))[index]);
     case IDP_INT:
       return PyLong_FromLong((long)((int *)IDP_Array(self->prop))[index]);
+    case IDP_BOOLEAN:
+      return PyBool_FromLong((long)((int8_t *)IDP_Array(self->prop))[index]);
   }
 
   PyErr_Format(
@@ -1763,22 +1817,30 @@ static int BPy_IDArray_SetItem(BPy_IDArray *self, Py_ssize_t index, PyObject *va
       ((int *)IDP_Array(self->prop))[index] = i;
       break;
     }
+    case IDP_BOOLEAN: {
+      const int i = PyC_Long_AsBool(value);
+      if (i == -1 && PyErr_Occurred()) {
+        return -1;
+      }
+
+      ((int8_t *)IDP_Array(self->prop))[index] = i;
+      break;
+    }
   }
   return 0;
 }
 
 static PySequenceMethods BPy_IDArray_Seq = {
-    (lenfunc)BPy_IDArray_Len,             /* inquiry sq_length */
-    NULL,                                 /* binaryfunc sq_concat */
-    NULL,                                 /* intargfunc sq_repeat */
-    (ssizeargfunc)BPy_IDArray_GetItem,    /* intargfunc sq_item */
-    NULL,                                 /* intintargfunc sq_slice */
-    (ssizeobjargproc)BPy_IDArray_SetItem, /* intobjargproc sq_ass_item */
-    NULL,                                 /* intintobjargproc sq_ass_slice */
-    NULL,                                 /* objobjproc sq_contains */
-    /* Added in release 2.0 */
-    NULL, /* binaryfunc sq_inplace_concat */
-    NULL, /* intargfunc sq_inplace_repeat */
+    /*sq_length*/ (lenfunc)BPy_IDArray_Len,
+    /*sq_concat*/ NULL,
+    /*sq_repeat*/ NULL,
+    /*sq_item*/ (ssizeargfunc)BPy_IDArray_GetItem,
+    /*was_sq_slice*/ NULL, /* DEPRECATED. */
+    /*sq_ass_item*/ (ssizeobjargproc)BPy_IDArray_SetItem,
+    /*was_sq_ass_slice*/ NULL, /* DEPRECATED. */
+    /*sq_contains*/ NULL,
+    /*sq_inplace_concat*/ NULL,
+    /*sq_inplace_repeat*/ NULL,
 };
 
 /* sequence slice (get): idparr[a:b] */
@@ -1819,6 +1881,13 @@ static PyObject *BPy_IDArray_slice(BPy_IDArray *self, int begin, int end)
       }
       break;
     }
+    case IDP_BOOLEAN: {
+      const int8_t *array = (const int8_t *)IDP_Array(prop);
+      for (count = begin; count < end; count++) {
+        PyTuple_SET_ITEM(tuple, count - begin, PyBool_FromLong((long)array[count]));
+      }
+      break;
+    }
   }
 
   return tuple;
@@ -1827,9 +1896,8 @@ static PyObject *BPy_IDArray_slice(BPy_IDArray *self, int begin, int end)
 static int BPy_IDArray_ass_slice(BPy_IDArray *self, int begin, int end, PyObject *seq)
 {
   IDProperty *prop = self->prop;
-  bool is_double;
-  const PyTypeObject *py_type = idp_array_py_type(self, &is_double);
-  const size_t elem_size = is_double ? sizeof(double) : sizeof(float);
+  size_t elem_size;
+  const PyTypeObject *py_type = idp_array_py_type(self, &elem_size);
   size_t alloc_len;
   size_t size;
   void *vec;
@@ -1926,9 +1994,9 @@ static int BPy_IDArray_ass_subscript(BPy_IDArray *self, PyObject *item, PyObject
 }
 
 static PyMappingMethods BPy_IDArray_AsMapping = {
-    (lenfunc)BPy_IDArray_Len,
-    (binaryfunc)BPy_IDArray_subscript,
-    (objobjargproc)BPy_IDArray_ass_subscript,
+    /*mp_len*/ (lenfunc)BPy_IDArray_Len,
+    /*mp_subscript*/ (binaryfunc)BPy_IDArray_subscript,
+    /*mp_ass_subscript*/ (objobjargproc)BPy_IDArray_ass_subscript,
 };
 
 static int itemsize_by_idarray_type(int array_type)
@@ -1941,6 +2009,9 @@ static int itemsize_by_idarray_type(int array_type)
   }
   if (array_type == IDP_DOUBLE) {
     return sizeof(double);
+  }
+  if (array_type == IDP_BOOLEAN) {
+    return sizeof(bool);
   }
   return -1; /* should never happen */
 }
@@ -1971,8 +2042,8 @@ static void BPy_IDArray_releasebuffer(BPy_IDArray *UNUSED(self), Py_buffer *view
 }
 
 static PyBufferProcs BPy_IDArray_Buffer = {
-    (getbufferproc)BPy_IDArray_getbuffer,
-    (releasebufferproc)BPy_IDArray_releasebuffer,
+    /*bf_getbuffer*/ (getbufferproc)BPy_IDArray_getbuffer,
+    /*bf_releasebuffer*/ (releasebufferproc)BPy_IDArray_releasebuffer,
 };
 
 /** \} */
@@ -1983,83 +2054,55 @@ static PyBufferProcs BPy_IDArray_Buffer = {
 
 PyTypeObject BPy_IDArray_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    /*  For printing, in format "<module>.<name>" */
-    "IDPropertyArray",   /* char *tp_name; */
-    sizeof(BPy_IDArray), /* int tp_basicsize; */
-    0,                   /* tp_itemsize;  For allocation */
-
-    /* Methods to implement standard operations */
-
-    NULL,                       /* destructor tp_dealloc; */
-    0,                          /* tp_vectorcall_offset */
-    NULL,                       /* getattrfunc tp_getattr; */
-    NULL,                       /* setattrfunc tp_setattr; */
-    NULL,                       /* cmpfunc tp_compare; */
-    (reprfunc)BPy_IDArray_repr, /* reprfunc tp_repr; */
-
-    /* Method suites for standard classes */
-
-    NULL,                   /* PyNumberMethods *tp_as_number; */
-    &BPy_IDArray_Seq,       /* PySequenceMethods *tp_as_sequence; */
-    &BPy_IDArray_AsMapping, /* PyMappingMethods *tp_as_mapping; */
-
-    /* More standard operations (here for binary compatibility) */
-
-    NULL, /* hashfunc tp_hash; */
-    NULL, /* ternaryfunc tp_call; */
-    NULL, /* reprfunc tp_str; */
-    NULL, /* getattrofunc tp_getattro; */
-    NULL, /* setattrofunc tp_setattro; */
-
-    /* Functions to access object as input/output buffer */
-    &BPy_IDArray_Buffer, /* PyBufferProcs *tp_as_buffer; */
-
-    /*** Flags to define presence of optional/expanded features ***/
-    Py_TPFLAGS_DEFAULT, /* long tp_flags; */
-
-    NULL, /*  char *tp_doc;  Documentation string */
-    /*** Assigned meaning in release 2.0 ***/
-    /* call function for all accessible objects */
-    NULL, /* traverseproc tp_traverse; */
-
-    /* delete references to contained objects */
-    NULL, /* inquiry tp_clear; */
-
-    /***  Assigned meaning in release 2.1 ***/
-    /*** rich comparisons ***/
-    NULL, /* richcmpfunc tp_richcompare; */
-
-    /***  weak reference enabler ***/
-    0, /* long tp_weaklistoffset; */
-
-    /*** Added in release 2.2 ***/
-    /*   Iterators */
-    NULL, /* getiterfunc tp_iter; */
-    NULL, /* iternextfunc tp_iternext; */
-
-    /*** Attribute descriptor and subclassing stuff ***/
-    BPy_IDArray_methods,   /* struct PyMethodDef *tp_methods; */
-    NULL,                  /* struct PyMemberDef *tp_members; */
-    BPy_IDArray_getseters, /* struct PyGetSetDef *tp_getset; */
-    NULL,                  /* struct _typeobject *tp_base; */
-    NULL,                  /* PyObject *tp_dict; */
-    NULL,                  /* descrgetfunc tp_descr_get; */
-    NULL,                  /* descrsetfunc tp_descr_set; */
-    0,                     /* long tp_dictoffset; */
-    NULL,                  /* initproc tp_init; */
-    NULL,                  /* allocfunc tp_alloc; */
-    NULL,                  /* newfunc tp_new; */
-    /*  Low-level free-memory routine */
-    NULL, /* freefunc tp_free; */
-    /* For PyObject_IS_GC */
-    NULL, /* inquiry tp_is_gc; */
-    NULL, /* PyObject *tp_bases; */
-    /* method resolution order */
-    NULL, /* PyObject *tp_mro; */
-    NULL, /* PyObject *tp_cache; */
-    NULL, /* PyObject *tp_subclasses; */
-    NULL, /* PyObject *tp_weaklist; */
-    NULL,
+    /* For printing, in format `<module>.<name>`. */
+    /*tp_name*/ "IDPropertyArray",
+    /*tp_basicsize*/ sizeof(BPy_IDArray),
+    /*tp_itemsize*/ 0,
+    /*tp_dealloc*/ NULL,
+    /*tp_vectorcall_offset*/ 0,
+    /*tp_getattr*/ NULL,
+    /*tp_setattr*/ NULL,
+    /*tp_as_async*/ NULL,
+    /*tp_repr*/ (reprfunc)BPy_IDArray_repr,
+    /*tp_as_number*/ NULL,
+    /*tp_as_sequence*/ &BPy_IDArray_Seq,
+    /*tp_as_mapping*/ &BPy_IDArray_AsMapping,
+    /*tp_hash*/ NULL,
+    /*tp_call*/ NULL,
+    /*tp_str*/ NULL,
+    /*tp_getattro*/ NULL,
+    /*tp_setattro*/ NULL,
+    /*tp_as_buffer*/ &BPy_IDArray_Buffer,
+    /*tp_flags*/ Py_TPFLAGS_DEFAULT,
+    /*tp_doc*/ NULL,
+    /*tp_traverse*/ NULL,
+    /*tp_clear*/ NULL,
+    /*tp_richcompare*/ NULL,
+    /*tp_weaklistoffset*/ 0,
+    /*tp_iter*/ NULL,
+    /*tp_iternext*/ NULL,
+    /*tp_methods*/ BPy_IDArray_methods,
+    /*tp_members*/ NULL,
+    /*tp_getset*/ BPy_IDArray_getseters,
+    /*tp_base*/ NULL,
+    /*tp_dict*/ NULL,
+    /*tp_descr_get*/ NULL,
+    /*tp_descr_set*/ NULL,
+    /*tp_dictoffset*/ 0,
+    /*tp_init*/ NULL,
+    /*tp_alloc*/ NULL,
+    /*tp_new*/ NULL,
+    /*tp_free*/ NULL,
+    /*tp_is_gc*/ NULL,
+    /*tp_bases*/ NULL,
+    /*tp_mro*/ NULL,
+    /*tp_cache*/ NULL,
+    /*tp_subclasses*/ NULL,
+    /*tp_weaklist*/ NULL,
+    /*tp_del*/ NULL,
+    /*tp_version_tag*/ 0,
+    /*tp_finalize*/ NULL,
+    /*tp_vectorcall*/ NULL,
 };
 
 /** \} */
@@ -2129,14 +2172,14 @@ static PyObject *BPy_IDGroup_ViewItems_CreatePyObject(BPy_IDProperty *group)
 
 static struct PyModuleDef IDProp_types_module_def = {
     PyModuleDef_HEAD_INIT,
-    "idprop.types", /* m_name */
-    NULL,           /* m_doc */
-    0,              /* m_size */
-    NULL,           /* m_methods */
-    NULL,           /* m_slots */
-    NULL,           /* m_traverse */
-    NULL,           /* m_clear */
-    NULL,           /* m_free */
+    /*m_name*/ "idprop.types",
+    /*m_doc*/ NULL,
+    /*m_size*/ 0,
+    /*m_methods*/ NULL,
+    /*m_slots*/ NULL,
+    /*m_traverse*/ NULL,
+    /*m_clear*/ NULL,
+    /*m_free*/ NULL,
 };
 
 static PyObject *BPyInit_idprop_types(void)
@@ -2178,14 +2221,14 @@ PyDoc_STRVAR(IDProp_module_doc,
              "This module provides access id property types (currently mainly for docs).");
 static struct PyModuleDef IDProp_module_def = {
     PyModuleDef_HEAD_INIT,
-    "idprop",          /* m_name */
-    IDProp_module_doc, /* m_doc */
-    0,                 /* m_size */
-    IDProp_methods,    /* m_methods */
-    NULL,              /* m_slots */
-    NULL,              /* m_traverse */
-    NULL,              /* m_clear */
-    NULL,              /* m_free */
+    /*m_name*/ "idprop",
+    /*m_doc*/ IDProp_module_doc,
+    /*m_size*/ 0,
+    /*m_methods*/ IDProp_methods,
+    /*m_slots*/ NULL,
+    /*m_traverse*/ NULL,
+    /*m_clear*/ NULL,
+    /*m_free*/ NULL,
 };
 
 PyObject *BPyInit_idprop(void)

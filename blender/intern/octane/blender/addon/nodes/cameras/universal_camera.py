@@ -137,6 +137,23 @@ class OctaneUniversalCameraLensShift(OctaneBaseSocket):
     octane_end_version=4294967295
     octane_deprecated=False
 
+class OctaneUniversalCameraPerspectiveCorrection(OctaneBaseSocket):
+    bl_idname="OctaneUniversalCameraPerspectiveCorrection"
+    bl_label="Perspective correction"
+    color=consts.OctanePinColor.Bool
+    octane_default_node_type=consts.NodeType.NT_BOOL
+    octane_default_node_name="OctaneBoolValue"
+    octane_pin_id=consts.PinID.P_PERSPECTIVE_CORRECTION
+    octane_pin_name="perspectiveCorrection"
+    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_index=7
+    octane_socket_type=consts.SocketType.ST_BOOL
+    default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Perspective correction keeps vertical lines parallel if up-vector is vertical")
+    octane_hide_value=False
+    octane_min_version=12000101
+    octane_end_version=4294967295
+    octane_deprecated=False
+
 class OctaneUniversalCameraPixelAspectRatio(OctaneBaseSocket):
     bl_idname="OctaneUniversalCameraPixelAspectRatio"
     bl_label="Pixel aspect ratio"
@@ -146,7 +163,7 @@ class OctaneUniversalCameraPixelAspectRatio(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_PIXEL_ASPECT_RATIO
     octane_pin_name="pixelAspectRatio"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=7
+    octane_pin_index=8
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="The X:Y aspect ratio of pixels", min=0.100000, max=10.000000, soft_min=0.100000, soft_max=10.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
@@ -163,7 +180,7 @@ class OctaneUniversalCameraFisheyeAngle(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_FISHEYE_ANGLE
     octane_pin_name="fisheyeAngle"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=8
+    octane_pin_index=9
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=240.000000, update=OctaneBaseSocket.update_node_tree, description="Field of view [deg.]", min=0.010000, max=360.000000, soft_min=1.000000, soft_max=360.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
@@ -180,7 +197,7 @@ class OctaneUniversalCameraFisheyeType(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_FISHEYE_TYPE
     octane_pin_name="fisheyeType"
     octane_pin_type=consts.PinType.PT_ENUM
-    octane_pin_index=9
+    octane_pin_index=10
     octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("Circular", "Circular", "", 1),
@@ -201,7 +218,7 @@ class OctaneUniversalCameraHardVignette(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_HARD_VIGNETTE
     octane_pin_name="hardVignette"
     octane_pin_type=consts.PinType.PT_BOOL
-    octane_pin_index=10
+    octane_pin_index=11
     octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="For circular fisheye, whether the area outside the lens is rendered or not")
     octane_hide_value=False
@@ -218,7 +235,7 @@ class OctaneUniversalCameraFisheyeProjection(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_FISHEYE_PROJECTION
     octane_pin_name="fisheyeProjection"
     octane_pin_type=consts.PinType.PT_ENUM
-    octane_pin_index=11
+    octane_pin_index=12
     octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("Stereographic", "Stereographic", "", 1),
@@ -241,7 +258,7 @@ class OctaneUniversalCameraFovx(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_FOVX
     octane_pin_name="fovx"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=12
+    octane_pin_index=13
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=360.000000, update=OctaneBaseSocket.update_node_tree, description="The horizontal field of view [deg.]", min=0.010000, max=360.000000, soft_min=1.000000, soft_max=360.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
@@ -258,7 +275,7 @@ class OctaneUniversalCameraFovy(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_FOVY
     octane_pin_name="fovy"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=13
+    octane_pin_index=14
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=180.000000, update=OctaneBaseSocket.update_node_tree, description="The vertical field of view [deg.]", min=0.010000, max=180.000000, soft_min=1.000000, soft_max=180.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
@@ -275,7 +292,7 @@ class OctaneUniversalCameraCubemapLayout(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_CUBEMAP_LAYOUT
     octane_pin_name="cubemapLayout"
     octane_pin_type=consts.PinType.PT_ENUM
-    octane_pin_index=14
+    octane_pin_index=15
     octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("6x1", "6x1", "", 1),
@@ -298,7 +315,7 @@ class OctaneUniversalCameraEquiAngularCubemap(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_EQUI_ANGULAR_CUBEMAP
     octane_pin_name="equiAngularCubemap"
     octane_pin_type=consts.PinType.PT_BOOL
-    octane_pin_index=15
+    octane_pin_index=16
     octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="If enabled the cubemap will use an equi-angular projection")
     octane_hide_value=False
@@ -315,7 +332,7 @@ class OctaneUniversalCameraUseDistortionTexture(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_USE_DISTORTION_TEXTURE
     octane_pin_name="useDistortionTexture"
     octane_pin_type=consts.PinType.PT_BOOL
-    octane_pin_index=16
+    octane_pin_index=17
     octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="")
     octane_hide_value=False
@@ -332,7 +349,7 @@ class OctaneUniversalCameraDistortionTexture(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_DISTORTION_TEXTURE
     octane_pin_name="distortionTexture"
     octane_pin_type=consts.PinType.PT_TEXTURE
-    octane_pin_index=17
+    octane_pin_index=18
     octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
@@ -348,7 +365,7 @@ class OctaneUniversalCameraSphericalDistortion(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_SPHERICAL_DISTORTION
     octane_pin_name="sphericalDistortion"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=18
+    octane_pin_index=19
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="The amount of spherical distortion", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
@@ -365,7 +382,7 @@ class OctaneUniversalCameraBarrelDistortion(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_BARREL_DISTORTION
     octane_pin_name="barrelDistortion"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=19
+    octane_pin_index=20
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Straight lines will appear curved. Negative values produce pincushion distortion", min=-1.000000, max=1.000000, soft_min=-0.500000, soft_max=0.500000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
@@ -382,7 +399,7 @@ class OctaneUniversalCameraBarrelDistortionCorners(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_BARREL_DISTORTION_CORNERS
     octane_pin_name="barrelDistortionCorners"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=20
+    octane_pin_index=21
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="This value mostly affects corners. A different sign from the Barrel value produces moustache distortion", min=-1.000000, max=1.000000, soft_min=-0.500000, soft_max=0.500000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
@@ -399,7 +416,7 @@ class OctaneUniversalCameraSphericalAberration(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_SPHERICAL_ABERRATION
     octane_pin_name="sphericalAberration"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=21
+    octane_pin_index=22
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Rays hitting the edge of the lens focus closer to the lens", min=-1.000000, max=1.000000, soft_min=-0.200000, soft_max=0.200000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
@@ -416,7 +433,7 @@ class OctaneUniversalCameraComa(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_COMA
     octane_pin_name="coma"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=22
+    octane_pin_index=23
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Rays hitting the edge of the lens have a wider field of view", min=-1.000000, max=10.000000, soft_min=-0.250000, soft_max=0.250000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
@@ -433,7 +450,7 @@ class OctaneUniversalCameraAstigmatism(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_ASTIGMATISM
     octane_pin_name="astigmatism"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=23
+    octane_pin_index=24
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Saggital and tangential rays focus at different distances from the lens", min=-1.000000, max=1.000000, soft_min=-1.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
@@ -450,7 +467,7 @@ class OctaneUniversalCameraFieldCurvature(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_FIELD_CURVATURE
     octane_pin_name="fieldCurvature"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=24
+    octane_pin_index=25
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Curvature of the plane in focus", min=-1.000000, max=1.000000, soft_min=-1.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
@@ -467,7 +484,7 @@ class OctaneUniversalCameraNearClipDepth(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_NEAR_CLIP_DEPTH
     octane_pin_name="nearClipDepth"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=25
+    octane_pin_index=26
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Distance from the camera to the near clipping plane [m]", min=0.000000, max=10000000000.000000, soft_min=0.000000, soft_max=10000000000.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
@@ -484,7 +501,7 @@ class OctaneUniversalCameraFarClipDepth(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_FAR_CLIP_DEPTH
     octane_pin_name="farClipDepth"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=26
+    octane_pin_index=27
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=10000000000.000000, update=OctaneBaseSocket.update_node_tree, description="Distance from the camera to the far clipping plane [m]", min=0.000000, max=10000000000.000000, soft_min=0.000000, soft_max=10000000000.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
@@ -501,7 +518,7 @@ class OctaneUniversalCameraAutofocus(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_AUTOFOCUS
     octane_pin_name="autofocus"
     octane_pin_type=consts.PinType.PT_BOOL
-    octane_pin_index=27
+    octane_pin_index=28
     octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="If enabled, the focus will be kept on the closest visible surface at the center of the image")
     octane_hide_value=False
@@ -518,7 +535,7 @@ class OctaneUniversalCameraFocalDepth(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_FOCAL_DEPTH
     octane_pin_name="focalDepth"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=28
+    octane_pin_index=29
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=1.118034, update=OctaneBaseSocket.update_node_tree, description="The depth of the plane in focus [m]", min=0.000001, max=340282346638528859811704183484516925440.000000, soft_min=0.000001, soft_max=10000000000.000000, step=1, precision=3, subtype="NONE")
     octane_hide_value=False
@@ -535,7 +552,7 @@ class OctaneUniversalCameraAperture(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_APERTURE
     octane_pin_name="aperture"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=29
+    octane_pin_index=30
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.100000, update=OctaneBaseSocket.update_node_tree, description="The radius of the lens opening [cm]", min=0.000000, max=100.000000, soft_min=0.000000, soft_max=100.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
@@ -552,7 +569,7 @@ class OctaneUniversalCameraApertureAspectRatio(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_APERTURE_ASPECT_RATIO
     octane_pin_name="apertureAspectRatio"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=30
+    octane_pin_index=31
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="The aspect ratio of the aperture. Values other than 1 simulate an anamorphic lens", min=0.100000, max=10.000000, soft_min=0.100000, soft_max=10.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
@@ -569,7 +586,7 @@ class OctaneUniversalCameraApertureShape(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_APERTURE_SHAPE
     octane_pin_name="apertureShape"
     octane_pin_type=consts.PinType.PT_ENUM
-    octane_pin_index=31
+    octane_pin_index=32
     octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("Circular", "Circular", "", 1),
@@ -592,7 +609,7 @@ class OctaneUniversalCameraApertureEdge(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_APERTURE_EDGE
     octane_pin_name="aperture_edge"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=32
+    octane_pin_index=33
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Modifies the relative distribution of rays across the aperture, impacting the hardness of the edge of bokeh shapes.\nHigher values increase the contrast towards the edge.\nValues between 0 and 1 simulates an apodization filter", min=0.000000, max=3.000000, soft_min=0.000000, soft_max=3.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
@@ -609,7 +626,7 @@ class OctaneUniversalCameraBokehSidecount(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_BOKEH_SIDECOUNT
     octane_pin_name="bokehSidecount"
     octane_pin_type=consts.PinType.PT_INT
-    octane_pin_index=33
+    octane_pin_index=34
     octane_socket_type=consts.SocketType.ST_INT
     default_value: IntProperty(default=6, update=OctaneBaseSocket.update_node_tree, description="The number of blades forming the iris diaphragm", min=3, max=12, soft_min=3, soft_max=12, step=1, subtype="FACTOR")
     octane_hide_value=False
@@ -626,7 +643,7 @@ class OctaneUniversalCameraBokehRotation(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_BOKEH_ROTATION
     octane_pin_name="bokehRotation"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=34
+    octane_pin_index=35
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="The rotation of the aperture shape [degrees]", min=-360.000000, max=360.000000, soft_min=-360.000000, soft_max=360.000000, step=10, precision=2, subtype="FACTOR")
     octane_hide_value=False
@@ -643,7 +660,7 @@ class OctaneUniversalCameraBokehRoundedness(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_BOKEH_ROUNDEDNESS
     octane_pin_name="bokehRoundedness"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=35
+    octane_pin_index=36
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="The roundedness of the blades forming the iris diaphragm", min=-1.000000, max=1.000000, soft_min=-1.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
@@ -660,7 +677,7 @@ class OctaneUniversalCameraCentralObstruction(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_CENTRAL_OBSTRUCTION
     octane_pin_name="centralObstruction"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=36
+    octane_pin_index=37
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Simulates the obstruction from the secondary mirror of a catadioptric system. Only enabled on circular apertures", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
@@ -677,7 +694,7 @@ class OctaneUniversalCameraNotchPosition(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_NOTCH_POSITION
     octane_pin_name="notchPosition"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=37
+    octane_pin_index=38
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=-1.000000, update=OctaneBaseSocket.update_node_tree, description="Position of the notch on the blades", min=-1.000000, max=1.000000, soft_min=-1.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
@@ -694,7 +711,7 @@ class OctaneUniversalCameraNotchScale(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_NOTCH_SCALE
     octane_pin_name="notchScale"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=38
+    octane_pin_index=39
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.500000, update=OctaneBaseSocket.update_node_tree, description="Scale of the notch", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
@@ -711,7 +728,7 @@ class OctaneUniversalCameraCustomAperture(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_CUSTOM_APERTURE
     octane_pin_name="customAperture"
     octane_pin_type=consts.PinType.PT_TEXTURE
-    octane_pin_index=39
+    octane_pin_index=40
     octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
@@ -727,7 +744,7 @@ class OctaneUniversalCameraOpticalVignetteDistance(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_OPTICAL_VIGNETTE_DISTANCE
     octane_pin_name="opticalVignetteDistance"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=40
+    octane_pin_index=41
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="The distance between the lens and the opening of the lens barrel [m]", min=-0.500000, max=0.500000, soft_min=-0.500000, soft_max=0.500000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
@@ -744,7 +761,7 @@ class OctaneUniversalCameraOpticalVignetteScale(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_OPTICAL_VIGNETTE_SCALE
     octane_pin_name="opticalVignetteScale"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=41
+    octane_pin_index=42
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="The scale of the opening of the lens barrel relatively to the aperture", min=1.000000, max=4.000000, soft_min=1.000000, soft_max=4.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
@@ -761,7 +778,7 @@ class OctaneUniversalCameraDiopterEnable(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_DIOPTER_ENABLE
     octane_pin_name="diopterEnable"
     octane_pin_type=consts.PinType.PT_BOOL
-    octane_pin_index=42
+    octane_pin_index=43
     octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Enable the split-focus diopter")
     octane_hide_value=False
@@ -778,7 +795,7 @@ class OctaneUniversalCameraDiopterFocalDepth(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_DIOPTER_FOCAL_DEPTH
     octane_pin_name="diopterFocalDepth"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=43
+    octane_pin_index=44
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=1.110000, update=OctaneBaseSocket.update_node_tree, description="The depth of the second focal plane [m]", min=0.010000, max=10000000000.000000, soft_min=0.010000, soft_max=1000.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
@@ -795,7 +812,7 @@ class OctaneUniversalCameraDiopterRotation(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_DIOPTER_ROTATION
     octane_pin_name="diopterRotation"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=44
+    octane_pin_index=45
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Rotation of the split-focus diopter [degrees]", min=-360.000000, max=360.000000, soft_min=-360.000000, soft_max=360.000000, step=10, precision=2, subtype="FACTOR")
     octane_hide_value=False
@@ -812,7 +829,7 @@ class OctaneUniversalCameraDiopterTranslation(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_DIOPTER_TRANSLATION
     octane_pin_name="diopterTranslation"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=45
+    octane_pin_index=46
     octane_socket_type=consts.SocketType.ST_FLOAT2
     default_value: FloatVectorProperty(default=(0.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="Translation of the split-focus diopter in image space", min=-1.000000, max=1.000000, soft_min=-1.000000, soft_max=1.000000, step=1, subtype="NONE", precision=2, size=2)
     octane_hide_value=False
@@ -829,7 +846,7 @@ class OctaneUniversalCameraDiopterBoundaryWidth(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_DIOPTER_BOUNDARY_WIDTH
     octane_pin_name="diopterBoundaryWidth"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=46
+    octane_pin_index=47
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.500000, update=OctaneBaseSocket.update_node_tree, description="Width of the boundary between the two fields relaticve to the image width", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
@@ -846,7 +863,7 @@ class OctaneUniversalCameraDiopterBoundaryFalloff(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_DIOPTER_BOUNDARY_FALLOFF
     octane_pin_name="diopterBoundaryFalloff"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=47
+    octane_pin_index=48
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Controls how quickly the split-focus diopter focal depth blends into the main focal depth", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
@@ -863,7 +880,7 @@ class OctaneUniversalCameraDiopterShowGuide(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_DIOPTER_SHOW_GUIDE
     octane_pin_name="diopterShowGuide"
     octane_pin_type=consts.PinType.PT_BOOL
-    octane_pin_index=48
+    octane_pin_index=49
     octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Display guide lines. Toggling this option on or off restarts the render")
     octane_hide_value=False
@@ -880,7 +897,7 @@ class OctaneUniversalCameraPos(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_POSITION
     octane_pin_name="pos"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=49
+    octane_pin_index=50
     octane_socket_type=consts.SocketType.ST_FLOAT3
     default_value: FloatVectorProperty(default=(0.000000, 0.500000, 1.000000), update=OctaneBaseSocket.update_node_tree, description="The position of the camera", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", precision=2, size=3)
     octane_hide_value=False
@@ -897,7 +914,7 @@ class OctaneUniversalCameraTarget(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_TARGET
     octane_pin_name="target"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=50
+    octane_pin_index=51
     octane_socket_type=consts.SocketType.ST_FLOAT3
     default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="The target position, i.e. the point the camera looks at", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", precision=2, size=3)
     octane_hide_value=False
@@ -914,7 +931,7 @@ class OctaneUniversalCameraUp(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_UP
     octane_pin_name="up"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=51
+    octane_pin_index=52
     octane_socket_type=consts.SocketType.ST_FLOAT3
     default_value: FloatVectorProperty(default=(0.000000, 1.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="The up vector, i.e. the vector that defines where is up", min=-1.000000, max=1.000000, soft_min=-1.000000, soft_max=1.000000, step=1, subtype="NONE", precision=2, size=3)
     octane_hide_value=False
@@ -931,7 +948,7 @@ class OctaneUniversalCameraKeepUpright(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_KEEP_UPRIGHT
     octane_pin_name="keepUpright"
     octane_pin_type=consts.PinType.PT_BOOL
-    octane_pin_index=52
+    octane_pin_index=53
     octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="If enabled, the camera is always oriented towards the horizon and the up-vector will stay (0, 1, 0), i.e. vertical")
     octane_hide_value=False
@@ -947,7 +964,7 @@ class OctaneUniversalCameraGroupPhysicalCameraParameters(OctaneGroupTitleSocket)
 class OctaneUniversalCameraGroupViewingAngle(OctaneGroupTitleSocket):
     bl_idname="OctaneUniversalCameraGroupViewingAngle"
     bl_label="[OctaneGroupTitle]Viewing angle"
-    octane_group_sockets: StringProperty(name="Group Sockets", default="Field of view;Scale of view;Lens shift;Pixel aspect ratio;")
+    octane_group_sockets: StringProperty(name="Group Sockets", default="Field of view;Scale of view;Lens shift;Perspective correction;Pixel aspect ratio;")
 
 class OctaneUniversalCameraGroupFisheye(OctaneGroupTitleSocket):
     bl_idname="OctaneUniversalCameraGroupFisheye"
@@ -1003,13 +1020,13 @@ class OctaneUniversalCamera(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
-    octane_socket_class_list=[OctaneUniversalCameraMode,OctaneUniversalCameraGroupPhysicalCameraParameters,OctaneUniversalCameraSensorWidth,OctaneUniversalCameraFocalLength,OctaneUniversalCameraFstop,OctaneUniversalCameraGroupViewingAngle,OctaneUniversalCameraFov,OctaneUniversalCameraScale,OctaneUniversalCameraLensShift,OctaneUniversalCameraPixelAspectRatio,OctaneUniversalCameraGroupFisheye,OctaneUniversalCameraFisheyeAngle,OctaneUniversalCameraFisheyeType,OctaneUniversalCameraHardVignette,OctaneUniversalCameraFisheyeProjection,OctaneUniversalCameraGroupPanoramic,OctaneUniversalCameraFovx,OctaneUniversalCameraFovy,OctaneUniversalCameraCubemapLayout,OctaneUniversalCameraEquiAngularCubemap,OctaneUniversalCameraGroupDistortion,OctaneUniversalCameraUseDistortionTexture,OctaneUniversalCameraDistortionTexture,OctaneUniversalCameraSphericalDistortion,OctaneUniversalCameraBarrelDistortion,OctaneUniversalCameraBarrelDistortionCorners,OctaneUniversalCameraGroupAberration,OctaneUniversalCameraSphericalAberration,OctaneUniversalCameraComa,OctaneUniversalCameraAstigmatism,OctaneUniversalCameraFieldCurvature,OctaneUniversalCameraGroupClipping,OctaneUniversalCameraNearClipDepth,OctaneUniversalCameraFarClipDepth,OctaneUniversalCameraGroupDepthOfField,OctaneUniversalCameraAutofocus,OctaneUniversalCameraFocalDepth,OctaneUniversalCameraAperture,OctaneUniversalCameraApertureAspectRatio,OctaneUniversalCameraApertureShape,OctaneUniversalCameraApertureEdge,OctaneUniversalCameraBokehSidecount,OctaneUniversalCameraBokehRotation,OctaneUniversalCameraBokehRoundedness,OctaneUniversalCameraCentralObstruction,OctaneUniversalCameraNotchPosition,OctaneUniversalCameraNotchScale,OctaneUniversalCameraCustomAperture,OctaneUniversalCameraGroupOpticalVignetting,OctaneUniversalCameraOpticalVignetteDistance,OctaneUniversalCameraOpticalVignetteScale,OctaneUniversalCameraGroupSplitFocusDiopter,OctaneUniversalCameraDiopterEnable,OctaneUniversalCameraDiopterFocalDepth,OctaneUniversalCameraDiopterRotation,OctaneUniversalCameraDiopterTranslation,OctaneUniversalCameraDiopterBoundaryWidth,OctaneUniversalCameraDiopterBoundaryFalloff,OctaneUniversalCameraDiopterShowGuide,OctaneUniversalCameraGroupPosition,OctaneUniversalCameraPos,OctaneUniversalCameraTarget,OctaneUniversalCameraUp,OctaneUniversalCameraKeepUpright,]
+    octane_socket_class_list=[OctaneUniversalCameraMode,OctaneUniversalCameraGroupPhysicalCameraParameters,OctaneUniversalCameraSensorWidth,OctaneUniversalCameraFocalLength,OctaneUniversalCameraFstop,OctaneUniversalCameraGroupViewingAngle,OctaneUniversalCameraFov,OctaneUniversalCameraScale,OctaneUniversalCameraLensShift,OctaneUniversalCameraPerspectiveCorrection,OctaneUniversalCameraPixelAspectRatio,OctaneUniversalCameraGroupFisheye,OctaneUniversalCameraFisheyeAngle,OctaneUniversalCameraFisheyeType,OctaneUniversalCameraHardVignette,OctaneUniversalCameraFisheyeProjection,OctaneUniversalCameraGroupPanoramic,OctaneUniversalCameraFovx,OctaneUniversalCameraFovy,OctaneUniversalCameraCubemapLayout,OctaneUniversalCameraEquiAngularCubemap,OctaneUniversalCameraGroupDistortion,OctaneUniversalCameraUseDistortionTexture,OctaneUniversalCameraDistortionTexture,OctaneUniversalCameraSphericalDistortion,OctaneUniversalCameraBarrelDistortion,OctaneUniversalCameraBarrelDistortionCorners,OctaneUniversalCameraGroupAberration,OctaneUniversalCameraSphericalAberration,OctaneUniversalCameraComa,OctaneUniversalCameraAstigmatism,OctaneUniversalCameraFieldCurvature,OctaneUniversalCameraGroupClipping,OctaneUniversalCameraNearClipDepth,OctaneUniversalCameraFarClipDepth,OctaneUniversalCameraGroupDepthOfField,OctaneUniversalCameraAutofocus,OctaneUniversalCameraFocalDepth,OctaneUniversalCameraAperture,OctaneUniversalCameraApertureAspectRatio,OctaneUniversalCameraApertureShape,OctaneUniversalCameraApertureEdge,OctaneUniversalCameraBokehSidecount,OctaneUniversalCameraBokehRotation,OctaneUniversalCameraBokehRoundedness,OctaneUniversalCameraCentralObstruction,OctaneUniversalCameraNotchPosition,OctaneUniversalCameraNotchScale,OctaneUniversalCameraCustomAperture,OctaneUniversalCameraGroupOpticalVignetting,OctaneUniversalCameraOpticalVignetteDistance,OctaneUniversalCameraOpticalVignetteScale,OctaneUniversalCameraGroupSplitFocusDiopter,OctaneUniversalCameraDiopterEnable,OctaneUniversalCameraDiopterFocalDepth,OctaneUniversalCameraDiopterRotation,OctaneUniversalCameraDiopterTranslation,OctaneUniversalCameraDiopterBoundaryWidth,OctaneUniversalCameraDiopterBoundaryFalloff,OctaneUniversalCameraDiopterShowGuide,OctaneUniversalCameraGroupPosition,OctaneUniversalCameraPos,OctaneUniversalCameraTarget,OctaneUniversalCameraUp,OctaneUniversalCameraKeepUpright,]
     octane_min_version=0
     octane_node_type=consts.NodeType.NT_CAM_UNIVERSAL
-    octane_socket_list=["Camera mode", "Sensor width", "Focal length", "F-stop", "Field of view", "Scale of view", "Lens shift", "Pixel aspect ratio", "Fisheye angle", "Fisheye type", "Hard vignette", "Fisheye projection", "Horizontal field of view", "Vertical field of view", "Cubemap layout", "Equi-angular cubemap", "Use distortion texture", "Distortion texture", "Spherical distortion", "Barrel distortion", "Barrel distortion corners", "Spherical aberration", "Coma", "Astigmatism", "Field curvature", "Near clip depth", "Far clip depth", "Auto-focus", "Focal depth", "Aperture", "Aperture aspect ratio", "Aperture shape", "Aperture edge", "Aperture blade count", "Aperture rotation", "Aperture roundedness", "Central obstruction", "Notch position", "Notch scale", "Custom aperture", "Optical vignette distance", "Optical vignette scale", "Enable split-focus diopter", "Diopter focal depth", "Diopter rotation", "Diopter translation", "Diopter boundary width", "Diopter boundary falloff", "Show diopter guide", "Position", "Target", "Up-vector", "Keep upright", ]
+    octane_socket_list=["Camera mode", "Sensor width", "Focal length", "F-stop", "Field of view", "Scale of view", "Lens shift", "Perspective correction", "Pixel aspect ratio", "Fisheye angle", "Fisheye type", "Hard vignette", "Fisheye projection", "Horizontal field of view", "Vertical field of view", "Cubemap layout", "Equi-angular cubemap", "Use distortion texture", "Distortion texture", "Spherical distortion", "Barrel distortion", "Barrel distortion corners", "Spherical aberration", "Coma", "Astigmatism", "Field curvature", "Near clip depth", "Far clip depth", "Auto-focus", "Focal depth", "Aperture", "Aperture aspect ratio", "Aperture shape", "Aperture edge", "Aperture blade count", "Aperture rotation", "Aperture roundedness", "Central obstruction", "Notch position", "Notch scale", "Custom aperture", "Optical vignette distance", "Optical vignette scale", "Enable split-focus diopter", "Diopter focal depth", "Diopter rotation", "Diopter translation", "Diopter boundary width", "Diopter boundary falloff", "Show diopter guide", "Position", "Target", "Up-vector", "Keep upright", ]
     octane_attribute_list=["a_load_initial_state", "a_save_initial_state", ]
     octane_attribute_config={"a_load_initial_state": [consts.AttributeID.A_LOAD_INITIAL_STATE, "loadInitialState", consts.AttributeType.AT_BOOL], "a_save_initial_state": [consts.AttributeID.A_SAVE_INITIAL_STATE, "saveInitialState", consts.AttributeType.AT_BOOL], }
-    octane_static_pin_count=53
+    octane_static_pin_count=54
 
     a_load_initial_state: BoolProperty(name="Load initial state", default=False, update=OctaneBaseNode.update_node_tree, description="If enabled and the node gets evaluated, the camera is reset to the previously saved position and orientation")
     a_save_initial_state: BoolProperty(name="Save initial state", default=True, update=OctaneBaseNode.update_node_tree, description="If enabled and the node gets evaluated, the current camera position and orientation will be saved")
@@ -1024,6 +1041,7 @@ class OctaneUniversalCamera(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneUniversalCameraFov", OctaneUniversalCameraFov.bl_label).init()
         self.inputs.new("OctaneUniversalCameraScale", OctaneUniversalCameraScale.bl_label).init()
         self.inputs.new("OctaneUniversalCameraLensShift", OctaneUniversalCameraLensShift.bl_label).init()
+        self.inputs.new("OctaneUniversalCameraPerspectiveCorrection", OctaneUniversalCameraPerspectiveCorrection.bl_label).init()
         self.inputs.new("OctaneUniversalCameraPixelAspectRatio", OctaneUniversalCameraPixelAspectRatio.bl_label).init()
         self.inputs.new("OctaneUniversalCameraGroupFisheye", OctaneUniversalCameraGroupFisheye.bl_label).init()
         self.inputs.new("OctaneUniversalCameraFisheyeAngle", OctaneUniversalCameraFisheyeAngle.bl_label).init()
@@ -1090,6 +1108,7 @@ _CLASSES=[
     OctaneUniversalCameraFov,
     OctaneUniversalCameraScale,
     OctaneUniversalCameraLensShift,
+    OctaneUniversalCameraPerspectiveCorrection,
     OctaneUniversalCameraPixelAspectRatio,
     OctaneUniversalCameraFisheyeAngle,
     OctaneUniversalCameraFisheyeType,

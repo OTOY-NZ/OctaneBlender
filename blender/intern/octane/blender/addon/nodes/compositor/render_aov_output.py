@@ -241,7 +241,7 @@ class OctaneRenderAOVOutput(bpy.types.Node, OctaneBaseNode):
     octane_attribute_config={"a_compatibility_version": [consts.AttributeID.A_COMPATIBILITY_VERSION, "compatibilityVersion", consts.AttributeType.AT_INT], }
     octane_static_pin_count=4
 
-    a_compatibility_version: IntProperty(name="Compatibility version", default=12000020, update=OctaneBaseNode.update_node_tree, description="The Octane version that the behavior of this node should match")
+    a_compatibility_version: IntProperty(name="Compatibility version", default=12000102, update=OctaneBaseNode.update_node_tree, description="The Octane version that the behavior of this node should match")
 
     def init(self, context):
         self.inputs.new("OctaneRenderAOVOutputInput", OctaneRenderAOVOutputInput.bl_label).init()

@@ -5,6 +5,8 @@
 
 #include "BKE_context.h"
 
+#include "DEG_depsgraph_query.h"
+
 #include "UI_interface.h"
 #include "UI_resources.h"
 
@@ -29,7 +31,11 @@ static void node_shader_buts_tangent(uiLayout *layout, bContext *C, PointerRNA *
     PointerRNA obptr = CTX_data_pointer_get(C, "active_object");
 
     if (obptr.data && RNA_enum_get(&obptr, "type") == OB_MESH) {
-      PointerRNA dataptr = RNA_pointer_get(&obptr, "data");
+      PointerRNA eval_obptr;
+
+      Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+      DEG_get_evaluated_rna_pointer(depsgraph, &obptr, &eval_obptr);
+      PointerRNA dataptr = RNA_pointer_get(&eval_obptr, "data");
       uiItemPointerR(row, ptr, "uv_map", &dataptr, "uv_layers", "", ICON_NONE);
     }
     else {
@@ -89,8 +95,8 @@ void register_node_type_sh_tangent()
   ntype.declare = file_ns::node_declare;
   ntype.draw_buttons = file_ns::node_shader_buts_tangent;
   node_type_size_preset(&ntype, NODE_SIZE_MIDDLE);
-  node_type_init(&ntype, file_ns::node_shader_init_tangent);
-  node_type_gpu(&ntype, file_ns::node_shader_gpu_tangent);
+  ntype.initfunc = file_ns::node_shader_init_tangent;
+  ntype.gpu_fn = file_ns::node_shader_gpu_tangent;
   node_type_storage(
       &ntype, "NodeShaderTangent", node_free_standard_storage, node_copy_standard_storage);
 

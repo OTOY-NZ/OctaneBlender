@@ -1341,6 +1341,11 @@ class OctaneCameraSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings):
         description="Camera mode",
         items=universal_pan_camera_modes,
         default='Equirectangular',
+    )
+    universal_perspective_correction: BoolProperty(
+        name="Perspective correction",
+        description="Perspective correction keeps vertical lines parallel if up-vector is vertical",
+        default=False,
     )    
     fisheye_angle: FloatProperty(
         name="Fisheye angle",

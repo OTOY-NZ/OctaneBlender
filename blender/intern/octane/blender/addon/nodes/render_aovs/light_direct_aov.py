@@ -77,7 +77,7 @@ class OctaneLightDirectAOV(bpy.types.Node, OctaneBaseNode):
     def init(self, context):
         self.inputs.new("OctaneLightDirectAOVEnabled", OctaneLightDirectAOVEnabled.bl_label).init()
         self.inputs.new("OctaneLightDirectAOVSubType", OctaneLightDirectAOVSubType.bl_label).init()
-        self.outputs.new("OctaneRenderAOVsOutSocket", "Render AOVs out").init()
+        self.outputs.new("OctaneRenderAOVOutSocket", "Render AOV out").init()
 
 
 _CLASSES=[

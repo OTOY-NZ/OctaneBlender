@@ -204,6 +204,51 @@ static StructRNA *rna_FModifierType_refine(struct PointerRNA *ptr)
 #  include "DEG_depsgraph.h"
 #  include "DEG_depsgraph_build.h"
 
+/**
+ * \warning this isn't efficient but it's unavoidable
+ * when only the #ID and the #DriverVar are known.
+ */
+static FCurve *rna_FCurve_find_driver_by_variable(ID *owner_id, DriverVar *dvar)
+{
+  AnimData *adt = BKE_animdata_from_id(owner_id);
+  BLI_assert(adt != NULL);
+  LISTBASE_FOREACH (FCurve *, fcu, &adt->drivers) {
+    ChannelDriver *driver = fcu->driver;
+    if (driver == NULL) {
+      continue;
+    }
+    if (BLI_findindex(&driver->variables, dvar) != -1) {
+      return fcu;
+    }
+  }
+  return NULL;
+}
+
+/**
+ * \warning this isn't efficient but it's unavoidable
+ * when only the #ID and the #DriverTarget are known.
+ */
+static FCurve *rna_FCurve_find_driver_by_target(ID *owner_id, DriverTarget *dtar)
+{
+  AnimData *adt = BKE_animdata_from_id(owner_id);
+  BLI_assert(adt != NULL);
+  LISTBASE_FOREACH (FCurve *, fcu, &adt->drivers) {
+    ChannelDriver *driver = fcu->driver;
+    if (driver == NULL) {
+      continue;
+    }
+    LISTBASE_FOREACH (DriverVar *, dvar, &driver->variables) {
+      /* NOTE: Use #MAX_DRIVER_TARGETS instead of `dvar->num_targets` because
+       * it's possible RNA holds a reference to a target that has been removed.
+       * In this case it's best to return the #FCurve it belongs to instead of nothing. */
+      if (ARRAY_HAS_ITEM(dtar, &dvar->targets[0], MAX_DRIVER_TARGETS)) {
+        return fcu;
+      }
+    }
+  }
+  return NULL;
+}
+
 static bool rna_ChannelDriver_is_simple_expression_get(PointerRNA *ptr)
 {
   ChannelDriver *driver = ptr->data;
@@ -211,18 +256,25 @@ static bool rna_ChannelDriver_is_simple_expression_get(PointerRNA *ptr)
   return BKE_driver_has_simple_expression(driver);
 }
 
-static void rna_ChannelDriver_update_data(Main *bmain, Scene *scene, PointerRNA *ptr)
+static void rna_ChannelDriver_update_data_impl(Main *bmain,
+                                               Scene *scene,
+                                               ID *owner_id,
+                                               ChannelDriver *driver)
 {
-  ID *id = ptr->owner_id;
-  ChannelDriver *driver = ptr->data;
-
   driver->flag &= ~DRIVER_FLAG_INVALID;
 
   /* TODO: this really needs an update guard... */
   DEG_relations_tag_update(bmain);
-  DEG_id_tag_update(id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
+  DEG_id_tag_update(owner_id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
 
   WM_main_add_notifier(NC_SCENE | ND_FRAME, scene);
+}
+
+static void rna_ChannelDriver_update_data(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+  ID *id = ptr->owner_id;
+  ChannelDriver *driver = ptr->data;
+  rna_ChannelDriver_update_data_impl(bmain, scene, id, driver);
 }
 
 static void rna_ChannelDriver_update_expr(Main *bmain, Scene *scene, PointerRNA *ptr)
@@ -238,36 +290,50 @@ static void rna_ChannelDriver_update_expr(Main *bmain, Scene *scene, PointerRNA 
 
 static void rna_DriverTarget_update_data(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
-  PointerRNA driverptr;
-  ChannelDriver *driver;
-  FCurve *fcu;
-  AnimData *adt = BKE_animdata_from_id(ptr->owner_id);
-
-  /* find the driver this belongs to and update it */
-  for (fcu = adt->drivers.first; fcu; fcu = fcu->next) {
-    driver = fcu->driver;
-    fcu->flag &= ~FCURVE_DISABLED;
-
-    if (driver) {
-      /* FIXME: need to be able to search targets for required one. */
-      // BLI_findindex(&driver->targets, ptr->data) != -1)
-      RNA_pointer_create(ptr->owner_id, &RNA_Driver, driver, &driverptr);
-      rna_ChannelDriver_update_data(bmain, scene, &driverptr);
-    }
+  DriverTarget *dtar = (DriverTarget *)ptr->data;
+  FCurve *fcu = rna_FCurve_find_driver_by_target(ptr->owner_id, dtar);
+  BLI_assert(fcu); /* This hints at an internal error, data may be corrupt. */
+  if (UNLIKELY(fcu == NULL)) {
+    return;
   }
+  /* Find function ensures it's never NULL. */
+  ChannelDriver *driver = fcu->driver;
+  fcu->flag &= ~FCURVE_DISABLED;
+  rna_ChannelDriver_update_data_impl(bmain, scene, ptr->owner_id, driver);
 }
 
-static void rna_DriverTarget_update_name(Main *bmain, Scene *scene, PointerRNA *ptr)
+static void rna_DriverVariable_update_name(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
-  ChannelDriver *driver = ptr->data;
-  rna_DriverTarget_update_data(bmain, scene, ptr);
-
+  DriverVar *dvar = (DriverVar *)ptr->data;
+  FCurve *fcu = rna_FCurve_find_driver_by_variable(ptr->owner_id, dvar);
+  BLI_assert(fcu); /* This hints at an internal error, data may be corrupt. */
+  if (UNLIKELY(fcu == NULL)) {
+    return;
+  }
+  /* Find function ensures it's never NULL. */
+  ChannelDriver *driver = fcu->driver;
+  fcu->flag &= ~FCURVE_DISABLED;
+  rna_ChannelDriver_update_data_impl(bmain, scene, ptr->owner_id, driver);
   BKE_driver_invalidate_expression(driver, false, true);
+}
+
+static void rna_DriverVariable_update_data(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+  DriverVar *dvar = (DriverVar *)ptr->data;
+  FCurve *fcu = rna_FCurve_find_driver_by_variable(ptr->owner_id, dvar);
+  BLI_assert(fcu); /* This hints at an internal error, data may be corrupt. */
+  if (UNLIKELY(fcu == NULL)) {
+    return;
+  }
+  /* Find function ensures it's never NULL. */
+  ChannelDriver *driver = fcu->driver;
+  fcu->flag &= ~FCURVE_DISABLED;
+  rna_ChannelDriver_update_data_impl(bmain, scene, ptr->owner_id, driver);
 }
 
 /* ----------- */
 
-/* NOTE: this function exists only to avoid id refcounting. */
+/* NOTE: this function exists only to avoid id reference-counting. */
 static void rna_DriverTarget_id_set(PointerRNA *ptr,
                                     PointerRNA value,
                                     struct ReportList *UNUSED(reports))
@@ -714,7 +780,7 @@ static void rna_FModifier_start_frame_range(PointerRNA *UNUSED(ptr),
   // FModifier *fcm = (FModifier *)ptr->data;
 
   /* Technically, "sfra <= efra" must hold; however, we can't strictly enforce that,
-   * or else it becomes tricky to adjust the range, see: T36844.
+   * or else it becomes tricky to adjust the range, see: #36844.
    *
    * NOTE: we do not set soft-limits on lower bounds, as it's too confusing when you
    *       can't easily use the slider to set things here
@@ -729,7 +795,7 @@ static void rna_FModifier_end_frame_range(
   FModifier *fcm = (FModifier *)ptr->data;
 
   /* Technically, "sfra <= efra" must hold; however, we can't strictly enforce that,
-   * or else it becomes tricky to adjust the range, see: T36844. */
+   * or else it becomes tricky to adjust the range, see: #36844. */
   *min = MINAFRAMEF;
   *softmin = (fcm->flag & FMODIFIER_FLAG_RANGERESTRICT) ? fcm->sfra : MINAFRAMEF;
 
@@ -951,7 +1017,7 @@ static void rna_FModifierStepped_frame_start_set(PointerRNA *ptr, float value)
   value = CLAMPIS(value, prop_clamp_min, prop_clamp_max);
 
   /* Need to set both step-data's start/end and the start/end on the base-data,
-   * or else Restrict-Range doesn't work due to RNA-property shadowing (T52009)
+   * or else Restrict-Range doesn't work due to RNA-property shadowing (#52009)
    */
   data->start_frame = value;
   fcm->sfra = value;
@@ -968,7 +1034,7 @@ static void rna_FModifierStepped_frame_end_set(PointerRNA *ptr, float value)
   value = CLAMPIS(value, prop_clamp_min, prop_clamp_max);
 
   /* Need to set both step-data's start/end and the start/end on the base-data,
-   * or else Restrict-Range doesn't work due to RNA-property shadowing (T52009)
+   * or else Restrict-Range doesn't work due to RNA-property shadowing (#52009)
    */
   data->end_frame = value;
   fcm->efra = value;
@@ -1924,14 +1990,14 @@ static void rna_def_drivervar(BlenderRNA *brna)
       "Name",
       "Name to use in scripted expressions/functions (no spaces or dots are allowed, "
       "and must start with a letter)");
-  RNA_def_property_update(prop, 0, "rna_DriverTarget_update_name"); /* XXX */
+  RNA_def_property_update(prop, 0, "rna_DriverVariable_update_name");
 
   /* Enums */
   prop = RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, prop_type_items);
   RNA_def_property_enum_funcs(prop, NULL, "rna_DriverVariable_type_set", NULL);
   RNA_def_property_ui_text(prop, "Type", "Driver variable type");
-  RNA_def_property_update(prop, 0, "rna_ChannelDriver_update_data"); /* XXX */
+  RNA_def_property_update(prop, 0, "rna_DriverVariable_update_data");
 
   /* Targets */
   /* TODO: for nicer api, only expose the relevant props via subclassing,

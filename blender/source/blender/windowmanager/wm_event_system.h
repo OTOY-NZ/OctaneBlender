@@ -7,12 +7,6 @@
 
 #pragma once
 
-/* return value of handler-operator call */
-#define WM_HANDLER_CONTINUE 0
-#define WM_HANDLER_BREAK 1
-#define WM_HANDLER_HANDLED 2
-#define WM_HANDLER_MODAL 4 /* MODAL|BREAK means unhandled */
-
 struct ARegion;
 struct GHOST_TabletData;
 struct ScrArea;
@@ -29,21 +23,21 @@ extern "C" {
 /* wmKeyMap is in DNA_windowmanager.h, it's saveable */
 
 /** Custom types for handlers, for signaling, freeing */
-enum eWM_EventHandlerType {
+typedef enum eWM_EventHandlerType {
   WM_HANDLER_TYPE_GIZMO = 1,
   WM_HANDLER_TYPE_UI,
   WM_HANDLER_TYPE_OP,
   WM_HANDLER_TYPE_DROPBOX,
   WM_HANDLER_TYPE_KEYMAP,
-};
+} eWM_EventHandlerType;
 
 typedef bool (*EventHandlerPoll)(const ARegion *region, const wmEvent *event);
 
 typedef struct wmEventHandler {
   struct wmEventHandler *next, *prev;
 
-  enum eWM_EventHandlerType type;
-  char flag; /* WM_HANDLER_BLOCKING, ... */
+  eWM_EventHandlerType type;
+  eWM_EventHandlerFlag flag;
 
   EventHandlerPoll poll;
 } wmEventHandler;

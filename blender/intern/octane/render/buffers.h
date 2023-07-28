@@ -18,7 +18,7 @@
 
 #ifndef __BUFFERS_H__
 #define __BUFFERS_H__
-
+#include "GPU_texture.h"
 #include "blender/server/octane_client.h"
 #include "util/util_boundbox.h"
 #include "util/util_function.h"
@@ -91,6 +91,7 @@ class DisplayBuffer {
   /* shared surface handler */
   int64_t shared_handler;
   GLuint gl_texture;
+  GPUTexture *gpu_texture;
 
   ::OctaneEngine::OctaneClient *server;
 
@@ -104,6 +105,10 @@ class DisplayBuffer {
   void update_gl_texture_from_shared_handler(GLuint &gl_texture, int64_t current_shared_handler);
   void update_gl_texture_from_pixel_array(
       GLuint &gl_texture, uint8_t *rgba, int32_t components_cnt, int32_t width, int32_t height);
+  void update_gpu_texture_from_pixel_array(uint8_t *rgba,
+                                           int32_t components_cnt,
+                                           int32_t width,
+                                           int32_t height);
   bool draw_ready();
 };
 

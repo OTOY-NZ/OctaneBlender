@@ -423,7 +423,7 @@ static void object_offset_header_draw(const bContext *UNUSED(C), Panel *panel)
 
   PointerRNA *ptr = gpencil_modifier_panel_get_property_pointers(panel, NULL);
 
-  uiItemR(layout, ptr, "use_object_offset", 0, NULL, ICON_NONE);
+  uiItemR(layout, ptr, "use_object_offset", 0, IFACE_("Object Offset"), ICON_NONE);
 }
 
 static void object_offset_draw(const bContext *UNUSED(C), Panel *panel)
@@ -437,7 +437,7 @@ static void object_offset_draw(const bContext *UNUSED(C), Panel *panel)
   uiLayout *col = uiLayoutColumn(layout, false);
 
   uiLayoutSetActive(col, RNA_boolean_get(ptr, "use_object_offset"));
-  uiItemR(col, ptr, "offset_object", 0, NULL, ICON_NONE);
+  uiItemR(col, ptr, "offset_object", 0, IFACE_("Object"), ICON_NONE);
 }
 
 static void random_panel_draw(const bContext *UNUSED(C), Panel *panel)
@@ -485,25 +485,25 @@ static void panelRegister(ARegionType *region_type)
 }
 
 GpencilModifierTypeInfo modifierType_Gpencil_Array = {
-    /* name */ N_("Array"),
-    /* structName */ "ArrayGpencilModifierData",
-    /* structSize */ sizeof(ArrayGpencilModifierData),
-    /* type */ eGpencilModifierTypeType_Gpencil,
-    /* flags */ eGpencilModifierTypeFlag_SupportsEditmode,
+    /*name*/ N_("Array"),
+    /*structName*/ "ArrayGpencilModifierData",
+    /*structSize*/ sizeof(ArrayGpencilModifierData),
+    /*type*/ eGpencilModifierTypeType_Gpencil,
+    /*flags*/ eGpencilModifierTypeFlag_SupportsEditmode,
 
-    /* copyData */ copyData,
+    /*copyData*/ copyData,
 
-    /* deformStroke */ NULL,
-    /* generateStrokes */ generateStrokes,
-    /* bakeModifier */ bakeModifier,
-    /* remapTime */ NULL,
+    /*deformStroke*/ NULL,
+    /*generateStrokes*/ generateStrokes,
+    /*bakeModifier*/ bakeModifier,
+    /*remapTime*/ NULL,
 
-    /* initData */ initData,
-    /* freeData */ NULL,
-    /* isDisabled */ NULL,
-    /* updateDepsgraph */ updateDepsgraph,
-    /* dependsOnTime */ NULL,
-    /* foreachIDLink */ foreachIDLink,
-    /* foreachTexLink */ NULL,
-    /* panelRegister */ panelRegister,
+    /*initData*/ initData,
+    /*freeData*/ NULL,
+    /*isDisabled*/ NULL,
+    /*updateDepsgraph*/ updateDepsgraph,
+    /*dependsOnTime*/ NULL,
+    /*foreachIDLink*/ foreachIDLink,
+    /*foreachTexLink*/ NULL,
+    /*panelRegister*/ panelRegister,
 };

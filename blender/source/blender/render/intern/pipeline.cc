@@ -53,6 +53,7 @@
 #include "BKE_mask.h"
 #include "BKE_modifier.h"
 #include "BKE_node.h"
+#include "BKE_node_runtime.hh"
 #include "BKE_object.h"
 #include "BKE_pointcache.h"
 #include "BKE_report.h"
@@ -177,7 +178,7 @@ static void stats_nothing(void * /*arg*/, RenderStats * /*rs*/)
 static void float_nothing(void * /*arg*/, float /*val*/)
 {
 }
-static int default_break(void * /*arg*/)
+static bool default_break(void * /*arg*/)
 {
   return G.is_break == true;
 }
@@ -339,7 +340,7 @@ void RE_SwapResult(Render *re, RenderResult **rr)
 {
   /* for keeping render buffers */
   if (re) {
-    SWAP(RenderResult *, re->result, *rr);
+    std::swap(re->result, *rr);
   }
 }
 
@@ -748,7 +749,7 @@ void RE_InitState(Render *re,
   if (re->rectx < 1 || re->recty < 1 ||
       (BKE_imtype_is_movie(rd->im_format.imtype) && (re->rectx < 16 || re->recty < 16))) {
     BKE_report(re->reports, RPT_ERROR, "Image too small");
-    re->ok = 0;
+    re->ok = false;
     return;
   }
 
@@ -847,7 +848,7 @@ void RE_draw_lock_cb(Render *re, void *handle, void (*f)(void *handle, bool lock
   re->dlh = handle;
 }
 
-void RE_test_break_cb(Render *re, void *handle, int (*f)(void *handle))
+void RE_test_break_cb(Render *re, void *handle, bool (*f)(void *handle))
 {
   re->test_break = f;
   re->tbh = handle;
@@ -1045,7 +1046,7 @@ static int compositor_needs_render(Scene *sce, int this_scene)
     return 1;
   }
 
-  LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+  for (const bNode *node : ntree->all_nodes()) {
     if (node->type == CMP_NODE_R_LAYERS && (node->flag & NODE_MUTED) == 0) {
       if (this_scene == 0 || node->id == nullptr || node->id == &sce->id) {
         return 1;
@@ -1070,7 +1071,7 @@ static void do_render_compositor_scenes(Render *re)
   /* now foreach render-result node we do a full render */
   /* results are stored in a way compositor will find it */
   GSet *scenes_rendered = BLI_gset_ptr_new(__func__);
-  LISTBASE_FOREACH (bNode *, node, &re->scene->nodetree->nodes) {
+  for (bNode *node : re->scene->nodetree->all_nodes()) {
     if (node->type == CMP_NODE_R_LAYERS && (node->flag & NODE_MUTED) == 0) {
       if (node->id && node->id != (ID *)re->scene) {
         Scene *scene = (Scene *)node->id;
@@ -1114,9 +1115,6 @@ static void do_render_compositor(Render *re)
   int update_newframe = 0;
 
   if (compositor_needs_render(re->pipeline_scene_eval, 1)) {
-    /* save memory... free all cached images */
-    ntreeFreeCache(ntree);
-
     /* render the frames
      * it could be optimized to render only the needed view
      * but what if a scene has a different number of views
@@ -1161,12 +1159,12 @@ static void do_render_compositor(Render *re)
       }
 
       if (!re->test_break(re->tbh)) {
-        ntree->stats_draw = render_compositor_stats;
-        ntree->test_break = re->test_break;
-        ntree->progress = re->progress;
-        ntree->sdh = re;
-        ntree->tbh = re->tbh;
-        ntree->prh = re->prh;
+        ntree->runtime->stats_draw = render_compositor_stats;
+        ntree->runtime->test_break = re->test_break;
+        ntree->runtime->progress = re->progress;
+        ntree->runtime->sdh = re;
+        ntree->runtime->tbh = re->tbh;
+        ntree->runtime->prh = re->prh;
 
         if (update_newframe) {
           /* If we have consistent depsgraph now would be a time to update them. */
@@ -1177,10 +1175,10 @@ static void do_render_compositor(Render *re)
               re->pipeline_scene_eval, ntree, &re->r, true, G.background == 0, rv->name);
         }
 
-        ntree->stats_draw = nullptr;
-        ntree->test_break = nullptr;
-        ntree->progress = nullptr;
-        ntree->tbh = ntree->sdh = ntree->prh = nullptr;
+        ntree->runtime->stats_draw = nullptr;
+        ntree->runtime->test_break = nullptr;
+        ntree->runtime->progress = nullptr;
+        ntree->runtime->tbh = ntree->runtime->sdh = ntree->runtime->prh = nullptr;
       }
     }
   }
@@ -1402,7 +1400,7 @@ static bool check_valid_compositing_camera(Scene *scene,
                                            ReportList *reports)
 {
   if (scene->r.scemode & R_DOCOMP && scene->use_nodes) {
-    LISTBASE_FOREACH (bNode *, node, &scene->nodetree->nodes) {
+    for (bNode *node : scene->nodetree->all_nodes()) {
       if (node->type == CMP_NODE_R_LAYERS && (node->flag & NODE_MUTED) == 0) {
         Scene *sce = node->id ? (Scene *)node->id : scene;
         if (sce->camera == nullptr) {
@@ -1510,15 +1508,15 @@ static int check_valid_camera(Scene *scene, Object *camera_override, ReportList 
   return true;
 }
 
-static bool node_tree_has_compositor_output(bNodeTree *ntree)
+static bool node_tree_has_compositor_output(const bNodeTree *ntree)
 {
-  LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+  for (const bNode *node : ntree->all_nodes()) {
     if (ELEM(node->type, CMP_NODE_COMPOSITE, CMP_NODE_OUTPUT_FILE)) {
       return true;
     }
     if (ELEM(node->type, NODE_GROUP, NODE_CUSTOM_GROUP)) {
       if (node->id) {
-        if (node_tree_has_compositor_output((bNodeTree *)node->id)) {
+        if (node_tree_has_compositor_output((const bNodeTree *)node->id)) {
           return true;
         }
       }
@@ -1613,15 +1611,15 @@ const char *RE_GetActiveRenderView(Render *re)
   return re->viewname;
 }
 
-/* evaluating scene options for general Blender render */
-static int render_init_from_main(Render *re,
-                                 const RenderData *rd,
-                                 Main *bmain,
-                                 Scene *scene,
-                                 ViewLayer *single_layer,
-                                 Object *camera_override,
-                                 int anim,
-                                 int anim_init)
+/** Evaluating scene options for general Blender render. */
+static bool render_init_from_main(Render *re,
+                                  const RenderData *rd,
+                                  Main *bmain,
+                                  Scene *scene,
+                                  ViewLayer *single_layer,
+                                  Object *camera_override,
+                                  int anim,
+                                  int anim_init)
 {
   int winx, winy;
   rcti disprect;
@@ -1655,7 +1653,7 @@ static int render_init_from_main(Render *re,
   /* not too nice, but it survives anim-border render */
   if (anim) {
     re->disprect = disprect;
-    return 1;
+    return true;
   }
 
   /*
@@ -1677,7 +1675,7 @@ static int render_init_from_main(Render *re,
 
   RE_InitState(re, nullptr, &scene->r, &scene->view_layers, single_layer, winx, winy, &disprect);
   if (!re->ok) { /* if an error was printed, abort */
-    return 0;
+    return false;
   }
 
   /* initstate makes new result, have to send changed tags around */
@@ -1686,7 +1684,7 @@ static int render_init_from_main(Render *re,
   re->display_init(re->dih, re->result);
   re->display_clear(re->dch, re->result);
 
-  return 1;
+  return true;
 }
 
 void RE_SetReports(Render *re, ReportList *reports)
@@ -1839,7 +1837,7 @@ static bool use_eevee_for_freestyle_render(Render *re)
 
 void RE_RenderFreestyleStrokes(Render *re, Main *bmain, Scene *scene, int render)
 {
-  re->result_ok = 0;
+  re->result_ok = false;
   if (render_init_from_main(re, &scene->r, bmain, scene, nullptr, nullptr, 0, 0)) {
     if (render) {
       char scene_engine[32];
@@ -1853,7 +1851,7 @@ void RE_RenderFreestyleStrokes(Render *re, Main *bmain, Scene *scene, int render
       change_renderdata_engine(re, scene_engine);
     }
   }
-  re->result_ok = 1;
+  re->result_ok = true;
 }
 
 void RE_RenderFreestyleExternal(Render *re)
@@ -2128,6 +2126,7 @@ void RE_RenderAnim(Render *re,
 
     mh = BKE_movie_handle_get(rd.im_format.imtype);
     if (mh == nullptr) {
+      render_pipeline_free(re);
       BKE_report(re->reports, RPT_ERROR, "Movie format unsupported");
       return;
     }
@@ -2521,7 +2520,6 @@ bool RE_layers_have_name(struct RenderResult *result)
     default:
       return true;
   }
-  return false;
 }
 
 bool RE_passes_have_name(struct RenderLayer *rl)

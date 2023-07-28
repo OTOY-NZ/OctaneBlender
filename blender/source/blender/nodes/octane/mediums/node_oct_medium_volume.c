@@ -224,9 +224,9 @@ void register_node_type_medium_oct_volume(void)
         &ntype, SH_NODE_OCT_VOLUME_MED, "Volume Medium", NODE_CLASS_OCT_MEDIUM);
   node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
   node_type_size(&ntype, 160, 160, 500);
-  node_type_init(&ntype, node_octane_medium_init);
-  node_type_exec(&ntype, 0, 0, 0);
-  node_type_update(&ntype, node_octane_medium_update);
+  ntype.initfunc = (node_octane_medium_init);
+  // node_type_exec(&ntype, 0, 0, 0);
+  ntype.updatefunc = (node_octane_medium_update);
   
 
   nodeRegisterType(&ntype);

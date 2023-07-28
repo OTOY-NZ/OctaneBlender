@@ -82,10 +82,9 @@ void register_node_type_projection_oct_spherical(void)
                    NODE_CLASS_OCT_PROJECTION);
   node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
   node_type_size(&ntype, 160, 160, 500);
-  node_type_init(&ntype, node_projection_oct_spherical_init);
-  node_type_exec(&ntype, 0, 0, 0);
-  node_type_update(
-      &ntype, node_octane_projection_conversion_update);
+  ntype.initfunc = (node_projection_oct_spherical_init);
+  // node_type_exec(&ntype, 0, 0, 0);
+  ntype.updatefunc = node_octane_projection_conversion_update;
   
 
   nodeRegisterType(&ntype);

@@ -20,7 +20,7 @@ class OctaneBaseSocket(bpy.types.NodeSocket):
 
     bl_label=""
     bl_idname=""
-    color=consts.OctanePinColor.Default    
+    color=consts.OctanePinColor.Default
     octane_default_node_type=0
     octane_default_node_name=""
     octane_pin_index=-1

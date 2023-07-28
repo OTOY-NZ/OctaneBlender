@@ -519,6 +519,7 @@ void BlenderSession::render(BL::Depsgraph &b_depsgraph_)
     session->server->startRender(!background,
                                  session_params.use_shared_surface,
                                  session_params.process_id,
+                                 session_params.device_luid,
                                  width,
                                  height,
                                  ::OctaneEngine::IMAGE_8BIT,
@@ -1183,7 +1184,7 @@ bool BlenderSession::update_octane_custom_node(const std::string server_address,
   return ret;
 }
 
-static void export_startjob(void *customdata, short *stop, short *do_update, float *progress)
+static void export_startjob(void *customdata, bool *stop, bool *do_update, float *progress)
 {
   OctaneExportJobData *data = static_cast<OctaneExportJobData *>(customdata);
 
@@ -1459,7 +1460,7 @@ bool BlenderSession::heart_beat(std::string server_address)
   return ret;
 }
 
-static void get_octanedb_startjob(void *customdata, short *stop, short *do_update, float *progress)
+static void get_octanedb_startjob(void *customdata, bool *stop, bool *do_update, float *progress)
 {
   GetOctaneDBJobData *data = static_cast<GetOctaneDBJobData *>(customdata);
   data->stop = stop;

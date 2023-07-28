@@ -92,7 +92,7 @@ static const EnumPropertyItem uv_sculpt_relaxation_items[] = {
      "COTAN",
      0,
      "Geometry",
-     "Use Geometry (cotangent) relaxation, making UV's follow the underlying 3D geometry"},
+     "Use Geometry (cotangent) relaxation, making UVs follow the underlying 3D geometry"},
     {0, NULL, 0, NULL, NULL},
 };
 #endif
@@ -605,7 +605,7 @@ const EnumPropertyItem rna_enum_bake_save_mode_items[] = {
     {0, NULL, 0, NULL, NULL},
 };
 
-const EnumPropertyItem rna_enum_bake_view_from_items[] = {
+static const EnumPropertyItem rna_enum_bake_view_from_items[] = {
     {R_BAKE_VIEW_FROM_ABOVE_SURFACE,
      "ABOVE_SURFACE",
      0,
@@ -1322,7 +1322,9 @@ static char *rna_ImageFormatSettings_path(const PointerRNA *ptr)
       for (node = ntree->nodes.first; node; node = node->next) {
         if (node->type == CMP_NODE_OUTPUT_FILE) {
           if (&((NodeImageMultiFile *)node->storage)->format == imf) {
-            return BLI_sprintfN("nodes['%s'].format", node->name);
+            char node_name_esc[sizeof(node->name) * 2];
+            BLI_str_escape(node_name_esc, node->name, sizeof(node_name_esc));
+            return BLI_sprintfN("nodes[\"%s\"].format", node_name_esc);
           }
           else {
             bNodeSocket *sock;
@@ -1330,8 +1332,14 @@ static char *rna_ImageFormatSettings_path(const PointerRNA *ptr)
             for (sock = node->inputs.first; sock; sock = sock->next) {
               NodeImageMultiFileSocket *sockdata = sock->storage;
               if (&sockdata->format == imf) {
+                char node_name_esc[sizeof(node->name) * 2];
+                BLI_str_escape(node_name_esc, node->name, sizeof(node_name_esc));
+
+                char socketdata_path_esc[sizeof(sockdata->path) * 2];
+                BLI_str_escape(socketdata_path_esc, sockdata->path, sizeof(socketdata_path_esc));
+
                 return BLI_sprintfN(
-                    "nodes['%s'].file_slots['%s'].format", node->name, sockdata->path);
+                    "nodes[\"%s\"].file_slots[\"%s\"].format", node_name_esc, socketdata_path_esc);
               }
             }
           }
@@ -1447,7 +1455,7 @@ static const EnumPropertyItem *rna_ImageFormatSettings_color_mode_itemf(bContext
   ID *id = ptr->owner_id;
   const bool is_render = (id && GS(id->name) == ID_SCE);
 
-  /* NOTE(@campbellbarton): we need to act differently for render
+  /* NOTE(@ideasman42): we need to act differently for render
    * where 'BW' will force grayscale even if the output format writes
    * as RGBA, this is age old blender convention and not sure how useful
    * it really is but keep it for now. */
@@ -3490,7 +3498,7 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, NULL, "uvcalc_flag", UVCALC_TRANSFORM_CORRECT);
   RNA_def_property_ui_text(prop,
                            "Correct Face Attributes",
-                           "Correct data such as UV's and color attributes when transforming");
+                           "Correct data such as UVs and color attributes when transforming");
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL);
 
   prop = RNA_def_property(srna, "use_transform_correct_keep_connected", PROP_BOOLEAN, PROP_NONE);
@@ -7302,6 +7310,7 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
   prop = RNA_def_property(srna, "hair_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, hair_shape_type_items);
   RNA_def_property_ui_text(prop, "Curves Shape Type", "Curves shape type");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_CURVES);
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_Scene_render_update");
 
   prop = RNA_def_property(srna, "hair_subdiv", PROP_INT, PROP_NONE);
@@ -7772,6 +7781,21 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
       prop, "Simplify Volumes", "Resolution percentage of volume objects in viewport");
   RNA_def_property_update(prop, 0, "rna_Scene_simplify_update");
 
+  /* EEVEE - Simplify Options */
+  prop = RNA_def_property(srna, "simplify_shadows_render", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_float_default(prop, 1.0);
+  RNA_def_property_range(prop, 0.0, 1.0f);
+  RNA_def_property_ui_text(
+      prop, "Simplify Shadows", "Resolution percentage of shadows in viewport");
+  RNA_def_property_update(prop, 0, "rna_Scene_simplify_update");
+
+  prop = RNA_def_property(srna, "simplify_shadows", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_float_default(prop, 1.0);
+  RNA_def_property_range(prop, 0.0, 1.0f);
+  RNA_def_property_ui_text(
+      prop, "Simplify Shadows", "Resolution percentage of shadows in viewport");
+  RNA_def_property_update(prop, 0, "rna_Scene_simplify_update");
+
   /* Grease Pencil - Simplify Options */
   prop = RNA_def_property(srna, "simplify_gpencil", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "simplify_gpencil", SIMPLIFY_GPENCIL_ENABLE);
@@ -8079,7 +8103,7 @@ static void rna_def_scene_display(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_update(prop, NC_SCENE | NA_EDITED, "rna_Scene_set_update");
 
-  prop = RNA_def_property(srna, "matcap_ssao_distance", PROP_FLOAT, PROP_NONE);
+  prop = RNA_def_property(srna, "matcap_ssao_distance", PROP_FLOAT, PROP_DISTANCE);
   RNA_def_property_ui_text(
       prop, "Distance", "Distance of object that contribute to the Cavity/Edge effect");
   RNA_def_property_range(prop, 0.0f, 100000.0f);
@@ -8124,6 +8148,17 @@ static void rna_def_scene_eevee(BlenderRNA *brna)
       {1024, "1024", 0, "1024 px", ""},
       {2048, "2048", 0, "2048 px", ""},
       {4096, "4096", 0, "4096 px", ""},
+      {0, NULL, 0, NULL, NULL},
+  };
+
+  static const EnumPropertyItem eevee_shadow_pool_size_items[] = {
+      {16, "16", 0, "16 MB", ""},
+      {32, "32", 0, "32 MB", ""},
+      {64, "64", 0, "64 MB", ""},
+      {128, "128", 0, "128 MB", ""},
+      {256, "256", 0, "256 MB", ""},
+      {512, "512", 0, "512 MB", ""},
+      {1024, "1024", 0, "1 GB", ""},
       {0, NULL, 0, NULL, NULL},
   };
 
@@ -8192,7 +8227,7 @@ static void rna_def_scene_eevee(BlenderRNA *brna)
   RNA_def_property_ui_text(prop,
                            "Clamp Glossy",
                            "Clamp pixel intensity to reduce noise inside glossy reflections "
-                           "from reflection cubemaps (0 to disabled)");
+                           "from reflection cubemaps (0 to disable)");
   RNA_def_property_range(prop, 0.0f, FLT_MAX);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
 
@@ -8248,12 +8283,14 @@ static void rna_def_scene_eevee(BlenderRNA *brna)
   RNA_def_property_range(prop, 0, INT_MAX);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+  RNA_def_property_flag(prop, PROP_ANIMATABLE);
 
   prop = RNA_def_property(srna, "taa_render_samples", PROP_INT, PROP_NONE);
-  RNA_def_property_ui_text(prop, "Render Samples", "Number of samples per pixels for rendering");
+  RNA_def_property_ui_text(prop, "Render Samples", "Number of samples per pixel for rendering");
   RNA_def_property_range(prop, 1, INT_MAX);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+  RNA_def_property_flag(prop, PROP_ANIMATABLE);
 
   prop = RNA_def_property(srna, "use_taa_reprojection", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "flag", SCE_EEVEE_TAA_REPROJECTION);
@@ -8263,6 +8300,7 @@ static void rna_def_scene_eevee(BlenderRNA *brna)
                            "(can leave some ghosting)");
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+  RNA_def_property_flag(prop, PROP_ANIMATABLE);
 
   /* Screen Space Subsurface Scattering */
   prop = RNA_def_property(srna, "sss_samples", PROP_INT, PROP_NONE);
@@ -8324,7 +8362,7 @@ static void rna_def_scene_eevee(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
   prop = RNA_def_property(srna, "ssr_firefly_fac", PROP_FLOAT, PROP_NONE);
-  RNA_def_property_ui_text(prop, "Clamp", "Clamp pixel intensity to remove noise (0 to disabled)");
+  RNA_def_property_ui_text(prop, "Clamp", "Clamp pixel intensity to remove noise (0 to disable)");
   RNA_def_property_range(prop, 0.0f, FLT_MAX);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
@@ -8534,7 +8572,7 @@ static void rna_def_scene_eevee(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "bloom_clamp", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_ui_text(
-      prop, "Clamp", "Maximum intensity a bloom pixel can have (0 to disabled)");
+      prop, "Clamp", "Maximum intensity a bloom pixel can have (0 to disable)");
   RNA_def_property_range(prop, 0.0f, 100000.0f);
   RNA_def_property_ui_range(prop, 0.0f, 1000.0f, 1, 3);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
@@ -8598,6 +8636,12 @@ static void rna_def_scene_eevee(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
   /* Shadows */
+  prop = RNA_def_property(srna, "use_shadows", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flag", SCE_EEVEE_SHADOW_ENABLED);
+  RNA_def_property_ui_text(prop, "Shadows", "Enable shadow casting from lights");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+
   prop = RNA_def_property(srna, "shadow_cube_size", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, eevee_shadow_size_items);
   RNA_def_property_ui_text(
@@ -8609,6 +8653,16 @@ static void rna_def_scene_eevee(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, eevee_shadow_size_items);
   RNA_def_property_ui_text(
       prop, "Directional Shadows Resolution", "Size of sun light shadow maps");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+
+  prop = RNA_def_property(srna, "shadow_pool_size", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, eevee_shadow_pool_size_items);
+  RNA_def_property_ui_text(prop,
+                           "Shadow Pool Size",
+                           "Size of the shadow pool, "
+                           "bigger pool size allows for more shadows in the scene "
+                           "but might not fits into GPU memory");
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
@@ -8690,8 +8744,12 @@ void RNA_def_scene(BlenderRNA *brna)
       {2, "INVERSE_CLAMPED", 0, "Inverse Clamped", "Inverse distance model with clamping"},
       {3, "LINEAR", 0, "Linear", "Linear distance model"},
       {4, "LINEAR_CLAMPED", 0, "Linear Clamped", "Linear distance model with clamping"},
-      {5, "EXPONENT", 0, "Exponent", "Exponent distance model"},
-      {6, "EXPONENT_CLAMPED", 0, "Exponent Clamped", "Exponent distance model with clamping"},
+      {5, "EXPONENT", 0, "Exponential", "Exponential distance model"},
+      {6,
+       "EXPONENT_CLAMPED",
+       0,
+       "Exponential Clamped",
+       "Exponential distance model with clamping"},
       {0, NULL, 0, NULL, NULL},
   };
 

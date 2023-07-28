@@ -195,7 +195,7 @@ void register_node_type_sh_oct_specular_layer(void)
         &ntype, SH_NODE_OCT_SPECULAR_LAYER, "Octane Specular Layer", NODE_CLASS_OCT_LAYER);
   node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
   node_type_size(&ntype, 160, 160, 500);
-  node_type_init(&ntype, NULL);
+  ntype.initfunc = (NULL);
   node_type_storage(&ntype, "", NULL, NULL);
 
   nodeRegisterType(&ntype);

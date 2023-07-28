@@ -243,7 +243,7 @@ class OctaneTextureEmissionOrientation(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=13
     octane_socket_type=consts.SocketType.ST_FLOAT3
-    default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="(deprecated) Orientation", min=-360.000000, max=360.000000, soft_min=-360.000000, soft_max=360.000000, step=10, subtype="NONE", precision=2, size=3)
+    default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="(deprecated) Orientation", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-360.000000, soft_max=360.000000, step=10, subtype="NONE", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=1210000

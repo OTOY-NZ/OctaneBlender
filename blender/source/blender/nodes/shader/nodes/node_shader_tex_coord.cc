@@ -54,7 +54,7 @@ static int node_shader_gpu_tex_coord(GPUMaterial *mat,
     /* Normalize some vectors after dFdx/dFdy offsets.
      * This is the case for interpolated, non linear functions.
      * The resulting vector can still be a bit wrong but not as much.
-     * (see T70644) */
+     * (see #70644) */
     if (ELEM(i, 1, 6)) {
       GPU_link(mat,
                "vector_math_normalize",
@@ -82,7 +82,7 @@ void register_node_type_sh_tex_coord()
   sh_node_type_base(&ntype, SH_NODE_TEX_COORD, "Texture Coordinate", NODE_CLASS_INPUT);
   ntype.declare = file_ns::node_declare;
   ntype.draw_buttons = file_ns::node_shader_buts_tex_coord;
-  node_type_gpu(&ntype, file_ns::node_shader_gpu_tex_coord);
+  ntype.gpu_fn = file_ns::node_shader_gpu_tex_coord;
 
   nodeRegisterType(&ntype);
 }

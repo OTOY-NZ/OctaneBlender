@@ -142,7 +142,7 @@ class OctaneRenderTargetRenderLayer(OctaneBaseSocket):
 class OctaneRenderTargetRenderPasses(OctaneBaseSocket):
     bl_idname="OctaneRenderTargetRenderPasses"
     bl_label="Render AOVs"
-    color=consts.OctanePinColor.RenderAOVs
+    color=consts.OctanePinColor.RenderAOV
     octane_default_node_type=consts.NodeType.NT_RENDER_AOV_GROUP
     octane_default_node_name="OctaneRenderAOVGroup"
     octane_pin_id=consts.PinID.P_RENDER_PASSES

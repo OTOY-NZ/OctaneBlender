@@ -381,7 +381,7 @@ static void node_oct_init_gradient(bNodeTree *ntree, bNode *node)
   }
 }
 
-static void node_oct_update_gradient(bNodeTree *UNUSED(ntree), bNode *node)
+static void node_oct_update_gradient(bNodeTree *ntree, bNode *node)
 {
   bNodeSocket *sock;
   if (node && node->storage) {
@@ -417,10 +417,10 @@ void register_node_type_tex_oct_gradient(void)
   // SH_NODE_OCT_GRADIENT_TEX, "Octane Gradient Tex", NODE_CLASS_OCT_TEXTURE);
   node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
   node_type_size(&ntype, 160, 160, 500);
-  node_type_init(&ntype, node_oct_init_gradient);
+  ntype.initfunc = (node_oct_init_gradient);
   node_type_storage(&ntype, "ColorBand", node_free_standard_storage, node_copy_standard_storage);
-  node_type_exec(&ntype, 0, 0, 0);
-  node_type_update(&ntype, node_oct_update_gradient);
+  // node_type_exec(&ntype, 0, 0, 0);
+  ntype.updatefunc = (node_oct_update_gradient);
   
 
   nodeRegisterType(&ntype);

@@ -35,6 +35,8 @@
 
 #include "render/osl.h"
 
+#include "GPU_state.h"
+
 OCT_NAMESPACE_BEGIN
 
 void *pylong_as_voidptr_typesafe(PyObject *object)
@@ -94,7 +96,9 @@ static PyObject *py_init_func(PyObject * /*self*/, PyObject *args)
   Py_XDECREF(path_coerce);
   Py_XDECREF(user_path_coerce);
 #if defined(WIN32)
-  CommonD3D::InitD3D11();
+  if (!G.background) {
+    CommonD3D::InitD3D11();
+  }
 #endif
   Py_RETURN_TRUE;
 }
@@ -249,7 +253,7 @@ static PyObject *draw_func(PyObject * /*self*/, PyObject *args)
   if (PyLong_AsVoidPtr(pyrv3d)) {
     /* 3d view drawing */
     int viewport[4];
-    glGetIntegerv(GL_VIEWPORT, viewport);
+    GPU_viewport_size_get_i(viewport);
 
     session->draw(viewport[2], viewport[3]);
   }

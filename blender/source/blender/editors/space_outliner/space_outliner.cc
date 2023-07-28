@@ -195,6 +195,11 @@ static void outliner_main_region_listener(const wmRegionListenerParams *params)
         ED_region_tag_redraw(region);
       }
       break;
+    case NC_ASSET:
+      if (ELEM(wmn->action, NA_ADDED, NA_REMOVED)) {
+        ED_region_tag_redraw_no_rebuild(region);
+      }
+      break;
     case NC_MATERIAL:
       switch (wmn->data) {
         case ND_SHADING_LINKS:
@@ -432,7 +437,7 @@ static void outliner_id_remap(ScrArea *area, SpaceLink *slink, const struct IDRe
     if (unassigned) {
       /* Redraw is needed when removing data for multiple outlines show the same data.
        * without this, the stale data won't get fully flushed when this outliner
-       * is not the active outliner the user is interacting with. See T85976. */
+       * is not the active outliner the user is interacting with. See #85976. */
       ED_area_tag_redraw(area);
     }
   }

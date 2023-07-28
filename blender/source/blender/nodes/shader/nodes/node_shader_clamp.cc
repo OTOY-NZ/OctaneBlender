@@ -44,17 +44,17 @@ static int gpu_shader_clamp(GPUMaterial *mat,
 
 static void sh_node_clamp_build_multi_function(NodeMultiFunctionBuilder &builder)
 {
-  static fn::CustomMF_SI_SI_SI_SO<float, float, float, float> minmax_fn{
+  static auto minmax_fn = mf::build::SI3_SO<float, float, float, float>(
       "Clamp (Min Max)",
-      [](float value, float min, float max) { return std::min(std::max(value, min), max); }};
-  static fn::CustomMF_SI_SI_SI_SO<float, float, float, float> range_fn{
+      [](float value, float min, float max) { return std::min(std::max(value, min), max); });
+  static auto range_fn = mf::build::SI3_SO<float, float, float, float>(
       "Clamp (Range)", [](float value, float a, float b) {
         if (a < b) {
           return clamp_f(value, a, b);
         }
 
         return clamp_f(value, b, a);
-      }};
+      });
 
   int clamp_type = builder.node().custom1;
   if (clamp_type == NODE_CLAMP_MINMAX) {
@@ -76,8 +76,8 @@ void register_node_type_sh_clamp()
   sh_fn_node_type_base(&ntype, SH_NODE_CLAMP, "Clamp", NODE_CLASS_CONVERTER);
   ntype.declare = file_ns::sh_node_clamp_declare;
   ntype.draw_buttons = file_ns::node_shader_buts_clamp;
-  node_type_init(&ntype, file_ns::node_shader_init_clamp);
-  node_type_gpu(&ntype, file_ns::gpu_shader_clamp);
+  ntype.initfunc = file_ns::node_shader_init_clamp;
+  ntype.gpu_fn = file_ns::gpu_shader_clamp;
   ntype.build_multi_function = file_ns::sh_node_clamp_build_multi_function;
 
   nodeRegisterType(&ntype);

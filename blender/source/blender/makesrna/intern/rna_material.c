@@ -13,6 +13,8 @@
 
 #include "BLI_math.h"
 
+#include "BLT_translation.h"
+
 #include "BKE_customdata.h"
 
 #include "RNA_define.h"
@@ -40,6 +42,7 @@ const EnumPropertyItem rna_enum_ramp_blend_items[] = {
     {MA_RAMP_LINEAR, "LINEAR_LIGHT", 0, "Linear Light", ""},
     RNA_ENUM_ITEM_SEPR,
     {MA_RAMP_DIFF, "DIFFERENCE", 0, "Difference", ""},
+    {MA_RAMP_EXCLUSION, "EXCLUSION", 0, "Exclusion", ""},
     {MA_RAMP_SUB, "SUBTRACT", 0, "Subtract", ""},
     {MA_RAMP_DIV, "DIVIDE", 0, "Divide", ""},
     RNA_ENUM_ITEM_SEPR,
@@ -147,7 +150,6 @@ static void rna_Material_texpaint_begin(CollectionPropertyIterator *iter, Pointe
 static void rna_Material_active_paint_texture_index_update(bContext *C, PointerRNA *ptr)
 {
   Main *bmain = CTX_data_main(C);
-  bScreen *screen;
   Material *ma = (Material *)ptr->owner_id;
 
   if (ma->use_nodes && ma->nodetree) {
@@ -162,25 +164,7 @@ static void rna_Material_active_paint_texture_index_update(bContext *C, PointerR
     TexPaintSlot *slot = &ma->texpaintslot[ma->paint_active_slot];
     Image *image = slot->ima;
     if (image) {
-      for (screen = bmain->screens.first; screen; screen = screen->id.next) {
-        wmWindow *win = ED_screen_window_find(screen, bmain->wm.first);
-        if (win == NULL) {
-          continue;
-        }
-
-        ScrArea *area;
-        for (area = screen->areabase.first; area; area = area->next) {
-          SpaceLink *sl;
-          for (sl = area->spacedata.first; sl; sl = sl->next) {
-            if (sl->spacetype == SPACE_IMAGE) {
-              SpaceImage *sima = (SpaceImage *)sl;
-              if (!sima->pin) {
-                ED_space_image_set(bmain, sima, image, true);
-              }
-            }
-          }
-        }
-      }
+      ED_space_image_sync(bmain, image, false);
     }
 
     /* For compatibility reasons with vertex paint we activate the color attribute. */
@@ -190,7 +174,7 @@ static void rna_Material_active_paint_texture_index_update(bContext *C, PointerR
         Mesh *mesh = ob->data;
         CustomDataLayer *layer = BKE_id_attributes_color_find(&mesh->id, slot->attribute_name);
         if (layer != NULL) {
-          BKE_id_attributes_active_color_set(&mesh->id, layer);
+          BKE_id_attributes_active_color_set(&mesh->id, layer->name);
         }
         DEG_id_tag_update(&ob->id, 0);
         WM_main_add_notifier(NC_GEOM | ND_DATA, &ob->id);
@@ -548,6 +532,7 @@ static void rna_def_material_greasepencil(BlenderRNA *brna)
   RNA_def_property_float_sdna(prop, NULL, "mix_factor");
   RNA_def_property_range(prop, 0.0f, 1.0f);
   RNA_def_property_ui_text(prop, "Mix", "Mix Factor");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_GPENCIL);
   RNA_def_property_update(prop, NC_GPENCIL | ND_SHADING, "rna_MaterialGpencil_update");
 
   /* Stroke Mix factor */
@@ -555,6 +540,7 @@ static void rna_def_material_greasepencil(BlenderRNA *brna)
   RNA_def_property_float_sdna(prop, NULL, "mix_stroke_factor");
   RNA_def_property_range(prop, 0.0f, 1.0f);
   RNA_def_property_ui_text(prop, "Mix", "Mix Stroke Factor");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_GPENCIL);
   RNA_def_property_update(prop, NC_GPENCIL | ND_SHADING, "rna_MaterialGpencil_update");
 
   /* Texture angle */

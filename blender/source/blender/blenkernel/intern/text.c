@@ -392,7 +392,7 @@ static void text_from_buf(Text *text, const uchar *buffer, const int len)
    *   in this case content of such line would be used to fill text line buffer
    * - file is empty. in this case new line is needed to start editing from.
    * - last character in buffer is \n. in this case new line is needed to
-   *   deal with newline at end of file. (see T28087) (sergey) */
+   *   deal with newline at end of file. (see #28087) (sergey) */
   if (llen != 0 || lines_count == 0 || buffer[len - 1] == '\n') {
     TextLine *tmp;
 
@@ -2124,10 +2124,8 @@ static bool txt_select_unprefix(Text *text, const char *remove, const bool requi
   return changed_any;
 }
 
-void txt_comment(Text *text)
+void txt_comment(Text *text, const char *prefix)
 {
-  const char *prefix = "#";
-
   if (ELEM(NULL, text->curl, text->sell)) {
     return;
   }
@@ -2136,10 +2134,8 @@ void txt_comment(Text *text)
   txt_select_prefix(text, prefix, skip_blank_lines);
 }
 
-bool txt_uncomment(Text *text)
+bool txt_uncomment(Text *text, const char *prefix)
 {
-  const char *prefix = "#";
-
   if (ELEM(NULL, text->curl, text->sell)) {
     return false;
   }
@@ -2225,7 +2221,7 @@ int txt_setcurr_tab_spaces(Text *text, int space)
     /* if we find a ':' on this line, then add a tab but not if it is:
      * 1) in a comment
      * 2) within an identifier
-     * 3) after the cursor (text->curc), i.e. when creating space before a function def T25414.
+     * 3) after the cursor (text->curc), i.e. when creating space before a function def #25414.
      */
     int a;
     bool is_indent = false;

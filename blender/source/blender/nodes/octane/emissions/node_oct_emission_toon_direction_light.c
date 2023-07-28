@@ -93,12 +93,12 @@ static bNodeSocketTemplate sh_node_out[] = {
      SOCK_HIDDEN | SOCK_UNAVAIL | SOCK_AUTO_HIDDEN__DEPRECATED},
     {-1, ""}};
 
-static void node_oct_toon_direction_light_init(bNodeTree *UNUSED(ntree), bNode *node)
+static void node_oct_toon_direction_light_init(bNodeTree *ntree, bNode *node)
 {
   node->oct_custom1 = OCT_USE_LIGHT_OBJECT_DIRECTION;
 }
 
-static void node_type_emission_update_oct_toon_direction_light(bNodeTree *UNUSED(ntree),
+static void node_type_emission_update_oct_toon_direction_light(bNodeTree *ntree,
                                                                bNode *node)
 {
   bNodeSocket *sock;
@@ -124,7 +124,7 @@ void register_node_type_emission_oct_toon_direction_light(void)
                    NODE_CLASS_OCT_EMISSION);
   node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
   node_type_size(&ntype, 160, 160, 500);
-  node_type_init(&ntype, node_oct_toon_direction_light_init);
-  node_type_update(&ntype, node_type_emission_update_oct_toon_direction_light);
+  ntype.initfunc = (node_oct_toon_direction_light_init);
+  ntype.updatefunc = (node_type_emission_update_oct_toon_direction_light);
   nodeRegisterType(&ntype);
 }

@@ -40,6 +40,13 @@ Main *BKE_main_new()
 
 void BKE_main_free(Main *mainvar)
 {
+  /* In case this is called on a 'split-by-libraries' list of mains.
+   *
+   * Should not happen in typical usages, but can occur e.g. if a file reading is aborted. */
+  if (mainvar->next) {
+    BKE_main_free(mainvar->next);
+  }
+
   /* also call when reading a file, erase all, etc */
   ListBase *lbarray[INDEX_ID_MAX];
   int a;
@@ -186,6 +193,7 @@ void BKE_main_free(Main *mainvar)
     BKE_main_idmap_destroy(mainvar->id_map);
   }
 
+  /* NOTE: `name_map` in libraries are freed together with the library IDs above. */
   if (mainvar->name_map) {
     BKE_main_namemap_destroy(&mainvar->name_map);
   }

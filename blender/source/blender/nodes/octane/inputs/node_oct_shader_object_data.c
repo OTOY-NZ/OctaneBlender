@@ -54,7 +54,9 @@ static void oct_node_object_data_update(bNodeTree *tree, bNode *node)
   nodeSetSocketAvailability(tree, out_rotation_socket, type == OBJECT_DATA_NODE_TYPE_OBJECT);
 }
 
-bool object_data_node_poll(bNodeType *UNUSED(ntype), bNodeTree *ntree, const char **r_disabled_hint)
+bool object_data_node_poll(const struct bNodeType *ntype,
+                           const struct bNodeTree *ntree,
+                           const char **r_disabled_hint)
 {
   bool is_octane_node_tree = STREQ(ntree->idname, "octane_composite_nodes") ||
       STREQ(ntree->idname, "octane_render_aov_nodes");
@@ -74,7 +76,7 @@ void register_node_type_oct_object_data(void)
   sh_node_type_base(&ntype, SH_NODE_OCT_OBJECT_DATA, "Object Data", NODE_CLASS_INPUT);
   ntype.poll = object_data_node_poll;
   node_type_socket_templates(&ntype, sh_node_object_in, sh_node_object_out);
-  node_type_update(&ntype, oct_node_object_data_update);
+  ntype.updatefunc = (oct_node_object_data_update);
   node_type_storage(&ntype, "", NULL, NULL);
 
   nodeRegisterType(&ntype);

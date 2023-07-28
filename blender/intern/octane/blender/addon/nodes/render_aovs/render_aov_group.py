@@ -168,7 +168,7 @@ class OctaneRenderAOVGroup(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneRenderAOVGroupRenderPassInfoMaxSamples", OctaneRenderAOVGroupRenderPassInfoMaxSamples.bl_label).init()
         self.inputs.new("OctaneRenderAOVGroupSamplingMode", OctaneRenderAOVGroupSamplingMode.bl_label).init()
         self.inputs.new("OctaneRenderAOVGroupOpacityThreshold", OctaneRenderAOVGroupOpacityThreshold.bl_label).init()
-        self.outputs.new("OctaneRenderAOVsOutSocket", "Render AOVs out").init()
+        self.outputs.new("OctaneRenderAOVOutSocket", "Render AOV out").init()
 
 
 _CLASSES=[
@@ -202,7 +202,7 @@ class OctaneRenderAOVGroupAOVInput(OctaneMovableInput):
     octane_movable_input_count_attribute_name="a_aov_count"
     octane_input_pattern=r"AOV (\d+)"
     octane_input_format_pattern="AOV {}"
-    color=consts.OctanePinColor.RenderAOVs
+    color=consts.OctanePinColor.RenderAOV
     octane_pin_type=consts.PinType.PT_RENDER_PASSES
     octane_socket_type=consts.SocketType.ST_LINK
 

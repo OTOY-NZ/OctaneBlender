@@ -163,7 +163,7 @@ void ObjectManager::tag_update(Scene *scene)
 bool ObjectManager::resolve_transform(Mesh *p_mesh, Object *p_object, float *matrices, int32_t len)
 {
   int32_t i = 0;
-  if (p_mesh->octane_mesh.bInfinitePlane || p_mesh->octane_mesh.sOrbxPath.size()) {
+  if (p_mesh->octane_mesh.sOrbxPath.size()) {
     Transform t = p_object->transform * INFINITE_PLANE_ROTATION;
     matrices[i++] = t.x.x;
     matrices[i++] = t.x.y;
