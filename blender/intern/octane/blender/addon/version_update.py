@@ -1,4 +1,4 @@
-OCTANE_BLENDER_VERSION = '28.0'
+OCTANE_BLENDER_VERSION = '28.3'
 OCTANE_VERSION = 13000006
 OCTANE_VERSION_STR = "2023.1 Beta 3"
 
@@ -15,6 +15,7 @@ from octane.utils import consts
 def do_versions(self):
     from octane import core
     file_version = get_current_octane_blender_version()
+    check_compatibility_octane_node_group(file_version)
     check_compatibility_octane_light(file_version)
     check_compatibility_octane_mesh(file_version)
     check_compatibility_octane_object(file_version)
@@ -76,10 +77,16 @@ def check_compatibility_octane_composite_graph(file_version):
         node_tree.use_fake_user = True
 
 def check_color_management():
-    # Update Color Management Settings for "New Created" files
-    if bpy.data.filepath == '':
-        bpy.context.scene.display_settings.display_device = 'sRGB'
-        bpy.context.scene.view_settings.view_transform = 'Raw'
+    from octane.utils import utility
+    # Only do that when the engine is Octane
+    if bpy.context.scene.render.engine != "octane":
+        return
+    prefs = utility.get_preferences()
+    if prefs is not None and prefs.use_octane_default_color_management:
+        # Update Color Management Settings for "New Created" files
+        if bpy.data.filepath == "":
+            bpy.context.scene.display_settings.display_device = "sRGB"
+            bpy.context.scene.view_settings.view_transform = "Raw"
 
 def check_octane_output_settings(file_version):
     from octane import core
@@ -859,7 +866,7 @@ def check_compatibility_octane_pariticle(file_version):
 def check_compatibility_octane_pariticle_27_16(file_version):
     if core.ENABLE_OCTANE_ADDON_CLIENT:
         return
-    UPDATE_VERSION = '27.16'    
+    UPDATE_VERSION = '27.16'
     if not check_update(file_version, UPDATE_VERSION):
         return
     def check_compatibility_particle_settings(particle_setting, octane_particle_setting):
@@ -877,6 +884,17 @@ def check_compatibility_octane_pariticle_27_16(file_version):
             octane_particle = getattr(particle, 'octane', None)
             if particle and octane_particle:
                 check_compatibility_particle_settings(particle, octane_particle)
+
+
+# node group
+def check_compatibility_octane_node_group(file_version):
+    UPDATE_VERSION = "28.3"
+    if not check_update(file_version, UPDATE_VERSION):
+        return
+    if consts.LEGACY_OCTANE_HELPER_NODE_GROUP in bpy.data.node_groups:
+        bpy.data.node_groups.remove(bpy.data.node_groups[consts.LEGACY_OCTANE_HELPER_NODE_GROUP])
+        # if consts.OCTANE_HELPER_NODE_GROUP not in bpy.data.node_groups:
+        #   bpy.data.node_groups[consts.LEGACY_OCTANE_HELPER_NODE_GROUP].name = consts.OCTANE_HELPER_NODE_GROUP
 
 # node tree
 def check_compatibility_octane_node_tree(file_version):

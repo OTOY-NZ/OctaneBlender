@@ -8,10 +8,10 @@ from octane.utils import utility, consts
 from octane.nodes import base_node, base_socket
 from octane.nodes.base_node import OctaneBaseNode
 from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
-from octane.nodes.tools.octane_proxy import OctaneProxy, OctaneProxyBaseSocket
+from octane.nodes.tools.octane_proxy import OctaneGraphBuilder
 
 
-class OctaneScriptGraph(OctaneProxy):
+class OctaneScriptGraph(bpy.types.Node, OctaneBaseNode, OctaneGraphBuilder):
     bl_idname="OctaneScriptGraph"
     bl_label="OctaneScriptGraph(BETA)"
     bl_width_default=200
@@ -71,7 +71,15 @@ class OctaneScriptGraph(OctaneProxy):
 
     def compile_script_node(self, report=None):
         if core.ENABLE_OCTANE_ADDON_CLIENT:
-            pass
+            from octane.core.octane_node import OctaneNode
+            node_proxy = OctaneNode("OpenScriptGraph", consts.NodeType.NT_BLENDER_NODE_GRAPH_NODE)
+            node_proxy.node.set_script_graph_attributes(False, self.a_data, self.a_data_md5)
+            node_proxy.update_to_engine(True)
+            content = node_proxy.node.get_response()
+            if len(content):
+                content_et = ET.fromstring(content)
+                self.a_data = content_et.text
+                self.build_proxy_node(content_et, node_proxy, report)
         else:
             from octane.core.octane_node import OctaneRpcNode, OctaneRpcNodeType
             import _octane
@@ -90,6 +98,10 @@ class OctaneScriptGraph(OctaneProxy):
 	            script_graph_data_et = custom_data_et.find("script_graph_data")
 	            if script_graph_data_et is not None:
 	            	self.build_proxy_node(script_graph_data_et, None, report)
+
+    def init_octane_graph(self, octane_node):
+        octane_node.node.set_script_graph_attributes(False, self.a_data, self.a_data_md5)
+        octane_node.node.init_octane_graph()
 
     def sync_custom_data(self, octane_node, octane_graph_node_data, depsgraph):
         super().sync_custom_data(octane_node, octane_graph_node_data, depsgraph)

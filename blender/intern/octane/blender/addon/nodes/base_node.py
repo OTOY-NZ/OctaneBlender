@@ -239,9 +239,11 @@ class OctaneBaseNode(object):
             socket_name = socket.name
             link_node_name = ""
             data_socket = None
+            is_group_socket = False
             if octane_graph_node_data:
                 link_node_name = octane_graph_node_data.get_link_node_name(socket_name)
                 data_socket = octane_graph_node_data.get_link_data_socket(socket_name)
+                is_group_socket = True
             if data_socket is None:
                 data_socket = socket
             is_advanced_pin = socket.is_octane_proxy_pin() or socket.is_octane_osl_pin() or socket.is_octane_dynamic_pin()
@@ -252,6 +254,17 @@ class OctaneBaseNode(object):
                 if not is_advanced_pin and socket.octane_socket_type == consts.SocketType.ST_FLOAT:
                     if socket.rna_type.properties["default_value"].subtype == "PERCENTAGE":
                         default_value /= 100.0
+                if is_group_socket:
+                    if socket.octane_socket_type in (consts.SocketType.ST_INT2, consts.SocketType.ST_INT3, consts.SocketType.ST_FLOAT2, consts.SocketType.ST_FLOAT3, consts.SocketType.ST_RGBA):
+                        if type(default_value) is int:
+                            default_value = (default_value, 0, 0)
+                        elif type(default_value) is float:
+                            default_value = (default_value, 0.0, 0.0)
+                        elif type(default_value) in (tuple, list):
+                            if len(default_value) == 1:
+                                default_value = (default_value[0], 0, 0)
+                            elif len(default_value) == 2:
+                                default_value = (default_value[0], default_value[1], 0)
                 if is_advanced_pin:
                     if socket.is_octane_proxy_pin():
                         octane_node.node.set_pin(consts.OctaneDataBlockSymbolType.PIN_INDEX, socket.octane_proxy_link_index, socket.name, socket.octane_socket_type, socket.octane_pin_type, socket.octane_default_node_type, data_socket.is_linked, link_node_name, default_value)

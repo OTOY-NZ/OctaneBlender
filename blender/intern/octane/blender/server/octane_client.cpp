@@ -47,6 +47,7 @@ OctaneClient::OctaneClient()
       m_cBlockUpdates(0),
       m_iComponentCnt(0),
       m_iSharedHandler(0),
+      m_bServerUseSharedSurface(false),
       m_stImgBufLen(0),
       m_pucImageBuf(0),
       m_pfImageBuf(0),
@@ -941,9 +942,10 @@ void OctaneClient::uploadCamera(Camera *pCamera, uint32_t uiFrameIdx, uint32_t u
           << pCamera->fGlareAngle << pCamera->fGlareBlur << pCamera->fSpectralShift
           << pCamera->fSpectralIntencity << pCamera->fSpreadStart << pCamera->fSpreadEnd
           << pCamera->fChromaticAberrationIntensity << pCamera->fLensFlare
-          << pCamera->fLensFlareExtent << pCamera->bLightBeams
+          << pCamera->fLensFlareExtent << pCamera->bLightBeams << pCamera->bScaleWithFilm
           << pCamera->fMediumDensityForPostfxLightBeams << pCamera->bEnableFog
-          << pCamera->fFogStrength << pCamera->fFogHeightDescend << pCamera->fFogEnvContribution
+          << pCamera->fFogExtinctionDistance << pCamera->fFogBaseLevel
+          << pCamera->fFogHalfDensityHeight << pCamera->fFogEnvContribution
           << pCamera->f3BaseFogColor << pCamera->fMediumRadius << pCamera->fHighlightCompression
           << pCamera->fPixelAspect << pCamera->fApertureAspect << pCamera->fBokehRotation
           << pCamera->fBokehRoundness << pCamera->fLutStrength << pCamera->fDenoiserBlend
@@ -1002,8 +1004,9 @@ void OctaneClient::uploadCamera(Camera *pCamera, uint32_t uiFrameIdx, uint32_t u
 
           << pCamera->fSpreadStart << pCamera->fSpreadEnd << pCamera->fChromaticAberrationIntensity
           << pCamera->fLensFlare << pCamera->fLensFlareExtent << pCamera->bLightBeams
-          << pCamera->fMediumDensityForPostfxLightBeams << pCamera->bEnableFog
-          << pCamera->fFogStrength << pCamera->fFogHeightDescend << pCamera->fFogEnvContribution
+          << pCamera->bScaleWithFilm << pCamera->fMediumDensityForPostfxLightBeams
+          << pCamera->bEnableFog << pCamera->fFogExtinctionDistance << pCamera->fFogBaseLevel
+          << pCamera->fFogHalfDensityHeight << pCamera->fFogEnvContribution
           << pCamera->f3BaseFogColor << pCamera->fMediumRadius
 
           << pCamera->fHighlightCompression << pCamera->fBlackoutLat << pCamera->fStereoDist
@@ -1064,8 +1067,9 @@ void OctaneClient::uploadCamera(Camera *pCamera, uint32_t uiFrameIdx, uint32_t u
 
           << pCamera->fSpreadStart << pCamera->fSpreadEnd << pCamera->fChromaticAberrationIntensity
           << pCamera->fLensFlare << pCamera->fLensFlareExtent << pCamera->bLightBeams
-          << pCamera->fMediumDensityForPostfxLightBeams << pCamera->bEnableFog
-          << pCamera->fFogStrength << pCamera->fFogHeightDescend << pCamera->fFogEnvContribution
+          << pCamera->bScaleWithFilm << pCamera->fMediumDensityForPostfxLightBeams
+          << pCamera->bEnableFog << pCamera->fFogExtinctionDistance << pCamera->fFogBaseLevel
+          << pCamera->fFogHalfDensityHeight << pCamera->fFogEnvContribution
           << pCamera->f3BaseFogColor << pCamera->fMediumRadius
 
           << pCamera->fHighlightCompression << pCamera->fTolerance << pCamera->fLutStrength
@@ -1149,8 +1153,9 @@ void OctaneClient::uploadCamera(Camera *pCamera, uint32_t uiFrameIdx, uint32_t u
 
           << pCamera->fSpreadStart << pCamera->fSpreadEnd << pCamera->fChromaticAberrationIntensity
           << pCamera->fLensFlare << pCamera->fLensFlareExtent << pCamera->bLightBeams
-          << pCamera->fMediumDensityForPostfxLightBeams << pCamera->bEnableFog
-          << pCamera->fFogStrength << pCamera->fFogHeightDescend << pCamera->fFogEnvContribution
+          << pCamera->bScaleWithFilm << pCamera->fMediumDensityForPostfxLightBeams
+          << pCamera->bEnableFog << pCamera->fFogExtinctionDistance << pCamera->fFogBaseLevel
+          << pCamera->fFogHalfDensityHeight << pCamera->fFogEnvContribution
           << pCamera->f3BaseFogColor << pCamera->fMediumRadius
 
           << pCamera->fHighlightCompression << pCamera->fPixelAspect << pCamera->fApertureAspect
@@ -1828,8 +1833,8 @@ void OctaneClient::uploadOctaneMesh(OctaneDataTransferObject::OctaneMeshes &mesh
     mesh.oMeshData.oArrayInfo[ARRAY_INFO_NORMAL_INDEX_DATA] = std::pair<uint32_t, uint32_t>(
         mesh.oMeshData.iNormalIndices.size(), iDataOffset);
     iDataOffset += mesh.oMeshData.iNormalIndices.size();
-    mesh.oMeshData.oArrayInfo[ARRAY_INFO_SMOOTH_GROUP_PER_POLY_DATA] = std::pair<uint32_t, uint32_t>(
-        mesh.oMeshData.iSmoothGroupPerPoly.size(), iDataOffset);
+    mesh.oMeshData.oArrayInfo[ARRAY_INFO_SMOOTH_GROUP_PER_POLY_DATA] =
+        std::pair<uint32_t, uint32_t>(mesh.oMeshData.iSmoothGroupPerPoly.size(), iDataOffset);
     iDataOffset += mesh.oMeshData.iSmoothGroupPerPoly.size();
     mesh.oMeshData.oArrayInfo[ARRAY_INFO_VERTEX_PER_POLY_DATA] = std::pair<uint32_t, uint32_t>(
         mesh.oMeshData.iVertexPerPoly.size(), iDataOffset);
@@ -2077,7 +2082,8 @@ void OctaneClient::deleteMesh(bool bGlobal, string const &sName)
   {
     RPCReceive rcv(m_Socket);
     if (rcv.m_PacketType != (bGlobal ? OctaneDataTransferObject::DEL_GLOBAL_MESH :
-                                       OctaneDataTransferObject::DEL_LOCAL_MESH)) {
+                                       OctaneDataTransferObject::DEL_LOCAL_MESH))
+    {
       rcv >> m_sErrorMsg;
       fprintf(stderr, "Octane: ERROR deleting mesh.");
       if (m_sErrorMsg.length() > 0)
@@ -2669,7 +2675,8 @@ bool OctaneClient::checkImgBuffer8bit(uint8_4 *&puc4Buf,
 {
   if ((!m_pucImageBuf || m_iCurImgBufWidth != iWidth || m_iCurImgBufHeight != iHeight ||
        m_iCurRegionWidth != iRegionWidth || m_iCurRegionHeight != iRegionHeight) &&
-      iWidth > 0 && iHeight > 0 && iRegionWidth > 0 && iRegionHeight > 0) {
+      iWidth > 0 && iHeight > 0 && iRegionWidth > 0 && iRegionHeight > 0)
+  {
     if (iWidth < 4)
       iWidth = 4;
     if (iHeight < 4)
@@ -2700,7 +2707,8 @@ bool OctaneClient::checkImgBuffer8bit(uint8_4 *&puc4Buf,
   }
   else if (iWidth <= 0 || iHeight <= 0 || iRegionWidth <= 0 || iRegionHeight <= 0) {
     if (!m_pucImageBuf || m_iCurImgBufWidth < 4 || m_iCurImgBufHeight < 4 ||
-        m_iCurRegionWidth < 4 || m_iCurRegionHeight < 4) {
+        m_iCurRegionWidth < 4 || m_iCurRegionHeight < 4)
+    {
       iWidth = m_iCurImgBufWidth = -1;
       iHeight = m_iCurImgBufHeight = -1;
       iRegionWidth = m_iCurRegionWidth = -1;
@@ -2743,12 +2751,18 @@ bool OctaneClient::checkImgBuffer8bit(uint8_4 *&puc4Buf,
     return true;
 } //getImgBuffer8bit()
 */
+
+bool OctaneClient::isSharedSurfaceImage() {
+  return m_bServerUseSharedSurface;
+}
+
 bool OctaneClient::getSharedSurfaceHandler(
     int64_t &iSharedHandler, int iWidth, int iHeight, int iRegionWidth, int iRegionHeight)
 {
   LOCK_MUTEX(m_ImgBufMutex);
   if (iWidth != m_iCurImgBufWidth || iHeight != m_iCurImgBufHeight ||
-      iRegionWidth != m_iCurRegionWidth || iRegionHeight != m_iCurRegionHeight) {
+      iRegionWidth != m_iCurRegionWidth || iRegionHeight != m_iCurRegionHeight)
+  {
     m_iCurImgBufWidth = iWidth;
     m_iCurImgBufHeight = iHeight;
     m_iCurRegionWidth = iRegionWidth;
@@ -2769,7 +2783,8 @@ bool OctaneClient::getImgBuffer8bit(int &iComponentsCnt,
   LOCK_MUTEX(m_ImgBufMutex);
 
   if (iWidth != m_iCurImgBufWidth || iHeight != m_iCurImgBufHeight ||
-      iRegionWidth != m_iCurRegionWidth || iRegionHeight != m_iCurRegionHeight) {
+      iRegionWidth != m_iCurRegionWidth || iRegionHeight != m_iCurRegionHeight)
+  {
     m_iCurImgBufWidth = iWidth;
     m_iCurImgBufHeight = iHeight;
     m_iCurRegionWidth = iRegionWidth;
@@ -3236,7 +3251,8 @@ bool OctaneClient::getCopyImgBuffer8bit(int iComponentsCnt,
   LOCK_MUTEX(m_ImgBufMutex);
 
   if (iWidth != m_iCurImgBufWidth || iHeight != m_iCurImgBufHeight ||
-      iRegionWidth != m_iCurRegionWidth || iRegionHeight != m_iCurRegionHeight) {
+      iRegionWidth != m_iCurRegionWidth || iRegionHeight != m_iCurRegionHeight)
+  {
     m_iCurImgBufWidth = iWidth;
     m_iCurImgBufHeight = iHeight;
     m_iCurRegionWidth = iRegionWidth;
@@ -3489,7 +3505,8 @@ bool OctaneClient::checkImgBufferFloat(int iComponentsCnt,
 {
   if ((!m_pfImageBuf || m_iCurImgBufWidth != iWidth || m_iCurImgBufHeight != iHeight ||
        m_iCurRegionWidth != iRegionWidth || m_iCurRegionHeight != iRegionHeight) &&
-      iWidth > 0 && iHeight > 0 && iRegionWidth > 0 && iRegionHeight > 0) {
+      iWidth > 0 && iHeight > 0 && iRegionWidth > 0 && iRegionHeight > 0)
+  {
     if (iWidth < 4)
       iWidth = 4;
     if (iHeight < 4)
@@ -3519,7 +3536,8 @@ bool OctaneClient::checkImgBufferFloat(int iComponentsCnt,
   }
   else if (iWidth <= 0 || iHeight <= 0 || iRegionWidth <= 0 || iRegionHeight <= 0) {
     if (!m_pfImageBuf || m_iCurImgBufWidth < 4 || m_iCurImgBufHeight < 4 ||
-        m_iCurRegionWidth < 4 || m_iCurRegionHeight < 4) {
+        m_iCurRegionWidth < 4 || m_iCurRegionHeight < 4)
+    {
       iWidth = m_iCurImgBufWidth = -1;
       iHeight = m_iCurImgBufHeight = -1;
       iRegionWidth = m_iCurRegionWidth = -1;
@@ -3555,7 +3573,8 @@ bool OctaneClient::getImgBufferFloat(int &iComponentsCnt,
   LOCK_MUTEX(m_ImgBufMutex);
 
   if (iWidth != m_iCurImgBufWidth || iHeight != m_iCurImgBufHeight ||
-      iRegionWidth != m_iCurRegionWidth || iRegionHeight != m_iCurRegionHeight) {
+      iRegionWidth != m_iCurRegionWidth || iRegionHeight != m_iCurRegionHeight)
+  {
     m_iCurImgBufWidth = iWidth;
     m_iCurImgBufHeight = iHeight;
     m_iCurRegionWidth = iRegionWidth;
@@ -3595,7 +3614,8 @@ bool OctaneClient::getCopyImgBufferFloat(int iComponentsCnt,
   LOCK_MUTEX(m_ImgBufMutex);
 
   if (iWidth != m_iCurImgBufWidth || iHeight != m_iCurImgBufHeight ||
-      iRegionWidth != m_iCurRegionWidth || iRegionHeight != m_iCurRegionHeight) {
+      iRegionWidth != m_iCurRegionWidth || iRegionHeight != m_iCurRegionHeight)
+  {
     m_iCurImgBufWidth = iWidth;
     m_iCurImgBufHeight = iHeight;
     m_iCurRegionWidth = iRegionWidth;
@@ -3902,6 +3922,8 @@ bool OctaneClient::downloadImageBuffer(RenderStatistics &renderStat,
       snd.write();
     }
 
+    bool bServerUseSharedSurface = false;
+
     RPCReceive rcv(m_Socket);
     if (rcv.m_PacketType == OctaneDataTransferObject::GET_IMAGE) {
       uint32_t uiW, uiH, uiRegW, uiRegH, uiSamples, uiCurDenoiseSamples;
@@ -3913,7 +3935,7 @@ bool OctaneClient::downloadImageBuffer(RenderStatistics &renderStat,
           renderStat.uiRgb64Cnt >> renderStat.uiGrey8Cnt >> renderStat.uiGrey16Cnt >>
           uiCurDenoiseSamples >> uiSamples >> renderStat.uiMaxSamples >> uiW >> uiH >> uiRegW >>
           uiRegH >> renderStat.uiNetGPUs >> renderStat.uiNetGPUsUsed;
-
+      rcv >> bServerUseSharedSurface;
       renderStat.uiW = uiW;
       renderStat.uiH = uiH;
       renderStat.uiRegW = uiRegW;
@@ -3928,7 +3950,8 @@ bool OctaneClient::downloadImageBuffer(RenderStatistics &renderStat,
         renderStat.uiCurDenoiseSamples = uiCurDenoiseSamples;
 
       if (m_iCurImgBufWidth < 0 || m_iCurImgBufHeight < 0 || m_iCurRegionWidth < 0 ||
-          m_iCurRegionHeight < 0) {
+          m_iCurRegionHeight < 0)
+      {
         m_iCurImgBufWidth = static_cast<int>(uiW);
         m_iCurImgBufHeight = static_cast<int>(uiH);
         m_iCurRegionWidth = static_cast<int>(uiRegW);
@@ -3952,9 +3975,10 @@ bool OctaneClient::downloadImageBuffer(RenderStatistics &renderStat,
         default:
           bPassUseSharedSurface = (passType < Octane::RENDER_PASS_OUTPUT_AOV_IDS_OFFSET);
       }
-      if (bUseSharedSurface && bPassUseSharedSurface) {
+      if (bServerUseSharedSurface) {
         rcv >> renderStat.iSharedHandler;
         LOCK_MUTEX(m_ImgBufMutex);
+        m_bServerUseSharedSurface = true;
         m_iSharedHandler = renderStat.iSharedHandler;
         UNLOCK_MUTEX(m_ImgBufMutex);
         if (m_CurPassType != passType) {
@@ -3965,6 +3989,9 @@ bool OctaneClient::downloadImageBuffer(RenderStatistics &renderStat,
       }
 
       LOCK_MUTEX(m_ImgBufMutex);
+
+      m_bServerUseSharedSurface = false;
+      m_iSharedHandler = 0;
 
       size_t stLen = uiRegW * uiRegH * renderStat.iComponentsCnt;
 

@@ -101,7 +101,7 @@ class BlenderCameraSensorFitType:
 
 
 class BoundBox2D(object):
-    def __init__(self, left, right, bottom, top):
+    def __init__(self, left=0, right=1, bottom=0, top=1):
         self.left = left
         self.right = right
         self.bottom = bottom
@@ -113,11 +113,39 @@ class BoundBox2D(object):
         self.bottom = 0
         self.top = 1
 
-    def multiple(self, factor):
-        self.left *= factor
-        self.right *= factor
-        self.bottom *= factor
-        self.top *= factor
+    def clamp(self, min_value, max_value):
+        result = BoundBox2D()
+        result.left = max(min(self.left, max_value), min_value)
+        result.right = max(min(self.right, max_value), min_value)
+        result.bottom = max(min(self.bottom, max_value), min_value)
+        result.top = max(min(self.top, max_value), min_value)
+        return result
+
+    @staticmethod
+    def subset(self, other):
+        result = BoundBox2D()
+        result.left = self.left + other.left * (self.right - self.left)
+        result.right = self.left + other.right * (self.right - self.left)
+        result.bottom = self.bottom + other.bottom * (self.top - self.bottom)
+        result.top = self.bottom + other.top * (self.top - self.bottom)
+        return result
+
+    @staticmethod
+    def make_relative_to(self, other):
+        result = BoundBox2D()
+        result.left = (self.left - other.left) / (other.right - other.left)
+        result.right = (self.right - other.left) / (other.right - other.left)
+        result.bottom = (self.bottom - other.bottom) / (other.top - other.bottom)
+        result.top = (self.top - other.bottom) / (other.top - other.bottom)
+        return result
+
+    @staticmethod
+    def scale(a, factor):
+        return BoundBox2D(a.left * factor, a.right * factor, a.bottom * factor, a.top * factor)
+
+    @staticmethod
+    def multiple(a, b):
+        return BoundBox2D(a.left * b.left, a.right * b.right, a.bottom * b.bottom, a.top * b.top)
 
 
 class BlenderCamera(object):
@@ -254,11 +282,28 @@ class BlenderCamera(object):
             if lens > 0:
                 self.lens = lens
 
-    def setup_view_subset(self, scene, v3d, rv3d, width, height, skip_panorama):
-        pass
-
-    def setup_camera_border(self, scene, v3d, rv3d, width, height):
-        pass
+    def setup_camera_border(self, scene, width, height, is_viewport=False, v3d=None, rv3d=None):
+        is_camera_view = rv3d.view_perspective == "CAMERA" if is_viewport else True
+        if is_camera_view:
+            # Object camera
+            render = scene.render
+            border_max_x = render.border_max_x
+            border_max_y = render.border_max_y
+            border_min_x = render.border_min_x
+            border_min_y = render.border_min_y
+            use_border = render.use_border
+        else:
+            # Viewport camera
+            border_max_x = v3d.render_border_max_x
+            border_max_y = v3d.render_border_max_y
+            border_min_x = v3d.render_border_min_x
+            border_min_y = v3d.render_border_min_y
+            use_border = v3d.use_render_border
+        self.border.left = border_min_x
+        self.border.right = border_max_x
+        self.border.bottom = border_min_y
+        self.border.top = border_max_y
+        self.use_border = use_border
 
     def setup_camera_viewplane(self, scene, width, height):
         x_ratio = width * self.pixel_aspect[0]
@@ -292,7 +337,7 @@ class BlenderCamera(object):
             self.viewplane.right = x_aspect
             self.viewplane.bottom = -y_aspect
             self.viewplane.top = y_aspect
-            self.viewplane.multiple(self.zoom)
+            self.viewplane = BoundBox2D.scale(self.viewplane, self.zoom)
             dx = 2.0 * (self.aspect_ratio * self.shift[0] + self.offset[0] * x_aspect * 2.0)
             dy = 2.0 * (self.aspect_ratio * self.shift[1] + self.offset[1] * y_aspect * 2.0)
             self.viewplane.left += dx
@@ -338,7 +383,7 @@ class OctaneOSLCameraNode(bpy.types.PropertyGroup):
     name: StringProperty(name="Node Name")   
 
 
-class OctaneOSLCameraNodeCollection(bpy.types.PropertyGroup):    
+class OctaneOSLCameraNodeCollection(bpy.types.PropertyGroup):
     osl_camera_nodes: CollectionProperty(type=OctaneOSLCameraNode)
 
     def update_nodes(self, context):   
@@ -776,15 +821,11 @@ class OctaneImagerSettings(bpy.types.PropertyGroup, common.OctanePropertySetting
         layout.prop(self, "enable_ai_up_sampling", text="")
 
     def draw_upsampler(self, context, layout, is_viewport=None):
-        from octane.core.client import OctaneBlender
-        if utility.get_preferences().use_shared_surface and OctaneBlender().is_shared_surface_supported():
-            layout.label(text="Upsampler disabled - please turn Shared Surface Viewport option off to use it")
-        else:
-            col = layout.column()
-            col.use_property_split = True
-            col.prop(self, "up_sample_mode")
-            col.prop(self, "up_sampling_on_completion")
-            col.prop(self, "min_up_sampler_samples")
+        col = layout.column()
+        col.use_property_split = True
+        col.prop(self, "up_sample_mode")
+        col.prop(self, "up_sampling_on_completion")
+        col.prop(self, "min_up_sampler_samples")
 
 
 class OctanePostProcessingSettings(bpy.types.PropertyGroup, common.OctanePropertySettings):
@@ -794,11 +835,11 @@ class OctanePostProcessingSettings(bpy.types.PropertyGroup, common.OctanePropert
             "glare_ray_amount", "glare_angle", "glare_blur", 
             "spectral_intencity", "spectral_shift", "spectral_intencity", 
             "spread_start", "spread_end", "chromatic_aberration_intensity", 
-            "lens_flare", "lens_flare_extent", 
+            "lens_flare", "lens_flare_extent", "scale_with_film",
         ],
         consts.NodeType.NT_POST_VOLUME: [
             "light_beams", "medium_density_for_postfx_light_beams", "enable_fog", 
-            "fog_strength", "fog_height_descend", "fog_env_contribution",
+            "fog_extinction_distance", "fog_base_level", "fog_half_density_height", "fog_env_contribution",
             "base_fog_color", "medium_radius",
         ]
     }
@@ -812,11 +853,13 @@ class OctanePostProcessingSettings(bpy.types.PropertyGroup, common.OctanePropert
         "light_beams": "postFxLightBeamsEnabled",
         "medium_density_for_postfx_light_beams": "postFxLightBeamsMediumDensity",
         "enable_fog": "postFxFogMediaEnabled",
-        "fog_strength": "postFxFogStrength",
-        "fog_height_descend": "postFxFogExponent",
+        "fog_extinction_distance": "postFxFogExtinctionDistance",
+        "fog_base_level": "postFxFogBaseLevel",
+        "fog_half_density_height": "postFxFogHalfDensityHeight",
         "fog_env_contribution": "postFxFogEnvContribution",
         "base_fog_color": "baseColor",
         "medium_radius": "mediumRadius",
+        "scale_with_film": "scaleWithFilm",
     }
 
     on_off: BoolProperty(
@@ -887,6 +930,11 @@ class OctanePostProcessingSettings(bpy.types.PropertyGroup, common.OctanePropert
         step=10,
         precision=3,
     )
+    scale_with_film: BoolProperty(
+        name="Scale with film",
+        default=True, 
+        description="If enabled, bloom and glare will scale with film size. If disabled, the size of bloom and glare features will be the same number of pixels regardless of film size. This should only be disabled to match the behavior of previous versions of Octane.\n\nTo maintain the same result when enabling this, find the image length in pixels (which is film width or film height, whichever is larger), and set the following values:\n    Spread start = 0.6 * sqrt(2) / image length\n    Spread end = 614.4 * sqrt(2) / image length\n    Spectral shift = old spectral shift + log2(image length)",
+    )    
     spread_start: FloatProperty(
         name="Spread start",
         default=0.01,
@@ -950,6 +998,24 @@ class OctanePostProcessingSettings(bpy.types.PropertyGroup, common.OctanePropert
         description="Controls how strong fog color is contributed from environment with a base of user selected color", 
         min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR",
     )
+    fog_extinction_distance: FloatProperty(
+        name="Fog extinction distance",
+        default=1000.000000, 
+        description="The distance where the primary ray's transmittance becomes 0 due to fog's density accumulation",
+        min=0.000100, max=10000.000000, soft_min=0.000100, soft_max=10000.000000, step=1, precision=2, subtype="NONE",
+    )
+    fog_base_level: FloatProperty(
+        name="Fog base level",
+        default=0.000000, 
+        description="Base height in world space for post fog effects", 
+        min=-10000.000000, max=10000.000000, soft_min=-10000.000000, soft_max=10000.000000, step=1, precision=2, subtype="NONE",
+    )
+    fog_half_density_height: FloatProperty(
+        name="Fog half density height",
+        default=1.000000, 
+        description="The height from the base level where post fog density halves", 
+        min=0.000000, max=10000.000000, soft_min=0.000000, soft_max=10000.000000, step=1, precision=2, subtype="NONE",
+    )
     base_fog_color: FloatVectorProperty(
         name="Base fog color",
         default=(1.000000, 1.000000, 1.000000), 
@@ -982,6 +1048,7 @@ class OctanePostProcessingSettings(bpy.types.PropertyGroup, common.OctanePropert
         col.prop(self, "glare_ray_amount")
         col.prop(self, "glare_angle")
         col.prop(self, "glare_blur")
+        col.prop(self, "scale_with_film")
         col.prop(self, "spread_start")
         col.prop(self, "spread_end")
         col.prop(self, "spectral_intencity")
@@ -1000,8 +1067,9 @@ class OctanePostProcessingSettings(bpy.types.PropertyGroup, common.OctanePropert
         col.prop(self, "light_beams")
         col.prop(self, "medium_density_for_postfx_light_beams")
         col.prop(self, "enable_fog")
-        col.prop(self, "fog_strength")
-        col.prop(self, "fog_height_descend")
+        col.prop(self, "fog_extinction_distance")
+        col.prop(self, "fog_base_level")
+        col.prop(self, "fog_half_density_height")
         col.prop(self, "fog_env_contribution")
         col.prop(self, "base_fog_color")
         col.prop(self, "medium_radius")
@@ -1344,7 +1412,7 @@ class OctaneBaseCameraSettings(common.OctanePropertySettings):
         camera_node.set_pin_id(consts.PinID.P_BAKE_BACKFACE_CULLING, False, "", baking_bkface_culling)
         self.sync_octane_camera_position(blender_camera, camera_node)
 
-    def sync_octane_camera_parameters(self, blender_camera, octane_node, width, height, is_viewport):
+    def sync_octane_camera_parameters(self, blender_camera, octane_node, width, height, border, is_viewport):
         camera_node = self.setup_octane_node_type(blender_camera, octane_node, is_viewport)
         camera_node_type = camera_node.node_type
         if camera_node_type in (consts.NodeType.NT_CAM_OSL, consts.NodeType.NT_CAM_OSL_BAKING, ):
@@ -1414,25 +1482,47 @@ class OctaneBaseCameraSettings(common.OctanePropertySettings):
             matrix = mathutils.Matrix([[x[0] * -w, y[0] * h, z[0], blender_camera.octane_position[0]], [x[1] * -w, y[1] * h, z[1], blender_camera.octane_position[1]], [x[2], y[2], z[2], blender_camera.octane_position[2]], [0, 0, 0, 1]])
             subnode = octane_node.get_subnode(consts.OCTANE_BLENDER_STATIC_FRONT_PROJECTION_TRANSFORM, consts.NodeType.NT_TRANSFORM_VALUE)
             subnode.set_attribute_id(consts.AttributeID.A_TRANSFORM, matrix)
+        octane_node.border = border
 
     def sync_view(self, octane_node, scene, region, v3d, rv3d):
-        blender_camera = BlenderCamera()
-        blender_camera.init(scene)
-        blender_camera.setup_from_view(scene, v3d, rv3d, region.width, region.height, False)
-        blender_camera.setup_camera_border(scene, v3d, rv3d, region.width, region.height)
-        blender_camera.setup_camera_viewplane(scene, region.width, region.height)
-        self.sync_octane_camera_parameters(blender_camera, octane_node, region.width, region.height, True)
+        view_camera = BlenderCamera()
+        view_camera.init(scene)
+        view_camera.setup_from_view(scene, v3d, rv3d, region.width, region.height, False)
+        view_camera.setup_camera_viewplane(scene, region.width, region.height)
+        view_camera.setup_camera_border(scene, region.width, region.height, True, v3d, rv3d)
+        if view_camera.use_border:
+            if rv3d.view_perspective == "CAMERA":
+                view_camera_box = BoundBox2D.scale(view_camera.viewplane, 1.0 / view_camera.aspect_ratio)
+                camera_object = scene.camera
+                object_camera = BlenderCamera()
+                object_camera.init(scene)
+                object_camera.setup_from_camera_object(camera_object, True)
+                object_camera.setup_camera_viewplane(scene, object_camera.full_width, object_camera.full_height)
+                object_camera_box = BoundBox2D.scale(object_camera.viewplane, 1.0 / object_camera.aspect_ratio)
+                object_camera_box = BoundBox2D.make_relative_to(object_camera_box, view_camera_box)
+                border_box = BoundBox2D.subset(object_camera_box, view_camera.border)
+                border_box.clamp(0.0, 1.0)
+            else:
+                border_box = view_camera.border
+        else:
+            border_box = None
+        self.sync_octane_camera_parameters(view_camera, octane_node, region.width, region.height, border_box, True)
 
     def sync_camera(self, octane_node, scene, width, height):
-        blender_camera = BlenderCamera()
-        blender_camera.init(scene)
-        blender_camera.pixel_aspect[0] = scene.render.pixel_aspect_x
-        blender_camera.pixel_aspect[1] = scene.render.pixel_aspect_y
+        object_camera = BlenderCamera()
+        object_camera.init(scene)
+        object_camera.pixel_aspect[0] = scene.render.pixel_aspect_x
+        object_camera.pixel_aspect[1] = scene.render.pixel_aspect_y
         camera_object = scene.camera
-        blender_camera.setup_from_camera_object(camera_object, False)
-        blender_camera.setup_camera_viewplane(scene, width, height)
-        blender_camera.matrix = camera_object.matrix_world
-        self.sync_octane_camera_parameters(blender_camera, octane_node, width, height, False)
+        object_camera.setup_from_camera_object(camera_object, False)
+        object_camera.setup_camera_viewplane(scene, width, height)
+        object_camera.setup_camera_border(scene, width, height, False)
+        object_camera.matrix = camera_object.matrix_world
+        if object_camera.use_border:
+            border_box = object_camera.border
+        else:
+            border_box = None
+        self.sync_octane_camera_parameters(object_camera, octane_node, width, height, border_box, False)
 
     def sync_camera_motion_blur(self, camera_node, motion_time_offset, camera_eval):
         position_vector, target_vector, up_vector = self.calculate_octane_camera_position_parameters(camera_eval.matrix_world, [0, 0, -1], False)

@@ -735,7 +735,7 @@ static BL::Node get_octane_helper_node(BL::BlendData &b_data, std::string node_n
   for (b_data.node_groups.begin(b_node_group); b_node_group != b_data.node_groups.end();
        ++b_node_group)
   {
-    if (b_node_group->name() == "[OCTANE_HELPER_NODE_GROUP]") {
+    if (b_node_group->name() == ".[OCTANE_HELPER_NODE_GROUP]") {
       BL::NodeTree::nodes_iterator b_node;
       for (b_node_group->nodes.begin(b_node); b_node != b_node_group->nodes.end(); ++b_node) {
         if (b_node->name() == node_name) {
@@ -1300,6 +1300,16 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
       }
       octane_node->sCustomDataBody = curve_data;
     }
+    if (bl_idname == "OctaneOutputAOVsMaskWithCryptomatte" || bl_idname == "OctaneCryptomatteMaskAOVOutput") {
+      ::OctaneDataTransferObject::OctaneCustomNode *octane_node =
+          (::OctaneDataTransferObject::OctaneCustomNode *)(node->oct_node);
+      for (auto &strSocket : octane_node->oStringSockets) {
+        if (strSocket.sName == "Mattes") {
+          std::replace(strSocket.sVal.begin(), strSocket.sVal.end(), ';', '\n');
+          break;
+        }
+      }
+    }
   }
   else if (b_node.is_a(&RNA_ShaderNodeOctObjectData) || bl_idname == "OctaneObjectData") {
     int source_type = RNA_enum_get(&b_node.ptr, "source_type");
@@ -1667,17 +1677,32 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
         BL::Image b_image(ptr);
         if (b_image) {
           int32_t grid_size_x = 0, grid_size_y = 0;
+          std::map<std::pair<int32_t, int32_t>, std::string> paths;
           if (b_image.tiles.length() > 0 && b_image.source() == BL::Image::source_TILED) {
             BL::Image::tiles_iterator b_tile;
             for (b_image.tiles.begin(b_tile); b_tile != b_image.tiles.end(); ++b_tile) {
-              int32_t n = b_tile->number() - 1000;
+              int32_t tile = b_tile->number();
+              int u = ((tile - 1001) % 10);
+              int v = ((tile - 1001) / 10);
+              int32_t n = tile - 1000;
               grid_size_x = std::max(grid_size_x, n % 10);
               grid_size_y = std::max(std::max(1, grid_size_y), int(n / 10) + 1);
               int32_t tile_number = b_tile->number();
               b_image_user.tile(tile_number);
               std::string path = image_user_file_path(
                   b_image_user, b_image, b_scene.frame_current(), true);
-              pNode->sFiles.emplace_back(path);
+              paths[std::pair<int, int>(u, v)] = path;
+            }
+            for (int32_t v = 0; v < grid_size_y; ++v) {
+              for (int32_t u = 0; u < grid_size_x; ++u) {
+                auto p = std::pair<int32_t, int32_t>(u, v);
+                if (paths.find(p) == paths.end()) {
+                  pNode->sFiles.emplace_back("");
+                }
+                else {
+                  pNode->sFiles.emplace_back(paths[p]);
+                }
+              }
             }
           }
           else {
@@ -2499,7 +2524,7 @@ static void postprocess_graph_nodes(ShaderGraph *graph, LinkResolver &link_resol
 
 void BlenderSync::sync_material(BL::Material b_material, Shader *shader)
 {
-  std::string material_name = b_material.name();
+  std::string material_name = resolve_bl_id_octane_name(b_material);
   ShaderGraph *graph = new ShaderGraph(SHADER_GRAPH_MATERIAL);
   shader->name = material_name;
   shader->set_graph(graph);
@@ -2552,7 +2577,7 @@ void BlenderSync::sync_materials(BL::Depsgraph &b_depsgraph,
       bool is_texture_paint_updated = shader->need_update_paint &&
                                       (!need_sync && !shader->need_sync_object && !update_all);
 
-      shader->name = b_mat.name().c_str();
+      shader->name = resolve_bl_id_octane_name(b_mat);
       shader->pass_id = b_mat.pass_index();
       shader->need_sync_object = false;
 
@@ -2717,6 +2742,9 @@ void BlenderSync::sync_world(BL::Depsgraph &b_depsgraph, bool update_all)
       BL::NodeTree::links_iterator it_link;
       for (b_ntree.links.begin(it_link); it_link != b_ntree.links.end(); ++it_link) {
         ss << it_link->ptr.data;
+        if (it_link->ptr.data) {
+          ss << it_link->from_node().name();
+        }
       }
       std::string current_tag = ss.str();
       if (current_tag != world_custom_node_tree_content_tag) {

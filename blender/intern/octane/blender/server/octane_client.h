@@ -117,7 +117,7 @@ class OctaneClient {
         uiRegW,              ///< Render region width.
         uiRegH;              ///< Render region height.
     int64_t iSharedHandler;
-  };                         // struct RenderStatistics
+  };  // struct RenderStatistics
 
   OctaneClient();
   ~OctaneClient();
@@ -396,6 +396,8 @@ class OctaneClient {
   /// Get current render-buffer pass type.
   Octane::RenderPassId currentPassType();
 
+  bool isSharedSurfaceImage();
+
   bool getSharedSurfaceHandler(
       int64_t &iSharedHandler, int iWidth, int iHeight, int iRegionWidth, int iRegionHeight);
   /// Get a pointer to cached image buffer. Use downloadImageBuffer() to download and cache the
@@ -617,6 +619,7 @@ class OctaneClient {
   int32_t m_iComponentCnt;
   size_t m_stImgBufLen;
   int64_t m_iSharedHandler;
+  bool m_bServerUseSharedSurface;
 
   SceneExportTypes::SceneExportTypesEnum m_ExportSceneType;
   bool m_bDeepImage;

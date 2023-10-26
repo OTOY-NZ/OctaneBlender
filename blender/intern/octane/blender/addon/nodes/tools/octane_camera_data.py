@@ -121,7 +121,6 @@ class OctaneCameraData(bpy.types.Node, OctaneBaseNode):
 
     def sync_custom_data(self, octane_node, octane_graph_node_data, depsgraph):
         from octane.nodes.base_osl import OctaneScriptNode
-        octane_node.clear_all_subnodes()
         octane_name = octane_node.name
         if octane_name.endswith(self.VIEW_VECTOR_OUT):
             subnode_name = octane_name

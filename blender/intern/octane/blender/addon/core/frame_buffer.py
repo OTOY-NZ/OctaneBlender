@@ -184,7 +184,7 @@ class ViewportDrawData(object):
         if self.frame_buffer.use_shared_surface:
             if self.transparent:
                 bgl.glEnable(bgl.GL_BLEND)
-                bgl.glBlendFunc(bgl.GL_ONE, bgl.GL_ONE_MINUS_SRC_ALPHA)
+                # bgl.glBlendFunc(bgl.GL_ONE, bgl.GL_ONE_MINUS_SRC_ALPHA)
             engine.bind_display_space_shader(scene)
             bgl.glActiveTexture(bgl.GL_TEXTURE0)
             bgl.glBindTexture(bgl.GL_TEXTURE_2D, self.texture_id)

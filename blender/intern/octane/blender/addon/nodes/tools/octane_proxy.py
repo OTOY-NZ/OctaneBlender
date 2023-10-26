@@ -31,38 +31,7 @@ class OctaneProxyBaseSocket(base_socket.OctaneBaseSocket):
         return octane_node.node.get_graph_linker_name(self.octane_proxy_link_index, is_input)
 
 
-class OctaneProxy(bpy.types.Node, OctaneBaseNode):
-    BLENDER_ATTRIBUTE_EDIT_NODE_GRAPH_DATA = "EDIT_NODE_GRAPH_DATA"
-    bl_idname="OctaneProxy"
-    bl_label="OctaneProxy(BETA)"
-    bl_width_default=200
-    octane_render_pass_id=-1
-    octane_render_pass_name=""
-    octane_render_pass_short_name=""
-    octane_render_pass_description=""
-    octane_render_pass_sub_type_name=""
-    octane_min_version=0
-    octane_node_type=consts.NodeType.NT_BLENDER_NODE_GRAPH_NODE
-    octane_socket_list: StringProperty(name="Socket List", default="")
-    # octane_attribute_list: StringProperty(name="Attribute List", default="a_data;a_data_md5;")
-    # octane_attribute_config_list: StringProperty(name="Attribute Config List", default="10;10;")
-    octane_attribute_list=["a_data", "a_data_md5", ]
-    octane_attribute_config={"a_data": [consts.AttributeID.A_UNKNOWN, "a_data", consts.AttributeType.AT_STRING], "a_data_md5": [consts.AttributeID.A_UNKNOWN, "a_data_md5", consts.AttributeType.AT_STRING], }    
-    octane_static_pin_count=0
-
-    def update_proxy_graph_data(self, context):
-        self.a_data_md5 = hashlib.md5(self.a_data.encode('utf-8')).hexdigest()
-
-    a_data: StringProperty(name="Data", default="", update=update_proxy_graph_data)
-    a_data_md5: StringProperty(name="MD5", default="", update=None)
-
-    def init(self, context):
-        self.a_data_md5 = ""
-
-    def draw_buttons(self, context, layout):
-        row = layout.row()
-        row.operator("octane.open_proxy_node_graph")
-
+class OctaneGraphBuilder(object):
     def build_socket(self, socket_et, node_proxy, is_input=True, report=None):
         name = socket_et.get("name")
         unique_id = int(socket_et.get("id"))
@@ -122,6 +91,39 @@ class OctaneProxy(bpy.types.Node, OctaneBaseNode):
         self._build_proxy_node(proxy_graph_data_et, node_proxy, report, True)
         self._build_proxy_node(proxy_graph_data_et, node_proxy, report, False)
 
+
+class OctaneProxy(bpy.types.Node, OctaneBaseNode, OctaneGraphBuilder):
+    BLENDER_ATTRIBUTE_EDIT_NODE_GRAPH_DATA = "EDIT_NODE_GRAPH_DATA"
+    bl_idname="OctaneProxy"
+    bl_label="OctaneProxy(BETA)"
+    bl_width_default=200
+    octane_render_pass_id=-1
+    octane_render_pass_name=""
+    octane_render_pass_short_name=""
+    octane_render_pass_description=""
+    octane_render_pass_sub_type_name=""
+    octane_min_version=0
+    octane_node_type=consts.NodeType.NT_BLENDER_NODE_GRAPH_NODE
+    octane_socket_list: StringProperty(name="Socket List", default="")
+    # octane_attribute_list: StringProperty(name="Attribute List", default="a_data;a_data_md5;")
+    # octane_attribute_config_list: StringProperty(name="Attribute Config List", default="10;10;")
+    octane_attribute_list=["a_data", "a_data_md5", ]
+    octane_attribute_config={"a_data": [consts.AttributeID.A_UNKNOWN, "a_data", consts.AttributeType.AT_STRING], "a_data_md5": [consts.AttributeID.A_UNKNOWN, "a_data_md5", consts.AttributeType.AT_STRING], }    
+    octane_static_pin_count=0
+
+    def update_proxy_graph_data(self, context):
+        self.a_data_md5 = hashlib.md5(self.a_data.encode('utf-8')).hexdigest()
+
+    a_data: StringProperty(name="Data", default="", update=update_proxy_graph_data)
+    a_data_md5: StringProperty(name="MD5", default="", update=None)
+
+    def init(self, context):
+        self.a_data_md5 = ""
+
+    def draw_buttons(self, context, layout):
+        row = layout.row()
+        row.operator("octane.open_proxy_node_graph")
+
     def open_proxy_node_graph(self, report=None):
         if core.ENABLE_OCTANE_ADDON_CLIENT:
             from octane.core.octane_node import OctaneNode
@@ -152,7 +154,7 @@ class OctaneProxy(bpy.types.Node, OctaneBaseNode):
             proxy_graph_data_et = custom_data_et.find("proxy_graph_data")
             self.build_proxy_node(proxy_graph_data_et, None, report)
 
-    def init_octane_proxy(self, octane_node):
+    def init_octane_graph(self, octane_node):
         octane_node.node.set_node_proxy_attributes(False, self.a_data, self.a_data_md5)
         octane_node.node.init_octane_graph()
 

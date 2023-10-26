@@ -133,6 +133,23 @@ class OctanePostProcessingGlareBlur(OctaneBaseSocket):
     octane_end_version=4294967295
     octane_deprecated=False
 
+class OctanePostProcessingScaleWithFilm(OctaneBaseSocket):
+    bl_idname="OctanePostProcessingScaleWithFilm"
+    bl_label="Scale with film"
+    color=consts.OctanePinColor.Bool
+    octane_default_node_type=consts.NodeType.NT_BOOL
+    octane_default_node_name="OctaneBoolValue"
+    octane_pin_id=consts.PinID.P_SCALE_WITH_FILM
+    octane_pin_name="scaleWithFilm"
+    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_index=7
+    octane_socket_type=consts.SocketType.ST_BOOL
+    default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="If enabled, bloom and glare will scale with film size. If disabled, the size of bloom and glare features will be the same number of pixels regardless of film size. This should only be disabled to match the behavior of previous versions of Octane.\n\nTo maintain the same result when enabling this, find the image length in pixels (which is film width or film height, whichever is larger), and set the following values:\n    Spread start = 0.6 * sqrt(2) / image length\n    Spread end = 614.4 * sqrt(2) / image length\n    Spectral shift = old spectral shift + log2(image length)")
+    octane_hide_value=False
+    octane_min_version=13000000
+    octane_end_version=4294967295
+    octane_deprecated=False
+
 class OctanePostProcessingSpreadStart(OctaneBaseSocket):
     bl_idname="OctanePostProcessingSpreadStart"
     bl_label="Spread start"
@@ -142,9 +159,9 @@ class OctanePostProcessingSpreadStart(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_SPREAD_START
     octane_pin_name="spreadStart"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=7
+    octane_pin_index=8
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=0.010000, update=OctaneBaseSocket.update_node_tree, description="The minimum blur radius for bloom/glare, as a proportion of image width or height (whichever is larger).\n\nIdeally this should be set to correspond to about half a pixel (i.e. 0.5 / max(width, height) * 100%) at the maximum resolution you will be using. Too large a value will produce an overly blurry result without fine details. Too small a value will reduce the maximum possible strength of the bloom/glare", min=0.000500, max=1.000000, soft_min=0.005000, soft_max=0.100000, step=1, precision=3, subtype="PERCENTAGE")
+    default_value: FloatProperty(default=0.010000, update=OctaneBaseSocket.update_node_tree, description="The minimum blur radius for bloom/glare, as a proportion of image width or height (whichever is larger). This is ignored if scale with film is disabled.\n\nIdeally this should be set to correspond to about half a pixel (i.e. 0.5 / max(width, height) * 100%) at the maximum resolution you will be using. Too large a value will produce an overly blurry result without fine details. Too small a value will reduce the maximum possible strength of the bloom/glare", min=0.000500, max=1.000000, soft_min=0.005000, soft_max=0.100000, step=1, precision=3, subtype="PERCENTAGE")
     octane_hide_value=False
     octane_min_version=13000000
     octane_end_version=4294967295
@@ -159,9 +176,9 @@ class OctanePostProcessingSpreadEnd(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_SPREAD_END
     octane_pin_name="spreadEnd"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=8
+    octane_pin_index=9
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=100.000000, update=OctaneBaseSocket.update_node_tree, description="The maximum blur radius for bloom/glare, as a proportion of image width or height (whichever is larger)", min=0.100000, max=200.000000, soft_min=0.100000, soft_max=100.000000, step=1, precision=3, subtype="PERCENTAGE")
+    default_value: FloatProperty(default=100.000000, update=OctaneBaseSocket.update_node_tree, description="The maximum blur radius for bloom/glare, as a proportion of image width or height (whichever is larger). This is ignored if scale with film is disabled", min=0.100000, max=200.000000, soft_min=0.100000, soft_max=100.000000, step=1, precision=3, subtype="PERCENTAGE")
     octane_hide_value=False
     octane_min_version=13000000
     octane_end_version=4294967295
@@ -176,7 +193,7 @@ class OctanePostProcessingSpectralIntensity(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_SPECTRAL_INTENSITY
     octane_pin_name="spectral_intensity"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=9
+    octane_pin_index=10
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Spectral intensity", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
@@ -193,7 +210,7 @@ class OctanePostProcessingSpectralShift(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_SPECTRAL_SHIFT
     octane_pin_name="spectral_shift"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=10
+    octane_pin_index=11
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=2.000000, update=OctaneBaseSocket.update_node_tree, description="Spectral shift", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=6.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
@@ -210,7 +227,7 @@ class OctanePostProcessingChromaticAbrIntensity(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_CHROMATIC_ABERRATION_INTENSITY
     octane_pin_name="chromaticAberrationIntensity"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=11
+    octane_pin_index=12
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Chromatic aberration intensity", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
@@ -227,7 +244,7 @@ class OctanePostProcessingLensFlare(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_LENS_FLARE
     octane_pin_name="lensFlare"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=12
+    octane_pin_index=13
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Lens flare intensity", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
@@ -244,7 +261,7 @@ class OctanePostProcessingLensFlareExtent(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_LENS_FLARE_EXTENT
     octane_pin_name="lensFlareExtent"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=13
+    octane_pin_index=14
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=2.000000, update=OctaneBaseSocket.update_node_tree, description="Lens flare extent. This controls the overall length and distances between lens flare highlights", min=0.000000, max=10.000000, soft_min=0.000000, soft_max=10.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
@@ -261,7 +278,7 @@ class OctanePostProcessingPostVolume(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_POST_VOLUME
     octane_pin_name="postVolume"
     octane_pin_type=consts.PinType.PT_POST_VOLUME
-    octane_pin_index=14
+    octane_pin_index=15
     octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=13000000
@@ -271,7 +288,7 @@ class OctanePostProcessingPostVolume(OctaneBaseSocket):
 class OctanePostProcessingGroupPostImageProcessing(OctaneGroupTitleSocket):
     bl_idname="OctanePostProcessingGroupPostImageProcessing"
     bl_label="[OctaneGroupTitle]Post image processing"
-    octane_group_sockets: StringProperty(name="Group Sockets", default="Enabled;Cutoff;Bloom power;Glare power;Glare ray count;Glare rotation angle;Glare blur;Spread start;Spread end;Spectral intensity;Spectral shift;")
+    octane_group_sockets: StringProperty(name="Group Sockets", default="Enabled;Cutoff;Bloom power;Glare power;Glare ray count;Glare rotation angle;Glare blur;Scale with film;Spread start;Spread end;Spectral intensity;Spectral shift;")
 
 class OctanePostProcessingGroupPostProcessingLensEffects(OctaneGroupTitleSocket):
     bl_idname="OctanePostProcessingGroupPostProcessingLensEffects"
@@ -292,13 +309,13 @@ class OctanePostProcessing(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
-    octane_socket_class_list=[OctanePostProcessingGroupPostImageProcessing,OctanePostProcessingOnOff,OctanePostProcessingCutoff,OctanePostProcessingBloomPower,OctanePostProcessingGlarePower,OctanePostProcessingGlareRayAmount,OctanePostProcessingGlareAngle,OctanePostProcessingGlareBlur,OctanePostProcessingSpreadStart,OctanePostProcessingSpreadEnd,OctanePostProcessingSpectralIntensity,OctanePostProcessingSpectralShift,OctanePostProcessingGroupPostProcessingLensEffects,OctanePostProcessingChromaticAbrIntensity,OctanePostProcessingLensFlare,OctanePostProcessingLensFlareExtent,OctanePostProcessingGroupPostProcessingVolumeEffects,OctanePostProcessingPostVolume,]
+    octane_socket_class_list=[OctanePostProcessingGroupPostImageProcessing,OctanePostProcessingOnOff,OctanePostProcessingCutoff,OctanePostProcessingBloomPower,OctanePostProcessingGlarePower,OctanePostProcessingGlareRayAmount,OctanePostProcessingGlareAngle,OctanePostProcessingGlareBlur,OctanePostProcessingScaleWithFilm,OctanePostProcessingSpreadStart,OctanePostProcessingSpreadEnd,OctanePostProcessingSpectralIntensity,OctanePostProcessingSpectralShift,OctanePostProcessingGroupPostProcessingLensEffects,OctanePostProcessingChromaticAbrIntensity,OctanePostProcessingLensFlare,OctanePostProcessingLensFlareExtent,OctanePostProcessingGroupPostProcessingVolumeEffects,OctanePostProcessingPostVolume,]
     octane_min_version=0
     octane_node_type=consts.NodeType.NT_POSTPROCESSING
-    octane_socket_list=["Enabled", "Cutoff", "Bloom power", "Glare power", "Glare ray count", "Glare rotation angle", "Glare blur", "Spread start", "Spread end", "Spectral intensity", "Spectral shift", "Chromatic aberration intensity", "Lens flare intensity", "Lens flare extent", "Post volume", ]
+    octane_socket_list=["Enabled", "Cutoff", "Bloom power", "Glare power", "Glare ray count", "Glare rotation angle", "Glare blur", "Scale with film", "Spread start", "Spread end", "Spectral intensity", "Spectral shift", "Chromatic aberration intensity", "Lens flare intensity", "Lens flare extent", "Post volume", ]
     octane_attribute_list=[]
     octane_attribute_config={}
-    octane_static_pin_count=15
+    octane_static_pin_count=16
 
     def init(self, context):
         self.inputs.new("OctanePostProcessingGroupPostImageProcessing", OctanePostProcessingGroupPostImageProcessing.bl_label).init()
@@ -309,6 +326,7 @@ class OctanePostProcessing(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctanePostProcessingGlareRayAmount", OctanePostProcessingGlareRayAmount.bl_label).init()
         self.inputs.new("OctanePostProcessingGlareAngle", OctanePostProcessingGlareAngle.bl_label).init()
         self.inputs.new("OctanePostProcessingGlareBlur", OctanePostProcessingGlareBlur.bl_label).init()
+        self.inputs.new("OctanePostProcessingScaleWithFilm", OctanePostProcessingScaleWithFilm.bl_label).init()
         self.inputs.new("OctanePostProcessingSpreadStart", OctanePostProcessingSpreadStart.bl_label).init()
         self.inputs.new("OctanePostProcessingSpreadEnd", OctanePostProcessingSpreadEnd.bl_label).init()
         self.inputs.new("OctanePostProcessingSpectralIntensity", OctanePostProcessingSpectralIntensity.bl_label).init()
@@ -334,6 +352,7 @@ _CLASSES=[
     OctanePostProcessingGlareRayAmount,
     OctanePostProcessingGlareAngle,
     OctanePostProcessingGlareBlur,
+    OctanePostProcessingScaleWithFilm,
     OctanePostProcessingSpreadStart,
     OctanePostProcessingSpreadEnd,
     OctanePostProcessingSpectralIntensity,

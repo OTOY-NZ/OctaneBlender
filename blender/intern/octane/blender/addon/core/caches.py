@@ -3,6 +3,7 @@ import os
 import xml.etree.ElementTree as ET
 from collections import deque, defaultdict
 from octane.utils import consts, utility
+from octane.utils.utility import BlenderID
 from octane.core.octane_node import OctaneNode, CArray
 from octane.nodes.base_node import OctaneBaseNode
 
@@ -11,8 +12,8 @@ class NodeTreeAttributes(object):
     def __init__(self):
         self.auto_refresh = consts.AutoRereshStrategy.DISABLE
         self.use_vertex_displacement = False
-        self.image_names = []
-        self.object_names = []
+        self.image_ids = []
+        self.object_ids = []
 
 
 class BaseDataCache(object):
@@ -23,55 +24,55 @@ class BaseDataCache(object):
         self.type_collection_name = ""
         self.last_update_frame = 0
         self.cached_data = {}
-        self.changed_data_names = set()
-        # {type_name => {data => a set of dependent names}}
+        self.changed_data_ids = set()
+        # {type_name => {data => a set of dependent ids}}
         self.data_to_dependent = defaultdict(lambda: defaultdict(set))
-        # {type_name => {dependent => a set of data names}
+        # {type_name => {dependent id => a set of data names}
         self.dependent_to_data = defaultdict(lambda: defaultdict(set))
-        # {data name => refresh strategy type}
-        self.auto_refresh_data_names = defaultdict(int)
+        # {data id => refresh strategy type}
+        self.auto_refresh_data_ids = defaultdict(int)
         self.need_update_all = True
         self.need_update = False
 
     def reset(self):
         self.last_update_frame = 0
-        self.cached_data.clear()
-        self.changed_data_names.clear()
+        self.cached_data.clear()    
+        self.changed_data_ids.clear()
         self.data_to_dependent.clear()
         self.dependent_to_data.clear()
-        self.auto_refresh_data_names.clear()
+        self.auto_refresh_data_ids.clear()
         self.need_update_all = True
         self.need_update = False
 
     def need_update(self):
         return self.need_update
 
-    def has_data(self, name):
-        return name in self.cached_data
+    def has_data(self, blender_id):
+        return blender_id in self.cached_data
 
-    def get(self, name):
-        if name in self.cached_data:
-            return self.cached_data[name]
+    def get(self, blender_id):
+        if blender_id in self.cached_data:
+            return self.cached_data[blender_id]
         return None
 
-    def add(self, name):
-        self.cached_data[name] = name
+    def add(self, blender_id):
+        self.cached_data[blender_id] = blender_id
 
-    def remove(self, name):
-        if name in self.cached_data:
-            self.cached_data[name].remove_from_update_list()
-            del self.cached_data[name]
-        if name in self.auto_refresh_data_names:
-            del self.auto_refresh_data_names[name]
+    def remove(self, blender_id):
+        if blender_id in self.cached_data:
+            self.cached_data[blender_id].remove_from_update_list()
+            del self.cached_data[blender_id]
+        if blender_id in self.auto_refresh_data_ids:
+            del self.auto_refresh_data_ids[blender_id]
 
     def add_all(self, depsgraph):
         for _id in getattr(bpy.data, self.type_collection_name):
             eval_id = _id.evaluated_get(depsgraph)
-            self.changed_data_names.add(eval_id.name)
+            self.changed_data_ids.add(BlenderID(eval_id))
             self.need_update = True
         # Add evaluated data
         for _id in [item for item in depsgraph.ids if isinstance(item, self.type_class)]:
-            self.changed_data_names.add(_id.name)
+            self.changed_data_ids.add(BlenderID(_id))
             self.need_update = True
         self.custom_add_all(depsgraph)
         self.need_update_all = False
@@ -89,7 +90,7 @@ class BaseDataCache(object):
         if depsgraph.id_type_updated(self.type_name):
             for dg_update in depsgraph.updates:
                 if isinstance(dg_update.id, self.type_class):
-                    self.changed_data_names.add(dg_update.id.name)
+                    self.changed_data_ids.add(BlenderID(dg_update.id))
                     self.need_update = True
 
     def diff(self, depsgraph, scene, view_layer, context=None):
@@ -99,15 +100,15 @@ class BaseDataCache(object):
             self.depsgraph_update_diff(depsgraph, scene, view_layer, context)
             # Process auto refresh
             frame_changed = (self.last_update_frame != scene.frame_current)
-            for auto_refresh_data_name, strategy in self.auto_refresh_data_names.items():
+            for auto_refresh_data_id, strategy in self.auto_refresh_data_ids.items():
                 if strategy == consts.AutoRereshStrategy.ALWAYS or (frame_changed and strategy == consts.AutoRereshStrategy.FRAME_CHANGE):
-                    self.changed_data_names.add(auto_refresh_data_name)
+                    self.changed_data_ids.add(auto_refresh_data_id)
                     self.need_update = True
             # Process dependency
             self.dependency_diff(depsgraph, scene, view_layer, context)
             self.custom_diff(depsgraph, scene, view_layer, context)
         self.last_update_frame = scene.frame_current
-        self.need_update |= (len(self.changed_data_names) > 0)
+        self.need_update |= (len(self.changed_data_ids) > 0)
         return self.need_update
 
     def update(self, depsgraph, scene, view_layer, context=None, update_now=True):
@@ -115,8 +116,8 @@ class BaseDataCache(object):
         self.post_update()
 
     def post_update(self):
-        self.changed_data_names.clear()
-        self.need_update = False        
+        self.changed_data_ids.clear()
+        self.need_update = False
 
     def custom_update(self, depsgraph, scene, view_layer, context=None, update_now=True):
         pass
@@ -218,8 +219,9 @@ class NodeTreeCache(OctaneNodeCache):
         self.node_tree_to_octane_name_map = {}
         self.is_node_tree_with_vertex_displacement_node = {}
 
-    def need_subdivision(self, material_name):
-        return self.is_node_tree_with_vertex_displacement_node.get(material_name, False)
+    def need_subdivision(self, material):
+        blender_id = BlenderID(material)
+        return self.is_node_tree_with_vertex_displacement_node.get(blender_id, False)
 
     def get_node_tree_pointer_address(self, node_tree_owner):
         node_tree_addr = 0
@@ -244,10 +246,10 @@ class NodeTreeCache(OctaneNodeCache):
         return False
 
     def _dependency_diff(self, depsgraph, cache_depend_on):
-        if cache_depend_on and len(cache_depend_on.changed_data_names):
-            for dependent_name in cache_depend_on.changed_data_names:
-                for data_name in self.dependent_to_data[cache_depend_on.type_name][dependent_name]:
-                    self.changed_data_names.add(data_name)
+        if cache_depend_on and len(cache_depend_on.changed_data_ids):
+            for dependent_id in cache_depend_on.changed_data_ids:
+                for data_id in self.dependent_to_data[cache_depend_on.type_name][dependent_id]:
+                    self.changed_data_ids.add(data_id)
                     self.need_update = True
 
     def dependency_diff(self, depsgraph, scene, view_layer, context=None):
@@ -317,25 +319,24 @@ class NodeTreeCache(OctaneNodeCache):
                     node_tree_attributes.auto_refresh = max(node_tree_attributes.auto_refresh, octane_graph_node.node.auto_refresh())
                     # Set image attribute
                     if octane_graph_node.node.is_octane_image_node() and octane_graph_node.node.image is not None:                    
-                        node_tree_attributes.image_names.append(octane_graph_node.node.image.name)
+                        node_tree_attributes.image_ids.append(BlenderID(octane_graph_node.node.image))
                     # Set object attribute
                     if octane_graph_node.node.bl_idname == "OctaneObjectData":
-                        target_object_name = octane_graph_node.node.get_target_object_name()
-                        if target_object_name != "":
-                            node_tree_attributes.object_names.append(target_object_name)
+                        target_object = octane_graph_node.node.get_target_object_id()
+                        if target_object is not None:
+                            node_tree_attributes.object_ids.append(BlenderID(target_object))
                     if octane_graph_node.node.bl_idname == "OctaneVertexDisplacement":
                         node_tree_attributes.use_vertex_displacement = True
         # update node to the server
         is_updated = False
-        # at first, build all OctaneProxy nodes
-        from octane.nodes.tools.octane_proxy import OctaneProxy
+        # at first, build all OctaneScriptGraph and OctaneProxy nodes
         for octane_graph_node_data in final_node_list:
             octane_name = octane_graph_node_data.octane_name
             node = octane_graph_node_data.node
             if node is not None:
                 octane_node = self.get_octane_node(octane_name, node)
-                if isinstance(node, OctaneProxy):
-                    node.init_octane_proxy(octane_node)
+                if node.bl_idname in ("OctaneScriptGraph", "OctaneProxy"):
+                    node.init_octane_graph(octane_node)
         for octane_graph_node_data in final_node_list:
             octane_name = octane_graph_node_data.octane_name
             node = octane_graph_node_data.node
@@ -380,38 +381,38 @@ class NodeTreeCache(OctaneNodeCache):
         super().custom_update(depsgraph, scene, view_layer, context, update_now)
         from octane.core.object_cache import ObjectCache
         self.is_node_tree_octane_name_changed = False
-        for name in self.changed_data_names:
-            if len(name) == 0:
+        for data_blender_id in self.changed_data_ids:
+            if not data_blender_id.is_valid():
                 continue
-            _id = getattr(bpy.data, self.type_collection_name).get(name, None)
+            _id = data_blender_id.id(self.type_collection_name)
+            eval_id = None
             if _id is not None:
                 eval_id = _id.evaluated_get(depsgraph)
             if self.use_node_tree(scene, view_layer, eval_id):
-                data_name = eval_id.name
                 node_tree_attributes = NodeTreeAttributes()
                 self.update_node_tree(depsgraph, view_layer, self.get_node_tree(eval_id), eval_id, node_tree_attributes, update_now)
                 # Update auto refresh attribute
                 if node_tree_attributes.auto_refresh != consts.AutoRereshStrategy.DISABLE:
-                    self.auto_refresh_data_names[data_name] = node_tree_attributes.auto_refresh
+                    self.auto_refresh_data_ids[data_blender_id] = node_tree_attributes.auto_refresh
                 else:
-                    if data_name in self.auto_refresh_data_names:
-                        self.auto_refresh_data_names.pop(data_name)
+                    if data_blender_id in self.auto_refresh_data_ids:
+                        self.auto_refresh_data_ids.pop(data_blender_id)
                 # Update image attribute
-                self.data_to_dependent[ImageCache.TYPE_NAME][data_name] = set(node_tree_attributes.image_names)
+                self.data_to_dependent[ImageCache.TYPE_NAME][data_blender_id] = set(node_tree_attributes.image_ids)
                 # Update object attribute
-                self.data_to_dependent[ObjectCache.TYPE_NAME][data_name] = set(node_tree_attributes.object_names)
+                self.data_to_dependent[ObjectCache.TYPE_NAME][data_blender_id] = set(node_tree_attributes.object_ids)
                 # Update Vertex Displcement Map
-                self.is_node_tree_with_vertex_displacement_node[data_name] = node_tree_attributes.use_vertex_displacement
+                self.is_node_tree_with_vertex_displacement_node[data_blender_id] = node_tree_attributes.use_vertex_displacement
         # Update image attribute
         self.dependent_to_data[ImageCache.TYPE_NAME].clear()
-        for data_name, dependent_set in self.data_to_dependent[ImageCache.TYPE_NAME].items():
-            for dependent_name in dependent_set:
-                self.dependent_to_data[ImageCache.TYPE_NAME][dependent_name].add(data_name)
+        for data_id, dependent_set in self.data_to_dependent[ImageCache.TYPE_NAME].items():
+            for dependent_id in dependent_set:
+                self.dependent_to_data[ImageCache.TYPE_NAME][dependent_id].add(data_id)
         # Update object attribute
         self.dependent_to_data[ObjectCache.TYPE_NAME].clear()
-        for data_name, dependent_set in self.data_to_dependent[ObjectCache.TYPE_NAME].items():
-            for dependent_name in dependent_set:
-                self.dependent_to_data[ObjectCache.TYPE_NAME][dependent_name].add(data_name)
+        for data_id, dependent_set in self.data_to_dependent[ObjectCache.TYPE_NAME].items():
+            for dependent_id in dependent_set:
+                self.dependent_to_data[ObjectCache.TYPE_NAME][dependent_id].add(data_id)
         if self.is_node_tree_octane_name_changed:
             self.session.object_cache.update_object_material_tags(depsgraph)
 
@@ -459,7 +460,7 @@ class WorldCache(NodeTreeCache):
         if self.is_node_tree_link_changed(scene):
             self.need_update = True
         if self.need_update:
-            self.changed_data_names.add(current_name)
+            self.changed_data_ids.add(BlenderID(current_name))
 
     def custom_update(self, depsgraph, scene, view_layer, context=None, update_now=True):
         super().custom_update(depsgraph, scene, view_layer, context)
@@ -510,7 +511,7 @@ class CompositeCache(NodeTreeCache):
         super().custom_diff(depsgraph, scene, view_layer, context)
         current_name = getattr(self.find_active_composite_node_tree(view_layer), "name", "")
         if depsgraph.id_type_updated(self.type_name) or current_name != self.last_name:            
-            self.changed_data_names.add(current_name)
+            self.changed_data_ids.add(BlenderID(current_name))
             self.need_update = True
         self.last_name = current_name
 
@@ -553,7 +554,7 @@ class RenderAOVCache(NodeTreeCache):
         super().custom_diff(depsgraph, scene, view_layer, context)
         current_name = getattr(self.find_active_render_aov_node_tree(view_layer), "name", "")
         if depsgraph.id_type_updated(self.type_name) or current_name != self.last_name:            
-            self.changed_data_names.add(current_name)
+            self.changed_data_ids.add(BlenderID(current_name))
             self.need_update = True
         self.last_name = current_name
 
@@ -590,7 +591,7 @@ class KernelCache(NodeTreeCache):
         super().custom_diff(depsgraph, scene, view_layer, context)
         current_name = getattr(self.find_active_kernel_node_tree(scene), "name", "")
         if depsgraph.id_type_updated(self.type_name) or current_name != self.last_name:            
-            self.changed_data_names.add(current_name)
+            self.changed_data_ids.add(BlenderID(current_name))
             self.need_update = True
         self.last_name = current_name
 
@@ -624,8 +625,10 @@ class SceneCache(OctaneNodeCache):
         super().__init__(session)
         self.render_settings = RenderSettings()
         self.camera_node = self.add(consts.OctanePresetNodeNames.CAMERA, consts.NodeType.NT_UNKNOWN)
+        self.camera_border_box = None
         self.imager_node = self.add(consts.OctanePresetNodeNames.IMAGER, consts.NodeType.NT_IMAGER_CAMERA)
         self.post_processing_node = self.add(consts.OctanePresetNodeNames.POST_PROCESSING, consts.NodeType.NT_POSTPROCESSING)
+        self.post_volume_node = self.add(consts.OctanePresetNodeNames.POST_VOLUME, consts.NodeType.NT_POST_VOLUME)
         self.animation_setting_node = self.add(consts.OctanePresetNodeNames.ANIMATION_SETTINGS, consts.NodeType.NT_ANIMATION_SETTINGS)
         self.render_layer_node = self.add(consts.OctanePresetNodeNames.RENDER_LAYER, consts.NodeType.NT_RENDER_LAYER)
         self.render_passes_node = self.add(consts.OctanePresetNodeNames.RENDER_PASSES, consts.NodeType.NT_RENDER_PASSES)
@@ -633,7 +636,7 @@ class SceneCache(OctaneNodeCache):
         addon_folder = utility.get_addon_folder()
         render_pass_data_path = os.path.join(addon_folder, "libraries\\orbx\\RenderPassesData.orbx")
         render_pass_data_path = bpy.path.abspath(render_pass_data_path)
-        self.octane_blender_render_pass_node.node.set_orbx_proxy_attributes(render_pass_data_path, True)        
+        self.octane_blender_render_pass_node.node.set_orbx_proxy_attributes(render_pass_data_path, True, False, 0, 0)
         self.last_camera_name = ""
         self.last_imager_name = ""
         self.last_post_processing_name = ""
@@ -679,6 +682,7 @@ class SceneCache(OctaneNodeCache):
             camera_data.sync_data(self.camera_node, scene=scene, region=context.region, v3d=context.space_data, rv3d=context.region_data, session_type=self.session.session_type)
         else:
             camera_data.sync_data(self.camera_node, scene=scene, session_type=self.session.session_type)
+        self.camera_border_box = self.camera_node.border
         if self.camera_node.need_update:
             need_update = True
             self.camera_node.update_to_engine(update_now)
@@ -734,6 +738,10 @@ class SceneCache(OctaneNodeCache):
         else:
             self.post_processing_node.set_pin_id(consts.PinID.P_ON_OFF, False, "", getattr(camera_data, "postprocess", False))
             camera_data.post_processing.sync_data(self.post_processing_node, scene=scene, session_type=self.session.session_type)
+        self.post_processing_node.set_pin_id(consts.PinID.P_POST_VOLUME, True, self.post_volume_node.name, self.post_volume_node.name)
+        camera_data.post_processing.sync_data(self.post_volume_node, scene=scene, session_type=self.session.session_type)
+        if self.post_volume_node.need_update:
+            self.post_volume_node.update_to_engine(update_now)
         if self.post_processing_node.need_update:
             self.post_processing_node.update_to_engine(update_now)
         self.session.rendertarget_cache.update_link(OctaneRenderTargetCache.P_POST_PROCESSING_NAME, self.post_processing_node.name, self.post_processing_node.name)

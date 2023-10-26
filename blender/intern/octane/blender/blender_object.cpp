@@ -139,9 +139,7 @@ static void update_light_transform(Light *light,
   switch (b_light.type()) {
     case BL::Light::type_POINT: {
       if (octane_point_light_type == 2) {
-        float3 dir = transform_get_column(&tfm, 2);
-        dir *= -1;
-        transform_set_column(&tfm, 2, dir);
+        Transform t = tfm;
         light->update_transform(tfm, motion_time);
       }
       else {

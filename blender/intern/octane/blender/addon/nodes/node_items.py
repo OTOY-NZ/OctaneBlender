@@ -326,7 +326,7 @@ _octane_node_items = {
                     consts.PinType.PT_GEOMETRY,
                     consts.PinType.PT_TRANSFORM,
                 ]),
-                # OctaneNodeItem("OctaneScriptGraph"),
+                OctaneNodeItem("OctaneScriptGraph"),
                 OctaneNodeItem("OctaneProxy"),
             ]
         ),
@@ -1064,4 +1064,4 @@ def unregister():
     nodeitems_builtins.ShaderNodeCategory.poll = _ShaderNodeCategory_poll
     space_node.NODE_MT_add.draw = _octane_NODE_MT_add_draw
     for _id, _items in _octane_node_items.items():
-        unregister_octane_node_categories(_id)        
+        unregister_octane_node_categories(_id)

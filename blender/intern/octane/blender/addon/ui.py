@@ -631,6 +631,8 @@ class OCTANE_RENDER_PT_output(OctaneButtonsPanel, Panel):
                 col.prop(oct_scene, "octane_exr_compression_mode")
                 if oct_scene.octane_exr_compression_mode in ("DWAA_LOSSY", "DWAB_LOSSY"):
                     col.prop(oct_scene, "octane_export_dwa_compression_level")
+        row = col.row(heading="Exclude Beauty")
+        row.prop(oct_scene, "exclude_default_beauty_passes", text="")
 
 
 def get_panels():

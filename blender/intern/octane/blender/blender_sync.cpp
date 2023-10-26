@@ -1057,6 +1057,17 @@ std::string BlenderSync::get_env_texture_name(PointerRNA *env,
   return env_texture_ptr.data ? ((BL::ID)env_texture_ptr).name() : "";
 }
 
+std::string BlenderSync::resolve_bl_id_octane_name(BL::ID b_id) {
+  std::string name;
+  if (b_id.ptr.data != NULL) {
+    name = b_id.name();
+    if (b_id.library().ptr.data != NULL) {
+      name = b_id.library().name() + "_" + name;
+    }
+  }
+  return name;
+}
+
 /* Passes */
 ::Octane::RenderPassId BlenderSync::get_pass_type(BL::RenderPass &b_pass)
 {

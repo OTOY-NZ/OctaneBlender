@@ -84,13 +84,17 @@ class OctaneObjectData(bpy.types.Node, OctaneBaseNode):
     def get_blender_pin_symbol(self, node_name, pin_symbol):
         return node_name + consts.DERIVED_NODE_SEPARATOR + pin_symbol
 
-    def get_octane_matrix(self, matrix):
+    def get_octane_matrix(self, matrix, octane_graph_node_data, is_rotation_out=False):
         matrix = utility.OctaneMatrixConvertor.get_octane_matrix(matrix)
-        if self.target_primitive_coordinate_mode == "Octane":
-            matrix = matrix @ mathutils.Matrix.Rotation(math.radians(90), 4, "X")
+        is_light_nodetree = (getattr(octane_graph_node_data, "owner_type", consts.OctaneNodeTreeIDName.MATERIAL) == consts.OctaneNodeTreeIDName.LIGHT)
+        if is_light_nodetree and not is_rotation_out:
+            matrix = matrix @ mathutils.Matrix.Rotation(math.radians(-90), 4, "Y")
+        else:
+            if self.target_primitive_coordinate_mode == "Octane":
+                matrix = matrix @ mathutils.Matrix.Rotation(math.radians(90), 4, "X")
         return matrix
 
-    def sync_geometry_data(self, object_eval, name, octane_node, depsgraph, need_transform):
+    def sync_geometry_data(self, object_eval, name, octane_node, octane_graph_node_data, depsgraph, need_transform):
         # Placement node
         placement_node_name = name
         placement_subnode = octane_node.get_subnode(placement_node_name, consts.NodeType.NT_GEO_PLACEMENT)
@@ -105,11 +109,11 @@ class OctaneObjectData(bpy.types.Node, OctaneBaseNode):
                 transform_node_name = placement_node_name + "_Transform"
                 transform_subnode = octane_node.get_subnode(transform_node_name, consts.NodeType.NT_TRANSFORM_VALUE)                
                 matrix = self.get_octane_matrix(object_eval.matrix_world)
-                transform_subnode.set_attribute_id(consts.AttributeID.A_TRANSFORM, matrix)                
+                transform_subnode.set_attribute_id(consts.AttributeID.A_TRANSFORM, matrix)
         placement_subnode.set_pin_id(consts.PinID.P_GEOMETRY, True, octane_geometry_name, "")
         placement_subnode.set_pin_id(consts.PinID.P_TRANSFORM, True, transform_node_name, "")
 
-    def sync_collection_data(self, collection, name, octane_node, depsgraph, need_transform):
+    def sync_collection_data(self, collection, name, octane_node, depsgraph, octane_graph_node_data, need_transform):
         # Geometry Group node
         geometry_group_node_name = name
         geometry_group_subnode = octane_node.get_subnode(geometry_group_node_name, consts.NodeType.NT_GEO_GROUP)
@@ -121,13 +125,12 @@ class OctaneObjectData(bpy.types.Node, OctaneBaseNode):
                 mesh_name = geometry_group_node_name + "_" + str(geometry_count)
                 pin_name = "Input " + str(geometry_count + 1)
                 geometry_group_subnode.set_pin_index(geometry_count, pin_name, consts.SocketType.ST_LINK, consts.PinType.PT_GEOMETRY, 0, True, mesh_name, "")
-                self.sync_geometry_data(obj, mesh_name, octane_node, depsgraph, need_transform)
+                self.sync_geometry_data(obj, mesh_name, octane_node, depsgraph, octane_graph_node_data, need_transform)
                 geometry_count += 1
         geometry_group_subnode.set_attribute_id(consts.AttributeID.A_PIN_COUNT, geometry_count)
 
     def sync_custom_data(self, octane_node, octane_graph_node_data, depsgraph):
         super().sync_custom_data(octane_node, octane_graph_node_data, depsgraph)
-        octane_node.clear_all_subnodes()
         octane_name = octane_node.name
         _object = self.object_ptr
         object_eval = _object.evaluated_get(depsgraph) if _object is not None else None        
@@ -135,26 +138,26 @@ class OctaneObjectData(bpy.types.Node, OctaneBaseNode):
         if octane_name.endswith(self.TRANSFORM_OUT):
             if object_eval is not None:
                 subnode_name = octane_name
-                matrix = self.get_octane_matrix(object_eval.matrix_world)
+                matrix = self.get_octane_matrix(object_eval.matrix_world, octane_graph_node_data)
                 subnode = octane_node.get_subnode(subnode_name, consts.NodeType.NT_TRANSFORM_VALUE)
                 subnode.set_attribute_id(consts.AttributeID.A_TRANSFORM, matrix)
         elif octane_name.endswith(self.ROTATION_OUT):
             if object_eval is not None:
                 subnode_name = octane_name
-                matrix = self.get_octane_matrix(object_eval.matrix_world)
+                matrix = self.get_octane_matrix(object_eval.matrix_world, octane_graph_node_data, True)
                 direction = utility.OctaneMatrixConvertor.get_octane_direction(matrix)
                 subnode = octane_node.get_subnode(subnode_name, consts.NodeType.NT_FLOAT)
                 subnode.set_attribute_id(consts.AttributeID.A_VALUE, direction)
         elif octane_name.endswith(self.GEOMETRY_OUT):
             if self.source_type == "Object":
-                self.sync_geometry_data(object_eval, octane_node.name, octane_node, depsgraph, False)
+                self.sync_geometry_data(object_eval, octane_node.name, octane_node, octane_graph_node_data, depsgraph, False)
             else:
-                self.sync_collection_data(collection, octane_node.name, octane_node, depsgraph, False)
+                self.sync_collection_data(collection, octane_node.name, octane_node, octane_graph_node_data, depsgraph, False)
         elif octane_name.endswith(self.TRANSFORMED_GEO_OUT):
             if self.source_type == "Object":
-                self.sync_geometry_data(object_eval, octane_node.name, octane_node, depsgraph, True)
+                self.sync_geometry_data(object_eval, octane_node.name, octane_node, octane_graph_node_data, depsgraph, True)
             else:
-                self.sync_collection_data(collection, octane_node.name, octane_node, depsgraph, True)
+                self.sync_collection_data(collection, octane_node.name, octane_node, octane_graph_node_data, depsgraph, True)
 
     def load_custom_legacy_node(self, legacy_node, node_tree, context, report=None):
         if legacy_node.source_type == "OBJECT":
@@ -185,6 +188,11 @@ class OctaneObjectData(bpy.types.Node, OctaneBaseNode):
         if self.source_type == "Object":
             return self.object_ptr.name if self.object_ptr is not None else ""
         return ""
+
+    def get_target_object_id(self):
+        if self.source_type == "Object":
+            return self.object_ptr
+        return None
 
 
 _CLASSES=[

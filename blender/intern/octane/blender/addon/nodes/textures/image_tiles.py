@@ -225,16 +225,28 @@ class OctaneImageTiles_Override(OctaneImageTiles):
         is_data_updated = False
         grid_size = [0, 0]
         if self.image and self.image.source == "TILED" and len(self.image.tiles):
+            filepath_configs = {}
             filepaths = []
             # Resolve grid size
             for tile in self.image.tiles:
-                n = tile.number - 1000
+                tile_number = tile.number
+                n = tile_number - 1000
+                u = int((tile_number - 1001) % 10)
+                v = int((tile_number - 1001) / 10)
+                uv = (u, v)
                 grid_size[0] = max(grid_size[0], n % 10)
                 grid_size[1] = max(1, max(grid_size[1], int(n / 10) + 1))
                 cycles_image_helper = self.get_octane_image_helper()
                 cycles_image_helper.image_user.tile = tile.number
                 tile_filepath = self.image.filepath_from_user(image_user=cycles_image_helper.image_user)
-                filepaths.append(tile_filepath)
+                filepath_configs[uv] = tile_filepath
+            for v in range(0, grid_size[1]):
+                for u in range(0, grid_size[0]):
+                    uv = (u, v)
+                    if uv in filepath_configs:
+                        filepaths.append(filepath_configs[uv])
+                    else:
+                        filepaths.append("")
             filepath = ";".join(filepaths)
         is_data_updated |= octane_node.set_attribute_blender_name("a_filename", consts.AttributeType.AT_FILENAME, filepath)
         is_data_updated |= octane_node.set_attribute_blender_name("a_grid_size", consts.AttributeType.AT_INT2, grid_size)

@@ -17,9 +17,21 @@ class OctaneOCIOManagement(metaclass=utility.Singleton):
             " ACES2065-1": "ACES2065-1",
             " ACEScg": "ACEScg",
         }
+        self.octane_color_space_id = {
+            "Other": 0,
+            "sRGB": 1,
+            "Linear sRGB": 2,
+            "ACES2065-1": 3,
+            "ACEScg": 4,
+        }
         self.current_ocio_color_spaces = {}
         self.current_color_spaces = {}
         self.current_color_spaces.update(self.octane_color_spaces)
+
+    def get_octane_color_space_id(self, name):
+        if name in self.octane_color_space_id:
+            return self.octane_color_space_id[name]
+        return None
 
     def get_ocio_color_space_collection_config(self):
         return utility.get_preferences(), "ocio_color_space_configs"

@@ -100,11 +100,11 @@ class OctaneBlender(metaclass=utility.Singleton):
         self.debug_console("OctaneBlender.fetch_octanedb: %s" % response)
         return response
 
-    def set_resolution(self, width, height, update_now):
+    def set_resolution(self, width, height, use_region_render, enable_unbound_render, region_start_x, region_start_y, region_width, region_height, update_now):
         self.debug_console("OctaneBlender.set_resolution")
         if not self.enabled:
             return
-        return octane_blender.set_resolution(width, height, update_now)
+        return octane_blender.set_resolution(width, height, use_region_render, enable_unbound_render, region_start_x, region_start_y, region_width, region_height, update_now)
 
     def set_scene_state(self, scene_state, update_now):
         self.debug_console("OctaneBlender.set_scene_state")
@@ -136,8 +136,8 @@ class OctaneBlender(metaclass=utility.Singleton):
             return
         return octane_blender.set_graph_time(time)
 
-    def is_shared_surface_supported(self):
-        return octane_blender.is_shared_surface_supported()
+    def is_shared_surface_supported(self, result_from_server=False):
+        return octane_blender.is_shared_surface_supported(result_from_server)
 
     def use_shared_surface(self, enable):
         if not self.enabled:

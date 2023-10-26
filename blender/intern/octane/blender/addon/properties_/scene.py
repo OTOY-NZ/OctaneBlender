@@ -3021,7 +3021,7 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
         ("JPEG", "JPEG", "", 2),
         ("TIFF", "TIFF", "", 3),
         ("EXR", "EXR", "", 1),
-    )    
+    )
     octane_export_file_type: EnumProperty(
         name="File type",
         description="File type",
@@ -3101,6 +3101,11 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
         items=octane_tiff_compression_modes,
         default="TIFF_COMPRESSION_LZW",
     )
+    exclude_default_beauty_passes: BoolProperty(
+        name="Exclude Beauty",
+        description="Exclude the default-added 'Beauty' pass when exporting files",
+        default=False,
+    )    
     white_light_spectrum_modes = (
         ('D65', "D65", "D65", 1),
         ('Legacy/flat', "Legacy/flat", "Legacy/flat", 0),
@@ -3115,7 +3120,7 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
         name="Use old color pipeline",
         description="Use the old behavior for converting colors to and from spectra and for applying white balance. Use this to preserve the appearance of old projects (textures with colors outside the sRGB gamut will be rendered inaccurately)",
         default=False,
-    )     
+    )
     need_upgrade_octane_output_tag: BoolProperty(
         name="Need to Upgrade Octane Output Tag",
         description="",

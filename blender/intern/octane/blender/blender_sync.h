@@ -154,6 +154,7 @@ class BlenderSync {
                                         int height);
   static std::string get_env_texture_name(PointerRNA *env,
                                           const std::string &env_texture_ptr_name);
+  static std::string resolve_bl_id_octane_name(BL::ID b_id);
   static ::Octane::RenderPassId get_pass_type(BL::RenderPass &b_pass);
   static BL::NodeTree find_active_kernel_node_tree(PointerRNA oct_scene);
   static BL::NodeTree find_active_render_aov_node_tree(PointerRNA oct_viewlayer);

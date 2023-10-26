@@ -530,7 +530,7 @@ class OCTANE_OT_BaseExport(Operator, ExportHelper):
             if success:
                 self.report({"INFO"}, "Export Success: %s" % self.filepath)
             else:
-                self.report({"Error"}, "Export Error: %s" % self.filepath)
+                self.report({'ERROR'}, "Export Error: %s" % self.filepath)
             session.stop_render()
             return {'FINISHED'}
         else:

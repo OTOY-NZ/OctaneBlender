@@ -26,7 +26,7 @@ class RenderSession(object):
         self.session_init_time = time.time()
         self.render_start_time = time.time()
         self.is_render_started = False
-        self.use_shared_surface = utility.get_preferences().use_shared_surface and OctaneBlender().is_shared_surface_supported()
+        self.use_shared_surface = utility.get_preferences().use_shared_surface and OctaneBlender().is_shared_surface_supported(True)
         # Minimum update gap(second)
         self.view_update_min_gap = utility.get_preferences().min_viewport_update_interval
         self.last_view_update_time = time.time()
@@ -155,13 +155,24 @@ class RenderSession(object):
         return time.time() - self.render_start_time
 
     def set_resolution(self, width, height, update_now=True):
-        OctaneBlender().set_resolution(width, height, update_now)
+        use_border = False
+        region_start_x = 0
+        region_start_y = 0
+        region_width = 65535
+        region_height = 65535
+        OctaneBlender().set_resolution(width, height, use_border, False, region_start_x, region_start_y, region_width, region_height, update_now)
 
-    def update_graph_time(self):
+    def update_graph_time(self, scene):
+        if not self.need_motion_blur:
+            fps = scene.render.fps / scene.render.fps_base
+            self.graph_time = (scene.frame_current / fps if fps > 0 else 0)
         OctaneBlender().set_graph_time(self.graph_time)
 
     def set_render_pass_ids(self, render_pass_ids, update_now=True):
         OctaneBlender().set_render_pass_ids(render_pass_ids, update_now)
+
+    def report_traceback(self, msg, update_now=True):
+        self.set_status_msg("Found an error during rendering...\n%s" % msg, update_now)
 
     def set_status_msg(self, status_msg, update_now=True):
         OctaneBlender().set_status_msg(status_msg, update_now)
@@ -241,12 +252,13 @@ class RenderSession(object):
                 self.rendertarget_cache.update(depsgraph, scene, view_layer, context, update_now)
                 need_redraw = True
             # update graph time
-            self.update_graph_time()
+            self.update_graph_time(scene)
             if is_first_update:
                 OctaneBlender().set_scene_state(consts.SceneState.INITIALIZED, update_now)
             self.set_status_msg("Waiting for image...", update_now)
         except Exception as e:
             traceback.print_exc()
+            self.report_traceback(traceback.format_exc(), update_now)
         finally:
             # Always unlock the mutex
             OctaneBlender().unlock_update_mutex()
@@ -277,6 +289,7 @@ class RenderSession(object):
                 engine.immediate_fetch_draw_data()
         except Exception as e:
             traceback.print_exc()
+            self.report_traceback(traceback.format_exc(), update_now)
         finally:
             # Always unlock the mutex
             OctaneBlender().unlock_update_mutex()
@@ -326,7 +339,7 @@ class RenderSession(object):
         if self.rendertarget_cache.diff(depsgraph, scene, view_layer, context):
             self.rendertarget_cache.update(depsgraph, scene, view_layer, context)
         # update graph time
-        self.update_graph_time()
+        self.update_graph_time(scene)
 
     def init_motion_blur_settings(self, depsgraph, scene, view_layer, context=None):
         self.need_motion_blur = scene.render.use_motion_blur and self.is_final()
@@ -408,17 +421,26 @@ class RenderSession(object):
         octane_exr_compression_mode = utility.get_enum_int_value(octane_scene, "octane_deep_exr_compression_mode" if octane_scene.octane_export_mode == "DEEP_EXR" else "octane_exr_compression_mode", 0)
         root_et.set("compressionType", str(octane_exr_compression_mode))
         root_et.set("compressionLevel", str(octane_scene.octane_export_dwa_compression_level))
+        root_et.set("jpegQuality", str(octane_scene.octane_export_jpeg_quality))
+        root_et.set("tiffCompressionMode", str(utility.get_enum_int_value(octane_scene, "octane_tiff_compression_mode", 1)))
         image_type = consts.ImageSaveFormat.IMAGE_SAVE_FORMAT_PNG_8
         if octane_scene.octane_export_file_type == "PNG":
-            if octane_scene.octane_png_bit_depth == "8_BIT":
+            if octane_scene.octane_integer_bit_depth == "8_BIT":
                 image_type = consts.ImageSaveFormat.IMAGE_SAVE_FORMAT_PNG_8
-            elif octane_scene.octane_png_bit_depth == "16_BIT":
+            elif octane_scene.octane_integer_bit_depth == "16_BIT":
                 image_type = consts.ImageSaveFormat.IMAGE_SAVE_FORMAT_PNG_16
-        else:
-            if octane_scene.octane_exr_bit_depth == "16_BIT":
+        elif octane_scene.octane_export_file_type == "TIFF":
+            if octane_scene.octane_integer_bit_depth == "8_BIT":
+                image_type = consts.ImageSaveFormat.IMAGE_SAVE_FORMAT_TIFF_8
+            elif octane_scene.octane_integer_bit_depth == "16_BIT":
+                image_type = consts.ImageSaveFormat.IMAGE_SAVE_FORMAT_TIFF_16
+        elif octane_scene.octane_export_file_type == "EXR":
+            if octane_scene.octane_float_bit_depth == "16_BIT":
                 image_type = consts.ImageSaveFormat.IMAGE_SAVE_FORMAT_EXR_16
-            elif octane_scene.octane_exr_bit_depth == "32_BIT":
+            elif octane_scene.octane_float_bit_depth == "32_BIT":
                 image_type = consts.ImageSaveFormat.IMAGE_SAVE_FORMAT_EXR_32
+        elif octane_scene.octane_export_file_type == "JPEG":
+            image_type = consts.ImageSaveFormat.IMAGE_SAVE_FORMAT_JPEG
         root_et.set("imageSaveFormat", str(image_type))
         if ocio_color_space_name == "sRGB(default)":
             color_space_type = consts.NamedColorSpace.NAMED_COLOR_SPACE_SRGB
@@ -448,11 +470,12 @@ class RenderSession(object):
         octane_postfix_tag = octane_scene.octane_export_postfix_tag
         # octane_prefix_tag + File name + octane_postfix_tag, without suffix
         processed_file_name = octane_prefix_tag + file_name_with_frame + octane_postfix_tag
+        processed_file_name = utility.blender_path_frame(processed_file_name, scene.frame_current)
         renderlayer_name = render_layer.name
         if consts.OCTANE_EXPORT_VIEW_LAYER_TAG in processed_file_name:
             processed_file_name = processed_file_name.replace(consts.OCTANE_EXPORT_VIEW_LAYER_TAG, renderlayer_name)
         else:
-            if len(renderlayer_name) > 0 and renderlayer_name != "View Layer":
+            if len(renderlayer_name) > 0 and len(scene.view_layers) > 1:
                 processed_file_name = processed_file_name + "_" + renderlayer_name
         if octane_scene.octane_export_mode == "SEPARATE_IMAGE_FILES":
             pass
@@ -465,7 +488,13 @@ class RenderSession(object):
         root_et.set("dirPath", file_dir)
         # Render Passes
         render_passes_et = ET.SubElement(root_et, "renderPasses")
+        is_export_valid = False
         for render_pass in render_layer.passes:
+            # Do not include 'Combined' Pass
+            if render_pass.name == "Combined":
+                continue
+            if octane_scene.exclude_default_beauty_passes and render_pass.name == "Beauty":
+                continue
             render_pass_et = ET.SubElement(render_passes_et, "renderPass")
             render_pass_id = utility.get_render_pass_id_by_name(render_pass.name)
             render_pass_filename = processed_file_name
@@ -476,5 +505,7 @@ class RenderSession(object):
             render_pass_et.set("fileName", render_pass_filename)
             render_pass_et.set("name", render_pass.name)
             render_pass_et.set("id", str(render_pass_id))
-        xml_data = ET.tostring(root_et, encoding="unicode")
-        response = OctaneBlender().utils_function(consts.UtilsFunctionType.EXPORT_RENDER_PASS, xml_data)
+            is_export_valid = True
+        if is_export_valid:
+            xml_data = ET.tostring(root_et, encoding="unicode")
+            response = OctaneBlender().utils_function(consts.UtilsFunctionType.EXPORT_RENDER_PASS, xml_data)

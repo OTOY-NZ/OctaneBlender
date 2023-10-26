@@ -1010,13 +1010,8 @@ void BlenderSync::update_octane_camera_properties(Camera *cam,
     cam->oct_node.iMinDenoiserSample = RNA_int_get(&imager, "min_denoise_samples");
     cam->oct_node.iMaxDenoiserInterval = RNA_int_get(&imager, "max_denoise_interval");
     cam->oct_node.fDenoiserBlend = RNA_float_get(&imager, "denoiser_original_blend");
-    if (scene && scene->session && scene->session->params.use_shared_surface) {
-      cam->oct_node.iSamplingMode = 1;  // No UpSampling Mode
-    }
-    else {
-      cam->oct_node.iSamplingMode = RNA_enum_get(&imager, "up_sample_mode");
-      cam->oct_node.bEnableAIUpSampling = RNA_boolean_get(&imager, "enable_ai_up_sampling");
-    }
+    cam->oct_node.iSamplingMode = RNA_enum_get(&imager, "up_sample_mode");
+    cam->oct_node.bEnableAIUpSampling = RNA_boolean_get(&imager, "enable_ai_up_sampling");
     cam->oct_node.bUpSamplingOnCompletion = RNA_boolean_get(&imager, "up_sampling_on_completion");
     cam->oct_node.iMinUpSamplerSamples = RNA_int_get(&imager, "min_up_sampler_samples");
     cam->oct_node.iMaxUpSamplerInterval = RNA_int_get(&imager, "max_up_sampler_interval");
@@ -1042,11 +1037,13 @@ void BlenderSync::update_octane_camera_properties(Camera *cam,
     cam->oct_node.fLensFlare = RNA_float_get(&post_processing, "lens_flare");
     cam->oct_node.fLensFlareExtent = RNA_float_get(&post_processing, "lens_flare_extent");
     cam->oct_node.bLightBeams = RNA_boolean_get(&post_processing, "light_beams");
+    cam->oct_node.bScaleWithFilm = RNA_boolean_get(&post_processing, "scale_with_film");
     cam->oct_node.fMediumDensityForPostfxLightBeams = RNA_float_get(
         &post_processing, "medium_density_for_postfx_light_beams");
     cam->oct_node.bEnableFog = RNA_boolean_get(&post_processing, "enable_fog");
-    cam->oct_node.fFogStrength = RNA_float_get(&post_processing, "fog_strength");
-    cam->oct_node.fFogHeightDescend = RNA_float_get(&post_processing, "fog_height_descend");
+    cam->oct_node.fFogExtinctionDistance = RNA_float_get(&post_processing, "fog_extinction_distance");
+    cam->oct_node.fFogBaseLevel = RNA_float_get(&post_processing, "fog_base_level");
+    cam->oct_node.fFogHalfDensityHeight = RNA_float_get(&post_processing, "fog_half_density_height");
     cam->oct_node.fFogEnvContribution = RNA_float_get(&post_processing, "fog_env_contribution");
     RNA_float_get_array(&post_processing,
                         "base_fog_color",

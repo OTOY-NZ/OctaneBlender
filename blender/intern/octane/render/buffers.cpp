@@ -345,8 +345,9 @@ void DisplayBuffer::draw(DeviceDrawParams &draw_params, bool use_shared_surface)
       height = params.camera_dimension_height;
     }
   }
+  bool is_shared_surface_image = use_shared_surface && server->isSharedSurfaceImage();
   if (use_opengl) {
-    if (use_shared_surface) {
+    if (is_shared_surface_image) {
       int64_t current_shared_handler;
       if (!server->getSharedSurfaceHandler(
               current_shared_handler, full_width, full_height, reg_width, reg_height)) {
@@ -371,7 +372,7 @@ void DisplayBuffer::draw(DeviceDrawParams &draw_params, bool use_shared_surface)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     if (transparent) {
       glEnable(GL_BLEND);
-      glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+      // glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
     }
     GLint shader_program;
     draw_params.bind_display_space_shader_cb();
@@ -383,7 +384,7 @@ void DisplayBuffer::draw(DeviceDrawParams &draw_params, bool use_shared_surface)
     float *vpointer = (float *)glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
     if (vpointer) {
       /* texture coordinate - vertex pair */
-      if (use_shared_surface) {
+      if (is_shared_surface_image) {
         if (params.use_border) {
           vpointer[0] = 0.0f;
           vpointer[1] = 1.0f;
@@ -474,7 +475,7 @@ void DisplayBuffer::draw(DeviceDrawParams &draw_params, bool use_shared_surface)
     }
     draw_params.unbind_display_space_shader_cb();
     glBindTexture(GL_TEXTURE_2D, 0);
-    if (!use_shared_surface) {
+    if (!is_shared_surface_image) {
       glDeleteTextures(1, &gl_texture);
     }
     if (transparent) {
@@ -482,7 +483,7 @@ void DisplayBuffer::draw(DeviceDrawParams &draw_params, bool use_shared_surface)
     }
   }
   else {
-    if (!use_shared_surface) {
+    if (!is_shared_surface_image) {
       uint8_t *rgba = NULL;
       if (!server->getImgBuffer8bit(
               components_cnt, rgba, full_width, full_height, reg_width, reg_height)) {

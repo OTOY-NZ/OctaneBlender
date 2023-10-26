@@ -313,8 +313,12 @@ static float4 interpolate_hair_points(BL::FloatVectorAttribute b_attr_position,
               t);
 }
 
-static void create_curves_hair(
-    Scene *scene, BL::Object &b_ob, Mesh *mesh, bool motion, float motion_time)
+static void create_curves_hair(Scene *scene,
+                               BL::Object &b_ob,
+                               Mesh *mesh,
+                               PointerRNA &oct_mesh,
+                               bool motion,
+                               float motion_time)
 {
   if (b_ob.type() != BL::Object::type_CURVES) {
     return;
@@ -322,8 +326,6 @@ static void create_curves_hair(
   BL::Curves b_curves(b_ob.data());
   const int num_keys = b_curves.points.length();
   const int num_curves = b_curves.curves.length();
-  BL::ID b_ob_data = b_ob.data();
-  PointerRNA oct_mesh = RNA_pointer_get(&b_ob_data.ptr, "octane");
   bool use_octane_radius_setting = false;
   float octane_root_radius = 0.005f, octane_tip_radius = 0.005f;
   if (oct_mesh.data != NULL) {
@@ -1158,7 +1160,12 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
     for (auto &obj : b_depsgraph.scene().objects) {
       if (obj.name() == b_ob.name()) {
         BL::ID obj_data = obj.data();
-        oct_mesh = RNA_pointer_get(&obj_data.ptr, "octane");
+        PropertyRNA *prop = (obj_data.ptr.data != NULL && obj_data.ptr.type != NULL) ?
+                                RNA_struct_find_property(&obj_data.ptr, "octane") :
+                                NULL;
+        if (prop) {
+          oct_mesh = RNA_pointer_get(&obj_data.ptr, "octane");
+        }          
         if (use_default_shader) {
           BL::Material material_override = view_layer.material_override;
           BL::Object::material_slots_iterator slot;
@@ -1217,7 +1224,7 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
       resource_cache_data.erase(mesh_name);
     }
   }
-  std::string new_mesh_tag = generate_mesh_tag(b_depsgraph, b_ob, used_shaders);
+  std::string new_mesh_tag = ""; //generate_mesh_tag(b_depsgraph, b_ob, used_shaders);
   if (b_ob.type() == BL::Object::type_MESH) {
     std::string coordinate_mode = std::to_string(
         RNA_enum_get(&oct_mesh, "primitive_coordinate_mode"));
@@ -1792,7 +1799,7 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
       create_curve_hair(scene, b_depsgraph, b_ob, octane_mesh, oct_mesh, used_shaders, false, 0);
     }
     else if (use_curves_as_octane_hair) {
-      create_curves_hair(scene, b_ob, octane_mesh, false, 0);
+      create_curves_hair(scene, b_ob, octane_mesh, oct_mesh, false, 0);
     }
     else {
       BL::Mesh b_mesh = object_to_mesh(b_data,

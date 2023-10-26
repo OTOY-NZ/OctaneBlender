@@ -882,21 +882,12 @@ class OCTANE_OT_BaseCryptomattePicker(bpy.types.Operator):
         if event.type in {'MIDDLEMOUSE', 'WHEELUPMOUSE', 'WHEELDOWNMOUSE'}:            
             return {'PASS_THROUGH'}        
         elif event.type in {'LEFTMOUSE', 'PRESS'}:
-            # print("event.mouse_x", event.mouse_x)
-            # print("event.mouse_y", event.mouse_y)
-            # print("event.mouse_region_x", event.mouse_region_x)
-            # print("event.mouse_region_y", event.mouse_region_y)
-            # print("context.area", context.area, context.area.type)
             context.window.cursor_set("DEFAULT")
-            import _octane
-            from octane.core.octane_node import OctaneRpcNode, OctaneRpcNodeType
-            import xml.etree.ElementTree as ET
             node = self.node
-            octane_rpc_node = OctaneRpcNode(OctaneRpcNodeType.SYNC_NODE)
-            octane_rpc_node.set_name("OctaneCryptomattePicker[%s]" % node.name)
-            octane_rpc_node.set_node_type(node.octane_node_type)
             x_view3d_offset = 0
             y_view3d_offset = 0
+            viewport_width = 0
+            viewport_height = 0
             for area in bpy.context.screen.areas:
                 if area.type != "VIEW_3D":
                     continue
@@ -907,26 +898,62 @@ class OCTANE_OT_BaseCryptomattePicker(bpy.types.Operator):
                         x_view3d_offset = area.x
                         y_view3d_offset = area.y
                         break
-            octane_rpc_node.set_attribute("mouse_x", consts.AttributeType.AT_INT, event.mouse_x - x_view3d_offset)
-            octane_rpc_node.set_attribute("mouse_y", consts.AttributeType.AT_INT, event.mouse_y - y_view3d_offset)
+                for region in area.regions:
+                    if region.type != "WINDOW":
+                        continue
+                    viewport_width = region.width
+                    viewport_height = region.height
+            position_x = event.mouse_x - x_view3d_offset
+            position_y = event.mouse_y - y_view3d_offset
             render_pass_id = utility.get_enum_int_value(node.inputs["Type"], "default_value", 2006)
-            octane_rpc_node.set_attribute("render_pass_id", consts.AttributeType.AT_INT, render_pass_id)
-            octane_rpc_node.set_attribute("is_add", consts.AttributeType.AT_BOOL, self.IS_PICKER_ADD)
+            is_add = self.IS_PICKER_ADD
             current_mattes = node.inputs["Mattes"].default_value
-            octane_rpc_node.set_attribute("mattes", consts.AttributeType.AT_STRING, current_mattes)
-            # node.sync_data(octane_rpc_node, None, consts.OctaneNodeTreeIDName.GENERAL)
-            header_data = "[COMMAND]CRYPTOMATTE_PICKER"        
-            body_data = octane_rpc_node.get_xml_data()
-            response_data = _octane.update_octane_custom_node(header_data, body_data)
-            if len(response_data):
-                root = ET.fromstring(response_data)
-                custom_data_et = root.find("custom_data")
-                error = custom_data_et.findtext("error")
-                if len(error):
-                    self.report({'ERROR'}, error)
-                else:
-                    mattes = custom_data_et.findtext("mattes")
-                    node.inputs["Mattes"].default_value = mattes
+            current_mattes = current_mattes.replace(";", "\n")
+            result = False
+            response_mattes = ""
+            from octane import core
+            from octane.core.octane_node import OctaneRpcNode, OctaneRpcNodeType
+            import xml.etree.ElementTree as ET
+            if core.ENABLE_OCTANE_ADDON_CLIENT:
+                from octane.core.client import OctaneBlender
+                position_y = viewport_height - position_y
+                request_et = ET.Element("CryptomattePicker")
+                request_et.set("positionX", str(position_x))
+                request_et.set("positionY", str(position_y))
+                request_et.set("renderPassID", str(render_pass_id))
+                request_et.set("isAdd", str(1 if is_add else 0))
+                request_et.set("mattes", current_mattes)
+                xml_data = ET.tostring(request_et, encoding="unicode")
+                response = OctaneBlender().utils_function(consts.UtilsFunctionType.CRYPTOMATTE_PICKER, xml_data)
+                if len(response):
+                    result = True
+                    response_mattes = ET.fromstring(response).get("content")
+            else:
+                import _octane
+                octane_rpc_node = OctaneRpcNode(OctaneRpcNodeType.SYNC_NODE)
+                octane_rpc_node.set_name("OctaneCryptomattePicker[%s]" % node.name)
+                octane_rpc_node.set_node_type(node.octane_node_type)
+                octane_rpc_node.set_attribute("mouse_x", consts.AttributeType.AT_INT, position_x)
+                octane_rpc_node.set_attribute("mouse_y", consts.AttributeType.AT_INT, position_y)
+                octane_rpc_node.set_attribute("render_pass_id", consts.AttributeType.AT_INT, render_pass_id)
+                octane_rpc_node.set_attribute("is_add", consts.AttributeType.AT_BOOL, is_add)
+                octane_rpc_node.set_attribute("mattes", consts.AttributeType.AT_STRING, current_mattes)
+                header_data = "[COMMAND]CRYPTOMATTE_PICKER"        
+                body_data = octane_rpc_node.get_xml_data()
+                response_data = _octane.update_octane_custom_node(header_data, body_data)
+                if len(response_data):
+                    root = ET.fromstring(response_data)
+                    custom_data_et = root.find("custom_data")
+                    error = custom_data_et.findtext("error")
+                    if len(error):
+                        self.report({'ERROR'}, error)
+                    else:
+                        result = True
+                        response_mattes = custom_data_et.findtext("mattes")
+            print("result", result)
+            print("response_mattes", response_mattes)
+            if result:
+                node.inputs["Mattes"].default_value = response_mattes
             return {'FINISHED'}
         elif event.type in {'RIGHTMOUSE', 'ESC'}:
             context.window.cursor_set("DEFAULT")
@@ -936,7 +963,7 @@ class OCTANE_OT_BaseCryptomattePicker(bpy.types.Operator):
     def invoke(self, context, event):
         self.node = context.node
         from octane import engine
-        if engine.IS_RENDERING:
+        if utility.is_viewport_rendering():
             render_pass_id = utility.get_enum_int_value(context.node.inputs["Type"], "default_value", consts.RenderPassID.CryptoMaterialNodeName)
             render_pass_ids = utility.get_view_layer_render_pass_ids(context.view_layer)
             if render_pass_id not in render_pass_ids:

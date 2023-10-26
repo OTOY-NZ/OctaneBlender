@@ -302,7 +302,7 @@ class OctaneBaseRampNode(OctaneBaseNode):
                 return _input.name
         return ""
 
-    def update_color_ramp_interpolation(self, context):
+    def update_color_ramp_interpolation(self, context=None):
         color_ramp_helper = utility.get_octane_helper_node(self.color_ramp_name)
         if color_ramp_helper is None:
             return
@@ -324,7 +324,8 @@ class OctaneBaseRampNode(OctaneBaseNode):
         elif default_value == "Cubic":
             if color_ramp.interpolation != "B_SPLINE":
                 color_ramp.interpolation = "B_SPLINE"
-        self.update_node_tree(context)
+        if context is not None:
+            self.update_node_tree(context)
 
     def auto_refresh(self):
         return consts.AutoRereshStrategy.ALWAYS
@@ -430,6 +431,7 @@ class OctaneBaseRampNode(OctaneBaseNode):
                     for idx in range(element_count):
                         color_ramp.elements[idx].position = color_ramp_data_list[idx + 1][0]
                         color_ramp.elements[idx].color = color_ramp_data_list[idx + 1][1]
+        self.update_color_ramp_interpolation(None)
 
     def draw_buttons(self, context, layout):
         box = layout.box()

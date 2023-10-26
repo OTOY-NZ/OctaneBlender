@@ -110,5 +110,10 @@ class OctaneCryptomatteMaskAOVOutput_Override(OctaneCryptomatteMaskAOVOutput):
         row.column().operator("octane.cryptomatte_picker_add_matte", icon="ADD", text="")
         row.column().operator("octane.cryptomatte_picker_remove_matte", icon="REMOVE", text="")
 
+    def sync_custom_data(self, octane_node, octane_graph_node_data, depsgraph):
+        socket = self.inputs["Mattes"]
+        mattes =  mattes_socket.default_value
+        mattes = mattes.replace(";", "\n")
+        octane_node.set_pin(consts.OctaneDataBlockSymbolType.PIN_NAME, socket.octane_pin_index, socket.octane_pin_name, socket.octane_socket_type, socket.octane_pin_type, socket.octane_default_node_type, False, "", mattes)
 
 utility.override_class(_CLASSES, OctaneCryptomatteMaskAOVOutput, OctaneCryptomatteMaskAOVOutput_Override)

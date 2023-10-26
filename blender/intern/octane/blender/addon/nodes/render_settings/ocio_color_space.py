@@ -71,7 +71,7 @@ class OctaneOCIOColorSpace_Override(OctaneOCIOColorSpace):
         return self.get("ocio_color_space_name", "")
 
     ocio_color_space_name: StringProperty(name="Color space", set=a_ocio_color_space_name_set, get=a_ocio_color_space_name_get, description="The selected non-OCIO color space, or NAMED_COLOR_SPACE_OCIO if an OCIO color space is selected")
-    formatted_ocio_color_space_name: StringProperty(name="Formatted ocio color space")
+    formatted_ocio_color_space_name: StringProperty(name="Formatted ocio color space", update=OctaneBaseNode.update_node_tree)
     
     def init(self, context):
         super().init(context)
@@ -84,7 +84,13 @@ class OctaneOCIOColorSpace_Override(OctaneOCIOColorSpace):
 
     def sync_custom_data(self, octane_node, octane_graph_node_data, depsgraph):
         super().sync_custom_data(octane_node, octane_graph_node_data, depsgraph)
-        octane_node.set_attribute_blender_name(self.BLENDER_ATTRIBUTE_COLOR_SPACE_NAME, consts.AttributeType.AT_STRING, self.formatted_ocio_color_space_name)
+        octane_color_space_id = ocio.OctaneOCIOManagement().get_octane_color_space_id(self.formatted_ocio_color_space_name)
+        if octane_color_space_id is not None:
+            octane_node.set_attribute_id(consts.AttributeID.A_COLOR_SPACE, octane_color_space_id)
+        else:
+            octane_node.set_attribute_id(consts.AttributeID.A_COLOR_SPACE, consts.NamedColorSpace.NAMED_COLOR_SPACE_OCIO)
+            octane_node.set_attribute_id(consts.AttributeID.A_OCIO_COLOR_SPACE_NAME, self.formatted_ocio_color_space_name)
 
-utility.remove_attribute_list(OctaneOCIOColorSpace_Override, ["a_color_space", "a_ocio_color_space_name",])
+
+# utility.remove_attribute_list(OctaneOCIOColorSpace_Override, ["a_color_space", "a_ocio_color_space_name",])
 utility.override_class(_CLASSES, OctaneOCIOColorSpace, OctaneOCIOColorSpace_Override)

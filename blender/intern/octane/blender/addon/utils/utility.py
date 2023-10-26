@@ -175,6 +175,63 @@ def blender_path_frame(template, frame, ensure_digits=None):
     else:
         return f"{template}_{frame}"
 
+
+##### ID #####
+
+class BlenderID(object):
+    def __init__(self, _id):
+        if _id is None:
+            self.id_name = ""
+            self.is_library = False
+            self.library_name = ""
+        elif type(_id) == str:
+            self.id_name = _id
+            self.is_library = False
+            self.library_name = ""
+        else:
+            self.id_name = _id.name
+            if _id.library is None:
+                self.is_library = False
+                self.library_name = ""
+            else:
+                self.is_library = True
+                self.library_name = _id.library.name
+
+    def __hash__(self):
+        return hash((self.id_name, self.is_library, self.library_name))
+
+    def __eq__(self, other):
+        if isinstance(other, BlenderID):
+            return (self.id_name, self.is_library, self.library_name) == (other.id_name, other.is_library, other.library_name)
+        return False
+
+    def is_valid(self):
+        return len(self.id_name) > 0
+
+    def name(self):
+        if self.is_library:
+            return "{}_{}".format(self.id_name, self.library_name)
+        return self.id_name
+
+    def is_same_library(self, _id):
+        if self.is_library:
+            # Library link
+            return self.library_name == getattr(_id.library, "name", "")
+        else:
+            # No library
+            return _id.library is None
+
+    def id(self, type_collection_name):
+        _id = getattr(bpy.data, type_collection_name).get(self.id_name, None)
+        if _id is not None:
+            if not self.is_same_library(_id):
+                # Need a loop to find the correct one
+                for name, data_id in getattr(bpy.data, type_collection_name).items():
+                    if name == self.id_name and self.is_same_library(data_id):
+                        _id = data_id
+                        break
+        return _id
+
 ##### Preferences #####
 
 def get_preferences():
@@ -188,27 +245,32 @@ def get_addon_folder():
 
 def get_default_material_node_bl_idname():
     preferences = get_preferences()
-    default_material_id = int(preferences.default_material_id)
+    default_material_id = int(preferences.default_material_id) if preferences else 0
     from octane import properties
     for data in properties.default_material_orders:
         if default_material_id == data[3]:
             return data[2]
 
 def use_new_addon_nodes():
-    preferences = get_preferences()
-    return preferences.use_new_addon_nodes
+    return True
+    # from octane import core
+    # if core.ENABLE_OCTANE_ADDON_CLIENT:
+    #     return True
+    # else:
+    #     preferences = get_preferences()
+    #     return preferences.use_new_addon_nodes if preferences else False
 
 def resolve_octane_format_path(cur_path):
     import os    
     octane_path = ""
     try:
         if len(cur_path):
-            cur_path = str(bpy.path.abspath(cur_path))            
+            cur_path = str(bpy.path.abspath(cur_path))
             if not cur_path.endswith(os.sep):
-                cur_path += os.sep            
-        octane_path = cur_path                          
+                cur_path += os.sep
+        octane_path = cur_path
     except:
-        pass  
+        pass
     return octane_path
 
 ##### Properties #####
@@ -593,7 +655,7 @@ def find_compatible_socket_name(output_node, socket_name):
 def get_octane_name_for_root_node(output_node, input_name=None, owner_id=None):    
     node_type = getattr(output_node, "type", None)
     if node_type in ("OUTPUT_MATERIAL", "OUTPUT_TEXTURE", "OUTPUT_LIGHT"):
-        return owner_id.name if owner_id else ""
+        return BlenderID(owner_id).name()
     elif node_type == "OUTPUT_WORLD" or output_node.bl_idname == "OctaneEditorWorldOutputNode":
         world_name = owner_id.name if owner_id else ""
         if input_name:
@@ -1129,8 +1191,11 @@ def add_view_layer_render_passes(scene, engine, view_layer):
         oct_view_cam = scene.oct_view_cam
         enable_denoiser = oct_view_cam.imager.denoiser and oct_scene.use_preview_camera_imager
     else:
-        oct_active_cam = scene.camera.data.octane
-        enable_denoiser = oct_active_cam.imager.denoiser and oct_scene.use_render_camera_imager
+        if scene.camera is not None:
+            oct_active_cam = scene.camera.data.octane
+            enable_denoiser = oct_active_cam.imager.denoiser and oct_scene.use_render_camera_imager
+        else:
+            enable_denoiser = False
     render_pass_ids = get_view_layer_render_pass_ids(view_layer)
     engine.register_pass(scene, view_layer, "Combined", 4, "RGBA", 'COLOR')
     for pass_id in render_pass_ids:

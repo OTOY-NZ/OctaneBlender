@@ -287,13 +287,14 @@ def register():
         register_class(cls)
     if not core.ENABLE_OCTANE_ADDON_CLIENT:
         return
+    global _VIEW3D_HT_header_draw
     _VIEW3D_HT_header_draw = bpy.types.VIEW3D_HT_header.draw
     bpy.types.VIEW3D_HT_header.draw = Octane_VIEW3D_HT_header_draw
 
 
 def unregister():
-    if not core.ENABLE_OCTANE_ADDON_CLIENT:
-        return    
     for cls in _CLASSES:
         unregister_class(cls)
+    if not core.ENABLE_OCTANE_ADDON_CLIENT:
+        return
     bpy.types.VIEW3D_HT_header.draw = _VIEW3D_HT_header_draw

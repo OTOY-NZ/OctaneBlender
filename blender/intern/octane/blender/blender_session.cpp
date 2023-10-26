@@ -217,7 +217,8 @@ void BlenderSession::create_session()
   BufferParams buffer_params = BlenderSync::get_buffer_params(
       b_render, b_v3d, b_rv3d, scene->camera, width, height);
   if (G.background || b_scene.frame_current() == b_scene.frame_start() ||
-      (export_type == ::OctaneEngine::SceneExportTypes::NONE && !b_engine.is_animation())) {
+      (export_type == ::OctaneEngine::SceneExportTypes::NONE && !b_engine.is_animation()))
+  {
     OctaneManager::getInstance().Reset();
     session->reset(buffer_params, session_params.samples);
   }
@@ -322,7 +323,8 @@ void BlenderSession::reset_session(BL::BlendData &b_data, BL::Depsgraph &b_depsg
       b_render, b_null_space_view3d, b_null_region_view3d, scene->camera, width, height);
 
   if (b_scene.frame_current() == b_scene.frame_start() ||
-      (export_type == ::OctaneEngine::SceneExportTypes::NONE && !b_engine.is_animation())) {
+      (export_type == ::OctaneEngine::SceneExportTypes::NONE && !b_engine.is_animation()))
+  {
     OctaneManager::getInstance().Reset();
     session->reset(buffer_params, session_params.samples);
   }
@@ -567,8 +569,8 @@ void BlenderSession::render(BL::Depsgraph &b_depsgraph_)
   }
 
   int view_index = 0;
-  for (b_rr.views.begin(b_view_iter); b_view_iter != b_rr.views.end();
-       ++b_view_iter, ++view_index) {
+  for (b_rr.views.begin(b_view_iter); b_view_iter != b_rr.views.end(); ++b_view_iter, ++view_index)
+  {
     b_rview_name = b_view_iter->name();
 
     if (session && session->server) {
@@ -683,7 +685,8 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult b_rr,
                width),
           (scene->camera->oct_node.bUseRegion ?
                scene->camera->oct_node.ui4Region.w - scene->camera->oct_node.ui4Region.y :
-               height))) {
+               height)))
+  {
     BL::RenderPass b_combined_pass(b_rlay.passes.find_by_name("Combined", b_rview_name.c_str()));
     b_combined_pass.rect(pixels);
   }
@@ -705,7 +708,8 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult b_rr,
     saveImage.bForceToneMapping = true;
   }
   if (saveImage.sOCIOColorSpaceName == "Linear sRGB(default)" ||
-      saveImage.sOCIOColorSpaceName == "ACES2065-1" || saveImage.sOCIOColorSpaceName == "ACEScg") {
+      saveImage.sOCIOColorSpaceName == "ACES2065-1" || saveImage.sOCIOColorSpaceName == "ACEScg")
+  {
     saveImage.sOCIOLookName = "";
   }
 
@@ -722,8 +726,16 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult b_rr,
         break;
 
       ::Octane::RenderPassId pass_type = BlenderSync::get_pass_type(b_pass);
+      std::string pass_name = b_pass.name();
+      if (pass_name == "Combined") {
+        continue;
+      }
+      bool exclude_default_beauty_passes = get_boolean(oct_scene, "exclude_default_beauty_passes");
+      if (exclude_default_beauty_passes && pass_name == "Beauty") {
+        continue;
+      }
       saveImage.iPasses.emplace_back(pass_type);
-      saveImage.sPassNames.emplace_back(b_pass.name());
+      saveImage.sPassNames.emplace_back(pass_name);
       if (pass_type >= ::Octane::RenderPassId::RENDER_PASS_CRYPTOMATTE_OFFSET) {
         include_cryptomatte = true;
       }
@@ -733,7 +745,8 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult b_rr,
       if (!session->server->downloadImageBuffer(session->params.image_stat,
                                                 session->params.resolve_octane_image_type(),
                                                 pass_type,
-                                                session->params.use_shared_surface)) {
+                                                session->params.use_shared_surface))
+      {
         float *pixels = new float[buf_size];
         memset(pixels, 0, sizeof(float) * buf_size);
         b_pass.rect(pixels);
@@ -821,12 +834,14 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult b_rr,
       }
       else {
         saveImage.sFileName = blender_path_frame(raw_file_name, b_scene.frame_current(), 0);
-        if (viewlayer_name.length() && viewlayer_name != "View Layer") {
+        if (viewlayer_name.length() && b_scene.view_layers.length() > 1) {
           saveImage.sFileName += ("_" + viewlayer_name);
         }
       }
       saveImage.sOctaneTag = get_string(oct_scene, "octane_export_prefix_tag");
-      session->server->uploadOctaneNode(&saveImage, NULL);
+      if (saveImage.iPasses.size()) {
+        session->server->uploadOctaneNode(&saveImage, NULL);
+      }
     }
   }
 
@@ -1451,7 +1466,8 @@ bool BlenderSession::export_localdb(BL::Material b_material)
   sync->sync_material(b_material, &shader);
   for (list<ShaderNode *>::iterator it = shader.graph->nodes.begin();
        it != shader.graph->nodes.end();
-       ++it) {
+       ++it)
+  {
     ShaderNode *node = *it;
     if (node->input("Surface"))
       continue;
@@ -1575,8 +1591,6 @@ bool BlenderSession::get_octanedb(bContext *context, std::string server_address)
   return ret;
 }
 
-void BlenderSession::clear_passes_buffers()
-{
-}
+void BlenderSession::clear_passes_buffers() {}
 
 OCT_NAMESPACE_END

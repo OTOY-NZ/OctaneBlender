@@ -54,3 +54,12 @@ def unregister():
     utility.octane_unregister_class(reversed(_CLASSES))
 
 ##### END OCTANE GENERATED CODE BLOCK #####
+
+
+class OctaneTriplanar_Override(OctaneTriplanar):
+
+    def sync_custom_data(self, octane_node, octane_graph_node_data, depsgraph):
+        octane_node.need_update = True
+
+
+utility.override_class(_CLASSES, OctaneTriplanar, OctaneTriplanar_Override)
