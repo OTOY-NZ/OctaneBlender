@@ -353,6 +353,8 @@ class NodeTreeCache(OctaneNodeCache):
     def update_node_tree(self, depsgraph, view_layer, node_tree, owner_id, node_tree_attributes, update_now=True):
         owner_type = utility.get_node_tree_owner_type(owner_id)
         active_output_node = utility.find_active_output_node(node_tree, owner_type)
+        if owner_type == consts.OctaneNodeTreeIDName.MATERIAL:
+            self.session.set_status_msg("Uploading material[%s] to Octane..." % (owner_id.name), update_now)
         if active_output_node:
             for _input in active_output_node.inputs:
                 if not _input.enabled:
@@ -660,7 +662,8 @@ class SceneCache(OctaneNodeCache):
             self.update_render_passes(depsgraph, scene, view_layer, context, update_now)
             self.update_render_settings(depsgraph, scene, view_layer, context, update_now)
 
-    def update_camera(self, depsgraph, scene, view_layer, context=None, update_now=True):        
+    def update_camera(self, depsgraph, scene, view_layer, context=None, update_now=True):
+        need_update = False
         camera_data, camera_name = utility.find_active_camera_data(scene, context)
         is_viewport = self.session.is_viewport()
         motion_time_offsets = None
@@ -677,12 +680,14 @@ class SceneCache(OctaneNodeCache):
         else:
             camera_data.sync_data(self.camera_node, scene=scene, session_type=self.session.session_type)
         if self.camera_node.need_update:
+            need_update = True
             self.camera_node.update_to_engine(update_now)
         current_active_camera_name = getattr(self.camera_node, "current_active_camera_name", "")
         active_camera_node = self.camera_node.find_subnode(current_active_camera_name)
         if active_camera_node is not None:
             active_camera_node.motion_time_offsets = motion_time_offsets
         self.session.rendertarget_cache.update_link(OctaneRenderTargetCache.P_CAMERA_NAME, current_active_camera_name, current_active_camera_name)
+        return need_update
 
     def update_camera_motion_blur_sample(self, motion_time_offset, depsgraph, scene, view_layer, context=None, update_now=True):        
         camera_data, camera_name = utility.find_active_camera_data(scene, context)

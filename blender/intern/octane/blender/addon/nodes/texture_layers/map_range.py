@@ -315,7 +315,7 @@ class OctaneTexLayerMapRange(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneTexLayerMapRangeColorChannelGroup", OctaneTexLayerMapRangeColorChannelGroup.bl_label).init()
         self.inputs.new("OctaneTexLayerMapRangeOpacity", OctaneTexLayerMapRangeOpacity.bl_label).init()
         self.inputs.new("OctaneTexLayerMapRangeBlendMode", OctaneTexLayerMapRangeBlendMode.bl_label).init()
-        self.outputs.new("OctaneCompositeTextureLayerOutSocket", "Composite texture layer out").init()
+        self.outputs.new("OctaneTextureLayerOutSocket", "Texture layer out").init()
 
     @classmethod
     def poll(cls, node_tree):

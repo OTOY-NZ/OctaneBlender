@@ -512,7 +512,7 @@ set(ADDON_NODES_TEXTURE_LAYERS_FILES
     addon/nodes/texture_layers/adjust_color_balance.py
     addon/nodes/texture_layers/mask_with_layer_group.py
     addon/nodes/texture_layers/apply_gradient_map.py
-    addon/nodes/texture_layers/composite_texture_layer_switch.py
+    addon/nodes/texture_layers/texture_layer_switch.py
 )
 
 set(ADDON_NODES_TEXTURES_FILES

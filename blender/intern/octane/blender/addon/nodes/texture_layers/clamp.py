@@ -218,7 +218,7 @@ class OctaneTexLayerClamp(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneTexLayerClampColorChannelGroup", OctaneTexLayerClampColorChannelGroup.bl_label).init()
         self.inputs.new("OctaneTexLayerClampOpacity", OctaneTexLayerClampOpacity.bl_label).init()
         self.inputs.new("OctaneTexLayerClampBlendMode", OctaneTexLayerClampBlendMode.bl_label).init()
-        self.outputs.new("OctaneCompositeTextureLayerOutSocket", "Composite texture layer out").init()
+        self.outputs.new("OctaneTextureLayerOutSocket", "Texture layer out").init()
 
     @classmethod
     def poll(cls, node_tree):

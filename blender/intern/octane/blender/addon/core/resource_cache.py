@@ -36,11 +36,10 @@ def update_dirty_mesh_names(scene, depsgraph):
     for update in depsgraph.updates:
         if update.is_updated_geometry and isinstance(update.id, bpy.types.Mesh):
             ResourceCache().add_dirty_mesh_names(update.id.name)           
-    oct_scene = scene.octane
-    try:
-        active_obj = bpy.context.view_layer.objects.active # bpy.context.active_object
-    except:
-        active_obj = None
+    oct_scene = scene.octane    
+    active_obj = getattr(bpy.context, "active_object", None)
+    if not active_obj:
+        active_obj = bpy.context.view_layer.objects.active
     if not active_obj or not active_obj.data:
         return
     eval_obj = active_obj.evaluated_get(depsgraph)

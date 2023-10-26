@@ -301,10 +301,10 @@ class OctaneOutputAOVOutSocket(OctaneBaseSocket):
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_OUTPUT)
     octane_hide_value=True
 
-class OctaneCompositeTextureLayerOutSocket(OctaneBaseSocket):
-    bl_idname="OctaneCompositeTextureLayerOutSocket"
-    bl_label="Composite texture layer out"
-    color=consts.OctanePinColor.CompositeTextureLayer
+class OctaneTextureLayerOutSocket(OctaneBaseSocket):
+    bl_idname="OctaneTextureLayerOutSocket"
+    bl_label="Texture layer out"
+    color=consts.OctanePinColor.TextureLayer
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEX_COMPOSITE_LAYER)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_OUTPUT)
     octane_hide_value=True
@@ -372,7 +372,7 @@ _CLASSES=[
     OctaneOCIOColorSpaceOutSocket,
     OctaneOutputAOVGroupOutSocket,
     OctaneOutputAOVOutSocket,
-    OctaneCompositeTextureLayerOutSocket,
+    OctaneTextureLayerOutSocket,
     OctaneOutputAOVLayerOutSocket,
     OctaneBlendingSettingsOutSocket,
     OctanePostVolumeOutSocket,
@@ -440,3 +440,16 @@ class OctaneCompositeAOVOutputLayerOutSocket(OctaneBaseSocket):
     octane_hide_value=True
 
 _CLASSES.extend([OctaneAOVOutputGroupOutSocket, OctaneAOVOutputOutSocket, OctaneCompositeAOVLayerOutSocket, OctaneCompositeAOVOutputLayerOutSocket])
+
+
+"""Texture Layer stuffs"""
+
+class OctaneCompositeTextureLayerOutSocket(OctaneBaseSocket):
+    bl_idname="OctaneCompositeTextureLayerOutSocket"
+    bl_label="Composite texture layer out"
+    color=consts.OctanePinColor.TextureLayer
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEX_COMPOSITE_LAYER)
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_OUTPUT)
+    octane_hide_value=True
+
+_CLASSES.append(OctaneCompositeTextureLayerOutSocket)

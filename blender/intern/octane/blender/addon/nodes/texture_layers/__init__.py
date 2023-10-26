@@ -23,7 +23,7 @@ from . import comparison
 from . import adjust_color_balance
 from . import mask_with_layer_group
 from . import apply_gradient_map
-from . import composite_texture_layer_switch
+from . import texture_layer_switch
 
 def register():
     texture.register()
@@ -48,7 +48,7 @@ def register():
     adjust_color_balance.register()
     mask_with_layer_group.register()
     apply_gradient_map.register()
-    composite_texture_layer_switch.register()
+    texture_layer_switch.register()
 
 def unregister():
     texture.unregister()
@@ -73,6 +73,6 @@ def unregister():
     adjust_color_balance.unregister()
     mask_with_layer_group.unregister()
     apply_gradient_map.unregister()
-    composite_texture_layer_switch.unregister()
+    texture_layer_switch.unregister()
 
 ##### END OCTANE GENERATED CODE BLOCK #####

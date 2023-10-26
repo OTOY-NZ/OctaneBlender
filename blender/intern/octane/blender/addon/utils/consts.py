@@ -230,14 +230,15 @@ class OctanePinColor:
     OCIOColorSpace = (1.00, 1.00, 1.00, 0.70)
     OutputAOVGroup = (1.00, 1.00, 1.00, 0.70)
     OutputAOV = (1.00, 1.00, 1.00, 0.70)
-    CompositeTextureLayer = (1.00, 1.00, 1.00, 0.70)
+    TextureLayer = (1.00, 1.00, 1.00, 0.70)
     OutputAOVLayer = (1.00, 1.00, 1.00, 0.70)
     BlendingSettings = (1.00, 1.00, 1.00, 0.70)
     PostVolume = (0.80, 0.24, 0.80, 0.70)
     # Legacy values
     AOVOutputGroup = OutputAOVGroup
     AOVOutput = OutputAOV
-    CompositeAOVOutputLayer = OutputAOVLayer  
+    CompositeAOVOutputLayer = OutputAOVLayer
+    CompositeTextureLayer = TextureLayer  
 
 
 class ArrayIdentifier:

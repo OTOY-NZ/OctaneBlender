@@ -1,12 +1,10 @@
 import bpy
+import platform
 import xml.etree.ElementTree as ET
 from octane import utils
 from octane.utils import consts, utility
 from octane import core
-if core.ENABLE_OCTANE_ADDON_CLIENT:
-    from octane.bin import octane_blender
-else:
-    import _octane as octane_blender
+octane_blender = core.get_octane_blender_binary_module()
 
 
 class OctaneBlender(metaclass=utility.Singleton):
@@ -85,7 +83,8 @@ class OctaneBlender(metaclass=utility.Singleton):
 
     def init_server(self):
         self.utils_function(consts.UtilsFunctionType.SHOW_ACTIVATION, "Activation")
-        self.utils_function(consts.UtilsFunctionType.SHOW_VIEWPORT, "InitOnly")
+        if platform.system() == "Windows":
+            self.utils_function(consts.UtilsFunctionType.SHOW_VIEWPORT, "InitOnly")
 
     def copy_color_ramp(self, from_addr, to_addr):
         self.debug_console("OctaneBlender.copy_color_ramp")
@@ -118,6 +117,18 @@ class OctaneBlender(metaclass=utility.Singleton):
         if not self.enabled:
             return
         return octane_blender.get_scene_state()
+
+    def set_status_msg(self, status_msg, update_now):
+        self.debug_console("OctaneBlender.set_status_msg")
+        if not self.enabled:
+            return
+        return octane_blender.set_status_msg(status_msg, update_now)
+
+    def get_status_msg(self):
+        self.debug_console("OctaneBlender.get_status_msg")
+        if not self.enabled:
+            return
+        return octane_blender.get_status_msg()
 
     def set_graph_time(self, time):
         self.debug_console("OctaneBlender.set_graph_time")
@@ -158,6 +169,11 @@ class OctaneBlender(metaclass=utility.Singleton):
             return
         return octane_blender.update_server_settings(resource_cache_type, update_shared_surface_device_id, tonemap_buffer_type, color_space_type)
 
+    def update_mt_render_fetcher_settings(self, enable, min_interval):
+        if not self.enabled:
+            return
+        return octane_blender.update_mt_render_fetcher_settings(enable, min_interval)
+
     def get_cached_node_resource(self, node_resouce_dict):
         self.debug_console("OctaneBlender.get_cached_node_resource", node_resouce_dict)
         if not self.enabled:
@@ -179,22 +195,6 @@ class OctaneBlender(metaclass=utility.Singleton):
         if not self.enabled:
             return
         return octane_blender.unlock_update_mutex()
-
-    def try_lock_frame_buffer_mutex(self):
-        if not self.enabled:
-            return False
-        result = octane_blender.try_lock_frame_buffer_mutex()
-        return result
-
-    def lock_frame_buffer_mutex(self):
-        if not self.enabled:
-            return
-        return octane_blender.lock_frame_buffer_mutex()
-
-    def unlock_frame_buffer_mutex(self):
-        if not self.enabled:
-            return
-        return octane_blender.unlock_frame_buffer_mutex()
 
     def print_last_error(self):
         error_msg = octane_blender.get_last_error()

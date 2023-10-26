@@ -213,7 +213,7 @@ class OctaneTexLayerChannelMixer(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneTexLayerChannelMixerWeightBlue", OctaneTexLayerChannelMixerWeightBlue.bl_label).init()
         self.inputs.new("OctaneTexLayerChannelMixerOpacity", OctaneTexLayerChannelMixerOpacity.bl_label).init()
         self.inputs.new("OctaneTexLayerChannelMixerBlendMode", OctaneTexLayerChannelMixerBlendMode.bl_label).init()
-        self.outputs.new("OctaneCompositeTextureLayerOutSocket", "Composite texture layer out").init()
+        self.outputs.new("OctaneTextureLayerOutSocket", "Texture layer out").init()
 
     @classmethod
     def poll(cls, node_tree):

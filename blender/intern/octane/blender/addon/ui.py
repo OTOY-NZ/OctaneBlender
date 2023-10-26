@@ -56,10 +56,6 @@ class OCTANE_PT_mesh_properties(OctaneButtonsPanel, Panel):
             cdata = mesh.octane
         elif mball:
             cdata = mball.octane
-            
-        # sub = layout.row(align=True)
-        # sub.prop(cdata, "mesh_type")
-        # sub.operator("octane.set_meshes_type", text="")
         
         sub = layout.row(align=True)
         sub.prop(cdata, "force_load_vertex_normals")
@@ -531,7 +527,7 @@ class OCTANE_OBJECT_PT_octane_settings_object_layer(OctaneButtonsPanel, Panel):
         sub = layout.row(align=True)
         sub.prop(octane_object, "custom_aov")
         sub = layout.row(align=True)
-        sub.prop(octane_object, "custom_aov_channel")        
+        sub.prop(octane_object, "custom_aov_channel")
 
 
 class OCTANE_OBJECT_PT_octane_settings_baking_settings(OctaneButtonsPanel, Panel):
@@ -554,7 +550,25 @@ class OCTANE_OBJECT_PT_octane_settings_baking_settings(OctaneButtonsPanel, Panel
         sub.prop(octane_object, "baking_uv_transform_sy")
         sub = layout.row(align=True)
         sub.prop(octane_object, "baking_uv_transform_tx")
-        sub.prop(octane_object, "baking_uv_transform_ty")                 
+        sub.prop(octane_object, "baking_uv_transform_ty")
+
+
+class OCTANE_OBJECT_PT_octane_settings_scatter_settings(OctaneButtonsPanel, Panel):
+    bl_label = "Scatter settings"
+    bl_parent_id = "OCTANE_OBJECT_PT_octane_settings"
+    bl_context = "object"
+
+    def draw(self, context):
+        layout = self.layout        
+        scene = context.scene
+        ob = context.object
+        octane_object = ob.octane
+
+        sub = layout.row(align=True)
+        sub.prop(octane_object, "scatter_id_source_type")
+        if octane_object.scatter_id_source_type == "Attribute":
+            sub = layout.row(align=True)
+            sub.prop(octane_object, "scatter_id_source_instance_attribute")
 
 
 class OCTANE_RENDER_PT_output(OctaneButtonsPanel, Panel):
@@ -650,6 +664,7 @@ classes = (
     OCTANE_OBJECT_PT_octane_settings,
     OCTANE_OBJECT_PT_octane_settings_object_layer,
     OCTANE_OBJECT_PT_octane_settings_baking_settings,
+    # OCTANE_OBJECT_PT_octane_settings_scatter_settings,
 )
 
 

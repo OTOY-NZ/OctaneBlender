@@ -215,7 +215,7 @@ class OctaneTexLayerLayerGroup(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneTexLayerLayerGroupOpacity", OctaneTexLayerLayerGroupOpacity.bl_label).init()
         self.inputs.new("OctaneTexLayerLayerGroupBlendMode", OctaneTexLayerLayerGroupBlendMode.bl_label).init()
         self.inputs.new("OctaneTexLayerLayerGroupCompositeOperation", OctaneTexLayerLayerGroupCompositeOperation.bl_label).init()
-        self.outputs.new("OctaneCompositeTextureLayerOutSocket", "Composite texture layer out").init()
+        self.outputs.new("OctaneTextureLayerOutSocket", "Texture layer out").init()
 
     @classmethod
     def poll(cls, node_tree):

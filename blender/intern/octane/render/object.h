@@ -65,6 +65,7 @@ class Object : public OctaneScatter {
   int particle_id;
   bool is_instance;
   bool need_update;
+  bool use_seq_instance_id;
 
   OctaneDataTransferObject::OctaneObject octane_object;
 

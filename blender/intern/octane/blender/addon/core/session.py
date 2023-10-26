@@ -23,6 +23,8 @@ from octane.nodes.base_node import OctaneBaseNode
 class RenderSession(object):
     def __init__(self, engine):
         self.session_type = consts.SessionType.UNKNOWN
+        self.session_init_time = time.time()
+        self.render_start_time = time.time()
         self.is_render_started = False
         self.use_shared_surface = utility.get_preferences().use_shared_surface and OctaneBlender().is_shared_surface_supported()
         # Minimum update gap(second)
@@ -64,6 +66,8 @@ class RenderSession(object):
         self.engine_weakref = None
 
     def reset(self):
+        self.session_init_time = time.time()
+        self.render_start_time = time.time()
         self.need_motion_blur = False
         self.motion_blur_time_offsets.clear()        
         self.object_cache.reset()
@@ -135,6 +139,7 @@ class RenderSession(object):
         if is_viewport:
             bpy.app.timers.register(self.update_viewport_render_result)
         self.is_render_started = True
+        self.render_start_time = time.time()
 
     def stop_render(self):
         OctaneBlender().stop_render()
@@ -146,6 +151,9 @@ class RenderSession(object):
         self.reset()
         OctaneBlender().reset_render()
 
+    def get_elapsed_time(self):
+        return time.time() - self.render_start_time
+
     def set_resolution(self, width, height, update_now=True):
         OctaneBlender().set_resolution(width, height, update_now)
 
@@ -154,6 +162,12 @@ class RenderSession(object):
 
     def set_render_pass_ids(self, render_pass_ids, update_now=True):
         OctaneBlender().set_render_pass_ids(render_pass_ids, update_now)
+
+    def set_status_msg(self, status_msg, update_now=True):
+        OctaneBlender().set_status_msg(status_msg, update_now)
+
+    def get_status_msg(self):
+        OctaneBlender().get_status_msg()
 
     def view_update(self, engine, depsgraph, context):
         if not self.is_render_started:
@@ -184,32 +198,45 @@ class RenderSession(object):
         try:
             update_now = False
             # update
+            self.set_status_msg("Uploading and evaluating scene in Octane...", update_now)
             if self.image_cache.need_update:
                 self.image_cache.update(depsgraph, scene, view_layer, context, update_now)
             if self.material_cache.need_update:
                 self.material_cache.update(depsgraph, scene, view_layer, context, update_now)
                 need_redraw = True
+            self.set_status_msg("Uploading and evaluating objects in Octane...", update_now)
             if self.object_cache.need_update:
                 self.object_cache.update(depsgraph, scene, view_layer, context, update_now)
+                need_redraw = True
+            self.set_status_msg("Uploading and evaluating lights in Octane...", update_now)
             if self.light_cache.need_update:
                 self.light_cache.update(depsgraph, scene, view_layer, context, update_now)
                 need_redraw = True
+            self.set_status_msg("Uploading and evaluating worlds in Octane...", update_now)
             if self.world_cache.need_update:
                 self.world_cache.update(depsgraph, scene, view_layer, context, update_now)
                 need_redraw = True
+            self.set_status_msg("Uploading and evaluating composite node trees in Octane...", update_now)
             if self.composite_cache.need_update:
                 self.composite_cache.update(depsgraph, scene, view_layer, context, update_now)
+            self.set_status_msg("Uploading and evaluating render aov node trees in Octane...", update_now)
             if self.render_aov_cache.need_update:
                 self.render_aov_cache.update(depsgraph, scene, view_layer, context, update_now)
+            self.set_status_msg("Uploading and evaluating kernel node trees in Octane...", update_now)
             if self.kernel_cache.need_update:
                 self.kernel_cache.update(depsgraph, scene, view_layer, context, update_now)
+            self.set_status_msg("Uploading and evaluating scene settings in Octane...", update_now)
             if self.scene_cache.need_update:
                 self.scene_cache.update(depsgraph, scene, view_layer, context, update_now)
             render_pass_ids = utility.get_view_layer_render_pass_ids(view_layer)
             render_pass_ids.insert(0, self.get_current_preview_render_pass_id(view_layer))
             self.set_render_pass_ids(render_pass_ids, update_now)
-            self.scene_cache.update_camera(depsgraph, scene, view_layer, context, update_now)
+            self.set_status_msg("Uploading and evaluating camera in Octane...", update_now)
+            need_update_camera = self.scene_cache.update_camera(depsgraph, scene, view_layer, context, update_now)
+            if need_update_camera:
+                need_redraw = True
             # update render target
+            self.set_status_msg("Uploading and evaluating render targets in Octane...", update_now)
             if self.rendertarget_cache.diff(depsgraph, scene, view_layer, context):
                 self.rendertarget_cache.update(depsgraph, scene, view_layer, context, update_now)
                 need_redraw = True
@@ -217,12 +244,14 @@ class RenderSession(object):
             self.update_graph_time()
             if is_first_update:
                 OctaneBlender().set_scene_state(consts.SceneState.INITIALIZED, update_now)
+            self.set_status_msg("Waiting for image...", update_now)
         except Exception as e:
             traceback.print_exc()
         finally:
             # Always unlock the mutex
             OctaneBlender().unlock_update_mutex()
         if need_redraw:
+            engine.immediate_fetch_draw_data()
             engine.tag_redraw()
 
     def view_draw(self, engine, depsgraph, context):
@@ -233,14 +262,19 @@ class RenderSession(object):
             return
         try:
             update_now = False
+            need_redraw = False
             scene = depsgraph.scene_eval
             view_layer = depsgraph.view_layer_eval
             region = context.region
-            self.scene_cache.update_camera(depsgraph, scene, view_layer, context, update_now)
+            if self.scene_cache.update_camera(depsgraph, scene, view_layer, context, update_now):
+                need_redraw = True
             self.set_resolution(region.width, region.height, update_now)
             # update render target
             if self.rendertarget_cache.diff(depsgraph, scene, view_layer, context):
-                self.rendertarget_cache.update(depsgraph, scene, view_layer, context)  
+                self.rendertarget_cache.update(depsgraph, scene, view_layer, context)
+                need_redraw = True
+            if need_redraw:
+                engine.immediate_fetch_draw_data()
         except Exception as e:
             traceback.print_exc()
         finally:

@@ -250,7 +250,7 @@ class OctaneObjectSettings(bpy.types.PropertyGroup):
     )
     use_deform_motion: BoolProperty(
         name="Use Deformation Motion",
-        description="Use deformation motion blur for this object",
+        description="Use deformation motion blur for this object\nWarning: \nAutosmooth or an object modifier that changes mesh topology over time may not render deformation motion blur correctly",
         default=False,
     )
     motion_steps: IntProperty(
@@ -275,6 +275,22 @@ class OctaneObjectSettings(bpy.types.PropertyGroup):
         name="Octane Geo Node",
         default="",
         maxlen=512,
+    )
+    scatter_id_source_types = (
+        ("Built-in", "Built-in", "Blender Built-in Instance ID(e.g. particle ID)", 0),
+        ("Attribute", "GeoNode Attribute", "Instance Attribute defined in the GeoNodes", 1),
+        ("Sequence", "Sequence", "An auto-generated list of sequential numbers", 2),
+    )
+    scatter_id_source_type: EnumProperty(
+        name="Scatter ID source",
+        description="Scatter ID source",
+        items=scatter_id_source_types,
+        default="Built-in"
+    )
+    scatter_id_source_instance_attribute: StringProperty(
+        name="Instance Attribute Name",
+        description="The name of the instance attribute defined in the GeoNodes",
+        default="",
     )
 
     @classmethod

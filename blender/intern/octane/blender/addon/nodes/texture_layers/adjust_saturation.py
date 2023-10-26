@@ -177,7 +177,7 @@ class OctaneTexLayerAdjustSaturation(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneTexLayerAdjustSaturationSaturation", OctaneTexLayerAdjustSaturationSaturation.bl_label).init()
         self.inputs.new("OctaneTexLayerAdjustSaturationOpacity", OctaneTexLayerAdjustSaturationOpacity.bl_label).init()
         self.inputs.new("OctaneTexLayerAdjustSaturationBlendMode", OctaneTexLayerAdjustSaturationBlendMode.bl_label).init()
-        self.outputs.new("OctaneCompositeTextureLayerOutSocket", "Composite texture layer out").init()
+        self.outputs.new("OctaneTextureLayerOutSocket", "Texture layer out").init()
 
     @classmethod
     def poll(cls, node_tree):

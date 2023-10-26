@@ -262,7 +262,7 @@ class OctaneTexLayerComparison(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneTexLayerComparisonColorChannelGroup", OctaneTexLayerComparisonColorChannelGroup.bl_label).init()
         self.inputs.new("OctaneTexLayerComparisonOpacity", OctaneTexLayerComparisonOpacity.bl_label).init()
         self.inputs.new("OctaneTexLayerComparisonBlendMode", OctaneTexLayerComparisonBlendMode.bl_label).init()
-        self.outputs.new("OctaneCompositeTextureLayerOutSocket", "Composite texture layer out").init()
+        self.outputs.new("OctaneTextureLayerOutSocket", "Texture layer out").init()
 
     @classmethod
     def poll(cls, node_tree):

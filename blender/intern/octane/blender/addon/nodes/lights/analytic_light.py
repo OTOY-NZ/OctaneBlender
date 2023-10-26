@@ -82,7 +82,7 @@ class OctaneAnalyticLightNormalize(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_BOOL
     octane_pin_index=3
     octane_socket_type=consts.SocketType.ST_BOOL
-    default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Keep the emitted power constant if the angle changes")
+    default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Keep the emitted power constant if the angle changes")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295

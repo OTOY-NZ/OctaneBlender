@@ -377,7 +377,7 @@ class OctanePreferences(bpy.types.AddonPreferences):
         name="Default Object Mesh Type",
         description="Object mesh type to use for default (Used for rendering speed optimization. See the manual.)(reboot blender to take effect)",   
         items=object_mesh_types,   
-        default="Reshapable proxy",
+        default="Auto",
     )    
     default_material_id: EnumProperty(
         name="Default Material Type",
@@ -395,7 +395,7 @@ class OctanePreferences(bpy.types.AddonPreferences):
     default_use_blender_builtin_render_layer: BoolProperty(
         name="Use Blender Built-in Render Layer",
         description="Whether to use blender built-in render layer system for default(reboot blender to take effect)",   
-        default=False,         
+        default=False,
     )
 
     enable_empty_gpus_automatically: BoolProperty(
@@ -929,7 +929,7 @@ class OctaneMeshSettings(bpy.types.PropertyGroup):
         description="Primitive Coordinate Mode",
         items=primitive_coordinate_modes,
         default="Blender"
-    )    
+    )
     enable_octane_offset_transform: BoolProperty(
         name="Octane Offset Transform enabled",
         description="If TRUE, then an offset transform will be applied(it would be useful in external VDB and Orbx transform adjustment)",

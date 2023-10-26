@@ -6,6 +6,7 @@ import xml.etree.ElementTree as ET
 import time
 import copy
 import hashlib
+import json
 from collections import deque, defaultdict
 from bpy.utils import register_class, unregister_class
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
@@ -291,6 +292,33 @@ def sync_legacy_property(current_property_data, current_property_name, legacy_pr
         setattr(current_property_data, current_property_name, legacy_value)
 
 ##### NodeTrees & Nodes & Sockets #####
+def dump_json_node_tree(node_tree):
+    json_node_list = []
+    for node in node_tree.nodes:
+        json_node_dict = node.dump_json_node()
+        json_node_list.append(json_node_dict)
+    json_str = json.dumps(json_node_list)
+    return json_str
+
+def load_json_node_tree(node_tree, json_str):
+    json_node_list = json.loads(json_str)
+    links_list = []
+    for json_node_dict in json_node_list:
+        bl_idname = json_node_dict["bl_idname"]
+        node = node_tree.nodes.new(bl_idname)
+        node.load_json_node(json_node_dict, links_list)
+    for links_dict in links_list:
+        to_node_name = links_dict["to_node"]
+        to_socket_name = links_dict["to_socket"]
+        from_node_name = links_dict["from_node"]
+        if to_node_name in node_tree.nodes and from_node_name in node_tree.nodes:
+            to_node = node_tree.nodes[to_node_name]
+            from_node = node_tree.nodes[from_node_name]
+            if to_socket_name in to_node.inputs:
+                from_socket = from_node.outputs[0]
+                to_socket = to_node.inputs[to_socket_name]
+                node_tree.links.new(from_socket, to_socket)
+
 def copy_nodes(dest_node_tree, src_node_tree, src_root_node):
     dest_root_node = dest_node_tree.nodes.new(src_root_node.bl_idname)
     dest_root_node.copy_from_node(src_root_node)
@@ -309,24 +337,30 @@ def copy_nodes(dest_node_tree, src_node_tree, src_root_node):
                     visited_nodes.add(src_linked_node)
     return dest_root_node
 
-def quick_add_octane_kernel_node_tree(assign_to_kernel_node_graph=False, generate_from_legacy_octane_property=False, preset_name=None):
+def quick_add_octane_kernel_node_tree(assign_to_kernel_node_graph=False, generate_from_legacy_octane_property=False, json_node_tree=None, preset_name=None):
     from octane.nodes.base_kernel import OctaneBaseKernelNode
     scene = bpy.context.scene
     octane_scene = scene.octane
     node_tree = bpy.data.node_groups.new(name=consts.OctanePresetNodeTreeNames.KERNEL if preset_name is None else preset_name, type=consts.OctaneNodeTreeIDName.KERNEL)
     node_tree.use_fake_user = True
     nodes = node_tree.nodes
-    output = nodes.new("OctaneKernelOutputNode")
-    output.location = (0, 0)
-    if generate_from_legacy_octane_property:
-        kernel_node = OctaneBaseKernelNode.generate_from_legacy_octane_property(octane_scene, node_tree)
+    if json_node_tree is not None:
+        load_json_node_tree(node_tree, json_node_tree)
+        output = find_active_output_node(node_tree, consts.OctaneNodeTreeIDName.KERNEL)
+        kernel_node = output.inputs[0].links[0].from_node
     else:
-        kernel_node = nodes.new("OctaneDirectLightingKernel")
+        output = nodes.new("OctaneKernelOutputNode")
+        if generate_from_legacy_octane_property:
+            kernel_node = OctaneBaseKernelNode.generate_from_legacy_octane_property(octane_scene, node_tree)
+        else:
+            kernel_node = nodes.new("OctaneDirectLightingKernel")
+    output.location = (0, 0)
     if kernel_node:
         kernel_node.location = (-300, 0)
         node_tree.links.new(kernel_node.outputs[0], output.inputs[0])
     beautifier_nodetree_layout_with_nodetree(node_tree, consts.OctaneNodeTreeIDName.KERNEL)    
-    if assign_to_kernel_node_graph:        
+    if assign_to_kernel_node_graph:
+        octane_scene.kernel_data_mode = "NODETREE"
         octane_scene.kernel_node_graph_property.node_tree = node_tree
     return node_tree
 
@@ -675,13 +709,18 @@ def _panel_ui_node_view(context, layout, node_tree, output_node):
                     right.prop(socket, "octane_input_enum_items", text="")
 
 def panel_ui_node_view(context, layout, id_data, input_name):
-    from octane.nodes import base_socket
     if not id_data.use_nodes:
         layout.operator("octane.use_shading_nodes", icon='NODETREE')
         return False
     node_tree = id_data.node_tree
     owner_type = get_node_tree_owner_type(id_data)
+    return panel_ui_node_tree_view(context, layout, node_tree, owner_type, input_name)
+
+def panel_ui_node_tree_view(context, layout, node_tree, owner_type, input_name=None):
+    from octane.nodes import base_socket
     output_node = find_active_output_node(node_tree, owner_type)
+    if input_name is None and output_node is not None:
+        input_name = output_node.inputs[0].name
     socket_name = find_compatible_socket_name(output_node, input_name)
     base_socket.OCTANE_OT_base_node_link_menu.draw_node_link_menu(context, layout, output_node, owner_type, socket_name)
     if output_node:
@@ -698,12 +737,12 @@ def panel_ui_node_view(context, layout, id_data, input_name):
         layout.label(text="Incompatible or invalid output node")
     return True
 
-def panel_ui_node_tree_view(context, layout, node_tree, owner_type):
+def panel_ui_node_tree_view1(context, layout, node_tree, owner_type):
     active_output_node = find_active_output_node(node_tree, owner_type)
     if active_output_node is not None:
         _panel_ui_node_view(context, layout, node_tree, active_output_node)
     else:
-        layout.label(text="Incompatible or invalid output node")    
+        layout.label(text="Incompatible or invalid output node")
 
 def node_input_enum_items_callback(self, context):
     from ..nodes import node_items
@@ -764,15 +803,29 @@ def swap_node_socket_position(node, s1, s2, context):
     # Blender 3.5 doesn't trigger a "redraw" after "node.inputs.move", so we need to make a force update here
     node.socket_value_update(context)
 
-
-def show_nodetree(context, node_tree):
-    for area in context.screen.areas:
-        if area.type == "NODE_EDITOR":
-            for space in area.spaces:
-                if space.type == "NODE_EDITOR" and space.tree_type == node_tree.bl_idname:
-                    space.node_tree = node_tree
-                    return True
-    return False
+def show_nodetree(context, node_tree, create_new_window=False):
+    def _show_nodetree(window, node_tree):
+        for area in window.screen.areas:
+            if area.type == "NODE_EDITOR":
+                for space in area.spaces:
+                    if space.type == "NODE_EDITOR" and space.tree_type == node_tree.bl_idname:
+                        space.node_tree = node_tree
+                        return True
+        return False
+    result = _show_nodetree(context.window, node_tree)
+    if not result and create_new_window:
+        # Open a new popup window
+        bpy.ops.screen.info_log_show()
+        # Get the window that was just created (it should be the last window)
+        new_window = context.window_manager.windows[-1]
+        # Set the screen to the default screen
+        new_window.screen = bpy.data.screens["Layout"]
+        # Now, set the first area in the new window to a NODE_EDITOR
+        area = new_window.screen.areas[0]
+        area.type = "NODE_EDITOR"
+        area.spaces[0].tree_type = node_tree.bl_idname
+        return _show_nodetree(new_window, node_tree)
+    return result
 
 def setup_directional_light(node_tree, light_node, light_object):
     object_data_node = node_tree.nodes.new("OctaneObjectData")
@@ -793,7 +846,9 @@ def beautifier_nodetree_layout_with_nodetree(node_tree, owner_type):
             y_offset = Y_SOCKET_GAP * (len(node.inputs) + len(node.outputs)) + Y_OFFSET
             if node.bl_idname.endswith("Image"):
                 y_offset += (-150)
-            return y_offset    
+            elif node.bl_idname.endswith("LightIDBitValue"):
+                y_offset += (-150)
+            return y_offset
     output_node = find_active_output_node(node_tree, owner_type)
     output_node.location = (300, 300) # node_tree.view_center
     pending_nodes = deque()
@@ -848,6 +903,8 @@ def beautifier_nodetree_layout_by_owner(id_data):
         else:
             y_offset = Y_SOCKET_GAP * (len(node.inputs) + len(node.outputs)) + Y_OFFSET
             if node.bl_idname.endswith("Image"):
+                y_offset += (-150)
+            elif node.bl_idname.endswith("LightIDBitValue"):
                 y_offset += (-150)
             return y_offset
     node_tree = id_data.node_tree
@@ -950,7 +1007,9 @@ def convert_to_addon_node(owner, node_tree, original_node, context, report):
         elif original_bl_idname == "ShaderNodeCameraData":
             addon_node_name = "OctaneCameraData"
         elif original_bl_idname == "ShaderNodeOutputWorld":
-            addon_node_name = "OctaneEditorWorldOutputNode"            
+            addon_node_name = "OctaneEditorWorldOutputNode"
+        elif original_bl_idname == "NodeUndefined":
+            addon_node_name = ""
         else:
             addon_node_name = ""
     else:
@@ -958,7 +1017,7 @@ def convert_to_addon_node(owner, node_tree, original_node, context, report):
     if len(addon_node_name) == 0:
         return None
     addon_node = node_tree.nodes.new(addon_node_name)
-    addon_node.load_legacy_node(original_node, node_tree, context, report)
+    addon_node.load_legacy_node(original_node, original_bl_idname, node_tree, context, report)
     if addon_node.bl_idname == "OctaneToonDirectionalLight":
         light_object = None
         for _object in bpy.data.objects:

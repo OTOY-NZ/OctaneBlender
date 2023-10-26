@@ -233,7 +233,8 @@ class ObjectCache(OctaneNodeCache):
             if mesh.uv_layers:
                 for idx, uv in enumerate(mesh.uv_layers):
                     if uv.name in mesh.attributes:
-                        uv_data.append(mesh.attributes[uv.name].data[0].as_pointer())
+                        uv_attr_data = mesh.attributes[uv.name].data
+                        uv_data.append(uv_attr_data[0].as_pointer() if len(uv_attr_data) > 0 else 0)
                     else:
                         uv_data.append(uv.data[0].as_pointer() if len(uv.data) > 0 else 0)
                     if uv.active_render:
@@ -763,6 +764,7 @@ class ObjectCache(OctaneNodeCache):
         # Update Object Data
         # Material tags
         _, octane_material_tag = self.object_material_tag_manager.update_tag(self.session.material_cache, origin_object)
+        self.session.set_status_msg("Uploading and evaluating object[%s] and data[%s] in Octane..." % (object_name, object_data_name), update_now)
         if eval_object.type == "MESH":
             # Mesh Data
             is_infinite_plane = getattr(object_data_octane_property, "infinite_plane", "")
@@ -904,9 +906,10 @@ class ObjectCache(OctaneNodeCache):
         octane_scatter_node.set_pin_id(consts.PinID.P_GEOMETRY, True, linked_geometry_name, "")
         octane_scatter_node.node.build()
         if octane_scatter_node.need_update:
+            self.session.set_status_msg("Uploading and evaluating scatter node[%s] in Octane..." % octane_scatter_node.name, update_now)
             octane_scatter_node.update_to_engine(update_now)
 
-    def update_motion_blur_sample(self, motion_time_offset, depsgraph, scene, view_layer, context=None):
+    def update_motion_blur_sample(self, motion_time_offset, depsgraph, scene, view_layer, context=None, update_now=True):
         for instance_object in depsgraph.object_instances:
             eval_object = instance_object.object
             origin_object = eval_object.original

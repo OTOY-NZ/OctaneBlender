@@ -1,7 +1,7 @@
 bl_info = {
-    "name": "OctaneBlender (v. 28.1)",
+    "name": "OctaneBlender (v. 28.2)",
     "author": "OTOY Inc.",
-    "version": (28, 1),
+    "version": (28, 2),
     "blender": (3, 6, 1),
     "location": "Info header, render engine menu",
     "description": "OctaneBlender",
@@ -58,6 +58,7 @@ class OctaneRender(bpy.types.RenderEngine):
 
     def free_session(self):
         try:
+            self.free_draw_data()
             if self.session.is_render_started:
                 if self.session.session_type == consts.SessionType.VIEWPORT:
                     self.session.stop_render()
@@ -191,8 +192,8 @@ class OctaneRender(bpy.types.RenderEngine):
             return        
         if core.ENABLE_OCTANE_ADDON_CLIENT:
             self.session.session_type = consts.SessionType.VIEWPORT
-            OctaneBlender().init_server()
             if not self.session.is_render_started:
+                OctaneBlender().init_server()
                 self.session.start_render(depsgraph.scene, is_viewport=True, resource_cache_type=utility.get_enum_int_value(depsgraph.scene.octane, "resource_cache_type", 0))
             self.session.view_update(self, depsgraph, context)
         else:
@@ -201,7 +202,7 @@ class OctaneRender(bpy.types.RenderEngine):
                               context.region, context.space_data, context.region_data)
                 self._force_update_all_script_nodes()
             engine.reset(self, context.blend_data, depsgraph)
-            engine.sync(self, depsgraph, context.blend_data)            
+            engine.sync(self, depsgraph, context.blend_data)
 
     def view_draw(self, context, depsgraph):
         # Draw viewport render
@@ -211,11 +212,19 @@ class OctaneRender(bpy.types.RenderEngine):
             scene = depsgraph.scene
             self.draw_render_result(context.view_layer, region, scene)
         else:
-            engine.draw(self, depsgraph, context.region, context.space_data, context.region_data)              
+            engine.draw(self, depsgraph, context.region, context.space_data, context.region_data)
 
     def check_redraw(self):
         if self.draw_data:
             self.tag_redraw()
+
+    def free_draw_data(self):
+        if self.draw_data is not None:
+            self.draw_data.free(self)
+
+    def immediate_fetch_draw_data(self):
+        if self.draw_data is not None:
+            self.draw_data.tag_immediate_fetch(True)
 
     def draw_render_result(self, view_layer, region, scene):
         render_pass_id = self.session.get_current_preview_render_pass_id(view_layer)
@@ -226,6 +235,7 @@ class OctaneRender(bpy.types.RenderEngine):
         if region:
             # Get viewport dimensions
             if not self.draw_data or self.draw_data.needs_replacement(region.width, region.height, use_shared_surface):
+                self.free_draw_data()
                 self.draw_data = ViewportDrawData(render_pass_id, region.width, region.height, self, scene, use_shared_surface)
                 is_draw_data_just_created = True
         if self.draw_data:

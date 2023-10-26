@@ -177,7 +177,7 @@ class OctaneTexLayerConvertToGreyscale(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneTexLayerConvertToGreyscaleWeightGreyscale", OctaneTexLayerConvertToGreyscaleWeightGreyscale.bl_label).init()
         self.inputs.new("OctaneTexLayerConvertToGreyscaleOpacity", OctaneTexLayerConvertToGreyscaleOpacity.bl_label).init()
         self.inputs.new("OctaneTexLayerConvertToGreyscaleBlendMode", OctaneTexLayerConvertToGreyscaleBlendMode.bl_label).init()
-        self.outputs.new("OctaneCompositeTextureLayerOutSocket", "Composite texture layer out").init()
+        self.outputs.new("OctaneTextureLayerOutSocket", "Texture layer out").init()
 
     @classmethod
     def poll(cls, node_tree):

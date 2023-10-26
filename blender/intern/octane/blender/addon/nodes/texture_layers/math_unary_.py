@@ -234,7 +234,7 @@ class OctaneTexLayerMathUnary(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneTexLayerMathUnaryColorChannelGroup", OctaneTexLayerMathUnaryColorChannelGroup.bl_label).init()
         self.inputs.new("OctaneTexLayerMathUnaryOpacity", OctaneTexLayerMathUnaryOpacity.bl_label).init()
         self.inputs.new("OctaneTexLayerMathUnaryBlendMode", OctaneTexLayerMathUnaryBlendMode.bl_label).init()
-        self.outputs.new("OctaneCompositeTextureLayerOutSocket", "Composite texture layer out").init()
+        self.outputs.new("OctaneTextureLayerOutSocket", "Texture layer out").init()
 
     @classmethod
     def poll(cls, node_tree):

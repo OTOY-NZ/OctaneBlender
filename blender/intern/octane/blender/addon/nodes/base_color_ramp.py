@@ -382,7 +382,7 @@ class OctaneBaseRampNode(OctaneBaseNode):
                 octane_node.node.set_pin(consts.OctaneDataBlockSymbolType.PIN_NAME, position_pin_index, position_pin_name, consts.SocketType.ST_FLOAT, consts.PinType.PT_FLOAT, consts.NodeType.NT_FLOAT, len(position_link_name) > 0, position_link_name, position)
                 octane_node.node.set_pin(consts.OctaneDataBlockSymbolType.PIN_NAME, value_pin_index, value_pin_name, self.RAMP_VALUE_INPUT_SOCKET_TYPE, self.RAMP_VALUE_INPUT_PIN_TYPE, self.RAMP_VALUE_INPUT_DEFAULT_NODE_TYPE, len(texture_link_name) > 0, texture_link_name, color)
 
-    def load_custom_legacy_node(self, legacy_node, node_tree, context, report):
+    def load_custom_legacy_node(self, legacy_node, node_tree, context, report=None):
         super().load_custom_legacy_node(legacy_node, node_tree, context, report)
         legacy_node_color_ramp = legacy_node.color_ramp            
         new_color_ramp = utility.get_octane_helper_node(self.color_ramp_name).color_ramp

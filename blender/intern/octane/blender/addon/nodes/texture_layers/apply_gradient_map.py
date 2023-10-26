@@ -243,7 +243,7 @@ class OctaneTexLayerApplyGradientMap(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneTexLayerApplyGradientMapMax", OctaneTexLayerApplyGradientMapMax.bl_label).init()
         self.inputs.new("OctaneTexLayerApplyGradientMapOpacity", OctaneTexLayerApplyGradientMapOpacity.bl_label).init()
         self.inputs.new("OctaneTexLayerApplyGradientMapBlendMode", OctaneTexLayerApplyGradientMapBlendMode.bl_label).init()
-        self.outputs.new("OctaneCompositeTextureLayerOutSocket", "Composite texture layer out").init()
+        self.outputs.new("OctaneTextureLayerOutSocket", "Texture layer out").init()
 
     @classmethod
     def poll(cls, node_tree):

@@ -1344,7 +1344,7 @@ void OctaneClient::uploadKernel(Kernel *pKernel)
 
   LOCK_MUTEX(m_SocketMutex);
 
-  if (pKernel->bUseNodeTree) {
+  if (false && pKernel->bUseNodeTree) {
     RPCSend snd(m_Socket, sizeof(int32_t) * 2, OctaneDataTransferObject::LOAD_KERNEL);
     snd << pKernel->bUseNodeTree << pKernel->bEmulateOldMotionBlurBehavior;
     snd.write();
@@ -3931,7 +3931,7 @@ bool OctaneClient::downloadImageBuffer(RenderStatistics &renderStat,
       }
       bool bPassUseSharedSurface = true;
       switch (passType) {
-        case Octane::RENDER_PASS_Z_DEPTH:
+        // case Octane::RENDER_PASS_Z_DEPTH:
         case Octane::RENDER_PASS_CRYPTOMATTE_MATERIAL_NODE_NAME:
         case Octane::RENDER_PASS_CRYPTOMATTE_MATERIAL_NODE:
         case Octane::RENDER_PASS_CRYPTOMATTE_MATERIAL_PIN_NAME:
@@ -3945,7 +3945,7 @@ bool OctaneClient::downloadImageBuffer(RenderStatistics &renderStat,
           bPassUseSharedSurface = false;
           break;
         default:
-          bPassUseSharedSurface = true;
+          bPassUseSharedSurface = (passType < Octane::RENDER_PASS_OUTPUT_AOV_IDS_OFFSET);
       }
       if (bUseSharedSurface && bPassUseSharedSurface) {
         rcv >> renderStat.iSharedHandler;

@@ -124,6 +124,19 @@ class OctaneLightIDBitValue(OctaneBitValue):
         row.prop(self, "light_pass_id_19", toggle=True)
         row.prop(self, "light_pass_id_20", toggle=True)
 
+    def dump_json_custom_node(self, node_dict):
+        attributes_dict = node_dict["attributes"]
+        for attribute_name in self.property_to_bits:
+            if hasattr(self, attribute_name):
+                self.dump_json_attribute(attribute_name, consts.AttributeType.AT_BOOL, attributes_dict)
+
+    def load_json_custom_node(self, node_dict, links_list):
+        attributes_dict = node_dict["attributes"]
+        for attribute_name in self.property_to_bits:
+            if hasattr(self, attribute_name) and attribute_name in attributes_dict:
+                self.load_json_attribute(attribute_name, consts.AttributeType.AT_BOOL, attributes_dict)
+
+
 _CLASSES=[
     OctaneLightIDBitValue,
 ]

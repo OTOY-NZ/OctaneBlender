@@ -257,7 +257,7 @@ class OctaneBaseImageNode(OctaneBaseNode):
         self.a_ies_photometry_mode = other_node.a_ies_photometry_mode
         self.update_image_info() 
 
-    def load_custom_legacy_node(self, legacy_node, node_tree, context, report):
+    def load_custom_legacy_node(self, legacy_node, node_tree, context, report=None):
         super().load_custom_legacy_node(legacy_node, node_tree, context, report)
         self.image = legacy_node.image
         self.frame_current = legacy_node.image_user.frame_current

@@ -222,7 +222,7 @@ class OctaneBaseCurveNode(OctaneBaseNode):
             return
         curve = curve_node.mapping
 
-    def load_custom_legacy_node(self, legacy_node, node_tree, context, report):
+    def load_custom_legacy_node(self, legacy_node, node_tree, context, report=None):
         super().load_custom_legacy_node(legacy_node, node_tree, context, report)
         legacy_node_curve_mapping = legacy_node.mapping
         new_curve_mapping = utility.get_octane_helper_node(self.curve_name).mapping

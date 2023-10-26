@@ -177,7 +177,7 @@ class OctaneTexLayerApplyGammaCurve(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneTexLayerApplyGammaCurveGamma", OctaneTexLayerApplyGammaCurveGamma.bl_label).init()
         self.inputs.new("OctaneTexLayerApplyGammaCurveOpacity", OctaneTexLayerApplyGammaCurveOpacity.bl_label).init()
         self.inputs.new("OctaneTexLayerApplyGammaCurveBlendMode", OctaneTexLayerApplyGammaCurveBlendMode.bl_label).init()
-        self.outputs.new("OctaneCompositeTextureLayerOutSocket", "Composite texture layer out").init()
+        self.outputs.new("OctaneTextureLayerOutSocket", "Texture layer out").init()
 
     @classmethod
     def poll(cls, node_tree):

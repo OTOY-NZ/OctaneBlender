@@ -156,7 +156,7 @@ class OctaneObjectData(bpy.types.Node, OctaneBaseNode):
             else:
                 self.sync_collection_data(collection, octane_node.name, octane_node, depsgraph, True)
 
-    def load_custom_legacy_node(self, legacy_node, node_tree, context, report):
+    def load_custom_legacy_node(self, legacy_node, node_tree, context, report=None):
         if legacy_node.source_type == "OBJECT":
             self.source_type = "Object"
         else:

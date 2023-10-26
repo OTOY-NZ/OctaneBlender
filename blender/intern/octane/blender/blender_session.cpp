@@ -158,8 +158,9 @@ void BlenderSession::create()
 
 void BlenderSession::create_session()
 {
+  BL::ViewLayer b_viewlayer(PointerRNA_NULL);
   SessionParams session_params = BlenderSync::get_session_params(
-      b_engine, b_userpref, b_scene, background, width, height, export_type);
+      b_engine, b_userpref, b_scene, b_viewlayer, background, width, height, export_type);
   SceneParams scene_params = BlenderSync::get_scene_params(b_scene, background);
   bool session_pause = BlenderSync::get_session_pause(b_scene, background);
   std::string cache_path = b_userpref.filepaths().temporary_directory();
@@ -283,8 +284,9 @@ void BlenderSession::reset_session(BL::BlendData &b_data, BL::Depsgraph &b_depsg
     return;
   }
 
+  BL::ViewLayer b_viewlayer = b_depsgraph.view_layer_eval();
   SessionParams session_params = BlenderSync::get_session_params(
-      b_engine, b_userpref, b_scene, background, width, height);
+      b_engine, b_userpref, b_scene, b_viewlayer, background, width, height);
   session->progress.reset();
 
   session->set_pause(false);
@@ -340,8 +342,9 @@ void BlenderSession::synchronize(BL::Depsgraph &b_depsgraph_)
   }
 
   /* on session/scene parameter changes, we recreate session entirely */
+  BL::ViewLayer b_viewlayer = b_depsgraph.view_layer_eval();
   SessionParams session_params = BlenderSync::get_session_params(
-      b_engine, b_userpref, b_scene, background, width, height);
+      b_engine, b_userpref, b_scene, b_viewlayer, background, width, height);
   SceneParams scene_params = BlenderSync::get_scene_params(b_scene, background);
   bool session_pause = BlenderSync::get_session_pause(b_scene, background);
 
@@ -454,8 +457,9 @@ bool BlenderSession::draw(int w, int h)
 
     // Reset if requested
     if (reset) {
+      BL::ViewLayer b_viewlayer = PointerRNA_NULL;
       SessionParams session_params = BlenderSync::get_session_params(
-          b_engine, b_userpref, b_scene, background, width, height);
+          b_engine, b_userpref, b_scene, b_viewlayer, background, width, height);
       BufferParams buffer_params = BlenderSync::get_buffer_params(
           b_render, b_v3d, b_rv3d, scene->camera, width, height);
       bool session_pause = BlenderSync::get_session_pause(b_scene, background);
@@ -507,8 +511,9 @@ void BlenderSession::render(BL::Depsgraph &b_depsgraph_)
 
   b_depsgraph = b_depsgraph_;
 
+  BL::ViewLayer b_viewlayer = b_depsgraph.view_layer_eval();
   SessionParams session_params = BlenderSync::get_session_params(
-      b_engine, b_userpref, b_scene, background, width, height, export_type);
+      b_engine, b_userpref, b_scene, b_viewlayer, background, width, height, export_type);
   if (session_params.export_type != ::OctaneEngine::SceneExportTypes::NONE) {
     BL::Object b_camera_override(b_engine.camera_override());
     sync->sync_data(

@@ -750,8 +750,8 @@ _octane_node_items = {
                 OctaneNodeItem("OctaneScatterOnSurface"),
                 OctaneNodeItem("OctaneScatterInVolume"),
                 OctaneNodeItemSeperator("Vectron Operators"),
-                OctaneNodeItem("OctaneDomainTransform"),
                 OctaneNodeItem("OctaneSDFClip"),
+                OctaneNodeItem("OctaneSDFDomainTransform"),
                 OctaneNodeItem("OctaneSDFInk"),
                 OctaneNodeItem("OctaneSDFInset"),
                 OctaneNodeItem("OctaneSDFIntersect"),
@@ -818,7 +818,7 @@ _octane_node_items = {
                 OctaneTextureLayerNodeCategory("OCTANE_TEXTURE_LAYER_UTILITY", "Utility",
                     octane_pin_type=consts.PinType.PT_TEX_COMPOSITE_LAYER,
                     items=[
-                        OctaneNodeItem("OctaneCompositeTextureLayerSwitch"),
+                        OctaneNodeItem("OctaneTextureLayerSwitch"),
                     ]
                 ),
             ]

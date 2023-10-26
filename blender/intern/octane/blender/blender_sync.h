@@ -139,6 +139,7 @@ class BlenderSync {
       BL::RenderEngine &b_engine,
       BL::Preferences &b_userpref,
       BL::Scene &b_scene,
+      BL::ViewLayer &b_viewlayer,
       bool background,
       int width,
       int height,
@@ -165,6 +166,7 @@ class BlenderSync {
                           int &max_sample,
                           int &max_preview_sample,
                           int &max_info_sample);
+  static int get_current_preview_render_pass(BL::ViewLayer &b_view_layer);
 
   void set_resource_cache(std::map<std::string, int> &resource_cache_data,
                           std::unordered_set<std::string> &dirty_resources);

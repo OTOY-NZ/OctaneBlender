@@ -177,7 +177,7 @@ class OctaneTexLayerThreshold(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneTexLayerThresholdThreshold", OctaneTexLayerThresholdThreshold.bl_label).init()
         self.inputs.new("OctaneTexLayerThresholdOpacity", OctaneTexLayerThresholdOpacity.bl_label).init()
         self.inputs.new("OctaneTexLayerThresholdBlendMode", OctaneTexLayerThresholdBlendMode.bl_label).init()
-        self.outputs.new("OctaneCompositeTextureLayerOutSocket", "Composite texture layer out").init()
+        self.outputs.new("OctaneTextureLayerOutSocket", "Texture layer out").init()
 
     @classmethod
     def poll(cls, node_tree):

@@ -59,7 +59,7 @@ class OctaneFilmSettingsRegionSizeRelative(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=2
     octane_socket_type=consts.SocketType.ST_FLOAT2
-    default_value: FloatVectorProperty(default=(1.000000, 1.000000), update=OctaneBaseSocket.update_node_tree, description="The relative size of the render region in percent. This input exists only tocontrol the absolute region size in pixels, but is not used directly in the rendersettings.\n\nThe absolute size in pixels will be rounded up", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="NONE", precision=2, size=2)
+    default_value: FloatVectorProperty(default=(1.000000, 1.000000), update=OctaneBaseSocket.update_node_tree, description="The relative size of the render region in percent. This input exists only to control the absolute region size in pixels, but is not used directly in the render settings.\n\nThe absolute size in pixels will be rounded up", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="NONE", precision=2, size=2)
     octane_hide_value=False
     octane_min_version=13000002
     octane_end_version=4294967295
@@ -93,7 +93,7 @@ class OctaneFilmSettingsRegionSize(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=4
     octane_socket_type=consts.SocketType.ST_INT2
-    default_value: IntVectorProperty(default=(1024, 512), update=OctaneBaseSocket.update_node_tree, description="The absolute size of the render region in pixels", min=1, max=65536, soft_min=1, soft_max=65536, step=1, subtype="NONE", size=2)
+    default_value: IntVectorProperty(default=(65536, 65536), update=OctaneBaseSocket.update_node_tree, description="The absolute size of the render region in pixels", min=1, max=65536, soft_min=1, soft_max=65536, step=1, subtype="NONE", size=2)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295

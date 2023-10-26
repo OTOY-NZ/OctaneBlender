@@ -175,9 +175,17 @@ class OctaneVertexDisplacement(bpy.types.Node, OctaneBaseNode):
     octane_min_version=0
     octane_node_type=consts.NodeType.NT_VERTEX_DISPLACEMENT
     octane_socket_list=["Texture", "Height", "Mid level", "Map type", "Vector space", "Input axes", "Auto bump map", "Subdivision level", ]
-    octane_attribute_list=[]
-    octane_attribute_config={}
+    octane_attribute_list=["a_compatibility_version", ]
+    octane_attribute_config={"a_compatibility_version": [consts.AttributeID.A_COMPATIBILITY_VERSION, "compatibilityVersion", consts.AttributeType.AT_INT], }
     octane_static_pin_count=8
+
+    compatibility_mode_infos=[
+        ("Latest (2023.1)", "Latest (2023.1)", """(null)""", 13000005),
+        ("2022.1 compatibility mode", "2022.1 compatibility mode", """Legacy behaviour for worldspace projection affecting auto bump map texture.""", 0),
+    ]
+    a_compatibility_version_enum: EnumProperty(name="Compatibility version", default="Latest (2023.1)", update=OctaneBaseNode.update_compatibility_mode, description="The Octane version that the behavior of this node should match", items=compatibility_mode_infos)
+
+    a_compatibility_version: IntProperty(name="Compatibility version", default=13000006, update=OctaneBaseNode.update_node_tree, description="The Octane version that the behavior of this node should match")
 
     def init(self, context):
         self.inputs.new("OctaneVertexDisplacementTexture", OctaneVertexDisplacementTexture.bl_label).init()
@@ -193,6 +201,10 @@ class OctaneVertexDisplacement(bpy.types.Node, OctaneBaseNode):
     @classmethod
     def poll(cls, node_tree):
         return OctaneBaseNode.poll(node_tree)
+
+    def draw_buttons(self, context, layout):
+        super().draw_buttons(context, layout)
+        layout.row().prop(self, "a_compatibility_version_enum")
 
 
 _CLASSES=[

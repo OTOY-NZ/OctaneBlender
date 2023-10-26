@@ -1,6 +1,7 @@
 import bpy
 import re
 import xml.etree.ElementTree as ET
+import json
 from bpy.utils import register_class, unregister_class
 from bpy.props import BoolProperty, IntProperty, StringProperty, EnumProperty
 from octane.utils import consts, utility
@@ -290,8 +291,8 @@ class OctaneBaseNode(object):
                 data_path = paths[-1]
         return data_path
 
-    def load_legacy_node(self, legacy_node, node_tree, context, report):
-        node_type = OctaneInfoManger().get_legacy_node_type(legacy_node.bl_idname)
+    def load_legacy_node(self, legacy_node, legacy_node_bl_idname, node_tree, context, report=None):
+        node_type = OctaneInfoManger().get_legacy_node_type(legacy_node_bl_idname)
         # Outputs
         legacy_node_enabled_outputs = [output for output in legacy_node.outputs if output.enabled]
         if len(legacy_node_enabled_outputs) == 1 and len(self.outputs) == 1:
@@ -370,7 +371,7 @@ class OctaneBaseNode(object):
                     fcurve.data_path = data_path_mapping[fcurve.data_path]
         self.load_custom_legacy_node(legacy_node, node_tree, context, report)
 
-    def load_custom_legacy_node(self, legacy_node, node_tree, context, report):
+    def load_custom_legacy_node(self, legacy_node, node_tree, context, report=None):
         pass
 
     def load_legacy_attribute(self, node_tree, info, legacy_data_type, legacy_data_value, legacy_data_path, data_path_mapping):
@@ -477,60 +478,208 @@ class OctaneBaseNode(object):
     def load_custom_ocs_data(self, creator, ocs_element_tree):
         pass
 
-    # Export methods
-    def export(self):
-        node_data = ET.Element('node', name=self.name, type=str(self.octane_node_type))
-        self.export_custom_data(node_data)
-        attributes_data = ET.SubElement(node_data, 'attributes')
-        attribute_names = self.octane_attribute_list.split(";")
-        attribute_types = self.octane_attribute_config_list.split(";")
-        for idx, attribute_name in enumerate(attribute_names):
+    # Dump json methods
+    def dump_json_node(self):
+        node_dict = {
+            "name": self.name, 
+            "bl_idname": self.bl_idname,
+            "attributes": {},
+            "pins": {},
+        }
+        attributes_dict = node_dict["attributes"]
+        pins_dict = node_dict["pins"]
+        # Attributes
+        if hasattr(self, "a_compatibility_version_enum"):
+            self.dump_json_attribute("a_compatibility_version_enum", consts.AttributeType.AT_STRING, attributes_dict)
+        for attribute_name in self.octane_attribute_list:
             if hasattr(self, attribute_name):
-                self.export_attribute(attributes_data, attribute_name, int(attribute_types[idx]))
-        xml_str_data = ET.tostring(node_data)
-        return xml_str_data
+                self.dump_json_attribute(attribute_name, self.octane_attribute_config[attribute_name][2], attributes_dict)
+        # Pins
+        for _input in self.inputs:
+            if getattr(_input, "octane_deprecated", True):
+                continue
+            if _input.octane_socket_type in (consts.SocketType.ST_UNKNOWN, consts.SocketType.ST_GROUP_TITLE):
+                continue
+            self.dump_json_pin(_input, pins_dict)
+        self.dump_json_custom_node(node_dict)
+        return node_dict
 
-    def export_custom_data(self, root_element):
+    def dump_json_custom_node(self, node_dict):
         pass
 
-    def export_attribute(self, attributes_data, attribute_name, attribute_type):
-        data_text = ""
+    def dump_json_attribute(self, attribute_name, attribute_type, attributes_dict):
+        data = None
         value = getattr(self, attribute_name, None)
         if attribute_type == consts.AttributeType.AT_UNKNOWN:
             pass
         elif attribute_type == consts.AttributeType.AT_BOOL:
-            data_text = ("1" if value else "0")
+            data = value
         elif attribute_type == consts.AttributeType.AT_INT:
-            data_text = "%d" % value
+            data = value
         elif attribute_type == consts.AttributeType.AT_INT2:
-            data_text = "%d %d" % (value[0], value[1])
+            data = "%d %d" % (value[0], value[1])
         elif attribute_type == consts.AttributeType.AT_INT3:
-            data_text = "%d %d %d" % (value[0], value[1], value[2])
-        elif attribute_type == consts.AttributeType.AT_INT3:
-            data_text = "%d %d %d" % (value[0], value[1], value[2])
+            data = "%d %d %d" % (value[0], value[1], value[2])
         elif attribute_type == consts.AttributeType.AT_INT4:
-            data_text = "%d %d %d %d" % (value[0], value[1], value[2], value[3])
+            data = "%d %d %d %d" % (value[0], value[1], value[2], value[3])
         elif attribute_type == consts.AttributeType.AT_LONG:
-            data_text = "%d" % value
+            data = value
         elif attribute_type == consts.AttributeType.AT_LONG2:
-            data_text = "%d %d" % (value[0], value[1])
+            data = "%d %d" % (value[0], value[1])
         elif attribute_type == consts.AttributeType.AT_FLOAT:
-            data_text = "%f" % value
+            data = value
         elif attribute_type == consts.AttributeType.AT_FLOAT2:
-            data_text = "%f %f" % (value[0], value[1])
+            data = "%f %f" % (value[0], value[1])
         elif attribute_type == consts.AttributeType.AT_FLOAT3:
-            data_text = "%f %f %f" % (value[0], value[1], value[2])
+            data = "%f %f %f" % (value[0], value[1], value[2])
         elif attribute_type == consts.AttributeType.AT_FLOAT4:
-            data_text = "%f %f %f %f" % (value[0], value[1], value[2], value[3])
+            data = "%f %f %f %f" % (value[0], value[1], value[2], value[3])
         elif attribute_type == consts.AttributeType.AT_STRING:
-            data_text = value
+            data = value
         elif attribute_type == consts.AttributeType.AT_FILENAME:
-            data_text = value
+            data = value
         elif attribute_type == consts.AttributeType.AT_BYTE:
             pass
         elif attribute_type == consts.AttributeType.AT_MATRIX:
             pass
-        ET.SubElement(attributes_data, "attribute", name=attribute_name, type=str(attribute_type)).text = data_text
+        attributes_dict[attribute_name] = {"value": data}
+
+    def dump_json_pin(self, _input, pins_dict):
+        link = _input.links[0].from_node.name if _input.is_linked else None
+        socket_type = _input.octane_socket_type
+        value = getattr(_input, "default_value", None)
+        if socket_type == consts.SocketType.ST_BOOL:
+            data = value
+        elif socket_type == consts.SocketType.ST_ENUM:
+            data = value
+        elif socket_type == consts.SocketType.ST_INT:
+            data = value
+        elif socket_type == consts.SocketType.ST_INT2:
+            data = "%d %d" % (value[0], value[1])
+        elif socket_type == consts.SocketType.ST_INT3:
+            data = "%d %d %d" % (value[0], value[1], value[2])
+        elif socket_type == consts.SocketType.ST_FLOAT:
+            data = value
+        elif socket_type == consts.SocketType.ST_FLOAT2:
+            data = "%f %f" % (value[0], value[1])
+        elif socket_type == consts.SocketType.ST_FLOAT3:
+            data = "%f %f %f" % (value[0], value[1], value[2])
+        elif socket_type == consts.SocketType.ST_RGBA:
+            data = "%f %f %f" % (value[0], value[1], value[2])
+        elif socket_type == consts.SocketType.ST_STRING:
+            data = value
+        elif socket_type == consts.SocketType.ST_LINK:
+            data = value
+        pins_dict[_input.name] = {"value": data, "link": link}
+
+    # Load json methods
+    def load_json_node(self, node_dict, links_list):
+        self.name = node_dict["name"]
+        attributes_dict = node_dict["attributes"]
+        pins_dict = node_dict["pins"]
+        # Attributes
+        if hasattr(self, "a_compatibility_version_enum") and "a_compatibility_version_enum" in attributes_dict:
+            self.load_json_attribute("a_compatibility_version_enum", consts.AttributeType.AT_STRING, attributes_dict)        
+        for attribute_name in self.octane_attribute_list:
+            if hasattr(self, attribute_name) and attribute_name in attributes_dict:
+                self.load_json_attribute(attribute_name, self.octane_attribute_config[attribute_name][2], attributes_dict)
+        # Pins
+        for _input in self.inputs:
+            if getattr(_input, "octane_deprecated", True):
+                continue
+            if _input.octane_socket_type in (consts.SocketType.ST_UNKNOWN, consts.SocketType.ST_GROUP_TITLE):
+                continue
+            if _input.name not in pins_dict:
+                continue
+            self.load_json_pin(_input, pins_dict, links_list)
+        self.load_json_custom_node(node_dict, links_list)
+
+    def load_json_custom_node(self, node_dict, links_list):
+        pass
+
+    def load_json_attribute(self, attribute_name, attribute_type, attributes_dict):
+        data = None
+        attribute_dict = attributes_dict[attribute_name]
+        value = attribute_dict["value"]
+        if attribute_type == consts.AttributeType.AT_UNKNOWN:
+            pass
+        elif attribute_type == consts.AttributeType.AT_BOOL:
+            setattr(self, attribute_name, value)
+        elif attribute_type == consts.AttributeType.AT_INT:
+            setattr(self, attribute_name, value)
+        elif attribute_type == consts.AttributeType.AT_INT2:
+            x, y = map(int, value.split())
+            setattr(self, attribute_name, [x, y])
+        elif attribute_type == consts.AttributeType.AT_INT3:
+            x, y, z = map(int, value.split())
+            setattr(self, attribute_name, [x, y, z])
+        elif attribute_type == consts.AttributeType.AT_INT4:
+            x, y, z, w = map(int, value.split())
+            setattr(self, attribute_name, [x, y, z, w])
+        elif attribute_type == consts.AttributeType.AT_LONG:
+            setattr(self, attribute_name, value)
+        elif attribute_type == consts.AttributeType.AT_LONG2:
+            x, y = map(int, value.split())
+            setattr(self, attribute_name, [x, y])
+        elif attribute_type == consts.AttributeType.AT_FLOAT:
+            setattr(self, attribute_name, value)
+        elif attribute_type == consts.AttributeType.AT_FLOAT2:
+            x, y = map(float, value.split())
+            setattr(self, attribute_name, [x, y])
+        elif attribute_type == consts.AttributeType.AT_FLOAT3:
+            x, y, z = map(float, value.split())
+            setattr(self, attribute_name, [x, y, z])
+        elif attribute_type == consts.AttributeType.AT_FLOAT4:
+            x, y, z, w = map(float, value.split())
+            setattr(self, attribute_name, [x, y, z, w])
+        elif attribute_type == consts.AttributeType.AT_STRING:
+            setattr(self, attribute_name, value)
+        elif attribute_type == consts.AttributeType.AT_FILENAME:
+            setattr(self, attribute_name, value)
+        elif attribute_type == consts.AttributeType.AT_BYTE:
+            pass
+        elif attribute_type == consts.AttributeType.AT_MATRIX:
+            pass
+
+    def load_json_pin(self, _input, pins_dict, links_list):
+        socket_type = _input.octane_socket_type
+        pin_dict = pins_dict[_input.name]
+        value = pin_dict["value"]
+        link = pin_dict["link"]
+        if socket_type == consts.SocketType.ST_BOOL:
+            _input.default_value = value
+        elif socket_type == consts.SocketType.ST_ENUM:
+            _input.default_value = value
+        elif socket_type == consts.SocketType.ST_INT:
+            _input.default_value = value
+        elif socket_type == consts.SocketType.ST_INT2:
+            x, y = map(int, value.split())
+            _input.default_value = [x, y]
+        elif socket_type == consts.SocketType.ST_INT3:
+            x, y, z = map(int, value.split())
+            _input.default_value = [x, y, z]
+        elif socket_type == consts.SocketType.ST_FLOAT:
+            _input.default_value = value
+        elif socket_type == consts.SocketType.ST_FLOAT2:
+            x, y = map(float, value.split())
+            _input.default_value = [x, y]
+        elif socket_type == consts.SocketType.ST_FLOAT3:
+            x, y, z = map(float, value.split())
+            _input.default_value = [x, y, z]
+        elif socket_type == consts.SocketType.ST_RGBA:
+            x, y, z = map(float, value.split())
+            _input.default_value = [x, y, z]
+        elif socket_type == consts.SocketType.ST_STRING:
+            _input.default_value = value
+        elif socket_type == consts.SocketType.ST_LINK:
+            _input.default_value = value
+        if link is not None and len(link):
+            link_dict = {
+                "to_node": self.name,
+                "to_socket": _input.name,
+                "from_node": link,
+            }
+            links_list.append(link_dict)
 
     # Movable inputs methods
     def update_movable_input_count(self, attribute_name, input_socket_bl_idname, input_name_pattern):

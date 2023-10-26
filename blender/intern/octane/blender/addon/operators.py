@@ -24,7 +24,7 @@ COMMAND_TYPES = {
     'CLEAR_RESOURCE_CACHE_SYSTEM': 10,
 }
 
-EXPORT_TYPES = {    
+EXPORT_TYPES = {
     'ALEMBIC': 1,
     'ORBX': 2,    
 }
@@ -1060,7 +1060,8 @@ def export_menu_func(self, context):
     self.layout.operator_context = 'INVOKE_DEFAULT'
     self.layout.operator(OCTANE_OT_OrbxExport.bl_idname, text="Octane Orbx(.orbx)")
     self.layout.operator(OCTANE_OT_AlembicExport.bl_idname, text="Octane Alembic(.abc)")
-    self.layout.operator(OCTANE_OT_SaveAsAddonFile.bl_idname, text="OctaneBlender Addon(.blend)")
+    if not core.ENABLE_OCTANE_ADDON_CLIENT:
+        self.layout.operator(OCTANE_OT_SaveAsAddonFile.bl_idname, text="OctaneBlender Addon(.blend)")
 
 
 classes = (

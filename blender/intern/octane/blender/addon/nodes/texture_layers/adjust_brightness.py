@@ -177,7 +177,7 @@ class OctaneTexLayerAdjustBrightness(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneTexLayerAdjustBrightnessLuminance", OctaneTexLayerAdjustBrightnessLuminance.bl_label).init()
         self.inputs.new("OctaneTexLayerAdjustBrightnessOpacity", OctaneTexLayerAdjustBrightnessOpacity.bl_label).init()
         self.inputs.new("OctaneTexLayerAdjustBrightnessBlendMode", OctaneTexLayerAdjustBrightnessBlendMode.bl_label).init()
-        self.outputs.new("OctaneCompositeTextureLayerOutSocket", "Composite texture layer out").init()
+        self.outputs.new("OctaneTextureLayerOutSocket", "Texture layer out").init()
 
     @classmethod
     def poll(cls, node_tree):

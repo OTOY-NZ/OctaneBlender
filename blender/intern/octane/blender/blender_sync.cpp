@@ -78,9 +78,7 @@ BlenderSync::BlenderSync(BL::RenderEngine &b_engine,
 {
 }
 
-BlenderSync::~BlenderSync()
-{
-}
+BlenderSync::~BlenderSync() {}
 
 bool BlenderSync::is_frame_updated()
 {
@@ -145,7 +143,8 @@ void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph)
       if (object_is_mesh(b_ob)) {
         if (updated_geometry ||
             (dicing_prop_changed &&
-             object_subdivision_type(b_ob, preview, experimental) != Mesh::SUBDIVISION_NONE)) {
+             object_subdivision_type(b_ob, preview, experimental) != Mesh::SUBDIVISION_NONE))
+        {
           BL::ID key = BKE_object_is_modified(b_ob) ? b_ob : b_ob.data();
           mesh_map.set_recalc(key);
         }
@@ -213,7 +212,8 @@ void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph)
       }
       if (shader->graph && (shader->graph->type == ShaderGraphType::SHADER_GRAPH_COMPOSITE ||
                             shader->graph->type == ShaderGraphType::SHADER_GRAPH_RENDER_AOV ||
-                            shader->graph->type == SHADER_GRAPH_KERNEL)) {
+                            shader->graph->type == SHADER_GRAPH_KERNEL))
+      {
         shader->need_update = true;
       }
     }
@@ -230,21 +230,10 @@ void BlenderSync::sync_render_passes(BL::Depsgraph &b_depsgraph, BL::ViewLayer &
   this->composite_aov_node_tree = BlenderSync::find_active_composite_node_tree(oct);
   this->render_aov_node_tree = BlenderSync::find_active_render_aov_node_tree(oct);
 
-  int render_aov_preview_pass = ::Octane::RenderPassId::RENDER_PASS_BEAUTY;
-  if (this->render_aov_node_tree.ptr.data != NULL) {
-    render_aov_preview_pass = get_render_aov_preview_pass(this->render_aov_node_tree);
-  }
+  int current_preview_pass_type = get_current_preview_render_pass(b_view_layer);
   this->use_render_aov_node_tree = (get_enum(oct, "render_pass_style") != 0);
-
   passes->oct_node->bUsePasses = get_boolean(oct, "use_passes");
-  int current_preview_pass_type = get_enum(oct, "current_preview_pass_type");
-  int current_aov_output_id = get_int(oct, "current_aov_output_id");
-  if (current_preview_pass_type == 10000) {
-    current_preview_pass_type = current_preview_pass_type + current_aov_output_id - 1;
-  }
-  if (this->use_render_aov_node_tree) {
-    current_preview_pass_type = render_aov_preview_pass;
-  }
+
   std::string orbx_path = "./libraries/orbx/RenderPassesData.orbx";
   passes->oct_node->sRenderPassesLibraryOrbxPath = blender_absolute_path(
       b_data, b_scene, path_get(orbx_path));
@@ -494,6 +483,7 @@ SessionParams BlenderSync::get_session_params(
     BL::RenderEngine &b_engine,
     BL::Preferences &b_userpref,
     BL::Scene &b_scene,
+    BL::ViewLayer &b_viewlayer,
     bool background,
     int width,
     int height,
@@ -513,8 +503,12 @@ SessionParams BlenderSync::get_session_params(
   int max_sample = 0, max_preview_sample = 0, max_info_sample = 0;
   get_samples(oct_scene, max_sample, max_preview_sample, max_info_sample);
   ::Octane::RenderPassId cur_pass_type = ::Octane::RenderPassId::RENDER_PASS_BEAUTY;
+  if (b_viewlayer.ptr.data != NULL) {
+    cur_pass_type = (::Octane::RenderPassId)get_current_preview_render_pass(b_viewlayer);
+  }
   if (cur_pass_type < ::Octane::RenderPassId::RENDER_PASS_INFO_OFFSET ||
-      cur_pass_type > ::Octane::RenderPassId::RENDER_PASS_CRYPTOMATTE_OFFSET) {
+      cur_pass_type > ::Octane::RenderPassId::RENDER_PASS_CRYPTOMATTE_OFFSET)
+  {
     if (!params.interactive) {
       params.samples = max_sample;
     }
@@ -580,6 +574,19 @@ SessionParams BlenderSync::get_session_params(
         octane_preferences = b_addon.preferences().ptr;
         params.use_shared_surface = CommonD3D::IsD3DInited() &&
                                     get_boolean(octane_preferences, "use_shared_surface");
+        // Temporal solution for the crash problem caused by shared surface and composite feature
+        BL::Scene::view_layers_iterator b_view_layer_iter;
+        for (b_scene.view_layers.begin(b_view_layer_iter);
+             b_view_layer_iter != b_scene.view_layers.end();
+             ++b_view_layer_iter)
+        {
+          PointerRNA oct_viewlayer = RNA_pointer_get(&b_view_layer_iter->ptr, "octane");
+          BL::NodeTree composite_aov_node_tree = BlenderSync::find_active_composite_node_tree(
+              oct_viewlayer);
+          if (composite_aov_node_tree.ptr.data != NULL) {
+            params.use_shared_surface = false;
+          }
+        }
         break;
       }
     }
@@ -625,7 +632,7 @@ BL::NodeTree BlenderSync::find_active_render_aov_node_tree(PointerRNA oct_viewla
 {
   BL::NodeTree render_aov_node_tree = BL::NodeTree(PointerRNA_NULL);
   PointerRNA node_graph_property = RNA_pointer_get(&oct_viewlayer,
-                                                          "render_aov_node_graph_property");
+                                                   "render_aov_node_graph_property");
   if (node_graph_property.data != NULL) {
     PointerRNA node_tree = RNA_pointer_get(&node_graph_property, "node_tree");
     if (node_tree.data != NULL) {
@@ -639,7 +646,7 @@ BL::NodeTree BlenderSync::find_active_composite_node_tree(PointerRNA oct_viewlay
 {
   BL::NodeTree composite_node_tree = BL::NodeTree(PointerRNA_NULL);
   PointerRNA node_graph_property = RNA_pointer_get(&oct_viewlayer,
-                                                          "composite_node_graph_property");
+                                                   "composite_node_graph_property");
   if (node_graph_property.data != NULL) {
     PointerRNA node_tree = RNA_pointer_get(&node_graph_property, "node_tree");
     if (node_tree.data != NULL) {
@@ -729,7 +736,8 @@ void BlenderSync::get_samples(PointerRNA oct_scene,
       if (active_kernel_node.ptr.data != NULL) {
         BL::Node::inputs_iterator b_input;
         for (active_kernel_node.inputs.begin(b_input); b_input != active_kernel_node.inputs.end();
-             ++b_input) {
+             ++b_input)
+        {
           if (b_input->name() == "Max. preview samples") {
             max_preview_sample = get_int(b_input->ptr, "default_value");
           }
@@ -743,8 +751,28 @@ void BlenderSync::get_samples(PointerRNA oct_scene,
   else {
     max_sample = get_int(oct_scene, "max_samples");
     max_preview_sample = get_int(oct_scene, "max_preview_samples");
-    max_info_sample = get_int(oct_scene, "info_pass_max_samples");
   }
+  max_info_sample = get_int(oct_scene, "info_pass_max_samples");
+}
+
+int BlenderSync::get_current_preview_render_pass(BL::ViewLayer &b_view_layer)
+{
+  PointerRNA oct = RNA_pointer_get(&b_view_layer.ptr, "octane");
+  BL::NodeTree render_aov_node_tree = BlenderSync::find_active_render_aov_node_tree(oct);
+  int render_aov_preview_pass = ::Octane::RenderPassId::RENDER_PASS_BEAUTY;
+  if (render_aov_node_tree.ptr.data != NULL) {
+    render_aov_preview_pass = get_render_aov_preview_pass(render_aov_node_tree);
+  }
+  bool use_render_aov_node_tree = (get_enum(oct, "render_pass_style") != 0);
+  int current_preview_pass_type = get_enum(oct, "current_preview_pass_type");
+  int current_aov_output_id = get_int(oct, "current_aov_output_id");
+  if (current_preview_pass_type == 10000) {
+    current_preview_pass_type = current_preview_pass_type + current_aov_output_id - 1;
+  }
+  if (use_render_aov_node_tree) {
+    current_preview_pass_type = render_aov_preview_pass;
+  }
+  return current_preview_pass_type;
 }
 
 void BlenderSync::sync_kernel()
@@ -880,6 +908,9 @@ void BlenderSync::sync_kernel()
 
   kernel->oct_node->type = static_cast<::OctaneEngine::Kernel::KernelType>(
       RNA_enum_get(&oct_scene, "kernel_type"));
+  if (kernel->oct_node->bUseNodeTree) {
+    kernel->oct_node->type = ::OctaneEngine::Kernel::DEFAULT;
+  }
   kernel->oct_node->infoChannelType = static_cast<::OctaneEngine::InfoChannelType>(
       RNA_enum_get(&oct_scene, "info_channel_type"));
 
@@ -1068,7 +1099,8 @@ std::string BlenderSync::get_env_texture_name(PointerRNA *env,
            ::Octane::RenderPassId::RENDER_PASS_REFLECTION_DIRECT_DENOISER_OUTPUT);
   MAP_PASS("DenoisedReflectionIndirect",
            ::Octane::RenderPassId::RENDER_PASS_REFLECTION_INDIRECT_DENOISER_OUTPUT);
-  // MAP_PASS("DenoisedRefraction", ::Octane::RenderPassId::RENDER_PASS_REFRACTION_DENOISER_OUTPUT);
+  // MAP_PASS("DenoisedRefraction",
+  // ::Octane::RenderPassId::RENDER_PASS_REFRACTION_DENOISER_OUTPUT);
   MAP_PASS("DenoisedEmission", ::Octane::RenderPassId::RENDER_PASS_EMISSION_DENOISER_OUTPUT);
   MAP_PASS("DenoisedRemainder", ::Octane::RenderPassId::RENDER_PASS_REMAINDER_DENOISER_OUTPUT);
   MAP_PASS("DenoisedVolume", ::Octane::RenderPassId::RENDER_PASS_VOLUME_DENOISER_OUTPUT);
@@ -1423,7 +1455,8 @@ MeshType BlenderSync::resolve_mesh_type(std::string name,
   }
   if (final_mesh_type == MeshType::AUTO) {
     if (blender_object_type == BL::Object::type_META ||
-        blender_object_type == BL::Object::type_CURVES || is_resharpable_candidate(name)) {
+        blender_object_type == BL::Object::type_CURVES || is_resharpable_candidate(name))
+    {
       final_mesh_type = MeshType::RESHAPABLE_PROXY;
     }
     else if (is_movable_candidate(name)) {

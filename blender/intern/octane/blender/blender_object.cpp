@@ -37,6 +37,8 @@
 #include "util/util_progress.h"
 #include "util/util_types.h"
 
+#include "BKE_duplilist.h"
+
 OCT_NAMESPACE_BEGIN
 
 bool BlenderSync::BKE_object_is_modified(BL::Object &b_ob)
@@ -78,7 +80,8 @@ bool BlenderSync::object_is_mesh(BL::Object &b_ob)
   BL::Object::type_enum type = b_ob.type();
 
   if (type == BL::Object::type_VOLUME || type == BL::Object::type_CURVES ||
-      type == BL::Object::type_POINTCLOUD) {
+      type == BL::Object::type_POINTCLOUD)
+  {
     /* Will be exported attached to mesh. */
     return true;
   }
@@ -95,6 +98,28 @@ bool BlenderSync::object_is_mesh(BL::Object &b_ob)
   }
 
   return b_ob_data.is_a(&RNA_Mesh);
+}
+
+extern "C" DupliObject *rna_hack_DepsgraphObjectInstance_dupli_object_get(PointerRNA *ptr);
+
+static float4 lookup_instance_property(BL::DepsgraphObjectInstance &b_instance,
+                                       const string &name,
+                                       bool use_instancer)
+{
+  ::Object *ob = (::Object *)b_instance.object().ptr.data;
+  ::DupliObject *dupli = nullptr;
+  ::Object *dupli_parent = nullptr;
+
+  /* If requesting instance data, check the parent particle system and object. */
+  if (use_instancer && b_instance.is_instance()) {
+    dupli = rna_hack_DepsgraphObjectInstance_dupli_object_get(&b_instance.ptr);
+    dupli_parent = (::Object *)b_instance.parent().ptr.data;
+  }
+
+  float4 value;
+  BKE_object_dupli_find_rgba_attribute(ob, dupli, dupli_parent, name.c_str(), &value.x);
+
+  return value;
 }
 
 /* Light */
@@ -129,7 +154,7 @@ static void update_light_transform(Light *light,
       break;
     }
     case BL::Light::type_SPOT: {
-      Transform spot_tfm = tfm *transform_rotate(M_PI_2_F, make_float3(1, 0, 0));
+      Transform spot_tfm = tfm * transform_rotate(M_PI_2_F, make_float3(1, 0, 0));
       light->update_transform(spot_tfm, motion_time);
       break;
     }
@@ -156,8 +181,7 @@ static void update_light_transform(Light *light,
             sizev = b_area_light.size_y();
             break;
         }
-        if (use_octane_quad_light) 
-        {
+        if (use_octane_quad_light) {
           float3 dir = transform_get_column(&tfm, 2);
           dir *= -1;
           transform_set_column(&tfm, 2, dir);
@@ -166,7 +190,7 @@ static void update_light_transform(Light *light,
         else {
           Transform light_tfm(tfm * transform_scale(sizeu, sizev, 1));
           light->update_transform(light_tfm, motion_time);
-        }    
+        }
       }
       break;
     }
@@ -213,7 +237,8 @@ void BlenderSync::sync_light(BL::Object &b_parent,
       }
       for (auto candidate_motion_time : candidate_motion_times) {
         if (candidate_motion_time >= motion_blur_frame_start_offset &&
-            candidate_motion_time <= motion_blur_frame_end_offset) {
+            candidate_motion_time <= motion_blur_frame_end_offset)
+        {
           motion_times.insert(candidate_motion_time);
           light->motion_blur_times.insert(candidate_motion_time);
         }
@@ -288,15 +313,14 @@ void BlenderSync::sync_light(BL::Object &b_parent,
         light->need_light_object_update = true;
         light->enable = true;
       }
-      else if(octane_point_light_type == 1)
-      {
+      else if (octane_point_light_type == 1) {
         // Sphere Point
         light->light.iLightNodeType = Octane::NT_LIGHT_SPHERE;
         light->light.sLightMeshName = current_light_mesh_name;
         light->light.oObject.sMeshName = current_light_mesh_name;
         light->light.oObject.iUseObjectLayer =
             OctaneDataTransferObject::OctaneObject::NO_OBJECT_LAYER;
-        light->need_light_object_update = true;        
+        light->need_light_object_update = true;
         light->light.fRadius = b_point_light.shadow_soft_size();
         light->enable = true;
       }
@@ -356,7 +380,7 @@ void BlenderSync::sync_light(BL::Object &b_parent,
           PointerRNA mesh_object_ptr = RNA_pointer_get(&oct_light, "light_mesh_object");
           PointerRNA mesh_ptr = RNA_pointer_get(&oct_light, "light_mesh");
           if (mesh_object_ptr.data) {
-            BL::Object b_ob(mesh_object_ptr);            
+            BL::Object b_ob(mesh_object_ptr);
             BL::ID b_ob_data = b_ob.data();
             std::string b_ob_name = BKE_object_is_modified(b_ob) ? b_ob.name_full() : "";
             current_light_mesh_name = resolve_octane_name(b_ob_data, b_ob_name, MESH_TAG);
@@ -370,7 +394,6 @@ void BlenderSync::sync_light(BL::Object &b_parent,
         CHECK_LIGHT_OBJECT_UPDATE(light->light.sLightMeshName, current_light_mesh_name);
         light->light.oObject.sMeshName = light->light.sLightMatMapName;
         light->enable = true;
-
       }
       else {
         // Area Light
@@ -536,7 +559,8 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
 
   std::string object_name;
   if (scene && scene->session && scene->session->params.maximize_instancing &&
-      !use_geometry_node_modifier) {
+      !use_geometry_node_modifier)
+  {
     object_name = b_ob.name_full() + OBJECT_TAG;
   }
   else {
@@ -664,7 +688,8 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
         }
         for (auto candidate_motion_time : candidate_motion_times) {
           if (candidate_motion_time >= motion_blur_frame_start_offset &&
-              candidate_motion_time <= motion_blur_frame_end_offset) {
+              candidate_motion_time <= motion_blur_frame_end_offset)
+          {
             motion_times.insert(candidate_motion_time);
             object->motion_blur_times.insert(candidate_motion_time);
           }
@@ -696,8 +721,27 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
   //	sync_dupli_particle(b_parent, b_instance, object);
   //}
 
-  if (object->particle_id) {
-    object->octane_object.iInstanceId = object->particle_id;
+  std::string scatter_id_source_type = get_enum_identifier(octane_object,
+                                                           "scatter_id_source_type");
+  if (scatter_id_source_type == "Built-in") {
+    if (object->particle_id) {
+      object->octane_object.iInstanceId = object->particle_id;
+    }
+    object->use_seq_instance_id = false;
+  }
+  else if (scatter_id_source_type == "Attribute") {
+    std::string scatter_id_source_instance_attribute = get_string(
+        octane_object, "scatter_id_source_instance_attribute");
+    float4 value = lookup_instance_property(
+        b_instance, scatter_id_source_instance_attribute, true);
+    object->octane_object.iInstanceId = value.x;
+    object->use_seq_instance_id = false;
+  }
+  else if (scatter_id_source_type == "Sequence") {
+    object->use_seq_instance_id = true;
+  }
+  else {
+    object->use_seq_instance_id = false;
   }
   return object;
 }
@@ -732,7 +776,8 @@ void BlenderSync::sync_objects(BL::Depsgraph &b_depsgraph,
   BL::Depsgraph::object_instances_iterator b_instance_iter;
   for (b_depsgraph.object_instances.begin(b_instance_iter);
        b_instance_iter != b_depsgraph.object_instances.end() && !cancel;
-       ++b_instance_iter) {
+       ++b_instance_iter)
+  {
     BL::DepsgraphObjectInstance b_instance = *b_instance_iter;
     BL::Object b_ob = b_instance.object();
 
@@ -800,7 +845,8 @@ void BlenderSync::sync_motion(BL::RenderSettings &b_render,
   if (scene && scene->camera) {
     for (auto candidate_motion_time : scene->camera->motion_blur_times) {
       if (candidate_motion_time >= motion_blur_frame_start_offset &&
-          candidate_motion_time <= motion_blur_frame_end_offset) {
+          candidate_motion_time <= motion_blur_frame_end_offset)
+      {
         motion_times.insert(candidate_motion_time);
       }
     }

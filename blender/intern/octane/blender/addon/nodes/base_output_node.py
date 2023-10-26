@@ -310,10 +310,10 @@ class OctaneOutputAOVSocket(OctaneBaseSocket):
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
 
-class OctaneCompositeTextureLayerSocket(OctaneBaseSocket):
-    bl_idname="OctaneCompositeTextureLayerSocket"
-    bl_label="CompositeTextureLayer"
-    color=consts.OctanePinColor.CompositeTextureLayer
+class OctaneTextureLayerSocket(OctaneBaseSocket):
+    bl_idname="OctaneTextureLayerSocket"
+    bl_label="TextureLayer"
+    color=consts.OctanePinColor.TextureLayer
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEX_COMPOSITE_LAYER)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
     octane_hide_value=True
@@ -989,18 +989,18 @@ class OctaneOutputAOVOutputNode(bpy.types.Node, OctaneBaseOutputNode):
     def poll(cls, node_tree):
         return OctaneBaseOutputNode.poll(node_tree)
 
-class OctaneCompositeTextureLayerOutputNode(bpy.types.Node, OctaneBaseOutputNode):
-    bl_idname="OctaneCompositeTextureLayerOutputNode"
-    bl_label="Composite texture layer Output"
+class OctaneTextureLayerOutputNode(bpy.types.Node, OctaneBaseOutputNode):
+    bl_idname="OctaneTextureLayerOutputNode"
+    bl_label="Texture layer Output"
     octane_node_type=consts.NodeType.NT_OUT_TEX_COMPOSITE_LAYER
-    octane_color=consts.OctanePinColor.CompositeTextureLayer
+    octane_color=consts.OctanePinColor.TextureLayer
     use_custom_color=True
     bl_width_default=200
     bl_height_default=100
 
     def init(self, context):
         super().init(context)
-        self.inputs.new("OctaneCompositeTextureLayerSocket", OctaneCompositeTextureLayerSocket.bl_label).init()
+        self.inputs.new("OctaneTextureLayerSocket", OctaneTextureLayerSocket.bl_label).init()
 
     @classmethod
     def poll(cls, node_tree):
@@ -1097,7 +1097,7 @@ _CLASSES=[
     OctaneOCIOColorSpaceSocket,
     OctaneOutputAOVGroupSocket,
     OctaneOutputAOVSocket,
-    OctaneCompositeTextureLayerSocket,
+    OctaneTextureLayerSocket,
     OctaneOutputAOVLayerSocket,
     OctaneBlendingSettingsSocket,
     OctanePostVolumeSocket,
@@ -1139,7 +1139,7 @@ _CLASSES=[
     OctaneOCIOColorSpaceOutputNode,
     OctaneOutputAOVGroupOutputNode,
     OctaneOutputAOVOutputNode,
-    OctaneCompositeTextureLayerOutputNode,
+    OctaneTextureLayerOutputNode,
     OctaneOutputAOVLayerOutputNode,
     OctaneBlendingSettingsOutputNode,
     OctanePostVolumeOutputNode,
@@ -1191,8 +1191,12 @@ class OctaneEditorWorldOutputNode(bpy.types.Node, OctaneBaseOutputNode):
         self.inputs.new("OctaneEnvironmentSocket", consts.OctaneOutputNodeSocketNames.ENVIRONMENT).init()
         self.inputs.new("OctaneEnvironmentSocket", consts.OctaneOutputNodeSocketNames.VISIBLE_ENVIRONMENT).init()
 
-    def load_custom_legacy_node(self, legacy_node, node_tree, context, report):
+    def load_custom_legacy_node(self, legacy_node, node_tree, context, report=None):
+        if "Octane Environment" not in legacy_node.inputs or "Octane VisibleEnvironment" not in legacy_node.inputs:
+            return
         legacy_environment_socket = legacy_node.inputs["Octane Environment"]
+        if not legacy_environment_socket.is_linked:
+            legacy_environment_socket = legacy_node.inputs["Surface"]
         legacy_visible_environment_socket = legacy_node.inputs["Octane VisibleEnvironment"]
         new_environment_socket = self.inputs[consts.OctaneOutputNodeSocketNames.ENVIRONMENT]
         new_visible_environment_socket = self.inputs[consts.OctaneOutputNodeSocketNames.VISIBLE_ENVIRONMENT]
@@ -1482,3 +1486,33 @@ class OctaneCompositeAOVOutputLayerOutputNode(bpy.types.Node, OctaneBaseOutputNo
         return OctaneBaseOutputNode.poll(node_tree)
 
 _CLASSES.extend([OctaneAOVOutputGroupOutputNode, OctaneAOVOutputOutputNode, OctaneCompositeAOVLayerOutputNode, OctaneCompositeAOVOutputLayerOutputNode])
+
+
+"""Texture Layer Stuffs"""
+
+class OctaneCompositeTextureLayerSocket(OctaneBaseSocket):
+    bl_idname="OctaneCompositeTextureLayerSocket"
+    bl_label="CompositeTextureLayer"
+    color=consts.OctanePinColor.TextureLayer
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEX_COMPOSITE_LAYER)
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_hide_value=True
+
+class OctaneCompositeTextureLayerOutputNode(bpy.types.Node, OctaneBaseOutputNode):
+    bl_idname="OctaneCompositeTextureLayerOutputNode"
+    bl_label="Composite texture layer Output"
+    octane_node_type=consts.NodeType.NT_OUT_TEX_COMPOSITE_LAYER
+    octane_color=consts.OctanePinColor.TextureLayer
+    use_custom_color=True
+    bl_width_default=200
+    bl_height_default=100
+
+    def init(self, context):
+        super().init(context)
+        self.inputs.new("OctaneCompositeTextureLayerSocket", OctaneCompositeTextureLayerSocket.bl_label).init()
+
+    @classmethod
+    def poll(cls, node_tree):
+        return OctaneBaseOutputNode.poll(node_tree)
+
+_CLASSES.extend([OctaneCompositeTextureLayerSocket, OctaneCompositeTextureLayerOutputNode])

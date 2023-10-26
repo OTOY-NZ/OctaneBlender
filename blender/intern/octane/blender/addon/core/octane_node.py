@@ -2,8 +2,7 @@ import xml.etree.ElementTree as ET
 from octane.utils import consts, utility
 from octane.core.octane_info import OctaneInfoManger
 from octane import core
-if core.ENABLE_OCTANE_ADDON_CLIENT:
-    from octane.bin import octane_blender
+octane_blender = core.get_octane_blender_binary_module()
 
 
 class CArray(object):

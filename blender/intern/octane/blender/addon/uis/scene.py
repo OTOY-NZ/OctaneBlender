@@ -1,4 +1,5 @@
 import bpy
+import platform
 import xml.etree.ElementTree as ET
 from bpy.types import Panel, Menu, Operator
 from bpy.utils import register_class, unregister_class
@@ -7,8 +8,26 @@ from octane.utils import consts, utility
 from octane import core
 
 
-class OCTANE_MT_legacy_kernel_presets(Menu):
+class OCTANE_MT_kernel_presets(Menu):
     bl_label = "Kernel presets"
+    preset_subdir = "octane/kernel_presets"
+    preset_operator = "script.execute_preset"
+    preset_operator_defaults = {"menu_idname" : "OCTANE_MT_kernel_presets"}
+    COMPAT_ENGINES = {"octane"}
+    draw = Menu.draw_preset
+
+    @classmethod
+    def post_cb(cls, context):
+        from os.path import basename
+        from octane.utils import utility
+        preset_name = cls.bl_label
+        octane_scene = context.scene.octane
+        kernel_json_node_tree_helper = octane_scene.kernel_json_node_tree_helper
+        utility.quick_add_octane_kernel_node_tree(assign_to_kernel_node_graph=True, generate_from_legacy_octane_property=False, json_node_tree=kernel_json_node_tree_helper, preset_name=preset_name)
+
+
+class OCTANE_MT_legacy_kernel_presets(Menu):
+    bl_label = "Legacy Kernel presets"
     preset_subdir = "octane/kernel"
     preset_operator = "script.execute_preset"
     preset_operator_defaults = {"menu_idname" : "OCTANE_MT_legacy_kernel_presets"}
@@ -22,13 +41,12 @@ class OCTANE_MT_legacy_kernel_presets(Menu):
         preset_name = cls.bl_label
         octane_scene = context.scene.octane
         utility.quick_add_octane_kernel_node_tree(assign_to_kernel_node_graph=True, generate_from_legacy_octane_property=True, preset_name=preset_name)
-        octane_scene.kernel_data_mode = "NODETREE"
 
 
 class OCTANE_MT_renderpasses_presets(Menu):
     bl_label = "Render Passes presets"
-    preset_subdir = "octane/renderpasses"
-    preset_operator = "script.execute_preset_octane"
+    preset_subdir = "octane/renderpasses_presets"
+    preset_operator = "script.execute_preset"
     preset_operator_defaults = {"menu_idname" : "OCTANE_MT_renderpasses_presets"}
     COMPAT_ENGINES = {"octane"}
     draw = Menu.draw_preset
@@ -39,25 +57,50 @@ class OCTANE_RENDER_PT_kernel(common.OctanePropertyPanel, Panel):
     bl_context = "render"
 
     def draw(self, context):
-        scene = context.scene
-        octane_scene = scene.octane
-        layout = self.layout
-        row = layout.row()
-        row.prop(octane_scene.kernel_node_graph_property, "node_tree", text="Kernel Node Tree", icon='NODETREE')
-        node_tree = utility.find_active_kernel_node_tree(context.scene)
-        utility.panel_ui_node_tree_view(context, layout, node_tree, consts.OctaneNodeTreeIDName.KERNEL)
+        pass
 
 
-class OCTANE_RENDER_PT_legacy_kernel(common.OctanePropertyPanel, Panel):
-    bl_label = "Legacy Kernel Converter"
+class OCTANE_RENDER_PT_kernel_preset(common.OctanePropertyPanel, Panel):
+    bl_label = "Kernel Presets"
     bl_context = "render"
     bl_parent_id = "OCTANE_RENDER_PT_kernel"
-    bl_options = {'DEFAULT_CLOSED'}
 
     def draw(self, context):
         layout = self.layout
         row = layout.row()
-        row.menu("OCTANE_MT_legacy_kernel_presets", text=OCTANE_MT_legacy_kernel_presets.bl_label)
+        row.menu("OCTANE_MT_kernel_presets", text=OCTANE_MT_kernel_presets.bl_label)
+        row.operator("render.octane_kernel_preset_add", text="", icon="ADD")
+        row.operator("render.octane_kernel_preset_add", text="", icon="REMOVE").remove_active = True
+
+
+class OCTANE_RENDER_PT_kernel_legacy_preset(common.OctanePropertyPanel, Panel):
+    bl_label = "Legacy Presets"
+    bl_context = "render"
+    bl_parent_id = "OCTANE_RENDER_PT_kernel_preset"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw(self, context):
+        layout = self.layout
+        row = layout.row()    
+        row.menu("OCTANE_MT_legacy_kernel_presets", text="Load the legacy panel kernel presets")
+
+
+class OCTANE_RENDER_PT_kernel_nodetree(common.OctanePropertyPanel, Panel):
+    bl_label = "Kernel NodeTree"
+    bl_context = "render"
+    bl_parent_id = "OCTANE_RENDER_PT_kernel"
+
+    def draw(self, context):
+        scene = context.scene
+        octane_scene = scene.octane
+        node_tree = utility.find_active_kernel_node_tree(scene)
+        layout = self.layout
+        row = layout.row()
+        row.operator("octane.quick_add_kernel_nodetree", icon="NODETREE", text="New Default").create_new_window = True
+        row.operator("octane.show_kernel_nodetree", icon="NODETREE", text="Show in NodeEditor").create_new_window = True
+        row = layout.row()
+        row.prop(octane_scene.kernel_node_graph_property, "node_tree", text="Kernel Node Tree", icon='NODETREE')
+        utility.panel_ui_node_tree_view(context, layout, node_tree, consts.OctaneNodeTreeIDName.KERNEL, consts.OctaneOutputNodeSocketNames.KERNEL)
 
 
 class OCTANE_RENDER_PT_motion_blur(common.OctanePropertyPanel, Panel):
@@ -105,7 +148,8 @@ class OCTANE_RENDER_PT_server(common.OctanePropertyPanel, Panel):
         col.operator("octane.show_octane_node_graph", text="Show Octane Node Graph")
         col.operator("octane.open_octanedb", text="Open OctaneDB")
         col.operator("octane.show_octane_log", text="Show Octane Log")
-        col.operator("octane.show_octane_viewport", text="Show Octane Viewport")
+        if platform.system() == "Windows":
+            col.operator("octane.show_octane_viewport", text="Show Octane Viewport")
         col.operator("octane.show_octane_device_setting", text="Device Preferences")
         col.operator("octane.show_octane_network_preference", text="Network Preferences")
         col.operator("octane.activate", text="Activation state")
@@ -182,7 +226,7 @@ class OCTANE_RENDER_PT_AOV_node_graph(OctaneRenderAOVNodeGraphPanel, Panel):
         col.prop(octane_view_layer, "render_pass_style")
         render_aov_node_graph_property = octane_view_layer.render_aov_node_graph_property
         col.prop(render_aov_node_graph_property, "node_tree", text="AOV Node Tree", icon="NODETREE")
-        utility.panel_ui_node_tree_view(context, layout, render_aov_node_graph_property.node_tree, consts.OctaneNodeTreeIDName.RENDER_AOV)
+        utility.panel_ui_node_tree_view1(context, layout, render_aov_node_graph_property.node_tree, consts.OctaneNodeTreeIDName.RENDER_AOV)
 
 
 class OctaneRenderPassesPanel(common.OctanePropertyPanel):
@@ -553,7 +597,7 @@ class OCTANE_RENDER_PT_AOV_Output_node_graph(common.OctanePropertyPanel, Panel):
         row = layout.row()
         composite_node_graph_property = octane_view_layer.composite_node_graph_property
         row.prop(composite_node_graph_property, "node_tree", text="AOV Output Node Tree", icon='NODETREE')
-        utility.panel_ui_node_tree_view(context, layout, composite_node_graph_property.node_tree, consts.OctaneNodeTreeIDName.COMPOSITE)
+        utility.panel_ui_node_tree_view1(context, layout, composite_node_graph_property.node_tree, consts.OctaneNodeTreeIDName.COMPOSITE)
 
 
 class OCTANE_RENDER_PT_override(common.OctanePropertyPanel, Panel):
@@ -615,10 +659,13 @@ def octane_presets_light_menu(self, context):
 
 
 _CLASSES = [
+    OCTANE_MT_kernel_presets,
     OCTANE_MT_legacy_kernel_presets,
     OCTANE_MT_renderpasses_presets,
     OCTANE_RENDER_PT_kernel,
-    OCTANE_RENDER_PT_legacy_kernel,
+    OCTANE_RENDER_PT_kernel_preset,
+    OCTANE_RENDER_PT_kernel_legacy_preset,
+    OCTANE_RENDER_PT_kernel_nodetree,
     OCTANE_RENDER_PT_motion_blur,
     OCTANE_RENDER_PT_server,
     OCTANE_RENDER_PT_out_of_core,

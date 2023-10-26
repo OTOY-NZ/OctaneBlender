@@ -293,8 +293,11 @@ void Scene::generate_updated_octane_objects_data(
           added_octane_object.insert(object->name);
           octane_objects.oObjects.emplace_back(object->octane_object);
         }
-        octane_objects.iInstanceIDMap[object->name].emplace_back(
-            object->octane_object.iInstanceId);
+        int32_t instance_id = object->octane_object.iInstanceId;
+        if (object->use_seq_instance_id) {
+          instance_id = octane_objects.iInstanceIDMap[object->name].size(); 
+        }
+        octane_objects.iInstanceIDMap[object->name].emplace_back(instance_id);
         if (object->octane_object.iSamplesNum == 1) {
           float *pMat = (float *)(&object->octane_object.oMatrix);
           octane_objects.fMatrixMap[object->name].insert(

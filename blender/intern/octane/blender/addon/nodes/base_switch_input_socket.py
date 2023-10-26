@@ -412,13 +412,13 @@ class OctaneOutputAOVSwitchInputSocket(OctaneSwitchInput):
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_OUTPUT_AOV)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
 
-class OctaneCompositeTextureLayerSwitchInputSocket(OctaneSwitchInput):
-    bl_idname="OctaneCompositeTextureLayerSwitchInputSocket"
+class OctaneTextureLayerSwitchInputSocket(OctaneSwitchInput):
+    bl_idname="OctaneTextureLayerSwitchInputSocket"
     bl_label="Input"
     octane_movable_input_count_attribute_name="a_option_count"
     octane_input_pattern=r"Input (\d+)"
     octane_input_format_pattern="Input {}"
-    color=consts.OctanePinColor.CompositeTextureLayer
+    color=consts.OctanePinColor.TextureLayer
     octane_default_node_type=consts.NodeType.NT_UNKNOWN
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEX_COMPOSITE_LAYER)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
@@ -495,7 +495,7 @@ _CLASSES=[
     OctaneOCIOColorSpaceSwitchInputSocket,
     OctaneOutputAOVGroupSwitchInputSocket,
     OctaneOutputAOVSwitchInputSocket,
-    OctaneCompositeTextureLayerSwitchInputSocket,
+    OctaneTextureLayerSwitchInputSocket,
     OctaneOutputAOVLayerSwitchInputSocket,
     OctaneBlendingSettingsSwitchInputSocket,
     OctanePostVolumeSwitchInputSocket,
