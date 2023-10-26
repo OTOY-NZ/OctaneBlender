@@ -1198,7 +1198,7 @@ class OctaneRenderPassesRenderPassCryptomatteCount(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=69
     octane_socket_type=consts.SocketType.ST_INT
-    default_value: IntProperty(default=6, update=OctaneBaseSocket.update_node_tree, description="Number of Cryptomatte bins to render", min=2, max=10, soft_min=2, soft_max=10, step=2, subtype="FACTOR")
+    default_value: IntProperty(default=6, update=OctaneBaseSocket.update_node_tree, description="Number of Cryptomatte bins to render", min=2, max=10, soft_min=2, soft_max=10, step=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=5000000
     octane_end_version=4294967295
@@ -1215,7 +1215,7 @@ class OctaneRenderPassesRenderPassCryptomatteSeedFactor(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=70
     octane_socket_type=consts.SocketType.ST_INT
-    default_value: IntProperty(default=10, update=OctaneBaseSocket.update_node_tree, description="Number of samples to use for seeding Cryptomatte. This gets multiplied with the number of bins.\n\nLow values result in pitting artefacts at feathered edges, while large values the values can result in artefacts in places with coverage for lots of different IDs", min=4, max=25, soft_min=4, soft_max=25, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=10, update=OctaneBaseSocket.update_node_tree, description="Number of samples to use for seeding Cryptomatte. This gets multiplied with the number of bins.\n\nLow values result in pitting artefacts at feathered edges, while large values the values can result in artefacts in places with coverage for lots of different IDs", min=4, max=25, soft_min=4, soft_max=25, step=1, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=5000003
     octane_end_version=4294967295
@@ -1351,7 +1351,7 @@ class OctaneRenderPassesRenderPassInfoMaxSamples(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=78
     octane_socket_type=consts.SocketType.ST_INT
-    default_value: IntProperty(default=128, update=OctaneBaseSocket.update_node_tree, description="The maximum number of samples for the info passes", min=1, max=1024, soft_min=1, soft_max=1024, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=128, update=OctaneBaseSocket.update_node_tree, description="The maximum number of samples for the info passes", min=1, max=1024, soft_min=1, soft_max=1024, step=1, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=2110000
     octane_end_version=4294967295
@@ -1407,7 +1407,7 @@ class OctaneRenderPassesOpacity(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=81
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Geometry with opacity higher or equal to this value is treated as totally opaque", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Geometry with opacity higher or equal to this value is treated as totally opaque", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=3000000
     octane_end_version=4294967295
@@ -1577,7 +1577,7 @@ class OctaneRenderPassesUvSet(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=91
     octane_socket_type=consts.SocketType.ST_INT
-    default_value: IntProperty(default=1, update=OctaneBaseSocket.update_node_tree, description="Determines which set of UV coordinates to use", min=1, max=3, soft_min=1, soft_max=3, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=1, update=OctaneBaseSocket.update_node_tree, description="Determines which set of UV coordinates to use", min=1, max=3, soft_min=1, soft_max=3, step=1, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=2200000
     octane_end_version=4294967295
@@ -1968,7 +1968,7 @@ class OctaneRenderPassesRenderPassInfoStartSamples(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=114
     octane_socket_type=consts.SocketType.ST_INT
-    default_value: IntProperty(default=0, update=OctaneBaseSocket.update_node_tree, description="(deprecated)", min=0, max=256000, soft_min=0, soft_max=256000, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=0, update=OctaneBaseSocket.update_node_tree, description="(deprecated)", min=0, max=256000, soft_min=0, soft_max=256000, step=1, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=2100000
     octane_end_version=2200000
@@ -1985,7 +1985,7 @@ class OctaneRenderPassesRenderPassEnvironmentMaxSamples(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=115
     octane_socket_type=consts.SocketType.ST_INT
-    default_value: IntProperty(default=256, update=OctaneBaseSocket.update_node_tree, description="(deprecated)", min=1, max=256000, soft_min=1, soft_max=256000, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=256, update=OctaneBaseSocket.update_node_tree, description="(deprecated)", min=1, max=256000, soft_min=1, soft_max=256000, step=1, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=2200000
     octane_end_version=2210000
@@ -2002,7 +2002,7 @@ class OctaneRenderPassesFiltersize(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=116
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="(deprecated)", min=1.000000, max=8.000000, soft_min=1.000000, soft_max=8.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="(deprecated)", min=1.000000, max=8.000000, soft_min=1.000000, soft_max=8.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=2110000
     octane_end_version=3000000
@@ -2019,7 +2019,7 @@ class OctaneRenderPassesRenderPassAOMaxSamples(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=117
     octane_socket_type=consts.SocketType.ST_INT
-    default_value: IntProperty(default=1024, update=OctaneBaseSocket.update_node_tree, description="(deprecated)", min=1, max=256000, soft_min=1, soft_max=256000, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=1024, update=OctaneBaseSocket.update_node_tree, description="(deprecated)", min=1, max=256000, soft_min=1, soft_max=256000, step=1, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=2100000
     octane_end_version=3000000

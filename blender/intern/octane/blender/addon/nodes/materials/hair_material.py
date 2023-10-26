@@ -91,7 +91,7 @@ class OctaneHairMaterialHairMelanin(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_TEXTURE
     octane_pin_index=4
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="The absolute quantity of pigment that gives the hair base color", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
+    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="The absolute quantity of pigment that gives the hair base color", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -108,7 +108,7 @@ class OctaneHairMaterialHairPheomelanin(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_TEXTURE
     octane_pin_index=5
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="The extent of redness of a hair strand", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
+    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="The extent of redness of a hair strand", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -163,7 +163,7 @@ class OctaneHairMaterialRoughness(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_TEXTURE
     octane_pin_index=8
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=0.200000, update=OctaneBaseSocket.update_node_tree, description="Roughness along a hair strand for longitudinal scattering", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
+    default_value: FloatProperty(default=0.200000, update=OctaneBaseSocket.update_node_tree, description="Roughness along a hair strand for longitudinal scattering", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -180,7 +180,7 @@ class OctaneHairMaterialRoughnessV(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_TEXTURE
     octane_pin_index=9
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=0.200000, update=OctaneBaseSocket.update_node_tree, description="Roughness used for cross section of a hair strand for azimuth scattering", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
+    default_value: FloatProperty(default=0.200000, update=OctaneBaseSocket.update_node_tree, description="Roughness used for cross section of a hair strand for azimuth scattering", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -197,7 +197,7 @@ class OctaneHairMaterialOffset(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_TEXTURE
     octane_pin_index=10
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Scale offset on the surface of the hair. 0 denotes perfectly smooth cylindrical hair, increasing the value shifts the specular highlight away from perfectly reflective direction", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
+    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Scale offset on the surface of the hair. 0 denotes perfectly smooth cylindrical hair, increasing the value shifts the specular highlight away from perfectly reflective direction", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -248,7 +248,7 @@ class OctaneHairMaterialHairRandomnessIntensity(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=13
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Controls the intensity of randomness on each hair strand", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Controls the intensity of randomness on each hair strand", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -282,7 +282,7 @@ class OctaneHairMaterialHairRandomRoughness(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=15
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Adds random roughness on top of the base roughness", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Adds random roughness on top of the base roughness", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=11000004
     octane_end_version=4294967295
@@ -299,7 +299,7 @@ class OctaneHairMaterialOpacity(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_TEXTURE
     octane_pin_index=16
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Opacity channel controlling the transparency of the material via grayscale texture", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Opacity channel controlling the transparency of the material via grayscale texture", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295

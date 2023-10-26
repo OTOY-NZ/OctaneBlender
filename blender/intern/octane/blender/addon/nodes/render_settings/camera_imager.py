@@ -42,7 +42,7 @@ class OctaneCameraImagerHotpixelRemoval(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=1
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Luminance threshold for firefly reduction", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Luminance threshold for firefly reduction", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -59,7 +59,7 @@ class OctaneCameraImagerVignetting(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=2
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Amount of lens vignetting", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Amount of lens vignetting", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -93,7 +93,7 @@ class OctaneCameraImagerSaturation(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=4
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Amount of saturation", min=0.000000, max=4.000000, soft_min=0.000000, soft_max=4.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Amount of saturation", min=0.000000, max=4.000000, soft_min=0.000000, soft_max=4.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -144,7 +144,7 @@ class OctaneCameraImagerMinDisplaySamples(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=7
     octane_socket_type=consts.SocketType.ST_INT
-    default_value: IntProperty(default=1, update=OctaneBaseSocket.update_node_tree, description="Minimum number of samples before the first image is displayed", min=1, max=32, soft_min=1, soft_max=32, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=1, update=OctaneBaseSocket.update_node_tree, description="Minimum number of samples before the first image is displayed", min=1, max=32, soft_min=1, soft_max=32, step=1, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -161,7 +161,7 @@ class OctaneCameraImagerMaxTonemapInterval(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=8
     octane_socket_type=consts.SocketType.ST_INT
-    default_value: IntProperty(default=10, update=OctaneBaseSocket.update_node_tree, description="Maximum interval between imaging operations (in seconds)", min=1, max=120, soft_min=1, soft_max=120, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=10, update=OctaneBaseSocket.update_node_tree, description="Maximum interval between imaging operations (in seconds)", min=1, max=120, soft_min=1, soft_max=120, step=1, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=3000000
     octane_end_version=4294967295
@@ -244,7 +244,7 @@ class OctaneCameraImagerHighlightCompression(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=13
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Reduces burned out highlights by compressing them and reducing their contrast", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Reduces burned out highlights by compressing them and reducing their contrast", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=2110000
     octane_end_version=4294967295
@@ -261,7 +261,7 @@ class OctaneCameraImagerSaturateToWhite(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=14
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Controls if clipping is done per channel or not", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Controls if clipping is done per channel or not", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -481,7 +481,7 @@ class OctaneCameraImagerMinDenoiserSamples(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=23
     octane_socket_type=consts.SocketType.ST_INT
-    default_value: IntProperty(default=10, update=OctaneBaseSocket.update_node_tree, description="Minimum number of samples per pixel until denoiser kicks in. Only valid when the denoise once option is disabled", min=1, max=1000000, soft_min=1, soft_max=100000, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=10, update=OctaneBaseSocket.update_node_tree, description="Minimum number of samples per pixel until denoiser kicks in. Only valid when the denoise once option is disabled", min=1, max=1000000, soft_min=1, soft_max=100000, step=1, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=4000001
     octane_end_version=4294967295
@@ -498,7 +498,7 @@ class OctaneCameraImagerMaxDenoiserInterval(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=24
     octane_socket_type=consts.SocketType.ST_INT
-    default_value: IntProperty(default=20, update=OctaneBaseSocket.update_node_tree, description="Maximum interval between denoiser runs (in seconds). Only valid when the denoise once option is disabled", min=1, max=120, soft_min=1, soft_max=120, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=20, update=OctaneBaseSocket.update_node_tree, description="Maximum interval between denoiser runs (in seconds). Only valid when the denoise once option is disabled", min=1, max=120, soft_min=1, soft_max=120, step=1, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=4000001
     octane_end_version=4294967295
@@ -515,7 +515,7 @@ class OctaneCameraImagerDenoiserOriginalBlend(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=25
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="A value between 0 to 1 to blend the original image into the denoiser output. Setting 0 results with fully denoised image and setting 1 results with the original image. An intermediate value will produce a blend between the denoised image and the original image", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="A value between 0 to 1 to blend the original image into the denoiser output. Setting 0 results with fully denoised image and setting 1 results with the original image. An intermediate value will produce a blend between the denoised image and the original image", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=4000001
     octane_end_version=4294967295
@@ -588,7 +588,7 @@ class OctaneCameraImagerMinUpsamplingSamples(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=29
     octane_socket_type=consts.SocketType.ST_INT
-    default_value: IntProperty(default=10, update=OctaneBaseSocket.update_node_tree, description="Minimum number of samples per pixel until the upsampler kicks in. Only valid when the the upsampler is enabled", min=1, max=1000000, soft_min=1, soft_max=100000, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=10, update=OctaneBaseSocket.update_node_tree, description="Minimum number of samples per pixel until the upsampler kicks in. Only valid when the the upsampler is enabled", min=1, max=1000000, soft_min=1, soft_max=100000, step=1, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=6000001
     octane_end_version=4294967295
@@ -622,7 +622,7 @@ class OctaneCameraImagerISO(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=31
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=100.000000, update=OctaneBaseSocket.update_node_tree, description="(deprecated)", min=1.000000, max=800.000000, soft_min=1.000000, soft_max=800.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=100.000000, update=OctaneBaseSocket.update_node_tree, description="(deprecated)", min=1.000000, max=800.000000, soft_min=1.000000, soft_max=800.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=2150000
@@ -673,7 +673,7 @@ class OctaneCameraImagerMaxUpsamplingInterval(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=34
     octane_socket_type=consts.SocketType.ST_INT
-    default_value: IntProperty(default=10, update=OctaneBaseSocket.update_node_tree, description="(deprecated) Maximum interval between upsampler runs (in seconds). Only valid when the upsampler is enabled", min=1, max=120, soft_min=1, soft_max=120, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=10, update=OctaneBaseSocket.update_node_tree, description="(deprecated) Maximum interval between upsampler runs (in seconds). Only valid when the upsampler is enabled", min=1, max=120, soft_min=1, soft_max=120, step=1, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=6000001
     octane_end_version=12000005

@@ -52,9 +52,7 @@ Mesh::Mesh()
   is_mesh_to_volume = false;
 }  // Mesh()
 
-Mesh::~Mesh()
-{
-}  //~Mesh()
+Mesh::~Mesh() {}  //~Mesh()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Clear all mesh data
@@ -119,9 +117,7 @@ MeshManager::MeshManager()
   need_global_update = false;
 }  // MeshManager()
 
-MeshManager::~MeshManager()
-{
-}  //~MeshManager()
+MeshManager::~MeshManager() {}  //~MeshManager()
 
 inline void transform_octane_point(OctaneDataTransferObject::float_3 &a, Transform *t)
 {
@@ -316,6 +312,7 @@ void MeshManager::server_update_mesh(::OctaneEngine::OctaneClient *server,
     globalMesh.iHairInterpolations = 0;
     globalMesh.oMeshData.iSamplesNum = 1;
     globalMesh.oMeshData.oMeshSphereAttribute.bEnable = false;
+    globalMesh.oMeshData.bUseFaceNormal = false;
     globalMesh.oMeshData.bUpdate = true;
     globalMesh.oMeshOpenSubdivision.bUpdate = true;
 
@@ -386,7 +383,7 @@ void MeshManager::server_update_mesh(::OctaneEngine::OctaneClient *server,
         globalMesh.fMaxSmoothAngle = -1.f;
       }
       size_t f3PointsSize = 0, f3NormalSize = 0, f3UVSize = 0, iPointIndicesSize = 0,
-             iNormalIndicesSize = 0, iUVIndicesSize = 0, iVertexPerPolySize = 0,
+             iNormalIndicesSize = 0, iUVIndicesSize = 0, iSmoothGroupPerPolySize = 0, iVertexPerPolySize = 0,
              iPolyMaterialSize = 0, iPolyObjectIndexSize = 0, sShaderNamesSize = 0,
              sObjectNamesSize = 0, fOpenSubdCreasesSharpnessesSize = 0,
              iOpenSubdCreasesIndicesSize = 0;
@@ -397,6 +394,8 @@ void MeshManager::server_update_mesh(::OctaneEngine::OctaneClient *server,
         iPointIndicesSize += mesh.oMeshData.iPointIndices.size();
         iNormalIndicesSize += mesh.oMeshData.iNormalIndices.size();
         iUVIndicesSize += mesh.oMeshData.iUVIndices.size();
+        iSmoothGroupPerPolySize += mesh.oMeshData.iSmoothGroupPerPoly.size();
+        globalMesh.oMeshData.bUseFaceNormal |= mesh.oMeshData.bUseFaceNormal;
         iVertexPerPolySize += mesh.oMeshData.iVertexPerPoly.size();
         iPolyMaterialSize += mesh.oMeshData.iPolyMaterialIndex.size();
         iPolyObjectIndexSize += mesh.oMeshData.iPolyObjectIndex.size();
@@ -412,6 +411,7 @@ void MeshManager::server_update_mesh(::OctaneEngine::OctaneClient *server,
       globalMesh.oMeshData.iPointIndices.reserve(iPointIndicesSize);
       globalMesh.oMeshData.iNormalIndices.reserve(iNormalIndicesSize);
       globalMesh.oMeshData.iUVIndices.reserve(iUVIndicesSize);
+      globalMesh.oMeshData.iSmoothGroupPerPoly.reserve(iSmoothGroupPerPolySize);
       globalMesh.oMeshData.iVertexPerPoly.reserve(iVertexPerPolySize);
       globalMesh.oMeshData.iPolyMaterialIndex.reserve(iPolyMaterialSize);
       globalMesh.oMeshData.iPolyObjectIndex.reserve(iPolyObjectIndexSize);
@@ -467,6 +467,10 @@ void MeshManager::server_update_mesh(::OctaneEngine::OctaneClient *server,
         globalMesh.oMeshData.iVertexPerPoly.insert(globalMesh.oMeshData.iVertexPerPoly.end(),
                                                    mesh.oMeshData.iVertexPerPoly.begin(),
                                                    mesh.oMeshData.iVertexPerPoly.end());
+        globalMesh.oMeshData.iSmoothGroupPerPoly.insert(
+            globalMesh.oMeshData.iSmoothGroupPerPoly.end(),
+            mesh.oMeshData.iSmoothGroupPerPoly.begin(),
+            mesh.oMeshData.iSmoothGroupPerPoly.end());
         globalMesh.oMeshData.iPolyMaterialIndex.insert(
             globalMesh.oMeshData.iPolyMaterialIndex.end(),
             mesh.oMeshData.iPolyMaterialIndex.begin(),
@@ -581,7 +585,8 @@ bool ScatterHelper::try_to_insert_instance_into_scatter(Scene *p_scene,
       data.m_shader_names.reserve(p_mesh->used_shaders.size());
       for (std::vector<Shader *>::iterator it = p_mesh->used_shaders.begin();
            it != p_mesh->used_shaders.end();
-           ++it) {
+           ++it)
+      {
         data.m_shader_names.push_back((*it)->name);
       }
     }
@@ -597,7 +602,8 @@ bool ScatterHelper::upload_scatters(::OctaneEngine::OctaneClient *server,
 {
   for (std::unordered_map<int32_t, ScatterGroupData>::iterator it = m_data.begin();
        it != m_data.end();
-       ++it) {
+       ++it)
+  {
     std::string cur_scatter_name = "Scatter__" + std::to_string(it->first);
     ScatterGroupData &data = it->second;
     int32_t instance_count = data.m_instance_ids.size();

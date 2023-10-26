@@ -59,7 +59,7 @@ class OctaneOutputAOVsAddGlareGlareRayAmount(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=2
     octane_socket_type=consts.SocketType.ST_INT
-    default_value: IntProperty(default=1, update=OctaneBaseSocket.update_node_tree, description="The number of glare rays to add. The angles of the rays are evenly spaced around a half circle", min=1, max=8, soft_min=1, soft_max=8, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=1, update=OctaneBaseSocket.update_node_tree, description="The number of glare rays to add. The angles of the rays are evenly spaced around a half circle", min=1, max=8, soft_min=1, soft_max=8, step=1, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -76,7 +76,7 @@ class OctaneOutputAOVsAddGlareGlareAngle(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=3
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="The angle of the first glare ray in degrees clockwise from horizontal", min=-90.000000, max=90.000000, soft_min=-90.000000, soft_max=90.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="The angle of the first glare ray in degrees clockwise from horizontal", min=-90.000000, max=90.000000, soft_min=-90.000000, soft_max=90.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -93,7 +93,7 @@ class OctaneOutputAOVsAddGlareGlareBlur(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=4
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=0.100000, update=OctaneBaseSocket.update_node_tree, description="The width of the range of angles covered by each glare ray, in degrees", min=0.100000, max=90.000000, soft_min=0.100000, soft_max=10.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.100000, update=OctaneBaseSocket.update_node_tree, description="The width of the range of angles covered by each glare ray, in degrees", min=0.100000, max=90.000000, soft_min=0.100000, soft_max=10.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295

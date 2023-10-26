@@ -42,7 +42,7 @@ class OctaneRotFractalIterationCount(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=1
     octane_socket_type=consts.SocketType.ST_INT
-    default_value: IntProperty(default=6, update=OctaneBaseSocket.update_node_tree, description="The number of fractal iterations", min=0, max=16, soft_min=0, soft_max=16, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=6, update=OctaneBaseSocket.update_node_tree, description="The number of fractal iterations", min=0, max=16, soft_min=0, soft_max=16, step=1, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295

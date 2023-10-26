@@ -48,7 +48,7 @@ class OctaneMoireMosaicSize(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=1
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=0.750000, update=OctaneBaseSocket.update_node_tree, description="The width/height or radius of the generated shapes", min=0.000000, max=4.000000, soft_min=0.000000, soft_max=4.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.750000, update=OctaneBaseSocket.update_node_tree, description="The width/height or radius of the generated shapes", min=0.000000, max=4.000000, soft_min=0.000000, soft_max=4.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -65,7 +65,7 @@ class OctaneMoireMosaicRadius(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=2
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=0.100000, update=OctaneBaseSocket.update_node_tree, description="The corner radius (frame shape)", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.100000, update=OctaneBaseSocket.update_node_tree, description="The corner radius (frame shape)", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -82,7 +82,7 @@ class OctaneMoireMosaicBlur(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=3
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=0.100000, update=OctaneBaseSocket.update_node_tree, description="The blurriness of the lines (circle and ring shapes)", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.100000, update=OctaneBaseSocket.update_node_tree, description="The blurriness of the lines (circle and ring shapes)", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -99,7 +99,7 @@ class OctaneMoireMosaicShift(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=4
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=0.750000, update=OctaneBaseSocket.update_node_tree, description="A horizontal shift applied to alternating rows (rectangle and circle shapes)", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.750000, update=OctaneBaseSocket.update_node_tree, description="A horizontal shift applied to alternating rows (rectangle and circle shapes)", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -133,7 +133,7 @@ class OctaneMoireMosaicIterationCount(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=6
     octane_socket_type=consts.SocketType.ST_INT
-    default_value: IntProperty(default=4, update=OctaneBaseSocket.update_node_tree, description="The number of iterations used by the shape generator (ring and frame shapes)", min=1, max=4, soft_min=1, soft_max=4, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=4, update=OctaneBaseSocket.update_node_tree, description="The number of iterations used by the shape generator (ring and frame shapes)", min=1, max=4, soft_min=1, soft_max=4, step=1, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -150,7 +150,7 @@ class OctaneMoireMosaicTime(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=7
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=0.250000, update=OctaneBaseSocket.update_node_tree, description="The time in the generation sequence (ring and frame shapes)", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.250000, update=OctaneBaseSocket.update_node_tree, description="The time in the generation sequence (ring and frame shapes)", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295

@@ -85,7 +85,8 @@ class Scene {
   void generate_updated_octane_objects_data(
       std::unordered_set<std::string> &updated_object_names,
       OctaneDataTransferObject::OctaneObjects &octane_objects,
-      bool is_light_object);
+      bool is_light_object,
+      std::unordered_set<std::string> *geo_nodes_object_names = NULL);
   void free_memory(bool final);
   bool is_addon_mode()
   {

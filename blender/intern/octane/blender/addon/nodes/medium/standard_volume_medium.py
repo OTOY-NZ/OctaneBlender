@@ -25,7 +25,7 @@ class OctaneStandardVolumeMediumDensity(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_TEXTURE
     octane_pin_index=0
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="The density of the volume, which is further scaled by the density channel", min=0.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=100.000000, subtype="FACTOR")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="The density of the volume, which is further scaled by the density channel", min=0.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=100.000000, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -165,7 +165,7 @@ class OctaneStandardVolumeMediumScatterWeight(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_TEXTURE
     octane_pin_index=8
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="The scatter weight", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="The scatter weight", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -216,7 +216,7 @@ class OctaneStandardVolumeMediumAnisotropy(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_TEXTURE
     octane_pin_index=11
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Light scattering direction: negative values produce backward scattering, 0 produces equal scattering in all directions (isotropic), and positive values produce forward scattering", min=-1.000000, max=1.000000, soft_min=-1.000000, soft_max=1.000000, subtype="FACTOR")
+    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Light scattering direction: negative values produce backward scattering, 0 produces equal scattering in all directions (isotropic), and positive values produce forward scattering", min=-1.000000, max=1.000000, soft_min=-1.000000, soft_max=1.000000, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -250,7 +250,7 @@ class OctaneStandardVolumeMediumTransparentDepth(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_TEXTURE
     octane_pin_index=13
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Additional control over the density of the volume", min=0.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=340282346638528859811704183484516925440.000000, subtype="FACTOR")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Additional control over the density of the volume", min=0.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=340282346638528859811704183484516925440.000000, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -307,7 +307,7 @@ class OctaneStandardVolumeMediumEmissionWeight(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_TEXTURE
     octane_pin_index=16
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Scales the emission of the volume", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Scales the emission of the volume", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -358,7 +358,7 @@ class OctaneStandardVolumeMediumLightPassId(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=19
     octane_socket_type=consts.SocketType.ST_INT
-    default_value: IntProperty(default=1, update=OctaneBaseSocket.update_node_tree, description="ID of the light pass that captures the contribution of this emitter", min=1, max=20, soft_min=1, soft_max=20, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=1, update=OctaneBaseSocket.update_node_tree, description="ID of the light pass that captures the contribution of this emitter", min=1, max=20, soft_min=1, soft_max=20, step=1, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -375,7 +375,7 @@ class OctaneStandardVolumeMediumTemperatureScale(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_TEXTURE
     octane_pin_index=20
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="If a temperature channel is connected, then this scales the values read from it. Otherwise, it is the source of the temperature values, which are usually in the range [0..1]", min=0.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=340282346638528859811704183484516925440.000000, subtype="FACTOR")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="If a temperature channel is connected, then this scales the values read from it. Otherwise, it is the source of the temperature values, which are usually in the range [0..1]", min=0.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=340282346638528859811704183484516925440.000000, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -409,7 +409,7 @@ class OctaneStandardVolumeMediumTemperature(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_TEXTURE
     octane_pin_index=22
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=5000.000000, update=OctaneBaseSocket.update_node_tree, description="Scales the unitless temperature values read from the temperature channel or temperature input, which are usually stored in [0..1], to a temperature specified in kelvin", min=0.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=20000.000000, subtype="FACTOR")
+    default_value: FloatProperty(default=5000.000000, update=OctaneBaseSocket.update_node_tree, description="Scales the unitless temperature values read from the temperature channel or temperature input, which are usually stored in [0..1], to a temperature specified in kelvin", min=0.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=20000.000000, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -426,7 +426,7 @@ class OctaneStandardVolumeMediumEmissionIntensity(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_TEXTURE
     octane_pin_index=23
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Scales the intensity of the black body emission", min=0.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=100.000000, subtype="FACTOR")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Scales the intensity of the black body emission", min=0.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=100.000000, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295

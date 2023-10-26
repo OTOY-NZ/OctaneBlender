@@ -224,7 +224,7 @@ def update_octane_params():
     import _octane
     default_material_id = 0
     try:
-        default_material_id = int(bpy.context.preferences.addons[__package__].preferences.default_material_id)  
+        default_material_id = int(bpy.context.preferences.addons[__package__].preferences.default_material_id)
     except:
         pass
     _octane.set_octane_params(default_material_id)      
@@ -370,7 +370,7 @@ class OctanePreferences(bpy.types.AddonPreferences):
 
     use_new_addon_nodes: BoolProperty(
         name="Experience the New Image and Ramp Nodes",
-        description="Use the new addon style image and ramp nodes(reboot blender to take effect)",   
+        description="Use the new addon style image and ramp nodes(reboot blender to take effect)",
         default=True,
     )
     default_object_mesh_type: EnumProperty(
@@ -442,8 +442,14 @@ class OctanePreferences(bpy.types.AddonPreferences):
         description="Octane render-server address",
         default="127.0.0.1",
         maxlen=255,
-    )     
-    
+    )
+
+    use_factor_subtype_for_property: BoolProperty(
+        name="Use 'Factor' subtype for properties",
+        description="Use 'Factor' subtype for properties if possible(like Cycles). Or, do not use subtype for properties(reboot blender to take effect)",
+        default=True,
+    )
+
     ocio_use_other_config_file: BoolProperty(
         name="Use other config file",
         description="Use other config file instead of environment config file",
@@ -535,6 +541,9 @@ For multiple-GPUs platforms, Octane may change the 'Imaging' device during the v
             row.prop(self, "use_shared_surface")
             if not row.active:
                 box.row().label(text="Shared surface is not supported")
+        box = layout.box()
+        box.label(text="User Interface")
+        box.row().prop(self, "use_factor_subtype_for_property")
         box = layout.box()
         box.label(text="Octane Color Management")
         box.row().prop(self, "ocio_use_other_config_file")
@@ -1447,10 +1456,12 @@ classes = (
 )
 
 
-def register():    
-    from bpy.utils import register_class    
+def register():
+    from bpy.utils import register_class
     for cls in classes:
         register_class(cls)
+    use_factor_subtype_for_property = bpy.context.preferences.addons["octane"].preferences.use_factor_subtype_for_property
+    consts.USE_FACTOR_SUBTYPE_FOR_PROPERTIES = use_factor_subtype_for_property
     from octane import nodeitems_octane
     shader_node_categories = nodeitems_octane.shader_node_categories_based_functions
     texture_node_categories = nodeitems_octane.texture_node_categories_based_functions
@@ -1460,7 +1471,7 @@ def register():
             shader_node_categories = nodeitems_octane.shader_node_categories_based_octane
             texture_node_categories = nodeitems_octane.texture_node_categories_based_octane
     except:
-        pass     
+        pass
     # nodeitems_utils.register_node_categories("OCT_SHADER", shader_node_categories)    
     # nodeitems_utils.register_node_categories("OCT_TEXTURE", texture_node_categories)
     octane_server_address = str(bpy.context.preferences.addons['octane'].preferences.octane_server_address)

@@ -25,7 +25,7 @@ class OctanePixelFlowTime(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=0
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Change the time to animate the effect", min=1.000000, max=10.000000, soft_min=1.000000, soft_max=10.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Change the time to animate the effect", min=1.000000, max=10.000000, soft_min=1.000000, soft_max=10.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -59,7 +59,7 @@ class OctanePixelFlowDensity(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=2
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=145.000000, update=OctaneBaseSocket.update_node_tree, description="The density of the pixel pattern", min=1.000000, max=1000.000000, soft_min=1.000000, soft_max=1000.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=145.000000, update=OctaneBaseSocket.update_node_tree, description="The density of the pixel pattern", min=1.000000, max=1000.000000, soft_min=1.000000, soft_max=1000.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295

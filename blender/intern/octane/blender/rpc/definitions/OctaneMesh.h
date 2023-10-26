@@ -9,6 +9,7 @@
 #define ARRAY_INFO_NORMAL_DATA "NORMAL"
 #define ARRAY_INFO_POINT_INDEX_DATA "POINT_INDEX"
 #define ARRAY_INFO_NORMAL_INDEX_DATA "NORMAL_INDEX"
+#define ARRAY_INFO_SMOOTH_GROUP_PER_POLY_DATA "SMOOTH_GROUP_PER_POLY"
 #define ARRAY_INFO_VERTEX_PER_POLY_DATA "VERTEX_PER_POLY"
 #define ARRAY_INFO_MAT_ID_POLY_DATA "MATERIAL_ID_PER_POLY"
 #define ARRAY_INFO_OBJ_ID_POLY_DATA "OBJECT_ID_PER_POLY"
@@ -60,11 +61,13 @@ namespace OctaneDataTransferObject {
 	struct OctaneMeshData : public OctaneNodeBase {
 		bool					bUpdate;
 		bool					bShowVertexData;
+		bool					bUseFaceNormal;
 		int						iSamplesNum;
 		std::vector<float_3>	f3Points;		
 		std::vector<float_3>	f3Normals;
 		std::vector<int32_t>	iPointIndices;
 		std::vector<int32_t>	iNormalIndices;
+		std::vector<int32_t>	iSmoothGroupPerPoly;
 		std::vector<int32_t>	iVertexPerPoly;
 		std::vector<int32_t>	iPolyMaterialIndex;
 		std::vector<int32_t>	iPolyObjectIndex;
@@ -101,11 +104,13 @@ namespace OctaneDataTransferObject {
 		{ 
 			bUpdate = false;
 			bShowVertexData = true;
+			bUseFaceNormal = false;
 			iSamplesNum = 0;
 			f3Points.clear();
 			f3Normals.clear();
 			iPointIndices.clear();
 			iNormalIndices.clear();
+			iSmoothGroupPerPoly.clear();
 			iVertexPerPoly.clear();
 			iPolyMaterialIndex.clear();
 			iPolyObjectIndex.clear();
@@ -139,7 +144,7 @@ namespace OctaneDataTransferObject {
 			iSphereMaterialIndices.clear();
 			oArrayInfo.clear();
 		}
-		MSGPACK_DEFINE(bUpdate, bShowVertexData, iSamplesNum, sVertexFloatNames, sVertexColorNames, oMeshSphereAttribute, sSphereVertexFloatNames, sSphereVertexColorNames, oArrayInfo, MSGPACK_BASE(OctaneNodeBase));
+		MSGPACK_DEFINE(bUpdate, bShowVertexData, bUseFaceNormal, iSamplesNum, sVertexFloatNames, sVertexColorNames, oMeshSphereAttribute, sSphereVertexFloatNames, sSphereVertexColorNames, oArrayInfo, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneMeshOpenSubdivision : public OctaneNodeBase {

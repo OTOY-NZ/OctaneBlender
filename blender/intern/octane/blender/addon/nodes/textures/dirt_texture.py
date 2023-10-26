@@ -76,7 +76,7 @@ class OctaneDirtTextureDirtMap(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_TEXTURE
     octane_pin_index=3
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Determines the proportion of the maximum area affected by the dirt effect", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Determines the proportion of the maximum area affected by the dirt effect", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=8000000
     octane_end_version=4294967295
@@ -93,7 +93,7 @@ class OctaneDirtTextureTolerance(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=4
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Tolerance for small curvature and small angles between polygons", min=0.000000, max=0.300000, soft_min=0.000000, soft_max=0.300000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Tolerance for small curvature and small angles between polygons", min=0.000000, max=0.300000, soft_min=0.000000, soft_max=0.300000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=2000000
     octane_end_version=4294967295
@@ -127,7 +127,7 @@ class OctaneDirtTextureDistribution(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=6
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Distribution controls how evenly rays are shot within the sampling cone. When the value is 100, rays gather closer to the lateral surface. If the value is 1 rays are evenly distributed", min=1.000000, max=100.000000, soft_min=1.000000, soft_max=100.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Distribution controls how evenly rays are shot within the sampling cone. When the value is 100, rays gather closer to the lateral surface. If the value is 1 rays are evenly distributed", min=1.000000, max=100.000000, soft_min=1.000000, soft_max=100.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=8000000
     octane_end_version=4294967295

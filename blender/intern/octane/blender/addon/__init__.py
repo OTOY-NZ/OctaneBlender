@@ -1,7 +1,7 @@
 bl_info = {
-    "name": "OctaneBlender (v. 28.2)",
+    "name": "OctaneBlender (v. 28.3)",
     "author": "OTOY Inc.",
-    "version": (28, 2),
+    "version": (28, 3),
     "blender": (3, 6, 1),
     "location": "Info header, render engine menu",
     "description": "OctaneBlender",
@@ -228,7 +228,9 @@ class OctaneRender(bpy.types.RenderEngine):
 
     def draw_render_result(self, view_layer, region, scene):
         render_pass_id = self.session.get_current_preview_render_pass_id(view_layer)
-        is_render_pass_shared_surface_supported = not (utility.is_grayscale_render_pass(render_pass_id) or utility.is_cryptomatte_render_pass(render_pass_id))
+        is_render_pass_shared_surface_supported = not (utility.is_grayscale_render_pass(render_pass_id) \
+            or utility.is_cryptomatte_render_pass(render_pass_id) \
+            or utility.is_output_aov_render_pass(render_pass_id))
         is_shared_surface_supported = OctaneBlender().is_shared_surface_supported() and is_render_pass_shared_surface_supported
         use_shared_surface = (self.session.use_shared_surface and is_shared_surface_supported)
         is_draw_data_just_created = False

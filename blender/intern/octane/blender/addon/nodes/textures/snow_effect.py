@@ -59,7 +59,7 @@ class OctaneSnowEffectDensity(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=2
     octane_socket_type=consts.SocketType.ST_INT
-    default_value: IntProperty(default=200, update=OctaneBaseSocket.update_node_tree, description="The number of snow flakes", min=1, max=10000, soft_min=1, soft_max=2000, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=200, update=OctaneBaseSocket.update_node_tree, description="The number of snow flakes", min=1, max=10000, soft_min=1, soft_max=2000, step=1, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -76,7 +76,7 @@ class OctaneSnowEffectStrength(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=3
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=0.100000, update=OctaneBaseSocket.update_node_tree, description="Determines the direction and shape of the snow flakes", min=-10.000000, max=10.000000, soft_min=-10.000000, soft_max=10.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.100000, update=OctaneBaseSocket.update_node_tree, description="Determines the direction and shape of the snow flakes", min=-10.000000, max=10.000000, soft_min=-10.000000, soft_max=10.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295

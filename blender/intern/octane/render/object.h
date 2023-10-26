@@ -90,6 +90,7 @@ class ObjectManager {
 
   bool need_update;
   std::unordered_set<std::string> removed_object_names;
+  std::unordered_set<std::string> geo_nodes_object_names;
 
   static bool resolve_transform(Mesh *p_mesh, Object *p_object, float *matrices, int32_t len = 12);
   static const Transform INFINITE_PLANE_ROTATION;

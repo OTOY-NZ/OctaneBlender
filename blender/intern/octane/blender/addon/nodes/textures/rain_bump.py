@@ -42,7 +42,7 @@ class OctaneRainBumpRingCount(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=1
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=3.000000, update=OctaneBaseSocket.update_node_tree, description="The number of ripples created by the rain drops", min=0.000000, max=500.000000, soft_min=0.000000, soft_max=10.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=3.000000, update=OctaneBaseSocket.update_node_tree, description="The number of ripples created by the rain drops", min=0.000000, max=500.000000, soft_min=0.000000, soft_max=10.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -59,7 +59,7 @@ class OctaneRainBumpRingSize(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=2
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=4.000000, update=OctaneBaseSocket.update_node_tree, description="The size of the ripples", min=0.000000, max=8.000000, soft_min=0.000000, soft_max=8.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=4.000000, update=OctaneBaseSocket.update_node_tree, description="The size of the ripples", min=0.000000, max=8.000000, soft_min=0.000000, soft_max=8.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -76,7 +76,7 @@ class OctaneRainBumpDensity(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=3
     octane_socket_type=consts.SocketType.ST_INT
-    default_value: IntProperty(default=4, update=OctaneBaseSocket.update_node_tree, description="The density of the rain drops", min=1, max=100, soft_min=1, soft_max=20, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=4, update=OctaneBaseSocket.update_node_tree, description="The density of the rain drops", min=1, max=100, soft_min=1, soft_max=20, step=1, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -93,7 +93,7 @@ class OctaneRainBumpStrength(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=4
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=0.300000, update=OctaneBaseSocket.update_node_tree, description="The intensity of the effect", min=0.000000, max=100.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.300000, update=OctaneBaseSocket.update_node_tree, description="The intensity of the effect", min=0.000000, max=100.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295

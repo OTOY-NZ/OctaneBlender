@@ -25,7 +25,7 @@ class OctaneInfoChannelsKernelMaxsamples(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=0
     octane_socket_type=consts.SocketType.ST_INT
-    default_value: IntProperty(default=5000, update=OctaneBaseSocket.update_node_tree, description="The number of samples per pixel that will be calculated before rendering is stopped", min=1, max=1000000, soft_min=1, soft_max=100000, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=5000, update=OctaneBaseSocket.update_node_tree, description="The number of samples per pixel that will be calculated before rendering is stopped", min=1, max=1000000, soft_min=1, soft_max=100000, step=1, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -103,7 +103,7 @@ class OctaneInfoChannelsKernelFiltersize(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=3
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=1.200000, update=OctaneBaseSocket.update_node_tree, description="Pixel filter radius", min=1.000000, max=8.000000, soft_min=1.000000, soft_max=8.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=1.200000, update=OctaneBaseSocket.update_node_tree, description="Pixel filter radius", min=1.000000, max=8.000000, soft_min=1.000000, soft_max=8.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -154,7 +154,7 @@ class OctaneInfoChannelsKernelOpacity(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=6
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Geometry with opacity higher or equal to this value is treated as totally opaque", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Geometry with opacity higher or equal to this value is treated as totally opaque", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=3000000
     octane_end_version=4294967295
@@ -205,7 +205,7 @@ class OctaneInfoChannelsKernelUvSet(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=9
     octane_socket_type=consts.SocketType.ST_INT
-    default_value: IntProperty(default=1, update=OctaneBaseSocket.update_node_tree, description="Determines which set of UV coordinates to use", min=1, max=3, soft_min=1, soft_max=3, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=1, update=OctaneBaseSocket.update_node_tree, description="Determines which set of UV coordinates to use", min=1, max=3, soft_min=1, soft_max=3, step=1, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=2200000
     octane_end_version=4294967295
@@ -295,7 +295,7 @@ class OctaneInfoChannelsKernelMaxsubdLevel(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=14
     octane_socket_type=consts.SocketType.ST_INT
-    default_value: IntProperty(default=10, update=OctaneBaseSocket.update_node_tree, description="The maximum subdivision level that should be applied on the geometries in the scene. Setting zero will disable the subdivision", min=0, max=10, soft_min=0, soft_max=10, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=10, update=OctaneBaseSocket.update_node_tree, description="The maximum subdivision level that should be applied on the geometries in the scene. Setting zero will disable the subdivision", min=0, max=10, soft_min=0, soft_max=10, step=1, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=6000001
     octane_end_version=4294967295
@@ -346,7 +346,7 @@ class OctaneInfoChannelsKernelParallelSamples(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=17
     octane_socket_type=consts.SocketType.ST_INT
-    default_value: IntProperty(default=16, update=OctaneBaseSocket.update_node_tree, description="Specifies the number of samples that are run in parallel. A small number means less parallel samples and less memory usage, but potentially slower speed. A large number means more memory usage and potentially a higher speed", min=1, max=32, soft_min=1, soft_max=32, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=16, update=OctaneBaseSocket.update_node_tree, description="Specifies the number of samples that are run in parallel. A small number means less parallel samples and less memory usage, but potentially slower speed. A large number means more memory usage and potentially a higher speed", min=1, max=32, soft_min=1, soft_max=32, step=1, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=3000000
     octane_end_version=4294967295
@@ -363,7 +363,7 @@ class OctaneInfoChannelsKernelMaxTileSamples(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=18
     octane_socket_type=consts.SocketType.ST_INT
-    default_value: IntProperty(default=32, update=OctaneBaseSocket.update_node_tree, description="The maximum samples we calculate until we switch to a new tile", min=1, max=64, soft_min=1, soft_max=64, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=32, update=OctaneBaseSocket.update_node_tree, description="The maximum samples we calculate until we switch to a new tile", min=1, max=64, soft_min=1, soft_max=64, step=1, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=3000000
     octane_end_version=4294967295
@@ -452,7 +452,7 @@ class OctaneInfoChannelsKernelMaxDepthSamples(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=23
     octane_socket_type=consts.SocketType.ST_INT
-    default_value: IntProperty(default=8, update=OctaneBaseSocket.update_node_tree, description="Maximum number of depth samples per pixels", min=1, max=32, soft_min=1, soft_max=32, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=8, update=OctaneBaseSocket.update_node_tree, description="Maximum number of depth samples per pixels", min=1, max=32, soft_min=1, soft_max=32, step=1, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=5000000
     octane_end_version=4294967295

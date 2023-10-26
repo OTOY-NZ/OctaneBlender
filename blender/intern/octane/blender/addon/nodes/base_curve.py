@@ -8,6 +8,7 @@ from collections import defaultdict
 from bpy.props import IntProperty, FloatProperty, BoolProperty, StringProperty, EnumProperty, PointerProperty, FloatVectorProperty, IntVectorProperty
 from bpy.utils import register_class, unregister_class
 from octane.core.client import OctaneBlender
+from octane.core.octane_node import OctaneNode, CArray
 from octane.utils import utility, consts
 from octane.nodes.base_socket import OctaneBaseSocket
 from octane.nodes.base_node import OctaneBaseNode
@@ -215,12 +216,46 @@ class OctaneBaseCurveNode(OctaneBaseNode):
     def auto_refresh(self):
         return consts.AutoRereshStrategy.ALWAYS
 
+    def update_curve_point_array_data(self, node, identifier, point_num, current_point_index, current_data):
+        float_data_num = point_num * 2
+        array_data = node.get_array_data(identifier)
+        if array_data is None or len(array_data) != float_data_num:
+            node.delete_array_data(identifier)
+            if node.new_array_data(identifier, CArray.FLOAT, float_data_num, 2):
+                array_data = node.get_array_data(identifier)
+        offset = current_point_index * 2
+        array_data[offset] = current_data[0]
+        array_data[offset + 1] = current_data[1]
+
     def sync_custom_data(self, octane_node, octane_graph_node_data, depsgraph):
         super().sync_custom_data(octane_node, octane_graph_node_data, depsgraph)        
         curve_node = utility.get_octane_helper_node(self.curve_name)
         if curve_node is None:
             return
-        curve = curve_node.mapping
+        mapping = curve_node.mapping
+        attribute_ids = [
+            consts.AttributeID.A_CUSTOM_CURVE_POINTS_SECONDARY_RED,
+            consts.AttributeID.A_CUSTOM_CURVE_POINTS_SECONDARY_GREEN,
+            consts.AttributeID.A_CUSTOM_CURVE_POINTS_SECONDARY_BLUE,
+            consts.AttributeID.A_CUSTOM_CURVE_POINTS_PRIMARY,            
+        ]
+        attribute_names = [
+            "a_custom_curve_points_secondary_red",
+            "a_custom_curve_points_secondary_green",
+            "a_custom_curve_points_secondary_blue",
+            "a_custom_curve_points_primary",            
+        ]
+        for idx, attribute_id in enumerate(attribute_ids):
+            attribute_name = attribute_names[idx]
+            if idx >= len(mapping.curves):
+                self.update_curve_point_array_data(octane_node, attribute_name, 2, 0, [0, 0])
+                self.update_curve_point_array_data(octane_node, attribute_name, 2, 1, [1, 1])
+                octane_node.set_attribute_id(attribute_id, attribute_name, 2)
+            else:
+                curve = mapping.curves[idx]
+                for point_idx, point in enumerate(curve.points):
+                    self.update_curve_point_array_data(octane_node, attribute_name, len(curve.points), point_idx, [point.location[0], point.location[1]])
+            octane_node.need_update = True
 
     def load_custom_legacy_node(self, legacy_node, node_tree, context, report=None):
         super().load_custom_legacy_node(legacy_node, node_tree, context, report)

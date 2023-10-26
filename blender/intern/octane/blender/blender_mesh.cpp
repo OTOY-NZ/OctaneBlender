@@ -544,6 +544,7 @@ static void create_mesh(Scene *scene,
   mesh->octane_mesh.oMeshData.iSamplesNum = 1;
   mesh->octane_mesh.oMeshData.f3Points.reserve(numverts);
   mesh->octane_mesh.oMeshData.f3Normals.reserve(numverts);
+  mesh->octane_mesh.oMeshData.iSmoothGroupPerPoly.reserve(numfaces);
   mesh->octane_mesh.oMeshData.iVertexPerPoly.reserve(numfaces);
   mesh->octane_mesh.oMeshData.iPolyMaterialIndex.reserve(numfaces);
   mesh->octane_mesh.oMeshData.iPolyObjectIndex.reserve(numfaces);
@@ -569,7 +570,7 @@ static void create_mesh(Scene *scene,
     return 0;
   };
 
-  auto get_auto_smooth = [&](const int poly_index) -> bool {
+  auto get_sharp_face = [&](const int poly_index) -> bool {
     if (sharp_faces) {
       return sharp_faces[poly_index];
     }
@@ -587,7 +588,8 @@ static void create_mesh(Scene *scene,
         vi3[i] = vi[i];
       }
       int shader = get_material_index(poly_index);
-      bool smooth = get_auto_smooth(poly_index) || use_loop_normals;
+      bool smooth = !get_sharp_face(poly_index);
+      int32_t smooth_group = 0;
       if (use_loop_normals) {
         BL::Array<float, 9> loop_normals = t.split_normals();
         for (int i = 0; i < 3; i++) {
@@ -601,6 +603,25 @@ static void create_mesh(Scene *scene,
           }
         }
       }
+      else if (!smooth) {
+        // use (0, 0, 0) so octane will use face normal here
+        float3 face_normal = make_float3(0.0f, 0.0f, 0.0f);
+        for (int i = 0; i < 3; i++) {
+          if (use_octane_coordinate) {
+            mesh->octane_mesh.oMeshData.f3Normals[vi[i]] = OctaneDataTransferObject::float_3(
+                face_normal[0], face_normal[2], -face_normal[1]);
+          }
+          else {
+            mesh->octane_mesh.oMeshData.f3Normals[vi[i]] = OctaneDataTransferObject::float_3(
+                face_normal[0], face_normal[1], face_normal[2]);
+          }
+        }
+        smooth_group = -1;
+      }
+      mesh->octane_mesh.oMeshData.iSmoothGroupPerPoly.emplace_back(smooth_group);
+      if (smooth_group == -1) {
+        mesh->octane_mesh.oMeshData.bUseFaceNormal = true;
+      }
       add_face(mesh, winding_order, vi3, shader, use_uv);
     }
   }
@@ -610,7 +631,7 @@ static void create_mesh(Scene *scene,
       size_t poly_start = poly_offsets[i];
       size_t n = poly_offsets[i + 1] - poly_start;
       int shader = get_material_index(i);
-      bool smooth = get_auto_smooth(i) || use_loop_normals;
+      bool smooth = !get_sharp_face(i);
       vi.resize(n);
       for (int i = 0; i < n; i++) {
         vi[i] = corner_verts[poly_start + i];
@@ -788,7 +809,9 @@ static void create_mesh(Scene *scene,
     for (int i = 0; i < mesh->octane_mesh.oMeshData.iUVIndices.size(); ++i) {
       size_t ui = mesh->octane_mesh.oMeshData.iUVIndices[i];
       size_t vi = mesh->octane_mesh.oMeshData.iPointIndices[ui];
-      if (vi < mesh->octane_mesh.oMeshData.f2SphereUVs.size() && i < mesh->octane_mesh.oMeshData.f3UVs.size()) {
+      if (vi < mesh->octane_mesh.oMeshData.f2SphereUVs.size() &&
+          i < mesh->octane_mesh.oMeshData.f3UVs.size())
+      {
         if (use_octane_coordinate) {
           mesh->octane_mesh.oMeshData.f2SphereUVs[vi].x = mesh->octane_mesh.oMeshData.f3UVs[i].x;
           mesh->octane_mesh.oMeshData.f2SphereUVs[vi].y = mesh->octane_mesh.oMeshData.f3UVs[i].y;
@@ -1320,6 +1343,9 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
   }
 
   bool is_mesh_tag_data_updated = octane_mesh->mesh_tag != new_mesh_tag;
+  if (depgraph_updated_mesh_names.find(b_ob_data_name) != depgraph_updated_mesh_names.end()) {
+    is_mesh_tag_data_updated = true;
+  }
   bool is_octane_property_update = octane_mesh->octane_property_tag != new_octane_prop_tag;
 
   if (b_ob.mode() == b_ob.mode_EDIT || b_ob.mode() == b_ob.mode_VERTEX_PAINT ||
@@ -1588,7 +1614,9 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
       // is_mesh_shader_data_updated may be false-positive in such cases
       // We use the synced_mesh_shader_tags to fix it
       if (is_mesh_tag_data_updated) {
-        if (synced_mesh_tags.find(mesh_name) != synced_mesh_tags.end()) {
+        if (synced_mesh_tags.find(mesh_name) != synced_mesh_tags.end() &&
+            depgraph_updated_mesh_names.find(b_ob_data_name) == depgraph_updated_mesh_names.end())
+        {
           is_mesh_tag_data_updated = synced_mesh_tags[mesh_name] != new_mesh_tag;
         }
       }

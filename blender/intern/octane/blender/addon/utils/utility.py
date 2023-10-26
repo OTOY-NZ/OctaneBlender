@@ -235,33 +235,51 @@ def set_collection(collection, items, set_func):
         collection.add()
         set_func(collection[-1], item)
 
-def make_blender_style_enum_items(_items, use_heading=False):
+def make_blender_style_enum_items(_items, use_heading=False, use_separator=True, custom_heading_configs=None):
     blender_style_enum_items = []
     heading_items = []
     heading_children_items = {}
     for _item in _items:
-        label = _item[0]        
+        label = _item[0]
         if label.find("|") != -1:
-            label_items = label.split("|")            
+            label_items = label.split("|")
             label = label_items[-1]
         display_label = _item[1]
         display_category_name = ""
         if display_label.find("|") != -1:
             display_label_items = display_label.split("|") 
             display_category_name = display_label_items[0]
-            display_label = display_label_items[-1]        
+            display_label = display_label_items[-1]
         if display_category_name not in heading_children_items:
             heading_items.append(("", display_category_name, ""))
             heading_children_items[display_category_name] = []
         heading_children_items[display_category_name].append((label, display_label, _item[2], _item[3]))
-    for heading_item in heading_items:
+    final_heading_configs = []
+    if custom_heading_configs is None:
+        for heading_item in heading_items:
+            display_category_name = heading_item[1]
+            final_heading_configs.append([heading_item, display_category_name, True])
+    else:
+        for heading_item_config in custom_heading_configs:
+            for final_heading_name, sub_heading_names in heading_item_config.items():
+                for heading_item in heading_items:
+                    display_category_name = heading_item[1]                    
+                    if final_heading_name == display_category_name or display_category_name in sub_heading_names:
+                        final_heading_configs.append([("", final_heading_name, ""), 
+                            display_category_name, 
+                            len(sub_heading_names) == 0 or display_category_name == sub_heading_names[0]])
+    for heading_config in final_heading_configs:
+        heading_item = heading_config[0]
         display_category_name = heading_item[1]
-        if use_heading:
+        category_name = heading_config[1]
+        heading_enabled = heading_config[2]
+        if use_heading and heading_enabled:
             blender_style_enum_items.append(heading_item)
         else:
             if len(display_category_name):
-                blender_style_enum_items.append(None)
-        for _item in heading_children_items[display_category_name]:
+                if use_separator:
+                    blender_style_enum_items.append(None)
+        for _item in heading_children_items[category_name]:
             blender_style_enum_items.append(_item)
     return blender_style_enum_items
 

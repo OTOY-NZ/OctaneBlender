@@ -134,7 +134,7 @@ class OctaneOperatorRangeInterpolationSteps(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=6
     octane_socket_type=consts.SocketType.ST_INT
-    default_value: IntProperty(default=8, update=OctaneBaseSocket.update_node_tree, description="Number of distinct output levels. Only active when using the Steps or Posterize interpolation methods", min=2, max=2147483647, soft_min=2, soft_max=256, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=8, update=OctaneBaseSocket.update_node_tree, description="Number of distinct output levels. Only active when using the Steps or Posterize interpolation methods", min=2, max=2147483647, soft_min=2, soft_max=256, step=1, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295

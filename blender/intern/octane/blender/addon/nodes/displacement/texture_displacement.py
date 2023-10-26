@@ -41,7 +41,7 @@ class OctaneTextureDisplacementBlackLevel(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=1
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="The value in the image which corresponds to zero displacement. The range is always normalized to [0, 1]", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="The value in the image which corresponds to zero displacement. The range is always normalized to [0, 1]", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=3000000
     octane_end_version=4294967295
@@ -144,7 +144,7 @@ class OctaneTextureDisplacementFiltersize(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=6
     octane_socket_type=consts.SocketType.ST_INT
-    default_value: IntProperty(default=2, update=OctaneBaseSocket.update_node_tree, description="Number of nearest pixels to use for filtering. The higher the value the smoother the displacement map. Only valid if a filter is enabled", min=1, max=20, soft_min=1, soft_max=20, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=2, update=OctaneBaseSocket.update_node_tree, description="Number of nearest pixels to use for filtering. The higher the value the smoother the displacement map. Only valid if a filter is enabled", min=1, max=20, soft_min=1, soft_max=20, step=1, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=3060000
     octane_end_version=4294967295

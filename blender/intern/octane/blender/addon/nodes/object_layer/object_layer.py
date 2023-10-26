@@ -25,7 +25,7 @@ class OctaneObjectLayerLayerId(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=0
     octane_socket_type=consts.SocketType.ST_INT
-    default_value: IntProperty(default=1, update=OctaneBaseSocket.update_node_tree, description="ID of the render layer the object belongs to", min=1, max=255, soft_min=1, soft_max=255, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=1, update=OctaneBaseSocket.update_node_tree, description="ID of the render layer the object belongs to", min=1, max=255, soft_min=1, soft_max=255, step=1, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=2200000
     octane_end_version=4294967295
@@ -42,7 +42,7 @@ class OctaneObjectLayerGeneralVisibility(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=1
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="General visibility", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="General visibility", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -143,7 +143,7 @@ class OctaneObjectLayerRandomSeed(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=7
     octane_socket_type=consts.SocketType.ST_INT
-    default_value: IntProperty(default=0, update=OctaneBaseSocket.update_node_tree, description="Random color seed", min=0, max=65535, soft_min=0, soft_max=65535, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=0, update=OctaneBaseSocket.update_node_tree, description="Random color seed", min=0, max=65535, soft_min=0, soft_max=65535, step=1, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=2000000
     octane_end_version=4294967295
@@ -240,7 +240,7 @@ class OctaneObjectLayerBakingGroupId(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=11
     octane_socket_type=consts.SocketType.ST_INT
-    default_value: IntProperty(default=1, update=OctaneBaseSocket.update_node_tree, description="ID of the baking group the object belongs to", min=1, max=65535, soft_min=1, soft_max=65535, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=1, update=OctaneBaseSocket.update_node_tree, description="ID of the baking group the object belongs to", min=1, max=65535, soft_min=1, soft_max=65535, step=1, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=3000000
     octane_end_version=4294967295

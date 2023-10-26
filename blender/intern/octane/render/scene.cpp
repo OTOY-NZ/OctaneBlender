@@ -202,7 +202,8 @@ bool Scene::is_osl_camera_used(std::string tree_name, std::string name)
 void Scene::generate_updated_octane_objects_data(
     std::unordered_set<std::string> &updated_object_names,
     OctaneDataTransferObject::OctaneObjects &octane_objects,
-    bool is_light_object)
+    bool is_light_object,
+    std::unordered_set<std::string> *geo_nodes_object_names)
 {
   std::unordered_map<std::string, uint32_t> object_counters;
   octane_objects.iInstanceIDMap.clear();
@@ -260,6 +261,11 @@ void Scene::generate_updated_octane_objects_data(
       object.iSamplesNum = 1;
       object.iUseObjectLayer = OctaneDataTransferObject::OctaneObject::NO_OBJECT_LAYER;
       octane_objects.oObjects.emplace_back(object);
+      if (geo_nodes_object_names != NULL) {
+        if (geo_nodes_object_names->find(name) != geo_nodes_object_names->end()) {
+          geo_nodes_object_names->erase(name);
+        }
+      }
     }
   }
 

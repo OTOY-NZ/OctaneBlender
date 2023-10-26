@@ -300,6 +300,7 @@ class BlenderSync {
   std::unordered_map<std::string, std::unordered_set<std::string>>
       synced_object_to_octane_mesh_name_map;
   std::unordered_set<std::string> edited_mesh_names;
+  std::unordered_set<std::string> depgraph_updated_mesh_names;
 
   BL::NodeTree composite_aov_node_tree;
 

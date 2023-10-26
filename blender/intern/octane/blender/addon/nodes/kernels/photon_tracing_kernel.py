@@ -25,7 +25,7 @@ class OctanePhotonTracingKernelMaxsamples(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=0
     octane_socket_type=consts.SocketType.ST_INT
-    default_value: IntProperty(default=5000, update=OctaneBaseSocket.update_node_tree, description="The number of samples per pixel that will be calculated before rendering is stopped", min=1, max=1000000, soft_min=1, soft_max=100000, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=5000, update=OctaneBaseSocket.update_node_tree, description="The number of samples per pixel that will be calculated before rendering is stopped", min=1, max=1000000, soft_min=1, soft_max=100000, step=1, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -42,7 +42,7 @@ class OctanePhotonTracingKernelMaxDiffuseDepth(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=1
     octane_socket_type=consts.SocketType.ST_INT
-    default_value: IntProperty(default=8, update=OctaneBaseSocket.update_node_tree, description="The maximum path depth for which diffuse reflections are allowed", min=1, max=2048, soft_min=1, soft_max=2048, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=8, update=OctaneBaseSocket.update_node_tree, description="The maximum path depth for which diffuse reflections are allowed", min=1, max=2048, soft_min=1, soft_max=2048, step=1, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -59,7 +59,7 @@ class OctanePhotonTracingKernelMaxGlossyDepth(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=2
     octane_socket_type=consts.SocketType.ST_INT
-    default_value: IntProperty(default=24, update=OctaneBaseSocket.update_node_tree, description="The maximum path depth for which specular reflections/refractions are allowed", min=1, max=2048, soft_min=1, soft_max=2048, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=24, update=OctaneBaseSocket.update_node_tree, description="The maximum path depth for which specular reflections/refractions are allowed", min=1, max=2048, soft_min=1, soft_max=2048, step=1, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -76,7 +76,7 @@ class OctanePhotonTracingKernelMaxScatterDepth(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=3
     octane_socket_type=consts.SocketType.ST_INT
-    default_value: IntProperty(default=8, update=OctaneBaseSocket.update_node_tree, description="The maximum path depth for which scattering is allowed", min=1, max=256, soft_min=1, soft_max=256, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=8, update=OctaneBaseSocket.update_node_tree, description="The maximum path depth for which scattering is allowed", min=1, max=256, soft_min=1, soft_max=256, step=1, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -93,7 +93,7 @@ class OctanePhotonTracingKernelMaxOverlappingVolumes(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=4
     octane_socket_type=consts.SocketType.ST_INT
-    default_value: IntProperty(default=4, update=OctaneBaseSocket.update_node_tree, description="How much space to allocate for overlapping volumes. Ray marching is faster with low values but you can get artefacts where lots of volumes overlap", min=4, max=16, soft_min=4, soft_max=16, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=4, update=OctaneBaseSocket.update_node_tree, description="How much space to allocate for overlapping volumes. Ray marching is faster with low values but you can get artefacts where lots of volumes overlap", min=4, max=16, soft_min=4, soft_max=16, step=1, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -127,7 +127,7 @@ class OctanePhotonTracingKernelFiltersize(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=6
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=1.200000, update=OctaneBaseSocket.update_node_tree, description="Film splatting width (to reduce aliasing)", min=1.000000, max=8.000000, soft_min=1.000000, soft_max=8.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=1.200000, update=OctaneBaseSocket.update_node_tree, description="Film splatting width (to reduce aliasing)", min=1.000000, max=8.000000, soft_min=1.000000, soft_max=8.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -229,7 +229,7 @@ class OctanePhotonTracingKernelMaxsubdLevel(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=12
     octane_socket_type=consts.SocketType.ST_INT
-    default_value: IntProperty(default=10, update=OctaneBaseSocket.update_node_tree, description="The maximum subdivision level that should be applied on the geometries in the scene. Setting zero will disable the subdivision", min=0, max=10, soft_min=0, soft_max=10, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=10, update=OctaneBaseSocket.update_node_tree, description="The maximum subdivision level that should be applied on the geometries in the scene. Setting zero will disable the subdivision", min=0, max=10, soft_min=0, soft_max=10, step=1, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -246,7 +246,7 @@ class OctanePhotonTracingKernelMaxPhotonDepth(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=13
     octane_socket_type=consts.SocketType.ST_INT
-    default_value: IntProperty(default=8, update=OctaneBaseSocket.update_node_tree, description="The maximum path depth for photons", min=2, max=256, soft_min=2, soft_max=16, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=8, update=OctaneBaseSocket.update_node_tree, description="The maximum path depth for photons", min=2, max=256, soft_min=2, soft_max=16, step=1, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -314,7 +314,7 @@ class OctanePhotonTracingKernelPhotonGatherSamples(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=17
     octane_socket_type=consts.SocketType.ST_INT
-    default_value: IntProperty(default=2, update=OctaneBaseSocket.update_node_tree, description="Maximal amount of photon gather samples per pixel between photon tracing passes. This is similar to max. tile samples, but it also affects the quality of caustics rendered. Higher values give more samples per second at the expense of caustic quality", min=1, max=64, soft_min=1, soft_max=64, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=2, update=OctaneBaseSocket.update_node_tree, description="Maximal amount of photon gather samples per pixel between photon tracing passes. This is similar to max. tile samples, but it also affects the quality of caustics rendered. Higher values give more samples per second at the expense of caustic quality", min=1, max=64, soft_min=1, soft_max=64, step=1, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -331,7 +331,7 @@ class OctanePhotonTracingKernelPhotonExplorationStrength(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=18
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=0.800000, update=OctaneBaseSocket.update_node_tree, description="The higher this value, the more the photon sampling is influenced by which photons are actually gathered", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.800000, update=OctaneBaseSocket.update_node_tree, description="The higher this value, the more the photon sampling is influenced by which photons are actually gathered", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=12000005
     octane_end_version=4294967295
@@ -469,7 +469,7 @@ class OctanePhotonTracingKernelPathTermPower(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=26
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=0.300000, update=OctaneBaseSocket.update_node_tree, description="Path may get terminated when ray power is less than this value", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.300000, update=OctaneBaseSocket.update_node_tree, description="Path may get terminated when ray power is less than this value", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -486,7 +486,7 @@ class OctanePhotonTracingKernelCoherentRatio(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=27
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Runs the kernel more coherently which makes it usually faster, but may require at least a few hundred samples/pixel to get rid of visible artifacts", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Runs the kernel more coherently which makes it usually faster, but may require at least a few hundred samples/pixel to get rid of visible artifacts", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -520,7 +520,7 @@ class OctanePhotonTracingKernelParallelSamples(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=29
     octane_socket_type=consts.SocketType.ST_INT
-    default_value: IntProperty(default=16, update=OctaneBaseSocket.update_node_tree, description="Specifies the number of samples that are run in parallel. A small number means less parallel samples and less memory usage, but potentially slower speed. A large number means more memory usage and potentially a higher speed", min=1, max=32, soft_min=1, soft_max=32, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=16, update=OctaneBaseSocket.update_node_tree, description="Specifies the number of samples that are run in parallel. A small number means less parallel samples and less memory usage, but potentially slower speed. A large number means more memory usage and potentially a higher speed", min=1, max=32, soft_min=1, soft_max=32, step=1, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -537,7 +537,7 @@ class OctanePhotonTracingKernelMaxTileSamples(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=30
     octane_socket_type=consts.SocketType.ST_INT
-    default_value: IntProperty(default=32, update=OctaneBaseSocket.update_node_tree, description="The maximum samples we calculate until we switch to a new tile", min=1, max=64, soft_min=1, soft_max=64, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=32, update=OctaneBaseSocket.update_node_tree, description="The maximum samples we calculate until we switch to a new tile", min=1, max=64, soft_min=1, soft_max=64, step=1, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=12000008
     octane_end_version=4294967295
@@ -605,7 +605,7 @@ class OctanePhotonTracingKernelMinAdaptiveSamples(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=34
     octane_socket_type=consts.SocketType.ST_INT
-    default_value: IntProperty(default=512, update=OctaneBaseSocket.update_node_tree, description="Minimum number of samples per pixel until adaptive sampling kicks in. Set it to a higher value if you notice that the error estimate is incorrect and stops sampling pixels too early resulting in artifacts.\nOnly valid if adaptive sampling is enabled", min=2, max=1000000, soft_min=2, soft_max=100000, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=512, update=OctaneBaseSocket.update_node_tree, description="Minimum number of samples per pixel until adaptive sampling kicks in. Set it to a higher value if you notice that the error estimate is incorrect and stops sampling pixels too early resulting in artifacts.\nOnly valid if adaptive sampling is enabled", min=2, max=1000000, soft_min=2, soft_max=100000, step=1, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -716,7 +716,7 @@ class OctanePhotonTracingKernelMaxDepthSamples(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=40
     octane_socket_type=consts.SocketType.ST_INT
-    default_value: IntProperty(default=8, update=OctaneBaseSocket.update_node_tree, description="Maximum number of depth samples per pixels", min=1, max=32, soft_min=1, soft_max=32, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=8, update=OctaneBaseSocket.update_node_tree, description="Maximum number of depth samples per pixels", min=1, max=32, soft_min=1, soft_max=32, step=1, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -801,7 +801,7 @@ class OctanePhotonTracingKernelExplorationStrength(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=45
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=0.800000, update=OctaneBaseSocket.update_node_tree, description="deprecated", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.800000, update=OctaneBaseSocket.update_node_tree, description="deprecated", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=12000005

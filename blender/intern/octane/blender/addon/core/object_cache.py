@@ -218,6 +218,19 @@ class ObjectCache(OctaneNodeCache):
                 corner_verts = list([i.value for i in mesh.attributes[".corner_vert"].data])
             else:
                 corner_verts = []
+            # Custom normals
+            custom_normals = []
+            if not need_subdivision and mesh.has_custom_normals:
+                custom_normals = [0] * (len(mesh.loops) * 3)
+                for loop_tri in mesh.loop_triangles:
+                    loops = loop_tri.loops
+                    split_normals = loop_tri.split_normals
+                    start0 = loops[0] * 3
+                    start1 = loops[1] * 3
+                    start2 = loops[2] * 3
+                    custom_normals[start0:start0 + 3] = split_normals[0][:]
+                    custom_normals[start1:start1 + 3] = split_normals[1][:]
+                    custom_normals[start2:start2 + 3] = split_normals[2][:]
             # Polygons
             polygons_num = len(mesh.polygons)
             polygons_addr = mesh.polygons[0].as_pointer() if polygons_num > 0 else 0
@@ -289,9 +302,9 @@ class ObjectCache(OctaneNodeCache):
                 normals_addr, normals_num, 
                 loop_triangles_addr, loop_triangles_num,
                 loop_triangle_polygons_addr, loop_triangle_polygons_num,
-                loops_addr, loops_num, corner_verts,
+                loops_addr, loops_num, corner_verts, custom_normals,
                 polygons_addr, polygons_num,
-                used_shaders_num, material_indices,                
+                used_shaders_num, material_indices,
                 sphere_attribute_data,
                 float_attribute_data_list,
                 color_attribute_data_list,

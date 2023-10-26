@@ -75,7 +75,7 @@ class OctaneClippingMaterialPriority(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=3
     octane_socket_type=consts.SocketType.ST_INT
-    default_value: IntProperty(default=100, update=OctaneBaseSocket.update_node_tree, description="The material priority for this surface material", min=-100, max=100, soft_min=-100, soft_max=100, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=100, update=OctaneBaseSocket.update_node_tree, description="The material priority for this surface material", min=-100, max=100, soft_min=-100, soft_max=100, step=1, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=11000001
     octane_end_version=4294967295

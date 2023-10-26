@@ -25,7 +25,7 @@ class OctaneSunDirectionLatitude(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=0
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=-37.043659, update=OctaneBaseSocket.update_node_tree, description="Latitude of the location", min=-90.000000, max=90.000000, soft_min=-90.000000, soft_max=90.000000, step=1, precision=4, subtype="FACTOR")
+    default_value: FloatProperty(default=-37.043659, update=OctaneBaseSocket.update_node_tree, description="Latitude of the location", min=-90.000000, max=90.000000, soft_min=-90.000000, soft_max=90.000000, step=1, precision=4, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -42,7 +42,7 @@ class OctaneSunDirectionLongitude(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=1
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=174.509171, update=OctaneBaseSocket.update_node_tree, description="Longitude of the location", min=-180.000000, max=180.000000, soft_min=-180.000000, soft_max=180.000000, step=1, precision=4, subtype="FACTOR")
+    default_value: FloatProperty(default=174.509171, update=OctaneBaseSocket.update_node_tree, description="Longitude of the location", min=-180.000000, max=180.000000, soft_min=-180.000000, soft_max=180.000000, step=1, precision=4, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -59,7 +59,7 @@ class OctaneSunDirectionMonth(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=2
     octane_socket_type=consts.SocketType.ST_INT
-    default_value: IntProperty(default=3, update=OctaneBaseSocket.update_node_tree, description="Month of the time the sun direction should be calculated for", min=1, max=12, soft_min=1, soft_max=12, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=3, update=OctaneBaseSocket.update_node_tree, description="Month of the time the sun direction should be calculated for", min=1, max=12, soft_min=1, soft_max=12, step=1, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -76,7 +76,7 @@ class OctaneSunDirectionDay(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=3
     octane_socket_type=consts.SocketType.ST_INT
-    default_value: IntProperty(default=1, update=OctaneBaseSocket.update_node_tree, description="Day of the month of the time the sun direction should be calculated for", min=1, max=31, soft_min=1, soft_max=31, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=1, update=OctaneBaseSocket.update_node_tree, description="Day of the month of the time the sun direction should be calculated for", min=1, max=31, soft_min=1, soft_max=31, step=1, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -93,7 +93,7 @@ class OctaneSunDirectionHour(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=4
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=10.000000, update=OctaneBaseSocket.update_node_tree, description="The local time as hours since 0:00", min=0.000000, max=24.000000, soft_min=0.000000, soft_max=24.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=10.000000, update=OctaneBaseSocket.update_node_tree, description="The local time as hours since 0:00", min=0.000000, max=24.000000, soft_min=0.000000, soft_max=24.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -110,7 +110,7 @@ class OctaneSunDirectionGmtoffset(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=5
     octane_socket_type=consts.SocketType.ST_INT
-    default_value: IntProperty(default=12, update=OctaneBaseSocket.update_node_tree, description="The time zone as offset to GMT", min=-12, max=12, soft_min=-12, soft_max=12, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=12, update=OctaneBaseSocket.update_node_tree, description="The time zone as offset to GMT", min=-12, max=12, soft_min=-12, soft_max=12, step=1, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295

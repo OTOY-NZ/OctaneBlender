@@ -42,7 +42,7 @@ class OctaneDigitsDigits(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=1
     octane_socket_type=consts.SocketType.ST_INT
-    default_value: IntProperty(default=1, update=OctaneBaseSocket.update_node_tree, description="The minimum number of digits to display. Inserts leading zeroes if the number consists of fewer digits than requested", min=1, max=8, soft_min=1, soft_max=8, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=1, update=OctaneBaseSocket.update_node_tree, description="The minimum number of digits to display. Inserts leading zeroes if the number consists of fewer digits than requested", min=1, max=8, soft_min=1, soft_max=8, step=1, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -59,7 +59,7 @@ class OctaneDigitsDecimals(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=2
     octane_socket_type=consts.SocketType.ST_INT
-    default_value: IntProperty(default=0, update=OctaneBaseSocket.update_node_tree, description="The number of digits to display after the decimal point", min=0, max=7, soft_min=0, soft_max=7, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=0, update=OctaneBaseSocket.update_node_tree, description="The number of digits to display after the decimal point", min=0, max=7, soft_min=0, soft_max=7, step=1, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295

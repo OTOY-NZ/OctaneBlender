@@ -42,7 +42,7 @@ class OctaneFanSpiralSpin(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=1
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=0.618000, update=OctaneBaseSocket.update_node_tree, description="The amount of spin", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-10.000000, soft_max=10.000000, step=1, precision=3, subtype="FACTOR")
+    default_value: FloatProperty(default=0.618000, update=OctaneBaseSocket.update_node_tree, description="The amount of spin", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-10.000000, soft_max=10.000000, step=1, precision=3, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -59,7 +59,7 @@ class OctaneFanSpiralSpiralCount(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=2
     octane_socket_type=consts.SocketType.ST_INT
-    default_value: IntProperty(default=3, update=OctaneBaseSocket.update_node_tree, description="The number of spiral arcs", min=-2147483648, max=2147483647, soft_min=1, soft_max=100, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=3, update=OctaneBaseSocket.update_node_tree, description="The number of spiral arcs", min=-2147483648, max=2147483647, soft_min=1, soft_max=100, step=1, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295

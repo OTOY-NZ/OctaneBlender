@@ -97,7 +97,7 @@ class OctaneFractalNoiseOctaves(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=4
     octane_socket_type=consts.SocketType.ST_INT
-    default_value: IntProperty(default=5, update=OctaneBaseSocket.update_node_tree, description="Number of octaves", min=1, max=16, soft_min=1, soft_max=16, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=5, update=OctaneBaseSocket.update_node_tree, description="Number of octaves", min=1, max=16, soft_min=1, soft_max=16, step=1, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -114,7 +114,7 @@ class OctaneFractalNoiseDistortion(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=5
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="The scale for a random offset added to the sample position", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-10.000000, soft_max=10.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="The scale for a random offset added to the sample position", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-10.000000, soft_max=10.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -131,7 +131,7 @@ class OctaneFractalNoiseLacunarity(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=6
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=2.121000, update=OctaneBaseSocket.update_node_tree, description="Position (frequency) multiplier per iteration", min=0.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=10.000000, step=1, precision=3, subtype="FACTOR")
+    default_value: FloatProperty(default=2.121000, update=OctaneBaseSocket.update_node_tree, description="Position (frequency) multiplier per iteration", min=0.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=10.000000, step=1, precision=3, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -148,7 +148,7 @@ class OctaneFractalNoiseGain(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=7
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=0.500000, update=OctaneBaseSocket.update_node_tree, description="Amplitude multiplier per iteration", min=0.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=2.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.500000, update=OctaneBaseSocket.update_node_tree, description="Amplitude multiplier per iteration", min=0.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=2.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295

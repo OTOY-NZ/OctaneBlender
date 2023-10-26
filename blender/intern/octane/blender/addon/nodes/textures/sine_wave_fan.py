@@ -93,7 +93,7 @@ class OctaneSineWaveFanStripeCount(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=4
     octane_socket_type=consts.SocketType.ST_INT
-    default_value: IntProperty(default=35, update=OctaneBaseSocket.update_node_tree, description="The number of stripes", min=1, max=64, soft_min=1, soft_max=64, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=35, update=OctaneBaseSocket.update_node_tree, description="The number of stripes", min=1, max=64, soft_min=1, soft_max=64, step=1, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295

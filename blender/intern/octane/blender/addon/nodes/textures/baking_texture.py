@@ -75,7 +75,7 @@ class OctaneBakingTextureSamplingRate(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=3
     octane_socket_type=consts.SocketType.ST_INT
-    default_value: IntProperty(default=32, update=OctaneBaseSocket.update_node_tree, description="Current samples/px used for the baked texture", min=1, max=10000, soft_min=1, soft_max=1000, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=32, update=OctaneBaseSocket.update_node_tree, description="Current samples/px used for the baked texture", min=1, max=10000, soft_min=1, soft_max=1000, step=1, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -130,7 +130,7 @@ class OctaneBakingTexturePower(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_TEXTURE
     octane_pin_index=6
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Power/brightness", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Power/brightness", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295

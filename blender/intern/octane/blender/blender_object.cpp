@@ -572,6 +572,9 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
       object_name = parent_name + b_ob.name_full() + instance_tag + OBJECT_TAG;
     }
   }
+  if (use_geometry_node_modifier && preview) {
+    scene->object_manager->geo_nodes_object_names.insert(object_name);
+  }
 
   /* test if we need to sync */
   // This would not work for particles(return false even particles updating)

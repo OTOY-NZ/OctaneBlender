@@ -59,7 +59,7 @@ class OctaneFractalFlowNoiseFlow(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=2
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="The coordinate of a special noise dimension with a period of 1 that naturally evolves the noise to animate it instead of sliding a 3D slice throught the noise space", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="The coordinate of a special noise dimension with a period of 1 that naturally evolves the noise to animate it instead of sliding a 3D slice throught the noise space", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -76,7 +76,7 @@ class OctaneFractalFlowNoiseLacunarity(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=3
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=2.000000, update=OctaneBaseSocket.update_node_tree, description="Position (frequency) multiplier per iteration", min=-10.000000, max=10.000000, soft_min=-10.000000, soft_max=10.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=2.000000, update=OctaneBaseSocket.update_node_tree, description="Position (frequency) multiplier per iteration", min=-10.000000, max=10.000000, soft_min=-10.000000, soft_max=10.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -93,7 +93,7 @@ class OctaneFractalFlowNoiseFlowRate(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=4
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Flow coordinate multiplier per iteration", min=0.000000, max=10.000000, soft_min=0.000000, soft_max=10.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Flow coordinate multiplier per iteration", min=0.000000, max=10.000000, soft_min=0.000000, soft_max=10.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -110,7 +110,7 @@ class OctaneFractalFlowNoiseGain(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=5
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Amplitude multiplier per iteration", min=0.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=10.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Amplitude multiplier per iteration", min=0.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=10.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -144,7 +144,7 @@ class OctaneFractalFlowNoiseOctaves(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=7
     octane_socket_type=consts.SocketType.ST_INT
-    default_value: IntProperty(default=5, update=OctaneBaseSocket.update_node_tree, description="Number of fractal iterations", min=1, max=16, soft_min=1, soft_max=16, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=5, update=OctaneBaseSocket.update_node_tree, description="Number of fractal iterations", min=1, max=16, soft_min=1, soft_max=16, step=1, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295

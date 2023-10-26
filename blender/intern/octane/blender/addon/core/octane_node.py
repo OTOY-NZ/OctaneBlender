@@ -123,7 +123,7 @@ class OctaneNode(object):
         attribute_info = OctaneInfoManger().get_attribute_info_by_id(self.node_type, attribute_id)
         if attribute_info is None:
             return False
-        return self.node.set_attribute(consts.OctaneDataBlockSymbolType.ATTRIBUTE_NAME, attribute_info.id, attribute_info.name, attribute_info.attribute_type, value, size)
+        return self.node.set_attribute(consts.OctaneDataBlockSymbolType.ATTRIBUTE_ID, attribute_info.id, attribute_info.name, attribute_info.attribute_type, value, size)
 
     def set_attribute_name(self, attribute_name, value, size=1):
         attribute_info = OctaneInfoManger().get_attribute_info_by_name(self.node_type, attribute_name)

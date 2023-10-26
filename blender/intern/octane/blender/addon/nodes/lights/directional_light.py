@@ -57,7 +57,7 @@ class OctaneDirectionalLightDirAnalyticLightAngle(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=2
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=0.500000, update=OctaneBaseSocket.update_node_tree, description="Light's sampling spread angle [degrees]. The larger the value is, the bigger the light source is, hence producing softer shadows", min=0.000000, max=60.000000, soft_min=0.000000, soft_max=15.000000, step=10, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.500000, update=OctaneBaseSocket.update_node_tree, description="Light's sampling spread angle [degrees]. The larger the value is, the bigger the light source is, hence producing softer shadows", min=0.000000, max=60.000000, soft_min=0.000000, soft_max=15.000000, step=10, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295

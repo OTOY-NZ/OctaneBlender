@@ -116,6 +116,8 @@ void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph)
 
   std::unordered_set<std::string> updated_id_names;
 
+  depgraph_updated_mesh_names.clear();
+
   for (b_depsgraph.updates.begin(b_update); b_update != b_depsgraph.updates.end(); ++b_update) {
     BL::ID b_id(b_update->id());
     /* Material */
@@ -165,6 +167,7 @@ void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph)
     else if (b_id.is_a(&RNA_Mesh)) {
       BL::Mesh b_mesh(b_id);
       mesh_map.set_recalc(b_mesh);
+      depgraph_updated_mesh_names.insert(b_mesh.name());
     }
     /* World */
     else if (b_id.is_a(&RNA_World)) {

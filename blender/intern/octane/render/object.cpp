@@ -107,6 +107,7 @@ ObjectManager::ObjectManager()
 {
   need_update = true;
   removed_object_names.clear();
+  geo_nodes_object_names.clear();
 }
 
 ObjectManager::~ObjectManager()
@@ -133,6 +134,10 @@ void ObjectManager::server_update(::OctaneEngine::OctaneClient *server,
     removed_object_names.clear();
   }
 
+  if (geo_nodes_object_names.size()) {
+    updated_object_names.insert(geo_nodes_object_names.begin(), geo_nodes_object_names.end());
+  }
+
   OctaneDataTransferObject::OctaneObjects octane_objects;
   for (auto object : scene->objects) {
     if (object->need_update && !object->is_global_mesh_type()) {
@@ -140,7 +145,7 @@ void ObjectManager::server_update(::OctaneEngine::OctaneClient *server,
       // object->need_update = false;
     }
   }
-  scene->generate_updated_octane_objects_data(updated_object_names, octane_objects, false);
+  scene->generate_updated_octane_objects_data(updated_object_names, octane_objects, false, &geo_nodes_object_names);
   octane_objects.iCurrentFrameIdx = frame_idx;
   octane_objects.iTotalFrameIdx = total_frames;
   octane_objects.bGlobal = false;

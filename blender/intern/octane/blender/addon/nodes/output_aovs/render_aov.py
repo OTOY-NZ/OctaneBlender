@@ -282,3 +282,59 @@ def unregister():
     utility.octane_unregister_class(reversed(_CLASSES))
 
 ##### END OCTANE GENERATED CODE BLOCK #####
+
+
+OctaneOutputAOVsRenderAOVInput_simplified_items = utility.make_blender_style_enum_items(OctaneOutputAOVsRenderAOVInput.items, True, True, 
+    [
+        {"Beauty, Denoised": ["", "Beauty - surfaces", "Beauty - volumes", "Denoised"]},
+        {"Auxiliary, Render layer": ["Auxiliary", "Render layer", ]},
+        {"Info": ["Info", ]},
+        {"Light": ["Light", ]},
+        {"Custom": ["Custom", ]},
+    ])
+    # [
+    #     {"Beauty, Denoised": ["", "Beauty - surfaces", "Beauty - volumes", "Denoised"]},
+    #     {"Auxiliary, Info, Render layer": ["Auxiliary", "Info", "Render layer"]},
+    #     {"Light": ["Light", ]},
+    #     {"Custom": ["Custom", ]},
+    # ])
+OctaneOutputAOVsRenderAOVInput_no_heading_simplified_items = utility.make_blender_style_enum_items(OctaneOutputAOVsRenderAOVInput.items, False, False)
+
+
+class OctaneOutputAOVsRenderAOVInput_OT_search_popup(bpy.types.Operator):
+    bl_idname = "octane_render_aov.search_popup"
+    bl_label = "Render AOV Input"
+    bl_property = "default_value"
+
+    default_value: EnumProperty(default="Beauty", update=None, description="The render AOV to blend. This must be enabled as a render AOV", items=OctaneOutputAOVsRenderAOVInput_no_heading_simplified_items)    
+
+    def execute(self, context):
+        context.active_node.inputs[OctaneOutputAOVsRenderAOVInput.bl_label].default_value = self.default_value
+        return {"FINISHED"}
+
+    def invoke(self, context, event):
+        wm = context.window_manager
+        wm.invoke_search_popup(self)
+        return {"FINISHED"}
+
+
+class OctaneOutputAOVsRenderAOVInput_Override(OctaneOutputAOVsRenderAOVInput):
+    default_value: EnumProperty(default="Beauty", update=OctaneBaseSocket.update_node_tree, description="The render AOV to blend. This must be enabled as a render AOV", items=OctaneOutputAOVsRenderAOVInput_simplified_items)
+
+    def draw_prop(self, context, layout, text):
+        c = layout.column()
+        row = c.row()
+        split = row.split(factor=0.4)
+        c = split.column()
+        c.label(text=text)
+        split = split.split(factor=0.85)
+        c = split.column()
+        c.alignment = "LEFT"
+        c.prop(self, "default_value", text="")
+        split = split.split()
+        c = split.column()
+        c.operator("octane_render_aov.search_popup", icon="VIEWZOOM", text="")
+
+
+_CLASSES.append(OctaneOutputAOVsRenderAOVInput_OT_search_popup)
+utility.override_class(_CLASSES, OctaneOutputAOVsRenderAOVInput, OctaneOutputAOVsRenderAOVInput_Override)

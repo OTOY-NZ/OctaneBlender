@@ -42,7 +42,7 @@ class OctaneDaylightEnvironmentTurbidity(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=1
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=2.400000, update=OctaneBaseSocket.update_node_tree, description="Sky turbidity, i.e. the amount of sun light that is scattered. A high value will reduce the contrast between objects in the shadow and in sun light", min=2.000000, max=15.000000, soft_min=2.000000, soft_max=15.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=2.400000, update=OctaneBaseSocket.update_node_tree, description="Sky turbidity, i.e. the amount of sun light that is scattered. A high value will reduce the contrast between objects in the shadow and in sun light", min=2.000000, max=15.000000, soft_min=2.000000, soft_max=15.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -93,7 +93,7 @@ class OctaneDaylightEnvironmentNorthoffset(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=4
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Additional rotation offset on longitude", min=-1.000000, max=1.000000, soft_min=-1.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Additional rotation offset on longitude", min=-1.000000, max=1.000000, soft_min=-1.000000, soft_max=1.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -201,7 +201,7 @@ class OctaneDaylightEnvironmentGroundStartAngle(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=10
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=90.000000, update=OctaneBaseSocket.update_node_tree, description="The angle (in degrees) below the horizon where the transition to the ground color starts. This applies only to the Octane daylight model", min=0.000000, max=90.000000, soft_min=0.000000, soft_max=90.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=90.000000, update=OctaneBaseSocket.update_node_tree, description="The angle (in degrees) below the horizon where the transition to the ground color starts. This applies only to the Octane daylight model", min=0.000000, max=90.000000, soft_min=0.000000, soft_max=90.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=3050100
     octane_end_version=4294967295
@@ -218,7 +218,7 @@ class OctaneDaylightEnvironmentGroundBlendAngle(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=11
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=5.000000, update=OctaneBaseSocket.update_node_tree, description="The angle (in degrees) over which the sky color transitions to the ground color. This applies only to the Octane daylight model", min=1.000000, max=90.000000, soft_min=1.000000, soft_max=90.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=5.000000, update=OctaneBaseSocket.update_node_tree, description="The angle (in degrees) over which the sky color transitions to the ground color. This applies only to the Octane daylight model", min=1.000000, max=90.000000, soft_min=1.000000, soft_max=90.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=3050100
     octane_end_version=4294967295

@@ -93,7 +93,7 @@ class OctanePostProcessingGlareRayAmount(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=4
     octane_socket_type=consts.SocketType.ST_INT
-    default_value: IntProperty(default=3, update=OctaneBaseSocket.update_node_tree, description="Glare ray count", min=1, max=8, soft_min=1, soft_max=8, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=3, update=OctaneBaseSocket.update_node_tree, description="Glare ray count", min=1, max=8, soft_min=1, soft_max=8, step=1, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -110,7 +110,7 @@ class OctanePostProcessingGlareAngle(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=5
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=15.000000, update=OctaneBaseSocket.update_node_tree, description="Glare rotation angle", min=-90.000000, max=90.000000, soft_min=-90.000000, soft_max=90.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=15.000000, update=OctaneBaseSocket.update_node_tree, description="Glare rotation angle", min=-90.000000, max=90.000000, soft_min=-90.000000, soft_max=90.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -127,7 +127,7 @@ class OctanePostProcessingGlareBlur(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=6
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=0.001000, update=OctaneBaseSocket.update_node_tree, description="Glare blur", min=0.001000, max=0.200000, soft_min=0.001000, soft_max=0.200000, step=1, precision=3, subtype="FACTOR")
+    default_value: FloatProperty(default=0.001000, update=OctaneBaseSocket.update_node_tree, description="Glare blur", min=0.001000, max=0.200000, soft_min=0.001000, soft_max=0.200000, step=1, precision=3, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -178,7 +178,7 @@ class OctanePostProcessingSpectralIntensity(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=9
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Spectral intensity", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Spectral intensity", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -195,7 +195,7 @@ class OctanePostProcessingSpectralShift(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=10
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=2.000000, update=OctaneBaseSocket.update_node_tree, description="Spectral shift", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=6.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=2.000000, update=OctaneBaseSocket.update_node_tree, description="Spectral shift", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=6.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -212,7 +212,7 @@ class OctanePostProcessingChromaticAbrIntensity(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=11
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Chromatic aberration intensity", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Chromatic aberration intensity", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=13000000
     octane_end_version=4294967295
@@ -229,7 +229,7 @@ class OctanePostProcessingLensFlare(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=12
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Lens flare intensity", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Lens flare intensity", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=13000000
     octane_end_version=4294967295
@@ -246,7 +246,7 @@ class OctanePostProcessingLensFlareExtent(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=13
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=2.000000, update=OctaneBaseSocket.update_node_tree, description="Lens flare extent. This controls the overall length and distances between lens flare highlights", min=0.000000, max=10.000000, soft_min=0.000000, soft_max=10.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=2.000000, update=OctaneBaseSocket.update_node_tree, description="Lens flare extent. This controls the overall length and distances between lens flare highlights", min=0.000000, max=10.000000, soft_min=0.000000, soft_max=10.000000, step=1, precision=2, subtype=consts.factor_property_subtype())
     octane_hide_value=False
     octane_min_version=13000000
     octane_end_version=4294967295

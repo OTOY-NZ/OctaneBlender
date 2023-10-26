@@ -1828,6 +1828,9 @@ void OctaneClient::uploadOctaneMesh(OctaneDataTransferObject::OctaneMeshes &mesh
     mesh.oMeshData.oArrayInfo[ARRAY_INFO_NORMAL_INDEX_DATA] = std::pair<uint32_t, uint32_t>(
         mesh.oMeshData.iNormalIndices.size(), iDataOffset);
     iDataOffset += mesh.oMeshData.iNormalIndices.size();
+    mesh.oMeshData.oArrayInfo[ARRAY_INFO_SMOOTH_GROUP_PER_POLY_DATA] = std::pair<uint32_t, uint32_t>(
+        mesh.oMeshData.iSmoothGroupPerPoly.size(), iDataOffset);
+    iDataOffset += mesh.oMeshData.iSmoothGroupPerPoly.size();
     mesh.oMeshData.oArrayInfo[ARRAY_INFO_VERTEX_PER_POLY_DATA] = std::pair<uint32_t, uint32_t>(
         mesh.oMeshData.iVertexPerPoly.size(), iDataOffset);
     iDataOffset += mesh.oMeshData.iVertexPerPoly.size();
@@ -2002,6 +2005,8 @@ void OctaneClient::uploadOctaneMesh(OctaneDataTransferObject::OctaneMeshes &mesh
                     mesh.oMeshData.iPointIndices.size() * sizeof(int32_t));
     snd.writeBuffer(reinterpret_cast<int32_t *>(mesh.oMeshData.iNormalIndices.data()),
                     mesh.oMeshData.iNormalIndices.size() * sizeof(int32_t));
+    snd.writeBuffer(reinterpret_cast<int32_t *>(mesh.oMeshData.iSmoothGroupPerPoly.data()),
+                    mesh.oMeshData.iSmoothGroupPerPoly.size() * sizeof(int32_t));
     snd.writeBuffer(reinterpret_cast<int32_t *>(mesh.oMeshData.iVertexPerPoly.data()),
                     mesh.oMeshData.iVertexPerPoly.size() * sizeof(int32_t));
     snd.writeBuffer(reinterpret_cast<int32_t *>(mesh.oMeshData.iPolyMaterialIndex.data()),
