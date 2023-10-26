@@ -12,6 +12,7 @@ struct UndoType;
 struct SelectPick_Params;
 struct ViewContext;
 struct rcti;
+struct TransVertStore;
 
 #ifdef __cplusplus
 extern "C" {
@@ -31,6 +32,16 @@ void ED_keymap_curves(struct wmKeyConfig *keyconf);
  * calculated for the evaluated points and sampled back to the control points.
  */
 float (*ED_curves_point_normals_array_create(const struct Curves *curves_id))[3];
+
+/**
+ * Wrapper for `transverts_from_curves_positions_create`.
+ */
+void ED_curves_transverts_create(struct Curves *curves_id, struct TransVertStore *tvs);
+
+/**
+ * C wrapper for #CurvesGeometry::offsets_for_write().
+ */
+int *ED_curves_offsets_for_write(struct Curves *curves_id);
 
 /** \} */
 
@@ -55,6 +66,13 @@ bool object_has_editable_curves(const Main &bmain, const Object &object);
 bke::CurvesGeometry primitive_random_sphere(int curves_size, int points_per_curve);
 VectorSet<Curves *> get_unique_editable_curves(const bContext &C);
 void ensure_surface_deformation_node_exists(bContext &C, Object &curves_ob);
+
+/**
+ * Allocate an array of `TransVert` for cursor/selection snapping (See
+ * `ED_transverts_create_from_obedit` in `view3d_snap.c`).
+ * \note: the `TransVert` elements in \a tvs are expected to write to the positions of \a curves.
+ */
+void transverts_from_curves_positions_create(bke::CurvesGeometry &curves, TransVertStore *tvs);
 
 /* -------------------------------------------------------------------- */
 /** \name Poll Functions
@@ -138,6 +156,11 @@ void select_ends(bke::CurvesGeometry &curves, int amount, bool end_points);
  * Select the points of all curves that have at least one point selected.
  */
 void select_linked(bke::CurvesGeometry &curves);
+
+/**
+ * (De)select all the adjacent points of the current selected points.
+ */
+void select_adjacent(bke::CurvesGeometry &curves, bool deselect);
 
 /**
  * Select random points or curves.

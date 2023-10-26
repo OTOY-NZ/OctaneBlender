@@ -168,6 +168,7 @@ add_blender_test(
   blendfile_library_overrides
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_blendfile_library_overrides.py --
   --output-dir ${TEST_OUT_DIR}/blendfile_io/
+  --test-dir "${TEST_SRC_DIR}/libraries_and_linking"
 )
 
 # ------------------------------------------------------------------------------
@@ -646,7 +647,7 @@ add_blender_test(
 endif()
 
 # SVG Import
-if(True)
+if(TRUE)
   if(NOT OPENIMAGEIO_IDIFF)
     message(WARNING "Disabling SVG tests because OIIO idiff does not exist")
   else()
@@ -939,6 +940,43 @@ if(WITH_CODEC_FFMPEG)
   )
 endif()
 
+if(NOT OPENIMAGEIO_IDIFF)
+  message(STATUS "Disabling ImBuf image format tests because OIIO idiff does not exist")
+else()
+  SET(OPTIONAL_FORMATS "")
+  if(WITH_IMAGE_CINEON)
+    set(OPTIONAL_FORMATS "${OPTIONAL_FORMATS} CINEON")
+  endif()
+  if(WITH_IMAGE_OPENEXR)
+    set(OPTIONAL_FORMATS "${OPTIONAL_FORMATS} OPENEXR")
+  endif()
+  if(WITH_IMAGE_OPENJPEG)
+    set(OPTIONAL_FORMATS "${OPTIONAL_FORMATS} OPENJPEG")
+  endif()
+  if(WITH_IMAGE_WEBP)
+    set(OPTIONAL_FORMATS "${OPTIONAL_FORMATS} WEBP")
+  endif()
+
+  add_blender_test(
+    bf_imbuf_save
+    --python ${CMAKE_CURRENT_LIST_DIR}/bl_imbuf_save.py
+    --
+    -test_dir "${TEST_SRC_DIR}/imbuf_io"
+    -output_dir "${TEST_OUT_DIR}/imbuf_io/save"
+    -idiff "${OPENIMAGEIO_IDIFF}"
+    -optional_formats "${OPTIONAL_FORMATS}"
+  )
+
+  add_blender_test(
+    bf_imbuf_load
+    --python ${CMAKE_CURRENT_LIST_DIR}/bl_imbuf_load.py
+    --
+    -test_dir "${TEST_SRC_DIR}/imbuf_io"
+    -output_dir "${TEST_OUT_DIR}/imbuf_io/load"
+    -idiff "${OPENIMAGEIO_IDIFF}"
+    -optional_formats "${OPTIONAL_FORMATS}"
+  )
+endif()
 
 # ------------------------------------------------------------------------------
 # SEQUENCER RENDER TESTS

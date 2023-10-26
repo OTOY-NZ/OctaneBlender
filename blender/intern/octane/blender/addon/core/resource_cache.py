@@ -7,7 +7,7 @@ from octane.core.client import OctaneBlender
 
 
 @persistent
-def reset_resource_cache(arg):
+def reset_resource_cache(scene):
     from octane import engine
     from octane import operators
     if core.ENABLE_OCTANE_ADDON_CLIENT:
@@ -16,7 +16,8 @@ def reset_resource_cache(arg):
         else:
             from octane.core.client import OctaneBlender
             from octane.core.resource_cache import ResourceCache
-            scene = bpy.context.scene
+            if scene is None:
+                scene = bpy.context.scene
             oct_scene = scene.octane
             OctaneBlender().update_server_settings(consts.ResourceCacheType.NONE)
             OctaneBlender().reset_render()
@@ -31,15 +32,20 @@ def reset_resource_cache(arg):
 def update_dirty_mesh_names(scene, depsgraph):
     from octane import engine
     if engine.IS_RENDERING:
-        return    
+        return
     for update in depsgraph.updates:
         if update.is_updated_geometry and isinstance(update.id, bpy.types.Mesh):
-            ResourceCache().add_dirty_mesh_names(update.id.name)
-    oct_scene = scene.octane
-    if oct_scene.dirty_resource_detection_strategy_type == "Select":
-        active_obj = bpy.context.active_object
-        if active_obj.type == "MESH":
-            ResourceCache().add_dirty_mesh_names(active_obj.data.name)
+            ResourceCache().add_dirty_mesh_names(update.id.name)           
+    oct_scene = scene.octane    
+    active_obj = bpy.context.active_object
+    if not active_obj or not active_obj.data:
+        return
+    eval_obj = active_obj.evaluated_get(depsgraph)
+    is_editmode = getattr(eval_obj.data, "is_editmode", False)
+    strategy_type = oct_scene.dirty_resource_detection_strategy_type
+    if strategy_type == "Select" or (strategy_type == "Edit Mode" and is_editmode):
+        if eval_obj.type == "MESH":
+            ResourceCache().add_dirty_mesh_names(eval_obj.data.name)
 
 
 class ResourceCache(metaclass=utility.Singleton):

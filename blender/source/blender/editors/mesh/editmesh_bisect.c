@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2013 Blender Foundation. All rights reserved. */
+ * Copyright 2013 Blender Foundation */
 
 /** \file
  * \ingroup edmesh
@@ -106,7 +106,8 @@ static int mesh_bisect_invoke(bContext *C, wmOperator *op, const wmEvent *event)
   /* If the properties are set or there is no rv3d,
    * skip modal and exec immediately. */
   if ((CTX_wm_region_view3d(C) == NULL) || (RNA_struct_property_is_set(op->ptr, "plane_co") &&
-                                            RNA_struct_property_is_set(op->ptr, "plane_no"))) {
+                                            RNA_struct_property_is_set(op->ptr, "plane_no")))
+  {
     return mesh_bisect_exec(C, op);
   }
 
@@ -436,7 +437,9 @@ void MESH_OT_bisect(struct wmOperatorType *ot)
                               1.0f);
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 
-  RNA_def_boolean(ot->srna, "use_fill", false, "Fill", "Fill in the cut");
+  prop = RNA_def_boolean(ot->srna, "use_fill", false, "Fill", "Fill in the cut");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_MASK);
+
   RNA_def_boolean(
       ot->srna, "clear_inner", false, "Clear Inner", "Remove geometry behind the plane");
   RNA_def_boolean(

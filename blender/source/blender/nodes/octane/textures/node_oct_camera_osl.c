@@ -86,7 +86,7 @@ void register_node_type_camera_oct_osl_camera(void)
   static bNodeType ntype;
 
   sh_node_type_base(&ntype, SH_NODE_OCT_OSL_CAMERA, "OSL Camera", NODE_CLASS_OCT_CAMERA);
-  node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
+  blender::bke::node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
   ntype.initfunc = (init);
   node_type_storage(&ntype, "NodeShaderScript", node_free_script, node_copy_script);
 

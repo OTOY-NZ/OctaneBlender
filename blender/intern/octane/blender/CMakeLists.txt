@@ -77,7 +77,6 @@ set(ADDON_FILES
 	addon/__init__.py
 	addon/engine.py
 	addon/operators.py
-	addon/presets.py
 	addon/properties.py
 	addon/ui.py
 	addon/nodeitems_octane.py
@@ -96,6 +95,7 @@ set(ADDON_CORE_FILES
   addon/core/client.py
   addon/core/session.py
   addon/core/caches.py
+  addon/core/frame_buffer.py
   addon/core/object_cache.py
   addon/core/octane_node.py
   addon/core/octane_info.py
@@ -111,6 +111,7 @@ set(ADDON_UI_FILES
   addon/uis/light.py
   addon/uis/mesh.py
   addon/uis/scene.py
+  addon/uis/viewport_header.py
   addon/uis/world.py
 )
 
@@ -388,6 +389,7 @@ set(ADDON_NODES_RENDER_SETTINGS_FILES
     addon/nodes/render_settings/camera_imager.py
     addon/nodes/render_settings/post_processing.py
     addon/nodes/render_settings/render_layer.py
+    addon/nodes/render_settings/render_passes.py
     addon/nodes/render_settings/animation_settings.py
     addon/nodes/render_settings/film_settings.py
     addon/nodes/render_settings/custom_lut.py
@@ -581,6 +583,7 @@ set(ADDON_NODES_UTIL_FILES
   addon/utils/curve.py
   addon/utils/ocio.py
   addon/utils/octaneid.py
+  addon/utils/octane_name.py
   addon/utils/legacy_octane_node.py
 )
 

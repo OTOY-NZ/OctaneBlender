@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2006 Blender Foundation. All rights reserved. */
+ * Copyright 2006 Blender Foundation */
 
 /** \file
  * \ingroup shdnodes
@@ -9,12 +9,12 @@
 
 #include "BLI_utildefines.h"
 
-#include "BKE_node.h"
+#include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
 
 #include "NOD_common.h"
 #include "node_common.h"
-#include "node_exec.h"
+#include "node_exec.hh"
 #include "node_shader_util.hh"
 
 #include "RNA_access.h"
@@ -93,7 +93,7 @@ void register_node_type_sh_group()
   BLI_assert(ntype.rna_ext.srna != nullptr);
   RNA_struct_blender_type_set(ntype.rna_ext.srna, &ntype);
 
-  node_type_size(&ntype, 140, 60, 400);
+  blender::bke::node_type_size(&ntype, 140, 60, 400);
   ntype.labelfunc = node_group_label;
   ntype.declare_dynamic = blender::nodes::node_group_declare_dynamic;
   ntype.gpu_fn = gpu_group_execute;

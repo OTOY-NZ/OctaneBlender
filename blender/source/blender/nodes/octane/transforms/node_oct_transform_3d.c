@@ -96,10 +96,10 @@ void register_node_type_transform_oct_3d(void)
   static bNodeType ntype;
 
   if (ntype.type != SH_NODE_OCT_3D_TRN)
-    node_type_base(
+    sh_node_type_base(
         &ntype, SH_NODE_OCT_3D_TRN, "3D Transform", NODE_CLASS_OCT_TRANSFORM);
-  node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
-  node_type_size(&ntype, 160, 160, 500);
+  blender::bke::node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
+  node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::DEFAULT);
   ntype.initfunc = (node_transform_oct_3d_init);
   // node_type_exec(&ntype, 0, 0, 0);
   ntype.updatefunc = node_octane_transform_conversion_update;

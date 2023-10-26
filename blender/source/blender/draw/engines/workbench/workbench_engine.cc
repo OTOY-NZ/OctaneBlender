@@ -34,6 +34,7 @@ class Instance {
   TransparentDepthPass transparent_depth_ps;
 
   ShadowPass shadow_ps;
+  VolumePass volume_ps;
   OutlinePass outline_ps;
   DofPass dof_ps;
   AntiAliasingPass anti_aliasing_ps;
@@ -68,12 +69,14 @@ class Instance {
                                  resolution,
                                  GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT |
                                      GPU_TEXTURE_USAGE_MIP_SWIZZLE_VIEW);
+    resources.material_buf.clear();
 
     opaque_ps.sync(scene_state, resources);
     transparent_ps.sync(scene_state, resources);
     transparent_depth_ps.sync(scene_state, resources);
 
     shadow_ps.sync();
+    volume_ps.sync(resources);
     outline_ps.sync(resources);
     dof_ps.sync(resources);
     anti_aliasing_ps.sync(resources, scene_state.resolution);
@@ -82,6 +85,27 @@ class Instance {
   void end_sync()
   {
     resources.material_buf.push_update();
+  }
+
+  Material get_material(ObjectRef ob_ref, eV3DShadingColorType color_type, int slot = 0)
+  {
+    switch (color_type) {
+      case V3D_SHADING_OBJECT_COLOR:
+        return Material(*ob_ref.object);
+      case V3D_SHADING_RANDOM_COLOR:
+        return Material(*ob_ref.object, true);
+      case V3D_SHADING_SINGLE_COLOR:
+        return scene_state.material_override;
+      case V3D_SHADING_VERTEX_COLOR:
+        return scene_state.material_attribute_color;
+      case V3D_SHADING_MATERIAL_COLOR:
+        if (::Material *_mat = BKE_object_material_get_eval(ob_ref.object, slot + 1)) {
+          return Material(*_mat);
+        }
+        ATTR_FALLTHROUGH;
+      default:
+        return Material(*BKE_material_default_empty());
+    }
   }
 
   void object_sync(Manager &manager, ObjectRef &ob_ref)
@@ -137,9 +161,8 @@ class Instance {
       if (md && BKE_modifier_is_enabled(scene_state.scene, md, eModifierMode_Realtime)) {
         FluidModifierData *fmd = (FluidModifierData *)md;
         if (fmd->domain) {
-#if 0 /* TODO(@pragma37): */
-          workbench_volume_cache_populate(vedata, wpd->scene, ob, md, V3D_SHADING_SINGLE_COLOR);
-#endif
+          volume_ps.object_sync_modifier(manager, resources, scene_state, ob_ref, md);
+
           if (fmd->domain->type == FLUID_DOMAIN_TYPE_GAS) {
             return; /* Do not draw solid in this case. */
           }
@@ -162,14 +185,16 @@ class Instance {
 #if 0 /* TODO(@pragma37): */
       DRWShadingGroup *grp = workbench_material_hair_setup(
           wpd, ob, CURVES_MATERIAL_NR, object_state.color_type);
-      DRW_shgroup_curves_create_sub(ob, grp, NULL);
+      DRW_shgroup_curves_create_sub(ob, grp, nullptr);
 #endif
     }
     else if (ob->type == OB_VOLUME) {
       if (scene_state.shading.type != OB_WIRE) {
-#if 0 /* TODO(@pragma37): */
-        workbench_volume_cache_populate(vedata, wpd->scene, ob, NULL, object_state.color_type);
-#endif
+        volume_ps.object_sync_volume(manager,
+                                     resources,
+                                     scene_state,
+                                     ob_ref,
+                                     get_material(ob_ref, object_state.color_type).base_color);
       }
     }
   }
@@ -202,30 +227,18 @@ class Instance {
             if (batches[i] == nullptr) {
               continue;
             }
-            /* TODO(fclem): This create a cull-able instance for each sub-object. This is done
-             * for simplicity to reduce complexity. But this increase the overhead per object.
-             * Instead, we should use an indirection buffer to the material buffer. */
-            ResourceHandle _handle = i == 0 ? handle : manager.resource_handle(ob_ref);
 
-            Material &mat = resources.material_buf.get_or_resize(_handle.resource_index());
-
-            if (::Material *_mat = BKE_object_material_get_eval(ob_ref.object, i + 1)) {
-              mat = Material(*_mat);
-            }
-            else {
-              mat = Material(*BKE_material_default_empty());
-            }
-
+            Material mat = get_material(ob_ref, object_state.color_type, i);
             has_transparent_material = has_transparent_material || mat.is_transparent();
 
             ::Image *image = nullptr;
             ImageUser *iuser = nullptr;
-            eGPUSamplerState sampler_state = eGPUSamplerState::GPU_SAMPLER_DEFAULT;
+            GPUSamplerState sampler_state = GPUSamplerState::default_sampler();
             if (object_state.color_type == V3D_SHADING_TEXTURE_COLOR) {
               get_material_image(ob_ref.object, i + 1, image, iuser, sampler_state);
             }
 
-            draw_mesh(ob_ref, mat, batches[i], _handle, image, sampler_state, iuser);
+            draw_mesh(ob_ref, mat, batches[i], handle, image, sampler_state, iuser);
           }
         }
       }
@@ -247,24 +260,7 @@ class Instance {
         }
 
         if (batch) {
-          Material &mat = resources.material_buf.get_or_resize(handle.resource_index());
-
-          if (object_state.color_type == V3D_SHADING_OBJECT_COLOR) {
-            mat = Material(*ob_ref.object);
-          }
-          else if (object_state.color_type == V3D_SHADING_RANDOM_COLOR) {
-            mat = Material(*ob_ref.object, true);
-          }
-          else if (object_state.color_type == V3D_SHADING_SINGLE_COLOR) {
-            mat = scene_state.material_override;
-          }
-          else if (object_state.color_type == V3D_SHADING_VERTEX_COLOR) {
-            mat = scene_state.material_attribute_color;
-          }
-          else {
-            mat = Material(*BKE_material_default_empty());
-          }
-
+          Material mat = get_material(ob_ref, object_state.color_type);
           has_transparent_material = has_transparent_material || mat.is_transparent();
 
           draw_mesh(ob_ref,
@@ -287,13 +283,15 @@ class Instance {
                  GPUBatch *batch,
                  ResourceHandle handle,
                  ::Image *image = nullptr,
-                 eGPUSamplerState sampler_state = GPU_SAMPLER_DEFAULT,
+                 GPUSamplerState sampler_state = GPUSamplerState::default_sampler(),
                  ImageUser *iuser = nullptr)
   {
     const bool in_front = (ob_ref.object->dtx & OB_DRAW_IN_FRONT) != 0;
+    resources.material_buf.append(material);
+    int material_index = resources.material_buf.size() - 1;
 
     auto draw = [&](MeshPass &pass) {
-      pass.draw(ob_ref, batch, handle, image, sampler_state, iuser);
+      pass.draw(ob_ref, batch, handle, material_index, image, sampler_state, iuser);
     };
 
     if (scene_state.xray_mode || material.is_transparent()) {
@@ -371,8 +369,7 @@ class Instance {
     transparent_ps.draw(manager, view, resources, resolution);
     transparent_depth_ps.draw(manager, view, resources);
 
-    // volume_ps.draw_prepass(manager, view, resources.depth_tx);
-
+    volume_ps.draw(manager, view, resources);
     outline_ps.draw(manager, resources);
     dof_ps.draw(manager, view, resources, resolution);
     anti_aliasing_ps.draw(manager, view, resources, resolution, depth_tx, color_tx);
@@ -504,9 +501,11 @@ static bool workbench_render_framebuffers_init(void)
    * the other views will reuse these buffers */
   if (dtxl->color == nullptr) {
     BLI_assert(dtxl->depth == nullptr);
-    dtxl->color = GPU_texture_create_2d("txl.color", size.x, size.y, 1, GPU_RGBA16F, nullptr);
+    eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL;
+    dtxl->color = GPU_texture_create_2d(
+        "txl.color", size.x, size.y, 1, GPU_RGBA16F, usage, nullptr);
     dtxl->depth = GPU_texture_create_2d(
-        "txl.depth", size.x, size.y, 1, GPU_DEPTH24_STENCIL8, nullptr);
+        "txl.depth", size.x, size.y, 1, GPU_DEPTH24_STENCIL8, usage, nullptr);
   }
 
   if (!(dtxl->depth && dtxl->color)) {
@@ -576,7 +575,7 @@ static void write_render_z_output(struct RenderLayer *layer,
 
     int pix_num = BLI_rcti_size_x(rect) * BLI_rcti_size_y(rect);
 
-    /* Convert ogl depth [0..1] to view Z [near..far] */
+    /* Convert GPU depth [0..1] to view Z [near..far] */
     if (DRW_view_is_persp_get(nullptr)) {
       for (float &z : MutableSpan(rp->rect, pix_num)) {
         if (z == 1.0f) {

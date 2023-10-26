@@ -118,7 +118,8 @@ static void test_polyfill_topology(const float /*poly*/[][2],
   }
 
   for (ehi = BLI_edgehashIterator_new(edgehash), i = 0; BLI_edgehashIterator_isDone(ehi) == false;
-       BLI_edgehashIterator_step(ehi), i++) {
+       BLI_edgehashIterator_step(ehi), i++)
+  {
     void **p = BLI_edgehashIterator_getValue_p(ehi);
     EXPECT_TRUE(ELEM(intptr_t(*p), 1, 2));
   }
@@ -334,7 +335,7 @@ static void polyfill_to_obj(const char *id,
   FILE *f;
   uint i;
 
-  BLI_snprintf(path, sizeof(path), "%s.obj", id);
+  SNPRINTF(path, "%s.obj", id);
 
   f = fopen(path, "w");
   if (!f) {

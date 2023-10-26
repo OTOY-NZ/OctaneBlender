@@ -12,20 +12,20 @@
 #include "DNA_volume_types.h"
 
 #include "BKE_material.h"
-#include "BKE_mesh.h"
+#include "BKE_mesh.hh"
 
 namespace blender::nodes::node_geo_set_material_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>(N_("Geometry"))
+  b.add_input<decl::Geometry>("Geometry")
       .supported_type({GEO_COMPONENT_TYPE_MESH,
                        GEO_COMPONENT_TYPE_VOLUME,
                        GEO_COMPONENT_TYPE_POINT_CLOUD,
                        GEO_COMPONENT_TYPE_CURVE});
-  b.add_input<decl::Bool>(N_("Selection")).default_value(true).hide_value().field_on_all();
-  b.add_input<decl::Material>(N_("Material")).hide_label();
-  b.add_output<decl::Geometry>(N_("Geometry")).propagate_all();
+  b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
+  b.add_input<decl::Material>("Material").hide_label();
+  b.add_output<decl::Geometry>("Geometry").propagate_all();
 }
 
 static void assign_material_to_faces(Mesh &mesh, const IndexMask selection, Material *material)
@@ -53,7 +53,7 @@ static void assign_material_to_faces(Mesh &mesh, const IndexMask selection, Mate
   MutableAttributeAccessor attributes = mesh.attributes_for_write();
   SpanAttributeWriter<int> material_indices = attributes.lookup_or_add_for_write_span<int>(
       "material_index", ATTR_DOMAIN_FACE);
-  material_indices.span.fill_indices(selection, new_material_index);
+  material_indices.span.fill_indices(selection.indices(), new_material_index);
   material_indices.finish();
 }
 
@@ -78,7 +78,7 @@ static void node_geo_exec(GeoNodeExecParams params)
         }
       }
       else {
-        bke::MeshFieldContext field_context{*mesh, ATTR_DOMAIN_FACE};
+        const bke::MeshFieldContext field_context{*mesh, ATTR_DOMAIN_FACE};
         fn::FieldEvaluator selection_evaluator{field_context, mesh->totpoly};
         selection_evaluator.add(selection_field);
         selection_evaluator.evaluate();

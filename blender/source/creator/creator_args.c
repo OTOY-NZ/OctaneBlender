@@ -29,9 +29,8 @@
 #  include "BLI_threads.h"
 #  include "BLI_utildefines.h"
 
-#  include "BLO_readfile.h" /* only for BLO_has_bfile_extension */
-
 #  include "BKE_blender_version.h"
+#  include "BKE_blendfile.h"
 #  include "BKE_context.h"
 
 #  include "BKE_global.h"
@@ -150,8 +149,8 @@ static bool parse_int_range_relative(const char *str,
                                      const char **r_err_msg)
 {
   if (parse_int_relative(str, str_end_range, pos, neg, &r_value_range[0], r_err_msg) &&
-      parse_int_relative(
-          str_end_range + 2, str_end_test, pos, neg, &r_value_range[1], r_err_msg)) {
+      parse_int_relative(str_end_range + 2, str_end_test, pos, neg, &r_value_range[1], r_err_msg))
+  {
     return true;
   }
   return false;
@@ -330,7 +329,8 @@ static int (*parse_int_range_relative_clamp_n(const char *str,
                  parse_int_range_relative_clamp(
                      str, str_end_range, str_end, pos, neg, min, max, values[i], r_err_msg) :
                  parse_int_relative_clamp(
-                     str, str_end, pos, neg, min, max, &values[i][0], r_err_msg)) {
+                     str, str_end, pos, neg, min, max, &values[i][0], r_err_msg))
+    {
       if (str_end_range == NULL) {
         values[i][1] = values[i][0];
       }
@@ -396,7 +396,8 @@ static void arg_py_context_restore(bContext *C, struct BlendePyContextStore *c_p
   /* script may load a file, check old data is valid before using */
   if (c_py->has_win) {
     if ((c_py->win == NULL) || ((BLI_findindex(&G_MAIN->wm, c_py->wm) != -1) &&
-                                (BLI_findindex(&c_py->wm->windows, c_py->win) != -1))) {
+                                (BLI_findindex(&c_py->wm->windows, c_py->win) != -1)))
+    {
       CTX_wm_window_set(C, c_py->win);
     }
   }
@@ -583,6 +584,9 @@ static int arg_handle_print_help(int UNUSED(argc), const char **UNUSED(argv), vo
   BLI_args_print_arg_doc(ba, "--debug-gpu");
   BLI_args_print_arg_doc(ba, "--debug-gpu-force-workarounds");
   BLI_args_print_arg_doc(ba, "--debug-gpu-disable-ssbo");
+#  ifdef WITH_RENDERDOC
+  BLI_args_print_arg_doc(ba, "--debug-gpu-renderdoc");
+#  endif
   BLI_args_print_arg_doc(ba, "--debug-wm");
 #  ifdef WITH_XR_OPENXR
   BLI_args_print_arg_doc(ba, "--debug-xr");
@@ -702,12 +706,12 @@ static int arg_handle_arguments_end(int UNUSED(argc),
 }
 
 /* only to give help message */
-#  ifndef WITH_PYTHON_SECURITY /* default */
-#    define PY_ENABLE_AUTO ", (default)"
-#    define PY_DISABLE_AUTO ""
-#  else
+#  ifdef WITH_PYTHON_SECURITY /* default */
 #    define PY_ENABLE_AUTO ""
-#    define PY_DISABLE_AUTO ", (compiled as non-standard default)"
+#    define PY_DISABLE_AUTO ", (default)"
+#  else
+#    define PY_ENABLE_AUTO ", (default, non-standard compilation option)"
+#    define PY_DISABLE_AUTO ""
 #  endif
 
 static const char arg_handle_python_set_doc_enable[] =
@@ -1119,6 +1123,19 @@ static int arg_handle_debug_gpu_set(int UNUSED(argc),
   return 0;
 }
 
+#  ifdef WITH_RENDERDOC
+static const char arg_handle_debug_gpu_renderdoc_set_doc[] =
+    "\n"
+    "\tEnable Renderdoc integration for GPU frame grabbing and debugging.";
+static int arg_handle_debug_gpu_renderdoc_set(int UNUSED(argc),
+                                              const char **UNUSED(argv),
+                                              void *UNUSED(data))
+{
+  G.debug |= G_DEBUG_GPU_RENDERDOC | G_DEBUG_GPU;
+  return 0;
+}
+#  endif
+
 static const char arg_handle_gpu_backend_set_doc[] =
     "\n"
     "\tForce to use a specific GPU backend. Valid options: "
@@ -1448,7 +1465,7 @@ static int arg_handle_output_set(int argc, const char **argv, void *data)
   if (argc > 1) {
     Scene *scene = CTX_data_scene(C);
     if (scene) {
-      BLI_strncpy(scene->r.pic, argv[1], sizeof(scene->r.pic));
+      STRNCPY(scene->r.pic, argv[1]);
       DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE);
     }
     else {
@@ -1480,7 +1497,7 @@ static int arg_handle_engine_set(int argc, const char **argv, void *data)
       Scene *scene = CTX_data_scene(C);
       if (scene) {
         if (BLI_findstring(&R_engines, argv[1], offsetof(RenderEngineType, idname))) {
-          BLI_strncpy_utf8(scene->r.engine, argv[1], sizeof(scene->r.engine));
+          STRNCPY_UTF8(scene->r.engine, argv[1]);
           DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE);
         }
         else {
@@ -1660,7 +1677,8 @@ static int arg_handle_render_frame(int argc, const char **argv, void *data)
                                                               MINAFRAME,
                                                               MAXFRAME,
                                                               &frames_range_len,
-                                                              &err_msg)) == NULL) {
+                                                              &err_msg)) == NULL)
+      {
         fprintf(stderr, "\nError: %s '%s %s'.\n", err_msg, arg_id, argv[1]);
         return 1;
       }
@@ -1759,7 +1777,8 @@ static int arg_handle_frame_start_set(int argc, const char **argv, void *data)
                                     MINAFRAME,
                                     MAXFRAME,
                                     &scene->r.sfra,
-                                    &err_msg)) {
+                                    &err_msg))
+      {
         fprintf(stderr, "\nError: %s '%s %s'.\n", err_msg, arg_id, argv[1]);
       }
       else {
@@ -1792,7 +1811,8 @@ static int arg_handle_frame_end_set(int argc, const char **argv, void *data)
                                     MINAFRAME,
                                     MAXFRAME,
                                     &scene->r.efra,
-                                    &err_msg)) {
+                                    &err_msg))
+      {
         fprintf(stderr, "\nError: %s '%s %s'.\n", err_msg, arg_id, argv[1]);
       }
       else {
@@ -1845,15 +1865,14 @@ static int arg_handle_python_file_run(int argc, const char **argv, void *data)
   if (argc > 1) {
     /* Make the path absolute because its needed for relative linked blends to be found */
     char filepath[FILE_MAX];
-    BLI_strncpy(filepath, argv[1], sizeof(filepath));
-    BLI_path_abs_from_cwd(filepath, sizeof(filepath));
+    STRNCPY(filepath, argv[1]);
+    BLI_path_canonicalize_native(filepath, sizeof(filepath));
 
     bool ok;
     BPY_CTX_SETUP(ok = BPY_run_filepath(C, filepath, NULL));
     if (!ok && app_state.exit_code_on_error.python) {
       fprintf(stderr, "\nError: script failed, file: '%s', exiting.\n", argv[1]);
-      BPY_python_end();
-      exit(app_state.exit_code_on_error.python);
+      WM_exit(C, app_state.exit_code_on_error.python);
     }
     return 1;
   }
@@ -1892,8 +1911,7 @@ static int arg_handle_python_text_run(int argc, const char **argv, void *data)
 
     if (!ok && app_state.exit_code_on_error.python) {
       fprintf(stderr, "\nError: script failed, text: '%s', exiting.\n", argv[1]);
-      BPY_python_end();
-      exit(app_state.exit_code_on_error.python);
+      WM_exit(C, app_state.exit_code_on_error.python);
     }
 
     return 1;
@@ -1922,8 +1940,7 @@ static int arg_handle_python_expr_run(int argc, const char **argv, void *data)
     BPY_CTX_SETUP(ok = BPY_run_string_exec(C, NULL, argv[1]));
     if (!ok && app_state.exit_code_on_error.python) {
       fprintf(stderr, "\nError: script failed, expr: '%s', exiting.\n", argv[1]);
-      BPY_python_end();
-      exit(app_state.exit_code_on_error.python);
+      WM_exit(C, app_state.exit_code_on_error.python);
     }
     return 1;
   }
@@ -2042,10 +2059,8 @@ static int arg_handle_load_file(int UNUSED(argc), const char **argv, void *data)
     fprintf(stderr, "unknown argument, loading as file: %s\n", argv[0]);
   }
 
-  BLI_strncpy(filepath, argv[0], sizeof(filepath));
-  BLI_path_slash_native(filepath);
-  BLI_path_abs_from_cwd(filepath, sizeof(filepath));
-  BLI_path_normalize(NULL, filepath);
+  STRNCPY(filepath, argv[0]);
+  BLI_path_canonicalize_native(filepath, sizeof(filepath));
 
   /* load the file */
   BKE_reports_init(&reports, RPT_PRINT);
@@ -2071,20 +2086,37 @@ static int arg_handle_load_file(int UNUSED(argc), const char **argv, void *data)
       return -1;
     }
 
-    if (BLO_has_bfile_extension(filepath)) {
-      /* Just pretend a file was loaded, so the user can press Save and it'll
-       * save at the filepath from the CLI. */
-      STRNCPY(G_MAIN->filepath, filepath);
-      printf("... opened default scene instead; saving will write to: %s\n", filepath);
+    const char *error_msg = NULL;
+    if (BLI_exists(filepath)) {
+      /* When a file is found but can't be loaded, handling it as a new file
+       * could cause it to be unintentionally overwritten (data loss).
+       * Further this is almost certainly not that a user would expect or want.
+       * If they do, they can delete the file beforehand. */
+      error_msg = "file could not be loaded";
     }
-    else {
-      fprintf(
-          stderr,
-          "Error: argument has no '.blend' file extension, not using as new file, exiting! %s\n",
-          filepath);
-      G.is_break = true;
-      WM_exit(C);
+    else if (!BKE_blendfile_extension_check(filepath)) {
+      /* Unrelated arguments should not be treated as new blend files. */
+      error_msg = "argument has no '.blend' file extension, not using as new file";
     }
+
+    if (error_msg) {
+      fprintf(stderr, "Error: %s, exiting! %s\n", error_msg, filepath);
+
+      WM_exit(C, EXIT_FAILURE);
+      /* Unreachable, return for clarity. */
+      return -1;
+    }
+
+    /* Behave as if a file was loaded, calling "Save" will write to the `filepath` from the CLI.
+     *
+     * WARNING: The path referenced may be incorrect, no attempt is made to validate the path
+     * here or check that writing to it will work. If the users enters the path of a directory
+     * that doesn't exist (for e.g.) saving will fail.
+     * Attempting to create the file at this point is possible but likely to cause more
+     * trouble than it's worth (what with network drives), removable devices ... etc. */
+
+    STRNCPY(G_MAIN->filepath, filepath);
+    printf("... opened default scene instead; saving will write to: %s\n", filepath);
   }
 
   return 0;
@@ -2141,8 +2173,8 @@ void main_args_setup(bContext *C, bArgs *ba)
   BLI_args_add(ba, NULL, "--log-show-timestamp", CB(arg_handle_log_show_timestamp_set), ba);
   BLI_args_add(ba, NULL, "--log-file", CB(arg_handle_log_file_set), ba);
 
-  /* GPU backend selection should be part of ARG_PASS_ENVIRONMENT for correct GPU context selection
-   * for anim player. */
+  /* GPU backend selection should be part of #ARG_PASS_ENVIRONMENT for correct GPU context
+   * selection for animation player. */
   BLI_args_add(ba, NULL, "--gpu-backend", CB(arg_handle_gpu_backend_set), NULL);
 
   /* Pass: Background Mode & Settings
@@ -2246,6 +2278,9 @@ void main_args_setup(bContext *C, bArgs *ba)
                CB_EX(arg_handle_debug_mode_generic_set, jobs),
                (void *)G_DEBUG_JOBS);
   BLI_args_add(ba, NULL, "--debug-gpu", CB(arg_handle_debug_gpu_set), NULL);
+#  ifdef WITH_RENDERDOC
+  BLI_args_add(ba, NULL, "--debug-gpu-renderdoc", CB(arg_handle_debug_gpu_renderdoc_set), NULL);
+#  endif
 
   BLI_args_add(ba,
                NULL,
@@ -2324,6 +2359,8 @@ void main_args_setup(bContext *C, bArgs *ba)
   BLI_args_add_case(ba, "-setaudio", 1, NULL, 0, CB(arg_handle_audio_set), NULL);
 
   /* Pass: Processing Arguments. */
+  /* NOTE: Use #WM_exit for these callbacks, not `exit()`
+   * so temporary files are properly cleaned up. */
   BLI_args_pass_set(ba, ARG_PASS_FINAL);
   BLI_args_add(ba, "-f", "--render-frame", CB(arg_handle_render_frame), C);
   BLI_args_add(ba, "-a", "--render-anim", CB(arg_handle_render_animation), C);

@@ -51,6 +51,10 @@ class OCTANE_LIGHT_PT_light(common.OctanePropertyPanel, Panel):
                 elif light.shape in {"RECTANGLE", "ELLIPSE"}:
                     col.prop(light, "size", text="Size X")
                     col.prop(light, "size_y", text="Y")
+        if light.type == "MESH":
+            layout.label(text="Deprecated. Use Add-Light-Octane Mesh Light")
+        if light.type == "SPHERE":
+            layout.label(text="Deprecated. Use Add-Light-Octane Sphere Light")
 
 
 class OCTANE_LIGHT_PT_nodes(common.OctanePropertyPanel, Panel):

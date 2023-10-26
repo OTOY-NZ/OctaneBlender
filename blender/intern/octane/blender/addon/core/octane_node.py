@@ -18,6 +18,8 @@ class OctaneNode(object):
             self.node = octane_blender.ScatterNode(name)
         elif node_type == consts.NodeType.NT_GEO_MESH:
             self.node = octane_blender.MeshNode(name)
+        elif node_type == consts.NodeType.NT_GEO_VOLUME:
+            self.node = octane_blender.VolumeNode(name)            
         elif node_type == consts.NodeType.NT_BLENDER_NODE_GRAPH_NODE:
             self.node = octane_blender.GraphNode(name)            
         else:
@@ -110,6 +112,11 @@ class OctaneNode(object):
         for name, subnode in self.subnodes.items():            
             subnode.update_to_engine(update_now)
 
+    def remove_from_update_list(self):
+        for name, subnode in self.subnodes.items():
+            subnode.node.remove_from_update_list()
+        self.node.remove_from_update_list()
+
     def set_attribute_blender_name(self, attribute_name, attribute_type, value, size=1):
         return self.node.set_attribute(consts.OctaneDataBlockSymbolType.ATTRIBUTE_CUSTOM, consts.A_UNKNOWN, attribute_name, attribute_type, value, size)
 
@@ -173,17 +180,17 @@ class OctaneNode(object):
     def clear_pin_index(self, pin_index, pin_name):
         return self.node.clear_pin(consts.OctaneDataBlockSymbolType.PIN_INDEX, pin_index, pin_name)
 
-    def link_from(self, from_node_name, to_pin_index):
-        return self.node.link_from(from_node_name, to_pin_index)
+    def link_from(self, from_node_name, to_pin_index, update_now):
+        return self.node.link_from(from_node_name, to_pin_index, update_now)
 
-    def link_to(self, to_node_name, to_pin_index):
-        return self.node.link_to(to_node_name, to_pin_index)
+    def link_to(self, to_node_name, to_pin_index, update_now):
+        return self.node.link_to(to_node_name, to_pin_index, update_now)
 
-    def link_from_id(self, from_node_id, to_pin_index):
-        return self.node.link_from_id(from_node_id, to_pin_index)
+    def link_from_id(self, from_node_id, to_pin_index, update_now):
+        return self.node.link_from_id(from_node_id, to_pin_index, update_now)
 
-    def link_to_id(self, to_node_id, to_pin_index):
-        return self.node.link_to_id(to_node_id, to_pin_index)
+    def link_to_id(self, to_node_id, to_pin_index, update_now):
+        return self.node.link_to_id(to_node_id, to_pin_index, update_now)
 
     def to_xml(self):
         return self.node.to_xml()
@@ -201,24 +208,6 @@ class OctaneRpcNodeType:
     TEST = 1
     ACTIVATE = 2
     SYNC_NODE = 3
-
-
-# class CArray(object):
-#     FLOAT = "FLOAT"
-#     INT = "INT"
-#     UINT8 = "UINT8"
-
-    def __init__(self, identifier, array_type, array, size, dimension=1):
-        self.identifier = identifier
-        self.array_type = array_type
-        self.array = array
-        self.size = size
-        self.dimension = dimension
-        self.hash_id = ""
-        self.need_update = False
-
-    def __repr__(self):
-        return "<CArray identifier:%s array_type:%s size:%s hash_id:%s need_update:%s>" % (self.identifier, self.array_type, self.size, self.hash_id, self.need_update)    
 
 
 class OctaneRpcNode(object):

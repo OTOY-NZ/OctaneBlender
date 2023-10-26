@@ -121,6 +121,11 @@ class OctaneBaseRampNode(OctaneBaseNode):
                 if light.use_nodes and light.node_tree and light.node_tree is self.id_data:
                     data_owner = light
                     break
+        if data_owner is None:
+            for node_group in bpy.data.node_groups:
+                if node_group is self.id_data:
+                    data_owner = node_group
+                    break                    
         node_data_path = data_owner.name + "_" + repr(self)
         if self.node_data_path != node_data_path:
             same_color_ramp_count = 0
@@ -139,10 +144,12 @@ class OctaneBaseRampNode(OctaneBaseNode):
             for light in bpy.data.lights:
                 if light.use_nodes and light.node_tree:
                     same_color_ramp_count += count_same_color_ramp(light.node_tree)
+            for node_group in bpy.data.node_groups:
+                same_color_ramp_count += count_same_color_ramp(node_group)            
             if same_color_ramp_count > 1:
                 current_color_ramp = utility.get_octane_helper_node(self.color_ramp_name)
                 if current_color_ramp:
-                    self.init_color_ramp_helper_node(None, current_color_ramp.color_ramp)            
+                    self.init_color_ramp_helper_node(None, current_color_ramp.color_ramp)
             self.node_data_path = node_data_path
 
     @staticmethod
@@ -268,8 +275,7 @@ class OctaneBaseRampNode(OctaneBaseNode):
             return
         color_ramp = color_ramp_node.color_ramp
         number = len(color_ramp.elements)
-        # Trick to trigger an update by force
-        self.width = self.width
+        self.id_data.update_tag()
         for idx in range(self.MAX_VALUE_SOCKET):
             value_socket_name = self.get_value_socket_name(idx)
             if value_socket_name in self.inputs:
@@ -311,6 +317,7 @@ class OctaneBaseRampNode(OctaneBaseNode):
         return consts.AutoRereshStrategy.ALWAYS
 
     def sync_custom_data(self, octane_node, octane_graph_node_data, depsgraph):
+        is_viewport = depsgraph.mode == "VIEWPORT"
         super().sync_custom_data(octane_node, octane_graph_node_data, depsgraph)        
         color_ramp_node = utility.get_octane_helper_node(self.color_ramp_name)
         if color_ramp_node is None:
@@ -344,7 +351,7 @@ class OctaneBaseRampNode(OctaneBaseNode):
         dynamic_pin_count = position_number - 2
         octane_node.node.set_attribute(consts.OctaneDataBlockSymbolType.ATTRIBUTE_NAME, consts.AttributeID.A_NUM_CONTROLPOINTS, "controlpoints", consts.AttributeType.AT_INT, dynamic_pin_count, 1)
         # Force sync the controlpoints
-        octane_node.update_to_engine(True)
+        octane_node.update_to_engine(not is_viewport)
         for idx in range(position_number):
             position = color_ramp_position_list[idx]
             color = color_ramp_color_list[idx]

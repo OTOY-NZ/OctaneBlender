@@ -206,8 +206,8 @@ static void rna_MaskLayer_name_set(PointerRNA *ptr, const char *value)
   char oldname[sizeof(masklay->name)], newname[sizeof(masklay->name)];
 
   /* need to be on the stack */
-  BLI_strncpy(oldname, masklay->name, sizeof(masklay->name));
-  BLI_strncpy_utf8(newname, value, sizeof(masklay->name));
+  STRNCPY(oldname, masklay->name);
+  STRNCPY_UTF8(newname, value);
 
   BKE_mask_layer_rename(mask, masklay, oldname, newname);
 }
@@ -911,6 +911,7 @@ static void rna_def_maskSpline(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", MASK_SPLINE_NOFILL);
   RNA_def_property_ui_text(prop, "Fill", "Make this spline filled");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_MASK);
   RNA_def_property_update(prop, NC_MASK | NA_EDITED, "rna_Mask_update_data");
 
   /* self-intersection check */

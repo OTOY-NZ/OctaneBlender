@@ -7,11 +7,21 @@ from octane.utils import consts, utility
 from octane import core
 
 
-class OCTANE_MT_kernel_presets(Menu):
+class OCTANE_MT_legacy_kernel_presets(Menu):
     bl_label = "Kernel presets"
     preset_subdir = "octane/kernel"
-    preset_operator = "script.execute_preset"
-    COMPAT_ENGINES = {'octane'}
+    preset_operator = "script.execute_preset_legacy_kernel"
+    preset_operator_defaults = {"menu_idname" : "OCTANE_MT_legacy_kernel_presets"}
+    COMPAT_ENGINES = {"octane"}
+    draw = Menu.draw_preset
+
+
+class OCTANE_MT_renderpasses_presets(Menu):
+    bl_label = "Render Passes presets"
+    preset_subdir = "octane/renderpasses_presets"
+    preset_operator = "script.execute_preset_octane"
+    preset_operator_defaults = {"menu_idname" : "OCTANE_MT_renderpasses_presets"}
+    COMPAT_ENGINES = {"octane"}
     draw = Menu.draw_preset
 
 
@@ -20,20 +30,6 @@ class OCTANE_RENDER_PT_kernel(common.OctanePropertyPanel, Panel):
     bl_context = "render"
 
     def draw(self, context):
-        if core.ENABLE_OCTANE_ADDON_CLIENT:
-            self.draw_addon_kernel(context)
-        else:
-            scene = context.scene
-            octane_scene = scene.octane
-            layout = self.layout
-            row = layout.row()
-            row.prop(octane_scene, "kernel_data_mode")
-            if octane_scene.kernel_data_mode == "PROPERTY_PANEL":
-                self.draw_legacy_kernel(context)
-            else:
-                self.draw_addon_kernel(context)
-
-    def draw_addon_kernel(self, context):
         scene = context.scene
         octane_scene = scene.octane
         layout = self.layout
@@ -42,438 +38,17 @@ class OCTANE_RENDER_PT_kernel(common.OctanePropertyPanel, Panel):
         node_tree = utility.find_active_kernel_node_tree(context.scene)
         utility.panel_ui_node_tree_view(context, layout, node_tree, consts.OctaneNodeTreeIDName.KERNEL)
 
-    def draw_legacy_kernel(self, context):
+
+class OCTANE_RENDER_PT_legacy_kernel(common.OctanePropertyPanel, Panel):
+    bl_label = "Legacy Kernel Converter"
+    bl_context = "render"
+    bl_parent_id = "OCTANE_RENDER_PT_kernel"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw(self, context):
         layout = self.layout
-
-        scene = context.scene
-        oct_scene = scene.octane
-
-        row = layout.row(align=True)
-        row.menu("OCTANE_MT_kernel_presets", text=bpy.types.OCTANE_MT_kernel_presets.bl_label)
-        row.operator("render.octane_kernel_preset_add", text="", icon="ADD")
-        row.operator("render.octane_kernel_preset_add", text="", icon="REMOVE").remove_active = True
-
-        def draw_samples():
-            col.prop(oct_scene, "max_samples")
-            col.prop(oct_scene, "max_preview_samples")           
-
-        def draw_clay_mode():  
-            col.prop(oct_scene, "clay_mode")
-
-        def draw_toon_shadow_ambient():           
-            col.prop(oct_scene, "toon_shadow_ambient")                
-
-        def draw_parallel_samples():
-            col.prop(oct_scene, "parallel_samples")           
-
-        def draw_tile_samples():
-            col.prop(oct_scene, "max_tile_samples")
-
-        def draw_max_subdivision_level():
-            col.prop(oct_scene, "max_subdivision_level")            
-
-        def draw_ray_epsilon_and_filter_size():
-            col.prop(oct_scene, "ray_epsilon")
-            col.prop(oct_scene, "filter_size")
-            
-        def draw_ao_dist():
-            col.prop(oct_scene, "ao_dist")
-
-        def draw_alpha_shadows():
-            col.prop(oct_scene, "alpha_shadows")
-
-        def draw_irradiance_mode():
-            col.prop(oct_scene, "irradiance_mode")      
-
-        def draw_nested_dielectrics():
-            col.prop(oct_scene, "nested_dielectrics")
-
-        def draw_alpha_channel():
-            col.prop(oct_scene, "alpha_channel")
-
-        def draw_keep_environment():
-            col.prop(oct_scene, "keep_environment")               
-
-        def draw_path_term_power():
-            col.prop(oct_scene, "path_term_power")  
-
-        def draw_coherent_ratio():
-            col.prop(oct_scene, "coherent_ratio")  
-
-        def draw_static_noise():
-            col.prop(oct_scene, "static_noise")  
-
-        def draw_minimize_net_traffic():
-            col.prop(oct_scene, "minimize_net_traffic")  
-
-        def draw_emulate_old_volume_behavior():
-            # col.prop(oct_scene, "emulate_old_volume_behavior")
-            pass
-
-        def draw_color():
-            col.prop(oct_scene, "white_light_spectrum")
-            # col.prop(oct_scene, "use_old_color_pipeline")
-
-        def draw_caustic_blur():
-            col.prop(oct_scene, "caustic_blur")  
-
-        def draw_gi_clamp():
-            col.prop(oct_scene, "gi_clamp")              
-
-        def draw_adaptive_sampling():
-            col.prop(oct_scene, "adaptive_sampling")
-            col.prop(oct_scene, "adaptive_noise_threshold")
-            col.prop(oct_scene, "adaptive_min_samples")
-            col.prop(oct_scene, "adaptive_group_pixels")            
-            col.prop(oct_scene, "adaptive_expected_exposure")
-            
-        def draw_deep_image():
-            col.prop(oct_scene, "deep_image")
-            col.prop(oct_scene, "deep_render_passes")
-            col.prop(oct_scene, "max_depth_samples")
-            col.prop(oct_scene, "depth_tolerance")            
-
-        def draw_max_diffuse_glossy_scatter_depth():
-            col.prop(oct_scene, "max_diffuse_depth")
-            col.prop(oct_scene, "max_glossy_depth")
-            col.prop(oct_scene, "max_scatter_depth")            
-
-        def draw_ai_light_and_light():
-            col.prop(oct_scene, "ai_light_enable")
-            col.prop(oct_scene, "ai_light_update") 
-            col.prop(oct_scene, "light_ids_action")
-            col.label(text="Light IDs:")
-            row = col.row(align=True)
-            row.prop(oct_scene, "light_id_sunlight", text="S", toggle=True)
-            row.prop(oct_scene, "light_id_env", text="E", toggle=True)
-            row.prop(oct_scene, "light_id_pass_1", text="1", toggle=True)
-            row.prop(oct_scene, "light_id_pass_2", text="2", toggle=True)
-            row.prop(oct_scene, "light_id_pass_3", text="3", toggle=True)        
-            row.prop(oct_scene, "light_id_pass_4", text="4", toggle=True)
-            row.prop(oct_scene, "light_id_pass_5", text="5", toggle=True)
-            row.prop(oct_scene, "light_id_pass_6", text="6", toggle=True)
-            row.prop(oct_scene, "light_id_pass_7", text="7", toggle=True)
-            row.prop(oct_scene, "light_id_pass_8", text="8", toggle=True)   
-            col.label(text="Light linking invert:")
-            row = col.row(align=True)
-            row.prop(oct_scene, "light_id_sunlight_invert", text="S", toggle=True)
-            row.prop(oct_scene, "light_id_env_invert", text="E", toggle=True)
-            row.prop(oct_scene, "light_id_pass_1_invert", text="1", toggle=True)
-            row.prop(oct_scene, "light_id_pass_2_invert", text="2", toggle=True)
-            row.prop(oct_scene, "light_id_pass_3_invert", text="3", toggle=True)        
-            row.prop(oct_scene, "light_id_pass_4_invert", text="4", toggle=True)
-            row.prop(oct_scene, "light_id_pass_5_invert", text="5", toggle=True)
-            row.prop(oct_scene, "light_id_pass_6_invert", text="6", toggle=True)
-            row.prop(oct_scene, "light_id_pass_7_invert", text="7", toggle=True)
-            row.prop(oct_scene, "light_id_pass_8_invert", text="8", toggle=True)                
-
-        def draw_photons():
-            col.prop(oct_scene, "photon_depth")
-            col.prop(oct_scene, "accurate_colors")
-            col.prop(oct_scene, "photon_gather_radius")
-            col.prop(oct_scene, "photon_gather_multiplier")
-            col.prop(oct_scene, "photon_gather_samples")
-            col.prop(oct_scene, "exploration_strength")
-
-        col = layout.column(align=True)
-        col.prop(oct_scene, "kernel_type")
-        
-        if oct_scene.kernel_type in ('0', '1', ):            
-            # Direct lighting kernel            
-            col = layout.column(align=True)
-            col.prop(oct_scene, "gi_mode")
-            
-            draw_clay_mode()
-
-            box = layout.box()
-            box.label(text="Quality")
-            col = box.column(align=True)
-            draw_samples()
-            # col.prop(oct_scene, "gi_mode")
-            col.prop(oct_scene, "specular_depth")
-            col.prop(oct_scene, "glossy_depth")
-            col.prop(oct_scene, "diffuse_depth")
-            draw_ray_epsilon_and_filter_size()
-            draw_ao_dist()
-            col.prop_search(oct_scene, "ao_texture", bpy.data, "textures")   
-            draw_alpha_shadows()
-            draw_nested_dielectrics()
-            draw_irradiance_mode()
-            draw_max_subdivision_level()
-
-            box = layout.box()
-            box.label(text="Alpha channel")            
-            col = box.column(align=True)   
-            draw_alpha_channel()
-            draw_keep_environment()  
-
-            box = layout.box()
-            box.label(text="Light")            
-            col = box.column(align=True)     
-            draw_ai_light_and_light()  
-
-            box = layout.box()     
-            box.label(text="Sampling")            
-            col = box.column(align=True)  
-            draw_path_term_power()
-            draw_coherent_ratio()
-            draw_static_noise()
-            draw_parallel_samples()
-            draw_tile_samples()
-            draw_minimize_net_traffic()
-
-            box = layout.box()
-            box.label(text="Adaptive sampling")            
-            col = box.column(align=True)  
-            draw_adaptive_sampling()
-
-            box = layout.box()
-            box.label(text="Color")
-            col = box.column(align=True)
-            draw_color()
-
-            box = layout.box()
-            box.label(text="Deep Image")            
-            col = box.column(align=True)       
-            draw_deep_image() 
-
-            box = layout.box()
-            box.label(text="Toon Shading")            
-            col = box.column(align=True)       
-            draw_toon_shadow_ambient()
-
-            # box = layout.box()
-            # box.label(text="Compatibility settings")            
-            # col = box.column(align=True)                  
-            # draw_emulate_old_volume_behavior()                       
-        elif oct_scene.kernel_type == '2':
-            # Path tracing kernel
-            col = layout.column(align=True)
-            draw_clay_mode()
-
-            box = layout.box()
-            box.label(text="Quality")
-            col = box.column(align=True)
-            draw_samples()
-            draw_max_diffuse_glossy_scatter_depth()
-            draw_ray_epsilon_and_filter_size()
-            draw_alpha_shadows()
-            draw_caustic_blur()
-            draw_gi_clamp()
-            draw_nested_dielectrics()
-            draw_irradiance_mode()
-            draw_max_subdivision_level()
-
-            box = layout.box()
-            box.label(text="Alpha channel")            
-            col = box.column(align=True)   
-            draw_alpha_channel()
-            draw_keep_environment()  
-
-            box = layout.box()
-            box.label(text="Light")            
-            col = box.column(align=True)     
-            draw_ai_light_and_light()              
-
-            box = layout.box()     
-            box.label(text="Sampling")            
-            col = box.column(align=True)  
-            draw_path_term_power()
-            draw_coherent_ratio()
-            draw_static_noise()
-            draw_parallel_samples()
-            draw_tile_samples()
-            draw_minimize_net_traffic()
-
-            box = layout.box()
-            box.label(text="Adaptive sampling")            
-            col = box.column(align=True)  
-            draw_adaptive_sampling() 
-
-            box = layout.box()
-            box.label(text="Color")
-            col = box.column(align=True)
-            draw_color()    
-            
-            box = layout.box()
-            box.label(text="Deep Image")            
-            col = box.column(align=True)       
-            draw_deep_image()                    
-
-            box = layout.box()
-            box.label(text="Toon Shading")            
-            col = box.column(align=True)       
-            draw_toon_shadow_ambient()
-
-            # box = layout.box()
-            # box.label(text="Compatibility settings")            
-            # col = box.column(align=True)                  
-            # draw_emulate_old_volume_behavior()            
-        elif oct_scene.kernel_type == '3':
-            # PMC kernel
-            col = layout.column(align=True)
-            draw_clay_mode()
-
-            box = layout.box()
-            box.label(text="Quality")
-            col = box.column(align=True)
-            draw_samples()
-            draw_max_diffuse_glossy_scatter_depth()
-            draw_ray_epsilon_and_filter_size()
-            draw_alpha_shadows()
-            draw_caustic_blur()
-            draw_gi_clamp()
-            draw_nested_dielectrics()
-            draw_irradiance_mode()
-            draw_max_subdivision_level()
-
-            box = layout.box()
-            box.label(text="Alpha channel")            
-            col = box.column(align=True)   
-            draw_alpha_channel()
-            draw_keep_environment()  
-
-            box = layout.box()
-            box.label(text="Light")            
-            col = box.column(align=True)     
-            draw_ai_light_and_light()     
-
-            box = layout.box()     
-            box.label(text="Sampling")            
-            col = box.column(align=True)  
-            draw_path_term_power()
-            col.prop(oct_scene, "exploration")
-            col.prop(oct_scene, "direct_light_importance")
-            col.prop(oct_scene, "max_rejects")
-            col.prop(oct_scene, "parallelism")
-            col.prop(oct_scene, "work_chunk_size")
-
-            box = layout.box()
-            box.label(text="Color")
-            col = box.column(align=True)
-            draw_color()
-
-            box = layout.box()
-            box.label(text="Toon Shading")            
-            col = box.column(align=True)       
-            draw_toon_shadow_ambient()
-
-            # box = layout.box()
-            # box.label(text="Compatibility settings")            
-            # col = box.column(align=True)                  
-            # draw_emulate_old_volume_behavior()            
-        elif oct_scene.kernel_type == '4':
-            # Info channels kernel
-            box = layout.box()
-            box.label(text="Quality")
-            col = box.column(align=True)
-            draw_samples()
-            col.prop(oct_scene, "info_channel_type")
-            draw_ray_epsilon_and_filter_size()
-            draw_ao_dist()
-            draw_alpha_shadows()
-            col.prop(oct_scene, "opacity_threshold")
-            col.prop(oct_scene, "zdepth_max")
-            col.prop(oct_scene, "uv_max")
-            col.prop(oct_scene, "info_pass_uv_coordinate_selection")
-            col.prop(oct_scene, "max_speed")
-            col.prop(oct_scene, "sampling_mode")
-            col.prop(oct_scene, "bump_normal_mapping")
-            col.prop(oct_scene, "wf_bkface_hl")  
-            draw_max_subdivision_level()
-
-            box = layout.box()
-            box.label(text="Alpha channel")            
-            col = box.column(align=True)   
-            draw_alpha_channel()
-
-            box = layout.box()     
-            box.label(text="Sampling")
-            col = box.column(align=True)
-            draw_static_noise()
-            draw_parallel_samples()
-            draw_tile_samples()
-            draw_minimize_net_traffic()
-
-            box = layout.box()
-            box.label(text="Color")
-            col = box.column(align=True)
-            draw_color()
-
-            box = layout.box()
-            box.label(text="Deep Image")            
-            col = box.column(align=True)       
-            draw_deep_image()
-        elif oct_scene.kernel_type == '5':
-            # Photon tracing kernel
-            col = layout.column(align=True)
-            draw_clay_mode()
-
-            box = layout.box()
-            box.label(text="Quality")
-            col = box.column(align=True)
-            draw_samples()
-            draw_max_diffuse_glossy_scatter_depth()
-            draw_ray_epsilon_and_filter_size()
-            draw_alpha_shadows()
-            draw_caustic_blur()
-            draw_gi_clamp()
-            draw_nested_dielectrics()
-            draw_irradiance_mode()
-            draw_max_subdivision_level()
-
-            box = layout.box()
-            box.label(text="Photons")
-            col = box.column(align=True)
-            draw_photons()
-
-            box = layout.box()
-            box.label(text="Alpha channel")            
-            col = box.column(align=True)   
-            draw_alpha_channel()
-            draw_keep_environment()  
-
-            box = layout.box()
-            box.label(text="Light")            
-            col = box.column(align=True)     
-            draw_ai_light_and_light()              
-
-            box = layout.box()     
-            box.label(text="Sampling")            
-            col = box.column(align=True)  
-            draw_path_term_power()
-            draw_coherent_ratio()
-            draw_static_noise()
-            draw_parallel_samples()
-            # draw_tile_samples()
-            draw_minimize_net_traffic()
-
-            box = layout.box()
-            box.label(text="Adaptive sampling")            
-            col = box.column(align=True)  
-            draw_adaptive_sampling() 
-
-            box = layout.box()
-            box.label(text="Color")
-            col = box.column(align=True)
-            draw_color()    
-            
-            box = layout.box()
-            box.label(text="Deep Image")            
-            col = box.column(align=True)       
-            draw_deep_image()                    
-
-            box = layout.box()
-            box.label(text="Toon Shading")            
-            col = box.column(align=True)       
-            draw_toon_shadow_ambient()
-
-            # box = layout.box()
-            # box.label(text="Compatibility settings")            
-            # col = box.column(align=True)                  
-            # draw_emulate_old_volume_behavior()
-        else:
-            pass
+        row = layout.row()
+        row.menu("OCTANE_MT_legacy_kernel_presets", text=OCTANE_MT_legacy_kernel_presets.bl_label)
 
 
 class OCTANE_RENDER_PT_motion_blur(common.OctanePropertyPanel, Panel):
@@ -592,11 +167,12 @@ class OCTANE_RENDER_PT_AOV_node_graph(OctaneRenderAOVNodeGraphPanel, Panel):
         view_layer = context.view_layer
         octane_view_layer = view_layer.octane  
         layout = self.layout
-        row = layout.row()
-        row.prop(octane_view_layer, "render_pass_style")  
-        row = layout.row()
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        col = layout.column()
+        col.prop(octane_view_layer, "render_pass_style")
         render_aov_node_graph_property = octane_view_layer.render_aov_node_graph_property
-        row.prop(render_aov_node_graph_property, "node_tree", text="AOV Node Tree", icon='NODETREE')
+        col.prop(render_aov_node_graph_property, "node_tree", text="AOV Node Tree", icon="NODETREE")
         utility.panel_ui_node_tree_view(context, layout, render_aov_node_graph_property.node_tree, consts.OctaneNodeTreeIDName.RENDER_AOV)
 
 
@@ -617,24 +193,28 @@ class OCTANE_RENDER_PT_passes(OctaneRenderPassesPanel, Panel):
     def draw(self, context):
         view_layer = context.view_layer
         octane_view_layer = view_layer.octane
-
         layout = self.layout
-        row = layout.row()
-        row.prop(octane_view_layer, "render_pass_style")        
-        row = layout.row()
-        row.prop(octane_view_layer, "current_preview_pass_type")
-        if octane_view_layer.current_preview_pass_type == '10000':
-            row = layout.row()
-            row.prop(octane_view_layer, "current_aov_output_id")
-            octane_aov_out_number = 0
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        col = layout.column()
+        col.prop(octane_view_layer, "render_pass_style")
+        col.prop(octane_view_layer, "current_preview_pass_type")
+        row = col.row()
+        row.menu("OCTANE_MT_renderpasses_presets", text=OCTANE_MT_renderpasses_presets.bl_label)
+        row.operator("render.octane_renderpasses_preset_add", text="", icon="ADD")
+        row.operator("render.octane_renderpasses_preset_add", text="", icon="REMOVE").remove_active = True
+        current_preview_pass_type = utility.get_enum_int_value(octane_view_layer, "current_preview_pass_type", 0)
+        if current_preview_pass_type == consts.RENDER_PASS_OUTPUT_AOV_IDS_OFFSET:
+            col.prop(octane_view_layer, "current_aov_output_id")
+            aov_out_number = 0
             composite_node_graph_property = octane_view_layer.composite_node_graph_property
             if composite_node_graph_property.node_tree is not None:
-                octane_aov_out_number = composite_node_graph_property.node_tree.max_aov_output_count
-            if octane_aov_out_number < octane_view_layer.current_aov_output_id:                
-                row = layout.row(align=True)
-                row.label(text="Beauty pass output will be used as no valid results for the assigned index", icon='INFO')
-                row = layout.row(align=True)
-                row.label(text="Please set Octane AOV Outputs in the 'Octane Composite Editor'", icon='INFO')
+                aov_out_number = composite_node_graph_property.node_tree.max_aov_output_count
+            if aov_out_number < octane_view_layer.current_aov_output_id:
+                row = col.row(align=True)
+                row.label(text="No valid results for this AOV Output(Beauty will be used)", icon='INFO')
+                row = col.row(align=True)
+                row.label(text='Set Octane AOV Outputs in the "Octane Composite Editor"', icon='INFO')
 
 
 class OCTANE_RENDER_PT_passes_beauty(OctaneRenderPassesPanel, Panel):
@@ -645,76 +225,61 @@ class OCTANE_RENDER_PT_passes_beauty(OctaneRenderPassesPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-
-        scene = context.scene
-        rd = scene.render
         view_layer = context.view_layer
         octane_view_layer = view_layer.octane
 
         flow = layout.grid_flow(row_major=True, columns=2, even_columns=True, even_rows=False, align=False)
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_beauty")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_emitters")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_env")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_sss")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_shadow")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_irradiance")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_light_dir")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_noise")      
-        
+        flow.prop(octane_view_layer, "use_pass_beauty")
+        flow.prop(octane_view_layer, "use_pass_emitters")
+        flow.prop(octane_view_layer, "use_pass_env")
+        flow.prop(octane_view_layer, "use_pass_sss")
+        flow.prop(octane_view_layer, "use_pass_shadow")
+        flow.prop(octane_view_layer, "use_pass_irradiance")
+        flow.prop(octane_view_layer, "use_pass_light_dir")
+        flow.prop(octane_view_layer, "use_pass_noise")
+
         layout.row().separator()
-        
         split = layout.split(factor=1)
         split.use_property_split = False
         row = split.row(align=True)
-        row.prop(view_layer, "use_pass_oct_diff", text="Diffuse", toggle=True)
-        row.prop(view_layer, "use_pass_oct_diff_dir", text="Direct", toggle=True)
-        row.prop(view_layer, "use_pass_oct_diff_indir", text="Indirect", toggle=True)        
-        row.prop(view_layer, "use_pass_oct_diff_filter", text="Filter", toggle=True)         
+        row.prop(octane_view_layer, "use_pass_diff", text="Diffuse", toggle=True)
+        row.prop(octane_view_layer, "use_pass_diff_dir", text="Direct", toggle=True)
+        row.prop(octane_view_layer, "use_pass_diff_indir", text="Indirect", toggle=True)        
+        row.prop(octane_view_layer, "use_pass_diff_filter", text="Filter", toggle=True)         
 
         layout.row().separator()
-
         split = layout.split(factor=1)
         split.use_property_split = False
         row = split.row(align=True)
-        row.prop(view_layer, "use_pass_oct_reflect", text="Reflection", toggle=True)
-        row.prop(view_layer, "use_pass_oct_reflect_dir", text="Direct", toggle=True)
-        row.prop(view_layer, "use_pass_oct_reflect_indir", text="Indirect", toggle=True)        
-        row.prop(view_layer, "use_pass_oct_reflect_filter", text="Filter", toggle=True)     
+        row.prop(octane_view_layer, "use_pass_reflect", text="Reflection", toggle=True)
+        row.prop(octane_view_layer, "use_pass_reflect_dir", text="Direct", toggle=True)
+        row.prop(octane_view_layer, "use_pass_reflect_indir", text="Indirect", toggle=True)        
+        row.prop(octane_view_layer, "use_pass_reflect_filter", text="Filter", toggle=True)     
 
         layout.row().separator()
-
         split = layout.split(factor=1)
         split.use_property_split = False
         row = split.row(align=True)
-        row.prop(view_layer, "use_pass_oct_refract", text="Refraction", toggle=True)
-        row.prop(view_layer, "use_pass_oct_refract_filter", text="Refract Filter", toggle=True)
+        row.prop(octane_view_layer, "use_pass_refract", text="Refraction", toggle=True)
+        row.prop(octane_view_layer, "use_pass_refract_filter", text="Refract Filter", toggle=True)
 
         layout.row().separator()
-
         split = layout.split(factor=1)
         split.use_property_split = False
         row = split.row(align=True)
-        row.prop(view_layer, "use_pass_oct_transm", text="Transmission", toggle=True)
-        row.prop(view_layer, "use_pass_oct_transm_filter", text="Transm Filter", toggle=True)        
+        row.prop(octane_view_layer, "use_pass_transm", text="Transmission", toggle=True)
+        row.prop(octane_view_layer, "use_pass_transm_filter", text="Transm Filter", toggle=True)        
 
         layout.row().separator()
-
+        row = layout.row()
         split = layout.split(factor=1)
         split.use_property_split = False
         row = split.row(align=True)
-        row.prop(view_layer, "use_pass_oct_volume", text="Volume", toggle=True)
-        row.prop(view_layer, "use_pass_oct_vol_mask", text="Mask", toggle=True)
-        row.prop(view_layer, "use_pass_oct_vol_emission", text="Emission", toggle=True)        
-        row.prop(view_layer, "use_pass_oct_vol_z_front", text="ZFront", toggle=True)
-        row.prop(view_layer, "use_pass_oct_vol_z_back", text="ZBack", toggle=True)
+        row.prop(octane_view_layer, "use_pass_volume", text="Volume", toggle=True)
+        row.prop(octane_view_layer, "use_pass_vol_mask", text="Mask", toggle=True)
+        row.prop(octane_view_layer, "use_pass_vol_emission", text="Emission", toggle=True)        
+        row.prop(octane_view_layer, "use_pass_vol_z_front", text="ZFront", toggle=True)
+        row.prop(octane_view_layer, "use_pass_vol_z_back", text="ZBack", toggle=True)
 
 
 class OCTANE_RENDER_PT_passes_denoiser(OctaneRenderPassesPanel, Panel):
@@ -725,32 +290,19 @@ class OCTANE_RENDER_PT_passes_denoiser(OctaneRenderPassesPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-
-        scene = context.scene
-        rd = scene.render
         view_layer = context.view_layer
         octane_view_layer = view_layer.octane
 
         flow = layout.grid_flow(row_major=True, columns=2, even_columns=True, even_rows=False, align=False)
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_denoise_beauty", text="Beauty")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_denoise_diff_dir", text="DiffDir")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_denoise_diff_indir", text="DiffIndir")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_denoise_reflect_dir", text="ReflectDir")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_denoise_reflect_indir", text="ReflectIndir")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_denoise_emission", text="Emission")
-        col = flow.column()        
-        col.prop(view_layer, "use_pass_oct_denoise_remainder", text="Refraction")
-        # col.prop(view_layer, "use_pass_oct_denoise_remainder", text="Remainder")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_denoise_vol", text="Volume")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_denoise_vol_emission", text="VolEmission")
+        flow.prop(octane_view_layer, "use_pass_denoise_beauty", text="Beauty")
+        flow.prop(octane_view_layer, "use_pass_denoise_diff_dir", text="DiffDir")
+        flow.prop(octane_view_layer, "use_pass_denoise_diff_indir", text="DiffIndir")
+        flow.prop(octane_view_layer, "use_pass_denoise_reflect_dir", text="ReflectDir")
+        flow.prop(octane_view_layer, "use_pass_denoise_reflect_indir", text="ReflectIndir")
+        flow.prop(octane_view_layer, "use_pass_denoise_emission", text="Emission")
+        flow.prop(octane_view_layer, "use_pass_denoise_remainder", text="Refraction")
+        flow.prop(octane_view_layer, "use_pass_denoise_vol", text="Volume")
+        flow.prop(octane_view_layer, "use_pass_denoise_vol_emission", text="VolEmission")
 
 
 class OCTANE_RENDER_PT_passes_postprocessing(OctaneRenderPassesPanel, Panel):
@@ -761,17 +313,12 @@ class OCTANE_RENDER_PT_passes_postprocessing(OctaneRenderPassesPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-
-        scene = context.scene
-        rd = scene.render
         view_layer = context.view_layer
         octane_view_layer = view_layer.octane
 
         flow = layout.grid_flow(row_major=True, columns=2, even_columns=True, even_rows=False, align=False)
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_postprocess", text="Post processing")
-        col = flow.column()
-        col.prop(octane_view_layer, "pass_pp_env")
+        flow.prop(octane_view_layer, "use_pass_postprocess", text="Post processing")
+        flow.prop(octane_view_layer, "pass_pp_env")
 
 
 class OCTANE_RENDER_PT_passes_render_layer(OctaneRenderPassesPanel, Panel):
@@ -782,19 +329,13 @@ class OCTANE_RENDER_PT_passes_render_layer(OctaneRenderPassesPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-
-        scene = context.scene
-        rd = scene.render
         view_layer = context.view_layer
         octane_view_layer = view_layer.octane
 
         flow = layout.grid_flow(row_major=True, columns=2, even_columns=True, even_rows=True, align=False)
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_layer_shadows", text="Shadow")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_layer_black_shadow", text="BlackShadow")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_layer_reflections", text="Reflections")
+        flow.prop(octane_view_layer, "use_pass_layer_shadows", text="Shadow")
+        flow.prop(octane_view_layer, "use_pass_layer_black_shadow", text="BlackShadow")
+        flow.prop(octane_view_layer, "use_pass_layer_reflections", text="Reflections")
 
 
 class OCTANE_RENDER_PT_passes_lighting(OctaneRenderPassesPanel, Panel):
@@ -805,73 +346,40 @@ class OCTANE_RENDER_PT_passes_lighting(OctaneRenderPassesPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-
-        scene = context.scene
-        rd = scene.render
         view_layer = context.view_layer
         octane_view_layer = view_layer.octane
 
         flow = layout.grid_flow(row_major=True, columns=3, even_columns=True, even_rows=True, align=False)
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_ambient_light", text="Ambient")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_ambient_light_dir", text="Direct")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_ambient_light_indir", text="Indirect")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_sunlight", text="Sunlight")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_sunlight_dir", text="Direct")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_sunlight_indir", text="Indirect")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_light_pass_1", text="Light Pass 1")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_light_dir_pass_1", text="Direct")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_light_indir_pass_1", text="Indirect")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_light_pass_2", text="Light Pass 2")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_light_dir_pass_2", text="Direct")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_light_indir_pass_2", text="Indirect")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_light_pass_3", text="Light Pass 3")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_light_dir_pass_3", text="Direct")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_light_indir_pass_3", text="Indirect")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_light_pass_4", text="Light Pass 4")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_light_dir_pass_4", text="Direct")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_light_indir_pass_4", text="Indirect")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_light_pass_5", text="Light Pass 5")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_light_dir_pass_5", text="Direct")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_light_indir_pass_5", text="Indirect")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_light_pass_6", text="Light Pass 6")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_light_dir_pass_6", text="Direct")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_light_indir_pass_6", text="Indirect")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_light_pass_7", text="Light Pass 7")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_light_dir_pass_7", text="Direct")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_light_indir_pass_7", text="Indirect")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_light_pass_8", text="Light Pass 8")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_light_dir_pass_8", text="Direct")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_light_indir_pass_8", text="Indirect")
+        flow.prop(octane_view_layer, "use_pass_ambient_light", text="Ambient")
+        flow.prop(octane_view_layer, "use_pass_ambient_light_dir", text="Direct")
+        flow.prop(octane_view_layer, "use_pass_ambient_light_indir", text="Indirect")
+        flow.prop(octane_view_layer, "use_pass_sunlight", text="Sunlight")
+        flow.prop(octane_view_layer, "use_pass_sunlight_dir", text="Direct")
+        flow.prop(octane_view_layer, "use_pass_sunlight_indir", text="Indirect")
+        flow.prop(octane_view_layer, "use_pass_light_pass_1", text="Light Pass 1")
+        flow.prop(octane_view_layer, "use_pass_light_dir_pass_1", text="Direct")
+        flow.prop(octane_view_layer, "use_pass_light_indir_pass_1", text="Indirect")
+        flow.prop(octane_view_layer, "use_pass_light_pass_2", text="Light Pass 2")
+        flow.prop(octane_view_layer, "use_pass_light_dir_pass_2", text="Direct")
+        flow.prop(octane_view_layer, "use_pass_light_indir_pass_2", text="Indirect")
+        flow.prop(octane_view_layer, "use_pass_light_pass_3", text="Light Pass 3")
+        flow.prop(octane_view_layer, "use_pass_light_dir_pass_3", text="Direct")
+        flow.prop(octane_view_layer, "use_pass_light_indir_pass_3", text="Indirect")
+        flow.prop(octane_view_layer, "use_pass_light_pass_4", text="Light Pass 4")
+        flow.prop(octane_view_layer, "use_pass_light_dir_pass_4", text="Direct")
+        flow.prop(octane_view_layer, "use_pass_light_indir_pass_4", text="Indirect")
+        flow.prop(octane_view_layer, "use_pass_light_pass_5", text="Light Pass 5")
+        flow.prop(octane_view_layer, "use_pass_light_dir_pass_5", text="Direct")
+        flow.prop(octane_view_layer, "use_pass_light_indir_pass_5", text="Indirect")
+        flow.prop(octane_view_layer, "use_pass_light_pass_6", text="Light Pass 6")
+        flow.prop(octane_view_layer, "use_pass_light_dir_pass_6", text="Direct")
+        flow.prop(octane_view_layer, "use_pass_light_indir_pass_6", text="Indirect")
+        flow.prop(octane_view_layer, "use_pass_light_pass_7", text="Light Pass 7")
+        flow.prop(octane_view_layer, "use_pass_light_dir_pass_7", text="Direct")
+        flow.prop(octane_view_layer, "use_pass_light_indir_pass_7", text="Indirect")
+        flow.prop(octane_view_layer, "use_pass_light_pass_8", text="Light Pass 8")
+        flow.prop(octane_view_layer, "use_pass_light_dir_pass_8", text="Direct")
+        flow.prop(octane_view_layer, "use_pass_light_indir_pass_8", text="Indirect")
 
 
 class OCTANE_RENDER_PT_passes_cryptomatte(OctaneRenderPassesPanel, Panel):
@@ -882,39 +390,27 @@ class OCTANE_RENDER_PT_passes_cryptomatte(OctaneRenderPassesPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-
-        scene = context.scene
-        rd = scene.render
         view_layer = context.view_layer
         octane_view_layer = view_layer.octane
 
         flow = layout.grid_flow(row_major=True, columns=2, even_columns=True, even_rows=False, align=False)
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_crypto_instance_id", text="InstanceID")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_crypto_mat_node_name", text="MatNodeName")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_crypto_mat_node", text="MatNode")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_crypto_mat_pin_node", text="MatPinNode")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_crypto_obj_node_name", text="ObjNodeName")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_crypto_obj_node", text="ObjNode")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_crypto_obj_pin_node", text="ObjPinNode")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_crypto_render_layer", text="RenderLayer")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_crypto_geometry_node_name", text="GeoNodeName")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_crypto_user_instance_id", text="UserInstanceID")
+        flow.prop(octane_view_layer, "use_pass_crypto_instance_id", text="InstanceID")
+        flow.prop(octane_view_layer, "use_pass_crypto_mat_node_name", text="MatNodeName")
+        flow.prop(octane_view_layer, "use_pass_crypto_mat_node", text="MatNode")
+        flow.prop(octane_view_layer, "use_pass_crypto_mat_pin_node", text="MatPinNode")
+        flow.prop(octane_view_layer, "use_pass_crypto_obj_node_name", text="ObjNodeName")
+        flow.prop(octane_view_layer, "use_pass_crypto_obj_node", text="ObjNode")
+        flow.prop(octane_view_layer, "use_pass_crypto_obj_pin_node", text="ObjPinNode")
+        # flow.prop(octane_view_layer, "use_pass_crypto_render_layer", text="RenderLayer")
+        # flow.prop(octane_view_layer, "use_pass_crypto_geometry_node_name", text="GeoNodeName")
+        # flow.prop(octane_view_layer, "use_pass_crypto_user_instance_id", text="UserInstanceID")
 
         layout.row().separator()
-        row = layout.row(align=True)
-        row.prop(octane_view_layer, "cryptomatte_pass_channels")
-        row = layout.row(align=True)
-        row.prop(octane_view_layer, "cryptomatte_seed_factor")
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        col = layout.column(align=True)
+        col.prop(octane_view_layer, "cryptomatte_pass_channels")
+        col.prop(octane_view_layer, "cryptomatte_seed_factor")
 
 
 class OCTANE_RENDER_PT_passes_info(OctaneRenderPassesPanel, Panel):
@@ -925,70 +421,51 @@ class OCTANE_RENDER_PT_passes_info(OctaneRenderPassesPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-
-        scene = context.scene
-        rd = scene.render
         view_layer = context.view_layer
         octane_view_layer = view_layer.octane
 
         flow = layout.grid_flow(row_major=True, columns=2, even_columns=True, even_rows=False, align=False)
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_info_z_depth")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_info_position")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_info_uv")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_info_tex_tangent")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_info_motion_vector")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_info_mat_id")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_info_obj_id")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_info_obj_layer_color")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_info_baking_group_id")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_info_light_pass_id")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_info_render_layer_id")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_info_render_layer_mask")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_info_wireframe")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_info_ao")
+        flow.prop(octane_view_layer, "use_pass_info_z_depth")
+        flow.prop(octane_view_layer, "use_pass_info_position")
+        flow.prop(octane_view_layer, "use_pass_info_uv")
+        flow.prop(octane_view_layer, "use_pass_info_tex_tangent")
+        flow.prop(octane_view_layer, "use_pass_info_motion_vector")
+        flow.prop(octane_view_layer, "use_pass_info_mat_id")
+        flow.prop(octane_view_layer, "use_pass_info_obj_id")
+        flow.prop(octane_view_layer, "use_pass_info_obj_layer_color")
+        flow.prop(octane_view_layer, "use_pass_info_baking_group_id")
+        flow.prop(octane_view_layer, "use_pass_info_light_pass_id")
+        flow.prop(octane_view_layer, "use_pass_info_render_layer_id")
+        flow.prop(octane_view_layer, "use_pass_info_render_layer_mask")
+        flow.prop(octane_view_layer, "use_pass_info_wireframe")
+        flow.prop(octane_view_layer, "use_pass_info_ao")
 
         layout.row().separator()
-
         split = layout.split(factor=0.15)
         split.use_property_split = False
         split.label(text="Normal")
         row = split.row(align=True)       
-        row.prop(view_layer, "use_pass_oct_info_geo_normal", text="Geometric", toggle=True)         
-        row.prop(view_layer, "use_pass_oct_info_smooth_normal", text="Smooth", toggle=True)
-        row.prop(view_layer, "use_pass_oct_info_shading_normal", text="Shading", toggle=True)
-        row.prop(view_layer, "use_pass_oct_info_tangent_normal", text="Tangent", toggle=True)
+        row.prop(octane_view_layer, "use_pass_info_geo_normal", text="Geometric", toggle=True)         
+        row.prop(octane_view_layer, "use_pass_info_smooth_normal", text="Smooth", toggle=True)
+        row.prop(octane_view_layer, "use_pass_info_shading_normal", text="Shading", toggle=True)
+        row.prop(octane_view_layer, "use_pass_info_tangent_normal", text="Tangent", toggle=True)
 
         layout.row().separator()
-        row = layout.row(align=True)
-        row.prop(octane_view_layer, "info_pass_max_samples")
-        row = layout.row(align=True)
-        row.prop(octane_view_layer, "info_pass_sampling_mode")
-        row = layout.row(align=True)
-        row.prop(octane_view_layer, "info_pass_z_depth_max")
-        row = layout.row(align=True)
-        row.prop(octane_view_layer, "info_pass_uv_max")
-        row = layout.row(align=True)
-        row.prop(octane_view_layer, "info_pass_uv_coordinate_selection")
-        row = layout.row(align=True)
-        row.prop(octane_view_layer, "info_pass_max_speed")
-        row = layout.row(align=True)
-        row.prop(octane_view_layer, "info_pass_ao_distance")                        
-        row = layout.row(align=True)
-        row.prop(octane_view_layer, "info_pass_alpha_shadows")       
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        col = layout.column(align=True)
+        col.prop(octane_view_layer, "info_pass_max_samples")
+        col.prop(octane_view_layer, "info_pass_sampling_mode")
+        col.prop(octane_view_layer, "info_pass_opacity_threshold")
+        col.prop(octane_view_layer, "info_pass_z_depth_max")
+        col.prop(octane_view_layer, "info_pass_uv_max")
+        col.prop(octane_view_layer, "info_pass_uv_coordinate_selection")
+        col.prop(octane_view_layer, "info_pass_max_speed")
+        col.prop(octane_view_layer, "info_pass_ao_distance")
+        col.prop(octane_view_layer, "info_pass_alpha_shadows")
+        col.prop(octane_view_layer, "info_pass_bump")
+        col.prop(octane_view_layer, "shading_enabled")
+        col.prop(octane_view_layer, "highlight_backfaces")
 
 
 class OCTANE_RENDER_PT_passes_material(OctaneRenderPassesPanel, Panel):
@@ -999,30 +476,23 @@ class OCTANE_RENDER_PT_passes_material(OctaneRenderPassesPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-
-        scene = context.scene
-        rd = scene.render
         view_layer = context.view_layer
         octane_view_layer = view_layer.octane
 
         flow = layout.grid_flow(row_major=True, columns=2, even_columns=True, even_rows=False, align=False)
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_mat_opacity")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_mat_roughness")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_mat_ior")
+        flow.prop(octane_view_layer, "use_pass_mat_opacity")
+        flow.prop(octane_view_layer, "use_pass_mat_roughness")
+        flow.prop(octane_view_layer, "use_pass_mat_ior")
 
         layout.row().separator()
-
         split = layout.split(factor=0.15)
         split.use_property_split = False
         split.label(text="Filter")
         row = split.row(align=True)       
-        row.prop(view_layer, "use_pass_oct_mat_diff_filter_info", text="Diffuse", toggle=True)         
-        row.prop(view_layer, "use_pass_oct_mat_reflect_filter_info", text="Reflection", toggle=True)
-        row.prop(view_layer, "use_pass_oct_mat_refract_filter_info", text="Refraction", toggle=True)
-        row.prop(view_layer, "use_pass_oct_mat_transm_filter_info", text="Transmission", toggle=True)
+        row.prop(octane_view_layer, "use_pass_mat_diff_filter_info", text="Diffuse", toggle=True)         
+        row.prop(octane_view_layer, "use_pass_mat_reflect_filter_info", text="Reflection", toggle=True)
+        row.prop(octane_view_layer, "use_pass_mat_refract_filter_info", text="Refraction", toggle=True)
+        row.prop(octane_view_layer, "use_pass_mat_transm_filter_info", text="Transmission", toggle=True)
 
 
 class OCTANE_RENDER_PT_AOV_Output_node_graph(common.OctanePropertyPanel, Panel):
@@ -1087,13 +557,19 @@ def octane_presets_light_menu(self, context):
     if rd.engine != "octane":
         return
     self.layout.separator()
+    self.layout.operator("octane.quick_add_octane_toon_point_light", icon="LIGHT_POINT", text="Octane Toon Point Light")
+    self.layout.operator("octane.quick_add_octane_toon_directional_light", icon="LIGHT_SUN", text="Octane Toon Directional Light")
+    self.layout.operator("octane.quick_add_octane_spot_light", icon="LIGHT_SPOT", text="Octane SpotLight")
+    self.layout.operator("octane.quick_add_octane_area_light", icon="LIGHT_AREA", text="Octane Area Light")
     self.layout.operator("octane.quick_add_octane_sphere_light", icon="LIGHT_POINT", text="Octane Sphere Light")
     self.layout.operator("octane.quick_add_octane_mesh_light", icon="LIGHT_AREA", text="Octane Mesh Light")
 
 
 _CLASSES = [
-    OCTANE_MT_kernel_presets,
+    OCTANE_MT_legacy_kernel_presets,
+    OCTANE_MT_renderpasses_presets,
     OCTANE_RENDER_PT_kernel,
+    OCTANE_RENDER_PT_legacy_kernel,
     OCTANE_RENDER_PT_motion_blur,
     OCTANE_RENDER_PT_server,
     OCTANE_RENDER_PT_out_of_core,

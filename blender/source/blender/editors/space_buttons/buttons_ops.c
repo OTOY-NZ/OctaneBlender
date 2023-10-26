@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2009 Blender Foundation. All rights reserved. */
+ * Copyright 2009 Blender Foundation */
 
 /** \file
  * \ingroup spbuttons
@@ -200,7 +200,7 @@ static int file_browse_exec(bContext *C, wmOperator *op)
     const bool is_relative = RNA_boolean_get(op->ptr, "relative_path");
     id = fbo->ptr.owner_id;
 
-    BLI_strncpy(path, str, FILE_MAX);
+    STRNCPY(path, str);
     BLI_path_abs(path, id ? ID_BLEND_PATH(bmain, id) : BKE_main_blendfile_path(bmain));
 
     if (BLI_is_dir(path)) {

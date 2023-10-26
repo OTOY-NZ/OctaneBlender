@@ -21,12 +21,12 @@
 #include "IMB_colormanagement.h"
 #include "IMB_imbuf_types.h"
 
+#include "GPU_context.h"
 #include "GPU_immediate.h"
 #include "GPU_matrix.h"
 #include "GPU_texture.h"
 
 #ifdef __APPLE__
-#  include "GPU_context.h"
 #  include "GPU_state.h"
 #endif
 
@@ -81,7 +81,7 @@ void immDrawPixelsTexScaledFullSize(const IMMDrawPixelsTexState *state,
   const int mip_len = use_mipmap ? 9999 : 1;
 
   GPUTexture *tex = GPU_texture_create_2d(
-      "immDrawPixels", img_w, img_h, mip_len, gpu_format, NULL);
+      "immDrawPixels", img_w, img_h, mip_len, gpu_format, GPU_TEXTURE_USAGE_SHADER_READ, NULL);
 
   const bool use_float_data = ELEM(gpu_format, GPU_RGBA16F, GPU_RGB16F, GPU_R16F);
   eGPUDataFormat gpu_data_format = (use_float_data) ? GPU_DATA_FLOAT : GPU_DATA_UBYTE;
@@ -89,10 +89,10 @@ void immDrawPixelsTexScaledFullSize(const IMMDrawPixelsTexState *state,
 
   GPU_texture_filter_mode(tex, use_filter);
   if (use_mipmap) {
-    GPU_texture_generate_mipmap(tex);
+    GPU_texture_update_mipmap_chain(tex);
     GPU_texture_mipmap_mode(tex, true, true);
   }
-  GPU_texture_wrap_mode(tex, false, true);
+  GPU_texture_extend_mode(tex, GPU_SAMPLER_EXTEND_MODE_EXTEND);
 
   GPU_texture_bind(tex, 0);
 
@@ -147,18 +147,17 @@ void immDrawPixelsTexTiled_scaling_clipping(IMMDrawPixelsTexState *state,
                                             const float color[4])
 {
   int subpart_x, subpart_y, tex_w = 256, tex_h = 256;
-#ifdef __APPLE__
-  if (GPU_backend_get_type() == GPU_BACKEND_METAL) {
-    /* NOTE(Metal): The Metal backend will keep all temporary texture memory within a command
+  if (ELEM(GPU_backend_get_type(), GPU_BACKEND_METAL, GPU_BACKEND_VULKAN)) {
+    /* NOTE: These backend will keep all temporary texture memory within a command
      * submission in-flight, so using a partial tile size does not provide any tangible memory
-     * reduction, but does incur additional API overhead and significant cache inefficiency on AMD
-     * platforms.
+     * reduction, but does incur additional API overhead and significant cache inefficiency on
+     * specific platforms.
+     *
      * The Metal API also provides smart resource paging such that the application can
      * still efficiently swap memory, even if system is low in physical memory. */
     tex_w = img_w;
     tex_h = img_h;
   }
-#endif
   int seamless, offset_x, offset_y, nsubparts_x, nsubparts_y;
   int components;
   const bool use_clipping = ((clip_min_x < clip_max_x) && (clip_min_y < clip_max_y));
@@ -182,10 +181,11 @@ void immDrawPixelsTexTiled_scaling_clipping(IMMDrawPixelsTexState *state,
   eGPUDataFormat gpu_data = (use_float_data) ? GPU_DATA_FLOAT : GPU_DATA_UBYTE;
   size_t stride = components * ((use_float_data) ? sizeof(float) : sizeof(uchar));
 
-  GPUTexture *tex = GPU_texture_create_2d("immDrawPixels", tex_w, tex_h, 1, gpu_format, NULL);
+  GPUTexture *tex = GPU_texture_create_2d(
+      "immDrawPixels", tex_w, tex_h, 1, gpu_format, GPU_TEXTURE_USAGE_SHADER_READ, NULL);
 
   GPU_texture_filter_mode(tex, use_filter);
-  GPU_texture_wrap_mode(tex, false, true);
+  GPU_texture_extend_mode(tex, GPU_SAMPLER_EXTEND_MODE_EXTEND);
 
   GPU_texture_bind(tex, 0);
 
@@ -628,8 +628,8 @@ int ED_draw_imbuf_method(ImBuf *ibuf)
 
 void immDrawBorderCorners(uint pos, const rcti *border, float zoomx, float zoomy)
 {
-  float delta_x = 4.0f * UI_DPI_FAC / zoomx;
-  float delta_y = 4.0f * UI_DPI_FAC / zoomy;
+  float delta_x = 4.0f * UI_SCALE_FAC / zoomx;
+  float delta_y = 4.0f * UI_SCALE_FAC / zoomy;
 
   delta_x = min_ff(delta_x, border->xmax - border->xmin);
   delta_y = min_ff(delta_y, border->ymax - border->ymin);

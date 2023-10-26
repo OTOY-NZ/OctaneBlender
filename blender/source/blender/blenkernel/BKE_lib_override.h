@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2016 Blender Foundation. All rights reserved. */
+ * Copyright 2016 Blender Foundation */
 
 #pragma once
 
@@ -304,6 +304,27 @@ struct IDOverrideLibraryProperty *BKE_lib_override_library_property_get(
 void BKE_lib_override_library_property_delete(struct IDOverrideLibrary *override,
                                               struct IDOverrideLibraryProperty *override_property);
 /**
+ * Delete a property override from the given ID \a override, if it exists.
+ *
+ * \return True when the property was found (and thus deleted), false if it wasn't found.
+ */
+bool BKE_lib_override_library_property_search_and_delete(struct IDOverrideLibrary *override,
+                                                         const char *rna_path);
+
+/** Change the RNA path of a library override on a property.
+ *
+ * No-op if the property override cannot be found.
+ *
+ * \param from_rna_path The RNA path of the property to change.
+ * \param to_rna_path The new RNA path. The library override system will copy the string to its own
+ * memory; the caller will retain ownership of the passed pointer.
+ * \return True if the property was found (and thus changed), false if it wasn't found.
+ */
+bool BKE_lib_override_library_property_rna_path_change(IDOverrideLibrary *liboverride,
+                                                       const char *old_rna_path,
+                                                       const char *new_rna_path);
+
+/**
  * Get the RNA-property matching the \a library_prop override property. Used for UI to query
  * additional data about the overridden property (e.g. UI name).
  *
@@ -504,6 +525,11 @@ void BKE_lib_override_library_main_update(struct Main *bmain);
  * In case an ID is used by another liboverride ID, user may not be allowed to delete it.
  */
 bool BKE_lib_override_library_id_is_user_deletable(struct Main *bmain, struct ID *id);
+
+/**
+ * Debuging helper to show content of given liboverride data.
+ */
+void BKE_lib_override_debug_print(struct IDOverrideLibrary *override, const char *intro_txt);
 
 /* Storage (.blend file writing) part. */
 

@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_kdtree.h"
+#include "BLI_offset_indices.hh"
 #include "BLI_task.hh"
 
 #include "DNA_pointcloud_types.h"
@@ -19,8 +20,7 @@ PointCloud *point_merge_by_distance(const PointCloud &src_points,
                                     const bke::AnonymousAttributePropagationInfo &propagation_info)
 {
   const bke::AttributeAccessor src_attributes = src_points.attributes();
-  VArraySpan<float3> positions = src_attributes.lookup_or_default<float3>(
-      "position", ATTR_DOMAIN_POINT, float3(0));
+  const Span<float3> positions = src_points.positions();
   const int src_size = positions.size();
 
   /* Create the KD tree based on only the selected points, to speed up merge detection and
@@ -81,27 +81,25 @@ PointCloud *point_merge_by_distance(const PointCloud &src_points,
   }
 
   /* This array stores an offset into `merge_map` for every result point. */
-  Array<int> map_offsets(dst_size + 1);
+  Array<int> map_offsets_data(dst_size + 1);
   int offset = 0;
   for (const int i : IndexRange(dst_size)) {
-    map_offsets[i] = offset;
+    map_offsets_data[i] = offset;
     offset += point_merge_counts[i];
   }
-  map_offsets.last() = offset;
+  map_offsets_data.last() = offset;
+  OffsetIndices<int> map_offsets(map_offsets_data);
 
   point_merge_counts.fill(0);
 
   /* This array stores all of the source indices for every result point. The size is the source
    * size because every input point is either merged with another or copied directly. */
-  Array<int> merge_map(src_size);
+  Array<int> merge_map_indices(src_size);
   for (const int i : IndexRange(src_size)) {
     const int merge_index = merge_indices[i];
     const int dst_index = src_to_dst_indices[merge_index];
 
-    const IndexRange points(map_offsets[dst_index],
-                            map_offsets[dst_index + 1] - map_offsets[dst_index]);
-    MutableSpan<int> point_merge_indices = merge_map.as_mutable_span().slice(points);
-    point_merge_indices[point_merge_counts[dst_index]] = i;
+    merge_map_indices[map_offsets[dst_index].first() + point_merge_counts[dst_index]] = i;
     point_merge_counts[dst_index]++;
   }
 
@@ -109,14 +107,13 @@ PointCloud *point_merge_by_distance(const PointCloud &src_points,
 
   /* Transfer the ID attribute if it exists, using the ID of the first merged point. */
   if (attribute_ids.contains("id")) {
-    VArraySpan<int> src = src_attributes.lookup_or_default<int>("id", ATTR_DOMAIN_POINT, 0);
+    VArraySpan<int> src = *src_attributes.lookup_or_default<int>("id", ATTR_DOMAIN_POINT, 0);
     bke::SpanAttributeWriter<int> dst = dst_attributes.lookup_or_add_for_write_only_span<int>(
         "id", ATTR_DOMAIN_POINT);
 
     threading::parallel_for(IndexRange(dst_size), 1024, [&](IndexRange range) {
       for (const int i_dst : range) {
-        const IndexRange points(map_offsets[i_dst], map_offsets[i_dst + 1] - map_offsets[i_dst]);
-        dst.span[i_dst] = src[points.first()];
+        dst.span[i_dst] = src[map_offsets[i_dst].first()];
       }
     });
 
@@ -131,9 +128,9 @@ PointCloud *point_merge_by_distance(const PointCloud &src_points,
     }
 
     bke::GAttributeReader src_attribute = src_attributes.lookup(id);
-    attribute_math::convert_to_static_type(src_attribute.varray.type(), [&](auto dummy) {
+    bke::attribute_math::convert_to_static_type(src_attribute.varray.type(), [&](auto dummy) {
       using T = decltype(dummy);
-      if constexpr (!std::is_void_v<attribute_math::DefaultMixer<T>>) {
+      if constexpr (!std::is_void_v<bke::attribute_math::DefaultMixer<T>>) {
         bke::SpanAttributeWriter<T> dst_attribute =
             dst_attributes.lookup_or_add_for_write_only_span<T>(id, ATTR_DOMAIN_POINT);
         VArraySpan<T> src = src_attribute.varray.typed<T>();
@@ -142,11 +139,9 @@ PointCloud *point_merge_by_distance(const PointCloud &src_points,
           for (const int i_dst : range) {
             /* Create a separate mixer for every point to avoid allocating temporary buffers
              * in the mixer the size of the result point cloud and to improve memory locality. */
-            attribute_math::DefaultMixer<T> mixer{dst_attribute.span.slice(i_dst, 1)};
+            bke::attribute_math::DefaultMixer<T> mixer{dst_attribute.span.slice(i_dst, 1)};
 
-            const IndexRange points(map_offsets[i_dst],
-                                    map_offsets[i_dst + 1] - map_offsets[i_dst]);
-            Span<int> src_merge_indices = merge_map.as_span().slice(points);
+            Span<int> src_merge_indices = merge_map_indices.as_span().slice(map_offsets[i_dst]);
             for (const int i_src : src_merge_indices) {
               mixer.mix_in(0, src[i_src]);
             }

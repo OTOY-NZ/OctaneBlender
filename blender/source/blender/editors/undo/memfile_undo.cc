@@ -25,7 +25,7 @@
 #include "BKE_lib_id.h"
 #include "BKE_lib_query.h"
 #include "BKE_main.h"
-#include "BKE_node.h"
+#include "BKE_node.hh"
 #include "BKE_scene.h"
 #include "BKE_undo_system.h"
 
@@ -99,15 +99,16 @@ static bool memfile_undosys_step_encode(struct bContext * /*C*/,
 
 static int memfile_undosys_step_id_reused_cb(LibraryIDLinkCallbackData *cb_data)
 {
-  ID *id_self = cb_data->id_self;
+  ID *self_id = cb_data->self_id;
   ID **id_pointer = cb_data->id_pointer;
-  BLI_assert((id_self->tag & LIB_TAG_UNDO_OLD_ID_REUSED) != 0);
+  BLI_assert((self_id->tag & LIB_TAG_UNDO_OLD_ID_REUSED_UNCHANGED) != 0);
 
   ID *id = *id_pointer;
-  if (id != nullptr && !ID_IS_LINKED(id) && (id->tag & LIB_TAG_UNDO_OLD_ID_REUSED) == 0) {
+  if (id != nullptr && !ID_IS_LINKED(id) && (id->tag & LIB_TAG_UNDO_OLD_ID_REUSED_UNCHANGED) == 0)
+  {
     bool do_stop_iter = true;
-    if (GS(id_self->name) == ID_OB) {
-      Object *ob_self = (Object *)id_self;
+    if (GS(self_id->name) == ID_OB) {
+      Object *ob_self = (Object *)self_id;
       if (ob_self->type == OB_ARMATURE) {
         if (ob_self->data == id) {
           BLI_assert(GS(id->name) == ID_AR);
@@ -234,26 +235,44 @@ static void memfile_undosys_step_decode(struct bContext *C,
      * data-blocks, at least COW evaluated copies need to be updated... */
     ID *id = nullptr;
     FOREACH_MAIN_ID_BEGIN (bmain, id) {
-      if (id->tag & LIB_TAG_UNDO_OLD_ID_REUSED) {
+      if (id->tag & LIB_TAG_UNDO_OLD_ID_REUSED_UNCHANGED) {
         BKE_library_foreach_ID_link(
             bmain, id, memfile_undosys_step_id_reused_cb, nullptr, IDWALK_READONLY);
       }
 
+      /* NOTE: Tagging `ID_RECALC_COPY_ON_WRITE` here should not be needed in practice, since
+       * modified IDs should already have other depsgraph update tags anyway.
+       * However, for the sake of consistency, it's better to effectively use it,
+       * since content of that ID pointer does have been modified. */
+      uint recalc_flags = id->recalc | ((id->tag & LIB_TAG_UNDO_OLD_ID_REREAD_IN_PLACE) ?
+                                            ID_RECALC_COPY_ON_WRITE :
+                                            IDRecalcFlag(0));
       /* Tag depsgraph to update data-block for changes that happened between the
        * current and the target state, see direct_link_id_restore_recalc(). */
-      if (id->recalc != 0) {
-        DEG_id_tag_update_ex(bmain, id, id->recalc);
+      if (recalc_flags != 0) {
+        DEG_id_tag_update_ex(bmain, id, recalc_flags);
       }
 
       bNodeTree *nodetree = ntreeFromID(id);
-      if (nodetree != nullptr && nodetree->id.recalc != 0) {
-        DEG_id_tag_update_ex(bmain, &nodetree->id, nodetree->id.recalc);
+      if (nodetree != nullptr) {
+        recalc_flags = nodetree->id.recalc;
+        if (id->tag & LIB_TAG_UNDO_OLD_ID_REREAD_IN_PLACE) {
+          recalc_flags |= ID_RECALC_COPY_ON_WRITE;
+        }
+        if (recalc_flags != 0) {
+          DEG_id_tag_update_ex(bmain, &nodetree->id, recalc_flags);
+        }
       }
       if (GS(id->name) == ID_SCE) {
         Scene *scene = (Scene *)id;
-        if (scene->master_collection != nullptr && scene->master_collection->id.recalc != 0) {
-          DEG_id_tag_update_ex(
-              bmain, &scene->master_collection->id, scene->master_collection->id.recalc);
+        if (scene->master_collection != nullptr) {
+          recalc_flags = scene->master_collection->id.recalc;
+          if (id->tag & LIB_TAG_UNDO_OLD_ID_REREAD_IN_PLACE) {
+            recalc_flags |= ID_RECALC_COPY_ON_WRITE;
+          }
+          if (recalc_flags != 0) {
+            DEG_id_tag_update_ex(bmain, &scene->master_collection->id, recalc_flags);
+          }
         }
       }
 
@@ -264,7 +283,7 @@ static void memfile_undosys_step_decode(struct bContext *C,
 
     FOREACH_MAIN_ID_BEGIN (bmain, id) {
       /* Clear temporary tag. */
-      id->tag &= ~LIB_TAG_UNDO_OLD_ID_REUSED;
+      id->tag &= ~(LIB_TAG_UNDO_OLD_ID_REUSED_UNCHANGED | LIB_TAG_UNDO_OLD_ID_REREAD_IN_PLACE);
 
       /* We only start accumulating from this point, any tags set up to here
        * are already part of the current undo state. This is done in a second

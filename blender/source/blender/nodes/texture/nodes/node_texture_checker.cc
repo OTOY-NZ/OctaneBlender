@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2005 Blender Foundation. All rights reserved. */
+ * Copyright 2005 Blender Foundation */
 
 /** \file
  * \ingroup texnodes
@@ -55,7 +55,7 @@ void register_node_type_tex_checker()
   static bNodeType ntype;
 
   tex_node_type_base(&ntype, TEX_NODE_CHECKER, "Checker", NODE_CLASS_PATTERN);
-  node_type_socket_templates(&ntype, inputs, outputs);
+  blender::bke::node_type_socket_templates(&ntype, inputs, outputs);
   ntype.exec_fn = exec;
   ntype.flag |= NODE_PREVIEW;
 

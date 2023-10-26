@@ -33,7 +33,7 @@ using namespace blender::ed::spreadsheet;
 static void filter_panel_id_fn(void * /*row_filter_v*/, char *r_name)
 {
   /* All row filters use the same panel ID. */
-  BLI_snprintf(r_name, BKE_ST_MAXNAME, "SPREADSHEET_PT_filter");
+  BLI_strncpy(r_name, "SPREADSHEET_PT_filter", BKE_ST_MAXNAME);
 }
 
 static std::string operation_string(const eSpreadsheetColumnValueType data_type,
@@ -66,6 +66,11 @@ static std::string value_string(const SpreadsheetRowFilter &row_filter,
       std::ostringstream result;
       result.precision(3);
       result << std::fixed << row_filter.value_float;
+      return result.str();
+    }
+    case SPREADSHEET_VALUE_TYPE_INT32_2D: {
+      std::ostringstream result;
+      result << "(" << row_filter.value_int2[0] << ", " << row_filter.value_int2[1] << ")";
       return result.str();
     }
     case SPREADSHEET_VALUE_TYPE_FLOAT2: {
@@ -129,7 +134,8 @@ static void spreadsheet_filter_panel_draw_header(const bContext *C, Panel *panel
 
   const SpreadsheetColumn *column = lookup_visible_column_for_filter(*sspreadsheet, column_name);
   if (!(sspreadsheet->filter_flag & SPREADSHEET_FILTER_ENABLE) ||
-      (column == nullptr && !column_name.is_empty())) {
+      (column == nullptr && !column_name.is_empty()))
+  {
     uiLayoutSetActive(layout, false);
   }
 
@@ -175,7 +181,8 @@ static void spreadsheet_filter_panel_draw(const bContext *C, Panel *panel)
   const SpreadsheetColumn *column = lookup_visible_column_for_filter(*sspreadsheet, column_name);
   if (!(sspreadsheet->filter_flag & SPREADSHEET_FILTER_ENABLE) ||
       !(filter->flag & SPREADSHEET_ROW_FILTER_ENABLED) ||
-      (column == nullptr && !column_name.is_empty())) {
+      (column == nullptr && !column_name.is_empty()))
+  {
     uiLayoutSetActive(layout, false);
   }
 
@@ -197,6 +204,10 @@ static void spreadsheet_filter_panel_draw(const bContext *C, Panel *panel)
     case SPREADSHEET_VALUE_TYPE_INT32:
       uiItemR(layout, filter_ptr, "operation", 0, nullptr, ICON_NONE);
       uiItemR(layout, filter_ptr, "value_int", 0, IFACE_("Value"), ICON_NONE);
+      break;
+    case SPREADSHEET_VALUE_TYPE_INT32_2D:
+      uiItemR(layout, filter_ptr, "operation", 0, nullptr, ICON_NONE);
+      uiItemR(layout, filter_ptr, "value_int2", 0, IFACE_("Value"), ICON_NONE);
       break;
     case SPREADSHEET_VALUE_TYPE_FLOAT:
       uiItemR(layout, filter_ptr, "operation", 0, nullptr, ICON_NONE);

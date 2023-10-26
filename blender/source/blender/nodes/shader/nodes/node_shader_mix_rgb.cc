@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2005 Blender Foundation. All rights reserved. */
+ * Copyright 2005 Blender Foundation */
 
 /** \file
  * \ingroup shdnodes
@@ -12,10 +12,10 @@ namespace blender::nodes::node_shader_mix_rgb_cc {
 static void sh_node_mix_rgb_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
-  b.add_input<decl::Float>(N_("Fac")).default_value(0.5f).min(0.0f).max(1.0f).subtype(PROP_FACTOR);
-  b.add_input<decl::Color>(N_("Color1")).default_value({0.5f, 0.5f, 0.5f, 1.0f});
-  b.add_input<decl::Color>(N_("Color2")).default_value({0.5f, 0.5f, 0.5f, 1.0f});
-  b.add_output<decl::Color>(N_("Color"));
+  b.add_input<decl::Float>("Fac").default_value(0.5f).min(0.0f).max(1.0f).subtype(PROP_FACTOR);
+  b.add_input<decl::Color>("Color1").default_value({0.5f, 0.5f, 0.5f, 1.0f});
+  b.add_input<decl::Color>("Color2").default_value({0.5f, 0.5f, 0.5f, 1.0f});
+  b.add_output<decl::Color>("Color");
 }
 
 static const char *gpu_shader_get_name(int mode)
@@ -156,5 +156,6 @@ void register_node_type_sh_mix_rgb()
   ntype.gpu_fn = file_ns::gpu_shader_mix_rgb;
   ntype.build_multi_function = file_ns::sh_node_mix_rgb_build_multi_function;
   ntype.gather_link_search_ops = nullptr;
+  ntype.gather_add_node_search_ops = nullptr;
   nodeRegisterType(&ntype);
 }

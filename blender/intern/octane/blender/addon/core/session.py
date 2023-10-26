@@ -5,9 +5,12 @@ import math
 import collections
 import _thread
 import threading
+import traceback
 import weakref
 import queue
-from octane.utils import consts, utility
+import os
+import xml.etree.ElementTree as ET
+from octane.utils import consts, ocio, utility
 from octane import core
 from octane.core.resource_cache import ResourceCache
 from octane.core.caches import OctaneNodeCache, ImageCache, MaterialCache, LightCache, WorldCache, CompositeCache, RenderAOVCache, KernelCache, OctaneRenderTargetCache, SceneCache
@@ -20,6 +23,7 @@ from octane.nodes.base_node import OctaneBaseNode
 class RenderSession(object):
     def __init__(self, engine):
         self.session_type = consts.SessionType.UNKNOWN
+        self.is_render_started = False
         self.use_shared_surface = utility.get_preferences().use_shared_surface and OctaneBlender().is_shared_surface_supported()
         # Minimum update gap(second)
         self.view_update_min_gap = utility.get_preferences().min_viewport_update_interval
@@ -39,7 +43,7 @@ class RenderSession(object):
         self.kernel_cache = KernelCache(self)
         self.scene_cache = SceneCache(self)
         self.rendertarget_cache = OctaneRenderTargetCache(self)
-        self.engine_weakref = weakref.ref(engine) if engine is not None else None        
+        self.engine_weakref = weakref.ref(engine) if engine is not None else None
 
     def __del__(self):
         self.clear()
@@ -86,14 +90,13 @@ class RenderSession(object):
         return self.session_type == consts.SessionType.EXPORT
 
     def get_current_preview_render_pass_id(self, view_layer):
-        if self.render_aov_cache:
-            return self.render_aov_cache.get_current_preview_render_pass_id(view_layer)
-        return consts.RenderPassId.BEAUTY
-
-    def get_enabled_render_pass_ids(self, view_layer):
-        if self.render_aov_cache:
-            return self.render_aov_cache.get_enabled_render_pass_ids(view_layer)
-        return [consts.RenderPassId.BEAUTY, ]
+        octane_view_layer = view_layer.octane
+        if octane_view_layer.render_pass_style == "RENDER_PASSES":
+            return utility.get_current_preview_render_pass_id(view_layer)
+        else:
+            if self.render_aov_cache:
+                return self.render_aov_cache.get_current_preview_render_pass_id(view_layer)
+        return consts.RenderPassID.Beauty
 
     def update_viewport_render_result(self):
         try:
@@ -104,34 +107,57 @@ class RenderSession(object):
             return
         return 0.05
 
-    def start_render(self, cache_path=None, is_viewport=True, resource_cache_type=consts.ResourceCacheType.NONE):
+    def start_render(self, scene, cache_path=None, is_viewport=True, resource_cache_type=consts.ResourceCacheType.NONE):
         if cache_path is None:
             cache_path = bpy.app.tempdir
-        OctaneBlender().update_server_settings(resource_cache_type, self.use_shared_surface)
+        tonemap_buffer_type = consts.TonemapBufferType.TONEMAP_BUFFER_TYPE_LDR
+        color_space_type = consts.NamedColorSpace.NAMED_COLOR_SPACE_SRGB
+        if not is_viewport:
+            octane_scene = scene.octane
+            if octane_scene.prefer_image_type == "DEFAULT":
+                if utility.is_active_imager_enabled(scene):
+                    tonemap_buffer_type = consts.TonemapBufferType.TONEMAP_BUFFER_TYPE_LDR
+                    color_space_type = consts.NamedColorSpace.NAMED_COLOR_SPACE_SRGB
+                else:
+                    tonemap_buffer_type = consts.TonemapBufferType.TONEMAP_BUFFER_TYPE_HDR_FLOAT
+                    color_space_type = consts.NamedColorSpace.NAMED_COLOR_SPACE_LINEAR_SRGB                   
+            elif octane_scene.prefer_image_type == "LDR":
+                tonemap_buffer_type = consts.TonemapBufferType.TONEMAP_BUFFER_TYPE_LDR
+                color_space_type = consts.NamedColorSpace.NAMED_COLOR_SPACE_SRGB
+            elif octane_scene.prefer_image_type == "HDR":
+                tonemap_buffer_type = consts.TonemapBufferType.TONEMAP_BUFFER_TYPE_HDR_FLOAT
+                color_space_type = consts.NamedColorSpace.NAMED_COLOR_SPACE_LINEAR_SRGB
+        ocio.update_ocio_info()
+        OctaneBlender().update_server_settings(resource_cache_type, self.use_shared_surface, tonemap_buffer_type, color_space_type)
         OctaneBlender().reset_render()
         ResourceCache().update_cached_node_resouce()
-        OctaneBlender().start_render(cache_path)
+        OctaneBlender().start_render(cache_path, is_viewport, self.use_shared_surface)
         if is_viewport:
             bpy.app.timers.register(self.update_viewport_render_result)
+        self.is_render_started = True
 
     def stop_render(self):
         OctaneBlender().stop_render()
         ResourceCache().reset()
+        self.is_render_started = False
+        return True
 
     def reset_render(self):
         self.reset()
         OctaneBlender().reset_render()
 
-    def set_resolution(self, width, height):
-        OctaneBlender().set_resolution(width, height)
+    def set_resolution(self, width, height, update_now=True):
+        OctaneBlender().set_resolution(width, height, update_now)
 
     def update_graph_time(self):
         OctaneBlender().set_graph_time(self.graph_time)
 
-    def set_render_pass_ids(self, render_pass_ids):
-        OctaneBlender().set_render_pass_ids(render_pass_ids)
+    def set_render_pass_ids(self, render_pass_ids, update_now=True):
+        OctaneBlender().set_render_pass_ids(render_pass_ids, update_now)
 
     def view_update(self, engine, depsgraph, context):
+        if not self.is_render_started:
+            return
         current_view_update_time = time.time()
         scene = depsgraph.scene_eval
         view_layer = depsgraph.view_layer_eval
@@ -140,58 +166,86 @@ class RenderSession(object):
         # check diff
         self.image_cache.diff(depsgraph, scene, view_layer, context)
         self.object_cache.diff(depsgraph, scene, view_layer, context)
-        self.material_cache.diff(depsgraph, scene, view_layer, context)        
+        self.material_cache.diff(depsgraph, scene, view_layer, context)
         self.light_cache.diff(depsgraph, scene, view_layer, context)
         self.world_cache.diff(depsgraph, scene, view_layer, context)
         self.composite_cache.diff(depsgraph, scene, view_layer, context)
         self.render_aov_cache.diff(depsgraph, scene, view_layer, context)
         self.kernel_cache.diff(depsgraph, scene, view_layer, context)
         self.scene_cache.diff(depsgraph, scene, view_layer, context)
-        if not is_first_update and current_view_update_time - self.last_view_update_time < self.view_update_min_gap:
+        if not is_first_update:
+            if current_view_update_time - self.last_view_update_time < self.view_update_min_gap:
+                engine.tag_update()
+                return
+        if not OctaneBlender().try_lock_update_mutex():
             engine.tag_update()
             return
         self.last_view_update_time = current_view_update_time
-        # update
-        if self.image_cache.need_update:
-            self.image_cache.update(depsgraph, scene, view_layer, context)
-        if self.material_cache.need_update:
-            self.material_cache.update(depsgraph, scene, view_layer, context)
-            need_redraw = True
-        if self.object_cache.need_update:
-            self.object_cache.update(depsgraph, scene, view_layer, context)            
-        if self.light_cache.need_update:
-            self.light_cache.update(depsgraph, scene, view_layer, context)
-            need_redraw = True            
-        if self.world_cache.need_update:
-            self.world_cache.update(depsgraph, scene, view_layer, context)
-            need_redraw = True
-        if self.composite_cache.need_update:
-            self.composite_cache.update(depsgraph, scene, view_layer, context)
-        if self.render_aov_cache.need_update:
-            self.render_aov_cache.update(depsgraph, scene, view_layer, context)
-        if self.kernel_cache.need_update:
-            self.kernel_cache.update(depsgraph, scene, view_layer, context)
-        if self.scene_cache.need_update:
-            self.scene_cache.update(depsgraph, scene, view_layer, context)
-        self.scene_cache.update_camera(depsgraph, scene, view_layer, context)
-        # update render target
-        if self.rendertarget_cache.diff(depsgraph, scene, view_layer, context):
-            self.rendertarget_cache.update(depsgraph, scene, view_layer, context)
-            need_redraw = True
-        # update graph time
-        self.update_graph_time()            
+        try:
+            update_now = False
+            # update
+            if self.image_cache.need_update:
+                self.image_cache.update(depsgraph, scene, view_layer, context, update_now)
+            if self.material_cache.need_update:
+                self.material_cache.update(depsgraph, scene, view_layer, context, update_now)
+                need_redraw = True
+            if self.object_cache.need_update:
+                self.object_cache.update(depsgraph, scene, view_layer, context, update_now)
+            if self.light_cache.need_update:
+                self.light_cache.update(depsgraph, scene, view_layer, context, update_now)
+                need_redraw = True
+            if self.world_cache.need_update:
+                self.world_cache.update(depsgraph, scene, view_layer, context, update_now)
+                need_redraw = True
+            if self.composite_cache.need_update:
+                self.composite_cache.update(depsgraph, scene, view_layer, context, update_now)
+            if self.render_aov_cache.need_update:
+                self.render_aov_cache.update(depsgraph, scene, view_layer, context, update_now)
+            if self.kernel_cache.need_update:
+                self.kernel_cache.update(depsgraph, scene, view_layer, context, update_now)
+            if self.scene_cache.need_update:
+                self.scene_cache.update(depsgraph, scene, view_layer, context, update_now)
+            render_pass_ids = utility.get_view_layer_render_pass_ids(view_layer)
+            render_pass_ids.insert(0, self.get_current_preview_render_pass_id(view_layer))
+            self.set_render_pass_ids(render_pass_ids, update_now)
+            self.scene_cache.update_camera(depsgraph, scene, view_layer, context, update_now)
+            # update render target
+            if self.rendertarget_cache.diff(depsgraph, scene, view_layer, context):
+                self.rendertarget_cache.update(depsgraph, scene, view_layer, context, update_now)
+                need_redraw = True
+            # update graph time
+            self.update_graph_time()
+            if is_first_update:
+                OctaneBlender().set_scene_state(consts.SceneState.INITIALIZED, update_now)
+        except Exception as e:
+            traceback.print_exc()
+        finally:
+            # Always unlock the mutex
+            OctaneBlender().unlock_update_mutex()
         if need_redraw:
             engine.tag_redraw()
 
-    def view_draw(self, depsgraph, context):
-        scene = depsgraph.scene_eval
-        view_layer = depsgraph.view_layer_eval
-        region = context.region
-        self.scene_cache.update_camera(depsgraph, scene, view_layer, context)
-        self.set_resolution(region.width, region.height)
-        # update render target
-        if self.rendertarget_cache.diff(depsgraph, scene, view_layer, context):
-            self.rendertarget_cache.update(depsgraph, scene, view_layer, context)        
+    def view_draw(self, engine, depsgraph, context):
+        if not self.is_render_started:
+            return
+        if not OctaneBlender().try_lock_update_mutex():
+            engine.tag_update()
+            return
+        try:
+            update_now = False
+            scene = depsgraph.scene_eval
+            view_layer = depsgraph.view_layer_eval
+            region = context.region
+            self.scene_cache.update_camera(depsgraph, scene, view_layer, context, update_now)
+            self.set_resolution(region.width, region.height, update_now)
+            # update render target
+            if self.rendertarget_cache.diff(depsgraph, scene, view_layer, context):
+                self.rendertarget_cache.update(depsgraph, scene, view_layer, context)  
+        except Exception as e:
+            traceback.print_exc()
+        finally:
+            # Always unlock the mutex
+            OctaneBlender().unlock_update_mutex()
 
     def render_update(self, depsgraph, scene=None, view_layer=None):
         context = None
@@ -203,7 +257,7 @@ class RenderSession(object):
         self.init_motion_blur_settings(depsgraph, scene, view_layer, context)
         # check diff
         self.image_cache.diff(depsgraph, scene, view_layer, context)
-        self.object_cache.diff(depsgraph, scene, view_layer, context)        
+        self.object_cache.diff(depsgraph, scene, view_layer, context)
         self.material_cache.diff(depsgraph, scene, view_layer, context)
         self.light_cache.diff(depsgraph, scene, view_layer, context)
         self.world_cache.diff(depsgraph, scene, view_layer, context)
@@ -212,27 +266,28 @@ class RenderSession(object):
         self.kernel_cache.diff(depsgraph, scene, view_layer, context)
         self.scene_cache.diff(depsgraph, scene, view_layer, context)
         # update
+        update_now = True
         if self.material_cache.need_update:
-            self.material_cache.update(depsgraph, scene, view_layer, context)        
+            self.material_cache.update(depsgraph, scene, view_layer, context, update_now)
         if self.object_cache.need_update:
-            self.object_cache.update(depsgraph, scene, view_layer, context)
+            self.object_cache.update(depsgraph, scene, view_layer, context, update_now)
         if self.image_cache.need_update:
-            self.image_cache.update(depsgraph, scene, view_layer, context)        
+            self.image_cache.update(depsgraph, scene, view_layer, context, update_now)
         if self.light_cache.need_update:
-            self.light_cache.update(depsgraph, scene, view_layer, context)            
+            self.light_cache.update(depsgraph, scene, view_layer, context, update_now)
         if self.world_cache.need_update:
-            self.world_cache.update(depsgraph, scene, view_layer, context)
+            self.world_cache.update(depsgraph, scene, view_layer, context, update_now)
         if self.composite_cache.need_update:
-            self.composite_cache.update(depsgraph, scene, view_layer, context)
+            self.composite_cache.update(depsgraph, scene, view_layer, context, update_now)
         if self.render_aov_cache.need_update:
-            self.render_aov_cache.update(depsgraph, scene, view_layer, context)
+            self.render_aov_cache.update(depsgraph, scene, view_layer, context, update_now)
         if self.kernel_cache.need_update:
-            self.kernel_cache.update(depsgraph, scene, view_layer, context)
+            self.kernel_cache.update(depsgraph, scene, view_layer, context, update_now)
         if self.scene_cache.need_update:
-            self.scene_cache.update(depsgraph, scene, view_layer, context)
-        self.scene_cache.update_camera(depsgraph, scene, view_layer, context)
+            self.scene_cache.update(depsgraph, scene, view_layer, context, update_now)
+        self.scene_cache.update_camera(depsgraph, scene, view_layer, context, update_now)
         # update motion blur
-        self.update_motion_blur(depsgraph, scene, view_layer, context)        
+        self.update_motion_blur(depsgraph, scene, view_layer, context, update_now)
         # update render target
         if self.rendertarget_cache.diff(depsgraph, scene, view_layer, context):
             self.rendertarget_cache.update(depsgraph, scene, view_layer, context)
@@ -271,7 +326,7 @@ class RenderSession(object):
                 self.motion_blur_end_frame_offset = frame_offset
                 self.graph_time = 0
                 
-    def update_motion_blur(self, depsgraph, scene, view_layer, context=None):                
+    def update_motion_blur(self, depsgraph, scene, view_layer, context=None, update_now=True):
         if not self.need_motion_blur:
             return False
         engine = self.engine_weakref()
@@ -284,8 +339,108 @@ class RenderSession(object):
             motion_frame = math.floor(motion_time)
             motion_subframe = motion_time - motion_frame
             engine.frame_set(motion_frame, subframe=motion_subframe)
-            self.scene_cache.update_camera_motion_blur_sample(time_offset, depsgraph, scene, view_layer, context)
-            self.object_cache.update_motion_blur_sample(time_offset, depsgraph, scene, view_layer, context)
+            self.scene_cache.update_camera_motion_blur_sample(time_offset, depsgraph, scene, view_layer, context, update_now)
+            self.object_cache.update_motion_blur_sample(time_offset, depsgraph, scene, view_layer, context, update_now)
         engine.frame_set(frame_current, subframe=subframe_current)
-        self.scene_cache.update_camera_motion_blur(depsgraph, scene, view_layer, context)
-        self.object_cache.update_motion_blur(depsgraph, scene, view_layer, context)
+        self.scene_cache.update_camera_motion_blur(depsgraph, scene, view_layer, context, update_now)
+        self.object_cache.update_motion_blur(depsgraph, scene, view_layer, context, update_now)
+
+    def export_render_pass(self, depsgraph, scene, view_layer, render_layer):
+        octane_scene = scene.octane
+        enable_octane_output = octane_scene.use_octane_export
+        if not enable_octane_output:
+            return
+        root_et = ET.Element("exportRenderPass")
+        if octane_scene.octane_export_mode == "SEPARATE_IMAGE_FILES":
+            export_mode = consts.ExportRenderPassMode.EXPORT_RENDER_PASS_MODE_SEPARATE
+        elif octane_scene.octane_export_mode == "MULTILAYER_EXR":
+            export_mode = consts.ExportRenderPassMode.EXPORT_RENDER_PASS_MODE_MULTILAYER
+        elif octane_scene.octane_export_mode == "DEEP_EXR":
+            export_mode = consts.ExportRenderPassMode.EXPORT_RENDER_PASS_MODE_DEEP_EXR
+        root_et.set("exportMode", str(export_mode))
+        root_et.set("premultipleAlpha", str(int(octane_scene.octane_export_premultiplied_alpha)))
+        force_use_tone_map = octane_scene.octane_export_force_use_tone_map
+        ocio_color_space_name = octane_scene.octane_export_ocio_color_space_name
+        ocio_look = octane_scene.octane_export_ocio_look
+        ocio_look, _ = ocio.resolve_octane_ocio_look(ocio_look)
+        if ocio_color_space_name == "sRGB(default)":
+            ocio_look = "None"
+            force_use_tone_map = True
+        elif ocio_color_space_name in ("Linear sRGB(default)", "ACES2065-1", "ACEScg"):
+            ocio_look = ""
+        root_et.set("forceToneMapping", str(int(force_use_tone_map)))
+        root_et.set("ocioColorSpaceName", ocio_color_space_name)
+        root_et.set("ocioLookName", ocio_look)
+        octane_exr_compression_mode = utility.get_enum_int_value(octane_scene, "octane_deep_exr_compression_mode" if octane_scene.octane_export_mode == "DEEP_EXR" else "octane_exr_compression_mode", 0)
+        root_et.set("compressionType", str(octane_exr_compression_mode))
+        root_et.set("compressionLevel", str(octane_scene.octane_export_dwa_compression_level))
+        image_type = consts.ImageSaveFormat.IMAGE_SAVE_FORMAT_PNG_8
+        if octane_scene.octane_export_file_type == "PNG":
+            if octane_scene.octane_png_bit_depth == "8_BIT":
+                image_type = consts.ImageSaveFormat.IMAGE_SAVE_FORMAT_PNG_8
+            elif octane_scene.octane_png_bit_depth == "16_BIT":
+                image_type = consts.ImageSaveFormat.IMAGE_SAVE_FORMAT_PNG_16
+        else:
+            if octane_scene.octane_exr_bit_depth == "16_BIT":
+                image_type = consts.ImageSaveFormat.IMAGE_SAVE_FORMAT_EXR_16
+            elif octane_scene.octane_exr_bit_depth == "32_BIT":
+                image_type = consts.ImageSaveFormat.IMAGE_SAVE_FORMAT_EXR_32
+        root_et.set("imageSaveFormat", str(image_type))
+        if ocio_color_space_name == "sRGB(default)":
+            color_space_type = consts.NamedColorSpace.NAMED_COLOR_SPACE_SRGB
+        elif ocio_color_space_name == "Linear sRGB(default)":
+            color_space_type = consts.NamedColorSpace.NAMED_COLOR_SPACE_LINEAR_SRGB
+        elif ocio_color_space_name == "ACES2065-1":
+            color_space_type = consts.NamedColorSpace.NAMED_COLOR_SPACE_ACES2065_1
+        elif ocio_color_space_name == "ACEScg":
+            color_space_type = consts.NamedColorSpace.NAMED_COLOR_SPACE_ACESCG
+        elif ocio_color_space_name == "":
+            if image_type in (consts.ImageSaveFormat.IMAGE_SAVE_FORMAT_PNG_8, consts.ImageSaveFormat.IMAGE_SAVE_FORMAT_PNG_16):
+                color_space_type = consts.NamedColorSpace.NAMED_COLOR_SPACE_SRGB
+            else:
+                color_space_type = consts.NamedColorSpace.NAMED_COLOR_SPACE_LINEAR_SRGB
+        else:
+            color_space_type = consts.NamedColorSpace.NAMED_COLOR_SPACE_OCIO
+        root_et.set("colorSpaceType", str(color_space_type))
+        # File path
+        filepath = scene.render.filepath
+        raw_export_file_path = bpy.path.abspath(filepath)
+        # File path, with frame number
+        file_path_with_frame = utility.blender_path_frame(raw_export_file_path, scene.frame_current, 4)
+        file_dir = os.path.dirname(file_path_with_frame)
+        # File name, without suffix
+        file_name_with_frame = bpy.path.display_name_from_filepath(file_path_with_frame)
+        octane_prefix_tag = octane_scene.octane_export_prefix_tag if len(octane_scene.octane_export_prefix_tag) else "[OctaneExport]"
+        octane_postfix_tag = octane_scene.octane_export_postfix_tag
+        # octane_prefix_tag + File name + octane_postfix_tag, without suffix
+        processed_file_name = octane_prefix_tag + file_name_with_frame + octane_postfix_tag
+        renderlayer_name = render_layer.name
+        if consts.OCTANE_EXPORT_VIEW_LAYER_TAG in processed_file_name:
+            processed_file_name = processed_file_name.replace(consts.OCTANE_EXPORT_VIEW_LAYER_TAG, renderlayer_name)
+        else:
+            if len(renderlayer_name) > 0 and renderlayer_name != "View Layer":
+                processed_file_name = processed_file_name + "_" + renderlayer_name
+        if octane_scene.octane_export_mode == "SEPARATE_IMAGE_FILES":
+            pass
+        else:
+            # Do not need pass name in the output
+            if consts.OCTANE_EXPORT_OCTANE_PASS_TAG in processed_file_name:
+                processed_file_name = processed_file_name.replace(consts.OCTANE_EXPORT_OCTANE_PASS_TAG, "")
+        final_full_path = os.path.join(file_dir, processed_file_name)
+        root_et.set("fullPath", final_full_path)
+        root_et.set("dirPath", file_dir)
+        # Render Passes
+        render_passes_et = ET.SubElement(root_et, "renderPasses")
+        for render_pass in render_layer.passes:
+            render_pass_et = ET.SubElement(render_passes_et, "renderPass")
+            render_pass_id = utility.get_render_pass_id_by_name(render_pass.name)
+            render_pass_filename = processed_file_name
+            if consts.OCTANE_EXPORT_OCTANE_PASS_TAG in render_pass_filename:
+                render_pass_filename = render_pass_filename.replace(consts.OCTANE_EXPORT_OCTANE_PASS_TAG, render_pass.name)
+            else:
+                render_pass_filename = render_pass_filename + "_" + render_pass.name
+            render_pass_et.set("fileName", render_pass_filename)
+            render_pass_et.set("name", render_pass.name)
+            render_pass_et.set("id", str(render_pass_id))
+        xml_data = ET.tostring(root_et, encoding="unicode")
+        response = OctaneBlender().utils_function(consts.UtilsFunctionType.EXPORT_RENDER_PASS, xml_data)

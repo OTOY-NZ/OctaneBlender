@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 3.5.0 Release Candidate (b'14efe7000449')\n"
+"Project-Id-Version: Blender 3.6.0 Release Candidate (b'a07063e6a403')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-03-27 16:38:19\n"
+"POT-Creation-Date: 2023-06-22 15:00:05\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: Ainhize & Miriam <agoenaga006@ikasle.ehu.eus>\n"
 "Language-Team: Euskara <agoenaga006@ikasle.ehu.eus>\n"
@@ -821,6 +821,10 @@ msgid "Paste text from clipboard"
 msgstr "Arbeletik testua itsatsi"
 
 
+msgid "Selection"
+msgstr "Hautaketa"
+
+
 msgid "Console output type"
 msgstr "Kontsolaren irteera-mota"
 
@@ -1004,6 +1008,10 @@ msgid "Execute selected file"
 msgstr "Hautatutako fitxategia exekutatu"
 
 
+msgid "Play"
+msgstr "Erreproduzitu"
+
+
 msgctxt "Operator"
 msgid "Increment Number in Filename"
 msgstr "Fitxategi-izenean Zenbakia Inkrementatu"
@@ -1042,11 +1050,6 @@ msgstr "Hurrengo karpeta"
 
 msgid "Move to next folder"
 msgstr "Hurrengo karpetara mugitu"
-
-
-msgctxt "Operator"
-msgid "Parent File"
-msgstr "Erro Fitxategia"
 
 
 msgid "Move to parent directory"
@@ -1162,10 +1165,6 @@ msgstr "Tartea aldatu"
 
 msgid "Change font spacing"
 msgstr "Letra-tipo tartea aldatu"
-
-
-msgid "Selection"
-msgstr "Hautaketa"
 
 
 msgctxt "Operator"
@@ -1671,10 +1670,6 @@ msgid "Prev"
 msgstr "Aurrekoa"
 
 
-msgid "Play"
-msgstr "Erreproduzitu"
-
-
 msgctxt "Operator"
 msgid "Load Factory Settings"
 msgstr "Lehenetsitako ezarpenak kargatu"
@@ -1722,6 +1717,10 @@ msgstr "Irudi Editorea"
 
 msgid "Continue"
 msgstr "Jarraitu"
+
+
+msgid "Temperature"
+msgstr "Tenperatura"
 
 
 msgctxt "Sequence"
@@ -1920,10 +1919,6 @@ msgstr "Altua"
 
 msgid "Refraction"
 msgstr "Errefrakzioa"
-
-
-msgid "Temperature"
-msgstr "Tenperatura"
 
 
 msgctxt "Image"
@@ -2361,22 +2356,6 @@ msgid "unable to open the file"
 msgstr "Ezin izan da fitxategia ireki"
 
 
-msgid "File format is not supported in file '%s'"
-msgstr "Fitxategi formatuak ez dauka euskarririk '%s' fitxategian"
-
-
-msgid "File path '%s' invalid"
-msgstr "'%s' fitxategi-helbidea baliogabea"
-
-
-msgid "Unknown error loading '%s'"
-msgstr "Errore ezezaguna '%s' kargatzean"
-
-
-msgid "Could not read '%s'"
-msgstr "Ezin izan da '%s' irakurri"
-
-
 msgid "'%s': nothing indicated"
 msgstr "'%s': ez da ezer adierazi"
 
@@ -2419,10 +2398,6 @@ msgstr "Ingelesa (English)"
 
 msgid "Japanese (日本語)"
 msgstr "Japoniera (日本語)"
-
-
-msgid "Dutch (Nederlandse taal)"
-msgstr "Nederlandera (Nederlandse taal)"
 
 
 msgid "Italian (Italiano)"
@@ -2533,10 +2508,6 @@ msgid "Hebrew (תירִבְעִ)"
 msgstr "Hebreera (תירִבְעִ)"
 
 
-msgid "Estonian (Eestlane)"
-msgstr "Estoniera (Eestlane)"
-
-
 msgid "Esperanto (Esperanto)"
 msgstr "Esperantoa (Esperanto)"
 
@@ -2555,14 +2526,6 @@ msgstr "Uzbekera (Oʻzbek)"
 
 msgid "Uzbek Cyrillic (Ўзбек)"
 msgstr "Uzbekera Zirilikoa (Ўзбек)"
-
-
-msgid "Hindi (मानक हिन्दी)"
-msgstr "Hindi (मानक हिन्दी)"
-
-
-msgid "Vietnamese (tiếng Việt)"
-msgstr "Vietnamera (tiếng Việt)"
 
 
 msgid "Complete"

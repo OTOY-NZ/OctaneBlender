@@ -22,12 +22,12 @@ class OctaneRenderAovNodeTree(OctaneBaseNodeTree, bpy.types.NodeTree):
     def get_current_preview_render_pass_id(self, view_layer):        
         if self.active_output_node:
             return self.active_output_node.get_current_preview_render_pass_id(view_layer)
-        return consts.RenderPassId.BEAUTY
+        return consts.RenderPassID.Beauty
 
     def get_enabled_render_pass_ids(self, view_layer):
         if self.active_output_node:
             return self.active_output_node.get_enabled_render_pass_ids(view_layer)
-        return [consts.RenderPassId.BEAUTY, ]
+        return [consts.RenderPassID.Beauty, ]
 
 
 def register(): 

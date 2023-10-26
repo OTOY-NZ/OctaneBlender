@@ -83,7 +83,7 @@ static void add_reroute_node_fn(nodes::LinkSearchOpParams &params)
 static void add_group_input_node_fn(nodes::LinkSearchOpParams &params)
 {
   /* Add a group input based on the connected socket, and add a new group input node. */
-  bNodeSocket *interface_socket = ntreeAddSocketInterfaceFromSocket(
+  bNodeSocket *interface_socket = bke::ntreeAddSocketInterfaceFromSocket(
       &params.node_tree, &params.node, &params.socket);
   const int group_input_index = BLI_findindex(&params.node_tree.inputs, interface_socket);
 
@@ -114,6 +114,9 @@ static void add_group_input_node_fn(nodes::LinkSearchOpParams &params)
   /* Unhide the socket for the new input in the new node and make a connection to it. */
   socket->flag &= ~SOCK_HIDDEN;
   nodeAddLink(&params.node_tree, &group_input, socket, &params.node, &params.socket);
+
+  bke::node_socket_move_default_value(
+      *CTX_data_main(&params.C), params.node_tree, params.socket, *socket);
 }
 
 static void add_existing_group_input_fn(nodes::LinkSearchOpParams &params,
@@ -282,7 +285,10 @@ static void gather_socket_link_operations(const bContext &C,
 {
   NODE_TYPES_BEGIN (node_type) {
     const char *disabled_hint;
-    if (!(node_type->poll && node_type->poll(node_type, &node_tree, &disabled_hint))) {
+    if (node_type->poll && !node_type->poll(node_type, &node_tree, &disabled_hint)) {
+      continue;
+    }
+    if (node_type->add_ui_poll && !node_type->add_ui_poll(&C)) {
       continue;
     }
     if (StringRefNull(node_type->ui_name).endswith("(Legacy)")) {
@@ -381,8 +387,8 @@ static void link_drag_search_exec_fn(bContext *C, void *arg1, void *arg2)
   BLI_assert(new_nodes.size() == 1);
   bNode *new_node = new_nodes.first();
 
-  new_node->locx = storage.cursor.x / UI_DPI_FAC;
-  new_node->locy = storage.cursor.y / UI_DPI_FAC + 20;
+  new_node->locx = storage.cursor.x / UI_SCALE_FAC;
+  new_node->locy = storage.cursor.y / UI_SCALE_FAC + 20;
   if (storage.in_out() == SOCK_IN) {
     new_node->locx -= new_node->width;
   }

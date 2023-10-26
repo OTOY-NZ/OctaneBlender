@@ -113,40 +113,23 @@ AnimData *BKE_animdata_ensure_id(ID *id)
   return NULL;
 }
 
-/* Action Setter --------------------------------------- */
-
-bool BKE_animdata_set_action(ReportList *reports, ID *id, bAction *act)
+/* Action / Tmpact Setter shared code -------------------------
+ *
+ * Both the action and tmpact setter functions have essentially
+ * identical semantics, because tmpact is just a place to temporarily
+ * store the main action during tweaking.  This function contains the
+ * shared code between those two setter functions, setting the action
+ * of the passed `act_slot` to `act`.
+ *
+ * Preconditions:
+ * - `id` and `act_slot` must be non-null (but the pointer `act_slot`
+ *   points to can be null).
+ * - `id` must have animation data.
+ * - `act_slot` must be a pointer to either the `action` or `tmpact`
+ *   field of `id`'s animation data.
+ */
+static bool animdata_set_action(ReportList *reports, ID *id, bAction **act_slot, bAction *act)
 {
-  AnimData *adt = BKE_animdata_from_id(id);
-
-  /* Animdata validity check. */
-  if (adt == NULL) {
-    BKE_report(reports, RPT_WARNING, "No AnimData to set action on");
-    return false;
-  }
-
-  if (adt->action == act) {
-    /* Don't bother reducing and increasing the user count when there is nothing changing. */
-    return true;
-  }
-
-  if (!BKE_animdata_action_editable(adt)) {
-    /* Cannot remove, otherwise things turn to custard. */
-    BKE_report(reports, RPT_ERROR, "Cannot change action, as it is still being edited in NLA");
-    return false;
-  }
-
-  /* Reduce user-count for current action. */
-  if (adt->action) {
-    id_us_min((ID *)adt->action);
-  }
-
-  if (act == NULL) {
-    /* Just clearing the action. */
-    adt->action = NULL;
-    return true;
-  }
-
   /* Action must have same type as owner. */
   if (!BKE_animdata_action_ensure_idroot(id, act)) {
     /* Cannot set to this type. */
@@ -160,10 +143,57 @@ bool BKE_animdata_set_action(ReportList *reports, ID *id, bAction *act)
     return false;
   }
 
-  adt->action = act;
-  id_us_plus((ID *)adt->action);
+  if (*act_slot == act) {
+    /* Don't bother reducing and increasing the user count when there is nothing changing. */
+    return true;
+  }
+
+  /* Unassign current action. */
+  if (*act_slot) {
+    id_us_min((ID *)*act_slot);
+    *act_slot = NULL;
+  }
+
+  if (act == NULL) {
+    return true;
+  }
+
+  *act_slot = act;
+  id_us_plus((ID *)*act_slot);
 
   return true;
+}
+
+/* Tmpact Setter --------------------------------------- */
+bool BKE_animdata_set_tmpact(ReportList *reports, ID *id, bAction *act)
+{
+  AnimData *adt = BKE_animdata_from_id(id);
+
+  if (adt == NULL) {
+    BKE_report(reports, RPT_WARNING, "No AnimData to set tmpact on");
+    return false;
+  }
+
+  return animdata_set_action(reports, id, &adt->tmpact, act);
+}
+
+/* Action Setter --------------------------------------- */
+bool BKE_animdata_set_action(ReportList *reports, ID *id, bAction *act)
+{
+  AnimData *adt = BKE_animdata_from_id(id);
+
+  if (adt == NULL) {
+    BKE_report(reports, RPT_WARNING, "No AnimData to set action on");
+    return false;
+  }
+
+  if (!BKE_animdata_action_editable(adt)) {
+    /* Cannot remove, otherwise things turn to custard. */
+    BKE_report(reports, RPT_ERROR, "Cannot change action, as it is still being edited in NLA");
+    return false;
+  }
+
+  return animdata_set_action(reports, id, &adt->action, act);
 }
 
 bool BKE_animdata_action_editable(const AnimData *adt)
@@ -377,7 +407,7 @@ void BKE_animdata_copy_id_action(Main *bmain, ID *id)
 
 void BKE_animdata_duplicate_id_action(struct Main *bmain,
                                       struct ID *id,
-                                      const eDupli_ID_Flags duplicate_flags)
+                                      const /*eDupli_ID_Flags*/ uint duplicate_flags)
 {
   if (duplicate_flags & USER_DUP_ACT) {
     animdata_copy_id_action(bmain, id, true, (duplicate_flags & USER_DUP_LINKED_ID) != 0);
@@ -767,7 +797,7 @@ static bool fcurves_path_rename_fix(ID *owner_id,
       bActionGroup *agrp = fcu->grp;
       is_changed = true;
       if (oldName != NULL && (agrp != NULL) && STREQ(oldName, agrp->name)) {
-        BLI_strncpy(agrp->name, newName, sizeof(agrp->name));
+        STRNCPY(agrp->name, newName);
       }
     }
   }
@@ -816,9 +846,10 @@ static bool drivers_path_rename_fix(ID *owner_id,
         if (strstr(prefix, "bones")) {
           if (((dtar->id) && (GS(dtar->id->name) == ID_OB) &&
                (!ref_id || ((Object *)(dtar->id))->data == ref_id)) &&
-              (dtar->pchan_name[0]) && STREQ(oldName, dtar->pchan_name)) {
+              (dtar->pchan_name[0]) && STREQ(oldName, dtar->pchan_name))
+          {
             is_changed = true;
-            BLI_strncpy(dtar->pchan_name, newName, sizeof(dtar->pchan_name));
+            STRNCPY(dtar->pchan_name, newName);
           }
         }
       }
@@ -992,13 +1023,15 @@ void BKE_animdata_fix_paths_rename(ID *owner_id,
   /* Active action and temp action. */
   if (adt->action != NULL) {
     if (fcurves_path_rename_fix(
-            owner_id, prefix, oldName, newName, oldN, newN, &adt->action->curves, verify_paths)) {
+            owner_id, prefix, oldName, newName, oldN, newN, &adt->action->curves, verify_paths))
+    {
       DEG_id_tag_update(&adt->action->id, ID_RECALC_COPY_ON_WRITE);
     }
   }
   if (adt->tmpact) {
     if (fcurves_path_rename_fix(
-            owner_id, prefix, oldName, newName, oldN, newN, &adt->tmpact->curves, verify_paths)) {
+            owner_id, prefix, oldName, newName, oldN, newN, &adt->tmpact->curves, verify_paths))
+    {
       DEG_id_tag_update(&adt->tmpact->id, ID_RECALC_COPY_ON_WRITE);
     }
   }

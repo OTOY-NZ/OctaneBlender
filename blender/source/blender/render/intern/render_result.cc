@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2006 Blender Foundation. All rights reserved. */
+ * Copyright 2006 Blender Foundation */
 
 /** \file
  * \ingroup render
@@ -141,7 +141,7 @@ void render_result_views_shallowcopy(RenderResult *dst, RenderResult *src)
     rv = MEM_cnew<RenderView>("new render view");
     BLI_addtail(&dst->views, rv);
 
-    BLI_strncpy(rv->name, rview->name, sizeof(rv->name));
+    STRNCPY(rv->name, rview->name);
     rv->rectf = rview->rectf;
     rv->rectz = rview->rectz;
     rv->rect32 = rview->rect32;
@@ -203,9 +203,9 @@ RenderPass *render_layer_add_pass(RenderResult *rr,
   rpass->recty = rl->recty;
   rpass->view_id = view_id;
 
-  BLI_strncpy(rpass->name, name, sizeof(rpass->name));
-  BLI_strncpy(rpass->chan_id, chan_id, sizeof(rpass->chan_id));
-  BLI_strncpy(rpass->view, viewname, sizeof(rpass->view));
+  STRNCPY(rpass->name, name);
+  STRNCPY(rpass->chan_id, chan_id);
+  STRNCPY(rpass->view, viewname);
   RE_render_result_full_channel_name(
       rpass->fullname, nullptr, rpass->name, rpass->view, rpass->chan_id, -1);
 
@@ -273,7 +273,7 @@ RenderResult *render_result_new(Render *re,
     rl = MEM_cnew<RenderLayer>("new render layer");
     BLI_addtail(&rr->layers, rl);
 
-    BLI_strncpy(rl->name, view_layer->name, sizeof(rl->name));
+    STRNCPY(rl->name, view_layer->name);
     rl->layflag = view_layer->layflag;
 
     rl->passflag = view_layer->passflag;
@@ -633,11 +633,11 @@ static void ml_addpass_cb(void *base,
   rl->passflag |= passtype_from_name(name);
 
   /* channel id chars */
-  BLI_strncpy(rpass->chan_id, chan_id, sizeof(rpass->chan_id));
+  STRNCPY(rpass->chan_id, chan_id);
 
   rpass->rect = rect;
-  BLI_strncpy(rpass->name, name, EXR_PASS_MAXNAME);
-  BLI_strncpy(rpass->view, view, sizeof(rpass->view));
+  STRNCPY(rpass->name, name);
+  STRNCPY(rpass->view, view);
   RE_render_result_full_channel_name(rpass->fullname, nullptr, name, view, rpass->chan_id, -1);
 
   if (view[0] != '\0') {
@@ -653,7 +653,7 @@ static void *ml_addview_cb(void *base, const char *str)
   RenderResult *rr = static_cast<RenderResult *>(base);
 
   RenderView *rv = MEM_cnew<RenderView>("new render view");
-  BLI_strncpy(rv->name, str, EXR_VIEW_MAXNAME);
+  STRNCPY(rv->name, str);
 
   /* For stereo drawing we need to ensure:
    * STEREO_LEFT_NAME  == STEREO_LEFT_ID and
@@ -776,7 +776,7 @@ void render_result_view_new(RenderResult *rr, const char *viewname)
 {
   RenderView *rv = MEM_cnew<RenderView>("new render view");
   BLI_addtail(&rr->views, rv);
-  BLI_strncpy(rv->name, viewname, sizeof(rv->name));
+  STRNCPY(rv->name, viewname);
 }
 
 void render_result_views_new(RenderResult *rr, const RenderData *rd)
@@ -835,7 +835,8 @@ void render_result_merge(RenderResult *rr, RenderResult *rrpart)
       for (RenderPass *rpass = static_cast<RenderPass *>(rl->passes.first),
                       *rpassp = static_cast<RenderPass *>(rlp->passes.first);
            rpass && rpassp;
-           rpass = rpass->next) {
+           rpass = rpass->next)
+      {
         /* For save buffers, skip any passes that are only saved to disk. */
         if (rpass->rect == nullptr || rpassp->rect == nullptr) {
           continue;
@@ -878,8 +879,8 @@ void render_result_single_layer_end(Render *re)
     return;
   }
 
-  if (re->pushedresult->rectx == re->result->rectx &&
-      re->pushedresult->recty == re->result->recty) {
+  if (re->pushedresult->rectx == re->result->rectx && re->pushedresult->recty == re->result->recty)
+  {
     /* find which layer in re->pushedresult should be replaced */
     RenderLayer *rl = static_cast<RenderLayer *>(re->result->layers.first);
 
@@ -905,31 +906,35 @@ void render_result_single_layer_end(Render *re)
   re->pushedresult = nullptr;
 }
 
-int render_result_exr_file_read_path(RenderResult *rr,
-                                     RenderLayer *rl_single,
-                                     const char *filepath)
+bool render_result_exr_file_read_path(RenderResult *rr,
+                                      RenderLayer *rl_single,
+                                      ReportList *reports,
+                                      const char *filepath)
 {
   void *exrhandle = IMB_exr_get_handle();
   int rectx, recty;
 
   if (!IMB_exr_begin_read(exrhandle, filepath, &rectx, &recty, false)) {
-    printf("failed being read %s\n", filepath);
     IMB_exr_close(exrhandle);
-    return 0;
+    return false;
   }
 
-  if (rr == nullptr || rectx != rr->rectx || recty != rr->recty) {
-    if (rr) {
-      printf("error in reading render result: dimensions don't match\n");
-    }
-    else {
-      printf("error in reading render result: nullptr result pointer\n");
-    }
+  ListBase layers = (rr) ? rr->layers : ListBase{rl_single, rl_single};
+  const int expected_rectx = (rr) ? rr->rectx : rl_single->rectx;
+  const int expected_recty = (rr) ? rr->recty : rl_single->recty;
+  bool found_channels = false;
+
+  if (rectx != expected_rectx || recty != expected_recty) {
+    BKE_reportf(reports,
+                RPT_ERROR,
+                "reading render result: dimensions don't match, expected %dx%d",
+                expected_rectx,
+                expected_recty);
     IMB_exr_close(exrhandle);
-    return 0;
+    return true;
   }
 
-  LISTBASE_FOREACH (RenderLayer *, rl, &rr->layers) {
+  LISTBASE_FOREACH (RenderLayer *, rl, &layers) {
     if (rl_single && rl_single != rl) {
       continue;
     }
@@ -937,14 +942,39 @@ int render_result_exr_file_read_path(RenderResult *rr,
     /* passes are allocated in sync */
     LISTBASE_FOREACH (RenderPass *, rpass, &rl->passes) {
       const int xstride = rpass->channels;
+      const int ystride = xstride * rectx;
       int a;
       char fullname[EXR_PASS_MAXNAME];
 
       for (a = 0; a < xstride; a++) {
         RE_render_result_full_channel_name(
             fullname, nullptr, rpass->name, rpass->view, rpass->chan_id, a);
-        IMB_exr_set_channel(
-            exrhandle, rl->name, fullname, xstride, xstride * rectx, rpass->rect + a);
+
+        if (IMB_exr_set_channel(exrhandle, rl->name, fullname, xstride, ystride, rpass->rect + a))
+        {
+          found_channels = true;
+        }
+        else if (rl_single) {
+          if (IMB_exr_set_channel(exrhandle, nullptr, fullname, xstride, ystride, rpass->rect + a))
+          {
+            found_channels = true;
+          }
+          else {
+            BKE_reportf(nullptr,
+                        RPT_WARNING,
+                        "reading render result: expected channel \"%s.%s\" or \"%s\" not found",
+                        rl->name,
+                        fullname,
+                        fullname);
+          }
+        }
+        else {
+          BKE_reportf(nullptr,
+                      RPT_WARNING,
+                      "reading render result: expected channel \"%s.%s\" not found",
+                      rl->name,
+                      fullname);
+        }
       }
 
       RE_render_result_full_channel_name(
@@ -952,10 +982,13 @@ int render_result_exr_file_read_path(RenderResult *rr,
     }
   }
 
-  IMB_exr_read_channels(exrhandle);
+  if (found_channels) {
+    IMB_exr_read_channels(exrhandle);
+  }
+
   IMB_exr_close(exrhandle);
 
-  return 1;
+  return true;
 }
 
 #define FILE_CACHE_MAX (FILE_MAXFILE + FILE_MAXFILE + MAX_ID_NAME + 100)
@@ -971,13 +1004,13 @@ static void render_result_exr_file_cache_path(Scene *sce,
   /* If root is relative, use either current .blend file dir, or temp one if not saved. */
   const char *blendfile_path = BKE_main_blendfile_path_from_global();
   if (blendfile_path[0] != '\0') {
-    BLI_split_dirfile(blendfile_path, dirname, filename, sizeof(dirname), sizeof(filename));
-    BLI_path_extension_replace(filename, sizeof(filename), ""); /* strip '.blend' */
+    BLI_path_split_dir_file(blendfile_path, dirname, sizeof(dirname), filename, sizeof(filename));
+    BLI_path_extension_strip(filename); /* Strip `.blend`. */
     BLI_hash_md5_buffer(blendfile_path, strlen(blendfile_path), path_digest);
   }
   else {
-    BLI_strncpy(dirname, BKE_tempdir_base(), sizeof(dirname));
-    BLI_strncpy(filename, "UNSAVED", sizeof(filename));
+    STRNCPY(dirname, BKE_tempdir_base());
+    STRNCPY(filename, "UNSAVED");
   }
   BLI_hash_md5_to_hexdigest(path_digest, path_hexdigest);
 
@@ -986,12 +1019,7 @@ static void render_result_exr_file_cache_path(Scene *sce,
     root = BKE_tempdir_base();
   }
 
-  BLI_snprintf(filename_full,
-               sizeof(filename_full),
-               "cached_RR_%s_%s_%s.exr",
-               filename,
-               sce->id.name + 2,
-               path_hexdigest);
+  SNPRINTF(filename_full, "cached_RR_%s_%s_%s.exr", filename, sce->id.name + 2, path_hexdigest);
 
   BLI_path_join(r_path, FILE_CACHE_MAX, root, filename_full);
   if (BLI_path_is_rel(r_path)) {
@@ -1067,7 +1095,8 @@ ImBuf *RE_render_result_rect_to_ibuf(RenderResult *rr,
    */
   if (ibuf->rect) {
     if (BKE_imtype_valid_depths(imf->imtype) &
-        (R_IMF_CHAN_DEPTH_12 | R_IMF_CHAN_DEPTH_16 | R_IMF_CHAN_DEPTH_24 | R_IMF_CHAN_DEPTH_32)) {
+        (R_IMF_CHAN_DEPTH_12 | R_IMF_CHAN_DEPTH_16 | R_IMF_CHAN_DEPTH_24 | R_IMF_CHAN_DEPTH_32))
+    {
       if (imf->depth == R_IMF_CHAN_DEPTH_8) {
         /* Higher depth bits are supported but not needed for current file output. */
         ibuf->rect_float = nullptr;

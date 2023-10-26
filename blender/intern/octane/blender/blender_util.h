@@ -42,7 +42,7 @@
 
 extern "C" {
 size_t BLI_timecode_string_from_time_simple(char *str, size_t maxlen, double time_seconds);
-void BLI_split_dir_part(const char *string, char *dir, const size_t dirlen);
+void BLI_path_split_dir_part(const char *filepath, char *dir, const size_t dir_maxncpy);
 bool BLI_path_frame(char *path, int frame, int digits);
 const char *BLI_path_extension(const char *filepath);
 void BKE_image_user_frame_calc(void *ima, void *iuser, int cfra);
@@ -412,7 +412,7 @@ static inline OctaneDataTransferObject::float_3 get_octane_float3(
   }
   else {
     return OctaneDataTransferObject::float_3(array[0], array[1], array[2]);
-  }  
+  }
 }
 
 static inline OctaneDataTransferObject::float_3 get_octane_float3(
@@ -423,7 +423,7 @@ static inline OctaneDataTransferObject::float_3 get_octane_float3(
   }
   else {
     return OctaneDataTransferObject::float_3(array[0], array[1], array[2]);
-  }  
+  }
 }
 
 static inline float4 get_float4(const BL::Array<float, 4> &array)
@@ -553,6 +553,16 @@ static inline float get_float(PointerRNA &ptr, const char *name)
     result = RNA_float_get(&ptr, name);
   }
   return result;
+}
+
+static inline bool is_percentage_subtype(PointerRNA &ptr, const char *name)
+{
+  PropertyRNA *prop = RNA_struct_find_property(&ptr, name);
+  if (prop) {
+    PropertySubType subtype = RNA_property_subtype(prop);
+    return (subtype == PROP_PERCENTAGE);
+  }
+  return false;
 }
 
 static inline void set_float(PointerRNA &ptr, const char *name, float value)
@@ -780,7 +790,8 @@ static inline BL::FluidDomainSettings object_fluid_gas_domain_find(BL::Object &b
       BL::FluidModifier b_mmd(b_mod);
 
       if (b_mmd.fluid_type() == BL::FluidModifier::fluid_type_DOMAIN &&
-          b_mmd.domain_settings().domain_type() == BL::FluidDomainSettings::domain_type_GAS) {
+          b_mmd.domain_settings().domain_type() == BL::FluidDomainSettings::domain_type_GAS)
+      {
         return b_mmd.domain_settings();
       }
     }
@@ -1031,9 +1042,7 @@ struct ParticleSystemKey {
 
 class EdgeMap {
  public:
-  EdgeMap()
-  {
-  }
+  EdgeMap() {}
 
   void clear()
   {
@@ -1240,7 +1249,12 @@ static inline bool set_octane_data_transfer_object(
           ::OctaneDataTransferObject::int32_3(i[0], i[1], i[2]);
       break;
     case OctaneDataTransferObject::DTO_FLOAT:
-      *(::OctaneDataTransferObject::OctaneDTOFloat *)base_dto_ptr = get_float(ptr, name);
+      if (is_percentage_subtype(ptr, name)) {
+        *(::OctaneDataTransferObject::OctaneDTOFloat *)base_dto_ptr = get_float(ptr, name) / 100.0;
+      }
+      else {
+        *(::OctaneDataTransferObject::OctaneDTOFloat *)base_dto_ptr = get_float(ptr, name);
+      }
       break;
     case OctaneDataTransferObject::DTO_FLOAT_2:
       f = get_float4(ptr, name);
@@ -1278,9 +1292,7 @@ struct OctaneDataTransferObjectVisitor : BaseVisitor {
   }
 
   PointerRNA &target;
-  OctaneDataTransferObjectVisitor(PointerRNA &target) : target(target)
-  {
-  }
+  OctaneDataTransferObjectVisitor(PointerRNA &target) : target(target) {}
 };
 
 static int32_t get_light_ids_mask(PointerRNA &ptr)
@@ -1354,7 +1366,7 @@ static std::string resolve_octane_name(BL::ID &b_ob_data,
 static inline std::string split_dir_part(std::string path)
 {
   char dir[256];
-  BLI_split_dir_part(path.c_str(), dir, sizeof(dir));
+  BLI_path_split_dir_part(path.c_str(), dir, sizeof(dir));
   return std::string(dir);
 }
 

@@ -50,9 +50,9 @@ void register_node_type_val_oct_int(void)
   static bNodeType ntype;
 
   if (ntype.type != SH_NODE_OCT_VALUE_INT)
-    node_type_base(&ntype, SH_NODE_OCT_VALUE_INT, "Int Value", NODE_CLASS_OCT_VALUE);
-  node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
-  node_type_size(&ntype, 160, 160, 500);
+    sh_node_type_base(&ntype, SH_NODE_OCT_VALUE_INT, "Int Value", NODE_CLASS_OCT_VALUE);
+  blender::bke::node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
+  node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::DEFAULT);
   ntype.initfunc = (0);
   // node_type_exec(&ntype, 0, 0, 0);
   

@@ -148,6 +148,32 @@ def convert_octane_color_to_rgba(color):
     b = (0xff & (color)) / 255.0
     return (r, g, b, a)
 
+def blender_path_frame(template, frame, ensure_digits=None):
+    hash_sequence = ""
+    max_hash_sequence = ""
+
+    count = 0
+    for char in template:
+        if char == "#":
+            count += 1
+            hash_sequence += "#"
+        else:
+            if len(hash_sequence) > len(max_hash_sequence):
+                max_hash_sequence = hash_sequence
+            count = 0
+            hash_sequence = ""
+
+    if len(hash_sequence) > len(max_hash_sequence):
+        max_hash_sequence = hash_sequence
+
+    if max_hash_sequence:
+        digits = len(max_hash_sequence)
+        return template.replace(max_hash_sequence, f"{frame:0{digits}d}")
+    elif ensure_digits is not None:
+        return f"{template}_{frame:0{ensure_digits}d}"
+    else:
+        return f"{template}_{frame}"
+
 ##### Preferences #####
 
 def get_preferences():
@@ -265,17 +291,42 @@ def sync_legacy_property(current_property_data, current_property_name, legacy_pr
         setattr(current_property_data, current_property_name, legacy_value)
 
 ##### NodeTrees & Nodes & Sockets #####
-def quick_add_octane_kernel_node_tree(assign_to_kernel_node_graph=False):
-    node_tree = bpy.data.node_groups.new(name=consts.OctanePresetNodeTreeNames.KERNEL, type=consts.OctaneNodeTreeIDName.KERNEL)
+def copy_nodes(dest_node_tree, src_node_tree, src_root_node):
+    dest_root_node = dest_node_tree.nodes.new(src_root_node.bl_idname)
+    dest_root_node.copy_from_node(src_root_node)
+    pending_nodes = [[src_root_node, dest_root_node] ]
+    visited_nodes = set()
+    while len(pending_nodes):
+        current_src_node, current_dest_node = pending_nodes.pop(0)
+        for _input in current_src_node.inputs:
+            if _input.is_linked:
+                src_linked_node = _input.links[0].from_node
+                if src_linked_node not in visited_nodes:
+                    dest_linked_node = dest_node_tree.nodes.new(src_linked_node.bl_idname)
+                    dest_linked_node.copy_from_node(src_linked_node)
+                    dest_node_tree.links.new(current_dest_node.inputs[_input.name], dest_linked_node.outputs[0])
+                    pending_nodes.append([src_linked_node, dest_linked_node])
+                    visited_nodes.add(src_linked_node)
+    return dest_root_node
+
+def quick_add_octane_kernel_node_tree(assign_to_kernel_node_graph=False, generate_from_legacy_octane_property=False, preset_name=None):
+    from octane.nodes.base_kernel import OctaneBaseKernelNode
+    scene = bpy.context.scene
+    octane_scene = scene.octane
+    node_tree = bpy.data.node_groups.new(name=consts.OctanePresetNodeTreeNames.KERNEL if preset_name is None else preset_name, type=consts.OctaneNodeTreeIDName.KERNEL)
     node_tree.use_fake_user = True
     nodes = node_tree.nodes
     output = nodes.new("OctaneKernelOutputNode")
     output.location = (0, 0)
-    kernel_node = nodes.new("OctaneDirectLightingKernel")
-    kernel_node.location = (-300, 0)
-    node_tree.links.new(kernel_node.outputs[0], output.inputs[0])
-    if assign_to_kernel_node_graph:
-        octane_scene = bpy.context.scene.octane
+    if generate_from_legacy_octane_property:
+        kernel_node = OctaneBaseKernelNode.generate_from_legacy_octane_property(octane_scene, node_tree)
+    else:
+        kernel_node = nodes.new("OctaneDirectLightingKernel")
+    if kernel_node:
+        kernel_node.location = (-300, 0)
+        node_tree.links.new(kernel_node.outputs[0], output.inputs[0])
+    beautifier_nodetree_layout_with_nodetree(node_tree, consts.OctaneNodeTreeIDName.KERNEL)    
+    if assign_to_kernel_node_graph:        
         octane_scene.kernel_node_graph_property.node_tree = node_tree
     return node_tree
 
@@ -433,17 +484,18 @@ def find_active_output_node(node_tree, owner_type):
     def _find_active_blender_output_node(node_tree):
         active_output_node = None
         # Adapt to the legacy octane blender
-        try:
-            active_output_node = node_tree.get_output_node("octane")
-        except:
-            active_output_node = node_tree.get_output_node("ALL")
+        if hasattr(node_tree, "get_output_node"):
+            try:
+                active_output_node = node_tree.get_output_node("octane")
+            except:
+                active_output_node = node_tree.get_output_node("ALL")
         return active_output_node
 
     def _find_active_octane_output_node(node_tree, output_node_bl_idname):
         for node in node_tree.nodes:
-            if node.bl_idname == output_node_bl_idname and getattr(node, "active", False):
+            if node.bl_idname == output_node_bl_idname and getattr(node, "active", True):
                 return node
-        return None            
+        return None
     active_output_node = None
     if node_tree is not None:
         if owner_type == consts.OctaneNodeTreeIDName.MATERIAL:
@@ -455,7 +507,7 @@ def find_active_output_node(node_tree, owner_type):
             # try to find the Blender output at the first
             active_output_node = _find_active_blender_output_node(node_tree)
             if not active_output_node:
-                active_output_node = _find_active_octane_output_node(node_tree, base_output_node.OctaneEditorTextureOutputNode.bl_idname)
+                active_output_node = _find_active_octane_output_node(node_tree, "TextureNodeOutput")
         elif owner_type == consts.OctaneNodeTreeIDName.WORLD:
             # try to find the Blender output at the first
             active_output_node = _find_active_blender_output_node(node_tree)
@@ -510,7 +562,7 @@ def find_active_composite_node_tree(view_layer):
 
 def find_active_render_aov_node_tree(view_layer):
     octane_view_layer = view_layer.octane
-    node_tree = octane_view_layer.render_aov_node_graph_property.node_tree
+    node_tree = octane_view_layer.render_aov_node_graph_property.node_tree if octane_view_layer.render_pass_style == "RENDER_AOV_GRAPH" else None
     return node_tree
     
 def update_active_render_aov_node_tree(view_layer):
@@ -690,7 +742,7 @@ def node_input_quick_operator(node_tree, node, socket, node_bl_idname):
             else:
                 new_node.location = (node.location.x + NEW_NODE_X_OFFSET, node.location.y) 
 
-def swap_node_socket_position(node, s1, s2):
+def swap_node_socket_position(node, s1, s2, context):
     if s1 == s2 or s1 is None or s2 is None:
         return
     input_index_1 = 0
@@ -709,6 +761,9 @@ def swap_node_socket_position(node, s1, s2):
         node.inputs.move(index, index + 1)
     for index in range(input_index_end - 1, input_index_begin, -1):        
         node.inputs.move(index, index - 1)
+    # Blender 3.5 doesn't trigger a "redraw" after "node.inputs.move", so we need to make a force update here
+    node.socket_value_update(context)
+
 
 def show_nodetree(context, node_tree):
     for area in context.screen.areas:
@@ -725,7 +780,7 @@ def setup_toon_directional_light(node_tree, light_node, light_object):
     object_data_node.object_ptr = light_object
     node_tree.links.new(object_data_node.outputs[object_data_node.ROTATION_OUT], light_node.inputs["Light direction"])
 
-def beautifier_nodetree_layout(id_data):
+def beautifier_nodetree_layout_with_nodetree(node_tree, owner_type):
     X_OFFSET = -300
     Y_OFFSET = -100
     Y_SOCKET_GAP = -20
@@ -736,9 +791,7 @@ def beautifier_nodetree_layout(id_data):
             y_offset = Y_SOCKET_GAP * (len(node.inputs) + len(node.outputs)) + Y_OFFSET
             if node.bl_idname.endswith("Image"):
                 y_offset += (-150)
-            return y_offset
-    node_tree = id_data.node_tree
-    owner_type = get_node_tree_owner_type(id_data)
+            return y_offset    
     output_node = find_active_output_node(node_tree, owner_type)
     output_node.location = (300, 300) # node_tree.view_center
     pending_nodes = deque()
@@ -783,7 +836,34 @@ def beautifier_nodetree_layout(id_data):
             for node in nodes:
                 node.location.y += offset
 
+def beautifier_nodetree_layout_by_owner(id_data):
+    X_OFFSET = -300
+    Y_OFFSET = -100
+    Y_SOCKET_GAP = -20
+    def get_y_offset_delta(node):
+        if node.dimensions.y > 0:
+            return node.dimensions.y + Y_OFFSET
+        else:
+            y_offset = Y_SOCKET_GAP * (len(node.inputs) + len(node.outputs)) + Y_OFFSET
+            if node.bl_idname.endswith("Image"):
+                y_offset += (-150)
+            return y_offset
+    node_tree = id_data.node_tree
+    owner_type = get_node_tree_owner_type(id_data)
+    return beautifier_nodetree_layout_with_nodetree(node_tree, owner_type)
+
 ##### Scenes #####
+
+def set_all_viewport_shading_type(shading_type="SOLID"):
+    scene = bpy.context.scene
+    oct_scene = scene.octane
+    oct_scene.octane_shading_type = shading_type
+    for window in bpy.context.window_manager.windows:
+        for area in window.screen.areas:
+            if area.type == "VIEW_3D":
+                for space in area.spaces:
+                    if space.type == "VIEW_3D":
+                        space.shading.type = shading_type
 
 def is_viewport_rendering():
     for window in bpy.context.window_manager.windows:
@@ -812,8 +892,9 @@ def scene_max_aov_output_count(view_layer):
     return node_tree.max_aov_output_count
 
 def is_deep_image_enabled(scene):
+    from octane import core
     octane_scene = scene.octane
-    if octane_scene.kernel_data_mode == "PROPERTY_PANEL":
+    if octane_scene.kernel_data_mode == "PROPERTY_PANEL" and not core.ENABLE_OCTANE_ADDON_CLIENT:
         return octane_scene.deep_image
     else:
         kernel_node_tree = find_active_kernel_node_tree(scene)
@@ -898,62 +979,96 @@ def convert_to_addon_node_tree(owner, node_tree, context, report):
 
 ##### Render passes #####
 
+def is_grayscale_render_pass(render_pass_id):
+    return render_pass_id in consts.GrayscaleRenderPassIDs
+
 def is_denoise_render_pass(render_pass_id):
-    return render_pass_id in (consts.RenderPassId.BEAUTY_DENOISER_OUTPUT, 
-        consts.RenderPassId.DIFFUSE_DIRECT_DENOISER_OUTPUT,
-        consts.RenderPassId.DIFFUSE_INDIRECT_DENOISER_OUTPUT,
-        consts.RenderPassId.REFLECTION_DIRECT_DENOISER_OUTPUT,
-        consts.RenderPassId.REFLECTION_INDIRECT_DENOISER_OUTPUT,
-        consts.RenderPassId.EMISSION_DENOISER_OUTPUT,
-        consts.RenderPassId.REMAINDER_DENOISER_OUTPUT,
-        consts.RenderPassId.VOLUME_DENOISER_OUTPUT,
-        consts.RenderPassId.VOLUME_EMISSION_DENOISER_OUTPUT)        
+    return render_pass_id in consts.DenoiseRenderPassIDs
+
+def is_cryptomatte_render_pass(render_pass_id):
+    return render_pass_id in consts.CryptomatteRenderPassIDs
+
+def is_custom_aov_render_pass(render_pass_id):
+    return render_pass_id in consts.CustomAovRenderPassIDs
+
+def is_output_aov_render_pass(render_pass_id):
+    return render_pass_id in consts.OutputAOVRenderPassIDs or (consts.RENDER_PASS_OUTPUT_AOV_IDS_OFFSET <= render_pass_id <= consts.RENDER_PASS_OUTPUT_AOV_IDS_MAX_OFFSET)
+
+def is_global_texture_aov_render_pass(render_pass_id):
+    return render_pass_id in consts.GlobalTextureAOVRenderPassIDs
 
 def update_render_passes(_self, context):
     scene = context.scene
     view_layer = context.view_layer
     view_layer.update_render_passes()
 
-def get_render_pass_id_by_legacy_render_pass_name(name):
-    from octane.nodes.base_output_node import OctaneRenderAOVsOutputNode_Override_RenderPassItems as RenderPassItems
-    if name in RenderPassItems.LEGACY_STYLE_PASS_NAME_TO_RENDER_ID:
-        return RenderPassItems.LEGACY_STYLE_PASS_NAME_TO_RENDER_ID[name]
+def get_current_preview_render_pass_id(view_layer):
+    octane_view_layer = view_layer.octane
+    pass_id = get_enum_int_value(octane_view_layer, "current_preview_pass_type", consts.RenderPassID.Beauty)
+    if is_output_aov_render_pass(pass_id) and pass_id == consts.RENDER_PASS_OUTPUT_AOV_IDS_OFFSET:
+        pass_id = consts.RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + octane_view_layer.current_aov_output_id - 1
+    return pass_id
+
+def get_render_pass_id_by_name(name):
+    if name.startswith(consts.RENDER_PASS_OUTPUT_AOV_NAME):
+        pass_id_offset_idx = int(name[len(consts.RENDER_PASS_OUTPUT_AOV_NAME):]) - 1
+        return consts.RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + pass_id_offset_idx
+    return consts.OCTANE_COMPACT_LONG_NAME_TO_PASS_ID.get(name, consts.RenderPassID.Beauty)
+
+def get_render_pass_name_by_id(pass_id):
+    if is_output_aov_render_pass(pass_id):
+        offset = pass_id - consts.RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + 1
+        pass_name = consts.RENDER_PASS_OUTPUT_AOV_NAME + str(offset)
+        return pass_name
+    return consts.OCTANE_PASS_ID_TO_COMPACT_LONG_NAME.get(pass_id, "")
+
+def get_view_layer_render_pass_ids(view_layer):
+    octane_view_layer = view_layer.octane
+    render_pass_ids = [consts.RenderPassID.Beauty, ]
+    if octane_view_layer.render_pass_style == "RENDER_PASSES":
+        for attribute_name, pass_id in consts.OCTANE_PASS_PROPERTY_TO_PASS_ID_DATA.items():
+            if getattr(octane_view_layer, attribute_name, False):
+                render_pass_ids.append(pass_id)
     else:
-        for _id, _name in RenderPassItems.RENDER_ID_TO_LEGACY_STYLE_PASS_NAME.items():
-            if _name == name:
-                return _id
-    return -1
-
-def engine_add_layer_passes(scene, engine, layer, enable_denoiser=False):    
-    render_pass_ids = []
-    aov_node_tree = find_active_render_aov_node_tree(layer)
-    if aov_node_tree is not None:
-        from octane.nodes.base_output_node import OctaneRenderAOVsOutputNode_Override_RenderPassItems as RenderPassItems
-        render_pass_ids = RenderPassItems.get_render_pass_ids()
+        aov_node_tree = find_active_render_aov_node_tree(view_layer)
+        if aov_node_tree is not None:
+            render_pass_ids = aov_node_tree.get_enabled_render_pass_ids(view_layer)    
+    max_aov_output_count = scene_max_aov_output_count(view_layer)
+    for aov_output_index in range(1, max_aov_output_count + 1):
+        pass_id = consts.RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + aov_output_index - 1
+        render_pass_ids.append(pass_id)    
+    final_render_pass_ids = []
     for _id in render_pass_ids:
-        name = RenderPassItems.RENDER_ID_TO_LEGACY_STYLE_PASS_NAME[_id]
-        RenderPassItems.LEGACY_STYLE_PASS_NAME_TO_RENDER_ID[name] = _id
-        is_denoiser = name.startswith("OctDenoiser")     
-        if is_denoiser and not enable_denoiser:
-            continue        
-        engine.add_pass(name, 4, "RGBA", layer=layer.name)
-        engine.register_pass(scene, layer, name, 4, "RGBA", "COLOR")
+        if _id not in final_render_pass_ids:
+            final_render_pass_ids.append(_id)
+    return final_render_pass_ids
 
-def add_render_passes(engine, scene, current_layer=None):
+def add_view_layer_render_passes(scene, engine, view_layer):
     oct_scene = scene.octane
-    oct_view_cam = scene.oct_view_cam
-    oct_active_cam = scene.camera.data.octane
     enable_denoiser = False
     if oct_scene.use_preview_setting_for_camera_imager:
+        oct_view_cam = scene.oct_view_cam
         enable_denoiser = oct_view_cam.imager.denoiser and oct_scene.use_preview_camera_imager
     else:
+        oct_active_cam = scene.camera.data.octane
         enable_denoiser = oct_active_cam.imager.denoiser and oct_scene.use_render_camera_imager
-    if current_layer is None:
+    render_pass_ids = get_view_layer_render_pass_ids(view_layer)
+    engine.register_pass(scene, view_layer, "Combined", 4, "RGBA", 'COLOR')
+    for pass_id in render_pass_ids:
+        name = get_render_pass_name_by_id(pass_id)
+        is_denoiser = is_denoise_render_pass(pass_id)
+        if is_denoiser and not enable_denoiser:
+            continue
+        engine.add_pass(name, 4, "RGBA", layer=view_layer.name)
+        engine.register_pass(scene, view_layer, name, 4, "RGBA", "COLOR")
+
+def add_render_passes(engine, scene, view_layer=None):
+    if view_layer is None:
         for layer in scene.view_layers:
             if layer.use:                
-                engine_add_layer_passes(scene, engine, layer, enable_denoiser)
+                add_view_layer_render_passes(scene, engine, layer)
     else:
-        engine_add_layer_passes(scene, engine, current_layer, enable_denoiser)
+        add_view_layer_render_passes(scene, engine, view_layer)
 
 def find_smoke_domain_modifier(_object):
     for mod in _object.modifiers:
@@ -961,15 +1076,23 @@ def find_smoke_domain_modifier(_object):
             return mod
     return None
 
+def is_reshapeable_modifiers_applied(_object):
+    for mod in _object.modifiers:
+        if mod.type in ("NODES", "ARMATURE"):
+            return True
+    return False
+
 def resolve_object_mesh_type(_object):
     object_mesh_type = _object.octane.object_mesh_type
+    if _object.type == "META":
+        object_mesh_type = "Reshapable proxy"
     if object_mesh_type == "Auto":
         if find_smoke_domain_modifier(_object) is not None:        
             object_mesh_type = "Reshapable proxy"
     return object_mesh_type
 
-def is_reshapable_proxy(_object):    
-    return _object.type == "META" or resolve_object_mesh_type(_object) == "Reshapable proxy"
+def is_reshapable_proxy(_object):
+    return resolve_object_mesh_type(_object) == "Reshapable proxy"
 
 # Math
 
@@ -1031,73 +1154,13 @@ def transform_clear_scale(matrix):
     transform_set_column(new_matrix, 2, transform_get_column(matrix, 2).normalized())
     return new_matrix
 
-# Object & Mesh
-MESH_TAG = "[Mesh]"
-LIGHT_TAG = "[Light]"
-GEOMETRY_TAG = "[Geometry]"
-OBJECT_TAG = "[Object]"
-COLLECTION_TAG = "[Collection]"
-SCATTER_TAG = "[Scatter]"
-OBJECTLAYER_TAG = "[ObjLayer]"
-OBJECTLAYER_MAP_TAG = "[ObjLM]"
-MATERIAL_MAP_TAG = "[MatMap]"
-SEPERATOR = "."
-
-def resolve_octane_name(id_data, modifier_tag, type_tag):    
-    if id_data.library is not None:
-        lib_prefix = id_data.library.name + SEPERATOR
-    else:
-        lib_prefix = ""
-    if len(modifier_tag):
-        modifier_tag += SEPERATOR
-    id_data_name_full = id_data.name_full
-    return lib_prefix + modifier_tag + id_data_name_full + type_tag
-
-def resolve_octane_generic_geometry_name(ob, scene, is_viewport):
-    is_modified = ob.is_modified(scene, "PREVIEW" if is_viewport else "RENDER")
-    modifier_tag = ob.name_full if is_modified else ""
-    return resolve_octane_name(ob.data, modifier_tag, GEOMETRY_TAG)
-
-def resolve_octane_geometry_name(ob, scene, is_viewport):
-    generic_geometry_name = resolve_octane_generic_geometry_name(ob, scene, is_viewport)
-    if ob.type == "MESH":
-        return generic_geometry_name + MESH_TAG
-    elif ob.type == "LIGHT":
-        return generic_geometry_name + LIGHT_TAG
-    return generic_geometry_name
-
-def resolve_octane_object_name(ob, scene, is_viewport):
-    return resolve_octane_name(ob, "", OBJECT_TAG)
-
-def resolve_octane_scatter_name(instance_object, scene, is_viewport):    
-    parent_name = getattr(instance_object.parent, "name", None)
-    object_name = resolve_octane_object_name(instance_object.object, scene, is_viewport)
-    if parent_name is not None:
-        object_name = object_name + "[%s]" % parent_name
-    return object_name + SCATTER_TAG
-
-def resolve_octane_objectlayer_name(ob, scene, is_viewport):
-    object_name = resolve_octane_object_name(ob, scene, is_viewport)
-    return object_name + OBJECTLAYER_TAG
-
-def resolve_octane_objectlayer_map_name(ob, scene, is_viewport):
-    object_name = resolve_octane_object_name(ob, scene, is_viewport)
-    return object_name + OBJECTLAYER_MAP_TAG
-
-def resolve_octane_material_map_name(ob, scene, is_viewport):
-    object_name = resolve_octane_object_name(ob, scene, is_viewport)
-    return object_name + MATERIAL_MAP_TAG
-
-def resolve_octane_vectron_name(ob):
-    if ob and ob.type == "MESH":
-        octane_data = ob.data.octane.octane_geo_node_collections
-        if len(octane_data.node_graph_tree) and len(octane_data.osl_geo_node):
-            return octane_data.node_graph_tree + octane_data.osl_geo_node
-    return ""
-
 def use_octane_coordinate(_object):
     if _object.type == "MESH":
-        return _object.data.octane.primitive_coordinate_mode == "Octane"
+        origin_object = _object.original
+        octane_data = getattr(origin_object.data, "octane", None)
+        if getattr(octane_data, "infinite_plane", False):
+            return True
+        return getattr(octane_data, "primitive_coordinate_mode", None) == "Octane"
     return False
 
 def fetch_node_info(node_name):

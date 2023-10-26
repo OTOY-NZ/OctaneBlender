@@ -83,7 +83,7 @@ void register_node_type_projection_oct_osl_projection(void)
 
   sh_node_type_base(
       &ntype, SH_NODE_OCT_PROJECTION_OSL, "OSL Projection", NODE_CLASS_OCT_PROJECTION);
-  node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
+  blender::bke::node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
   ntype.initfunc = (init);
   node_type_storage(&ntype, "NodeShaderScript", node_free_script, node_copy_script);
 

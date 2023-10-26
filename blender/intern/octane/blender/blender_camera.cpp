@@ -545,7 +545,7 @@ void BlenderSync::sync_camera(BL::RenderSettings &b_render,
 
     if (b_ob.type() == BL::Object::type_CAMERA) {
       BL::Object b_parent = b_ob.parent();
-      int motion_steps = object_motion_steps(b_parent, b_ob);
+      int motion_steps = object_motion_steps(b_ob, b_ob);
       if (motion_steps) {
         set<float> candidate_motion_times;
         for (size_t step = 0; step < motion_steps; step++) {

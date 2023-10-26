@@ -33,7 +33,7 @@ void PointCloud::Point::bounds_grow(const float4 &point, BoundBox &bounds) const
 
 float4 PointCloud::Point::motion_key(const float3 *points,
                                      const float *radius,
-                                     const float3 *point_steps,
+                                     const float4 *point_steps,
                                      size_t num_points,
                                      size_t num_steps,
                                      float time,
@@ -55,7 +55,7 @@ float4 PointCloud::Point::motion_key(const float3 *points,
 
 float4 PointCloud::Point::point_for_step(const float3 *points,
                                          const float *radius,
-                                         const float3 *point_steps,
+                                         const float4 *point_steps,
                                          size_t num_points,
                                          size_t num_steps,
                                          size_t step,
@@ -72,10 +72,7 @@ float4 PointCloud::Point::point_for_step(const float3 *points,
       step--;
     }
     const size_t offset = step * num_points;
-    return make_float4(point_steps[offset + p].x,
-                       point_steps[offset + p].y,
-                       point_steps[offset + p].z,
-                       radius[offset + p]);
+    return point_steps[offset + p];
   }
 }
 
@@ -93,13 +90,9 @@ NODE_DEFINE(PointCloud)
   return type;
 }
 
-PointCloud::PointCloud() : Geometry(node_type, Geometry::POINTCLOUD)
-{
-}
+PointCloud::PointCloud() : Geometry(node_type, Geometry::POINTCLOUD) {}
 
-PointCloud::~PointCloud()
-{
-}
+PointCloud::~PointCloud() {}
 
 void PointCloud::resize(int numpoints)
 {
@@ -152,8 +145,14 @@ void PointCloud::copy_center_to_motion_step(const int motion_step)
   if (attr_mP) {
     float3 *points_data = points.data();
     size_t numpoints = points.size();
-    memcpy(
-        attr_mP->data_float3() + motion_step * numpoints, points_data, sizeof(float3) * numpoints);
+    float *radius_data = radius.data();
+
+    float4 *attrib_P = attr_mP->data_float4() + motion_step * numpoints;
+    for (int i = 0; i < numpoints; i++) {
+      float3 P = points_data[i];
+      float r = radius_data[i];
+      attrib_P[i] = make_float4(P.x, P.y, P.z, r);
+    }
   }
 }
 
@@ -186,10 +185,10 @@ void PointCloud::compute_bounds()
     Attribute *attr = attributes.find(ATTR_STD_MOTION_VERTEX_POSITION);
     if (use_motion_blur && attr) {
       size_t steps_size = points.size() * (motion_steps - 1);
-      float3 *point_steps = attr->data_float3();
+      float4 *point_steps = attr->data_float4();
 
       for (size_t i = 0; i < steps_size; i++)
-        bnds.grow(point_steps[i]);
+        bnds.grow(float4_to_float3(point_steps[i]), point_steps[i].w);
     }
 
     if (!bnds.valid()) {
@@ -201,10 +200,10 @@ void PointCloud::compute_bounds()
 
       if (use_motion_blur && attr) {
         size_t steps_size = points.size() * (motion_steps - 1);
-        float3 *point_steps = attr->data_float3();
+        float4 *point_steps = attr->data_float4();
 
         for (size_t i = 0; i < steps_size; i++)
-          bnds.grow_safe(point_steps[i]);
+          bnds.grow_safe(float4_to_float3(point_steps[i]), point_steps[i].w);
       }
     }
   }

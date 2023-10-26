@@ -2,7 +2,9 @@ import bpy
 import math
 import mathutils
 import xml.etree.ElementTree as ET
+from bl_operators.presets import AddPresetBase
 from bpy.props import IntProperty, FloatProperty, BoolProperty, StringProperty, EnumProperty, PointerProperty, FloatVectorProperty, IntVectorProperty, BoolVectorProperty, CollectionProperty
+from bpy.types import Operator
 from bpy.utils import register_class, unregister_class
 from octane.properties_ import common, scene
 from octane.utils import consts, ocio, utility
@@ -169,7 +171,7 @@ class BlenderCamera(object):
         self.viewport_camera_border.reset()
         self.focal_distance = 1.118034
         self.full_width = utility.render_resolution_x(scene)
-        self.full_height = utility.render_resolution_y(scene)        
+        self.full_height = utility.render_resolution_y(scene)
         self.dir = [0, 0, -1]
         self.use_border = False
 
@@ -659,20 +661,28 @@ class OctaneImagerSettings(bpy.types.PropertyGroup, common.OctanePropertySetting
         ocio_view_display_name = self.ocio_view_display_name
         ocio_view_display_view_name = self.ocio_view_display_view_name
         ocio_look_name = self.ocio_look
-        if ocio_view_display_name == "sRGB" and ocio_view_display_view_name == "Raw":
-            ocio_view_display_name = ""
-            ocio_view_display_view_name = "None(sRGB)"
-        if ocio_look_name == " None ":
-            ocio_look_name = ""
-        elif ocio_look_name == " Use view look(s) ":
-            ocio_look_name = "Use view look(s)"
-        octane_node.set_attribute_blender_name(self.BLNEDER_ATTRIBUTE_OCIO_DISPLAY_NAME, consts.AttributeType.AT_STRING, ocio_view_display_name)
-        octane_node.set_attribute_blender_name(self.BLNEDER_ATTRIBUTE_OCIO_VIEW_NAME, consts.AttributeType.AT_STRING, ocio_view_display_view_name)
-        octane_node.set_attribute_blender_name(self.BLNEDER_ATTRIBUTE_OCIO_LOOK_NAME, consts.AttributeType.AT_STRING, ocio_look_name)
+        ocio_view_display_name, ocio_view_display_view_name = ocio.resolve_octane_ocio_view(ocio_view_display_name, ocio_view_display_view_name)
+        ocio_look_name, ocio_use_view_look = ocio.resolve_octane_ocio_look(ocio_look_name)
+        ocio_view_node = octane_node.get_subnode(consts.OCTANE_BLENDER_CAMERA_IMAGER_OCIO_VIEW, consts.NodeType.NT_OCIO_VIEW)        
+        ocio_view_node.set_attribute_id(consts.AttributeID.A_OCIO_DISPLAY_NAME, ocio_view_display_name)
+        ocio_view_node.set_attribute_id(consts.AttributeID.A_OCIO_VIEW_NAME, ocio_view_display_view_name)
+        ocio_look_node = octane_node.get_subnode(consts.OCTANE_BLENDER_CAMERA_IMAGER_OCIO_LOOK, consts.NodeType.NT_OCIO_LOOK)
+        ocio_look_node.set_attribute_id(consts.AttributeID.A_OCIO_USE_VIEW_LOOK, ocio_use_view_look)
+        ocio_look_node.set_attribute_id(consts.AttributeID.A_OCIO_LOOK_NAME, ocio_look_name)
+        octane_node.set_pin_id(consts.PinID.P_OCIO_VIEW, True, consts.OCTANE_BLENDER_CAMERA_IMAGER_OCIO_VIEW, "")
+        octane_node.set_pin_id(consts.PinID.P_OCIO_LOOK, True, consts.OCTANE_BLENDER_CAMERA_IMAGER_OCIO_LOOK, "")
 
-    def sync_custom_data(self, octane_node, scene, region, v3d, rv3d, session_type):
-        octane_node.set_attribute_blender_name(self.BLNEDER_ATTRIBUTE_LUT_FILEPATH, consts.AttributeType.AT_FILENAME, bpy.path.abspath(self.custom_lut))
-        octane_node.set_attribute_blender_name(self.BLNEDER_ATTRIBUTE_LUT_STRENGTH, consts.AttributeType.AT_FLOAT, self.lut_strength)
+    def sync_custom_data(self, octane_node, scene, region, v3d, rv3d, session_type):        
+        lut_node = octane_node.get_subnode(consts.OCTANE_BLENDER_CAMERA_IMAGER_LUT, consts.NodeType.NT_LUT_CUSTOM)
+        lut_node.set_pin_id(consts.PinID.P_STRENGTH, False, "", self.lut_strength)
+        lut_path = ""
+        if len(self.custom_lut):
+            lut_path = bpy.path.abspath(self.custom_lut)
+            need_reload = lut_node.set_attribute_id(consts.AttributeID.A_FILENAME, lut_path)
+        else:
+            need_reload = lut_node.set_attribute_id(consts.AttributeID.A_FILENAME, "")
+        lut_node.set_attribute_id(consts.AttributeID.A_RELOAD, need_reload)
+        octane_node.set_pin_id(consts.PinID.P_LUT, len(self.custom_lut) > 0, consts.OCTANE_BLENDER_CAMERA_IMAGER_LUT, "")
         self.sync_ocio_settings(octane_node, scene, session_type)
 
     def update_legacy_data(self, context, legacy_data, is_viewport=None):
@@ -778,9 +788,35 @@ class OctaneImagerSettings(bpy.types.PropertyGroup, common.OctanePropertySetting
 
 
 class OctanePostProcessingSettings(bpy.types.PropertyGroup, common.OctanePropertySettings):
-    PROPERTY_CONFIGS = {consts.NodeType.NT_POSTPROCESSING : ["cutoff", "bloom_power", "glare_power", "glare_ray_amount", "glare_angle", "glare_blur", "spectral_intencity", "spectral_shift"]}
+    PROPERTY_CONFIGS = {
+        consts.NodeType.NT_POSTPROCESSING: [
+            "cutoff", "bloom_power", "glare_power", 
+            "glare_ray_amount", "glare_angle", "glare_blur", 
+            "spectral_intencity", "spectral_shift", "spectral_intencity", 
+            "spread_start", "spread_end", "chromatic_aberration_intensity", 
+            "lens_flare", "lens_flare_extent", 
+        ],
+        # consts.NodeType.NT_POST_VOLUME: [
+        #     "light_beams", "medium_density_for_postfx_light_beams", "enable_fog", 
+        #     "fog_strength", "fog_height_descend", "fog_env_contribution",
+        #     "base_fog_color", "medium_radius",
+        # ]
+    }
     PROPERTY_NAME_TO_PIN_SYMBOL_MAP = {
-        "spectral_intencity": "spectral_intensity"
+        "spectral_intencity": "spectral_intensity",
+        "spread_start": "spreadStart",
+        "spread_end": "spreadEnd",
+        "chromatic_aberration_intensity": "chromaticAberrationIntensity",
+        "lens_flare": "lensFlare",
+        "lens_flare_extent": "lensFlareExtent",
+        "light_beams": "postFxLightBeamsEnabled",
+        "medium_density_for_postfx_light_beams": "postFxLightBeamsMediumDensity",
+        "enable_fog": "postFxFogMediaEnabled",
+        "fog_strength": "postFxFogStrength",
+        "fog_height_descend": "postFxFogExponent",
+        "fog_env_contribution": "postFxFogEnvContribution",
+        "base_fog_color": "baseColor",
+        "medium_radius": "mediumRadius",
     }
 
     on_off: BoolProperty(
@@ -862,7 +898,7 @@ class OctanePostProcessingSettings(bpy.types.PropertyGroup, common.OctanePropert
         utility.sync_legacy_property(self, "spectral_intencity", legacy_data, "spectral_intencity")
         utility.sync_legacy_property(self, "spectral_shift", legacy_data, "spectral_shift")
 
-    def draw(self, context, layout, is_viewport=None):
+    def draw_post_image_processing(self, context, layout, is_viewport=None):
         col = layout.column()
         col.use_property_split = True
         col.prop(self, "cutoff")
@@ -958,7 +994,7 @@ class OctaneBaseCameraSettings(common.OctanePropertySettings):
             if camera_node_type != consts.NodeType.NT_CAM_BAKING:
                 camera_node.set_pin_id(consts.PinID.P_TARGET, False, "", (0, 0, 0))
                 camera_node.set_pin_id(consts.PinID.P_UP, False, "", (0, 0, 0))
-            camera_node.update_to_engine(True)
+            camera_node.update_to_engine(not is_viewport)
         octane_node.current_active_camera_name = camera_node_name
         return camera_node
 
@@ -2543,6 +2579,54 @@ class OctaneSpaceDataSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings)
         del bpy.types.Scene.oct_view_cam
 
 
+class AddPresetCameraImager(AddPresetBase, Operator):
+    """Add Octane Imager preset"""
+    bl_idname = "render.octane_imager_preset_add"
+    bl_label = "Add imager preset"
+    preset_menu = "OCTANE_MT_imager_presets"
+    preset_defines = [
+        "octane = bpy.context.camera.octane.imager"
+    ]
+    preset_values = ["octane." + item for item in OctaneImagerSettings.PROPERTY_CONFIGS[consts.NodeType.NT_IMAGER_CAMERA]]
+    preset_subdir = "octane/imager_presets"
+
+
+class AddPresetViewportImager(AddPresetBase, Operator):
+    """Add Octane Imager preset for viewport"""
+    bl_idname = "render.octane_3dimager_preset_add"
+    bl_label = "Add imager preset for viewport"
+    preset_menu = "OCTANE_MT_3dimager_presets"
+    preset_defines = [
+        "octane = bpy.context.scene.oct_view_cam.imager"
+    ]
+    preset_values = ["octane." + item for item in OctaneImagerSettings.PROPERTY_CONFIGS[consts.NodeType.NT_IMAGER_CAMERA]]
+    preset_subdir = "octane/3dimager_presets"
+
+
+class AddPresetCameraPostprocess(AddPresetBase, Operator):
+    """Add Octane Postprocess preset"""
+    bl_idname = "render.octane_postprocess_preset_add"
+    bl_label = "Add Postprocess preset"
+    preset_menu = "OCTANE_MT_postprocess_presets"
+    preset_defines = [
+        "octane = bpy.context.camera.octane.post_processing"
+    ]
+    preset_values = ["octane." + item for item in (OctanePostProcessingSettings.PROPERTY_CONFIGS[consts.NodeType.NT_POSTPROCESSING])]
+    preset_subdir = "octane/postprocess_presets"
+
+
+class AddPresetViewportPostprocess(AddPresetBase, Operator):
+    """Add Octane Postprocess preset for viewport"""
+    bl_idname = "render.octane_3dpostprocess_preset_add"
+    bl_label = "Add Postprocess preset for viewport"
+    preset_menu = "OCTANE_MT_3dpostprocess_presets"
+    preset_defines = [
+        "octane = bpy.context.scene.oct_view_cam.post_processing"
+    ]
+    preset_values = ["octane." + item for item in (OctanePostProcessingSettings.PROPERTY_CONFIGS[consts.NodeType.NT_POSTPROCESSING])]
+    preset_subdir = "octane/3dpostprocess_presets"
+
+
 _CLASSES = [
     OctaneOSLCameraNode,
     OctaneOSLCameraNodeCollection,
@@ -2550,7 +2634,11 @@ _CLASSES = [
     OctanePostProcessingSettings,
     OctaneAIUpSamplertSettings,
     OctaneCameraSettings,
-    OctaneSpaceDataSettings,    
+    OctaneSpaceDataSettings,
+    AddPresetCameraImager,
+    AddPresetViewportImager,
+    AddPresetCameraPostprocess,
+    AddPresetViewportPostprocess,
 ]
 
 

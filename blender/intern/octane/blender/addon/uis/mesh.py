@@ -18,35 +18,18 @@ class OCTANE_RENDER_PT_HairSettings(common.OctanePropertyPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-
         psys = context.particle_settings
-        if core.ENABLE_OCTANE_ADDON_CLIENT:
-            psys_octane = psys.octane
-            row = layout.row()
-            row.prop(psys_octane, "min_curvature")
-            layout.label(text="Thickness:")
-            row = layout.row(align=True)
-            row.prop(psys_octane, "root_width")
-            row.prop(psys_octane, "tip_width")        
-            layout.label(text="W coordinate:")
-            row = layout.row(align=True)  
-            row.prop(psys_octane, "w_min")
-            row.prop(psys_octane, "w_max")
-        else:
-            psys_octane = psys
-
-            row = layout.row()
-            row.prop(psys_octane, "octane_min_curvature")
-
-            layout.label(text="Thickness:")
-            row = layout.row(align=True)
-            row.prop(psys_octane, "octane_root_width")
-            row.prop(psys_octane, "octane_tip_width")        
-
-            layout.label(text="W coordinate:")
-            row = layout.row(align=True)  
-            row.prop(psys_octane, "octane_w_min")
-            row.prop(psys_octane, "octane_w_max")            
+        psys_octane = psys.octane
+        row = layout.row()
+        row.prop(psys_octane, "min_curvature")
+        layout.label(text="Thickness:")
+        row = layout.row(align=True)
+        row.prop(psys_octane, "root_width")
+        row.prop(psys_octane, "tip_width")        
+        layout.label(text="W coordinate:")
+        row = layout.row(align=True)  
+        row.prop(psys_octane, "w_min")
+        row.prop(psys_octane, "w_max")
 
 
 class OCTANE_CURVE_PT_curve_properties(common.OctanePropertyPanel, Panel):

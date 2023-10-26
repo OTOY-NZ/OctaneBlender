@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2013 Blender Foundation. All rights reserved. */
+ * Copyright 2013 Blender Foundation */
 
 /** \file
  * \ingroup bke
@@ -92,7 +92,9 @@ struct RigidBodyCon *BKE_rigidbody_create_constraint(struct Scene *scene,
 /**
  * Ensure newly set collections' objects all have required data.
  */
-void BKE_rigidbody_objects_collection_validate(struct Scene *scene, struct RigidBodyWorld *rbw);
+void BKE_rigidbody_objects_collection_validate(struct Main *bmain,
+                                               struct Scene *scene,
+                                               struct RigidBodyWorld *rbw);
 void BKE_rigidbody_constraints_collection_validate(struct Scene *scene,
                                                    struct RigidBodyWorld *rbw);
 

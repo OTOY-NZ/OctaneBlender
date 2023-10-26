@@ -107,45 +107,57 @@ static void update_light_transform(Light *light,
   if (!light) {
     return;
   }
+  PointerRNA oct_light = RNA_pointer_get(&b_light.ptr, "octane");
+  int32_t octane_point_light_type = get_enum(oct_light, "octane_point_light_type");
+  bool used_as_octane_mesh_light = get_boolean(oct_light, "used_as_octane_mesh_light");
+
   switch (b_light.type()) {
     case BL::Light::type_POINT:
-    case BL::Light::type_SPHERE:
-    case BL::Light::type_SUN:
-    case BL::Light::type_MESH: {
+    case BL::Light::type_SUN: {
       light->update_transform(tfm, motion_time);
       break;
     }
+    case BL::Light::type_SPOT: {
+      Transform spot_tfm = tfm *transform_rotate(M_PI_2_F, make_float3(1, 0, 0));
+      light->update_transform(spot_tfm, motion_time);
+      break;
+    }
     case BL::Light::type_AREA: {
-      BL::AreaLight b_area_light(b_light);
-      float sizeu = b_area_light.size();
-      float sizev = sizeu;
-      bool use_octane_quad_light = false;
-      switch (b_area_light.shape()) {
-        case BL::AreaLight::shape_SQUARE:
-          use_octane_quad_light = true;
-          break;
-        case BL::AreaLight::shape_RECTANGLE:
-          use_octane_quad_light = true;
-          sizev = b_area_light.size_y();
-          break;
-        case BL::AreaLight::shape_DISK:
-          break;
-        case BL::AreaLight::shape_ELLIPSE:
-          sizev = b_area_light.size_y();
-          break;
-      }
-      if (use_octane_quad_light) {
-        float3 dir = transform_get_column(&tfm, 2);
-        dir *= -1;
-        transform_set_column(&tfm, 2, dir);
+      if (used_as_octane_mesh_light) {
         light->update_transform(tfm, motion_time);
       }
       else {
-        Transform light_tfm(tfm * transform_scale(sizeu, sizev, 1));
-        light->update_transform(light_tfm, motion_time);
+        BL::AreaLight b_area_light(b_light);
+        float sizeu = b_area_light.size();
+        float sizev = sizeu;
+        bool use_octane_quad_light = false;
+        switch (b_area_light.shape()) {
+          case BL::AreaLight::shape_SQUARE:
+            use_octane_quad_light = true;
+            break;
+          case BL::AreaLight::shape_RECTANGLE:
+            use_octane_quad_light = true;
+            sizev = b_area_light.size_y();
+            break;
+          case BL::AreaLight::shape_DISK:
+            break;
+          case BL::AreaLight::shape_ELLIPSE:
+            sizev = b_area_light.size_y();
+            break;
+        }
+        if (use_octane_quad_light) {
+          float3 dir = transform_get_column(&tfm, 2);
+          dir *= -1;
+          transform_set_column(&tfm, 2, dir);
+          light->update_transform(tfm, motion_time);
+        }
+        else {
+          Transform light_tfm(tfm * transform_scale(sizeu, sizev, 1));
+          light->update_transform(light_tfm, motion_time);
+        }    
       }
+      break;
     }
-    case BL::Light::type_SPOT:
     default: {
       break;
     }
@@ -245,11 +257,40 @@ void BlenderSync::sync_light(BL::Object &b_parent,
     light->need_light_object_update = true;
   }
 
+  PointerRNA oct_light = RNA_pointer_get(&b_light.ptr, "octane");
+  int32_t octane_point_light_type = get_enum(oct_light, "octane_point_light_type");
+  bool used_as_octane_mesh_light = get_boolean(oct_light, "used_as_octane_mesh_light");
+
   /* type */
   switch (b_light.type()) {
     case BL::Light::type_POINT: {
       BL::PointLight b_point_light(b_light);
-      light->light.iLightNodeType = Octane::NT_TOON_POINT_LIGHT;
+      if (octane_point_light_type == 0) {
+        // Toon Point
+        light->light.iLightNodeType = Octane::NT_TOON_POINT_LIGHT;
+        light->light.sLightMeshName = "";
+        light->light.oObject.sMeshName = light->light.sShaderName;
+        light->light.oObject.iUseObjectLayer =
+            OctaneDataTransferObject::OctaneObject::NO_OBJECT_LAYER;
+        light->need_light_object_update = true;
+        light->enable = true;
+      }
+      else {
+        // Sphere Point
+        light->light.iLightNodeType = Octane::NT_LIGHT_SPHERE;
+        light->light.sLightMeshName = current_light_mesh_name;
+        light->light.oObject.sMeshName = current_light_mesh_name;
+        light->light.oObject.iUseObjectLayer =
+            OctaneDataTransferObject::OctaneObject::NO_OBJECT_LAYER;
+        light->need_light_object_update = true;        
+        light->light.fRadius = b_point_light.shadow_soft_size();
+        light->enable = true;
+      }
+      break;
+    }
+    case BL::Light::type_SPOT: {
+      // SpotLight
+      light->light.iLightNodeType = Octane::NT_LIGHT_VOLUME_SPOT;
       light->light.sLightMeshName = "";
       light->light.oObject.sMeshName = light->light.sShaderName;
       light->light.oObject.iUseObjectLayer =
@@ -258,28 +299,6 @@ void BlenderSync::sync_light(BL::Object &b_parent,
       light->enable = true;
       break;
     }
-    case BL::Light::type_SPHERE: {
-      BL::SphereLight b_sphere_light(b_light);
-      light->light.iLightNodeType = Octane::NT_LIGHT_SPHERE;
-      light->light.sLightMeshName = current_light_mesh_name;
-      light->light.oObject.sMeshName = current_light_mesh_name;
-      light->light.oObject.iUseObjectLayer =
-          OctaneDataTransferObject::OctaneObject::NO_OBJECT_LAYER;
-      light->need_light_object_update = true;
-      light->light.fRadius = b_sphere_light.sphere_radius();
-      light->enable = true;
-      break;
-    }
-    case BL::Light::type_SPOT: {
-      light->enable = false;
-      break;
-    }
-      /* Hemi were removed from 2.8 */
-      // case BL::Light::type_HEMI: {
-      // 	light->type = LIGHT_DISTANT;
-      // 	light->size = 0.0f;
-      // 	break;
-      // }
     case BL::Light::type_SUN: {
       BL::SunLight b_sun_light(b_light);
       light->light.iLightNodeType = Octane::NT_TOON_DIRECTIONAL_LIGHT;
@@ -292,79 +311,84 @@ void BlenderSync::sync_light(BL::Object &b_parent,
       break;
     }
     case BL::Light::type_AREA: {
-      BL::AreaLight b_area_light(b_light);
-      CHECK_LIGHT_OBJECT_UPDATE(light->light.iLightNodeType, Octane::NT_GEO_MESH);
-      float sizeu = b_area_light.size();
-      float sizev = sizeu;
-      std::string sub_object_path = "libraries/objects/";
-      bool use_octane_quad_light = false;
-      switch (b_area_light.shape()) {
-        case BL::AreaLight::shape_SQUARE:
-          use_octane_quad_light = true;
-          break;
-        case BL::AreaLight::shape_RECTANGLE:
-          use_octane_quad_light = true;
-          sizev = b_area_light.size_y();
-          break;
-        case BL::AreaLight::shape_DISK:
-          sub_object_path += "Circle.obj";
-          break;
-        case BL::AreaLight::shape_ELLIPSE:
-          sub_object_path += "Circle.obj";
-          sizev = b_area_light.size_y();
-          break;
-      }
-      if (use_octane_quad_light) {
-        BL::SphereLight b_sphere_light(b_light);
-        light->light.iLightNodeType = Octane::NT_LIGHT_QUAD;
-        light->light.sLightMeshName = current_light_mesh_name;
-        light->light.oObject.sMeshName = current_light_mesh_name;
-        light->light.oObject.iUseObjectLayer =
-            OctaneDataTransferObject::OctaneObject::NO_OBJECT_LAYER;
-        light->need_light_object_update = true;
-        light->light.fSizeX = sizeu;
-        light->light.fSizeY = sizev;
-        light->enable = true;
-      }
-      else {
-        std::string object_path = path_get(sub_object_path);
-        std::string current_light_object_path = blender_absolute_path(
-            b_data, b_scene, object_path);
+      if (used_as_octane_mesh_light) {
+        // Mesh Light
+        light->light.iLightNodeType = Octane::NT_GEO_MESH;
+        std::string current_light_object_path = "";
+        std::string current_light_mesh_name = "";
+        PointerRNA oct_light = RNA_pointer_get(&b_light.ptr, "octane");
+        if (get_boolean(oct_light, "use_external_mesh")) {
+          char external_mesh_path[512];
+          RNA_string_get(&oct_light, "external_mesh_file", external_mesh_path);
+          current_light_object_path = blender_absolute_path(b_data, b_scene, external_mesh_path);
+          current_light_mesh_name = light->light.sLightName + MESH_TAG;
+        }
+        else {
+          PointerRNA mesh_object_ptr = RNA_pointer_get(&oct_light, "light_mesh_object");
+          PointerRNA mesh_ptr = RNA_pointer_get(&oct_light, "light_mesh");
+          if (mesh_object_ptr.data) {
+            BL::Object b_ob(mesh_object_ptr);            
+            BL::ID b_ob_data = b_ob.data();
+            std::string b_ob_name = BKE_object_is_modified(b_ob) ? b_ob.name_full() : "";
+            current_light_mesh_name = resolve_octane_name(b_ob_data, b_ob_name, MESH_TAG);
+          }
+          else {
+            current_light_mesh_name = "";
+          }
+          current_light_object_path = "";
+        }
         CHECK_LIGHT_OBJECT_UPDATE(light->light.sLightObjectPath, current_light_object_path);
         CHECK_LIGHT_OBJECT_UPDATE(light->light.sLightMeshName, current_light_mesh_name);
         light->light.oObject.sMeshName = light->light.sLightMatMapName;
         light->enable = true;
-      }
-      break;
-    }
-    case BL::Light::type_MESH: {
-      light->light.iLightNodeType = Octane::NT_GEO_MESH;
-      std::string current_light_object_path = "";
-      std::string current_light_mesh_name = "";
-      PointerRNA oct_light = RNA_pointer_get(&b_light.ptr, "octane");
-      if (get_boolean(oct_light, "use_external_mesh")) {
-        char external_mesh_path[512];
-        RNA_string_get(&oct_light, "external_mesh_file", external_mesh_path);
-        current_light_object_path = blender_absolute_path(b_data, b_scene, external_mesh_path);
-        current_light_mesh_name = light->light.sLightName + MESH_TAG;
+
       }
       else {
-        PointerRNA mesh_ptr = RNA_pointer_get(&oct_light, "light_mesh");
-        if (mesh_ptr.data) {
-          BL::Object obj(mesh_ptr);
-          BL::ID bl_id(mesh_ptr);
-          std::string id_name = BKE_object_is_modified(b_ob) ? b_ob.name_full() : "";
-          current_light_mesh_name = resolve_octane_name(bl_id, id_name, MESH_TAG);
+        // Area Light
+        BL::AreaLight b_area_light(b_light);
+        CHECK_LIGHT_OBJECT_UPDATE(light->light.iLightNodeType, Octane::NT_GEO_MESH);
+        float sizeu = b_area_light.size();
+        float sizev = sizeu;
+        std::string sub_object_path = "libraries/objects/";
+        bool use_octane_quad_light = false;
+        switch (b_area_light.shape()) {
+          case BL::AreaLight::shape_SQUARE:
+            use_octane_quad_light = true;
+            break;
+          case BL::AreaLight::shape_RECTANGLE:
+            use_octane_quad_light = true;
+            sizev = b_area_light.size_y();
+            break;
+          case BL::AreaLight::shape_DISK:
+            sub_object_path += "Circle.obj";
+            break;
+          case BL::AreaLight::shape_ELLIPSE:
+            sub_object_path += "Circle.obj";
+            sizev = b_area_light.size_y();
+            break;
+        }
+        if (use_octane_quad_light) {
+          BL::SphereLight b_sphere_light(b_light);
+          light->light.iLightNodeType = Octane::NT_LIGHT_QUAD;
+          light->light.sLightMeshName = current_light_mesh_name;
+          light->light.oObject.sMeshName = current_light_mesh_name;
+          light->light.oObject.iUseObjectLayer =
+              OctaneDataTransferObject::OctaneObject::NO_OBJECT_LAYER;
+          light->need_light_object_update = true;
+          light->light.fSizeX = sizeu;
+          light->light.fSizeY = sizev;
+          light->enable = true;
         }
         else {
-          current_light_mesh_name = "";
+          std::string object_path = path_get(sub_object_path);
+          std::string current_light_object_path = blender_absolute_path(
+              b_data, b_scene, object_path);
+          CHECK_LIGHT_OBJECT_UPDATE(light->light.sLightObjectPath, current_light_object_path);
+          CHECK_LIGHT_OBJECT_UPDATE(light->light.sLightMeshName, current_light_mesh_name);
+          light->light.oObject.sMeshName = light->light.sLightMatMapName;
+          light->enable = true;
         }
-        current_light_object_path = "";
       }
-      CHECK_LIGHT_OBJECT_UPDATE(light->light.sLightObjectPath, current_light_object_path);
-      CHECK_LIGHT_OBJECT_UPDATE(light->light.sLightMeshName, current_light_mesh_name);
-      light->light.oObject.sMeshName = light->light.sLightMatMapName;
-      light->enable = true;
       break;
     }
   }

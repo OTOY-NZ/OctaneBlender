@@ -1,4 +1,5 @@
 import bpy
+import xml.etree.ElementTree as ET
 from octane.utils import consts, utility
 
 
@@ -41,11 +42,66 @@ class OctaneOCIOManagement(metaclass=utility.Singleton):
             self.current_color_spaces.keys(), 
             lambda collection_item, name : setattr(collection_item, "name", name))
 
+def resolve_octane_ocio_view(ocio_view_display_name, ocio_view_display_view_name):
+    if ocio_view_display_name == "sRGB" and ocio_view_display_view_name == "Raw":
+        ocio_view_display_name = ""
+        ocio_view_display_view_name = "None(sRGB)"
+    return ocio_view_display_name, ocio_view_display_view_name
+
+def resolve_octane_ocio_look(ocio_look_name):
+    ocio_use_view_look = False
+    if ocio_look_name == " None ":
+        ocio_look_name = ""
+        ocio_use_view_look = False
+    elif ocio_look_name == " Use view look(s) ":
+        ocio_look_name = ""
+        ocio_use_view_look = True
+    return ocio_look_name, ocio_use_view_look
+
+def update_ocio_info_xml_request(ocio_config_file_path, ocio_use_other_config_file, ocio_use_automatic, ocio_intermediate_color_space_octane, octane_format_ocio_intermediate_color_space_ocio):
+    from octane.core.client import OctaneBlender
+    root_et = ET.Element("updateOCIOInfo")
+    root_et.set("useConfigOverride", str(int(ocio_use_other_config_file)))
+    root_et.set("configOverrideFile", ocio_config_file_path)
+    root_et.set("autoConfig", str(int(ocio_use_automatic)))
+    root_et.set("intermediateColorSpaceOctaneValue", str(ocio_intermediate_color_space_octane))
+    root_et.set("intermediateColorSpaceOCIOName", octane_format_ocio_intermediate_color_space_ocio)
+    xml_data = ET.tostring(root_et, encoding="unicode")
+    # Update the OCIO Settings in temporal connections
+    response = OctaneBlender().utils_function(consts.UtilsFunctionType.UPDATE_OCIO_SETTINGS, xml_data)
+    if len(response):
+        content = ET.fromstring(response).get("content")
+        try:
+            content_et = ET.fromstring(content)
+            color_space_octane_value = int(content_et.get("intermediateColorSpaceOctaneValue"))
+            color_space_ocio_name = content_et.get("intermediateColorSpaceOCIOName")
+            role_names = []
+            role_color_space_names = []
+            color_space_names = []
+            color_space_family_names = []
+            display_names = []
+            display_view_names = []
+            look_names = []
+            for role_et in content_et.findall("roles/role"):
+                role_names.append(role_et.get("name"))
+                role_color_space_names.append(role_et.get("colorSpaceName"))
+            for color_space_et in content_et.findall("colorSpaces/colorSpace"):
+                color_space_names.append(color_space_et.get("colorSpaceName"))
+                color_space_family_names.append(color_space_et.get("colorSpaceFamilyName"))
+            for display_et in content_et.findall("displays/display"):
+                display_names.append(display_et.get("displayName"))
+                display_view_names.append(display_et.get("displayViewName"))
+            for look_name_et in content_et.findall("lookNames/lookName"):
+                look_names.append(look_name_et.get("name"))
+            return [role_names, role_color_space_names, color_space_names, color_space_family_names, display_names, display_view_names, look_names, [color_space_octane_value, color_space_ocio_name]]
+        except TypeError as e:
+            return False
+        except ET.ParseError as e:
+            return False
+    return False
 
 def update_ocio_info(self=None, context=None):
     from octane import core
-    if core.EXCLUSIVE_OCTANE_ADDON_CLIENT_MODE:
-        return
     ocio_manager = OctaneOCIOManagement()
     def set_container(container, items):
         for i in range(0, len(container)):
@@ -59,13 +115,16 @@ def update_ocio_info(self=None, context=None):
     ocio_view_concat_func = lambda x, y : ((x + ": ") if len(x) else "") + y     
     if ocio_manager.is_ocio_updating:
         return
-    ocio_manager.is_ocio_updating = True            
+    ocio_manager.is_ocio_updating = True
     preferences = utility.get_preferences()
     ocio_intermediate_color_space_octane = preferences.rna_type.properties['ocio_intermediate_color_space_octane'].enum_items[preferences.ocio_intermediate_color_space_octane].value        
     print("Octane Ocio Management Update Start")
     ocio_use_automatic = preferences.ocio_use_automatic
-    import _octane
-    results = _octane.update_ocio_info(preferences.ocio_config_file_path, preferences.ocio_use_other_config_file, ocio_use_automatic, ocio_intermediate_color_space_octane, preferences.octane_format_ocio_intermediate_color_space_ocio) 
+    if core.ENABLE_OCTANE_ADDON_CLIENT:
+        results = update_ocio_info_xml_request(preferences.ocio_config_file_path, preferences.ocio_use_other_config_file, ocio_use_automatic, ocio_intermediate_color_space_octane, preferences.octane_format_ocio_intermediate_color_space_ocio)
+    else:
+        import _octane
+        results = _octane.update_ocio_info(preferences.ocio_config_file_path, preferences.ocio_use_other_config_file, ocio_use_automatic, ocio_intermediate_color_space_octane, preferences.octane_format_ocio_intermediate_color_space_ocio)
     if results is False or len(results) == 0:
         results = [[], [], [], [], [], [], [], [2, '']]
     ocio_manager.raw_ocio_info = results

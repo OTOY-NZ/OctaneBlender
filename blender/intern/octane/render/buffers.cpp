@@ -311,10 +311,10 @@ void DisplayBuffer::update_gpu_texture_from_pixel_array(uint8_t *rgba,
   if (gpu_texture) {
     GPU_TEXTURE_FREE_SAFE(gpu_texture);
   }
-  gpu_texture = GPU_texture_create_2d("OctaneTexture", width, height, 1, GPU_RGBA8, nullptr);
+  gpu_texture = GPU_texture_create_2d(
+      "OctaneTexture", width, height, 1, GPU_RGBA8, GPU_TEXTURE_USAGE_GENERAL, nullptr);
   GPU_texture_update(gpu_texture, GPU_DATA_UBYTE, rgba);
   GPU_texture_filter_mode(gpu_texture, false);
-  GPU_texture_wrap_mode(gpu_texture, false, true);
 }
 
 void DisplayBuffer::draw(DeviceDrawParams &draw_params, bool use_shared_surface)
@@ -503,7 +503,7 @@ void DisplayBuffer::draw(DeviceDrawParams &draw_params, bool use_shared_surface)
           format, position_attribute_name, GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
       GPUShader *active_shader = GPU_shader_get_bound();
       immBindShader(active_shader);
-      GPU_texture_bind_ex(gpu_texture, GPU_SAMPLER_DEFAULT, 0, false);
+      GPU_texture_bind_ex(gpu_texture, {GPU_SAMPLER_FILTERING_LINEAR}, 0);
       immBegin(GPU_PRIM_TRI_STRIP, 4);
       immAttr2f(texcoord_attribute, 1.0f, 0.0f);
       immVertex2f(position_attribute, (float)width + dx, dy);

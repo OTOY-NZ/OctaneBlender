@@ -11,6 +11,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_anim_types.h"
@@ -31,7 +32,11 @@
 
 #include "BLO_readfile.h"
 
+#include "BLT_translation.h"
+
 #include "GPU_platform.h"
+
+#include "MEM_guardedalloc.h"
 
 #include "readfile.h" /* Own include. */
 
@@ -89,6 +94,14 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     btheme->tui.wcol_view_item = U_theme_default.tui.wcol_view_item;
   }
 
+  if (!USER_VERSION_ATLEAST(306, 3)) {
+    FROM_DEFAULT_V4_UCHAR(space_view3d.face_retopology);
+  }
+
+  if (!USER_VERSION_ATLEAST(306, 8)) {
+    FROM_DEFAULT_V4_UCHAR(space_node.node_zone_simulation);
+    FROM_DEFAULT_V4_UCHAR(space_action.simulated_frames);
+  }
   /**
    * Versioning code until next subversion bump goes here.
    *
@@ -780,6 +793,34 @@ void blo_do_versions_userdef(UserDef *userdef)
   if (!USER_VERSION_ATLEAST(305, 10)) {
     LISTBASE_FOREACH (bUserAssetLibrary *, asset_library, &userdef->asset_libraries) {
       asset_library->import_method = ASSET_IMPORT_APPEND_REUSE;
+    }
+  }
+
+  if (!USER_VERSION_ATLEAST(306, 2)) {
+    userdef->animation_flag |= USER_ANIM_HIGH_QUALITY_DRAWING;
+  }
+
+  if (!USER_VERSION_ATLEAST(306, 4)) {
+    /* Increase the number of recently-used files if using the old default value. */
+    if (userdef->recent_files == 10) {
+      userdef->recent_files = 20;
+    }
+  }
+
+  if (!USER_VERSION_ATLEAST(306, 5)) {
+    if (userdef->pythondir_legacy[0]) {
+      bUserScriptDirectory *script_dir = MEM_callocN(sizeof(*script_dir),
+                                                     "Versioning user script path");
+
+      STRNCPY(script_dir->dir_path, userdef->pythondir_legacy);
+      STRNCPY_UTF8(script_dir->name, DATA_("Untitled"));
+      BLI_addhead(&userdef->script_directories, script_dir);
+    }
+  }
+
+  if (!USER_VERSION_ATLEAST(306, 6)) {
+    LISTBASE_FOREACH (bUserAssetLibrary *, asset_library, &userdef->asset_libraries) {
+      asset_library->flag |= ASSET_LIBRARY_RELATIVE_PATH;
     }
   }
 

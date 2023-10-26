@@ -268,6 +268,15 @@ class OctaneCompositeAOVOutputLayer(bpy.types.Node, OctaneBaseNode):
     octane_attribute_config={"a_compatibility_version": [consts.AttributeID.A_COMPATIBILITY_VERSION, "compatibilityVersion", consts.AttributeType.AT_INT], }
     octane_static_pin_count=11
 
+    compatibility_mode_infos=[
+        ("Latest (2022.1)", "Latest (2022.1)", """(null)""", 12000005),
+        ("2021.1.2 compatibility mode", "2021.1.2 compatibility mode", """Mask replaces opacity instead of being combined with it.""", 11000299),
+        ("2021.1.2 compatibility mode (with 2021.1 opacity)", "2021.1.2 compatibility mode (with 2021.1 opacity)", """Opacity affects all channels, not just alpha. This applies in addition to 2021.1.2 compatibility mode behavior.""", 11000298),
+        ("2021.1.2 compatibility mode (with 2021.1 blend)", "2021.1.2 compatibility mode (with 2021.1 blend)", """"Blend mode" alpha operation uses incorrect math. This applies in addition to 2021.1.2 compatibility mode behavior.""", 11000297),
+        ("2021.1 compatibility mode", "2021.1 compatibility mode", """"Blend mode" alpha operation uses incorrect math, and opacity affects all channels, not just alpha. This applies in addition to 2021.1.2 compatibility mode behavior.""", 0),
+    ]
+    a_compatibility_version_enum: EnumProperty(name="Compatibility version", default="Latest (2022.1)", update=OctaneBaseNode.update_compatibility_mode, description="The Octane version that the behavior of this node should match", items=compatibility_mode_infos)
+
     a_compatibility_version: IntProperty(name="Compatibility version", default=12000102, update=OctaneBaseNode.update_node_tree, description="The Octane version that the behavior of this node should match")
 
     def init(self, context):
@@ -317,3 +326,11 @@ def unregister():
     utility.octane_unregister_class(reversed(_CLASSES))
 
 ##### END OCTANE GENERATED CODE BLOCK #####
+
+class OctaneCompositeAOVOutputLayer_Override(OctaneCompositeAOVOutputLayer):
+
+    def draw_buttons(self, context, layout):
+        row = layout.row()
+        row.prop(self, "a_compatibility_version_enum")
+
+utility.override_class(_CLASSES, OctaneCompositeAOVOutputLayer, OctaneCompositeAOVOutputLayer_Override)

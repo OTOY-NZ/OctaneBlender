@@ -45,6 +45,7 @@ float seq_time_media_playback_rate_factor_get(const Scene *scene, const Sequence
 }
 
 float seq_time_playback_rate_factor_get(const Scene *scene, const Sequence *seq)
+
 {
   return seq_time_media_playback_rate_factor_get(scene, seq) * seq->speed_factor;
 }
@@ -61,6 +62,10 @@ float seq_give_frame_index(const Scene *scene, Sequence *seq, float timeline_fra
 
   if (end < sta) {
     return -1;
+  }
+
+  if (seq->type == SEQ_TYPE_IMAGE && SEQ_transform_single_image_check(seq)) {
+    return 0;
   }
 
   if (seq->flag & SEQ_REVERSE_FRAMES) {
@@ -103,7 +108,7 @@ static void seq_update_sound_bounds_recursive_impl(const Scene *scene,
   Sequence *seq;
 
   /* For sound we go over full meta tree to update bounds of the sound strips,
-   * since sound is played outside of evaluating the imbufs. */
+   * since sound is played outside of evaluating the image-buffers (#ImBuf). */
   for (seq = metaseq->seqbase.first; seq; seq = seq->next) {
     if (seq->type == SEQ_TYPE_META) {
       seq_update_sound_bounds_recursive_impl(
@@ -143,7 +148,6 @@ void seq_update_sound_bounds_recursive(const Scene *scene, Sequence *metaseq)
       scene, metaseq, metaseq_start(metaseq), metaseq_end(metaseq));
 }
 
-/* Update meta strip content start and end, update sound playback range. */
 void SEQ_time_update_meta_strip_range(const Scene *scene, Sequence *seq_meta)
 {
   if (seq_meta == NULL) {
@@ -212,7 +216,6 @@ void seq_time_effect_range_set(const Scene *scene, Sequence *seq)
   seq->len = seq->enddisp - seq->startdisp;
 }
 
-/* Update strip startdisp and enddisp (n-input effects have no len to calculate these). */
 void seq_time_update_effects_strip_range(const Scene *scene, SeqCollection *effects)
 {
   if (effects == NULL) {

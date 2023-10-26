@@ -351,7 +351,16 @@ void mat3_normalized_to_quat_fast(float q[4], const float mat[3][3])
   }
 
   BLI_assert(!(q[0] < 0.0f));
-  BLI_ASSERT_UNIT_QUAT(q);
+
+  /* Sometimes normalization is necessary due to round-off errors in the above
+   * calculations. The comparison here uses tighter tolerances than
+   * BLI_ASSERT_UNIT_QUAT(), so it's likely that even after a few more
+   * transformations the quaternion will still be considered unit-ish. */
+  const float q_len_squared = dot_qtqt(q, q);
+  const float threshold = 0.0002f /* BLI_ASSERT_UNIT_EPSILON */ * 3;
+  if (fabs(q_len_squared - 1.0f) >= threshold) {
+    normalize_qt(q);
+  }
 }
 
 static void mat3_normalized_to_quat_with_checks(float q[4], float mat[3][3])
@@ -1405,7 +1414,8 @@ void mat3_normalized_to_eul(float eul[3], const float mat[3][3])
 
   /* return best, which is just the one with lowest values it in */
   if (fabsf(eul1[0]) + fabsf(eul1[1]) + fabsf(eul1[2]) >
-      fabsf(eul2[0]) + fabsf(eul2[1]) + fabsf(eul2[2])) {
+      fabsf(eul2[0]) + fabsf(eul2[1]) + fabsf(eul2[2]))
+  {
     copy_v3_v3(eul, eul2);
   }
   else {
@@ -1490,15 +1500,18 @@ void rotate_eul(float beul[3], const char axis, const float angle)
 
 void compatible_eul(float eul[3], const float oldrot[3])
 {
-  /* we could use M_PI as pi_thresh: which is correct but 5.1 gives better results.
-   * Checked with baking actions to fcurves - campbell */
-  const float pi_thresh = (5.1f);
+  /* When the rotation exceeds 180 degrees, it can be wrapped by 360 degrees
+   * to produce a closer match.
+   * NOTE: Values between `pi` & `2 * pi` work, where `pi` has the lowest number of
+   * discontinuities and values approaching `2 * pi` center the resulting rotation around zero,
+   * at the expense of the result being less compatible, see !104856. */
+  const float pi_thresh = (float)M_PI;
   const float pi_x2 = (2.0f * (float)M_PI);
 
   float deul[3];
   uint i;
 
-  /* correct differences of about 360 degrees first */
+  /* Correct differences around 360 degrees first. */
   for (i = 0; i < 3; i++) {
     deul[i] = eul[i] - oldrot[i];
     if (deul[i] > pi_thresh) {
@@ -1511,29 +1524,17 @@ void compatible_eul(float eul[3], const float oldrot[3])
     }
   }
 
-  /* is 1 of the axis rotations larger than 180 degrees and the other small? NO ELSE IF!! */
-  if (fabsf(deul[0]) > 3.2f && fabsf(deul[1]) < 1.6f && fabsf(deul[2]) < 1.6f) {
-    if (deul[0] > 0.0f) {
-      eul[0] -= pi_x2;
-    }
-    else {
-      eul[0] += pi_x2;
-    }
-  }
-  if (fabsf(deul[1]) > 3.2f && fabsf(deul[2]) < 1.6f && fabsf(deul[0]) < 1.6f) {
-    if (deul[1] > 0.0f) {
-      eul[1] -= pi_x2;
-    }
-    else {
-      eul[1] += pi_x2;
-    }
-  }
-  if (fabsf(deul[2]) > 3.2f && fabsf(deul[0]) < 1.6f && fabsf(deul[1]) < 1.6f) {
-    if (deul[2] > 0.0f) {
-      eul[2] -= pi_x2;
-    }
-    else {
-      eul[2] += pi_x2;
+  uint j = 1, k = 2;
+  for (i = 0; i < 3; j = k, k = i++) {
+    /* Check if this axis of rotations larger than 180 degrees and
+     * the others are smaller than 90 degrees. */
+    if (fabsf(deul[i]) > M_PI && fabsf(deul[j]) < M_PI_2 && fabsf(deul[k]) < M_PI_2) {
+      if (deul[i] > 0.0f) {
+        eul[i] -= pi_x2;
+      }
+      else {
+        eul[i] += pi_x2;
+      }
     }
   }
 }
@@ -1973,7 +1974,8 @@ void mat4_to_dquat(DualQuat *dq, const float basemat[4][4], const float mat[4][4
   copy_m3_m4(mat3, mat);
 
   if (!is_orthonormal_m3(mat3) || (determinant_m4(mat) < 0.0f) ||
-      len_squared_v3(dscale) > square_f(1e-4f)) {
+      len_squared_v3(dscale) > square_f(1e-4f))
+  {
     /* Extract R and S. */
     float tmp[4][4];
 
@@ -2370,7 +2372,8 @@ bool mat3_from_axis_conversion(
   }
 
   if ((_axis_signed(src_forward) == _axis_signed(src_up)) ||
-      (_axis_signed(dst_forward) == _axis_signed(dst_up))) {
+      (_axis_signed(dst_forward) == _axis_signed(dst_up)))
+  {
     /* we could assert here! */
     unit_m3(r_mat);
     return false;

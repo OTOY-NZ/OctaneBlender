@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 3.5.0 Release Candidate (b'14efe7000449')\n"
+"Project-Id-Version: Blender 3.6.0 Release Candidate (b'a07063e6a403')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-03-27 16:38:19\n"
+"POT-Creation-Date: 2023-06-22 15:00:05\n"
 "PO-Revision-Date: 2017-08-26 11:13+0200\n"
 "Last-Translator: Mikołaj Juda <mikolaj.juda@gmail.com>\n"
 "Language: pl\n"
@@ -1014,10 +1014,6 @@ msgid "Vector Fonts"
 msgstr "Czcionki wektorowe"
 
 
-msgid "Grease Pencil"
-msgstr "Szkicownik"
-
-
 msgid "Images"
 msgstr "Obrazy"
 
@@ -1878,12 +1874,12 @@ msgid "Threshold"
 msgstr "Próg"
 
 
-msgid "Smooth"
-msgstr "Wygładzanie"
-
-
 msgid "Blur"
 msgstr "Rozmycie"
+
+
+msgid "Smooth"
+msgstr "Wygładzanie"
 
 
 msgid "Iterations"
@@ -2316,10 +2312,6 @@ msgstr "Grupa wierzchołków sztywności zgięć"
 
 msgid "Vertex group for fine control over bending stiffness"
 msgstr "Grupa wierzchołków, która pozwala kontrolować sztywność zginania"
-
-
-msgid "Mass Vertex Group"
-msgstr "Masa grupy wierzchołków"
 
 
 msgid "Vertex Group for pinning of vertices"
@@ -4427,10 +4419,6 @@ msgid "Map To"
 msgstr "Mapuj na"
 
 
-msgid "The transformation type to affect of the constrained object"
-msgstr "Typ transformacji do zmiany w obiekcie"
-
-
 msgid "Map To X From"
 msgstr "Mapuj na X z"
 
@@ -5599,14 +5587,6 @@ msgid "Vorbis"
 msgstr "Vorbis"
 
 
-msgid "Samplerate"
-msgstr "Częstotliwość próbkowania"
-
-
-msgid "Audio samplerate(samples/s)"
-msgstr "Częstotliwość z jaką próbkowany jest dźwięk (w próbkach na sekundę)"
-
-
 msgctxt "Sound"
 msgid "Volume"
 msgstr "Głośność"
@@ -6056,6 +6036,10 @@ msgid "Size"
 msgstr "Rozmiar"
 
 
+msgid "Grease Pencil"
+msgstr "Szkicownik"
+
+
 msgid "Save"
 msgstr "Zapisz"
 
@@ -6136,20 +6120,12 @@ msgid "Local"
 msgstr "Lokalnie"
 
 
-msgid "Mask"
-msgstr "Maska"
-
-
 msgid "Brush"
 msgstr "Pędzel"
 
 
 msgid "Paint Curve"
 msgstr "Krzywa graficzna"
-
-
-msgid "Rotate"
-msgstr "Obróć"
 
 
 msgid "Laplacian"
@@ -6277,6 +6253,10 @@ msgid "ID Type"
 msgstr "Typ ID"
 
 
+msgid "Mask"
+msgstr "Maska"
+
+
 msgid "Key"
 msgstr "Klucz"
 
@@ -6365,6 +6345,10 @@ msgid "Pixelate"
 msgstr "Pikselizacja"
 
 
+msgid "Rotate"
+msgstr "Obróć"
+
+
 msgid "Translate"
 msgstr "Przesuń"
 
@@ -6447,12 +6431,20 @@ msgid "Open"
 msgstr "Otwórz"
 
 
+msgid "Play"
+msgstr "Start"
+
+
 msgid "Remove Pack"
 msgstr "Usuń paczkę (rozpakuj)"
 
 
 msgid "Limit"
 msgstr "Ograniczenie"
+
+
+msgid "Sigma"
+msgstr "Sigma"
 
 
 msgid "Add a constraint to the active object"
@@ -6508,10 +6500,6 @@ msgstr "Obróć zaznaczone obiekty"
 
 msgid "Pinned"
 msgstr "Przypięty"
-
-
-msgid "Play"
-msgstr "Start"
 
 
 msgid "Property Name"
@@ -6570,12 +6558,20 @@ msgid "Continue"
 msgstr "Kontynuacja"
 
 
+msgid "Temperature"
+msgstr "Temperatura"
+
+
 msgid "Gray Scale"
 msgstr "Odcienie szarości"
 
 
 msgid "Sepia"
 msgstr "Sepia"
+
+
+msgid "Mass Vertex Group"
+msgstr "Masa grupy wierzchołków"
 
 
 msgid "Timeline and playback controls"
@@ -6619,13 +6615,14 @@ msgid "Priority"
 msgstr "Priorytet"
 
 
-msgid "Temperature"
-msgstr "Temperatura"
-
-
 msgctxt "Image"
 msgid "New"
 msgstr "Nowy"
+
+
+msgctxt "Operator"
+msgid "Online Manual"
+msgstr "Instrukcja Obsługi online"
 
 
 msgid "Slot %d"
@@ -6966,10 +6963,6 @@ msgid "Render height has to be 576 pixels for DV-PAL!"
 msgstr "Wysokość renderu musi wynosić 576 pikseli dla DV-PAL!"
 
 
-msgid "FFMPEG only supports 48khz / stereo audio for DV!"
-msgstr "FFMPEG obsługuje wyłącznie 48khz / dźwięk stereo dla DV!"
-
-
 msgid "Error initializing video stream"
 msgstr "Błąd inicjacji strumienia filmowego"
 
@@ -7174,10 +7167,6 @@ msgid "<Missing ID block>"
 msgstr "<Brak bloku ID>"
 
 
-msgid "No RNA pointer available to retrieve values for this fcurve"
-msgstr "Brak dostępnego wskaźnika RNA, z którego można odzyskać wartości dla tej krzywej-F"
-
-
 msgid "No F-Curve to add keyframes to"
 msgstr "Brak krzywej-F, do której można dodać klatki kluczowe"
 
@@ -7208,10 +7197,6 @@ msgstr "Ustanowienie ścieżki do właściwości nie powiodło się, spróbuj r�
 
 msgid "No active Keying Set"
 msgstr "Brak aktywnego Zestawu Kluczowania"
-
-
-msgid "Could not update flags for this fcurve, as RNA path is invalid for the given ID (ID = %s, path = %s)"
-msgstr "Nie można było uaktualnić flag dla tej krzywej-F ponieważ ścieżka RNA jest nieprawidłowa dla danego ID (ID = %s, path = %s)"
 
 
 msgid "F-Curve with path '%s[%d]' cannot be keyframed, ensure that it is not locked or sampled, and try removing F-Modifiers"
@@ -7376,10 +7361,6 @@ msgstr "Akcje na tym szkielecie zostaną zniszczone przez tę nową pozę spoczy
 
 msgid "No pose to copy"
 msgstr "Brak pozy do skopiowania"
-
-
-msgid "Copy buffer is empty"
-msgstr "Bufor kopiowania jest pusty"
 
 
 msgid "Programming error: missing clear transform function or keying set name"
@@ -7648,11 +7629,6 @@ msgstr "Resetuj pojedynczy do domyślnego"
 msgctxt "Operator"
 msgid "Remove Shortcut"
 msgstr "Usuń Skrót"
-
-
-msgctxt "Operator"
-msgid "Online Manual"
-msgstr "Instrukcja Obsługi online"
 
 
 msgctxt "Operator"
@@ -8690,10 +8666,6 @@ msgid "|%i multiuser armature object(s)"
 msgstr "|%i obiektów szkielet z wieloma użytkownikami"
 
 
-msgid "This operator does not support an active mirror modifier"
-msgstr "Ten operator nie obsługuje aktywnego modyfikatora lustro"
-
-
 msgid "Editmode lattice is not supported yet"
 msgstr "Tryb edycji kraty jeszcze nie jest obsługiwany"
 
@@ -9176,10 +9148,6 @@ msgstr "Akcja musi posiadać przynajmniej jedną klatkę kluczową lub modyfikat
 
 msgid "Action has already been stashed"
 msgstr "Akcja została już przytrzymana (stashed)"
-
-
-msgid "No keyframes copied to keyframes copy/paste buffer"
-msgstr "Nie skopiowano klatek kluczowych do bufora kopiuj/wklej klatek kluczowych"
 
 
 msgid "Keyframe pasting is not available for mask mode"
@@ -9829,10 +9797,6 @@ msgstr "Odtwórz plik"
 
 msgid "unknown error writing file"
 msgstr "nieznany błąd zapisu pliku"
-
-
-msgid "unknown error stating file"
-msgstr "nieznany błąd stating file"
 
 
 msgid "Could not reopen file"
@@ -10548,22 +10512,6 @@ msgid "Already a control point at frame %.6f"
 msgstr "Punkt kontrolny już w klatce %.6f"
 
 
-msgid "FCurve has already sample points"
-msgstr "Krzywa F już posiada próbkowane punkty"
-
-
-msgid "FCurve has no keyframes"
-msgstr "Krzywa F nie posiada klatek kluczowych"
-
-
-msgid "FCurve has already keyframes"
-msgstr "Krzywa F już posiada klatki kluczowe"
-
-
-msgid "FCurve has no sample points"
-msgstr "Krzywa F nie posiada próbkowanych punktów"
-
-
 msgid "Invalid frame range (%d - %d)"
 msgstr "Nieprawidłowy zakres klatek (%d - %d)"
 
@@ -10966,10 +10914,6 @@ msgid "RoughnessV"
 msgstr "SzorstkośćV"
 
 
-msgid "Sigma"
-msgstr "Sigma"
-
-
 msgid "View Vector"
 msgstr "Wektor widoku"
 
@@ -11173,11 +11117,6 @@ msgid "Hue Correct"
 msgstr "Korekta barwy"
 
 
-msgctxt "Sequence"
-msgid "Bright/Contrast"
-msgstr "Jasność/Kontrast"
-
-
 msgid "Strips must be the same length"
 msgstr "Paski muszą być tej samej długości"
 
@@ -11206,36 +11145,8 @@ msgid "Context window not set"
 msgstr "Nie ustalono okna kontekstu"
 
 
-msgid "Cannot read file '%s': %s"
-msgstr "Nie udało się odczytać pliku '%s': %s"
-
-
-msgid "File format is not supported in file '%s'"
-msgstr "Nieobsługiwany format w pliku '%s'"
-
-
-msgid "File path '%s' invalid"
-msgstr "Ścieżka '%s' nieprawidłowa"
-
-
-msgid "Unknown error loading '%s'"
-msgstr "Nieznany błąd podczas odczytu '%s'"
-
-
-msgid "Could not read '%s'"
-msgstr "Nie udało się odczytać '%s'"
-
-
-msgid "Cannot save blend file, path '%s' is not writable"
-msgstr "Nie udało się zapisać pliku blend, ścieżka '%s' nie możliwa do zapisu"
-
-
 msgid "Cannot overwrite used library '%.240s'"
 msgstr "Nie udało się nadpisać używanej biblioteki '%.240s'"
-
-
-msgid "Can't read alternative start-up file: '%s'"
-msgstr "Nie udało się odczytać alternatywnego pliku startowego: '%s'"
 
 
 msgid "Not a library"
@@ -11371,10 +11282,6 @@ msgid "Japanese (日本語)"
 msgstr "Japoński (日本語)"
 
 
-msgid "Dutch (Nederlandse taal)"
-msgstr "Niderlandzki (Nederlandse taal)"
-
-
 msgid "Italian (Italiano)"
 msgstr "Włoski (Italiano)"
 
@@ -11487,10 +11394,6 @@ msgid "Hebrew (תירִבְעִ)"
 msgstr "Hebrajski (תירִבְעִ)"
 
 
-msgid "Estonian (Eestlane)"
-msgstr "Estoński (Eestlane)"
-
-
 msgid "Esperanto (Esperanto)"
 msgstr "Esperanto (Esperanto)"
 
@@ -11509,10 +11412,6 @@ msgstr "Uzbecki (Oʻzbek)"
 
 msgid "Uzbek Cyrillic (Ўзбек)"
 msgstr "Uzbecki Cyrylica (Ўзбек)"
-
-
-msgid "Hindi (मानक हिन्दी)"
-msgstr "Hinduski (मानक हिन्दी)"
 
 
 msgid "Complete"

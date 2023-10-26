@@ -157,6 +157,10 @@ class BlenderSync {
   static BL::NodeTree find_active_kernel_node_tree(PointerRNA oct_scene);
   static BL::NodeTree find_active_render_aov_node_tree(PointerRNA oct_viewlayer);
   static BL::NodeTree find_active_composite_node_tree(PointerRNA oct_viewlayer);
+  static BL::Node find_active_kernel_node(BL::NodeTree &b_node_tree);
+  static bool is_switch_node(BL::Node &node);
+  static BL::Node find_input_node_from_switch_node(BL::NodeTree &b_node_tree, BL::Node &node);
+  static BL::Node find_input_node_from_switch_node_recursively(BL::NodeTree &b_node_tree, BL::Node &node);
   static void get_samples(PointerRNA oct_scene,
                           int &max_sample,
                           int &max_preview_sample,

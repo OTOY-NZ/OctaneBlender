@@ -17,6 +17,7 @@
 #include "BLI_ghash.h"
 #include "BLI_linklist.h"
 #include "BLI_listbase.h"
+#include "BLI_path_util.h" /* Only for assertions. */
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
@@ -89,7 +90,7 @@ void BLO_blendhandle_print_sizes(BlendHandle *bh, void *fp)
 
   fprintf(static_cast<FILE *>(fp), "[\n");
   for (bhead = blo_bhead_first(fd); bhead; bhead = blo_bhead_next(fd, bhead)) {
-    if (bhead->code == ENDB) {
+    if (bhead->code == BLO_CODE_ENDB) {
       break;
     }
 
@@ -137,7 +138,7 @@ LinkNode *BLO_blendhandle_get_datablock_names(BlendHandle *bh,
       BLI_linklist_prepend(&names, BLI_strdup(idname + 2));
       tot++;
     }
-    else if (bhead->code == ENDB) {
+    else if (bhead->code == BLO_CODE_ENDB) {
       break;
     }
   }
@@ -159,7 +160,7 @@ LinkNode *BLO_blendhandle_get_datablock_info(BlendHandle *bh,
   const int sdna_nr_preview_image = DNA_struct_find_nr(fd->filesdna, "PreviewImage");
 
   for (bhead = blo_bhead_first(fd); bhead; bhead = blo_bhead_next(fd, bhead)) {
-    if (bhead->code == ENDB) {
+    if (bhead->code == BLO_CODE_ENDB) {
       break;
     }
     if (bhead->code == ofblocktype) {
@@ -190,8 +191,9 @@ LinkNode *BLO_blendhandle_get_datablock_info(BlendHandle *bh,
 
       bool has_preview = false;
       /* See if we can find a preview in the data of this ID. */
-      for (BHead *data_bhead = blo_bhead_next(fd, id_bhead); data_bhead->code == DATA;
-           data_bhead = blo_bhead_next(fd, data_bhead)) {
+      for (BHead *data_bhead = blo_bhead_next(fd, id_bhead); data_bhead->code == BLO_CODE_DATA;
+           data_bhead = blo_bhead_next(fd, data_bhead))
+      {
         if (data_bhead->SDNAnr == sdna_nr_preview_image) {
           has_preview = true;
           break;
@@ -229,7 +231,8 @@ static BHead *blo_blendhandle_read_preview_rects(FileData *fd,
 {
   for (int preview_index = 0; preview_index < NUM_ICON_SIZES; preview_index++) {
     if (preview_from_file->rect[preview_index] && preview_from_file->w[preview_index] &&
-        preview_from_file->h[preview_index]) {
+        preview_from_file->h[preview_index])
+    {
       bhead = blo_bhead_next(fd, bhead);
       BLI_assert((preview_from_file->w[preview_index] * preview_from_file->h[preview_index] *
                   sizeof(uint)) == bhead->len);
@@ -260,7 +263,7 @@ PreviewImage *BLO_blendhandle_get_preview_for_id(BlendHandle *bh,
   const int sdna_preview_image = DNA_struct_find_nr(fd->filesdna, "PreviewImage");
 
   for (BHead *bhead = blo_bhead_first(fd); bhead; bhead = blo_bhead_next(fd, bhead)) {
-    if (bhead->code == DATA) {
+    if (bhead->code == BLO_CODE_DATA) {
       if (looking && bhead->SDNAnr == sdna_preview_image) {
         PreviewImage *preview_from_file = static_cast<PreviewImage *>(
             BLO_library_read_struct(fd, bhead, "PreviewImage"));
@@ -275,7 +278,7 @@ PreviewImage *BLO_blendhandle_get_preview_for_id(BlendHandle *bh,
         return result;
       }
     }
-    else if (looking || bhead->code == ENDB) {
+    else if (looking || bhead->code == BLO_CODE_ENDB) {
       /* We were looking for a preview image, but didn't find any belonging to block. So it doesn't
        * exist. */
       break;
@@ -324,7 +327,7 @@ LinkNode *BLO_blendhandle_get_previews(BlendHandle *bh, int ofblocktype, int *r_
           break;
       }
     }
-    else if (bhead->code == DATA) {
+    else if (bhead->code == BLO_CODE_DATA) {
       if (looking) {
         if (bhead->SDNAnr == DNA_struct_find_nr(fd->filesdna, "PreviewImage")) {
           prv = static_cast<PreviewImage *>(BLO_library_read_struct(fd, bhead, "PreviewImage"));
@@ -337,7 +340,7 @@ LinkNode *BLO_blendhandle_get_previews(BlendHandle *bh, int ofblocktype, int *r_
         }
       }
     }
-    else if (bhead->code == ENDB) {
+    else if (bhead->code == BLO_CODE_ENDB) {
       break;
     }
     else {
@@ -359,7 +362,7 @@ LinkNode *BLO_blendhandle_get_linkable_groups(BlendHandle *bh)
   BHead *bhead;
 
   for (bhead = blo_bhead_first(fd); bhead; bhead = blo_bhead_next(fd, bhead)) {
-    if (bhead->code == ENDB) {
+    if (bhead->code == BLO_CODE_ENDB) {
       break;
     }
     if (BKE_idtype_idcode_is_valid(bhead->code)) {
@@ -398,6 +401,9 @@ BlendFileData *BLO_read_from_file(const char *filepath,
                                   eBLOReadSkip skip_flags,
                                   BlendFileReadReport *reports)
 {
+  BLI_assert(!BLI_path_is_rel(filepath));
+  BLI_assert(BLI_path_is_abs_from_cwd(filepath));
+
   BlendFileData *bfd = nullptr;
   FileData *fd;
 
@@ -446,7 +452,7 @@ BlendFileData *BLO_read_from_memfile(Main *oldmain,
   fd = blo_filedata_from_memfile(memfile, params, &bf_reports);
   if (fd) {
     fd->skip_flags = eBLOReadSkip(params->skip_flags);
-    BLI_strncpy(fd->relabase, filepath, sizeof(fd->relabase));
+    STRNCPY(fd->relabase, filepath);
 
     /* separate libraries from old main */
     blo_split_main(&old_mainlist, oldmain);

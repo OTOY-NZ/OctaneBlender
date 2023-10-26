@@ -662,8 +662,10 @@ _octane_node_items = {
             octane_pin_type=consts.PinType.PT_GEOMETRY,
             items=[
                 OctaneNodeItem("OctaneVectron" if utility.use_new_addon_nodes() else "ShaderNodeOctVectron"),
-                OctaneNodeItem("OctaneScatterInVolume"),
+                OctaneNodeItemSeperator("Scatter Tools"),
                 OctaneNodeItem("OctaneScatterOnSurface"),
+                OctaneNodeItem("OctaneScatterInVolume"),
+                OctaneNodeItemSeperator("Vectron Primitives"),
                 OctaneNodeItem("OctaneSDFBox"),
                 OctaneNodeItem("OctaneSDFCapsule"),
                 OctaneNodeItem("OctaneSDFCylinder"),

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
-# Copyright 2006 Blender Foundation. All rights reserved.
+# Copyright 2006 Blender Foundation
 
 add_subdirectory(composite)
 add_subdirectory(function)
@@ -29,6 +29,7 @@ set(INC
   ../makesrna
   ../render
   ../windowmanager
+  ../../../extern/fmtlib/include
   ../../../intern/guardedalloc
 
   # dna_type_offsets.h
@@ -187,6 +188,7 @@ set(OCT_SRC
 SET_SOURCE_FILES_PROPERTIES(${OCT_SRC} PROPERTIES LANGUAGE CXX )
 
 set(SRC
+  intern/add_node_search.cc
   intern/derived_node_tree.cc
   intern/geometry_nodes_lazy_function.cc
   intern/geometry_nodes_log.cc
@@ -202,6 +204,7 @@ set(SRC
   intern/node_util.cc
   intern/socket_search_link.cc
 
+  NOD_add_node_search.hh
   NOD_common.h
   NOD_composite.h
   NOD_derived_node_tree.hh
@@ -221,8 +224,8 @@ set(SRC
   NOD_static_types.h
   NOD_texture.h
   intern/node_common.h
-  intern/node_exec.h
-  intern/node_util.h
+  intern/node_exec.hh
+  intern/node_util.hh
 
   ${OCT_SRC}
 )

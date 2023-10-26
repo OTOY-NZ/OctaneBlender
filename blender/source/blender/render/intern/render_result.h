@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2007 Blender Foundation. All rights reserved. */
+ * Copyright 2007 Blender Foundation */
 
 /** \file
  * \ingroup render
@@ -20,6 +20,7 @@ struct Render;
 struct RenderData;
 struct RenderLayer;
 struct RenderResult;
+struct ReportList;
 struct rcti;
 
 #ifdef __cplusplus
@@ -94,9 +95,10 @@ struct RenderPass *render_layer_add_pass(struct RenderResult *rr,
 /**
  * Called for reading temp files, and for external engines.
  */
-int render_result_exr_file_read_path(struct RenderResult *rr,
-                                     struct RenderLayer *rl_single,
-                                     const char *filepath);
+bool render_result_exr_file_read_path(struct RenderResult *rr,
+                                      struct RenderLayer *rl_single,
+                                      struct ReportList *reports,
+                                      const char *filepath);
 
 /* EXR cache */
 
@@ -136,7 +138,8 @@ void render_result_views_shallowdelete(struct RenderResult *rr);
     ViewLayer *iter_; \
     for (nr_ = 0, iter_ = static_cast<ViewLayer *>((re_)->scene->view_layers.first); \
          iter_ != NULL; \
-         iter_ = iter_->next, nr_++) { \
+         iter_ = iter_->next, nr_++) \
+    { \
       if (!G.background && (re_)->r.scemode & R_SINGLE_LAYER) { \
         if (!STREQ(iter_->name, re->single_view_layer)) { \
           continue; \

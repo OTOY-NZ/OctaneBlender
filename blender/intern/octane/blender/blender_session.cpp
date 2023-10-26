@@ -33,7 +33,7 @@
 
 #include "RE_engine.h"
 #include "RE_pipeline.h"
-#include "pipeline.h"
+#include "pipeline.hh"
 #include "render_types.h"
 
 #include "DEG_depsgraph.h"

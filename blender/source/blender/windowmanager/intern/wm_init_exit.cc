@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2007 Blender Foundation. All rights reserved. */
+ * Copyright 2007 Blender Foundation */
 
 /** \file
  * \ingroup wm
@@ -25,6 +25,7 @@
 #include "DNA_userdef_types.h"
 #include "DNA_windowmanager_types.h"
 
+#include "BLI_fileops.h"
 #include "BLI_listbase.h"
 #include "BLI_path_util.h"
 #include "BLI_string.h"
@@ -47,7 +48,7 @@
 #include "BKE_lib_remap.h"
 #include "BKE_main.h"
 #include "BKE_mball_tessellate.h"
-#include "BKE_node.h"
+#include "BKE_node.hh"
 #include "BKE_report.h"
 #include "BKE_scene.h"
 #include "BKE_screen.h"
@@ -76,7 +77,7 @@
 #endif
 
 #include "GHOST_C-api.h"
-#include "GHOST_Path-api.h"
+#include "GHOST_Path-api.hh"
 
 #include "RNA_define.h"
 
@@ -95,7 +96,7 @@
 #include "ED_anim_api.h"
 #include "ED_armature.h"
 #include "ED_asset.h"
-#include "ED_gpencil.h"
+#include "ED_gpencil_legacy.h"
 #include "ED_keyframes_edit.h"
 #include "ED_keyframing.h"
 #include "ED_node.h"
@@ -350,28 +351,68 @@ void WM_init(bContext *C, int argc, const char **argv)
     }
   }
 
-  BKE_material_copybuf_clear();
   ED_render_clear_mtex_copybuf();
 
   wm_history_file_read();
 
-  BLI_strncpy(G.lib, BKE_main_blendfile_path_from_global(), sizeof(G.lib));
+  STRNCPY(G.lib, BKE_main_blendfile_path_from_global());
 
   wm_homefile_read_post(C, params_file_read_post);
 }
 
-void WM_init_splash(bContext *C)
+static bool wm_init_splash_show_on_startup_check()
 {
-  if ((U.uiflag & USER_SPLASH_DISABLE) == 0) {
-    wmWindowManager *wm = CTX_wm_manager(C);
-    wmWindow *prevwin = CTX_wm_window(C);
+  if (U.uiflag & USER_SPLASH_DISABLE) {
+    return false;
+  }
 
-    if (wm->windows.first) {
-      CTX_wm_window_set(C, static_cast<wmWindow *>(wm->windows.first));
-      WM_operator_name_call(C, "WM_OT_splash", WM_OP_INVOKE_DEFAULT, nullptr, nullptr);
-      CTX_wm_window_set(C, prevwin);
+  bool use_splash = false;
+
+  const char *blendfile_path = BKE_main_blendfile_path_from_global();
+  if (blendfile_path[0] == '\0') {
+    /* Common case, no file is loaded, show the splash. */
+    use_splash = true;
+  }
+  else {
+    /* A less common case, if there is no user preferences, show the splash screen
+     * so the user has the opportunity to restore settings from a previous version. */
+    const char *const cfgdir = BKE_appdir_folder_id(BLENDER_USER_CONFIG, nullptr);
+    if (cfgdir) {
+      char userpref[FILE_MAX];
+      BLI_path_join(userpref, sizeof(userpref), cfgdir, BLENDER_USERPREF_FILE);
+      if (!BLI_exists(userpref)) {
+        use_splash = true;
+      }
+    }
+    else {
+      use_splash = true;
     }
   }
+
+  return use_splash;
+}
+
+void WM_init_splash_on_startup(bContext *C)
+{
+  if (!wm_init_splash_show_on_startup_check()) {
+    return;
+  }
+
+  WM_init_splash(C);
+}
+
+void WM_init_splash(bContext *C)
+{
+  wmWindowManager *wm = CTX_wm_manager(C);
+  /* NOTE(@ideasman42): this should practically never happen. */
+  if (UNLIKELY(BLI_listbase_is_empty(&wm->windows))) {
+    return;
+  }
+
+  wmWindow *prevwin = CTX_wm_window(C);
+  CTX_wm_window_set(C, static_cast<wmWindow *>(wm->windows.first));
+  WM_operator_name_call(C, "WM_OT_splash", WM_OP_INVOKE_DEFAULT, nullptr, nullptr);
+  CTX_wm_window_set(C, prevwin);
 }
 
 /* free strings of open recent files */
@@ -410,7 +451,7 @@ static void wait_for_console_key(void)
 
 static int wm_exit_handler(bContext *C, const wmEvent *event, void *userdata)
 {
-  WM_exit(C);
+  WM_exit(C, EXIT_SUCCESS);
 
   UNUSED_VARS(event, userdata);
   return WM_UI_HANDLER_BREAK;
@@ -432,15 +473,21 @@ void wm_exit_schedule_delayed(const bContext *C)
 
 void UV_clipboard_free();
 
-void WM_exit_ex(bContext *C, const bool do_python)
+void WM_exit_ex(bContext *C, const bool do_python, const bool do_user_exit_actions)
 {
   wmWindowManager *wm = C ? CTX_wm_manager(C) : nullptr;
+
+  /* While nothing technically prevents saving user data in background mode,
+   * don't do this as not typically useful and more likely to cause problems
+   * if automated scripts happen to write changes to the preferences for e.g.
+   * Saving #BLENDER_QUIT_FILE is also not likely to be desired either. */
+  BLI_assert(G.background ? (do_user_exit_actions == false) : true);
 
   /* first wrap up running stuff, we assume only the active WM is running */
   /* modal handlers are on window level freed, others too? */
   /* NOTE: same code copied in `wm_files.cc`. */
   if (C && wm) {
-    if (!G.background) {
+    if (do_user_exit_actions) {
       struct MemFile *undo_memfile = wm->undo_stack ?
                                          ED_undosys_stack_memfile_get_active(wm->undo_stack) :
                                          nullptr;
@@ -458,8 +505,9 @@ void WM_exit_ex(bContext *C, const bool do_python)
         BlendFileWriteParams blend_file_write_params{};
         if ((has_edited &&
              BLO_write_file(bmain, filepath, fileflags, &blend_file_write_params, nullptr)) ||
-            BLO_memfile_write_file(undo_memfile, filepath)) {
-          printf("Saved session recovery to '%s'\n", filepath);
+            BLO_memfile_write_file(undo_memfile, filepath))
+        {
+          printf("Saved session recovery to \"%s\"\n", filepath);
         }
       }
     }
@@ -473,7 +521,7 @@ void WM_exit_ex(bContext *C, const bool do_python)
       ED_screen_exit(C, win, WM_window_get_active_screen(win));
     }
 
-    if (!G.background) {
+    if (do_user_exit_actions) {
       if ((U.pref_flag & USER_PREF_FLAG_SAVE) && ((G.f & G_FLAG_USERPREF_NO_SAVE_ON_EXIT) == 0)) {
         if (U.runtime.is_dirty) {
           BKE_blendfile_userdef_write_all(nullptr);
@@ -554,7 +602,6 @@ void WM_exit_ex(bContext *C, const bool do_python)
   }
 
   BKE_blender_free(); /* blender.c, does entire library and spacetypes */
-                      //  BKE_material_copybuf_free();
 
   /* Free the GPU subdivision data after the database to ensure that subdivision structs used by
    * the modifiers were garbage collected. */
@@ -649,9 +696,10 @@ void WM_exit_ex(bContext *C, const bool do_python)
   CLG_exit();
 }
 
-void WM_exit(bContext *C)
+void WM_exit(bContext *C, const int exit_code)
 {
-  WM_exit_ex(C, true);
+  const bool do_user_exit_actions = G.background ? false : (exit_code == EXIT_SUCCESS);
+  WM_exit_ex(C, true, do_user_exit_actions);
 
   OCT_Rlease_API();
 
@@ -665,7 +713,7 @@ void WM_exit(bContext *C)
   }
 #endif
 
-  exit(G.is_break == true);
+  exit(exit_code);
 }
 
 void WM_script_tag_reload(void)

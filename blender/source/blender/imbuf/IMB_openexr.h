@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2006 Blender Foundation. All rights reserved. */
+ * Copyright 2006 Blender Foundation */
 
 /** \file
  * \ingroup imbuf
@@ -66,7 +66,7 @@ void IMB_exrtile_begin_write(
  *
  * \param passname: Here is the raw channel name without the layer.
  */
-void IMB_exr_set_channel(void *handle,
+bool IMB_exr_set_channel(void *handle,
                          const char *layname,
                          const char *passname,
                          int xstride,

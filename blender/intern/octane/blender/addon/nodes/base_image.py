@@ -243,6 +243,18 @@ class OctaneBaseImageNode(OctaneBaseNode):
                 is_data_updated = True
         octane_node.set_attribute_blender_name(self.BLENDER_ATTRIBUTE_IMAGE_DATA_UPDATE, consts.AttributeType.AT_BOOL, is_data_updated)
 
+    def copy_from_custom_node(self, other_node):
+        self.a_channel_format = other_node.a_channel_format
+        self.image = other_node.image
+        self.frame_current = other_node.frame_current
+        self.frame_duration = other_node.frame_duration
+        self.frame_offset = other_node.frame_offset
+        self.frame_start = other_node.frame_start
+        self.use_auto_refresh = other_node.use_auto_refresh
+        self.use_cyclic = other_node.use_cyclic
+        self.a_ies_photometry_mode = other_node.a_ies_photometry_mode
+        self.update_image_info() 
+
     def load_custom_legacy_node(self, legacy_node, node_tree, context, report):
         super().load_custom_legacy_node(legacy_node, node_tree, context, report)
         self.image = legacy_node.image
@@ -258,7 +270,7 @@ class OctaneBaseImageNode(OctaneBaseNode):
         if legacy_node.hdr_tex_bit_depth == "OCT_HDR_BIT_DEPTH_32":
             a_channel_format = "32-bit float"
         if legacy_node.hdr_tex_bit_depth == "OCT_HDR_BIT_DEPTH_16":
-            a_channel_format = "16-bit float"        
+            a_channel_format = "16-bit float"
         if a_channel_format != "Automatic":
             if a_channel_format in [item[0] for item in self.a_channel_format_enum_items_container.get(self.a_channel_format_enum_items_str, [])]:
                 self.a_channel_format = a_channel_format

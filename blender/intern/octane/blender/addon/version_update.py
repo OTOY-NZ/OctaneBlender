@@ -1,24 +1,4 @@
-#
-# Copyright 2011, Blender Foundation.
-#
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software Foundation,
-# Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-
-# <pep8 compliant>
-
-OCTANE_BLENDER_VERSION = '27.16'
+OCTANE_BLENDER_VERSION = '27.16.2'
 OCTANE_VERSION = 12000102
 OCTANE_VERSION_STR = "2022.1.1"
 
@@ -28,12 +8,14 @@ import functools
 import re
 
 from bpy.app.handlers import persistent
+from octane import core
 from octane.utils import consts
 
 @persistent
 def do_versions(self):
     from octane import core
     file_version = get_current_octane_blender_version()
+    check_compatibility_octane_light(file_version)
     check_compatibility_octane_mesh(file_version)
     check_compatibility_octane_object(file_version)
     check_compatibility_octane_pariticle(file_version)
@@ -344,6 +326,7 @@ def check_compatibility_render_layer_27_5(file_version):
 # kernel
 def check_compatibility_kernel(file_version):
     check_compatibility_kernel_27_5(file_version)
+    check_compatibility_kernel_27_16_2(file_version)
 
 def check_compatibility_kernel_27_5(file_version):
     UPDATE_VERSION = "27.5"
@@ -352,9 +335,17 @@ def check_compatibility_kernel_27_5(file_version):
     scene_oct = bpy.context.scene.octane
     scene_oct.coherent_ratio = math.pow(scene_oct.coherent_ratio, 1.0 / 3.0)
 
+def check_compatibility_kernel_27_16_2(file_version):
+    UPDATE_VERSION = "27.16.2"
+    if not check_update(file_version, UPDATE_VERSION):
+        return
+    scene_oct = bpy.context.scene.octane
+    scene_oct.adaptive_group_pixels1 = scene_oct.adaptive_group_pixels
+
 # passes
 def check_compatibility_octane_passes(file_version):
     check_compatibility_octane_passes_24_2(file_version)
+    check_compatibility_octane_passes_27_16(file_version)
 
 
 def check_compatibility_octane_passes_24_2(file_version):
@@ -376,6 +367,130 @@ def check_compatibility_octane_passes_24_2(file_version):
             composite_node_graph_property = octane_view_layer.composite_node_graph_property
             composite_node_graph_property.node_tree = node_tree            
 
+
+def check_compatibility_octane_passes_27_16(file_version):
+    if core.ENABLE_OCTANE_ADDON_CLIENT:
+        return    
+    UPDATE_VERSION = '27.16'
+    if not check_update(file_version, UPDATE_VERSION):
+        return       
+    attribute_pairs = (
+        # Beauty Passes
+        ("use_pass_oct_beauty", "use_pass_beauty"),
+        ("use_pass_oct_emitters", "use_pass_emitters"),
+        ("use_pass_oct_env", "use_pass_env"),
+        ("use_pass_oct_diff", "use_pass_diff"),
+        ("use_pass_oct_diff_dir", "use_pass_diff_dir"),
+        ("use_pass_oct_diff_indir", "use_pass_diff_indir"),
+        ("use_pass_oct_diff_filter", "use_pass_diff_filter"),
+        ("use_pass_oct_reflect", "use_pass_reflect"),
+        ("use_pass_oct_reflect_dir", "use_pass_reflect_dir"),
+        ("use_pass_oct_reflect_indir", "use_pass_reflect_indir"),
+        ("use_pass_oct_reflect_filter", "use_pass_reflect_filter"),
+        ("use_pass_oct_refract", "use_pass_refract"),
+        ("use_pass_oct_refract_filter", "use_pass_refract_filter"),
+        ("use_pass_oct_transm", "use_pass_transm"),
+        ("use_pass_oct_transm_filter", "use_pass_transm_filter"),
+        ("use_pass_oct_sss", "use_pass_sss"),
+        ("use_pass_oct_shadow", "use_pass_shadow"),
+        ("use_pass_oct_irradiance", "use_pass_irradiance"),
+        ("use_pass_oct_light_dir", "use_pass_light_dir"),
+        ("use_pass_oct_volume", "use_pass_volume"),
+        ("use_pass_oct_vol_mask", "use_pass_vol_mask"),
+        ("use_pass_oct_vol_emission", "use_pass_vol_emission"),
+        ("use_pass_oct_vol_z_front", "use_pass_vol_z_front"),
+        ("use_pass_oct_vol_z_back", "use_pass_vol_z_back"),
+        ("use_pass_oct_noise", "use_pass_noise"),
+        # Denoise Passes
+        ("use_pass_oct_denoise_beauty", "use_pass_denoise_beauty"),
+        ("use_pass_oct_denoise_diff_dir", "use_pass_denoise_diff_dir"),
+        ("use_pass_oct_denoise_diff_indir", "use_pass_denoise_diff_indir"),
+        ("use_pass_oct_denoise_reflect_dir", "use_pass_denoise_reflect_dir"),
+        ("use_pass_oct_denoise_reflect_indir", "use_pass_denoise_reflect_indir"),
+        ("use_pass_oct_denoise_emission", "use_pass_denoise_emission"),
+        ("use_pass_oct_denoise_remainder", "use_pass_denoise_remainder"),
+        ("use_pass_oct_denoise_vol", "use_pass_denoise_vol"),
+        ("use_pass_oct_denoise_vol_emission", "use_pass_denoise_vol_emission"),
+        # Render Postprocess Passes
+        ("use_pass_oct_postprocess", "use_pass_postprocess"),
+        # Render Layer Passes
+        ("use_pass_oct_layer_shadows", "use_pass_layer_shadows"),
+        ("use_pass_oct_layer_black_shadow", "use_pass_layer_black_shadow"),
+        ("use_pass_oct_layer_reflections", "use_pass_layer_reflections"),
+        # Render Lighting Passesx
+        ("use_pass_oct_ambient_light", "use_pass_ambient_light"),
+        ("use_pass_oct_ambient_light_dir", "use_pass_ambient_light_dir"),
+        ("use_pass_oct_ambient_light_indir", "use_pass_ambient_light_indir"),
+        ("use_pass_oct_sunlight", "use_pass_sunlight"),
+        ("use_pass_oct_sunlight_dir", "use_pass_sunlight_dir"),
+        ("use_pass_oct_sunlight_indir", "use_pass_sunlight_indir"),
+        ("use_pass_oct_light_pass_1", "use_pass_light_pass_1"),
+        ("use_pass_oct_light_dir_pass_1", "use_pass_light_dir_pass_1"),
+        ("use_pass_oct_light_indir_pass_1", "use_pass_light_indir_pass_1"),
+        ("use_pass_oct_light_pass_2", "use_pass_light_pass_2"),
+        ("use_pass_oct_light_dir_pass_2", "use_pass_light_dir_pass_2"),
+        ("use_pass_oct_light_indir_pass_2", "use_pass_light_indir_pass_2"),
+        ("use_pass_oct_light_pass_3", "use_pass_light_pass_3"),
+        ("use_pass_oct_light_dir_pass_3", "use_pass_light_dir_pass_3"),
+        ("use_pass_oct_light_indir_pass_3", "use_pass_light_indir_pass_3"),
+        ("use_pass_oct_light_pass_4", "use_pass_light_pass_4"),
+        ("use_pass_oct_light_dir_pass_4", "use_pass_light_dir_pass_4"),
+        ("use_pass_oct_light_indir_pass_4", "use_pass_light_indir_pass_4"),
+        ("use_pass_oct_light_pass_5", "use_pass_light_pass_5"),
+        ("use_pass_oct_light_dir_pass_5", "use_pass_light_dir_pass_5"),
+        ("use_pass_oct_light_indir_pass_5", "use_pass_light_indir_pass_5"),
+        ("use_pass_oct_light_pass_6", "use_pass_light_pass_6"),
+        ("use_pass_oct_light_dir_pass_6", "use_pass_light_dir_pass_6"),
+        ("use_pass_oct_light_indir_pass_6", "use_pass_light_indir_pass_6"),
+        ("use_pass_oct_light_pass_7", "use_pass_light_pass_7"),
+        ("use_pass_oct_light_dir_pass_7", "use_pass_light_dir_pass_7"),
+        ("use_pass_oct_light_indir_pass_7", "use_pass_light_indir_pass_7"),
+        ("use_pass_oct_light_pass_8", "use_pass_light_pass_8"),
+        ("use_pass_oct_light_dir_pass_8", "use_pass_light_dir_pass_8"),
+        ("use_pass_oct_light_indir_pass_8", "use_pass_light_indir_pass_8"),
+        # Render Cryptomatte Passes
+        ("use_pass_oct_crypto_instance_id", "use_pass_crypto_instance_id"),
+        ("use_pass_oct_crypto_mat_node_name", "use_pass_crypto_mat_node_name"),
+        ("use_pass_oct_crypto_mat_node", "use_pass_crypto_mat_node"),
+        ("use_pass_oct_crypto_mat_pin_node", "use_pass_crypto_mat_pin_node"),
+        ("use_pass_oct_crypto_obj_node_name", "use_pass_crypto_obj_node_name"),
+        ("use_pass_oct_crypto_obj_node", "use_pass_crypto_obj_node"),
+        ("use_pass_oct_crypto_obj_pin_node", "use_pass_crypto_obj_pin_node"),
+        ("use_pass_oct_crypto_render_layer", "use_pass_crypto_render_layer"),
+        ("use_pass_oct_crypto_geometry_node_name", "use_pass_crypto_geometry_node_name"),
+        ("use_pass_oct_crypto_user_instance_id", "use_pass_crypto_user_instance_id"),
+        # Render Info Passes
+        ("use_pass_oct_info_geo_normal", "use_pass_info_geo_normal"),
+        ("use_pass_oct_info_smooth_normal", "use_pass_info_smooth_normal"),
+        ("use_pass_oct_info_shading_normal", "use_pass_info_shading_normal"),
+        ("use_pass_oct_info_tangent_normal", "use_pass_info_tangent_normal"),
+        ("use_pass_oct_info_z_depth", "use_pass_info_z_depth"),
+        ("use_pass_oct_info_position", "use_pass_info_position"),
+        ("use_pass_oct_info_uv", "use_pass_info_uv"),
+        ("use_pass_oct_info_tex_tangent", "use_pass_info_tex_tangent"),
+        ("use_pass_oct_info_motion_vector", "use_pass_info_motion_vector"),
+        ("use_pass_oct_info_mat_id", "use_pass_info_mat_id"),
+        ("use_pass_oct_info_obj_id", "use_pass_info_obj_id"),
+        ("use_pass_oct_info_obj_layer_color", "use_pass_info_obj_layer_color"),
+        ("use_pass_oct_info_baking_group_id", "use_pass_info_baking_group_id"),
+        ("use_pass_oct_info_light_pass_id", "use_pass_info_light_pass_id"),
+        ("use_pass_oct_info_render_layer_id", "use_pass_info_render_layer_id"),
+        ("use_pass_oct_info_render_layer_mask", "use_pass_info_render_layer_mask"),
+        ("use_pass_oct_info_wireframe", "use_pass_info_wireframe"),
+        ("use_pass_oct_info_ao", "use_pass_info_ao"),
+        # Render Material Passes
+        ("use_pass_oct_mat_opacity", "use_pass_mat_opacity"),
+        ("use_pass_oct_mat_roughness", "use_pass_mat_roughness"),
+        ("use_pass_oct_mat_ior", "use_pass_mat_ior"),
+        ("use_pass_oct_mat_diff_filter_info", "use_pass_mat_diff_filter_info"),
+        ("use_pass_oct_mat_reflect_filter_info", "use_pass_mat_reflect_filter_info"),
+        ("use_pass_oct_mat_refract_filter_info", "use_pass_mat_refract_filter_info"),
+        ("use_pass_oct_mat_transm_filter_info", "use_pass_mat_transm_filter_info"),
+    )
+    view_layer = bpy.context.view_layer
+    octane_view_layer = view_layer.octane     
+    for attribute_pair in attribute_pairs:
+        attribute_update(octane_view_layer, attribute_pair[1], view_layer, attribute_pair[0])
 
 # world
 def check_compatibility_octane_world(file_version):
@@ -572,6 +687,27 @@ def check_compatibility_octane_world_24_3(file_version):
         if world.node_tree and world.use_nodes and len(world.node_tree.nodes):
             world.node_tree.nodes[0].width = world.node_tree.nodes[0].width
 
+def check_compatibility_octane_light_27_16(file_version):
+    UPDATE_VERSION = '27.16'
+    if not check_update(file_version, UPDATE_VERSION):
+        return
+    for light in bpy.data.lights:        
+        oct_light = light.octane
+        if light.type == "SPHERE" or light.__class__.__name__ == "SphereLight":
+            light.type = "POINT"
+            oct_light.octane_point_light_type = "Sphere"
+        elif light.type == "MESH" or light.__class__.__name__ == "MeshLight":
+            light.type = "AREA"
+            oct_light.used_as_octane_mesh_light = True
+            if oct_light.light_mesh is not None:
+                for _object in bpy.data.objects:
+                    if _object.type == "MESH" and _object.data == oct_light.light_mesh:
+                        oct_light.light_mesh_object = _object
+                        break
+# light
+def check_compatibility_octane_light(file_version):
+    check_compatibility_octane_light_27_16(file_version)
+
 # mesh
 def check_compatibility_octane_mesh(file_version):
     check_compatibility_octane_mesh_25_2(file_version)
@@ -580,7 +716,7 @@ def check_compatibility_octane_mesh(file_version):
 def check_compatibility_octane_mesh_25_2(file_version):
     UPDATE_VERSION = '25.2'
     if not check_update(file_version, UPDATE_VERSION):
-        return    
+        return
     for mesh in bpy.data.meshes:
         oct_mesh = mesh.octane
         try:
@@ -599,7 +735,7 @@ def check_compatibility_octane_mesh_27_9(file_version):
         return
     from octane import core
     if core.ENABLE_OCTANE_ADDON_CLIENT:
-        return        
+        return
     for mesh in bpy.data.meshes:
         oct_mesh = mesh.octane
         try:
@@ -679,30 +815,30 @@ def check_compatibility_object_layer_settings(octane_object, octane_mesh, file_v
         ('baking_group_id', 'baking_group_id'),
     )
     for attribute_pair in attribute_pairs:
-        attribute_update(octane_object, attribute_pair[0], octane_mesh, attribute_pair[1])    
+        attribute_update(octane_object, attribute_pair[0], octane_mesh, attribute_pair[1])
 
 
 # particle system
 def check_compatibility_octane_pariticle(file_version):
-    check_compatibility_octane_pariticle_20_3(file_version)
+    check_compatibility_octane_pariticle_27_16(file_version)
 
 
-def check_compatibility_octane_pariticle_20_3(file_version):
-    UPDATE_VERSION = '20.3'
+def check_compatibility_octane_pariticle_27_16(file_version):
+    if core.ENABLE_OCTANE_ADDON_CLIENT:
+        return
+    UPDATE_VERSION = '27.16'    
     if not check_update(file_version, UPDATE_VERSION):
-        return    
-
+        return
     def check_compatibility_particle_settings(particle_setting, octane_particle_setting):
         attribute_pairs = (
-            ('octane_root_width', 'root_width'),
-            ('octane_tip_width', 'tip_width'),
-            ('octane_min_curvature', 'min_curvature'),
-            ('octane_w_min', 'w_min'),
-            ('octane_w_max', 'w_max'),
+            ('root_width', 'octane_root_width'),
+            ('tip_width', 'octane_tip_width'),
+            ('min_curvature', 'octane_min_curvature'),
+            ('w_min', 'octane_w_min'),
+            ('w_max', 'octane_w_max'),
         )
         for attribute_pair in attribute_pairs:
-            attribute_update(particle_setting, attribute_pair[0], octane_particle_setting, attribute_pair[1])   
-
+            attribute_update(octane_particle_setting, attribute_pair[0], particle_setting, attribute_pair[1])
     for particle in bpy.data.particles:
         if particle.type == 'HAIR':
             octane_particle = getattr(particle, 'octane', None)

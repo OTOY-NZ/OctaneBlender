@@ -1,35 +1,15 @@
-#
-# Copyright 2011, Blender Foundation.
-#
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software Foundation,
-# Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-
-# <pep8 compliant>
-
 bl_info = {
-    "name": "OctaneBlender (v. 27.16)",
+    "name": "OctaneBlender (v. 27.17)",
     "author": "OTOY Inc.",
-    "version": (27, 16),
-    "blender": (3, 5, 1),
+    "version": (27, 17),
+    "blender": (3, 6, 1),
     "location": "Info header, render engine menu",
     "description": "OctaneBlender",
     "warning": "",
     "wiki_url": "https://docs.otoy.com/#60Octane%20for%20Blender",
     "tracker_url": "https://render.otoy.com/forum/viewforum.php?f=114",
     "support": 'OFFICIAL',
-    "category": "Render"    
+    "category": "Render"
 }
 
 import bpy
@@ -37,13 +17,14 @@ import blf
 import bgl
 import array
 import gpu
-import numpy as np
 import os
 import time
-from gpu_extras.batch import batch_for_shader
-from gpu_extras.presets import draw_texture_2d
-from octane import version_update
+import traceback
+import numpy as np
+from bpy.app.handlers import persistent
 from octane import core
+from octane import version_update
+from octane.core.frame_buffer import ViewportDrawData, RenderDrawData
 from octane.core.client import OctaneBlender
 from octane.utils import consts, utility
 
@@ -62,7 +43,6 @@ class OctaneRender(bpy.types.RenderEngine):
         self.session = None
         self.draw_data = None
         self.is_viewport_active = False
-        self.is_octane_render_start = False
         if core.ENABLE_OCTANE_ADDON_CLIENT:
             self.create_session()
       
@@ -78,8 +58,7 @@ class OctaneRender(bpy.types.RenderEngine):
 
     def free_session(self):
         try:
-            if self.is_octane_render_start:
-                self.is_octane_render_start = False
+            if self.session.is_render_started:
                 if self.session.session_type == consts.SessionType.VIEWPORT:
                     self.session.stop_render()
             if self.session is not None:
@@ -103,7 +82,6 @@ class OctaneRender(bpy.types.RenderEngine):
 
     def final_render(self, depsgraph):
         self.session.session_type = consts.SessionType.FINAL_RENDER
-        self.is_octane_render_start = True
         scene = depsgraph.scene_eval
         width = utility.render_resolution_x(scene)
         height = utility.render_resolution_y(scene)
@@ -117,21 +95,20 @@ class OctaneRender(bpy.types.RenderEngine):
             self.render_layer(depsgraph, scene, layer, width, height)
             if self.test_break():
                 break
-        self.is_octane_render_start = False
 
     def render_layer(self, depsgraph, scene, layer, width, height):
         start_time = time.time()
         # self.session.reset_render()
         # Init Scene        
-        self.session.start_render(is_viewport=False)
+        self.session.start_render(scene, is_viewport=False)
         init_time = time.time()
         init_elapsed_time = init_time - start_time
         self.update_stats("Init Time", "%.2f" % init_elapsed_time)
         # Sync Scene
         self.session.render_update(depsgraph, scene, layer)
-        self.session.set_resolution(width, height)
-        render_pass_ids = self.session.get_enabled_render_pass_ids(layer)
+        self.session.set_resolution(width, height, True)        
         OctaneBlender().use_shared_surface(False)
+        render_pass_ids = utility.get_view_layer_render_pass_ids(layer)
         self.session.set_render_pass_ids(render_pass_ids)
         sync_time = time.time()
         sync_elapsed_time = sync_time - init_time
@@ -142,14 +119,15 @@ class OctaneRender(bpy.types.RenderEngine):
         render_layer = result.layers[0]
         combined = render_layer.passes["Combined"]
         sample_status = ""
+        combined_draw_data = RenderDrawData(consts.RenderPassID.Beauty, consts.RenderFrameDataType.RENDER_FRAME_FLOAT_RGBA, width, height, combined)
         while True:
             is_task_completed = False
-            if OctaneBlender().get_render_result(consts.RenderPassId.BEAUTY, False, consts.RenderFrameDataType.RENDER_FRAME_FLOAT_RGBA, combined.as_pointer(), statistics):
-                calculated_sample_per_pixel = statistics["calculated_sample_per_pixel"]
-                tonemapped_sample_per_pixel = statistics["tonemapped_sample_per_pixel"]
-                region_sample_per_pixel = statistics["region_sample_per_pixel"]
-                max_sample = statistics["max_sample_per_pixel"]
-                current_sample = max(calculated_sample_per_pixel, tonemapped_sample_per_pixel)
+            if combined_draw_data.update_render_result(False):
+                calculated_samples_per_pixel = combined_draw_data.calculated_samples_per_pixel
+                tonemapped_samples_per_pixel = combined_draw_data.tonemapped_samples_per_pixel
+                region_samples_per_pixel = combined_draw_data.region_samples_per_pixel
+                max_sample = combined_draw_data.max_samples_per_pixel
+                current_sample = max(calculated_samples_per_pixel, tonemapped_samples_per_pixel)
                 sample_status = "Sample: %d/%d" % (current_sample, max_sample)                
                 is_task_completed = current_sample >= max_sample
                 self.update_result(result)
@@ -164,35 +142,41 @@ class OctaneRender(bpy.types.RenderEngine):
                 break
             time.sleep(0.5)
         for render_pass in render_layer.passes:
-            render_pass_id = utility.get_render_pass_id_by_legacy_render_pass_name(render_pass.name)
-            if render_pass_id == consts.RenderPassId.BEAUTY:
+            render_pass_id = utility.get_render_pass_id_by_name(render_pass.name)
+            if render_pass.channels == 1:
+                frame_data_type = consts.RenderFrameDataType.RENDER_FRAME_FLOAT_MONO
+            else:
+                frame_data_type = consts.RenderFrameDataType.RENDER_FRAME_FLOAT_RGBA
+            render_pass_draw_data = RenderDrawData(render_pass_id, frame_data_type, width, height, render_pass)
+            if render_pass_id == consts.RenderPassID.Beauty:
                 combined_np_array = np.empty(shape=(len(combined.rect), 4), dtype=np.float32)
                 combined.rect.foreach_get(combined_np_array)
                 render_pass.rect = combined_np_array              
-            elif render_pass_id > consts.RenderPassId.BEAUTY:
+            elif render_pass_id > consts.RenderPassID.Beauty:
                 if render_pass.channels == 4:
-                    if render_pass.name.startswith("OctDenoiser"):
+                    if utility.is_denoise_render_pass(render_pass_id):
                         while True:
-                            if OctaneBlender().get_render_result(render_pass_id, False, consts.RenderFrameDataType.RENDER_FRAME_FLOAT_RGBA, render_pass.as_pointer(), statistics):
-                                calculated_sample_per_pixel = statistics["calculated_sample_per_pixel"]
-                                tonemapped_sample_per_pixel = statistics["tonemapped_sample_per_pixel"]
-                                max_sample = statistics["max_sample_per_pixel"]
+                            if render_pass_draw_data.update_render_result(False):
+                                calculated_samples_per_pixel = render_pass_draw_data.calculated_samples_per_pixel
+                                tonemapped_samples_per_pixel = render_pass_draw_data.tonemapped_samples_per_pixel
+                                max_sample = render_pass_draw_data.max_samples_per_pixel
                                 render_time = time.time() 
                                 render_elapsed_time = render_time - sync_time
                                 time_status = "Render time: %s" % utility.time_human_readable_from_seconds(render_elapsed_time)
-                                sample_status = "Denoising Sample: %d/%d/%d" % (calculated_sample_per_pixel, tonemapped_sample_per_pixel, max_sample)
+                                sample_status = "Denoising Sample: %d/%d/%d" % (calculated_samples_per_pixel, tonemapped_samples_per_pixel, max_sample)
                                 self.update_stats("", "%s | %s" % (time_status, sample_status))
-                                if tonemapped_sample_per_pixel == max_sample:
+                                if tonemapped_samples_per_pixel == max_sample:
                                     break                            
-                            self.report({'INFO'}, "Wait for the Render Result of Pass %s. Samples: %d/%d" % (render_pass.name, tonemapped_sample_per_pixel, max_sample))
+                            self.report({'INFO'}, "Wait for the Render Result of Pass %s. Samples: %d/%d" % (render_pass.name, tonemapped_samples_per_pixel, max_sample))
                             time.sleep(0.5)
                     else:
-                        if not OctaneBlender().get_render_result(render_pass_id, False, consts.RenderFrameDataType.RENDER_FRAME_FLOAT_RGBA, render_pass.as_pointer(), statistics):
+                        if not render_pass_draw_data.update_render_result(False):
                             self.report({'ERROR'}, "Cannot Get the Render Result of Pass %s" % render_pass.name)
                 elif render_pass.channels == 1:
-                    if not OctaneBlender().get_render_result(render_pass_id, False, consts.RenderFrameDataType.RENDER_FRAME_FLOAT_MONO, render_pass.as_pointer(), statistics):
+                    if not render_pass_draw_data.update_render_result(False):
                         self.report({'ERROR'}, "Cannot Get the Render Result of Pass %s" % render_pass.name)
             self.update_result(result)
+        self.session.export_render_pass(depsgraph, scene, layer, render_layer)
         self.end_result(result)
         self.session.stop_render()
 
@@ -208,9 +192,8 @@ class OctaneRender(bpy.types.RenderEngine):
         if core.ENABLE_OCTANE_ADDON_CLIENT:
             self.session.session_type = consts.SessionType.VIEWPORT
             OctaneBlender().init_server()
-            if not self.is_octane_render_start:
-                self.session.start_render(resource_cache_type=utility.get_enum_int_value(depsgraph.scene.octane, "resource_cache_type", 0))
-                self.is_octane_render_start = True
+            if not self.session.is_render_started:
+                self.session.start_render(depsgraph.scene, is_viewport=True, resource_cache_type=utility.get_enum_int_value(depsgraph.scene.octane, "resource_cache_type", 0))
             self.session.view_update(self, depsgraph, context)
         else:
             if not self.session:
@@ -223,7 +206,7 @@ class OctaneRender(bpy.types.RenderEngine):
     def view_draw(self, context, depsgraph):
         # Draw viewport render
         if core.ENABLE_OCTANE_ADDON_CLIENT:
-            self.session.view_draw(depsgraph, context)
+            self.session.view_draw(self, depsgraph, context)
             region = context.region
             scene = depsgraph.scene
             self.draw_render_result(context.view_layer, region, scene)
@@ -235,16 +218,17 @@ class OctaneRender(bpy.types.RenderEngine):
             self.tag_redraw()
 
     def draw_render_result(self, view_layer, region, scene):
-        is_shared_surface_supported = OctaneBlender().is_shared_surface_supported()
+        render_pass_id = self.session.get_current_preview_render_pass_id(view_layer)
+        is_render_pass_shared_surface_supported = not (utility.is_grayscale_render_pass(render_pass_id) or utility.is_cryptomatte_render_pass(render_pass_id))
+        is_shared_surface_supported = OctaneBlender().is_shared_surface_supported() and is_render_pass_shared_surface_supported
         use_shared_surface = (self.session.use_shared_surface and is_shared_surface_supported)
         is_draw_data_just_created = False
         if region:
-            # Get viewport dimensions            
-            if not self.draw_data or self.draw_data.needs_replacement(region.width, region.height):
-                self.draw_data = OctaneDrawData(region.width, region.height, self, scene, use_shared_surface)
+            # Get viewport dimensions
+            if not self.draw_data or self.draw_data.needs_replacement(region.width, region.height, use_shared_surface):
+                self.draw_data = ViewportDrawData(render_pass_id, region.width, region.height, self, scene, use_shared_surface)
                 is_draw_data_just_created = True
         if self.draw_data:
-            render_pass_id = self.session.get_current_preview_render_pass_id(view_layer)
             self.draw_data.update(render_pass_id, scene)
             if not is_draw_data_just_created:
                 self.draw_data.draw(self, scene)
@@ -269,271 +253,29 @@ class OctaneRender(bpy.types.RenderEngine):
         osl.update_script_node(node, self.report)
 
     def update_render_passes(self, scene=None, view_layer=None):
-        if core.ENABLE_OCTANE_ADDON_CLIENT:
-            utility.add_render_passes(self, scene, view_layer)
-        else:
-            engine.octane_register_passes(self, scene, view_layer)
+        utility.add_view_layer_render_passes(scene, self, view_layer)
 
-
-class OctaneDrawData(object):
-    ENABLE_PROFILE = False
-    USE_OPENGL = False
-
-    def __init__(self, width, height, engine, scene, use_shared_surface):
-        self.calculated_sample_per_pixel = 0
-        self.tonemapped_sample_per_pixel = 0
-        self.region_sample_per_pixel = 0
-        self.current_change_level = 0
-        self.max_sample = scene.octane.max_preview_samples
-        self.tri_count = 0
-        self.disp_tri_count = 0
-        self.hair_seg_count = 0
-        self.voxel_count = 0
-        self.sphere_count = 0
-        self.instance_count = 0
-        self.emit_pri_count = 0
-        self.emit_instance_count = 0
-        self.used_rgba32_textures = 0
-        self.used_rgba64_textures = 0
-        self.used_y8_textures = 0
-        self.used_y16_Textures = 0
-        self.used_memory = 0
-        self.free_memory = 0
-        self.total_memory = 0
-        self.statistics = {}
-        self.width = width
-        self.height = height
-        self.offset_x = 0
-        self.offset_y = 0
-        self.transparent = True
-        if use_shared_surface:
-            self.use_opengl = True
-        else:
-            self.use_opengl = self.USE_OPENGL
-        self.use_shared_surface = use_shared_surface
-        if self.transparent:
-            bufferdepth = 4
-        else:
-            bufferdepth = 3
-        if self.use_shared_surface:
-            self.texture_id = 0
-        else:
-            if self.use_opengl:
-                self.buffer = bgl.Buffer(bgl.GL_FLOAT, [self.width * self.height * bufferdepth])
-            else:
-                self.buffer = gpu.types.Buffer("FLOAT", [self.width * self.height * bufferdepth])
-        self.init(engine, scene)
-        # Profile data
-        self.total_update_count = 0
-        self.render_result_update_count = 0
-        self.total_update_time = 0
-        self.render_result_update_time = 0
-
-    def init(self, engine, scene):
-        if self.use_opengl:
-            if not self.use_shared_surface:
-                # Create texture
-                self.texture = bgl.Buffer(bgl.GL_INT, 1)
-                bgl.glGenTextures(1, self.texture)
-                self.texture_id = self.texture[0]
-            # Bind shader that converts from scene linear to display space,
-            # use the scene's color management settings.
-            engine.bind_display_space_shader(scene)
-            shader_program = bgl.Buffer(bgl.GL_INT, 1)
-            bgl.glGetIntegerv(bgl.GL_CURRENT_PROGRAM, shader_program)
-            # Generate vertex array
-            self.vertex_array = bgl.Buffer(bgl.GL_INT, 1)
-            bgl.glGenVertexArrays(1, self.vertex_array)
-            bgl.glBindVertexArray(self.vertex_array[0])
-            texturecoord_location = bgl.glGetAttribLocation(shader_program[0], "texCoord")
-            position_location = bgl.glGetAttribLocation(shader_program[0], "pos")
-            bgl.glEnableVertexAttribArray(texturecoord_location)
-            bgl.glEnableVertexAttribArray(position_location)
-            # Generate geometry buffers for drawing textured quad
-            width = self.width
-            height = self.height
-            position = [
-                self.offset_x, self.offset_y,
-                self.offset_x + width, self.offset_y,
-                self.offset_x + width, self.offset_y + height,
-                self.offset_x, self.offset_y + height
-            ]
-            position = bgl.Buffer(bgl.GL_FLOAT, len(position), position)
-            if self.use_shared_surface:
-                texcoord = [0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0]
-            else:
-                texcoord = [0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0]
-            texcoord = bgl.Buffer(bgl.GL_FLOAT, len(texcoord), texcoord)
-            self.vertex_buffer = bgl.Buffer(bgl.GL_INT, 2)
-            bgl.glGenBuffers(2, self.vertex_buffer)
-            bgl.glBindBuffer(bgl.GL_ARRAY_BUFFER, self.vertex_buffer[0])
-            bgl.glBufferData(bgl.GL_ARRAY_BUFFER, 32, position, bgl.GL_STATIC_DRAW)
-            bgl.glVertexAttribPointer(position_location, 2, bgl.GL_FLOAT, bgl.GL_FALSE, 0, None)
-            bgl.glBindBuffer(bgl.GL_ARRAY_BUFFER, self.vertex_buffer[1])
-            bgl.glBufferData(bgl.GL_ARRAY_BUFFER, 32, texcoord, bgl.GL_STATIC_DRAW)
-            bgl.glVertexAttribPointer(texturecoord_location, 2, bgl.GL_FLOAT, bgl.GL_FALSE, 0, None)
-            bgl.glBindBuffer(bgl.GL_ARRAY_BUFFER, 0)
-            bgl.glBindVertexArray(0)
-            engine.unbind_display_space_shader()
-        else:
-            width = self.width
-            height = self.height
-            position = [
-                (self.offset_x, self.offset_y),
-                (self.offset_x + width, self.offset_y),
-                (self.offset_x + width, self.offset_y + height),
-                (self.offset_x, self.offset_y + height)
-            ]
-            self.shader = gpu.shader.from_builtin("2D_IMAGE")
-            self.batch = batch_for_shader(
-                self.shader, "TRI_FAN",
-                {
-                    "pos": position,
-                    "texCoord": ((0, 0), (1, 0), (1, 1), (0, 1)),
-                },
-            )
-
-    def __del__(self):
-        if self.use_opengl:
-            bgl.glDeleteBuffers(2, self.vertex_buffer)
-            bgl.glDeleteVertexArrays(1, self.vertex_array)
-            bgl.glBindTexture(bgl.GL_TEXTURE_2D, 0)
-            if not self.use_shared_surface:
-                bgl.glDeleteTextures(1, self.texture)
-        else:
-            del self.buffer
-        if self.ENABLE_PROFILE:
-            is_denoise_render_pass = utility.is_denoise_render_pass(self.statistics.get("render_pass_id"))
-            if is_denoise_render_pass:
-                msg = "Sample: %d/%d/%d, Render time: %.2f (sec)" % (self.calculated_sample_per_pixel, self.tonemapped_sample_per_pixel, self.max_sample, self.statistics.get("render_time", 0))
-            else:
-                msg = "Denoising Sample: %d/%d, Render time: %.2f (sec)" % (self.calculated_sample_per_pixel, self.max_sample, self.statistics.get("render_time", 0))
-            print("Render Status: \nResolution: %d, %d\n%s\nUse OpenGL: %d\nUse Shared Surface: %d" % (self.width, self.height, msg, self.use_opengl, self.use_shared_surface))
-            if self.total_update_time > 0:
-                print("Total Update Data: %.2f ms, %d, %.2f ms" % (self.total_update_time, self.total_update_count, self.total_update_time / self.total_update_count))
-            if self.render_result_update_time > 0:
-                print("Render Result Update Data: %.2f ms, %d, %.2f ms" % (self.render_result_update_time, self.render_result_update_count, self.render_result_update_time / self.render_result_update_count))
-
-    def needs_replacement(self, width, height):
-        if self.width != width or self.height != height:
-            return True
-        return False
-
-    def update(self, render_pass_id, scene):
-        is_render_result_updated = False
-        if self.ENABLE_PROFILE:
-            self.total_update_count += 1
-            start_time = time.time()
-        OctaneBlender().use_shared_surface(self.use_shared_surface)
-        if self.use_shared_surface:
-            if OctaneBlender().get_render_result_shared_surface(render_pass_id, True, consts.RenderFrameDataType.RENDER_FRAME_FLOAT_RGBA, self.statistics):
-                is_render_result_updated = True
-                self.update_texture_shared_surface(scene)
-                self.update_render_status(scene)            
-        else:
-            if OctaneBlender().get_render_result(render_pass_id, True, consts.RenderFrameDataType.RENDER_FRAME_FLOAT_RGBA, self.buffer, self.statistics):
-                is_render_result_updated = True
-                self.update_texture(scene)
-                self.update_render_status(scene)
-        if self.ENABLE_PROFILE:
-            end_time = time.time()
-            time_eslapse = (end_time - start_time) * 1000
-            self.total_update_time += time_eslapse
-            if is_render_result_updated:
-                self.render_result_update_count += 1
-                self.render_result_update_time += time_eslapse
-
-    def update_render_status(self, scene):
-        self.calculated_sample_per_pixel = self.statistics["calculated_sample_per_pixel"]
-        self.tonemapped_sample_per_pixel = self.statistics["tonemapped_sample_per_pixel"]
-        self.region_sample_per_pixel = self.statistics["region_sample_per_pixel"]
-        self.max_sample = self.statistics["max_sample_per_pixel"]
-        self.current_change_level = self.statistics["change_level"]
-        self.tri_count = self.statistics["tri_count"]
-        self.disp_tri_count = self.statistics["disp_tri_count"]
-        self.hair_seg_count = self.statistics["hair_seg_count"]
-        self.voxel_count = self.statistics["voxel_count"]
-        self.sphere_count = self.statistics["sphere_count"]
-        self.instance_count = self.statistics["instance_count"]
-        self.emit_pri_count = self.statistics["emit_pri_count"]
-        self.emit_instance_count = self.statistics["emit_instance_count"]
-        self.used_rgba32_textures = self.statistics["used_rgba32_textures"]
-        self.used_rgba64_textures = self.statistics["used_rgba64_textures"]
-        self.used_y8_textures = self.statistics["used_y8_textures"]
-        self.used_y16_Textures = self.statistics["used_y16_Textures"]
-        self.used_memory = int(self.statistics["used_memory"] / 1048576.0)
-        self.free_memory = int(self.statistics["free_memory"] / 1048576.0)
-        self.total_memory = int(self.statistics["total_memory"] / 1048576.0)
-
-    def draw(self, engine, scene):        
-        is_denoise_render_pass = utility.is_denoise_render_pass(self.statistics.get("render_pass_id"))
-        if is_denoise_render_pass:
-            sample_msg = "Denoising Sample: %d/%d/%d, Render time: %.2f (sec)" % (self.calculated_sample_per_pixel, self.tonemapped_sample_per_pixel, self.max_sample, self.statistics.get("render_time", 0))
-        else:
-            sample_msg = "Sample: %d/%d, Render time: %.2f (sec)" % (self.calculated_sample_per_pixel, self.max_sample, self.statistics.get("render_time", 0))
-        msg = "Mem: %dM/%dM/%dM, Meshes: %d, Tris: %d | Tex: (Rgb32: %d, Rgb64: %d, grey8: %d, grey16: %d)" \
-            % (self.used_memory, self.free_memory, self.total_memory, self.instance_count, self.tri_count, self.used_rgba32_textures, self.used_rgba64_textures, self.used_y8_textures, self.used_y16_Textures)
-        msg = sample_msg + "\n" + msg
-        engine.update_stats("Octane Render Statistics", msg)
-        if self.calculated_sample_per_pixel == 0 and self.tonemapped_sample_per_pixel == 0:
-            return
-        if self.use_opengl:
-            if self.transparent:
-                bgl.glEnable(bgl.GL_BLEND)
-                bgl.glBlendFunc(bgl.GL_ONE, bgl.GL_ONE_MINUS_SRC_ALPHA)
-            engine.bind_display_space_shader(scene)
-            bgl.glActiveTexture(bgl.GL_TEXTURE0)
-            bgl.glBindTexture(bgl.GL_TEXTURE_2D, self.texture_id)
-            bgl.glBindVertexArray(self.vertex_array[0])
-            bgl.glDrawArrays(bgl.GL_TRIANGLE_FAN, 0, 4)
-            bgl.glBindVertexArray(0)
-            bgl.glBindTexture(bgl.GL_TEXTURE_2D, 0)
-            engine.unbind_display_space_shader()
-            err = bgl.glGetError()
-            if err != bgl.GL_NO_ERROR:
-                print("GL Error:", err)
-        else:
-            if self.transparent:
-                _format = "RGBA16F"
-            else:
-                _format = "RGB16F"            
-            image = gpu.types.GPUTexture(size=(self.width, self.height), layers=0, is_cubemap=False, format=_format, data=self.buffer)
-            self.shader.uniform_sampler("image", image)
-            self.batch.draw(self.shader)
-
-    def update_texture(self, scene):
-        if self.use_opengl:
-            if self.transparent:
-                gl_format = bgl.GL_RGBA
-                internal_format = bgl.GL_RGBA32F
-            else:
-                gl_format = bgl.GL_RGB
-                internal_format = bgl.GL_RGB32F
-            bgl.glActiveTexture(bgl.GL_TEXTURE0)
-            bgl.glBindTexture(bgl.GL_TEXTURE_2D, self.texture_id)
-            bgl.glTexImage2D(bgl.GL_TEXTURE_2D, 0, internal_format, self.width, self.height,
-                             0, gl_format, bgl.GL_FLOAT, self.buffer)
-            bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_WRAP_S, bgl.GL_CLAMP_TO_EDGE)
-            bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_WRAP_T, bgl.GL_CLAMP_TO_EDGE)
-            bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_NEAREST)
-            bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_NEAREST)
-            bgl.glBindTexture(bgl.GL_TEXTURE_2D, 0)        
-
-    def update_texture_shared_surface(self, scene):
-        texture_id = self.statistics["gl_texture_name"]
-        if self.texture_id != texture_id:
-            self.texture_id = texture_id
-            bgl.glActiveTexture(bgl.GL_TEXTURE0)
-            bgl.glBindTexture(bgl.GL_TEXTURE_2D, self.texture_id)
-            bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_WRAP_S, bgl.GL_CLAMP_TO_EDGE)
-            bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_WRAP_T, bgl.GL_CLAMP_TO_EDGE)
-            bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_NEAREST)
-            bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_NEAREST)
-            bgl.glBindTexture(bgl.GL_TEXTURE_2D, 0)
 
 classes = (
     OctaneRender,
 )
+
+
+@persistent
+def octane_load_post_handler(arg):
+    from octane.core import resource_cache
+    from octane.nodes.base_node_tree import NodeTreeHandler
+    from octane.utils import ocio
+    if arg is None or type(arg) is str:
+        # Blender version >= 3.6
+        scene = bpy.context.scene
+    else:
+        # Blender version <= 3.5
+        scene = arg
+    ocio.update_ocio_info()
+    resource_cache.reset_resource_cache(scene)
+    NodeTreeHandler.on_file_load(scene)
+    utility.set_all_viewport_shading_type("SOLID")
 
 
 def register():
@@ -552,9 +294,8 @@ def register():
     from octane import uis    
     from octane import nodes
     from octane import ui
-    from octane import operators    
-    from octane import presets
-    from octane import engine   
+    from octane import operators
+    from octane import engine
     from octane.core import resource_cache
 
     properties_.register()    
@@ -563,13 +304,12 @@ def register():
     
     ui.register()
     operators.register()
-    presets.register()
 
     for cls in classes:
         register_class(cls)
 
     bpy.app.handlers.version_update.append(version_update.do_versions)
-    bpy.app.handlers.load_post.append(resource_cache.reset_resource_cache)
+    bpy.app.handlers.load_post.append(octane_load_post_handler)
     bpy.app.handlers.depsgraph_update_post.append(operators.sync_octane_aov_output_number)
     bpy.app.handlers.depsgraph_update_post.append(operators.update_resource_cache_tag)
     bpy.app.handlers.depsgraph_update_post.append(operators.update_blender_volume_grid_info)
@@ -583,8 +323,7 @@ def unregister():
     from octane import uis    
     from octane import nodes
     from octane import ui
-    from octane import operators    
-    from octane import presets
+    from octane import operators
     from octane import engine
     from octane.core import resource_cache
 
@@ -592,7 +331,7 @@ def unregister():
     OctaneBlender().exit()
 
     bpy.app.handlers.version_update.remove(version_update.do_versions)
-    bpy.app.handlers.load_post.remove(resource_cache.reset_resource_cache)
+    bpy.app.handlers.load_post.remove(octane_load_post_handler)
     bpy.app.handlers.depsgraph_update_post.remove(operators.sync_octane_aov_output_number)
     bpy.app.handlers.depsgraph_update_post.remove(operators.update_resource_cache_tag)
     bpy.app.handlers.depsgraph_update_post.remove(operators.update_blender_volume_grid_info)
@@ -604,8 +343,7 @@ def unregister():
     nodes.unregister()
 
     ui.unregister()
-    operators.unregister()    
-    presets.unregister()
+    operators.unregister()
 
     for cls in classes:
         unregister_class(cls)

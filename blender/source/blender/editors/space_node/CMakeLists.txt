@@ -12,6 +12,7 @@ set(INC
   ../../depsgraph
   ../../draw
   ../../functions
+  ../../geometry
   ../../gpu
   ../../imbuf
   ../../makesdna
@@ -20,6 +21,7 @@ set(INC
   ../../render
   ../../windowmanager
   ../../../../intern/guardedalloc
+  ../../../../extern/fmtlib/include
 
   # dna_type_offsets.h
   ${CMAKE_CURRENT_BINARY_DIR}/../../makesdna/intern

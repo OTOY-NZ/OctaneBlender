@@ -81,12 +81,12 @@ void register_node_type_sh_oct_mix_mat(void)
   static bNodeType ntype;
 
   if (ntype.type != SH_NODE_OCT_MIX_MAT)
-    node_type_base(&ntype,
+    sh_node_type_base(&ntype,
                    SH_NODE_OCT_MIX_MAT,
                    "Mix Material",
                    NODE_CLASS_OCT_SHADER);
-  node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
-  node_type_size(&ntype, 160, 160, 500);
+  blender::bke::node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
+  node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::DEFAULT);
   ntype.initfunc = (node_oct_init_mix_mat);
   node_type_storage(&ntype, "", NULL, NULL);
   

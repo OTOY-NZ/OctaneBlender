@@ -43,7 +43,8 @@ typedef struct StripAnim {
 } StripAnim;
 
 typedef struct StripElem {
-  char name[256];
+  /** File name concatenated onto #Strip::dirpath. */
+  char filename[256];
   /** Ignore when zeroed. */
   int orig_width, orig_height;
   float orig_fps;
@@ -82,10 +83,10 @@ typedef struct StripColorBalance {
 } StripColorBalance;
 
 typedef struct StripProxy {
-  char dir[768]; /* custom directory for index and proxy files */
-                 /* (defaults to BL_proxy) */
-
-  char file[256];    /* custom file */
+  /** Custom directory for index and proxy files (defaults to "BL_proxy"). */
+  char dirpath[768];
+  /** Custom file. */
+  char filename[256];
   struct anim *anim; /* custom proxy anim file */
 
   short tc; /* time code in use */
@@ -110,7 +111,7 @@ typedef struct Strip {
    * NULL for all other strip-types.
    */
   StripElem *stripdata;
-  char dir[768];
+  char dirpath[768];
   StripProxy *proxy;
   StripCrop *crop;
   StripTransform *transform;
@@ -570,7 +571,7 @@ enum {
   SEQ_USE_PROXY = (1 << 15),
   SEQ_IGNORE_CHANNEL_LOCK = (1 << 16),
   SEQ_AUTO_PLAYBACK_RATE = (1 << 17),
-  SEQ_FLAG_UNUSED_18 = (1 << 18), /* cleared */
+  SEQ_SINGLE_FRAME_CONTENT = (1 << 18),
   SEQ_FLAG_UNUSED_19 = (1 << 19), /* cleared */
   SEQ_FLAG_UNUSED_21 = (1 << 21), /* cleared */
 

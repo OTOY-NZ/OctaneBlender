@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2005 Blender Foundation. All rights reserved. */
+ * Copyright 2005 Blender Foundation */
 
 /** \file
  * \ingroup shdnodes
@@ -22,9 +22,9 @@ static void node_declare(NodeDeclarationBuilder &b)
       .max(100000.0f)
       .subtype(PROP_NONE);
   b.add_input<decl::Bool>(N_("Keep Front Projection")).default_value(true);
-  b.add_output<decl::Vector>(N_("View Vector"));
-  b.add_output<decl::Float>(N_("View Z Depth"));
-  b.add_output<decl::Float>(N_("View Distance"));
+  b.add_output<decl::Vector>("View Vector");
+  b.add_output<decl::Float>("View Z Depth");
+  b.add_output<decl::Float>("View Distance");
   b.add_output<decl::Vector>(N_("Octane View Vector"));
   b.add_output<decl::Vector>(N_("Octane View Z Depth"));
   b.add_output<decl::Vector>(N_("Octane View Distance"));

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2019 Blender Foundation. All rights reserved. */
+ * Copyright 2019 Blender Foundation */
 
 #include "IO_types.h"
 #include "usd.h"
@@ -19,7 +19,7 @@
 #include "BKE_lib_id.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
-#include "BKE_node.h"
+#include "BKE_node.hh"
 #include "BKE_object.h"
 #include "BKE_scene.h"
 #include "BKE_world.h"
@@ -202,7 +202,21 @@ static void import_startjob(void *customdata, bool *stop, bool *do_update, float
   *data->do_update = true;
   *data->progress = 0.1f;
 
-  pxr::UsdStageRefPtr stage = pxr::UsdStage::Open(data->filepath);
+  std::string prim_path_mask(data->params.prim_path_mask);
+  pxr::UsdStagePopulationMask pop_mask;
+  if (!prim_path_mask.empty()) {
+    const std::vector<std::string> mask_tokens = pxr::TfStringTokenize(prim_path_mask, ",;");
+    for (const std::string &tok : mask_tokens) {
+      pxr::SdfPath prim_path(tok);
+      if (!prim_path.IsEmpty()) {
+        pop_mask.Add(prim_path);
+      }
+    }
+  }
+
+  pxr::UsdStageRefPtr stage = pop_mask.IsEmpty() ?
+                                  pxr::UsdStage::Open(data->filepath) :
+                                  pxr::UsdStage::OpenMasked(data->filepath, pop_mask);
 
   if (!stage) {
     WM_reportf(RPT_ERROR, "USD Import: unable to open stage to read %s", data->filepath);
@@ -372,9 +386,11 @@ static void import_endjob(void *customdata)
       data->import_ok = !data->was_canceled;
       break;
     case USD_ARCHIVE_FAIL:
-      WM_report(RPT_ERROR, "Could not open USD archive for reading! See console for detail.");
+      WM_report(RPT_ERROR, "Could not open USD archive for reading, see console for detail");
       break;
   }
+
+  MEM_SAFE_FREE(data->params.prim_path_mask);
 
   WM_main_add_notifier(NC_SCENE | ND_FRAME, data->scene);
   report_job_duration(data);
@@ -475,12 +491,19 @@ static USDPrimReader *get_usd_reader(CacheReader *reader,
   return usd_reader;
 }
 
+USDMeshReadParams create_mesh_read_params(const double motion_sample_time, const int read_flags)
+{
+  USDMeshReadParams params = {};
+  params.motion_sample_time = motion_sample_time;
+  params.read_flags = read_flags;
+  return params;
+}
+
 struct Mesh *USD_read_mesh(struct CacheReader *reader,
                            struct Object *ob,
                            struct Mesh *existing_mesh,
-                           const double time,
-                           const char **err_str,
-                           const int read_flag)
+                           const USDMeshReadParams params,
+                           const char **err_str)
 {
   USDGeomReader *usd_reader = dynamic_cast<USDGeomReader *>(get_usd_reader(reader, ob, err_str));
 
@@ -488,7 +511,7 @@ struct Mesh *USD_read_mesh(struct CacheReader *reader,
     return nullptr;
   }
 
-  return usd_reader->read_mesh(existing_mesh, time, read_flag, err_str);
+  return usd_reader->read_mesh(existing_mesh, params, err_str);
 }
 
 bool USD_mesh_topology_changed(CacheReader *reader,

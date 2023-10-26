@@ -6,13 +6,6 @@ from octane.properties_ import common
 from octane.utils import consts, ocio, utility
 from octane.properties import object_mesh_types
 
-# object_mesh_types = (    
-#     ('Global', "Global", "", 0),
-#     ('Scatter', "Scatter", "", 1),
-#     ('Movable proxy', "Movable proxy", "", 2),
-#     ('Reshapable proxy', "Reshapable proxy", "", 3),
-#     ('Auto', "Auto", "", 4),
-# )
 
 custom_aov_modes = (
     ('None', "None", "None", 4096),

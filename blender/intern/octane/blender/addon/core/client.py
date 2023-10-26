@@ -36,11 +36,11 @@ class OctaneBlender(metaclass=utility.Singleton):
         if core.ENABLE_OCTANE_ADDON_CLIENT:
             octane_blender.set_blender_version(major, minor, patch)
 
-    def start_render(self, cache_path):
+    def start_render(self, cache_path, is_viewport=False, use_shared_surface=False):
         self.debug_console("OctaneBlender.start_render")
         if not self.enabled:
             return
-        if not octane_blender.start_render(cache_path):
+        if not octane_blender.start_render(cache_path, is_viewport, use_shared_surface):
             self.print_last_error()
             return
 
@@ -101,11 +101,23 @@ class OctaneBlender(metaclass=utility.Singleton):
         self.debug_console("OctaneBlender.fetch_octanedb: %s" % response)
         return response
 
-    def set_resolution(self, width, height):
+    def set_resolution(self, width, height, update_now):
         self.debug_console("OctaneBlender.set_resolution")
         if not self.enabled:
             return
-        return octane_blender.set_resolution(width, height)
+        return octane_blender.set_resolution(width, height, update_now)
+
+    def set_scene_state(self, scene_state, update_now):
+        self.debug_console("OctaneBlender.set_scene_state")
+        if not self.enabled:
+            return
+        return octane_blender.set_scene_state(scene_state, update_now)
+
+    def get_scene_state(self):
+        self.debug_console("OctaneBlender.get_scene_state")
+        if not self.enabled:
+            return
+        return octane_blender.get_scene_state()
 
     def set_graph_time(self, time):
         self.debug_console("OctaneBlender.set_graph_time")
@@ -123,35 +135,66 @@ class OctaneBlender(metaclass=utility.Singleton):
             enable = False
         return octane_blender.use_shared_surface(enable)
 
-    def set_render_pass_ids(self, render_pass_ids):
+    def set_render_pass_ids(self, render_pass_ids, update_now):
         self.debug_console("OctaneBlender.set_render_pass_ids")
         if not self.enabled:
             return
-        return octane_blender.set_render_pass_ids(render_pass_ids)
+        return octane_blender.set_render_pass_ids(render_pass_ids, update_now)
         
-    def get_render_result(self, render_pass_id, is_viewport, data_type, buffer, statistics):
+    def get_render_result(self, render_pass_id, force_fetch, is_viewport, data_type, buffer, statistics):
         self.debug_console("OctaneBlender.get_render_result", render_pass_id)
         if not self.enabled:
             return
-        return octane_blender.get_render_result(render_pass_id, is_viewport, data_type, buffer, statistics)
+        return octane_blender.get_render_result(render_pass_id, force_fetch, is_viewport, data_type, buffer, statistics)
 
-    def get_render_result_shared_surface(self, render_pass_id, is_viewport, data_type, statistics):
+    def get_render_result_shared_surface(self, render_pass_id, force_fetch, is_viewport, data_type, statistics):
         self.debug_console("OctaneBlender.get_render_result_shared_surface", render_pass_id)
         if not self.enabled:
             return
-        return octane_blender.get_render_result_shared_surface(render_pass_id, is_viewport, data_type, statistics)
+        return octane_blender.get_render_result_shared_surface(render_pass_id, force_fetch, is_viewport, data_type, statistics)
 
-    def update_server_settings(self, resource_cache_type, update_shared_surface_device_id=False):
-        self.debug_console("OctaneBlender.update_server_settings", resource_cache_type, update_shared_surface_device_id)
+    def update_server_settings(self, resource_cache_type, update_shared_surface_device_id=False, tonemap_buffer_type=consts.TonemapBufferType.TONEMAP_BUFFER_TYPE_LDR, color_space_type=consts.NamedColorSpace.NAMED_COLOR_SPACE_SRGB):
         if not self.enabled:
             return
-        return octane_blender.update_server_settings(resource_cache_type, update_shared_surface_device_id)
+        return octane_blender.update_server_settings(resource_cache_type, update_shared_surface_device_id, tonemap_buffer_type, color_space_type)
 
     def get_cached_node_resource(self, node_resouce_dict):
         self.debug_console("OctaneBlender.get_cached_node_resource", node_resouce_dict)
         if not self.enabled:
             return
         return octane_blender.get_cached_node_resource(node_resouce_dict)
+
+    def try_lock_update_mutex(self):
+        if not self.enabled:
+            return False
+        result = octane_blender.try_lock_update_mutex()
+        return result
+
+    def lock_update_mutex(self):
+        if not self.enabled:
+            return
+        return octane_blender.lock_update_mutex()
+
+    def unlock_update_mutex(self):
+        if not self.enabled:
+            return
+        return octane_blender.unlock_update_mutex()
+
+    def try_lock_frame_buffer_mutex(self):
+        if not self.enabled:
+            return False
+        result = octane_blender.try_lock_frame_buffer_mutex()
+        return result
+
+    def lock_frame_buffer_mutex(self):
+        if not self.enabled:
+            return
+        return octane_blender.lock_frame_buffer_mutex()
+
+    def unlock_frame_buffer_mutex(self):
+        if not self.enabled:
+            return
+        return octane_blender.unlock_frame_buffer_mutex()
 
     def print_last_error(self):
         error_msg = octane_blender.get_last_error()

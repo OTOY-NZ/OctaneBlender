@@ -67,6 +67,12 @@ class OctaneCompositeAOVOutput(bpy.types.Node, OctaneBaseNode):
     octane_attribute_config={"a_layer_count": [consts.AttributeID.A_LAYER_COUNT, "layerCount", consts.AttributeType.AT_INT], "a_input_action": [consts.AttributeID.A_INPUT_ACTION, "inputAction", consts.AttributeType.AT_INT2], "a_compatibility_version": [consts.AttributeID.A_COMPATIBILITY_VERSION, "compatibilityVersion", consts.AttributeType.AT_INT], }
     octane_static_pin_count=2
 
+    compatibility_mode_infos=[
+        ("Latest (2022.1)", "Latest (2022.1)", """(null)""", 12000008),
+        ("2021.1 compatibility mode", "2021.1 compatibility mode", """When "Enable imager" is disabled, some aspects of the imager are not bypassed, and linear sRGB data is output as sRGB.""", 0),
+    ]
+    a_compatibility_version_enum: EnumProperty(name="Compatibility version", default="Latest (2022.1)", update=OctaneBaseNode.update_compatibility_mode, description="The Octane version that the behavior of this node should match", items=compatibility_mode_infos)
+
     a_layer_count: IntProperty(name="Layer count", default=0, update=OctaneBaseNode.update_node_tree, description="The number of layers. Changing this value and evaluating the node will update the number of layers. New layers will be added to the front of the dynamic pin list")
     a_compatibility_version: IntProperty(name="Compatibility version", default=12000102, update=OctaneBaseNode.update_node_tree, description="The Octane version that the behavior of this node should match")
 
@@ -130,9 +136,11 @@ class OctaneCompositeAOVOutput_Override(OctaneCompositeAOVOutput):
         self.init_movable_inputs(context, OctaneCompositeAOVOutputMovableLayerInput, self.DEFAULT_LAYER_COUNT)
 
     def draw_buttons(self, context, layout):
+        row = layout.row()
+        row.prop(self, "a_compatibility_version_enum")
         self.draw_movable_inputs(context, layout, OctaneCompositeAOVOutputMovableLayerInput, self.MAX_LAYER_COUNT)
 
 
 _ADDED_CLASSES = [OctaneCompositeAOVOutputMovableLayerInput, OctaneCompositeAOVOutputGroupLayers]
 _CLASSES = _ADDED_CLASSES + _CLASSES
-utility.override_class(_CLASSES, OctaneCompositeAOVOutput, OctaneCompositeAOVOutput_Override)    
+utility.override_class(_CLASSES, OctaneCompositeAOVOutput, OctaneCompositeAOVOutput_Override)

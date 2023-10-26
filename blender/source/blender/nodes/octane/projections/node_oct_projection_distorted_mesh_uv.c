@@ -96,12 +96,12 @@ void register_node_type_projection_oct_distorted_mesh_uv(void)
   static bNodeType ntype;
 
   if (ntype.type != SH_NODE_OCT_PROJECTION_DISTORTED_MESH_UV)
-    node_type_base(&ntype,
+    sh_node_type_base(&ntype,
                    SH_NODE_OCT_PROJECTION_DISTORTED_MESH_UV,
                    "Distorted mesh UV Projection",
                    NODE_CLASS_OCT_PROJECTION);
-  node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
-  node_type_size(&ntype, 100, 100, 200);
+  blender::bke::node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
+  blender::bke::node_type_size(&ntype, 100, 100, 200);
   ntype.initfunc = (0);
   // node_type_exec(&ntype, 0, 0, 0);
   

@@ -499,7 +499,7 @@ DRWShadingGroup *workbench_image_setup_ex(WORKBENCH_PrivateData *wpd,
                                           int mat_nr,
                                           Image *ima,
                                           ImageUser *iuser,
-                                          eGPUSamplerState sampler,
+                                          GPUSamplerState sampler,
                                           eWORKBENCH_DataType datatype);
 void workbench_image_hair_setup_post(WORKBENCH_PrivateData *wpd,
                                      Object *ob,

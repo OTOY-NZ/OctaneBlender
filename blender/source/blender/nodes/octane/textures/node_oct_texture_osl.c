@@ -74,7 +74,7 @@ void register_node_type_tex_oct_osl_texture(void)
   static bNodeType ntype;
 
   sh_node_type_base(&ntype, SH_NODE_OCT_OSL_TEX, "OSL Tex", NODE_CLASS_OCT_TEXTURE);
-  node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
+  blender::bke::node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
   ntype.initfunc = (init);
   node_type_storage(&ntype, "NodeShaderScript", node_free_script, node_copy_script);
 

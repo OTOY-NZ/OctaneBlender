@@ -93,7 +93,7 @@ static void create_curve_hair(Scene *scene,
                               BL::Object &b_ob,
                               Mesh *mesh,
                               PointerRNA &oct_mesh,
-                              const std::vector<Shader *> &used_shaders,                              
+                              const std::vector<Shader *> &used_shaders,
                               bool motion,
                               float motion_time)
 {
@@ -125,7 +125,7 @@ static void create_curve_hair(Scene *scene,
     blender::bke::CurvesGeometry &curves = curves_id->geometry.wrap();
     const blender::Span<blender::float3> positions = curves.evaluated_positions();
     auto offsets = curves.evaluated_points_by_curve();
-    for (int32_t i = 0; i < curves.curves_num(); ++i) {      
+    for (int32_t i = 0; i < curves.curves_num(); ++i) {
       const auto index_range = offsets[i];
       float cur_thickness = root_width;
       size_t step_num = index_range.size();
@@ -414,7 +414,7 @@ static void create_curves_hair(
   }
 }
 
-static std::optional<BL::IntAttribute> find_material_index_attribute(BL::Mesh b_mesh)
+static const int *find_material_index_attribute(BL::Mesh b_mesh)
 {
   for (BL::Attribute &b_attribute : b_mesh.attributes) {
     if (b_attribute.domain() != BL::Attribute::domain_FACE) {
@@ -426,9 +426,55 @@ static std::optional<BL::IntAttribute> find_material_index_attribute(BL::Mesh b_
     if (b_attribute.name() != "material_index") {
       continue;
     }
-    return BL::IntAttribute{b_attribute};
+    BL::IntAttribute b_int_attribute{b_attribute};
+    if (b_int_attribute.data.length() == 0) {
+      return nullptr;
+    }
+    return static_cast<const int *>(b_int_attribute.data[0].ptr.data);
   }
-  return std::nullopt;
+  return nullptr;
+}
+
+static const int *find_corner_vert_attribute(BL::Mesh b_mesh)
+{
+  for (BL::Attribute &b_attribute : b_mesh.attributes) {
+    if (b_attribute.domain() != BL::Attribute::domain_CORNER) {
+      continue;
+    }
+    if (b_attribute.data_type() != BL::Attribute::data_type_INT) {
+      continue;
+    }
+    if (b_attribute.name() != ".corner_vert") {
+      continue;
+    }
+    BL::IntAttribute b_int_attribute{b_attribute};
+    if (b_int_attribute.data.length() == 0) {
+      return nullptr;
+    }
+    return static_cast<const int *>(b_int_attribute.data[0].ptr.data);
+  }
+  return nullptr;
+}
+
+static const bool *find_sharp_face_attribute(BL::Mesh b_mesh)
+{
+  for (BL::Attribute &b_attribute : b_mesh.attributes) {
+    if (b_attribute.domain() != BL::Attribute::domain_FACE) {
+      continue;
+    }
+    if (b_attribute.data_type() != BL::Attribute::data_type_BOOLEAN) {
+      continue;
+    }
+    if (b_attribute.name() != "sharp_face") {
+      continue;
+    }
+    BL::IntAttribute b_int_attribute{b_attribute};
+    if (b_int_attribute.data.length() == 0) {
+      return nullptr;
+    }
+    return static_cast<const bool *>(b_int_attribute.data[0].ptr.data);
+  }
+  return nullptr;
 }
 
 static void create_mesh(Scene *scene,
@@ -444,8 +490,9 @@ static void create_mesh(Scene *scene,
   mesh->octane_mesh.oMeshData.bUpdate = true;
   /* count vertices and faces */
   int numverts = b_mesh.vertices.length();
-  int numfaces = (!subdivision) ? b_mesh.loop_triangles.length() : b_mesh.polygons.length();
-  int numtris = 0;
+  int numtris = b_mesh.loop_triangles.length();
+  int numpolys = b_mesh.polygons.length();
+  int numfaces = (!subdivision) ? numtris : numpolys;
   int numcorners = 0;
   int numngons = 0;
   bool use_loop_normals = b_mesh.use_auto_smooth() &&
@@ -474,14 +521,21 @@ static void create_mesh(Scene *scene,
     return;
   }
 
-  if (!subdivision) {
-    numtris = numfaces;
+  const float(*corner_normals)[3] = nullptr;
+  const int *poly_offsets = nullptr;
+  if (use_loop_normals) {
+    corner_normals = static_cast<const float(*)[3]>(b_mesh.corner_normals[0].ptr.data);
   }
-  else {
-    BL::Mesh::polygons_iterator p;
-    for (b_mesh.polygons.begin(p); p != b_mesh.polygons.end(); ++p) {
-      numngons += (p->loop_total() == 4) ? 0 : 1;
-      numcorners += p->loop_total();
+  const int *corner_verts = find_corner_vert_attribute(b_mesh);
+  const int *material_indices = find_material_index_attribute(b_mesh);
+  const bool *sharp_faces = find_sharp_face_attribute(b_mesh);
+
+  if (subdivision) {
+    poly_offsets = static_cast<const int *>(b_mesh.polygons[0].ptr.data);
+    for (int i = 0; i < numpolys; i++) {
+      const int poly_start = poly_offsets[i];
+      const int poly_size = poly_offsets[i + 1] - poly_start;
+      numngons += (poly_size == 4) ? 0 : 1;
     }
   }
 
@@ -508,31 +562,32 @@ static void create_mesh(Scene *scene,
   }
   mesh->octane_mesh.oMeshData.oMotionf3Points[0] = mesh->octane_mesh.oMeshData.f3Points;
 
-  std::optional<BL::IntAttribute> material_indices = find_material_index_attribute(b_mesh);
   auto get_material_index = [&](const int poly_index) -> int {
     if (material_indices) {
-      return clamp(material_indices->data[poly_index].value(), 0, used_shaders.size() - 1);
+      return clamp(material_indices[poly_index], 0, used_shaders.size() - 1);
     }
     return 0;
   };
 
+  auto get_auto_smooth = [&](const int poly_index) -> bool {
+    if (sharp_faces) {
+      return sharp_faces[poly_index];
+    }
+    return false;
+  };
+
   /* create faces */
-  const MPoly *polys = static_cast<const MPoly *>(b_mesh.polygons[0].ptr.data);
   if (!subdivision) {
     vector<int> vi3;
     vi3.resize(3);
     for (BL::MeshLoopTriangle &t : b_mesh.loop_triangles) {
       const int poly_index = t.polygon_index();
-      const MPoly &b_poly = polys[poly_index];
-
       int3 vi = get_int3(t.vertices());
       for (int i = 0; i < 3; ++i) {
         vi3[i] = vi[i];
       }
-
       int shader = get_material_index(poly_index);
-      bool smooth = (b_poly.flag & ME_SMOOTH) || use_loop_normals;
-
+      bool smooth = get_auto_smooth(poly_index) || use_loop_normals;
       if (use_loop_normals) {
         BL::Array<float, 9> loop_normals = t.split_normals();
         for (int i = 0; i < 3; i++) {
@@ -546,30 +601,20 @@ static void create_mesh(Scene *scene,
           }
         }
       }
-
-      /* Create triangles.
-       *
-       * NOTE: Autosmooth is already taken care about.
-       */
       add_face(mesh, winding_order, vi3, shader, use_uv);
     }
   }
   else {
-    const MLoop *loops = static_cast<const MLoop *>(b_mesh.loops[0].ptr.data);
     vector<int> vi;
-
     for (int i = 0; i < numfaces; i++) {
-      const MPoly &b_poly = polys[i];
-      int n = b_poly.totloop;
+      size_t poly_start = poly_offsets[i];
+      size_t n = poly_offsets[i + 1] - poly_start;
       int shader = get_material_index(i);
-      bool smooth = (b_poly.flag & ME_SMOOTH) || use_loop_normals;
-
+      bool smooth = get_auto_smooth(i) || use_loop_normals;
       vi.resize(n);
       for (int i = 0; i < n; i++) {
-        /* NOTE: Autosmooth is already taken care about. */
-        vi[i] = loops[b_poly.loopstart + i].v;
+        vi[i] = corner_verts[poly_start + i];
       }
-
       /* create subd faces */
       add_face(mesh, winding_order, vi, shader, use_uv);
     }
@@ -740,16 +785,22 @@ static void create_mesh(Scene *scene,
     mesh->octane_mesh.oMeshData.f3SphereCenters = mesh->octane_mesh.oMeshData.f3Points;
     mesh->octane_mesh.oMeshData.f2SphereUVs.resize(
         mesh->octane_mesh.oMeshData.f3SphereCenters.size());
-    for (int i = 0; i < mesh->octane_mesh.oMeshData.f2SphereUVs.size(); ++i) {
-      size_t j =
-          mesh->octane_mesh.oMeshData.iPointIndices[mesh->octane_mesh.oMeshData.iUVIndices[i]];
-      if (i < mesh->octane_mesh.oMeshData.f3UVs.size()) {
-        mesh->octane_mesh.oMeshData.f2SphereUVs[j].x = mesh->octane_mesh.oMeshData.f3UVs[i].x;
-        mesh->octane_mesh.oMeshData.f2SphereUVs[j].y = mesh->octane_mesh.oMeshData.f3UVs[i].y;
+    for (int i = 0; i < mesh->octane_mesh.oMeshData.iUVIndices.size(); ++i) {
+      size_t ui = mesh->octane_mesh.oMeshData.iUVIndices[i];
+      size_t vi = mesh->octane_mesh.oMeshData.iPointIndices[ui];
+      if (vi < mesh->octane_mesh.oMeshData.f2SphereUVs.size() && i < mesh->octane_mesh.oMeshData.f3UVs.size()) {
+        if (use_octane_coordinate) {
+          mesh->octane_mesh.oMeshData.f2SphereUVs[vi].x = mesh->octane_mesh.oMeshData.f3UVs[i].x;
+          mesh->octane_mesh.oMeshData.f2SphereUVs[vi].y = mesh->octane_mesh.oMeshData.f3UVs[i].y;
+        }
+        else {
+          mesh->octane_mesh.oMeshData.f2SphereUVs[vi].x = mesh->octane_mesh.oMeshData.f3UVs[i].x;
+          mesh->octane_mesh.oMeshData.f2SphereUVs[vi].y = mesh->octane_mesh.oMeshData.f3UVs[i].y;
+        }
       }
       else {
-        mesh->octane_mesh.oMeshData.f2SphereUVs[j].x = 0;
-        mesh->octane_mesh.oMeshData.f2SphereUVs[j].y = 0;
+        mesh->octane_mesh.oMeshData.f2SphereUVs[vi].x = 0;
+        mesh->octane_mesh.oMeshData.f2SphereUVs[vi].y = 0;
       }
     }
     mesh->octane_mesh.oMeshData.sSphereVertexColorNames =
@@ -959,7 +1010,8 @@ static void sync_mesh_particles(BL::Object &b_ob, Mesh *mesh, bool background)
   BL::Object::modifiers_iterator b_mod;
   for (b_ob.modifiers.begin(b_mod); b_mod != b_ob.modifiers.end(); ++b_mod) {
     if ((b_mod->type() == b_mod->type_PARTICLE_SYSTEM) &&
-        (background ? b_mod->show_render() : b_mod->show_viewport())) {
+        (background ? b_mod->show_render() : b_mod->show_viewport()))
+    {
       BL::ParticleSystemModifier psmd((const PointerRNA)b_mod->ptr);
       BL::ParticleSystem b_psys((const PointerRNA)psmd.particle_system().ptr);
       BL::ParticleSettings b_part((const PointerRNA)b_psys.settings().ptr);
@@ -992,7 +1044,8 @@ static void sync_mesh_particles(BL::Object &b_ob, Mesh *mesh, bool background)
         b_psys.particles.begin(b_pa);
         for (; b_pa != b_psys.particles.end(); ++b_pa) {
           if (b_pa->is_exist() && b_pa->is_visible() &&
-              b_pa->alive_state() == BL::Particle::alive_state_ALIVE) {
+              b_pa->alive_state() == BL::Particle::alive_state_ALIVE)
+          {
             oct::float3 location = get_float3(b_pa->location());
             location = transform_point(&itfm, location);
             oct::float3 velocity = get_float3(b_pa->velocity());
@@ -1240,7 +1293,8 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
   bool is_octane_property_update = octane_mesh->octane_property_tag != new_octane_prop_tag;
 
   if (b_ob.mode() == b_ob.mode_EDIT || b_ob.mode() == b_ob.mode_VERTEX_PAINT ||
-      b_ob.mode() == b_ob.mode_WEIGHT_PAINT) {
+      b_ob.mode() == b_ob.mode_WEIGHT_PAINT)
+  {
     if (!is_mesh_tag_data_updated) {
       if (b_depsgraph.id_type_updated(BL::DriverTarget::id_type_MESH)) {
         is_mesh_tag_data_updated = true;
@@ -1298,8 +1352,13 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
   if (octane_mesh->mesh_type == MeshType::AUTO || mesh_type >= octane_mesh->mesh_type) {
     octane_mesh->mesh_type = mesh_type;
   }
-  octane_mesh->use_octane_coordinate = RNA_enum_get(&oct_mesh, "primitive_coordinate_mode") ==
-                                       OBJECT_DATA_NODE_TARGET_COORDINATE_OCTANE;
+  if (RNA_struct_find_property(&oct_mesh, "primitive_coordinate_mode")) {
+    octane_mesh->use_octane_coordinate = RNA_enum_get(&oct_mesh, "primitive_coordinate_mode") ==
+                                         OBJECT_DATA_NODE_TARGET_COORDINATE_OCTANE;
+  }
+  else {
+    octane_mesh->use_octane_coordinate = false;
+  }
 
   if (b_ob.type() == BL::Object::type_CURVE) {
     bool use_curve_as_octane_hair = RNA_boolean_get(&oct_mesh, "render_curve_as_octane_hair");
@@ -1326,7 +1385,7 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
     b_volume.grids.load(b_data.ptr.data);
     octane_mesh->is_octane_volume = true;
     int current_frame = b_scene.frame_current();
-    octane_mesh->need_update = is_mesh_data_updated ||
+    octane_mesh->need_update = is_mesh_data_updated || is_mesh_tag_data_updated ||
                                octane_mesh->last_vdb_frame != b_scene.frame_current();
     octane_mesh->last_vdb_frame = current_frame;
     octane_mesh->used_shaders = used_shaders;
@@ -1402,7 +1461,8 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
             auto bbox = density_grid->evalActiveVoxelBoundingBox();
             if (octane_mesh->octane_volume.f3Resolution.x != dim.x() ||
                 octane_mesh->octane_volume.f3Resolution.y != dim.y() ||
-                octane_mesh->octane_volume.f3Resolution.z != dim.z()) {
+                octane_mesh->octane_volume.f3Resolution.z != dim.z())
+            {
               is_volume_data_modified = true;
             }
 
@@ -1435,13 +1495,14 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
               index_to_object.z.w = offset[2];
               set_octane_matrix(octane_mesh->octane_volume.oMatrix, index_to_object);
               octane_mesh->octane_volume.iAbsorptionOffset = 0;
-              octane_mesh->need_update = is_mesh_data_updated || is_volume_data_modified;
             }
           }
           break;
         }
       }
     }
+    octane_mesh->need_update = is_mesh_data_updated || is_octane_property_update ||
+                               is_volume_data_modified;
     mesh_synced.insert(octane_mesh);
     if (octane_mesh->need_update) {
       octane_mesh->tag_update(scene);

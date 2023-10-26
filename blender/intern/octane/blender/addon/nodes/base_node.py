@@ -232,6 +232,9 @@ class OctaneBaseNode(object):
             attribute_value = self.get_attribute_value(attribute_name, attribute_type)
             octane_node.node.set_attribute(consts.OctaneDataBlockSymbolType.ATTRIBUTE_NAME, attribute_octane_id, attribute_octane_name, attribute_type, attribute_value, 1)
         for socket_idx, socket in enumerate(self.inputs):
+            socket_bl_idname = socket.bl_idname
+            if socket_bl_idname == "NodeSocketUndefined":
+                continue
             socket_name = socket.name
             link_node_name = ""
             data_socket = None
@@ -245,6 +248,9 @@ class OctaneBaseNode(object):
                 default_value = getattr(data_socket, "default_value", "")
                 if socket.octane_socket_type == consts.SocketType.ST_ENUM:
                     default_value = socket.rna_type.properties["default_value"].enum_items[default_value].value
+                if not is_advanced_pin and socket.octane_socket_type == consts.SocketType.ST_FLOAT:
+                    if socket.rna_type.properties["default_value"].subtype == "PERCENTAGE":
+                        default_value /= 100.0
                 if is_advanced_pin:
                     if socket.is_octane_proxy_pin():
                         octane_node.node.set_pin(consts.OctaneDataBlockSymbolType.PIN_INDEX, socket.octane_proxy_link_index, socket.name, socket.octane_socket_type, socket.octane_pin_type, socket.octane_default_node_type, data_socket.is_linked, link_node_name, default_value)
@@ -257,6 +263,22 @@ class OctaneBaseNode(object):
         self.sync_custom_data(octane_node, octane_graph_node_data, depsgraph)
 
     def sync_custom_data(self, octane_node, octane_graph_node_data, depsgraph):
+        pass
+
+    def copy_from_node(self, other_node):
+        for attribute_name in self.octane_attribute_list:
+            if hasattr(self, attribute_name) and hasattr(other_node, attribute_name):
+                setattr(self, attribute_name, getattr(other_node, attribute_name, None))
+        for socket in self.inputs:
+            socket_name = socket.name
+            if socket_name in other_node.inputs:
+                dest_socket = self.inputs[socket_name]
+                src_socket = other_node.inputs[socket_name]
+                if hasattr(self, "default_value") and hasattr(other_node, "default_value"):
+                    dest_socket.default_value = src_socket.default_value
+        self.copy_from_custom_node(other_node)
+
+    def copy_from_custom_node(self, other_node):
         pass
 
     def resolve_node_property_data_path(self, id_property, use_full_path=False):
@@ -552,6 +574,9 @@ class OctaneBaseNode(object):
         remove_op.input_socket_bl_idname = socket_class.bl_idname 
         remove_op.reversed_input_sockets = getattr(socket_class, "octane_reversed_input_sockets", False)
         remove_op.group_input_num = group_input_num
+
+    def update_compatibility_mode(self, context):
+        self.a_compatibility_version = utility.get_enum_int_value(self, "a_compatibility_version_enum", 0)
 
     def update_node_tree(self, context):
         node_tree = self.id_data

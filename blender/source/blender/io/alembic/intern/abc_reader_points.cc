@@ -14,8 +14,10 @@
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 
+#include "BLT_translation.h"
+
 #include "BKE_customdata.h"
-#include "BKE_mesh.h"
+#include "BKE_mesh.hh"
 #include "BKE_object.h"
 
 using Alembic::AbcGeom::kWrapExisting;
@@ -49,14 +51,14 @@ bool AbcPointsReader::accepts_object_type(
     const char **err_str) const
 {
   if (!Alembic::AbcGeom::IPoints::matches(alembic_header)) {
-    *err_str =
+    *err_str = N_(
         "Object type mismatch, Alembic object path pointed to Points when importing, but not any "
-        "more.";
+        "more.");
     return false;
   }
 
   if (ob->type != OB_MESH) {
-    *err_str = "Object type mismatch, Alembic object path points to Points.";
+    *err_str = N_("Object type mismatch, Alembic object path points to Points.");
     return false;
   }
 
@@ -134,7 +136,7 @@ struct Mesh *AbcPointsReader::read_mesh(struct Mesh *existing_mesh,
   Mesh *new_mesh = nullptr;
 
   if (existing_mesh->totvert != positions->size()) {
-    new_mesh = BKE_mesh_new_nomain(positions->size(), 0, 0, 0, 0);
+    new_mesh = BKE_mesh_new_nomain(positions->size(), 0, 0, 0);
   }
 
   Mesh *mesh_to_export = new_mesh ? new_mesh : existing_mesh;

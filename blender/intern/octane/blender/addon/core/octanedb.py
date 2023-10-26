@@ -176,5 +176,5 @@ class OctaneDBCreator(object):
                     mat = self.material.node_tree.nodes.new("OctaneUniversalMaterial")
                     self.material.node_tree.links.new(mat.outputs[0], self.output.inputs["Surface"])
                     self.material.node_tree.links.new(input_node.outputs[0], mat.inputs["Albedo"])
-            utility.beautifier_nodetree_layout(self.material)            
+            utility.beautifier_nodetree_layout_by_owner(self.material)            
             self.assign_octane_db_material()            

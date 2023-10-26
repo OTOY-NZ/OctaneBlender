@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 ## Update and uncomment this in the release branch
-set(BLENDER_VERSION 3.5)
+set(BLENDER_VERSION 3.6)
 
 function(download_source dep)
   set(TARGET_FILE ${${dep}_FILE})
@@ -156,6 +156,7 @@ download_source(OPENCLHEADERS)
 download_source(ICDLOADER)
 download_source(MP11)
 download_source(SPIRV_HEADERS)
+download_source(UNIFIED_RUNTIME)
 download_source(IGC)
 download_source(IGC_LLVM)
 download_source(IGC_OPENCL_CLANG)

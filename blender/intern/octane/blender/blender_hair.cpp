@@ -124,11 +124,16 @@ bool BlenderSync::fill_mesh_hair_data(
         total_hair_cnt += totcurves;
         PointerRNA particle_settings = b_part.ptr;
         PointerRNA oct_settings = RNA_pointer_get(&b_part.ptr, "octane");
-        float min_curvature = get_float(particle_settings, "octane_min_curvature");
-        float root_width = get_float(particle_settings, "octane_root_width");
-        float tip_width = get_float(particle_settings, "octane_tip_width");
-        float w_min = get_float(particle_settings, "octane_w_min");
-        float w_max = get_float(particle_settings, "octane_w_max");
+        //float min_curvature = get_float(particle_settings, "octane_min_curvature");
+        //float root_width = get_float(particle_settings, "octane_root_width");
+        //float tip_width = get_float(particle_settings, "octane_tip_width");
+        //float w_min = get_float(particle_settings, "octane_w_min");
+        //float w_max = get_float(particle_settings, "octane_w_max");
+        float min_curvature = get_float(oct_settings, "min_curvature");
+        float root_width = get_float(oct_settings, "root_width");
+        float tip_width = get_float(oct_settings, "tip_width");
+        float w_min = get_float(oct_settings, "w_min");
+        float w_max = get_float(oct_settings, "w_max");
 
         int ren_step = (1 << display_step) + 1;
         if (b_part.kink() == BL::ParticleSettings::kink_SPIRAL)

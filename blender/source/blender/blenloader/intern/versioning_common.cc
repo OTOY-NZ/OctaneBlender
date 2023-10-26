@@ -20,7 +20,7 @@
 #include "BKE_lib_id.h"
 #include "BKE_main.h"
 #include "BKE_main_namemap.h"
-#include "BKE_node.h"
+#include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
 
 #include "MEM_guardedalloc.h"
@@ -32,7 +32,7 @@ using blender::StringRef;
 
 ARegion *do_versions_add_region_if_not_found(ListBase *regionbase,
                                              int region_type,
-                                             const char *name,
+                                             const char *allocname,
                                              int link_after_region_type)
 {
   ARegion *link_after_region = nullptr;
@@ -45,7 +45,28 @@ ARegion *do_versions_add_region_if_not_found(ListBase *regionbase,
     }
   }
 
-  ARegion *new_region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), name));
+  ARegion *new_region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), allocname));
+  new_region->regiontype = region_type;
+  BLI_insertlinkafter(regionbase, link_after_region, new_region);
+  return new_region;
+}
+
+ARegion *do_versions_ensure_region(ListBase *regionbase,
+                                   int region_type,
+                                   const char *allocname,
+                                   int link_after_region_type)
+{
+  ARegion *link_after_region = nullptr;
+  LISTBASE_FOREACH (ARegion *, region, regionbase) {
+    if (region->regiontype == region_type) {
+      return region;
+    }
+    if (region->regiontype == link_after_region_type) {
+      link_after_region = region;
+    }
+  }
+
+  ARegion *new_region = MEM_cnew<ARegion>(allocname);
   new_region->regiontype = region_type;
   BLI_insertlinkafter(regionbase, link_after_region, new_region);
   return new_region;
@@ -82,10 +103,10 @@ static void change_node_socket_name(ListBase *sockets, const char *old_name, con
 {
   LISTBASE_FOREACH (bNodeSocket *, socket, sockets) {
     if (STREQ(socket->name, old_name)) {
-      BLI_strncpy(socket->name, new_name, sizeof(socket->name));
+      STRNCPY(socket->name, new_name);
     }
     if (STREQ(socket->identifier, old_name)) {
-      BLI_strncpy(socket->identifier, new_name, sizeof(socket->name));
+      STRNCPY(socket->identifier, new_name);
     }
   }
 }
@@ -186,7 +207,8 @@ void version_node_socket_index_animdata(Main *bmain,
    * keyframe data. Not sure what causes that, so I (Sybren) moved the code here from
    * versioning_290.cc as-is (structure-wise). */
   for (int input_index = total_number_of_sockets - 1; input_index >= socket_index_orig;
-       input_index--) {
+       input_index--)
+  {
     FOREACH_NODETREE_BEGIN (bmain, ntree, owner_id) {
       if (ntree->type != node_tree_type) {
         continue;

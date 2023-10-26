@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2009 Blender Foundation. All rights reserved. */
+ * Copyright 2009 Blender Foundation */
 
 /** \file
  * \ingroup edinterface
@@ -17,12 +17,12 @@
 
 #include "BLT_translation.h"
 
-#include "DNA_gpencil_types.h"
+#include "DNA_gpencil_legacy_types.h"
 #include "DNA_material_types.h"
 #include "DNA_space_types.h"
 
 #include "BKE_context.h"
-#include "BKE_gpencil.h"
+#include "BKE_gpencil_legacy.h"
 #include "BKE_lib_id.h"
 #include "BKE_main.h"
 #include "BKE_material.h"
@@ -39,7 +39,7 @@
 #include "RNA_access.h"
 #include "RNA_define.h"
 
-#include "ED_gpencil.h"
+#include "ED_gpencil_legacy.h"
 #include "ED_screen.h"
 #include "ED_undo.h"
 
@@ -66,8 +66,7 @@ struct EyedropperGPencil {
 static void eyedropper_gpencil_status_indicators(bContext *C)
 {
   char msg_str[UI_MAX_DRAW_STR];
-  BLI_strncpy(
-      msg_str, TIP_("LMB: Stroke - Shift: Fill - Shift+Ctrl: Stroke + Fill"), UI_MAX_DRAW_STR);
+  STRNCPY(msg_str, TIP_("LMB: Stroke - Shift: Fill - Shift+Ctrl: Stroke + Fill"));
 
   ED_workspace_status_text(C, msg_str);
 }
@@ -342,7 +341,7 @@ static bool eyedropper_gpencil_poll(bContext *C)
 {
   /* Only valid if the current active object is grease pencil. */
   Object *obact = CTX_data_active_object(C);
-  if ((obact == nullptr) || (obact->type != OB_GPENCIL)) {
+  if ((obact == nullptr) || (obact->type != OB_GPENCIL_LEGACY)) {
     return false;
   }
 

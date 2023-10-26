@@ -4,9 +4,11 @@
 
 #include "usd.h"
 
+#include "BLI_map.hh"
+
 #include <pxr/usd/usdShade/material.h>
 
-#include <map>
+#include <string>
 
 struct Main;
 struct Material;
@@ -14,6 +16,8 @@ struct bNode;
 struct bNodeTree;
 
 namespace blender::io::usd {
+
+using ShaderToNodeMap = blender::Map<std::string, bNode *>;
 
 /* Helper struct used when arranging nodes in columns, keeping track the
  * occupancy information for a given column.  I.e., for column n,
@@ -25,6 +29,12 @@ struct NodePlacementContext {
   std::vector<float> column_offsets;
   const float horizontal_step;
   const float vertical_step;
+
+  /* Map a USD shader prim path to the Blender node converted
+   * from that shader.  This map is updated during shader
+   * conversion and is used to avoid creating duplicate nodes
+   * for a given shader.  */
+  ShaderToNodeMap node_cache;
 
   NodePlacementContext(float in_origx,
                        float in_origy,
@@ -145,10 +155,10 @@ void build_material_map(const Main *bmain, std::map<std::string, Material *> *r_
  * Returns an existing Blender material that corresponds to the USD material with the given path.
  * Returns null if no such material exists.
  *
- * \param mat_map Map a material name to a Blender material.  Note that the name key
- *  might be the Blender material name modified to be a valid USD identifier,
- *  to match the material names in the imported USD.
- * \param usd_path_to_mat_name Map a USD material path to the imported Blender material name.
+ * \param mat_map: Map a material name to a Blender material.  Note that the name key
+ * might be the Blender material name modified to be a valid USD identifier,
+ * to match the material names in the imported USD.
+ * \param usd_path_to_mat_name: Map a USD material path to the imported Blender material name.
  *
  * The usd_path_to_mat_name is needed to determine the name of the Blender
  * material imported from a USD path in the case when a unique name was generated

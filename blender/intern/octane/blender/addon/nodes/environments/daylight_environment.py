@@ -376,6 +376,12 @@ class OctaneDaylightEnvironment(bpy.types.Node, OctaneBaseNode):
     octane_attribute_config={"a_compatibility_version": [consts.AttributeID.A_COMPATIBILITY_VERSION, "compatibilityVersion", consts.AttributeType.AT_INT], }
     octane_static_pin_count=20
 
+    compatibility_mode_infos=[
+        ("Latest (2022.1)", "Latest (2022.1)", """(null)""", 12000005),
+        ("2021.1 compatibility mode", "2021.1 compatibility mode", """The Octane daylight model produces absolute spectral colors, not relative to the white light spectrum set in the kernel.""", 0),
+    ]
+    a_compatibility_version_enum: EnumProperty(name="Compatibility version", default="Latest (2022.1)", update=OctaneBaseNode.update_compatibility_mode, description="The Octane version that the behavior of this node should match", items=compatibility_mode_infos)
+
     a_compatibility_version: IntProperty(name="Compatibility version", default=12000102, update=OctaneBaseNode.update_node_tree, description="The Octane version that the behavior of this node should match")
 
     def init(self, context):
@@ -443,3 +449,11 @@ def unregister():
     utility.octane_unregister_class(reversed(_CLASSES))
 
 ##### END OCTANE GENERATED CODE BLOCK #####
+
+class OctaneDaylightEnvironment_Override(OctaneDaylightEnvironment):
+
+    def draw_buttons(self, context, layout):
+        row = layout.row()
+        row.prop(self, "a_compatibility_version_enum")
+
+utility.override_class(_CLASSES, OctaneDaylightEnvironment, OctaneDaylightEnvironment_Override)

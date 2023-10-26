@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 3.5.0 Release Candidate (b'14efe7000449')\n"
+"Project-Id-Version: Blender 3.6.0 Release Candidate (b'a07063e6a403')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-03-27 16:38:19\n"
+"POT-Creation-Date: 2023-06-22 15:00:05\n"
 "PO-Revision-Date: \n"
 "Last-Translator: Arvid Rudling <arvid.r@gmail.com>\n"
 "Language-Team: \n"
@@ -297,16 +297,16 @@ msgid "Fill"
 msgstr "Fyll"
 
 
-msgid "Smooth"
-msgstr "Jämn"
+msgid "Hardness"
+msgstr "Hårdhet"
 
 
 msgid "Thickness"
 msgstr "Tjocklek"
 
 
-msgid "Hardness"
-msgstr "Hårdhet"
+msgid "Smooth"
+msgstr "Jämn"
 
 
 msgid "Saturation"
@@ -633,10 +633,6 @@ msgid "7.1 Surround"
 msgstr "7.1 Surround"
 
 
-msgid "Samplerate"
-msgstr "Samplingsfrekvens"
-
-
 msgid "Audio volume"
 msgstr "Ljudvolym"
 
@@ -905,14 +901,6 @@ msgid "Rate"
 msgstr "Frekvens"
 
 
-msgid "Rotate"
-msgstr "Rotera"
-
-
-msgid "Cloth"
-msgstr "Tyg"
-
-
 msgid "List of background images"
 msgstr "Lista på bakgrundsbilder"
 
@@ -1043,6 +1031,10 @@ msgstr "Diffus färg"
 
 msgid "Cube"
 msgstr "Kub"
+
+
+msgid "Cloth"
+msgstr "Tyg"
 
 
 msgid "Specular Color"
@@ -1425,6 +1417,10 @@ msgid "Shadow"
 msgstr "Skugga"
 
 
+msgid "Rotate"
+msgstr "Rotera"
+
+
 msgid "Convex Hull"
 msgstr "Konvext hölje"
 
@@ -1451,10 +1447,6 @@ msgstr "Färgkälla"
 
 msgid "Air"
 msgstr "Luft"
-
-
-msgid "Wrap"
-msgstr "Radbrytning"
 
 
 msgid "Object Constraints"
@@ -1509,10 +1501,6 @@ msgstr "Växla angiven inställning för alla markerade animationskanaler"
 
 msgid "Filter folders"
 msgstr "Filtrera mappar"
-
-
-msgid "Filter python"
-msgstr "Filtrera Python"
 
 
 msgid "Toggle selection status of all bones"
@@ -1758,6 +1746,10 @@ msgid "Restrict Render Unselected"
 msgstr "Begränsa rendering till markering"
 
 
+msgid "Selected Only"
+msgstr "Bara Markerad"
+
+
 msgctxt "Operator"
 msgid "Multires Subdivide"
 msgstr "Dela upp i flera upplösningsnivåer"
@@ -1877,10 +1869,6 @@ msgstr "Spegel"
 msgctxt "Operator"
 msgid "Particle Edit Toggle"
 msgstr "Redigera partiklar på/av"
-
-
-msgid "Selected Only"
-msgstr "Bara Markerad"
 
 
 msgctxt "Operator"
@@ -2006,6 +1994,10 @@ msgid "Toggle display of selected object(s) separately and centered in view"
 msgstr "Visa/göm markerade objekt separat, och centrerat i vyn"
 
 
+msgid "Wrap"
+msgstr "Radbrytning"
+
+
 msgctxt "Operator"
 msgid "View Documentation"
 msgstr "Visa dokumentation"
@@ -2088,10 +2080,6 @@ msgid "Bone Constraints"
 msgstr "Benbegränsningar"
 
 
-msgid "Lens"
-msgstr "Lins"
-
-
 msgid "Cloth Presets"
 msgstr "Tygförinställningar"
 
@@ -2134,10 +2122,6 @@ msgstr "Viskositet"
 
 msgid "Shadows"
 msgstr "Skuggor"
-
-
-msgid "FFMPEG Presets"
-msgstr "FFMPEG-förinställningar"
 
 
 msgid "Playback"
@@ -2244,6 +2228,10 @@ msgid "Translate Tooltips"
 msgstr "Översätt verktygstipsen"
 
 
+msgid "Base"
+msgstr "Bas"
+
+
 msgid "Find"
 msgstr "Sök"
 
@@ -2344,10 +2332,6 @@ msgid "Collision Margin"
 msgstr "Krockmarginal"
 
 
-msgid "Base"
-msgstr "Bas"
-
-
 msgid "Settings for particle fluids physics"
 msgstr "Fysikinställningar för partikelvätskor"
 
@@ -2440,12 +2424,12 @@ msgid "3D View far clipping distance"
 msgstr "Bortre beskärningsgräns i 3D-vyn"
 
 
+msgid "Lens"
+msgstr "Lins"
+
+
 msgid "Lock to Object"
 msgstr "Lås till objekt"
-
-
-msgid "3D region in this space, in case of quad view the camera region"
-msgstr "3D-område i detta rum, kameraområde vid 4-vägsvy"
 
 
 msgid "Texture slot name"
@@ -2583,10 +2567,6 @@ msgstr "Förälder"
 msgctxt "Operator"
 msgid "Clear"
 msgstr "Nollställ"
-
-
-msgid "Old"
-msgstr "Gammal"
 
 
 msgid "Date"
@@ -2729,6 +2709,10 @@ msgid "Path:"
 msgstr "Bana:"
 
 
+msgid "Old"
+msgstr "Gammal"
+
+
 msgid "IOR"
 msgstr "Brytningsindex"
 
@@ -2747,10 +2731,6 @@ msgstr "Engelska (English)"
 
 msgid "Japanese (日本語)"
 msgstr "Japanska (日本語)"
-
-
-msgid "Dutch (Nederlandse taal)"
-msgstr "Nederländska (Nederlandse taal)"
 
 
 msgid "Italian (Italiano)"

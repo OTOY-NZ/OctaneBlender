@@ -48,10 +48,14 @@ static void oct_node_object_data_update(bNodeTree *tree, bNode *node)
 
   ObjectDataNodeSourceType type = (ObjectDataNodeSourceType)node->custom1;
 
-  nodeSetSocketAvailability(tree, object_socket, type == OBJECT_DATA_NODE_TYPE_OBJECT);
-  nodeSetSocketAvailability(tree, collection_socket, type == OBJECT_DATA_NODE_TYPE_COLLECTION);
-  nodeSetSocketAvailability(tree, out_transform_socket, type == OBJECT_DATA_NODE_TYPE_OBJECT);
-  nodeSetSocketAvailability(tree, out_rotation_socket, type == OBJECT_DATA_NODE_TYPE_OBJECT);
+  blender::bke::nodeSetSocketAvailability(
+      tree, object_socket, type == OBJECT_DATA_NODE_TYPE_OBJECT);
+  blender::bke::nodeSetSocketAvailability(
+      tree, collection_socket, type == OBJECT_DATA_NODE_TYPE_COLLECTION);
+  blender::bke::nodeSetSocketAvailability(
+      tree, out_transform_socket, type == OBJECT_DATA_NODE_TYPE_OBJECT);
+  blender::bke::nodeSetSocketAvailability(
+      tree, out_rotation_socket, type == OBJECT_DATA_NODE_TYPE_OBJECT);
 }
 
 bool object_data_node_poll(const struct bNodeType *ntype,
@@ -75,7 +79,7 @@ void register_node_type_oct_object_data(void)
 
   sh_node_type_base(&ntype, SH_NODE_OCT_OBJECT_DATA, "Object Data", NODE_CLASS_INPUT);
   ntype.poll = object_data_node_poll;
-  node_type_socket_templates(&ntype, sh_node_object_in, sh_node_object_out);
+  blender::bke::node_type_socket_templates(&ntype, sh_node_object_in, sh_node_object_out);
   ntype.updatefunc = (oct_node_object_data_update);
   node_type_storage(&ntype, "", NULL, NULL);
 

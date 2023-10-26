@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2005 Blender Foundation. All rights reserved. */
+ * Copyright 2005 Blender Foundation */
 
 #include "node_shader_util.hh"
 
@@ -7,9 +7,9 @@ namespace blender::nodes::node_shader_add_shader_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Shader>(N_("Shader"));
-  b.add_input<decl::Shader>(N_("Shader"), "Shader_001");
-  b.add_output<decl::Shader>(N_("Shader"));
+  b.add_input<decl::Shader>("Shader");
+  b.add_input<decl::Shader>("Shader", "Shader_001");
+  b.add_output<decl::Shader>("Shader");
 }
 
 static int node_shader_gpu_add_shader(GPUMaterial *mat,

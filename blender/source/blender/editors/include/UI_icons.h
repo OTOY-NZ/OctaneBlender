@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2009 Blender Foundation. All rights reserved. */
+ * Copyright 2009 Blender Foundation */
 
 /** \file
  * \ingroup editorui
@@ -618,7 +618,7 @@ DEF_ICON(IPO_EASE_IN)
 DEF_ICON(IPO_EASE_OUT)
 DEF_ICON(IPO_EASE_IN_OUT)
 DEF_ICON(NORMALIZE_FCURVES)
-DEF_ICON_BLANK(635)
+DEF_ICON(ORIENTATION_PARENT)
 DEF_ICON_BLANK(636)
 DEF_ICON_BLANK(637)
 DEF_ICON_BLANK(638)

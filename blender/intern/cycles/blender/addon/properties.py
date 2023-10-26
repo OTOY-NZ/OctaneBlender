@@ -403,7 +403,7 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
 
     time_limit: FloatProperty(
         name="Time Limit",
-        description="Limit the render time (excluding synchronization time)."
+        description="Limit the render time (excluding synchronization time). "
         "Zero disables the limit",
         min=0.0,
         default=0.0,
@@ -1507,7 +1507,7 @@ class CyclesPreferences(bpy.types.AddonPreferences):
 
     def get_device_types(self, context):
         import _cycles
-        has_cuda, has_optix, has_hip, has_metal, has_oneapi = _cycles.get_device_types()
+        has_cuda, has_optix, has_hip, has_metal, has_oneapi, has_hiprt = _cycles.get_device_types()
 
         list = [('NONE', "None", "Don't use compute device", 0)]
         if has_cuda:
@@ -1542,6 +1542,19 @@ class CyclesPreferences(bpy.types.AddonPreferences):
         description="MetalRT for ray tracing uses less memory for scenes which use curves extensively, and can give better "
                     "performance in specific cases. However this support is experimental and some scenes may render incorrectly",
         default=False,
+    )
+
+    use_hiprt: BoolProperty(
+        name="HIP RT (Experimental)",
+        description="HIP RT enables AMD hardware ray tracing on RDNA2 and above, with shader fallback on older cards. "
+                    "This feature is experimental and some scenes may render incorrectly",
+        default=False,
+    )
+
+    use_oneapirt: BoolProperty(
+        name="Embree on GPU",
+        description="Embree on GPU enables the use of hardware ray tracing on Intel GPUs, providing better overall performance",
+        default=True,
     )
 
     kernel_optimization_level: EnumProperty(
@@ -1690,12 +1703,12 @@ class CyclesPreferences(bpy.types.AddonPreferences):
             elif device_type == 'ONEAPI':
                 import sys
                 if sys.platform.startswith("win"):
-                    driver_version = "101.4032"
+                    driver_version = "101.4314"
                     col.label(text="Requires Intel GPU with Xe-HPG architecture", icon='BLANK1')
                     col.label(text=iface_("and Windows driver version %s or newer") % driver_version,
                               icon='BLANK1', translate=False)
                 elif sys.platform.startswith("linux"):
-                    driver_version = "1.3.24931"
+                    driver_version = "1.3.25812"
                     col.label(text="Requires Intel GPU with Xe-HPG architecture and", icon='BLANK1')
                     col.label(text=iface_("  - intel-level-zero-gpu version %s or newer") % driver_version,
                               icon='BLANK1', translate=False)
@@ -1759,6 +1772,16 @@ class CyclesPreferences(bpy.types.AddonPreferences):
                 if is_arm64:
                     col.prop(self, "kernel_optimization_level")
                 col.prop(self, "use_metalrt")
+
+        if compute_device_type == 'HIP':
+            has_cuda, has_optix, has_hip, has_metal, has_oneapi, has_hiprt = _cycles.get_device_types()
+            row = layout.row()
+            row.enabled = has_hiprt
+            row.prop(self, "use_hiprt")
+
+        elif compute_device_type == 'ONEAPI' and _cycles.with_embree_gpu:
+            row = layout.row()
+            row.prop(self, "use_oneapirt")
 
     def draw(self, context):
         self.draw_impl(self.layout, context)

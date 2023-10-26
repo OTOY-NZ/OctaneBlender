@@ -6,10 +6,10 @@ namespace blender::nodes::node_geo_set_id_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>(N_("Geometry"));
-  b.add_input<decl::Bool>(N_("Selection")).default_value(true).hide_value().field_on_all();
-  b.add_input<decl::Int>(N_("ID")).implicit_field_on_all(implicit_field_inputs::index);
-  b.add_output<decl::Geometry>(N_("Geometry")).propagate_all();
+  b.add_input<decl::Geometry>("Geometry");
+  b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
+  b.add_input<decl::Int>("ID").implicit_field_on_all(implicit_field_inputs::index);
+  b.add_output<decl::Geometry>("Geometry").propagate_all();
 }
 
 static void set_id_in_component(GeometryComponent &component,
@@ -24,8 +24,8 @@ static void set_id_in_component(GeometryComponent &component,
     return;
   }
   MutableAttributeAccessor attributes = *component.attributes_for_write();
-  bke::GeometryFieldContext field_context{component, domain};
 
+  const bke::GeometryFieldContext field_context{component, domain};
   fn::FieldEvaluator evaluator{field_context, domain_size};
   evaluator.set_selection(selection_field);
 
@@ -59,7 +59,8 @@ static void node_geo_exec(GeoNodeExecParams params)
   for (const GeometryComponentType type : {GEO_COMPONENT_TYPE_INSTANCES,
                                            GEO_COMPONENT_TYPE_MESH,
                                            GEO_COMPONENT_TYPE_POINT_CLOUD,
-                                           GEO_COMPONENT_TYPE_CURVE}) {
+                                           GEO_COMPONENT_TYPE_CURVE})
+  {
     if (geometry_set.has(type)) {
       set_id_in_component(geometry_set.get_component_for_write(type), selection_field, id_field);
     }

@@ -30,7 +30,7 @@
 #include "BKE_lib_query.h"
 #include "BKE_lib_remap.h"
 #include "BKE_main.h"
-#include "BKE_node.h"
+#include "BKE_node.hh"
 #include "BKE_pointcache.h"
 #include "BKE_simulation.h"
 
@@ -51,7 +51,7 @@ static void simulation_init_data(ID *id)
 
   MEMCPY_STRUCT_AFTER(simulation, DNA_struct_default_get(Simulation), id);
 
-  ntreeAddTreeEmbedded(nullptr, id, "Geometry Nodetree", ntreeType_Geometry->idname);
+  blender::bke::ntreeAddTreeEmbedded(nullptr, id, "Geometry Nodetree", ntreeType_Geometry->idname);
 }
 
 static void simulation_copy_data(Main *bmain, ID *id_dst, const ID *id_src, const int flag)
@@ -107,8 +107,17 @@ static void simulation_blend_write(BlendWriter *writer, ID *id, const void *id_a
 
   /* nodetree is integral part of simulation, no libdata */
   if (simulation->nodetree) {
-    BLO_write_struct(writer, bNodeTree, simulation->nodetree);
-    ntreeBlendWrite(writer, simulation->nodetree);
+    BLO_Write_IDBuffer *temp_embedded_id_buffer = BLO_write_allocate_id_buffer();
+    BLO_write_init_id_buffer_from_id(
+        temp_embedded_id_buffer, &simulation->nodetree->id, BLO_write_is_undo(writer));
+    BLO_write_struct_at_address(writer,
+                                bNodeTree,
+                                simulation->nodetree,
+                                BLO_write_get_id_buffer_temp_id(temp_embedded_id_buffer));
+    ntreeBlendWrite(
+        writer,
+        reinterpret_cast<bNodeTree *>(BLO_write_get_id_buffer_temp_id(temp_embedded_id_buffer)));
+    BLO_write_destroy_id_buffer(&temp_embedded_id_buffer);
   }
 }
 

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2007 Blender Foundation. All rights reserved. */
+ * Copyright 2007 Blender Foundation */
 
 /** \file
  * \ingroup edsnd
@@ -355,7 +355,7 @@ static int sound_mixdown_exec(bContext *C, wmOperator *op)
   specs.channels = scene_eval->r.ffcodecdata.audio_channels;
   specs.rate = scene_eval->r.ffcodecdata.audio_mixrate;
 
-  BLI_strncpy(filename, path, sizeof(filename));
+  STRNCPY(filename, path);
   BLI_path_abs(filename, BKE_main_blendfile_path(bmain));
 
   const double fps = (((double)scene_eval->r.frs_sec) / (double)scene_eval->r.frs_sec_base);

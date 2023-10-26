@@ -1174,168 +1174,6 @@ OctaneAOVOutputGroupSocket.octane_default_node_name="OctaneAOVOutputGroup"
 class OctaneRenderAOVsOutputNode_Override_RenderPassItems:
     render_pass_configs = {}
     render_pass_enums = []
-    LEGACY_STYLE_PASS_NAME_TO_RENDER_ID = {}
-    RENDER_ID_TO_LEGACY_STYLE_PASS_NAME = {
-        0: "OctBeauty",
-        1: "Emit",
-        2: "Env",
-        3: "OctDiff",
-        4: "OctDiffDir",
-        5: "OctDiffIndir",
-        6: "OctDiffFilter",
-        7: "OctReflect",
-        8: "OctReflectDir",
-        9: "OctReflectIndir",
-        10: "OctReflectFilter",
-        11: "Refract",
-        12: "OctRefractFilter",
-        13: "TransCol",
-        14: "OctTransmFilter",
-        15: "SubsurfaceCol",
-        16: "OctPostProcess",
-        17: "OctLayerShadows",
-        18: "OctLayerBlackShadow",
-        20: "OctLayerReflections",
-        21: "OctAmbientLight",
-        22: "OctSunlight",
-        23: "OctLightPass1",
-        24: "OctLightPass2",
-        25: "OctLightPass3",
-        26: "OctLightPass4",
-        27: "OctLightPass5",
-        28: "OctLightPass6",
-        29: "OctLightPass7",
-        30: "OctLightPass8",
-        31: "OctNoise",
-        32: "Shadow",
-        33: "OctIrradiance",
-        34: "OctLightDir",
-        35: "OctVolume",
-        36: "OctVolMask",
-        37: "OctVolEmission",
-        38: "OctVolZFront",
-        39: "OctVolZBack",
-        43: "OctDenoiserBeauty",
-        44: "OctDenoiserDiffDir",
-        45: "OctDenoiserDiffIndir",
-        46: "OctDenoiserReflectDir",
-        47: "OctDenoiserReflectIndir",
-        49: "OctDenoiserRemainder",
-        54: "OctAmbientLightDir",
-        55: "OctAmbientLightIndir",
-        56: "OctSunLightDir",
-        57: "OctSunLightIndir",
-        58: "OctLightDirPass1",
-        59: "OctLightDirPass2",
-        60: "OctLightDirPass3",
-        61: "OctLightDirPass4",
-        62: "OctLightDirPass5",
-        63: "OctLightDirPass6",
-        64: "OctLightDirPass7",
-        65: "OctLightDirPass8",
-        66: "OctLightIndirPass1",
-        67: "OctLightIndirPass2",
-        68: "OctLightIndirPass3",
-        69: "OctLightIndirPass4",
-        70: "OctLightIndirPass5",
-        71: "OctLightIndirPass6",
-        72: "OctLightIndirPass7",
-        73: "OctLightIndirPass8",
-        74: "OctDenoiserVolume",
-        75: "OctDenoiserVolumeEmission",
-        76: "OctDenoiserEmission",
-        501: "OctCustom1",
-        502: "OctCustom2",
-        503: "OctCustom3",
-        504: "OctCustom4",
-        505: "OctCustom5",
-        506: "OctCustom6",
-        507: "OctCustom7",
-        508: "OctCustom8",
-        509: "OctCustom9",
-        510: "OctCustom10",
-        511: "OctCustom11",
-        512: "OctCustom12",
-        513: "OctCustom13",
-        514: "OctCustom14",
-        515: "OctCustom15",
-        516: "OctCustom16",
-        517: "OctCustom17",
-        518: "OctCustom18",
-        519: "OctCustom19",
-        520: "OctCustom20",        
-        1000: "OctGeoNormal",
-        1001: "OctShadingNormal",
-        1002: "OctPosition",
-        1003: "Depth",
-        1004: "IndexMA",
-        1005: "UV",
-        1006: "OctTexTangent",
-        1007: "OctWireframe",
-        1008: "OctSmoothNormal",
-        1009: "IndexOB",
-        1010: "AO",
-        1011: "OctMotionVector",
-        1012: "OctRenderLayerID",
-        1013: "OctRenderLayerMask",
-        1014: "OctLightPassID",
-        1015: "OctTangentNormal",
-        1016: "OctOpacity",
-        1017: "OctBakingGroupID",
-        1018: "OctRoughness",
-        1019: "OctIOR",
-        1020: "OctDiffFilterInfo",
-        1021: "OctReflectFilterInfo",
-        1022: "OctRefractFilterInfo",
-        1023: "OctTransmFilterInfo",
-        1024: "OctObjLayerColor",
-        1101: "OctGlobalTex1",
-        1102: "OctGlobalTex2",
-        1103: "OctGlobalTex3",
-        1104: "OctGlobalTex4",
-        1105: "OctGlobalTex5",
-        1106: "OctGlobalTex6",
-        1107: "OctGlobalTex7",
-        1108: "OctGlobalTex8",
-        1109: "OctGlobalTex9",
-        1110: "OctGlobalTex10",
-        1111: "OctGlobalTex11",
-        1112: "OctGlobalTex12",
-        1113: "OctGlobalTex13",
-        1114: "OctGlobalTex14",
-        1115: "OctGlobalTex15",
-        1116: "OctGlobalTex16",
-        1117: "OctGlobalTex17",
-        1118: "OctGlobalTex18",
-        1119: "OctGlobalTex19",
-        1120: "OctGlobalTex20",        
-        2001: "OctCryptoMatNodeName",
-        2002: "OctCryptoMatPinNode",
-        2003: "OctCryptoObjNodeName",
-        2004: "OctCryptoObjNode",
-        2005: "OctCryptoInstanceID",
-        2006: "OctCryptoMatNode",
-        2007: "OctCryptoObjPinNode",
-        2009: "OctCryptoRenderLayer",
-        2008: "OctCryptoGeometryNodeName",
-        2010: "OctCryptoUserInstanceID",
-        10000: "OctAovOut1",
-        10001: "OctAovOut2",
-        10002: "OctAovOut3",
-        10003: "OctAovOut4",
-        10004: "OctAovOut5",
-        10005: "OctAovOut6",
-        10006: "OctAovOut7",
-        10007: "OctAovOut8",
-        10008: "OctAovOut9",
-        10009: "OctAovOut10",
-        10010: "OctAovOut11",
-        10011: "OctAovOut12",
-        10012: "OctAovOut13",
-        10013: "OctAovOut14",
-        10014: "OctAovOut15",
-        10015: "OctAovOut16",    
-    }
 
     @staticmethod
     def get_render_pass_ids():
@@ -1352,10 +1190,9 @@ class OctaneRenderAOVsOutputNode_Override_RenderPassItems:
 class OctaneRenderAOVOutputNodeComponent(object):    
 
     def generate_aov_output_pass_configs(self, view_layer, current_render_pass_configs):
-        RENDER_PASS_OUTPUT_AOV_IDS_OFFSET = 10000
         max_aov_output_count = utility.scene_max_aov_output_count(view_layer)
         for aov_output_index in range(1, max_aov_output_count + 1):
-            aov_output_pass_id = RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + aov_output_index - 1
+            aov_output_pass_id = consts.RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + aov_output_index - 1
             aov_output_pass_short_name = "AOV Output %d" % aov_output_index
             aov_output_pass_long_name = "AOV Output %d pass" % aov_output_index
             current_render_pass_configs[aov_output_pass_id] = (aov_output_pass_short_name, aov_output_pass_long_name)
@@ -1382,8 +1219,8 @@ class OctaneRenderAOVOutputNodeComponent(object):
 
     def enum_preview_render_pass_items(self, view_layer):        
         new_render_pass_configs = {
-            0: ("Beauty", "Beauty pass"), 
-            43: ("Denoise Beauty", "Denoise beauty pass")
+            consts.RenderPassID.Beauty: ("Beauty", "Beauty pass"), 
+            consts.RenderPassID.DenoisedBeauty: ("Denoised Beauty", "Denoised beauty pass")
         }
         self.generate_aov_output_pass_configs(view_layer, new_render_pass_configs)
         self.generate_render_pass_configs(self, new_render_pass_configs)
@@ -1391,7 +1228,7 @@ class OctaneRenderAOVOutputNodeComponent(object):
         render_pass_configs = OctaneRenderAOVsOutputNode_Override_RenderPassItems.render_pass_configs
         if render_pass_configs.keys() != new_render_pass_configs.keys():
             render_pass_configs = new_render_pass_configs
-            render_pass_enums.clear()                        
+            render_pass_enums.clear()
             for render_pass_id in sorted(render_pass_configs.keys()):
                 render_pass_name = render_pass_configs[render_pass_id][0]
                 render_pass_description = render_pass_configs[render_pass_id][1]
@@ -1406,7 +1243,7 @@ class OctaneRenderAOVOutputNodeComponent(object):
         utility.update_render_passes(None, context)
 
     def get_current_preview_render_pass_id(self, view_layer):
-        render_pass_id = consts.RenderPassId.BEAUTY
+        render_pass_id = consts.RenderPassID.Beauty
         self.enum_preview_render_pass_items(view_layer)
         for enum_item in OctaneRenderAOVsOutputNode_Override_RenderPassItems.render_pass_enums:
             if self.preview_render_pass == enum_item[0]:
@@ -1415,7 +1252,7 @@ class OctaneRenderAOVOutputNodeComponent(object):
         return render_pass_id
 
     def get_enabled_render_pass_ids(self, view_layer):
-        render_pass_ids = [consts.RenderPassId.BEAUTY, ]
+        render_pass_ids = [consts.RenderPassID.Beauty, ]
         self.enum_preview_render_pass_items(view_layer)
         for enum_item in OctaneRenderAOVsOutputNode_Override_RenderPassItems.render_pass_enums:
             if enum_item[3] not in render_pass_ids:

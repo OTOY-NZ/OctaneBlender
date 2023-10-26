@@ -181,6 +181,8 @@ void BLO_blendfiledata_free(BlendFileData *bfd);
 typedef struct BLODataBlockInfo {
   char name[64]; /* MAX_NAME */
   struct AssetMetaData *asset_data;
+  /** Ownership over #asset_data above can be "stolen out" of this struct, for more permanent
+   * storage. In that case, set this to false to avoid double freeing of the stolen data. */
   bool free_asset_data;
   /* Optimization: Tag data-blocks for which we know there is no preview.
    * Knowing this can be used to skip the (potentially expensive) preview loading process. If this
@@ -312,27 +314,6 @@ void BLO_read_invalidate_message(BlendHandle *bh, struct Main *bmain, const char
 
 #define BLO_GROUP_MAX 32
 #define BLO_EMBEDDED_STARTUP_BLEND "<startup.blend>"
-
-/**
- * Check whether given path ends with a blend file compatible extension
- * (`.blend`, `.ble` or `.blend.gz`).
- *
- * \param str: The path to check.
- * \return true is this path ends with a blender file extension.
- */
-bool BLO_has_bfile_extension(const char *str);
-/**
- * Try to explode given path into its 'library components'
- * (i.e. a .blend file, id type/group, and data-block itself).
- *
- * \param path: the full path to explode.
- * \param r_dir: the string that'll contain path up to blend file itself ('library' path).
- * WARNING! Must be #FILE_MAX_LIBEXTRA long (it also stores group and name strings)!
- * \param r_group: the string that'll contain 'group' part of the path, if any. May be NULL.
- * \param r_name: the string that'll contain data's name part of the path, if any. May be NULL.
- * \return true if path contains a blend file.
- */
-bool BLO_library_path_explode(const char *path, char *r_dir, char **r_group, char **r_name);
 
 /* -------------------------------------------------------------------- */
 /** \name BLO Blend File Linking API

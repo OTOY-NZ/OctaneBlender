@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2018 Blender Foundation. All rights reserved. */
+ * Copyright 2018 Blender Foundation */
 
 /** \file
  * \ingroup edobj
@@ -12,7 +12,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_gpencil_types.h"
+#include "DNA_gpencil_legacy_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_shader_fx_types.h"
@@ -60,7 +60,7 @@ ShaderFxData *ED_object_shaderfx_add(
   ShaderFxData *new_fx = NULL;
   const ShaderFxTypeInfo *fxi = BKE_shaderfx_get_info(type);
 
-  if (ob->type != OB_GPENCIL) {
+  if (ob->type != OB_GPENCIL_LEGACY) {
     BKE_reportf(reports, RPT_WARNING, "Effect cannot be added to object '%s'", ob->id.name + 2);
     return NULL;
   }
@@ -78,7 +78,7 @@ ShaderFxData *ED_object_shaderfx_add(
   BLI_addtail(&ob->shader_fx, new_fx);
 
   if (name) {
-    BLI_strncpy_utf8(new_fx->name, name, sizeof(new_fx->name));
+    STRNCPY_UTF8(new_fx->name, name);
   }
 
   /* make sure effect data has unique name */
@@ -241,7 +241,7 @@ void ED_object_shaderfx_link(Object *dst, Object *src)
 void ED_object_shaderfx_copy(Object *dst, ShaderFxData *fx)
 {
   ShaderFxData *nfx = BKE_shaderfx_new(fx->type);
-  BLI_strncpy(nfx->name, fx->name, sizeof(nfx->name));
+  STRNCPY(nfx->name, fx->name);
   BKE_shaderfx_copydata(fx, nfx);
   BLI_addtail(&dst->shader_fx, nfx);
 
@@ -682,7 +682,7 @@ static int shaderfx_copy_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  BLI_strncpy(nfx->name, fx->name, sizeof(nfx->name));
+  STRNCPY(nfx->name, fx->name);
   /* Make sure effect data has unique name. */
   BKE_shaderfx_unique_name(&ob->shader_fx, nfx);
 

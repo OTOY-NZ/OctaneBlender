@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2005 Blender Foundation. All rights reserved. */
+ * Copyright 2005 Blender Foundation */
 
 /** \file
  * \ingroup shdnodes
@@ -19,16 +19,10 @@ namespace blender::nodes::node_shader_math_cc {
 static void sh_node_math_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
-  b.add_input<decl::Float>(N_("Value")).default_value(0.5f).min(-10000.0f).max(10000.0f);
-  b.add_input<decl::Float>(N_("Value"), "Value_001")
-      .default_value(0.5f)
-      .min(-10000.0f)
-      .max(10000.0f);
-  b.add_input<decl::Float>(N_("Value"), "Value_002")
-      .default_value(0.5f)
-      .min(-10000.0f)
-      .max(10000.0f);
-  b.add_output<decl::Float>(N_("Value"));
+  b.add_input<decl::Float>("Value").default_value(0.5f).min(-10000.0f).max(10000.0f);
+  b.add_input<decl::Float>("Value", "Value_001").default_value(0.5f).min(-10000.0f).max(10000.0f);
+  b.add_input<decl::Float>("Value", "Value_002").default_value(0.5f).min(-10000.0f).max(10000.0f);
+  b.add_output<decl::Float>("Value");
 }
 
 class SocketSearchOp {
@@ -46,7 +40,8 @@ class SocketSearchOp {
 static void sh_node_math_gather_link_searches(GatherLinkSearchOpParams &params)
 {
   if (!params.node_tree().typeinfo->validate_link(
-          static_cast<eNodeSocketDatatype>(params.other_socket().type), SOCK_FLOAT)) {
+          static_cast<eNodeSocketDatatype>(params.other_socket().type), SOCK_FLOAT))
+  {
     return;
   }
 

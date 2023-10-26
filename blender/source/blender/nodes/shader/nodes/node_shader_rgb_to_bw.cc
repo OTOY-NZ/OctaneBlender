@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2005 Blender Foundation. All rights reserved. */
+ * Copyright 2005 Blender Foundation */
 
 /** \file
  * \ingroup shdnodes
@@ -13,8 +13,8 @@ namespace blender::nodes::node_shader_rgb_to_bw_cc {
 
 static void sh_node_rgbtobw_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Color>(N_("Color")).default_value({0.5f, 0.5f, 0.5f, 1.0f});
-  b.add_output<decl::Float>(N_("Val"));
+  b.add_input<decl::Color>("Color").default_value({0.5f, 0.5f, 0.5f, 1.0f});
+  b.add_output<decl::Float>("Val");
 }
 
 static int gpu_shader_rgbtobw(GPUMaterial *mat,

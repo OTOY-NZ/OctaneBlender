@@ -10,17 +10,38 @@ from octane import core
 class OCTANE_MT_imager_presets(Menu):
     bl_label = "Imager presets"
     preset_subdir = "octane/imager_presets"
-    preset_operator = "script.execute_preset"
-    COMPAT_ENGINES = {'octane'}
+    preset_operator = "script.execute_preset_octane"
+    preset_operator_defaults = {"menu_idname" : "OCTANE_MT_imager_presets"}
+    COMPAT_ENGINES = {"octane"}
     draw = Menu.draw_preset
 
 
 class OCTANE_MT_3dimager_presets(Menu):
     bl_label = "Imager presets"
     preset_subdir = "octane/3dimager_presets"
-    preset_operator = "script.execute_preset"
-    COMPAT_ENGINES = {'octane'}
+    preset_operator = "script.execute_preset_octane"
+    preset_operator_defaults = {"menu_idname" : "OCTANE_MT_3dimager_presets"}
+    COMPAT_ENGINES = {"octane"}
     draw = Menu.draw_preset
+
+
+class OCTANE_MT_postprocess_presets(Menu):
+    bl_label = "Postprocess presets"
+    preset_subdir = "octane/postprocess_presets"
+    preset_operator = "script.execute_preset_octane"
+    preset_operator_defaults = {"menu_idname" : "OCTANE_MT_postprocess_presets"}
+    COMPAT_ENGINES = {"octane"}
+    draw = Menu.draw_preset
+
+
+class OCTANE_MT_3dpostprocess_presets(Menu):
+    bl_label = "Postprocess presets"
+    preset_subdir = "octane/3dpostprocess_presets"
+    preset_operator = "script.execute_preset_octane"
+    preset_operator_defaults = {"menu_idname" : "OCTANE_MT_3dpostprocess_presets"}
+    COMPAT_ENGINES = {"octane"}
+    draw = Menu.draw_preset
+
 
 
 class OCTANE_CAMERA_PT_camera(common.OctanePropertyPanel, Panel):
@@ -261,7 +282,7 @@ class OCTANE_CAMERA_PT_imager(common.OctanePropertyPanel, Panel):
         row = self.layout.row(align=True)
         row.menu("OCTANE_MT_imager_presets", text=OCTANE_MT_imager_presets.bl_label)
         row.operator("render.octane_imager_preset_add", text="", icon="ADD")
-        row.operator("render.octane_imager_preset_add", text="", icon="REMOVE").remove_active = True        
+        row.operator("render.octane_imager_preset_add", text="", icon="REMOVE").remove_active = True
         context.camera.octane.imager.draw(context, self.layout, False)
 
 
@@ -310,22 +331,7 @@ class OCTANE_CAMERA_PT_imager_Upsampler(common.OctanePropertyPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-        context.camera.octane.imager.draw_upsampler(context, layout, True)    
-
-
-class OCTANE_CAMERA_PT_post(common.OctanePropertyPanel, Panel):
-    bl_label = "Octane Post Processing"
-    bl_context = "data"
-
-    @classmethod
-    def poll(cls, context):
-        return super().poll(context) and context.camera
-
-    def draw_header(self, context):
-        self.layout.prop(context.camera.octane, "postprocess", text="")
-
-    def draw(self, context):
-        context.camera.octane.post_processing.draw(context, self.layout, False)
+        context.camera.octane.imager.draw_upsampler(context, layout, True)
 
 
 class OCTANE_VIEW3D_PT_imager(common.OctanePropertyPanel, Panel):
@@ -343,14 +349,14 @@ class OCTANE_VIEW3D_PT_imager(common.OctanePropertyPanel, Panel):
     def draw_header(self, context):
         self.layout.prop(context.scene.octane, "use_preview_camera_imager", text="")
 
-    def draw(self, context):        
+    def draw(self, context):
         camera_data, camera_name = utility.find_active_imager_data(context.scene, context)
         layout = self.layout
         layout.active = (camera_name == "VIEW_3D")
         row = layout.row(align=True)
         row.menu("OCTANE_MT_3dimager_presets", text=OCTANE_MT_3dimager_presets.bl_label)
         row.operator("render.octane_3dimager_preset_add", text="", icon="ADD")
-        row.operator("render.octane_3dimager_preset_add", text="", icon="REMOVE").remove_active = True        
+        row.operator("render.octane_3dimager_preset_add", text="", icon="REMOVE").remove_active = True
         col = layout.column(align=True)
         col.prop(context.scene.octane, "use_preview_setting_for_camera_imager")
         oct_cam = context.scene.oct_view_cam
@@ -423,6 +429,34 @@ class OCTANE_VIEW3D_PT_imager_Upsampler(common.OctanePropertyPanel, Panel):
         oct_cam.imager.draw_upsampler(context, layout, True)                
 
 
+class OCTANE_CAMERA_PT_post(common.OctanePropertyPanel, Panel):
+    bl_label = "Octane Post Processing"
+    bl_context = "data"
+
+    @classmethod
+    def poll(cls, context):
+        return super().poll(context) and context.camera
+
+    def draw_header(self, context):
+        self.layout.prop(context.camera.octane, "postprocess", text="")
+
+    def draw(self, context):
+        row = self.layout.row(align=True)
+        row.menu("OCTANE_MT_postprocess_presets", text=OCTANE_MT_postprocess_presets.bl_label)
+        row.operator("render.octane_postprocess_preset_add", text="", icon="ADD")
+        row.operator("render.octane_postprocess_preset_add", text="", icon="REMOVE").remove_active = True
+
+
+class OCTANE_CAMERA_PT_post_image_processing(common.OctanePropertyPanel, Panel):
+    bl_label = "Post image processing"
+    bl_context = "data"
+    bl_parent_id = "OCTANE_CAMERA_PT_post"
+
+    def draw(self, context):
+        context.camera.octane.post_processing.draw_post_image_processing(context, self.layout, False)
+
+
+
 class OCTANE_VIEW3D_PT_post(common.OctanePropertyPanel, Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
@@ -439,30 +473,51 @@ class OCTANE_VIEW3D_PT_post(common.OctanePropertyPanel, Panel):
         self.layout.prop(context.scene.oct_view_cam, "postprocess", text="")
 
     def draw(self, context):
+        layout = self.layout
         camera_data, camera_name = utility.find_active_post_process_data(context.scene, context)
-        self.layout.active = (camera_name == "VIEW_3D")
-        col = self.layout.column(align=True)
+        layout.active = (camera_name == "VIEW_3D")
+        row = layout.row(align=True)
+        row.menu("OCTANE_MT_3dpostprocess_presets", text=OCTANE_MT_3dpostprocess_presets.bl_label)
+        row.operator("render.octane_3dpostprocess_preset_add", text="", icon="ADD")
+        row.operator("render.octane_3dpostprocess_preset_add", text="", icon="REMOVE").remove_active = True
+        col = layout.column(align=True)
         col.prop(context.scene.octane, "use_preview_post_process_setting")
+
+
+class OCTANE_VIEW3D_PT_post_image_processing(common.OctanePropertyPanel, Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI' 
+    bl_label = "Post image processing"
+    bl_context = "data"
+    bl_parent_id = "OCTANE_VIEW3D_PT_post"
+    bl_category = "Octane"
+    COMPAT_ENGINES = {'octane'}
+
+    def draw(self, context):
         oct_cam = context.scene.oct_view_cam
-        oct_cam.post_processing.draw(context, self.layout, True)
+        oct_cam.post_processing.draw_post_image_processing(context, self.layout, True)
 
 
 _CLASSES = [
     OCTANE_MT_imager_presets,
     OCTANE_MT_3dimager_presets,
+    OCTANE_MT_postprocess_presets,
+    OCTANE_MT_3dpostprocess_presets,
     OCTANE_CAMERA_PT_camera,
     OCTANE_CAMERA_PT_imager,
     OCTANE_CAMERA_PT_imager_OCIO,
     OCTANE_CAMERA_PT_imager_Tonemapping,
     OCTANE_CAMERA_PT_imager_Denoiser,
-    OCTANE_CAMERA_PT_imager_Upsampler,    
-    OCTANE_CAMERA_PT_post,
+    OCTANE_CAMERA_PT_imager_Upsampler,
     OCTANE_VIEW3D_PT_imager,
     OCTANE_VIEW3D_PT_imager_OCIO,
     OCTANE_VIEW3D_PT_imager_Tonemapping,
     OCTANE_VIEW3D_PT_imager_Denoiser,
     OCTANE_VIEW3D_PT_imager_Upsampler,
+    OCTANE_CAMERA_PT_post,
+    OCTANE_CAMERA_PT_post_image_processing,
     OCTANE_VIEW3D_PT_post,
+    OCTANE_VIEW3D_PT_post_image_processing,
 ]
 
 

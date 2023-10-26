@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2008 Blender Foundation. All rights reserved. */
+ * Copyright 2008 Blender Foundation */
 
 /** \file
  * \ingroup spgraph
@@ -448,6 +448,7 @@ void graphedit_operatortypes(void)
   WM_operatortype_append(GRAPH_OT_equalize_handles);
   WM_operatortype_append(GRAPH_OT_mirror);
   WM_operatortype_append(GRAPH_OT_frame_jump);
+  WM_operatortype_append(GRAPH_OT_keyframe_jump);
   WM_operatortype_append(GRAPH_OT_snap_cursor_value);
   WM_operatortype_append(GRAPH_OT_handle_type);
   WM_operatortype_append(GRAPH_OT_interpolation_type);
@@ -464,6 +465,7 @@ void graphedit_operatortypes(void)
   WM_operatortype_append(GRAPH_OT_breakdown);
   WM_operatortype_append(GRAPH_OT_ease);
   WM_operatortype_append(GRAPH_OT_blend_to_default);
+  WM_operatortype_append(GRAPH_OT_gaussian_smooth);
   WM_operatortype_append(GRAPH_OT_euler_filter);
   WM_operatortype_append(GRAPH_OT_delete);
   WM_operatortype_append(GRAPH_OT_duplicate);

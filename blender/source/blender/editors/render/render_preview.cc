@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright Blender Foundation. All rights reserved. */
+ * Copyright Blender Foundation */
 
 /** \file
  * \ingroup edrend
@@ -55,7 +55,7 @@
 #include "BKE_light.h"
 #include "BKE_main.h"
 #include "BKE_material.h"
-#include "BKE_node.h"
+#include "BKE_node.hh"
 #include "BKE_object.h"
 #include "BKE_pose_backup.h"
 #include "BKE_scene.h"
@@ -140,8 +140,9 @@ struct IconPreview {
   Depsgraph *depsgraph; /* May be nullptr (see #WM_OT_previews_ensure). */
   Scene *scene;
   void *owner;
-  ID *id,
-      *id_copy; /* May be nullptr! (see ICON_TYPE_PREVIEW case in #ui_icon_ensure_deferred()) */
+  /** May be nullptr! (see #ICON_TYPE_PREVIEW case in #ui_icon_ensure_deferred()). */
+  ID *id;
+  ID *id_copy;
   ListBase sizes;
 
   /* May be nullptr, is used for rendering IDs that require some other object for it to be applied
@@ -474,7 +475,7 @@ static Scene *preview_prepare_scene(
 
     /* This flag tells render to not execute depsgraph or F-Curves etc. */
     sce->r.scemode |= R_BUTS_PREVIEW;
-    BLI_strncpy(sce->r.engine, scene->r.engine, sizeof(sce->r.engine));
+    STRNCPY(sce->r.engine, scene->r.engine);
 
     sce->r.color_mgt_flag = scene->r.color_mgt_flag;
     BKE_color_managed_display_settings_copy(&sce->display_settings, &scene->display_settings);
@@ -497,7 +498,7 @@ static Scene *preview_prepare_scene(
 
     if (id_type == ID_TE) {
       /* Texture is not actually rendered with engine, just set dummy value. */
-      BLI_strncpy(sce->r.engine, RE_engine_id_BLENDER_EEVEE, sizeof(sce->r.engine));
+      STRNCPY(sce->r.engine, RE_engine_id_BLENDER_EEVEE);
     }
 
     if (id_type == ID_MA) {
@@ -630,10 +631,10 @@ static bool ed_preview_draw_rect(ScrArea *area, int split, int first, rcti *rect
   bool ok = false;
 
   if (!split || first) {
-    BLI_snprintf(name, sizeof(name), "Preview %p", (void *)area);
+    SNPRINTF(name, "Preview %p", (void *)area);
   }
   else {
-    BLI_snprintf(name, sizeof(name), "SecondPreview %p", (void *)area);
+    SNPRINTF(name, "SecondPreview %p", (void *)area);
   }
 
   if (split) {
@@ -744,7 +745,8 @@ void ED_preview_draw(const bContext *C, void *idp, void *parentp, void *slotp, r
      * or if the job is running and the size of preview changed */
     if ((sbuts != nullptr && sbuts->preview) ||
         (!ok && !WM_jobs_test(wm, area, WM_JOB_TYPE_RENDER_PREVIEW)) ||
-        (sp && (abs(sp->sizex - newx) >= 2 || abs(sp->sizey - newy) > 2))) {
+        (sp && (abs(sp->sizex - newx) >= 2 || abs(sp->sizey - newy) > 2)))
+    {
       if (sbuts != nullptr) {
         sbuts->preview = 0;
       }
@@ -784,8 +786,8 @@ static Object *object_preview_camera_create(Main *preview_main,
   Object *camera = BKE_object_add(preview_main, scene, view_layer, OB_CAMERA, "Preview Camera");
 
   float rotmat[3][3];
-  float dummyscale[3];
-  mat4_to_loc_rot_size(camera->loc, rotmat, dummyscale, preview_object->object_to_world);
+  float dummy_scale[3];
+  mat4_to_loc_rot_size(camera->loc, rotmat, dummy_scale, preview_object->object_to_world);
 
   /* Camera is Y up, so needs additional rotations to obliquely face the front. */
   float drotmat[3][3];
@@ -1054,9 +1056,7 @@ static bool shader_preview_break(void *spv)
   return *(sp->stop);
 }
 
-static void shader_preview_updatejob(void * /*spv*/)
-{
-}
+static void shader_preview_updatejob(void * /*spv*/) {}
 
 /* Renders texture directly to render buffer. */
 static void shader_preview_texture(ShaderPreview *sp, Tex *tex, Scene *sce, Render *re)
@@ -1152,10 +1152,10 @@ static void shader_preview_render(ShaderPreview *sp, ID *id, int split, int firs
   }
 
   if (!split || first) {
-    BLI_snprintf(name, sizeof(name), "Preview %p", sp->owner);
+    SNPRINTF(name, "Preview %p", sp->owner);
   }
   else {
-    BLI_snprintf(name, sizeof(name), "SecondPreview %p", sp->owner);
+    SNPRINTF(name, "SecondPreview %p", sp->owner);
   }
   re = RE_GetRender(name);
 
@@ -1314,7 +1314,7 @@ static ImBuf *icon_preview_imbuf_from_brush(Brush *brush)
     /* First use the path directly to try and load the file. */
     char filepath[FILE_MAX];
 
-    BLI_strncpy(filepath, brush->icon_filepath, sizeof(brush->icon_filepath));
+    STRNCPY(filepath, brush->icon_filepath);
     BLI_path_abs(filepath, ID_BLEND_PATH_FROM_GLOBAL(&brush->id));
 
     /* Use default color-spaces for brushes. */
@@ -1578,7 +1578,8 @@ static void icon_preview_startjob_all_sizes(void *customdata,
   IconPreviewSize *cur_size;
 
   for (cur_size = static_cast<IconPreviewSize *>(ip->sizes.first); cur_size;
-       cur_size = cur_size->next) {
+       cur_size = cur_size->next)
+  {
     PreviewImage *prv = static_cast<PreviewImage *>(ip->owner);
     /* Is this a render job or a deferred loading job? */
     const ePreviewRenderMethod pr_method = (prv->tag & PRV_TAG_DEFFERED) ? PR_ICON_DEFERRED :
@@ -1601,7 +1602,8 @@ static void icon_preview_startjob_all_sizes(void *customdata,
      * necessary to know here what happens inside lower-level functions. */
     const bool use_solid_render_mode = (ip->id != nullptr) && ELEM(GS(ip->id->name), ID_OB, ID_AC);
     if (!use_solid_render_mode && preview_method_is_render(pr_method) &&
-        !check_engine_supports_preview(ip->scene)) {
+        !check_engine_supports_preview(ip->scene))
+    {
       continue;
     }
 
@@ -1752,9 +1754,7 @@ class PreviewLoadJob {
   static void finish_request(RequestedPreview &request);
 };
 
-PreviewLoadJob::PreviewLoadJob() : todo_queue_(BLI_thread_queue_init())
-{
-}
+PreviewLoadJob::PreviewLoadJob() : todo_queue_(BLI_thread_queue_init()) {}
 
 PreviewLoadJob::~PreviewLoadJob()
 {
@@ -1814,7 +1814,8 @@ void PreviewLoadJob::run_fn(void *customdata, bool *stop, bool *do_update, float
   IMB_thumb_locks_acquire();
 
   while (RequestedPreview *request = static_cast<RequestedPreview *>(
-             BLI_thread_queue_pop_timeout(job_data->todo_queue_, 100))) {
+             BLI_thread_queue_pop_timeout(job_data->todo_queue_, 100)))
+  {
     if (*stop) {
       break;
     }
@@ -1869,7 +1870,8 @@ void PreviewLoadJob::update_fn(void *customdata)
   PreviewLoadJob *job_data = static_cast<PreviewLoadJob *>(customdata);
 
   for (auto request_it = job_data->requested_previews_.begin();
-       request_it != job_data->requested_previews_.end();) {
+       request_it != job_data->requested_previews_.end();)
+  {
     RequestedPreview &requested = *request_it;
     /* Skip items that are not done loading yet. */
     if (requested.preview->tag & PRV_TAG_DEFFERED_RENDERING) {

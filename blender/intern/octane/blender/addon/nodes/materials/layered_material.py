@@ -107,6 +107,12 @@ class OctaneLayeredMaterial(bpy.types.Node, OctaneBaseNode):
     octane_attribute_config={"a_pin_count": [consts.AttributeID.A_PIN_COUNT, "pin_count", consts.AttributeType.AT_INT], "a_input_action": [consts.AttributeID.A_INPUT_ACTION, "inputAction", consts.AttributeType.AT_INT2], "a_compatibility_version": [consts.AttributeID.A_COMPATIBILITY_VERSION, "compatibilityVersion", consts.AttributeType.AT_INT], }
     octane_static_pin_count=3
 
+    compatibility_mode_infos=[
+        ("Latest (2022.1)", "Latest (2022.1)", """(null)""", 12000006),
+        ("2021.1 compatibility mode", "2021.1 compatibility mode", """Layers on the material connected to the material input are added twice.""", 0),
+    ]
+    a_compatibility_version_enum: EnumProperty(name="Compatibility version", default="Latest (2022.1)", update=OctaneBaseNode.update_compatibility_mode, description="The Octane version that the behavior of this node should match", items=compatibility_mode_infos)
+
     a_pin_count: IntProperty(name="Pin count", default=0, update=OctaneBaseNode.update_node_tree, description="The number of material layers. New material layer pins will be added to the end of the pin list")
     a_compatibility_version: IntProperty(name="Compatibility version", default=12000102, update=OctaneBaseNode.update_node_tree, description="The Octane version that the behavior of this node should match")
 
@@ -163,6 +169,8 @@ class OctaneLayeredMaterial_Override(OctaneLayeredMaterial):
         self.init_movable_inputs(context, OctaneLayeredMaterialLayerMovableInput, self.DEFAULT_AOV_OUTPUT_COUNT)
 
     def draw_buttons(self, context, layout):
+        row = layout.row()
+        row.prop(self, "a_compatibility_version_enum")
         self.draw_movable_inputs(context, layout, OctaneLayeredMaterialLayerMovableInput, self.MAX_AOV_OUTPUT_COUNT)
 
 

@@ -16,14 +16,14 @@
 
 #include "BLT_translation.h"
 
-#include "DNA_gpencil_types.h"
+#include "DNA_gpencil_legacy_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_shader_fx_types.h"
 
-#include "BKE_gpencil.h"
+#include "BKE_gpencil_legacy.h"
 #include "BKE_lib_id.h"
 #include "BKE_lib_query.h"
 #include "BKE_object.h"
@@ -65,7 +65,7 @@ ShaderFxData *BKE_shaderfx_new(int type)
   ShaderFxData *fx = MEM_callocN(fxi->struct_size, fxi->struct_name);
 
   /* NOTE: this name must be made unique later. */
-  BLI_strncpy(fx->name, DATA_(fxi->name), sizeof(fx->name));
+  STRNCPY_UTF8(fx->name, DATA_(fxi->name));
 
   fx->type = type;
   fx->mode = eShaderFxMode_Realtime | eShaderFxMode_Render;

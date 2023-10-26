@@ -7,6 +7,8 @@ DERIVED_NODE_NAMES = "DERIVED_NODE_NAMES"
 DERIVED_NODE_TYPES = "DERIVED_NODE_TYPES"
 DERIVED_NODE_SEPARATOR = "###DERIVED_NODE_SEPARATOR###"
 OBJECT_INDEX_SEPARATOR = "###OBJECT_INDEX###"
+OCTANE_EXPORT_VIEW_LAYER_TAG = "$VIEW_LAYER$"
+OCTANE_EXPORT_OCTANE_PASS_TAG = "$OCTANE_PASS$"
 
 OCTANE_BLENDER_STATIC_FRONT_PROJECTION = "OCTANE_BLENDER_STATIC_FRONT_PROJECTION"
 OCTANE_BLENDER_STATIC_FRONT_PROJECTION_TRANSFORM = "OCTANE_BLENDER_STATIC_FRONT_PROJECTION_TRANSFORM"
@@ -15,6 +17,9 @@ OCTANE_BLENDER_CAMERA_CENTER_X = "OCTANE_BLENDER_CAMERA_CENTER_X"
 OCTANE_BLENDER_CAMERA_CENTER_Y = "OCTANE_BLENDER_CAMERA_CENTER_Y"
 OCTANE_BLENDER_CAMERA_REGION_WIDTH = "OCTANE_BLENDER_CAMERA_REGION_WIDTH"
 OCTANE_BLENDER_CAMERA_REGION_HEIGHT = "OCTANE_BLENDER_CAMERA_REGION_HEIGHT"
+OCTANE_BLENDER_CAMERA_IMAGER_LUT = "OCTANE_BLENDER_CAMERA_IMAGER_LUT"
+OCTANE_BLENDER_CAMERA_IMAGER_OCIO_VIEW = "OCTANE_BLENDER_CAMERA_IMAGER_OCIO_VIEW"
+OCTANE_BLENDER_CAMERA_IMAGER_OCIO_LOOK = "OCTANE_BLENDER_CAMERA_IMAGER_OCIO_LOOK"
 
 OCTANE_HELPER_NODE_GROUP = "[OCTANE_HELPER_NODE_GROUP]"
 
@@ -43,11 +48,57 @@ NodeType.NT_BLENDER_NODE_VOLUME = -100011
 NodeType.NT_BLENDER_NODE_GRAPH_NODE = -100012
 
 
+# Scene State
+class SceneState:
+    UNINIT = 0
+    INITIALIZED = 1
+
 # Render Frame Data Type
 class RenderFrameDataType:
     RENDER_FRAME_SIGNED_BYTE_RGBA = 0 # -127~128
     RENDER_FRAME_FLOAT_RGBA = 1
     RENDER_FRAME_FLOAT_MONO = 2
+
+
+class ExportRenderPassMode:
+    EXPORT_RENDER_PASS_MODE_SEPARATE = 0
+    EXPORT_RENDER_PASS_MODE_MULTILAYER = 1
+    EXPORT_RENDER_PASS_MODE_DEEP_EXR = 2
+
+
+class ImageSaveFormat:
+    IMAGE_SAVE_FORMAT_PNG_8  = 0
+    IMAGE_SAVE_FORMAT_PNG_16 = 1
+    IMAGE_SAVE_FORMAT_EXR_16 = 2
+    IMAGE_SAVE_FORMAT_EXR_32 = 3
+
+
+# The different tonemap result buffer formats we support.
+class TonemapBufferType:
+    # LDR tonemapping resulting in uint8_t per channel (should only be used when outputting in a non-linear color space).
+    TONEMAP_BUFFER_TYPE_LDR = 0
+    # HDR tonemapping resulting in float per channel.
+    TONEMAP_BUFFER_TYPE_HDR_FLOAT = 1
+    # Same as TONEMAP_BUFFER_TYPE_HDR_FLOAT but the results are converted to half (16-bit) floating point. This is only supported on macOS/iOS.
+    TONEMAP_BUFFER_TYPE_HDR_HALF = 2
+
+
+# Specific color spaces that Octane knows about.
+class NamedColorSpace:
+    # A custom color space that this enum can't identify.
+    NAMED_COLOR_SPACE_OTHER = 0
+    # The sRGB color space.
+    NAMED_COLOR_SPACE_SRGB = 1
+    # The sRGB color space with a linear transfer function.
+    NAMED_COLOR_SPACE_LINEAR_SRGB = 2
+    # The ACES2065-1 color space, which is a linear color space using the ACES AP0 primaries and a white point very close to "D60".
+    NAMED_COLOR_SPACE_ACES2065_1 = 3
+    # The ACEScg color space, which is a linear color space using the ACES AP1 primaries and a white point very close to "D60".
+    NAMED_COLOR_SPACE_ACESCG = 4
+    # The XYZ color space (with E white point).
+    NAMED_COLOR_SPACE_XYZ_E = 5
+    # A placeholder value to represent some OCIO color space. We don't have any further details about these color spaces.
+    NAMED_COLOR_SPACE_OCIO = 1000
 
 
 # Render Session type
@@ -242,7 +293,9 @@ class OctaneNodeTreeIDName:
 
 # Octane Preset Node Tree Names
 class OctanePresetNodeTreeNames:
-    KERNEL = "OCTANE_KERNEL"
+    COMPOSITE = "Octane Compositor"
+    KERNEL = "Octane Kernel"
+    RENDER_AOV = "Octane AOVs"
 
 
 # Octane Preset Node Names
@@ -256,6 +309,8 @@ class OctanePresetNodeNames:
     POST_PROCESSING = "OCTANE_POST_PROCESSING"
     ANIMATION_SETTINGS = "OCTANE_ANIMATION_SETTINGS"
     RENDER_LAYER = "OCTANE_RENDER_LAYER"
+    RENDER_PASSES = "OCTANE_RENDER_PASSES"
+    OCTANE_BLENDER_RENDER_PASSES = "OCTANE_BLENDER_RENDER_PASSES"
     CAMERA_POSITION = "OCTANE_CAMERA_POSITION"
     CAMERA_TARGET = "OCTANE_CAMERA_TARGET"
     CAMERA_UP = "OCTANE_CAMERA_UP"
@@ -296,7 +351,8 @@ class UtilsFunctionType:
     SAVE_LIVEDB = 8
     SHOW_VIEWPORT = 9
     UPDATE_RENDER_SETTINGS = 10
-    UPDATE_RESOURCE_CACHE_SYSTEM = 11
+    UPDATE_OCIO_SETTINGS = 11
+    EXPORT_RENDER_PASS = 12
     FETCH_IMAGE_INFO = 100
     FETCH_VDB_INFO = 101
     FETCH_OSL_INFO = 102
@@ -315,18 +371,6 @@ class UtilsFunctionType:
     OCTANE_ORBX_PROXY = 400
     OCTANE_NODE_PROXY = 401
 
-class RenderPassId:
-    BEAUTY = 0
-    BEAUTY_DENOISER_OUTPUT = 43
-    DIFFUSE_DIRECT_DENOISER_OUTPUT = 44
-    DIFFUSE_INDIRECT_DENOISER_OUTPUT = 45
-    REFLECTION_DIRECT_DENOISER_OUTPUT = 46
-    REFLECTION_INDIRECT_DENOISER_OUTPUT = 47
-    EMISSION_DENOISER_OUTPUT = 76
-    REMAINDER_DENOISER_OUTPUT = 49
-    VOLUME_DENOISER_OUTPUT = 74
-    VOLUME_EMISSION_DENOISER_OUTPUT = 75    
-    
 
 # Pin Id
 P_INVALID = -1

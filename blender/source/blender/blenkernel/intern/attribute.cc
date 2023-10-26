@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2006 Blender Foundation. All rights reserved. */
+ * Copyright 2006 Blender Foundation */
 
 /** \file
  * \ingroup bke
@@ -31,7 +31,7 @@
 #include "BKE_curves.hh"
 #include "BKE_customdata.h"
 #include "BKE_editmesh.h"
-#include "BKE_mesh.h"
+#include "BKE_mesh.hh"
 #include "BKE_pointcloud.h"
 #include "BKE_report.h"
 
@@ -173,10 +173,10 @@ bool BKE_id_attribute_rename(ID *id,
    * is clamped to it's maximum length, otherwise assigning an over-long name multiple times
    * will add `.001` suffix unnecessarily. */
   {
-    const int maxlength = CustomData_name_max_length_calc(new_name);
+    const int new_name_maxncpy = CustomData_name_max_length_calc(new_name);
     /* NOTE: A function that performs a clamped comparison without copying would be handy here. */
     char new_name_clamped[MAX_CUSTOMDATA_LAYER_NAME];
-    BLI_strncpy_utf8(new_name_clamped, new_name, maxlength);
+    BLI_strncpy_utf8(new_name_clamped, new_name, new_name_maxncpy);
     if (STREQ(old_name, new_name_clamped)) {
       return false;
     }
@@ -217,7 +217,7 @@ bool BKE_id_attribute_rename(ID *id,
     BKE_id_attributes_default_color_set(id, result_name);
   }
 
-  BLI_strncpy_utf8(layer->name, result_name, sizeof(layer->name));
+  STRNCPY_UTF8(layer->name, result_name);
 
   return true;
 }
@@ -254,22 +254,21 @@ static bool unique_name_cb(void *arg, const char *name)
 bool BKE_id_attribute_calc_unique_name(ID *id, const char *name, char *outname)
 {
   AttrUniqueData data{id};
-  const int maxlength = CustomData_name_max_length_calc(name);
+  const int name_maxncpy = CustomData_name_max_length_calc(name);
 
   /* Set default name if none specified.
    * NOTE: We only call IFACE_() if needed to avoid locale lookup overhead. */
-  if (!name || name[0] == '\0') {
-    BLI_strncpy(outname, IFACE_("Attribute"), maxlength);
-  }
-  else {
-    BLI_strncpy_utf8(outname, name, maxlength);
-  }
+  BLI_strncpy_utf8(outname, (name && name[0]) ? name : IFACE_("Attribute"), name_maxncpy);
 
-  return BLI_uniquename_cb(unique_name_cb, &data, nullptr, '.', outname, maxlength);
+  const char *defname = ""; /* Dummy argument, never used as `name` is never zero length. */
+  return BLI_uniquename_cb(unique_name_cb, &data, defname, '.', outname, name_maxncpy);
 }
 
-CustomDataLayer *BKE_id_attribute_new(
-    ID *id, const char *name, const int type, const eAttrDomain domain, ReportList *reports)
+CustomDataLayer *BKE_id_attribute_new(ID *id,
+                                      const char *name,
+                                      const eCustomDataType type,
+                                      const eAttrDomain domain,
+                                      ReportList *reports)
 {
   using namespace blender::bke;
   DomainInfo info[ATTR_DOMAIN_NUM];
@@ -422,8 +421,8 @@ bool BKE_id_attribute_remove(ID *id, const char *name, ReportList *reports)
                                                  StringRef(mesh->active_color_attribute);
           const bool is_default_color_attribute = name_copy.c_str() ==
                                                   StringRef(mesh->default_color_attribute);
-          const int active_index = color_name_to_index(id, mesh->active_color_attribute);
-          const int default_index = color_name_to_index(id, mesh->default_color_attribute);
+          const int active_color_index = color_name_to_index(id, mesh->active_color_attribute);
+          const int default_color_index = color_name_to_index(id, mesh->default_color_attribute);
 
           if (!BM_data_layer_free_named(em->bm, data, name_copy.c_str())) {
             BLI_assert_unreachable();
@@ -431,15 +430,14 @@ bool BKE_id_attribute_remove(ID *id, const char *name, ReportList *reports)
 
           if (is_active_color_attribute) {
             BKE_id_attributes_active_color_set(
-                id, color_name_from_index(id, color_clamp_index(id, active_index)));
+                id, color_name_from_index(id, color_clamp_index(id, active_color_index)));
           }
           if (is_default_color_attribute) {
             BKE_id_attributes_default_color_set(
-                id, color_name_from_index(id, color_clamp_index(id, default_index)));
+                id, color_name_from_index(id, color_clamp_index(id, default_color_index)));
           }
 
-          if (type == CD_PROP_FLOAT2) {
-            /* free associated UV map bool layers */
+          if (type == CD_PROP_FLOAT2 && domain == ATTR_DOMAIN_CORNER) {
             char buffer[MAX_CUSTOMDATA_LAYER_NAME];
             BM_data_layer_free_named(
                 em->bm, data, BKE_uv_map_vert_select_name_get(name_copy.c_str(), buffer));
@@ -456,7 +454,6 @@ bool BKE_id_attribute_remove(ID *id, const char *name, ReportList *reports)
   }
 
   std::optional<MutableAttributeAccessor> attributes = get_attribute_accessor_for_write(*id);
-
   if (!attributes) {
     return false;
   }
@@ -472,8 +469,8 @@ bool BKE_id_attribute_remove(ID *id, const char *name, ReportList *reports)
     Mesh *mesh = reinterpret_cast<Mesh *>(id);
     const bool is_active_color_attribute = name_copy == StringRef(mesh->active_color_attribute);
     const bool is_default_color_attribute = name_copy == StringRef(mesh->default_color_attribute);
-    const int active_index = color_name_to_index(id, mesh->active_color_attribute);
-    const int default_index = color_name_to_index(id, mesh->default_color_attribute);
+    const int active_color_index = color_name_to_index(id, mesh->active_color_attribute);
+    const int default_color_index = color_name_to_index(id, mesh->default_color_attribute);
 
     if (!attributes->remove(name_copy)) {
       BLI_assert_unreachable();
@@ -481,20 +478,18 @@ bool BKE_id_attribute_remove(ID *id, const char *name, ReportList *reports)
 
     if (is_active_color_attribute) {
       BKE_id_attributes_active_color_set(
-          id, color_name_from_index(id, color_clamp_index(id, active_index)));
+          id, color_name_from_index(id, color_clamp_index(id, active_color_index)));
     }
     if (is_default_color_attribute) {
       BKE_id_attributes_default_color_set(
-          id, color_name_from_index(id, color_clamp_index(id, default_index)));
+          id, color_name_from_index(id, color_clamp_index(id, default_color_index)));
     }
-    if (metadata->data_type == CD_PROP_FLOAT2) {
-      /* remove UV sub-attributes. */
+
+    if (metadata->data_type == CD_PROP_FLOAT2 && metadata->domain == ATTR_DOMAIN_CORNER) {
       char buffer[MAX_CUSTOMDATA_LAYER_NAME];
-      BKE_id_attribute_remove(
-          id, BKE_uv_map_vert_select_name_get(name_copy.c_str(), buffer), reports);
-      BKE_id_attribute_remove(
-          id, BKE_uv_map_edge_select_name_get(name_copy.c_str(), buffer), reports);
-      BKE_id_attribute_remove(id, BKE_uv_map_pin_name_get(name_copy.c_str(), buffer), reports);
+      attributes->remove(BKE_uv_map_vert_select_name_get(name_copy.c_str(), buffer));
+      attributes->remove(BKE_uv_map_edge_select_name_get(name_copy.c_str(), buffer));
+      attributes->remove(BKE_uv_map_pin_name_get(name_copy.c_str(), buffer));
     }
     return true;
   }
@@ -504,7 +499,7 @@ bool BKE_id_attribute_remove(ID *id, const char *name, ReportList *reports)
 
 CustomDataLayer *BKE_id_attribute_find(const ID *id,
                                        const char *name,
-                                       const int type,
+                                       const eCustomDataType type,
                                        const eAttrDomain domain)
 {
   if (!name) {
@@ -540,7 +535,8 @@ CustomDataLayer *BKE_id_attribute_search(ID *id,
   get_domains(id, info);
 
   for (eAttrDomain domain = ATTR_DOMAIN_POINT; domain < ATTR_DOMAIN_NUM;
-       domain = static_cast<eAttrDomain>(int(domain) + 1)) {
+       domain = static_cast<eAttrDomain>(int(domain) + 1))
+  {
     if (!(domain_mask & ATTR_DOMAIN_AS_MASK(domain))) {
       continue;
     }
@@ -753,7 +749,8 @@ CustomDataLayer *BKE_id_attribute_from_index(ID *id,
 
     for (int i = 0; i < customdata->totlayer; i++) {
       if (!(layer_mask & CD_TYPE_AS_MASK(customdata->layers[i].type)) ||
-          (customdata->layers[i].flag & CD_FLAG_TEMPORARY)) {
+          (customdata->layers[i].flag & CD_FLAG_TEMPORARY))
+      {
         continue;
       }
 
@@ -837,11 +834,6 @@ const char *BKE_id_attributes_default_color_name(const ID *id)
   return nullptr;
 }
 
-CustomDataLayer *BKE_id_attributes_active_color_get(const ID *id)
-{
-  return BKE_id_attributes_color_find(id, BKE_id_attributes_active_color_name(id));
-}
-
 void BKE_id_attributes_active_color_set(ID *id, const char *name)
 {
   switch (GS(id->name)) {
@@ -856,11 +848,6 @@ void BKE_id_attributes_active_color_set(ID *id, const char *name)
     default:
       break;
   }
-}
-
-CustomDataLayer *BKE_id_attributes_default_color_get(const ID *id)
-{
-  return BKE_id_attributes_color_find(id, BKE_id_attributes_default_color_name(id));
 }
 
 void BKE_id_attributes_default_color_set(ID *id, const char *name)
@@ -881,71 +868,24 @@ void BKE_id_attributes_default_color_set(ID *id, const char *name)
 
 CustomDataLayer *BKE_id_attributes_color_find(const ID *id, const char *name)
 {
-  if (!name) {
-    return nullptr;
+  if (CustomDataLayer *layer = BKE_id_attribute_find(id, name, CD_PROP_COLOR, ATTR_DOMAIN_POINT)) {
+    return layer;
   }
-  CustomDataLayer *layer = BKE_id_attribute_find(id, name, CD_PROP_COLOR, ATTR_DOMAIN_POINT);
-  if (layer == nullptr) {
-    layer = BKE_id_attribute_find(id, name, CD_PROP_COLOR, ATTR_DOMAIN_CORNER);
+  if (CustomDataLayer *layer = BKE_id_attribute_find(id, name, CD_PROP_COLOR, ATTR_DOMAIN_CORNER))
+  {
+    return layer;
   }
-  if (layer == nullptr) {
-    layer = BKE_id_attribute_find(id, name, CD_PROP_BYTE_COLOR, ATTR_DOMAIN_POINT);
+  if (CustomDataLayer *layer = BKE_id_attribute_find(
+          id, name, CD_PROP_BYTE_COLOR, ATTR_DOMAIN_POINT))
+  {
+    return layer;
   }
-  if (layer == nullptr) {
-    layer = BKE_id_attribute_find(id, name, CD_PROP_BYTE_COLOR, ATTR_DOMAIN_CORNER);
+  if (CustomDataLayer *layer = BKE_id_attribute_find(
+          id, name, CD_PROP_BYTE_COLOR, ATTR_DOMAIN_CORNER))
+  {
+    return layer;
   }
-
-  return layer;
-}
-
-void BKE_id_attribute_copy_domains_temp(short id_type,
-                                        const CustomData *vdata,
-                                        const CustomData *edata,
-                                        const CustomData *ldata,
-                                        const CustomData *pdata,
-                                        const CustomData *cdata,
-                                        ID *r_id)
-{
-  CustomData reset;
-
-  CustomData_reset(&reset);
-
-  switch (id_type) {
-    case ID_ME: {
-      Mesh *me = (Mesh *)r_id;
-      memset((void *)me, 0, sizeof(*me));
-
-      me->edit_mesh = nullptr;
-
-      me->vdata = vdata ? *vdata : reset;
-      me->edata = edata ? *edata : reset;
-      me->ldata = ldata ? *ldata : reset;
-      me->pdata = pdata ? *pdata : reset;
-
-      break;
-    }
-    case ID_PT: {
-      PointCloud *pointcloud = (PointCloud *)r_id;
-
-      memset((void *)pointcloud, 0, sizeof(*pointcloud));
-
-      pointcloud->pdata = vdata ? *vdata : reset;
-      break;
-    }
-    case ID_CV: {
-      Curves *curves = (Curves *)r_id;
-
-      memset((void *)curves, 0, sizeof(*curves));
-
-      curves->geometry.point_data = vdata ? *vdata : reset;
-      curves->geometry.curve_data = cdata ? *cdata : reset;
-      break;
-    }
-    default:
-      break;
-  }
-
-  *((short *)r_id->name) = id_type;
+  return nullptr;
 }
 
 const char *BKE_uv_map_vert_select_name_get(const char *uv_map_name, char *buffer)

@@ -9,7 +9,10 @@ from bpy.props import (
     FloatProperty,
     IntProperty,
 )
-from bpy.app.translations import pgettext_tip as tip_
+from bpy.app.translations import (
+    pgettext_tip as tip_,
+    pgettext_data as data_,
+)
 
 
 def object_ensure_material(obj, mat_name):
@@ -119,7 +122,11 @@ class QuickFur(ObjectModeOperator, Operator):
         noise_group = bpy.data.node_groups["Hair Curves Noise"] if self.use_noise else None
         frizz_group = bpy.data.node_groups["Frizz Hair Curves"] if self.use_frizz else None
 
-        material = bpy.data.materials.new("Fur Material")
+        material = bpy.data.materials.new(data_("Fur Material"))
+
+        mesh_with_zero_area = False
+        mesh_missing_uv_map = False
+        modifier_apply_error = False
 
         mesh_with_zero_area = False
         mesh_missing_uv_map = False
@@ -146,7 +153,7 @@ class QuickFur(ObjectModeOperator, Operator):
             else:
                 density = count / area
 
-            generate_modifier = curves_object.modifiers.new(name="Generate", type='NODES')
+            generate_modifier = curves_object.modifiers.new(name=data_("Generate"), type='NODES')
             generate_modifier.node_group = generate_group
             generate_modifier["Input_2"] = mesh_object
             generate_modifier["Input_18_attribute_name"] = curves.surface_uv_map
@@ -155,11 +162,11 @@ class QuickFur(ObjectModeOperator, Operator):
             generate_modifier["Input_22"] = material
             generate_modifier["Input_15"] = density * 0.01
 
-            radius_modifier = curves_object.modifiers.new(name="Set Hair Curve Profile", type='NODES')
+            radius_modifier = curves_object.modifiers.new(name=data_("Set Hair Curve Profile"), type='NODES')
             radius_modifier.node_group = radius_group
             radius_modifier["Input_3"] = self.radius
 
-            interpolate_modifier = curves_object.modifiers.new(name="Interpolate Hair Curves", type='NODES')
+            interpolate_modifier = curves_object.modifiers.new(name=data_("Interpolate Hair Curves"), type='NODES')
             interpolate_modifier.node_group = interpolate_group
             interpolate_modifier["Input_2"] = mesh_object
             interpolate_modifier["Input_18_attribute_name"] = curves.surface_uv_map
@@ -169,11 +176,11 @@ class QuickFur(ObjectModeOperator, Operator):
             interpolate_modifier["Input_24"] = True
 
             if noise_group:
-                noise_modifier = curves_object.modifiers.new(name="Hair Curves Noise", type='NODES')
+                noise_modifier = curves_object.modifiers.new(name=data_("Hair Curves Noise"), type='NODES')
                 noise_modifier.node_group = noise_group
 
             if frizz_group:
-                frizz_modifier = curves_object.modifiers.new(name="Frizz Hair Curves", type='NODES')
+                frizz_modifier = curves_object.modifiers.new(name=data_("Frizz Hair Curves"), type='NODES')
                 frizz_modifier.node_group = frizz_group
 
             if self.apply_hair_guides:
@@ -317,7 +324,7 @@ class QuickExplode(ObjectModeOperator, Operator):
                         node_out_mat = node
                         break
 
-                node_surface = node_out_mat.inputs['Surface'].links[0].from_node
+                node_surface = node_out_mat.inputs["Surface"].links[0].from_node
 
                 node_x = node_surface.location[0]
                 node_y = node_surface.location[1] - 400
@@ -326,7 +333,7 @@ class QuickExplode(ObjectModeOperator, Operator):
                 node_mix = nodes.new('ShaderNodeMixShader')
                 node_mix.location = (node_x - offset_x, node_y)
                 mat.node_tree.links.new(node_surface.outputs[0], node_mix.inputs[1])
-                mat.node_tree.links.new(node_mix.outputs["Shader"], node_out_mat.inputs['Surface'])
+                mat.node_tree.links.new(node_mix.outputs["Shader"], node_out_mat.inputs["Surface"])
                 offset_x += 200
 
                 node_trans = nodes.new('ShaderNodeBsdfTransparent')
@@ -476,7 +483,7 @@ class QuickSmoke(ObjectModeOperator, Operator):
         # setup smoke domain
         bpy.ops.object.modifier_add(type='FLUID')
         obj.modifiers[-1].fluid_type = 'DOMAIN'
-        if self.style == 'FIRE' or self.style == 'BOTH':
+        if self.style == {'FIRE', 'BOTH'}:
             obj.modifiers[-1].domain_settings.use_noise = True
 
         # ensure correct cache file format for smoke

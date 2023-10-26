@@ -92,6 +92,8 @@ struct GPUPass {
   GPUCodegenCreateInfo *create_info = nullptr;
   /** Orphaned GPUPasses gets freed by the garbage collector. */
   uint refcount;
+  /** The last time the refcount was greater than 0. */
+  int gc_timestamp;
   /** Identity hash generated from all GLSL code. */
   uint32_t hash;
   /** Did we already tried to compile the attached GPUShader. */
@@ -155,7 +157,8 @@ static GPUPass *gpu_pass_cache_resolve_collision(GPUPass *pass,
   BLI_spin_lock(&pass_cache_spin);
   for (; pass && (pass->hash == hash); pass = pass->next) {
     if (*reinterpret_cast<ShaderCreateInfo *>(info) ==
-        *reinterpret_cast<ShaderCreateInfo *>(pass->create_info)) {
+        *reinterpret_cast<ShaderCreateInfo *>(pass->create_info))
+    {
       BLI_spin_unlock(&pass_cache_spin);
       return pass;
     }
@@ -309,7 +312,7 @@ class GPUCodegen {
   bool should_optimize_heuristic() const
   {
     /* If each of the maximal attributes are exceeded, we can optimize, but we should also ensure
-     * the baseline is met.*/
+     * the baseline is met. */
     bool do_optimize = (nodes_total_ >= 60 || textures_total_ >= 4 || uniforms_total_ >= 64) &&
                        (textures_total_ >= 1 && uniforms_total_ >= 8 && nodes_total_ >= 4);
     return do_optimize;
@@ -480,16 +483,26 @@ void GPUCodegen::generate_library()
   GPUCodegenCreateInfo &info = *create_info;
 
   void *value;
-  /* Iterate over libraries. We need to keep this struct intact in case
-   * it is required for the optimization pass. */
+  blender::Vector<std::string> source_files;
+
+  /* Iterate over libraries. We need to keep this struct intact in case it is required for the
+   * optimization pass. The first pass just collects the keys from the GSET, given items in a GSET
+   * are unordered this can cause order differences between invocations, so we collect the keys
+   * first, and sort them before doing actual work, to guarantee stable behavior while still
+   * having cheap insertions into the GSET */
   GHashIterator *ihash = BLI_ghashIterator_new((GHash *)graph.used_libraries);
   while (!BLI_ghashIterator_done(ihash)) {
     value = BLI_ghashIterator_getKey(ihash);
-    auto deps = gpu_shader_dependency_get_resolved_source((const char *)value);
-    info.dependencies_generated.extend_non_duplicates(deps);
+    source_files.append((const char *)value);
     BLI_ghashIterator_step(ihash);
   }
   BLI_ghashIterator_free(ihash);
+
+  std::sort(source_files.begin(), source_files.end());
+  for (auto &key : source_files) {
+    auto deps = gpu_shader_dependency_get_resolved_source(key.c_str());
+    info.dependencies_generated.extend_non_duplicates(deps);
+  }
 }
 
 void GPUCodegen::node_serialize(std::stringstream &eval_ss, const GPUNode *node)
@@ -840,7 +853,8 @@ static bool gpu_pass_shader_validate(GPUPass *pass, GPUShader *shader)
 
   /* Validate against opengl limit. */
   if ((active_samplers_len > GPU_max_textures_frag()) ||
-      (active_samplers_len > GPU_max_textures_vert())) {
+      (active_samplers_len > GPU_max_textures_vert()))
+  {
     return false;
   }
 
@@ -909,28 +923,23 @@ void GPU_pass_release(GPUPass *pass)
 
 void GPU_pass_cache_garbage_collect(void)
 {
-  static int lasttime = 0;
   const int shadercollectrate = 60; /* hardcoded for now. */
   int ctime = int(PIL_check_seconds_timer());
-
-  if (ctime < shadercollectrate + lasttime) {
-    return;
-  }
-
-  lasttime = ctime;
 
   BLI_spin_lock(&pass_cache_spin);
   GPUPass *next, **prev_pass = &pass_cache;
   for (GPUPass *pass = pass_cache; pass; pass = next) {
     next = pass->next;
-    if (pass->refcount == 0) {
+    if (pass->refcount > 0) {
+      pass->gc_timestamp = ctime;
+    }
+    else if (pass->gc_timestamp + shadercollectrate < ctime) {
       /* Remove from list */
       *prev_pass = next;
       gpu_pass_free(pass);
+      continue;
     }
-    else {
-      prev_pass = &pass->next;
-    }
+    prev_pass = &pass->next;
   }
   BLI_spin_unlock(&pass_cache_spin);
 }
@@ -959,9 +968,7 @@ void GPU_pass_cache_free(void)
 /** \name Module
  * \{ */
 
-void gpu_codegen_init(void)
-{
-}
+void gpu_codegen_init(void) {}
 
 void gpu_codegen_exit(void)
 {

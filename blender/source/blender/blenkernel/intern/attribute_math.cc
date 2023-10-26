@@ -1,8 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_array_utils.hh"
+
 #include "BKE_attribute_math.hh"
 
-namespace blender::attribute_math {
+namespace blender::bke::attribute_math {
 
 ColorGeometry4fMixer::ColorGeometry4fMixer(MutableSpan<ColorGeometry4f> buffer,
                                            ColorGeometry4f default_color)
@@ -128,4 +130,20 @@ void ColorGeometry4bMixer::finalize(const IndexMask mask)
   });
 }
 
-}  // namespace blender::attribute_math
+void gather(const GSpan src, const Span<int> map, GMutableSpan dst)
+{
+  attribute_math::convert_to_static_type(src.type(), [&](auto dummy) {
+    using T = decltype(dummy);
+    array_utils::gather(src.typed<T>(), map, dst.typed<T>());
+  });
+}
+
+void gather(const GVArray &src, const Span<int> map, GMutableSpan dst)
+{
+  attribute_math::convert_to_static_type(src.type(), [&](auto dummy) {
+    using T = decltype(dummy);
+    array_utils::gather(src.typed<T>(), map, dst.typed<T>());
+  });
+}
+
+}  // namespace blender::bke::attribute_math

@@ -1,6 +1,8 @@
 import bpy
 import xml.etree.ElementTree as ET
+from bl_operators.presets import AddPresetBase, ExecutePreset
 from bpy.props import IntProperty, FloatProperty, BoolProperty, StringProperty, EnumProperty, PointerProperty, FloatVectorProperty, IntVectorProperty, BoolVectorProperty, CollectionProperty
+from bpy.types import Operator
 from bpy.utils import register_class, unregister_class
 from octane.nodes.render_settings.animation_settings import OctaneAnimationSettingsShutterAlignment
 from octane.nodes.render_settings.render_layer import OctaneRenderLayerMode
@@ -18,9 +20,9 @@ rotation_orders = (
 )
 
 info_pass_sampling_modes = (
-    ('0', "Distributed rays", ""),
-    ('1', "Non-distributed with pixel filtering", ""),
-    ('2', "Non-distributed without pixel filtering", ""),
+    ('0', "Distributed rays", "", 0),
+    ('1', "Non-distributed with pixel filtering", "", 1),
+    ('2', "Non-distributed without pixel filtering", "", 2),
 )
 
 cryptomatte_pass_channel_modes = (
@@ -30,16 +32,24 @@ cryptomatte_pass_channel_modes = (
     ('8', "8", "", 8),
     ('10', "10", "", 10),        
 )
-
+  
 octane_export_with_deep_image_modes = (
-    ("SEPARATE_IMAGE_FILES", "Export separate image files", "Export separate image files", 0),
-    ("MULTILAYER_EXR", "Export multilayer EXR", "Export multilayer EXR", 1),
-    ("DEEP_EXR", "Export deep EXR", "Export deep EXR", 2),
-)    
-octane_export_without_deep_image_modes = (
-    ("SEPARATE_IMAGE_FILES", "Export separate image files", "Export separate image files", 0),
-    ("MULTILAYER_EXR", "Export multilayer EXR", "Export multilayer EXR", 1),
+    ("SEPARATE_IMAGE_FILES", "Export separate image files", "Export separate image files", consts.ExportRenderPassMode.EXPORT_RENDER_PASS_MODE_SEPARATE),
+    ("MULTILAYER_EXR", "Export multilayer EXR", "Export multilayer EXR", consts.ExportRenderPassMode.EXPORT_RENDER_PASS_MODE_MULTILAYER),
+    ("DEEP_EXR", "Export deep EXR", "Export deep EXR", consts.ExportRenderPassMode.EXPORT_RENDER_PASS_MODE_DEEP_EXR),
 )
+octane_export_without_deep_image_modes = (
+    ("SEPARATE_IMAGE_FILES", "Export separate image files", "Export separate image files", consts.ExportRenderPassMode.EXPORT_RENDER_PASS_MODE_SEPARATE),
+    ("MULTILAYER_EXR", "Export multilayer EXR", "Export multilayer EXR", consts.ExportRenderPassMode.EXPORT_RENDER_PASS_MODE_MULTILAYER),
+)
+
+
+octane_shading_type_modes = (
+    ("WIREFRAME", "WIREFRAME", "Toggle wireframe shading", "SHADING_WIRE", 2),
+    ("SOLID", "SOLID", "Toggle solid shading", "SHADING_SOLID", 3),
+    ("RENDERED", "RENDERED", "Toggle rendered shading", "SHADING_RENDERED", 6),
+)
+
 
 class OctaneAovOutputGroupNode(bpy.types.PropertyGroup):    
     name: StringProperty(name="Node Name")   
@@ -240,11 +250,17 @@ class OctaneBakingLayerTransformCollection(bpy.types.PropertyGroup):
 class KernelNodeGraphPropertyGroup(bpy.types.PropertyGroup):
     def poll_kernel_tree(self, node_tree):
         return node_tree.bl_idname == consts.OctaneNodeTreeIDName.KERNEL
+    def update_scene(self, context):
+        context.scene.update_tag()
+        bpy.app.timers.register(self.update_post, first_interval=0.05)
+    def update_post(self):
+        bpy.context.scene.update_tag()
     node_tree: PointerProperty(
         name="Kernel Node Graph",
         description="Select the kernel node graph(can be created in the 'Kernel Editor'",
         type=bpy.types.NodeTree,
         poll=poll_kernel_tree,
+        update=update_scene,
     )
 
 
@@ -418,13 +434,224 @@ class OctaneGlobalRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySett
 
 class OctaneRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
     PROPERTY_CONFIGS = {
-        consts.NodeType.NT_RENDER_LAYER: ["layers_enable", "layers_current", "layers_invert", "layers_mode",]
+        consts.NodeType.NT_RENDER_LAYER: ["layers_enable", "layers_current", "layers_invert", "layers_mode",],
+        consts.NodeType.NT_RENDER_PASSES: [
+            "pass_raw",
+            "use_pass_beauty", "use_pass_emitters", "use_pass_env", 
+            "use_pass_diff", "use_pass_diff_dir", "use_pass_diff_indir", "use_pass_diff_filter",
+            "use_pass_reflect", "use_pass_reflect_dir", "use_pass_reflect_indir", "use_pass_reflect_filter",
+            "use_pass_refract", "use_pass_refract_filter",
+            "use_pass_transm", "use_pass_transm_filter",
+            "use_pass_sss", "use_pass_shadow", 
+            "use_pass_irradiance", "use_pass_light_dir", "use_pass_volume", "use_pass_vol_mask", "use_pass_vol_emission", "use_pass_vol_z_front", "use_pass_vol_z_back", "use_pass_noise",
+            "use_pass_denoise_beauty", "use_pass_denoise_diff_dir", "use_pass_denoise_diff_indir", "use_pass_denoise_reflect_dir", "use_pass_denoise_reflect_indir", "use_pass_denoise_emission", "use_pass_denoise_remainder", "use_pass_denoise_vol", "use_pass_denoise_vol_emission",
+            "use_pass_postprocess", "use_pass_postfxmedia", "pass_pp_env",
+            "use_pass_layer_shadows", "use_pass_layer_black_shadow", "use_pass_layer_reflections",
+            "use_pass_ambient_light", "use_pass_ambient_light_dir", "use_pass_ambient_light_indir",
+            "use_pass_sunlight", "use_pass_sunlight_dir", "use_pass_sunlight_indir",
+            "use_pass_light_pass_1", "use_pass_light_dir_pass_1", "use_pass_light_indir_pass_1",
+            "use_pass_light_pass_2", "use_pass_light_dir_pass_2", "use_pass_light_indir_pass_2",
+            "use_pass_light_pass_3", "use_pass_light_dir_pass_3", "use_pass_light_indir_pass_3",
+            "use_pass_light_pass_4", "use_pass_light_dir_pass_4", "use_pass_light_indir_pass_4",
+            "use_pass_light_pass_5", "use_pass_light_dir_pass_5", "use_pass_light_indir_pass_5",
+            "use_pass_light_pass_6", "use_pass_light_dir_pass_6", "use_pass_light_indir_pass_6",
+            "use_pass_light_pass_7", "use_pass_light_dir_pass_7", "use_pass_light_indir_pass_7",
+            "use_pass_light_pass_8", "use_pass_light_dir_pass_8", "use_pass_light_indir_pass_8",
+            "use_pass_light_pass_9", "use_pass_light_dir_pass_9", "use_pass_light_indir_pass_9",
+            "use_pass_light_pass_10", "use_pass_light_dir_pass_10", "use_pass_light_indir_pass_10",
+            "use_pass_light_pass_11", "use_pass_light_dir_pass_11", "use_pass_light_indir_pass_11",
+            "use_pass_light_pass_12", "use_pass_light_dir_pass_12", "use_pass_light_indir_pass_12",
+            "use_pass_light_pass_13", "use_pass_light_dir_pass_13", "use_pass_light_indir_pass_13",
+            "use_pass_light_pass_14", "use_pass_light_dir_pass_14", "use_pass_light_indir_pass_14",
+            "use_pass_light_pass_15", "use_pass_light_dir_pass_15", "use_pass_light_indir_pass_15",
+            "use_pass_light_pass_16", "use_pass_light_dir_pass_16", "use_pass_light_indir_pass_16",
+            "use_pass_light_pass_17", "use_pass_light_dir_pass_17", "use_pass_light_indir_pass_17",
+            "use_pass_light_pass_18", "use_pass_light_dir_pass_18", "use_pass_light_indir_pass_18",
+            "use_pass_light_pass_19", "use_pass_light_dir_pass_19", "use_pass_light_indir_pass_19",
+            "use_pass_light_pass_20", "use_pass_light_dir_pass_20", "use_pass_light_indir_pass_20",
+            "cryptomatte_pass_channels", "cryptomatte_seed_factor",
+            "use_pass_crypto_instance_id", "use_pass_crypto_mat_node_name", "use_pass_crypto_mat_node", "use_pass_crypto_mat_pin_node", 
+            "use_pass_crypto_obj_node_name", "use_pass_crypto_obj_node", "use_pass_crypto_obj_pin_node", 
+            "use_pass_crypto_render_layer", "use_pass_crypto_geometry_node_name", "use_pass_crypto_user_instance_id",
+            "info_pass_max_samples", "info_pass_sampling_mode", 
+            "info_pass_bump", "info_pass_opacity_threshold", 
+            "use_pass_info_geo_normal", "use_pass_info_smooth_normal", "use_pass_info_shading_normal", "use_pass_info_tangent_normal",
+            "use_pass_info_z_depth", "info_pass_z_depth_max",
+            "use_pass_info_position",
+            "use_pass_info_uv", "info_pass_uv_max", "info_pass_uv_coordinate_selection",
+            "use_pass_info_tex_tangent",
+            "use_pass_info_motion_vector", "info_pass_max_speed",
+            "use_pass_info_mat_id", "use_pass_info_obj_id", "use_pass_info_obj_layer_color", "use_pass_info_baking_group_id", "use_pass_info_light_pass_id", 
+            "use_pass_info_render_layer_id", "use_pass_info_render_layer_mask", "use_pass_info_wireframe", 
+            "use_pass_info_ao", "info_pass_ao_distance", "info_pass_alpha_shadows",
+            "use_pass_mat_opacity", "use_pass_mat_roughness", "use_pass_mat_ior", 
+            "use_pass_mat_diff_filter_info", "use_pass_mat_reflect_filter_info", "use_pass_mat_refract_filter_info", "use_pass_mat_transm_filter_info",
+        ]
     }
     PROPERTY_NAME_TO_PIN_SYMBOL_MAP = {
+        # NT_RENDER_LAYER
         "layers_enable": "enabled",
         "layers_current": "layerId",
         "layers_invert": "invert",
         "layers_mode": "mode",
+        # NT_RENDER_PASSES
+        "pass_raw": "renderPassesRaw",
+        "use_pass_beauty": "",
+        "use_pass_emitters": "renderPassEmit",
+        "use_pass_env": "renderPassEnvironment",
+        "use_pass_diff": "renderPassDiffuse",
+        "use_pass_diff_dir": "renderPassDiffuseDirect",
+        "use_pass_diff_indir": "renderPassDiffuseIndirect",
+        "use_pass_diff_filter": "renderPassDiffuseFilter",
+        "use_pass_reflect": "renderPassReflection",
+        "use_pass_reflect_dir": "renderPassReflectionDirect",
+        "use_pass_reflect_indir": "renderPassReflectionIndirect",
+        "use_pass_reflect_filter": "renderPassReflectionFilter",
+        "use_pass_refract": "renderPassRefraction",
+        "use_pass_refract_filter": "renderPassRefractionFilter",
+        "use_pass_transm": "renderPassTransmission",
+        "use_pass_transm_filter": "renderPassTransmissionFilter",
+        "use_pass_sss": "renderPassSSS",
+        "use_pass_shadow": "renderPassShadow",
+        "use_pass_irradiance": "renderPassIrradiance",
+        "use_pass_light_dir": "renderPassLightDirection",
+        "use_pass_volume": "renderPassVolume",
+        "use_pass_vol_mask": "renderPassVolumeMask",
+        "use_pass_vol_emission": "renderPassVolumeEmission",
+        "use_pass_vol_z_front": "renderPassVolumeZDepthFront",
+        "use_pass_vol_z_back": "renderPassVolumeZDepthBack",
+        "use_pass_noise": "renderPassNoise",
+        "use_pass_denoise_beauty": "",
+        "use_pass_denoise_diff_dir": "renderPassDiffuseDirectDenoiserOutput", 
+        "use_pass_denoise_diff_indir": "renderPassDiffuseIndirectDenoiserOutput", 
+        "use_pass_denoise_reflect_dir": "renderPassReflectionDirectDenoiserOutput", 
+        "use_pass_denoise_reflect_indir": "renderPassReflectionIndirectDenoiserOutput", 
+        "use_pass_denoise_emission": "renderPassEmissionDenoiserOutput", 
+        "use_pass_denoise_remainder": "renderPassRemainderDenoiserOutput", 
+        "use_pass_denoise_vol": "renderPassVolumeDenoiserOutput", 
+        "use_pass_denoise_vol_emission": "renderPassVolumeEmissionDenoiserOutput",
+        "use_pass_postprocess": "renderPassPostProcessing",
+        "use_pass_postfxmedia": "renderPassPostFxMedia",
+        "pass_pp_env": "postProcEnvironment",
+        "use_pass_layer_shadows": "renderPassLayerShadows",
+        "use_pass_layer_black_shadow": "renderPassLayerBlackShadows",
+        "use_pass_layer_reflections": "renderPassLayerReflections",
+        "use_pass_ambient_light": "renderPassAmbientLight", 
+        "use_pass_ambient_light_dir": "renderPassAmbientLightDirect", 
+        "use_pass_ambient_light_indir": "renderPassAmbientLightIndirect",
+        "use_pass_sunlight": "renderPassSunLight", 
+        "use_pass_sunlight_dir": "renderPassSunLightDirect", 
+        "use_pass_sunlight_indir": "renderPassSunLightIndirect",
+        "use_pass_light_pass_1": "renderPassLight1", 
+        "use_pass_light_dir_pass_1": "renderPassLight1Direct", 
+        "use_pass_light_indir_pass_1": "renderPassLight1Indirect",
+        "use_pass_light_pass_2": "renderPassLight2", 
+        "use_pass_light_dir_pass_2": "renderPassLight2Direct", 
+        "use_pass_light_indir_pass_2": "renderPassLight2Indirect",
+        "use_pass_light_pass_3": "renderPassLight3", 
+        "use_pass_light_dir_pass_3": "renderPassLight3Direct", 
+        "use_pass_light_indir_pass_3": "renderPassLight3Indirect",
+        "use_pass_light_pass_4": "renderPassLight4", 
+        "use_pass_light_dir_pass_4": "renderPassLight4Direct", 
+        "use_pass_light_indir_pass_4": "renderPassLight4Indirect",
+        "use_pass_light_pass_5": "renderPassLight5", 
+        "use_pass_light_dir_pass_5": "renderPassLight5Direct", 
+        "use_pass_light_indir_pass_5": "renderPassLight5Indirect",
+        "use_pass_light_pass_6": "renderPassLight6", 
+        "use_pass_light_dir_pass_6": "renderPassLight6Direct", 
+        "use_pass_light_indir_pass_6": "renderPassLight6Indirect",
+        "use_pass_light_pass_7": "renderPassLight7", 
+        "use_pass_light_dir_pass_7": "renderPassLight7Direct", 
+        "use_pass_light_indir_pass_7": "renderPassLight7Indirect",
+        "use_pass_light_pass_8": "renderPassLight8", 
+        "use_pass_light_dir_pass_8": "renderPassLight8Direct", 
+        "use_pass_light_indir_pass_8": "renderPassLight8Indirect",
+        "use_pass_light_pass_9": "renderPassLight9",
+        "use_pass_light_dir_pass_9": "renderPassLight9Direct",
+        "use_pass_light_indir_pass_9": "renderPassLight9Indirect",
+        "use_pass_light_pass_10": "renderPassLight10",
+        "use_pass_light_dir_pass_10": "renderPassLight10Direct",
+        "use_pass_light_indir_pass_10": "renderPassLight10Indirect",
+        "use_pass_light_pass_11": "renderPassLight11",
+        "use_pass_light_dir_pass_11": "renderPassLight11Direct",
+        "use_pass_light_indir_pass_11": "renderPassLight11Indirect",
+        "use_pass_light_pass_12": "renderPassLight12",
+        "use_pass_light_dir_pass_12": "renderPassLight12Direct",
+        "use_pass_light_indir_pass_12": "renderPassLight12Indirect",
+        "use_pass_light_pass_13": "renderPassLight13",
+        "use_pass_light_dir_pass_13": "renderPassLight13Direct",
+        "use_pass_light_indir_pass_13": "renderPassLight13Indirect",
+        "use_pass_light_pass_14": "renderPassLight14",
+        "use_pass_light_dir_pass_14": "renderPassLight14Direct",
+        "use_pass_light_indir_pass_14": "renderPassLight14Indirect",
+        "use_pass_light_pass_15": "renderPassLight15",
+        "use_pass_light_dir_pass_15": "renderPassLight15Direct",
+        "use_pass_light_indir_pass_15": "renderPassLight15Indirect",
+        "use_pass_light_pass_16": "renderPassLight16",
+        "use_pass_light_dir_pass_16": "renderPassLight16Direct",
+        "use_pass_light_indir_pass_16": "renderPassLight16Indirect",
+        "use_pass_light_pass_17": "renderPassLight17",
+        "use_pass_light_dir_pass_17": "renderPassLight17Direct",
+        "use_pass_light_indir_pass_17": "renderPassLight17Indirect",
+        "use_pass_light_pass_18": "renderPassLight18",
+        "use_pass_light_dir_pass_18": "renderPassLight18Direct",
+        "use_pass_light_indir_pass_18": "renderPassLight18Indirect",
+        "use_pass_light_pass_19": "renderPassLight19",
+        "use_pass_light_dir_pass_19": "renderPassLight19Direct",
+        "use_pass_light_indir_pass_19": "renderPassLight19Indirect",
+        "use_pass_light_pass_20": "renderPassLight20",
+        "use_pass_light_dir_pass_20": "renderPassLight20Direct",
+        "use_pass_light_indir_pass_20": "renderPassLight20Indirect",
+        "cryptomatte_pass_channels": "renderPassCryptomatteCount", 
+        "cryptomatte_seed_factor": "renderPassCryptomatteSeedFactor",
+        "use_pass_crypto_instance_id": "renderPassCryptomatteInstance", 
+        "use_pass_crypto_mat_node_name": "renderPassCryptomatteMaterialNodeName", 
+        "use_pass_crypto_mat_node": "renderPassCryptomatteMaterialNode", 
+        "use_pass_crypto_mat_pin_node": "renderPassCryptomatteMaterialPinName", 
+        "use_pass_crypto_obj_node_name": "renderPassCryptomatteObjectNodeName", 
+        "use_pass_crypto_obj_node": "renderPassCryptomatteObjectNode", 
+        "use_pass_crypto_obj_pin_node": "renderPassCryptomatteObjectPinName",
+        "use_pass_crypto_render_layer": "renderPassCryptomatteRenderLayer",
+        "use_pass_crypto_geometry_node_name": "renderPassCryptomatteGeometryNodeName",
+        "use_pass_crypto_user_instance_id": "renderPassCryptomatteUserInstance",
+        "info_pass_max_samples": "renderPassInfoMaxSamples",
+        "info_pass_sampling_mode": "samplingMode",
+        "info_pass_bump": "bump",
+        "info_pass_opacity_threshold": "opacity",
+        "use_pass_info_geo_normal": "renderPassGeometricNormal",
+        "use_pass_info_smooth_normal": "renderPassVertexNormal",
+        "use_pass_info_shading_normal": "renderPassShadingNormal",
+        "use_pass_info_tangent_normal": "renderPassTangentNormal",
+        "use_pass_info_z_depth": "renderPassZDepth",
+        "info_pass_z_depth_max": "Z_depth_max",
+        "info_pass_z_depth_environment": "environmentDepth",
+        "use_pass_info_position": "renderPassPosition",
+        "use_pass_info_uv": "renderPassUvCoord",
+        "info_pass_uv_max": "UV_max",
+        "info_pass_uv_coordinate_selection": "uvSet",
+        "use_pass_info_tex_tangent": "renderPassTangentU",
+        "use_pass_info_motion_vector": "renderPassMotionVector",
+        "info_pass_max_speed": "maxSpeed",
+        "use_pass_info_mat_id": "renderPassMaterialId",
+        "use_pass_info_obj_id": "renderPassObjectId",
+        "use_pass_info_obj_layer_color": "renderPassObjectLayerColor",
+        "use_pass_info_baking_group_id": "renderPassBakingGroupId",
+        "use_pass_info_light_pass_id": "renderPassLightPassId",
+        "use_pass_info_render_layer_id": "renderPassRenderLayerId",
+        "use_pass_info_render_layer_mask": "renderPassRenderLayerMask",
+        "use_pass_info_wireframe": "renderPassWireframe",
+        "shading_enabled": "shadingEnabled",
+        "highlight_backfaces": "highlightBackfaces",
+        "use_pass_info_ao": "renderPassAmbientOcclusion",
+        "info_pass_ao_distance": "aodist",
+        "info_pass_alpha_shadows": "aoAlphaShadows",
+        "use_pass_mat_opacity": "renderPassOpacity", 
+        "use_pass_mat_roughness": "renderPassRoughness", 
+        "use_pass_mat_ior": "renderPassIor",
+        "use_pass_mat_diff_filter_info": "renderPassDiffuseFilterInfo", 
+        "use_pass_mat_reflect_filter_info": "renderPassReflectionFilterInfo", 
+        "use_pass_mat_refract_filter_info": "renderPassRefractionFilterInfo", 
+        "use_pass_mat_transm_filter_info": "renderPassTransmissionFilterInfo",
     }
     LEGACY_LAYER_MODE_CONVERTOR = {
         "OCT_RENDER_LAYER_MODE_NORMAL": "Normal",
@@ -432,7 +659,6 @@ class OctaneRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
         "OCT_RENDER_LAYER_MODE_ONLY_SIDE_EFFECTS": "Only side effects",
         "OCT_RENDER_LAYER_MODE_HIDE_FROM_CAMERA": "Hide from camera",
     }
-
 
     layers_enable: BoolProperty(
         name="Use Octane Render Layer",
@@ -485,7 +711,716 @@ class OctaneRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
         description="",
         type=CompositeNodeGraphPropertyGroup,
     )
-
+    aov_out_number: IntProperty(
+        name="AOV Outputs Number",
+        description="Number of AOV outputs",
+        min=0, max=16,
+        default=0,
+    )
+    use_pass_beauty: BoolProperty(
+        name="Beauty",
+        description="Make the beauty pass raw render passes by dividing out the color of the BxDF of the surface hit by the camera ray",
+        default=False,
+    )
+    use_pass_emitters: BoolProperty(
+        name="Emitters",
+        description="Contains all samples where the camera ray hits an emitter",
+        default=False,
+    )
+    use_pass_env: BoolProperty(
+        name="Environment",
+        description="Contains the environment of the scene",
+        default=False,
+    )
+    use_pass_diff: BoolProperty(
+        name="Diff",
+        description="Contains all samples where a diffuse material is lit either directly or indirectly",
+        default=False,
+    )
+    use_pass_diff_dir: BoolProperty(
+        name="DiffDir",
+        description="Contains all samples where a diffuse material is directly lit",
+        default=False,
+    )
+    use_pass_diff_indir: BoolProperty(
+        name="DiffIndir",
+        description="Contains all samples where a diffuse material is indirectly lit (GI)",
+        default=False,
+    )
+    use_pass_diff_filter: BoolProperty(
+        name="DiffFilter",
+        description="The diffuse texture color of the diffuse and glossy material",
+        default=False,
+    )
+    use_pass_reflect: BoolProperty(
+        name="Reflect",
+        description="Contains all samples where either direct or indirect light is reflected.directly or indirectly",
+        default=False,
+    )
+    use_pass_reflect_dir: BoolProperty(
+        name="ReflectDir",
+        description="Contains all samples where direct light is reflected",
+        default=False,
+    )
+    use_pass_reflect_indir: BoolProperty(
+        name="ReflectIndir",
+        description="Contains all samples where indirect light is reflected",
+        default=False,
+    )
+    use_pass_reflect_filter: BoolProperty(
+        name="ReflectFilter",
+        description="The reflection texture color of the specular and glossy material",
+        default=False,
+    )
+    use_pass_refract: BoolProperty(
+        name="Refract",
+        description="Contains all samples where the camera ray was refracted by a specular material on the first bounce",
+        default=False,
+    )
+    use_pass_refract_filter: BoolProperty(
+        name="RefractFilter",
+        description="The refraction texture color of the specular material",
+        default=False,
+    )
+    use_pass_transm: BoolProperty(
+        name="Transm",
+        description="Contains all samples where the camera ray is transmitted by a diffuse material on the first bounce",
+        default=False,
+    )
+    use_pass_transm_filter: BoolProperty(
+        name="TransmFilter",
+        description="The transmission texture color of the diffuse material",
+        default=False,
+    )
+    use_pass_sss: BoolProperty(
+        name="SSS",
+        description="Contains all samples that scattered in a volume visible from the camera",
+        default=False,
+    )
+    use_pass_shadow: BoolProperty(
+        name="Shadow",
+        description="Contains all direct light shadows that are calculated on the first path bounce. "
+                    "This includes sun light, but excludes sky light or texture environment if importance sampling is disabled or the texture environment doesn't consist of an image",
+        default=False,
+    )
+    use_pass_layer_shadows: BoolProperty(
+        name="LayerShadows",
+        description="Contains shadows cast by objects in the active render layer on objects in the other render layers. Combines black shadows and colored shadows in a single image",
+        default=False,
+    )
+    use_pass_layer_black_shadow: BoolProperty(
+        name="LayerBlackShadow",
+        description="Contains shadows cast by opaque objects in the active render layer on objects in the other render layers. NOTE: this render pass doesn't work if the alpha channel is disabled",
+        default=False,
+    )
+    use_pass_layer_reflections: BoolProperty(
+        name="LayerReflections",
+        description="Contains light reflected by the objects in the active layer on the objects in all the other layers",
+        default=False,
+    )    
+    use_pass_irradiance: BoolProperty(
+        name="Irradiance",
+        description="Contains the irradiance on the surface",
+        default=False,
+    )
+    use_pass_light_dir: BoolProperty(
+        name="LightDir",
+        description="Estimates the dominant direction from where most of the light is coming",
+        default=False,
+    )
+    use_pass_volume: BoolProperty(
+        name="Volume",
+        description="Contains all samples that scattered in a volume",
+        default=False,
+    )
+    use_pass_vol_mask: BoolProperty(
+        name="VolMask",
+        description="Contains absorption color and the contribution amount of a volume sample. This is a "
+                    "multiplication pass, so to composite volume passes you should be doing something like "
+                    "allOtherBeautyPasses * volumeMask + volume + volumeEmission",
+        default=False,
+    )
+    use_pass_vol_emission: BoolProperty(
+        name="VolEmission",
+        description="Contains all samples where the camera ray hit a volume emitter",
+        default=False,
+    )
+    use_pass_vol_z_front: BoolProperty(
+        name="VolZFront",
+        description="Contains the front depth of all volume samples",
+        default=False,
+    )
+    use_pass_vol_z_back: BoolProperty(
+        name="VolZBack",
+        description="Contains the back depth of all volume samples",
+        default=False,
+    )
+    use_pass_noise: BoolProperty(
+        name="Noise",
+        description="Contains the noise estimate value. Green color if the noise estimate is lesser than the "
+                    "threshold. Will be black if adaptive sampling is disabled",
+        default=False,
+    )
+    use_pass_denoise_beauty: BoolProperty(
+        name="DenoiserBeauty",
+        description="",
+        default=False,
+    )                            
+    use_pass_denoise_diff_dir: BoolProperty(
+        name="DenoiserDiffDir",
+        description="Contains the denoised result of diffuse direct render passs",
+        default=False,
+    )
+    use_pass_denoise_diff_indir: BoolProperty(
+        name="DenoiserDiffIndir",
+        description="Contains the denoised result of diffuse indirect render pass",
+        default=False,
+    )
+    use_pass_denoise_reflect_dir: BoolProperty(
+        name="DenoiserReflectDir",
+        description="Contains the denoised result of reflection direct render pass",
+        default=False,
+    )
+    use_pass_denoise_reflect_indir: BoolProperty(
+        name="DenoiserReflectIndir",
+        description="Contains the denoised result of reflection indirect render pass",
+        default=False,
+    )
+    use_pass_denoise_emission: BoolProperty(
+        name="DenoiserEmission",
+        description="Contains the denoised result of emission render pass",
+        default=False,
+    )
+    use_pass_denoise_remainder: BoolProperty(
+        name="DenoiserRemainder",
+        description="Contains the denoised result of transmission and subsurface render passes",
+        default=False,
+    )
+    use_pass_denoise_vol: BoolProperty(
+        name="DenoiserVolume",
+        description="Contains the denoised result of volume render pass",
+        default=False,
+    )
+    use_pass_denoise_vol_emission: BoolProperty(
+        name="DenoiserVolumeEmission",
+        description="Contains the denoised result of volume emission render pass",
+        default=False,
+    )
+    use_pass_postprocess: BoolProperty(
+        name="PostProcess",
+        description="Contains the post-processing applied to the beauty pass. When enabled, no post-processing is applied to the beauty pass itself",
+        default=False,
+    )
+    use_pass_postfxmedia: BoolProperty(
+        name="Postfix media",
+        description="Contains the postfx media rendering applied to the beauty pass. When enabled, no postfx media rendering is added to the beauty pass itself",
+        default=False,
+    )
+    use_pass_ambient_light: BoolProperty(
+        name="AmbientLight",
+        description="Captures the ambient light (sky and environment) in the scene",
+        default=False,
+    )
+    use_pass_ambient_light_dir: BoolProperty(
+        name="AmbientLightDir",
+        description="Captures the indirect ambient light (sky and environment) in the scene",
+        default=False,
+    )
+    use_pass_ambient_light_indir: BoolProperty(
+        name="AmbientLightIndir",
+        description="Captures the indirect ambient light (sky and environment) in the scene",
+        default=False,
+    )
+    use_pass_sunlight: BoolProperty(
+        name="OctSunlight",
+        description="Captures the sunlight in the scene",
+        default=False,
+    )
+    use_pass_sunlight_dir: BoolProperty(
+        name="SunLightDir",
+        description="Captures the sunlight in the scene",
+        default=False,
+    )
+    use_pass_sunlight_indir: BoolProperty(
+        name="SunLightIndir",
+        description="Captures the sunlight in the scene",
+        default=False,
+    )
+    use_pass_light_pass_1: BoolProperty(
+        name="LightPass1",
+        description="Captures the light of the emitters with light pass ID 1",
+        default=False,
+    )
+    use_pass_light_dir_pass_1: BoolProperty(
+        name="LightDirPass1",
+        description="Captures the light of the emitters with light pass ID 1",
+        default=False,
+    )
+    use_pass_light_indir_pass_1: BoolProperty(
+        name="LightIndirPass1",
+        description="Captures the light of the emitters with light pass ID 1",
+        default=False,
+    )
+    use_pass_light_pass_2: BoolProperty(
+        name="LightPass2",
+        description="Captures the light of the emitters with light pass ID 2",
+        default=False,
+    )
+    use_pass_light_dir_pass_2: BoolProperty(
+        name="LightDirPass2",
+        description="Captures the light of the emitters with light pass ID 2",
+        default=False,
+    )
+    use_pass_light_indir_pass_2: BoolProperty(
+        name="LightIndirPass2",
+        description="Captures the light of the emitters with light pass ID 2",
+        default=False,
+    )
+    use_pass_light_pass_3: BoolProperty(
+        name="LightPass3",
+        description="Captures the light of the emitters with light pass ID 3",
+        default=False,
+    )
+    use_pass_light_dir_pass_3: BoolProperty(
+        name="LightDirPass3",
+        description="Captures the light of the emitters with light pass ID 3",
+        default=False,
+    )
+    use_pass_light_indir_pass_3: BoolProperty(
+        name="LightIndirPass3",
+        description="Captures the light of the emitters with light pass ID 3",
+        default=False,
+    )
+    use_pass_light_pass_4: BoolProperty(
+        name="LightPass4",
+        description="Captures the light of the emitters with light pass ID 4",
+        default=False,
+    )
+    use_pass_light_dir_pass_4: BoolProperty(
+        name="LightDirPass4",
+        description="Captures the light of the emitters with light pass ID 4",
+        default=False,
+    )
+    use_pass_light_indir_pass_4: BoolProperty(
+        name="LightIndirPass4",
+        description="Captures the light of the emitters with light pass ID 4",
+        default=False,
+    )
+    use_pass_light_pass_5: BoolProperty(
+        name="LightPass5",
+        description="Captures the light of the emitters with light pass ID 5",
+        default=False,
+    )
+    use_pass_light_dir_pass_5: BoolProperty(
+        name="LightDirPass5",
+        description="Captures the light of the emitters with light pass ID 5",
+        default=False,
+    )
+    use_pass_light_indir_pass_5: BoolProperty(
+        name="LightIndirPass5",
+        description="Captures the light of the emitters with light pass ID 5",
+        default=False,
+    )
+    use_pass_light_pass_6: BoolProperty(
+        name="LightPass6",
+        description="Captures the light of the emitters with light pass ID 6",
+        default=False,
+    )
+    use_pass_light_dir_pass_6: BoolProperty(
+        name="LightDirPass6",
+        description="Captures the light of the emitters with light pass ID 6",
+        default=False,
+    )
+    use_pass_light_indir_pass_6: BoolProperty(
+        name="LightIndirPass6",
+        description="Captures the light of the emitters with light pass ID 6",
+        default=False,
+    )
+    use_pass_light_pass_7: BoolProperty(
+        name="LightPass7",
+        description="Captures the light of the emitters with light pass ID 7",
+        default=False,
+    )
+    use_pass_light_dir_pass_7: BoolProperty(
+        name="LightDirPass7",
+        description="Captures the light of the emitters with light pass ID 7",
+        default=False,
+    )
+    use_pass_light_indir_pass_7: BoolProperty(
+        name="LightIndirPass7",
+        description="Captures the light of the emitters with light pass ID 7",
+        default=False,
+    )
+    use_pass_light_pass_8: BoolProperty(
+        name="LightPass8",
+        description="Captures the light of the emitters with light pass ID 8",
+        default=False,
+    )
+    use_pass_light_dir_pass_8: BoolProperty(
+        name="LightDirPass8",
+        description="Captures the light of the emitters with light pass ID 8",
+        default=False,
+    )
+    use_pass_light_indir_pass_8: BoolProperty(
+        name="LightIndirPass8",
+        description="Captures the light of the emitters with light pass ID 8",
+        default=False,
+    )
+    use_pass_light_pass_9: BoolProperty(
+        name="LightPass9",
+        description="Captures the light of the emitters with light pass ID 9",
+        default=False,
+    )
+    use_pass_light_dir_pass_9: BoolProperty(
+        name="LightDirPass9",
+        description="Captures the light of the emitters with light pass ID 9",
+        default=False,
+    )
+    use_pass_light_indir_pass_9: BoolProperty(
+        name="LightIndirPass9",
+        description="Captures the light of the emitters with light pass ID 9",
+        default=False,
+    )
+    use_pass_light_pass_10: BoolProperty(
+        name="LightPass10",
+        description="Captures the light of the emitters with light pass ID 10",
+        default=False,
+    )
+    use_pass_light_dir_pass_10: BoolProperty(
+        name="LightDirPass10",
+        description="Captures the light of the emitters with light pass ID 10",
+        default=False,
+    )
+    use_pass_light_indir_pass_10: BoolProperty(
+        name="LightIndirPass10",
+        description="Captures the light of the emitters with light pass ID 10",
+        default=False,
+    )
+    use_pass_light_pass_11: BoolProperty(
+        name="LightPass11",
+        description="Captures the light of the emitters with light pass ID 11",
+        default=False,
+    )
+    use_pass_light_dir_pass_11: BoolProperty(
+        name="LightDirPass11",
+        description="Captures the light of the emitters with light pass ID 11",
+        default=False,
+    )
+    use_pass_light_indir_pass_11: BoolProperty(
+        name="LightIndirPass11",
+        description="Captures the light of the emitters with light pass ID 11",
+        default=False,
+    )
+    use_pass_light_pass_12: BoolProperty(
+        name="LightPass12",
+        description="Captures the light of the emitters with light pass ID 12",
+        default=False,
+    )
+    use_pass_light_dir_pass_12: BoolProperty(
+        name="LightDirPass12",
+        description="Captures the light of the emitters with light pass ID 12",
+        default=False,
+    )
+    use_pass_light_indir_pass_12: BoolProperty(
+        name="LightIndirPass12",
+        description="Captures the light of the emitters with light pass ID 12",
+        default=False,
+    )
+    use_pass_light_pass_13: BoolProperty(
+        name="LightPass13",
+        description="Captures the light of the emitters with light pass ID 13",
+        default=False,
+    )
+    use_pass_light_dir_pass_13: BoolProperty(
+        name="LightDirPass13",
+        description="Captures the light of the emitters with light pass ID 13",
+        default=False,
+    )
+    use_pass_light_indir_pass_13: BoolProperty(
+        name="LightIndirPass13",
+        description="Captures the light of the emitters with light pass ID 13",
+        default=False,
+    )
+    use_pass_light_pass_14: BoolProperty(
+        name="LightPass14",
+        description="Captures the light of the emitters with light pass ID 14",
+        default=False,
+    )
+    use_pass_light_dir_pass_14: BoolProperty(
+        name="LightDirPass14",
+        description="Captures the light of the emitters with light pass ID 14",
+        default=False,
+    )
+    use_pass_light_indir_pass_14: BoolProperty(
+        name="LightIndirPass14",
+        description="Captures the light of the emitters with light pass ID 14",
+        default=False,
+    )
+    use_pass_light_pass_15: BoolProperty(
+        name="LightPass15",
+        description="Captures the light of the emitters with light pass ID 15",
+        default=False,
+    )
+    use_pass_light_dir_pass_15: BoolProperty(
+        name="LightDirPass15",
+        description="Captures the light of the emitters with light pass ID 15",
+        default=False,
+    )
+    use_pass_light_indir_pass_15: BoolProperty(
+        name="LightIndirPass15",
+        description="Captures the light of the emitters with light pass ID 15",
+        default=False,
+    )
+    use_pass_light_pass_16: BoolProperty(
+        name="LightPass16",
+        description="Captures the light of the emitters with light pass ID 16",
+        default=False,
+    )
+    use_pass_light_dir_pass_16: BoolProperty(
+        name="LightDirPass16",
+        description="Captures the light of the emitters with light pass ID 16",
+        default=False,
+    )
+    use_pass_light_indir_pass_16: BoolProperty(
+        name="LightIndirPass16",
+        description="Captures the light of the emitters with light pass ID 16",
+        default=False,
+    )
+    use_pass_light_pass_17: BoolProperty(
+        name="LightPass17",
+        description="Captures the light of the emitters with light pass ID 17",
+        default=False,
+    )
+    use_pass_light_dir_pass_17: BoolProperty(
+        name="LightDirPass17",
+        description="Captures the light of the emitters with light pass ID 17",
+        default=False,
+    )
+    use_pass_light_indir_pass_17: BoolProperty(
+        name="LightIndirPass17",
+        description="Captures the light of the emitters with light pass ID 17",
+        default=False,
+    )
+    use_pass_light_pass_18: BoolProperty(
+        name="LightPass18",
+        description="Captures the light of the emitters with light pass ID 18",
+        default=False,
+    )
+    use_pass_light_dir_pass_18: BoolProperty(
+        name="LightDirPass18",
+        description="Captures the light of the emitters with light pass ID 18",
+        default=False,
+    )
+    use_pass_light_indir_pass_18: BoolProperty(
+        name="LightIndirPass18",
+        description="Captures the light of the emitters with light pass ID 18",
+        default=False,
+    )
+    use_pass_light_pass_19: BoolProperty(
+        name="LightPass19",
+        description="Captures the light of the emitters with light pass ID 19",
+        default=False,
+    )
+    use_pass_light_dir_pass_19: BoolProperty(
+        name="LightDirPass19",
+        description="Captures the light of the emitters with light pass ID 19",
+        default=False,
+    )
+    use_pass_light_indir_pass_19: BoolProperty(
+        name="LightIndirPass19",
+        description="Captures the light of the emitters with light pass ID 19",
+        default=False,
+    )
+    use_pass_light_pass_20: BoolProperty(
+        name="LightPass20",
+        description="Captures the light of the emitters with light pass ID 20",
+        default=False,
+    )
+    use_pass_light_dir_pass_20: BoolProperty(
+        name="LightDirPass20",
+        description="Captures the light of the emitters with light pass ID 20",
+        default=False,
+    )
+    use_pass_light_indir_pass_20: BoolProperty(
+        name="LightIndirPass20",
+        description="Captures the light of the emitters with light pass ID 20",
+        default=False,
+    )
+    use_pass_crypto_instance_id: BoolProperty(
+        name="CryptoInstanceID",
+        description="Cryptomatte channels for instance IDs",
+        default=False,
+    )
+    use_pass_crypto_mat_node_name: BoolProperty(
+        name="CryptoMatNodeName",
+        description="Cryptomatte channels using material node names",
+        default=False,
+    )
+    use_pass_crypto_mat_node: BoolProperty(
+        name="CryptoMatNode",
+        description="Cryptomatte channels using distinct material nodes",
+        default=False,
+    )
+    use_pass_crypto_mat_pin_node: BoolProperty(
+        name="CryptoMatPinNode",
+        description="Cryptomatte channels using material pin names",
+        default=False,
+    )
+    use_pass_crypto_obj_node_name: BoolProperty(
+        name="CryptoObjNodeName",
+        description="Cryptomatte channels using object layer node names",
+        default=False,
+    )
+    use_pass_crypto_obj_node: BoolProperty(
+        name="CryptoObjNode",
+        description="Cryptomatte channels using distinct object layer nodes",
+        default=False,
+    )
+    use_pass_crypto_obj_pin_node: BoolProperty(
+        name="CryptoObjPinNode",
+        description="Cryptomatte channels using object layer pin names",
+        default=False,
+    )
+    use_pass_crypto_render_layer: BoolProperty(
+        name="CryptoRenderLayer",
+        description="Cryptomatte channels using render layers",
+        default=False,
+    )
+    use_pass_crypto_geometry_node_name: BoolProperty(
+        name="CryptoGeometryNodeName",
+        description="Cryptomatte channels using geometry node names",
+        default=False,
+    )
+    use_pass_crypto_user_instance_id: BoolProperty(
+        name="CryptoUserInstanceID",
+        description="Cryptomatte channels using user instance id",
+        default=False,
+    )
+    use_pass_info_geo_normal: BoolProperty(
+        name="GeoNormal",
+        description="Assigns a colour for the geometry normal at the position hit by the camera ray",
+        default=False,
+    )
+    use_pass_info_smooth_normal: BoolProperty(
+        name="SmoothNormal",
+        description="Assigns a colour for the smooth normal at the position hit by the camera ray",
+        default=False,
+    )
+    use_pass_info_shading_normal: BoolProperty(
+        name="ShadingNormal",
+        description="Assigns a colour for the shading normal at the position hit by the camera ray",
+        default=False,
+    )
+    use_pass_info_tangent_normal: BoolProperty(
+        name="TangentNormal",
+        description="Assigns a colour for the tangent (local) normal at the position hit by the camera ray",
+        default=False,
+    )
+    use_pass_info_z_depth: BoolProperty(
+        name="ZDepth",
+        description="Assigns a gray value proportional to the camera ray hit distance",
+        default=False,
+    )
+    use_pass_info_position: BoolProperty(
+        name="Position",
+        description="Assigns RGB values according the intersection point of the camera ray",
+        default=False,
+    )
+    use_pass_info_uv: BoolProperty(
+        name="UV",
+        description="Assigns RGB values according the geometry's texture coordinates",
+        default=False,
+    )
+    use_pass_info_tex_tangent: BoolProperty(
+        name="TexTangent",
+        description="The tangent vector of U texture coordinates (Dp du)",
+        default=False,
+    )
+    use_pass_info_motion_vector: BoolProperty(
+        name="MotionVector",
+        description="Renders the motion vectors as 2D vectors in screen space",
+        default=False,
+    )
+    use_pass_info_mat_id: BoolProperty(
+        name="MatID",
+        description="Assigns RGB values according the material mapped to the geometry",
+        default=False,
+    )
+    use_pass_info_obj_id: BoolProperty(
+        name="ObjID",
+        description="Colours each distinct object in the scene with a colour based on it's ID",
+        default=False,
+    )
+    use_pass_info_obj_layer_color: BoolProperty(
+        name="ObjLayerColor",
+        description="The color specified in the object layer node",
+        default=False,
+    )
+    use_pass_info_baking_group_id: BoolProperty(
+        name="BakingGroupID",
+        description="Colours each distinct baking group in the scene with a colour based on it's ID",
+        default=False,
+    )
+    use_pass_info_light_pass_id: BoolProperty(
+        name="LightPassID",
+        description="Colours emitters based on their light pass ID",
+        default=False,
+    )
+    use_pass_info_render_layer_id: BoolProperty(
+        name="RenderLayerID",
+        description="Colours objects on the same layer with the same color based on the render layer ID",
+        default=False,
+    )
+    use_pass_info_render_layer_mask: BoolProperty(
+        name="RenderLayerMask",
+        description="Mask for geometry on the active render layer",
+        default=False,
+    )
+    use_pass_info_wireframe: BoolProperty(
+        name="Wireframe",
+        description="Wireframe display of the geometry",
+        default=False,
+    )
+    use_pass_info_ao: BoolProperty(
+        name="AO",
+        description="Assigns a colour to the camera ray's hit point proportional to the amount of occlusion by other geometry",
+        default=False,
+    )
+    use_pass_mat_opacity: BoolProperty(
+        name="Opacity",
+        description="Assigns a colour to the camera ray's hit point proportional to the opacity of the geometry",
+        default=False,
+    )
+    use_pass_mat_roughness: BoolProperty(
+        name="Roughness",
+        description="Material roughness at the camera ray's hit point",
+        default=False,
+    )    
+    use_pass_mat_ior: BoolProperty(
+        name="IOR",
+        description="Material index of refraction at the camera ray's hit point",
+        default=False,
+    )
+    use_pass_mat_diff_filter_info: BoolProperty(
+        name="DiffFilterInfo",
+        description="The diffuse texture color of the diffuse and glossy material",
+        default=False,
+    )
+    use_pass_mat_reflect_filter_info: BoolProperty(
+        name="ReflectFilterInfo",
+        description="The reflection texture color of the specular and glossy material",
+        default=False,
+    )
+    use_pass_mat_refract_filter_info: BoolProperty(
+        name="RefractFilterInfo",
+        description="The refraction texture color of the specular material",
+        default=False,
+    )
+    use_pass_mat_transm_filter_info: BoolProperty(
+        name="TransmFilterInfo",
+        description="The transmission texture color of the diffuse material",
+        default=False,
+    )
     use_passes: BoolProperty(
         name="Render passes",
         description="",
@@ -510,14 +1445,32 @@ class OctaneRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
         items=info_pass_sampling_modes,
         default='0',
     )
+    shading_enabled: BoolProperty(
+        name="Enable shading",
+        description="If enabled, the wireframe will be rendered on slightly shaded objects",
+        default=True,
+    )
+    highlight_backfaces: BoolProperty(
+        name="Highlight backfaces",
+        description="If enabled, the backfaces will be tinted red",
+        default=False,
+    )
     info_pass_z_depth_max: FloatProperty(
         name="Z-depth max",
-        description="Z-depth value mapped to white (0 is mapped to black)",
+        description="The Z-depth value at which the AOV values become white / 1. LDR exports will clamp at that depth, but HDR exports will write values > 1 for larger depth",
         min=0.001, soft_min=0.001, max=100000.0, soft_max=100000.0,
         default=5.0,
         step=10,
         precision=4,
     )
+    info_pass_z_depth_environment: FloatProperty(
+        name="Environment depth",
+        description="The Z-depth value that will be used for the environment/background",
+        min=0.001, soft_min=0.001, max=100000.0, soft_max=100000.0,
+        default=1000.0,
+        step=10,
+        precision=4,
+    )    
     info_pass_uv_max: FloatProperty(
         name="UV max",
         description="UV coordinate value mapped to maximum intensity",
@@ -589,126 +1542,115 @@ class OctaneRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
         default=10,
     )
     octane_render_pass_types = (
-        ('0', "Combined", "Combined pass", 0),
-
-        ('1', "Emitters", "Emitters pass", 1),
-        ('2', "Environment", "Environment pass", 2),
-
-        ('3', "Diffuse", "Diffuse pass", 3),
-        ('4', "Diffuse direct", "Diffuse direct pass", 4),
-        ('5', "Diffuse indirect", "Diffuse indirect pass", 5),
-        ('6', "Diffuse filter", "Diffuse filter pass", 6),
-
-        ('7', "Reflection", "Reflection pass", 7),
-        ('8', "Reflection direct", "Reflection direct pass", 8),
-        ('9', "Reflection indirect", "Reflection indirect pass", 9),
-        ('10', "Reflection filter", "Reflection filter pass", 10),
-
-        ('11', "Refraction", "Refraction pass pass", 11),
-        ('12', "Refraction filter", "Refraction filter pass pass", 12),
-        ('13', "Transmission", "Transmission pass", 13),
-        ('14', "Transmission filter", "Transmission filter pass", 14),
-
-        ('15', "Subsurface scattering", "Subsurface scattering pass", 15),
-        ('16', "Post processing", "Post processing pass", 16),
-
-        ('17', "Layer shadows", "Layer shadows pass", 17),
-        ('18', "Layer black shadows", "Layer black shadows pass", 18),
-        ('20', "Layer reflections", "Layer reflections pass", 20),
-
-        ('21', "Ambient light", "Ambient light pass", 21),
-        ('22', "Sunlight", "Sunlight pass", 22),
-        ('23', "Light pass 1", "Light pass 1", 23),
-        ('24', "Light pass 2", "Light pass 2", 24),
-        ('25', "Light pass 3", "Light pass 3", 25),
-        ('26', "Light pass 4", "Light pass 4", 26),
-        ('27', "Light pass 5", "Light pass 5", 27),
-        ('28', "Light pass 6", "Light pass 6", 28),
-        ('29', "Light pass 7", "Light pass 7", 29),
-        ('30', "Light pass 8", "Light pass 8", 30),
-        ('31', "Noise", "Noise pass", 31),
-        ('32', "Shadow", "Shadow pass", 32),
-        ('33', "Irradiance", "Irradiance pass", 33),
-        ('34', "Light Direction", "Light Direction pass", 34),
-        ('35', "Volume", "Volume pass", 35),
-        ('36', "Volume Mask", "Volume Mask pass", 36),
-        ('37', "Volume Emission", "Volume Emission pass", 37),
-        ('38', "Volume Z-Depth Front", "Volume Z-Depth Front pass", 38),
-        ('39', "Volume Z-Depth Back", "Volume Z-Depth Back pass", 39),
-
-        ('43', "Denoiser Beauty", "Denoiser Beauty pass", 43),
-        ('44', "Denoiser DiffDir", "Denoiser Diffuse Direct pass", 44),
-        ('45', "Denoiser DiffIndir", "Denoiser Diffuse Indirect pass", 45),
-        ('46', "Denoiser ReflectDir", "Denoiser Reflection Direct pass", 46),
-        ('47', "Denoiser ReflectIndir", "Denoiser Reflection Indirect pass", 47),
-        #('48', "Denoiser Refraction", "Denoiser Refraction pass"),
-        ('49', "Denoiser Refraction", "Denoiser Refraction(Remainder) pass", 49),
-        ('76', "Denoiser Emission", "Denoiser Emission pass", 76),
-        ('74', "Denoiser Volume", "Denoiser Volume pass", 74),
-        ('75', "Denoiser Volume Emission", "Denoiser Volume Emission pass", 75),
-
-        ('54', "Ambient light direct", "Ambient light direct pass", 54),
-        ('55', "Ambient light indirect", "Ambient light indirect pass", 55),
-        ('56', "Sunlight direct", "Sunlight direct pass", 56),
-        ('57', "Sunlight indirect", "Sunlight indirect pass", 57),
-        ('58', "Light pass 1 direct", "Light pass 1 direct", 58),    
-        ('59', "Light pass 2 direct", "Light pass 2 direct", 59),
-        ('60', "Light pass 3 direct", "Light pass 3 direct", 60),
-        ('61', "Light pass 4 direct", "Light pass 4 direct", 61),
-        ('62', "Light pass 5 direct", "Light pass 5 direct", 62),
-        ('63', "Light pass 6 direct", "Light pass 6 direct", 63),
-        ('64', "Light pass 7 direct", "Light pass 7 direct", 64),
-        ('65', "Light pass 8 direct", "Light pass 8 direct", 65),   
-        ('66', "Light pass 1 indirect", "Light pass 1 indirect", 66),    
-        ('67', "Light pass 2 indirect", "Light pass 2 indirect", 67),
-        ('68', "Light pass 3 indirect", "Light pass 3 indirect", 68),
-        ('69', "Light pass 4 indirect", "Light pass 4 indirect", 69),
-        ('70', "Light pass 5 indirect", "Light pass 5 indirect", 70),
-        ('71', "Light pass 6 indirect", "Light pass 6 indirect", 71),
-        ('72', "Light pass 7 indirect", "Light pass 7 indirect", 72),
-        ('73', "Light pass 8 indirect", "Light pass 8 indirect", 73),       
-
-        ('1000', "Geometric normals", "Geometric normals pass", 1000),
-        ('1001', "Shading normals", "Shading normals pass", 1001),
-        ('1002', "Position", "Position pass", 1002),
-        ('1003', "Z-depth", "Z-depth pass", 1003),
-        ('1004', "Material id", "Material id pass", 1004),
-        ('1005', "UV coordinates", "UV coordinates pass", 1005),
-        ('1006', "Tangents", "Tangents pass", 1006),
-        ('1007', "Wireframe", "Wireframe pass", 1007),
-        ('1008', "Smooth normals", "Smooth normals pass", 1008),
-        ('1009', "Object id", "Object id pass", 1009),    
-        ('1010', "Ambient occlusion", "Ambient occlusion pass", 1010),
-        ('1011', "Motion vector", "Motion vector pass", 1011),
-        ('1012', "Render layer ID", "Colours objects on the same layer with the same color based on the render layer ID", 1012),
-        ('1013', "Render layer mask", "Mask for geometry on the active render layer", 1013),
-        ('1014', "Light pass ID", "Light pass ID pass", 1014),
-        ('1015', "Tangent normals", "Tangent normals pass", 1015),
-        ('1016', "Info Opacity", "Assigns a colour to the camera ray's hit point proportional to the opacity of the geometry", 1016),
-        ('1017', "Baking group ID", "Colours each distinct baking group in the scene with a colour based on it's ID", 1017),
-        ('1018', "Info Roughness", "Material roughness at the camera ray's hit point", 1018),
-        ('1019', "Info IOR", "Material index of refraction at the camera ray's hit point", 1019),
-        ('1020', "Info DiffFilter", "The diffuse texture color of the diffuse and glossy material", 1020),
-        ('1021', "Info ReflectFilter", "The reflection texture color of the specular and glossy material", 1021),
-        ('1022', "Info RefractFilter", "The refraction texture color of the specular material", 1022),    
-        ('1023', "Info TransmFilter", "The transmission texture color of the diffuse material", 1023),    
-        ('1024', "Object layer color", "The color specified in the object layer node", 1024),
-
-        ('2001', "Cryptomatte MaterialName", "Cryptomatte channels for material node names", 2001), 
-        ('2006', "Cryptomatte MaterialNode", "Cryptomatte channels using distinct material nodes", 2006),    
-        ('2002', "Cryptomatte MaterialPinName", "Cryptomatte channels for material pin names", 2002), 
-        ('2003', "Cryptomatte ObjectName", "Cryptomatte channels for object layer node names", 2003), 
-        ('2004', "Cryptomatte ObjectNode", "Cryptomatte channels using distinct object layer nodes", 2004),    
-        ('2007', "Cryptomatte ObjectPinName", "Cryptomatte channels for object layer pin names", 2007), 
-        # Not suitable for the legacy render pass system
-        # ('2009', "Cryptomatte RenderLayer", "Cryptomatte channels for render layers", 2009), 
-
-        ('2005', "Cryptomatte InstanceID", "Cryptomatte channels for instance IDs", 2005),    
-        # Not suitable for the legacy render pass system
-        # ('2008', "Cryptomatte GeometryNodeName", "Cryptomatte channels for geometry node names", 2008), 
-        # ('2010', "Cryptomatte UserInstanceID", "Cryptomatte channels for user instance IDs", 2010), 
-
-        ('10000', "AOV Output", "AOV Outputs", 10000),   
+        ("0", "Combined", "Combined pass", 0),
+        ("43", "Denoiser Beauty", "Denoiser Beauty pass", 43),
+        (None),
+        ("3", "Diffuse", "Diffuse pass", 3),
+        ("4", "Diffuse direct", "Diffuse direct pass", 4),
+        ("5", "Diffuse indirect", "Diffuse indirect pass", 5),
+        ("6", "Diffuse filter", "Diffuse filter pass", 6),        
+        ("1", "Emitters", "Emitters pass", 1),
+        ("2", "Environment", "Environment pass", 2),
+        ("7", "Reflection", "Reflection pass", 7),
+        ("8", "Reflection direct", "Reflection direct pass", 8),
+        ("9", "Reflection indirect", "Reflection indirect pass", 9),
+        ("10", "Reflection filter", "Reflection filter pass", 10),
+        ("11", "Refraction", "Refraction pass pass", 11),
+        ("12", "Refraction filter", "Refraction filter pass pass", 12),
+        ("15", "Subsurface scattering", "Subsurface scattering pass", 15),
+        ("13", "Transmission", "Transmission pass", 13),
+        ("14", "Transmission filter", "Transmission filter pass", 14),
+        (None),
+        ("35", "Volume", "Volume pass", 35),
+        ("36", "Volume Mask", "Volume Mask pass", 36),
+        ("37", "Volume Emission", "Volume Emission pass", 37),
+        ("38", "Volume Z-Depth Front", "Volume Z-Depth Front pass", 38),
+        ("39", "Volume Z-Depth Back", "Volume Z-Depth Back pass", 39),
+        (None),
+        ("44", "Denoiser DiffDir", "Denoiser Diffuse Direct pass", 44),
+        ("45", "Denoiser DiffIndir", "Denoiser Diffuse Indirect pass", 45),
+        ("46", "Denoiser ReflectDir", "Denoiser Reflection Direct pass", 46),
+        ("47", "Denoiser ReflectIndir", "Denoiser Reflection Indirect pass", 47),
+        ("49", "Denoiser Refraction", "Denoiser Refraction(Remainder) pass", 49),
+        ("76", "Denoiser Emission", "Denoiser Emission pass", 76),
+        ("74", "Denoiser Volume", "Denoiser Volume pass", 74),
+        ("75", "Denoiser Volume Emission", "Denoiser Volume Emission pass", 75),
+        (None),
+        ("2001", "Cryptomatte MaterialName", "Cryptomatte channels for material node names", 2001), 
+        ("2006", "Cryptomatte MaterialNode", "Cryptomatte channels using distinct material nodes", 2006),    
+        ("2002", "Cryptomatte MaterialPinName", "Cryptomatte channels for material pin names", 2002), 
+        ("2003", "Cryptomatte ObjectName", "Cryptomatte channels for object layer node names", 2003), 
+        ("2004", "Cryptomatte ObjectNode", "Cryptomatte channels using distinct object layer nodes", 2004),    
+        ("2007", "Cryptomatte ObjectPinName", "Cryptomatte channels for object layer pin names", 2007),
+        ("2005", "Cryptomatte InstanceID", "Cryptomatte channels for instance IDs", 2005),
+        ("33", "Irradiance", "Irradiance pass", 33),
+        ("34", "Light Direction", "Light Direction pass", 34),
+        ("31", "Noise", "Noise pass", 31),
+        ("16", "Post processing", "Post processing pass", 16),
+        ("32", "Shadow", "Shadow pass", 32),
+        (None),
+        ("21", "Ambient light", "Ambient light pass", 21),
+        ("22", "Sunlight", "Sunlight pass", 22),
+        ("23", "Light pass 1", "Light pass 1", 23),
+        ("24", "Light pass 2", "Light pass 2", 24),
+        ("25", "Light pass 3", "Light pass 3", 25),
+        ("26", "Light pass 4", "Light pass 4", 26),
+        ("27", "Light pass 5", "Light pass 5", 27),
+        ("28", "Light pass 6", "Light pass 6", 28),
+        ("29", "Light pass 7", "Light pass 7", 29),
+        ("30", "Light pass 8", "Light pass 8", 30),
+        ("54", "Ambient light direct", "Ambient light direct pass", 54),
+        ("55", "Ambient light indirect", "Ambient light indirect pass", 55),
+        ("56", "Sunlight direct", "Sunlight direct pass", 56),
+        ("57", "Sunlight indirect", "Sunlight indirect pass", 57),
+        ("58", "Light pass 1 direct", "Light pass 1 direct", 58),    
+        ("59", "Light pass 2 direct", "Light pass 2 direct", 59),
+        ("60", "Light pass 3 direct", "Light pass 3 direct", 60),
+        ("61", "Light pass 4 direct", "Light pass 4 direct", 61),
+        ("62", "Light pass 5 direct", "Light pass 5 direct", 62),
+        ("63", "Light pass 6 direct", "Light pass 6 direct", 63),
+        ("64", "Light pass 7 direct", "Light pass 7 direct", 64),
+        ("65", "Light pass 8 direct", "Light pass 8 direct", 65),   
+        ("66", "Light pass 1 indirect", "Light pass 1 indirect", 66),    
+        ("67", "Light pass 2 indirect", "Light pass 2 indirect", 67),
+        ("68", "Light pass 3 indirect", "Light pass 3 indirect", 68),
+        ("69", "Light pass 4 indirect", "Light pass 4 indirect", 69),
+        ("70", "Light pass 5 indirect", "Light pass 5 indirect", 70),
+        ("71", "Light pass 6 indirect", "Light pass 6 indirect", 71),
+        ("72", "Light pass 7 indirect", "Light pass 7 indirect", 72),
+        ("73", "Light pass 8 indirect", "Light pass 8 indirect", 73),
+        (None),
+        ("1000", "Geometric normals", "Geometric normals pass", 1000),
+        ("1001", "Shading normals", "Shading normals pass", 1001),
+        ("1002", "Position", "Position pass", 1002),
+        ("1003", "Z-depth", "Z-depth pass", 1003),
+        ("1004", "Material id", "Material id pass", 1004),
+        ("1005", "UV coordinates", "UV coordinates pass", 1005),
+        ("1006", "Tangents", "Tangents pass", 1006),
+        ("1007", "Wireframe", "Wireframe pass", 1007),
+        ("1008", "Smooth normals", "Smooth normals pass", 1008),
+        ("1009", "Object id", "Object id pass", 1009),    
+        ("1010", "Ambient occlusion", "Ambient occlusion pass", 1010),
+        ("1011", "Motion vector", "Motion vector pass", 1011),
+        ("1012", "Render layer ID", "Colours objects on the same layer with the same color based on the render layer ID", 1012),
+        ("1013", "Render layer mask", "Mask for geometry on the active render layer", 1013),
+        ("1014", "Light pass ID", "Light pass ID pass", 1014),
+        ("1015", "Tangent normals", "Tangent normals pass", 1015),
+        ("1016", "Info Opacity", "Assigns a colour to the camera ray's hit point proportional to the opacity of the geometry", 1016),
+        ("1017", "Baking group ID", "Colours each distinct baking group in the scene with a colour based on it's ID", 1017),
+        ("1018", "Info Roughness", "Material roughness at the camera ray's hit point", 1018),
+        ("1019", "Info IOR", "Material index of refraction at the camera ray's hit point", 1019),
+        ("1020", "Info DiffFilter", "The diffuse texture color of the diffuse and glossy material", 1020),
+        ("1021", "Info ReflectFilter", "The reflection texture color of the specular and glossy material", 1021),
+        ("1022", "Info RefractFilter", "The refraction texture color of the specular material", 1022),    
+        ("1023", "Info TransmFilter", "The transmission texture color of the diffuse material", 1023),    
+        ("1024", "Object layer color", "The color specified in the object layer node", 1024),
+        (None),
+        ("17", "Layer shadows", "Layer shadows pass", 17),
+        ("18", "Layer black shadows", "Layer black shadows pass", 18),
+        ("20", "Layer reflections", "Layer reflections pass", 20),
+        (None),
+        ("10000", "AOV Output", "AOV Outputs", 10000),
     )    
     current_preview_pass_type: EnumProperty(
         name="Preview pass type",
@@ -728,8 +1670,8 @@ class OctaneRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
         type=OctaneAovOutputGroupCollection,
     )
     render_passes_style = (
-        ('RENDER_PASSES', "Classic Render Passes", "The classic render passes style but the new render AOVs won't be available there", 0),
-        ('RENDER_AOV_GRAPH', "Render AOV Node Graph", "The render AOV node graph with the AOV features", 1),
+        ("RENDER_PASSES", "Classic Render Passes", "The classic render passes style but the new render AOVs won't be available there", 0),
+        ("RENDER_AOV_GRAPH", "Render AOV Node Graph", "The render AOV node graph with the AOV features", 1),
     )    
     render_pass_style: EnumProperty(
         name="Render Passes Style",
@@ -743,7 +1685,36 @@ class OctaneRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
         col = layout.column()
         col.prop(self, "layers_mode")
         col.prop(self, "layers_current")
-        col.prop(self, "layers_invert")        
+        col.prop(self, "layers_invert")
+
+    def sync_custom_data(self, octane_node, scene, region, v3d, rv3d, session_type):
+        if self.render_pass_style != "RENDER_PASSES":
+            return
+        current_preview_pass_type = utility.get_enum_int_value(self, "current_preview_pass_type", consts.RenderPassID.Beauty)
+        current_preview_pass_pin_name = ""
+        if current_preview_pass_type in consts.OCTANE_PASS_ID_TO_NODE_PIN_NAME:
+            current_preview_pass_pin_name = consts.OCTANE_PASS_ID_TO_NODE_PIN_NAME[current_preview_pass_type]
+        if octane_node.node_type == consts.NodeType.NT_RENDER_PASSES:
+            octane_node.set_pin_name(current_preview_pass_pin_name, False, "", True)
+        elif octane_node.node_type == consts.NodeType.NT_BLENDER_NODE_GRAPH_NODE:
+            render_pass_configs = octane_node.render_pass_configs
+            for idx, property_name in enumerate(self.octane_property_name_list):
+                if not hasattr(self, property_name):
+                    continue
+                pin_symbol = self.octane_property_pin_symbol_list[idx]
+                if pin_symbol not in render_pass_configs:
+                    continue
+                config = render_pass_configs[pin_symbol]
+                node_type = config["node_type"]
+                pin_index = config["pin_index"]
+                pin_type = config["pin_type"]
+                socket_type, _, _ = self.octane_property_type_list[idx]
+                property_value = getattr(self, property_name, None)
+                if socket_type == consts.SocketType.ST_ENUM:
+                    property_value = self.rna_type.properties[property_name].enum_items[property_value].value                
+                if pin_symbol == current_preview_pass_pin_name:
+                    property_value = True
+                octane_node.node.set_pin(consts.OctaneDataBlockSymbolType.PIN_INDEX, pin_index, pin_symbol, socket_type, pin_type, node_type, False, "", property_value)
 
     def update_legacy_data(self, context, legacy_data, is_viewport=None): 
         self.layers_mode = self.LEGACY_LAYER_MODE_CONVERTOR.get(getattr(legacy_data, "octane_render_layers_mode", ""), "Normal")
@@ -1173,6 +2144,17 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
         name="Maximize Instancing",
         description="If enabled, Octane will try to collect and group instances into scatter as much as possible",
         default=True,
+    )
+    def update_octane_shading_type(self, context):
+        view = context.space_data
+        if view and view.shading:
+            view.shading.type = self.octane_shading_type
+    octane_shading_type: EnumProperty(
+        name="Octane Shading Type",
+        description="",
+        items=octane_shading_type_modes,
+        default="SOLID",
+        update=update_octane_shading_type,
     )
     meshes_render_types = (
         ('0', "Global", ""),
@@ -1890,17 +2872,28 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
         min=2, soft_min=2, max=1000000, soft_max=1024,
         default=256,
     )
-    adaptive_group_pixels = (
-        ('1', "None", ""),
+    adaptive_group_pixels_mode = (
+        ('1', "None", "",),
         ('2', "2 x 2", ""),
         ('4', "4 x 4", ""),
     )
     adaptive_group_pixels: EnumProperty(
         name="Group pixels",
         description="Size of the pixel groups that are evaluated together to decide whether sampling should stop or not",
-        items=adaptive_group_pixels,
+        items=adaptive_group_pixels_mode,
         default='2',
     )
+    adaptive_group_pixels1_mode = (
+        ('1', "None", "", 1),
+        ('2', "2 x 2", "", 2),
+        ('4', "4 x 4", "", 4),
+    )
+    adaptive_group_pixels1: EnumProperty(
+        name="Group pixels",
+        description="Size of the pixel groups that are evaluated together to decide whether sampling should stop or not",
+        items=adaptive_group_pixels1_mode,
+        default='2',
+    )    
     gui_octane_export_ocio_color_space_name: StringProperty(
         name="Color space",
         description="Choose intermediate color space to allow conversions with OCIO. This should correspond to the same color space as the 'Octane' box",        
@@ -2093,7 +3086,7 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
         name="Tonemapped HDR",
         description="",
         default=False,
-    )    
+    )
 
     @classmethod
     def register(cls):
@@ -2156,6 +3149,124 @@ class OctaneProgressWidget(object):
         OctaneProgressWidget.task_text = ""
 
 
+class AddPresetRenderPasses(AddPresetBase, Operator):
+    """Add Octane Render Passes preset"""
+    bl_idname = "render.octane_renderpasses_preset_add"
+    bl_label = "Add Render Passes preset"
+    preset_menu = "OCTANE_MT_renderpasses_presets"
+    preset_defines = [
+        "octane = bpy.context.view_layer.octane"
+    ]
+    preset_values = ["octane." + item for item in OctaneRenderLayer.PROPERTY_CONFIGS[consts.NodeType.NT_RENDER_PASSES]]
+    preset_subdir = "octane/renderpasses_presets"
+
+
+class AddPresetLegacyKernel(AddPresetBase, Operator):
+    """Add Octane Legacy Kernel preset"""
+    bl_idname = "render.octane_legacy_kernel_preset_add"
+    bl_label = "Add Legacy Kernel preset"
+    preset_menu = "OCTANE_MT_legacy_kernel_presets"
+    preset_defines = [
+        "octane = bpy.context.scene.octane"
+    ]
+    preset_values = [
+        "octane.devices",
+        "octane.kernel_type",
+        "octane.max_samples",
+        "octane.max_preview_samples",
+        "octane.gi_mode",
+        "octane.clay_mode",
+        "octane.ao_texture",
+        "octane.info_channel_type",
+        "octane.parallel_samples",
+        "octane.max_tile_samples",
+        "octane.zdepth_max",
+        "octane.uv_max",
+        "octane.max_speed",
+        "octane.opacity_threshold",
+        "octane.sampling_mode",
+        "octane.max_diffuse_depth",
+        "octane.max_glossy_depth",
+        "octane.max_scatter_depth",
+        "octane.caustic_blur",
+        "octane.gi_clamp",
+        "octane.alpha_channel",
+        "octane.wf_bkface_hl",
+        "octane.ao_alpha_shadows",
+        "octane.minimize_net_traffic",
+        "octane.emulate_old_volume_behavior",
+        "octane.specular_depth",
+        "octane.glossy_depth",
+        "octane.diffuse_depth",
+        "octane.ao_dist",
+        "octane.filter_size",
+        "octane.ray_epsilon",
+        "octane.exploration",
+        "octane.direct_light_importance",
+        "octane.max_rejects",
+        "octane.parallelism",
+        "octane.work_chunk_size",
+        "octane.coherent_ratio",
+        "octane.max_depth_samples",
+        "octane.depth_tolerance",
+        "octane.static_noise",
+        "octane.deep_image",
+        "octane.path_term_power",
+        "octane.keep_environment",
+        "octane.irradiance_mode",
+        "octane.ai_light_enable",
+        "octane.ai_light_update",
+        "octane.ai_light_strength",
+        "octane.alpha_shadows",
+        "octane.bump_normal_mapping",
+        "octane.light_id_sunlight",
+        "octane.light_id_env",
+        "octane.light_id_pass_1",
+        "octane.light_id_pass_2",
+        "octane.light_id_pass_3",
+        "octane.light_id_pass_4",
+        "octane.light_id_pass_5",
+        "octane.light_id_pass_6",
+        "octane.light_id_pass_7",
+        "octane.light_id_pass_8",
+        "octane.light_id_sunlight_invert",
+        "octane.light_id_env_invert",
+        "octane.light_id_pass_1_invert",
+        "octane.light_id_pass_2_invert",
+        "octane.light_id_pass_3_invert",
+        "octane.light_id_pass_4_invert",
+        "octane.light_id_pass_5_invert",
+        "octane.light_id_pass_6_invert",
+        "octane.light_id_pass_7_invert",
+        "octane.light_id_pass_8_invert",
+    ]
+    preset_subdir = "octane/kernel"
+
+
+class ExecutePresetLegacyKernel(ExecutePreset):
+    bl_label = "Execute Preset Legacy Kernel"
+    bl_idname = "script.execute_preset_legacy_kernel"
+
+    def execute(self, context):
+        from os.path import basename
+        from octane.utils import utility
+        result = super().execute(context)
+        preset_name = bpy.path.display_name(basename(self.filepath), title_case=False)
+        octane_scene = bpy.context.scene.octane
+        utility.quick_add_octane_kernel_node_tree(assign_to_kernel_node_graph=True, generate_from_legacy_octane_property=True, preset_name=preset_name)
+        octane_scene.kernel_data_mode = "NODETREE"
+        return result
+
+
+class ExecutePresetOctaneBase(ExecutePreset):
+    bl_label = "Execute Preset Octane"
+    bl_idname = "script.execute_preset_octane"
+
+    def execute(self, context):
+        result = super().execute(context)
+        return result
+
+
 _CLASSES = [
     KernelNodeGraphPropertyGroup,
     RenderAOVNodeGraphPropertyGroup,
@@ -2168,6 +3279,10 @@ _CLASSES = [
     OctaneGlobalRenderLayer,
     OctaneRenderLayer,
     OctaneRenderSettings,
+    AddPresetRenderPasses,
+    AddPresetLegacyKernel,
+    ExecutePresetLegacyKernel,
+    ExecutePresetOctaneBase,
 ]
 
 

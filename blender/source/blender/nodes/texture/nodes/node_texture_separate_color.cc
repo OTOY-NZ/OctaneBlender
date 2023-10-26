@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2022 Blender Foundation. All rights reserved. */
+ * Copyright 2022 Blender Foundation */
 
 /** \file
  * \ingroup texnodes
@@ -95,7 +95,7 @@ void register_node_type_tex_separate_color()
   static bNodeType ntype;
 
   tex_node_type_base(&ntype, TEX_NODE_SEPARATE_COLOR, "Separate Color", NODE_CLASS_OP_COLOR);
-  node_type_socket_templates(&ntype, inputs, outputs);
+  blender::bke::node_type_socket_templates(&ntype, inputs, outputs);
   ntype.exec_fn = exec;
   ntype.updatefunc = update;
 

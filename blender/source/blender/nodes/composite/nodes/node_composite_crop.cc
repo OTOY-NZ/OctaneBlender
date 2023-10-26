@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2006 Blender Foundation. All rights reserved. */
+ * Copyright 2006 Blender Foundation */
 
 /** \file
  * \ingroup cmpnodes
@@ -31,10 +31,10 @@ NODE_STORAGE_FUNCS(NodeTwoXYs)
 
 static void cmp_node_crop_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Color>(N_("Image"))
+  b.add_input<decl::Color>("Image")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
       .compositor_domain_priority(0);
-  b.add_output<decl::Color>(N_("Image"));
+  b.add_output<decl::Color>("Image");
 }
 
 static void node_composit_init_crop(bNodeTree * /*ntree*/, bNode *node)

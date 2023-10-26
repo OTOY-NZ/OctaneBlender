@@ -1,23 +1,3 @@
-#
-# Copyright 2011, Blender Foundation.
-#
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software Foundation,
-# Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-
-# <pep8 compliant>
-
 import bpy
 from bpy.app.handlers import persistent
 from bpy.props import (
@@ -287,7 +267,15 @@ class OctaneGeoNodeCollection(bpy.types.PropertyGroup):
             default="",
             update=OctaneSpecificNodeCollection_sync_function,
             maxlen=512,
-            ) 
+            )
+
+    def is_octane_geo_used(self):
+        return len(self.node_graph_tree) and len(self.osl_geo_node)            
+
+    def get_octane_geo_name(self):
+        if self.is_octane_geo_used():
+            return "{}_{}".format(self.node_graph_tree, self.osl_geo_node)
+        return ""
 
     def sync_geo_node_info(self, context):
         for obj in bpy.data.objects:
@@ -530,23 +518,23 @@ For multiple-GPUs platforms, Octane may change the 'Imaging' device during the v
             row.prop(self, "use_shared_surface")
             if not row.active:
                 box.row().label(text="Shared surface is not supported")
-            return
-        layout = self.layout
-        layout.row().prop(self, "octane_server_address", expand=False) 
-        layout.row().prop(self, "enable_relese_octane_license_when_exiting", expand=False)   
-        layout.row().prop(self, "octane_localdb_path", expand=False)
-        layout.row().prop(self, "default_object_mesh_type", expand=False)
-        layout.row().prop(self, "octane_texture_cache_path", expand=False)
-        layout.row().prop(self, "default_material_id", expand=False)
-        layout.row().prop(self, "default_texture_node_layout_id", expand=False)
-        layout.row().prop(self, "use_new_addon_nodes", expand=False)
-        box = layout.box()
-        box.label(text="Viewport Rendering")
-        row = box.row()
-        row.active = OctaneBlender().is_shared_surface_supported()
-        row.prop(self, "use_shared_surface")
-        if not row.active:
-            box.row().label(text="Shared surface is not supported")
+        else:
+            layout = self.layout
+            layout.row().prop(self, "octane_server_address", expand=False) 
+            layout.row().prop(self, "enable_relese_octane_license_when_exiting", expand=False)   
+            layout.row().prop(self, "octane_localdb_path", expand=False)
+            layout.row().prop(self, "default_object_mesh_type", expand=False)
+            layout.row().prop(self, "octane_texture_cache_path", expand=False)
+            layout.row().prop(self, "default_material_id", expand=False)
+            layout.row().prop(self, "default_texture_node_layout_id", expand=False)
+            layout.row().prop(self, "use_new_addon_nodes", expand=False)
+            box = layout.box()
+            box.label(text="Viewport Rendering")
+            row = box.row()
+            row.active = OctaneBlender().is_shared_surface_supported()
+            row.prop(self, "use_shared_surface")
+            if not row.active:
+                box.row().label(text="Shared surface is not supported")
         box = layout.box()
         box.label(text="Octane Color Management")
         box.row().prop(self, "ocio_use_other_config_file")
@@ -558,10 +546,6 @@ For multiple-GPUs platforms, Octane may change the 'Imaging' device during the v
         row = box.row()
         row.active = not self.ocio_use_automatic
         row.prop_search(self, "ocio_intermediate_color_space_ocio", self, "ocio_intermediate_color_space_configs")           
-        import _octane
-        # _octane.update_default_mat_id(int(self.default_material_id))        
-        # _octane.update_generate_default_uvs(int(self.enable_generate_default_uvs))        
-        # _octane.update_octane_upload_opt(int(self.enable_node_graph_upload_opt), int(self.enable_mesh_upload_optimization))
         update_octane_data()
 
 
@@ -1424,14 +1408,6 @@ classes = (
     OctaneVolumeSettings,
 )
 
-@persistent
-def load_handler(scene):
-    for window in bpy.context.window_manager.windows:
-        for area in window.screen.areas:
-            if area.type == "VIEW_3D":
-                for space in area.spaces:
-                    if space.type == "VIEW_3D" and space.shading.type in ("RENDERED", "MATERIAL"):
-                        space.shading.type = "SOLID"
 
 def register():    
     from bpy.utils import register_class    
@@ -1451,8 +1427,6 @@ def register():
     # nodeitems_utils.register_node_categories("OCT_TEXTURE", texture_node_categories)
     octane_server_address = str(bpy.context.preferences.addons['octane'].preferences.octane_server_address)
     update_octane_data()
-    ocio.update_ocio_info()  
-    bpy.app.handlers.load_post.append(load_handler)
 
 
 def unregister():
@@ -1460,5 +1434,4 @@ def unregister():
     for cls in classes:
         unregister_class(cls)
     # nodeitems_utils.unregister_node_categories("OCT_SHADER")
-    # nodeitems_utils.unregister_node_categories("OCT_TEXTURE")        
-    bpy.app.handlers.load_post.remove(load_handler)
+    # nodeitems_utils.unregister_node_categories("OCT_TEXTURE")

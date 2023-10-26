@@ -411,12 +411,12 @@ void register_node_type_tex_oct_gradient(void)
   static bNodeType ntype;
 
   if (ntype.type != SH_NODE_OCT_GRADIENT_TEX)
-    node_type_base(
+    sh_node_type_base(
         &ntype, SH_NODE_OCT_GRADIENT_TEX, "Gradient Tex", NODE_CLASS_OCT_TEXTURE);
   // if(ntype.type != SH_NODE_OCT_GRADIENT_TEX) cmp_node_type_base(&ntype,
   // SH_NODE_OCT_GRADIENT_TEX, "Octane Gradient Tex", NODE_CLASS_OCT_TEXTURE);
-  node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
-  node_type_size(&ntype, 160, 160, 500);
+  blender::bke::node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
+  node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::DEFAULT);
   ntype.initfunc = (node_oct_init_gradient);
   node_type_storage(&ntype, "ColorBand", node_free_standard_storage, node_copy_standard_storage);
   // node_type_exec(&ntype, 0, 0, 0);

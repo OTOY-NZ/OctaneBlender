@@ -39,7 +39,7 @@ bool MetalDevice::is_device_cancelled(int ID)
   return get_device_by_ID(ID, lock) == nullptr;
 }
 
-BVHLayoutMask MetalDevice::get_bvh_layout_mask() const
+BVHLayoutMask MetalDevice::get_bvh_layout_mask(uint /*kernel_features*/) const
 {
   return use_metalrt ? BVH_LAYOUT_METAL : BVH_LAYOUT_BVH2;
 }
@@ -51,11 +51,11 @@ void MetalDevice::set_error(const string &error)
 
   Device::set_error(error);
 
-  if (first_error) {
+  if (!has_error) {
     fprintf(stderr, "\nRefer to the Cycles GPU rendering documentation for possible solutions:\n");
     fprintf(stderr,
             "https://docs.blender.org/manual/en/latest/render/cycles/gpu_rendering.html\n\n");
-    first_error = false;
+    has_error = true;
   }
 }
 
@@ -91,11 +91,6 @@ MetalDevice::MetalDevice(const DeviceInfo &info, Stats &stats, Profiler &profile
     }
   }
 
-  texture_bindings_2d = [mtlDevice newBufferWithLength:4096 options:default_storage_mode];
-  texture_bindings_3d = [mtlDevice newBufferWithLength:4096 options:default_storage_mode];
-
-  stats.mem_alloc(texture_bindings_2d.allocatedSize + texture_bindings_3d.allocatedSize);
-
   switch (device_vendor) {
     default:
       break;
@@ -105,16 +100,15 @@ MetalDevice::MetalDevice(const DeviceInfo &info, Stats &stats, Profiler &profile
     }
     case METAL_GPU_AMD: {
       max_threads_per_threadgroup = 128;
-      use_metalrt = info.use_metalrt;
       break;
     }
     case METAL_GPU_APPLE: {
       max_threads_per_threadgroup = 512;
-      use_metalrt = info.use_metalrt;
       break;
     }
   }
 
+  use_metalrt = info.use_hardware_raytracing;
   if (auto metalrt = getenv("CYCLES_METALRT")) {
     use_metalrt = (atoi(metalrt) != 0);
   }
@@ -156,6 +150,16 @@ MetalDevice::MetalDevice(const DeviceInfo &info, Stats &stats, Profiler &profile
   arg_desc_texture.dataType = MTLDataTypeTexture;
   arg_desc_texture.access = MTLArgumentAccessReadOnly;
   mtlTextureArgEncoder = [mtlDevice newArgumentEncoderWithArguments:@[ arg_desc_texture ]];
+  MTLArgumentDescriptor *arg_desc_buffer = [[MTLArgumentDescriptor alloc] init];
+  arg_desc_buffer.dataType = MTLDataTypePointer;
+  arg_desc_buffer.access = MTLArgumentAccessReadOnly;
+  mtlBufferArgEncoder = [mtlDevice newArgumentEncoderWithArguments:@[ arg_desc_buffer ]];
+
+  buffer_bindings_1d = [mtlDevice newBufferWithLength:8192 options:default_storage_mode];
+  texture_bindings_2d = [mtlDevice newBufferWithLength:8192 options:default_storage_mode];
+  texture_bindings_3d = [mtlDevice newBufferWithLength:8192 options:default_storage_mode];
+  stats.mem_alloc(buffer_bindings_1d.allocatedSize + texture_bindings_2d.allocatedSize +
+                  texture_bindings_3d.allocatedSize);
 
   /* command queue for non-tracing work on the GPU */
   mtlGeneralCommandQueue = [mtlDevice newCommandQueue];
@@ -180,6 +184,8 @@ MetalDevice::MetalDevice(const DeviceInfo &info, Stats &stats, Profiler &profile
     arg_desc_tex.dataType = MTLDataTypePointer;
     arg_desc_tex.access = MTLArgumentAccessReadOnly;
 
+    arg_desc_tex.index = index++;
+    [ancillary_desc addObject:[arg_desc_tex copy]]; /* metal_buf_1d */
     arg_desc_tex.index = index++;
     [ancillary_desc addObject:[arg_desc_tex copy]]; /* metal_tex_2d */
     arg_desc_tex.index = index++;
@@ -253,22 +259,26 @@ MetalDevice::~MetalDevice()
    * existing_devices_mutex). */
   thread_scoped_lock lock(existing_devices_mutex);
 
-  for (auto &tex : texture_slot_map) {
-    if (tex) {
-      [tex release];
-      tex = nil;
+  int num_resources = texture_info.size();
+  for (int res = 0; res < num_resources; res++) {
+    if (is_texture(texture_info[res])) {
+      [texture_slot_map[res] release];
+      texture_slot_map[res] = nil;
     }
   }
+
   flush_delayed_free_list();
 
   if (texture_bindings_2d) {
-    stats.mem_free(texture_bindings_2d.allocatedSize + texture_bindings_3d.allocatedSize);
-
+    stats.mem_free(buffer_bindings_1d.allocatedSize + texture_bindings_2d.allocatedSize +
+                   texture_bindings_3d.allocatedSize);
+    [buffer_bindings_1d release];
     [texture_bindings_2d release];
     [texture_bindings_3d release];
   }
   [mtlTextureArgEncoder release];
   [mtlBufferKernelParamsEncoder release];
+  [mtlBufferArgEncoder release];
   [mtlASArgEncoder release];
   [mtlAncillaryArgEncoder release];
   [mtlGeneralCommandQueue release];
@@ -334,6 +344,11 @@ string MetalDevice::preprocess_source(MetalPipelineType pso_type,
       break;
     case METAL_GPU_APPLE:
       global_defines += "#define __KERNEL_METAL_APPLE__\n";
+#  ifdef WITH_NANOVDB
+      if (DebugFlags().metal.use_nanovdb) {
+        global_defines += "#define WITH_NANOVDB\n";
+      }
+#  endif
       break;
   }
 
@@ -568,7 +583,8 @@ void MetalDevice::compile_and_load(int device_id, MetalPipelineType pso_type)
     if (MetalDevice *instance = get_device_by_ID(device_id, lock)) {
       if (mtlLibrary) {
         if (error && [error localizedDescription]) {
-          VLOG_WARNING << "MSL compilation messages: " << [[error localizedDescription] UTF8String];
+          VLOG_WARNING << "MSL compilation messages: "
+                       << [[error localizedDescription] UTF8String];
         }
 
         instance->mtlLibrary[pso_type] = mtlLibrary;
@@ -592,6 +608,11 @@ void MetalDevice::compile_and_load(int device_id, MetalPipelineType pso_type)
   }
 }
 
+bool MetalDevice::is_texture(const TextureInfo &tex)
+{
+  return (tex.depth > 0 || tex.height > 0);
+}
+
 void MetalDevice::load_texture_info()
 {
   if (need_texture_info) {
@@ -603,20 +624,19 @@ void MetalDevice::load_texture_info()
 
     for (int tex = 0; tex < num_textures; tex++) {
       uint64_t offset = tex * sizeof(void *);
-
-      id<MTLTexture> metal_texture = texture_slot_map[tex];
-      if (!metal_texture) {
-        [mtlTextureArgEncoder setArgumentBuffer:texture_bindings_2d offset:offset];
-        [mtlTextureArgEncoder setTexture:nil atIndex:0];
-        [mtlTextureArgEncoder setArgumentBuffer:texture_bindings_3d offset:offset];
-        [mtlTextureArgEncoder setTexture:nil atIndex:0];
-      }
-      else {
+      if (is_texture(texture_info[tex]) && texture_slot_map[tex]) {
+        id<MTLTexture> metal_texture = texture_slot_map[tex];
         MTLTextureType type = metal_texture.textureType;
         [mtlTextureArgEncoder setArgumentBuffer:texture_bindings_2d offset:offset];
         [mtlTextureArgEncoder setTexture:type == MTLTextureType2D ? metal_texture : nil atIndex:0];
         [mtlTextureArgEncoder setArgumentBuffer:texture_bindings_3d offset:offset];
         [mtlTextureArgEncoder setTexture:type == MTLTextureType3D ? metal_texture : nil atIndex:0];
+      }
+      else {
+        [mtlTextureArgEncoder setArgumentBuffer:texture_bindings_2d offset:offset];
+        [mtlTextureArgEncoder setTexture:nil atIndex:0];
+        [mtlTextureArgEncoder setArgumentBuffer:texture_bindings_3d offset:offset];
+        [mtlTextureArgEncoder setTexture:nil atIndex:0];
       }
     }
     if (default_storage_mode == MTLResourceStorageModeManaged) {
@@ -1014,8 +1034,7 @@ void MetalDevice::const_copy_to(const char *name, void *host, size_t size)
         offsetof(KernelParamsMetal, integrator_state), host, size, pointer_block_size);
   }
 #  define KERNEL_DATA_ARRAY(data_type, tex_name) \
-    else if (strcmp(name, #tex_name) == 0) \
-    { \
+    else if (strcmp(name, #tex_name) == 0) { \
       update_launch_pointers(offsetof(KernelParamsMetal, tex_name), host, size, size); \
     }
 #  include "kernel/data_arrays.h"
@@ -1041,7 +1060,7 @@ void MetalDevice::global_free(device_memory &mem)
 
 void MetalDevice::tex_alloc_as_buffer(device_texture &mem)
 {
-  generic_alloc(mem);
+  MetalDevice::MetalMem *mmem = generic_alloc(mem);
   generic_copy_to(mem);
 
   /* Resize once */
@@ -1050,32 +1069,36 @@ void MetalDevice::tex_alloc_as_buffer(device_texture &mem)
     /* Allocate some slots in advance, to reduce amount
      * of re-allocations. */
     texture_info.resize(round_up(slot + 1, 128));
+    texture_slot_map.resize(round_up(slot + 1, 128));
   }
 
-  mem.info.data = (uint64_t)mem.device_pointer;
-
-  /* Set Mapping and tag that we need to (re-)upload to device */
   texture_info[slot] = mem.info;
+  uint64_t offset = slot * sizeof(void *);
+  [mtlBufferArgEncoder setArgumentBuffer:buffer_bindings_1d offset:offset];
+  [mtlBufferArgEncoder setBuffer:mmem->mtlBuffer offset:0 atIndex:0];
+  texture_info[slot].data = *(uint64_t *)((uint64_t)buffer_bindings_1d.contents + offset);
+  texture_slot_map[slot] = nil;
   need_texture_info = true;
 }
 
 void MetalDevice::tex_alloc(device_texture &mem)
 {
   /* Check that dimensions fit within maximum allowable size.
+   * If 1D texture is allocated, use 1D buffer.
    * See: https://developer.apple.com/metal/Metal-Feature-Set-Tables.pdf */
-  if (mem.data_width > 16384 || mem.data_height > 16384) {
-    set_error(string_printf(
-        "Texture exceeds maximum allowed size of 16384 x 16384 (requested: %zu x %zu)",
-        mem.data_width,
-        mem.data_height));
-    return;
+  if (mem.data_height > 0) {
+    if (mem.data_width > 16384 || mem.data_height > 16384) {
+      set_error(string_printf(
+          "Texture exceeds maximum allowed size of 16384 x 16384 (requested: %zu x %zu)",
+          mem.data_width,
+          mem.data_height));
+      return;
+    }
   }
-
   MTLStorageMode storage_mode = MTLStorageModeManaged;
   if (@available(macos 10.15, *)) {
-    if ([mtlDevice hasUnifiedMemory] &&
-        device_vendor !=
-            METAL_GPU_INTEL) { /* Intel GPUs don't support MTLStorageModeShared for MTLTextures */
+    /* Intel GPUs don't support MTLStorageModeShared for MTLTextures. */
+    if ([mtlDevice hasUnifiedMemory] && device_vendor != METAL_GPU_INTEL) {
       storage_mode = MTLStorageModeShared;
     }
   }
@@ -1210,8 +1233,9 @@ void MetalDevice::tex_alloc(device_texture &mem)
                   bytesPerRow:src_pitch];
   }
   else {
-    assert(0);
     /* 1D texture, using linear memory. */
+    tex_alloc_as_buffer(mem);
+    return;
   }
 
   mem.device_pointer = (device_ptr)mtlTexture;
@@ -1235,17 +1259,22 @@ void MetalDevice::tex_alloc(device_texture &mem)
     ssize_t min_buffer_length = sizeof(void *) * texture_info.size();
     if (!texture_bindings_2d || (texture_bindings_2d.length < min_buffer_length)) {
       if (texture_bindings_2d) {
+        delayed_free_list.push_back(buffer_bindings_1d);
         delayed_free_list.push_back(texture_bindings_2d);
         delayed_free_list.push_back(texture_bindings_3d);
 
-        stats.mem_free(texture_bindings_2d.allocatedSize + texture_bindings_3d.allocatedSize);
+        stats.mem_free(buffer_bindings_1d.allocatedSize + texture_bindings_2d.allocatedSize +
+                       texture_bindings_3d.allocatedSize);
       }
+      buffer_bindings_1d = [mtlDevice newBufferWithLength:min_buffer_length
+                                                  options:default_storage_mode];
       texture_bindings_2d = [mtlDevice newBufferWithLength:min_buffer_length
                                                    options:default_storage_mode];
       texture_bindings_3d = [mtlDevice newBufferWithLength:min_buffer_length
                                                    options:default_storage_mode];
 
-      stats.mem_alloc(texture_bindings_2d.allocatedSize + texture_bindings_3d.allocatedSize);
+      stats.mem_alloc(buffer_bindings_1d.allocatedSize + texture_bindings_2d.allocatedSize +
+                      texture_bindings_3d.allocatedSize);
     }
   }
 
@@ -1272,12 +1301,18 @@ void MetalDevice::tex_alloc(device_texture &mem)
 
 void MetalDevice::tex_free(device_texture &mem)
 {
+  if (mem.data_depth == 0 && mem.data_height == 0) {
+    generic_free(mem);
+    return;
+  }
+
   if (metal_mem_map.count(&mem)) {
     std::lock_guard<std::recursive_mutex> lock(metal_mem_map_mutex);
     MetalMem &mmem = *metal_mem_map.at(&mem);
 
     assert(texture_slot_map[mem.slot] == mmem.mtlTexture);
-    texture_slot_map[mem.slot] = nil;
+    if (texture_slot_map[mem.slot] == mmem.mtlTexture)
+      texture_slot_map[mem.slot] = nil;
 
     if (mmem.mtlTexture) {
       /* Free bindless texture. */

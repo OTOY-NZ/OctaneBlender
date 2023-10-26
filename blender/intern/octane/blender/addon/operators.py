@@ -1,19 +1,3 @@
-#
-# Copyright 2011-2019 Blender Foundation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
-
 # <pep8 compliant>
 
 import os
@@ -112,14 +96,13 @@ def sync_octane_aov_output_number(self):
     try:
         view_layer = bpy.context.view_layer
         octane_view_layer = view_layer.octane
-
         composite_node_tree_name = octane_view_layer.aov_output_group_collection.composite_node_tree
         aov_output_group_name = octane_view_layer.aov_output_group_collection.aov_output_group_node
         if composite_node_tree_name in bpy.data.node_groups:
             if aov_output_group_name in bpy.data.node_groups[composite_node_tree_name].nodes:
                 bpy.data.node_groups[composite_node_tree_name].check_validity()
                 node = bpy.data.node_groups[composite_node_tree_name].nodes[aov_output_group_name]
-                view_layer.octane_aov_out_number = int(node.group_number)    
+                octane_view_layer.aov_out_number = int(node.group_number)
     except:
         pass
 
@@ -239,14 +222,15 @@ class OCTANE_OT_ActivateOctane(OCTANE_OT_BaseCommand):
     command_type = consts.UtilsFunctionType.SHOW_ACTIVATION
 
 
-class OCTANE_OT_ClearResourceCache(OCTANE_OT_BaseCommand):
+class OCTANE_OT_ClearResourceCache(Operator):
     """Clear the Resource Cache"""
     bl_idname = "octane.clear_resource_cache"
     bl_label = "Clear"
-    command_type = consts.UtilsFunctionType.UPDATE_RESOURCE_CACHE_SYSTEM
+    bl_register = True
+    bl_undo = False
 
     @classmethod
-    def poll(cls, context):        
+    def poll(cls, context):
         return True
 
     def execute(self, context):
@@ -521,7 +505,7 @@ class OCTANE_OT_BaseExport(Operator, ExportHelper):
                 self.filepath += self.filename_ext
             session = RenderSession(None)
             session.session_type = consts.SessionType.EXPORT
-            session.start_render(is_viewport=False)
+            session.start_render(context.scene, is_viewport=False)
             OctaneBlender().utils_function(consts.UtilsFunctionType.RENDER_STOP, "")
             frame_start = context.scene.frame_start
             frame_end = context.scene.frame_end
@@ -533,7 +517,7 @@ class OCTANE_OT_BaseExport(Operator, ExportHelper):
                 width = utility.render_resolution_x(scene)
                 height = utility.render_resolution_y(scene)
                 session.render_update(depsgraph, scene, layer)
-                session.set_resolution(width, height)
+                session.set_resolution(width, height, True)
                 if frame == scene.frame_start:
                     OctaneBlender().utils_function(self.EXPORT_START, self.filepath)
                 OctaneBlender().utils_function(self.EXPORT_WRITE_FRAME, self.filepath)
@@ -792,7 +776,7 @@ class OCTANE_OT_LoadOctaneStartup(Operator):
 
     def execute(self, context):
         addon_folder = utility.get_addon_folder()
-        path = os.path.join(addon_folder, "assets\\startup.blend")
+        path = os.path.join(addon_folder, r"assets/startup.blend")
         path = bpy.path.abspath(path)
         bpy.ops.wm.read_homefile(filepath=path)
         return {"FINISHED"}
@@ -827,7 +811,7 @@ class OCTANE_OT_QuickAddOctaneGeometry(Operator):
         for socket in geometry_node.inputs:
             if socket.octane_pin_type == consts.PinType.PT_MATERIAL:
                 material.node_tree.links.new(default_material_node.outputs[0], socket)
-        utility.beautifier_nodetree_layout(material)
+        utility.beautifier_nodetree_layout_by_owner(material)
         octane_geo_node_collections = proxy_object.data.octane.octane_geo_node_collections
         octane_geo_node_collections.node_graph_tree = material.name
         octane_geo_node_collections.osl_geo_node = geometry_node.name
@@ -891,22 +875,23 @@ class OCTANE_OT_QuickAddOctaneTube(OCTANE_OT_QuickAddOctaneGeometry):
     default_object_name = "Tube"
 
 
-class OCTANE_OT_QuickAddOctaneSphereLight(Operator):
-    """Add an Octane Sphere Light to the scene"""
-    bl_idname = "octane.quick_add_octane_sphere_light"    
-    bl_label = "Octane Sphere Light"
+class OCTANE_OT_QuickAddOctaneLight(Operator):
     bl_register = True
-    bl_undo = False 
+    bl_undo = False
+    light_typename = ""
 
     @classmethod
     def poll(cls, context):
         return True
 
+    def update_octane_light(self, light_data):
+        pass
+
     def execute(self, context):
         # Create new light datablock.
-        light_data = bpy.data.lights.new(name="Octane Sphere Light", type="POINT")
+        light_data = bpy.data.lights.new(name=self.bl_label, type=self.light_typename)
         # Create new object with our light datablock.
-        light_object = bpy.data.objects.new(name="Octane Sphere Light", object_data=light_data)
+        light_object = bpy.data.objects.new(name=self.bl_label, object_data=light_data)
         # Link light object to the active collection of current view layer,
         # so that it'll appear in the current scene.
         view_layer = context.view_layer
@@ -917,17 +902,102 @@ class OCTANE_OT_QuickAddOctaneSphereLight(Operator):
         bpy.ops.object.select_all(action="DESELECT")
         light_object.select_set(True)
         view_layer.objects.active = light_object
+        self.update_octane_light(light_data)
+        return {"FINISHED"}
+
+
+class OCTANE_OT_QuickAddOctaneToonPointLight(OCTANE_OT_QuickAddOctaneLight):
+    """Add an Octane ToonPoint Light to the scene"""
+    bl_idname = "octane.quick_add_octane_toon_point_light"
+    bl_label = "Octane Toon Point Light"
+    light_typename = "POINT"
+    bl_register = True
+    bl_undo = False 
+
+    @classmethod
+    def poll(cls, context):
+        return True
+
+    def update_octane_light(self, light_data):
+        octane_light_data = light_data.octane
+        octane_light_data.octane_point_light_type = "Toon Point"
+        light_data.shadow_soft_size = 0.0
+        light_data.use_nodes = True
+
+
+class OCTANE_OT_QuickAddOctaneToonDirectionalLight(OCTANE_OT_QuickAddOctaneLight):
+    """Add an Octane ToonDirectional Light to the scene"""
+    bl_idname = "octane.quick_add_octane_toon_directional_light"
+    bl_label = "Octane Toon Directional Light"
+    light_typename = "SUN"
+    bl_register = True
+    bl_undo = False 
+
+    @classmethod
+    def poll(cls, context):
+        return True
+
+    def update_octane_light(self, light_data):
+        light_data.use_nodes = True
+
+
+class OCTANE_OT_QuickAddOctaneSpotLight(OCTANE_OT_QuickAddOctaneLight):
+    """Add an Octane SpotLight to the scene"""
+    bl_idname = "octane.quick_add_octane_spot_light"    
+    bl_label = "Octane SpotLight"
+    light_typename = "SPOT"
+    bl_register = True
+    bl_undo = False 
+
+    @classmethod
+    def poll(cls, context):
+        return True
+
+    def update_octane_light(self, light_data):
+        light_data.use_nodes = True
+
+
+class OCTANE_OT_QuickAddOctaneAreaLight(OCTANE_OT_QuickAddOctaneLight):
+    """Add an Octane Area Light to the scene"""
+    bl_idname = "octane.quick_add_octane_area_light"    
+    bl_label = "Octane Area Light"
+    light_typename = "AREA"
+    bl_register = True
+    bl_undo = False 
+
+    @classmethod
+    def poll(cls, context):
+        return True
+
+    def update_octane_light(self, light_data):
+        light_data.size = 1.0
+        light_data.use_nodes = True
+        
+
+class OCTANE_OT_QuickAddOctaneSphereLight(OCTANE_OT_QuickAddOctaneLight):
+    """Add an Octane Sphere Light to the scene"""
+    bl_idname = "octane.quick_add_octane_sphere_light"    
+    bl_label = "Octane Sphere Light"
+    light_typename = "POINT"
+    bl_register = True
+    bl_undo = False 
+
+    @classmethod
+    def poll(cls, context):
+        return True
+
+    def update_octane_light(self, light_data):
         octane_light_data = light_data.octane
         octane_light_data.octane_point_light_type = "Sphere"
         light_data.shadow_soft_size = 1.0
         light_data.use_nodes = True
-        return {"FINISHED"}
 
 
-class OCTANE_OT_QuickAddOctaneMeshLight(Operator):
+class OCTANE_OT_QuickAddOctaneMeshLight(OCTANE_OT_QuickAddOctaneLight):
     """Add an Octane Mesh Light to the scene"""
     bl_idname = "octane.quick_add_octane_mesh_light"    
     bl_label = "Octane Mesh Light"
+    light_typename = "AREA"
     bl_register = True
     bl_undo = False 
 
@@ -935,26 +1005,11 @@ class OCTANE_OT_QuickAddOctaneMeshLight(Operator):
     def poll(cls, context):
         return True
 
-    def execute(self, context):
-        # Create new light datablock.
-        light_data = bpy.data.lights.new(name="Octane Mesh Light", type="AREA")
-        # Create new object with our light datablock.
-        light_object = bpy.data.objects.new(name="Octane Mesh Light", object_data=light_data)
-        # Link light object to the active collection of current view layer,
-        # so that it'll appear in the current scene.
-        view_layer = context.view_layer
-        view_layer.active_layer_collection.collection.objects.link(light_object)
-        # Place light to a specified location.
-        light_object.location = context.scene.cursor.location
-        # And finally select it and make it active.
-        bpy.ops.object.select_all(action="DESELECT")
-        light_object.select_set(True)
-        view_layer.objects.active = light_object
+    def update_octane_light(self, light_data):
         octane_light_data = light_data.octane
         octane_light_data.used_as_octane_mesh_light = True
         light_data.size = 0
         light_data.use_nodes = True
-        return {"FINISHED"}
 
 
 def new_menu_func(self, context):
@@ -1008,6 +1063,10 @@ classes = (
     OCTANE_OT_QuickAddOctaneTorus,
     OCTANE_OT_QuickAddOctaneTube,
 
+    OCTANE_OT_QuickAddOctaneToonPointLight,
+    OCTANE_OT_QuickAddOctaneToonDirectionalLight,
+    OCTANE_OT_QuickAddOctaneSpotLight,
+    OCTANE_OT_QuickAddOctaneAreaLight,
     OCTANE_OT_QuickAddOctaneSphereLight,
     OCTANE_OT_QuickAddOctaneMeshLight,
 )

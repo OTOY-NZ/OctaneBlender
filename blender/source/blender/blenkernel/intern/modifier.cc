@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2005 Blender Foundation. All rights reserved. */
+ * Copyright 2005 Blender Foundation */
 
 /** \file
  * \ingroup bke
@@ -37,6 +37,7 @@
 #include "BLI_path_util.h"
 #include "BLI_session_uuid.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.h"
 #include "BLI_utildefines.h"
 
@@ -49,16 +50,17 @@
 #include "BKE_effect.h"
 #include "BKE_fluid.h"
 #include "BKE_global.h"
-#include "BKE_gpencil_modifier.h"
+#include "BKE_gpencil_modifier_legacy.h"
 #include "BKE_idtype.h"
 #include "BKE_key.h"
 #include "BKE_lib_id.h"
 #include "BKE_lib_query.h"
-#include "BKE_mesh.h"
+#include "BKE_mesh.hh"
 #include "BKE_mesh_wrapper.h"
 #include "BKE_multires.h"
 #include "BKE_object.h"
 #include "BKE_pointcache.h"
+#include "BKE_screen.h"
 
 /* may move these, only for BKE_modifier_path_relbase */
 #include "BKE_main.h"
@@ -67,7 +69,7 @@
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_query.h"
 
-#include "MOD_modifiertypes.h"
+#include "MOD_modifiertypes.hh"
 
 #include "BLO_read_write.h"
 
@@ -120,9 +122,7 @@ const ModifierTypeInfo *BKE_modifier_get_info(ModifierType type)
 void BKE_modifier_type_panel_id(ModifierType type, char *r_idname)
 {
   const ModifierTypeInfo *mti = BKE_modifier_get_info(type);
-
-  strcpy(r_idname, MODIFIER_TYPE_PANEL_PREFIX);
-  strcat(r_idname, mti->name);
+  BLI_string_join(r_idname, sizeof(PanelType::idname), MODIFIER_TYPE_PANEL_PREFIX, mti->name);
 }
 
 void BKE_modifier_panel_expand(ModifierData *md)
@@ -138,7 +138,7 @@ static ModifierData *modifier_allocate_and_init(ModifierType type)
   ModifierData *md = static_cast<ModifierData *>(MEM_callocN(mti->structSize, mti->structName));
 
   /* NOTE: this name must be made unique later. */
-  BLI_strncpy(md->name, DATA_(mti->name), sizeof(md->name));
+  STRNCPY_UTF8(md->name, DATA_(mti->name));
 
   md->type = type;
   md->mode = eModifierMode_Realtime | eModifierMode_Render;
@@ -256,7 +256,8 @@ bool BKE_modifier_is_preview(ModifierData *md)
 
   /* Constructive modifiers are highly likely to also modify data like vgroups or vertex-colors! */
   if (!((mti->flags & eModifierTypeFlag_UsesPreview) ||
-        (mti->type == eModifierTypeType_Constructive))) {
+        (mti->type == eModifierTypeType_Constructive)))
+  {
     return false;
   }
 
@@ -329,7 +330,7 @@ ModifierData *BKE_modifier_copy_ex(const ModifierData *md, int flag)
 {
   ModifierData *md_dst = modifier_allocate_and_init(ModifierType(md->type));
 
-  BLI_strncpy(md_dst->name, md->name, sizeof(md_dst->name));
+  STRNCPY(md_dst->name, md->name);
   BKE_modifier_copydata_ex(md, md_dst, flag);
 
   return md_dst;
@@ -584,7 +585,8 @@ bool BKE_modifier_is_enabled(const struct Scene *scene, ModifierData *md, int re
     return false;
   }
   if (scene != nullptr && mti->isDisabled &&
-      mti->isDisabled(scene, md, required_mode == eModifierMode_Render)) {
+      mti->isDisabled(scene, md, required_mode == eModifierMode_Render))
+  {
     return false;
   }
   if (md->mode & eModifierMode_DisableTemporary) {
@@ -735,7 +737,7 @@ ModifierData *BKE_modifiers_get_virtual_modifierlist(const Object *ob,
 
 Object *BKE_modifiers_is_deformed_by_armature(Object *ob)
 {
-  if (ob->type == OB_GPENCIL) {
+  if (ob->type == OB_GPENCIL_LEGACY) {
     GpencilVirtualModifierData gpencilvirtualModifierData;
     ArmatureGpencilModifierData *agmd = nullptr;
     GpencilModifierData *gmd = BKE_gpencil_modifiers_get_virtual_modifierlist(
@@ -953,10 +955,10 @@ const char *BKE_modifier_path_relbase_from_global(Object *ob)
   return BKE_modifier_path_relbase(G_MAIN, ob);
 }
 
-void BKE_modifier_path_init(char *path, int path_maxlen, const char *name)
+void BKE_modifier_path_init(char *path, int path_maxncpy, const char *name)
 {
   const char *blendfile_path = BKE_main_blendfile_path_from_global();
-  BLI_path_join(path, path_maxlen, blendfile_path[0] ? "//" : BKE_tempdir_session(), name);
+  BLI_path_join(path, path_maxncpy, blendfile_path[0] ? "//" : BKE_tempdir_session(), name);
 }
 
 /**
@@ -1018,7 +1020,7 @@ void BKE_modifier_deform_verts(ModifierData *md,
   }
   mti->deformVerts(md, ctx, me, vertexCos, numVerts);
   if (me) {
-    BKE_mesh_tag_coords_changed(me);
+    BKE_mesh_tag_positions_changed(me);
   }
 }
 

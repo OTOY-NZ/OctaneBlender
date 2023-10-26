@@ -11,15 +11,16 @@ class MyPanel(bpy.types.Panel):
     bl_idname = "SCENE_PT_list_demo"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
-    bl_category = 'My Category'
+    bl_category = "My Category"
 
     def draw(self, context):
         layout = self.layout
         draw_ui_list(
             layout,
             context,
-            list_context_path="scene.my_list",
-            active_index_context_path="scene.my_list_active_index"
+            list_path="scene.my_list",
+            active_index_path="scene.my_list_active_index",
+            unique_id="my_list_id",
         )
 
 

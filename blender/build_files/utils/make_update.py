@@ -66,9 +66,11 @@ def get_blender_git_root() -> str:
 # Setup for precompiled libraries and tests from svn.
 
 
-def get_effective_architecture(args: argparse.Namespace):
-    if args.architecture:
-        return args.architecture
+def get_effective_architecture(args: argparse.Namespace) -> str:
+    architecture = args.architecture
+    if architecture:
+        assert isinstance(architecture, str)
+        return architecture
 
     # Check platform.version to detect arm64 with x86_64 python binary.
     if "ARM64" in platform.version():
@@ -214,7 +216,7 @@ def use_upstream_workflow(args: argparse.Namespace) -> bool:
     return make_utils.git_remote_exist(args.git_command, "upstream")
 
 
-def work_tree_update_upstream_workflow(args: argparse.Namespace, use_fetch=True) -> str:
+def work_tree_update_upstream_workflow(args: argparse.Namespace, use_fetch: bool = True) -> str:
     """
     Update the Blender repository using the Github style of fork organization
 
@@ -238,7 +240,7 @@ def work_tree_update_upstream_workflow(args: argparse.Namespace, use_fetch=True)
     return ""
 
 
-def work_tree_update(args: argparse.Namespace, use_fetch=True) -> str:
+def work_tree_update(args: argparse.Namespace, use_fetch: bool = True) -> str:
     """
     Update the Git working tree using the best strategy
 
@@ -293,7 +295,7 @@ def external_script_copy_old_submodule_over(args: argparse.Namespace, directory_
     shutil.copytree(bare_repo_dir, external_dir / ".git")
 
     git_config = external_dir / ".git" / "config"
-    call((args.git_command, "config", "--file", git_config, "--unset", "core.worktree"))
+    call((args.git_command, "config", "--file", str(git_config), "--unset", "core.worktree"))
 
 
 def external_script_initialize_if_needed(args: argparse.Namespace,
@@ -325,12 +327,12 @@ def external_script_initialize_if_needed(args: argparse.Namespace,
     if origin_name == "origin" and not make_utils.git_is_remote_repository(args.git_command, external_url):
         external_url = resolve_external_url("https://projects.blender.org/blender/blender", repo_name)
 
-    call((args.git_command, "clone", "--origin", origin_name, external_url, external_dir))
+    call((args.git_command, "clone", "--origin", origin_name, external_url, str(external_dir)))
 
 
 def external_script_add_origin_if_needed(args: argparse.Namespace,
                                          repo_name: str,
-                                         directory_name: str) -> str:
+                                         directory_name: str) -> None:
     """
     Add remote called 'origin' if there is a fork of the external repository available
 
@@ -338,7 +340,7 @@ def external_script_add_origin_if_needed(args: argparse.Namespace,
     """
 
     if not use_upstream_workflow(args):
-        return ""
+        return
 
     cwd = os.getcwd()
 
@@ -385,7 +387,7 @@ def external_script_add_origin_if_needed(args: argparse.Namespace,
     finally:
         os.chdir(cwd)
 
-    return ""
+    return
 
 
 def external_scripts_update(args: argparse.Namespace,
@@ -443,10 +445,17 @@ def external_scripts_update(args: argparse.Namespace,
                     # automatically and fails when the branch is available in multiple remotes.
                     if make_utils.git_local_branch_exists(args.git_command, submodule_branch):
                         call([args.git_command, "checkout", submodule_branch])
-                    elif make_utils.git_remote_exist(args.git_command, "origin"):
-                        call([args.git_command, "checkout", "-t", f"origin/{submodule_branch}"])
-                    elif make_utils.git_remote_exist(args.git_command, "upstream"):
-                        call([args.git_command, "checkout", "-t", f"upstream/{submodule_branch}"])
+                    else:
+                        if make_utils.git_remote_branch_exists(args.git_command, "origin", submodule_branch):
+                            call([args.git_command, "checkout", "-t", f"origin/{submodule_branch}"])
+                        elif make_utils.git_remote_exist(args.git_command, "upstream"):
+                            # For the Github style of upstream workflow create a local branch from
+                            # the upstream, but do not track it, so that we stick to the paradigm
+                            # that no local branches are tracking upstream, preventing possible
+                            # accidental commit to upstream.
+                            call([args.git_command, "checkout", "-b", submodule_branch,
+                                 f"upstream/{submodule_branch}", "--no-track"])
+
                 # Don't use extra fetch since all remotes of interest have been already fetched
                 # some lines above.
                 skip_msg += work_tree_update(args, use_fetch=False)
@@ -485,7 +494,7 @@ if __name__ == "__main__":
         major = blender_version.version // 100
         minor = blender_version.version % 100
         branch = f"blender-v{major}.{minor}-release"
-        release_version = f"{major}.{minor}"
+        release_version: Optional[str] = f"{major}.{minor}"
     else:
         branch = 'main'
         release_version = None

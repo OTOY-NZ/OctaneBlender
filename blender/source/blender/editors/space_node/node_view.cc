@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2008 Blender Foundation. All rights reserved. */
+ * Copyright 2008 Blender Foundation */
 
 /** \file
  * \ingroup spnode
@@ -15,7 +15,7 @@
 #include "BKE_context.h"
 #include "BKE_image.h"
 #include "BKE_main.h"
-#include "BKE_node.h"
+#include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_screen.h"
 
@@ -60,7 +60,7 @@ bool space_node_view_flag(
   int tot = 0;
   bool has_frame = false;
   if (snode.edittree) {
-    LISTBASE_FOREACH (const bNode *, node, &snode.edittree->nodes) {
+    for (const bNode *node : snode.edittree->all_nodes()) {
       if ((node->flag & node_flag) == node_flag) {
         BLI_rctf_union(&cur_new, &node->runtime->totr);
         tot++;
@@ -370,7 +370,7 @@ static int backimage_fit_exec(bContext *C, wmOperator * /*op*/)
 
   BKE_image_release_ibuf(ima, ibuf, lock);
 
-  snode->zoom *= min_ff(facx, facy) * U.dpi_fac;
+  snode->zoom *= min_ff(facx, facy) * UI_SCALE_FAC;
 
   snode->xof = 0;
   snode->yof = 0;

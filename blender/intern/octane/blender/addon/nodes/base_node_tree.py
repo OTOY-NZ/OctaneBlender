@@ -366,8 +366,7 @@ class OCTANE_quick_add_composite_nodetree(bpy.types.Operator):
 
     def execute(self, context):
         from octane.utils import utility
-        name = "Comp"
-        node_tree = bpy.data.node_groups.new(name=name, type=consts.OctaneNodeTreeIDName.COMPOSITE)
+        node_tree = bpy.data.node_groups.new(name=consts.OctanePresetNodeTreeNames.COMPOSITE, type=consts.OctaneNodeTreeIDName.COMPOSITE)
         node_tree.use_fake_user = True
         nodes = node_tree.nodes
         output = nodes.new("OctaneAOVOutputGroupOutputNode")
@@ -388,8 +387,7 @@ class OCTANE_quick_add_render_aov_nodetree(bpy.types.Operator):
 
     def execute(self, context):
         from octane.utils import utility
-        name = "AOVs"
-        node_tree = bpy.data.node_groups.new(name=name, type=consts.OctaneNodeTreeIDName.RENDER_AOV)
+        node_tree = bpy.data.node_groups.new(name=consts.OctanePresetNodeTreeNames.RENDER_AOV, type=consts.OctaneNodeTreeIDName.RENDER_AOV)
         node_tree.use_fake_user = True
         nodes = node_tree.nodes
         output = nodes.new("OctaneRenderAOVOutputNode")
@@ -455,10 +453,16 @@ class NodeTreeHandler:
         OctaneBaseRampNode.clear_unused_color_ramp_helpers(used_color_ramp_names)        
 
     @staticmethod
-    def init_octane_kernel():        
-        if consts.OctanePresetNodeTreeNames.KERNEL not in bpy.data.node_groups:
+    def init_octane_kernel():
+        from octane.utils import utility
+        octane_scene = bpy.context.scene.octane
+        if octane_scene.kernel_data_mode == "PROPERTY_PANEL":
             from octane.utils import utility
-            utility.quick_add_octane_kernel_node_tree(assign_to_kernel_node_graph=True)
+            utility.quick_add_octane_kernel_node_tree(assign_to_kernel_node_graph=True, generate_from_legacy_octane_property=True)
+            octane_scene.kernel_data_mode = "NODETREE"
+        else:
+            if octane_scene.kernel_node_graph_property.node_tree is None:
+                utility.quick_add_octane_kernel_node_tree(assign_to_kernel_node_graph=True)
 
     @staticmethod
     def on_file_load(scene):
@@ -473,7 +477,7 @@ class NodeTreeHandler:
         NodeTreeHandler.init_node_helper()        
         # Init color ramp watchers
         NodeTreeHandler.init_color_ramp_helper()
-        # Init kernel and camera imager
+        # Init kernel
         NodeTreeHandler.init_octane_kernel()
 
     @staticmethod
@@ -627,7 +631,7 @@ class NodeTreeHandler:
                             NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, output, output, NodeTreeHandler.SURFACE_INPUT_NAME, NodeTreeHandler.SURFACE_INPUT_NAME, "OctaneVolumetricSpotlight")
                             light_data.spot_blend = 0
                             light_data.shadow_soft_size = 0
-                        utility.beautifier_nodetree_layout(light_data)
+                        utility.beautifier_nodetree_layout_by_owner(light_data)
         NodeTreeHandler.light_node_tree_count = current_light_node_tree_count
 
     @staticmethod
@@ -674,11 +678,6 @@ class NodeTreeHandler:
         NodeTreeHandler.world_node_tree_count = len(bpy.data.worlds)
         NodeTreeHandler.light_node_tree_count = NodeTreeHandler.get_light_node_tree_count(scene)
 
-@persistent
-def octane_load_post_handler(scene):
-    if scene is None:
-        scene = bpy.context.scene
-    NodeTreeHandler.on_file_load(scene)
 
 @persistent
 def node_tree_update_handler(scene):
@@ -708,7 +707,6 @@ def register():
     global _NODE_MT_context_menu_draw
     _NODE_MT_context_menu_draw = NODE_MT_context_menu.draw
     NODE_MT_context_menu.draw = NODE_MT_context_menu_draw
-    bpy.app.handlers.load_post.append(octane_load_post_handler)
     bpy.app.handlers.depsgraph_update_post.append(node_tree_update_handler)
     for cls in _CLASSES:
         register_class(cls)
@@ -719,7 +717,6 @@ def unregister():
     NODE_HT_header.draw = _NODE_HT_header_draw
     global _NODE_MT_context_menu_draw
     NODE_MT_context_menu.draw = _NODE_MT_context_menu_draw
-    bpy.app.handlers.load_post.remove(octane_load_post_handler)
     bpy.app.handlers.depsgraph_update_post.remove(node_tree_update_handler)
     for cls in _CLASSES:
         unregister_class(cls)    

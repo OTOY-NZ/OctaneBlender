@@ -8,7 +8,7 @@
 
 void main()
 {
-  /* Sample texture with LOD BIAS. Used instead of custom lod bias in GPU_SAMPLER_ICON. */
+  /* Sample texture with LOD BIAS. Used instead of custom lod bias in GPU_SAMPLER_CUSTOM_ICON. */
   fragColor = texture(image, texCoord_interp, -0.5) * finalColor;
 
 #ifdef DO_CORNER_MASKING
@@ -23,7 +23,7 @@ void main()
 
   vec2 circle_center = vec2(circle_radius_outer - text_width, 0.5);
 
-  /* radius in icon space (1 is the icon width).  */
+  /* Radius in icon space (1 is the icon width). */
   float radius = length(mask_coord_interp - circle_center);
   float mask = smoothstep(circle_radius_inner, circle_radius_outer, radius);
 

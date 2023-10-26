@@ -61,7 +61,7 @@ typedef struct EffectInfo {
 } EffectInfo;
 
 const EnumPropertyItem rna_enum_sequence_modifier_type_items[] = {
-    {seqModifierType_BrightContrast, "BRIGHT_CONTRAST", ICON_NONE, "Bright/Contrast", ""},
+    {seqModifierType_BrightContrast, "BRIGHT_CONTRAST", ICON_NONE, "Brightness/Contrast", ""},
     {seqModifierType_ColorBalance, "COLOR_BALANCE", ICON_NONE, "Color Balance", ""},
     {seqModifierType_Curves, "CURVES", ICON_NONE, "Curves", ""},
     {seqModifierType_HueCorrect, "HUE_CORRECT", ICON_NONE, "Hue Correct", ""},
@@ -595,7 +595,7 @@ static void rna_Sequence_text_font_set(PointerRNA *ptr,
 static void rna_Sequence_name_get(PointerRNA *ptr, char *value)
 {
   Sequence *seq = (Sequence *)ptr->data;
-  BLI_strncpy(value, seq->name + 2, sizeof(seq->name) - 2);
+  strcpy(value, seq->name + 2);
 }
 
 static int rna_Sequence_name_length(PointerRNA *ptr)
@@ -765,18 +765,20 @@ static PointerRNA rna_SequenceEditor_meta_stack_get(CollectionPropertyIterator *
 static void rna_Sequence_filepath_set(PointerRNA *ptr, const char *value)
 {
   Sequence *seq = (Sequence *)(ptr->data);
-  BLI_split_dirfile(value,
-                    seq->strip->dir,
-                    seq->strip->stripdata->name,
-                    sizeof(seq->strip->dir),
-                    sizeof(seq->strip->stripdata->name));
+  BLI_path_split_dir_file(value,
+                          seq->strip->dirpath,
+                          sizeof(seq->strip->dirpath),
+                          seq->strip->stripdata->filename,
+                          sizeof(seq->strip->stripdata->filename));
 }
 
 static void rna_Sequence_filepath_get(PointerRNA *ptr, char *value)
 {
   Sequence *seq = (Sequence *)(ptr->data);
+  char path[FILE_MAX];
 
-  BLI_path_join(value, FILE_MAX, seq->strip->dir, seq->strip->stripdata->name);
+  BLI_path_join(path, sizeof(path), seq->strip->dirpath, seq->strip->stripdata->filename);
+  strcpy(value, path);
 }
 
 static int rna_Sequence_filepath_length(PointerRNA *ptr)
@@ -784,14 +786,15 @@ static int rna_Sequence_filepath_length(PointerRNA *ptr)
   Sequence *seq = (Sequence *)(ptr->data);
   char path[FILE_MAX];
 
-  BLI_path_join(path, sizeof(path), seq->strip->dir, seq->strip->stripdata->name);
+  BLI_path_join(path, sizeof(path), seq->strip->dirpath, seq->strip->stripdata->filename);
   return strlen(path);
 }
 
 static void rna_Sequence_proxy_filepath_set(PointerRNA *ptr, const char *value)
 {
   StripProxy *proxy = (StripProxy *)(ptr->data);
-  BLI_split_dirfile(value, proxy->dir, proxy->file, sizeof(proxy->dir), sizeof(proxy->file));
+  BLI_path_split_dir_file(
+      value, proxy->dirpath, sizeof(proxy->dirpath), proxy->filename, sizeof(proxy->filename));
   if (proxy->anim) {
     IMB_free_anim(proxy->anim);
     proxy->anim = NULL;
@@ -801,8 +804,10 @@ static void rna_Sequence_proxy_filepath_set(PointerRNA *ptr, const char *value)
 static void rna_Sequence_proxy_filepath_get(PointerRNA *ptr, char *value)
 {
   StripProxy *proxy = (StripProxy *)(ptr->data);
+  char path[FILE_MAX];
 
-  BLI_path_join(value, FILE_MAX, proxy->dir, proxy->file);
+  BLI_path_join(path, sizeof(path), proxy->dirpath, proxy->filename);
+  strcpy(value, path);
 }
 
 static int rna_Sequence_proxy_filepath_length(PointerRNA *ptr)
@@ -810,7 +815,7 @@ static int rna_Sequence_proxy_filepath_length(PointerRNA *ptr)
   StripProxy *proxy = (StripProxy *)(ptr->data);
   char path[FILE_MAX];
 
-  BLI_path_join(path, sizeof(path), proxy->dir, proxy->file);
+  BLI_path_join(path, sizeof(path), proxy->dirpath, proxy->filename);
   return strlen(path);
 }
 
@@ -891,17 +896,17 @@ static void rna_Sequence_input_2_set(PointerRNA *ptr,
 static void rna_SoundSequence_filename_set(PointerRNA *ptr, const char *value)
 {
   Sequence *seq = (Sequence *)(ptr->data);
-  BLI_split_dirfile(value,
-                    seq->strip->dir,
+  BLI_path_split_dir_file(value,
+                    seq->strip->dirpath,
+                    sizeof(seq->strip->dirpath),
                     seq->strip->stripdata->name,
-                    sizeof(seq->strip->dir),
                     sizeof(seq->strip->stripdata->name));
 }
 
 static void rna_SequenceElement_filename_set(PointerRNA *ptr, const char *value)
 {
   StripElem *elem = (StripElem *)(ptr->data);
-  BLI_split_file_part(value, elem->name, sizeof(elem->name));
+  BLI_path_split_file_part(value, elem->name, sizeof(elem->name));
 }
 #  endif
 
@@ -1230,10 +1235,10 @@ static void rna_SequenceModifier_name_set(PointerRNA *ptr, const char *value)
   char oldname[sizeof(smd->name)];
 
   /* make a copy of the old name first */
-  BLI_strncpy(oldname, smd->name, sizeof(smd->name));
+  STRNCPY(oldname, smd->name);
 
   /* copy the new name into the name slot */
-  BLI_strncpy_utf8(smd->name, value, sizeof(smd->name));
+  STRNCPY_UTF8(smd->name, value);
 
   /* make sure the name is truly unique */
   SEQ_modifier_unique_name(seq, smd);
@@ -1246,8 +1251,7 @@ static void rna_SequenceModifier_name_set(PointerRNA *ptr, const char *value)
     char seq_name_esc[(sizeof(seq->name) - 2) * 2];
     BLI_str_escape(seq_name_esc, seq->name + 2, sizeof(seq_name_esc));
 
-    BLI_snprintf(
-        path, sizeof(path), "sequence_editor.sequences_all[\"%s\"].modifiers", seq_name_esc);
+    SNPRINTF(path, "sequence_editor.sequences_all[\"%s\"].modifiers", seq_name_esc);
     BKE_animdata_fix_paths_rename(&scene->id, adt, NULL, path, oldname, smd->name, 0, 0, 1);
   }
 }
@@ -1407,7 +1411,7 @@ static void rna_SequenceTimelineChannel_name_set(PointerRNA *ptr, const char *va
     channels_base = &channel_owner->channels;
   }
 
-  BLI_strncpy_utf8(channel->name, value, sizeof(channel->name));
+  STRNCPY_UTF8(channel->name, value);
   BLI_uniquename(channels_base,
                  channel,
                  "Channel",
@@ -1416,8 +1420,8 @@ static void rna_SequenceTimelineChannel_name_set(PointerRNA *ptr, const char *va
                  sizeof(channel->name));
 }
 
-static void rna_SequenceTimelineChannel_mute_update(Main *UNUSED(bmain),
-                                                    Scene *UNUSED(active_scene),
+static void rna_SequenceTimelineChannel_mute_update(Main *bmain,
+                                                    Scene *active_scene,
                                                     PointerRNA *ptr)
 {
   Scene *scene = (Scene *)ptr->owner_id;
@@ -1436,6 +1440,8 @@ static void rna_SequenceTimelineChannel_mute_update(Main *UNUSED(bmain),
   LISTBASE_FOREACH (Sequence *, seq, seqbase) {
     SEQ_relations_invalidate_cache_composite(scene, seq);
   }
+
+  rna_Sequence_sound_update(bmain, active_scene, ptr);
 }
 
 static char *rna_SeqTimelineChannel_path(const PointerRNA *ptr)
@@ -1473,7 +1479,7 @@ static void rna_def_strip_element(BlenderRNA *brna)
   RNA_def_struct_sdna(srna, "StripElem");
 
   prop = RNA_def_property(srna, "filename", PROP_STRING, PROP_FILENAME);
-  RNA_def_property_string_sdna(prop, NULL, "name");
+  RNA_def_property_string_sdna(prop, NULL, "filename");
   RNA_def_property_ui_text(prop, "Filename", "Name of the source file");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_SequenceElement_update");
 
@@ -1633,7 +1639,7 @@ static void rna_def_strip_proxy(BlenderRNA *brna)
   RNA_def_struct_sdna(srna, "StripProxy");
 
   prop = RNA_def_property(srna, "directory", PROP_STRING, PROP_DIRPATH);
-  RNA_def_property_string_sdna(prop, NULL, "dir");
+  RNA_def_property_string_sdna(prop, NULL, "dirpath");
   RNA_def_property_ui_text(prop, "Directory", "Location to store the proxy files");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_SequenceProxy_update");
 
@@ -2014,7 +2020,7 @@ static void rna_def_sequence(BlenderRNA *brna)
   RNA_def_property_float_sdna(prop, NULL, "start");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Start Frame", "X position where the strip begins");
-  RNA_def_property_ui_range(prop, MINFRAME, MAXFRAME, 3, 0);
+  RNA_def_property_ui_range(prop, MINFRAME, MAXFRAME, 100.0f, 0);
   RNA_def_property_float_funcs(
       prop, NULL, "rna_Sequence_start_frame_set", NULL); /* overlap tests and calc_seq_disp */
   RNA_def_property_editable_func(prop, "rna_Sequence_frame_editable");
@@ -2052,7 +2058,7 @@ static void rna_def_sequence(BlenderRNA *brna)
   RNA_def_property_float_sdna(prop, NULL, "startofs");
   //  RNA_def_property_clear_flag(prop, PROP_EDITABLE); /* overlap tests */
   RNA_def_property_ui_text(prop, "Start Offset", "");
-  RNA_def_property_ui_range(prop, MINFRAME, MAXFRAME, 3, 0);
+  RNA_def_property_ui_range(prop, MINFRAME, MAXFRAME, 100.0f, 0);
   RNA_def_property_float_funcs(
       prop, NULL, "rna_Sequence_frame_offset_start_set", "rna_Sequence_frame_offset_start_range");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_frame_change_update");
@@ -2061,7 +2067,7 @@ static void rna_def_sequence(BlenderRNA *brna)
   RNA_def_property_float_sdna(prop, NULL, "endofs");
   //  RNA_def_property_clear_flag(prop, PROP_EDITABLE); /* overlap tests */
   RNA_def_property_ui_text(prop, "End Offset", "");
-  RNA_def_property_ui_range(prop, MINFRAME, MAXFRAME, 3, 0);
+  RNA_def_property_ui_range(prop, MINFRAME, MAXFRAME, 100.0f, 0);
   RNA_def_property_float_funcs(
       prop, NULL, "rna_Sequence_frame_offset_end_set", "rna_Sequence_frame_offset_end_range");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_frame_change_update");
@@ -2555,7 +2561,7 @@ static void rna_def_image(BlenderRNA *brna)
   RNA_def_struct_sdna(srna, "Sequence");
 
   prop = RNA_def_property(srna, "directory", PROP_STRING, PROP_DIRPATH);
-  RNA_def_property_string_sdna(prop, NULL, "strip->dir");
+  RNA_def_property_string_sdna(prop, NULL, "strip->dirpath");
   RNA_def_property_ui_text(prop, "Directory", "");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_invalidate_raw_update");
 
@@ -2648,7 +2654,7 @@ static void rna_def_scene(BlenderRNA *brna)
 
   srna = RNA_def_struct(brna, "SceneSequence", "Sequence");
   RNA_def_struct_ui_text(
-      srna, "Scene Sequence", "Sequence strip to used the rendered image of a scene");
+      srna, "Scene Sequence", "Sequence strip using the rendered image of a scene");
   RNA_def_struct_sdna(srna, "Sequence");
 
   prop = RNA_def_property(srna, "scene", PROP_POINTER, PROP_NONE);
@@ -2659,7 +2665,7 @@ static void rna_def_scene(BlenderRNA *brna)
   prop = RNA_def_property(srna, "scene_camera", PROP_POINTER, PROP_NONE);
   RNA_def_property_flag(prop, PROP_EDITABLE);
   RNA_def_property_pointer_funcs(prop, NULL, NULL, NULL, "rna_Camera_object_poll");
-  RNA_def_property_ui_text(prop, "Camera Override", "Override the scenes active camera");
+  RNA_def_property_ui_text(prop, "Camera Override", "Override the scene's active camera");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_invalidate_raw_update");
 
   prop = RNA_def_property(srna, "scene_input", PROP_ENUM, PROP_NONE);
@@ -3214,6 +3220,7 @@ static void rna_def_text(StructRNA *srna)
 
   prop = RNA_def_property(srna, "text", PROP_STRING, PROP_NONE);
   RNA_def_property_ui_text(prop, "Text", "Text that will be displayed");
+  RNA_def_property_flag(prop, PROP_TEXTEDIT_UPDATE);
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_invalidate_raw_update");
 
   prop = RNA_def_property(srna, "use_shadow", PROP_BOOLEAN, PROP_NONE);

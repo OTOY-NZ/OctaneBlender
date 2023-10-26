@@ -194,11 +194,12 @@ static void external_cache_populate(void *vedata, Object *ob)
   }
 
   if (!(DRW_object_is_renderable(ob) &&
-        DRW_object_visibility_in_active_context(ob) & OB_VISIBLE_SELF)) {
+        DRW_object_visibility_in_active_context(ob) & OB_VISIBLE_SELF))
+  {
     return;
   }
 
-  if (ob->type == OB_GPENCIL) {
+  if (ob->type == OB_GPENCIL_LEGACY) {
     /* Grease Pencil objects need correct depth to do the blending. */
     stl->g_data->need_depth = true;
     return;
@@ -224,14 +225,12 @@ static void external_cache_populate(void *vedata, Object *ob)
   }
   struct GPUBatch *geom = DRW_cache_object_surface_get(ob);
   if (geom) {
-    /* Depth Prepass */
+    /* Depth Pre-pass. */
     DRW_shgroup_call(stl->g_data->depth_shgrp, geom, ob);
   }
 }
 
-static void external_cache_finish(void *UNUSED(vedata))
-{
-}
+static void external_cache_finish(void *UNUSED(vedata)) {}
 
 static void external_draw_scene_do_v3d(void *vedata)
 {
@@ -275,7 +274,7 @@ static void external_draw_scene_do_v3d(void *vedata)
   /* Set render info. */
   EXTERNAL_Data *data = vedata;
   if (rv3d->render_engine->text[0] != '\0') {
-    BLI_strncpy(data->info, rv3d->render_engine->text, sizeof(data->info));
+    STRNCPY(data->info, rv3d->render_engine->text);
   }
   else {
     data->info[0] = '\0';

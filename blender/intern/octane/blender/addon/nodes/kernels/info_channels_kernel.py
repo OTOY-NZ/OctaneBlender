@@ -565,6 +565,12 @@ class OctaneInfoChannelsKernel(bpy.types.Node, OctaneBaseKernelNode):
     octane_attribute_config={"a_compatibility_version": [consts.AttributeID.A_COMPATIBILITY_VERSION, "compatibilityVersion", consts.AttributeType.AT_INT], }
     octane_static_pin_count=25
 
+    compatibility_mode_infos=[
+        ("Latest (2022.1)", "Latest (2022.1)", """(null)""", 12000005),
+        ("2018.1 compatibility mode", "2018.1 compatibility mode", """Original pipeline for converting colors to and from spectra and for applying white balance is used (textures with colors outside the sRGB gamut will be rendered inaccurately).""", 0),
+    ]
+    a_compatibility_version_enum: EnumProperty(name="Compatibility version", default="Latest (2022.1)", update=OctaneBaseNode.update_compatibility_mode, description="The Octane version that the behavior of this node should match", items=compatibility_mode_infos)
+
     a_compatibility_version: IntProperty(name="Compatibility version", default=12000102, update=OctaneBaseNode.update_node_tree, description="The Octane version that the behavior of this node should match")
 
     def init(self, context):
@@ -663,6 +669,10 @@ class OctaneInfoChannelsKernel_Override(OctaneInfoChannelsKernel):
     def init(self, context):
         super().init(context)
         self.init_octane_kernel(context, False)
+
+    def draw_buttons(self, context, layout):
+        row = layout.row()
+        row.prop(self, "a_compatibility_version_enum")
 
 OctaneInfoChannelsKernel_Override.update_node_definition()
 utility.override_class(_CLASSES, OctaneInfoChannelsKernel, OctaneInfoChannelsKernel_Override)

@@ -8,8 +8,8 @@ namespace blender::nodes::node_geo_input_spline_length_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::Float>(N_("Length")).field_source();
-  b.add_output<decl::Int>(N_("Point Count")).field_source();
+  b.add_output<decl::Float>("Length").field_source();
+  b.add_output<decl::Int>("Point Count").field_source();
 }
 
 /* --------------------------------------------------------------------
@@ -20,7 +20,7 @@ static VArray<int> construct_curve_point_count_gvarray(const bke::CurvesGeometry
                                                        const eAttrDomain domain)
 {
   const OffsetIndices points_by_curve = curves.points_by_curve();
-  auto count_fn = [points_by_curve](int64_t i) { return points_by_curve.size(i); };
+  auto count_fn = [points_by_curve](int64_t i) { return points_by_curve[i].size(); };
 
   if (domain == ATTR_DOMAIN_CURVE) {
     return VArray<int>::ForFunc(curves.curves_num(), count_fn);

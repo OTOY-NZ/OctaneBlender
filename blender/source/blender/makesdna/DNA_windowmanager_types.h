@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2007 Blender Foundation. All rights reserved. */
+ * Copyright 2007 Blender Foundation */
 
 /** \file
  * \ingroup DNA
@@ -330,7 +330,12 @@ typedef struct wmWindow {
    *   left/right modifiers then release one. See note in #wm_event_add_ghostevent for details.
    */
   struct wmEvent *eventstate;
-  /** Keep the last handled event in `event_queue` here (owned and must be freed). */
+  /**
+   * Keep the last handled event in `event_queue` here (owned and must be freed).
+   *
+   * \warning This must only to be used for event queue logic.
+   * User interactions should use `eventstate` instead (if the event isn't passed to the function).
+   */
   struct wmEvent *event_last_handled;
 
   /* Input Method Editor data - complex character input (especially for Asian character input)

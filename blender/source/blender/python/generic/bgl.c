@@ -557,7 +557,7 @@ static PySequenceMethods Buffer_SeqMethods = {
 };
 
 static PyMappingMethods Buffer_AsMapping = {
-    /*mp_len*/ (lenfunc)Buffer_len,
+    /*mp_length*/ (lenfunc)Buffer_len,
     /*mp_subscript*/ (binaryfunc)Buffer_subscript,
     /*mp_ass_subscript*/ (objobjargproc)Buffer_ass_subscript,
 };
@@ -825,7 +825,8 @@ static PyObject *Buffer_new(PyTypeObject *UNUSED(type), PyObject *args, PyObject
                    pybuffer.format);
     }
     else if (ndimensions != pybuffer.ndim ||
-             !compare_dimensions(ndimensions, dimensions, pybuffer.shape)) {
+             !compare_dimensions(ndimensions, dimensions, pybuffer.shape))
+    {
       PyErr_Format(PyExc_TypeError, "array size does not match");
     }
     else {
@@ -2650,11 +2651,17 @@ PyObject *BPyInit_bgl(void)
     return NULL; /* should never happen */
   }
 
+  /* Building as a Python module loads all modules
+   * (see code comment around #PyImport_ExtendInittab usage).
+   * The result of this is the `bgl` warning would always show when importing `bpy`.
+   * In the case of Blender as a Python module, suppress the warning. */
+#ifndef WITH_PYTHON_MODULE
   if (GPU_backend_get_type() != GPU_BACKEND_OPENGL) {
     CLOG_WARN(&LOG,
               "'bgl' imported without an OpenGL backend. Please update your add-ons to use the "
               "'gpu' module. In Blender 4.0 'bgl' will be removed.");
   }
+#endif
 
   PyModule_AddObject(submodule, "Buffer", (PyObject *)&BGL_bufferType);
   Py_INCREF((PyObject *)&BGL_bufferType);

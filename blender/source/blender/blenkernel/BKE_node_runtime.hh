@@ -15,7 +15,7 @@
 
 #include "DNA_node_types.h"
 
-#include "BKE_node.h"
+#include "BKE_node.hh"
 
 struct bNode;
 struct bNodeSocket;
@@ -31,6 +31,9 @@ struct RelationsInNode;
 }
 namespace aal = anonymous_attribute_lifetime;
 }  // namespace blender::nodes
+namespace blender::bke::node_tree_zones {
+class TreeZones;
+}
 
 namespace blender {
 
@@ -64,6 +67,8 @@ struct NodeIDEquality {
 
 namespace blender::bke {
 
+using NodeIDVectorSet = VectorSet<bNode *, DefaultProbingStrategy, NodeIDHash, NodeIDEquality>;
+
 class bNodeTreeRuntime : NonCopyable, NonMovable {
  public:
   /**
@@ -89,7 +94,7 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
    * allow simpler and more cache friendly iteration. Supports lookup by integer or by node.
    * Unlike other caches, this is maintained eagerly while changing the tree.
    */
-  VectorSet<bNode *, DefaultProbingStrategy, NodeIDHash, NodeIDEquality> nodes_by_id;
+  NodeIDVectorSet nodes_by_id;
 
   /** Execution data.
    *
@@ -135,6 +140,9 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
    * #bNodeTree. By default, this is protected against using an assert.
    */
   mutable std::atomic<int> allow_use_dirty_topology_cache = 0;
+
+  CacheMutex tree_zones_cache_mutex;
+  std::unique_ptr<node_tree_zones::TreeZones> tree_zones;
 
   /** Only valid when #topology_cache_is_dirty is false. */
   Vector<bNodeLink *> links;
@@ -361,12 +369,14 @@ inline blender::Span<bNode *> bNodeTree::all_nodes()
 
 inline bNode *bNodeTree::node_by_id(const int32_t identifier)
 {
+  BLI_assert(identifier >= 0);
   bNode *const *node = this->runtime->nodes_by_id.lookup_key_ptr_as(identifier);
   return node ? *node : nullptr;
 }
 
 inline const bNode *bNodeTree::node_by_id(const int32_t identifier) const
 {
+  BLI_assert(identifier >= 0);
   const bNode *const *node = this->runtime->nodes_by_id.lookup_key_ptr_as(identifier);
   return node ? *node : nullptr;
 }
@@ -776,6 +786,11 @@ inline const bNodeSocket *bNodeSocket::internal_link_input() const
   BLI_assert(blender::bke::node_tree_runtime::topology_cache_is_available(*this));
   BLI_assert(this->in_out == SOCK_OUT);
   return this->runtime->internal_link_input;
+}
+
+template<typename T> T *bNodeSocket::default_value_typed()
+{
+  return static_cast<T *>(this->default_value);
 }
 
 template<typename T> const T *bNodeSocket::default_value_typed() const

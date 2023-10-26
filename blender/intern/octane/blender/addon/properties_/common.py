@@ -22,7 +22,7 @@ class OctanePropertySettings(object):
             for node_type, property_list in self.PROPERTY_CONFIGS.items():
                 for property_name in property_list:
                     property_type = self.rna_type.properties[property_name].type
-                    property_subtype = self.rna_type.properties[property_name].subtype                
+                    property_subtype = self.rna_type.properties[property_name].subtype
                     octane_socket_type = consts.SocketType.ST_UNKNOWN
                     octane_pin_type = consts.PinType.PT_UNKNOWN
                     octane_default_node_type = consts.NodeType.NT_UNKNOWN
@@ -33,7 +33,7 @@ class OctanePropertySettings(object):
                     elif property_type == "ENUM":
                         octane_socket_type = consts.SocketType.ST_ENUM
                         octane_pin_type = consts.PinType.PT_ENUM
-                        octane_default_node_type = consts.NodeType.NT_ENUM                    
+                        octane_default_node_type = consts.NodeType.NT_ENUM
                     elif property_type == "INT":
                         if self.rna_type.properties[property_name].is_array:
                             property_array_length = self.rna_type.properties[property_name].array_length
@@ -68,14 +68,6 @@ class OctanePropertySettings(object):
                         octane_default_node_type = consts.NodeType.NT_STRING                    
                     pin_symbol = self.PROPERTY_NAME_TO_PIN_SYMBOL_MAP.get(property_name, property_name)
                     pin_index = -1
-                    pin_info = OctaneInfoManger().get_pin_info_by_name(node_type, pin_symbol)
-                    if pin_info is not None:
-                        pin_id = pin_info.id
-                        _pin_name = pin_info.name
-                        pin_type = pin_info.pin_type
-                        socket_type = pin_info.socket_type
-                        default_node_type = pin_info.default_node_type
-                        default_node_name = pin_info.default_node_name
                     if octane_socket_type != consts.SocketType.ST_UNKNOWN:
                         self.__class__.octane_property_name_list.append(property_name)
                         self.__class__.octane_property_name_to_node_type[property_name] = node_type
@@ -93,6 +85,8 @@ class OctanePropertySettings(object):
             property_value = getattr(self, property_name, None)
             if socket_type == consts.SocketType.ST_ENUM:
                 property_value = self.rna_type.properties[property_name].enum_items[property_value].value
+            if self.rna_type.properties[property_name].subtype == "PERCENTAGE":
+                property_value /= 100.0
             octane_node.node.set_pin(consts.OctaneDataBlockSymbolType.PIN_NAME, pin_index, pin_symbol, socket_type, octane_pin_type, octane_default_node_type, False, "", property_value)
         self.sync_custom_data(octane_node, scene, region, v3d, rv3d, session_type)
 

@@ -15,7 +15,7 @@
 #include "GPU_immediate.h"
 #include "GPU_state.h"
 
-#include "DNA_userdef_types.h" /* For 'U.dpi_fac' */
+#include "DNA_userdef_types.h" /* For 'UI_SCALE_FAC' */
 
 #include "UI_interface.h"
 #include "UI_interface_icons.h"
@@ -90,7 +90,7 @@ static void textview_draw_sel(const char *str,
  * \return The length in bytes.
  */
 static int textview_wrap_offsets(
-    const char *str, int len, int width, int *r_lines, int **r_offsets)
+    const char *str, const int str_len, const int width, int *r_lines, int **r_offsets)
 {
   int i, end; /* Offset as unicode code-point. */
   int j;      /* Offset as bytes. */
@@ -99,11 +99,11 @@ static int textview_wrap_offsets(
 
   *r_offsets = MEM_callocN(
       sizeof(**r_offsets) *
-          (len * BLI_UTF8_WIDTH_MAX / MAX2(1, width - (BLI_UTF8_WIDTH_MAX - 1)) + 1),
+          (str_len * BLI_UTF8_WIDTH_MAX / MAX2(1, width - (BLI_UTF8_WIDTH_MAX - 1)) + 1),
       __func__);
   (*r_offsets)[0] = 0;
 
-  for (i = 0, end = width, j = 0; j < len && str[j]; j += BLI_str_utf8_size_safe(str + j)) {
+  for (i = 0, end = width, j = 0; j < str_len && str[j]; j += BLI_str_utf8_size_safe(str + j)) {
     int columns = BLI_str_utf8_char_width_safe(str + j);
 
     if (i + columns > end) {
@@ -205,7 +205,7 @@ static bool textview_draw_string(TextViewDrawState *tds,
 
   if (icon_bg) {
     float col[4];
-    int bg_size = UI_DPI_ICON_SIZE * 1.2;
+    int bg_size = UI_ICON_SIZE * 1.2;
     float vpadding = (tds->lheight + (tds->row_vpadding * 2) - bg_size) / 2;
     float hpadding = tds->draw_rect->xmin - (bg_size * 1.2f);
 
@@ -219,19 +219,19 @@ static bool textview_draw_string(TextViewDrawState *tds,
             .ymax = line_top - vpadding,
         },
         true,
-        4 * UI_DPI_FAC,
+        4 * UI_SCALE_FAC,
         col);
   }
 
   if (icon) {
-    int vpadding = (tds->lheight + (tds->row_vpadding * 2) - UI_DPI_ICON_SIZE) / 2;
-    int hpadding = tds->draw_rect->xmin - (UI_DPI_ICON_SIZE * 1.3f);
+    int vpadding = (tds->lheight + (tds->row_vpadding * 2) - UI_ICON_SIZE) / 2;
+    int hpadding = tds->draw_rect->xmin - (UI_ICON_SIZE * 1.3f);
 
     GPU_blend(GPU_BLEND_ALPHA);
     UI_icon_draw_ex(hpadding,
-                    line_top - UI_DPI_ICON_SIZE - vpadding,
+                    line_top - UI_ICON_SIZE - vpadding,
                     icon,
-                    (16 / UI_DPI_ICON_SIZE),
+                    (16 / UI_ICON_SIZE),
                     1.0f,
                     0.0f,
                     icon_fg,

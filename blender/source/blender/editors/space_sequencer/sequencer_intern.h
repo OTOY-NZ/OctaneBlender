@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2008 Blender Foundation. All rights reserved. */
+ * Copyright 2008 Blender Foundation */
 
 /** \file
  * \ingroup spseq
@@ -135,6 +135,7 @@ int seq_effect_find_selected(struct Scene *scene,
 
 /* Operator helpers. */
 bool sequencer_edit_poll(struct bContext *C);
+bool sequencer_edit_with_channel_region_poll(struct bContext *C);
 bool sequencer_editing_initialized_and_active(struct bContext *C);
 /* UNUSED */
 /* bool sequencer_strip_poll(struct bContext *C); */

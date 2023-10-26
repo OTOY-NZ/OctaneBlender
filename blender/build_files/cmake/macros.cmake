@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
-# Copyright 2006 Blender Foundation. All rights reserved.
+# Copyright 2006 Blender Foundation
 
 macro(list_insert_after
   list_id item_check item_add
@@ -707,6 +707,7 @@ macro(remove_strict_flags)
   endif()
 
   if(MSVC)
+    remove_cc_flag(/w34100) # Restore warn C4100 (unreferenced formal parameter) back to w4
     remove_cc_flag(/w34189) # Restore warn C4189 (unused variable) back to w4
   endif()
 
@@ -726,7 +727,7 @@ macro(remove_extra_strict_flags)
   endif()
 
   if(MSVC)
-    # TODO
+    remove_cc_flag(/w34100) # Restore warn C4100 (unreferenced formal parameter) back to w4
   endif()
 endmacro()
 
@@ -1366,5 +1367,25 @@ macro(windows_generate_shared_manifest)
       DESTINATION "./blender.shared"
       CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel
     )
+  endif()
+endmacro()
+
+macro(windows_process_platform_bundled_libraries library_deps)
+  if(NOT "${library_deps}" STREQUAL "")
+    set(next_library_mode "ALL")
+    foreach(library ${library_deps})
+      string(TOUPPER "${library}" library_upper)
+      if(("${library_upper}" STREQUAL "RELEASE") OR
+         ("${library_upper}" STREQUAL "DEBUG") OR
+         ("${library_upper}" STREQUAL "ALL"))
+        set(next_library_mode "${library_upper}")
+      else()
+        windows_install_shared_manifest(
+            FILES ${library}
+            ${next_library_mode}
+        )
+        set(next_library_mode "ALL")
+      endif()
+    endforeach()
   endif()
 endmacro()

@@ -746,7 +746,7 @@ class WM_OT_operator_pie_enum(Operator):
 
     data_path: StringProperty(
         name="Operator",
-        description="Operator name (in python as string)",
+        description="Operator name (in Python as string)",
         maxlen=1024,
     )
     prop_string: StringProperty(
@@ -1018,9 +1018,43 @@ class WM_OT_url_open(Operator):
         description="URL to open",
     )
 
+    @staticmethod
+    def _add_utm_param_to_url(url, utm_source):
+        import urllib
+
+        # Make sure we have a scheme otherwise we can't parse the url.
+        if not url.startswith(("http://", "https://")):
+            url = "https://" + url
+
+        # Parse the URL to get its domain and query parameters.
+        parsed_url = urllib.parse.urlparse(url)
+        domain = parsed_url.netloc
+
+        # Only add a utm source if it points to a blender.org domain.
+        if not (domain.endswith(".blender.org") or domain == "blender.org"):
+            return url
+
+        # Parse the query parameters and add or update the utm_source parameter.
+        query_params = urllib.parse.parse_qs(parsed_url.query)
+        query_params["utm_source"] = utm_source
+        new_query = urllib.parse.urlencode(query_params, doseq=True)
+
+        # Create a new URL with the updated query parameters.
+        new_url_parts = list(parsed_url)
+        new_url_parts[4] = new_query
+        new_url = urllib.parse.urlunparse(new_url_parts)
+
+        return new_url
+
+    @staticmethod
+    def _get_utm_source():
+        version = bpy.app.version_string
+        return "blender-" + version.replace(" ", "-").lower()
+
     def execute(self, _context):
         import webbrowser
-        webbrowser.open(self.url)
+        complete_url = self._add_utm_param_to_url(self.url, self._get_utm_source())
+        webbrowser.open(complete_url)
         return {'FINISHED'}
 
 
@@ -1102,10 +1136,7 @@ class WM_OT_url_open_preset(Operator):
                     url = url(self, context)
                 break
 
-        import webbrowser
-        webbrowser.open(url)
-
-        return {'FINISHED'}
+        return bpy.ops.wm.url_open(url=url)
 
 
 class WM_OT_path_open(Operator):
@@ -1307,9 +1338,7 @@ class WM_OT_doc_view_manual(Operator):
             )
             return {'CANCELLED'}
         else:
-            import webbrowser
-            webbrowser.open(url)
-            return {'FINISHED'}
+            return bpy.ops.wm.url_open(url=url)
 
 
 class WM_OT_doc_view(Operator):
@@ -1325,10 +1354,7 @@ class WM_OT_doc_view(Operator):
         if url is None:
             return {'CANCELLED'}
 
-        import webbrowser
-        webbrowser.open(url)
-
-        return {'FINISHED'}
+        return bpy.ops.wm.url_open(url=url)
 
 
 rna_path = StringProperty(
@@ -1345,6 +1371,7 @@ rna_custom_property_name = StringProperty(
     maxlen=63,
 )
 
+# Most useful entries of rna_enum_property_subtype_items:
 rna_custom_property_type_items = (
     ('FLOAT', "Float", "A single floating-point value"),
     ('FLOAT_ARRAY', "Float Array", "An array of floating-point values"),
@@ -1353,12 +1380,25 @@ rna_custom_property_type_items = (
     ('BOOL', "Boolean", "A true or false value"),
     ('BOOL_ARRAY', "Boolean Array", "An array of true or false values"),
     ('STRING', "String", "A string value"),
-    ('PYTHON', "Python", "Edit a python value directly, for unsupported property types"),
+    ('PYTHON', "Python", "Edit a Python value directly, for unsupported property types"),
 )
 
-# Most useful entries of rna_enum_property_subtype_items for number arrays:
-rna_vector_subtype_items = (
-    ('NONE', "Plain Data", "Data values without special behavior"),
+rna_custom_property_subtype_none_item = ('NONE', "Plain Data", "Data values without special behavior")
+
+rna_custom_property_subtype_number_items = (
+    rna_custom_property_subtype_none_item,
+    ('PIXEL', "Pixel", ""),
+    ('PERCENTAGE', "Percentage", ""),
+    ('FACTOR', "Factor", ""),
+    ('ANGLE', "Angle", ""),
+    ('TIME_ABSOLUTE', "Time", "Time specified in seconds"),
+    ('DISTANCE', "Distance", ""),
+    ('POWER', "Power", ""),
+    ('TEMPERATURE', "Temperature", ""),
+)
+
+rna_custom_property_subtype_vector_items = (
+    rna_custom_property_subtype_none_item,
     ('COLOR', "Linear Color", "Color in the linear space"),
     ('COLOR_GAMMA', "Gamma-Corrected Color", "Color in the gamma corrected space"),
     ('EULER', "Euler Angles", "Euler rotation angles in radians"),
@@ -1373,6 +1413,21 @@ class WM_OT_properties_edit(Operator):
     # register only because invoke_props_popup requires.
     bl_options = {'REGISTER', 'INTERNAL'}
 
+    def subtype_items_cb(self, context):
+        match self.property_type:
+            case 'FLOAT':
+                return rna_custom_property_subtype_number_items
+            case 'FLOAT_ARRAY':
+                return rna_custom_property_subtype_vector_items
+            case _:
+                # Needed so 'NONE' can always be assigned.
+                return (
+                    rna_custom_property_subtype_none_item,
+                )
+
+    def property_type_update_cb(self, context):
+        self.subtype = 'NONE'
+
     # Common settings used for all property types. Generally, separate properties are used for each
     # type to improve the experience when choosing UI data values.
 
@@ -1381,6 +1436,7 @@ class WM_OT_properties_edit(Operator):
     property_type: EnumProperty(
         name="Type",
         items=rna_custom_property_type_items,
+        update=property_type_update_cb
     )
     is_overridable_library: BoolProperty(
         name="Library Overridable",
@@ -1481,7 +1537,7 @@ class WM_OT_properties_edit(Operator):
     )
     subtype: EnumProperty(
         name="Subtype",
-        items=WM_OT_properties_edit.subtype_items,
+        items=subtype_items_cb,
     )
 
     # String properties.
@@ -1496,9 +1552,6 @@ class WM_OT_properties_edit(Operator):
         name="Value",
         description="Python value for unsupported custom property types",
     )
-
-    type_items = rna_custom_property_type_items
-    subtype_items = rna_vector_subtype_items
 
     # Helper method to avoid repetitive code to retrieve a single value from sequences and non-sequences.
     @staticmethod
@@ -1567,15 +1620,7 @@ class WM_OT_properties_edit(Operator):
         return 'PYTHON'
 
     def _init_subtype(self, subtype):
-        subtype = subtype or 'NONE'
-        subtype_items = rna_vector_subtype_items
-
-        # Add a temporary enum entry to preserve unknown subtypes
-        if not any(subtype == item[0] for item in subtype_items):
-            subtype_items += ((subtype, subtype, ""),)
-
-        WM_OT_properties_edit.subtype_items = subtype_items
-        self.subtype = subtype
+        self.subtype = subtype or 'NONE'
 
     # Fill the operator's properties with the UI data properties from the existing custom property.
     # Note that if the UI data doesn't exist yet, the access will create it and use those default values.
@@ -1904,9 +1949,7 @@ class WM_OT_properties_edit(Operator):
             layout.prop(self, "step_float")
             layout.prop(self, "precision")
 
-            # Subtype is only supported for float properties currently.
-            if self.property_type != 'FLOAT':
-                layout.prop(self, "subtype")
+            layout.prop(self, "subtype")
         elif self.property_type in {'INT', 'INT_ARRAY'}:
             if self.property_type == 'INT_ARRAY':
                 layout.prop(self, "array_length")
@@ -2759,7 +2802,7 @@ class WM_OT_batch_rename(Operator):
                     "name",
                     iface_("Material(s)"),
                 )
-            elif data_type == "ACTION_CLIP":
+            elif data_type == 'ACTION_CLIP':
                 data = (
                     (
                         # Outliner.

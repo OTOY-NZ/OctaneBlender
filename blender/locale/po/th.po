@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 3.5.0 Release Candidate (b'14efe7000449')\n"
+"Project-Id-Version: Blender 3.6.0 Release Candidate (b'a07063e6a403')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-03-27 16:38:19\n"
+"POT-Creation-Date: 2023-06-22 15:00:05\n"
 "PO-Revision-Date: 2019-12-08 17:40+0700\n"
 "Last-Translator: gongpha <gongpha@gmail.com>\n"
 "Language-Team: Thai Translation Team <gongpha@gmail.com>\n"
@@ -548,10 +548,6 @@ msgstr "เครื่องหมาย"
 
 msgid "Smooth"
 msgstr "ราบเรียบ"
-
-
-msgid "Randomize"
-msgstr "สุ่ม"
 
 
 msgid "Path"
@@ -1363,24 +1359,12 @@ msgid "Repeat"
 msgstr "ทำซ้ำ"
 
 
-msgid "Mask"
-msgstr "หน้ากาก"
-
-
 msgid "Mask Texture"
 msgstr "พื้นผิวหน้ากาก"
 
 
 msgid "Sculpt Tool"
 msgstr "เครื่องแกะสลัก"
-
-
-msgid "Pose"
-msgstr "ท่าทาง"
-
-
-msgid "Rotate"
-msgstr "หมุน"
 
 
 msgid "Grab UVs"
@@ -1765,6 +1749,10 @@ msgid "Texture Paint"
 msgstr "วาดพื้นผิว"
 
 
+msgid "Pose"
+msgstr "ท่าทาง"
+
+
 msgid "Euler Rotation"
 msgstr "หมุน"
 
@@ -2059,6 +2047,10 @@ msgid "Mix Color"
 msgstr "ผสมสี"
 
 
+msgid "Mask"
+msgstr "หน้ากาก"
+
+
 msgid "Pivot Point"
 msgstr "จุดหมุน"
 
@@ -2285,6 +2277,10 @@ msgid "Percent"
 msgstr "ร้อยละ"
 
 
+msgid "Randomize"
+msgstr "สุ่ม"
+
+
 msgid "Ray Radius"
 msgstr "รัศมีรังสี"
 
@@ -2412,6 +2408,10 @@ msgstr "ช่องสีแดง"
 
 msgid "RGB to BW"
 msgstr "RGB ไปยัง BW"
+
+
+msgid "Rotate"
+msgstr "หมุน"
 
 
 msgid "Ray Length"
@@ -2584,6 +2584,10 @@ msgid "Paste from Clipboard"
 msgstr "วางจากคลิปบอร์ด"
 
 
+msgid "Selection"
+msgstr "การเลือก"
+
+
 msgid "Report"
 msgstr "รายงาน"
 
@@ -2705,6 +2709,14 @@ msgid "Open"
 msgstr "เปิด"
 
 
+msgid "Show"
+msgstr "แสดง"
+
+
+msgid "Play"
+msgstr "เล่น"
+
+
 msgid "Increment"
 msgstr "จำนวนที่เพิ่มขึ้น"
 
@@ -2715,10 +2727,6 @@ msgstr "ค้นหาทั้งหมด"
 
 msgid "Next"
 msgstr "ถัดไป"
-
-
-msgid "Selection"
-msgstr "การเลือก"
 
 
 msgctxt "Operator"
@@ -3028,6 +3036,10 @@ msgid "Join"
 msgstr "เชื่อมโยง"
 
 
+msgid "Selected Only"
+msgstr "ที่ถูกเลือกเท่านั้น"
+
+
 msgid "Sets the object interaction mode"
 msgstr "ตั้งโหมดที่จะกระทำกับวัตถุ"
 
@@ -3129,10 +3141,6 @@ msgid "(De)select all"
 msgstr "(ยกเลิก)เลือกทั้งหมด"
 
 
-msgid "Show"
-msgstr "แสดง"
-
-
 msgid "Palette"
 msgstr "จานสี"
 
@@ -3140,10 +3148,6 @@ msgstr "จานสี"
 msgctxt "Operator"
 msgid "Mirror"
 msgstr "กระจกสะท้อน"
-
-
-msgid "Selected Only"
-msgstr "ที่ถูกเลือกเท่านั้น"
 
 
 msgid "Axis Lock"
@@ -3303,10 +3307,6 @@ msgid "Path to the matching po file"
 msgstr "ตำแหน่งไปยังไฟล์ po ที่ตรงกัน"
 
 
-msgid "New Image"
-msgstr "ภาพใหม่"
-
-
 msgid "Reset UV projection"
 msgstr "ตั้งค่าการฉาย UV ใหม่"
 
@@ -3355,10 +3355,6 @@ msgstr "พัก"
 
 msgid "Render Anim"
 msgstr "เรนเดอร์อนิเมชัน"
-
-
-msgid "Play"
-msgstr "เล่น"
 
 
 msgctxt "Operator"
@@ -3430,10 +3426,6 @@ msgstr "การแสดงหน้ากาก"
 msgctxt "MovieClip"
 msgid "Scene Setup"
 msgstr "การติดตั้งฉาก"
-
-
-msgid "Lens"
-msgstr "เลนส์"
 
 
 msgid "Transparent"
@@ -3742,10 +3734,6 @@ msgid "YCbCr (ITU 709)"
 msgstr "YCbCr (ITU 709)"
 
 
-msgid "YCbCr (Jpeg)"
-msgstr "YCbCr (Jpeg)"
-
-
 msgctxt "Sequence"
 msgid "Image"
 msgstr "ภาพ"
@@ -3888,6 +3876,10 @@ msgid "Top Line"
 msgstr "เส้นบน"
 
 
+msgid "Lens"
+msgstr "เลนส์"
+
+
 msgid "Lock to Cursor"
 msgstr "ล็อกที่เคอร์เซอร์"
 
@@ -4016,41 +4008,12 @@ msgid "Display Grid Floor"
 msgstr "แสดงพื้นตาราง"
 
 
-msgid "Hidden Wire"
-msgstr "เส้นที่มองไม่เห็น"
-
-
 msgid "Viewport Shading"
 msgstr "วิวพอร์ตแรเงา"
 
 
 msgid "Method to display/shade objects in the 3D View"
 msgstr "วิธีที่จะแสดง/แรเงาวัตถุบนมุมมองสามมิติ"
-
-
-msgctxt "Operator"
-msgid "Action:"
-msgstr "กระทำ:"
-
-
-msgctxt "Operator"
-msgid "Cycles:"
-msgstr "ไซเคิล:"
-
-
-msgctxt "Operator"
-msgid "Mask:"
-msgstr "หน้ากาก:"
-
-
-msgctxt "Operator"
-msgid "Preferences:"
-msgstr "การตั้งค่า:"
-
-
-msgctxt "Operator"
-msgid "Workspace:"
-msgstr "พื้นที่ใช้งาน:"
 
 
 msgid "Search"
@@ -4209,10 +4172,6 @@ msgstr "ทั้งหมด"
 msgctxt "Operator"
 msgid "None"
 msgstr "ไม่มี"
-
-
-msgid "Old"
-msgstr "เก่า"
 
 
 msgid "Date"
@@ -5636,6 +5595,10 @@ msgid "Val"
 msgstr "Val"
 
 
+msgid "Old"
+msgstr "เก่า"
+
+
 msgid "Shader Editor"
 msgstr "ตัวแก้ไขเชดเดอร์"
 
@@ -5722,10 +5685,6 @@ msgstr "ภาษาอังกฤษ (English)"
 
 msgid "Japanese (日本語)"
 msgstr "ภาษาญี่ปุ่น (日本語)"
-
-
-msgid "Dutch (Nederlandse taal)"
-msgstr "ภาษาดัตช์ (Nederlandse taal)"
 
 
 msgid "Italian (Italiano)"
@@ -5840,10 +5799,6 @@ msgid "Hebrew (תירִבְעִ)"
 msgstr "ภาษาฮิบรู (תירִבְעִ)"
 
 
-msgid "Estonian (Eestlane)"
-msgstr "ภาษาเอสโตเนีย (Eestlane)"
-
-
 msgid "Esperanto (Esperanto)"
 msgstr "ภาษาเอสเปรันโต (Esperanto)"
 
@@ -5864,24 +5819,12 @@ msgid "Uzbek Cyrillic (Ўзбек)"
 msgstr "ภาษาอุซเบกซีริลลิก (Ўзбек)"
 
 
-msgid "Hindi (मानक हिन्दी)"
-msgstr "ภาษาฮินดี (मानक हिन्दी)"
-
-
-msgid "Vietnamese (tiếng Việt)"
-msgstr "ภาษาเวียดนาม (tiếng Việt)"
-
-
 msgid "Basque (Euskara)"
 msgstr "ภาษาบาสก์ (Euskara)"
 
 
 msgid "Hausa (Hausa)"
 msgstr "ภาษาฮัวซา (Hausa)"
-
-
-msgid "Kazakh (қазақша)"
-msgstr "ภาษาคาซัค (қазақша)"
 
 
 msgid "Abkhaz (Аԥсуа бызшәа)"

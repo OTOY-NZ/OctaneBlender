@@ -200,9 +200,7 @@ void TreeDisplayViewLayer::add_layer_collection_objects_children(TreeElement &co
  *
  * \{ */
 
-ObjectsChildrenBuilder::ObjectsChildrenBuilder(SpaceOutliner &outliner) : outliner_(outliner)
-{
-}
+ObjectsChildrenBuilder::ObjectsChildrenBuilder(SpaceOutliner &outliner) : outliner_(outliner) {}
 
 void ObjectsChildrenBuilder::operator()(TreeElement &collection_tree_elem)
 {
@@ -263,7 +261,8 @@ void ObjectsChildrenBuilder::make_object_parent_hierarchy_collections()
       parent_ob_collection_tree_element = parent_ob_tree_element->parent;
       while (!ELEM(TREESTORE(parent_ob_collection_tree_element)->type,
                    TSE_VIEW_COLLECTION_BASE,
-                   TSE_LAYER_COLLECTION)) {
+                   TSE_LAYER_COLLECTION))
+      {
         parent_ob_collection_tree_element = parent_ob_collection_tree_element->parent;
       }
 

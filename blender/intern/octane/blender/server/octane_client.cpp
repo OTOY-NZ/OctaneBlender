@@ -3902,8 +3902,25 @@ bool OctaneClient::downloadImageBuffer(RenderStatistics &renderStat,
         m_iCurRegionWidth = static_cast<int>(uiRegW);
         m_iCurRegionHeight = static_cast<int>(uiRegH);
       }
-
-      if (bUseSharedSurface && passType != RENDER_PASS_Z_DEPTH) {
+      bool bPassUseSharedSurface = true;
+      switch (passType) {
+        case Octane::RENDER_PASS_Z_DEPTH:
+        case Octane::RENDER_PASS_CRYPTOMATTE_MATERIAL_NODE_NAME:
+        case Octane::RENDER_PASS_CRYPTOMATTE_MATERIAL_NODE:
+        case Octane::RENDER_PASS_CRYPTOMATTE_MATERIAL_PIN_NAME:
+        case Octane::RENDER_PASS_CRYPTOMATTE_OBJECT_NODE_NAME:
+        case Octane::RENDER_PASS_CRYPTOMATTE_OBJECT_NODE:
+        case Octane::RENDER_PASS_CRYPTOMATTE_OBJECT_PIN_NAME:
+        case Octane::RENDER_PASS_CRYPTOMATTE_RENDER_LAYER:
+        case Octane::RENDER_PASS_CRYPTOMATTE_INSTANCE:
+        case Octane::RENDER_PASS_CRYPTOMATTE_GEOMETRY_NODE_NAME:
+        case Octane::RENDER_PASS_CRYPTOMATTE_USER_INSTANCE_ID:
+          bPassUseSharedSurface = false;
+          break;
+        default:
+          bPassUseSharedSurface = true;
+      }
+      if (bUseSharedSurface && bPassUseSharedSurface) {
         rcv >> renderStat.iSharedHandler;
         LOCK_MUTEX(m_ImgBufMutex);
         m_iSharedHandler = renderStat.iSharedHandler;

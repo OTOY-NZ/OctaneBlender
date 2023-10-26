@@ -220,10 +220,10 @@ void register_node_type_medium_oct_volume(void)
   static bNodeType ntype;
 
   if (ntype.type != SH_NODE_OCT_VOLUME_MED)
-    node_type_base(
+    sh_node_type_base(
         &ntype, SH_NODE_OCT_VOLUME_MED, "Volume Medium", NODE_CLASS_OCT_MEDIUM);
-  node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
-  node_type_size(&ntype, 160, 160, 500);
+  blender::bke::node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
+  node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::DEFAULT);
   ntype.initfunc = (node_octane_medium_init);
   // node_type_exec(&ntype, 0, 0, 0);
   ntype.updatefunc = (node_octane_medium_update);

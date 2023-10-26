@@ -93,7 +93,10 @@ static void rna_Light_use_nodes_update(bContext *C, PointerRNA *ptr)
 }
 
 #else
-/* Don't define icons here, so they don't show up in the Light UI (properties Editor) - DingTo */
+
+/* NOTE(@dingto): Don't define icons here,
+ * so they don't show up in the Light UI (properties editor). */
+
 const EnumPropertyItem rna_enum_light_type_items[] = {
     {LA_LOCAL, "POINT", 0, "Point", "Omnidirectional point light source"},
     {LA_SUN, "SUN", 0, "Sun", "Constant direction parallel ray light source"},
@@ -101,6 +104,14 @@ const EnumPropertyItem rna_enum_light_type_items[] = {
     {LA_AREA, "AREA", 0, "Area", "Directional area light source"},
     {LA_MESH, "MESH", 0, "Mesh", "Mesh light source"},
     {LA_SPHERE, "SPHERE", 0, "Sphere", "Octane sphere light source"},
+    {0, NULL, 0, NULL, NULL},
+};
+
+const EnumPropertyItem rna_enum_addon_version_light_type_items[] = {
+    {LA_LOCAL, "POINT", 0, "Point", "Omnidirectional point light source"},
+    {LA_SUN, "SUN", 0, "Sun", "Constant direction parallel ray light source"},
+    {LA_SPOT, "SPOT", 0, "Spot", "Directional cone light source"},
+    {LA_AREA, "AREA", 0, "Area", "Directional area light source"},
     {0, NULL, 0, NULL, NULL},
 };
 
@@ -118,7 +129,7 @@ static void rna_def_light(BlenderRNA *brna)
   RNA_def_struct_ui_icon(srna, ICON_LIGHT_DATA);
 
   prop = RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_items(prop, rna_enum_light_type_items);
+  RNA_def_property_enum_items(prop, rna_enum_addon_version_light_type_items);
   RNA_def_property_ui_text(prop, "Type", "Type of light");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_LIGHT);
   RNA_def_property_update(prop, 0, "rna_Light_draw_update");

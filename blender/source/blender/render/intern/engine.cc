@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2006 Blender Foundation. All rights reserved. */
+ * Copyright 2006 Blender Foundation */
 
 /** \file
  * \ingroup render
@@ -26,7 +26,7 @@
 #include "BKE_colortools.h"
 #include "BKE_global.h"
 #include "BKE_layer.h"
-#include "BKE_node.h"
+#include "BKE_node.hh"
 #include "BKE_report.h"
 #include "BKE_scene.h"
 
@@ -50,7 +50,7 @@
 
 #include "WM_api.h"
 
-#include "pipeline.h"
+#include "pipeline.hh"
 #include "render_result.h"
 #include "render_types.h"
 
@@ -116,7 +116,7 @@ bool RE_engine_is_external(const Render *re)
 
 bool RE_engine_is_opengl(RenderEngineType *render_type)
 {
-  /* TODO: refine? Can we have ogl render engine without ogl render pipeline? */
+  /* TODO: refine? Can we have OpenGL render engine without OpenGL render pipeline? */
   return (render_type->draw_engine != nullptr) &&
          DRW_engine_render_support(render_type->draw_engine);
 }
@@ -522,13 +522,13 @@ void RE_engine_update_stats(RenderEngine *engine, const char *stats, const char 
   engine->text[0] = '\0';
 
   if (stats && stats[0] && info && info[0]) {
-    BLI_snprintf(engine->text, sizeof(engine->text), "%s | %s", stats, info);
+    SNPRINTF(engine->text, "%s | %s", stats, info);
   }
   else if (info && info[0]) {
-    BLI_strncpy(engine->text, info, sizeof(engine->text));
+    STRNCPY(engine->text, info);
   }
   else if (stats && stats[0]) {
-    BLI_strncpy(engine->text, stats, sizeof(engine->text));
+    STRNCPY(engine->text, stats);
   }
 }
 
@@ -1079,7 +1079,7 @@ bool RE_engine_render(Render *re, bool do_all)
 
   /* set render info */
   re->i.cfra = re->scene->r.cfra;
-  BLI_strncpy(re->i.scene_name, re->scene->id.name + 2, sizeof(re->i.scene_name));
+  STRNCPY(re->i.scene_name, re->scene->id.name + 2);
 
   engine->flag |= RE_ENGINE_RENDERING;
 
@@ -1331,6 +1331,7 @@ void RE_engine_gpu_context_destroy(RenderEngine *engine)
     engine->gpu_context = nullptr;
   }
   WM_opengl_context_dispose(engine->wm_gpu_context);
+  engine->wm_gpu_context = nullptr;
 
   DRW_opengl_context_activate(drw_state);
 }

@@ -1,23 +1,3 @@
-#
-# Copyright 2011, Blender Foundation.
-#
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software Foundation,
-# Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-
-# <pep8 compliant>
-
 import bpy
 
 from bpy.types import Panel, Menu, Operator
@@ -84,14 +64,6 @@ class OCTANE_PT_mesh_properties(OctaneButtonsPanel, Panel):
         sub = layout.row(align=True)
         sub.prop(cdata, "force_load_vertex_normals")
 
-        # box = layout.box()
-        # box.label(text="Scatter Groups:")
-        # sub = box.row(align=True)
-        # sub.prop(cdata, "is_scatter_group_source", text="Used as source for current group")
-        # sub = box.row(align=True)
-        # sub.prop(cdata, "scatter_group_id")
-        # sub.prop(cdata, "scatter_instance_id")
-
         sub = layout.row(align=True)
         sub.prop(cdata, "primitive_coordinate_mode")
         sub = layout.row(align=True)
@@ -103,27 +75,6 @@ class OCTANE_PT_mesh_properties(OctaneButtonsPanel, Panel):
                 sub = layout.row(align=True)        
                 sub.prop(cdata, "tessface_in_preview")
                 break
-        # sub = layout.row(align=True)
-        # sub.active = cdata.layer_number != 0
-        # sub.prop(cdata, "layer_number")
-        # sub = layout.row(align=True)
-        # sub.prop(cdata, "baking_group_id")
-        # sub = layout.row(align=True)
-        # sub.prop(cdata, "rand_color_seed")
-        # sub = layout.row(align=True)
-        # sub.label(text="Light pass mask:")
-        # sub = layout.row(align=True)
-        # row = sub.row(align=True)        
-        # row.prop(cdata, "light_id_sunlight", text="S", toggle=True)
-        # row.prop(cdata, "light_id_env", text="E", toggle=True)
-        # row.prop(cdata, "light_id_pass_1", text="1", toggle=True)
-        # row.prop(cdata, "light_id_pass_2", text="2", toggle=True)
-        # row.prop(cdata, "light_id_pass_3", text="3", toggle=True)        
-        # row.prop(cdata, "light_id_pass_4", text="4", toggle=True)
-        # row.prop(cdata, "light_id_pass_5", text="5", toggle=True)
-        # row.prop(cdata, "light_id_pass_6", text="6", toggle=True)
-        # row.prop(cdata, "light_id_pass_7", text="7", toggle=True)
-        # row.prop(cdata, "light_id_pass_8", text="8", toggle=True)  
         sub = layout.row(align=True)
         sub.prop(cdata, "hair_interpolation")
 
@@ -281,7 +232,6 @@ class OCTANE_PT_volume_properties(OctaneButtonsPanel, Panel):
         box.label(text="Volume properties:")
         sub = box.column(align=True)     
         sub.prop(cdata, "vdb_sdf")
-        # sub.prop(cdata, "imported_openvdb_file_path")
         sub.prop(cdata, "vdb_import_scale")
         sub = box.column(align=True) 
         sub.prop(cdata, "apply_import_scale_to_blender_transfrom")

@@ -126,7 +126,7 @@ static const int MTL_MAX_FBO_ATTACHED = 16;
 
 /* Samplers */
 struct MTLSamplerState {
-  eGPUSamplerState state;
+  GPUSamplerState state;
 
   /* Mip min and mip max on sampler state always the same.
    * Level range now controlled with textureView to be consistent with GL baseLevel. */
@@ -138,16 +138,28 @@ struct MTLSamplerState {
 
   operator uint() const
   {
-    return uint(state);
+    uint integer_representation = 0;
+    integer_representation |= this->state.filtering;
+    integer_representation |= this->state.extend_x << 8;
+    integer_representation |= this->state.extend_yz << 12;
+    integer_representation |= this->state.custom_type << 16;
+    integer_representation |= this->state.type << 24;
+    return integer_representation;
   }
 
   operator uint64_t() const
   {
-    return uint64_t(state);
+    uint64_t integer_representation = 0;
+    integer_representation |= this->state.filtering;
+    integer_representation |= this->state.extend_x << 8;
+    integer_representation |= this->state.extend_yz << 12;
+    integer_representation |= this->state.custom_type << 16;
+    integer_representation |= this->state.type << 24;
+    return integer_representation;
   }
 };
 
-const MTLSamplerState DEFAULT_SAMPLER_STATE = {GPU_SAMPLER_DEFAULT /*, 0, 9999*/};
+const MTLSamplerState DEFAULT_SAMPLER_STATE = {GPUSamplerState::default_sampler() /*, 0, 9999*/};
 
 class MTLTexture : public Texture {
   friend class MTLContext;
@@ -169,11 +181,10 @@ class MTLTexture : public Texture {
   bool is_baked_ = false;
   MTLTextureDescriptor *texture_descriptor_ = nullptr;
   id<MTLTexture> texture_ = nil;
-  MTLTextureUsage usage_;
 
   /* Texture Storage. */
   id<MTLBuffer> texture_buffer_ = nil;
-  uint aligned_w_ = 0;
+  size_t aligned_w_ = 0;
 
   /* Blit Frame-buffer. */
   GPUFrameBuffer *blit_fb_ = nullptr;
@@ -272,7 +283,7 @@ class MTLTexture : public Texture {
  protected:
   bool init_internal() override;
   bool init_internal(GPUVertBuf *vbo) override;
-  bool init_internal(const GPUTexture *src,
+  bool init_internal(GPUTexture *src,
                      int mip_offset,
                      int layer_offset) override; /* Texture View */
 
@@ -303,7 +314,7 @@ class MTLTexture : public Texture {
                      int depth,
                      eGPUDataFormat desired_output_format,
                      int num_output_components,
-                     int debug_data_size,
+                     size_t debug_data_size,
                      void *r_data);
   void bake_mip_swizzle_view();
 
@@ -353,8 +364,8 @@ class MTLTexture : public Texture {
    *
    *  blender::map<INPUT DEFINES STRUCT, compute PSO> update_2d_array_kernel_psos;
    * - Generate compute shader with configured kernel below with variable parameters depending
-   *  on input/output format configurations. Do not need to keep source or descriptors around,
-   *  just PSO, as same input defines will always generate the same code.
+   *   on input/output format configurations. Do not need to keep source or descriptors around,
+   *   just PSO, as same input defines will always generate the same code.
    *
    * - IF datatype IS an exact match e.g. :
    *    - Per-component size matches (e.g. GPU_DATA_UBYTE)
@@ -442,7 +453,7 @@ class MTLPixelBuffer : public PixelBuffer {
   void *map() override;
   void unmap() override;
   int64_t get_native_handle() override;
-  uint get_size() override;
+  size_t get_size() override;
 
   id<MTLBuffer> get_metal_buffer();
 
@@ -451,7 +462,7 @@ class MTLPixelBuffer : public PixelBuffer {
 
 /* Utility */
 MTLPixelFormat gpu_texture_format_to_metal(eGPUTextureFormat tex_format);
-int get_mtl_format_bytesize(MTLPixelFormat tex_format);
+size_t get_mtl_format_bytesize(MTLPixelFormat tex_format);
 int get_mtl_format_num_components(MTLPixelFormat tex_format);
 bool mtl_format_supports_blending(MTLPixelFormat format);
 
@@ -472,6 +483,7 @@ inline std::string tex_data_format_to_msl_type_str(eGPUDataFormat type)
     case GPU_DATA_UINT_24_8:
       return "uint"; /* Problematic type - but will match alignment. */
     case GPU_DATA_10_11_11_REV:
+    case GPU_DATA_2_10_10_10_REV:
       return "float"; /* Problematic type - each component will be read as a float. */
     default:
       BLI_assert(false);
@@ -497,6 +509,7 @@ inline std::string tex_data_format_to_msl_texture_template_type(eGPUDataFormat t
     case GPU_DATA_UINT_24_8:
       return "uint"; /* Problematic type. */
     case GPU_DATA_10_11_11_REV:
+    case GPU_DATA_2_10_10_10_REV:
       return "float"; /* Problematic type. */
     default:
       BLI_assert(false);
@@ -558,67 +571,15 @@ inline MTLPixelFormat mtl_format_get_writeable_view_format(MTLPixelFormat format
   return format;
 }
 
-/* Returns the associated engine data type with a given texture:
- * Definitely not complete, edit according to the METAL specification. */
-inline eGPUDataFormat to_mtl_internal_data_format(eGPUTextureFormat tex_format)
-{
-  switch (tex_format) {
-    case GPU_RGBA8:
-    case GPU_RGBA32F:
-    case GPU_RGBA16F:
-    case GPU_RGBA16:
-    case GPU_RG8:
-    case GPU_RG32F:
-    case GPU_RG16F:
-    case GPU_RG16:
-    case GPU_R8:
-    case GPU_R32F:
-    case GPU_R16F:
-    case GPU_R16:
-    case GPU_RGB16F:
-    case GPU_DEPTH_COMPONENT24:
-    case GPU_DEPTH_COMPONENT16:
-    case GPU_DEPTH_COMPONENT32F:
-    case GPU_SRGB8_A8:
-      return GPU_DATA_FLOAT;
-    case GPU_DEPTH24_STENCIL8:
-    case GPU_DEPTH32F_STENCIL8:
-      return GPU_DATA_UINT_24_8;
-    case GPU_RGBA8UI:
-    case GPU_RGBA32UI:
-    case GPU_RGBA16UI:
-    case GPU_RG8UI:
-    case GPU_RG32UI:
-    case GPU_R8UI:
-    case GPU_R16UI:
-    case GPU_RG16UI:
-    case GPU_R32UI:
-      return GPU_DATA_UINT;
-    case GPU_R8I:
-    case GPU_RG8I:
-    case GPU_R16I:
-    case GPU_R32I:
-    case GPU_RG16I:
-    case GPU_RGBA8I:
-    case GPU_RGBA32I:
-    case GPU_RGBA16I:
-    case GPU_RG32I:
-      return GPU_DATA_INT;
-    case GPU_R11F_G11F_B10F:
-      return GPU_DATA_10_11_11_REV;
-    default:
-      BLI_assert(false && "Texture not yet handled");
-      return GPU_DATA_FLOAT;
-  }
-}
-
 inline MTLTextureUsage mtl_usage_from_gpu(eGPUTextureUsage usage)
 {
   MTLTextureUsage mtl_usage = MTLTextureUsageUnknown;
   if (usage == GPU_TEXTURE_USAGE_GENERAL) {
     return MTLTextureUsageUnknown;
   }
-  if (usage & GPU_TEXTURE_USAGE_SHADER_READ) {
+  /* Host read implies general read support, as the compute-based host read routine requires
+   * reading of texture data. */
+  if (usage & GPU_TEXTURE_USAGE_SHADER_READ || usage & GPU_TEXTURE_USAGE_HOST_READ) {
     mtl_usage = mtl_usage | MTLTextureUsageShaderRead;
   }
   if (usage & GPU_TEXTURE_USAGE_SHADER_WRITE) {

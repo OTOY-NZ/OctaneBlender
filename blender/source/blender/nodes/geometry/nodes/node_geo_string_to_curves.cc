@@ -26,37 +26,25 @@ NODE_STORAGE_FUNCS(NodeGeometryStringToCurves)
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::String>(N_("String"));
-  b.add_input<decl::Float>(N_("Size")).default_value(1.0f).min(0.0f).subtype(PROP_DISTANCE);
-  b.add_input<decl::Float>(N_("Character Spacing"))
-      .default_value(1.0f)
-      .min(0.0f)
-      .subtype(PROP_DISTANCE);
-  b.add_input<decl::Float>(N_("Word Spacing"))
-      .default_value(1.0f)
-      .min(0.0f)
-      .subtype(PROP_DISTANCE);
-  b.add_input<decl::Float>(N_("Line Spacing"))
-      .default_value(1.0f)
-      .min(0.0f)
-      .subtype(PROP_DISTANCE);
-  b.add_input<decl::Float>(N_("Text Box Width"))
-      .default_value(0.0f)
-      .min(0.0f)
-      .subtype(PROP_DISTANCE);
-  b.add_input<decl::Float>(N_("Text Box Height"))
+  b.add_input<decl::String>("String");
+  b.add_input<decl::Float>("Size").default_value(1.0f).min(0.0f).subtype(PROP_DISTANCE);
+  b.add_input<decl::Float>("Character Spacing").default_value(1.0f).min(0.0f);
+  b.add_input<decl::Float>("Word Spacing").default_value(1.0f).min(0.0f);
+  b.add_input<decl::Float>("Line Spacing").default_value(1.0f).min(0.0f);
+  b.add_input<decl::Float>("Text Box Width").default_value(0.0f).min(0.0f).subtype(PROP_DISTANCE);
+  b.add_input<decl::Float>("Text Box Height")
       .default_value(0.0f)
       .min(0.0f)
       .subtype(PROP_DISTANCE)
       .make_available([](bNode &node) {
         node_storage(node).overflow = GEO_NODE_STRING_TO_CURVES_MODE_SCALE_TO_FIT;
       });
-  b.add_output<decl::Geometry>(N_("Curve Instances"));
-  b.add_output<decl::String>(N_("Remainder")).make_available([](bNode &node) {
+  b.add_output<decl::Geometry>("Curve Instances");
+  b.add_output<decl::String>("Remainder").make_available([](bNode &node) {
     node_storage(node).overflow = GEO_NODE_STRING_TO_CURVES_MODE_TRUNCATE;
   });
-  b.add_output<decl::Int>(N_("Line")).field_on_all();
-  b.add_output<decl::Vector>(N_("Pivot Point")).field_on_all();
+  b.add_output<decl::Int>("Line").field_on_all();
+  b.add_output<decl::Vector>("Pivot Point").field_on_all();
 }
 
 static void node_layout(uiLayout *layout, struct bContext *C, PointerRNA *ptr)
@@ -97,11 +85,11 @@ static void node_update(bNodeTree *ntree, bNode *node)
   const GeometryNodeStringToCurvesOverflowMode overflow = (GeometryNodeStringToCurvesOverflowMode)
                                                               storage.overflow;
   bNodeSocket *socket_remainder = static_cast<bNodeSocket *>(node->outputs.first)->next;
-  nodeSetSocketAvailability(
+  bke::nodeSetSocketAvailability(
       ntree, socket_remainder, overflow == GEO_NODE_STRING_TO_CURVES_MODE_TRUNCATE);
 
   bNodeSocket *height_socket = static_cast<bNodeSocket *>(node->inputs.last);
-  nodeSetSocketAvailability(
+  bke::nodeSetSocketAvailability(
       ntree, height_socket, overflow != GEO_NODE_STRING_TO_CURVES_MODE_OVERFLOW);
 }
 
@@ -342,19 +330,17 @@ static void create_attributes(GeoNodeExecParams &params,
 {
   MutableAttributeAccessor attributes = instances.attributes_for_write();
 
-  if (AutoAnonymousAttributeID line_id = params.get_output_anonymous_attribute_id_if_needed(
-          "Line")) {
+  if (AnonymousAttributeIDPtr line_id = params.get_output_anonymous_attribute_id_if_needed("Line"))
+  {
     SpanAttributeWriter<int> line_attribute = attributes.lookup_or_add_for_write_only_span<int>(
         *line_id, ATTR_DOMAIN_INSTANCE);
     line_attribute.span.copy_from(layout.line_numbers);
     line_attribute.finish();
-    params.set_output("Line",
-                      AnonymousAttributeFieldInput::Create<int>(std::move(line_id),
-                                                                params.attribute_producer_name()));
   }
 
-  if (AutoAnonymousAttributeID pivot_id = params.get_output_anonymous_attribute_id_if_needed(
-          "Pivot Point")) {
+  if (AnonymousAttributeIDPtr pivot_id = params.get_output_anonymous_attribute_id_if_needed(
+          "Pivot Point"))
+  {
     SpanAttributeWriter<float3> pivot_attribute =
         attributes.lookup_or_add_for_write_only_span<float3>(*pivot_id, ATTR_DOMAIN_INSTANCE);
 
@@ -363,9 +349,6 @@ static void create_attributes(GeoNodeExecParams &params,
     }
 
     pivot_attribute.finish();
-    params.set_output("Pivot Point",
-                      AnonymousAttributeFieldInput::Create<float3>(
-                          std::move(pivot_id), params.attribute_producer_name()));
   }
 }
 
@@ -411,7 +394,7 @@ void register_node_type_geo_string_to_curves()
   ntype.geometry_node_execute = file_ns::node_geo_exec;
   ntype.initfunc = file_ns::node_init;
   ntype.updatefunc = file_ns::node_update;
-  node_type_size(&ntype, 190, 120, 700);
+  blender::bke::node_type_size(&ntype, 190, 120, 700);
   node_type_storage(&ntype,
                     "NodeGeometryStringToCurves",
                     node_free_standard_storage,

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2004 Blender Foundation. All rights reserved. */
+ * Copyright 2004 Blender Foundation */
 
 /** \file
  * \ingroup edmesh
@@ -686,8 +686,8 @@ static int bm_uv_edge_select_build_islands(UvElementMap *element_map,
 
         /* Scan forwards around the BMFace that contains element->l. */
         if (!uv_selected || uvedit_edge_select_test(scene, element->l, offsets)) {
-          UvElement *next = BM_uv_element_get(element_map, element->l->next->f, element->l->next);
-          if (next->island == INVALID_ISLAND) {
+          UvElement *next = BM_uv_element_get(element_map, element->l->next);
+          if (next && next->island == INVALID_ISLAND) {
             UvElement *tail = element_map->head_table[next - element_map->storage];
             stack_uv[stacksize_uv++] = tail;
             while (tail) {
@@ -702,8 +702,8 @@ static int bm_uv_edge_select_build_islands(UvElementMap *element_map,
 
         /* Scan backwards around the BMFace that contains element->l. */
         if (!uv_selected || uvedit_edge_select_test(scene, element->l->prev, offsets)) {
-          UvElement *prev = BM_uv_element_get(element_map, element->l->prev->f, element->l->prev);
-          if (prev->island == INVALID_ISLAND) {
+          UvElement *prev = BM_uv_element_get(element_map, element->l->prev);
+          if (prev && prev->island == INVALID_ISLAND) {
             UvElement *tail = element_map->head_table[prev - element_map->storage];
             stack_uv[stacksize_uv++] = tail;
             while (tail) {
@@ -913,7 +913,8 @@ static bool seam_connected_recursive(BMEdge *edge,
 
       const float *luv_far = BM_ELEM_CD_GET_FLOAT_P(loop->prev, cd_loop_uv_offset);
       if (seam_connected_recursive(
-              loop->prev->e, luv_anchor, luv_far, needle, visited, cd_loop_uv_offset)) {
+              loop->prev->e, luv_anchor, luv_far, needle, visited, cd_loop_uv_offset))
+      {
         return true;
       }
     }
@@ -929,7 +930,8 @@ static bool seam_connected_recursive(BMEdge *edge,
 
       const float *luv_far = BM_ELEM_CD_GET_FLOAT_P(loop->next->next, cd_loop_uv_offset);
       if (seam_connected_recursive(
-              loop->next->e, luv_anchor, luv_far, needle, visited, cd_loop_uv_offset)) {
+              loop->next->e, luv_anchor, luv_far, needle, visited, cd_loop_uv_offset))
+      {
         return true;
       }
     }
@@ -1184,11 +1186,11 @@ void BM_uv_element_map_free(UvElementMap *element_map)
   }
 }
 
-UvElement *BM_uv_element_get(const UvElementMap *element_map, const BMFace *efa, const BMLoop *l)
+UvElement *BM_uv_element_get(const UvElementMap *element_map, const BMLoop *l)
 {
   UvElement *element = element_map->vertex[BM_elem_index_get(l->v)];
   while (element) {
-    if (element->l->f == efa) {
+    if (element->l == l) {
       return element;
     }
     element = element->next;
@@ -1429,7 +1431,8 @@ BMEdge *EDBM_verts_mirror_get_edge(BMEditMesh *em, BMEdge *e)
   if ((v1_mirr = EDBM_verts_mirror_get(em, e->v1)) &&
       (v2_mirr = EDBM_verts_mirror_get(em, e->v2)) &&
       /* While highly unlikely, a zero length central edges vertices can match, see #89342. */
-      LIKELY(v1_mirr != v2_mirr)) {
+      LIKELY(v1_mirr != v2_mirr))
+  {
     return BM_edge_exists(v1_mirr, v2_mirr);
   }
 
@@ -1957,7 +1960,8 @@ void EDBM_project_snap_verts(
                                                     NULL,
                                                     NULL,
                                                     co_proj,
-                                                    NULL)) {
+                                                    NULL))
+        {
           mul_v3_m4v3(eve->co, obedit->world_to_object, co_proj);
         }
       }

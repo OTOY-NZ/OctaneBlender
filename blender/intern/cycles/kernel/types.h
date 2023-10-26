@@ -3,9 +3,15 @@
 
 #pragma once
 
-#if !defined(__KERNEL_GPU__) && defined(WITH_EMBREE)
-#  include <embree3/rtcore.h>
-#  include <embree3/rtcore_scene.h>
+#if (!defined(__KERNEL_GPU__) || (defined(__KERNEL_ONEAPI__) && defined(WITH_EMBREE_GPU))) && \
+    defined(WITH_EMBREE)
+#  if EMBREE_MAJOR_VERSION == 4
+#    include <embree4/rtcore.h>
+#    include <embree4/rtcore_scene.h>
+#  else
+#    include <embree3/rtcore.h>
+#    include <embree3/rtcore_scene.h>
+#  endif
 #  define __EMBREE__
 #endif
 
@@ -73,12 +79,6 @@ CCL_NAMESPACE_BEGIN
 #define __VISIBILITY_FLAG__
 #define __VOLUME__
 
-/* TODO: solve internal compiler errors and enable light tree on HIP. */
-/* TODO: solve internal compiler perf issue and enable light tree on Metal/AMD. */
-#if defined(__KERNEL_HIP__) || defined(__KERNEL_METAL_AMD__)
-#  undef __LIGHT_TREE__
-#endif
-
 /* Device specific features */
 #ifdef WITH_OSL
 #  define __OSL__
@@ -98,6 +98,13 @@ CCL_NAMESPACE_BEGIN
  * in spill buffer allocation sizing. */
 #if !defined(__KERNEL_METAL__) || (__KERNEL_METAL_MACOS__ >= 13)
 #  define __MNEE__
+#endif
+
+#if defined(__KERNEL_METAL_AMD__)
+/* Disabled due to internal compiler perf issue and enable light tree on Metal/AMD. */
+#  undef __LIGHT_TREE__
+/* Disabled due to compiler crash on Metal/AMD. */
+#  undef __MNEE__
 #endif
 
 /* Scene-based selective features compilation. */
@@ -829,7 +836,7 @@ enum ShaderDataFlag {
   SD_NEED_VOLUME_ATTRIBUTES = (1 << 28),
   /* Shader has emission */
   SD_HAS_EMISSION = (1 << 29),
-  /* Shader has raytracing */
+  /* Shader has ray-tracing. */
   SD_HAS_RAYTRACE = (1 << 30),
   /* Use back side for direct light sampling. */
   SD_MIS_BACK = (1 << 31),
@@ -1164,10 +1171,19 @@ typedef enum KernelBVHLayout {
   BVH_LAYOUT_METAL = (1 << 5),
   BVH_LAYOUT_MULTI_METAL = (1 << 6),
   BVH_LAYOUT_MULTI_METAL_EMBREE = (1 << 7),
+  BVH_LAYOUT_HIPRT = (1 << 8),
+  BVH_LAYOUT_MULTI_HIPRT = (1 << 9),
+  BVH_LAYOUT_MULTI_HIPRT_EMBREE = (1 << 10),
+  BVH_LAYOUT_EMBREEGPU = (1 << 11),
+  BVH_LAYOUT_MULTI_EMBREEGPU = (1 << 12),
+  BVH_LAYOUT_MULTI_EMBREEGPU_EMBREE = (1 << 13),
 
   /* Default BVH layout to use for CPU. */
   BVH_LAYOUT_AUTO = BVH_LAYOUT_EMBREE,
-  BVH_LAYOUT_ALL = BVH_LAYOUT_BVH2 | BVH_LAYOUT_EMBREE | BVH_LAYOUT_OPTIX | BVH_LAYOUT_METAL,
+  BVH_LAYOUT_ALL = BVH_LAYOUT_BVH2 | BVH_LAYOUT_EMBREE | BVH_LAYOUT_OPTIX | BVH_LAYOUT_METAL |
+                   BVH_LAYOUT_HIPRT | BVH_LAYOUT_MULTI_HIPRT | BVH_LAYOUT_MULTI_HIPRT_EMBREE |
+                   BVH_LAYOUT_EMBREEGPU | BVH_LAYOUT_MULTI_EMBREEGPU |
+                   BVH_LAYOUT_MULTI_EMBREEGPU_EMBREE,
 } KernelBVHLayout;
 
 /* Specialized struct that can become constants in dynamic compilation. */
@@ -1220,6 +1236,8 @@ typedef struct KernelData {
   OptixTraversableHandle device_bvh;
 #elif defined __METALRT__
   metalrt_as_type device_bvh;
+#elif defined(__HIPRT__)
+  void *device_bvh;
 #else
 #  ifdef __EMBREE__
   RTCScene device_bvh;
@@ -1365,6 +1383,13 @@ using BoundingCone = struct BoundingCone {
   float theta_e;
 };
 
+enum LightTreeNodeType : uint8_t {
+  LIGHT_TREE_INSTANCE = (1 << 0),
+  LIGHT_TREE_INNER = (1 << 1),
+  LIGHT_TREE_LEAF = (1 << 2),
+  LIGHT_TREE_DISTANT = (1 << 3),
+};
+
 typedef struct KernelLightTreeNode {
   /* Bounding box. */
   BoundingBox bbox;
@@ -1375,17 +1400,25 @@ typedef struct KernelLightTreeNode {
   /* Energy. */
   float energy;
 
-  /* If this is 0 or less, we're at a leaf node
-   * and the negative value indexes into the first child of the light array.
-   * Otherwise, it's an index to the node's second child. */
-  int child_index;
-  int num_prims; /* leaf nodes need to know the number of primitives stored. */
+  LightTreeNodeType type;
+
+  /* Leaf nodes need to know the number of emitters stored. */
+  int num_emitters;
+
+  union {
+    struct {
+      int first_emitter; /* The index of the first emitter. */
+    } leaf;
+    struct {
+      int right_child; /* The index of the right child. */
+    } inner;
+    struct {
+      int reference; /* A reference to the node with the subtree. */
+    } instance;
+  };
 
   /* Bit trail. */
   uint bit_trail;
-
-  /* Padding. */
-  int pad;
 } KernelLightTreeNode;
 static_assert_align(KernelLightTreeNode, 16);
 
@@ -1397,13 +1430,26 @@ typedef struct KernelLightTreeEmitter {
   /* Energy. */
   float energy;
 
-  /* prim_id denotes the location in the lights or triangles array. */
-  int prim;
-  MeshLight mesh_light;
-  EmissionSampling emission_sampling;
+  union {
+    struct {
+      int id; /* The location in the triangles array. */
+      EmissionSampling emission_sampling;
+    } triangle;
 
-  /* Parent. */
-  int parent_index;
+    struct {
+      int id; /* The location in the lights array. */
+    } light;
+
+    struct {
+      int object_id;
+      int node_id;
+    } mesh;
+  };
+
+  MeshLight mesh_light;
+
+  /* Bit trail from root node to leaf node containing emitter. */
+  int bit_trail;
 } KernelLightTreeEmitter;
 static_assert_align(KernelLightTreeEmitter, 16);
 
@@ -1646,8 +1692,8 @@ enum KernelFeatureFlag : uint32_t {
 
 /* Must be constexpr on the CPU to avoid compile errors because the state types
  * are different depending on the main, shadow or null path. For GPU we don't have
- * C++17 everywhere so can't use it. */
-#ifdef __KERNEL_GPU__
+ * C++17 everywhere so need to check it. */
+#if __cplusplus < 201703L
 #  define IF_KERNEL_FEATURE(feature) if ((node_feature_mask & (KERNEL_FEATURE_##feature)) != 0U)
 #  define IF_KERNEL_NODES_FEATURE(feature) \
     if ((node_feature_mask & (KERNEL_FEATURE_NODE_##feature)) != 0U)

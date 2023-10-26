@@ -12,10 +12,10 @@ namespace blender::nodes::node_geo_edge_paths_to_curves_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>(N_("Mesh")).supported_type(GEO_COMPONENT_TYPE_MESH);
-  b.add_input<decl::Bool>(N_("Start Vertices")).default_value(true).hide_value().field_on_all();
-  b.add_input<decl::Int>(N_("Next Vertex Index")).default_value(-1).hide_value().field_on_all();
-  b.add_output<decl::Geometry>(N_("Curves")).propagate_all();
+  b.add_input<decl::Geometry>("Mesh").supported_type(GEO_COMPONENT_TYPE_MESH);
+  b.add_input<decl::Bool>("Start Vertices").default_value(true).hide_value().field_on_all();
+  b.add_input<decl::Int>("Next Vertex Index").default_value(-1).hide_value().field_on_all();
+  b.add_output<decl::Geometry>("Curves").propagate_all();
 }
 
 static Curves *edge_paths_to_curves_convert(
@@ -61,7 +61,7 @@ static Curves *edge_paths_to_curves_convert(
     return nullptr;
   }
   Curves *curves_id = bke::curves_new_nomain(geometry::create_curve_from_vert_indices(
-      mesh, vert_indices, curve_offsets, IndexRange(0), propagation_info));
+      mesh.attributes(), vert_indices, curve_offsets, IndexRange(0), propagation_info));
   return curves_id;
 }
 
@@ -76,7 +76,7 @@ static void node_geo_exec(GeoNodeExecParams params)
       return;
     }
 
-    bke::MeshFieldContext context{*mesh, ATTR_DOMAIN_POINT};
+    const bke::MeshFieldContext context{*mesh, ATTR_DOMAIN_POINT};
     fn::FieldEvaluator evaluator{context, mesh->totvert};
     evaluator.add(params.get_input<Field<int>>("Next Vertex Index"));
     evaluator.add(params.get_input<Field<bool>>("Start Vertices"));

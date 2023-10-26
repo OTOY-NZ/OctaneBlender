@@ -41,13 +41,26 @@ endif()
 # HIP
 ###########################################################################
 
-if(WITH_CYCLES_HIP_BINARIES AND WITH_CYCLES_DEVICE_HIP)
-  find_package(HIP)
-  set_and_warn_library_found("HIP compiler" HIP_FOUND WITH_CYCLES_HIP_BINARIES)
+if(WITH_CYCLES_DEVICE_HIP)
+  if(WITH_CYCLES_HIP_BINARIES)
+    # Need at least HIP 5.5 to solve compiler bug affecting the kernel.
+    find_package(HIP 5.5.0)
+    set_and_warn_library_found("HIP compiler" HIP_FOUND WITH_CYCLES_HIP_BINARIES)
 
-  if(HIP_FOUND)
-    message(STATUS "Found HIP ${HIP_HIPCC_EXECUTABLE} (${HIP_VERSION})")
+    if(HIP_FOUND)
+      message(STATUS "Found HIP ${HIP_HIPCC_EXECUTABLE} (${HIP_VERSION})")
+    endif()
   endif()
+
+  # HIP RT
+  if(WITH_CYCLES_DEVICE_HIP AND WITH_CYCLES_DEVICE_HIPRT)
+    find_package(HIPRT)
+    set_and_warn_library_found("HIP RT" HIPRT_FOUND WITH_CYCLES_DEVICE_HIPRT)
+  endif()
+endif()
+
+if(NOT WITH_CYCLES_DEVICE_HIP)
+  set(WITH_CYCLES_DEVICE_HIPRT OFF)
 endif()
 
 if(NOT WITH_HIP_DYNLOAD)
@@ -81,7 +94,7 @@ endif()
 # oneAPI
 ###########################################################################
 
-if(WITH_CYCLES_DEVICE_ONEAPI)
+if(WITH_CYCLES_DEVICE_ONEAPI OR EMBREE_SYCL_SUPPORT)
   find_package(SYCL)
   find_package(LevelZero)
   set_and_warn_library_found("oneAPI" SYCL_FOUND WITH_CYCLES_DEVICE_ONEAPI)
@@ -89,23 +102,23 @@ if(WITH_CYCLES_DEVICE_ONEAPI)
 
   if(SYCL_FOUND AND SYCL_VERSION VERSION_GREATER_EQUAL 6.0 AND LEVEL_ZERO_FOUND)
     message(STATUS "Found Level Zero: ${LEVEL_ZERO_LIBRARY}")
-
-    if(WITH_CYCLES_ONEAPI_BINARIES)
-      if(NOT OCLOC_INSTALL_DIR)
-        get_filename_component(_sycl_compiler_root ${SYCL_COMPILER} DIRECTORY)
-        get_filename_component(OCLOC_INSTALL_DIR "${_sycl_compiler_root}/../lib/ocloc" ABSOLUTE)
-        unset(_sycl_compiler_root)
-      endif()
-
-      if(NOT EXISTS ${OCLOC_INSTALL_DIR})
-        set(OCLOC_FOUND OFF)
-        message(STATUS "oneAPI ocloc not found in ${OCLOC_INSTALL_DIR}."
-                       " A different ocloc directory can be set using OCLOC_INSTALL_DIR cmake variable.")
-        set_and_warn_library_found("ocloc" OCLOC_FOUND WITH_CYCLES_ONEAPI_BINARIES)
-      endif()
-    endif()
   else()
     message(STATUS "SYCL 6.0+ or Level Zero not found, disabling WITH_CYCLES_DEVICE_ONEAPI")
     set(WITH_CYCLES_DEVICE_ONEAPI OFF)
+  endif()
+endif()
+
+if(WITH_CYCLES_DEVICE_ONEAPI AND WITH_CYCLES_ONEAPI_BINARIES)
+  if(NOT OCLOC_INSTALL_DIR)
+    get_filename_component(_sycl_compiler_root ${SYCL_COMPILER} DIRECTORY)
+    get_filename_component(OCLOC_INSTALL_DIR "${_sycl_compiler_root}/../lib/ocloc" ABSOLUTE)
+    unset(_sycl_compiler_root)
+  endif()
+
+  if(NOT EXISTS ${OCLOC_INSTALL_DIR})
+    set(OCLOC_FOUND OFF)
+    message(STATUS "oneAPI ocloc not found in ${OCLOC_INSTALL_DIR}."
+                   " A different ocloc directory can be set using OCLOC_INSTALL_DIR cmake variable.")
+    set_and_warn_library_found("ocloc" OCLOC_FOUND WITH_CYCLES_ONEAPI_BINARIES)
   endif()
 endif()

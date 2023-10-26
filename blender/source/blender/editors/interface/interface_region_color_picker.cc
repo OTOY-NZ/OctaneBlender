@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2008 Blender Foundation. All rights reserved. */
+ * Copyright 2008 Blender Foundation */
 
 /** \file
  * \ingroup edinterface
@@ -213,7 +213,7 @@ static void ui_update_color_picker_buts_rgb(uiBut *from_but,
       }
 
       rgb_float_to_uchar(rgb_hex_uchar, rgb_hex);
-      BLI_snprintf(col, sizeof(col), "%02X%02X%02X", UNPACK3_EX((uint), rgb_hex_uchar, ));
+      SNPRINTF(col, "%02X%02X%02X", UNPACK3_EX((uint), rgb_hex_uchar, ));
 
       strcpy(bt->poin, col);
     }
@@ -321,7 +321,8 @@ static void ui_colorpicker_hide_reveal(uiBlock *block, ePickerType colormode)
   /* tag buttons */
   LISTBASE_FOREACH (uiBut *, bt, &block->buttons) {
     if ((bt->func == ui_colorpicker_rgba_update_cb) && (bt->type == UI_BTYPE_NUM_SLIDER) &&
-        (bt->rnaindex != 3)) {
+        (bt->rnaindex != 3))
+    {
       /* RGB sliders (color circle and alpha are always shown) */
       SET_FLAG_FROM_TEST(bt->flag, (colormode != PICKER_TYPE_RGB), UI_HIDDEN);
     }
@@ -782,7 +783,7 @@ static void ui_block_colorpicker(uiBlock *block,
   }
 
   rgb_float_to_uchar(rgb_hex_uchar, rgb_hex);
-  BLI_snprintf(hexcol, sizeof(hexcol), "%02X%02X%02X", UNPACK3_EX((uint), rgb_hex_uchar, ));
+  SNPRINTF(hexcol, "%02X%02X%02X", UNPACK3_EX((uint), rgb_hex_uchar, ));
 
   yco = -3.0f * UI_UNIT_Y;
   bt = uiDefBut(block,
@@ -868,7 +869,6 @@ uiBlock *ui_block_func_COLOR(bContext *C, uiPopupBlockHandle *handle, void *arg_
 {
   uiBut *but = static_cast<uiBut *>(arg_but);
   uiBlock *block;
-  bool show_picker = true;
 
   block = UI_block_begin(C, handle->region, __func__, UI_EMBOSS);
 
@@ -876,17 +876,9 @@ uiBlock *ui_block_func_COLOR(bContext *C, uiPopupBlockHandle *handle, void *arg_
     block->is_color_gamma_picker = true;
   }
 
-  if (but->block) {
-    /* if color block is invoked from a popup we wouldn't be able to set color properly
-     * this is because color picker will close popups first and then will try to figure
-     * out active button RNA, and of course it'll fail
-     */
-    show_picker = (but->block->flag & UI_BLOCK_POPUP) == 0;
-  }
-
   copy_v3_v3(handle->retvec, but->editvec);
 
-  ui_block_colorpicker(block, but, handle->retvec, show_picker);
+  ui_block_colorpicker(block, but, handle->retvec, true);
 
   block->flag = UI_BLOCK_LOOP | UI_BLOCK_KEEP_OPEN | UI_BLOCK_OUT_1 | UI_BLOCK_MOVEMOUSE_QUIT;
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);

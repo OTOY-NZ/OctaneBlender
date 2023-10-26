@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_mesh.h"
+#include "BKE_mesh.hh"
 #include "BKE_mesh_mapping.h"
 
 #include "BLI_atomic_disjoint_set.hh"
@@ -15,10 +15,10 @@ static void node_declare(NodeDeclarationBuilder &b)
       .default_value(true)
       .hide_value()
       .supports_field()
-      .description(N_("Edges used to split faces into separate groups"));
+      .description("Edges used to split faces into separate groups");
   b.add_output<decl::Int>("Face Group ID")
       .dependent_field()
-      .description(N_("Index of the face group inside each boundary edge region"));
+      .description("Index of the face group inside each boundary edge region");
 }
 
 /** Join all unique unordered combinations of indices. */
@@ -52,11 +52,10 @@ class FaceSetFromBoundariesInput final : public bke::MeshFieldInput {
     evaluator.evaluate();
     const IndexMask non_boundary_edges = evaluator.get_evaluated_as_mask(0);
 
-    const Span<MPoly> polys = mesh.polys();
-    const Span<MLoop> loops = mesh.loops();
+    const OffsetIndices polys = mesh.polys();
 
     const Array<Vector<int, 2>> edge_to_face_map = bke::mesh_topology::build_edge_to_poly_map(
-        polys, loops, mesh.totedge);
+        polys, mesh.corner_edges(), mesh.totedge);
 
     AtomicDisjointSet islands(polys.size());
     for (const int edge : non_boundary_edges) {

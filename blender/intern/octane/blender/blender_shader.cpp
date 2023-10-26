@@ -761,7 +761,8 @@ static void generateRampNode(OctaneDataTransferObject::OctaneBaseRampNode *cur_n
     ramp = BL::ColorRamp(b_tex_node.color_ramp());
     BL::Node::inputs_iterator b_input;
     for (b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
-      if (b_input->name() == "Interpolation") {
+      std::string input_name = b_input->name();
+      if (input_name == "Interpolation" || input_name == "Interpolation type") {
         ((DT *)cur_node)->iInterpolationType = get_enum(b_input->ptr, "default_value");
         break;
       }
@@ -1229,6 +1230,46 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
     if (bl_idname == "OctaneVertexDisplacement") {
       graph->need_subdivision = true;
     }
+    if (bl_idname == "OctaneVolumetricSpotlight") {
+      ::OctaneDataTransferObject::OctaneCustomNode *octane_node =
+          (::OctaneDataTransferObject::OctaneCustomNode *)(node->oct_node);
+      bool is_automatic = (get_enum_identifier(b_node.ptr, "source_type") == "Automatic");
+      if (is_automatic) {
+        float distance = 0.f;
+        float spot_size = 0.f;
+        BL::Node::inputs_iterator b_input;
+        for (b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
+          std::string socket_name = b_input->name();
+          if (socket_name == "Throw distance") {
+            distance = get_float(b_input->ptr, "default_value");
+          }
+        }
+        BL::BlendData::lights_iterator light_iter;
+        for (b_data.lights.begin(light_iter); light_iter != b_data.lights.end(); ++light_iter) {
+          BL::Light b_light(*light_iter);
+          if (b_light.type() == BL::Light::type_SPOT && b_light.node_tree().ptr.data != NULL) {
+            BL::ID light_node_tree_original = b_light.node_tree().original();
+            BL::ID current_node_tree_original = b_ntree.original();
+            if (light_node_tree_original == current_node_tree_original) {
+              BL::SpotLight b_spotlight(*light_iter);
+              spot_size = b_spotlight.spot_size();
+              break;
+            }
+          }
+        }
+        for (auto &floatSocket : octane_node->oFloatSockets) {
+          if (floatSocket.sName == "Cone width") {
+            try {
+              floatSocket.fVal = std::max(0.0, std::tan(spot_size / 2.0) * distance);
+            }
+            catch (...) {
+              floatSocket.fVal = 0.f;
+            }
+            break;
+          }
+        }
+      }
+    }
   }
   else if (b_node.is_a(&RNA_ShaderNodeOctObjectData) || bl_idname == "OctaneObjectData") {
     int source_type = RNA_enum_get(&b_node.ptr, "source_type");
@@ -1403,7 +1444,7 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
     BL::Node::outputs_iterator b_output;
     OctaneDataTransferObject::OctaneCameraData *camera_node =
         (OctaneDataTransferObject::OctaneCameraData *)node->oct_node;
-    std::string orbx_path = "libraries/orbx/CameraData.orbx";
+    std::string orbx_path = "./libraries/orbx/CameraData.orbx";
     camera_node->sCameraDataOrbxPath = blender_absolute_path(b_data, b_ntree, path_get(orbx_path));
     camera_node->bEnvironmentProjection = graph->type == SHADER_GRAPH_ENVIRONMENT;
     for (b_node.outputs.begin(b_output); b_output != b_node.outputs.end(); ++b_output) {
@@ -2908,16 +2949,20 @@ void BlenderSync::sync_kernel_node_tree(BL::Depsgraph &b_depsgraph, bool update_
           list<ShaderNode *>::iterator it;
           for (it = graph->nodes.begin(); it != graph->nodes.end(); ++it) {
             ShaderNode *node = *it;
-            if (node->oct_node && node->oct_node->sName == OCTANE_BLENDER_KERNEL_NODE) {
-              ::OctaneDataTransferObject::OctaneCustomNode *kernel_shader_node =
+            if (node->oct_node && node->oct_node->pluginType == "OctaneCustomNode") {
+              ::OctaneDataTransferObject::OctaneCustomNode *custom_node =
                   (::OctaneDataTransferObject::OctaneCustomNode *)node->oct_node;
-              ::OctaneDataTransferObject::OctaneDTOInt *dto_final_sample = NULL;
-              for (size_t i = 0; i < kernel_shader_node->oIntSockets.size(); ++i) {
-                ::OctaneDataTransferObject::OctaneDTOInt *int_dto =
-                    &kernel_shader_node->oIntSockets[i];
-                if (int_dto->sName == "Max. samples") {
-                  int_dto->iVal = oct_kernel_node->iMaxSamples;
-                  break;
+              if (custom_node->iOctaneNodeType == Octane::NT_KERN_DIRECTLIGHTING ||
+                  custom_node->iOctaneNodeType == Octane::NT_KERN_PMC ||
+                  custom_node->iOctaneNodeType == Octane::NT_KERN_PATHTRACING ||
+                  custom_node->iOctaneNodeType == Octane::NT_KERN_INFO ||
+                  custom_node->iOctaneNodeType == Octane::NT_KERN_PHOTONTRACING) {
+                for (size_t i = 0; i < custom_node->oIntSockets.size(); ++i) {
+                  ::OctaneDataTransferObject::OctaneDTOInt *int_dto = &custom_node->oIntSockets[i];
+                  if (int_dto->sName == "Max. samples") {
+                    int_dto->iVal = oct_kernel_node->iMaxSamples;
+                    break;
+                  }
                 }
               }
             }

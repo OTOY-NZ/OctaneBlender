@@ -735,7 +735,7 @@ typedef enum StructFlag {
   STRUCT_NO_CONTEXT_WITHOUT_OWNER_ID = (1 << 11),
 } StructFlag;
 
-typedef int (*StructValidateFunc)(struct PointerRNA *ptr, void *data, int *have_function);
+typedef int (*StructValidateFunc)(struct PointerRNA *ptr, void *data, bool *have_function);
 typedef int (*StructCallbackFunc)(struct bContext *C,
                                   struct PointerRNA *ptr,
                                   struct FunctionRNA *func,
@@ -773,6 +773,24 @@ typedef struct ExtensionRNA {
   StructCallbackFunc call;
   StructFreeFunc free;
 } ExtensionRNA;
+
+/* Primitive types. */
+
+typedef struct PrimitiveStringRNA {
+  const char *value;
+} PrimitiveStringRNA;
+
+typedef struct PrimitiveIntRNA {
+  int value;
+} PrimitiveIntRNA;
+
+typedef struct PrimitiveFloatRNA {
+  float value;
+} PrimitiveFloatRNA;
+
+typedef struct PrimitiveBooleanRNA {
+  bool value;
+} PrimitiveBooleanRNA;
 
 #ifdef __cplusplus
 }

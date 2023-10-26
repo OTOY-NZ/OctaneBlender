@@ -3,7 +3,7 @@ import math
 import mathutils
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
-from octane.utils import utility, consts
+from octane.utils import utility, consts, octane_name
 from octane.nodes.base_node import OctaneBaseNode
 from octane.nodes.base_osl import OctaneScriptNode
 from octane.nodes.base_image import OctaneBaseImageNode
@@ -99,7 +99,7 @@ class OctaneObjectData(bpy.types.Node, OctaneBaseNode):
         if object_eval is not None:            
             scene_eval = depsgraph.scene_eval
             is_viewport = depsgraph.mode == "VIEWPORT"
-            octane_geometry_name = utility.resolve_octane_geometry_name(object_eval, scene_eval, is_viewport)
+            octane_geometry_name = octane_name.resolve_object_data_octane_name(object_eval, scene_eval, is_viewport)
             if need_transform:
                 # Transform node
                 transform_node_name = placement_node_name + "_Transform"

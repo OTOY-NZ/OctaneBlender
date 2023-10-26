@@ -270,8 +270,22 @@ bool Session::draw(BufferParams &buffer_params, DeviceDrawParams &draw_params)
     if (scene && scene->passes) {
       ::Octane::RenderPassId cur_pass_type = static_cast<Octane::RenderPassId>(
           (int)scene->passes->oct_node->iPreviewPass);
-      if (cur_pass_type == Octane::RENDER_PASS_Z_DEPTH) {
-        use_shared_surface = false;
+      switch (cur_pass_type) {
+        case Octane::RENDER_PASS_Z_DEPTH:
+        case Octane::RENDER_PASS_CRYPTOMATTE_MATERIAL_NODE_NAME:
+        case Octane::RENDER_PASS_CRYPTOMATTE_MATERIAL_NODE:
+        case Octane::RENDER_PASS_CRYPTOMATTE_MATERIAL_PIN_NAME:
+        case Octane::RENDER_PASS_CRYPTOMATTE_OBJECT_NODE_NAME:
+        case Octane::RENDER_PASS_CRYPTOMATTE_OBJECT_NODE:
+        case Octane::RENDER_PASS_CRYPTOMATTE_OBJECT_PIN_NAME:
+        case Octane::RENDER_PASS_CRYPTOMATTE_RENDER_LAYER:
+        case Octane::RENDER_PASS_CRYPTOMATTE_INSTANCE:
+        case Octane::RENDER_PASS_CRYPTOMATTE_GEOMETRY_NODE_NAME:
+        case Octane::RENDER_PASS_CRYPTOMATTE_USER_INSTANCE_ID:
+          use_shared_surface = false;
+          break;
+        default:
+          break;
       }
     }
     display->draw(draw_params, use_shared_surface);

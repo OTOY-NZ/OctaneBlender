@@ -26,9 +26,7 @@ class BaseTextureMethod {
   IMAGE_InstanceData *instance_data;
 
  protected:
-  BaseTextureMethod(IMAGE_InstanceData *instance_data) : instance_data(instance_data)
-  {
-  }
+  BaseTextureMethod(IMAGE_InstanceData *instance_data) : instance_data(instance_data) {}
 
  public:
   /**
@@ -50,9 +48,7 @@ class BaseTextureMethod {
  */
 class OneTexture : public BaseTextureMethod {
  public:
-  OneTexture(IMAGE_InstanceData *instance_data) : BaseTextureMethod(instance_data)
-  {
-  }
+  OneTexture(IMAGE_InstanceData *instance_data) : BaseTextureMethod(instance_data) {}
   void ensure_texture_infos() override
   {
     instance_data->texture_infos.resize(1);
@@ -120,9 +116,7 @@ template<size_t Divisions> class ScreenTileTextures : public BaseTextureMethod {
   };
 
  public:
-  ScreenTileTextures(IMAGE_InstanceData *instance_data) : BaseTextureMethod(instance_data)
-  {
-  }
+  ScreenTileTextures(IMAGE_InstanceData *instance_data) : BaseTextureMethod(instance_data) {}
 
   /**
    * \brief Ensure enough texture infos are allocated in `instance_data`.
@@ -214,7 +208,8 @@ template<size_t Divisions> class ScreenTileTextures : public BaseTextureMethod {
       bool assigned = false;
       for (TextureInfoBounds &info_bound : info_bounds) {
         if (info_bound.info == nullptr &&
-            BLI_rctf_compare(&info_bound.uv_bounds, &info.clipping_uv_bounds, 0.001)) {
+            BLI_rctf_compare(&info_bound.uv_bounds, &info.clipping_uv_bounds, 0.001))
+        {
           info_bound.info = &info;
           info.tile_id = info_bound.tile_id;
           assigned = true;
@@ -302,7 +297,8 @@ template<typename TextureMethod> class ScreenSpaceDrawingMode : public AbstractD
     for (const TextureInfo &info : instance_data->texture_infos) {
       DRWShadingGroup *shgrp_sub = DRW_shgroup_create_sub(shgrp);
       DRW_shgroup_uniform_ivec2_copy(shgrp_sub, "offset", info.offset());
-      DRW_shgroup_uniform_texture_ex(shgrp_sub, "imageTexture", info.texture, GPU_SAMPLER_DEFAULT);
+      DRW_shgroup_uniform_texture_ex(
+          shgrp_sub, "imageTexture", info.texture, GPUSamplerState::default_sampler());
       DRW_shgroup_call_obmat(shgrp_sub, info.batch, image_mat);
     }
   }
@@ -495,8 +491,8 @@ template<typename TextureMethod> class ScreenSpaceDrawingMode : public AbstractD
             &extracted_buffer, texture_region_width, texture_region_height, 32, IB_rectfloat);
 
         int offset = 0;
-        for (int y = gpu_texture_region_to_update.ymin; y < gpu_texture_region_to_update.ymax;
-             y++) {
+        for (int y = gpu_texture_region_to_update.ymin; y < gpu_texture_region_to_update.ymax; y++)
+        {
           float yf = y / (float)texture_height;
           float v = info.clipping_uv_bounds.ymax * yf + info.clipping_uv_bounds.ymin * (1.0 - yf) -
                     tile_offset_y;

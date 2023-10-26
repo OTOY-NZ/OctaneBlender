@@ -67,6 +67,15 @@ const AssetIdentifier &AssetRepresentation::get_identifier() const
   return identifier_;
 }
 
+std::unique_ptr<AssetWeakReference> AssetRepresentation::make_weak_reference() const
+{
+  if (!owner_asset_library_) {
+    return nullptr;
+  }
+
+  return AssetWeakReference::make_reference(*owner_asset_library_, identifier_);
+}
+
 StringRefNull AssetRepresentation::get_name() const
 {
   if (is_local_id_) {
@@ -95,6 +104,14 @@ bool AssetRepresentation::may_override_import_method() const
     return true;
   }
   return owner_asset_library_->may_override_import_method_;
+}
+
+bool AssetRepresentation::get_use_relative_path() const
+{
+  if (!owner_asset_library_) {
+    return false;
+  }
+  return owner_asset_library_->use_relative_path_;
 }
 
 ID *AssetRepresentation::local_id() const
@@ -146,6 +163,13 @@ bool AS_asset_representation_may_override_import_method(const AssetRepresentatio
   return asset->may_override_import_method();
 }
 
+bool AS_asset_representation_use_relative_path_get(const AssetRepresentation *asset_handle)
+{
+  const asset_system::AssetRepresentation *asset =
+      reinterpret_cast<const asset_system::AssetRepresentation *>(asset_handle);
+  return asset->get_use_relative_path();
+}
+
 /* ---------------------------------------------------------------------- */
 /** \name C-API
  * \{ */
@@ -176,6 +200,15 @@ bool AS_asset_representation_is_local_id(const AssetRepresentation *asset_handle
   const asset_system::AssetRepresentation *asset =
       reinterpret_cast<const asset_system::AssetRepresentation *>(asset_handle);
   return asset->is_local_id();
+}
+
+AssetWeakReference *AS_asset_representation_weak_reference_create(
+    const AssetRepresentation *asset_handle)
+{
+  const asset_system::AssetRepresentation *asset =
+      reinterpret_cast<const asset_system::AssetRepresentation *>(asset_handle);
+  std::unique_ptr<AssetWeakReference> weak_ref = asset->make_weak_reference();
+  return MEM_new<AssetWeakReference>(__func__, std::move(*weak_ref));
 }
 
 /** \} */

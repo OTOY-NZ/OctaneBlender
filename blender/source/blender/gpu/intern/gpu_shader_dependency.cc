@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2021 Blender Foundation. All rights reserved. */
+ * Copyright 2021 Blender Foundation */
 
 /** \file
  * \ingroup gpu
@@ -111,8 +111,11 @@ struct GPUSource {
         string_preprocess();
       }
       if ((source.find("drw_debug_") != StringRef::not_found) &&
+          /* Avoid this file as it is a false positive match (matches "drw_debug_print_buf"). */
+          filename != "draw_debug_print_display_vert.glsl" &&
           /* Avoid these two files where it makes no sense to add the dependency. */
-          !ELEM(filename, "common_debug_draw_lib.glsl", "draw_debug_draw_display_vert.glsl")) {
+          !ELEM(filename, "common_debug_draw_lib.glsl", "draw_debug_draw_display_vert.glsl"))
+      {
         builtins |= shader::BuiltinBits::USE_DEBUG_DRAW;
       }
       check_no_quotes();
@@ -440,6 +443,11 @@ struct GPUSource {
     int64_t cursor = -1;
     StringRef func_return_type, func_name, func_args;
     while (function_parse(input, cursor, func_return_type, func_name, func_args)) {
+      /* Main functions needn't be handled because they are the entry point of the shader. */
+      if (func_name == "main") {
+        continue;
+      }
+
       GPUFunction *func = MEM_new<GPUFunction>(__func__);
       func_name.copy(func->name, sizeof(func->name));
       func->source = reinterpret_cast<void *>(this);

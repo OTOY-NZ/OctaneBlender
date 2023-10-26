@@ -2,7 +2,7 @@
 
 #include "BLI_task.hh"
 
-#include "BKE_mesh.h"
+#include "BKE_mesh.hh"
 
 #include "node_geometry_util.hh"
 
@@ -10,24 +10,20 @@ namespace blender::nodes::node_geo_mesh_topology_corners_of_face_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Int>(N_("Face Index"))
+  b.add_input<decl::Int>("Face Index")
       .implicit_field(implicit_field_inputs::index)
-      .description(N_("The face to retrieve data from. Defaults to the face from the context"));
-  b.add_input<decl::Float>(N_("Weights"))
-      .supports_field()
-      .hide_value()
-      .description(N_("Values used to sort the face's corners. Uses indices by default"));
-  b.add_input<decl::Int>(N_("Sort Index"))
+      .description("The face to retrieve data from. Defaults to the face from the context");
+  b.add_input<decl::Float>("Weights").supports_field().hide_value().description(
+      "Values used to sort the face's corners. Uses indices by default");
+  b.add_input<decl::Int>("Sort Index")
       .min(0)
       .supports_field()
-      .description(N_("Which of the sorted corners to output"));
-  b.add_output<decl::Int>(N_("Corner Index"))
+      .description("Which of the sorted corners to output");
+  b.add_output<decl::Int>("Corner Index")
       .field_source_reference_all()
-      .description(N_("A corner of the face, chosen by the sort index"));
-  b.add_output<decl::Int>(N_("Total"))
-      .field_source()
-      .reference_pass({0})
-      .description(N_("The number of corners in the face"));
+      .description("A corner of the face, chosen by the sort index");
+  b.add_output<decl::Int>("Total").field_source().reference_pass({0}).description(
+      "The number of corners in the face");
 }
 
 class CornersOfFaceInput final : public bke::MeshFieldInput {
@@ -49,7 +45,7 @@ class CornersOfFaceInput final : public bke::MeshFieldInput {
                                  const eAttrDomain domain,
                                  const IndexMask mask) const final
   {
-    const Span<MPoly> polys = mesh.polys();
+    const OffsetIndices polys = mesh.polys();
 
     const bke::MeshFieldContext context{mesh, domain};
     fn::FieldEvaluator evaluator{context, &mask};
@@ -80,8 +76,7 @@ class CornersOfFaceInput final : public bke::MeshFieldInput {
           continue;
         }
 
-        const MPoly &poly = polys[poly_i];
-        const IndexRange corners(poly.loopstart, poly.totloop);
+        const IndexRange corners = polys[poly_i];
 
         const int index_in_sort_wrapped = mod_i(index_in_sort, corners.size());
         if (use_sorting) {
@@ -137,11 +132,6 @@ class CornersOfFaceInput final : public bke::MeshFieldInput {
   }
 };
 
-static int get_poly_totloop(const MPoly &poly)
-{
-  return poly.totloop;
-}
-
 class CornersOfFaceCountInput final : public bke::MeshFieldInput {
  public:
   CornersOfFaceCountInput() : bke::MeshFieldInput(CPPType::get<int>(), "Face Corner Count")
@@ -156,7 +146,9 @@ class CornersOfFaceCountInput final : public bke::MeshFieldInput {
     if (domain != ATTR_DOMAIN_FACE) {
       return {};
     }
-    return VArray<int>::ForDerivedSpan<MPoly, get_poly_totloop>(mesh.polys());
+    const OffsetIndices polys = mesh.polys();
+    return VArray<int>::ForFunc(mesh.totpoly,
+                                [polys](const int64_t i) { return polys[i].size(); });
   }
 
   uint64_t hash() const final
@@ -183,7 +175,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const Field<int> face_index = params.extract_input<Field<int>>("Face Index");
   if (params.output_is_required("Total")) {
     params.set_output("Total",
-                      Field<int>(std::make_shared<FieldAtIndexInput>(
+                      Field<int>(std::make_shared<EvaluateAtIndexInput>(
                           face_index,
                           Field<int>(std::make_shared<CornersOfFaceCountInput>()),
                           ATTR_DOMAIN_FACE)));

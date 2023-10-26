@@ -159,7 +159,8 @@ class OctaneGroupTitleSocket(OctaneBaseSocket):
         layout.prop(self, "show_group_sockets", icon="TRIA_DOWN" if self.show_group_sockets else "TRIA_RIGHT", text=label, emboss=False)
 
     def draw(self, context, layout, node, text):
-        self.draw_prop(context, layout, text)
+        if not self.octane_deprecated:
+            self.draw_prop(context, layout, text)
 
     def draw_color(self, context, node):
         return self.color
@@ -218,22 +219,28 @@ class OctaneMovableInput(OctanePatternInput):
     octane_sub_movable_inputs=[]
     octane_show_action_ops=True
     octane_hide_value=True
-    octane_reversed_input_sockets=False    
+    octane_reversed_input_sockets=False
+    octane_show_default_value=False
 
     def draw_prop(self, context, layout, text):
         row = layout.row()
-        split = row.split(factor=0.25)
-        c = split.column()
-        c.label(text=text)
-        split = split.split(factor=0.4)
-        c = split.column()
-        op = c.operator("octane.add_default_node", icon="ADD", text="")
-        if hasattr(self, "octane_osl_default_node_name"):
-            op.default_node_name = self.octane_osl_default_node_name
+        if not self.octane_hide_value and hasattr(self, "default_value"):
+            split = row.split(factor=0.25)
+            c = split.column()
+            c.prop(self, "default_value", text=text)
         else:
-            op.default_node_name = self.octane_default_node_name
-        op.input_socket_name = self.name
-        op.output_socket_pin_type = self.octane_pin_type
+            split = row.split(factor=0.25)
+            c = split.column()
+            c.label(text=text)
+            split = split.split(factor=0.4)
+            c = split.column()
+            op = c.operator("octane.add_default_node", icon="ADD", text="")
+            if hasattr(self, "octane_osl_default_node_name"):
+                op.default_node_name = self.octane_osl_default_node_name
+            else:
+                op.default_node_name = self.octane_default_node_name
+            op.input_socket_name = self.name
+            op.output_socket_pin_type = self.octane_pin_type
         if not self.octane_show_action_ops:
             return
         if not hasattr(self.node, "octane_node_type"):
@@ -441,13 +448,17 @@ class OCTANE_OT_node_add_search(NodeAddOperator, bpy.types.Operator):
 
     _enum_item_hack = []
 
+    @classmethod
+    def overwrite_description(cls, _context, properties):
+        return ""
+
     # Create an enum list from node items
     def node_enum_items(self, context):
         import nodeitems_utils
         from . import node_items
 
         enum_items = OCTANE_OT_node_add_search._enum_item_hack
-        enum_items.clear()        
+        enum_items.clear()
 
         for index, item in enumerate(nodeitems_utils.node_items_iter(context)):            
             if isinstance(item, nodeitems_utils.NodeItem):
@@ -523,6 +534,8 @@ class OCTANE_OT_node_add_search(NodeAddOperator, bpy.types.Operator):
         return {'CANCELLED'}
 
 
+OCTANE_OT_node_add_search.description = OCTANE_OT_node_add_search.overwrite_description
+
 class OCTANE_NODE_MT_node_add(bpy.types.Menu):
     bl_space_type = 'NODE_EDITOR'
     bl_label = "Add"
@@ -580,8 +593,7 @@ class OCTANE_OT_modify_movable_input_num(bpy.types.Operator):
         for idx, offset in self.reversed_iter_indices_of_movable_inputs(node, target_input):
             node.inputs.remove(node.inputs[idx])   
 
-    def swap_inputs(self, node, input1, input2):
-        # swap_node_socket_position
+    def swap_inputs(self, node, input1, input2, context):
         if input1.is_octane_dynamic_pin() and input2.is_octane_dynamic_pin():
             input1_index = 0
             input2_index = 0
@@ -591,7 +603,7 @@ class OCTANE_OT_modify_movable_input_num(bpy.types.Operator):
                 elif _input == input2:
                     input2_index = idx                  
             for offset in range(len(input1.octane_sub_movable_inputs) + 1):
-                utility.swap_node_socket_position(node, node.inputs[input1_index + offset], node.inputs[input2_index + offset])
+                utility.swap_node_socket_position(node, node.inputs[input1_index + offset], node.inputs[input2_index + offset], context)
             input1_pin_idx = math.ceil(input1.get_dynamic_input_index() / self.group_input_num)
             input2_pin_idx = math.ceil(input2.get_dynamic_input_index() / self.group_input_num)
             self.set_input_name(node, input1, input2_pin_idx)
@@ -625,6 +637,8 @@ class OCTANE_OT_quick_add_movable_input(OCTANE_OT_modify_movable_input_num):
                         if input_idx != current_index:
                             node.inputs.move(input_idx, current_index)
                             current_index = input_idx
+            # Blender 3.5 doesn't trigger a "redraw" after "node.inputs.move", so we need to make a force update here
+            node.socket_value_update(context)
         self.update_movable_input_count(node)
         return {"FINISHED"}
 
@@ -705,7 +719,7 @@ class OCTANE_OT_move_up_movable_input(OCTANE_OT_modify_movable_input_num):
                 if _input.bl_idname == target_input.bl_idname:
                     last_input = _input
             if last_input is not None:
-                self.swap_inputs(node, last_input, target_input)
+                self.swap_inputs(node, last_input, target_input, context)
         return {"FINISHED"}
 
 
@@ -732,7 +746,7 @@ class OCTANE_OT_move_down_movable_input(OCTANE_OT_modify_movable_input_num):
                 if _input.bl_idname == target_input.bl_idname:
                     last_input = _input
             if last_input is not None:
-                self.swap_inputs(node, target_input, last_input)
+                self.swap_inputs(node, target_input, last_input, context)
         return {"FINISHED"}
 
 

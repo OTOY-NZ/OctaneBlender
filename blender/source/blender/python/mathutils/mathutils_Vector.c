@@ -158,7 +158,8 @@ static PyObject *Vector_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
       break;
     case 1:
       if ((vec_num = mathutils_array_parse_alloc(
-               &vec, 2, PyTuple_GET_ITEM(args, 0), "mathutils.Vector()")) == -1) {
+               &vec, 2, PyTuple_GET_ITEM(args, 0), "mathutils.Vector()")) == -1)
+      {
         return NULL;
       }
       break;
@@ -360,7 +361,8 @@ static PyObject *C_Vector_Repeat(PyObject *cls, PyObject *args)
   }
 
   if ((value_num = mathutils_array_parse_alloc(
-           &iter_vec, 2, value, "Vector.Repeat(vector, vec_num), invalid 'vector' arg")) == -1) {
+           &iter_vec, 2, value, "Vector.Repeat(vector, vec_num), invalid 'vector' arg")) == -1)
+  {
     return NULL;
   }
 
@@ -473,7 +475,7 @@ static PyObject *Vector_resize(VectorObject *self, PyObject *value)
   if (self->flag & BASE_MATH_FLAG_IS_WRAP) {
     PyErr_SetString(PyExc_TypeError,
                     "Vector.resize(): "
-                    "cannot resize wrapped data - only python vectors");
+                    "cannot resize wrapped data - only Python vectors");
     return NULL;
   }
   if (self->cb_user) {
@@ -557,7 +559,7 @@ static PyObject *Vector_resize_2d(VectorObject *self)
   if (self->flag & BASE_MATH_FLAG_IS_WRAP) {
     PyErr_SetString(PyExc_TypeError,
                     "Vector.resize_2d(): "
-                    "cannot resize wrapped data - only python vectors");
+                    "cannot resize wrapped data - only Python vectors");
     return NULL;
   }
   if (self->cb_user) {
@@ -588,7 +590,7 @@ static PyObject *Vector_resize_3d(VectorObject *self)
   if (self->flag & BASE_MATH_FLAG_IS_WRAP) {
     PyErr_SetString(PyExc_TypeError,
                     "Vector.resize_3d(): "
-                    "cannot resize wrapped data - only python vectors");
+                    "cannot resize wrapped data - only Python vectors");
     return NULL;
   }
   if (self->cb_user) {
@@ -623,7 +625,7 @@ static PyObject *Vector_resize_4d(VectorObject *self)
   if (self->flag & BASE_MATH_FLAG_IS_WRAP) {
     PyErr_SetString(PyExc_TypeError,
                     "Vector.resize_4d(): "
-                    "cannot resize wrapped data - only python vectors");
+                    "cannot resize wrapped data - only Python vectors");
     return NULL;
   }
   if (self->cb_user) {
@@ -947,7 +949,8 @@ static PyObject *Vector_reflect(VectorObject *self, PyObject *value)
   }
 
   if ((value_num = mathutils_array_parse(
-           tvec, 2, 4, value, "Vector.reflect(other), invalid 'other' arg")) == -1) {
+           tvec, 2, 4, value, "Vector.reflect(other), invalid 'other' arg")) == -1)
+  {
     return NULL;
   }
 
@@ -1003,7 +1006,8 @@ static PyObject *Vector_cross(VectorObject *self, PyObject *value)
 
   if (mathutils_array_parse(
           tvec, self->vec_num, self->vec_num, value, "Vector.cross(other), invalid 'other' arg") ==
-      -1) {
+      -1)
+  {
     return NULL;
   }
 
@@ -1043,7 +1047,8 @@ static PyObject *Vector_dot(VectorObject *self, PyObject *value)
   }
 
   if (mathutils_array_parse_alloc(
-          &tvec, self->vec_num, value, "Vector.dot(other), invalid 'other' arg") == -1) {
+          &tvec, self->vec_num, value, "Vector.dot(other), invalid 'other' arg") == -1)
+  {
     return NULL;
   }
 
@@ -1092,7 +1097,8 @@ static PyObject *Vector_angle(VectorObject *self, PyObject *args)
    * even though n this case 'w' is ignored */
   if (mathutils_array_parse(
           tvec, self->vec_num, self->vec_num, value, "Vector.angle(other), invalid 'other' arg") ==
-      -1) {
+      -1)
+  {
     return NULL;
   }
 
@@ -1158,7 +1164,8 @@ static PyObject *Vector_angle_signed(VectorObject *self, PyObject *args)
   }
 
   if (mathutils_array_parse(
-          tvec, 2, 2, value, "Vector.angle_signed(other), invalid 'other' arg") == -1) {
+          tvec, 2, 2, value, "Vector.angle_signed(other), invalid 'other' arg") == -1)
+  {
     return NULL;
   }
 
@@ -1217,8 +1224,8 @@ static PyObject *Vector_rotation_difference(VectorObject *self, PyObject *value)
   }
 
   if (mathutils_array_parse(
-          vec_b, 3, MAX_DIMENSIONS, value, "Vector.difference(other), invalid 'other' arg") ==
-      -1) {
+          vec_b, 3, MAX_DIMENSIONS, value, "Vector.difference(other), invalid 'other' arg") == -1)
+  {
     return NULL;
   }
 
@@ -1257,7 +1264,8 @@ static PyObject *Vector_project(VectorObject *self, PyObject *value)
   }
 
   if (mathutils_array_parse_alloc(
-          &tvec, vec_num, value, "Vector.project(other), invalid 'other' arg") == -1) {
+          &tvec, vec_num, value, "Vector.project(other), invalid 'other' arg") == -1)
+  {
     return NULL;
   }
 
@@ -1307,7 +1315,8 @@ static PyObject *Vector_lerp(VectorObject *self, PyObject *args)
   }
 
   if (mathutils_array_parse_alloc(
-          &tvec, vec_num, value, "Vector.lerp(other), invalid 'other' arg") == -1) {
+          &tvec, vec_num, value, "Vector.lerp(other), invalid 'other' arg") == -1)
+  {
     return NULL;
   }
 
@@ -1361,7 +1370,8 @@ static PyObject *Vector_slerp(VectorObject *self, PyObject *args)
   }
 
   if (mathutils_array_parse(
-          other_vec, vec_num, vec_num, value, "Vector.slerp(other), invalid 'other' arg") == -1) {
+          other_vec, vec_num, vec_num, value, "Vector.slerp(other), invalid 'other' arg") == -1)
+  {
     return NULL;
   }
 
@@ -2193,8 +2203,8 @@ static PyObject *Vector_imul(PyObject *v1, PyObject *v2)
     /* Element-wise product in-place. */
     mul_vn_vn(vec1->vec, vec2->vec, vec1->vec_num);
   }
-  else if (vec1 && (((scalar = PyFloat_AsDouble(v2)) == -1.0f && PyErr_Occurred()) ==
-                    0)) { /* VEC *= FLOAT */
+  else if (vec1 && (((scalar = PyFloat_AsDouble(v2)) == -1.0f && PyErr_Occurred()) == 0)) {
+    /* VEC *= FLOAT */
     mul_vn_fl(vec1->vec, vec1->vec_num, scalar);
   }
   else {
@@ -2400,7 +2410,7 @@ static PySequenceMethods Vector_SeqMethods = {
 };
 
 static PyMappingMethods Vector_AsMapping = {
-    /*mp_len*/ (lenfunc)Vector_len,
+    /*mp_length*/ (lenfunc)Vector_len,
     /*mp_subscript*/ (binaryfunc)Vector_subscript,
     /*mp_ass_subscript*/ (objobjargproc)Vector_ass_subscript,
 };
@@ -2630,7 +2640,7 @@ static PyObject *Vector_swizzle_get(VectorObject *self, void *closure)
  * Set the items of this vector using a swizzle.
  * - If value is a vector or list this operates like an array copy, except that
  *   the destination is effectively re-ordered as defined by the swizzle. At
- *   most min(len(source), len(dest)) values will be copied.
+ *   most `min(len(source), len(destination))` values will be copied.
  * - If the value is scalar, it is copied to all axes listed in the swizzle.
  * - If an axis appears more than once in the swizzle, the final occurrence is
  *   the one that determines its value.
@@ -2682,7 +2692,8 @@ static int Vector_swizzle_set(VectorObject *self, PyObject *value, void *closure
   }
   else if ((void)PyErr_Clear(), /* run but ignore the result */
            (size_from = (size_t)mathutils_array_parse(
-                vec_assign, 2, 4, value, "Vector.**** = swizzle assignment")) == (size_t)-1) {
+                vec_assign, 2, 4, value, "Vector.**** = swizzle assignment")) == (size_t)-1)
+  {
     return -1;
   }
 

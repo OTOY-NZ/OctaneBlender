@@ -360,7 +360,7 @@ class OctaneScriptNode(base_node.OctaneBaseNode):
                 _input.octane_osl_default_node_name = octane_default_node_name
         return _input
 
-    def build_osl_node(self, xml_str_data):
+    def build_osl_node(self, xml_str_data, context):
         root = ET.fromstring(xml_str_data)
         custom_data_pt = root
         compilation_result = custom_data_pt.get("error")
@@ -374,10 +374,10 @@ class OctaneScriptNode(base_node.OctaneBaseNode):
                     self.inputs.remove(_input)
                     break                
         for idx, socket_name in enumerate(self.current_socket_list):
-            utility.swap_node_socket_position(self, self.inputs[idx], self.inputs[socket_name])
+            utility.swap_node_socket_position(self, self.inputs[idx], self.inputs[socket_name], context)
         return compilation_result
 
-    def compile_osl_node(self, report=None):
+    def compile_osl_node(self, report=None, context=None):
         if self.a_result == consts.COMPILE_SUCCESS:
             return
         root_et = ET.Element('fetchOslInfo')
@@ -390,7 +390,7 @@ class OctaneScriptNode(base_node.OctaneBaseNode):
         response = OctaneBlender().utils_function(consts.UtilsFunctionType.FETCH_OSL_INFO, xml_data)
         if len(response):
             reply_data = str(ET.fromstring(response).get("content"))
-            compilation_result = self.build_osl_node(reply_data)
+            compilation_result = self.build_osl_node(reply_data, context)
             if report and len(compilation_result):
                 if compilation_result.find("Error") != -1 or compilation_result.find("error") != -1:
                     report({"ERROR"}, compilation_result)
@@ -436,7 +436,7 @@ class OCTANE_OT_compile_osl_node(bpy.types.Operator):
     def invoke(self, context, event):
         node = context.node
         node.update_shader_code(True)
-        node.compile_osl_node(self.report)
+        node.compile_osl_node(self.report, context)
         return {'FINISHED'}
 
 

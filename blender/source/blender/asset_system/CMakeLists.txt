@@ -5,7 +5,6 @@ set(INC
   intern
   ../blenkernel
   ../blenlib
-  ../blenloader
   ../makesdna
   ../../../intern/clog
   ../../../intern/guardedalloc
@@ -42,6 +41,7 @@ set(SRC
 )
 
 set(LIB
+    bf_blenkernel
 )
 
 
@@ -54,6 +54,7 @@ if(WITH_GTESTS)
     tests/asset_catalog_tree_test.cc
     tests/asset_library_service_test.cc
     tests/asset_library_test.cc
+    tests/asset_representation_test.cc
 
     tests/asset_library_test_common.hh
   )

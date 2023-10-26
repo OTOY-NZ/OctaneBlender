@@ -98,9 +98,13 @@ static void rna_generate_static_parameter_prototypes(FILE *f,
   } \
   (void)0
 
+/**
+ * \return 1 when the file was renamed, 0 when no action was taken, -1 on error.
+ */
 static int replace_if_different(const char *tmpfile, const char *dep_files[])
 {
-  /* return 0; */ /* use for testing had edited rna */
+  /* Use for testing hand edited `rna_*_gen.c` files. */
+  // return 0;
 
 #define REN_IF_DIFF \
   { \
@@ -124,9 +128,9 @@ static int replace_if_different(const char *tmpfile, const char *dep_files[])
     return -1; \
   } \
   remove(tmpfile); \
-  return 1
-
-  /* end REN_IF_DIFF */
+  return 1; \
+  ((void)0)
+  /* End `REN_IF_DIFF`. */
 
   FILE *fp_new = NULL, *fp_org = NULL;
   int len_new, len_org;
@@ -136,7 +140,7 @@ static int replace_if_different(const char *tmpfile, const char *dep_files[])
   char orgfile[4096];
 
   strcpy(orgfile, tmpfile);
-  orgfile[strlen(orgfile) - strlen(TMP_EXT)] = '\0'; /* strip '.tmp' */
+  orgfile[strlen(orgfile) - strlen(TMP_EXT)] = '\0'; /* Strip `.tmp`. */
 
   fp_org = fopen(orgfile, "rb");
 
@@ -144,12 +148,17 @@ static int replace_if_different(const char *tmpfile, const char *dep_files[])
     REN_IF_DIFF;
   }
 
-  /* XXX, trick to work around dependency problem
-   * assumes dep_files is in the same dir as makesrna.c, which is true for now. */
+  /* NOTE(@ideasman42): trick to work around dependency problem.
+   * The issue is as follows: When `makesrna.c` or any of the `rna_*.c` files being newer than
+   * their generated output, the build-system detects that the `rna_*_gen.c` file is out-dated and
+   * requests the `rna_*_gen.c` files are re-generated (even if this function always returns 0).
+   * It happens *every* rebuild, slowing incremental builds which isn't practical for development.
+   *
+   * This is only an issue for `Unix Makefiles`, `Ninja` generator doesn't have this problem. */
 
   if (1) {
-    /* first check if makesrna.c is newer than generated files
-     * for development on makesrna.c you may want to disable this */
+    /* First check if `makesrna.c` is newer than generated files.
+     * For development on `makesrna.c` you may want to disable this. */
     if (file_older(orgfile, __FILE__)) {
       REN_IF_DIFF;
     }
@@ -158,18 +167,18 @@ static int replace_if_different(const char *tmpfile, const char *dep_files[])
       REN_IF_DIFF;
     }
 
-    /* now check if any files we depend on are newer than any generated files */
+    /* Now check if any files we depend on are newer than any generated files. */
     if (dep_files) {
       int pass;
       for (pass = 0; dep_files[pass]; pass++) {
         const char from_path[4096] = __FILE__;
         char *p1, *p2;
 
-        /* dir only */
+        /* Only the directory (base-name). */
         p1 = strrchr(from_path, '/');
         p2 = strrchr(from_path, '\\');
         strcpy((p1 > p2 ? p1 : p2) + 1, dep_files[pass]);
-        /* account for build deps, if makesrna.c (this file) is newer */
+        /* Account for build dependencies, if `makesrna.c` (this file) is newer. */
         if (file_older(orgfile, from_path)) {
           REN_IF_DIFF;
         }
@@ -181,7 +190,7 @@ static int replace_if_different(const char *tmpfile, const char *dep_files[])
   fp_new = fopen(tmpfile, "rb");
 
   if (fp_new == NULL) {
-    /* shouldn't happen, just to be safe */
+    /* Shouldn't happen, just to be safe. */
     CLOG_ERROR(&LOG, "open error: \"%s\"", tmpfile);
     fclose(fp_org);
     return -1;
@@ -202,7 +211,7 @@ static int replace_if_different(const char *tmpfile, const char *dep_files[])
     REN_IF_DIFF;
   }
 
-  /* now compare the files... */
+  /* Now compare the files: */
   arr_new = MEM_mallocN(sizeof(char) * len_new, "rna_cmp_file_new");
   arr_org = MEM_mallocN(sizeof(char) * len_org, "rna_cmp_file_org");
 
@@ -232,7 +241,7 @@ static int replace_if_different(const char *tmpfile, const char *dep_files[])
 #undef REN_IF_DIFF
 }
 
-/* Helper to solve keyword problems with C/C++ */
+/* Helper to solve keyword problems with C/C++. */
 
 static const char *rna_safe_id(const char *id)
 {
@@ -606,6 +615,20 @@ static void rna_float_print(FILE *f, float num)
   }
 }
 
+static const char *rna_ui_scale_type_string(const PropertyScaleType type)
+{
+  switch (type) {
+    case PROP_SCALE_LINEAR:
+      return "PROP_SCALE_LINEAR";
+    case PROP_SCALE_LOG:
+      return "PROP_SCALE_LOG";
+    case PROP_SCALE_CUBIC:
+      return "PROP_SCALE_CUBIC";
+  }
+  BLI_assert_unreachable();
+  return "";
+}
+
 static void rna_int_print(FILE *f, int64_t num)
 {
   if (num == INT_MIN) {
@@ -702,8 +725,8 @@ static char *rna_def_property_get_func(
     if (prop->type == PROP_INT) {
       IntPropertyRNA *iprop = (IntPropertyRNA *)prop;
       /* Only UI_BTYPE_NUM_SLIDER is implemented and that one can't have a softmin of zero. */
-      if ((iprop->ui_scale_type == PROP_SCALE_LOG) &&
-          (iprop->hardmin <= 0 || iprop->softmin <= 0)) {
+      if ((iprop->ui_scale_type == PROP_SCALE_LOG) && (iprop->hardmin <= 0 || iprop->softmin <= 0))
+      {
         CLOG_ERROR(
             &LOG, "\"%s.%s\", range for log scale <= 0.", srna->identifier, prop->identifier);
         DefRNA.error = true;
@@ -717,18 +740,13 @@ static char *rna_def_property_get_func(
   switch (prop->type) {
     case PROP_STRING: {
       StringPropertyRNA *sprop = (StringPropertyRNA *)prop;
+      UNUSED_VARS_NDEBUG(sprop);
       fprintf(f, "void %s(PointerRNA *ptr, char *value)\n", func);
       fprintf(f, "{\n");
       if (manualfunc) {
         fprintf(f, "    %s(ptr, value);\n", manualfunc);
       }
       else {
-        const PropertySubType subtype = prop->subtype;
-        const char *string_copy_func =
-            ELEM(subtype, PROP_FILEPATH, PROP_DIRPATH, PROP_FILENAME, PROP_BYTESTRING) ?
-                "BLI_strncpy" :
-                "BLI_strncpy_utf8";
-
         rna_print_data_get(f, dp);
 
         if (dp->dnapointerlevel == 1) {
@@ -737,28 +755,24 @@ static char *rna_def_property_get_func(
           fprintf(f, "        *value = '\\0';\n");
           fprintf(f, "        return;\n");
           fprintf(f, "    }\n");
-          fprintf(f,
-                  "    %s(value, data->%s, strlen(data->%s) + 1);\n",
-                  string_copy_func,
-                  dp->dnaname,
-                  dp->dnaname);
+          fprintf(f, "    strcpy(value, data->%s);\n", dp->dnaname);
         }
         else {
           /* Handle char array properties. */
+
+#ifndef NDEBUG /* Assert lengths never exceed their maximum expected value. */
           if (sprop->maxlength) {
-            fprintf(f,
-                    "    %s(value, data->%s, %d);\n",
-                    string_copy_func,
-                    dp->dnaname,
-                    sprop->maxlength);
+            fprintf(f, "    BLI_assert(strlen(data->%s) < %d);\n", dp->dnaname, sprop->maxlength);
           }
           else {
             fprintf(f,
-                    "    %s(value, data->%s, sizeof(data->%s));\n",
-                    string_copy_func,
+                    "    BLI_assert(strlen(data->%s) < sizeof(data->%s));\n",
                     dp->dnaname,
                     dp->dnaname);
           }
+#endif
+
+          fprintf(f, "    strcpy(value, data->%s);\n", dp->dnaname);
         }
       }
       fprintf(f, "}\n\n");
@@ -798,7 +812,8 @@ static char *rna_def_property_get_func(
         if (STR_ELEM(manualfunc,
                      "rna_iterator_listbase_get",
                      "rna_iterator_array_get",
-                     "rna_iterator_array_dereference_get")) {
+                     "rna_iterator_array_dereference_get"))
+        {
           fprintf(f,
                   "    return rna_pointer_inherit_refine(&iter->parent, &RNA_%s, %s(iter));\n",
                   (cprop->item_type) ? (const char *)cprop->item_type : "UnknownType",
@@ -1141,11 +1156,6 @@ static char *rna_def_property_set_func(
       }
       else {
         const PropertySubType subtype = prop->subtype;
-        const char *string_copy_func =
-            ELEM(subtype, PROP_FILEPATH, PROP_DIRPATH, PROP_FILENAME, PROP_BYTESTRING) ?
-                "BLI_strncpy" :
-                "BLI_strncpy_utf8";
-
         rna_print_data_get(f, dp);
 
         if (dp->dnapointerlevel == 1) {
@@ -1155,10 +1165,14 @@ static char *rna_def_property_set_func(
           fprintf(f, "    const int length = strlen(value);\n");
           fprintf(f, "    if (length > 0) {\n");
           fprintf(f, "        data->%s = MEM_mallocN(length + 1, __func__);\n", dp->dnaname);
-          fprintf(f, "        %s(data->%s, value, length + 1);\n", string_copy_func, dp->dnaname);
+          fprintf(f, "        memcpy(data->%s, value, length + 1);\n", dp->dnaname);
           fprintf(f, "    } else { data->%s = NULL; }\n", dp->dnaname);
         }
         else {
+          const char *string_copy_func =
+              ELEM(subtype, PROP_FILEPATH, PROP_DIRPATH, PROP_FILENAME, PROP_BYTESTRING) ?
+                  "BLI_strncpy" :
+                  "BLI_strncpy_utf8";
           /* Handle char array properties. */
           if (sprop->maxlength) {
             fprintf(f,
@@ -2039,7 +2053,8 @@ static void rna_def_property_funcs(FILE *f, StructRNA *srna, PropertyDefRNA *dp)
        * array get/next function, we can be sure it is an actual array */
       if (cprop->next && cprop->get) {
         if (STREQ((const char *)cprop->next, "rna_iterator_array_next") &&
-            STREQ((const char *)cprop->get, "rna_iterator_array_get")) {
+            STREQ((const char *)cprop->get, "rna_iterator_array_get"))
+        {
           prop->flag_internal |= PROP_INTERN_RAW_ARRAY;
         }
       }
@@ -2380,7 +2395,8 @@ static void rna_def_property_funcs_header_cpp(FILE *f, StructRNA *srna, Property
       const char *collection_funcs = "DefaultCollectionFunctions";
 
       if (!(dp->prop->flag & PROP_IDPROPERTY || dp->prop->flag_internal & PROP_INTERN_BUILTIN) &&
-          cprop->property.srna) {
+          cprop->property.srna)
+      {
         collection_funcs = (char *)cprop->property.srna;
       }
 
@@ -2978,8 +2994,8 @@ static void rna_def_function_funcs(FILE *f, StructDefRNA *dsrna, FunctionDefRNA 
     else if (type == PROP_POINTER || dparm->prop->arraydimension) {
       ptrstr = "*";
     }
-    else if ((type == PROP_POINTER) && (flag_parameter & PARM_RNAPTR) &&
-             !(flag & PROP_THICK_WRAP)) {
+    else if ((type == PROP_POINTER) && (flag_parameter & PARM_RNAPTR) && !(flag & PROP_THICK_WRAP))
+    {
       ptrstr = "*";
       /* PROP_THICK_WRAP strings are pre-allocated on the ParameterList stack,
        * but type name for string props is already (char *), so leave empty */
@@ -4162,8 +4178,7 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
               rna_function_string(fprop->getarray_ex),
               rna_function_string(fprop->setarray_ex),
               rna_function_string(fprop->range_ex));
-      rna_float_print(f, fprop->ui_scale_type);
-      fprintf(f, ", ");
+      fprintf(f, "%s, ", rna_ui_scale_type_string(fprop->ui_scale_type));
       rna_float_print(f, fprop->softmin);
       fprintf(f, ", ");
       rna_float_print(f, fprop->softmax);
@@ -4506,7 +4521,7 @@ static RNAProcessItem PROCESS_ITEMS[] = {
     {"rna_curve.c", "rna_curve_api.c", RNA_def_curve},
     {"rna_dynamicpaint.c", NULL, RNA_def_dynamic_paint},
     {"rna_fcurve.c", "rna_fcurve_api.c", RNA_def_fcurve},
-    {"rna_gpencil.c", NULL, RNA_def_gpencil},
+    {"rna_gpencil_legacy.c", NULL, RNA_def_gpencil},
     {"rna_curves.c", NULL, RNA_def_curves},
     {"rna_image.c", "rna_image_api.c", RNA_def_image},
     {"rna_key.c", NULL, RNA_def_key},
@@ -4520,7 +4535,7 @@ static RNAProcessItem PROCESS_ITEMS[] = {
     {"rna_mesh.c", "rna_mesh_api.c", RNA_def_mesh},
     {"rna_meta.c", "rna_meta_api.c", RNA_def_meta},
     {"rna_modifier.c", NULL, RNA_def_modifier},
-    {"rna_gpencil_modifier.c", NULL, RNA_def_greasepencil_modifier},
+    {"rna_gpencil_legacy_modifier.c", NULL, RNA_def_greasepencil_modifier},
     {"rna_shader_fx.c", NULL, RNA_def_shader_fx},
     {"rna_nla.c", NULL, RNA_def_nla},
     {"rna_nodetree.c", NULL, RNA_def_nodetree},

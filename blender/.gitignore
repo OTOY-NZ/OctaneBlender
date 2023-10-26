@@ -65,3 +65,13 @@ waveletNoiseTile.bin
 /release/datafiles/locale/
 /release/scripts/addons_contrib/
 /source/tools/
+
+# Build files for VS and VS Code.
+/build/
+/out/
+CMakeSettings.json
+CMakePresets.json
+CMakeUserPresets.json
+
+/codegen/OctaneCodeGenerator/x64/
+/codegen/OctaneCodeGenerator/OctaneCodeGenerator/x64/

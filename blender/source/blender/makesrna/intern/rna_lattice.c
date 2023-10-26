@@ -105,7 +105,7 @@ static void rna_Lattice_update_data_editlatt(Main *UNUSED(bmain),
     lt_em->typev = lt->typev;
     lt_em->typew = lt->typew;
     lt_em->flag = lt->flag;
-    BLI_strncpy(lt_em->vgroup, lt->vgroup, sizeof(lt_em->vgroup));
+    STRNCPY(lt_em->vgroup, lt->vgroup);
   }
 
   DEG_id_tag_update(id, 0);
@@ -201,10 +201,10 @@ static void rna_Lattice_points_w_set(PointerRNA *ptr, int value)
 static void rna_Lattice_vg_name_set(PointerRNA *ptr, const char *value)
 {
   Lattice *lt = ptr->data;
-  BLI_strncpy(lt->vgroup, value, sizeof(lt->vgroup));
+  STRNCPY(lt->vgroup, value);
 
   if (lt->editlatt) {
-    BLI_strncpy(lt->editlatt->latt->vgroup, value, sizeof(lt->editlatt->latt->vgroup));
+    STRNCPY(lt->editlatt->latt->vgroup, value);
   }
 }
 
@@ -311,7 +311,7 @@ static void rna_def_lattice(BlenderRNA *brna)
   RNA_def_property_range(prop, 1, 64);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(
-      prop, "U", "Point in U direction (can't be changed when there are shape keys)");
+      prop, "U", "Points in U direction (cannot be changed when there are shape keys)");
   RNA_def_property_update(prop, 0, "rna_Lattice_update_size");
   RNA_def_property_editable_func(prop, "rna_Lattice_size_editable");
 
@@ -321,7 +321,7 @@ static void rna_def_lattice(BlenderRNA *brna)
   RNA_def_property_range(prop, 1, 64);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(
-      prop, "V", "Point in V direction (can't be changed when there are shape keys)");
+      prop, "V", "Points in V direction (cannot be changed when there are shape keys)");
   RNA_def_property_update(prop, 0, "rna_Lattice_update_size");
   RNA_def_property_editable_func(prop, "rna_Lattice_size_editable");
 
@@ -331,7 +331,7 @@ static void rna_def_lattice(BlenderRNA *brna)
   RNA_def_property_range(prop, 1, 64);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(
-      prop, "W", "Point in W direction (can't be changed when there are shape keys)");
+      prop, "W", "Points in W direction (cannot be changed when there are shape keys)");
   RNA_def_property_update(prop, 0, "rna_Lattice_update_size");
   RNA_def_property_editable_func(prop, "rna_Lattice_size_editable");
 

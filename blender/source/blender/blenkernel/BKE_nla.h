@@ -36,15 +36,21 @@ struct PropertyRNA;
 /* Data Management */
 
 /**
+ * Create new NLA Track.
+ * The returned pointer is owned by the caller.
+ */
+struct NlaTrack *BKE_nlatrack_new(void);
+
+/**
  * Frees the given NLA strip, and calls #BKE_nlastrip_remove_and_free to
  * remove and free all children strips.
  */
 void BKE_nlastrip_free(struct NlaStrip *strip, bool do_id_user);
 /**
- * Remove the given NLA track from the set of NLA tracks, free the track's data,
- * and the track itself.
+ * Remove & Frees all NLA strips from the given NLA track,
+ * then frees (doesn't remove) the track itself.
  */
-void BKE_nlatrack_free(ListBase *tracks, struct NlaTrack *nlt, bool do_id_user);
+void BKE_nlatrack_free(struct NlaTrack *nlt, bool do_id_user);
 /**
  * Free the elements of type NLA Tracks provided in the given list, but do not free
  * the list itself since that is not free-standing
@@ -88,12 +94,61 @@ void BKE_nla_tracks_copy_from_adt(struct Main *bmain,
                                   int flag);
 
 /**
- * Add a NLA Track to the given AnimData.
- * \param prev: NLA-Track to add the new one after.
+ * Inserts a given NLA track before a specified NLA track within the
+ * passed NLA track list.
  */
-struct NlaTrack *BKE_nlatrack_add(struct AnimData *adt,
-                                  struct NlaTrack *prev,
-                                  bool is_liboverride);
+void BKE_nlatrack_insert_before(ListBase *nla_tracks,
+                                struct NlaTrack *next,
+                                struct NlaTrack *new_track,
+                                bool is_liboverride);
+
+/**
+ * Inserts a given NLA track after a specified NLA track within the
+ * passed NLA track list.
+ */
+void BKE_nlatrack_insert_after(ListBase *nla_tracks,
+                               struct NlaTrack *prev,
+                               struct NlaTrack *new_track,
+                               bool is_liboverride);
+
+/**
+ * Calls #BKE_nlatrack_new to create a new NLA track, inserts it before the
+ * given NLA track with #BKE_nlatrack_insert_before.
+ */
+struct NlaTrack *BKE_nlatrack_new_before(ListBase *nla_tracks,
+                                         struct NlaTrack *next,
+                                         bool is_liboverride);
+
+/**
+ * Calls #BKE_nlatrack_new to create a new NLA track, inserts it after the
+ * given NLA track with #BKE_nlatrack_insert_after.
+ */
+struct NlaTrack *BKE_nlatrack_new_after(ListBase *nla_tracks,
+                                        struct NlaTrack *prev,
+                                        bool is_liboverride);
+
+/**
+ * Calls #BKE_nlatrack_new to create a new NLA track, inserts it as the head of the
+ * NLA track list with #BKE_nlatrack_new_before.
+ */
+struct NlaTrack *BKE_nlatrack_new_head(ListBase *nla_tracks, bool is_liboverride);
+
+/**
+ * Calls #BKE_nlatrack_new to create a new NLA track, inserts it as the tail of the
+ * NLA track list with #BKE_nlatrack_new_after.
+ */
+struct NlaTrack *BKE_nlatrack_new_tail(ListBase *nla_tracks, const bool is_liboverride);
+
+/**
+ * Removes the given NLA track from the list of tracks provided.
+ */
+void BKE_nlatrack_remove(ListBase *tracks, struct NlaTrack *nlt);
+
+/**
+ * Remove the given NLA track from the list of NLA tracks, free the track's data,
+ * and the track itself.
+ */
+void BKE_nlatrack_remove_and_free(ListBase *tracks, struct NlaTrack *nlt, bool do_id_user);
 
 /**
  * Create a NLA Strip referencing the given Action.
@@ -151,9 +206,9 @@ void BKE_nlastrips_sort_strips(ListBase *strips);
 void BKE_nlastrips_add_strip_unsafe(ListBase *strips, struct NlaStrip *strip);
 
 /**
- *  NULL checks incoming strip and verifies no overlap / invalid
- *  configuration against other strips in NLA Track before calling
- *  #BKE_nlastrips_add_strip_unsafe.
+ * NULL checks incoming strip and verifies no overlap / invalid
+ * configuration against other strips in NLA Track before calling
+ * #BKE_nlastrips_add_strip_unsafe.
  */
 bool BKE_nlastrips_add_strip(ListBase *strips, struct NlaStrip *strip);
 

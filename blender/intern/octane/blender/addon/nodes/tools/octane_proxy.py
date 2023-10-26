@@ -116,7 +116,7 @@ class OctaneProxy(bpy.types.Node, OctaneBaseNode):
             for socket in getattr(self, attribute_name):
                 if socket.octane_node_unique_id not in self.current_socket_id_list:
                     getattr(self, attribute_name).remove(socket)
-                    break        
+                    break
 
     def build_proxy_node(self, proxy_graph_data_et, node_proxy, report):        
         self._build_proxy_node(proxy_graph_data_et, node_proxy, report, True)

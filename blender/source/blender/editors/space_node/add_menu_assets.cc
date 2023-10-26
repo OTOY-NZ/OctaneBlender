@@ -195,7 +195,7 @@ static void node_add_catalog_assets_draw(const bContext *C, Menu *menu)
   for (const LibraryAsset &item : asset_items) {
     uiLayout *col = uiLayoutColumn(layout, false);
 
-    PointerRNA asset_ptr{NULL, &RNA_AssetRepresentation, &item.asset};
+    PointerRNA asset_ptr{nullptr, &RNA_AssetRepresentation, &item.asset};
     uiLayoutSetContextPointer(col, "asset", &asset_ptr);
 
     PointerRNA library_ptr{&screen.id,
@@ -203,8 +203,10 @@ static void node_add_catalog_assets_draw(const bContext *C, Menu *menu)
                            const_cast<AssetLibraryReference *>(&item.library_ref)};
     uiLayoutSetContextPointer(col, "asset_library_ref", &library_ptr);
 
-    uiItemO(
-        col, AS_asset_representation_name_get(&item.asset), ICON_NONE, "NODE_OT_add_group_asset");
+    uiItemO(col,
+            IFACE_(AS_asset_representation_name_get(&item.asset)),
+            ICON_NONE,
+            "NODE_OT_add_group_asset");
   }
 
   asset_system::AssetLibrary *all_library = get_all_library_once_available();
@@ -220,7 +222,8 @@ static void node_add_catalog_assets_draw(const bContext *C, Menu *menu)
 
     uiLayout *col = uiLayoutColumn(layout, false);
     uiLayoutSetContextPointer(col, "asset_catalog_path", &path_ptr);
-    uiItemM(col, "NODE_MT_node_add_catalog_assets", child_item.get_name().c_str(), ICON_NONE);
+    uiItemM(
+        col, "NODE_MT_node_add_catalog_assets", IFACE_(child_item.get_name().c_str()), ICON_NONE);
   });
 }
 
@@ -296,14 +299,14 @@ static void add_root_catalogs_draw(const bContext *C, Menu *menu)
     }
     uiLayout *col = uiLayoutColumn(layout, false);
     uiLayoutSetContextPointer(col, "asset_catalog_path", &path_ptr);
-    uiItemM(col, "NODE_MT_node_add_catalog_assets", item.get_name().c_str(), ICON_NONE);
+    uiItemM(col, "NODE_MT_node_add_catalog_assets", IFACE_(item.get_name().c_str()), ICON_NONE);
   });
 }
 
 MenuType add_catalog_assets_menu_type()
 {
   MenuType type{};
-  BLI_strncpy(type.idname, "NODE_MT_node_add_catalog_assets", sizeof(type.idname));
+  STRNCPY(type.idname, "NODE_MT_node_add_catalog_assets");
   type.poll = node_add_menu_poll;
   type.draw = node_add_catalog_assets_draw;
   type.listener = node_add_menu_assets_listen_fn;
@@ -313,7 +316,7 @@ MenuType add_catalog_assets_menu_type()
 MenuType add_root_catalogs_menu_type()
 {
   MenuType type{};
-  BLI_strncpy(type.idname, "NODE_MT_node_add_root_catalogs", sizeof(type.idname));
+  STRNCPY(type.idname, "NODE_MT_node_add_root_catalogs");
   type.poll = node_add_menu_poll;
   type.draw = add_root_catalogs_draw;
   type.listener = node_add_menu_assets_listen_fn;
@@ -329,6 +332,11 @@ void uiTemplateNodeAssetMenuItems(uiLayout *layout, bContext *C, const char *cat
   using namespace blender::ed::space_node;
   bScreen &screen = *CTX_wm_screen(C);
   SpaceNode &snode = *CTX_wm_space_node(C);
+
+  if (snode.runtime->assets_for_menu == nullptr) {
+    return;
+  }
+
   AssetItemTree &tree = *snode.runtime->assets_for_menu;
   const asset_system::AssetCatalogTreeItem *item = tree.catalogs.find_root_item(catalog_path);
   if (!item) {
