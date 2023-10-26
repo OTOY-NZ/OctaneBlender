@@ -836,6 +836,9 @@ void BlenderSync::sync_kernel()
 
   kernel->oct_node->type = static_cast<::OctaneEngine::Kernel::KernelType>(
       RNA_enum_get(&oct_scene, "kernel_type"));
+  if (kernel->oct_node->bUseNodeTree) {
+    kernel->oct_node->type = ::OctaneEngine::Kernel::DEFAULT;
+  }
   kernel->oct_node->infoChannelType = static_cast<::OctaneEngine::InfoChannelType>(
       RNA_enum_get(&oct_scene, "info_channel_type"));
 

@@ -15,8 +15,8 @@ class OctaneSDFInsetSize(OctaneBaseSocket):
     bl_idname="OctaneSDFInsetSize"
     bl_label="Bounds"
     color=consts.OctanePinColor.Float
-    octane_default_node_type=consts.NodeType.NT_FLOAT
-    octane_default_node_name="OctaneFloatValue"
+    octane_default_node_type=consts.NodeType.NT_UNKNOWN
+    octane_default_node_name=""
     octane_pin_id=consts.PinID.P_SIZE
     octane_pin_name="size"
     octane_pin_type=consts.PinType.PT_FLOAT

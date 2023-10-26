@@ -121,9 +121,17 @@ class OctaneRoundEdges(bpy.types.Node, OctaneBaseNode):
     octane_min_version=0
     octane_node_type=consts.NodeType.NT_ROUND_EDGES
     octane_socket_list=["Mode", "Radius", "Roundness", "Samples", "Consider other objects", ]
-    octane_attribute_list=[]
-    octane_attribute_config={}
+    octane_attribute_list=["a_compatibility_version", ]
+    octane_attribute_config={"a_compatibility_version": [consts.AttributeID.A_COMPATIBILITY_VERSION, "compatibilityVersion", consts.AttributeType.AT_INT], }
     octane_static_pin_count=5
+
+    compatibility_mode_infos=[
+        ("Latest (2022.1.2)", "Latest (2022.1.2)", """(null)""", 12000200),
+        ("2022.1.1 compatibility mode", "2022.1.1 compatibility mode", """Always factor in the edge sharpness instead of just when the material smooth flag is set.""", 0),
+    ]
+    a_compatibility_version_enum: EnumProperty(name="Compatibility version", default="Latest (2022.1.2)", update=OctaneBaseNode.update_compatibility_mode, description="The Octane version that the behavior of this node should match", items=compatibility_mode_infos)
+
+    a_compatibility_version: IntProperty(name="Compatibility version", default=12000200, update=OctaneBaseNode.update_node_tree, description="The Octane version that the behavior of this node should match")
 
     def init(self, context):
         self.inputs.new("OctaneRoundEdgesRoundEdgesMode", OctaneRoundEdgesRoundEdgesMode.bl_label).init()

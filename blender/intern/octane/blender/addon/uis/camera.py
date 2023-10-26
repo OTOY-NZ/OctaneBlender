@@ -10,7 +10,7 @@ from octane import core
 class OCTANE_MT_imager_presets(Menu):
     bl_label = "Imager presets"
     preset_subdir = "octane/imager_presets"
-    preset_operator = "script.execute_preset_octane"
+    preset_operator = "script.execute_preset"
     preset_operator_defaults = {"menu_idname" : "OCTANE_MT_imager_presets"}
     COMPAT_ENGINES = {"octane"}
     draw = Menu.draw_preset
@@ -19,7 +19,7 @@ class OCTANE_MT_imager_presets(Menu):
 class OCTANE_MT_3dimager_presets(Menu):
     bl_label = "Imager presets"
     preset_subdir = "octane/3dimager_presets"
-    preset_operator = "script.execute_preset_octane"
+    preset_operator = "script.execute_preset"
     preset_operator_defaults = {"menu_idname" : "OCTANE_MT_3dimager_presets"}
     COMPAT_ENGINES = {"octane"}
     draw = Menu.draw_preset
@@ -28,7 +28,7 @@ class OCTANE_MT_3dimager_presets(Menu):
 class OCTANE_MT_postprocess_presets(Menu):
     bl_label = "Postprocess presets"
     preset_subdir = "octane/postprocess_presets"
-    preset_operator = "script.execute_preset_octane"
+    preset_operator = "script.execute_preset"
     preset_operator_defaults = {"menu_idname" : "OCTANE_MT_postprocess_presets"}
     COMPAT_ENGINES = {"octane"}
     draw = Menu.draw_preset
@@ -37,7 +37,7 @@ class OCTANE_MT_postprocess_presets(Menu):
 class OCTANE_MT_3dpostprocess_presets(Menu):
     bl_label = "Postprocess presets"
     preset_subdir = "octane/3dpostprocess_presets"
-    preset_operator = "script.execute_preset_octane"
+    preset_operator = "script.execute_preset"
     preset_operator_defaults = {"menu_idname" : "OCTANE_MT_3dpostprocess_presets"}
     COMPAT_ENGINES = {"octane"}
     draw = Menu.draw_preset

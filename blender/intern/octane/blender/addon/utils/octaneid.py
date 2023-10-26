@@ -1343,6 +1343,7 @@ class PinID:
     P_DISABLED_COLOR = 884
     P_TEMPERATURE_MAX = 886
     P_TEMPERATURE_MIN = 887
+    P_CAST_PHOTONS = 937
     P_IOR = 951
     P_COATING_IOR = 952
     P_FILM_IOR = 953
@@ -2789,7 +2790,7 @@ OCTANE_SHORT_NAME_TO_PASS_ID = {
     "cm-Gnn": RenderPassID.CryptoGeometryNodeName,
 }
 
-OCTANE_PASS_ID_TO_NODE_PIN_NAME = {
+OCTANE_PASS_ID_TO_NODE_PIN_ID = {
     RenderPassID.Beauty: "",
     RenderPassID.Emitters: "renderPassEmit",
     RenderPassID.Environment: "renderPassEnvironment",

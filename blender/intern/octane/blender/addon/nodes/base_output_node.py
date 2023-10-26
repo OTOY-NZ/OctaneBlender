@@ -1137,8 +1137,12 @@ class OctaneEditorWorldOutputNode(bpy.types.Node, OctaneBaseOutputNode):
         self.inputs.new("OctaneEnvironmentSocket", consts.OctaneOutputNodeSocketNames.ENVIRONMENT).init()
         self.inputs.new("OctaneEnvironmentSocket", consts.OctaneOutputNodeSocketNames.VISIBLE_ENVIRONMENT).init()
 
-    def load_custom_legacy_node(self, legacy_node, node_tree, context, report):
+    def load_custom_legacy_node(self, legacy_node, node_tree, context, report=None):
+        if "Octane Environment" not in legacy_node.inputs or "Octane VisibleEnvironment" not in legacy_node.inputs:
+            return
         legacy_environment_socket = legacy_node.inputs["Octane Environment"]
+        if not legacy_environment_socket.is_linked:
+            legacy_environment_socket = legacy_node.inputs["Surface"]
         legacy_visible_environment_socket = legacy_node.inputs["Octane VisibleEnvironment"]
         new_environment_socket = self.inputs[consts.OctaneOutputNodeSocketNames.ENVIRONMENT]
         new_visible_environment_socket = self.inputs[consts.OctaneOutputNodeSocketNames.VISIBLE_ENVIRONMENT]

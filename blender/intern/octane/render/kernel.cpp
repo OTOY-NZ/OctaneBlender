@@ -27,7 +27,7 @@ Kernel::Kernel()
 {
   oct_node = new ::OctaneEngine::Kernel;
 
-  oct_node->type = ::OctaneEngine::Kernel::DIRECT_LIGHT;
+  oct_node->type = ::OctaneEngine::Kernel::DEFAULT;
 
   // COMMON
   oct_node->fShutterTime = 0.0f;

@@ -230,7 +230,7 @@ class OctaneMetallicLayerHasCaustics(OctaneBaseSocket):
 
 class OctaneMetallicLayerFilmwidth(OctaneBaseSocket):
     bl_idname="OctaneMetallicLayerFilmwidth"
-    bl_label="Film width (μm)"
+    bl_label="Film width (um)"
     color=consts.OctanePinColor.Texture
     octane_default_node_type=consts.NodeType.NT_TEX_FLOAT
     octane_default_node_name="OctaneGreyscaleColor"
@@ -324,7 +324,7 @@ class OctaneMetallicLayerGroupIOR(OctaneGroupTitleSocket):
 class OctaneMetallicLayerGroupThinFilmLayer(OctaneGroupTitleSocket):
     bl_idname="OctaneMetallicLayerGroupThinFilmLayer"
     bl_label="[OctaneGroupTitle]Thin Film Layer"
-    octane_group_sockets: StringProperty(name="Group Sockets", default="Film width (μm);Film IOR;")
+    octane_group_sockets: StringProperty(name="Group Sockets", default="Film width (um);Film IOR;")
 
 class OctaneMetallicLayerGroupGeometryProperties(OctaneGroupTitleSocket):
     bl_idname="OctaneMetallicLayerGroupGeometryProperties"
@@ -348,7 +348,7 @@ class OctaneMetallicLayer(bpy.types.Node, OctaneBaseNode):
     octane_socket_class_list=[OctaneMetallicLayerSpecular,OctaneMetallicLayerEdgeTint,OctaneMetallicLayerBrdf,OctaneMetallicLayerGroupRoughness,OctaneMetallicLayerRoughness,OctaneMetallicLayerAnisotropy,OctaneMetallicLayerRotation,OctaneMetallicLayerSpread,OctaneMetallicLayerGroupIOR,OctaneMetallicLayerMetallicMode,OctaneMetallicLayerIndex,OctaneMetallicLayerIndex2,OctaneMetallicLayerIndex3,OctaneMetallicLayerHasCaustics,OctaneMetallicLayerGroupThinFilmLayer,OctaneMetallicLayerFilmwidth,OctaneMetallicLayerFilmindex,OctaneMetallicLayerGroupGeometryProperties,OctaneMetallicLayerBump,OctaneMetallicLayerNormal,OctaneMetallicLayerGroupLayerProperties,OctaneMetallicLayerOpacity,]
     octane_min_version=0
     octane_node_type=consts.NodeType.NT_MAT_METALLIC_LAYER
-    octane_socket_list=["Specular ", "Edge tint", "BRDF model", "Roughness", "Anisotropy", "Rotation", "Spread", "Metallic reflection mode", "Index of refraction", "Index of refraction (green)", "Index of refraction (blue)", "Allow caustics", "Film width (μm)", "Film IOR", "Bump", "Normal", "Layer opacity", ]
+    octane_socket_list=["Specular ", "Edge tint", "BRDF model", "Roughness", "Anisotropy", "Rotation", "Spread", "Metallic reflection mode", "Index of refraction", "Index of refraction (green)", "Index of refraction (blue)", "Allow caustics", "Film width (um)", "Film IOR", "Bump", "Normal", "Layer opacity", ]
     octane_attribute_list=[]
     octane_attribute_config={}
     octane_static_pin_count=17

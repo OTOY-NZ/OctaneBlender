@@ -140,7 +140,7 @@ class OctaneGlossyMaterialSpread(OctaneBaseSocket):
 
 class OctaneGlossyMaterialFilmwidth(OctaneBaseSocket):
     bl_idname="OctaneGlossyMaterialFilmwidth"
-    bl_label="Film width (μm)"
+    bl_label="Film width (um)"
     color=consts.OctanePinColor.Texture
     octane_default_node_type=consts.NodeType.NT_TEX_FLOAT
     octane_default_node_name="OctaneGreyscaleColor"
@@ -476,7 +476,7 @@ class OctaneGlossyMaterialGroupRoughness(OctaneGroupTitleSocket):
 class OctaneGlossyMaterialGroupThinFilmLayer(OctaneGroupTitleSocket):
     bl_idname="OctaneGlossyMaterialGroupThinFilmLayer"
     bl_label="[OctaneGroupTitle]Thin Film Layer"
-    octane_group_sockets: StringProperty(name="Group Sockets", default="Film width (μm);Film IOR;")
+    octane_group_sockets: StringProperty(name="Group Sockets", default="Film width (um);Film IOR;")
 
 class OctaneGlossyMaterialGroupSheenLayer(OctaneGroupTitleSocket):
     bl_idname="OctaneGlossyMaterialGroupSheenLayer"
@@ -510,7 +510,7 @@ class OctaneGlossyMaterial(bpy.types.Node, OctaneBaseNode):
     octane_socket_class_list=[OctaneGlossyMaterialDiffuse,OctaneGlossyMaterialSpecular,OctaneGlossyMaterialBrdf,OctaneGlossyMaterialGroupRoughness,OctaneGlossyMaterialRoughness,OctaneGlossyMaterialAnisotropy,OctaneGlossyMaterialRotation,OctaneGlossyMaterialSpread,OctaneGlossyMaterialGroupThinFilmLayer,OctaneGlossyMaterialFilmwidth,OctaneGlossyMaterialFilmindex,OctaneGlossyMaterialGroupSheenLayer,OctaneGlossyMaterialSheen,OctaneGlossyMaterialSheenRoughness,OctaneGlossyMaterialGroupIOR,OctaneGlossyMaterialIndex,OctaneGlossyMaterialHasCaustics,OctaneGlossyMaterialGroupTransmissionProperties,OctaneGlossyMaterialOpacity,OctaneGlossyMaterialGroupGeometryProperties,OctaneGlossyMaterialBump,OctaneGlossyMaterialNormal,OctaneGlossyMaterialDisplacement,OctaneGlossyMaterialSmooth,OctaneGlossyMaterialSmoothShadowTerminator,OctaneGlossyMaterialRoundEdges,OctaneGlossyMaterialPriority,OctaneGlossyMaterialCustomAov,OctaneGlossyMaterialCustomAovChannel,OctaneGlossyMaterialLayer,OctaneGlossyMaterialEdgesRounding,]
     octane_min_version=0
     octane_node_type=consts.NodeType.NT_MAT_GLOSSY
-    octane_socket_list=["Diffuse", "Specular", "BRDF model", "Roughness", "Anisotropy", "Rotation", "Spread", "Film width (μm)", "Film IOR", "Sheen", "Sheen Roughness", "Index of refraction", "Allow caustics", "Opacity", "Bump", "Normal", "Displacement", "Smooth", "Smooth shadow terminator", "Round edges", "Priority", "Custom AOV", "Custom AOV channel", "Material layer", "[Deprecated]Rounded edges radius", ]
+    octane_socket_list=["Diffuse", "Specular", "BRDF model", "Roughness", "Anisotropy", "Rotation", "Spread", "Film width (um)", "Film IOR", "Sheen", "Sheen Roughness", "Index of refraction", "Allow caustics", "Opacity", "Bump", "Normal", "Displacement", "Smooth", "Smooth shadow terminator", "Round edges", "Priority", "Custom AOV", "Custom AOV channel", "Material layer", "[Deprecated]Rounded edges radius", ]
     octane_attribute_list=[]
     octane_attribute_config={}
     octane_static_pin_count=24

@@ -395,7 +395,7 @@ class OctanePreferences(bpy.types.AddonPreferences):
     default_use_blender_builtin_render_layer: BoolProperty(
         name="Use Blender Built-in Render Layer",
         description="Whether to use blender built-in render layer system for default(reboot blender to take effect)",   
-        default=False,         
+        default=False,
     )
 
     enable_empty_gpus_automatically: BoolProperty(
@@ -434,7 +434,7 @@ class OctanePreferences(bpy.types.AddonPreferences):
     )                
     enable_relese_octane_license_when_exiting: BoolProperty(
         name="Release Octane License After Exiting",
-        description="Release Octane license after exiting blender",
+        description="Release Octane license after exiting blender(reboot blender to take effect)",
         default=False,
     )       
     octane_server_address: StringProperty(

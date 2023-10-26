@@ -194,8 +194,8 @@ class OctaneObjectSettings(bpy.types.PropertyGroup):
         default=False,
     )
     use_deform_motion: BoolProperty(
-        name="Use Deformation Motion",
-        description="Use deformation motion blur for this object",
+        name="Use Deformation Motion",        
+        description="Use deformation motion blur for this object\nWarning: \nAutosmooth or an object modifier that changes mesh topology over time may not render deformation motion blur correctly",
         default=False,
     )
     motion_steps: IntProperty(

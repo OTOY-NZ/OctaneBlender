@@ -206,7 +206,7 @@ class OctaneSpecularLayerHasCaustics(OctaneBaseSocket):
 
 class OctaneSpecularLayerFilmwidth(OctaneBaseSocket):
     bl_idname="OctaneSpecularLayerFilmwidth"
-    bl_label="Film width (μm)"
+    bl_label="Film width (um)"
     color=consts.OctanePinColor.Texture
     octane_default_node_type=consts.NodeType.NT_TEX_FLOAT
     octane_default_node_name="OctaneGreyscaleColor"
@@ -334,7 +334,7 @@ class OctaneSpecularLayerGroupIOR(OctaneGroupTitleSocket):
 class OctaneSpecularLayerGroupThinFilmLayer(OctaneGroupTitleSocket):
     bl_idname="OctaneSpecularLayerGroupThinFilmLayer"
     bl_label="[OctaneGroupTitle]Thin Film Layer"
-    octane_group_sockets: StringProperty(name="Group Sockets", default="Film width (μm);Film IOR;")
+    octane_group_sockets: StringProperty(name="Group Sockets", default="Film width (um);Film IOR;")
 
 class OctaneSpecularLayerGroupTransmissionProperties(OctaneGroupTitleSocket):
     bl_idname="OctaneSpecularLayerGroupTransmissionProperties"
@@ -363,7 +363,7 @@ class OctaneSpecularLayer(bpy.types.Node, OctaneBaseNode):
     octane_socket_class_list=[OctaneSpecularLayerSpecular,OctaneSpecularLayerTransmission,OctaneSpecularLayerBrdf,OctaneSpecularLayerGroupRoughness,OctaneSpecularLayerRoughness,OctaneSpecularLayerAffectRoughness,OctaneSpecularLayerAnisotropy,OctaneSpecularLayerRotation,OctaneSpecularLayerSpread,OctaneSpecularLayerGroupIOR,OctaneSpecularLayerIndex,OctaneSpecularLayerIndexMap,OctaneSpecularLayerHasCaustics,OctaneSpecularLayerGroupThinFilmLayer,OctaneSpecularLayerFilmwidth,OctaneSpecularLayerFilmindex,OctaneSpecularLayerGroupTransmissionProperties,OctaneSpecularLayerThinLayer,OctaneSpecularLayerGroupGeometryProperties,OctaneSpecularLayerBump,OctaneSpecularLayerNormal,OctaneSpecularLayerGroupLayerProperties,OctaneSpecularLayerDispersionCoefficientB,OctaneSpecularLayerOpacity,]
     octane_min_version=0
     octane_node_type=consts.NodeType.NT_MAT_SPECULAR_LAYER
-    octane_socket_list=["Specular", "Transmission", "BRDF model", "Roughness", "Affect roughness", "Anisotropy", "Rotation", "Spread", "IOR", "1/IOR map", "Allow caustics", "Film width (μm)", "Film IOR", "Thin Layer", "Bump", "Normal", "Dispersion coefficient", "Layer opacity", ]
+    octane_socket_list=["Specular", "Transmission", "BRDF model", "Roughness", "Affect roughness", "Anisotropy", "Rotation", "Spread", "IOR", "1/IOR map", "Allow caustics", "Film width (um)", "Film IOR", "Thin Layer", "Bump", "Normal", "Dispersion coefficient", "Layer opacity", ]
     octane_attribute_list=[]
     octane_attribute_config={}
     octane_static_pin_count=18

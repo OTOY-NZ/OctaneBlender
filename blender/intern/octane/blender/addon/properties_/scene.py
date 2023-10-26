@@ -1426,11 +1426,15 @@ class OctaneRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
         description="",
         default=False,
     )
+    def update_info_pass_max_samples(self, context):
+        oct_scene = context.scene.octane
+        oct_scene.info_pass_max_samples = self.info_pass_max_samples
     info_pass_max_samples: IntProperty(
         name="Info pass max samples",
         description="The maximum number of samples for the info passes (excluding AO)",
         min=1, max=1024,
         default=128,
+        update=update_info_pass_max_samples,
     )
     info_pass_sampling_mode: EnumProperty(
         name="Sampling mode",
@@ -1776,6 +1780,11 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
         items=kernel_data_modes,
         default="PROPERTY_PANEL",
     )
+    kernel_json_node_tree_helper: StringProperty(
+        name="Kernel Json Node Tree",
+        default="",
+        maxlen=65535,
+    )    
 
 # ################################################################################################
 # OCTANE ANIMATION SETTINGS
@@ -3161,110 +3170,24 @@ class AddPresetRenderPasses(AddPresetBase, Operator):
     preset_subdir = "octane/renderpasses_presets"
 
 
-class AddPresetLegacyKernel(AddPresetBase, Operator):
-    """Add Octane Legacy Kernel preset"""
-    bl_idname = "render.octane_legacy_kernel_preset_add"
-    bl_label = "Add Legacy Kernel preset"
-    preset_menu = "OCTANE_MT_legacy_kernel_presets"
+class AddPresetKernel(AddPresetBase, Operator):
+    """Add Octane Kernel preset"""
+    bl_idname = "render.octane_kernel_preset_add"
+    bl_label = "Add Kernel preset"
+    preset_menu = "OCTANE_MT_kernel_presets"
     preset_defines = [
         "octane = bpy.context.scene.octane"
     ]
     preset_values = [
-        "octane.devices",
-        "octane.kernel_type",
-        "octane.max_samples",
-        "octane.max_preview_samples",
-        "octane.gi_mode",
-        "octane.clay_mode",
-        "octane.ao_texture",
-        "octane.info_channel_type",
-        "octane.parallel_samples",
-        "octane.max_tile_samples",
-        "octane.zdepth_max",
-        "octane.uv_max",
-        "octane.max_speed",
-        "octane.opacity_threshold",
-        "octane.sampling_mode",
-        "octane.max_diffuse_depth",
-        "octane.max_glossy_depth",
-        "octane.max_scatter_depth",
-        "octane.caustic_blur",
-        "octane.gi_clamp",
-        "octane.alpha_channel",
-        "octane.wf_bkface_hl",
-        "octane.ao_alpha_shadows",
-        "octane.minimize_net_traffic",
-        "octane.emulate_old_volume_behavior",
-        "octane.specular_depth",
-        "octane.glossy_depth",
-        "octane.diffuse_depth",
-        "octane.ao_dist",
-        "octane.filter_size",
-        "octane.ray_epsilon",
-        "octane.exploration",
-        "octane.direct_light_importance",
-        "octane.max_rejects",
-        "octane.parallelism",
-        "octane.work_chunk_size",
-        "octane.coherent_ratio",
-        "octane.max_depth_samples",
-        "octane.depth_tolerance",
-        "octane.static_noise",
-        "octane.deep_image",
-        "octane.path_term_power",
-        "octane.keep_environment",
-        "octane.irradiance_mode",
-        "octane.ai_light_enable",
-        "octane.ai_light_update",
-        "octane.ai_light_strength",
-        "octane.alpha_shadows",
-        "octane.bump_normal_mapping",
-        "octane.light_id_sunlight",
-        "octane.light_id_env",
-        "octane.light_id_pass_1",
-        "octane.light_id_pass_2",
-        "octane.light_id_pass_3",
-        "octane.light_id_pass_4",
-        "octane.light_id_pass_5",
-        "octane.light_id_pass_6",
-        "octane.light_id_pass_7",
-        "octane.light_id_pass_8",
-        "octane.light_id_sunlight_invert",
-        "octane.light_id_env_invert",
-        "octane.light_id_pass_1_invert",
-        "octane.light_id_pass_2_invert",
-        "octane.light_id_pass_3_invert",
-        "octane.light_id_pass_4_invert",
-        "octane.light_id_pass_5_invert",
-        "octane.light_id_pass_6_invert",
-        "octane.light_id_pass_7_invert",
-        "octane.light_id_pass_8_invert",
+        "octane.kernel_json_node_tree_helper",
     ]
-    preset_subdir = "octane/kernel"
+    preset_subdir = "octane/kernel_presets"
 
-
-class ExecutePresetLegacyKernel(ExecutePreset):
-    bl_label = "Execute Preset Legacy Kernel"
-    bl_idname = "script.execute_preset_legacy_kernel"
-
-    def execute(self, context):
-        from os.path import basename
-        from octane.utils import utility
-        result = super().execute(context)
-        preset_name = bpy.path.display_name(basename(self.filepath), title_case=False)
-        octane_scene = bpy.context.scene.octane
-        utility.quick_add_octane_kernel_node_tree(assign_to_kernel_node_graph=True, generate_from_legacy_octane_property=True, preset_name=preset_name)
-        octane_scene.kernel_data_mode = "NODETREE"
-        return result
-
-
-class ExecutePresetOctaneBase(ExecutePreset):
-    bl_label = "Execute Preset Octane"
-    bl_idname = "script.execute_preset_octane"
-
-    def execute(self, context):
-        result = super().execute(context)
-        return result
+    def pre_cb(self, context):
+        scene = context.scene
+        octane_scene = scene.octane
+        node_tree = utility.find_active_kernel_node_tree(scene)
+        octane_scene.kernel_json_node_tree_helper = utility.dump_json_node_tree(node_tree)
 
 
 _CLASSES = [
@@ -3280,9 +3203,7 @@ _CLASSES = [
     OctaneRenderLayer,
     OctaneRenderSettings,
     AddPresetRenderPasses,
-    AddPresetLegacyKernel,
-    ExecutePresetLegacyKernel,
-    ExecutePresetOctaneBase,
+    AddPresetKernel,
 ]
 
 

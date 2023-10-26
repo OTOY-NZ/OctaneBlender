@@ -74,7 +74,7 @@ class OctaneCompositeAOVOutput(bpy.types.Node, OctaneBaseNode):
     a_compatibility_version_enum: EnumProperty(name="Compatibility version", default="Latest (2022.1)", update=OctaneBaseNode.update_compatibility_mode, description="The Octane version that the behavior of this node should match", items=compatibility_mode_infos)
 
     a_layer_count: IntProperty(name="Layer count", default=0, update=OctaneBaseNode.update_node_tree, description="The number of layers. Changing this value and evaluating the node will update the number of layers. New layers will be added to the front of the dynamic pin list")
-    a_compatibility_version: IntProperty(name="Compatibility version", default=12000102, update=OctaneBaseNode.update_node_tree, description="The Octane version that the behavior of this node should match")
+    a_compatibility_version: IntProperty(name="Compatibility version", default=12000200, update=OctaneBaseNode.update_node_tree, description="The Octane version that the behavior of this node should match")
 
     def init(self, context):
         self.inputs.new("OctaneCompositeAOVOutputGroupOutputSettings", OctaneCompositeAOVOutputGroupOutputSettings.bl_label).init()

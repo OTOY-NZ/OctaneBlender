@@ -163,6 +163,23 @@ class OctanePlanetaryEnvironmentImportanceSampling(OctaneBaseSocket):
     octane_end_version=4294967295
     octane_deprecated=False
 
+class OctanePlanetaryEnvironmentCastPhotons(OctaneBaseSocket):
+    bl_idname="OctanePlanetaryEnvironmentCastPhotons"
+    bl_label="Cast photons"
+    color=consts.OctanePinColor.Bool
+    octane_default_node_type=consts.NodeType.NT_BOOL
+    octane_default_node_name="OctaneBoolValue"
+    octane_pin_id=consts.PinID.P_CAST_PHOTONS
+    octane_pin_name="castPhotons"
+    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_index=9
+    octane_socket_type=consts.SocketType.ST_BOOL
+    default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="If photon mapping is used, cast photons from bright sources in the environment map")
+    octane_hide_value=False
+    octane_min_version=12000200
+    octane_end_version=4294967295
+    octane_deprecated=False
+
 class OctanePlanetaryEnvironmentMedium(OctaneBaseSocket):
     bl_idname="OctanePlanetaryEnvironmentMedium"
     bl_label="Medium"
@@ -172,7 +189,7 @@ class OctanePlanetaryEnvironmentMedium(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_MEDIUM
     octane_pin_name="medium"
     octane_pin_type=consts.PinType.PT_MEDIUM
-    octane_pin_index=9
+    octane_pin_index=10
     octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=4000003
@@ -188,7 +205,7 @@ class OctanePlanetaryEnvironmentMediumRadius(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_MEDIUM_RADIUS
     octane_pin_name="mediumRadius"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=10
+    octane_pin_index=11
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Radius of the environment medium. The environment medium acts as a sphere around the camera position with the specified radius", min=0.000100, max=10000000000.000000, soft_min=0.000100, soft_max=10000000000.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
@@ -205,7 +222,7 @@ class OctanePlanetaryEnvironmentLightPassMask(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_LIGHT_PASS_MASK
     octane_pin_name="lightPassMask"
     octane_pin_type=consts.PinType.PT_BIT_MASK
-    octane_pin_index=11
+    octane_pin_index=12
     octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=11000002
@@ -221,7 +238,7 @@ class OctanePlanetaryEnvironmentLatitude(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_LATITUDE
     octane_pin_name="latitude"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=12
+    octane_pin_index=13
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Latitude coordinate where we are currently positioned", min=-90.000000, max=90.000000, soft_min=-90.000000, soft_max=90.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
@@ -238,7 +255,7 @@ class OctanePlanetaryEnvironmentLongitude(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_LONGITUDE
     octane_pin_name="longitude"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=13
+    octane_pin_index=14
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Longitude coordinate where we are currently positioned", min=-180.000000, max=180.000000, soft_min=-180.000000, soft_max=180.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
@@ -255,7 +272,7 @@ class OctanePlanetaryEnvironmentPlanetaryDiffuse(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_PLANETARY_DIFFUSE_MAP
     octane_pin_name="planetaryDiffuse"
     octane_pin_type=consts.PinType.PT_TEXTURE
-    octane_pin_index=14
+    octane_pin_index=15
     octane_socket_type=consts.SocketType.ST_RGBA
     default_value: FloatVectorProperty(default=(0.031928, 0.130434, 0.557292), update=OctaneBaseSocket.update_node_tree, description="Surface texture map on the planet", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
     octane_hide_value=False
@@ -272,7 +289,7 @@ class OctanePlanetaryEnvironmentPlanetarySpecular(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_PLANETARY_SPECULAR_MAP
     octane_pin_name="planetarySpecular"
     octane_pin_type=consts.PinType.PT_TEXTURE
-    octane_pin_index=15
+    octane_pin_index=16
     octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=4000003
@@ -288,7 +305,7 @@ class OctanePlanetaryEnvironmentPlanetaryGlossiness(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_PLANETARY_GLOSSINESS
     octane_pin_name="planetaryGlossiness"
     octane_pin_type=consts.PinType.PT_TEXTURE
-    octane_pin_index=16
+    octane_pin_index=17
     octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=4000004
@@ -304,7 +321,7 @@ class OctanePlanetaryEnvironmentPlanetaryEmission(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_PLANETARY_EMISSION_MAP
     octane_pin_name="planetaryEmission"
     octane_pin_type=consts.PinType.PT_TEXTURE
-    octane_pin_index=17
+    octane_pin_index=18
     octane_socket_type=consts.SocketType.ST_RGBA
     default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="Surface texture map on the planet at night time", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
     octane_hide_value=False
@@ -321,7 +338,7 @@ class OctanePlanetaryEnvironmentPlanetaryNormal(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_PLANETARY_NORMAL_MAP
     octane_pin_name="planetaryNormal"
     octane_pin_type=consts.PinType.PT_TEXTURE
-    octane_pin_index=18
+    octane_pin_index=19
     octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=4000003
@@ -337,7 +354,7 @@ class OctanePlanetaryEnvironmentPlanetaryElevation(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_PLANETARY_ELEVATION_MAP
     octane_pin_name="planetaryElevation"
     octane_pin_type=consts.PinType.PT_TEXTURE
-    octane_pin_index=19
+    octane_pin_index=20
     octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=4000003
@@ -353,7 +370,7 @@ class OctanePlanetaryEnvironmentVisibleEnvironmentBackplate(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_VISIBLE_ENVIRONMENT_BACKPLATE
     octane_pin_name="visibleEnvironmentBackplate"
     octane_pin_type=consts.PinType.PT_BOOL
-    octane_pin_index=20
+    octane_pin_index=21
     octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="When used as a visible environment, this environment will behave as a backplate image")
     octane_hide_value=False
@@ -370,7 +387,7 @@ class OctanePlanetaryEnvironmentVisibleEnvironmentReflections(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_VISIBLE_ENVIRONMENT_REFLECTIONS
     octane_pin_name="visibleEnvironmentReflections"
     octane_pin_type=consts.PinType.PT_BOOL
-    octane_pin_index=21
+    octane_pin_index=22
     octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="When used as a visible environment, this environment will be visible in reflections (specular and glossy materials)")
     octane_hide_value=False
@@ -387,7 +404,7 @@ class OctanePlanetaryEnvironmentVisibleEnvironmentRefractions(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_VISIBLE_ENVIRONMENT_REFRACTIONS
     octane_pin_name="visibleEnvironmentRefractions"
     octane_pin_type=consts.PinType.PT_BOOL
-    octane_pin_index=22
+    octane_pin_index=23
     octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="When used as a visible environment, this environment will be visible in refractions")
     octane_hide_value=False
@@ -404,7 +421,7 @@ class OctanePlanetaryEnvironmentPlanetaryAxis(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_PLANETARY_AXIS
     octane_pin_name="planetaryAxis"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=23
+    octane_pin_index=24
     octane_socket_type=consts.SocketType.ST_FLOAT3
     default_value: FloatVectorProperty(default=(0.000000, 0.000000, 1.000000), update=OctaneBaseSocket.update_node_tree, description="(deprecated) The rotational axis of the planet running through the north and south poles", min=-1.000000, max=1.000000, soft_min=-1.000000, soft_max=1.000000, step=1, subtype="NONE", precision=2, size=3)
     octane_hide_value=False
@@ -421,7 +438,7 @@ class OctanePlanetaryEnvironmentPlanetaryAngle(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_PLANETARY_ANGLE
     octane_pin_name="planetaryAngle"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=24
+    octane_pin_index=25
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="(deprecated) The rotation around the planetary axis", min=-3.141593, max=3.141593, soft_min=-3.141593, soft_max=3.141593, step=1, precision=4, subtype="FACTOR")
     octane_hide_value=False
@@ -448,13 +465,13 @@ class OctanePlanetaryEnvironment(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
-    octane_socket_class_list=[OctanePlanetaryEnvironmentSundir,OctanePlanetaryEnvironmentTurbidity,OctanePlanetaryEnvironmentPower,OctanePlanetaryEnvironmentSunIntensity,OctanePlanetaryEnvironmentNorthoffset,OctanePlanetaryEnvironmentSunSize,OctanePlanetaryEnvironmentPlanetaryAltitude,OctanePlanetaryEnvironmentPlanetaryStarField,OctanePlanetaryEnvironmentImportanceSampling,OctanePlanetaryEnvironmentMedium,OctanePlanetaryEnvironmentMediumRadius,OctanePlanetaryEnvironmentLightPassMask,OctanePlanetaryEnvironmentLatitude,OctanePlanetaryEnvironmentLongitude,OctanePlanetaryEnvironmentGroupPlanetarySurface,OctanePlanetaryEnvironmentPlanetaryDiffuse,OctanePlanetaryEnvironmentPlanetarySpecular,OctanePlanetaryEnvironmentPlanetaryGlossiness,OctanePlanetaryEnvironmentPlanetaryEmission,OctanePlanetaryEnvironmentPlanetaryNormal,OctanePlanetaryEnvironmentPlanetaryElevation,OctanePlanetaryEnvironmentGroupVisibleEnvironment,OctanePlanetaryEnvironmentVisibleEnvironmentBackplate,OctanePlanetaryEnvironmentVisibleEnvironmentReflections,OctanePlanetaryEnvironmentVisibleEnvironmentRefractions,OctanePlanetaryEnvironmentPlanetaryAxis,OctanePlanetaryEnvironmentPlanetaryAngle,]
+    octane_socket_class_list=[OctanePlanetaryEnvironmentSundir,OctanePlanetaryEnvironmentTurbidity,OctanePlanetaryEnvironmentPower,OctanePlanetaryEnvironmentSunIntensity,OctanePlanetaryEnvironmentNorthoffset,OctanePlanetaryEnvironmentSunSize,OctanePlanetaryEnvironmentPlanetaryAltitude,OctanePlanetaryEnvironmentPlanetaryStarField,OctanePlanetaryEnvironmentImportanceSampling,OctanePlanetaryEnvironmentCastPhotons,OctanePlanetaryEnvironmentMedium,OctanePlanetaryEnvironmentMediumRadius,OctanePlanetaryEnvironmentLightPassMask,OctanePlanetaryEnvironmentLatitude,OctanePlanetaryEnvironmentLongitude,OctanePlanetaryEnvironmentGroupPlanetarySurface,OctanePlanetaryEnvironmentPlanetaryDiffuse,OctanePlanetaryEnvironmentPlanetarySpecular,OctanePlanetaryEnvironmentPlanetaryGlossiness,OctanePlanetaryEnvironmentPlanetaryEmission,OctanePlanetaryEnvironmentPlanetaryNormal,OctanePlanetaryEnvironmentPlanetaryElevation,OctanePlanetaryEnvironmentGroupVisibleEnvironment,OctanePlanetaryEnvironmentVisibleEnvironmentBackplate,OctanePlanetaryEnvironmentVisibleEnvironmentReflections,OctanePlanetaryEnvironmentVisibleEnvironmentRefractions,OctanePlanetaryEnvironmentPlanetaryAxis,OctanePlanetaryEnvironmentPlanetaryAngle,]
     octane_min_version=0
     octane_node_type=consts.NodeType.NT_ENV_PLANETARY
-    octane_socket_list=["Sun direction", "Sky turbidity", "Power", "Sun intensity", "North offset", "Sun size", "Altitude", "Star field", "Importance sampling", "Medium", "Medium radius", "Medium light pass mask", "Latitude", "Longitude", "Ground albedo", "Ground reflection", "Ground glossiness", "Ground emission", "Ground normal map", "Ground elevation", "Backplate", "Reflections", "Refractions", "[Deprecated]Planetary axis", "[Deprecated]Planetary angle", ]
+    octane_socket_list=["Sun direction", "Sky turbidity", "Power", "Sun intensity", "North offset", "Sun size", "Altitude", "Star field", "Importance sampling", "Cast photons", "Medium", "Medium radius", "Medium light pass mask", "Latitude", "Longitude", "Ground albedo", "Ground reflection", "Ground glossiness", "Ground emission", "Ground normal map", "Ground elevation", "Backplate", "Reflections", "Refractions", "[Deprecated]Planetary axis", "[Deprecated]Planetary angle", ]
     octane_attribute_list=[]
     octane_attribute_config={}
-    octane_static_pin_count=23
+    octane_static_pin_count=24
 
     def init(self, context):
         self.inputs.new("OctanePlanetaryEnvironmentSundir", OctanePlanetaryEnvironmentSundir.bl_label).init()
@@ -466,6 +483,7 @@ class OctanePlanetaryEnvironment(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctanePlanetaryEnvironmentPlanetaryAltitude", OctanePlanetaryEnvironmentPlanetaryAltitude.bl_label).init()
         self.inputs.new("OctanePlanetaryEnvironmentPlanetaryStarField", OctanePlanetaryEnvironmentPlanetaryStarField.bl_label).init()
         self.inputs.new("OctanePlanetaryEnvironmentImportanceSampling", OctanePlanetaryEnvironmentImportanceSampling.bl_label).init()
+        self.inputs.new("OctanePlanetaryEnvironmentCastPhotons", OctanePlanetaryEnvironmentCastPhotons.bl_label).init()
         self.inputs.new("OctanePlanetaryEnvironmentMedium", OctanePlanetaryEnvironmentMedium.bl_label).init()
         self.inputs.new("OctanePlanetaryEnvironmentMediumRadius", OctanePlanetaryEnvironmentMediumRadius.bl_label).init()
         self.inputs.new("OctanePlanetaryEnvironmentLightPassMask", OctanePlanetaryEnvironmentLightPassMask.bl_label).init()
@@ -501,6 +519,7 @@ _CLASSES=[
     OctanePlanetaryEnvironmentPlanetaryAltitude,
     OctanePlanetaryEnvironmentPlanetaryStarField,
     OctanePlanetaryEnvironmentImportanceSampling,
+    OctanePlanetaryEnvironmentCastPhotons,
     OctanePlanetaryEnvironmentMedium,
     OctanePlanetaryEnvironmentMediumRadius,
     OctanePlanetaryEnvironmentLightPassMask,
