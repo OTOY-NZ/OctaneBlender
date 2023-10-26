@@ -3,11 +3,14 @@ import bpy
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
 from octane.utils import utility, consts
-from octane.nodes.base_node import OctaneBaseNode
-from octane.nodes.base_kernel import OctaneBaseKernelNode
-from octane.nodes.base_osl import OctaneScriptNode
-from octane.nodes.base_image import OctaneBaseImageNode
+from octane.nodes import base_switch_input_socket
 from octane.nodes.base_color_ramp import OctaneBaseRampNode
+from octane.nodes.base_curve import OctaneBaseCurveNode
+from octane.nodes.base_image import OctaneBaseImageNode
+from octane.nodes.base_kernel import OctaneBaseKernelNode
+from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_switch import OctaneBaseSwitchNode
 from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
@@ -39,7 +42,7 @@ class OctaneDistortedMeshUVRotationRange(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=1
     octane_socket_type=consts.SocketType.ST_FLOAT2
-    default_value: FloatVectorProperty(default=(0.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="Range of rotation, in degrees", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", precision=2, size=2)
+    default_value: FloatVectorProperty(default=(0.000000, 360.000000), update=OctaneBaseSocket.update_node_tree, description="Range of rotation, in degrees", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", precision=2, size=2)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -73,7 +76,7 @@ class OctaneDistortedMeshUVScaleRange(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=3
     octane_socket_type=consts.SocketType.ST_FLOAT2
-    default_value: FloatVectorProperty(default=(1.000000, 1.000000), update=OctaneBaseSocket.update_node_tree, description="Range of scaling", min=0.001000, max=1000.000000, soft_min=0.001000, soft_max=1000.000000, step=1, subtype="NONE", precision=3, size=2)
+    default_value: FloatVectorProperty(default=(1.000000, 10.000000), update=OctaneBaseSocket.update_node_tree, description="Range of scaling", min=0.001000, max=1000.000000, soft_min=0.001000, soft_max=1000.000000, step=1, subtype="NONE", precision=3, size=2)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -83,14 +86,14 @@ class OctaneDistortedMeshUVTranslation(OctaneBaseSocket):
     bl_idname="OctaneDistortedMeshUVTranslation"
     bl_label="Translation"
     color=consts.OctanePinColor.Texture
-    octane_default_node_type=consts.NodeType.NT_TEX_FLOAT
-    octane_default_node_name="OctaneGreyscaleColor"
+    octane_default_node_type=consts.NodeType.NT_TEX_RGB
+    octane_default_node_name="OctaneRGBColor"
     octane_pin_id=consts.PinID.P_TRANSLATION
     octane_pin_name="translation"
     octane_pin_type=consts.PinType.PT_TEXTURE
     octane_pin_index=4
-    octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Amount of translation applied to the UV, normalized to the translation range.\nA value of 0 translates the UV by the minimum value in the range, a value of 1 translates the UV by the maximum value in the range", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
+    octane_socket_type=consts.SocketType.ST_RGBA
+    default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="Amount of translation applied to the UV, normalized to the translation range.\nA value of 0 translates the UV by the minimum value in the range, a value of 1 translates the UV by the maximum value in the range", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -107,7 +110,7 @@ class OctaneDistortedMeshUVTranslationRange(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=5
     octane_socket_type=consts.SocketType.ST_FLOAT2
-    default_value: FloatVectorProperty(default=(0.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="Range of translation", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", precision=2, size=2)
+    default_value: FloatVectorProperty(default=(0.000000, 1.000000), update=OctaneBaseSocket.update_node_tree, description="Range of translation", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", precision=2, size=2)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295

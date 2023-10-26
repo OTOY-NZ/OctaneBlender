@@ -296,19 +296,32 @@ class OctaneBaseRampNode(OctaneBaseNode):
                 else:
                     position_socket.hide = idx > number                
 
+    def get_interpolation_socket_name(self):
+        for _input in self.inputs:
+            if getattr(_input, "octane_pin_id", consts.PinID.P_UNKNOWN) == consts.PinID.P_GRADIENT_INTERP_TYPE:
+                return _input.name
+        return ""
+
     def update_color_ramp_interpolation(self, context):
         color_ramp_helper = utility.get_octane_helper_node(self.color_ramp_name)
         if color_ramp_helper is None:
             return
         color_ramp = color_ramp_helper.color_ramp
-        INTERPOLATION_SOCKET_NAME = "Interpolation"
-        if self.inputs[INTERPOLATION_SOCKET_NAME].default_value == "Constant":
+        interpolation_socket_name = self.get_interpolation_socket_name()
+        default_value = self.inputs[interpolation_socket_name].default_value
+        if default_value == "Constant":
             if color_ramp.interpolation != "CONSTANT":
                 color_ramp.interpolation = "CONSTANT"
-        elif self.inputs[INTERPOLATION_SOCKET_NAME].default_value == "Linear":
+        elif default_value == "Linear":
             if color_ramp.interpolation != "LINEAR":
                 color_ramp.interpolation = "LINEAR"
-        elif self.inputs[INTERPOLATION_SOCKET_NAME].default_value == "Cubic":
+        elif default_value == "Smooth step":
+            if color_ramp.interpolation != "B_SPLINE":
+                color_ramp.interpolation = "B_SPLINE"
+        elif default_value == "Hermite(cardinal)":
+            if color_ramp.interpolation != "CARDINAL":
+                color_ramp.interpolation = "CARDINAL"
+        elif default_value == "Cubic":
             if color_ramp.interpolation != "B_SPLINE":
                 color_ramp.interpolation = "B_SPLINE"
         self.update_node_tree(context)
@@ -369,18 +382,18 @@ class OctaneBaseRampNode(OctaneBaseNode):
                 octane_node.node.set_pin(consts.OctaneDataBlockSymbolType.PIN_NAME, position_pin_index, position_pin_name, consts.SocketType.ST_FLOAT, consts.PinType.PT_FLOAT, consts.NodeType.NT_FLOAT, len(position_link_name) > 0, position_link_name, position)
                 octane_node.node.set_pin(consts.OctaneDataBlockSymbolType.PIN_NAME, value_pin_index, value_pin_name, self.RAMP_VALUE_INPUT_SOCKET_TYPE, self.RAMP_VALUE_INPUT_PIN_TYPE, self.RAMP_VALUE_INPUT_DEFAULT_NODE_TYPE, len(texture_link_name) > 0, texture_link_name, color)
 
-    def load_custom_legacy_node(self, legacy_node, node_tree, context, report=None):
+    def load_custom_legacy_node(self, legacy_node, node_tree, context, report):
         super().load_custom_legacy_node(legacy_node, node_tree, context, report)
         legacy_node_color_ramp = legacy_node.color_ramp            
         new_color_ramp = utility.get_octane_helper_node(self.color_ramp_name).color_ramp
         OctaneBlender().copy_color_ramp(legacy_node_color_ramp.as_pointer(), new_color_ramp.as_pointer())
-        INTERPOLATION_SOCKET_NAME = "Interpolation"
+        interpolation_socket_name = self.get_interpolation_socket_name()
         if legacy_node_color_ramp.octane_interpolation_type == "OCTANE_INTERPOLATION_LINEAR":
-            self.inputs[INTERPOLATION_SOCKET_NAME].default_value = "Linear"
+            self.inputs[interpolation_socket_name].default_value = "Linear"
         elif legacy_node_color_ramp.octane_interpolation_type == "OCTANE_INTERPOLATION_CONSTANT":
-            self.inputs[INTERPOLATION_SOCKET_NAME].default_value = "Constant"
+            self.inputs[interpolation_socket_name].default_value = "Constant"
         elif legacy_node_color_ramp.octane_interpolation_type == "OCTANE_INTERPOLATION_CUBIC":
-            self.inputs[INTERPOLATION_SOCKET_NAME].default_value = "Cubic"       
+            self.inputs[interpolation_socket_name].default_value = "Smooth step"       
         self.update_color_ramp_interpolation(context)
         for idx in range(self.MAX_VALUE_SOCKET):
             value_socket_name = self.get_value_socket_name(idx)

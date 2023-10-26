@@ -98,7 +98,9 @@ class OctaneBaseImageNode(OctaneBaseNode):
         self.a_ies_photometry_mode = "IES_MAX_1"
         self.a_channel_format = "Automatic"
         if "Legacy gamma" in self.inputs:
-            self.inputs["Legacy gamma"].default_value = 2.2
+            output_node = utility.find_active_output_node(self.id_data, consts.OctaneNodeTreeIDName.MATERIAL)
+            default_legacy_gamma = 2.2 if output_node is not None else 1.0
+            self.inputs["Legacy gamma"].default_value = default_legacy_gamma
 
     def get_octane_texture_paint_helper(self):        
         node_tree = self.id_data
@@ -255,7 +257,7 @@ class OctaneBaseImageNode(OctaneBaseNode):
         self.a_ies_photometry_mode = other_node.a_ies_photometry_mode
         self.update_image_info() 
 
-    def load_custom_legacy_node(self, legacy_node, node_tree, context, report=None):
+    def load_custom_legacy_node(self, legacy_node, node_tree, context, report):
         super().load_custom_legacy_node(legacy_node, node_tree, context, report)
         self.image = legacy_node.image
         self.frame_current = legacy_node.image_user.frame_current

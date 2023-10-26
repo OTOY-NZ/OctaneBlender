@@ -30,7 +30,8 @@ PinType.PT_BLENDER_OUTPUT = -10000
 PinType.PT_BLENDER_INPUT = -10001
 PinType.PT_BLENDER_VALUES = -10002
 PinType.PT_BLENDER_UTILITY = -20000
-
+# Add Octane Legacy Pin Type
+PinType.PT_COMPOSITE_AOV_LAYER = PinType.PT_OUTPUT_AOV_LAYER
 
 # Add Blender Node Type
 NodeType.NT_BLENDER_NODE_OFFSET = -100000
@@ -46,6 +47,8 @@ NodeType.NT_BLENDER_NODE_SCATTER = -100009
 NodeType.NT_BLENDER_NODE_MESH = -100010
 NodeType.NT_BLENDER_NODE_VOLUME = -100011
 NodeType.NT_BLENDER_NODE_GRAPH_NODE = -100012
+# Add Octane Legacy Node Type
+NodeType.NT_OUT_COMPOSITE_AOV_LAYER = NodeType.NT_OUT_OUTPUT_AOV_LAYER
 
 
 # Scene State
@@ -225,10 +228,16 @@ class OctanePinColor:
     OCIOView = (1.00, 1.00, 1.00, 0.70)
     OCIOLook = (1.00, 1.00, 1.00, 0.70)
     OCIOColorSpace = (1.00, 1.00, 1.00, 0.70)
-    AOVOutputGroup = (1.00, 1.00, 1.00, 0.70)
-    AOVOutput = (1.00, 1.00, 1.00, 0.70)
+    OutputAOVGroup = (1.00, 1.00, 1.00, 0.70)
+    OutputAOV = (1.00, 1.00, 1.00, 0.70)
     CompositeTextureLayer = (1.00, 1.00, 1.00, 0.70)
-    CompositeAOVOutputLayer = (1.00, 1.00, 1.00, 0.70)
+    OutputAOVLayer = (1.00, 1.00, 1.00, 0.70)
+    BlendingSettings = (1.00, 1.00, 1.00, 0.70)
+    PostVolume = (0.80, 0.24, 0.80, 0.70)
+    # Legacy values
+    AOVOutputGroup = OutputAOVGroup
+    AOVOutput = OutputAOV
+    CompositeAOVOutputLayer = OutputAOVLayer  
 
 
 class ArrayIdentifier:

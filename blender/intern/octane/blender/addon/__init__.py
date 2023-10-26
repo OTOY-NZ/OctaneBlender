@@ -1,8 +1,8 @@
 bl_info = {
-    "name": "OctaneBlender (v. 27.18)",
+    "name": "OctaneBlender (v. 28.0)",
     "author": "OTOY Inc.",
-    "version": (27, 18),
-    "blender": (3, 6, 2),
+    "version": (28, 0),
+    "blender": (3, 6, 1),
     "location": "Info header, render engine menu",
     "description": "OctaneBlender",
     "warning": "",

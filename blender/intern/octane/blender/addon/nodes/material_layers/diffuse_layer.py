@@ -3,13 +3,33 @@ import bpy
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
 from octane.utils import utility, consts
-from octane.nodes.base_node import OctaneBaseNode
-from octane.nodes.base_kernel import OctaneBaseKernelNode
-from octane.nodes.base_osl import OctaneScriptNode
-from octane.nodes.base_image import OctaneBaseImageNode
+from octane.nodes import base_switch_input_socket
 from octane.nodes.base_color_ramp import OctaneBaseRampNode
+from octane.nodes.base_curve import OctaneBaseCurveNode
+from octane.nodes.base_image import OctaneBaseImageNode
+from octane.nodes.base_kernel import OctaneBaseKernelNode
+from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_switch import OctaneBaseSwitchNode
 from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
+
+class OctaneDiffuseLayerEnabled(OctaneBaseSocket):
+    bl_idname="OctaneDiffuseLayerEnabled"
+    bl_label="Enabled"
+    color=consts.OctanePinColor.Bool
+    octane_default_node_type=consts.NodeType.NT_BOOL
+    octane_default_node_name="OctaneBoolValue"
+    octane_pin_id=consts.PinID.P_ENABLED
+    octane_pin_name="enabled"
+    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_BOOL
+    default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Whether this layer is applied or skipped")
+    octane_hide_value=False
+    octane_min_version=13000001
+    octane_end_version=4294967295
+    octane_deprecated=False
 
 class OctaneDiffuseLayerDiffuse(OctaneBaseSocket):
     bl_idname="OctaneDiffuseLayerDiffuse"
@@ -20,7 +40,7 @@ class OctaneDiffuseLayerDiffuse(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_DIFFUSE
     octane_pin_name="diffuse"
     octane_pin_type=consts.PinType.PT_TEXTURE
-    octane_pin_index=0
+    octane_pin_index=1
     octane_socket_type=consts.SocketType.ST_RGBA
     default_value: FloatVectorProperty(default=(0.700000, 0.700000, 0.700000), update=OctaneBaseSocket.update_node_tree, description="The diffuse color of the material", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
     octane_hide_value=False
@@ -37,7 +57,7 @@ class OctaneDiffuseLayerTransmission(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_TRANSMISSION
     octane_pin_name="transmission"
     octane_pin_type=consts.PinType.PT_TEXTURE
-    octane_pin_index=1
+    octane_pin_index=2
     octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
@@ -53,11 +73,12 @@ class OctaneDiffuseLayerBrdf(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_BRDF
     octane_pin_name="brdf"
     octane_pin_type=consts.PinType.PT_ENUM
-    octane_pin_index=2
+    octane_pin_index=3
     octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("Octane", "Octane", "", 0),
         ("Lambertian", "Lambertian", "", 1),
+        ("Oren-Nayar", "Oren-Nayar", "", 2),
     ]
     default_value: EnumProperty(default="Octane", update=OctaneBaseSocket.update_node_tree, description="BRDF model", items=items)
     octane_hide_value=False
@@ -74,7 +95,7 @@ class OctaneDiffuseLayerRoughness(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_ROUGHNESS
     octane_pin_name="roughness"
     octane_pin_type=consts.PinType.PT_TEXTURE
-    octane_pin_index=3
+    octane_pin_index=4
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Roughness of the diffuse layer", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
     octane_hide_value=False
@@ -91,10 +112,27 @@ class OctaneDiffuseLayerBump(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_BUMP
     octane_pin_name="bump"
     octane_pin_type=consts.PinType.PT_TEXTURE
-    octane_pin_index=4
+    octane_pin_index=5
     octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
+    octane_end_version=4294967295
+    octane_deprecated=False
+
+class OctaneDiffuseLayerBumpHeight(OctaneBaseSocket):
+    bl_idname="OctaneDiffuseLayerBumpHeight"
+    bl_label="Bump height"
+    color=consts.OctanePinColor.Float
+    octane_default_node_type=consts.NodeType.NT_FLOAT
+    octane_default_node_name="OctaneFloatValue"
+    octane_pin_id=consts.PinID.P_BUMP_HEIGHT
+    octane_pin_name="bumpHeight"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=6
+    octane_socket_type=consts.SocketType.ST_FLOAT
+    default_value: FloatProperty(default=0.010000, update=OctaneBaseSocket.update_node_tree, description="The height represented by a normalized value of 1.0 in the bump texture. 0 disables bump mapping, negative values will invert the bump map", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-1.000000, soft_max=1.000000, step=1, precision=2, subtype="NONE")
+    octane_hide_value=False
+    octane_min_version=13000000
     octane_end_version=4294967295
     octane_deprecated=False
 
@@ -107,7 +145,7 @@ class OctaneDiffuseLayerNormal(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_NORMAL
     octane_pin_name="normal"
     octane_pin_type=consts.PinType.PT_TEXTURE
-    octane_pin_index=5
+    octane_pin_index=7
     octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
@@ -123,7 +161,7 @@ class OctaneDiffuseLayerOpacity(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_OPACITY
     octane_pin_name="opacity"
     octane_pin_type=consts.PinType.PT_TEXTURE
-    octane_pin_index=6
+    octane_pin_index=8
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Opacity channel controlling the transparency of the layer via grayscale texture", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
     octane_hide_value=False
@@ -139,7 +177,7 @@ class OctaneDiffuseLayerGroupRoughness(OctaneGroupTitleSocket):
 class OctaneDiffuseLayerGroupGeometryProperties(OctaneGroupTitleSocket):
     bl_idname="OctaneDiffuseLayerGroupGeometryProperties"
     bl_label="[OctaneGroupTitle]Geometry Properties"
-    octane_group_sockets: StringProperty(name="Group Sockets", default="Bump;Normal;")
+    octane_group_sockets: StringProperty(name="Group Sockets", default="Bump;Bump height;Normal;")
 
 class OctaneDiffuseLayerGroupLayerProperties(OctaneGroupTitleSocket):
     bl_idname="OctaneDiffuseLayerGroupLayerProperties"
@@ -155,15 +193,24 @@ class OctaneDiffuseLayer(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
-    octane_socket_class_list=[OctaneDiffuseLayerDiffuse,OctaneDiffuseLayerTransmission,OctaneDiffuseLayerBrdf,OctaneDiffuseLayerGroupRoughness,OctaneDiffuseLayerRoughness,OctaneDiffuseLayerGroupGeometryProperties,OctaneDiffuseLayerBump,OctaneDiffuseLayerNormal,OctaneDiffuseLayerGroupLayerProperties,OctaneDiffuseLayerOpacity,]
+    octane_socket_class_list=[OctaneDiffuseLayerEnabled,OctaneDiffuseLayerDiffuse,OctaneDiffuseLayerTransmission,OctaneDiffuseLayerBrdf,OctaneDiffuseLayerGroupRoughness,OctaneDiffuseLayerRoughness,OctaneDiffuseLayerGroupGeometryProperties,OctaneDiffuseLayerBump,OctaneDiffuseLayerBumpHeight,OctaneDiffuseLayerNormal,OctaneDiffuseLayerGroupLayerProperties,OctaneDiffuseLayerOpacity,]
     octane_min_version=0
     octane_node_type=consts.NodeType.NT_MAT_DIFFUSE_LAYER
-    octane_socket_list=["Diffuse", "Transmission", "BRDF model", "Roughness", "Bump", "Normal", "Layer opacity", ]
-    octane_attribute_list=[]
-    octane_attribute_config={}
-    octane_static_pin_count=7
+    octane_socket_list=["Enabled", "Diffuse", "Transmission", "BRDF model", "Roughness", "Bump", "Bump height", "Normal", "Layer opacity", ]
+    octane_attribute_list=["a_compatibility_version", ]
+    octane_attribute_config={"a_compatibility_version": [consts.AttributeID.A_COMPATIBILITY_VERSION, "compatibilityVersion", consts.AttributeType.AT_INT], }
+    octane_static_pin_count=9
+
+    compatibility_mode_infos=[
+        ("Latest (2023.1)", "Latest (2023.1)", """(null)""", 13000000),
+        ("2022.1 compatibility mode", "2022.1 compatibility mode", """The "Octane" and "Lambertian" BRDF models are swapped. Legacy behaviour for bump map strength is active and bump map height is ignored.""", 0),
+    ]
+    a_compatibility_version_enum: EnumProperty(name="Compatibility version", default="Latest (2023.1)", update=OctaneBaseNode.update_compatibility_mode, description="The Octane version that the behavior of this node should match", items=compatibility_mode_infos)
+
+    a_compatibility_version: IntProperty(name="Compatibility version", default=13000004, update=OctaneBaseNode.update_node_tree, description="The Octane version that the behavior of this node should match")
 
     def init(self, context):
+        self.inputs.new("OctaneDiffuseLayerEnabled", OctaneDiffuseLayerEnabled.bl_label).init()
         self.inputs.new("OctaneDiffuseLayerDiffuse", OctaneDiffuseLayerDiffuse.bl_label).init()
         self.inputs.new("OctaneDiffuseLayerTransmission", OctaneDiffuseLayerTransmission.bl_label).init()
         self.inputs.new("OctaneDiffuseLayerBrdf", OctaneDiffuseLayerBrdf.bl_label).init()
@@ -171,6 +218,7 @@ class OctaneDiffuseLayer(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneDiffuseLayerRoughness", OctaneDiffuseLayerRoughness.bl_label).init()
         self.inputs.new("OctaneDiffuseLayerGroupGeometryProperties", OctaneDiffuseLayerGroupGeometryProperties.bl_label).init()
         self.inputs.new("OctaneDiffuseLayerBump", OctaneDiffuseLayerBump.bl_label).init()
+        self.inputs.new("OctaneDiffuseLayerBumpHeight", OctaneDiffuseLayerBumpHeight.bl_label).init()
         self.inputs.new("OctaneDiffuseLayerNormal", OctaneDiffuseLayerNormal.bl_label).init()
         self.inputs.new("OctaneDiffuseLayerGroupLayerProperties", OctaneDiffuseLayerGroupLayerProperties.bl_label).init()
         self.inputs.new("OctaneDiffuseLayerOpacity", OctaneDiffuseLayerOpacity.bl_label).init()
@@ -180,13 +228,19 @@ class OctaneDiffuseLayer(bpy.types.Node, OctaneBaseNode):
     def poll(cls, node_tree):
         return OctaneBaseNode.poll(node_tree)
 
+    def draw_buttons(self, context, layout):
+        super().draw_buttons(context, layout)
+        layout.row().prop(self, "a_compatibility_version_enum")
+
 
 _CLASSES=[
+    OctaneDiffuseLayerEnabled,
     OctaneDiffuseLayerDiffuse,
     OctaneDiffuseLayerTransmission,
     OctaneDiffuseLayerBrdf,
     OctaneDiffuseLayerRoughness,
     OctaneDiffuseLayerBump,
+    OctaneDiffuseLayerBumpHeight,
     OctaneDiffuseLayerNormal,
     OctaneDiffuseLayerOpacity,
     OctaneDiffuseLayerGroupRoughness,

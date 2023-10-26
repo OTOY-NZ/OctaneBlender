@@ -275,6 +275,19 @@ struct Camera {
   float fGlareBlur;
   float fSpectralIntencity;
   float fSpectralShift;
+  float fSpreadStart;
+  float fSpreadEnd;
+  float fChromaticAberrationIntensity;
+  float fLensFlare;
+  float fLensFlareExtent;
+  bool bLightBeams;
+  float fMediumDensityForPostfxLightBeams;
+  bool bEnableFog;
+  float fFogStrength;
+  float fFogHeightDescend;
+  float fFogEnvContribution;
+  float_3 f3BaseFogColor;
+  float fMediumRadius;
 
   inline Camera() : type(NONE)
   {
@@ -348,7 +361,16 @@ struct Camera {
         fCutoff != otherCam.fCutoff || fGlarePower != otherCam.fGlarePower ||
         iGlareRayCount != otherCam.iGlareRayCount || fGlareAngle != otherCam.fGlareAngle ||
         fGlareBlur != otherCam.fGlareBlur || fSpectralIntencity != otherCam.fSpectralIntencity ||
-        fSpectralShift != otherCam.fSpectralShift ||
+        fSpectralShift != otherCam.fSpectralShift || fSpreadStart != otherCam.fSpreadStart ||
+        fSpreadEnd != otherCam.fSpreadEnd ||
+        fChromaticAberrationIntensity != otherCam.fChromaticAberrationIntensity ||
+        fLensFlare != otherCam.fLensFlare || fLensFlareExtent != otherCam.fLensFlareExtent ||
+        bLightBeams != otherCam.bLightBeams ||
+        fMediumDensityForPostfxLightBeams != otherCam.fMediumDensityForPostfxLightBeams ||
+        bEnableFog != otherCam.bEnableFog || fFogStrength != otherCam.fFogStrength ||
+        fFogHeightDescend != otherCam.fFogHeightDescend ||
+        fFogEnvContribution != otherCam.fFogEnvContribution ||
+        f3BaseFogColor != otherCam.f3BaseFogColor || fMediumRadius != otherCam.fMediumRadius ||
         universalCamera.iCameraMode.iVal != otherCam.universalCamera.iCameraMode.iVal ||
         universalCamera.fSensorWidth.fVal != otherCam.universalCamera.fSensorWidth.fVal ||
         universalCamera.fFocalLength.fVal != otherCam.universalCamera.fFocalLength.fVal ||
@@ -512,7 +534,16 @@ struct Camera {
         fCutoff == otherCam.fCutoff && fGlarePower == otherCam.fGlarePower &&
         iGlareRayCount == otherCam.iGlareRayCount && fGlareAngle == otherCam.fGlareAngle &&
         fGlareBlur == otherCam.fGlareBlur && fSpectralIntencity == otherCam.fSpectralIntencity &&
-        fSpectralShift == otherCam.fSpectralShift &&
+        fSpectralShift == otherCam.fSpectralShift && fSpreadStart == otherCam.fSpreadStart &&
+        fSpreadEnd == otherCam.fSpreadEnd &&
+        fChromaticAberrationIntensity == otherCam.fChromaticAberrationIntensity &&
+        fLensFlare == otherCam.fLensFlare && fLensFlareExtent == otherCam.fLensFlareExtent &&
+        bLightBeams == otherCam.bLightBeams &&
+        fMediumDensityForPostfxLightBeams == otherCam.fMediumDensityForPostfxLightBeams &&
+        bEnableFog == otherCam.bEnableFog && fFogStrength == otherCam.fFogStrength &&
+        fFogHeightDescend == otherCam.fFogHeightDescend &&
+        fFogEnvContribution == otherCam.fFogEnvContribution &&
+        f3BaseFogColor == otherCam.f3BaseFogColor && fMediumRadius == otherCam.fMediumRadius &&
         universalCamera.iCameraMode.iVal == otherCam.universalCamera.iCameraMode.iVal &&
         universalCamera.fSensorWidth.fVal == otherCam.universalCamera.fSensorWidth.fVal &&
         universalCamera.fFocalLength.fVal == otherCam.universalCamera.fFocalLength.fVal &&
@@ -811,6 +842,32 @@ struct Camera {
       fSpectralIntencity = otherCam.fSpectralIntencity;
     if (fSpectralShift != otherCam.fSpectralShift)
       fSpectralShift = otherCam.fSpectralShift;
+    if (fSpreadStart != otherCam.fSpreadStart)
+      fSpreadStart = otherCam.fSpreadStart;
+    if (fSpreadEnd != otherCam.fSpreadEnd)
+      fSpreadEnd = otherCam.fSpreadEnd;
+    if (fChromaticAberrationIntensity != otherCam.fChromaticAberrationIntensity)
+      fChromaticAberrationIntensity = otherCam.fChromaticAberrationIntensity;
+    if (fLensFlare != otherCam.fLensFlare)
+      fLensFlare = otherCam.fLensFlare;
+    if (fLensFlareExtent != otherCam.fLensFlareExtent)
+      fLensFlareExtent = otherCam.fLensFlareExtent;
+    if (bLightBeams != otherCam.bLightBeams)
+      bLightBeams = otherCam.bLightBeams;
+    if (fMediumDensityForPostfxLightBeams != otherCam.fMediumDensityForPostfxLightBeams)
+      fMediumDensityForPostfxLightBeams = otherCam.fMediumDensityForPostfxLightBeams;
+    if (bEnableFog != otherCam.bEnableFog)
+      bEnableFog = otherCam.bEnableFog;
+    if (fFogStrength != otherCam.fFogStrength)
+      fFogStrength = otherCam.fFogStrength;
+    if (fFogHeightDescend != otherCam.fFogHeightDescend)
+      fFogHeightDescend = otherCam.fFogHeightDescend;
+    if (fFogEnvContribution != otherCam.fFogEnvContribution)
+      fFogEnvContribution = otherCam.fFogEnvContribution;
+    if (f3BaseFogColor != otherCam.f3BaseFogColor)
+      f3BaseFogColor = otherCam.f3BaseFogColor;
+    if (fMediumRadius != otherCam.fMediumRadius)
+      fMediumRadius = otherCam.fMediumRadius;
 
     universalCamera.iCameraMode.iVal = otherCam.universalCamera.iCameraMode.iVal;
     universalCamera.fSensorWidth.fVal = otherCam.universalCamera.fSensorWidth.fVal;

@@ -3,11 +3,14 @@ import bpy
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
 from octane.utils import utility, consts
-from octane.nodes.base_node import OctaneBaseNode
-from octane.nodes.base_kernel import OctaneBaseKernelNode
-from octane.nodes.base_osl import OctaneScriptNode
-from octane.nodes.base_image import OctaneBaseImageNode
+from octane.nodes import base_switch_input_socket
 from octane.nodes.base_color_ramp import OctaneBaseRampNode
+from octane.nodes.base_curve import OctaneBaseCurveNode
+from octane.nodes.base_image import OctaneBaseImageNode
+from octane.nodes.base_kernel import OctaneBaseKernelNode
+from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_switch import OctaneBaseSwitchNode
 from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
@@ -958,7 +961,7 @@ class OctaneUniversalCameraKeepUpright(OctaneBaseSocket):
 
 class OctaneUniversalCameraGroupPhysicalCameraParameters(OctaneGroupTitleSocket):
     bl_idname="OctaneUniversalCameraGroupPhysicalCameraParameters"
-    bl_label="[OctaneGroupTitle]Physical Camera parameters"
+    bl_label="[OctaneGroupTitle]Physical camera parameters"
     octane_group_sockets: StringProperty(name="Group Sockets", default="Sensor width;Focal length;F-stop;")
 
 class OctaneUniversalCameraGroupViewingAngle(OctaneGroupTitleSocket):

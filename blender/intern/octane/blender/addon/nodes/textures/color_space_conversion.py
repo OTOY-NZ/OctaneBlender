@@ -3,11 +3,14 @@ import bpy
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
 from octane.utils import utility, consts
-from octane.nodes.base_node import OctaneBaseNode
-from octane.nodes.base_kernel import OctaneBaseKernelNode
-from octane.nodes.base_osl import OctaneScriptNode
-from octane.nodes.base_image import OctaneBaseImageNode
+from octane.nodes import base_switch_input_socket
 from octane.nodes.base_color_ramp import OctaneBaseRampNode
+from octane.nodes.base_curve import OctaneBaseCurveNode
+from octane.nodes.base_image import OctaneBaseImageNode
+from octane.nodes.base_kernel import OctaneBaseKernelNode
+from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_switch import OctaneBaseSwitchNode
 from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
@@ -44,8 +47,8 @@ class OctaneColorSpaceConversionColorSpaceConversion(OctaneBaseSocket):
         ("HSL|HSL to RGB", "HSL|HSL to RGB", "", 4),
         ("HSV|RGB to HSV", "HSV|RGB to HSV", "", 1),
         ("HSV|HSV to RGB", "HSV|HSV to RGB", "", 2),
-        ("Perceptual|RGB to perceptual RGB", "Perceptual|RGB to perceptual RGB", "", 5),
-        ("Perceptual|Perceptual RGB to RGB", "Perceptual|Perceptual RGB to RGB", "", 6),
+        ("sRGB|Linear sRGB to sRGB", "sRGB|Linear sRGB to sRGB", "", 5),
+        ("sRGB|sRGB to linear sRGB", "sRGB|sRGB to linear sRGB", "", 6),
         ("xyY|RGB to xyY", "xyY|RGB to xyY", "", 7),
         ("xyY|xyY to RGB", "xyY|xyY to RGB", "", 8),
         ("XYZ|RGB to XYZ", "XYZ|RGB to XYZ", "", 9),

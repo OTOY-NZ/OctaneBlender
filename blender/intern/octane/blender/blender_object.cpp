@@ -112,7 +112,18 @@ static void update_light_transform(Light *light,
   bool used_as_octane_mesh_light = get_boolean(oct_light, "used_as_octane_mesh_light");
 
   switch (b_light.type()) {
-    case BL::Light::type_POINT:
+    case BL::Light::type_POINT: {
+      if (octane_point_light_type == 2) {
+        float3 dir = transform_get_column(&tfm, 2);
+        dir *= -1;
+        transform_set_column(&tfm, 2, dir);
+        light->update_transform(tfm, motion_time);
+      }
+      else {
+        light->update_transform(tfm, motion_time);
+      }
+      break;
+    }
     case BL::Light::type_SUN: {
       light->update_transform(tfm, motion_time);
       break;
@@ -145,7 +156,8 @@ static void update_light_transform(Light *light,
             sizev = b_area_light.size_y();
             break;
         }
-        if (use_octane_quad_light) {
+        if (use_octane_quad_light) 
+        {
           float3 dir = transform_get_column(&tfm, 2);
           dir *= -1;
           transform_set_column(&tfm, 2, dir);
@@ -259,6 +271,7 @@ void BlenderSync::sync_light(BL::Object &b_parent,
 
   PointerRNA oct_light = RNA_pointer_get(&b_light.ptr, "octane");
   int32_t octane_point_light_type = get_enum(oct_light, "octane_point_light_type");
+  int32_t octane_directional_light_type = get_enum(oct_light, "octane_directional_light_type");
   bool used_as_octane_mesh_light = get_boolean(oct_light, "used_as_octane_mesh_light");
 
   /* type */
@@ -275,7 +288,8 @@ void BlenderSync::sync_light(BL::Object &b_parent,
         light->need_light_object_update = true;
         light->enable = true;
       }
-      else {
+      else if(octane_point_light_type == 1)
+      {
         // Sphere Point
         light->light.iLightNodeType = Octane::NT_LIGHT_SPHERE;
         light->light.sLightMeshName = current_light_mesh_name;
@@ -284,6 +298,16 @@ void BlenderSync::sync_light(BL::Object &b_parent,
             OctaneDataTransferObject::OctaneObject::NO_OBJECT_LAYER;
         light->need_light_object_update = true;        
         light->light.fRadius = b_point_light.shadow_soft_size();
+        light->enable = true;
+      }
+      else if (octane_point_light_type == 2) {
+        // Analytical Point
+        light->light.iLightNodeType = Octane::NT_LIGHT_ANALYTIC;
+        light->light.sLightMeshName = "";
+        light->light.oObject.sMeshName = light->light.sShaderName;
+        light->light.oObject.iUseObjectLayer =
+            OctaneDataTransferObject::OctaneObject::NO_OBJECT_LAYER;
+        light->need_light_object_update = true;
         light->enable = true;
       }
       break;
@@ -301,7 +325,12 @@ void BlenderSync::sync_light(BL::Object &b_parent,
     }
     case BL::Light::type_SUN: {
       BL::SunLight b_sun_light(b_light);
-      light->light.iLightNodeType = Octane::NT_TOON_DIRECTIONAL_LIGHT;
+      if (octane_directional_light_type == 0) {
+        light->light.iLightNodeType = Octane::NT_TOON_DIRECTIONAL_LIGHT;
+      }
+      else {
+        light->light.iLightNodeType = Octane::NT_LIGHT_DIRECTIONAL;
+      }
       light->light.sLightMeshName = "";
       light->light.oObject.sMeshName = light->light.sShaderName;
       light->light.oObject.iUseObjectLayer =

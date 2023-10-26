@@ -284,12 +284,8 @@ bool Session::draw(BufferParams &buffer_params, DeviceDrawParams &draw_params)
         case Octane::RENDER_PASS_CRYPTOMATTE_USER_INSTANCE_ID:
           use_shared_surface = false;
           break;
-        default: {
-          if (cur_pass_type >= Octane::RENDER_PASS_OUTPUT_AOV_IDS_OFFSET) {
-            use_shared_surface = false;
-          }
+        default:
           break;
-        }
       }
     }
     display->draw(draw_params, use_shared_surface);

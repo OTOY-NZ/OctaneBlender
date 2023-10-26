@@ -395,7 +395,7 @@ class OctanePreferences(bpy.types.AddonPreferences):
     default_use_blender_builtin_render_layer: BoolProperty(
         name="Use Blender Built-in Render Layer",
         description="Whether to use blender built-in render layer system for default(reboot blender to take effect)",   
-        default=False,
+        default=False,         
     )
 
     enable_empty_gpus_automatically: BoolProperty(
@@ -434,7 +434,7 @@ class OctanePreferences(bpy.types.AddonPreferences):
     )                
     enable_relese_octane_license_when_exiting: BoolProperty(
         name="Release Octane License After Exiting",
-        description="Release Octane license after exiting blender(reboot blender to take effect)",
+        description="Release Octane license after exiting blender",
         default=False,
     )       
     octane_server_address: StringProperty(
@@ -591,6 +591,11 @@ class OctaneMeshSettings(bpy.types.PropertyGroup):
     infinite_plane: BoolProperty(
             name="Infinite plane",
             description="Convert this mesh to infinite plane when rendering",
+            default=False,
+            )
+    enable_mesh_volume: BoolProperty(
+            name="Enable Mesh Volume",
+            description="Convert this mesh to Octane Mesh Volume when rendering",
             default=False,
             )
     enable_mesh_volume_sdf: BoolProperty(
@@ -1005,7 +1010,28 @@ class OctaneMeshSettings(bpy.types.PropertyGroup):
             max=100.0,
             default=100.0,
             subtype='PERCENTAGE',
-            )   
+            )
+    enable_animation_time_transformation: BoolProperty(
+        name="Enable Animation Time Transformation",
+        description="Allows offsetting and scaling of ORBX proxy animations", 
+        default=False,
+    )
+    animation_time_transformation_delay: FloatProperty(
+        name="Delay",
+        description="The offset of the animation start in seconds",
+        min=-60.0,
+        max=60.0,
+        default=0.0,
+    )
+    animation_time_transformation_scale: FloatProperty(
+        name="Speed up",
+        description="The scale of the animation speed. E.g. 1 is normal palyback, 2 is 2x faster",
+        soft_min=0.01,
+        soft_max=10.0,
+        min=0.001,
+        max=1000000000,
+        default=1.0,
+    )
     external_alembic_mesh_tag: BoolProperty(
             default=False,
             )
@@ -1183,6 +1209,18 @@ class OctaneVolumeSettings(bpy.types.PropertyGroup):
             name="SDF",
             description="SDF",
             default=False,
+            )
+    border_thickness_inside: FloatProperty(
+            name="Border thickness(inside)",
+            description="Amount of voxels that will be generated on either side of the surface (inside)",
+            min=1.0, max=100.0,
+            default=3.0,
+            )     
+    border_thickness_outside: FloatProperty(
+            name="Border thickness(outside)",
+            description="Amount of voxels that will be generated on either side of the surface (outside)",
+            min=1.0, max=100.0,
+            default=3.0,
             )    
     imported_openvdb_file_path: StringProperty(
             name="OpenVDB File",

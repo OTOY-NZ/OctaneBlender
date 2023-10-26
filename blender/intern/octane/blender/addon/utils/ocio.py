@@ -45,7 +45,7 @@ class OctaneOCIOManagement(metaclass=utility.Singleton):
 def resolve_octane_ocio_view(ocio_view_display_name, ocio_view_display_view_name):
     if ocio_view_display_name == "sRGB" and ocio_view_display_view_name == "Raw":
         ocio_view_display_name = ""
-        ocio_view_display_view_name = "None(sRGB)"
+        ocio_view_display_view_name = "None"
     return ocio_view_display_name, ocio_view_display_view_name
 
 def resolve_octane_ocio_look(ocio_look_name):
@@ -164,7 +164,7 @@ def update_ocio_info(self=None, context=None):
         set_container(preferences.ocio_export_png_color_space_configs, export_png_default_names + ui_role_names + ui_color_space_names)
         set_container(preferences.ocio_export_exr_color_space_configs, export_exr_default_names + ui_role_names + ui_color_space_names)
     display_names = ['', ] + list(ocio_manager.raw_ocio_info[4])
-    display_view_names = [' None(sRGB) ', ] + list(ocio_manager.raw_ocio_info[5])
+    display_view_names = [' None ', ] + list(ocio_manager.raw_ocio_info[5])
     display_pair_names = list(map(lambda x, y : [x, y], display_names, display_view_names) )
     ui_ocio_view_names = list(map(ocio_view_concat_func, display_names, display_view_names))   
     display_name_map = dict(zip(ui_ocio_view_names, display_pair_names))

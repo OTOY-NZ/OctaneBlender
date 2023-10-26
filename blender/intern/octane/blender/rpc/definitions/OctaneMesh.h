@@ -163,20 +163,22 @@ namespace OctaneDataTransferObject {
 		MSGPACK_DEFINE(bUpdate, bOpenSubdEnable, iOpenSubdScheme, iOpenSubdLevel, fOpenSubdSharpness, iOpenSubdBoundInterp, oArrayInfo, MSGPACK_BASE(OctaneNodeBase));
 	};
 
-	struct OctaneMeshVolumeSDF : public OctaneNodeBase {		
+	struct OctaneMeshVolume : public OctaneNodeBase {		
 		bool	bEnable;
+		bool	bSDF;
 		float	fVoxelSize;
 		float	fBorderThicknessInside;
 		float	fBorderThicknessOutside;
-		OctaneMeshVolumeSDF() : OctaneNodeBase(Octane::ENT_MESH_VOLUME_SDF, "OctaneMeshVolumeSDF") {}
+		OctaneMeshVolume() : OctaneNodeBase(Octane::ENT_MESH_VOLUME_SDF, "OctaneMeshVolumeSDF") {}
 		void Clear() 
 		{
 			bEnable = false;
+			bSDF = false;
 			fVoxelSize = 0.1f;
 			fBorderThicknessInside = 3.f;
 			fBorderThicknessOutside = 3.f;
 		}
-		MSGPACK_DEFINE(bEnable, fVoxelSize, fBorderThicknessInside, fBorderThicknessOutside, MSGPACK_BASE(OctaneNodeBase));
+		MSGPACK_DEFINE(bEnable, bSDF, fVoxelSize, fBorderThicknessInside, fBorderThicknessOutside, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneObjectLayer : public OctaneNodeBase {
@@ -231,6 +233,9 @@ namespace OctaneDataTransferObject {
 		std::string					sMeshName;
 		std::string					sScriptGeoName;
 		std::string					sOrbxPath;
+    bool                bEnableAnimationTimeTransformation;
+    float               fAnimationTimeTransformationDelay;
+    float               fAnimationTimeTransformationScale;
 		std::vector<std::string>	sShaderNames;
 		std::vector<std::string>	sObjectNames;		
 		int32_t						iCurrentActiveUVSetIdx;
@@ -241,22 +246,26 @@ namespace OctaneDataTransferObject {
 		float						fMaxSmoothAngle;
 		OctaneMeshData				oMeshData;
 		OctaneMeshOpenSubdivision	oMeshOpenSubdivision;
-		OctaneMeshVolumeSDF			oMeshVolumeSDF;
+		OctaneMeshVolume			oMeshVolume;
 		OctaneObjectLayer			oObjectLayer;		
 		OctaneMesh() : OctaneNodeBase(Octane::ENT_MESH, "OctaneMesh") {}
 		void Clear()
 		{
 			iCurrentActiveUVSetIdx = 0;
+      bEnableAnimationTimeTransformation = false;
+      fAnimationTimeTransformationDelay = 0;
+      fAnimationTimeTransformationScale = 0;
 			sShaderNames.clear();
 			sObjectNames.clear();
 			oMeshData.Clear();
 			oMeshOpenSubdivision.Clear();
-			oMeshVolumeSDF.Clear();
+			oMeshVolume.Clear();
 		}
 		MSGPACK_DEFINE(sMeshName, sScriptGeoName, sOrbxPath,
+      bEnableAnimationTimeTransformation, fAnimationTimeTransformationDelay, fAnimationTimeTransformationScale,
 			sShaderNames, sObjectNames, 
 			iCurrentActiveUVSetIdx, iHairWsSize, iHairInterpolations, bInfinitePlane, bReshapeable, fMaxSmoothAngle, 
-			oMeshData, oMeshOpenSubdivision, oMeshVolumeSDF, oObjectLayer, MSGPACK_BASE(OctaneNodeBase));
+			oMeshData, oMeshOpenSubdivision, oMeshVolume, oObjectLayer, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneMeshes : public OctaneNodeBase {
@@ -348,6 +357,8 @@ namespace OctaneDataTransferObject {
 		(	
 		(OctaneDTOBool)		bSDF,
 		(OctaneDTOFloat)	fISO,
+		(OctaneDTOFloat)	fBorderThicknessInside,
+		(OctaneDTOFloat)	fBorderThicknessOutside,
 		(OctaneDTOEnum)		iImportScale,
 		(OctaneDTOFloat)	fAbsorptionScale,
 		(OctaneDTOString)	sAbsorptionGridId,
@@ -378,6 +389,8 @@ namespace OctaneDataTransferObject {
 		OctaneVolume() : 
 			bSDF("vdb_sdf", false),
 			fISO("vdb_iso", false),
+			fBorderThicknessInside("border_thickness_inside", false),
+			fBorderThicknessOutside("border_thickness_outside", false),
 			iImportScale("vdb_import_scale", false),
 			fAbsorptionScale("vdb_abs_scale", false),
 			sAbsorptionGridId("vdb_absorption_grid_id", false),
@@ -404,7 +417,7 @@ namespace OctaneDataTransferObject {
 			fRegularGridData.clear();
 		}
 
-		MSGPACK_DEFINE(bSDF, fISO, iImportScale, fAbsorptionScale, sAbsorptionGridId, fEmissionScale, sEmissionGridId, fScatterScale, sScatterGridId,
+		MSGPACK_DEFINE(bSDF, fISO, fBorderThicknessInside, fBorderThicknessOutside, iImportScale, fAbsorptionScale, sAbsorptionGridId, fEmissionScale, sEmissionGridId, fScatterScale, sScatterGridId,
 			bMotionBlurEnabled, iVelocityGridType, fVelocityScale, sVelocityGridId, sXComponentGridId, sYComponentGridId, sZComponentGridId,
 			sVolumePath, oMatrix, sShaderName, f3Resolution, iAbsorptionOffset, iEmissionOffset, iScatterOffset, iVelocityOffsetX, iVelocityOffsetY, iVelocityOffsetZ,
 			MSGPACK_BASE(OctaneNodeBase));

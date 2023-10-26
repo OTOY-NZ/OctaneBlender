@@ -3,11 +3,14 @@ import bpy
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
 from octane.utils import utility, consts
-from octane.nodes.base_node import OctaneBaseNode
-from octane.nodes.base_kernel import OctaneBaseKernelNode
-from octane.nodes.base_osl import OctaneScriptNode
-from octane.nodes.base_image import OctaneBaseImageNode
+from octane.nodes import base_switch_input_socket
 from octane.nodes.base_color_ramp import OctaneBaseRampNode
+from octane.nodes.base_curve import OctaneBaseCurveNode
+from octane.nodes.base_image import OctaneBaseImageNode
+from octane.nodes.base_kernel import OctaneBaseKernelNode
+from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_switch import OctaneBaseSwitchNode
 from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
@@ -235,7 +238,7 @@ class OctaneGreyscaleImage(bpy.types.Node, OctaneBaseImageNode):
 
     a_filename: StringProperty(name="Filename", default="", update=OctaneBaseNode.update_node_tree, description="Stores the filename of the texture image", subtype="FILE_PATH")
     a_reload: BoolProperty(name="Reload", default=False, update=OctaneBaseNode.update_node_tree, description="TRUE if the file needs a reload or the preference of the image file has been changed.After evaluation the attribute will be false again")
-    a_initial_color_space_selected: BoolProperty(name="Initial color space selected", default=False, update=OctaneBaseNode.update_node_tree, description="If true, an initial color space has previously been automatically selected, and so one will not be selected again. If false, the color space will be set the next time an image is loaded")
+    a_initial_color_space_selected: BoolProperty(name="Initial color space selected", default=False, update=OctaneBaseNode.update_node_tree, description="If true, an initial color space has previously been automatically selected, and so one will not be selected again. If false, the color space will be set the next time an image is loaded. This also applies to the premultiplied alpha pin if there is one")
     a_size: IntVectorProperty(name="Size", default=(0, 0), size=2, update=OctaneBaseNode.update_node_tree, description="Size of the image in pixels or if the image is compressed the size of the image in blocks")
     a_type: IntProperty(name="Type", default=0, update=OctaneBaseNode.update_node_tree, description="The image type, i.e. the data format used in A_BUFFER. Must be of type ImageType")
     a_image_file_type: IntProperty(name="Image file type", default=0, update=OctaneBaseNode.update_node_tree, description="The original type of the image file, i.e. the data format stored in the image file")

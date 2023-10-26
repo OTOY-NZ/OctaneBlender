@@ -3,11 +3,14 @@ import bpy
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
 from octane.utils import utility, consts
-from octane.nodes.base_node import OctaneBaseNode
-from octane.nodes.base_kernel import OctaneBaseKernelNode
-from octane.nodes.base_osl import OctaneScriptNode
-from octane.nodes.base_image import OctaneBaseImageNode
+from octane.nodes import base_switch_input_socket
 from octane.nodes.base_color_ramp import OctaneBaseRampNode
+from octane.nodes.base_curve import OctaneBaseCurveNode
+from octane.nodes.base_image import OctaneBaseImageNode
+from octane.nodes.base_kernel import OctaneBaseKernelNode
+from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_switch import OctaneBaseSwitchNode
 from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
@@ -41,11 +44,18 @@ class OctaneCompositeTexture(bpy.types.Node, OctaneBaseNode):
     octane_min_version=0
     octane_node_type=consts.NodeType.NT_TEX_COMPOSITE
     octane_socket_list=["Clamp", ]
-    octane_attribute_list=["a_layer_count", ]
-    octane_attribute_config={"a_layer_count": [consts.AttributeID.A_LAYER_COUNT, "layerCount", consts.AttributeType.AT_INT], "a_input_action": [consts.AttributeID.A_INPUT_ACTION, "inputAction", consts.AttributeType.AT_INT2], }
+    octane_attribute_list=["a_layer_count", "a_compatibility_version", ]
+    octane_attribute_config={"a_layer_count": [consts.AttributeID.A_LAYER_COUNT, "layerCount", consts.AttributeType.AT_INT], "a_input_action": [consts.AttributeID.A_INPUT_ACTION, "inputAction", consts.AttributeType.AT_INT2], "a_compatibility_version": [consts.AttributeID.A_COMPATIBILITY_VERSION, "compatibilityVersion", consts.AttributeType.AT_INT], }
     octane_static_pin_count=1
 
-    a_layer_count: IntProperty(name="Layer count", default=0, update=OctaneBaseNode.update_node_tree, description="The number of layers. Changing this value and evaluating the node will update the number of layers. New layers will be added to the front of the dynamic pin list")
+    compatibility_mode_infos=[
+        ("Latest (2023.1)", "Latest (2023.1)", """(null)""", 13000001),
+        ("2022.1 compatibility mode", "2022.1 compatibility mode", """The background color is gray (0.7) instead of black if the bottom layer is disconnected. The "Texture" layer inputs are clamped in addition to the blend results if "Clamp" is enabled.""", 0),
+    ]
+    a_compatibility_version_enum: EnumProperty(name="Compatibility version", default="Latest (2023.1)", update=OctaneBaseNode.update_compatibility_mode, description="The Octane version that the behavior of this node should match", items=compatibility_mode_infos)
+
+    a_layer_count: IntProperty(name="Layer count", default=0, update=OctaneBaseNode.update_node_tree, description="The number of layer pins. Changing this value and evaluating the node will update the number of layer pins. New pins will be added to the front of the dynamic pin list")
+    a_compatibility_version: IntProperty(name="Compatibility version", default=13000004, update=OctaneBaseNode.update_node_tree, description="The Octane version that the behavior of this node should match")
 
     def init(self, context):
         self.inputs.new("OctaneCompositeTextureClamp", OctaneCompositeTextureClamp.bl_label).init()
@@ -54,6 +64,10 @@ class OctaneCompositeTexture(bpy.types.Node, OctaneBaseNode):
     @classmethod
     def poll(cls, node_tree):
         return OctaneBaseNode.poll(node_tree)
+
+    def draw_buttons(self, context, layout):
+        super().draw_buttons(context, layout)
+        layout.row().prop(self, "a_compatibility_version_enum")
 
 
 _CLASSES=[
@@ -85,7 +99,7 @@ class OctaneCompositeTextureMovableTextureLayerInput(OctaneMovableInput):
     octane_reversed_input_sockets=True
     color=consts.OctanePinColor.CompositeTextureLayer
     octane_default_node_type=consts.NodeType.NT_TEX_COMPOSITE_LAYER
-    octane_default_node_name="OctaneCompositeTextureLayer"    
+    octane_default_node_name="OctaneTexLayerTexture"
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEX_COMPOSITE_LAYER)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)    
 
@@ -106,6 +120,7 @@ class OctaneCompositeTexture_Override(OctaneCompositeTexture):
         self.init_movable_inputs(context, OctaneCompositeTextureMovableTextureLayerInput, self.DEFAULT_LAYER_COUNT)
 
     def draw_buttons(self, context, layout):
+        super().draw_buttons(context, layout)
         self.draw_movable_inputs(context, layout, OctaneCompositeTextureMovableTextureLayerInput, self.MAX_LAYER_COUNT)
 
 

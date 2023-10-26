@@ -133,9 +133,12 @@ set(ADDON_NODES_FILES
   addon/nodes/base_osl.py
   addon/nodes/base_image.py
   addon/nodes/base_color_ramp.py
+  addon/nodes/base_curve.py
   addon/nodes/base_kernel.py
   addon/nodes/base_output_node.py
   addon/nodes/base_output_socket.py
+  addon/nodes/base_switch.py
+  addon/nodes/base_switch_input_socket.py
   addon/nodes/node_items.py
 )
 
@@ -152,6 +155,7 @@ set(ADDON_NODES_CAMERAS_FILES
     addon/nodes/cameras/osl_camera.py
     addon/nodes/cameras/osl_baking_camera.py
     addon/nodes/cameras/universal_camera.py
+    addon/nodes/cameras/camera_switch.py
 )
 
 set(ADDON_NODES_COMPOSITOR_FILES
@@ -174,12 +178,14 @@ set(ADDON_NODES_DISPLACEMENT_FILES
     addon/nodes/displacement/texture_displacement.py
     addon/nodes/displacement/vertex_displacement.py
     addon/nodes/displacement/vertex_displacement_mixer.py
+    addon/nodes/displacement/displacement_switch.py
 )
 
 set(ADDON_NODES_EMISSION_FILES
     addon/nodes/emission/__init__.py
     addon/nodes/emission/black_body_emission.py
     addon/nodes/emission/texture_emission.py
+    addon/nodes/emission/emission_switch.py
 )
 
 set(ADDON_NODES_ENVIRONMENTS_FILES
@@ -187,6 +193,7 @@ set(ADDON_NODES_ENVIRONMENTS_FILES
     addon/nodes/environments/daylight_environment.py
     addon/nodes/environments/texture_environment.py
     addon/nodes/environments/planetary_environment.py
+    addon/nodes/environments/environment_switch.py
 )
 
 set(ADDON_NODES_GEOMETRY_FILES
@@ -223,6 +230,7 @@ set(ADDON_NODES_GEOMETRY_FILES
     addon/nodes/geometry/intersect.py
     addon/nodes/geometry/clip.py
     addon/nodes/geometry/offset.py
+    addon/nodes/geometry/geometry_switch.py
 )
 
 set(ADDON_NODES_KERNELS_FILES
@@ -232,6 +240,7 @@ set(ADDON_NODES_KERNELS_FILES
     addon/nodes/kernels/path_tracing_kernel.py
     addon/nodes/kernels/info_channels_kernel.py
     addon/nodes/kernels/photon_tracing_kernel.py
+    addon/nodes/kernels/kernel_switch.py
 )
 
 set(ADDON_NODES_LIGHTS_FILES
@@ -241,6 +250,9 @@ set(ADDON_NODES_LIGHTS_FILES
     addon/nodes/lights/quad_light.py
     addon/nodes/lights/sphere_light.py
     addon/nodes/lights/volumetric_spotlight.py
+    addon/nodes/lights/analytic_light.py
+    addon/nodes/lights/analytic_light.py
+    addon/nodes/lights/directional_light.py
 )
 
 set(ADDON_NODES_MATERIAL_LAYERS_FILES
@@ -250,6 +262,7 @@ set(ADDON_NODES_MATERIAL_LAYERS_FILES
     addon/nodes/material_layers/metallic_layer.py
     addon/nodes/material_layers/sheen_layer.py
     addon/nodes/material_layers/material_layer_group.py
+    addon/nodes/material_layers/material_layer_switch.py
 )
 
 set(ADDON_NODES_MATERIALS_FILES
@@ -270,6 +283,8 @@ set(ADDON_NODES_MATERIALS_FILES
     addon/nodes/materials/null_material.py
     addon/nodes/materials/clipping_material.py
     addon/nodes/materials/standard_surface_material.py
+    addon/nodes/materials/material_switch.py
+    addon/nodes/materials/toon_ramp_switch.py
 )
 
 set(ADDON_NODES_MEDIUM_FILES
@@ -281,17 +296,66 @@ set(ADDON_NODES_MEDIUM_FILES
     addon/nodes/medium/volume_medium.py
     addon/nodes/medium/random_walk.py
     addon/nodes/medium/standard_volume_medium.py
+    addon/nodes/medium/medium_switch.py
+    addon/nodes/medium/phase_function_switch.py
+    addon/nodes/medium/volume_ramp_switch.py
 )
 
 set(ADDON_NODES_OBJECT_LAYER_FILES
     addon/nodes/object_layer/__init__.py
     addon/nodes/object_layer/object_layer.py
+    addon/nodes/object_layer/object_layer_switch.py
 )
 
 set(ADDON_NODES_OTHER_FILES
     addon/nodes/other/__init__.py
     addon/nodes/other/note.py
     addon/nodes/other/geometry_exporter.py
+)
+
+set(ADDON_NODES_OUTPUT_AOVS_FILES
+    addon/nodes/output_aovs/__init__.py
+    addon/nodes/output_aovs/output_aov_group.py
+    addon/nodes/output_aovs/light_mixer_output_aov.py
+    addon/nodes/output_aovs/blending_settings.py
+    addon/nodes/output_aovs/channel_clamp.py
+    addon/nodes/output_aovs/adjust_contrast_sdr_only_.py
+    addon/nodes/output_aovs/layer_group.py
+    addon/nodes/output_aovs/mask_with_layer_group.py
+    addon/nodes/output_aovs/mask_with_cryptomatte.py
+    addon/nodes/output_aovs/layer_group_pass_through_.py
+    addon/nodes/output_aovs/image_file.py
+    addon/nodes/output_aovs/channel_map_range.py
+    addon/nodes/output_aovs/render_aov.py
+    addon/nodes/output_aovs/solid_color.py
+    addon/nodes/output_aovs/output_aov.py
+    addon/nodes/output_aovs/remove_hot_pixels.py
+    addon/nodes/output_aovs/adjust_opacity.py
+    addon/nodes/output_aovs/adjust_saturation.py
+    addon/nodes/output_aovs/add_vignette.py
+    addon/nodes/output_aovs/adjust_white_balance.py
+    addon/nodes/output_aovs/adjust_brightness.py
+    addon/nodes/output_aovs/convert_for_sdr_display_basic_.py
+    addon/nodes/output_aovs/convert_for_sdr_display_ocio_.py
+    addon/nodes/output_aovs/convert_for_sdr_display_aces_.py
+    addon/nodes/output_aovs/apply_gamma_curve_sdr_only_.py
+    addon/nodes/output_aovs/adjust_hue.py
+    addon/nodes/output_aovs/channel_invert_sdr_only_.py
+    addon/nodes/output_aovs/convert_for_sdr_display_agx_.py
+    addon/nodes/output_aovs/apply_custom_curve.py
+    addon/nodes/output_aovs/apply_lut.py
+    addon/nodes/output_aovs/apply_camera_response_curve_sdr_only_.py
+    addon/nodes/output_aovs/apply_ocio_look.py
+    addon/nodes/output_aovs/add_bloom.py
+    addon/nodes/output_aovs/add_glare.py
+    addon/nodes/output_aovs/add_lens_flare.py
+    addon/nodes/output_aovs/add_chromatic_aberration.py
+    addon/nodes/output_aovs/blur.py
+    addon/nodes/output_aovs/convert_for_sdr_display_smooth_.py
+    addon/nodes/output_aovs/output_aov_group_switch.py
+    addon/nodes/output_aovs/output_aov_switch.py
+    addon/nodes/output_aovs/output_aov_layer_switch.py
+    addon/nodes/output_aovs/blending_settings_switch.py
 )
 
 set(ADDON_NODES_PROJECTION_FILES
@@ -310,6 +374,7 @@ set(ADDON_NODES_PROJECTION_FILES
     addon/nodes/projection/sample_pos_to_uv.py
     addon/nodes/projection/distorted_mesh_uv.py
     addon/nodes/projection/matcap.py
+    addon/nodes/projection/projection_switch.py
 )
 
 set(ADDON_NODES_RENDER_AOVS_FILES
@@ -382,20 +447,34 @@ set(ADDON_NODES_RENDER_AOVS_FILES
     addon/nodes/render_aovs/normal_smooth_aov.py
     addon/nodes/render_aovs/wireframe_aov.py
     addon/nodes/render_aovs/z_depth_aov.py
+    addon/nodes/render_aovs/postfx_media_aov.py
+    addon/nodes/render_aovs/render_aov_switch.py
 )
 
 set(ADDON_NODES_RENDER_SETTINGS_FILES
     addon/nodes/render_settings/__init__.py
     addon/nodes/render_settings/camera_imager.py
     addon/nodes/render_settings/post_processing.py
-    addon/nodes/render_settings/render_layer.py
     addon/nodes/render_settings/render_passes.py
+    addon/nodes/render_settings/render_layer.py
     addon/nodes/render_settings/animation_settings.py
     addon/nodes/render_settings/film_settings.py
     addon/nodes/render_settings/custom_lut.py
     addon/nodes/render_settings/ocio_view.py
     addon/nodes/render_settings/ocio_look.py
     addon/nodes/render_settings/ocio_color_space.py
+    addon/nodes/render_settings/post_volume_effects.py
+    addon/nodes/render_settings/imager_switch.py
+    addon/nodes/render_settings/film_settings_switch.py
+    addon/nodes/render_settings/post_processing_switch.py
+    addon/nodes/render_settings/render_target_switch.py
+    addon/nodes/render_settings/render_layer_switch.py
+    addon/nodes/render_settings/animation_settings_switch.py
+    addon/nodes/render_settings/lut_switch.py
+    addon/nodes/render_settings/ocio_view_switch.py
+    addon/nodes/render_settings/ocio_look_switch.py
+    addon/nodes/render_settings/ocio_color_space_switch.py
+    addon/nodes/render_settings/post_volume_switch.py
 )
 
 set(ADDON_NODES_RENDER_TARGET_FILES
@@ -406,6 +485,34 @@ set(ADDON_NODES_RENDER_TARGET_FILES
 set(ADDON_NODES_ROUND_EDGES_FILES
     addon/nodes/round_edges/__init__.py
     addon/nodes/round_edges/round_edges.py
+    addon/nodes/round_edges/round_edges_switch.py
+)
+
+set(ADDON_NODES_TEXTURE_LAYERS_FILES
+    addon/nodes/texture_layers/__init__.py
+    addon/nodes/texture_layers/texture.py
+    addon/nodes/texture_layers/adjust_hue.py
+    addon/nodes/texture_layers/adjust_contrast.py
+    addon/nodes/texture_layers/adjust_brightness.py
+    addon/nodes/texture_layers/apply_gamma_curve.py
+    addon/nodes/texture_layers/adjust_saturation.py
+    addon/nodes/texture_layers/clamp.py
+    addon/nodes/texture_layers/math_unary_.py
+    addon/nodes/texture_layers/math_binary_.py
+    addon/nodes/texture_layers/map_range.py
+    addon/nodes/texture_layers/layer_group.py
+    addon/nodes/texture_layers/adjust_lightness.py
+    addon/nodes/texture_layers/adjust_saturation_hsl_.py
+    addon/nodes/texture_layers/channel_mixer.py
+    addon/nodes/texture_layers/convert_to_greyscale.py
+    addon/nodes/texture_layers/threshold.py
+    addon/nodes/texture_layers/adjust_exposure.py
+    addon/nodes/texture_layers/adjust_white_balance.py
+    addon/nodes/texture_layers/comparison.py
+    addon/nodes/texture_layers/adjust_color_balance.py
+    addon/nodes/texture_layers/mask_with_layer_group.py
+    addon/nodes/texture_layers/apply_gradient_map.py
+    addon/nodes/texture_layers/composite_texture_layer_switch.py
 )
 
 set(ADDON_NODES_TEXTURES_FILES
@@ -479,7 +586,6 @@ set(ADDON_NODES_TEXTURES_FILES
     addon/nodes/textures/rain_bump.py
     addon/nodes/textures/scratches.py
     addon/nodes/textures/snow_effect.py
-    addon/nodes/textures/composite_texture_layer.py
     addon/nodes/textures/floats_to_color.py
     addon/nodes/textures/float3_to_color.py
     addon/nodes/textures/capture_to_custom_aov.py
@@ -520,6 +626,7 @@ set(ADDON_NODES_TEXTURES_FILES
     addon/nodes/textures/instance_highlight.py
     addon/nodes/textures/star_field.py
     addon/nodes/textures/digits.py
+    addon/nodes/textures/texture_switch.py
 )
 
 set(ADDON_NODES_TRANSFORMS_FILES
@@ -530,6 +637,7 @@ set(ADDON_NODES_TRANSFORMS_FILES
     addon/nodes/transforms/_2d_transformation.py
     addon/nodes/transforms/transform_value.py
     addon/nodes/transforms/look_at_transform.py
+    addon/nodes/transforms/transform_switch.py
 )
 
 set(ADDON_NODES_VALUES_FILES
@@ -559,10 +667,17 @@ set(ADDON_NODES_VALUES_FILES
     addon/nodes/values/unary_math_operation.py
     addon/nodes/values/range.py
     addon/nodes/values/rotate.py
+    addon/nodes/values/bool_switch.py
+    addon/nodes/values/float_switch.py
+    addon/nodes/values/int_switch.py
+    addon/nodes/values/enum_switch.py
+    addon/nodes/values/string_switch.py
+    addon/nodes/values/bitmask_switch.py
 )
 
 set(ADDON_NODES_TOOLS_FILES
     addon/nodes/tools/__init__.py
+    addon/nodes/tools/octane_script_graph.py
     addon/nodes/tools/octane_proxy.py
     addon/nodes/tools/octane_object_data.py
     addon/nodes/tools/octane_camera_data.py
@@ -598,6 +713,7 @@ set(OBJECT_LIBRARY
 
 set(ORBX_LIBRARY
 	addon/libraries/orbx/CameraData.orbx
+	addon/libraries/orbx/RenderPassesData.orbx
 )
 
 set(ASSETS
@@ -645,11 +761,13 @@ delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_NODES_MATERIALS_FILES}" ${O
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_NODES_MEDIUM_FILES}" ${OCTANE_INSTALL_PATH}/nodes/medium)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_NODES_OBJECT_LAYER_FILES}" ${OCTANE_INSTALL_PATH}/nodes/object_layer)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_NODES_OTHER_FILES}" ${OCTANE_INSTALL_PATH}/nodes/other)
+delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_NODES_OUTPUT_AOVS_FILES}" ${OCTANE_INSTALL_PATH}/nodes/output_aovs)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_NODES_PROJECTION_FILES}" ${OCTANE_INSTALL_PATH}/nodes/projection)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_NODES_RENDER_AOVS_FILES}" ${OCTANE_INSTALL_PATH}/nodes/render_aovs)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_NODES_RENDER_SETTINGS_FILES}" ${OCTANE_INSTALL_PATH}/nodes/render_settings)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_NODES_RENDER_TARGET_FILES}" ${OCTANE_INSTALL_PATH}/nodes/render_target)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_NODES_ROUND_EDGES_FILES}" ${OCTANE_INSTALL_PATH}/nodes/round_edges)
+delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_NODES_TEXTURE_LAYERS_FILES}" ${OCTANE_INSTALL_PATH}/nodes/texture_layers)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_NODES_TEXTURES_FILES}" ${OCTANE_INSTALL_PATH}/nodes/textures)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_NODES_TRANSFORMS_FILES}" ${OCTANE_INSTALL_PATH}/nodes/transforms)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_NODES_VALUES_FILES}" ${OCTANE_INSTALL_PATH}/nodes/values)

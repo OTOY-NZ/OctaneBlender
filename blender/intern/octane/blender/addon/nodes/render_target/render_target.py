@@ -3,11 +3,14 @@ import bpy
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
 from octane.utils import utility, consts
-from octane.nodes.base_node import OctaneBaseNode
-from octane.nodes.base_kernel import OctaneBaseKernelNode
-from octane.nodes.base_osl import OctaneScriptNode
-from octane.nodes.base_image import OctaneBaseImageNode
+from octane.nodes import base_switch_input_socket
 from octane.nodes.base_color_ramp import OctaneBaseRampNode
+from octane.nodes.base_curve import OctaneBaseCurveNode
+from octane.nodes.base_image import OctaneBaseImageNode
+from octane.nodes.base_kernel import OctaneBaseKernelNode
+from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_switch import OctaneBaseSwitchNode
 from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
@@ -158,9 +161,9 @@ class OctaneRenderTargetRenderPasses(OctaneBaseSocket):
 class OctaneRenderTargetCompositeAovs(OctaneBaseSocket):
     bl_idname="OctaneRenderTargetCompositeAovs"
     bl_label="Output AOVs"
-    color=consts.OctanePinColor.AOVOutputGroup
+    color=consts.OctanePinColor.OutputAOVGroup
     octane_default_node_type=consts.NodeType.NT_OUTPUT_AOV_GROUP
-    octane_default_node_name="OctaneAOVOutputGroup"
+    octane_default_node_name="OctaneOutputAOVGroup"
     octane_pin_id=consts.PinID.P_OUTPUT_AOVS
     octane_pin_name="compositeAovs"
     octane_pin_type=consts.PinType.PT_OUTPUT_AOV_GROUP

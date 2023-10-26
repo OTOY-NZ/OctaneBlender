@@ -3,11 +3,14 @@ import bpy
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
 from octane.utils import utility, consts
-from octane.nodes.base_node import OctaneBaseNode
-from octane.nodes.base_kernel import OctaneBaseKernelNode
-from octane.nodes.base_osl import OctaneScriptNode
-from octane.nodes.base_image import OctaneBaseImageNode
+from octane.nodes import base_switch_input_socket
 from octane.nodes.base_color_ramp import OctaneBaseRampNode
+from octane.nodes.base_curve import OctaneBaseCurveNode
+from octane.nodes.base_image import OctaneBaseImageNode
+from octane.nodes.base_kernel import OctaneBaseKernelNode
+from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_switch import OctaneBaseSwitchNode
 from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
@@ -320,6 +323,23 @@ class OctaneDaylightEnvironmentLightPassMask(OctaneBaseSocket):
     octane_end_version=4294967295
     octane_deprecated=False
 
+class OctaneDaylightEnvironmentUseInPostVolume(OctaneBaseSocket):
+    bl_idname="OctaneDaylightEnvironmentUseInPostVolume"
+    bl_label="Use in post volume"
+    color=consts.OctanePinColor.Bool
+    octane_default_node_type=consts.NodeType.NT_BOOL
+    octane_default_node_name="OctaneBoolValue"
+    octane_pin_id=consts.PinID.P_USE_IN_POST_VOLUME
+    octane_pin_name="useInPostVolume"
+    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_index=18
+    octane_socket_type=consts.SocketType.ST_BOOL
+    default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Enable or disable this daylight environment in post volume rendering")
+    octane_hide_value=False
+    octane_min_version=13000002
+    octane_end_version=4294967295
+    octane_deprecated=False
+
 class OctaneDaylightEnvironmentVisibleEnvironmentBackplate(OctaneBaseSocket):
     bl_idname="OctaneDaylightEnvironmentVisibleEnvironmentBackplate"
     bl_label="Backplate"
@@ -329,7 +349,7 @@ class OctaneDaylightEnvironmentVisibleEnvironmentBackplate(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_VISIBLE_ENVIRONMENT_BACKPLATE
     octane_pin_name="visibleEnvironmentBackplate"
     octane_pin_type=consts.PinType.PT_BOOL
-    octane_pin_index=18
+    octane_pin_index=19
     octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="When used as a visible environment, this environment will behave as a backplate image")
     octane_hide_value=False
@@ -346,7 +366,7 @@ class OctaneDaylightEnvironmentVisibleEnvironmentReflections(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_VISIBLE_ENVIRONMENT_REFLECTIONS
     octane_pin_name="visibleEnvironmentReflections"
     octane_pin_type=consts.PinType.PT_BOOL
-    octane_pin_index=19
+    octane_pin_index=20
     octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="When used as a visible environment, this environment will be visible in reflections (specular and glossy materials)")
     octane_hide_value=False
@@ -363,7 +383,7 @@ class OctaneDaylightEnvironmentVisibleEnvironmentRefractions(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_VISIBLE_ENVIRONMENT_REFRACTIONS
     octane_pin_name="visibleEnvironmentRefractions"
     octane_pin_type=consts.PinType.PT_BOOL
-    octane_pin_index=20
+    octane_pin_index=21
     octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="When used as a visible environment, this environment will be visible in refractions")
     octane_hide_value=False
@@ -385,13 +405,13 @@ class OctaneDaylightEnvironment(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
-    octane_socket_class_list=[OctaneDaylightEnvironmentSundir,OctaneDaylightEnvironmentTurbidity,OctaneDaylightEnvironmentPower,OctaneDaylightEnvironmentSunIntensity,OctaneDaylightEnvironmentNorthoffset,OctaneDaylightEnvironmentModel,OctaneDaylightEnvironmentSkyColor,OctaneDaylightEnvironmentSunsetColor,OctaneDaylightEnvironmentSunSize,OctaneDaylightEnvironmentGroundColor,OctaneDaylightEnvironmentGroundStartAngle,OctaneDaylightEnvironmentGroundBlendAngle,OctaneDaylightEnvironmentTexture,OctaneDaylightEnvironmentImportanceSampling,OctaneDaylightEnvironmentCastPhotons,OctaneDaylightEnvironmentMedium,OctaneDaylightEnvironmentMediumRadius,OctaneDaylightEnvironmentLightPassMask,OctaneDaylightEnvironmentGroupVisibleEnvironment,OctaneDaylightEnvironmentVisibleEnvironmentBackplate,OctaneDaylightEnvironmentVisibleEnvironmentReflections,OctaneDaylightEnvironmentVisibleEnvironmentRefractions,]
+    octane_socket_class_list=[OctaneDaylightEnvironmentSundir,OctaneDaylightEnvironmentTurbidity,OctaneDaylightEnvironmentPower,OctaneDaylightEnvironmentSunIntensity,OctaneDaylightEnvironmentNorthoffset,OctaneDaylightEnvironmentModel,OctaneDaylightEnvironmentSkyColor,OctaneDaylightEnvironmentSunsetColor,OctaneDaylightEnvironmentSunSize,OctaneDaylightEnvironmentGroundColor,OctaneDaylightEnvironmentGroundStartAngle,OctaneDaylightEnvironmentGroundBlendAngle,OctaneDaylightEnvironmentTexture,OctaneDaylightEnvironmentImportanceSampling,OctaneDaylightEnvironmentCastPhotons,OctaneDaylightEnvironmentMedium,OctaneDaylightEnvironmentMediumRadius,OctaneDaylightEnvironmentLightPassMask,OctaneDaylightEnvironmentUseInPostVolume,OctaneDaylightEnvironmentGroupVisibleEnvironment,OctaneDaylightEnvironmentVisibleEnvironmentBackplate,OctaneDaylightEnvironmentVisibleEnvironmentReflections,OctaneDaylightEnvironmentVisibleEnvironmentRefractions,]
     octane_min_version=0
     octane_node_type=consts.NodeType.NT_ENV_DAYLIGHT
-    octane_socket_list=["Sun direction", "Sky turbidity", "Power", "Sun intensity", "North offset", "Daylight model", "Sky color", "Sunset color", "Sun size", "Ground color", "Ground start angle", "Ground blend angle", "Sky texture", "Importance sampling", "Cast photons", "Medium", "Medium radius", "Medium light pass mask", "Backplate", "Reflections", "Refractions", ]
+    octane_socket_list=["Sun direction", "Sky turbidity", "Power", "Sun intensity", "North offset", "Daylight model", "Sky color", "Sunset color", "Sun size", "Ground color", "Ground start angle", "Ground blend angle", "Sky texture", "Importance sampling", "Cast photons", "Medium", "Medium radius", "Medium light pass mask", "Use in post volume", "Backplate", "Reflections", "Refractions", ]
     octane_attribute_list=["a_compatibility_version", ]
     octane_attribute_config={"a_compatibility_version": [consts.AttributeID.A_COMPATIBILITY_VERSION, "compatibilityVersion", consts.AttributeType.AT_INT], }
-    octane_static_pin_count=21
+    octane_static_pin_count=22
 
     compatibility_mode_infos=[
         ("Latest (2022.1)", "Latest (2022.1)", """(null)""", 12000005),
@@ -399,7 +419,7 @@ class OctaneDaylightEnvironment(bpy.types.Node, OctaneBaseNode):
     ]
     a_compatibility_version_enum: EnumProperty(name="Compatibility version", default="Latest (2022.1)", update=OctaneBaseNode.update_compatibility_mode, description="The Octane version that the behavior of this node should match", items=compatibility_mode_infos)
 
-    a_compatibility_version: IntProperty(name="Compatibility version", default=12000200, update=OctaneBaseNode.update_node_tree, description="The Octane version that the behavior of this node should match")
+    a_compatibility_version: IntProperty(name="Compatibility version", default=13000004, update=OctaneBaseNode.update_node_tree, description="The Octane version that the behavior of this node should match")
 
     def init(self, context):
         self.inputs.new("OctaneDaylightEnvironmentSundir", OctaneDaylightEnvironmentSundir.bl_label).init()
@@ -420,6 +440,7 @@ class OctaneDaylightEnvironment(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneDaylightEnvironmentMedium", OctaneDaylightEnvironmentMedium.bl_label).init()
         self.inputs.new("OctaneDaylightEnvironmentMediumRadius", OctaneDaylightEnvironmentMediumRadius.bl_label).init()
         self.inputs.new("OctaneDaylightEnvironmentLightPassMask", OctaneDaylightEnvironmentLightPassMask.bl_label).init()
+        self.inputs.new("OctaneDaylightEnvironmentUseInPostVolume", OctaneDaylightEnvironmentUseInPostVolume.bl_label).init()
         self.inputs.new("OctaneDaylightEnvironmentGroupVisibleEnvironment", OctaneDaylightEnvironmentGroupVisibleEnvironment.bl_label).init()
         self.inputs.new("OctaneDaylightEnvironmentVisibleEnvironmentBackplate", OctaneDaylightEnvironmentVisibleEnvironmentBackplate.bl_label).init()
         self.inputs.new("OctaneDaylightEnvironmentVisibleEnvironmentReflections", OctaneDaylightEnvironmentVisibleEnvironmentReflections.bl_label).init()
@@ -429,6 +450,10 @@ class OctaneDaylightEnvironment(bpy.types.Node, OctaneBaseNode):
     @classmethod
     def poll(cls, node_tree):
         return OctaneBaseNode.poll(node_tree)
+
+    def draw_buttons(self, context, layout):
+        super().draw_buttons(context, layout)
+        layout.row().prop(self, "a_compatibility_version_enum")
 
 
 _CLASSES=[
@@ -450,6 +475,7 @@ _CLASSES=[
     OctaneDaylightEnvironmentMedium,
     OctaneDaylightEnvironmentMediumRadius,
     OctaneDaylightEnvironmentLightPassMask,
+    OctaneDaylightEnvironmentUseInPostVolume,
     OctaneDaylightEnvironmentVisibleEnvironmentBackplate,
     OctaneDaylightEnvironmentVisibleEnvironmentReflections,
     OctaneDaylightEnvironmentVisibleEnvironmentRefractions,
@@ -469,10 +495,4 @@ def unregister():
 
 ##### END OCTANE GENERATED CODE BLOCK #####
 
-class OctaneDaylightEnvironment_Override(OctaneDaylightEnvironment):
-
-    def draw_buttons(self, context, layout):
-        row = layout.row()
-        row.prop(self, "a_compatibility_version_enum")
-
-utility.override_class(_CLASSES, OctaneDaylightEnvironment, OctaneDaylightEnvironment_Override)
+OctaneDaylightEnvironmentLightPassMask.octane_default_node_name = "OctaneLightIDBitValue"

@@ -1229,6 +1229,18 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
         oct_mesh, "open_subd_sharpness");
     octane_mesh->octane_mesh.oMeshOpenSubdivision.iOpenSubdBoundInterp = get_enum(
         oct_mesh, "open_subd_bound_interp");
+    octane_mesh->octane_mesh.oMeshVolume.bEnable = RNA_boolean_get(&oct_mesh,
+                                                                   "enable_mesh_volume") ||
+                                                   RNA_boolean_get(&oct_mesh,
+                                                                   "enable_mesh_volume_sdf");
+    octane_mesh->octane_mesh.oMeshVolume.bSDF = RNA_boolean_get(&oct_mesh,
+                                                                "enable_mesh_volume_sdf");
+    octane_mesh->octane_mesh.oMeshVolume.fVoxelSize = RNA_float_get(&oct_mesh,
+                                                                    "mesh_volume_sdf_voxel_size");
+    octane_mesh->octane_mesh.oMeshVolume.fBorderThicknessInside = RNA_float_get(
+        &oct_mesh, "mesh_volume_sdf_border_thickness_inside");
+    octane_mesh->octane_mesh.oMeshVolume.fBorderThicknessOutside = RNA_float_get(
+        &oct_mesh, "mesh_volume_sdf_border_thickness_outside");
   }
   else {
     octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.bEnable = false;
@@ -1241,6 +1253,11 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
     octane_mesh->octane_mesh.oMeshOpenSubdivision.iOpenSubdLevel = 0;
     octane_mesh->octane_mesh.oMeshOpenSubdivision.fOpenSubdSharpness = 0;
     octane_mesh->octane_mesh.oMeshOpenSubdivision.iOpenSubdBoundInterp = 3;
+    octane_mesh->octane_mesh.oMeshVolume.bEnable = false;
+    octane_mesh->octane_mesh.oMeshVolume.bSDF = false;
+    octane_mesh->octane_mesh.oMeshVolume.fVoxelSize = 0;
+    octane_mesh->octane_mesh.oMeshVolume.fBorderThicknessInside = 0;
+    octane_mesh->octane_mesh.oMeshVolume.fBorderThicknessOutside = 0;
   }
 
   if (b_ob.type() == BL::Object::type_MESH) {
@@ -1257,8 +1274,15 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
         std::to_string(oMeshOpenSubdivision.iOpenSubdLevel) +
         std::to_string(oMeshOpenSubdivision.fOpenSubdSharpness) +
         std::to_string(oMeshOpenSubdivision.iOpenSubdBoundInterp);
+    std::string octane_mesh_volume_setting_tag =
+        std::to_string(octane_mesh->octane_mesh.oMeshVolume.bEnable) +
+        std::to_string(octane_mesh->octane_mesh.oMeshVolume.bSDF) +
+        std::to_string(octane_mesh->octane_mesh.oMeshVolume.fVoxelSize) +
+        std::to_string(octane_mesh->octane_mesh.oMeshVolume.fBorderThicknessInside) +
+        std::to_string(octane_mesh->octane_mesh.oMeshVolume.fBorderThicknessOutside);
     new_mesh_tag += ("|" + octane_mesh_setting_tag);
     new_octane_prop_tag += ("|" + octane_mesh_setting_tag);
+    new_octane_prop_tag += ("|" + octane_mesh_volume_setting_tag);
   }
   else if (b_ob.type() == BL::Object::type_CURVE) {
     new_octane_prop_tag += ("|" + std::to_string(get_float(oct_mesh, "hair_root_width")) + "|" +
@@ -1287,6 +1311,12 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
                             std::to_string(get_boolean(oct_mesh, "use_octane_radius_setting")) +
                             std::to_string(get_float(oct_mesh, "hair_root_width")) + "|" +
                             std::to_string(get_float(oct_mesh, "hair_tip_width")));
+  }
+  else if (b_ob.type() == BL::Object::type_VOLUME) {
+    new_octane_prop_tag += ("|" + std::to_string(get_boolean(oct_mesh, "vdb_sdf")) +
+                            std::to_string(get_float(oct_mesh, "vdb_iso")) +
+                            std::to_string(get_float(oct_mesh, "border_thickness_inside")) +
+                            std::to_string(get_float(oct_mesh, "border_thickness_outside")));
   }
 
   bool is_mesh_tag_data_updated = octane_mesh->mesh_tag != new_mesh_tag;
@@ -1392,7 +1422,7 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
     octane_mesh->mesh_tag = new_mesh_tag;
     octane_mesh->octane_property_tag = new_octane_prop_tag;
     octane_mesh->octane_mesh.bInfinitePlane = false;
-    octane_mesh->octane_mesh.oMeshVolumeSDF.Clear();
+    octane_mesh->octane_mesh.oMeshVolume.Clear();
     std::string selected_grid_name;
     if (b_volume.grids.is_loaded()) {
       if (b_volume.grids.length()) {
@@ -1511,16 +1541,28 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
   }
 
   octane_mesh->octane_mesh.bInfinitePlane = RNA_boolean_get(&oct_mesh, "infinite_plane");
-  octane_mesh->octane_mesh.oMeshVolumeSDF.bEnable = RNA_boolean_get(&oct_mesh,
-                                                                    "enable_mesh_volume_sdf");
-  octane_mesh->octane_mesh.oMeshVolumeSDF.fVoxelSize = RNA_float_get(&oct_mesh,
-                                                                     "mesh_volume_sdf_voxel_size");
-  octane_mesh->octane_mesh.oMeshVolumeSDF.fBorderThicknessInside = RNA_float_get(
+  octane_mesh->octane_mesh.oMeshVolume.bEnable = RNA_boolean_get(&oct_mesh,
+                                                                 "enable_mesh_volume") ||
+                                                 RNA_boolean_get(&oct_mesh,
+                                                                 "enable_mesh_volume_sdf");
+  octane_mesh->octane_mesh.oMeshVolume.bSDF = RNA_boolean_get(&oct_mesh, "enable_mesh_volume_sdf");
+  octane_mesh->octane_mesh.oMeshVolume.fVoxelSize = RNA_float_get(&oct_mesh,
+                                                                  "mesh_volume_sdf_voxel_size");
+  octane_mesh->octane_mesh.oMeshVolume.fBorderThicknessInside = RNA_float_get(
       &oct_mesh, "mesh_volume_sdf_border_thickness_inside");
-  octane_mesh->octane_mesh.oMeshVolumeSDF.fBorderThicknessOutside = RNA_float_get(
+  octane_mesh->octane_mesh.oMeshVolume.fBorderThicknessOutside = RNA_float_get(
       &oct_mesh, "mesh_volume_sdf_border_thickness_outside");
   octane_mesh->octane_mesh.sScriptGeoName = resolve_octane_geometry_node(b_ob.ptr);
   octane_mesh->octane_mesh.sOrbxPath = resolve_orbx_proxy_path(oct_mesh, b_data, b_scene);
+  if (octane_mesh->octane_mesh.sOrbxPath.length() > 0) {
+    is_octane_property_update = true;
+  }
+  octane_mesh->octane_mesh.bEnableAnimationTimeTransformation = RNA_boolean_get(
+      &oct_mesh, "enable_animation_time_transformation");
+  octane_mesh->octane_mesh.fAnimationTimeTransformationDelay = RNA_float_get(
+      &oct_mesh, "animation_time_transformation_delay");
+  octane_mesh->octane_mesh.fAnimationTimeTransformationScale = RNA_float_get(
+      &oct_mesh, "animation_time_transformation_scale");
   MeshType final_mesh_type = resolve_mesh_type(mesh_name, b_ob.type(), octane_mesh->mesh_type);
   octane_mesh->octane_mesh.bReshapeable = (final_mesh_type == MeshType::RESHAPABLE_PROXY ||
                                            final_mesh_type == MeshType::GLOBAL);
@@ -1617,6 +1659,12 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
                                                          "enable_octane_offset_transform");
   octane_mesh->use_octane_coordinate = RNA_enum_get(&oct_mesh, "primitive_coordinate_mode") ==
                                        OBJECT_DATA_NODE_TARGET_COORDINATE_OCTANE;
+  octane_mesh->octane_mesh.bEnableAnimationTimeTransformation = RNA_boolean_get(
+      &oct_mesh, "enable_animation_time_transformation");
+  octane_mesh->octane_mesh.fAnimationTimeTransformationDelay = RNA_float_get(
+      &oct_mesh, "animation_time_transformation_delay");
+  octane_mesh->octane_mesh.fAnimationTimeTransformationScale = RNA_float_get(
+      &oct_mesh, "animation_time_transformation_scale");
   if (octane_mesh->enable_offset_transform) {
     float3 translate, euler, scale;
     int mode = RNA_enum_get(&oct_mesh, "octane_offset_rotation_order");
@@ -1628,13 +1676,16 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
   }
   octane_mesh->octane_mesh.oObjectLayer = object_layer;
   octane_mesh->octane_mesh.bInfinitePlane = RNA_boolean_get(&oct_mesh, "infinite_plane");
-  octane_mesh->octane_mesh.oMeshVolumeSDF.bEnable = RNA_boolean_get(&oct_mesh,
-                                                                    "enable_mesh_volume_sdf");
-  octane_mesh->octane_mesh.oMeshVolumeSDF.fVoxelSize = RNA_float_get(&oct_mesh,
-                                                                     "mesh_volume_sdf_voxel_size");
-  octane_mesh->octane_mesh.oMeshVolumeSDF.fBorderThicknessInside = RNA_float_get(
+  octane_mesh->octane_mesh.oMeshVolume.bEnable = RNA_boolean_get(&oct_mesh,
+                                                                 "enable_mesh_volume") ||
+                                                 RNA_boolean_get(&oct_mesh,
+                                                                 "enable_mesh_volume_sdf");
+  octane_mesh->octane_mesh.oMeshVolume.bSDF = RNA_boolean_get(&oct_mesh, "enable_mesh_volume_sdf");
+  octane_mesh->octane_mesh.oMeshVolume.fVoxelSize = RNA_float_get(&oct_mesh,
+                                                                  "mesh_volume_sdf_voxel_size");
+  octane_mesh->octane_mesh.oMeshVolume.fBorderThicknessInside = RNA_float_get(
       &oct_mesh, "mesh_volume_sdf_border_thickness_inside");
-  octane_mesh->octane_mesh.oMeshVolumeSDF.fBorderThicknessOutside = RNA_float_get(
+  octane_mesh->octane_mesh.oMeshVolume.fBorderThicknessOutside = RNA_float_get(
       &oct_mesh, "mesh_volume_sdf_border_thickness_outside");
   octane_mesh->is_scatter_group_source = RNA_boolean_get(&oct_mesh, "is_scatter_group_source");
   octane_mesh->scatter_group_id = RNA_int_get(&oct_mesh, "scatter_group_id");

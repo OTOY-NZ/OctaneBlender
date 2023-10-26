@@ -2778,19 +2778,8 @@ static eSnapMode snapEditMesh(SnapObjectContext *sctx,
   float tobmat[4][4], clip_planes_local[MAX_CLIPPLANE_LEN][4];
   transpose_m4_m4(tobmat, obmat);
 
-  float(*clip_planes)[4] = sctx->runtime.clip_plane;
-  int clip_plane_len = sctx->runtime.clip_plane_len;
-
-  if (sctx->runtime.has_occlusion_plane && XRAY_FLAG_ENABLED(sctx->runtime.v3d)) {
-    /* #XRAY_ENABLED can return false even with the XRAY flag enabled, this happens because the
-     * alpha is 1.0 in this case. But even with the alpha being 1.0, the edit mesh is still not
-     * occluded. */
-    clip_planes++;
-    clip_plane_len--;
-  }
-
-  for (int i = clip_plane_len; i--;) {
-    mul_v4_m4v4(clip_planes_local[i], tobmat, clip_planes[i]);
+  for (int i = sctx->runtime.clip_plane_len; i--;) {
+    mul_v4_m4v4(clip_planes_local[i], tobmat, sctx->runtime.clip_plane[i]);
   }
 
   if (sod->bvhtree[0] && (sctx->runtime.snap_to_flag & SCE_SNAP_MODE_VERTEX)) {
@@ -2801,7 +2790,7 @@ static eSnapMode snapEditMesh(SnapObjectContext *sctx,
                                        sctx->runtime.win_size,
                                        sctx->runtime.mval,
                                        clip_planes_local,
-                                       clip_plane_len,
+                                       sctx->runtime.clip_plane_len,
                                        &nearest,
                                        cb_snap_vert,
                                        &nearest2d);
@@ -2817,7 +2806,7 @@ static eSnapMode snapEditMesh(SnapObjectContext *sctx,
                                        sctx->runtime.win_size,
                                        sctx->runtime.mval,
                                        clip_planes_local,
-                                       clip_plane_len,
+                                       sctx->runtime.clip_plane_len,
                                        &nearest,
                                        cb_snap_edge,
                                        &nearest2d);

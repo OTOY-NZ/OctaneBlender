@@ -22,11 +22,16 @@ class OCTANE_LIGHT_PT_light(common.OctanePropertyPanel, Panel):
         layout.use_property_split = True
         layout.use_property_decorate = False
         if light.type == "SUN":
-            layout.label(text="Used as Octane Toon Directional Light")
+            if oct_light.octane_directional_light_type == "Toon Directional":
+                layout.label(text="Used as Octane Toon Directional Light")
+            else:
+                layout.label(text="Used as Octane Directional Light")
         if light.type == "POINT":
             if oct_light.octane_point_light_type == "Toon Point":
                 layout.label(text="Used as Octane Toon Point Light")
-            else:
+            elif oct_light.octane_point_light_type == "Analytical":
+                layout.label(text="Used as Octane Analytical Light")
+            elif oct_light.octane_point_light_type == "Sphere":
                 layout.label(text="Used as Octane Sphere Light")
                 col = layout.column()
                 col.prop(light, "shadow_soft_size", text="Radius")

@@ -7,45 +7,19 @@ from octane.utils import consts, utility
 from octane import core
 
 
-class OCTANE_MT_kernel_presets(Menu):
-    bl_label = "Kernel presets"
-    preset_subdir = "octane/kernel_presets"
-    preset_operator = "script.execute_preset"
-    preset_operator_defaults = {"menu_idname" : "OCTANE_MT_kernel_presets"}
-    COMPAT_ENGINES = {"octane"}
-    draw = Menu.draw_preset
-
-    @classmethod
-    def post_cb(cls, context):
-        from os.path import basename
-        from octane.utils import utility
-        preset_name = cls.bl_label
-        octane_scene = context.scene.octane
-        kernel_json_node_tree_helper = octane_scene.kernel_json_node_tree_helper
-        utility.quick_add_octane_kernel_node_tree(assign_to_kernel_node_graph=True, generate_from_legacy_octane_property=False, json_node_tree=kernel_json_node_tree_helper, preset_name=preset_name)
-
-
 class OCTANE_MT_legacy_kernel_presets(Menu):
-    bl_label = "Legacy Kernel presets"
+    bl_label = "Kernel presets"
     preset_subdir = "octane/kernel"
-    preset_operator = "script.execute_preset"
+    preset_operator = "script.execute_preset_legacy_kernel"
     preset_operator_defaults = {"menu_idname" : "OCTANE_MT_legacy_kernel_presets"}
     COMPAT_ENGINES = {"octane"}
     draw = Menu.draw_preset
-
-    @classmethod
-    def post_cb(cls, context):
-        from os.path import basename
-        from octane.utils import utility
-        preset_name = cls.bl_label
-        octane_scene = context.scene.octane
-        utility.quick_add_octane_kernel_node_tree(assign_to_kernel_node_graph=True, generate_from_legacy_octane_property=True, preset_name=preset_name)
 
 
 class OCTANE_MT_renderpasses_presets(Menu):
     bl_label = "Render Passes presets"
     preset_subdir = "octane/renderpasses_presets"
-    preset_operator = "script.execute_preset"
+    preset_operator = "script.execute_preset_octane"
     preset_operator_defaults = {"menu_idname" : "OCTANE_MT_renderpasses_presets"}
     COMPAT_ENGINES = {"octane"}
     draw = Menu.draw_preset
@@ -56,50 +30,25 @@ class OCTANE_RENDER_PT_kernel(common.OctanePropertyPanel, Panel):
     bl_context = "render"
 
     def draw(self, context):
-        pass
-
-
-class OCTANE_RENDER_PT_kernel_preset(common.OctanePropertyPanel, Panel):
-    bl_label = "Kernel Presets"
-    bl_context = "render"
-    bl_parent_id = "OCTANE_RENDER_PT_kernel"
-
-    def draw(self, context):
+        scene = context.scene
+        octane_scene = scene.octane
         layout = self.layout
         row = layout.row()
-        row.menu("OCTANE_MT_kernel_presets", text=OCTANE_MT_kernel_presets.bl_label)
-        row.operator("render.octane_kernel_preset_add", text="", icon="ADD")
-        row.operator("render.octane_kernel_preset_add", text="", icon="REMOVE").remove_active = True
+        row.prop(octane_scene.kernel_node_graph_property, "node_tree", text="Kernel Node Tree", icon='NODETREE')
+        node_tree = utility.find_active_kernel_node_tree(context.scene)
+        utility.panel_ui_node_tree_view(context, layout, node_tree, consts.OctaneNodeTreeIDName.KERNEL)
 
 
-class OCTANE_RENDER_PT_kernel_legacy_preset(common.OctanePropertyPanel, Panel):
-    bl_label = "Legacy Presets"
+class OCTANE_RENDER_PT_legacy_kernel(common.OctanePropertyPanel, Panel):
+    bl_label = "Legacy Kernel Converter"
     bl_context = "render"
-    bl_parent_id = "OCTANE_RENDER_PT_kernel_preset"
+    bl_parent_id = "OCTANE_RENDER_PT_kernel"
     bl_options = {'DEFAULT_CLOSED'}
 
     def draw(self, context):
         layout = self.layout
-        row = layout.row()    
-        row.menu("OCTANE_MT_legacy_kernel_presets", text="Load the legacy panel kernel presets")
-
-
-class OCTANE_RENDER_PT_kernel_nodetree(common.OctanePropertyPanel, Panel):
-    bl_label = "Kernel NodeTree"
-    bl_context = "render"
-    bl_parent_id = "OCTANE_RENDER_PT_kernel"
-
-    def draw(self, context):
-        scene = context.scene
-        octane_scene = scene.octane
-        node_tree = utility.find_active_kernel_node_tree(scene)
-        layout = self.layout
         row = layout.row()
-        row.operator("octane.quick_add_kernel_nodetree", icon="NODETREE", text="New Default").create_new_window = True
-        row.operator("octane.show_kernel_nodetree", icon="NODETREE", text="Show in NodeEditor").create_new_window = True
-        row = layout.row()
-        row.prop(octane_scene.kernel_node_graph_property, "node_tree", text="Kernel Node Tree", icon='NODETREE')
-        utility.panel_ui_node_tree_view(context, layout, node_tree, consts.OctaneNodeTreeIDName.KERNEL, consts.OctaneOutputNodeSocketNames.KERNEL)
+        row.menu("OCTANE_MT_legacy_kernel_presets", text=OCTANE_MT_legacy_kernel_presets.bl_label)
 
 
 class OCTANE_RENDER_PT_motion_blur(common.OctanePropertyPanel, Panel):
@@ -224,7 +173,7 @@ class OCTANE_RENDER_PT_AOV_node_graph(OctaneRenderAOVNodeGraphPanel, Panel):
         col.prop(octane_view_layer, "render_pass_style")
         render_aov_node_graph_property = octane_view_layer.render_aov_node_graph_property
         col.prop(render_aov_node_graph_property, "node_tree", text="AOV Node Tree", icon="NODETREE")
-        utility.panel_ui_node_tree_view1(context, layout, render_aov_node_graph_property.node_tree, consts.OctaneNodeTreeIDName.RENDER_AOV)
+        utility.panel_ui_node_tree_view(context, layout, render_aov_node_graph_property.node_tree, consts.OctaneNodeTreeIDName.RENDER_AOV)
 
 
 class OctaneRenderPassesPanel(common.OctanePropertyPanel):
@@ -369,6 +318,7 @@ class OCTANE_RENDER_PT_passes_postprocessing(OctaneRenderPassesPanel, Panel):
 
         flow = layout.grid_flow(row_major=True, columns=2, even_columns=True, even_rows=False, align=False)
         flow.prop(octane_view_layer, "use_pass_postprocess", text="Post processing")
+        flow.prop(octane_view_layer, "use_pass_postfxmedia", text="Postfix media")
         flow.prop(octane_view_layer, "pass_pp_env")
 
 
@@ -431,6 +381,42 @@ class OCTANE_RENDER_PT_passes_lighting(OctaneRenderPassesPanel, Panel):
         flow.prop(octane_view_layer, "use_pass_light_pass_8", text="Light Pass 8")
         flow.prop(octane_view_layer, "use_pass_light_dir_pass_8", text="Direct")
         flow.prop(octane_view_layer, "use_pass_light_indir_pass_8", text="Indirect")
+        flow.prop(octane_view_layer, "use_pass_light_pass_9", text="Light Pass 9")
+        flow.prop(octane_view_layer, "use_pass_light_dir_pass_9", text="Direct")
+        flow.prop(octane_view_layer, "use_pass_light_indir_pass_9", text="Indirect")
+        flow.prop(octane_view_layer, "use_pass_light_pass_10", text="Light Pass 10")
+        flow.prop(octane_view_layer, "use_pass_light_dir_pass_10", text="Direct")
+        flow.prop(octane_view_layer, "use_pass_light_indir_pass_10", text="Indirect")
+        flow.prop(octane_view_layer, "use_pass_light_pass_11", text="Light Pass 11")
+        flow.prop(octane_view_layer, "use_pass_light_dir_pass_11", text="Direct")
+        flow.prop(octane_view_layer, "use_pass_light_indir_pass_11", text="Indirect")
+        flow.prop(octane_view_layer, "use_pass_light_pass_12", text="Light Pass 12")
+        flow.prop(octane_view_layer, "use_pass_light_dir_pass_12", text="Direct")
+        flow.prop(octane_view_layer, "use_pass_light_indir_pass_12", text="Indirect")
+        flow.prop(octane_view_layer, "use_pass_light_pass_13", text="Light Pass 13")
+        flow.prop(octane_view_layer, "use_pass_light_dir_pass_13", text="Direct")
+        flow.prop(octane_view_layer, "use_pass_light_indir_pass_13", text="Indirect")
+        flow.prop(octane_view_layer, "use_pass_light_pass_14", text="Light Pass 14")
+        flow.prop(octane_view_layer, "use_pass_light_dir_pass_14", text="Direct")
+        flow.prop(octane_view_layer, "use_pass_light_indir_pass_14", text="Indirect")
+        flow.prop(octane_view_layer, "use_pass_light_pass_15", text="Light Pass 15")
+        flow.prop(octane_view_layer, "use_pass_light_dir_pass_15", text="Direct")
+        flow.prop(octane_view_layer, "use_pass_light_indir_pass_15", text="Indirect")
+        flow.prop(octane_view_layer, "use_pass_light_pass_16", text="Light Pass 16")
+        flow.prop(octane_view_layer, "use_pass_light_dir_pass_16", text="Direct")
+        flow.prop(octane_view_layer, "use_pass_light_indir_pass_16", text="Indirect")
+        flow.prop(octane_view_layer, "use_pass_light_pass_17", text="Light Pass 17")
+        flow.prop(octane_view_layer, "use_pass_light_dir_pass_17", text="Direct")
+        flow.prop(octane_view_layer, "use_pass_light_indir_pass_17", text="Indirect")
+        flow.prop(octane_view_layer, "use_pass_light_pass_18", text="Light Pass 18")
+        flow.prop(octane_view_layer, "use_pass_light_dir_pass_18", text="Direct")
+        flow.prop(octane_view_layer, "use_pass_light_indir_pass_18", text="Indirect")
+        flow.prop(octane_view_layer, "use_pass_light_pass_19", text="Light Pass 19")
+        flow.prop(octane_view_layer, "use_pass_light_dir_pass_19", text="Direct")
+        flow.prop(octane_view_layer, "use_pass_light_indir_pass_19", text="Indirect")
+        flow.prop(octane_view_layer, "use_pass_light_pass_20", text="Light Pass 20")
+        flow.prop(octane_view_layer, "use_pass_light_dir_pass_20", text="Direct")
+        flow.prop(octane_view_layer, "use_pass_light_indir_pass_20", text="Indirect")
 
 
 class OCTANE_RENDER_PT_passes_cryptomatte(OctaneRenderPassesPanel, Panel):
@@ -558,7 +544,7 @@ class OCTANE_RENDER_PT_AOV_Output_node_graph(common.OctanePropertyPanel, Panel):
         row = layout.row()
         composite_node_graph_property = octane_view_layer.composite_node_graph_property
         row.prop(composite_node_graph_property, "node_tree", text="AOV Output Node Tree", icon='NODETREE')
-        utility.panel_ui_node_tree_view1(context, layout, composite_node_graph_property.node_tree, consts.OctaneNodeTreeIDName.COMPOSITE)
+        utility.panel_ui_node_tree_view(context, layout, composite_node_graph_property.node_tree, consts.OctaneNodeTreeIDName.COMPOSITE)
 
 
 class OCTANE_RENDER_PT_override(common.OctanePropertyPanel, Panel):
@@ -610,20 +596,20 @@ def octane_presets_light_menu(self, context):
     self.layout.separator()
     self.layout.operator("octane.quick_add_octane_toon_point_light", icon="LIGHT_POINT", text="Octane Toon Point Light")
     self.layout.operator("octane.quick_add_octane_toon_directional_light", icon="LIGHT_SUN", text="Octane Toon Directional Light")
+    self.layout.separator()
     self.layout.operator("octane.quick_add_octane_spot_light", icon="LIGHT_SPOT", text="Octane SpotLight")
     self.layout.operator("octane.quick_add_octane_area_light", icon="LIGHT_AREA", text="Octane Area Light")
     self.layout.operator("octane.quick_add_octane_sphere_light", icon="LIGHT_POINT", text="Octane Sphere Light")
     self.layout.operator("octane.quick_add_octane_mesh_light", icon="LIGHT_AREA", text="Octane Mesh Light")
+    self.layout.operator("octane.quick_add_octane_directional_light", icon="LIGHT_SUN", text="Octane Directional Light")
+    self.layout.operator("octane.quick_add_octane_analytical_light", icon="LIGHT_AREA", text="Octane Analytical Light")
 
 
 _CLASSES = [
-    OCTANE_MT_kernel_presets,
     OCTANE_MT_legacy_kernel_presets,
     OCTANE_MT_renderpasses_presets,
     OCTANE_RENDER_PT_kernel,
-    OCTANE_RENDER_PT_kernel_preset,
-    OCTANE_RENDER_PT_kernel_legacy_preset,
-    OCTANE_RENDER_PT_kernel_nodetree,
+    OCTANE_RENDER_PT_legacy_kernel,
     OCTANE_RENDER_PT_motion_blur,
     OCTANE_RENDER_PT_server,
     OCTANE_RENDER_PT_out_of_core,

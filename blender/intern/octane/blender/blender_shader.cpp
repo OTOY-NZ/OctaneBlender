@@ -128,7 +128,9 @@ struct SocketData {
   std::string name;
   bool is_input;
   PointerRNA ptr;
-  SocketData() {}
+  SocketData()
+  {
+  }
   SocketData(std::string identifier, std::string name, bool is_input, PointerRNA ptr)
       : identifier(identifier), name(name), is_input(is_input), ptr(ptr)
   {
@@ -665,8 +667,8 @@ static void generateOSLNode(OctaneDataTransferObject::OctaneOSLNodeBase *cur_nod
   }
 
   if (OSLManager::Instance().query_osl(identifier, cur_node->oOSLNodeInfo)) {
-    for (int osl_pin_idx = 0; osl_pin_idx < cur_node->oOSLNodeInfo.mPinInfo.size(); ++osl_pin_idx)
-    {
+    for (int osl_pin_idx = 0; osl_pin_idx < cur_node->oOSLNodeInfo.mPinInfo.size();
+         ++osl_pin_idx) {
       ::OctaneDataTransferObject::ApiNodePinInfo &pinInfo =
           cur_node->oOSLNodeInfo.mPinInfo.get_param(osl_pin_idx);
       BL::Node::inputs_iterator b_input;
@@ -733,8 +735,7 @@ static BL::Node get_octane_helper_node(BL::BlendData &b_data, std::string node_n
 {
   BL::BlendData::node_groups_iterator b_node_group;
   for (b_data.node_groups.begin(b_node_group); b_node_group != b_data.node_groups.end();
-       ++b_node_group)
-  {
+       ++b_node_group) {
     if (b_node_group->name() == "[OCTANE_HELPER_NODE_GROUP]") {
       BL::NodeTree::nodes_iterator b_node;
       for (b_node_group->nodes.begin(b_node); b_node != b_node_group->nodes.end(); ++b_node) {
@@ -908,8 +909,7 @@ static void generate_collection_nodes(std::string prefix_name,
                                                                        link_resolver,
                                                                        false);
     if (object_data_geo_output_node && object_data_geo_output_node->oct_node &&
-        object_data_transform_output_node && object_data_transform_output_node->oct_node)
-    {
+        object_data_transform_output_node && object_data_transform_output_node->oct_node) {
       if (b_object->type() != BL::Object::type_MESH) {
         continue;
       }
@@ -1015,7 +1015,7 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
   std::string bl_idname = b_node.bl_idname();
   if (node_type_name == "OctaneCustomNode") {
     int octane_node_type = OctaneInfo::instance().get_node_type(bl_idname);
-    if (octane_node_type > 0 || bl_idname == "OctaneProxy") {
+    if (octane_node_type > 0 || bl_idname == "OctaneProxy" || bl_idname == "OctaneScriptGraph") {
       const AttributeNameInfoMap &attributeInfoMap =
           OctaneInfo::instance().get_attribute_name_info_map(octane_node_type);
       const PinNameInfoMap &pinInfoMap = OctaneInfo::instance().get_pin_name_info_map(
@@ -1025,9 +1025,11 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
       static const int NT_BLENDER_NODE_OCTANE_PROXY = -100001;
       static const int NT_BLENDER_NODE_GRAPH_NODE = -100012;
       if (octane_node_type == NT_BLENDER_NODE_OCTANE_PROXY ||
-          octane_node_type == NT_BLENDER_NODE_GRAPH_NODE)
-      {
+          octane_node_type == NT_BLENDER_NODE_GRAPH_NODE) {
         octane_node->iOctaneNodeType = NT_BLENDER_NODE_OCTANE_PROXY;
+        if (bl_idname == "OctaneScriptGraph") {
+          octane_node->sCustomDataHeader = "[COMMAND]SCRIPT_GRAPH";
+        }
       }
       else {
         octane_node->iOctaneNodeType = octane_node_type;
@@ -1035,7 +1037,7 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
       int octane_static_pin_count = OctaneInfo::instance().get_static_pin_count(octane_node_type);
       std::vector<::OctaneDataTransferObject::OctaneDTOBase *> octane_dtos;
       BlenderSocketVisitor visitor(prefix_name, b_node, link_resolver);
-      // clang-format off
+// clang-format off
 	    #define ADD_OCTANE_ATTR_DTO(PROPERTY_TYPE, DTO_CLASS, SOCKET_CONTAINER) \
 	    if (property_type == PROPERTY_TYPE) { \
 		    octane_node->SOCKET_CONTAINER.emplace_back(::OctaneDataTransferObject::DTO_CLASS(dto_name, false)); \
@@ -1088,7 +1090,11 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
       static const int DYNAMIC_PIN_ID_OFFSET = 10000;
       static std::map<int, std::pair<std::string, int>> reversed_pin_node_configs = {
           {Octane::NT_TEX_COMPOSITE, {"a_layer_count", 1}},
-          {Octane::NT_OUTPUT_AOV_COMPOSITE, {"a_layer_count", 1}}};
+          {Octane::NT_TEX_COMPOSITE_LAYER_GROUP, {"a_layer_count", 1}},
+          {Octane::NT_OUTPUT_AOV, {"a_layer_count", 1}},
+          {Octane::NT_OUTPUT_AOV_COMPOSITE, {"a_layer_count", 1}},
+          {Octane::NT_OUTPUT_AOV_LAYER_BLEND_LAYERS, {"a_layer_count", 1}},
+          {Octane::NT_OUTPUT_AOV_LAYER_GROUP, {"a_layer_count", 1}}};
       int dynamic_pin_count = 0;
       bool use_reversed_dynamic_pin_id = reversed_pin_node_configs.find(octane_node_type) !=
                                          reversed_pin_node_configs.end();
@@ -1110,8 +1116,8 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
             pinInfoPtr = it.second;
             break;
           }
-          if (boost::to_lower_copy(it.second->blender_name_) == boost::to_lower_copy(socket_name))
-          {
+          if (boost::to_lower_copy(it.second->blender_name_) ==
+              boost::to_lower_copy(socket_name)) {
             is_static_pin = true;
             pinInfoPtr = it.second;
             break;
@@ -1184,8 +1190,7 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
           is_dynamic_pin = true;
         }
         if (RNA_struct_find_property(&b_input->ptr, "octane_node_unique_id") != NULL &&
-            RNA_struct_find_property(&b_input->ptr, "octane_proxy_link_index") != NULL)
-        {
+            RNA_struct_find_property(&b_input->ptr, "octane_proxy_link_index") != NULL) {
           octane_name = octane_name + OCTANE_BLENDER_OCTANE_PROXY_TAG +
                         std::to_string(get_int(b_input->ptr, "octane_proxy_link_index"));
           property_type = OctaneSocketType::ST_LINK;
@@ -1272,6 +1277,27 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
         }
       }
     }
+    if (bl_idname == "OctaneOutputAOVsApplyCustomCurve") {
+      ::OctaneDataTransferObject::OctaneCustomNode *octane_node =
+          (::OctaneDataTransferObject::OctaneCustomNode *)(node->oct_node);
+      std::string curve_data = "";
+      std::string curve_name = get_string(b_node.ptr, "curve_name");
+      BL::Node helper_node = get_octane_helper_node(b_data, curve_name);
+      if (!RNA_pointer_is_null(&helper_node.ptr)) {
+        BL::ShaderNodeRGBCurve b_tex_node(helper_node);
+        BL::CurveMapping mapping = BL::CurveMapping(b_tex_node.mapping());
+        std::stringstream ss;
+        for (auto& curve : mapping.curves) {
+          for (auto& point : curve.points) {
+            auto f2 = point.location();
+            ss << f2[0] << "," << f2[1] << ",";
+          }
+          ss << ";";
+        }
+        curve_data = ss.str();
+      }
+      octane_node->sCustomDataBody = curve_data;
+    }
   }
   else if (b_node.is_a(&RNA_ShaderNodeOctObjectData) || bl_idname == "OctaneObjectData") {
     int source_type = RNA_enum_get(&b_node.ptr, "source_type");
@@ -1315,6 +1341,11 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
               if (is_octane_coordinate_used) {
                 octane_tfm = octane_tfm * OCTANE_OBJECT_ROTATION_MATRIX;
               }
+              if (graph->type == SHADER_GRAPH_LIGHT) {
+                const Transform rot = transform_rotate(M_PI_2_F, make_float3(0, -1, 0));
+                octane_tfm = octane_tfm * rot;
+              }
+
               OctaneDataTransferObject::OctaneValueTransform *oct_transform_node =
                   (OctaneDataTransferObject::OctaneValueTransform *)
                       object_data_output_node->oct_node;
@@ -1351,8 +1382,7 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
             }
           }
           else if (name == "OutGeo" || name == "OutTransformedGeo" || name == "Geometry out" ||
-                   name == "Transformed Geo out")
-          {
+                   name == "Transformed Geo out") {
             std::string placement_node_type = "ShaderNodeOctPlacement";
             std::string transform_node_type = "ShaderNodeOctFullTransform";
             ShaderNode *object_data_geo_output_node = generateShaderNode(prefix_name,
@@ -1374,8 +1404,7 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
                                                                                link_resolver,
                                                                                false);
             if (object_data_geo_output_node && object_data_geo_output_node->oct_node &&
-                object_data_transform_output_node && object_data_transform_output_node->oct_node)
-            {
+                object_data_transform_output_node && object_data_transform_output_node->oct_node) {
               std::string placement_name = object_data_geo_output_node->oct_node->sName + "_" +
                                            name;
               std::string transform_name = placement_name + "_Transform";
@@ -1425,8 +1454,7 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
             continue;
           }
           if (name == "OutTransformedGeo" || name == "OutGeo" || name == "Transformed Geo out" ||
-              name == "Geometry out")
-          {
+              name == "Geometry out") {
             generate_collection_nodes(prefix_name,
                                       scene,
                                       b_engine,
@@ -1471,8 +1499,8 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
                                                  b_output->ptr.data) :
                                              "";
       }
-      else if (name == "Octane Front Projection" || (is_addon_node && name == "Front Projection"))
-      {
+      else if (name == "Octane Front Projection" ||
+               (is_addon_node && name == "Front Projection")) {
         camera_node->sFrontProjectionName = b_output->is_linked() ?
                                                 link_resolver.get_output_node_name(
                                                     b_output->ptr.data) :
@@ -1583,8 +1611,7 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
     }
   }
   else if (b_node.is_a(&RNA_ShaderNodeOctVertexDisplacementMixerTex) ||
-           bl_idname == "OctaneVertexDisplacementMixer")
-  {
+           bl_idname == "OctaneVertexDisplacementMixer") {
     bool is_addon_node = (bl_idname == "OctaneVertexDisplacementMixer");
     int displacement_number;
     ::OctaneDataTransferObject::OctaneVertexDisplacementMixer *octane_node =
@@ -1856,8 +1883,7 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
         link_resolver);
   }
   else if (b_node.is_a(&RNA_ShaderNodeOctOSLCamera) ||
-           b_node.is_a(&RNA_ShaderNodeOctOSLBakingCamera))
-  {
+           b_node.is_a(&RNA_ShaderNodeOctOSLBakingCamera)) {
     generateOSLNode<BL::ShaderNodeOctOSLCamera>(
         (OctaneDataTransferObject::OctaneOSLNodeBase *)node->oct_node,
         b_data,
@@ -1963,8 +1989,7 @@ static BL::Node get_input_node(BL::NodeSocket from_sock, BL::NodeSocket &new_soc
 
       BL::NodeTree::links_iterator b_nested_link;
       for (b_group_ntree.links.begin(b_nested_link); b_nested_link != b_group_ntree.links.end();
-           ++b_nested_link)
-      {
+           ++b_nested_link) {
         BL::Node b_nested_to_node = b_nested_link->to_node();
         BL::NodeSocket b_nested_to_sock = b_nested_link->to_socket();
         if (!b_nested_to_node.is_a(&RNA_NodeGroupOutput) ||
@@ -2057,8 +2082,7 @@ static void resolve_octane_outputs(std::string shader_name,
         bool valid_reroute_source_found = false;
         BL::NodeTree::links_iterator b_link_iterator;
         for (b_ntree.links.begin(b_link_iterator); b_link_iterator != b_ntree.links.end();
-             ++b_link_iterator)
-        {
+             ++b_link_iterator) {
           if (b_link_iterator->to_node().ptr.data == b_from_node.ptr.data) {
             b_from_node = b_link_iterator->from_node();
             b_from_sock = b_link_iterator->from_socket();
@@ -2110,11 +2134,11 @@ static void resolve_octane_outputs(std::string shader_name,
             }
           }
           else if (b_to_node.bl_idname() == "OctaneRenderAOVsOutputNode" ||
-                   b_to_node.bl_idname() == "OctaneRenderAOVOutputNode")
-          {
+                   b_to_node.bl_idname() == "OctaneRenderAOVOutputNode") {
             link_resolver.add_octane_output(current_name, OCTANE_BLENDER_RENDER_AOV_NODE);
           }
-          else if (b_to_node.bl_idname() == "OctaneAOVOutputGroupOutputNode") {
+          else if (b_to_node.bl_idname() == "OctaneAOVOutputGroupOutputNode" ||
+                   b_to_node.bl_idname() == "OctaneOutputAOVGroupOutputNode") {
             link_resolver.add_octane_output(current_name, OCTANE_BLENDER_AOV_OUTPUT_NODE);
           }
           else if (b_to_node.bl_idname() == "OctaneKernelOutputNode") {
@@ -2122,7 +2146,8 @@ static void resolve_octane_outputs(std::string shader_name,
           }
           else {
             bool is_octane_proxy_node = false;
-            if (b_from_node.bl_idname() == "OctaneProxy") {
+            if (b_from_node.bl_idname() == "OctaneProxy" ||
+                b_from_node.bl_idname() == "OctaneScriptGraph") {
               is_octane_proxy_node = true;
             }
             if (is_octane_proxy_node && b_to_node.is_a(&RNA_ShaderNodeOutputMaterial)) {
@@ -2136,8 +2161,7 @@ static void resolve_octane_outputs(std::string shader_name,
             else {
               if ((b_from_sock.name() == "OutGeo" || b_from_sock.name() == "OutVectron" ||
                    b_from_sock.name() == "Geometry out") &&
-                  b_to_node.is_a(&RNA_ShaderNodeOutputMaterial))
-              {
+                  b_to_node.is_a(&RNA_ShaderNodeOutputMaterial)) {
                 link_resolver.add_octane_output(current_name, current_name);
               }
               else {
@@ -2222,13 +2246,12 @@ static void generate_sockets_map(std::string prefix_name,
     else {
       // We need to find and process nodes with multiple outputs as Octane supports 1 output only
       bool is_octane_proxy_node = false;
-      if (b_node->bl_idname() == "OctaneProxy") {
+      if (b_node->bl_idname() == "OctaneProxy" || b_node->bl_idname() == "OctaneScriptGraph") {
         is_octane_proxy_node = true;
         link_resolver.tag_multiple_outputs_node(current_name);
       }
       if (b_node->is_a(&RNA_ShaderNodeCameraData) || b_node->is_a(&RNA_ShaderNodeOctObjectData) ||
-          bl_idname == "OctaneObjectData" || bl_idname == "OctaneCameraData")
-      {
+          bl_idname == "OctaneObjectData" || bl_idname == "OctaneCameraData") {
         link_resolver.tag_multiple_outputs_node(current_name);
       }
       for (b_node->inputs.begin(b_input); b_input != b_node->inputs.end(); ++b_input) {
@@ -2255,9 +2278,6 @@ static void generate_sockets_map(std::string prefix_name,
   }
 
   for (b_ntree.links.begin(b_link); b_link != b_ntree.links.end(); ++b_link) {
-    if (b_link->is_muted()) {
-      continue;
-    }
     BL::Node b_from_node = b_link->from_node();
     BL::Node b_to_node = b_link->to_node();
     BL::NodeSocket b_from_sock = b_link->from_socket();
@@ -2271,8 +2291,7 @@ static void generate_sockets_map(std::string prefix_name,
         bool valid_reroute_source_found = false;
         BL::NodeTree::links_iterator b_link_iterator;
         for (b_ntree.links.begin(b_link_iterator); b_link_iterator != b_ntree.links.end();
-             ++b_link_iterator)
-        {
+             ++b_link_iterator) {
           if (b_link_iterator->to_node().ptr.data == b_from_node.ptr.data) {
             b_from_node = b_link_iterator->from_node();
             b_from_sock = b_link_iterator->from_socket();
@@ -2338,8 +2357,7 @@ static void add_graph_nodes(std::string prefix_name,
       if (b_node->is_a(&RNA_ShaderNodeGroup) || b_node->is_a(&RNA_NodeCustomGroup) ||
           b_node->is_a(&RNA_NodeGroupOutput) || b_node->is_a(&RNA_ShaderNodeOctVectron) ||
           b_node->is_a(&RNA_ShaderNodeOctScatterToolSurface) ||
-          b_node->is_a(&RNA_ShaderNodeOctScatterToolVolume))
-      {
+          b_node->is_a(&RNA_ShaderNodeOctScatterToolVolume)) {
         currents_nodes_name_list.emplace(b_node->name());
       }
     }
@@ -2507,8 +2525,7 @@ void BlenderSync::sync_materials(BL::Depsgraph &b_depsgraph,
     /* test if we need to sync */
     bool need_sync = shader_map.sync(&shader, b_mat);
     if (need_sync || shader->need_sync_object || shader->need_update_paint ||
-        shader->need_update || update_all)
-    {
+        shader->need_update || update_all) {
       if (update_paint_only && !shader->need_update_paint) {
         continue;
       }
@@ -2728,8 +2745,7 @@ void BlenderSync::sync_world(BL::Depsgraph &b_depsgraph, bool update_all)
     bool need_default_env = true, need_default_vis_env = true;
     for (list<ShaderNode *>::iterator it = shader->graph->nodes.begin();
          it != shader->graph->nodes.end();
-         ++it)
-    {
+         ++it) {
       ShaderNode *node = *it;
       if (node->oct_node && node->oct_node->sName == ENVIRONMENT_NODE_NAME) {
         need_default_env = false;
@@ -2975,8 +2991,7 @@ void BlenderSync::sync_kernel_node_tree(BL::Depsgraph &b_depsgraph, bool update_
                   custom_node->iOctaneNodeType == Octane::NT_KERN_PMC ||
                   custom_node->iOctaneNodeType == Octane::NT_KERN_PATHTRACING ||
                   custom_node->iOctaneNodeType == Octane::NT_KERN_INFO ||
-                  custom_node->iOctaneNodeType == Octane::NT_KERN_PHOTONTRACING)
-              {
+                  custom_node->iOctaneNodeType == Octane::NT_KERN_PHOTONTRACING) {
                 for (size_t i = 0; i < custom_node->oIntSockets.size(); ++i) {
                   ::OctaneDataTransferObject::OctaneDTOInt *int_dto = &custom_node->oIntSockets[i];
                   if (int_dto->sName == "Max. samples") {
@@ -3169,8 +3184,7 @@ BL::Node BlenderSync::find_active_render_aov_output(BL::NodeTree &node_tree)
   BL::NodeTree::nodes_iterator b_node;
   for (node_tree.nodes.begin(b_node); b_node != node_tree.nodes.end(); ++b_node) {
     if (b_node->bl_idname() == "OctaneRenderAOVsOutputNode" ||
-        b_node->bl_idname() == "OctaneRenderAOVOutputNode")
-    {
+        b_node->bl_idname() == "OctaneRenderAOVOutputNode") {
       bool active = get_boolean(b_node->ptr, "active");
       if (active) {
         active_output = BL::Node(b_node->ptr);
@@ -3186,7 +3200,8 @@ BL::Node BlenderSync::find_active_composite_aov_output(BL::NodeTree &node_tree)
   BL::Node active_output(PointerRNA_NULL);
   BL::NodeTree::nodes_iterator b_node;
   for (node_tree.nodes.begin(b_node); b_node != node_tree.nodes.end(); ++b_node) {
-    if (b_node->bl_idname() == "OctaneAOVOutputGroupOutputNode") {
+    if (b_node->bl_idname() == "OctaneAOVOutputGroupOutputNode" ||
+        b_node->bl_idname() == "OctaneOutputAOVGroupOutputNode") {
       bool active = get_boolean(b_node->ptr, "active");
       if (active) {
         active_output = BL::Node(b_node->ptr);

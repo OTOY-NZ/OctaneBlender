@@ -539,7 +539,6 @@ void BKE_mesh_polygon_flip_ex(const int poly_offset,
                               int *corner_verts,
                               int *corner_edges,
                               CustomData *ldata,
-                              int tot_loop,
                               float (*lnors)[3],
                               MDisps *mdisp,
                               const bool use_loop_mdisp_flip)
@@ -578,7 +577,7 @@ void BKE_mesh_polygon_flip_ex(const int poly_offset,
     if (lnors) {
       swap_v3_v3(lnors[loopstart], lnors[loopend]);
     }
-    CustomData_swap(ldata, loopstart, loopend, tot_loop);
+    CustomData_swap(ldata, loopstart, loopend);
   }
   /* Even if we did not swap the other 'pivot' loop, we need to set its swapped edge. */
   if (loopstart == loopend) {
@@ -595,15 +594,11 @@ void BKE_mesh_polygon_flip(const int poly_offset,
 {
   MDisps *mdisp = (MDisps *)CustomData_get_layer_for_write(ldata, CD_MDISPS, totloop);
   BKE_mesh_polygon_flip_ex(
-      poly_offset, poly_size, corner_verts, corner_edges, ldata, totloop, nullptr, mdisp, true);
+      poly_offset, poly_size, corner_verts, corner_edges, ldata, nullptr, mdisp, true);
 }
 
-void BKE_mesh_polys_flip(const int *poly_offsets,
-                         int *corner_verts,
-                         int *corner_edges,
-                         CustomData *ldata,
-                         int totloop,
-                         int totpoly)
+void BKE_mesh_polys_flip(
+    const int *poly_offsets, int *corner_verts, int *corner_edges, CustomData *ldata, int totpoly)
 {
   const blender::OffsetIndices polys(blender::Span(poly_offsets, totpoly + 1));
   MDisps *mdisp = (MDisps *)CustomData_get_layer_for_write(ldata, CD_MDISPS, totpoly);
@@ -613,7 +608,6 @@ void BKE_mesh_polys_flip(const int *poly_offsets,
                              corner_verts,
                              corner_edges,
                              ldata,
-                             totloop,
                              nullptr,
                              mdisp,
                              true);

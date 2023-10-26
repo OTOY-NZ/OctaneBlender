@@ -33,6 +33,7 @@ from . import inset
 from . import intersect
 from . import clip
 from . import offset
+from . import geometry_switch
 
 def register():
     mesh.register()
@@ -67,6 +68,7 @@ def register():
     intersect.register()
     clip.register()
     offset.register()
+    geometry_switch.register()
 
 def unregister():
     mesh.unregister()
@@ -101,5 +103,6 @@ def unregister():
     intersect.unregister()
     clip.unregister()
     offset.unregister()
+    geometry_switch.unregister()
 
 ##### END OCTANE GENERATED CODE BLOCK #####

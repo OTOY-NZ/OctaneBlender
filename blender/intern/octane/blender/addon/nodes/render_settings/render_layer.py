@@ -3,17 +3,20 @@ import bpy
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
 from octane.utils import utility, consts
-from octane.nodes.base_node import OctaneBaseNode
-from octane.nodes.base_kernel import OctaneBaseKernelNode
-from octane.nodes.base_osl import OctaneScriptNode
-from octane.nodes.base_image import OctaneBaseImageNode
+from octane.nodes import base_switch_input_socket
 from octane.nodes.base_color_ramp import OctaneBaseRampNode
+from octane.nodes.base_curve import OctaneBaseCurveNode
+from octane.nodes.base_image import OctaneBaseImageNode
+from octane.nodes.base_kernel import OctaneBaseKernelNode
+from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_switch import OctaneBaseSwitchNode
 from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
 class OctaneRenderLayerEnabled(OctaneBaseSocket):
     bl_idname="OctaneRenderLayerEnabled"
-    bl_label="Enable"
+    bl_label="Enabled"
     color=consts.OctanePinColor.Bool
     octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
@@ -22,7 +25,7 @@ class OctaneRenderLayerEnabled(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_BOOL
     octane_pin_index=0
     octane_socket_type=consts.SocketType.ST_BOOL
-    default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Tick to enable render layers")
+    default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Check to enable render layers")
     octane_hide_value=False
     octane_min_version=2200000
     octane_end_version=4294967295
@@ -114,7 +117,7 @@ class OctaneRenderLayer(bpy.types.Node, OctaneBaseNode):
     octane_socket_class_list=[OctaneRenderLayerEnabled,OctaneRenderLayerLayerId,OctaneRenderLayerInvert,OctaneRenderLayerMode,OctaneRenderLayerVisibilityOnly,]
     octane_min_version=0
     octane_node_type=consts.NodeType.NT_RENDER_LAYER
-    octane_socket_list=["Enable", "Active layer ID", "Invert", "Mode", "[Deprecated]Visibility only", ]
+    octane_socket_list=["Enabled", "Active layer ID", "Invert", "Mode", "[Deprecated]Visibility only", ]
     octane_attribute_list=[]
     octane_attribute_config={}
     octane_static_pin_count=4

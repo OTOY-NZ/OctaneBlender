@@ -3,11 +3,14 @@ import bpy
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
 from octane.utils import utility, consts
-from octane.nodes.base_node import OctaneBaseNode
-from octane.nodes.base_kernel import OctaneBaseKernelNode
-from octane.nodes.base_osl import OctaneScriptNode
-from octane.nodes.base_image import OctaneBaseImageNode
+from octane.nodes import base_switch_input_socket
 from octane.nodes.base_color_ramp import OctaneBaseRampNode
+from octane.nodes.base_curve import OctaneBaseCurveNode
+from octane.nodes.base_image import OctaneBaseImageNode
+from octane.nodes.base_kernel import OctaneBaseKernelNode
+from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_switch import OctaneBaseSwitchNode
 from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
@@ -131,6 +134,23 @@ class OctaneToonMaterialBump(OctaneBaseSocket):
     octane_end_version=4294967295
     octane_deprecated=False
 
+class OctaneToonMaterialBumpHeight(OctaneBaseSocket):
+    bl_idname="OctaneToonMaterialBumpHeight"
+    bl_label="Bump height"
+    color=consts.OctanePinColor.Float
+    octane_default_node_type=consts.NodeType.NT_FLOAT
+    octane_default_node_name="OctaneFloatValue"
+    octane_pin_id=consts.PinID.P_BUMP_HEIGHT
+    octane_pin_name="bumpHeight"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=7
+    octane_socket_type=consts.SocketType.ST_FLOAT
+    default_value: FloatProperty(default=0.010000, update=OctaneBaseSocket.update_node_tree, description="The height represented by a normalized value of 1.0 in the bump texture. 0 disables bump mapping, negative values will invert the bump map", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-1.000000, soft_max=1.000000, step=1, precision=2, subtype="NONE")
+    octane_hide_value=False
+    octane_min_version=13000000
+    octane_end_version=4294967295
+    octane_deprecated=False
+
 class OctaneToonMaterialNormal(OctaneBaseSocket):
     bl_idname="OctaneToonMaterialNormal"
     bl_label="Normal"
@@ -140,7 +160,7 @@ class OctaneToonMaterialNormal(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_NORMAL
     octane_pin_name="normal"
     octane_pin_type=consts.PinType.PT_TEXTURE
-    octane_pin_index=7
+    octane_pin_index=8
     octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
@@ -156,7 +176,7 @@ class OctaneToonMaterialDisplacement(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_DISPLACEMENT
     octane_pin_name="displacement"
     octane_pin_type=consts.PinType.PT_DISPLACEMENT
-    octane_pin_index=8
+    octane_pin_index=9
     octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
@@ -172,7 +192,7 @@ class OctaneToonMaterialOutlineColor(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_OUTLINE_COLOR
     octane_pin_name="outlineColor"
     octane_pin_type=consts.PinType.PT_TEXTURE
-    octane_pin_index=9
+    octane_pin_index=10
     octane_socket_type=consts.SocketType.ST_RGBA
     default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="Outline color", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
     octane_hide_value=False
@@ -189,7 +209,7 @@ class OctaneToonMaterialWidth(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_WIDTH
     octane_pin_name="width"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=10
+    octane_pin_index=11
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.300000, update=OctaneBaseSocket.update_node_tree, description="Outline thickness", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
@@ -206,7 +226,7 @@ class OctaneToonMaterialOpacity(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_OPACITY
     octane_pin_name="opacity"
     octane_pin_type=consts.PinType.PT_TEXTURE
-    octane_pin_index=11
+    octane_pin_index=12
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Opacity channel controlling the transparency of the material via grayscale texture", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
     octane_hide_value=False
@@ -223,7 +243,7 @@ class OctaneToonMaterialSmooth(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_SMOOTH
     octane_pin_name="smooth"
     octane_pin_type=consts.PinType.PT_BOOL
-    octane_pin_index=12
+    octane_pin_index=13
     octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="If disabled normal interpolation will be disabled and triangle meshes will appear \"facetted\"")
     octane_hide_value=False
@@ -240,7 +260,7 @@ class OctaneToonMaterialSmoothShadowTerminator(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_SMOOTH_SHADOW_TERMINATOR
     octane_pin_name="smoothShadowTerminator"
     octane_pin_type=consts.PinType.PT_BOOL
-    octane_pin_index=13
+    octane_pin_index=14
     octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="If enabled self-intersecting shadow terminator for low polygon is smoothed according to the polygon's curvature")
     octane_hide_value=False
@@ -257,7 +277,7 @@ class OctaneToonMaterialRoundEdges(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_ROUND_EDGES
     octane_pin_name="roundEdges"
     octane_pin_type=consts.PinType.PT_ROUND_EDGES
-    octane_pin_index=14
+    octane_pin_index=15
     octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=5100001
@@ -273,7 +293,7 @@ class OctaneToonMaterialCustomAov(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_CUSTOM_AOV
     octane_pin_name="customAov"
     octane_pin_type=consts.PinType.PT_ENUM
-    octane_pin_index=15
+    octane_pin_index=16
     octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("None", "None", "", 4096),
@@ -313,7 +333,7 @@ class OctaneToonMaterialCustomAovChannel(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_CUSTOM_AOV_CHANNEL
     octane_pin_name="customAovChannel"
     octane_pin_type=consts.PinType.PT_ENUM
-    octane_pin_index=16
+    octane_pin_index=17
     octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("All", "All", "", 0),
@@ -336,13 +356,18 @@ class OctaneToonMaterialEdgesRounding(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_EDGES_ROUNDING
     octane_pin_name="edgesRounding"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=17
+    octane_pin_index=18
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="(deprecated) Radius of rounded edges that are rendered as shading effect", min=0.000000, max=100.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=2000000
     octane_end_version=5100001
     octane_deprecated=True
+
+class OctaneToonMaterialGroupGeometryProperties(OctaneGroupTitleSocket):
+    bl_idname="OctaneToonMaterialGroupGeometryProperties"
+    bl_label="[OctaneGroupTitle]Geometry Properties"
+    octane_group_sockets: StringProperty(name="Group Sockets", default="Bump height;")
 
 class OctaneToonMaterial(bpy.types.Node, OctaneBaseNode):
     bl_idname="OctaneToonMaterial"
@@ -353,13 +378,21 @@ class OctaneToonMaterial(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
-    octane_socket_class_list=[OctaneToonMaterialDiffuse,OctaneToonMaterialSpecular,OctaneToonMaterialRoughness,OctaneToonMaterialToonLightMode,OctaneToonMaterialToonDiffuseRamp,OctaneToonMaterialToonSpecularRamp,OctaneToonMaterialBump,OctaneToonMaterialNormal,OctaneToonMaterialDisplacement,OctaneToonMaterialOutlineColor,OctaneToonMaterialWidth,OctaneToonMaterialOpacity,OctaneToonMaterialSmooth,OctaneToonMaterialSmoothShadowTerminator,OctaneToonMaterialRoundEdges,OctaneToonMaterialCustomAov,OctaneToonMaterialCustomAovChannel,OctaneToonMaterialEdgesRounding,]
+    octane_socket_class_list=[OctaneToonMaterialDiffuse,OctaneToonMaterialSpecular,OctaneToonMaterialRoughness,OctaneToonMaterialToonLightMode,OctaneToonMaterialToonDiffuseRamp,OctaneToonMaterialToonSpecularRamp,OctaneToonMaterialBump,OctaneToonMaterialGroupGeometryProperties,OctaneToonMaterialBumpHeight,OctaneToonMaterialNormal,OctaneToonMaterialDisplacement,OctaneToonMaterialOutlineColor,OctaneToonMaterialWidth,OctaneToonMaterialOpacity,OctaneToonMaterialSmooth,OctaneToonMaterialSmoothShadowTerminator,OctaneToonMaterialRoundEdges,OctaneToonMaterialCustomAov,OctaneToonMaterialCustomAovChannel,OctaneToonMaterialEdgesRounding,]
     octane_min_version=0
     octane_node_type=consts.NodeType.NT_MAT_TOON
-    octane_socket_list=["Diffuse", "Specular", "Roughness", "Toon lighting mode", "Toon Diffuse Ramp", "Toon Specular Ramp", "Bump", "Normal", "Displacement", "Outline color", "Outline thickness", "Opacity", "Smooth", "Smooth shadow terminator", "Round edges", "Custom AOV", "Custom AOV channel", "[Deprecated]Rounded edges radius", ]
-    octane_attribute_list=[]
-    octane_attribute_config={}
-    octane_static_pin_count=17
+    octane_socket_list=["Diffuse", "Specular", "Roughness", "Toon lighting mode", "Toon Diffuse Ramp", "Toon Specular Ramp", "Bump", "Bump height", "Normal", "Displacement", "Outline color", "Outline thickness", "Opacity", "Smooth", "Smooth shadow terminator", "Round edges", "Custom AOV", "Custom AOV channel", "[Deprecated]Rounded edges radius", ]
+    octane_attribute_list=["a_compatibility_version", ]
+    octane_attribute_config={"a_compatibility_version": [consts.AttributeID.A_COMPATIBILITY_VERSION, "compatibilityVersion", consts.AttributeType.AT_INT], }
+    octane_static_pin_count=18
+
+    compatibility_mode_infos=[
+        ("Latest (2023.1)", "Latest (2023.1)", """(null)""", 13000000),
+        ("2022.1 compatibility mode", "2022.1 compatibility mode", """Legacy behaviour for bump map strength is active and bump map height is ignored.""", 0),
+    ]
+    a_compatibility_version_enum: EnumProperty(name="Compatibility version", default="Latest (2023.1)", update=OctaneBaseNode.update_compatibility_mode, description="The Octane version that the behavior of this node should match", items=compatibility_mode_infos)
+
+    a_compatibility_version: IntProperty(name="Compatibility version", default=13000004, update=OctaneBaseNode.update_node_tree, description="The Octane version that the behavior of this node should match")
 
     def init(self, context):
         self.inputs.new("OctaneToonMaterialDiffuse", OctaneToonMaterialDiffuse.bl_label).init()
@@ -369,6 +402,8 @@ class OctaneToonMaterial(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneToonMaterialToonDiffuseRamp", OctaneToonMaterialToonDiffuseRamp.bl_label).init()
         self.inputs.new("OctaneToonMaterialToonSpecularRamp", OctaneToonMaterialToonSpecularRamp.bl_label).init()
         self.inputs.new("OctaneToonMaterialBump", OctaneToonMaterialBump.bl_label).init()
+        self.inputs.new("OctaneToonMaterialGroupGeometryProperties", OctaneToonMaterialGroupGeometryProperties.bl_label).init()
+        self.inputs.new("OctaneToonMaterialBumpHeight", OctaneToonMaterialBumpHeight.bl_label).init()
         self.inputs.new("OctaneToonMaterialNormal", OctaneToonMaterialNormal.bl_label).init()
         self.inputs.new("OctaneToonMaterialDisplacement", OctaneToonMaterialDisplacement.bl_label).init()
         self.inputs.new("OctaneToonMaterialOutlineColor", OctaneToonMaterialOutlineColor.bl_label).init()
@@ -386,6 +421,10 @@ class OctaneToonMaterial(bpy.types.Node, OctaneBaseNode):
     def poll(cls, node_tree):
         return OctaneBaseNode.poll(node_tree)
 
+    def draw_buttons(self, context, layout):
+        super().draw_buttons(context, layout)
+        layout.row().prop(self, "a_compatibility_version_enum")
+
 
 _CLASSES=[
     OctaneToonMaterialDiffuse,
@@ -395,6 +434,7 @@ _CLASSES=[
     OctaneToonMaterialToonDiffuseRamp,
     OctaneToonMaterialToonSpecularRamp,
     OctaneToonMaterialBump,
+    OctaneToonMaterialBumpHeight,
     OctaneToonMaterialNormal,
     OctaneToonMaterialDisplacement,
     OctaneToonMaterialOutlineColor,
@@ -406,6 +446,7 @@ _CLASSES=[
     OctaneToonMaterialCustomAov,
     OctaneToonMaterialCustomAovChannel,
     OctaneToonMaterialEdgesRounding,
+    OctaneToonMaterialGroupGeometryProperties,
     OctaneToonMaterial,
 ]
 

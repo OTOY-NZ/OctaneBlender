@@ -10,7 +10,7 @@ from octane import core
 class OCTANE_MT_imager_presets(Menu):
     bl_label = "Imager presets"
     preset_subdir = "octane/imager_presets"
-    preset_operator = "script.execute_preset"
+    preset_operator = "script.execute_preset_octane"
     preset_operator_defaults = {"menu_idname" : "OCTANE_MT_imager_presets"}
     COMPAT_ENGINES = {"octane"}
     draw = Menu.draw_preset
@@ -19,7 +19,7 @@ class OCTANE_MT_imager_presets(Menu):
 class OCTANE_MT_3dimager_presets(Menu):
     bl_label = "Imager presets"
     preset_subdir = "octane/3dimager_presets"
-    preset_operator = "script.execute_preset"
+    preset_operator = "script.execute_preset_octane"
     preset_operator_defaults = {"menu_idname" : "OCTANE_MT_3dimager_presets"}
     COMPAT_ENGINES = {"octane"}
     draw = Menu.draw_preset
@@ -28,7 +28,7 @@ class OCTANE_MT_3dimager_presets(Menu):
 class OCTANE_MT_postprocess_presets(Menu):
     bl_label = "Postprocess presets"
     preset_subdir = "octane/postprocess_presets"
-    preset_operator = "script.execute_preset"
+    preset_operator = "script.execute_preset_octane"
     preset_operator_defaults = {"menu_idname" : "OCTANE_MT_postprocess_presets"}
     COMPAT_ENGINES = {"octane"}
     draw = Menu.draw_preset
@@ -37,7 +37,7 @@ class OCTANE_MT_postprocess_presets(Menu):
 class OCTANE_MT_3dpostprocess_presets(Menu):
     bl_label = "Postprocess presets"
     preset_subdir = "octane/3dpostprocess_presets"
-    preset_operator = "script.execute_preset"
+    preset_operator = "script.execute_preset_octane"
     preset_operator_defaults = {"menu_idname" : "OCTANE_MT_3dpostprocess_presets"}
     COMPAT_ENGINES = {"octane"}
     draw = Menu.draw_preset
@@ -456,14 +456,31 @@ class OCTANE_CAMERA_PT_post_image_processing(common.OctanePropertyPanel, Panel):
         context.camera.octane.post_processing.draw_post_image_processing(context, self.layout, False)
 
 
+class OCTANE_CAMERA_PT_post_lens_effect(common.OctanePropertyPanel, Panel):
+    bl_label = "Post processing lens effects"
+    bl_context = "data"
+    bl_parent_id = "OCTANE_CAMERA_PT_post"
+
+    def draw(self, context):
+        context.camera.octane.post_processing.draw_post_lens_effect(context, self.layout, False)
+
+
+class OCTANE_CAMERA_PT_post_volume_effect(common.OctanePropertyPanel, Panel):
+    bl_label = "Post processing volume effects"
+    bl_context = "data"
+    bl_parent_id = "OCTANE_CAMERA_PT_post"
+
+    def draw(self, context):
+        context.camera.octane.post_processing.draw_post_volume_effects(context, self.layout, False)
+
 
 class OCTANE_VIEW3D_PT_post(common.OctanePropertyPanel, Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_label = "Octane Postprocess(Preview Mode)"
-    bl_category = "Octane"         
+    bl_category = "Octane"
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'octane'}          
+    COMPAT_ENGINES = {'octane'}
 
     @classmethod
     def poll(cls, context):
@@ -498,6 +515,34 @@ class OCTANE_VIEW3D_PT_post_image_processing(common.OctanePropertyPanel, Panel):
         oct_cam.post_processing.draw_post_image_processing(context, self.layout, True)
 
 
+class OCTANE_VIEW3D_PT_post_lens_effect(common.OctanePropertyPanel, Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI' 
+    bl_label = "Post processing lens effects"
+    bl_context = "data"
+    bl_parent_id = "OCTANE_VIEW3D_PT_post"
+    bl_category = "Octane"
+    COMPAT_ENGINES = {'octane'}
+
+    def draw(self, context):
+        oct_cam = context.scene.oct_view_cam
+        oct_cam.post_processing.draw_post_lens_effect(context, self.layout, True)
+
+
+class OCTANE_VIEW3D_PT_post_volume_effects(common.OctanePropertyPanel, Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI' 
+    bl_label = "Post processing volume effects"
+    bl_context = "data"
+    bl_parent_id = "OCTANE_VIEW3D_PT_post"
+    bl_category = "Octane"
+    COMPAT_ENGINES = {'octane'}
+
+    def draw(self, context):
+        oct_cam = context.scene.oct_view_cam
+        oct_cam.post_processing.draw_post_volume_effects(context, self.layout, True)
+
+
 _CLASSES = [
     OCTANE_MT_imager_presets,
     OCTANE_MT_3dimager_presets,
@@ -516,8 +561,12 @@ _CLASSES = [
     OCTANE_VIEW3D_PT_imager_Upsampler,
     OCTANE_CAMERA_PT_post,
     OCTANE_CAMERA_PT_post_image_processing,
+    OCTANE_CAMERA_PT_post_lens_effect,
+    OCTANE_CAMERA_PT_post_volume_effect,
     OCTANE_VIEW3D_PT_post,
     OCTANE_VIEW3D_PT_post_image_processing,
+    OCTANE_VIEW3D_PT_post_lens_effect,
+    OCTANE_VIEW3D_PT_post_volume_effects,
 ]
 
 

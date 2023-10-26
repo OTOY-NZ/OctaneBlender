@@ -126,6 +126,8 @@ class OctaneOutputNodeCategory(OctaneNodeCategory):
 class OctaneTextureNodeCategory(OctaneNodeCategory):
     NODE_TREE_ID_LIST = [consts.OctaneNodeTreeIDName.BLENDER_SHADER, consts.OctaneNodeTreeIDName.BLENDER_TEXTURE, consts.OctaneNodeTreeIDName.RENDER_AOV, consts.OctaneNodeTreeIDName.CAMERA_IMAGER, consts.OctaneNodeTreeIDName.KERNEL, ]
 
+class OctaneTextureLayerNodeCategory(OctaneNodeCategory):
+    NODE_TREE_ID_LIST = [consts.OctaneNodeTreeIDName.BLENDER_SHADER, consts.OctaneNodeTreeIDName.BLENDER_TEXTURE, consts.OctaneNodeTreeIDName.RENDER_AOV, consts.OctaneNodeTreeIDName.CAMERA_IMAGER, consts.OctaneNodeTreeIDName.KERNEL, ]
 
 class OctaneShaderNodeCategory(OctaneNodeCategory):
     NODE_TREE_ID_LIST = [consts.OctaneNodeTreeIDName.BLENDER_SHADER, ]
@@ -296,7 +298,7 @@ _octane_node_items = {
                 OctaneNodeItem("ShaderNodeOutputMaterial", poll=object_shader_poll),
                 OctaneNodeItem("OctaneEditorTextureOutputNode", poll=texture_poll),
                 OctaneNodeItem("OctaneEditorWorldOutputNode", poll=world_shader_poll),
-                OctaneNodeItem("OctaneAOVOutputGroupOutputNode", poll=composite_poll),
+                OctaneNodeItem("OctaneOutputAOVGroupOutputNode", poll=composite_poll),
                 OctaneNodeItem("OctaneRenderAOVOutputNode", poll=render_aov_poll),
                 OctaneNodeItem("OctaneImagerOutputNode", poll=camera_imager_poll),
                 OctaneNodeItem("OctaneKernelOutputNode", poll=kernel_poll),
@@ -306,7 +308,7 @@ _octane_node_items = {
         OctaneOutputNodeCategory("OCTANE_OUTPUT", "Octane Output", 
             octane_pin_type=consts.PinType.PT_BLENDER_OUTPUT,
             items=[
-                OctaneNodeItem("OctaneAOVOutputGroupOutputNode", poll=composite_poll),
+                OctaneNodeItem("OctaneOutputAOVGroupOutputNode", poll=composite_poll),
                 OctaneNodeItem("OctaneRenderAOVOutputNode", poll=render_aov_poll),
             ]
         ),    
@@ -316,15 +318,16 @@ _octane_node_items = {
             octane_pin_type=consts.PinType.PT_BLENDER_UTILITY,
             octane_multiple_pin_types=[
                 consts.PinType.PT_GEOMETRY,
-                consts.PinType.PT_TRANSFORM,                        
+                consts.PinType.PT_TRANSFORM,
             ],
             items=[
-                OctaneNodeItem("OctaneProxy"),
-                OctaneNodeItem("OctaneObjectData", octane_multiple_pin_types=[
-                        consts.PinType.PT_GEOMETRY,
-                        consts.PinType.PT_TRANSFORM,                        
-                    ]),
                 OctaneNodeItem("OctaneCameraData"),
+                OctaneNodeItem("OctaneObjectData", octane_multiple_pin_types=[
+                    consts.PinType.PT_GEOMETRY,
+                    consts.PinType.PT_TRANSFORM,
+                ]),
+                # OctaneNodeItem("OctaneScriptGraph"),
+                OctaneNodeItem("OctaneProxy"),
             ]
         ),
     ],
@@ -343,7 +346,7 @@ _octane_node_items = {
             items=[
                 OctaneNodeItem("OctaneBoolValue", octane_pin_type=consts.PinType.PT_BOOL),
                 OctaneNodeItem("OctaneIntValue", octane_pin_type=consts.PinType.PT_INT),
-                OctaneNodeItem("OctaneFloatValue", octane_pin_type=consts.PinType.PT_FLOAT),    
+                OctaneNodeItem("OctaneFloatValue", octane_pin_type=consts.PinType.PT_FLOAT),
                 OctaneNodeItem("OctaneStringValue", octane_pin_type=consts.PinType.PT_STRING),
                 OctaneNodeItem("OctaneLightIDBitValue", octane_pin_type=consts.PinType.PT_BIT_MASK),
                 OctaneNodeItem("OctaneSunDirection", octane_pin_type=consts.PinType.PT_FLOAT),
@@ -357,8 +360,12 @@ _octane_node_items = {
                 OctaneNodeItem("OctaneOperatorIntRelationalOperator", octane_pin_type=consts.PinType.PT_INT),
                 OctaneNodeItem("OctaneOperatorRange", octane_pin_type=consts.PinType.PT_FLOAT),
                 OctaneNodeItem("OctaneOperatorRotate", octane_pin_type=consts.PinType.PT_FLOAT),
-                OctaneNodeItem("OctaneOperatorUnaryMathOperation", octane_pin_type=consts.PinType.PT_FLOAT),                
+                OctaneNodeItem("OctaneOperatorUnaryMathOperation", octane_pin_type=consts.PinType.PT_FLOAT),
                 OctaneNodeItemSeperator("Utility"),
+                OctaneNodeItem("OctaneBoolSwitch", octane_pin_type=consts.PinType.PT_BOOL),
+                OctaneNodeItem("OctaneFloatSwitch", octane_pin_type=consts.PinType.PT_FLOAT),
+                OctaneNodeItem("OctaneIntSwitch", octane_pin_type=consts.PinType.PT_INT),
+                OctaneNodeItem("OctaneStringSwitch", octane_pin_type=consts.PinType.PT_STRING),
                 OctaneNodeItem("OctaneUtilityFloatComponentPicker", octane_pin_type=consts.PinType.PT_FLOAT),
                 OctaneNodeItem("OctaneUtilityFloatIf", octane_pin_type=consts.PinType.PT_FLOAT),
                 OctaneNodeItem("OctaneUtilityFloatMerger", octane_pin_type=consts.PinType.PT_FLOAT),
@@ -374,7 +381,9 @@ _octane_node_items = {
             items=[  
                 OctaneNodeItem("OctaneTextureDisplacement"),
                 OctaneNodeItem("OctaneVertexDisplacement"),
-                OctaneNodeItem("OctaneVertexDisplacementMixer"),                
+                OctaneNodeItem("OctaneVertexDisplacementMixer"),
+                OctaneNodeItemSeperator("Utility"),
+                OctaneNodeItem("OctaneDisplacementSwitch"),
             ]
         ),
     ],    
@@ -395,7 +404,9 @@ _octane_node_items = {
                 OctaneNodeItem("OctaneSamplePosToUV"),
                 OctaneNodeItem("OctaneSpherical"),
                 OctaneNodeItem("OctaneTriplanar"),
-                OctaneNodeItem("OctaneXYZToUVW"),   
+                OctaneNodeItem("OctaneXYZToUVW"),
+                OctaneNodeItemSeperator("Utility"),
+                OctaneNodeItem("OctaneProjectionSwitch"),
             ]
         ),
     ],
@@ -408,7 +419,9 @@ _octane_node_items = {
                 OctaneNodeItem("OctaneConverterLookAtTransform"),
                 OctaneNodeItem("OctaneRotation"),
                 OctaneNodeItem("OctaneScale"),
-                OctaneNodeItem("OctaneTransformValue"),     
+                OctaneNodeItem("OctaneTransformValue"),
+                OctaneNodeItemSeperator("Utility"),
+                OctaneNodeItem("OctaneTransformSwitch"),
             ]
         ),
     ],
@@ -421,34 +434,90 @@ _octane_node_items = {
                 OctaneNodeItem("OctanePMCKernel"),
                 OctaneNodeItem("OctanePathTracingKernel"),
                 OctaneNodeItem("OctanePhotonTracingKernel"),
+                OctaneNodeItemSeperator("Utility"),
+                OctaneNodeItem("OctaneKernelSwitch"),
             ]
         ),
     ],    
     "OCTANE_COMPOSITE": [
         OctaneCompositeNodeCategory("OCTANE_COMPOSITE", "Octane Compositor", 
-            octane_pin_type=consts.PinType.PT_OUTPUT_AOV,
             items=[
-                OctaneNodeItem("OctaneAOVOutputGroup", octane_pin_type=consts.PinType.PT_OUTPUT_AOV_GROUP),
-                OctaneNodeItem("OctaneColorAOVOutput"),
-                OctaneNodeItem("OctaneCompositeAOVOutput"),
-                OctaneNodeItem("OctaneCryptomatteMaskAOVOutput"),
-                OctaneNodeItem("OctaneCompositeAOVOutputLayer", octane_pin_type=consts.PinType.PT_COMPOSITE_AOV_LAYER),                
-                OctaneNodeItem("OctaneImageAOVOutput" if utility.use_new_addon_nodes() else "ShaderNodeOctImageAovOutput"),
-                OctaneNodeItem("OctaneRenderAOVOutput"),
-                OctaneCompositeNodeCategory("OCTANE_COMPOSITE_OPERATORS", "Operators", 
-                    octane_pin_type=consts.PinType.PT_OUTPUT_AOV,
+                OctaneNodeItem("OctaneBlendingSettings", octane_pin_type=consts.PinType.PT_BLENDING_SETTINGS),
+                OctaneNodeItem("OctaneOutputAOVsOutputAOV", octane_pin_type=consts.PinType.PT_OUTPUT_AOV),
+                OctaneNodeItem("OctaneOutputAOVsOutputAOVGroup", octane_pin_type=consts.PinType.PT_OUTPUT_AOV_GROUP),
+                OctaneCompositeNodeCategory("OCTANE_COMPOSITE_BLEND", "Blend",
+                    octane_pin_type=consts.PinType.PT_OUTPUT_AOV_LAYER,
                     items=[
-                        OctaneNodeItem("OctaneClampAOVOutput"),
-                        OctaneNodeItem("OctaneColorCorrectionAOVOutput"),
-                        OctaneNodeItem("OctaneMapRangeAOVOutput"),
+                        OctaneNodeItem("OctaneOutputAOVsImageFile"),
+                        OctaneNodeItem("OctaneOutputAOVsLayerGroup"),
+                        OctaneNodeItem("OctaneOutputAOVsRenderAOV"),
+                        OctaneNodeItem("OctaneOutputAOVsSolidColor"),
                     ]
-                ), 
-                OctaneCompositeNodeCategory("OCTANE_COMPOSITOR_UTILITY", "Utility", 
-                    octane_pin_type=consts.PinType.PT_OUTPUT_AOV,
+                ),
+                OctaneCompositeNodeCategory("OCTANE_COMPOSITE_EFFECTS_COLOR", "Effects - color",
+                    octane_pin_type=consts.PinType.PT_OUTPUT_AOV_LAYER,
                     items=[
-                        OctaneNodeItem("OctaneLightMixerAOVOutput"),
+                        OctaneNodeItem("OctaneOutputAOVsAdjustBrightness"),
+                        OctaneNodeItem("OctaneOutputAOVsAdjustContrastSDROnly"),
+                        OctaneNodeItem("OctaneOutputAOVsAdjustHue"),
+                        OctaneNodeItem("OctaneOutputAOVsAdjustSaturation"),
+                        OctaneNodeItem("OctaneOutputAOVsAdjustWhiteBalance"),
+                        OctaneNodeItem("OctaneOutputAOVsApplyCameraResponseCurveSDROnly"),
+                        OctaneNodeItem("OctaneOutputAOVsApplyCustomCurve"),
+                        OctaneNodeItem("OctaneOutputAOVsApplyGammaCurveSDROnly"),
+                        OctaneNodeItem("OctaneOutputAOVsApplyLUT"),
+                        OctaneNodeItem("OctaneOutputAOVsApplyOCIOLook"),
+                        OctaneNodeItem("OctaneOutputAOVsChannelClamp"),
+                        OctaneNodeItem("OctaneOutputAOVsChannelInvertSDROnly"),
+                        OctaneNodeItem("OctaneOutputAOVsChannelMapRange"),
                     ]
-                ), 
+                ),
+                OctaneCompositeNodeCategory("OCTANE_COMPOSITE_EFFECTS_DISPLAY", "Effects - display",
+                    octane_pin_type=consts.PinType.PT_OUTPUT_AOV_LAYER,
+                    items=[
+                        OctaneNodeItem("OctaneOutputAOVsConvertForSDRDisplayACES"),
+                        OctaneNodeItem("OctaneOutputAOVsConvertForSDRDisplayAgX"),
+                        OctaneNodeItem("OctaneOutputAOVsConvertForSDRDisplayBasic"),
+                        OctaneNodeItem("OctaneOutputAOVsConvertForSDRDisplayOCIO"),
+                        OctaneNodeItem("OctaneOutputAOVsConvertForSDRDisplaySmooth"),
+                    ]
+                ),
+                OctaneCompositeNodeCategory("OCTANE_COMPOSITE_EFFECTS_OPACITY", "Effects - opacity",
+                    octane_pin_type=consts.PinType.PT_OUTPUT_AOV_LAYER,
+                    items=[
+                        OctaneNodeItem("OctaneOutputAOVsAdjustOpacity"),
+                        OctaneNodeItem("OctaneOutputAOVsMaskWithCryptomatte"),
+                        OctaneNodeItem("OctaneOutputAOVsMaskWithLayerGroup"),
+                    ]
+                ),
+                OctaneCompositeNodeCategory("OCTANE_COMPOSITE_EFFECTS_PROCESSING", "Effects - processing",
+                    octane_pin_type=consts.PinType.PT_OUTPUT_AOV_LAYER,
+                    items=[
+                        OctaneNodeItem("OctaneOutputAOVsAddBloom"),
+                        OctaneNodeItem("OctaneOutputAOVsAddChromaticAberration"),
+                        OctaneNodeItem("OctaneOutputAOVsAddGlare"),
+                        OctaneNodeItem("OctaneOutputAOVsAddLensFlare"),
+                        OctaneNodeItem("OctaneOutputAOVsAddVignette"),
+                        OctaneNodeItem("OctaneOutputAOVsBlur"),
+                        OctaneNodeItem("OctaneOutputAOVsRemoveHotPixels"),
+                    ]
+                ),
+                OctaneCompositeNodeCategory("OCTANE_COMPOSITE_LEGACY", "Legacy",
+                    octane_pin_type=consts.PinType.PT_OUTPUT_AOV_LAYER,
+                    items=[
+                        OctaneNodeItem("OctaneOutputAOVsLightMixerOutputAOV", octane_pin_type=consts.PinType.PT_OUTPUT_AOV),
+                    ]
+                ),
+                OctaneCompositeNodeCategory("OCTANE_COMPOSITE_UTILITY", "Utility",
+                    octane_pin_type=consts.PinType.PT_OUTPUT_AOV_LAYER,
+                    items=[
+                        OctaneNodeItem("OctaneBlendingSettingsSwitch"),
+                        OctaneNodeItem("OctaneOutputAOVGroupSwitch"),
+                        OctaneNodeItem("OctaneOutputAOVLayerSwitch"),
+                        OctaneNodeItem("OctaneOutputAOVSwitch"),
+                        OctaneNodeItem("OctaneOutputAOVsLayerGroupPassThrough"),
+                    ]
+                ),
             ]        
         ),
     ],
@@ -457,6 +526,7 @@ _octane_node_items = {
             octane_pin_type=consts.PinType.PT_RENDER_PASSES,
             items=[
                 OctaneNodeItem("OctaneRenderAOVGroup"),
+                OctaneNodeItem("OctaneRenderAOVSwitch"),
                 OctaneRenderAovNodeCategory("OCTANE_RENDER_AOV_AUXILIARY", "Auxiliary",
                     octane_pin_type=consts.PinType.PT_RENDER_PASSES,
                     items=[
@@ -465,6 +535,7 @@ _octane_node_items = {
                         OctaneNodeItem("OctaneLightDirectionAOV"),
                         OctaneNodeItem("OctaneNoiseAOV"),
                         OctaneNodeItem("OctanePostProcessingAOV"),
+                        OctaneNodeItem("OctanePostfxMediaAOV"),
                         OctaneNodeItem("OctaneShadowAOV"),
                     ]
                 ),
@@ -563,7 +634,7 @@ _octane_node_items = {
                         OctaneNodeItem("OctaneLayerReflectionsAOV"),
                         OctaneNodeItem("OctaneLayerShadowsAOV"),
                     ]
-                ),                                                          
+                ),
             ]        
         ),
     ],
@@ -587,6 +658,9 @@ _octane_node_items = {
                 OctaneNodeItem("OctaneToonMaterial"),
                 OctaneNodeItem("OctaneToonRamp" if utility.use_new_addon_nodes() else "ShaderNodeOctToonRampTex", octane_pin_type=consts.PinType.PT_TOON_RAMP),
                 OctaneNodeItem("OctaneUniversalMaterial"),
+                OctaneNodeItemSeperator("Utility"),
+                OctaneNodeItem("OctaneMaterialSwitch"),
+                OctaneNodeItem("OctaneToonRampSwitch"),
             ]            
         ),
     ],
@@ -599,6 +673,8 @@ _octane_node_items = {
                 OctaneNodeItem("OctaneMetallicLayer"),
                 OctaneNodeItem("OctaneSheenLayer"),
                 OctaneNodeItem("OctaneSpecularLayer"),
+                OctaneNodeItemSeperator("Utility"),
+                OctaneNodeItem("OctaneMaterialLayerSwitch"),
             ]  
         ),
     ],    
@@ -613,7 +689,11 @@ _octane_node_items = {
                 OctaneNodeItem("OctaneStandardVolumeMedium"),
                 OctaneNodeItem("OctaneVolumeGradient" if utility.use_new_addon_nodes() else "ShaderNodeOctVolumeRampTex", octane_pin_type=consts.PinType.PT_VOLUME_RAMP),
                 OctaneNodeItem("OctaneVolumeMedium"),
-            ]  
+                OctaneNodeItemSeperator("Utility"),
+                OctaneNodeItem("OctaneMediumSwitch"),
+                OctaneNodeItem("OctanePhaseFunctionSwitch"),
+                OctaneNodeItem("OctaneVolumeRampSwitch"),
+            ]
         ),
     ],
     "OCTANE_EMISSION": [
@@ -622,11 +702,13 @@ _octane_node_items = {
             items=[
                 OctaneNodeItem("OctaneBlackBodyEmission"),
                 OctaneNodeItem("OctaneTextureEmission"),
+                OctaneNodeItem("OctaneEmissionSwitch"),
             ] if core.ENABLE_OCTANE_ADDON_CLIENT else [
                 OctaneNodeItem("OctaneBlackBodyEmission"),
                 OctaneNodeItem("OctaneTextureEmission"),
+                OctaneNodeItem("OctaneEmissionSwitch"),
                 OctaneNodeItem("ShaderNodeOctToonDirectionLight", octane_pin_type=consts.PinType.PT_GEOMETRY),
-                OctaneNodeItem("ShaderNodeOctToonPointLight", octane_pin_type=consts.PinType.PT_GEOMETRY),            
+                OctaneNodeItem("ShaderNodeOctToonPointLight", octane_pin_type=consts.PinType.PT_GEOMETRY),
             ]
         ),
     ],
@@ -637,7 +719,8 @@ _octane_node_items = {
                 OctaneNodeItem("OctaneDaylightEnvironment"),
                 OctaneNodeItem("OctanePlanetaryEnvironment"),
                 OctaneNodeItem("OctaneTextureEnvironment"),
-            ]  
+                OctaneNodeItem("OctaneEnvironmentSwitch"),
+            ]
         ),
     ],
     "OCTANE_CAMERA": [
@@ -654,6 +737,7 @@ _octane_node_items = {
             octane_pin_type=consts.PinType.PT_ROUND_EDGES,
             items=[
                 OctaneNodeItem("OctaneRoundEdges"),
+                OctaneNodeItem("OctaneRoundEdgesSwitch"),
             ]  
         ),
     ],
@@ -665,7 +749,7 @@ _octane_node_items = {
                 OctaneNodeItemSeperator("Scatter Tools"),
                 OctaneNodeItem("OctaneScatterOnSurface"),
                 OctaneNodeItem("OctaneScatterInVolume"),
-                OctaneNodeItemSeperator("Vectron operators"),
+                OctaneNodeItemSeperator("Vectron Operators"),
                 OctaneNodeItem("OctaneDomainTransform"),
                 OctaneNodeItem("OctaneSDFClip"),
                 OctaneNodeItem("OctaneSDFInk"),
@@ -684,7 +768,62 @@ _octane_node_items = {
                 OctaneNodeItem("OctaneSDFTube"),
             ]
         ),
-    ],           
+    ],
+    "OCTANE_TEXTURE_LAYER": [
+        OctaneTextureLayerNodeCategory("OCTANE_TEXTURE_LAYER", "Octane Texture Layer", 
+            octane_pin_type=consts.PinType.PT_TEX_COMPOSITE_LAYER,
+            items=[
+                OctaneTextureLayerNodeCategory("OCTANE_TEXTURE_LAYER_BLEND", "Blend",
+                    octane_pin_type=consts.PinType.PT_TEX_COMPOSITE_LAYER,
+                    items=[
+                        OctaneNodeItem("OctaneTexLayerLayerGroup"),
+                        OctaneNodeItem("OctaneTexLayerTexture"),
+                    ]
+                ),
+                OctaneTextureLayerNodeCategory("OCTANE_TEXTURE_LAYER_EFFECTS_COLOR", "Effects - color",
+                    octane_pin_type=consts.PinType.PT_TEX_COMPOSITE_LAYER,
+                    items=[
+                        OctaneNodeItem("OctaneTexLayerAdjustBrightness"),
+                        OctaneNodeItem("OctaneTexLayerAdjustColorBalance"),
+                        OctaneNodeItem("OctaneTexLayerAdjustContrast"),
+                        OctaneNodeItem("OctaneTexLayerAdjustExposure"),
+                        OctaneNodeItem("OctaneTexLayerAdjustHue"),
+                        OctaneNodeItem("OctaneTexLayerAdjustLightness"),
+                        OctaneNodeItem("OctaneTexLayerAdjustSaturation"),
+                        OctaneNodeItem("OctaneTexLayerAdjustSaturationHSL"),
+                        OctaneNodeItem("OctaneTexLayerAdjustWhiteBalance"),
+                        OctaneNodeItem("OctaneTexLayerApplyGammaCurve"),
+                        OctaneNodeItem("OctaneTexLayerApplyGradientMap"),
+                        OctaneNodeItem("OctaneTexLayerConvertToGreyscale"),
+                    ]
+                ),
+                OctaneTextureLayerNodeCategory("OCTANE_TEXTURE_LAYER_EFFECTS_OPACITY", "Effects - opacity",
+                    octane_pin_type=consts.PinType.PT_TEX_COMPOSITE_LAYER,
+                    items=[
+                        OctaneNodeItem("OctaneTexLayerMaskWithLayerGroup"),
+                    ]
+                ),
+                OctaneTextureLayerNodeCategory("OCTANE_TEXTURE_LAYER_OPERATORS", "Operators",
+                    octane_pin_type=consts.PinType.PT_TEX_COMPOSITE_LAYER,
+                    items=[
+                        OctaneNodeItem("OctaneTexLayerChannelMixer"),
+                        OctaneNodeItem("OctaneTexLayerClamp"),
+                        OctaneNodeItem("OctaneTexLayerComparison"),
+                        OctaneNodeItem("OctaneTexLayerMapRange"),
+                        OctaneNodeItem("OctaneTexLayerMathBinary"),
+                        OctaneNodeItem("OctaneTexLayerMathUnary"),
+                        OctaneNodeItem("OctaneTexLayerThreshold"),
+                    ]
+                ),
+                OctaneTextureLayerNodeCategory("OCTANE_TEXTURE_LAYER_UTILITY", "Utility",
+                    octane_pin_type=consts.PinType.PT_TEX_COMPOSITE_LAYER,
+                    items=[
+                        OctaneNodeItem("OctaneCompositeTextureLayerSwitch"),
+                    ]
+                ),
+            ]
+        ),
+    ],
     "OCTANE_TEXTURE": [
         OctaneTextureNodeCategory("OCTANE_TEXTURE", "Octane Texture", 
             octane_pin_type=consts.PinType.PT_TEXTURE,
@@ -741,13 +880,13 @@ _octane_node_items = {
                     octane_pin_type=consts.PinType.PT_TEXTURE,
                     items=[
                         OctaneNodeItem("OctaneAlphaImage"),
-                        OctaneNodeItem("OctaneGreyscaleImage"),                        
+                        OctaneNodeItem("OctaneGreyscaleImage"),
                         OctaneNodeItem("OctaneImageTiles"),
                         OctaneNodeItem("OctaneRGBImage"),
                         OctaneNodeItem("OctaneBakingTexture"),
                     ] if utility.use_new_addon_nodes() else [
                         OctaneNodeItem("ShaderNodeOctAlphaImageTex"),
-                        OctaneNodeItem("ShaderNodeOctFloatImageTex"),                        
+                        OctaneNodeItem("ShaderNodeOctFloatImageTex"),
                         OctaneNodeItem("ShaderNodeOctImageTileTex"),
                         OctaneNodeItem("ShaderNodeOctImageTex"),
                         OctaneNodeItem("ShaderNodeOctBakingTex"),
@@ -840,12 +979,13 @@ _octane_node_items = {
                         OctaneNodeItem("OctaneChannelMerger"),
                         OctaneNodeItem("OctaneChannelPicker"),
                         OctaneNodeItem("OctaneCompositeTexture"),
-                        OctaneNodeItem("OctaneCompositeTextureLayer", octane_pin_type=consts.PinType.PT_TEX_COMPOSITE_LAYER),
+                        # OctaneNodeItem("OctaneCompositeTextureLayer", octane_pin_type=consts.PinType.PT_TEX_COMPOSITE_LAYER),
                         OctaneNodeItem("OctaneRaySwitch"),
-                        OctaneNodeItem("OctaneSpotlight"), 
+                        OctaneNodeItem("OctaneSpotlight"),
+                        OctaneNodeItem("OctaneTextureSwitch"),
                     ]
-                ),                                                                                                
-            ]        
+                ),
+            ]
         ),
     ],      
 }

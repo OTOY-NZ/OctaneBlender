@@ -285,18 +285,18 @@ class OctaneOCIOColorSpaceOutSocket(OctaneBaseSocket):
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_OUTPUT)
     octane_hide_value=True
 
-class OctaneAOVOutputGroupOutSocket(OctaneBaseSocket):
-    bl_idname="OctaneAOVOutputGroupOutSocket"
+class OctaneOutputAOVGroupOutSocket(OctaneBaseSocket):
+    bl_idname="OctaneOutputAOVGroupOutSocket"
     bl_label="Output AOV group out"
-    color=consts.OctanePinColor.AOVOutputGroup
+    color=consts.OctanePinColor.OutputAOVGroup
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_OUTPUT_AOV_GROUP)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_OUTPUT)
     octane_hide_value=True
 
-class OctaneAOVOutputOutSocket(OctaneBaseSocket):
-    bl_idname="OctaneAOVOutputOutSocket"
+class OctaneOutputAOVOutSocket(OctaneBaseSocket):
+    bl_idname="OctaneOutputAOVOutSocket"
     bl_label="Output AOV out"
-    color=consts.OctanePinColor.AOVOutput
+    color=consts.OctanePinColor.OutputAOV
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_OUTPUT_AOV)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_OUTPUT)
     octane_hide_value=True
@@ -309,11 +309,27 @@ class OctaneCompositeTextureLayerOutSocket(OctaneBaseSocket):
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_OUTPUT)
     octane_hide_value=True
 
-class OctaneCompositeAOVOutputLayerOutSocket(OctaneBaseSocket):
-    bl_idname="OctaneCompositeAOVOutputLayerOutSocket"
-    bl_label="Composite output AOV layer out"
-    color=consts.OctanePinColor.CompositeAOVOutputLayer
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_COMPOSITE_AOV_LAYER)
+class OctaneOutputAOVLayerOutSocket(OctaneBaseSocket):
+    bl_idname="OctaneOutputAOVLayerOutSocket"
+    bl_label="Output AOV layer out"
+    color=consts.OctanePinColor.OutputAOVLayer
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_OUTPUT_AOV_LAYER)
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_OUTPUT)
+    octane_hide_value=True
+
+class OctaneBlendingSettingsOutSocket(OctaneBaseSocket):
+    bl_idname="OctaneBlendingSettingsOutSocket"
+    bl_label="Blending settings out"
+    color=consts.OctanePinColor.BlendingSettings
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BLENDING_SETTINGS)
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_OUTPUT)
+    octane_hide_value=True
+
+class OctanePostVolumeOutSocket(OctaneBaseSocket):
+    bl_idname="OctanePostVolumeOutSocket"
+    bl_label="Post volume out"
+    color=consts.OctanePinColor.PostVolume
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_POST_VOLUME)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_OUTPUT)
     octane_hide_value=True
 
@@ -354,10 +370,12 @@ _CLASSES=[
     OctaneOCIOViewOutSocket,
     OctaneOCIOLookOutSocket,
     OctaneOCIOColorSpaceOutSocket,
-    OctaneAOVOutputGroupOutSocket,
-    OctaneAOVOutputOutSocket,
+    OctaneOutputAOVGroupOutSocket,
+    OctaneOutputAOVOutSocket,
     OctaneCompositeTextureLayerOutSocket,
-    OctaneCompositeAOVOutputLayerOutSocket,
+    OctaneOutputAOVLayerOutSocket,
+    OctaneBlendingSettingsOutSocket,
+    OctanePostVolumeOutSocket,
 ]
 
 _SOCKET_INTERFACE_CLASSES = []
@@ -374,6 +392,8 @@ def unregister():
 ##### END OCTANE GENERATED CODE BLOCK #####
 
 
+""" Render AOV stuffs """
+
 class OctaneRenderAOVsOutSocket(OctaneBaseSocket):
     bl_idname="OctaneRenderAOVsOutSocket"
     bl_label="Render AOVs out"
@@ -382,6 +402,26 @@ class OctaneRenderAOVsOutSocket(OctaneBaseSocket):
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_OUTPUT)
     octane_hide_value=True
 
+_CLASSES.append(OctaneRenderAOVsOutSocket)
+
+
+""" Output AOV stuffs """
+
+class OctaneAOVOutputGroupOutSocket(OctaneBaseSocket):
+    bl_idname="OctaneAOVOutputGroupOutSocket"
+    bl_label="Output AOV group out"
+    color=consts.OctanePinColor.AOVOutputGroup
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_OUTPUT_AOV_GROUP)
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_OUTPUT)
+    octane_hide_value=True
+
+class OctaneAOVOutputOutSocket(OctaneBaseSocket):
+    bl_idname="OctaneAOVOutputOutSocket"
+    bl_label="Output AOV out"
+    color=consts.OctanePinColor.AOVOutput
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_OUTPUT_AOV)
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_OUTPUT)
+    octane_hide_value=True
 
 class OctaneCompositeAOVLayerOutSocket(OctaneBaseSocket):
     bl_idname="OctaneCompositeAOVLayerOutSocket"
@@ -391,6 +431,12 @@ class OctaneCompositeAOVLayerOutSocket(OctaneBaseSocket):
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_OUTPUT)
     octane_hide_value=True
 
+class OctaneCompositeAOVOutputLayerOutSocket(OctaneBaseSocket):
+    bl_idname="OctaneCompositeAOVOutputLayerOutSocket"
+    bl_label="Composite output AOV layer out"
+    color=consts.OctanePinColor.CompositeAOVOutputLayer
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_COMPOSITE_AOV_LAYER)
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_OUTPUT)
+    octane_hide_value=True
 
-_CLASSES.append(OctaneRenderAOVsOutSocket)
-_CLASSES.append(OctaneCompositeAOVLayerOutSocket)
+_CLASSES.extend([OctaneAOVOutputGroupOutSocket, OctaneAOVOutputOutSocket, OctaneCompositeAOVLayerOutSocket, OctaneCompositeAOVOutputLayerOutSocket])

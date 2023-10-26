@@ -245,6 +245,9 @@ void BlenderSync::sync_render_passes(BL::Depsgraph &b_depsgraph, BL::ViewLayer &
   if (this->use_render_aov_node_tree) {
     current_preview_pass_type = render_aov_preview_pass;
   }
+  std::string orbx_path = "./libraries/orbx/RenderPassesData.orbx";
+  passes->oct_node->sRenderPassesLibraryOrbxPath = blender_absolute_path(
+      b_data, b_scene, path_get(orbx_path));
   passes->oct_node->iPreviewPass = preview ? current_preview_pass_type :
                                              ::Octane::RenderPassId::RENDER_PASS_BEAUTY;
   passes->oct_node->bUseRenderAOV = this->use_render_aov_node_tree;
@@ -303,6 +306,7 @@ void BlenderSync::sync_render_passes(BL::Depsgraph &b_depsgraph, BL::ViewLayer &
   passes->oct_node->iDenoiserPasses = denoiser_passes;
   int32_t post_processing_passes = 0;
   SET_OCTANE_PASS(post_processing_passes, "use_pass_postprocess", OCT_SCE_PASS_POSTPROCESS);
+  SET_OCTANE_PASS(post_processing_passes, "use_pass_postfxmedia", OCT_SCE_PASS_POSTPROCESS_FXMEDIA);
   passes->oct_node->iPostProcessingPasses = post_processing_passes;
   int32_t render_layer_passes = 0;
   SET_OCTANE_PASS(render_layer_passes, "use_pass_layer_shadows", OCT_SCE_PASS_LAYER_SHADOWS);
@@ -311,36 +315,76 @@ void BlenderSync::sync_render_passes(BL::Depsgraph &b_depsgraph, BL::ViewLayer &
   passes->oct_node->iRenderLayerPasses = render_layer_passes;
   int32_t lighting_passes = 0;
   SET_OCTANE_PASS(lighting_passes, "use_pass_ambient_light", OCT_SCE_PASS_AMBIENT_LIGHT);
-  SET_OCTANE_PASS(lighting_passes, "use_pass_ambient_light_dir", OCT_SCE_PASS_AMBIENT_LIGHT_DIRECT);
-  SET_OCTANE_PASS(lighting_passes, "use_pass_ambient_light_indir", OCT_SCE_PASS_AMBIENT_LIGHT_INDIRECT);
   SET_OCTANE_PASS(lighting_passes, "use_pass_sunlight", OCT_SCE_PASS_SUNLIGHT);
-  SET_OCTANE_PASS(lighting_passes, "use_pass_sunlight_dir", OCT_SCE_PASS_SUNLIGHT_DIRECT);
-  SET_OCTANE_PASS(lighting_passes, "use_pass_sunlight_indir", OCT_SCE_PASS_SUNLIGHT_INDIRECT);
   SET_OCTANE_PASS(lighting_passes, "use_pass_light_pass_1", OCT_SCE_PASS_LIGHT_PASS_1);
-  SET_OCTANE_PASS(lighting_passes, "use_pass_light_dir_pass_1", OCT_SCE_PASS_LIGHT_DIRECT_PASS_1);
-  SET_OCTANE_PASS(lighting_passes, "use_pass_light_indir_pass_1", OCT_SCE_PASS_LIGHT_INDIRECT_PASS_1);
   SET_OCTANE_PASS(lighting_passes, "use_pass_light_pass_2", OCT_SCE_PASS_LIGHT_PASS_2);
-  SET_OCTANE_PASS(lighting_passes, "use_pass_light_dir_pass_2", OCT_SCE_PASS_LIGHT_DIRECT_PASS_2);
-  SET_OCTANE_PASS(lighting_passes, "use_pass_light_indir_pass_2", OCT_SCE_PASS_LIGHT_INDIRECT_PASS_2);
   SET_OCTANE_PASS(lighting_passes, "use_pass_light_pass_3", OCT_SCE_PASS_LIGHT_PASS_3);
-  SET_OCTANE_PASS(lighting_passes, "use_pass_light_dir_pass_3", OCT_SCE_PASS_LIGHT_DIRECT_PASS_3);
-  SET_OCTANE_PASS(lighting_passes, "use_pass_light_indir_pass_3", OCT_SCE_PASS_LIGHT_INDIRECT_PASS_3);
   SET_OCTANE_PASS(lighting_passes, "use_pass_light_pass_4", OCT_SCE_PASS_LIGHT_PASS_4);
-  SET_OCTANE_PASS(lighting_passes, "use_pass_light_dir_pass_4", OCT_SCE_PASS_LIGHT_DIRECT_PASS_4);
-  SET_OCTANE_PASS(lighting_passes, "use_pass_light_indir_pass_4", OCT_SCE_PASS_LIGHT_INDIRECT_PASS_4);
   SET_OCTANE_PASS(lighting_passes, "use_pass_light_pass_5", OCT_SCE_PASS_LIGHT_PASS_5);
-  SET_OCTANE_PASS(lighting_passes, "use_pass_light_dir_pass_5", OCT_SCE_PASS_LIGHT_DIRECT_PASS_5);
-  SET_OCTANE_PASS(lighting_passes, "use_pass_light_indir_pass_5", OCT_SCE_PASS_LIGHT_INDIRECT_PASS_5);
   SET_OCTANE_PASS(lighting_passes, "use_pass_light_pass_6", OCT_SCE_PASS_LIGHT_PASS_6);
-  SET_OCTANE_PASS(lighting_passes, "use_pass_light_dir_pass_6", OCT_SCE_PASS_LIGHT_DIRECT_PASS_6);
-  SET_OCTANE_PASS(lighting_passes, "use_pass_light_indir_pass_6", OCT_SCE_PASS_LIGHT_INDIRECT_PASS_6);
   SET_OCTANE_PASS(lighting_passes, "use_pass_light_pass_7", OCT_SCE_PASS_LIGHT_PASS_7);
-  SET_OCTANE_PASS(lighting_passes, "use_pass_light_dir_pass_7", OCT_SCE_PASS_LIGHT_DIRECT_PASS_7);
-  SET_OCTANE_PASS(lighting_passes, "use_pass_light_indir_pass_7", OCT_SCE_PASS_LIGHT_INDIRECT_PASS_7);
   SET_OCTANE_PASS(lighting_passes, "use_pass_light_pass_8", OCT_SCE_PASS_LIGHT_PASS_8);
-  SET_OCTANE_PASS(lighting_passes, "use_pass_light_dir_pass_8", OCT_SCE_PASS_LIGHT_DIRECT_PASS_8);
-  SET_OCTANE_PASS(lighting_passes, "use_pass_light_indir_pass_8", OCT_SCE_PASS_LIGHT_INDIRECT_PASS_8);
+  SET_OCTANE_PASS(lighting_passes, "use_pass_light_pass_9", OCT_SCE_PASS_LIGHT_PASS_9);
+  SET_OCTANE_PASS(lighting_passes, "use_pass_light_pass_10", OCT_SCE_PASS_LIGHT_PASS_10);
+  SET_OCTANE_PASS(lighting_passes, "use_pass_light_pass_11", OCT_SCE_PASS_LIGHT_PASS_11);
+  SET_OCTANE_PASS(lighting_passes, "use_pass_light_pass_12", OCT_SCE_PASS_LIGHT_PASS_12);
+  SET_OCTANE_PASS(lighting_passes, "use_pass_light_pass_13", OCT_SCE_PASS_LIGHT_PASS_13);
+  SET_OCTANE_PASS(lighting_passes, "use_pass_light_pass_14", OCT_SCE_PASS_LIGHT_PASS_14);
+  SET_OCTANE_PASS(lighting_passes, "use_pass_light_pass_15", OCT_SCE_PASS_LIGHT_PASS_15);
+  SET_OCTANE_PASS(lighting_passes, "use_pass_light_pass_16", OCT_SCE_PASS_LIGHT_PASS_16);
+  SET_OCTANE_PASS(lighting_passes, "use_pass_light_pass_17", OCT_SCE_PASS_LIGHT_PASS_17);
+  SET_OCTANE_PASS(lighting_passes, "use_pass_light_pass_18", OCT_SCE_PASS_LIGHT_PASS_18);
+  SET_OCTANE_PASS(lighting_passes, "use_pass_light_pass_19", OCT_SCE_PASS_LIGHT_PASS_19);
+  SET_OCTANE_PASS(lighting_passes, "use_pass_light_pass_20", OCT_SCE_PASS_LIGHT_PASS_20);
   passes->oct_node->iLightingPasses = lighting_passes;
+  int32_t lighting_dir_passes = 0;
+  SET_OCTANE_PASS(lighting_passes, "use_pass_ambient_light_dir", OCT_SCE_PASS_AMBIENT_LIGHT_DIRECT);
+  SET_OCTANE_PASS(lighting_passes, "use_pass_sunlight_dir", OCT_SCE_PASS_SUNLIGHT_DIRECT);
+  SET_OCTANE_PASS(lighting_passes, "use_pass_light_dir_pass_1", OCT_SCE_PASS_LIGHT_DIRECT_PASS_1);
+  SET_OCTANE_PASS(lighting_passes, "use_pass_light_dir_pass_2", OCT_SCE_PASS_LIGHT_DIRECT_PASS_2);
+  SET_OCTANE_PASS(lighting_passes, "use_pass_light_dir_pass_3", OCT_SCE_PASS_LIGHT_DIRECT_PASS_3);
+  SET_OCTANE_PASS(lighting_passes, "use_pass_light_dir_pass_4", OCT_SCE_PASS_LIGHT_DIRECT_PASS_4);
+  SET_OCTANE_PASS(lighting_passes, "use_pass_light_dir_pass_5", OCT_SCE_PASS_LIGHT_DIRECT_PASS_5);
+  SET_OCTANE_PASS(lighting_passes, "use_pass_light_dir_pass_6", OCT_SCE_PASS_LIGHT_DIRECT_PASS_6);
+  SET_OCTANE_PASS(lighting_passes, "use_pass_light_dir_pass_7", OCT_SCE_PASS_LIGHT_DIRECT_PASS_7);
+  SET_OCTANE_PASS(lighting_passes, "use_pass_light_dir_pass_8", OCT_SCE_PASS_LIGHT_DIRECT_PASS_8);
+  SET_OCTANE_PASS(lighting_passes, "use_pass_light_dir_pass_9", OCT_SCE_PASS_LIGHT_DIRECT_PASS_9);
+  SET_OCTANE_PASS(lighting_passes, "use_pass_light_dir_pass_10", OCT_SCE_PASS_LIGHT_DIRECT_PASS_10);
+  SET_OCTANE_PASS(lighting_passes, "use_pass_light_dir_pass_11", OCT_SCE_PASS_LIGHT_DIRECT_PASS_11);
+  SET_OCTANE_PASS(lighting_passes, "use_pass_light_dir_pass_12", OCT_SCE_PASS_LIGHT_DIRECT_PASS_12);
+  SET_OCTANE_PASS(lighting_passes, "use_pass_light_dir_pass_13", OCT_SCE_PASS_LIGHT_DIRECT_PASS_13);
+  SET_OCTANE_PASS(lighting_passes, "use_pass_light_dir_pass_14", OCT_SCE_PASS_LIGHT_DIRECT_PASS_14);
+  SET_OCTANE_PASS(lighting_passes, "use_pass_light_dir_pass_15", OCT_SCE_PASS_LIGHT_DIRECT_PASS_15);
+  SET_OCTANE_PASS(lighting_passes, "use_pass_light_dir_pass_16", OCT_SCE_PASS_LIGHT_DIRECT_PASS_16);
+  SET_OCTANE_PASS(lighting_passes, "use_pass_light_dir_pass_17", OCT_SCE_PASS_LIGHT_DIRECT_PASS_17);
+  SET_OCTANE_PASS(lighting_passes, "use_pass_light_dir_pass_18", OCT_SCE_PASS_LIGHT_DIRECT_PASS_18);
+  SET_OCTANE_PASS(lighting_passes, "use_pass_light_dir_pass_19", OCT_SCE_PASS_LIGHT_DIRECT_PASS_19);
+  SET_OCTANE_PASS(lighting_passes, "use_pass_light_dir_pass_20", OCT_SCE_PASS_LIGHT_DIRECT_PASS_20);
+  passes->oct_node->iLightingDirectPasses = lighting_dir_passes;
+  int32_t lighting_indir_passes = 0;
+  SET_OCTANE_PASS(lighting_passes, "use_pass_ambient_light_indir", OCT_SCE_PASS_AMBIENT_LIGHT_INDIRECT);
+  SET_OCTANE_PASS(lighting_passes, "use_pass_sunlight_indir", OCT_SCE_PASS_SUNLIGHT_INDIRECT);
+  SET_OCTANE_PASS(lighting_passes, "use_pass_light_indir_pass_1", OCT_SCE_PASS_LIGHT_INDIRECT_PASS_1);
+  SET_OCTANE_PASS(lighting_passes, "use_pass_light_indir_pass_2", OCT_SCE_PASS_LIGHT_INDIRECT_PASS_2);
+  SET_OCTANE_PASS(lighting_passes, "use_pass_light_indir_pass_3", OCT_SCE_PASS_LIGHT_INDIRECT_PASS_3);
+  SET_OCTANE_PASS(lighting_passes, "use_pass_light_indir_pass_4", OCT_SCE_PASS_LIGHT_INDIRECT_PASS_4);
+  SET_OCTANE_PASS(lighting_passes, "use_pass_light_indir_pass_5", OCT_SCE_PASS_LIGHT_INDIRECT_PASS_5);
+  SET_OCTANE_PASS(lighting_passes, "use_pass_light_indir_pass_6", OCT_SCE_PASS_LIGHT_INDIRECT_PASS_6);
+  SET_OCTANE_PASS(lighting_passes, "use_pass_light_indir_pass_7", OCT_SCE_PASS_LIGHT_INDIRECT_PASS_7);
+  SET_OCTANE_PASS(lighting_passes, "use_pass_light_indir_pass_8", OCT_SCE_PASS_LIGHT_INDIRECT_PASS_8);
+  SET_OCTANE_PASS(lighting_passes, "use_pass_light_indir_pass_9", OCT_SCE_PASS_LIGHT_INDIRECT_PASS_9);
+  SET_OCTANE_PASS(lighting_passes, "use_pass_light_indir_pass_10", OCT_SCE_PASS_LIGHT_INDIRECT_PASS_10);
+  SET_OCTANE_PASS(lighting_passes, "use_pass_light_indir_pass_11", OCT_SCE_PASS_LIGHT_INDIRECT_PASS_11);
+  SET_OCTANE_PASS(lighting_passes, "use_pass_light_indir_pass_12", OCT_SCE_PASS_LIGHT_INDIRECT_PASS_12);
+  SET_OCTANE_PASS(lighting_passes, "use_pass_light_indir_pass_13", OCT_SCE_PASS_LIGHT_INDIRECT_PASS_13);
+  SET_OCTANE_PASS(lighting_passes, "use_pass_light_indir_pass_14", OCT_SCE_PASS_LIGHT_INDIRECT_PASS_14);
+  SET_OCTANE_PASS(lighting_passes, "use_pass_light_indir_pass_15", OCT_SCE_PASS_LIGHT_INDIRECT_PASS_15);
+  SET_OCTANE_PASS(lighting_passes, "use_pass_light_indir_pass_16", OCT_SCE_PASS_LIGHT_INDIRECT_PASS_16);
+  SET_OCTANE_PASS(lighting_passes, "use_pass_light_indir_pass_17", OCT_SCE_PASS_LIGHT_INDIRECT_PASS_17);
+  SET_OCTANE_PASS(lighting_passes, "use_pass_light_indir_pass_18", OCT_SCE_PASS_LIGHT_INDIRECT_PASS_18);
+  SET_OCTANE_PASS(lighting_passes, "use_pass_light_indir_pass_19", OCT_SCE_PASS_LIGHT_INDIRECT_PASS_19);
+  SET_OCTANE_PASS(lighting_passes, "use_pass_light_indir_pass_20", OCT_SCE_PASS_LIGHT_INDIRECT_PASS_20);
+  passes->oct_node->iLightingIndirectPasses = lighting_indir_passes;
   int32_t cryptomatte_passes = 0;
   SET_OCTANE_PASS(cryptomatte_passes, "use_pass_crypto_instance_id", OCT_SCE_PASS_CRYPTOMATTE_INSTANCE_ID);
   SET_OCTANE_PASS(cryptomatte_passes, "use_pass_crypto_mat_node_name", OCT_SCE_PASS_CRYPTOMATTE_MATERIAL_NODE_NAME);
@@ -836,9 +880,6 @@ void BlenderSync::sync_kernel()
 
   kernel->oct_node->type = static_cast<::OctaneEngine::Kernel::KernelType>(
       RNA_enum_get(&oct_scene, "kernel_type"));
-  if (kernel->oct_node->bUseNodeTree) {
-    kernel->oct_node->type = ::OctaneEngine::Kernel::DEFAULT;
-  }
   kernel->oct_node->infoChannelType = static_cast<::OctaneEngine::InfoChannelType>(
       RNA_enum_get(&oct_scene, "info_channel_type"));
 
@@ -1027,7 +1068,7 @@ std::string BlenderSync::get_env_texture_name(PointerRNA *env,
            ::Octane::RenderPassId::RENDER_PASS_REFLECTION_DIRECT_DENOISER_OUTPUT);
   MAP_PASS("DenoisedReflectionIndirect",
            ::Octane::RenderPassId::RENDER_PASS_REFLECTION_INDIRECT_DENOISER_OUTPUT);
-  MAP_PASS("DenoisedRefraction", ::Octane::RenderPassId::RENDER_PASS_REFRACTION_DENOISER_OUTPUT);
+  // MAP_PASS("DenoisedRefraction", ::Octane::RenderPassId::RENDER_PASS_REFRACTION_DENOISER_OUTPUT);
   MAP_PASS("DenoisedEmission", ::Octane::RenderPassId::RENDER_PASS_EMISSION_DENOISER_OUTPUT);
   MAP_PASS("DenoisedRemainder", ::Octane::RenderPassId::RENDER_PASS_REMAINDER_DENOISER_OUTPUT);
   MAP_PASS("DenoisedVolume", ::Octane::RenderPassId::RENDER_PASS_VOLUME_DENOISER_OUTPUT);
@@ -1035,6 +1076,7 @@ std::string BlenderSync::get_env_texture_name(PointerRNA *env,
            ::Octane::RenderPassId::RENDER_PASS_VOLUME_EMISSION_DENOISER_OUTPUT);
   /* Render Postprocess Passes */
   MAP_PASS("PostProcessing", ::Octane::RenderPassId::RENDER_PASS_POST_PROC);
+  MAP_PASS("PostfxMedia", ::Octane::RenderPassId::RENDER_PASS_POSTFX_MEDIA);
   /* Render Layer Passes */
   MAP_PASS("LayerShadows", ::Octane::RenderPassId::RENDER_PASS_LAYER_SHADOWS);
   MAP_PASS("BlackLayerShadows", ::Octane::RenderPassId::RENDER_PASS_LAYER_BLACK_SHADOWS);
@@ -1050,6 +1092,18 @@ std::string BlenderSync::get_env_texture_name(PointerRNA *env,
   MAP_PASS("LightID6", ::Octane::RenderPassId::RENDER_PASS_LIGHT_6);
   MAP_PASS("LightID7", ::Octane::RenderPassId::RENDER_PASS_LIGHT_7);
   MAP_PASS("LightID8", ::Octane::RenderPassId::RENDER_PASS_LIGHT_8);
+  MAP_PASS("LightID9", ::Octane::RenderPassId::RENDER_PASS_LIGHT_9);
+  MAP_PASS("LightID10", ::Octane::RenderPassId::RENDER_PASS_LIGHT_10);
+  MAP_PASS("LightID11", ::Octane::RenderPassId::RENDER_PASS_LIGHT_11);
+  MAP_PASS("LightID12", ::Octane::RenderPassId::RENDER_PASS_LIGHT_12);
+  MAP_PASS("LightID13", ::Octane::RenderPassId::RENDER_PASS_LIGHT_13);
+  MAP_PASS("LightID14", ::Octane::RenderPassId::RENDER_PASS_LIGHT_14);
+  MAP_PASS("LightID15", ::Octane::RenderPassId::RENDER_PASS_LIGHT_15);
+  MAP_PASS("LightID16", ::Octane::RenderPassId::RENDER_PASS_LIGHT_16);
+  MAP_PASS("LightID17", ::Octane::RenderPassId::RENDER_PASS_LIGHT_17);
+  MAP_PASS("LightID18", ::Octane::RenderPassId::RENDER_PASS_LIGHT_18);
+  MAP_PASS("LightID19", ::Octane::RenderPassId::RENDER_PASS_LIGHT_19);
+  MAP_PASS("LightID20", ::Octane::RenderPassId::RENDER_PASS_LIGHT_20);
   MAP_PASS("AmbientLightDirect", ::Octane::RenderPassId::RENDER_PASS_AMBIENT_LIGHT_DIRECT);
   MAP_PASS("SunlightDirect", ::Octane::RenderPassId::RENDER_PASS_SUNLIGHT_DIRECT);
   MAP_PASS("LightID1Direct", ::Octane::RenderPassId::RENDER_PASS_LIGHT_1_DIRECT);
@@ -1060,6 +1114,18 @@ std::string BlenderSync::get_env_texture_name(PointerRNA *env,
   MAP_PASS("LightID6Direct", ::Octane::RenderPassId::RENDER_PASS_LIGHT_6_DIRECT);
   MAP_PASS("LightID7Direct", ::Octane::RenderPassId::RENDER_PASS_LIGHT_7_DIRECT);
   MAP_PASS("LightID8Direct", ::Octane::RenderPassId::RENDER_PASS_LIGHT_8_DIRECT);
+  MAP_PASS("LightID9Direct", ::Octane::RenderPassId::RENDER_PASS_LIGHT_9_DIRECT);
+  MAP_PASS("LightID10Direct", ::Octane::RenderPassId::RENDER_PASS_LIGHT_10_DIRECT);
+  MAP_PASS("LightID11Direct", ::Octane::RenderPassId::RENDER_PASS_LIGHT_11_DIRECT);
+  MAP_PASS("LightID12Direct", ::Octane::RenderPassId::RENDER_PASS_LIGHT_12_DIRECT);
+  MAP_PASS("LightID13Direct", ::Octane::RenderPassId::RENDER_PASS_LIGHT_13_DIRECT);
+  MAP_PASS("LightID14Direct", ::Octane::RenderPassId::RENDER_PASS_LIGHT_14_DIRECT);
+  MAP_PASS("LightID15Direct", ::Octane::RenderPassId::RENDER_PASS_LIGHT_15_DIRECT);
+  MAP_PASS("LightID16Direct", ::Octane::RenderPassId::RENDER_PASS_LIGHT_16_DIRECT);
+  MAP_PASS("LightID17Direct", ::Octane::RenderPassId::RENDER_PASS_LIGHT_17_DIRECT);
+  MAP_PASS("LightID18Direct", ::Octane::RenderPassId::RENDER_PASS_LIGHT_18_DIRECT);
+  MAP_PASS("LightID19Direct", ::Octane::RenderPassId::RENDER_PASS_LIGHT_19_DIRECT);
+  MAP_PASS("LightID20Direct", ::Octane::RenderPassId::RENDER_PASS_LIGHT_20_DIRECT);
   MAP_PASS("AmbientLightIndirect", ::Octane::RenderPassId::RENDER_PASS_AMBIENT_LIGHT_INDIRECT);
   MAP_PASS("SunlightIndirect", ::Octane::RenderPassId::RENDER_PASS_SUNLIGHT_INDIRECT);
   MAP_PASS("LightID1Indirect", ::Octane::RenderPassId::RENDER_PASS_LIGHT_1_INDIRECT);
@@ -1070,6 +1136,18 @@ std::string BlenderSync::get_env_texture_name(PointerRNA *env,
   MAP_PASS("LightID6Indirect", ::Octane::RenderPassId::RENDER_PASS_LIGHT_6_INDIRECT);
   MAP_PASS("LightID7Indirect", ::Octane::RenderPassId::RENDER_PASS_LIGHT_7_INDIRECT);
   MAP_PASS("LightID8Indirect", ::Octane::RenderPassId::RENDER_PASS_LIGHT_8_INDIRECT);
+  MAP_PASS("LightID9Indirect", ::Octane::RenderPassId::RENDER_PASS_LIGHT_9_INDIRECT);
+  MAP_PASS("LightID10Indirect", ::Octane::RenderPassId::RENDER_PASS_LIGHT_10_INDIRECT);
+  MAP_PASS("LightID11Indirect", ::Octane::RenderPassId::RENDER_PASS_LIGHT_11_INDIRECT);
+  MAP_PASS("LightID12Indirect", ::Octane::RenderPassId::RENDER_PASS_LIGHT_12_INDIRECT);
+  MAP_PASS("LightID13Indirect", ::Octane::RenderPassId::RENDER_PASS_LIGHT_13_INDIRECT);
+  MAP_PASS("LightID14Indirect", ::Octane::RenderPassId::RENDER_PASS_LIGHT_14_INDIRECT);
+  MAP_PASS("LightID15Indirect", ::Octane::RenderPassId::RENDER_PASS_LIGHT_15_INDIRECT);
+  MAP_PASS("LightID16Indirect", ::Octane::RenderPassId::RENDER_PASS_LIGHT_16_INDIRECT);
+  MAP_PASS("LightID17Indirect", ::Octane::RenderPassId::RENDER_PASS_LIGHT_17_INDIRECT);
+  MAP_PASS("LightID18Indirect", ::Octane::RenderPassId::RENDER_PASS_LIGHT_18_INDIRECT);
+  MAP_PASS("LightID19Indirect", ::Octane::RenderPassId::RENDER_PASS_LIGHT_19_INDIRECT);
+  MAP_PASS("LightID20Indirect", ::Octane::RenderPassId::RENDER_PASS_LIGHT_20_INDIRECT);
   /* Render Cryptomatte Passes */
   MAP_PASS("CryptoInstanceID", ::Octane::RenderPassId::RENDER_PASS_CRYPTOMATTE_INSTANCE);
   MAP_PASS("CryptoMaterialNodeName",

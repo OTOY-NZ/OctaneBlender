@@ -43,7 +43,7 @@
 extern "C" {
 size_t BLI_timecode_string_from_time_simple(char *str, size_t maxlen, double time_seconds);
 void BLI_path_split_dir_part(const char *filepath, char *dir, const size_t dir_maxncpy);
-bool BLI_path_frame(char *path, int frame, int digits);
+bool BLI_path_frame(char *path, size_t path_maxncpy, int frame, int digits);
 const char *BLI_path_extension(const char *filepath);
 void BKE_image_user_frame_calc(void *ima, void *iuser, int cfra);
 void BKE_image_user_file_path(void *iuser, void *ima, char *path);
@@ -672,7 +672,7 @@ static inline string blender_path_frame(const string &path, int frame, int digit
 {
   char converted_path[1024];
   strcpy(converted_path, path.c_str());
-  BLI_path_frame(converted_path, frame, digits);
+  BLI_path_frame(converted_path, 1024, frame, digits);
   return string(converted_path);
 }
 
@@ -1307,6 +1307,22 @@ static int32_t get_light_ids_mask(PointerRNA &ptr)
                           (get_boolean(ptr, "light_id_pass_6") & 1) << 7 |
                           (get_boolean(ptr, "light_id_pass_7") & 1) << 8 |
                           (get_boolean(ptr, "light_id_pass_8") & 1) << 9;
+  PropertyRNA *prop = RNA_struct_find_property(&ptr, "light_id_pass_9");
+  if (prop != NULL) {
+    iLightIDsMask = iLightIDsMask | (get_boolean(ptr, "light_id_pass_9") & 1) << 10 |
+                    (get_boolean(ptr, "light_id_pass_10") & 1) << 11 |
+                    (get_boolean(ptr, "light_id_pass_11") & 1) << 12 |
+                    (get_boolean(ptr, "light_id_pass_12") & 1) << 13 |
+                    (get_boolean(ptr, "light_id_pass_13") & 1) << 14 |
+                    (get_boolean(ptr, "light_id_pass_14") & 1) << 15 |
+                    (get_boolean(ptr, "light_id_pass_15") & 1) << 16 |
+                    (get_boolean(ptr, "light_id_pass_16") & 1) << 17 |
+                    (get_boolean(ptr, "light_id_pass_17") & 1) << 18 |
+                    (get_boolean(ptr, "light_id_pass_18") & 1) << 19 |
+                    (get_boolean(ptr, "light_id_pass_19") & 1) << 20 |
+                    (get_boolean(ptr, "light_id_pass_20") & 1) << 21;
+  }
+
   return iLightIDsMask;
 }
 
@@ -1616,7 +1632,7 @@ static void resolve_octane_ocio_view_params(std::string &display, std::string &d
 {
   if (display == "sRGB" && display_view == "Raw") {
     display = "";
-    display_view == "None(sRGB)";
+    display_view == "None";
   }
 }
 

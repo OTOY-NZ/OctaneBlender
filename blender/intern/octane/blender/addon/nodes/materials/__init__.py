@@ -17,6 +17,8 @@ from . import hair_material
 from . import null_material
 from . import clipping_material
 from . import standard_surface_material
+from . import material_switch
+from . import toon_ramp_switch
 
 def register():
     glossy_material.register()
@@ -35,6 +37,8 @@ def register():
     null_material.register()
     clipping_material.register()
     standard_surface_material.register()
+    material_switch.register()
+    toon_ramp_switch.register()
 
 def unregister():
     glossy_material.unregister()
@@ -53,5 +57,7 @@ def unregister():
     null_material.unregister()
     clipping_material.unregister()
     standard_surface_material.unregister()
+    material_switch.unregister()
+    toon_ramp_switch.unregister()
 
 ##### END OCTANE GENERATED CODE BLOCK #####

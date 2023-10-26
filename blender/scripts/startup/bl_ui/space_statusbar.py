@@ -25,7 +25,7 @@ class STATUSBAR_HT_header(Header):
         row.alignment = 'RIGHT'
 
         # Stats & Info
-        layout.template_status_info()
+        row.label(text=context.screen.statusbar_info(), translate=False)
 
 
 classes = (

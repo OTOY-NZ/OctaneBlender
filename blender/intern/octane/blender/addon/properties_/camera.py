@@ -796,11 +796,11 @@ class OctanePostProcessingSettings(bpy.types.PropertyGroup, common.OctanePropert
             "spread_start", "spread_end", "chromatic_aberration_intensity", 
             "lens_flare", "lens_flare_extent", 
         ],
-        # consts.NodeType.NT_POST_VOLUME: [
-        #     "light_beams", "medium_density_for_postfx_light_beams", "enable_fog", 
-        #     "fog_strength", "fog_height_descend", "fog_env_contribution",
-        #     "base_fog_color", "medium_radius",
-        # ]
+        consts.NodeType.NT_POST_VOLUME: [
+            "light_beams", "medium_density_for_postfx_light_beams", "enable_fog", 
+            "fog_strength", "fog_height_descend", "fog_env_contribution",
+            "base_fog_color", "medium_radius",
+        ]
     }
     PROPERTY_NAME_TO_PIN_SYMBOL_MAP = {
         "spectral_intencity": "spectral_intensity",
@@ -882,10 +882,85 @@ class OctanePostProcessingSettings(bpy.types.PropertyGroup, common.OctanePropert
     spectral_shift: FloatProperty(
         name="Spectral shift",
         description="Spectral shift",
-        min=0.0, soft_min=0.0, max=6.0, soft_max=6.0,
+        min=-340282346638528859811704183484516925440.000000, soft_min=0.0, max=340282346638528859811704183484516925440.000000, soft_max=6.0,
         default=2.0,
         step=10,
         precision=3,
+    )
+    spread_start: FloatProperty(
+        name="Spread start",
+        default=0.01,
+        description="The minimum blur radius for bloom/glare, as a proportion of image width or height (whichever is larger).\n\nIdeally this should be set to correspond to about half a pixel (i.e. 0.5 / max(width, height) * 100%) at the maximum resolution you will be using. Too large a value will produce an overly blurry result without fine details. Too small a value will reduce the maximum possible strength of the bloom/glare",
+        min=0.0005, max=1.0000, soft_min=0.0050, soft_max=0.1000, step=1, precision=3, subtype="PERCENTAGE",
+    )
+    spread_end: FloatProperty(
+        name="Spread end",
+        default=100.0,
+        description="The maximum blur radius for bloom/glare, as a proportion of image width or height (whichever is larger)",
+        min=0.1000, max=200.000000, soft_min=0.1000, soft_max=100.000000, step=1, precision=3, subtype="PERCENTAGE",
+    )
+    chromatic_aberration_intensity: FloatProperty(
+        name="Chromatic aberration intensity",
+        default=0.0,
+        description="Chromatic aberration intensity",
+        min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR",
+    )
+    lens_flare: FloatProperty(
+        name="Lens flare intensity",
+        default=0.0,
+        description="Lens flare intensity",
+        min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR",
+    )
+    lens_flare_extent: FloatProperty(
+        name="Lens flare extent",
+        default=2.0,
+        description="Lens flare extent. This controls the overall length and distances between lens flare highlights",
+        min=0.000000, max=10.000000, soft_min=0.000000, soft_max=10.000000, step=1, precision=2, subtype="FACTOR",
+    )
+    light_beams: BoolProperty(
+        name="Light beams",
+        default=False, description="Enables postfx light beams for all configured light sources in the scene",
+    )
+    medium_density_for_postfx_light_beams: FloatProperty(
+        name="Medium density for postfx light beams",
+        default=1.000000, 
+        description="Medium density for postfx light beams", 
+        min=0.000100, max=10000.000000, soft_min=0.000100, soft_max=10000.000000, step=1, precision=2, subtype="NONE",
+    )
+    enable_fog: BoolProperty(
+        name="Fog",
+        default=False, 
+        description="Enables postfx fog",
+    )
+    fog_strength: FloatProperty(
+        name="Fog strength",
+        default=0.100000, 
+        description="Fog strength. Only effective when postfx media option is true", 
+        min=0.000100, max=10000.000000, soft_min=0.000100, soft_max=10000.000000, step=1, precision=2, subtype="NONE",
+    )
+    fog_height_descend: FloatProperty(
+        name="Fog height descend",
+        default=0.050000, 
+        description="Fog height descending factor. Only effective when postfx media option is true", 
+        min=0.010000, max=10.000000, soft_min=0.010000, soft_max=10.000000, step=1, precision=2, subtype="NONE",
+    )
+    fog_env_contribution: FloatProperty(
+        name="Fog environment contribution",
+        default=1.000000, 
+        description="Controls how strong fog color is contributed from environment with a base of user selected color", 
+        min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR",
+    )
+    base_fog_color: FloatVectorProperty(
+        name="Base fog color",
+        default=(1.000000, 1.000000, 1.000000), 
+        description="The base color for fog contribution",
+        min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3,
+    )
+    medium_radius: FloatProperty(
+        name="Medium radius",
+        default=1.000000, 
+        description="Radius of the post volume. The post volume acts as a sphere around the camera position with the specified radius",
+        min=0.000000, max=100000.000000, soft_min=0.000000, soft_max=100000.000000, step=1, precision=2, subtype="NONE",
     )
 
     def update_legacy_data(self, context, legacy_data, is_viewport=None):
@@ -907,9 +982,29 @@ class OctanePostProcessingSettings(bpy.types.PropertyGroup, common.OctanePropert
         col.prop(self, "glare_ray_amount")
         col.prop(self, "glare_angle")
         col.prop(self, "glare_blur")
+        col.prop(self, "spread_start")
+        col.prop(self, "spread_end")
         col.prop(self, "spectral_intencity")
         col.prop(self, "spectral_shift")
 
+    def draw_post_lens_effect(self, context, layout, is_viewport=None):
+        col = layout.column()
+        col.use_property_split = True
+        col.prop(self, "chromatic_aberration_intensity")
+        col.prop(self, "lens_flare")
+        col.prop(self, "lens_flare_extent")
+
+    def draw_post_volume_effects(self, context, layout, is_viewport=None):
+        col = layout.column()
+        col.use_property_split = True
+        col.prop(self, "light_beams")
+        col.prop(self, "medium_density_for_postfx_light_beams")
+        col.prop(self, "enable_fog")
+        col.prop(self, "fog_strength")
+        col.prop(self, "fog_height_descend")
+        col.prop(self, "fog_env_contribution")
+        col.prop(self, "base_fog_color")
+        col.prop(self, "medium_radius")
 
 #############################################
 ##### LEGACY OctaneAIUpSamplertSettings #####
@@ -2611,7 +2706,7 @@ class AddPresetCameraPostprocess(AddPresetBase, Operator):
     preset_defines = [
         "octane = bpy.context.camera.octane.post_processing"
     ]
-    preset_values = ["octane." + item for item in (OctanePostProcessingSettings.PROPERTY_CONFIGS[consts.NodeType.NT_POSTPROCESSING])]
+    preset_values = ["octane." + item for item in (OctanePostProcessingSettings.PROPERTY_CONFIGS[consts.NodeType.NT_POSTPROCESSING] + OctanePostProcessingSettings.PROPERTY_CONFIGS[consts.NodeType.NT_POST_VOLUME])]
     preset_subdir = "octane/postprocess_presets"
 
 
@@ -2623,7 +2718,7 @@ class AddPresetViewportPostprocess(AddPresetBase, Operator):
     preset_defines = [
         "octane = bpy.context.scene.oct_view_cam.post_processing"
     ]
-    preset_values = ["octane." + item for item in (OctanePostProcessingSettings.PROPERTY_CONFIGS[consts.NodeType.NT_POSTPROCESSING])]
+    preset_values = ["octane." + item for item in (OctanePostProcessingSettings.PROPERTY_CONFIGS[consts.NodeType.NT_POSTPROCESSING] + OctanePostProcessingSettings.PROPERTY_CONFIGS[consts.NodeType.NT_POST_VOLUME])]
     preset_subdir = "octane/3dpostprocess_presets"
 
 

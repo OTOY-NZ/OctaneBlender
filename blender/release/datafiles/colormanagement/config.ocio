@@ -69,7 +69,6 @@ active_views: [Standard, Filmic, Filmic Log, Raw, False Color]
 colorspaces:
   - !<ColorSpace>
     name: Linear
-    aliases: [Linear Rec.709]
     family: linear
     equalitygroup:
     bitdepth: 32f
@@ -86,7 +85,6 @@ colorspaces:
 
   - !<ColorSpace>
     name: Linear ACES
-    aliases: [ACES2065-1]
     family: linear
     equalitygroup:
     bitdepth: 32f
@@ -100,7 +98,6 @@ colorspaces:
 
   - !<ColorSpace>
     name: Linear ACEScg
-    aliases: [ACEScg]
     family: linear
     equalitygroup:
     bitdepth: 32f
@@ -126,7 +123,6 @@ colorspaces:
 
   - !<ColorSpace>
     name: XYZ
-    aliases: [Linear CIE-XYZ D65]
     family: linear
     equalitygroup:
     bitdepth: 32f

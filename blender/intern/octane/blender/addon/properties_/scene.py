@@ -1426,15 +1426,11 @@ class OctaneRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
         description="",
         default=False,
     )
-    def update_info_pass_max_samples(self, context):
-        oct_scene = context.scene.octane
-        oct_scene.info_pass_max_samples = self.info_pass_max_samples
     info_pass_max_samples: IntProperty(
         name="Info pass max samples",
         description="The maximum number of samples for the info passes (excluding AO)",
         min=1, max=1024,
         default=128,
-        update=update_info_pass_max_samples,
     )
     info_pass_sampling_mode: EnumProperty(
         name="Sampling mode",
@@ -1603,19 +1599,45 @@ class OctaneRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
         ("28", "Light pass 6", "Light pass 6", 28),
         ("29", "Light pass 7", "Light pass 7", 29),
         ("30", "Light pass 8", "Light pass 8", 30),
+        ("85", "Light pass 9", "Light pass 9", 85),
+        ("86", "Light pass 10", "Light pass 10", 86),
+        ("87", "Light pass 11", "Light pass 11", 87),
+        ("88", "Light pass 12", "Light pass 12", 88),
+        ("89", "Light pass 13", "Light pass 13", 89),
+        ("90", "Light pass 14", "Light pass 14", 90),
+        ("91", "Light pass 15", "Light pass 15", 91),
+        ("92", "Light pass 16", "Light pass 16", 92),
+        ("93", "Light pass 17", "Light pass 17", 93),
+        ("94", "Light pass 18", "Light pass 18", 94),
+        ("95", "Light pass 19", "Light pass 19", 95),
+        ("96", "Light pass 20", "Light pass 20", 96),        
+        (None),
         ("54", "Ambient light direct", "Ambient light direct pass", 54),
-        ("55", "Ambient light indirect", "Ambient light indirect pass", 55),
         ("56", "Sunlight direct", "Sunlight direct pass", 56),
-        ("57", "Sunlight indirect", "Sunlight indirect pass", 57),
-        ("58", "Light pass 1 direct", "Light pass 1 direct", 58),    
+        ("58", "Light pass 1 direct", "Light pass 1 direct", 58),
         ("59", "Light pass 2 direct", "Light pass 2 direct", 59),
         ("60", "Light pass 3 direct", "Light pass 3 direct", 60),
         ("61", "Light pass 4 direct", "Light pass 4 direct", 61),
         ("62", "Light pass 5 direct", "Light pass 5 direct", 62),
         ("63", "Light pass 6 direct", "Light pass 6 direct", 63),
         ("64", "Light pass 7 direct", "Light pass 7 direct", 64),
-        ("65", "Light pass 8 direct", "Light pass 8 direct", 65),   
-        ("66", "Light pass 1 indirect", "Light pass 1 indirect", 66),    
+        ("65", "Light pass 8 direct", "Light pass 8 direct", 65),
+        ("97", "Light pass 9 direct", "Light pass 9 direct", 97),
+        ("98", "Light pass 10 direct", "Light pass 10 direct", 98),
+        ("99", "Light pass 11 direct", "Light pass 11 direct", 99),
+        ("100", "Light pass 12 direct", "Light pass 12 direct", 100),
+        ("101", "Light pass 13 direct", "Light pass 13 direct", 101),
+        ("102", "Light pass 14 direct", "Light pass 14 direct", 102),
+        ("103", "Light pass 15 direct", "Light pass 15 direct", 103),
+        ("104", "Light pass 16 direct", "Light pass 16 direct", 104),
+        ("105", "Light pass 17 direct", "Light pass 17 direct", 105),
+        ("106", "Light pass 18 direct", "Light pass 18 direct", 106),
+        ("107", "Light pass 19 direct", "Light pass 19 direct", 107),
+        ("108", "Light pass 20 direct", "Light pass 20 direct", 108),
+        (None),
+        ("55", "Ambient light indirect", "Ambient light indirect pass", 55),
+        ("57", "Sunlight indirect", "Sunlight indirect pass", 57),
+        ("66", "Light pass 1 indirect", "Light pass 1 indirect", 66),
         ("67", "Light pass 2 indirect", "Light pass 2 indirect", 67),
         ("68", "Light pass 3 indirect", "Light pass 3 indirect", 68),
         ("69", "Light pass 4 indirect", "Light pass 4 indirect", 69),
@@ -1623,6 +1645,18 @@ class OctaneRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
         ("71", "Light pass 6 indirect", "Light pass 6 indirect", 71),
         ("72", "Light pass 7 indirect", "Light pass 7 indirect", 72),
         ("73", "Light pass 8 indirect", "Light pass 8 indirect", 73),
+        ("109", "Light pass 9 indirect", "Light pass 9 indirect", 109),
+        ("110", "Light pass 10 indirect", "Light pass 10 indirect", 110),
+        ("111", "Light pass 11 indirect", "Light pass 11 indirect", 111),
+        ("112", "Light pass 12 indirect", "Light pass 12 indirect", 112),
+        ("113", "Light pass 13 indirect", "Light pass 13 indirect", 113),
+        ("114", "Light pass 14 indirect", "Light pass 14 indirect", 114),
+        ("115", "Light pass 15 indirect", "Light pass 15 indirect", 115),
+        ("116", "Light pass 16 indirect", "Light pass 16 indirect", 116),
+        ("117", "Light pass 17 indirect", "Light pass 17 indirect", 117),
+        ("118", "Light pass 18 indirect", "Light pass 18 indirect", 118),
+        ("119", "Light pass 19 indirect", "Light pass 19 indirect", 119),
+        ("120", "Light pass 20 indirect", "Light pass 20 indirect", 120),
         (None),
         ("1000", "Geometric normals", "Geometric normals pass", 1000),
         ("1001", "Shading normals", "Shading normals pass", 1001),
@@ -1780,11 +1814,6 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
         items=kernel_data_modes,
         default="PROPERTY_PANEL",
     )
-    kernel_json_node_tree_helper: StringProperty(
-        name="Kernel Json Node Tree",
-        default="",
-        maxlen=65535,
-    )    
 
 # ################################################################################################
 # OCTANE ANIMATION SETTINGS
@@ -2098,13 +2127,13 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
     out_of_core_enable: BoolProperty(
         name="Enable out of core",
         description="Tick to enable Octane out of core",
-        default=False,
+        default=True,
     )
     out_of_core_limit: IntProperty(
         name="Out of core memory limit (MB)",
         description="Maximal amount of memory to be used for out-of-core textures",
         min=1,
-        default=4096,
+        default=8192,
     )
     out_of_core_gpu_headroom: IntProperty(
         name="GPU headroom (MB)",
@@ -2941,6 +2970,12 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
         min=0, max=2000, 
         default=45,
     )
+    octane_export_jpeg_quality: IntProperty(
+        name="Quality",
+        description="Jpeg quality",
+        min=1, max=100, 
+        default=75,
+    )
     use_octane_export: BoolProperty(
         name="Enable Octane Export",
         description="Enable Octane Export",
@@ -2971,6 +3006,8 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
     )
     octane_export_file_types = (
         ("PNG", "PNG", "", 0),
+        ("JPEG", "JPEG", "", 2),
+        ("TIFF", "TIFF", "", 3),
         ("EXR", "EXR", "", 1),
     )    
     octane_export_file_type: EnumProperty(
@@ -2979,24 +3016,36 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
         items=octane_export_file_types,
         default="PNG",
     )    
-    octane_png_bit_depth_modes = (
+    octane_integer_bit_depth_modes = (
         ("8_BIT", "8-bit(integer)", "8-bit(integer)(default)", 0),
         ("16_BIT", "16-bit(integer)", "16-bit(integer)", 1),
     )
     octane_png_bit_depth: EnumProperty(
         name="Bit depth",
         description="Bit depth",
-        items=octane_png_bit_depth_modes,
+        items=octane_integer_bit_depth_modes,
         default="8_BIT",
     )
-    octane_exr_bit_depth_modes = (
+    octane_integer_bit_depth: EnumProperty(
+        name="Bit depth",
+        description="Bit depth",
+        items=octane_integer_bit_depth_modes,
+        default="8_BIT",
+    )
+    octane_float_bit_depth_modes = (
         ("16_BIT", "16-bit(floating point)", "16-bit(floating point)(default)", 0),
         ("32_BIT", "32-bit(floating point)", "32-bit(floating point)", 1),
     )
     octane_exr_bit_depth: EnumProperty(
         name="Bit depth",
         description="Bit depth",
-        items=octane_exr_bit_depth_modes,
+        items=octane_float_bit_depth_modes,
+        default="16_BIT",
+    )
+    octane_float_bit_depth: EnumProperty(
+        name="Bit depth",
+        description="Bit depth",
+        items=octane_float_bit_depth_modes,
         default="16_BIT",
     )
     octane_exr_compression_modes = (
@@ -3027,6 +3076,18 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
         description="Deep EXR compression type",
         items=octane_deep_exr_compression_modes,
         default="ZIPS_LOSSLESS",
+    )
+    octane_tiff_compression_modes = (
+        ("TIFF_COMPRESSION_NO_COMPRESSION", "Uncompressed", "no compression", 1),
+        ("TIFF_COMPRESSION_DEFLATE", "Zlib(deflate)", "zlib compression", 2),
+        ("TIFF_COMPRESSION_LZW", "LZW", "lzw compression", 3),
+        ("TIFF_COMPRESSION_PACK_BITS", "Packbits", "packbits compression", 4),
+    )
+    octane_tiff_compression_mode: EnumProperty(
+        name="Compression",
+        description="Compression type for TIFF file export",
+        items=octane_tiff_compression_modes,
+        default="TIFF_COMPRESSION_LZW",
     )
     white_light_spectrum_modes = (
         ('D65', "D65", "D65", 1),
@@ -3170,24 +3231,110 @@ class AddPresetRenderPasses(AddPresetBase, Operator):
     preset_subdir = "octane/renderpasses_presets"
 
 
-class AddPresetKernel(AddPresetBase, Operator):
-    """Add Octane Kernel preset"""
-    bl_idname = "render.octane_kernel_preset_add"
-    bl_label = "Add Kernel preset"
-    preset_menu = "OCTANE_MT_kernel_presets"
+class AddPresetLegacyKernel(AddPresetBase, Operator):
+    """Add Octane Legacy Kernel preset"""
+    bl_idname = "render.octane_legacy_kernel_preset_add"
+    bl_label = "Add Legacy Kernel preset"
+    preset_menu = "OCTANE_MT_legacy_kernel_presets"
     preset_defines = [
         "octane = bpy.context.scene.octane"
     ]
     preset_values = [
-        "octane.kernel_json_node_tree_helper",
+        "octane.devices",
+        "octane.kernel_type",
+        "octane.max_samples",
+        "octane.max_preview_samples",
+        "octane.gi_mode",
+        "octane.clay_mode",
+        "octane.ao_texture",
+        "octane.info_channel_type",
+        "octane.parallel_samples",
+        "octane.max_tile_samples",
+        "octane.zdepth_max",
+        "octane.uv_max",
+        "octane.max_speed",
+        "octane.opacity_threshold",
+        "octane.sampling_mode",
+        "octane.max_diffuse_depth",
+        "octane.max_glossy_depth",
+        "octane.max_scatter_depth",
+        "octane.caustic_blur",
+        "octane.gi_clamp",
+        "octane.alpha_channel",
+        "octane.wf_bkface_hl",
+        "octane.ao_alpha_shadows",
+        "octane.minimize_net_traffic",
+        "octane.emulate_old_volume_behavior",
+        "octane.specular_depth",
+        "octane.glossy_depth",
+        "octane.diffuse_depth",
+        "octane.ao_dist",
+        "octane.filter_size",
+        "octane.ray_epsilon",
+        "octane.exploration",
+        "octane.direct_light_importance",
+        "octane.max_rejects",
+        "octane.parallelism",
+        "octane.work_chunk_size",
+        "octane.coherent_ratio",
+        "octane.max_depth_samples",
+        "octane.depth_tolerance",
+        "octane.static_noise",
+        "octane.deep_image",
+        "octane.path_term_power",
+        "octane.keep_environment",
+        "octane.irradiance_mode",
+        "octane.ai_light_enable",
+        "octane.ai_light_update",
+        "octane.ai_light_strength",
+        "octane.alpha_shadows",
+        "octane.bump_normal_mapping",
+        "octane.light_id_sunlight",
+        "octane.light_id_env",
+        "octane.light_id_pass_1",
+        "octane.light_id_pass_2",
+        "octane.light_id_pass_3",
+        "octane.light_id_pass_4",
+        "octane.light_id_pass_5",
+        "octane.light_id_pass_6",
+        "octane.light_id_pass_7",
+        "octane.light_id_pass_8",
+        "octane.light_id_sunlight_invert",
+        "octane.light_id_env_invert",
+        "octane.light_id_pass_1_invert",
+        "octane.light_id_pass_2_invert",
+        "octane.light_id_pass_3_invert",
+        "octane.light_id_pass_4_invert",
+        "octane.light_id_pass_5_invert",
+        "octane.light_id_pass_6_invert",
+        "octane.light_id_pass_7_invert",
+        "octane.light_id_pass_8_invert",
     ]
-    preset_subdir = "octane/kernel_presets"
+    preset_subdir = "octane/kernel"
 
-    def pre_cb(self, context):
-        scene = context.scene
-        octane_scene = scene.octane
-        node_tree = utility.find_active_kernel_node_tree(scene)
-        octane_scene.kernel_json_node_tree_helper = utility.dump_json_node_tree(node_tree)
+
+class ExecutePresetLegacyKernel(ExecutePreset):
+    bl_label = "Execute Preset Legacy Kernel"
+    bl_idname = "script.execute_preset_legacy_kernel"
+
+    def execute(self, context):
+        from os.path import basename
+        from octane.utils import utility
+        result = super().execute(context)
+        preset_name = bpy.path.display_name(basename(self.filepath), title_case=False)
+        octane_scene = bpy.context.scene.octane
+        utility.quick_add_octane_kernel_node_tree(assign_to_kernel_node_graph=True, generate_from_legacy_octane_property=True, preset_name=preset_name)
+        octane_scene.kernel_data_mode = "NODETREE"
+        return result
+
+
+class ExecutePresetOctaneBase(ExecutePreset):
+    bl_label = "Execute Preset Octane"
+    bl_idname = "script.execute_preset_octane"
+
+    def execute(self, context):
+        result = super().execute(context)
+        return result
 
 
 _CLASSES = [
@@ -3203,7 +3350,9 @@ _CLASSES = [
     OctaneRenderLayer,
     OctaneRenderSettings,
     AddPresetRenderPasses,
-    AddPresetKernel,
+    AddPresetLegacyKernel,
+    ExecutePresetLegacyKernel,
+    ExecutePresetOctaneBase,
 ]
 
 

@@ -3,11 +3,14 @@ import bpy
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
 from octane.utils import utility, consts
-from octane.nodes.base_node import OctaneBaseNode
-from octane.nodes.base_kernel import OctaneBaseKernelNode
-from octane.nodes.base_osl import OctaneScriptNode
-from octane.nodes.base_image import OctaneBaseImageNode
+from octane.nodes import base_switch_input_socket
 from octane.nodes.base_color_ramp import OctaneBaseRampNode
+from octane.nodes.base_curve import OctaneBaseCurveNode
+from octane.nodes.base_image import OctaneBaseImageNode
+from octane.nodes.base_kernel import OctaneBaseKernelNode
+from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_switch import OctaneBaseSwitchNode
 from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
@@ -107,7 +110,7 @@ class OctaneCompositeMaterial(bpy.types.Node, OctaneBaseNode):
     octane_attribute_config={"a_material_count": [consts.AttributeID.A_MATERIAL_COUNT, "materialCount", consts.AttributeType.AT_INT], "a_input_action": [consts.AttributeID.A_INPUT_ACTION, "inputAction", consts.AttributeType.AT_INT2], }
     octane_static_pin_count=3
 
-    a_material_count: IntProperty(name="Material count", default=0, update=OctaneBaseNode.update_node_tree, description="The number of materials to mix. Two pins per new material are created and appended to the end")
+    a_material_count: IntProperty(name="Material count", default=0, update=OctaneBaseNode.update_node_tree, description="The number of materials to mix. Three pins per new material are created and appended to the end")
 
     def init(self, context):
         self.inputs.new("OctaneCompositeMaterialDisplacement", OctaneCompositeMaterialDisplacement.bl_label).init()
@@ -152,16 +155,29 @@ class OctaneCompositeMaterialMaterialMaskMovableInput(OctanePatternInput):
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
 
 
-class OctaneCompositeMaterialMaterialMovableInput(OctaneMovableInput):
+class OctaneCompositeMaterialMaterialMovableInput(OctanePatternInput):
     bl_idname="OctaneCompositeMaterialMaterialMovableInput"
     bl_label="Material"
-    octane_movable_input_count_attribute_name="a_material_count"
     octane_input_pattern=r"Material (\d+)"
     octane_input_format_pattern="Material {}"
-    octane_sub_movable_inputs=[OctaneCompositeMaterialMaterialMaskMovableInput, ]
     color=consts.OctanePinColor.Material
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_MATERIAL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+
+
+class OctaneCompositeMaterialMaterialEnabledMovableInput(OctaneMovableInput):
+    bl_idname="OctaneCompositeMaterialMaterialEnabledMovableInput"
+    bl_label="Material Enabled"
+    octane_movable_input_count_attribute_name="a_material_count"
+    octane_input_pattern=r"Mat (\d+) enabled"
+    octane_input_format_pattern="Mat {} enabled"
+    octane_sub_movable_inputs=[OctaneCompositeMaterialMaterialMovableInput, OctaneCompositeMaterialMaterialMaskMovableInput, ]
+    color=consts.OctanePinColor.Bool
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
+    default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Whether this material is applied or skipped")
+    octane_dynamic_pin_socket_type: IntProperty(default=consts.SocketType.ST_BOOL) 
+    octane_hide_value=False
 
 
 class OctaneCompositeMaterial_Override(OctaneCompositeMaterial):
@@ -170,12 +186,12 @@ class OctaneCompositeMaterial_Override(OctaneCompositeMaterial):
 
     def init(self, context):
         super().init(context)
-        self.init_movable_inputs(context, OctaneCompositeMaterialMaterialMovableInput, self.DEFAULT_MATERIAL_COUNT)
+        self.init_movable_inputs(context, OctaneCompositeMaterialMaterialEnabledMovableInput, self.DEFAULT_MATERIAL_COUNT)
 
     def draw_buttons(self, context, layout):
-        self.draw_movable_inputs(context, layout, OctaneCompositeMaterialMaterialMovableInput, self.MAX_MATERIAL_COUNT)
+        self.draw_movable_inputs(context, layout, OctaneCompositeMaterialMaterialEnabledMovableInput, self.MAX_MATERIAL_COUNT)
 
 
-_ADDED_CLASSES = [OctaneCompositeMaterialMaterialMaskMovableInput, OctaneCompositeMaterialMaterialMovableInput, ]
+_ADDED_CLASSES = [OctaneCompositeMaterialMaterialMaskMovableInput, OctaneCompositeMaterialMaterialMovableInput, OctaneCompositeMaterialMaterialEnabledMovableInput, ]
 _CLASSES = _ADDED_CLASSES + _CLASSES
 utility.override_class(_CLASSES, OctaneCompositeMaterial, OctaneCompositeMaterial_Override)   

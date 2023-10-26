@@ -167,6 +167,12 @@ class OCTANE_PT_mesh_properties(OctaneButtonsPanel, Panel):
         sub = box.column(align=True)     
         sub.prop(cdata, "imported_orbx_file_path")
         sub = box.row(align=True)
+        sub.prop(cdata, "enable_animation_time_transformation")
+        sub = box.row(align=True)
+        sub.prop(cdata, "animation_time_transformation_delay")
+        sub = box.row(align=True)
+        sub.prop(cdata, "animation_time_transformation_scale")
+        sub = box.row(align=True)
         sub.prop(cdata, "orbx_preview_type")
         if cdata.orbx_preview_type == "External Alembic":
             sub = box.row(align=True)
@@ -178,7 +184,9 @@ class OCTANE_PT_mesh_properties(OctaneButtonsPanel, Panel):
         sub.operator("octane.generate_orbx_preview")
 
         box = layout.box()
-        box.label(text="Mesh volume SDF")
+        box.label(text="Mesh volume")
+        sub = box.row(align=True)
+        sub.prop(cdata, "enable_mesh_volume")
         sub = box.row(align=True)
         sub.prop(cdata, "enable_mesh_volume_sdf")
         sub = box.row(align=True)
@@ -237,6 +245,8 @@ class OCTANE_PT_volume_properties(OctaneButtonsPanel, Panel):
         sub.prop(cdata, "apply_import_scale_to_blender_transfrom")
         sub = box.column(align=True)
         sub.prop(cdata, "vdb_iso")
+        sub.prop(cdata, "border_thickness_inside")
+        sub.prop(cdata, "border_thickness_outside")
         sub.prop(cdata, "vdb_abs_scale")
         sub.prop(cdata, "vdb_emiss_scale")        
         sub.prop(cdata, "vdb_scatter_scale")             
@@ -486,20 +496,34 @@ class OCTANE_OBJECT_PT_octane_settings_object_layer(OctaneButtonsPanel, Panel):
         sub.prop(octane_object, "dirt_visibility")
         sub.prop(octane_object, "curvature_visibility")
 
-        split = layout.split(factor=0.15)
-        split.use_property_split = False
-        split.label(text="Light pass mask")
-        row = split.row(align=True)       
+        box = layout.box()
+        box.label(text="Light pass mask")
+        row = box.row(align=True)
         row.prop(octane_object, "light_id_sunlight", text="S", toggle=True)
         row.prop(octane_object, "light_id_env", text="E", toggle=True)
         row.prop(octane_object, "light_id_pass_1", text="1", toggle=True)
         row.prop(octane_object, "light_id_pass_2", text="2", toggle=True)
-        row.prop(octane_object, "light_id_pass_3", text="3", toggle=True)        
+        row.prop(octane_object, "light_id_pass_3", text="3", toggle=True)
         row.prop(octane_object, "light_id_pass_4", text="4", toggle=True)
         row.prop(octane_object, "light_id_pass_5", text="5", toggle=True)
         row.prop(octane_object, "light_id_pass_6", text="6", toggle=True)
         row.prop(octane_object, "light_id_pass_7", text="7", toggle=True)
-        row.prop(octane_object, "light_id_pass_8", text="8", toggle=True)        
+        row.prop(octane_object, "light_id_pass_8", text="8", toggle=True)
+        row = box.row(align=True)
+        row.prop(octane_object, "light_id_pass_9", text="9", toggle=True)
+        row.prop(octane_object, "light_id_pass_10", text="10", toggle=True)
+        row.prop(octane_object, "light_id_pass_11", text="11", toggle=True)
+        row.prop(octane_object, "light_id_pass_12", text="12", toggle=True)
+        row.prop(octane_object, "light_id_pass_13", text="13", toggle=True)        
+        row.prop(octane_object, "light_id_pass_14", text="14", toggle=True)
+        row = box.row(align=True)
+        row.prop(octane_object, "light_id_pass_15", text="15", toggle=True)
+        row.prop(octane_object, "light_id_pass_16", text="16", toggle=True)
+        row.prop(octane_object, "light_id_pass_17", text="17", toggle=True)
+        row.prop(octane_object, "light_id_pass_18", text="18", toggle=True)
+        row.prop(octane_object, "light_id_pass_19", text="19", toggle=True)
+        row.prop(octane_object, "light_id_pass_20", text="20", toggle=True)
+        
         sub = layout.row(align=True)
         sub.prop(octane_object, "random_color_seed")
         sub = layout.row(align=True)
@@ -558,26 +582,28 @@ class OCTANE_RENDER_PT_output(OctaneButtonsPanel, Panel):
         col = layout.column(align=True)
         col.use_property_split = True
         col.use_property_decorate = False
-        is_png_file_type = False
         if oct_scene.octane_export_mode == "SEPARATE_IMAGE_FILES":
             col.prop(oct_scene, "octane_export_file_type")
-            if oct_scene.octane_export_file_type == "PNG":
-                is_png_file_type = True
-                col.prop(oct_scene, "octane_png_bit_depth")
+            if oct_scene.octane_export_file_type in ("PNG", "TIFF"):
+                col.prop(oct_scene, "octane_integer_bit_depth")
             elif oct_scene.octane_export_file_type == "EXR":
-                col.prop(oct_scene, "octane_exr_bit_depth")
+                col.prop(oct_scene, "octane_float_bit_depth")
         else:
             col.label(text="Exported File type: EXR")
-            col.prop(oct_scene, "octane_exr_bit_depth")
-        ocio_export_color_space_configs = "ocio_export_png_color_space_configs" if is_png_file_type else "ocio_export_exr_color_space_configs"        
+            col.prop(oct_scene, "octane_float_bit_depth")
+        ocio_export_color_space_configs = "ocio_export_png_color_space_configs" if oct_scene.octane_export_file_type in ("PNG", "TIFF", "JPEG") else "ocio_export_exr_color_space_configs"        
         col.prop_search(oct_scene, "gui_octane_export_ocio_color_space_name", preferences, ocio_export_color_space_configs)
-        if is_png_file_type:
+        if oct_scene.octane_export_file_type in ("PNG", "TIFF", "JPEG"):
             if oct_scene.gui_octane_export_ocio_color_space_name not in (" sRGB(default) ", ""):
                 col.prop_search(oct_scene, "gui_octane_export_ocio_look", preferences, "ocio_export_look_configs")
                 row = col.row(heading="Force use tone map")
                 row.prop(oct_scene, "octane_export_force_use_tone_map", text="")
+            if oct_scene.octane_export_file_type == "TIFF":
                 row = col.row(heading="Premultiplied Aplha")
                 row.prop(oct_scene, "octane_export_premultiplied_alpha", text="")
+                col.prop(oct_scene, "octane_tiff_compression_mode")
+            if oct_scene.octane_export_file_type == "JPEG":
+                col.prop(oct_scene, "octane_export_jpeg_quality")
         else:
             if oct_scene.gui_octane_export_ocio_color_space_name not in (" Linear sRGB(default) ", " ACES2065-1 ", " ACEScg ", ""):
                 col.prop_search(oct_scene, "gui_octane_export_ocio_look", preferences, "ocio_export_look_configs")

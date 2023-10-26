@@ -1173,17 +1173,23 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOInt)		iUVCoordinateSelection,
 		(OctaneDTOFloat)	fMaxSpeed,
 		(OctaneDTOFloat)	fAODistance,
-		(OctaneDTOBool)		bAOAlphaShadows
+		(OctaneDTOBool)		bAOAlphaShadows,
+		(OctaneDTOFloat)	fInfoPassZDepthEnvironment,
+		(OctaneDTOBool)		bShadingEnabled,
+		(OctaneDTOBool)		bHighlightBackfaces
 		)
 		OctaneDTOInt		iBeautyPasses;
 		OctaneDTOInt		iDenoiserPasses;
 		OctaneDTOInt		iPostProcessingPasses;
 		OctaneDTOInt		iRenderLayerPasses;
 		OctaneDTOInt		iLightingPasses;
+    OctaneDTOInt		iLightingDirectPasses;
+    OctaneDTOInt		iLightingIndirectPasses;
 		OctaneDTOInt		iCryptomattePasses;
 		OctaneDTOInt		iInfoPasses;
 		OctaneDTOInt		iMaterialPasses;
 		OctaneDTOBool		bUseRenderAOV;
+    OctaneDTOString		sRenderPassesLibraryOrbxPath;
 		OctaneDTOString		sRenderAOVRootNode;
 
 		OctaneRenderPasses() :
@@ -1202,6 +1208,9 @@ namespace OctaneDataTransferObject {
 			fMaxSpeed("info_pass_max_speed"),
 			fAODistance("info_pass_ao_distance"),
 			bAOAlphaShadows("info_pass_alpha_shadows"),
+      fInfoPassZDepthEnvironment("info_pass_z_depth_environment"),
+      bShadingEnabled("shading_enabled"),
+      bHighlightBackfaces("highlight_backfaces"),
 			OctaneNodeBase(Octane::NT_RENDER_PASSES, "OctaneRenderPasses")
 		{
 			sName = OCTANE_BLENDER_RENDER_PASS_NODE;
@@ -1225,15 +1234,21 @@ namespace OctaneDataTransferObject {
 				&& fMaxSpeed.fVal == other.fMaxSpeed.fVal
 				&& fAODistance.fVal == other.fAODistance.fVal
 				&& bAOAlphaShadows.bVal == other.bAOAlphaShadows.bVal
+        && fInfoPassZDepthEnvironment.fVal == other.fInfoPassZDepthEnvironment.fVal
+        && bShadingEnabled.bVal == other.bShadingEnabled.bVal
+        && bHighlightBackfaces.bVal == other.bHighlightBackfaces.bVal
 				&& iBeautyPasses.iVal == other.iBeautyPasses.iVal
 				&& iDenoiserPasses.iVal == other.iDenoiserPasses.iVal
 				&& iPostProcessingPasses.iVal == other.iPostProcessingPasses.iVal
 				&& iRenderLayerPasses.iVal == other.iRenderLayerPasses.iVal
 				&& iLightingPasses.iVal == other.iLightingPasses.iVal
+        && iLightingDirectPasses.iVal == other.iLightingDirectPasses.iVal
+        && iLightingIndirectPasses.iVal == other.iLightingIndirectPasses.iVal
 				&& iCryptomattePasses.iVal == other.iCryptomattePasses.iVal
 				&& iInfoPasses.iVal == other.iInfoPasses.iVal
 				&& iMaterialPasses.iVal == other.iMaterialPasses.iVal
 				&& bUseRenderAOV.bVal == other.bUseRenderAOV.bVal
+        && sRenderPassesLibraryOrbxPath.sVal == other.sRenderPassesLibraryOrbxPath.sVal
 				&& sRenderAOVRootNode.sVal == other.sRenderAOVRootNode.sVal;
 		}
 
@@ -1242,9 +1257,9 @@ namespace OctaneDataTransferObject {
 		OCTANE_NODE_POST_UPDATE_FUNCTIONS
 		MSGPACK_DEFINE(bUsePasses, iPreviewPass, bIncludeEnvironment, iCryptomatteBins, iCryptomatteSeedFactor,
 			iMaxInfoSample, iSamplingMode, bBumpAndNormalMapping, fOpacityThreshold, fZDepthMax, fUVMax, iUVCoordinateSelection,
-			fMaxSpeed, fAODistance, bAOAlphaShadows,
-			iBeautyPasses, iDenoiserPasses, iPostProcessingPasses, iRenderLayerPasses, iLightingPasses, iCryptomattePasses, iInfoPasses, iMaterialPasses,
-			bUseRenderAOV, sRenderAOVRootNode,
+			fMaxSpeed, fAODistance, bAOAlphaShadows, fInfoPassZDepthEnvironment, bShadingEnabled, bHighlightBackfaces,
+			iBeautyPasses, iDenoiserPasses, iPostProcessingPasses, iRenderLayerPasses, iLightingPasses, iLightingDirectPasses, iLightingIndirectPasses, iCryptomattePasses, iInfoPasses, iMaterialPasses,
+			bUseRenderAOV, sRenderPassesLibraryOrbxPath, sRenderAOVRootNode,
 			MSGPACK_BASE(OctaneNodeBase));
 	};
 
@@ -1297,11 +1312,13 @@ namespace OctaneDataTransferObject {
 		int							iImageType;
 		int							iExrCompressionType;
 		int							iDWACompressionLevel;
+		int							iTiffCompressionType;
+		int							iJpegQuality;
 		OctaneSaveImage() : OctaneNodeBase(Octane::ENT_SAVE_IMAGES, "OctaneSaveImage") {}
 
 		OCTANE_NODE_SERIALIZARION_FUNCTIONS
 		OCTANE_NODE_POST_UPDATE_FUNCTIONS
-		MSGPACK_DEFINE(sPath, sFileName, sOctaneTag, sPassNames, iPasses, sOCIOColorSpaceName, sOCIOLookName, bForceToneMapping, bPremultipleAlpha, iExportType, iImageType, iExrCompressionType, iDWACompressionLevel, MSGPACK_BASE(OctaneNodeBase));
+		MSGPACK_DEFINE(sPath, sFileName, sOctaneTag, sPassNames, iPasses, sOCIOColorSpaceName, sOCIOLookName, bForceToneMapping, bPremultipleAlpha, iExportType, iImageType, iExrCompressionType, iDWACompressionLevel, iTiffCompressionType, iJpegQuality, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneCameraData : public OctaneNodeBase {

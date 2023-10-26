@@ -15,6 +15,7 @@ from . import instance_position
 from . import sample_pos_to_uv
 from . import distorted_mesh_uv
 from . import matcap
+from . import projection_switch
 
 def register():
     cylindrical.register()
@@ -31,6 +32,7 @@ def register():
     sample_pos_to_uv.register()
     distorted_mesh_uv.register()
     matcap.register()
+    projection_switch.register()
 
 def unregister():
     cylindrical.unregister()
@@ -47,5 +49,6 @@ def unregister():
     sample_pos_to_uv.unregister()
     distorted_mesh_uv.unregister()
     matcap.unregister()
+    projection_switch.unregister()
 
 ##### END OCTANE GENERATED CODE BLOCK #####

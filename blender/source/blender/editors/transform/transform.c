@@ -636,9 +636,7 @@ static bool transform_modal_item_poll(const wmOperator *op, int value)
         return false;
       }
       if (value == TFM_MODAL_RESIZE && t->mode == TFM_RESIZE) {
-        /* The tracking transform in MovieClip has an alternate resize that only affects the
-         * tracker size and not the search area. */
-        return t->data_type == &TransConvertType_Tracking;
+        return false;
       }
       if (value == TFM_MODAL_VERT_EDGE_SLIDE &&
           (t->data_type != &TransConvertType_Mesh ||

@@ -3,11 +3,14 @@ import bpy
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
 from octane.utils import utility, consts
-from octane.nodes.base_node import OctaneBaseNode
-from octane.nodes.base_kernel import OctaneBaseKernelNode
-from octane.nodes.base_osl import OctaneScriptNode
-from octane.nodes.base_image import OctaneBaseImageNode
+from octane.nodes import base_switch_input_socket
 from octane.nodes.base_color_ramp import OctaneBaseRampNode
+from octane.nodes.base_curve import OctaneBaseCurveNode
+from octane.nodes.base_image import OctaneBaseImageNode
+from octane.nodes.base_kernel import OctaneBaseKernelNode
+from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_switch import OctaneBaseSwitchNode
 from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
@@ -54,8 +57,8 @@ class OctaneUnaryMathOperationOperationType(OctaneBaseSocket):
         ("Functions|Reciprocal [1/x]", "Functions|Reciprocal [1/x]", "", 21),
         ("Functions|Sign", "Functions|Sign", "", 23),
         ("Functions|Square root [sqrt(x)]", "Functions|Square root [sqrt(x)]", "", 26),
-        ("Conversion|Degrees", "Conversion|Degrees", "", 7),
-        ("Conversion|Radians", "Conversion|Radians", "", 20),
+        ("Conversion|Degrees to radians", "Conversion|Degrees to radians", "", 20),
+        ("Conversion|Radians to degrees", "Conversion|Radians to degrees", "", 7),
         ("Rounding|Round", "Rounding|Round", "", 22),
         ("Rounding|Round down", "Rounding|Round down", "", 11),
         ("Rounding|Round up", "Rounding|Round up", "", 4),

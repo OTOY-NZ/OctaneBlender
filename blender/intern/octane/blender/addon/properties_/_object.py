@@ -38,11 +38,6 @@ custom_aov_channel_modes = (
     ('Blue', "Blue", "Blue", 3),
 )
 
-octane_point_light_types = (
-    ("Toon Point", "Toon Point", "Toon Point", 0),
-    ("Sphere", "Sphere", "Sphere", 1),
-)
-
 
 class OctaneObjectSettings(bpy.types.PropertyGroup):
     render_layer_id: IntProperty(
@@ -140,7 +135,67 @@ class OctaneObjectSettings(bpy.types.PropertyGroup):
         description="Pass 8",
         default=True,
     )      
-
+    light_id_pass_9: BoolProperty(
+            name="Pass 9",
+            description="Pass 9",
+            default=True,
+            )
+    light_id_pass_10: BoolProperty(
+            name="Pass 10",
+            description="Pass 10",
+            default=True,
+            )
+    light_id_pass_11: BoolProperty(
+            name="Pass 11",
+            description="Pass 11",
+            default=True,
+            ) 
+    light_id_pass_12: BoolProperty(
+            name="Pass 12",
+            description="Pass 12",
+            default=True,
+            ) 
+    light_id_pass_13: BoolProperty(
+            name="Pass 13",
+            description="Pass 13",
+            default=True,
+            ) 
+    light_id_pass_14: BoolProperty(
+            name="Pass 14",
+            description="Pass 14",
+            default=True,
+            ) 
+    light_id_pass_15: BoolProperty(
+            name="Pass 15",
+            description="Pass 15",
+            default=True,
+            ) 
+    light_id_pass_16: BoolProperty(
+            name="Pass 16",
+            description="Pass 16",
+            default=True,
+            ) 
+    light_id_pass_17: BoolProperty(
+            name="Pass 17",
+            description="Pass 17",
+            default=True,
+            ) 
+    light_id_pass_18: BoolProperty(
+            name="Pass 18",
+            description="Pass 18",
+            default=True,
+            )
+    light_id_pass_19: BoolProperty(
+            name="Pass 19",
+            description="Pass 19",
+            default=True,
+            )
+    light_id_pass_20: BoolProperty(
+            name="Pass 20",
+            description="Pass 20",
+            default=True,
+            )
+    
     baking_group_id: IntProperty(
         name="Baking group ID",
         description="",
@@ -194,8 +249,8 @@ class OctaneObjectSettings(bpy.types.PropertyGroup):
         default=False,
     )
     use_deform_motion: BoolProperty(
-        name="Use Deformation Motion",        
-        description="Use deformation motion blur for this object\nWarning: \nAutosmooth or an object modifier that changes mesh topology over time may not render deformation motion blur correctly",
+        name="Use Deformation Motion",
+        description="Use deformation motion blur for this object",
         default=False,
     )
     motion_steps: IntProperty(
@@ -236,11 +291,40 @@ class OctaneObjectSettings(bpy.types.PropertyGroup):
 
 
 class OctaneLightSettings(bpy.types.PropertyGroup):
+    octane_point_light_types = (
+        ("Toon Point", "Toon Point", "Toon Point", 0),
+        ("Sphere", "Sphere", "Sphere", 1),
+        ("Analytical", "Analytical", "Analytical", 2),
+    )
+    octane_directional_light_types = (
+        ("Toon Directional", "Toon Directional", "Toon Directional", 0),
+        ("Directional", "Directional", "Directional", 1),
+    )
+    octane_analytical_light_types = (
+        ("Quad", "Quad", "Quad", 0),
+        ("Disk", "Disk", "Disk", 1),
+        # ("Directional", "Directional", "Directional", 2),
+        ("Sphere", "Sphere", "Sphere", 3),
+        ("Tube", "Tube", "Tube", 4),
+    )
+
     octane_point_light_type: EnumProperty(
         name="Used as Octane Point Light",
         description="Use this Light as Octane Toon Point Light or Sphere Light",
         items=octane_point_light_types,
         default="Toon Point",
+    )
+    octane_directional_light_type: EnumProperty(
+        name="Used as Octane Directional Light",
+        description="Use this Light as Octane Toon Directional Light or Directional Light",
+        items=octane_directional_light_types,
+        default="Toon Directional",
+    )
+    octane_analytical_light_type: EnumProperty(
+        name="Octane Analytical Light",
+        description="Use this Light as Octane Analytical Light",
+        items=octane_analytical_light_types,
+        default="Quad",
     )
     used_as_octane_mesh_light: BoolProperty(
         name="Used as Octane Mesh Light",

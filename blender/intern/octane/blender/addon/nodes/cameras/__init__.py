@@ -7,6 +7,7 @@ from . import baking_camera
 from . import osl_camera
 from . import osl_baking_camera
 from . import universal_camera
+from . import camera_switch
 
 def register():
     thin_lens_camera.register()
@@ -15,6 +16,7 @@ def register():
     osl_camera.register()
     osl_baking_camera.register()
     universal_camera.register()
+    camera_switch.register()
 
 def unregister():
     thin_lens_camera.unregister()
@@ -23,5 +25,6 @@ def unregister():
     osl_camera.unregister()
     osl_baking_camera.unregister()
     universal_camera.unregister()
+    camera_switch.unregister()
 
 ##### END OCTANE GENERATED CODE BLOCK #####

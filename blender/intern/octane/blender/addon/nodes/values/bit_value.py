@@ -3,11 +3,14 @@ import bpy
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
 from octane.utils import utility, consts
-from octane.nodes.base_node import OctaneBaseNode
-from octane.nodes.base_kernel import OctaneBaseKernelNode
-from octane.nodes.base_osl import OctaneScriptNode
-from octane.nodes.base_image import OctaneBaseImageNode
+from octane.nodes import base_switch_input_socket
 from octane.nodes.base_color_ramp import OctaneBaseRampNode
+from octane.nodes.base_curve import OctaneBaseCurveNode
+from octane.nodes.base_image import OctaneBaseImageNode
+from octane.nodes.base_kernel import OctaneBaseKernelNode
+from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_switch import OctaneBaseSwitchNode
 from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
@@ -58,7 +61,11 @@ def unregister():
 class OctaneLightIDBitValue(OctaneBitValue):
     bl_idname="OctaneLightIDBitValue"
     bl_label="Light IDs"
-    property_to_bits = ["sunlight", "environment", "light_pass_id_1", "light_pass_id_2", "light_pass_id_3", "light_pass_id_4", "light_pass_id_5", "light_pass_id_6", "light_pass_id_7", "light_pass_id_8"]
+    property_to_bits = ["sunlight", "environment", \
+        "light_pass_id_1", "light_pass_id_2", "light_pass_id_3", "light_pass_id_4", "light_pass_id_5", \
+        "light_pass_id_6", "light_pass_id_7", "light_pass_id_8", "light_pass_id_9", "light_pass_id_10", \
+        "light_pass_id_11", "light_pass_id_12", "light_pass_id_13", "light_pass_id_14", "light_pass_id_15", \
+        "light_pass_id_16", "light_pass_id_17", "light_pass_id_18", "light_pass_id_19", "light_pass_id_20",]
 
     def update_value(self, context):
         value = 0
@@ -76,6 +83,18 @@ class OctaneLightIDBitValue(OctaneBitValue):
     light_pass_id_6: BoolProperty(name="6", default=False, description="Light pass ID 6", update=update_value)
     light_pass_id_7: BoolProperty(name="7", default=False, description="Light pass ID 7", update=update_value)
     light_pass_id_8: BoolProperty(name="8", default=False, description="Light pass ID 8", update=update_value)
+    light_pass_id_9: BoolProperty(name="9", default=False, description="Light pass ID 9", update=update_value)
+    light_pass_id_10: BoolProperty(name="10", default=False, description="Light pass ID 10", update=update_value)
+    light_pass_id_11: BoolProperty(name="11", default=False, description="Light pass ID 11", update=update_value)
+    light_pass_id_12: BoolProperty(name="12", default=False, description="Light pass ID 12", update=update_value)
+    light_pass_id_13: BoolProperty(name="13", default=False, description="Light pass ID 13", update=update_value)
+    light_pass_id_14: BoolProperty(name="14", default=False, description="Light pass ID 14", update=update_value)
+    light_pass_id_15: BoolProperty(name="15", default=False, description="Light pass ID 15", update=update_value)
+    light_pass_id_16: BoolProperty(name="16", default=False, description="Light pass ID 16", update=update_value)
+    light_pass_id_17: BoolProperty(name="17", default=False, description="Light pass ID 17", update=update_value)
+    light_pass_id_18: BoolProperty(name="18", default=False, description="Light pass ID 18", update=update_value)
+    light_pass_id_19: BoolProperty(name="19", default=False, description="Light pass ID 19", update=update_value)
+    light_pass_id_20: BoolProperty(name="20", default=False, description="Light pass ID 20", update=update_value)
 
     def draw_buttons(self, context, layout):
         layout.label(text="Light IDs:")
@@ -84,13 +103,26 @@ class OctaneLightIDBitValue(OctaneBitValue):
         row.prop(self, "environment", toggle=True)
         row.prop(self, "light_pass_id_1", toggle=True)
         row.prop(self, "light_pass_id_2", toggle=True)
-        row.prop(self, "light_pass_id_3", toggle=True)        
+        row.prop(self, "light_pass_id_3", toggle=True)
         row.prop(self, "light_pass_id_4", toggle=True)
         row.prop(self, "light_pass_id_5", toggle=True)
         row.prop(self, "light_pass_id_6", toggle=True)
         row.prop(self, "light_pass_id_7", toggle=True)
-        row.prop(self, "light_pass_id_8", toggle=True)  
-
+        row.prop(self, "light_pass_id_8", toggle=True)
+        row = layout.row(align=True)  
+        row.prop(self, "light_pass_id_9", toggle=True)
+        row.prop(self, "light_pass_id_10", toggle=True)
+        row.prop(self, "light_pass_id_11", toggle=True)
+        row.prop(self, "light_pass_id_12", toggle=True)
+        row.prop(self, "light_pass_id_13", toggle=True)
+        row.prop(self, "light_pass_id_14", toggle=True)
+        row = layout.row(align=True)
+        row.prop(self, "light_pass_id_15", toggle=True)
+        row.prop(self, "light_pass_id_16", toggle=True)
+        row.prop(self, "light_pass_id_17", toggle=True)
+        row.prop(self, "light_pass_id_18", toggle=True)  
+        row.prop(self, "light_pass_id_19", toggle=True)
+        row.prop(self, "light_pass_id_20", toggle=True)
 
 _CLASSES=[
     OctaneLightIDBitValue,

@@ -277,7 +277,7 @@ class OctaneCompositeAOVOutputLayer(bpy.types.Node, OctaneBaseNode):
     ]
     a_compatibility_version_enum: EnumProperty(name="Compatibility version", default="Latest (2022.1)", update=OctaneBaseNode.update_compatibility_mode, description="The Octane version that the behavior of this node should match", items=compatibility_mode_infos)
 
-    a_compatibility_version: IntProperty(name="Compatibility version", default=12000200, update=OctaneBaseNode.update_node_tree, description="The Octane version that the behavior of this node should match")
+    a_compatibility_version: IntProperty(name="Compatibility version", default=12000102, update=OctaneBaseNode.update_node_tree, description="The Octane version that the behavior of this node should match")
 
     def init(self, context):
         self.inputs.new("OctaneCompositeAOVOutputLayerEnabled", OctaneCompositeAOVOutputLayerEnabled.bl_label).init()
@@ -326,11 +326,3 @@ def unregister():
     utility.octane_unregister_class(reversed(_CLASSES))
 
 ##### END OCTANE GENERATED CODE BLOCK #####
-
-class OctaneCompositeAOVOutputLayer_Override(OctaneCompositeAOVOutputLayer):
-
-    def draw_buttons(self, context, layout):
-        row = layout.row()
-        row.prop(self, "a_compatibility_version_enum")
-
-utility.override_class(_CLASSES, OctaneCompositeAOVOutputLayer, OctaneCompositeAOVOutputLayer_Override)

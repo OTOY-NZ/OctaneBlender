@@ -24,7 +24,7 @@ COMMAND_TYPES = {
     'CLEAR_RESOURCE_CACHE_SYSTEM': 10,
 }
 
-EXPORT_TYPES = {
+EXPORT_TYPES = {    
     'ALEMBIC': 1,
     'ORBX': 2,    
 }
@@ -938,6 +938,26 @@ class OCTANE_OT_QuickAddOctaneToonDirectionalLight(OCTANE_OT_QuickAddOctaneLight
         return True
 
     def update_octane_light(self, light_data):
+        octane_light_data = light_data.octane
+        octane_light_data.octane_directional_light_type = "Toon Directional"
+        light_data.use_nodes = True
+
+
+class OCTANE_OT_QuickAddOctaneDirectionalLight(OCTANE_OT_QuickAddOctaneLight):
+    """Add an Octane Directional Light to the scene"""
+    bl_idname = "octane.quick_add_octane_directional_light"
+    bl_label = "Octane Directional Light"
+    light_typename = "SUN"
+    bl_register = True
+    bl_undo = False 
+
+    @classmethod
+    def poll(cls, context):
+        return True
+
+    def update_octane_light(self, light_data):
+        octane_light_data = light_data.octane
+        octane_light_data.octane_directional_light_type = "Directional"
         light_data.use_nodes = True
 
 
@@ -1012,6 +1032,25 @@ class OCTANE_OT_QuickAddOctaneMeshLight(OCTANE_OT_QuickAddOctaneLight):
         light_data.use_nodes = True
 
 
+class OCTANE_OT_QuickAddOctaneAnalyticalLight(OCTANE_OT_QuickAddOctaneLight):
+    """Add an Octane Analytical Light to the scene"""
+    bl_idname = "octane.quick_add_octane_analytical_light"
+    bl_label = "Octane Analytical Light"
+    light_typename = "POINT"
+    bl_register = True
+    bl_undo = False 
+
+    @classmethod
+    def poll(cls, context):
+        return True
+
+    def update_octane_light(self, light_data):
+        octane_light_data = light_data.octane
+        octane_light_data.octane_point_light_type = "Analytical"
+        light_data.shadow_soft_size = 0.0
+        light_data.use_nodes = True
+
+
 def new_menu_func(self, context):
     self.layout.operator_context = 'INVOKE_DEFAULT'
     self.layout.operator(OCTANE_OT_LoadOctaneStartup.bl_idname, text="Octane Default Startup")
@@ -1021,8 +1060,7 @@ def export_menu_func(self, context):
     self.layout.operator_context = 'INVOKE_DEFAULT'
     self.layout.operator(OCTANE_OT_OrbxExport.bl_idname, text="Octane Orbx(.orbx)")
     self.layout.operator(OCTANE_OT_AlembicExport.bl_idname, text="Octane Alembic(.abc)")
-    if not core.ENABLE_OCTANE_ADDON_CLIENT:
-        self.layout.operator(OCTANE_OT_SaveAsAddonFile.bl_idname, text="OctaneBlender Addon(.blend)")
+    self.layout.operator(OCTANE_OT_SaveAsAddonFile.bl_idname, text="OctaneBlender Addon(.blend)")
 
 
 classes = (
@@ -1066,10 +1104,12 @@ classes = (
 
     OCTANE_OT_QuickAddOctaneToonPointLight,
     OCTANE_OT_QuickAddOctaneToonDirectionalLight,
+    OCTANE_OT_QuickAddOctaneDirectionalLight,
     OCTANE_OT_QuickAddOctaneSpotLight,
     OCTANE_OT_QuickAddOctaneAreaLight,
     OCTANE_OT_QuickAddOctaneSphereLight,
     OCTANE_OT_QuickAddOctaneMeshLight,
+    OCTANE_OT_QuickAddOctaneAnalyticalLight,
 )
 
 def register():

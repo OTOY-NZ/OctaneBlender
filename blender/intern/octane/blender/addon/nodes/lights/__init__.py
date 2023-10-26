@@ -6,6 +6,8 @@ from . import toon_directional_light
 from . import quad_light
 from . import sphere_light
 from . import volumetric_spotlight
+from . import analytic_light
+from . import directional_light
 
 def register():
     toon_point_light.register()
@@ -13,6 +15,8 @@ def register():
     quad_light.register()
     sphere_light.register()
     volumetric_spotlight.register()
+    analytic_light.register()
+    directional_light.register()
 
 def unregister():
     toon_point_light.unregister()
@@ -20,5 +24,7 @@ def unregister():
     quad_light.unregister()
     sphere_light.unregister()
     volumetric_spotlight.unregister()
+    analytic_light.unregister()
+    directional_light.unregister()
 
 ##### END OCTANE GENERATED CODE BLOCK #####

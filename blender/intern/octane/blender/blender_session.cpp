@@ -755,18 +755,31 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult b_rr,
     if (use_octane_export) {
       saveImage.iExportType = get_enum(oct_scene, "octane_export_mode");
       std::string export_file_type = get_enum_identifier(oct_scene, "octane_export_file_type");
+      std::string octane_integer_bit_depth = get_enum_identifier(oct_scene,
+                                                                 "octane_integer_bit_depth");
+      std::string octane_float_bit_depth = get_enum_identifier(oct_scene,
+                                                               "octane_float_bit_depth");
       if (export_file_type == "PNG") {
-        std::string octane_png_bit_depth = get_enum_identifier(oct_scene, "octane_png_bit_depth");
-        if (octane_png_bit_depth == "8_BIT") {
+        if (octane_integer_bit_depth == "8_BIT") {
           saveImage.iImageType = OCT_IMAGE_SAVE_FORMAT_PNG_8;
         }
         else {
           saveImage.iImageType = OCT_IMAGE_SAVE_FORMAT_PNG_16;
         }
       }
+      else if (export_file_type == "JPEG") {
+        saveImage.iImageType = OCT_IMAGE_SAVE_FORMAT_JPEG;
+      }
+      else if (export_file_type == "TIFF") {
+        if (octane_integer_bit_depth == "8_BIT") {
+          saveImage.iImageType = OCT_IMAGE_SAVE_FORMAT_TIFF_8;
+        }
+        else {
+          saveImage.iImageType = OCT_IMAGE_SAVE_FORMAT_TIFF_16;
+        }
+      }
       else {
-        std::string octane_exr_bit_depth = get_enum_identifier(oct_scene, "octane_exr_bit_depth");
-        if (octane_exr_bit_depth == "16_BIT") {
+        if (octane_float_bit_depth == "16_BIT") {
           saveImage.iImageType = OCT_IMAGE_SAVE_FORMAT_EXR_16;
         }
         else {
@@ -779,6 +792,8 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult b_rr,
       else {
         saveImage.iExrCompressionType = get_enum(oct_scene, "octane_exr_compression_mode");
       }
+      saveImage.iTiffCompressionType = get_enum(oct_scene, "octane_tiff_compression_mode");
+      saveImage.iJpegQuality = get_int(oct_scene, "octane_export_jpeg_quality");
       string raw_export_file_path = blender_absolute_path(
           b_data, b_scene, b_scene.render().filepath().c_str());
       std::string post_tag = get_string(oct_scene, "octane_export_postfix_tag");

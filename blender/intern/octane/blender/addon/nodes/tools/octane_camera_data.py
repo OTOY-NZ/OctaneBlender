@@ -158,14 +158,13 @@ class OctaneCameraData(bpy.types.Node, OctaneBaseNode):
                 subnode.set_pin_id(consts.PinID.P_POSITION_TYPE, False, "", 1) # World space
                 subnode.set_pin_id(consts.PinID.P_TRANSFORM, True, consts.OCTANE_BLENDER_STATIC_FRONT_PROJECTION_TRANSFORM, "")
 
-    def load_custom_legacy_node(self, legacy_node, node_tree, context, report=None):
-        if report is not None:
-            if legacy_node.inputs["Max Z-Depth"].is_linked:
-                report({"WARNING"}, "Outer links of the 'Max Z-Depth' socket are not supported in the Addon CameraData node anymore. So the link of the 'Max Z-Depth' socket in Node %s is discarded" % (legacy_node.name))
-            if legacy_node.inputs["Max Distance"].is_linked:
-                report({"WARNING"}, "Outer links of the 'Max Distance' socket are not supported in the Addon CameraData node anymore. So the link of the 'Max Distance' socket in Node %s is discarded" % (legacy_node.name))
-            if legacy_node.inputs["Keep Front Projection"].is_linked:
-                report({"WARNING"}, "Outer links of the 'Keep Front Projection' socket are not supported in the Addon CameraData node anymore. So the link of the 'Keep Front Projection' socket in Node %s is discarded" % (legacy_node.name))
+    def load_custom_legacy_node(self, legacy_node, node_tree, context, report):
+        if legacy_node.inputs["Max Z-Depth"].is_linked:
+            report({"WARNING"}, "Outer links of the 'Max Z-Depth' socket are not supported in the Addon CameraData node anymore. So the link of the 'Max Z-Depth' socket in Node %s is discarded" % (legacy_node.name))
+        if legacy_node.inputs["Max Distance"].is_linked:
+            report({"WARNING"}, "Outer links of the 'Max Distance' socket are not supported in the Addon CameraData node anymore. So the link of the 'Max Distance' socket in Node %s is discarded" % (legacy_node.name))
+        if legacy_node.inputs["Keep Front Projection"].is_linked:
+            report({"WARNING"}, "Outer links of the 'Keep Front Projection' socket are not supported in the Addon CameraData node anymore. So the link of the 'Keep Front Projection' socket in Node %s is discarded" % (legacy_node.name))
         self.max_z_depth = legacy_node.inputs["Max Z-Depth"].default_value
         self.max_distance = legacy_node.inputs["Max Distance"].default_value
         self.keep_front_projection = legacy_node.inputs["Keep Front Projection"].default_value        

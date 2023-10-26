@@ -69,6 +69,8 @@ from . import volume_z_depth_back_aov
 from . import normal_smooth_aov
 from . import wireframe_aov
 from . import z_depth_aov
+from . import postfx_media_aov
+from . import render_aov_switch
 
 def register():
     render_aov_group.register()
@@ -139,6 +141,8 @@ def register():
     normal_smooth_aov.register()
     wireframe_aov.register()
     z_depth_aov.register()
+    postfx_media_aov.register()
+    render_aov_switch.register()
 
 def unregister():
     render_aov_group.unregister()
@@ -209,5 +213,7 @@ def unregister():
     normal_smooth_aov.unregister()
     wireframe_aov.unregister()
     z_depth_aov.unregister()
+    postfx_media_aov.unregister()
+    render_aov_switch.unregister()
 
 ##### END OCTANE GENERATED CODE BLOCK #####

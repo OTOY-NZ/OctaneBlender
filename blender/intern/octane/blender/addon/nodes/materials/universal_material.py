@@ -3,11 +3,14 @@ import bpy
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
 from octane.utils import utility, consts
-from octane.nodes.base_node import OctaneBaseNode
-from octane.nodes.base_kernel import OctaneBaseKernelNode
-from octane.nodes.base_osl import OctaneScriptNode
-from octane.nodes.base_image import OctaneBaseImageNode
+from octane.nodes import base_switch_input_socket
 from octane.nodes.base_color_ramp import OctaneBaseRampNode
+from octane.nodes.base_curve import OctaneBaseCurveNode
+from octane.nodes.base_image import OctaneBaseImageNode
+from octane.nodes.base_kernel import OctaneBaseKernelNode
+from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_switch import OctaneBaseSwitchNode
 from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
@@ -67,6 +70,28 @@ class OctaneUniversalMaterialAlbedo(OctaneBaseSocket):
     octane_end_version=4294967295
     octane_deprecated=False
 
+class OctaneUniversalMaterialDiffuseBrdf(OctaneBaseSocket):
+    bl_idname="OctaneUniversalMaterialDiffuseBrdf"
+    bl_label="Diffuse BRDF model"
+    color=consts.OctanePinColor.Enum
+    octane_default_node_type=consts.NodeType.NT_ENUM
+    octane_default_node_name="OctaneEnumValue"
+    octane_pin_id=consts.PinID.P_DIFFUSE_BRDF
+    octane_pin_name="diffuseBrdf"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=3
+    octane_socket_type=consts.SocketType.ST_ENUM
+    items = [
+        ("Octane", "Octane", "", 0),
+        ("Lambertian", "Lambertian", "", 1),
+        ("Oren-Nayar", "Oren-Nayar", "", 2),
+    ]
+    default_value: EnumProperty(default="Lambertian", update=OctaneBaseSocket.update_node_tree, description="Diffuse BRDF model", items=items)
+    octane_hide_value=False
+    octane_min_version=13000000
+    octane_end_version=4294967295
+    octane_deprecated=False
+
 class OctaneUniversalMaterialMetallic(OctaneBaseSocket):
     bl_idname="OctaneUniversalMaterialMetallic"
     bl_label="Metallic"
@@ -76,7 +101,7 @@ class OctaneUniversalMaterialMetallic(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_METALLIC
     octane_pin_name="metallic"
     octane_pin_type=consts.PinType.PT_TEXTURE
-    octane_pin_index=3
+    octane_pin_index=4
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="The metallic-ness of the material, blends between dielectric and metallic material", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
     octane_hide_value=False
@@ -93,7 +118,7 @@ class OctaneUniversalMaterialEdgeTint(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_EDGE_TINT
     octane_pin_name="edgeTint"
     octane_pin_type=consts.PinType.PT_TEXTURE
-    octane_pin_index=4
+    octane_pin_index=5
     octane_socket_type=consts.SocketType.ST_RGBA
     default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=OctaneBaseSocket.update_node_tree, description="The color of the edge of the metal, only used in metallic layer with artistic and IOR + color mode", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
     octane_hide_value=False
@@ -110,7 +135,7 @@ class OctaneUniversalMaterialSpecular(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_SPECULAR
     octane_pin_name="specular"
     octane_pin_type=consts.PinType.PT_TEXTURE
-    octane_pin_index=5
+    octane_pin_index=6
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Specular reflection channel which determines the color of glossy reflection for dielectric material. If the index of reflection is set to a value > 0, then the brightness of this color is adjusted so it matches the Fresnel equations", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
     octane_hide_value=False
@@ -127,7 +152,7 @@ class OctaneUniversalMaterialBrdf(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_BRDF
     octane_pin_name="brdf"
     octane_pin_type=consts.PinType.PT_ENUM
-    octane_pin_index=6
+    octane_pin_index=7
     octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("Octane", "Octane", "", 0),
@@ -151,7 +176,7 @@ class OctaneUniversalMaterialRoughness(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_ROUGHNESS
     octane_pin_name="roughness"
     octane_pin_type=consts.PinType.PT_TEXTURE
-    octane_pin_index=7
+    octane_pin_index=8
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.063200, update=OctaneBaseSocket.update_node_tree, description="Roughness of the specular reflection and transmission channel", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
     octane_hide_value=False
@@ -168,7 +193,7 @@ class OctaneUniversalMaterialAnisotropy(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_ANISOTROPY
     octane_pin_name="anisotropy"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=8
+    octane_pin_index=9
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="The anisotropy of the specular and transmissive material, -1 is horizontal and 1 is vertical, 0 is isotropy", min=-1.000000, max=1.000000, soft_min=-1.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
@@ -185,7 +210,7 @@ class OctaneUniversalMaterialRotation(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_ROTATION
     octane_pin_name="rotation"
     octane_pin_type=consts.PinType.PT_TEXTURE
-    octane_pin_index=9
+    octane_pin_index=10
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Rotation of the anisotropic specular reflection and transmission channel", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
     octane_hide_value=False
@@ -202,7 +227,7 @@ class OctaneUniversalMaterialSpread(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_SPREAD
     octane_pin_name="spread"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=10
+    octane_pin_index=11
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.500000, update=OctaneBaseSocket.update_node_tree, description="The spread of the tail of the specular BSDF model (STD only) of the specular/metallic layer", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
@@ -219,7 +244,7 @@ class OctaneUniversalMaterialIndex4(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_INDEX4
     octane_pin_name="index4"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=11
+    octane_pin_index=12
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=1.500000, update=OctaneBaseSocket.update_node_tree, description="Index of refraction controlling the Fresnel effect of the specular reflection or transmission. By default, if 1/IOR map is empty, then the dielectric specular layer uses this IOR", min=1.000000, max=8.000000, soft_min=1.000000, soft_max=8.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
@@ -236,7 +261,7 @@ class OctaneUniversalMaterialIndexMap(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_INDEX_MAP
     octane_pin_name="indexMap"
     octane_pin_type=consts.PinType.PT_TEXTURE
-    octane_pin_index=12
+    octane_pin_index=13
     octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
@@ -252,7 +277,7 @@ class OctaneUniversalMaterialMetallicMode(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_METALLIC_MODE
     octane_pin_name="metallicMode"
     octane_pin_type=consts.PinType.PT_ENUM
-    octane_pin_index=13
+    octane_pin_index=14
     octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("Artistic", "Artistic", "", 0),
@@ -274,7 +299,7 @@ class OctaneUniversalMaterialIndex(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_INDEX
     octane_pin_name="index"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=14
+    octane_pin_index=15
     octane_socket_type=consts.SocketType.ST_FLOAT2
     default_value: FloatVectorProperty(default=(0.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="Complex-valued index of refraction (n - k*i) controlling the Fresnel effect of the specular reflection for metallic material.\nFor RGB mode, the IOR for red light (650 nm)", min=0.000000, max=8.000000, soft_min=0.000000, soft_max=8.000000, step=1, subtype="NONE", precision=2, size=2)
     octane_hide_value=False
@@ -291,7 +316,7 @@ class OctaneUniversalMaterialIndex2(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_INDEX2
     octane_pin_name="index2"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=15
+    octane_pin_index=16
     octane_socket_type=consts.SocketType.ST_FLOAT2
     default_value: FloatVectorProperty(default=(0.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="For RGB mode, the IOR for green light (550 nm)", min=0.000000, max=8.000000, soft_min=0.000000, soft_max=8.000000, step=1, subtype="NONE", precision=2, size=2)
     octane_hide_value=False
@@ -308,7 +333,7 @@ class OctaneUniversalMaterialIndex3(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_INDEX3
     octane_pin_name="index3"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=16
+    octane_pin_index=17
     octane_socket_type=consts.SocketType.ST_FLOAT2
     default_value: FloatVectorProperty(default=(0.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="For RGB mode, the IOR for blue light (450 nm)", min=0.000000, max=8.000000, soft_min=0.000000, soft_max=8.000000, step=1, subtype="NONE", precision=2, size=2)
     octane_hide_value=False
@@ -325,7 +350,7 @@ class OctaneUniversalMaterialHasCaustics(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_HAS_CAUSTICS
     octane_pin_name="hasCaustics"
     octane_pin_type=consts.PinType.PT_BOOL
-    octane_pin_index=17
+    octane_pin_index=18
     octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="If enabled, the photon tracing kernel will create caustics for light reflecting or transmitting through this object")
     octane_hide_value=False
@@ -342,7 +367,7 @@ class OctaneUniversalMaterialCoating(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_COATING
     octane_pin_name="coating"
     octane_pin_type=consts.PinType.PT_TEXTURE
-    octane_pin_index=18
+    octane_pin_index=19
     octane_socket_type=consts.SocketType.ST_RGBA
     default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="The coating color of the material", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
     octane_hide_value=False
@@ -359,7 +384,7 @@ class OctaneUniversalMaterialCoatingRoughness(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_COATING_ROUGHNESS
     octane_pin_name="coatingRoughness"
     octane_pin_type=consts.PinType.PT_TEXTURE
-    octane_pin_index=19
+    octane_pin_index=20
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.063200, update=OctaneBaseSocket.update_node_tree, description="Roughness of the coating layer", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
     octane_hide_value=False
@@ -376,7 +401,7 @@ class OctaneUniversalMaterialCoatingIndex(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_COATING_INDEX
     octane_pin_name="coatingIndex"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=20
+    octane_pin_index=21
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=1.500000, update=OctaneBaseSocket.update_node_tree, description="IOR of the coating layer", min=1.000000, max=8.000000, soft_min=1.000000, soft_max=8.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
@@ -393,7 +418,7 @@ class OctaneUniversalMaterialCoatingBump(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_COATING_BUMP
     octane_pin_name="coatingBump"
     octane_pin_type=consts.PinType.PT_TEXTURE
-    octane_pin_index=21
+    octane_pin_index=22
     octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=4030000
@@ -409,7 +434,7 @@ class OctaneUniversalMaterialCoatingNormal(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_COATING_NORMAL
     octane_pin_name="coatingNormal"
     octane_pin_type=consts.PinType.PT_TEXTURE
-    octane_pin_index=22
+    octane_pin_index=23
     octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=4030000
@@ -425,7 +450,7 @@ class OctaneUniversalMaterialFilmwidth(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_FILM_WIDTH
     octane_pin_name="filmwidth"
     octane_pin_type=consts.PinType.PT_TEXTURE
-    octane_pin_index=23
+    octane_pin_index=24
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Thickness of the film coating in micrometers", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
     octane_hide_value=False
@@ -442,7 +467,7 @@ class OctaneUniversalMaterialFilmindex(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_FILM_INDEX
     octane_pin_name="filmindex"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=24
+    octane_pin_index=25
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=1.450000, update=OctaneBaseSocket.update_node_tree, description="Index of refraction of the film coating", min=1.000000, max=8.000000, soft_min=1.000000, soft_max=8.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
@@ -459,7 +484,7 @@ class OctaneUniversalMaterialSheen(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_SHEEN
     octane_pin_name="sheen"
     octane_pin_type=consts.PinType.PT_TEXTURE
-    octane_pin_index=25
+    octane_pin_index=26
     octane_socket_type=consts.SocketType.ST_RGBA
     default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="The sheen color of the material", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
     octane_hide_value=False
@@ -476,7 +501,7 @@ class OctaneUniversalMaterialSheenRoughness(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_SHEEN_ROUGHNESS
     octane_pin_name="sheenRoughness"
     octane_pin_type=consts.PinType.PT_TEXTURE
-    octane_pin_index=26
+    octane_pin_index=27
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.200000, update=OctaneBaseSocket.update_node_tree, description="Roughness of the sheen channel", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
     octane_hide_value=False
@@ -493,7 +518,7 @@ class OctaneUniversalMaterialSheenBump(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_SHEEN_BUMP
     octane_pin_name="sheenBump"
     octane_pin_type=consts.PinType.PT_TEXTURE
-    octane_pin_index=27
+    octane_pin_index=28
     octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=4030000
@@ -509,7 +534,7 @@ class OctaneUniversalMaterialSheenNormal(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_SHEEN_NORMAL
     octane_pin_name="sheenNormal"
     octane_pin_type=consts.PinType.PT_TEXTURE
-    octane_pin_index=28
+    octane_pin_index=29
     octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=4030000
@@ -518,18 +543,39 @@ class OctaneUniversalMaterialSheenNormal(OctaneBaseSocket):
 
 class OctaneUniversalMaterialDispersionCoefficientB(OctaneBaseSocket):
     bl_idname="OctaneUniversalMaterialDispersionCoefficientB"
-    bl_label="Dispersion coefficient"
+    bl_label="Dispersion Coefficient"
     color=consts.OctanePinColor.Float
     octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
     octane_pin_id=consts.PinID.P_DISPERSION_COEFFICIENT_B
     octane_pin_name="dispersion_coefficient_B"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=29
+    octane_pin_index=30
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="B parameter of the Cauchy dispersion model", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="The dispersion coefficient, the meaning depends on the selected dispersion mode", min=0.000000, max=100.000000, soft_min=0.000000, soft_max=100.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
+    octane_end_version=4294967295
+    octane_deprecated=False
+
+class OctaneUniversalMaterialDispersionMode(OctaneBaseSocket):
+    bl_idname="OctaneUniversalMaterialDispersionMode"
+    bl_label="Dispersion mode"
+    color=consts.OctanePinColor.Enum
+    octane_default_node_type=consts.NodeType.NT_ENUM
+    octane_default_node_name="OctaneEnumValue"
+    octane_pin_id=consts.PinID.P_DISPERSION_MODE
+    octane_pin_name="dispersionMode"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=31
+    octane_socket_type=consts.SocketType.ST_ENUM
+    items = [
+        ("Abbe number", "Abbe number", "", 1),
+        ("Cauchy formula", "Cauchy formula", "", 2),
+    ]
+    default_value: EnumProperty(default="Abbe number", update=OctaneBaseSocket.update_node_tree, description="Select how the IOR and dispersion coefficient inputs are interpreted", items=items)
+    octane_hide_value=False
+    octane_min_version=13000001
     octane_end_version=4294967295
     octane_deprecated=False
 
@@ -542,7 +588,7 @@ class OctaneUniversalMaterialMedium(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_MEDIUM
     octane_pin_name="medium"
     octane_pin_type=consts.PinType.PT_MEDIUM
-    octane_pin_index=30
+    octane_pin_index=32
     octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
@@ -558,7 +604,7 @@ class OctaneUniversalMaterialOpacity(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_OPACITY
     octane_pin_name="opacity"
     octane_pin_type=consts.PinType.PT_TEXTURE
-    octane_pin_index=31
+    octane_pin_index=33
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Opacity channel controlling the transparency of the material via grayscale texture", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
     octane_hide_value=False
@@ -575,7 +621,7 @@ class OctaneUniversalMaterialFakeShadows(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_FAKE_SHADOWS
     octane_pin_name="fake_shadows"
     octane_pin_type=consts.PinType.PT_BOOL
-    octane_pin_index=32
+    octane_pin_index=34
     octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="If enabled, light will be traced directly through the material during the shadow calculation, ignoring refraction")
     octane_hide_value=False
@@ -592,7 +638,7 @@ class OctaneUniversalMaterialRefractionAlpha(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_REFRACTION_ALPHA
     octane_pin_name="refractionAlpha"
     octane_pin_type=consts.PinType.PT_BOOL
-    octane_pin_index=33
+    octane_pin_index=35
     octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Enable to have refractions affect the alpha channel")
     octane_hide_value=False
@@ -609,10 +655,27 @@ class OctaneUniversalMaterialBump(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_BUMP
     octane_pin_name="bump"
     octane_pin_type=consts.PinType.PT_TEXTURE
-    octane_pin_index=34
+    octane_pin_index=36
     octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=4000004
+    octane_end_version=4294967295
+    octane_deprecated=False
+
+class OctaneUniversalMaterialBumpHeight(OctaneBaseSocket):
+    bl_idname="OctaneUniversalMaterialBumpHeight"
+    bl_label="Bump height"
+    color=consts.OctanePinColor.Float
+    octane_default_node_type=consts.NodeType.NT_FLOAT
+    octane_default_node_name="OctaneFloatValue"
+    octane_pin_id=consts.PinID.P_BUMP_HEIGHT
+    octane_pin_name="bumpHeight"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=37
+    octane_socket_type=consts.SocketType.ST_FLOAT
+    default_value: FloatProperty(default=0.010000, update=OctaneBaseSocket.update_node_tree, description="The height represented by a normalized value of 1.0 in the bump texture. 0 disables bump mapping, negative values will invert the bump map", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-1.000000, soft_max=1.000000, step=1, precision=2, subtype="NONE")
+    octane_hide_value=False
+    octane_min_version=13000000
     octane_end_version=4294967295
     octane_deprecated=False
 
@@ -625,7 +688,7 @@ class OctaneUniversalMaterialNormal(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_NORMAL
     octane_pin_name="normal"
     octane_pin_type=consts.PinType.PT_TEXTURE
-    octane_pin_index=35
+    octane_pin_index=38
     octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=4000004
@@ -641,7 +704,7 @@ class OctaneUniversalMaterialDisplacement(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_DISPLACEMENT
     octane_pin_name="displacement"
     octane_pin_type=consts.PinType.PT_DISPLACEMENT
-    octane_pin_index=36
+    octane_pin_index=39
     octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=4000004
@@ -657,7 +720,7 @@ class OctaneUniversalMaterialSmooth(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_SMOOTH
     octane_pin_name="smooth"
     octane_pin_type=consts.PinType.PT_BOOL
-    octane_pin_index=37
+    octane_pin_index=40
     octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="If disabled normal interpolation will be disabled and triangle meshes will appear \"facetted\"")
     octane_hide_value=False
@@ -674,7 +737,7 @@ class OctaneUniversalMaterialSmoothShadowTerminator(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_SMOOTH_SHADOW_TERMINATOR
     octane_pin_name="smoothShadowTerminator"
     octane_pin_type=consts.PinType.PT_BOOL
-    octane_pin_index=38
+    octane_pin_index=41
     octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="If enabled self-intersecting shadow terminator for low polygon is smoothed according to the polygon's curvature")
     octane_hide_value=False
@@ -691,7 +754,7 @@ class OctaneUniversalMaterialRoundEdges(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_ROUND_EDGES
     octane_pin_name="roundEdges"
     octane_pin_type=consts.PinType.PT_ROUND_EDGES
-    octane_pin_index=39
+    octane_pin_index=42
     octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=5100001
@@ -707,7 +770,7 @@ class OctaneUniversalMaterialPriority(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_PRIORITY
     octane_pin_name="priority"
     octane_pin_type=consts.PinType.PT_INT
-    octane_pin_index=40
+    octane_pin_index=43
     octane_socket_type=consts.SocketType.ST_INT
     default_value: IntProperty(default=0, update=OctaneBaseSocket.update_node_tree, description="The material priority for this surface material", min=-100, max=100, soft_min=-100, soft_max=100, step=1, subtype="FACTOR")
     octane_hide_value=False
@@ -724,7 +787,7 @@ class OctaneUniversalMaterialEmission(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_EMISSION
     octane_pin_name="emission"
     octane_pin_type=consts.PinType.PT_EMISSION
-    octane_pin_index=41
+    octane_pin_index=44
     octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
@@ -740,7 +803,7 @@ class OctaneUniversalMaterialMatte(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_MATTE
     octane_pin_name="matte"
     octane_pin_type=consts.PinType.PT_BOOL
-    octane_pin_index=42
+    octane_pin_index=45
     octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Switches the material to a shadow catcher, i.e. it will be transparent unless there is some (direct) shadow cast onto the material, which will make it less transparent depending on the shadow strength")
     octane_hide_value=False
@@ -757,7 +820,7 @@ class OctaneUniversalMaterialCustomAov(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_CUSTOM_AOV
     octane_pin_name="customAov"
     octane_pin_type=consts.PinType.PT_ENUM
-    octane_pin_index=43
+    octane_pin_index=46
     octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("None", "None", "", 4096),
@@ -797,7 +860,7 @@ class OctaneUniversalMaterialCustomAovChannel(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_CUSTOM_AOV_CHANNEL
     octane_pin_name="customAovChannel"
     octane_pin_type=consts.PinType.PT_ENUM
-    octane_pin_index=44
+    octane_pin_index=47
     octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("All", "All", "", 0),
@@ -820,7 +883,7 @@ class OctaneUniversalMaterialLayer(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_LAYER
     octane_pin_name="layer"
     octane_pin_type=consts.PinType.PT_MATERIAL_LAYER
-    octane_pin_index=45
+    octane_pin_index=48
     octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=5100002
@@ -836,7 +899,7 @@ class OctaneUniversalMaterialBtdf(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_BTDF
     octane_pin_name="btdf"
     octane_pin_type=consts.PinType.PT_ENUM
-    octane_pin_index=46
+    octane_pin_index=49
     octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("Octane", "Octane", "", 0),
@@ -859,7 +922,7 @@ class OctaneUniversalMaterialEdgesRounding(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_EDGES_ROUNDING
     octane_pin_name="edgesRounding"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=47
+    octane_pin_index=50
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="(deprecated) Radius of rounded edges that are rendered as shading effect", min=0.000000, max=100.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
@@ -876,7 +939,7 @@ class OctaneUniversalMaterialThinWall(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_THIN_WALL
     octane_pin_name="thinWall"
     octane_pin_type=consts.PinType.PT_BOOL
-    octane_pin_index=48
+    octane_pin_index=51
     octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="The geometry the material attached is a one sided planar, so the ray bounce exits the material immediately rather than entering the medium")
     octane_hide_value=False
@@ -892,7 +955,7 @@ class OctaneUniversalMaterialGroupTransmissionLayer(OctaneGroupTitleSocket):
 class OctaneUniversalMaterialGroupBaseLayer(OctaneGroupTitleSocket):
     bl_idname="OctaneUniversalMaterialGroupBaseLayer"
     bl_label="[OctaneGroupTitle]Base Layer"
-    octane_group_sockets: StringProperty(name="Group Sockets", default="Albedo;Metallic;Metallic edge tint;")
+    octane_group_sockets: StringProperty(name="Group Sockets", default="Albedo;Diffuse BRDF model;Metallic;Metallic edge tint;")
 
 class OctaneUniversalMaterialGroupSpecularLayer(OctaneGroupTitleSocket):
     bl_idname="OctaneUniversalMaterialGroupSpecularLayer"
@@ -927,12 +990,12 @@ class OctaneUniversalMaterialGroupSheenLayer(OctaneGroupTitleSocket):
 class OctaneUniversalMaterialGroupTransmissionProperties(OctaneGroupTitleSocket):
     bl_idname="OctaneUniversalMaterialGroupTransmissionProperties"
     bl_label="[OctaneGroupTitle]Transmission Properties"
-    octane_group_sockets: StringProperty(name="Group Sockets", default="Dispersion coefficient;Medium;Opacity;Fake shadows;Affect alpha;Thin wall;")
+    octane_group_sockets: StringProperty(name="Group Sockets", default="Dispersion Coefficient;Dispersion mode;Medium;Opacity;Fake shadows;Affect alpha;Thin wall;")
 
 class OctaneUniversalMaterialGroupGeometryProperties(OctaneGroupTitleSocket):
     bl_idname="OctaneUniversalMaterialGroupGeometryProperties"
     bl_label="[OctaneGroupTitle]Geometry Properties"
-    octane_group_sockets: StringProperty(name="Group Sockets", default="Bump;Normal;Displacement;Smooth;Smooth shadow terminator;Round edges;Priority;")
+    octane_group_sockets: StringProperty(name="Group Sockets", default="Bump;Bump height;Normal;Displacement;Smooth;Smooth shadow terminator;Round edges;Priority;")
 
 class OctaneUniversalMaterial(bpy.types.Node, OctaneBaseNode):
     bl_idname="OctaneUniversalMaterial"
@@ -943,13 +1006,21 @@ class OctaneUniversalMaterial(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
-    octane_socket_class_list=[OctaneUniversalMaterialGroupTransmissionLayer,OctaneUniversalMaterialTransmission,OctaneUniversalMaterialTransmissionType,OctaneUniversalMaterialBtdf,OctaneUniversalMaterialGroupBaseLayer,OctaneUniversalMaterialAlbedo,OctaneUniversalMaterialMetallic,OctaneUniversalMaterialEdgeTint,OctaneUniversalMaterialGroupSpecularLayer,OctaneUniversalMaterialSpecular,OctaneUniversalMaterialBrdf,OctaneUniversalMaterialGroupRoughness,OctaneUniversalMaterialRoughness,OctaneUniversalMaterialAnisotropy,OctaneUniversalMaterialRotation,OctaneUniversalMaterialSpread,OctaneUniversalMaterialGroupIOR,OctaneUniversalMaterialIndex4,OctaneUniversalMaterialIndexMap,OctaneUniversalMaterialMetallicMode,OctaneUniversalMaterialIndex,OctaneUniversalMaterialIndex2,OctaneUniversalMaterialIndex3,OctaneUniversalMaterialHasCaustics,OctaneUniversalMaterialGroupCoatingLayer,OctaneUniversalMaterialCoating,OctaneUniversalMaterialCoatingRoughness,OctaneUniversalMaterialCoatingIndex,OctaneUniversalMaterialCoatingBump,OctaneUniversalMaterialCoatingNormal,OctaneUniversalMaterialGroupThinFilmLayer,OctaneUniversalMaterialFilmwidth,OctaneUniversalMaterialFilmindex,OctaneUniversalMaterialGroupSheenLayer,OctaneUniversalMaterialSheen,OctaneUniversalMaterialSheenRoughness,OctaneUniversalMaterialSheenBump,OctaneUniversalMaterialSheenNormal,OctaneUniversalMaterialGroupTransmissionProperties,OctaneUniversalMaterialDispersionCoefficientB,OctaneUniversalMaterialMedium,OctaneUniversalMaterialOpacity,OctaneUniversalMaterialFakeShadows,OctaneUniversalMaterialRefractionAlpha,OctaneUniversalMaterialThinWall,OctaneUniversalMaterialGroupGeometryProperties,OctaneUniversalMaterialBump,OctaneUniversalMaterialNormal,OctaneUniversalMaterialDisplacement,OctaneUniversalMaterialSmooth,OctaneUniversalMaterialSmoothShadowTerminator,OctaneUniversalMaterialRoundEdges,OctaneUniversalMaterialPriority,OctaneUniversalMaterialEmission,OctaneUniversalMaterialMatte,OctaneUniversalMaterialCustomAov,OctaneUniversalMaterialCustomAovChannel,OctaneUniversalMaterialLayer,OctaneUniversalMaterialEdgesRounding,]
+    octane_socket_class_list=[OctaneUniversalMaterialGroupTransmissionLayer,OctaneUniversalMaterialTransmission,OctaneUniversalMaterialTransmissionType,OctaneUniversalMaterialBtdf,OctaneUniversalMaterialGroupBaseLayer,OctaneUniversalMaterialAlbedo,OctaneUniversalMaterialDiffuseBrdf,OctaneUniversalMaterialMetallic,OctaneUniversalMaterialEdgeTint,OctaneUniversalMaterialGroupSpecularLayer,OctaneUniversalMaterialSpecular,OctaneUniversalMaterialBrdf,OctaneUniversalMaterialGroupRoughness,OctaneUniversalMaterialRoughness,OctaneUniversalMaterialAnisotropy,OctaneUniversalMaterialRotation,OctaneUniversalMaterialSpread,OctaneUniversalMaterialGroupIOR,OctaneUniversalMaterialIndex4,OctaneUniversalMaterialIndexMap,OctaneUniversalMaterialMetallicMode,OctaneUniversalMaterialIndex,OctaneUniversalMaterialIndex2,OctaneUniversalMaterialIndex3,OctaneUniversalMaterialHasCaustics,OctaneUniversalMaterialGroupCoatingLayer,OctaneUniversalMaterialCoating,OctaneUniversalMaterialCoatingRoughness,OctaneUniversalMaterialCoatingIndex,OctaneUniversalMaterialCoatingBump,OctaneUniversalMaterialCoatingNormal,OctaneUniversalMaterialGroupThinFilmLayer,OctaneUniversalMaterialFilmwidth,OctaneUniversalMaterialFilmindex,OctaneUniversalMaterialGroupSheenLayer,OctaneUniversalMaterialSheen,OctaneUniversalMaterialSheenRoughness,OctaneUniversalMaterialSheenBump,OctaneUniversalMaterialSheenNormal,OctaneUniversalMaterialGroupTransmissionProperties,OctaneUniversalMaterialDispersionCoefficientB,OctaneUniversalMaterialDispersionMode,OctaneUniversalMaterialMedium,OctaneUniversalMaterialOpacity,OctaneUniversalMaterialFakeShadows,OctaneUniversalMaterialRefractionAlpha,OctaneUniversalMaterialThinWall,OctaneUniversalMaterialGroupGeometryProperties,OctaneUniversalMaterialBump,OctaneUniversalMaterialBumpHeight,OctaneUniversalMaterialNormal,OctaneUniversalMaterialDisplacement,OctaneUniversalMaterialSmooth,OctaneUniversalMaterialSmoothShadowTerminator,OctaneUniversalMaterialRoundEdges,OctaneUniversalMaterialPriority,OctaneUniversalMaterialEmission,OctaneUniversalMaterialMatte,OctaneUniversalMaterialCustomAov,OctaneUniversalMaterialCustomAovChannel,OctaneUniversalMaterialLayer,OctaneUniversalMaterialEdgesRounding,]
     octane_min_version=0
     octane_node_type=consts.NodeType.NT_MAT_UNIVERSAL
-    octane_socket_list=["Transmission", "Transmission type", "Albedo", "Metallic", "Metallic edge tint", "Specular", "BSDF model", "Roughness", "Anisotropy", "Rotation", "Spread", "Dielectric IOR", "Dielectric 1/IOR map", "Metallic reflection mode", "Metallic IOR", "Metallic IOR (green)", "Metallic IOR (blue)", "Allow caustics", "Coating", "Coating roughness", "Coating IOR", "Coating bump", "Coating normal", "Film width (um)", "Film IOR", "Sheen", "Sheen roughness", "Sheen bump", "Sheen normal", "Dispersion coefficient", "Medium", "Opacity", "Fake shadows", "Affect alpha", "Bump", "Normal", "Displacement", "Smooth", "Smooth shadow terminator", "Round edges", "Priority", "Emission", "Shadow catcher", "Custom AOV", "Custom AOV channel", "Material layer", "[Deprecated]Transmission model", "[Deprecated]Rounded edges radius", "[Deprecated]Thin wall", ]
-    octane_attribute_list=[]
-    octane_attribute_config={}
-    octane_static_pin_count=46
+    octane_socket_list=["Transmission", "Transmission type", "Albedo", "Diffuse BRDF model", "Metallic", "Metallic edge tint", "Specular", "BSDF model", "Roughness", "Anisotropy", "Rotation", "Spread", "Dielectric IOR", "Dielectric 1/IOR map", "Metallic reflection mode", "Metallic IOR", "Metallic IOR (green)", "Metallic IOR (blue)", "Allow caustics", "Coating", "Coating roughness", "Coating IOR", "Coating bump", "Coating normal", "Film width (um)", "Film IOR", "Sheen", "Sheen roughness", "Sheen bump", "Sheen normal", "Dispersion Coefficient", "Dispersion mode", "Medium", "Opacity", "Fake shadows", "Affect alpha", "Bump", "Bump height", "Normal", "Displacement", "Smooth", "Smooth shadow terminator", "Round edges", "Priority", "Emission", "Shadow catcher", "Custom AOV", "Custom AOV channel", "Material layer", "[Deprecated]Transmission model", "[Deprecated]Rounded edges radius", "[Deprecated]Thin wall", ]
+    octane_attribute_list=["a_compatibility_version", ]
+    octane_attribute_config={"a_compatibility_version": [consts.AttributeID.A_COMPATIBILITY_VERSION, "compatibilityVersion", consts.AttributeType.AT_INT], }
+    octane_static_pin_count=49
+
+    compatibility_mode_infos=[
+        ("Latest (2023.1)", "Latest (2023.1)", """(null)""", 13000000),
+        ("2022.1 compatibility mode", "2022.1 compatibility mode", """Legacy behaviour for bump map strength is active and bump map height is ignored.""", 0),
+    ]
+    a_compatibility_version_enum: EnumProperty(name="Compatibility version", default="Latest (2023.1)", update=OctaneBaseNode.update_compatibility_mode, description="The Octane version that the behavior of this node should match", items=compatibility_mode_infos)
+
+    a_compatibility_version: IntProperty(name="Compatibility version", default=13000004, update=OctaneBaseNode.update_node_tree, description="The Octane version that the behavior of this node should match")
 
     def init(self, context):
         self.inputs.new("OctaneUniversalMaterialGroupTransmissionLayer", OctaneUniversalMaterialGroupTransmissionLayer.bl_label).init()
@@ -958,6 +1029,7 @@ class OctaneUniversalMaterial(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneUniversalMaterialBtdf", OctaneUniversalMaterialBtdf.bl_label).init()
         self.inputs.new("OctaneUniversalMaterialGroupBaseLayer", OctaneUniversalMaterialGroupBaseLayer.bl_label).init()
         self.inputs.new("OctaneUniversalMaterialAlbedo", OctaneUniversalMaterialAlbedo.bl_label).init()
+        self.inputs.new("OctaneUniversalMaterialDiffuseBrdf", OctaneUniversalMaterialDiffuseBrdf.bl_label).init()
         self.inputs.new("OctaneUniversalMaterialMetallic", OctaneUniversalMaterialMetallic.bl_label).init()
         self.inputs.new("OctaneUniversalMaterialEdgeTint", OctaneUniversalMaterialEdgeTint.bl_label).init()
         self.inputs.new("OctaneUniversalMaterialGroupSpecularLayer", OctaneUniversalMaterialGroupSpecularLayer.bl_label).init()
@@ -992,6 +1064,7 @@ class OctaneUniversalMaterial(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneUniversalMaterialSheenNormal", OctaneUniversalMaterialSheenNormal.bl_label).init()
         self.inputs.new("OctaneUniversalMaterialGroupTransmissionProperties", OctaneUniversalMaterialGroupTransmissionProperties.bl_label).init()
         self.inputs.new("OctaneUniversalMaterialDispersionCoefficientB", OctaneUniversalMaterialDispersionCoefficientB.bl_label).init()
+        self.inputs.new("OctaneUniversalMaterialDispersionMode", OctaneUniversalMaterialDispersionMode.bl_label).init()
         self.inputs.new("OctaneUniversalMaterialMedium", OctaneUniversalMaterialMedium.bl_label).init()
         self.inputs.new("OctaneUniversalMaterialOpacity", OctaneUniversalMaterialOpacity.bl_label).init()
         self.inputs.new("OctaneUniversalMaterialFakeShadows", OctaneUniversalMaterialFakeShadows.bl_label).init()
@@ -999,6 +1072,7 @@ class OctaneUniversalMaterial(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneUniversalMaterialThinWall", OctaneUniversalMaterialThinWall.bl_label).init()
         self.inputs.new("OctaneUniversalMaterialGroupGeometryProperties", OctaneUniversalMaterialGroupGeometryProperties.bl_label).init()
         self.inputs.new("OctaneUniversalMaterialBump", OctaneUniversalMaterialBump.bl_label).init()
+        self.inputs.new("OctaneUniversalMaterialBumpHeight", OctaneUniversalMaterialBumpHeight.bl_label).init()
         self.inputs.new("OctaneUniversalMaterialNormal", OctaneUniversalMaterialNormal.bl_label).init()
         self.inputs.new("OctaneUniversalMaterialDisplacement", OctaneUniversalMaterialDisplacement.bl_label).init()
         self.inputs.new("OctaneUniversalMaterialSmooth", OctaneUniversalMaterialSmooth.bl_label).init()
@@ -1017,11 +1091,16 @@ class OctaneUniversalMaterial(bpy.types.Node, OctaneBaseNode):
     def poll(cls, node_tree):
         return OctaneBaseNode.poll(node_tree)
 
+    def draw_buttons(self, context, layout):
+        super().draw_buttons(context, layout)
+        layout.row().prop(self, "a_compatibility_version_enum")
+
 
 _CLASSES=[
     OctaneUniversalMaterialTransmission,
     OctaneUniversalMaterialTransmissionType,
     OctaneUniversalMaterialAlbedo,
+    OctaneUniversalMaterialDiffuseBrdf,
     OctaneUniversalMaterialMetallic,
     OctaneUniversalMaterialEdgeTint,
     OctaneUniversalMaterialSpecular,
@@ -1049,11 +1128,13 @@ _CLASSES=[
     OctaneUniversalMaterialSheenBump,
     OctaneUniversalMaterialSheenNormal,
     OctaneUniversalMaterialDispersionCoefficientB,
+    OctaneUniversalMaterialDispersionMode,
     OctaneUniversalMaterialMedium,
     OctaneUniversalMaterialOpacity,
     OctaneUniversalMaterialFakeShadows,
     OctaneUniversalMaterialRefractionAlpha,
     OctaneUniversalMaterialBump,
+    OctaneUniversalMaterialBumpHeight,
     OctaneUniversalMaterialNormal,
     OctaneUniversalMaterialDisplacement,
     OctaneUniversalMaterialSmooth,

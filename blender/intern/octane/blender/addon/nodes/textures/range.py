@@ -3,11 +3,14 @@ import bpy
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
 from octane.utils import utility, consts
-from octane.nodes.base_node import OctaneBaseNode
-from octane.nodes.base_kernel import OctaneBaseKernelNode
-from octane.nodes.base_osl import OctaneScriptNode
-from octane.nodes.base_image import OctaneBaseImageNode
+from octane.nodes import base_switch_input_socket
 from octane.nodes.base_color_ramp import OctaneBaseRampNode
+from octane.nodes.base_curve import OctaneBaseCurveNode
+from octane.nodes.base_image import OctaneBaseImageNode
+from octane.nodes.base_kernel import OctaneBaseKernelNode
+from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_switch import OctaneBaseSwitchNode
 from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
@@ -45,7 +48,7 @@ class OctaneRangeInterpolationType(OctaneBaseSocket):
         ("Steps", "Steps", "", 1),
         ("Posterize", "Posterize", "", 4),
     ]
-    default_value: EnumProperty(default="Linear", update=OctaneBaseSocket.update_node_tree, description="The type of interpolation to perform", items=items)
+    default_value: EnumProperty(default="Linear", update=OctaneBaseSocket.update_node_tree, description="The type of interpolation to perform during the mapping", items=items)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -53,7 +56,7 @@ class OctaneRangeInterpolationType(OctaneBaseSocket):
 
 class OctaneRangeInputMin(OctaneBaseSocket):
     bl_idname="OctaneRangeInputMin"
-    bl_label="Input min"
+    bl_label="Input minimum"
     color=consts.OctanePinColor.Texture
     octane_default_node_type=consts.NodeType.NT_TEX_FLOAT
     octane_default_node_name="OctaneGreyscaleColor"
@@ -62,7 +65,7 @@ class OctaneRangeInputMin(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_TEXTURE
     octane_pin_index=2
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Input min", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, subtype="FACTOR")
+    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="The start value of the input range", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -70,7 +73,7 @@ class OctaneRangeInputMin(OctaneBaseSocket):
 
 class OctaneRangeInputMax(OctaneBaseSocket):
     bl_idname="OctaneRangeInputMax"
-    bl_label="Input max"
+    bl_label="Input maximum"
     color=consts.OctanePinColor.Texture
     octane_default_node_type=consts.NodeType.NT_TEX_FLOAT
     octane_default_node_name="OctaneGreyscaleColor"
@@ -79,7 +82,7 @@ class OctaneRangeInputMax(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_TEXTURE
     octane_pin_index=3
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Input max", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, subtype="FACTOR")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="The end value of the input range", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -87,7 +90,7 @@ class OctaneRangeInputMax(OctaneBaseSocket):
 
 class OctaneRangeOutputMin(OctaneBaseSocket):
     bl_idname="OctaneRangeOutputMin"
-    bl_label="Output min"
+    bl_label="Output minimum"
     color=consts.OctanePinColor.Texture
     octane_default_node_type=consts.NodeType.NT_TEX_FLOAT
     octane_default_node_name="OctaneGreyscaleColor"
@@ -96,7 +99,7 @@ class OctaneRangeOutputMin(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_TEXTURE
     octane_pin_index=4
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Output min", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, subtype="FACTOR")
+    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="The start value of the output range", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -104,7 +107,7 @@ class OctaneRangeOutputMin(OctaneBaseSocket):
 
 class OctaneRangeOutputMax(OctaneBaseSocket):
     bl_idname="OctaneRangeOutputMax"
-    bl_label="Output max"
+    bl_label="Output maximum"
     color=consts.OctanePinColor.Texture
     octane_default_node_type=consts.NodeType.NT_TEX_FLOAT
     octane_default_node_name="OctaneGreyscaleColor"
@@ -113,7 +116,7 @@ class OctaneRangeOutputMax(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_TEXTURE
     octane_pin_index=5
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Output max", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, subtype="FACTOR")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="The end value of the output range", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -130,7 +133,7 @@ class OctaneRangeInterpolationSteps(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_INT
     octane_pin_index=6
     octane_socket_type=consts.SocketType.ST_INT
-    default_value: IntProperty(default=8, update=OctaneBaseSocket.update_node_tree, description="Number of distinct output levels per channel. Only active when using the Steps or Posterize interpolation methods", min=1, max=2147483647, soft_min=2, soft_max=256, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=8, update=OctaneBaseSocket.update_node_tree, description="Number of distinct output levels per channel. This input is only relevant for the Steps and Posterize interpolation methods", min=1, max=2147483647, soft_min=2, soft_max=256, step=1, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -165,7 +168,7 @@ class OctaneRange(bpy.types.Node, OctaneBaseNode):
     octane_socket_class_list=[OctaneRangeInput,OctaneRangeInterpolationType,OctaneRangeInputMin,OctaneRangeInputMax,OctaneRangeOutputMin,OctaneRangeOutputMax,OctaneRangeInterpolationSteps,OctaneRangeClamp,]
     octane_min_version=0
     octane_node_type=consts.NodeType.NT_TEX_RANGE
-    octane_socket_list=["Value", "Interpolation", "Input min", "Input max", "Output min", "Output max", "Levels", "Clamp", ]
+    octane_socket_list=["Value", "Interpolation", "Input minimum", "Input maximum", "Output minimum", "Output maximum", "Levels", "Clamp", ]
     octane_attribute_list=["a_compatibility_version", ]
     octane_attribute_config={"a_compatibility_version": [consts.AttributeID.A_COMPATIBILITY_VERSION, "compatibilityVersion", consts.AttributeType.AT_INT], }
     octane_static_pin_count=8
@@ -176,7 +179,7 @@ class OctaneRange(bpy.types.Node, OctaneBaseNode):
     ]
     a_compatibility_version_enum: EnumProperty(name="Compatibility version", default="Latest (2022.1)", update=OctaneBaseNode.update_compatibility_mode, description="The Octane version that the behavior of this node should match", items=compatibility_mode_infos)
 
-    a_compatibility_version: IntProperty(name="Compatibility version", default=12000200, update=OctaneBaseNode.update_node_tree, description="The Octane version that the behavior of this node should match")
+    a_compatibility_version: IntProperty(name="Compatibility version", default=13000004, update=OctaneBaseNode.update_node_tree, description="The Octane version that the behavior of this node should match")
 
     def init(self, context):
         self.inputs.new("OctaneRangeInput", OctaneRangeInput.bl_label).init()
@@ -192,6 +195,10 @@ class OctaneRange(bpy.types.Node, OctaneBaseNode):
     @classmethod
     def poll(cls, node_tree):
         return OctaneBaseNode.poll(node_tree)
+
+    def draw_buttons(self, context, layout):
+        super().draw_buttons(context, layout)
+        layout.row().prop(self, "a_compatibility_version_enum")
 
 
 _CLASSES=[
@@ -217,12 +224,3 @@ def unregister():
     utility.octane_unregister_class(reversed(_CLASSES))
 
 ##### END OCTANE GENERATED CODE BLOCK #####
-
-
-class OctaneRange_Override(OctaneRange):
-
-    def draw_buttons(self, context, layout):
-        row = layout.row()
-        row.prop(self, "a_compatibility_version_enum")
-
-utility.override_class(_CLASSES, OctaneRange, OctaneRange_Override) 

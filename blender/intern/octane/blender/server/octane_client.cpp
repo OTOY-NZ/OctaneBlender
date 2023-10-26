@@ -915,7 +915,7 @@ void OctaneClient::uploadCamera(Camera *pCamera, uint32_t uiFrameIdx, uint32_t u
 
       RPCSend snd(m_Socket,
                   (sizeof(uint32_t) + (sizeof(float_3) * 3 + sizeof(float)) * motoin_data_num) +
-                      sizeof(float_3) * 6 + sizeof(float) * 31 + sizeof(int32_t) * 31 +
+                      sizeof(float_3) * 7 + sizeof(float) * 41 + sizeof(int32_t) * 33 +
                       sizeof(uint32_t) * 6 + (pCamera->sCustomLut.length() + 2) +
                       (pCamera->sOcioViewDisplay.length() + 2) +
                       (pCamera->sOcioViewDisplayView.length() + 2) +
@@ -939,9 +939,14 @@ void OctaneClient::uploadCamera(Camera *pCamera, uint32_t uiFrameIdx, uint32_t u
           << pCamera->fSaturation << pCamera->fHotPixelFilter << pCamera->fWhiteSaturation
           << pCamera->fBloomPower << pCamera->fCutoff << pCamera->fGlarePower
           << pCamera->fGlareAngle << pCamera->fGlareBlur << pCamera->fSpectralShift
-          << pCamera->fSpectralIntencity << pCamera->fHighlightCompression << pCamera->fPixelAspect
-          << pCamera->fApertureAspect << pCamera->fBokehRotation << pCamera->fBokehRoundness
-          << pCamera->fLutStrength << pCamera->fDenoiserBlend
+          << pCamera->fSpectralIntencity << pCamera->fSpreadStart << pCamera->fSpreadEnd
+          << pCamera->fChromaticAberrationIntensity << pCamera->fLensFlare
+          << pCamera->fLensFlareExtent << pCamera->bLightBeams
+          << pCamera->fMediumDensityForPostfxLightBeams << pCamera->bEnableFog
+          << pCamera->fFogStrength << pCamera->fFogHeightDescend << pCamera->fFogEnvContribution
+          << pCamera->f3BaseFogColor << pCamera->fMediumRadius << pCamera->fHighlightCompression
+          << pCamera->fPixelAspect << pCamera->fApertureAspect << pCamera->fBokehRotation
+          << pCamera->fBokehRoundness << pCamera->fLutStrength << pCamera->fDenoiserBlend
 
           << pCamera->bEnableDenoiser << pCamera->bDenoiseVolumes << pCamera->bDenoiseOnCompletion
           << pCamera->iMinDenoiserSample << pCamera->iMaxDenoiserInterval
@@ -982,7 +987,7 @@ void OctaneClient::uploadCamera(Camera *pCamera, uint32_t uiFrameIdx, uint32_t u
     {
       RPCSend snd(
           m_Socket,
-          sizeof(float_3) * 6 + sizeof(float) * 28 + sizeof(int32_t) * 32 +
+          sizeof(float_3) * 7 + sizeof(float) * 38 + sizeof(int32_t) * 34 +
               (pCamera->sCustomLut.length() + 2) + (pCamera->sOcioViewDisplay.length() + 2) +
               (pCamera->sOcioViewDisplayView.length() + 2) + (pCamera->sOcioLook.length() + 2),
           OctaneDataTransferObject::LOAD_PANORAMIC_CAMERA);
@@ -994,6 +999,13 @@ void OctaneClient::uploadCamera(Camera *pCamera, uint32_t uiFrameIdx, uint32_t u
           << pCamera->fHotPixelFilter << pCamera->fWhiteSaturation << pCamera->fBloomPower
           << pCamera->fCutoff << pCamera->fGlarePower << pCamera->fGlareAngle
           << pCamera->fGlareBlur << pCamera->fSpectralShift << pCamera->fSpectralIntencity
+
+          << pCamera->fSpreadStart << pCamera->fSpreadEnd << pCamera->fChromaticAberrationIntensity
+          << pCamera->fLensFlare << pCamera->fLensFlareExtent << pCamera->bLightBeams
+          << pCamera->fMediumDensityForPostfxLightBeams << pCamera->bEnableFog
+          << pCamera->fFogStrength << pCamera->fFogHeightDescend << pCamera->fFogEnvContribution
+          << pCamera->f3BaseFogColor << pCamera->fMediumRadius
+
           << pCamera->fHighlightCompression << pCamera->fBlackoutLat << pCamera->fStereoDist
           << pCamera->fStereoDistFalloff << pCamera->fAperture << pCamera->fApertureEdge
           << pCamera->fApertureAspect << pCamera->fFocalDepth << pCamera->fBokehRotation
@@ -1037,7 +1049,7 @@ void OctaneClient::uploadCamera(Camera *pCamera, uint32_t uiFrameIdx, uint32_t u
     {
       RPCSend snd(
           m_Socket,
-          sizeof(float_3) * 5 + sizeof(float_2) * 2 + sizeof(float) * 17 + sizeof(int32_t) * 32 +
+          sizeof(float_3) * 6 + sizeof(float_2) * 2 + sizeof(float) * 27 + sizeof(int32_t) * 34 +
               (pCamera->sCustomLut.length() + 2) + (pCamera->sOcioViewDisplay.length() + 2) +
               (pCamera->sOcioViewDisplayView.length() + 2) + (pCamera->sOcioLook.length() + 2),
           OctaneDataTransferObject::LOAD_BAKING_CAMERA);
@@ -1049,6 +1061,13 @@ void OctaneClient::uploadCamera(Camera *pCamera, uint32_t uiFrameIdx, uint32_t u
           << pCamera->fHotPixelFilter << pCamera->fWhiteSaturation << pCamera->fBloomPower
           << pCamera->fCutoff << pCamera->fGlarePower << pCamera->fGlareAngle
           << pCamera->fGlareBlur << pCamera->fSpectralShift << pCamera->fSpectralIntencity
+
+          << pCamera->fSpreadStart << pCamera->fSpreadEnd << pCamera->fChromaticAberrationIntensity
+          << pCamera->fLensFlare << pCamera->fLensFlareExtent << pCamera->bLightBeams
+          << pCamera->fMediumDensityForPostfxLightBeams << pCamera->bEnableFog
+          << pCamera->fFogStrength << pCamera->fFogHeightDescend << pCamera->fFogEnvContribution
+          << pCamera->f3BaseFogColor << pCamera->fMediumRadius
+
           << pCamera->fHighlightCompression << pCamera->fTolerance << pCamera->fLutStrength
           << pCamera->fDenoiserBlend
 
@@ -1101,8 +1120,8 @@ void OctaneClient::uploadCamera(Camera *pCamera, uint32_t uiFrameIdx, uint32_t u
       }
 
       RPCSend snd(m_Socket,
-                  (sizeof(uint32_t) + (sizeof(float_3) * 3 + sizeof(float)) * motoin_data_num) +
-                      sizeof(float_3) * 6 + sizeof(float) * 31 + sizeof(int32_t) * 31 +
+                  (sizeof(uint32_t) + (sizeof(float_3) * 4 + sizeof(float)) * motoin_data_num) +
+                      sizeof(float_3) * 6 + sizeof(float) * 41 + sizeof(int32_t) * 33 +
                       sizeof(uint32_t) * 6 + (pCamera->sCustomLut.length() + 2) +
                       (pCamera->sOcioViewDisplay.length() + 2) +
                       (pCamera->sOcioViewDisplayView.length() + 2) +
@@ -1126,9 +1145,17 @@ void OctaneClient::uploadCamera(Camera *pCamera, uint32_t uiFrameIdx, uint32_t u
           << pCamera->fSaturation << pCamera->fHotPixelFilter << pCamera->fWhiteSaturation
           << pCamera->fBloomPower << pCamera->fCutoff << pCamera->fGlarePower
           << pCamera->fGlareAngle << pCamera->fGlareBlur << pCamera->fSpectralShift
-          << pCamera->fSpectralIntencity << pCamera->fHighlightCompression << pCamera->fPixelAspect
-          << pCamera->fApertureAspect << pCamera->fBokehRotation << pCamera->fBokehRoundness
-          << pCamera->fLutStrength << pCamera->fDenoiserBlend
+          << pCamera->fSpectralIntencity
+
+          << pCamera->fSpreadStart << pCamera->fSpreadEnd << pCamera->fChromaticAberrationIntensity
+          << pCamera->fLensFlare << pCamera->fLensFlareExtent << pCamera->bLightBeams
+          << pCamera->fMediumDensityForPostfxLightBeams << pCamera->bEnableFog
+          << pCamera->fFogStrength << pCamera->fFogHeightDescend << pCamera->fFogEnvContribution
+          << pCamera->f3BaseFogColor << pCamera->fMediumRadius
+
+          << pCamera->fHighlightCompression << pCamera->fPixelAspect << pCamera->fApertureAspect
+          << pCamera->fBokehRotation << pCamera->fBokehRoundness << pCamera->fLutStrength
+          << pCamera->fDenoiserBlend
 
           << pCamera->bEnableDenoiser << pCamera->bDenoiseVolumes << pCamera->bDenoiseOnCompletion
           << pCamera->iMinDenoiserSample << pCamera->iMaxDenoiserInterval
@@ -1244,7 +1271,7 @@ bool OctaneClient::checkUniversalCameraUpdated(
   lastUniversalCamera.f2LensShift.fVal = current.f2LensShift.fVal;
   lastUniversalCamera.fPixelAspectRatio.fVal = current.fPixelAspectRatio.fVal;
   lastUniversalCamera.bPerspectiveCorrection.bVal = current.bPerspectiveCorrection.bVal;
-  lastUniversalCamera.fFisheyeAngle.fVal = current.fFisheyeAngle.fVal;  
+  lastUniversalCamera.fFisheyeAngle.fVal = current.fFisheyeAngle.fVal;
   lastUniversalCamera.iFisheyeType.iVal = current.iFisheyeType.iVal;
   lastUniversalCamera.bHardVignette.bVal = current.bHardVignette.bVal;
   lastUniversalCamera.iFisheyeProjection.iVal = current.iFisheyeProjection.iVal;
@@ -1317,7 +1344,7 @@ void OctaneClient::uploadKernel(Kernel *pKernel)
 
   LOCK_MUTEX(m_SocketMutex);
 
-  if (false && pKernel->bUseNodeTree) {
+  if (pKernel->bUseNodeTree) {
     RPCSend snd(m_Socket, sizeof(int32_t) * 2, OctaneDataTransferObject::LOAD_KERNEL);
     snd << pKernel->bUseNodeTree << pKernel->bEmulateOldMotionBlurBehavior;
     snd.write();
@@ -1413,11 +1440,11 @@ void OctaneClient::uploadKernel(Kernel *pKernel)
             << pKernel->bBumpNormalMapping << pKernel->bBkFaceHighlight << pKernel->bAoAlphaShadows
             << pKernel->bMinimizeNetTraffic << pKernel->iSamplingMode << pKernel->iMaxSamples
             << pKernel->bStaticNoise << pKernel->iParallelSamples << pKernel->iMaxTileSamples
-            << pKernel->mbAlignment
-            << pKernel->bLayersEnable << pKernel->iLayersCurrent << pKernel->bLayersInvert
-            << pKernel->layersMode << pKernel->iClayMode << pKernel->iSubsampleMode
-            << pKernel->iMaxSubdivisionLevel << pKernel->iWhiteLightSpectrum
-            << pKernel->bUseOldPipeline << pKernel->f3ToonShadowAmbient;
+            << pKernel->mbAlignment << pKernel->bLayersEnable << pKernel->iLayersCurrent
+            << pKernel->bLayersInvert << pKernel->layersMode << pKernel->iClayMode
+            << pKernel->iSubsampleMode << pKernel->iMaxSubdivisionLevel
+            << pKernel->iWhiteLightSpectrum << pKernel->bUseOldPipeline
+            << pKernel->f3ToonShadowAmbient;
         snd.write();
       } break;
       case Kernel::PHOTON_TRACING: {
@@ -3918,7 +3945,7 @@ bool OctaneClient::downloadImageBuffer(RenderStatistics &renderStat,
           bPassUseSharedSurface = false;
           break;
         default:
-          bPassUseSharedSurface = (passType < Octane::RENDER_PASS_OUTPUT_AOV_IDS_OFFSET);
+          bPassUseSharedSurface = true;
       }
       if (bUseSharedSurface && bPassUseSharedSurface) {
         rcv >> renderStat.iSharedHandler;

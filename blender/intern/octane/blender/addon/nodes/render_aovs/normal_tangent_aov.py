@@ -3,11 +3,14 @@ import bpy
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
 from octane.utils import utility, consts
-from octane.nodes.base_node import OctaneBaseNode
-from octane.nodes.base_kernel import OctaneBaseKernelNode
-from octane.nodes.base_osl import OctaneScriptNode
-from octane.nodes.base_image import OctaneBaseImageNode
+from octane.nodes import base_switch_input_socket
 from octane.nodes.base_color_ramp import OctaneBaseRampNode
+from octane.nodes.base_curve import OctaneBaseCurveNode
+from octane.nodes.base_image import OctaneBaseImageNode
+from octane.nodes.base_kernel import OctaneBaseKernelNode
+from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_switch import OctaneBaseSwitchNode
 from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
@@ -28,6 +31,23 @@ class OctaneNormalTangentAOVEnabled(OctaneBaseSocket):
     octane_end_version=4294967295
     octane_deprecated=False
 
+class OctaneNormalTangentAOVRoundEdges(OctaneBaseSocket):
+    bl_idname="OctaneNormalTangentAOVRoundEdges"
+    bl_label="Include rounded edges"
+    color=consts.OctanePinColor.Bool
+    octane_default_node_type=consts.NodeType.NT_BOOL
+    octane_default_node_name="OctaneBoolValue"
+    octane_pin_id=consts.PinID.P_ROUND_EDGES
+    octane_pin_name="roundEdges"
+    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_index=1
+    octane_socket_type=consts.SocketType.ST_BOOL
+    default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Include the distortion due to rounded edges in the tangent normal AOV")
+    octane_hide_value=False
+    octane_min_version=13000001
+    octane_end_version=4294967295
+    octane_deprecated=False
+
 class OctaneNormalTangentAOV(bpy.types.Node, OctaneBaseNode):
     bl_idname="OctaneNormalTangentAOV"
     bl_label="Normal (tangent) AOV"
@@ -37,16 +57,17 @@ class OctaneNormalTangentAOV(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name="TN"
     octane_render_pass_description="Assigns a color for the tangent (local) normal at the position hit by the camera ray"
     octane_render_pass_sub_type_name=""
-    octane_socket_class_list=[OctaneNormalTangentAOVEnabled,]
+    octane_socket_class_list=[OctaneNormalTangentAOVEnabled,OctaneNormalTangentAOVRoundEdges,]
     octane_min_version=0
     octane_node_type=consts.NodeType.NT_AOV_TANGENT_NORMAL
-    octane_socket_list=["Enabled", ]
+    octane_socket_list=["Enabled", "Include rounded edges", ]
     octane_attribute_list=[]
     octane_attribute_config={}
-    octane_static_pin_count=1
+    octane_static_pin_count=2
 
     def init(self, context):
         self.inputs.new("OctaneNormalTangentAOVEnabled", OctaneNormalTangentAOVEnabled.bl_label).init()
+        self.inputs.new("OctaneNormalTangentAOVRoundEdges", OctaneNormalTangentAOVRoundEdges.bl_label).init()
         self.outputs.new("OctaneRenderAOVOutSocket", "Render AOV out").init()
 
     @classmethod
@@ -56,6 +77,7 @@ class OctaneNormalTangentAOV(bpy.types.Node, OctaneBaseNode):
 
 _CLASSES=[
     OctaneNormalTangentAOVEnabled,
+    OctaneNormalTangentAOVRoundEdges,
     OctaneNormalTangentAOV,
 ]
 

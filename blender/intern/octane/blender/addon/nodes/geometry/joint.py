@@ -3,11 +3,14 @@ import bpy
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
 from octane.utils import utility, consts
-from octane.nodes.base_node import OctaneBaseNode
-from octane.nodes.base_kernel import OctaneBaseKernelNode
-from octane.nodes.base_osl import OctaneScriptNode
-from octane.nodes.base_image import OctaneBaseImageNode
+from octane.nodes import base_switch_input_socket
 from octane.nodes.base_color_ramp import OctaneBaseRampNode
+from octane.nodes.base_curve import OctaneBaseCurveNode
+from octane.nodes.base_image import OctaneBaseImageNode
+from octane.nodes.base_kernel import OctaneBaseKernelNode
+from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_switch import OctaneBaseSwitchNode
 from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
@@ -41,7 +44,7 @@ class OctaneJoint(bpy.types.Node, OctaneBaseNode):
     octane_node_type=consts.NodeType.NT_GEO_JOINT
     octane_socket_list=["Joint transform", ]
     octane_attribute_list=["a_pin_count", "a_index", ]
-    octane_attribute_config={"a_pin_count": [consts.AttributeID.A_PIN_COUNT, "pin_count", consts.AttributeType.AT_INT], "a_index": [consts.AttributeID.A_INDEX, "index", consts.AttributeType.AT_LONG], }
+    octane_attribute_config={"a_pin_count": [consts.AttributeID.A_PIN_COUNT, "pin_count", consts.AttributeType.AT_INT], "a_index": [consts.AttributeID.A_INDEX, "index", consts.AttributeType.AT_LONG], "a_input_action": [consts.AttributeID.A_INPUT_ACTION, "inputAction", consts.AttributeType.AT_INT2], }
     octane_static_pin_count=1
 
     a_pin_count: IntProperty(name="Pin count", default=0, update=OctaneBaseNode.update_node_tree, description="The number of child geometry pins. Ideally for connecting child joints, but you can connect other geometry nodes as well to a hierarchy, But only the joint nodes in the hierarchy will be used in deformation calculation. Joint nodes will work as placement node for other geometries connected to the joint hierarchy.\n\n Restrictions:\n     - A joint node should have only one joint parent (destination). Except a root joint node")

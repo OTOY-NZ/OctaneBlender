@@ -3,11 +3,14 @@ import bpy
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
 from octane.utils import utility, consts
-from octane.nodes.base_node import OctaneBaseNode
-from octane.nodes.base_kernel import OctaneBaseKernelNode
-from octane.nodes.base_osl import OctaneScriptNode
-from octane.nodes.base_image import OctaneBaseImageNode
+from octane.nodes import base_switch_input_socket
 from octane.nodes.base_color_ramp import OctaneBaseRampNode
+from octane.nodes.base_curve import OctaneBaseCurveNode
+from octane.nodes.base_image import OctaneBaseImageNode
+from octane.nodes.base_kernel import OctaneBaseKernelNode
+from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_switch import OctaneBaseSwitchNode
 from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
@@ -45,7 +48,7 @@ class OctaneCustomLUT(bpy.types.Node, OctaneBaseNode):
     octane_attribute_config={"a_package": [consts.AttributeID.A_PACKAGE, "package", consts.AttributeType.AT_FILENAME], "a_filename": [consts.AttributeID.A_FILENAME, "filename", consts.AttributeType.AT_FILENAME], "a_reload": [consts.AttributeID.A_RELOAD, "reload", consts.AttributeType.AT_BOOL], "a_title": [consts.AttributeID.A_TITLE, "title", consts.AttributeType.AT_STRING], "a_domain_min_1d": [consts.AttributeID.A_DOMAIN_MIN_1D, "domainMin1D", consts.AttributeType.AT_FLOAT3], "a_domain_max_1d": [consts.AttributeID.A_DOMAIN_MAX_1D, "domainMax1D", consts.AttributeType.AT_FLOAT3], "a_values_1d": [consts.AttributeID.A_VALUES_1D, "values1d", consts.AttributeType.AT_FLOAT3], "a_domain_min_3d": [consts.AttributeID.A_DOMAIN_MIN_3D, "domainMin3D", consts.AttributeType.AT_FLOAT3], "a_domain_max_3d": [consts.AttributeID.A_DOMAIN_MAX_3D, "domainMax3D", consts.AttributeType.AT_FLOAT3], "a_values_3d": [consts.AttributeID.A_VALUES_3D, "values3d", consts.AttributeType.AT_FLOAT3], }
     octane_static_pin_count=1
 
-    a_filename: StringProperty(name="Filename", default="", update=OctaneBaseNode.update_node_tree, description="Stores the CSV file to load the transforms from. After loading successfully the A_TRANSFORMS and A_USER_INSTANCE_IDS attributes will be replaced by the file contents, otherwise the A_TRANSFORMS and AT_FILENAME and A_USER_INSTANCE_IDS attributes are reverted to their original value", subtype="FILE_PATH")
+    a_filename: StringProperty(name="Filename", default="", update=OctaneBaseNode.update_node_tree, description="Stores the filename of the LUT", subtype="FILE_PATH")
     a_reload: BoolProperty(name="Reload", default=False, update=OctaneBaseNode.update_node_tree, description="Set it to TRUE if the file needs a reload. After the node was evaluated the attribute will be false again")
     a_title: StringProperty(name="Title", default="", update=OctaneBaseNode.update_node_tree, description="The title stored in the LUT file")
     a_domain_min_1d: FloatVectorProperty(name="Domain min 1d", default=(0.000000, 0.000000, 0.000000), size=3, update=OctaneBaseNode.update_node_tree, description="The minimum of the input domain of the 1D look up table")

@@ -62,7 +62,10 @@ class PinType:
     PT_OUTPUT_AOV_GROUP = 37
     PT_OUTPUT_AOV = 38
     PT_TEX_COMPOSITE_LAYER = 39
-    PT_COMPOSITE_AOV_LAYER = 40
+    PT_OUTPUT_AOV_LAYER = 40
+    PT_REALTIME = 43
+    PT_BLENDING_SETTINGS = 44
+    PT_POST_VOLUME = 45
 
 
 # Node Type ID
@@ -416,7 +419,69 @@ class NodeType:
     NT_OUTPUT_AOV_CLAMP = 374
     NT_OUTPUT_AOV_MAP_RANGE = 375
     NT_OUTPUT_AOV_LIGHT_MIXING = 376
+    NT_AOV_POSTFX_MEDIA = 379
+    NT_SWITCH_INTERNAL = 381
+    NT_BLENDING_SETTINGS = 382
+    NT_OUTPUT_AOV_LAYER_CLAMP = 383
+    NT_OUTPUT_AOV_LAYER_ADJUST_CONTRAST = 384
+    NT_OUTPUT_AOV_LAYER_BLEND_LAYERS = 385
+    NT_OUTPUT_AOV_LAYER_MASK_WITH_LAYERS = 386
+    NT_OUTPUT_AOV_LAYER_MASK_WITH_CRYPTOMATTE = 387
+    NT_OUTPUT_AOV_LAYER_GROUP = 388
+    NT_OUTPUT_AOV_LAYER_BLEND_IMAGE = 389
+    NT_OUTPUT_AOV_LAYER_MAP_RANGE = 390
+    NT_OUTPUT_AOV_LAYER_BLEND_RENDER_AOV = 391
+    NT_OUTPUT_AOV_LAYER_BLEND_SOLID_COLOR = 392
+    NT_OUTPUT_AOV = 393
+    NT_OUTPUT_AOV_LAYER_REMOVE_HOT_PIXELS = 394
+    NT_OUTPUT_AOV_LAYER_ADJUST_OPACITY = 395
+    NT_OUTPUT_AOV_LAYER_ADJUST_SATURATION = 396
+    NT_OUTPUT_AOV_LAYER_ADD_VIGNETTE = 397
+    NT_OUTPUT_AOV_LAYER_ADJUST_WHITE_BALANCE = 398
+    NT_OUTPUT_AOV_LAYER_ADJUST_BRIGHTNESS = 399
+    NT_OUTPUT_AOV_LAYER_CONVERT_FOR_SDR_DISPLAY_BASIC = 400
+    NT_LIGHT_ANALYTIC = 402
+    NT_LIGHT_DIRECTIONAL = 403
+    NT_POST_VOLUME = 404
+    NT_OUTPUT_AOV_LAYER_CONVERT_FOR_SDR_DISPLAY_OCIO = 405
+    NT_OUTPUT_AOV_LAYER_CONVERT_FOR_SDR_DISPLAY_ACES = 406
+    NT_OUTPUT_AOV_LAYER_APPLY_GAMMA_CURVE = 409
+    NT_OUTPUT_AOV_LAYER_ADJUST_HUE = 410
+    NT_OUTPUT_AOV_LAYER_INVERT = 411
+    NT_TEX_COMPOSITE_LAYER_ADJUST_HUE = 413
+    NT_TEX_COMPOSITE_LAYER_ADJUST_CONTRAST = 414
+    NT_TEX_COMPOSITE_LAYER_ADJUST_BRIGHTNESS = 415
+    NT_TEX_COMPOSITE_LAYER_APPLY_GAMMA_CURVE = 416
+    NT_TEX_COMPOSITE_LAYER_ADJUST_SATURATION = 417
+    NT_TEX_COMPOSITE_LAYER_CLAMP = 418
+    NT_TEX_COMPOSITE_LAYER_MATH_UNARY = 419
+    NT_TEX_COMPOSITE_LAYER_MATH_BINARY = 420
+    NT_TEX_COMPOSITE_LAYER_MAP_RANGE = 421
+    NT_TEX_COMPOSITE_LAYER_GROUP = 422
+    NT_TEX_COMPOSITE_LAYER_ADJUST_LIGHTNESS = 423
+    NT_TEX_COMPOSITE_LAYER_ADJUST_SATURATION_HSL = 424
+    NT_TEX_COMPOSITE_LAYER_CHANNEL_MIXER = 425
+    NT_TEX_COMPOSITE_LAYER_GRAYSCALE = 426
+    NT_TEX_COMPOSITE_LAYER_THRESHOLD = 427
+    NT_TEX_COMPOSITE_LAYER_ADJUST_EXPOSURE = 428
+    NT_TEX_COMPOSITE_LAYER_ADJUST_WHITE_BALANCE = 429
+    NT_TEX_COMPOSITE_LAYER_COMPARISON = 430
+    NT_TEX_COMPOSITE_LAYER_ADJUST_COLOR_BALANCE = 431
+    NT_TEX_COMPOSITE_LAYER_MASK_WITH_LAYERS = 432
+    NT_TEX_COMPOSITE_LAYER_APPLY_GRADIENT_MAP = 433
+    NT_OUTPUT_AOV_LAYER_CONVERT_FOR_SDR_DISPLAY_AGX = 434
+    NT_OUTPUT_AOV_LAYER_APPLY_CUSTOM_CURVE = 448
+    NT_OUTPUT_AOV_LAYER_BLEND_SHARED_SURFACE = 449
     NT_OUTPUT_AOV_SHARED_SURFACE = 450
+    NT_OUTPUT_AOV_LAYER_APPLY_LUT = 451
+    NT_OUTPUT_AOV_LAYER_APPLY_CAMERA_RESPONSE_CURVE = 452
+    NT_OUTPUT_AOV_LAYER_APPLY_OCIO_LOOK = 453
+    NT_OUTPUT_AOV_LAYER_ADD_BLOOM = 454
+    NT_OUTPUT_AOV_LAYER_ADD_GLARE = 455
+    NT_OUTPUT_AOV_LAYER_ADD_LENS_FLARE = 456
+    NT_OUTPUT_AOV_LAYER_ADD_CHROMATIC_ABERRATION = 457
+    NT_OUTPUT_AOV_LAYER_BLUR = 458
+    NT_OUTPUT_AOV_LAYER_CONVERT_FOR_SDR_DISPLAY_SMOOTH = 459
     NT_IN_BOOL = 20001
     NT_IN_FLOAT = 20002
     NT_IN_INT = 20003
@@ -455,7 +520,9 @@ class NodeType:
     NT_IN_OUTPUT_AOV_GROUP = 20037
     NT_IN_OUTPUT_AOV = 20038
     NT_IN_TEX_COMPOSITE_LAYER = 20039
-    NT_IN_COMPOSITE_AOV_LAYER = 20040
+    NT_IN_OUTPUT_AOV_LAYER = 20040
+    NT_IN_BLENDING_SETTINGS = 20044
+    NT_IN_POST_VOLUME = 20045
     NT_OUT_BOOL = 30001
     NT_OUT_FLOAT = 30002
     NT_OUT_INT = 30003
@@ -494,7 +561,50 @@ class NodeType:
     NT_OUT_OUTPUT_AOV_GROUP = 30037
     NT_OUT_OUTPUT_AOV = 30038
     NT_OUT_TEX_COMPOSITE_LAYER = 30039
-    NT_OUT_COMPOSITE_AOV_LAYER = 30040
+    NT_OUT_OUTPUT_AOV_LAYER = 30040
+    NT_OUT_BLENDING_SETTINGS = 30044
+    NT_OUT_POST_VOLUME = 30045
+    NT_SWITCH_BOOL = 40001
+    NT_SWITCH_FLOAT = 40002
+    NT_SWITCH_INT = 40003
+    NT_SWITCH_TRANSFORM = 40004
+    NT_SWITCH_TEXTURE = 40005
+    NT_SWITCH_EMISSION = 40006
+    NT_SWITCH_MATERIAL = 40007
+    NT_SWITCH_CAMERA = 40008
+    NT_SWITCH_ENVIRONMENT = 40009
+    NT_SWITCH_IMAGER = 40010
+    NT_SWITCH_KERNEL = 40011
+    NT_SWITCH_GEOMETRY = 40012
+    NT_SWITCH_MEDIUM = 40013
+    NT_SWITCH_PHASEFUNCTION = 40014
+    NT_SWITCH_FILM_SETTINGS = 40015
+    NT_SWITCH_ENUM = 40016
+    NT_SWITCH_OBJECTLAYER = 40017
+    NT_SWITCH_POSTPROCESSING = 40018
+    NT_SWITCH_RENDERTARGET = 40019
+    NT_SWITCH_PROJECTION = 40021
+    NT_SWITCH_DISPLACEMENT = 40022
+    NT_SWITCH_STRING = 40023
+    NT_SWITCH_RENDER_PASSES = 40024
+    NT_SWITCH_RENDER_LAYER = 40025
+    NT_SWITCH_VOLUME_RAMP = 40026
+    NT_SWITCH_ANIMATION_SETTINGS = 40027
+    NT_SWITCH_LUT = 40028
+    NT_SWITCH_RENDER_JOB = 40029
+    NT_SWITCH_TOON_RAMP = 40030
+    NT_SWITCH_BIT_MASK = 40031
+    NT_SWITCH_ROUND_EDGES = 40032
+    NT_SWITCH_MATERIAL_LAYER = 40033
+    NT_SWITCH_OCIO_VIEW = 40034
+    NT_SWITCH_OCIO_LOOK = 40035
+    NT_SWITCH_OCIO_COLOR_SPACE = 40036
+    NT_SWITCH_OUTPUT_AOV_GROUP = 40037
+    NT_SWITCH_OUTPUT_AOV = 40038
+    NT_SWITCH_TEX_COMPOSITE_LAYER = 40039
+    NT_SWITCH_OUTPUT_AOV_LAYER = 40040
+    NT_SWITCH_BLENDING_SETTINGS = 40044
+    NT_SWITCH_POST_VOLUME = 40045
 
 
 # Pin ID
@@ -1343,10 +1453,99 @@ class PinID:
     P_DISABLED_COLOR = 884
     P_TEMPERATURE_MAX = 886
     P_TEMPERATURE_MIN = 887
+    P_DIFFUSE_BRDF = 888
+    P_POSTFX_FOG_MEDIA_ENABLED = 927
+    P_POSTFX_FOG_STRENGTH = 928
+    P_POSTFX_FOG_EXPONENT = 929
+    P_POSTFX_LIGHT_BEAMS_ENABLED = 932
+    P_RENDER_PASS_POSTFX_MEDIA = 933
+    P_ENABLE_POSTFX_MEDIA = 934
+    P_POSTFX_FOG_ENV_CONTRIBUTION = 935
+    P_CHROMATIC_ABERRATION_INTENSITY = 936
     P_CAST_PHOTONS = 937
+    P_LENS_FLARE = 938
+    P_LENS_FLARE_EXTENT = 939
+    P_POSTFX_LIGHT_BEAMS_MEDIUM_DENSITY = 943
     P_IOR = 951
     P_COATING_IOR = 952
     P_FILM_IOR = 953
+    P_INPUT_COLOR_SPACE = 954
+    P_OUTPUT_COLOR_SPACE = 955
+    P_INVERT_COLOR_SPACE = 956
+    P_SPREAD_START = 957
+    P_SPREAD_END = 958
+    P_BUMP_HEIGHT = 959
+    P_DISK_ANALYTIC_LIGHT_SIZE = 960
+    P_QUAD_ANALYTIC_LIGHT_SIZE = 961
+    P_ANALYTIC_LIGHT_TYPE = 962
+    P_ANALYTIC_LIGHT = 964
+    P_TUBE_ANALYTIC_LIGHT_CAP_RADIUS = 965
+    P_TUBE_ANALYTIC_LIGHT_LENGTH = 966
+    P_SPHERE_ANALYTIC_LIGHT_RADIUS = 967
+    P_ANALYTIC_LIGHT_SPREAD_ANGLE = 968
+    P_ANALYTIC_LIGHT_SPREAD_CUTOFF_HARDNESS = 969
+    P_ANALYTIC_LIGHT_FALLOFF_RADIUS = 970
+    P_LIGHT_9_ENABLED = 972
+    P_LIGHT_9_SCALE = 973
+    P_LIGHT_9_TINT = 974
+    P_LIGHT_10_ENABLED = 975
+    P_LIGHT_10_SCALE = 976
+    P_LIGHT_10_TINT = 977
+    P_LIGHT_11_ENABLED = 978
+    P_LIGHT_11_SCALE = 979
+    P_BLENDING_SETTINGS = 980
+    P_LIGHT_11_TINT = 981
+    P_LIGHT_12_ENABLED = 982
+    P_LIGHT_12_SCALE = 983
+    P_LIGHT_12_TINT = 984
+    P_LIGHT_13_ENABLED = 985
+    P_LIGHT_13_SCALE = 986
+    P_LIGHT_13_TINT = 987
+    P_LIGHT_14_ENABLED = 988
+    P_LIGHT_14_SCALE = 989
+    P_LIGHT_14_TINT = 990
+    P_LIGHT_15_ENABLED = 991
+    P_LIGHT_15_SCALE = 992
+    P_LIGHT_15_TINT = 993
+    P_LIGHT_16_ENABLED = 994
+    P_LIGHT_16_SCALE = 995
+    P_LIGHT_16_TINT = 996
+    P_LIGHT_17_ENABLED = 997
+    P_LIGHT_17_SCALE = 998
+    P_LIGHT_17_TINT = 999
+    P_LIGHT_18_ENABLED = 1000
+    P_LIGHT_18_SCALE = 1001
+    P_LIGHT_18_TINT = 1002
+    P_LIGHT_19_ENABLED = 1003
+    P_LIGHT_19_SCALE = 1004
+    P_LIGHT_19_TINT = 1005
+    P_LIGHT_20_ENABLED = 1006
+    P_LIGHT_20_SCALE = 1007
+    P_LIGHT_20_TINT = 1008
+    P_POST_VOLUME = 1009
+    P_USE_IN_POST_VOLUME = 1010
+    P_PRESERVE_BRIGHTNESS = 1011
+    P_DIR_ANALYTIC_LIGHT_ANGLE = 1012
+    P_BLEND_REGION_MASK = 1013
+    P_REGION_OFFSET_RELATIVE = 1020
+    P_REGION_SIZE_RELATIVE = 1021
+    P_ATTACH_TO_LAYER = 1022
+    P_LUMINANCE = 1023
+    P_DISPERSION_MODE = 1024
+    P_PASS_THROUGH = 1025
+    P_GRADIENT_INTERP_COLOR_SPACE = 1026
+    P_LIGHTNESS = 1027
+    P_SATURATION_SHIFT = 1028
+    P_WEIGHT_RED = 1029
+    P_WEIGHT_GREEN = 1030
+    P_WEIGHT_BLUE = 1031
+    P_WEIGHT_GRAYSCALE = 1032
+    P_PUNCHY = 1033
+    P_CUSTOM_CURVE_MAX_VALUE = 1038
+    P_CUSTOM_CURVE_MODE = 1039
+    P_DESATURATE_HIGHLIGHTS = 1040
+    P_HIGHLIGHT_ROLLOFF = 1041
+    P_SATURATION_ROLLOFF = 1042
 
 
 # Attribute ID
@@ -1703,28 +1902,28 @@ class AttributeID:
     A_HAIR_FLOAT_ATTRIBUTE2 = 375
     A_HAIR_FLOAT_ATTRIBUTE3 = 376
     A_HAIR_FLOAT_ATTRIBUTE4 = 377
-    A_SAVE_IMAGE_EXR_BIT_DEPTH = 378
-    A_SAVE_IMAGE_EXR_COLOR_SPACE = 379
+    A_SAVE_IMAGE_BIT_DEPTH_16_32_F = 378
+    A_SAVE_IMAGE_COLOR_SPACE = 379
     A_SAVE_IMAGE_EXR_COMPRESSION_TYPE = 380
     A_SAVE_IMAGE_FILE_TYPE = 381
-    A_SAVE_IMAGE_PNG_BIT_DEPTH = 382
+    A_SAVE_IMAGE_BIT_DEPTH_8_16 = 382
     A_EXPORT_PASSES_DEEP_EXR_COMPRESSION_TYPE = 383
     A_EXPORT_PASSES_EXPORT_TYPE = 384
-    A_EXPORT_PASSES_EXR_COLOR_SPACE = 385
-    A_EXPORT_PASSES_NON_DEEP_EXR_BIT_DEPTH = 386
-    A_EXPORT_PASSES_NON_DEEP_EXR_COMPRESSION_TYPE = 387
-    A_EXPORT_PASSES_PNG_BIT_DEPTH = 388
+    A_EXPORT_PASSES_COLOR_SPACE = 385
+    A_EXPORT_PASSES_BIT_DEPTH_16_32_F = 386
+    A_EXPORT_PASSES_EXR_COMPRESSION_TYPE = 387
+    A_EXPORT_PASSES_BIT_DEPTH_8_16 = 388
     A_EXPORT_PASSES_SEPARATE_IMAGES_FILE_TYPE = 389
     A_OCIO_USE_CONFIG_OVERRIDE = 390
     A_OCIO_CONFIG_OVERRIDE_FILENAME = 391
     A_OCIO_INTERMEDIATE_COLOR_SPACE_OCTANE_VALUE = 392
     A_OCIO_INTERMEDIATE_COLOR_SPACE_OCIO_NAME = 393
-    A_SAVE_IMAGE_PNG_USE_OCIO = 394
-    A_SAVE_IMAGE_PNG_OCIO_COLOR_SPACE_NAME = 395
-    A_SAVE_IMAGE_EXR_OCIO_COLOR_SPACE_NAME = 396
-    A_EXPORT_PASSES_PNG_USE_OCIO = 397
-    A_EXPORT_PASSES_PNG_OCIO_COLOR_SPACE_NAME = 398
-    A_EXPORT_PASSES_EXR_OCIO_COLOR_SPACE_NAME = 399
+    A_SAVE_IMAGE_USE_OCIO = 394
+    A_SAVE_IMAGE_NONLINEAR_OCIO_COLOR_SPACE_NAME = 395
+    A_SAVE_IMAGE_LINEAR_OCIO_COLOR_SPACE_NAME = 396
+    A_EXPORT_PASSES_USE_OCIO = 397
+    A_EXPORT_PASSES_NONLINEAR_OCIO_COLOR_SPACE_NAME = 398
+    A_EXPORT_PASSES_LINEAR_OCIO_COLOR_SPACE_NAME = 399
     A_OCIO_DISPLAY_NAME = 400
     A_OCIO_VIEW_NAME = 401
     A_OCIO_USE_VIEW_LOOK = 402
@@ -1744,8 +1943,8 @@ class AttributeID:
     A_USD_IMP_LOAD_MATERIAL = 416
     A_USD_IMP_OVERRIDE_SUBDIV_LEVEL = 417
     A_USD_IMP_SUBDIV_ALL_MESHES = 418
-    A_SAVE_IMAGE_EXR_PREMULTIPLIED_ALPHA = 420
-    A_EXPORT_PASSES_NON_DEEP_EXR_PREMULTIPLIED_ALPHA = 421
+    A_SAVE_IMAGE_PREMULTIPLIED_ALPHA = 420
+    A_EXPORT_PASSES_PREMULTIPLIED_ALPHA = 421
     A_VOLUME_CHANNEL_DEFAULTS = 422
     A_VOLUME_CHANNEL_IDS = 423
     A_VOLUME_CHANNEL_IS_FLOAT3 = 424
@@ -1756,14 +1955,24 @@ class AttributeID:
     A_VOLUME_CHANNEL_CONFIG = 429
     A_LEGACY_PNG_GAMMA = 430
     A_SHOW_VIEWPORT_FRAME_RATE = 431
-    A_EXPORT_PASSES_NON_DEEP_EXR_COMPRESSION_LEVEL = 432
+    A_EXPORT_PASSES_EXR_COMPRESSION_LEVEL = 432
     A_USE_GPU_COMPOSITOR = 433
     A_INITIAL_COLOR_SPACE_SELECTED = 434
     A_RNDR_GUID = 435
     A_RNDR_ROOT_GUID = 436
     A_SELECTED_PREFERENCES_TAB_ID = 437
     A_COMPATIBILITY_VERSION = 438
+    A_OPTION_COUNT = 439
     A_GEOIMP_USE_OLD_NORMAL_CALCULATIONS = 440
+    A_EXPORT_PASSES_TIFF_COMPRESSION_TYPE = 443
+    A_SAVE_IMAGE_TIFF_COMPRESSION_TYPE = 444
+    A_SAVE_IMAGE_EXR_COMPRESSION_LEVEL = 445
+    A_SAVE_IMAGE_JPEG_QUALITY = 446
+    A_EXPORT_PASSES_JPEG_QUALITY = 447
+    A_CUSTOM_CURVE_POINTS_PRIMARY = 476
+    A_CUSTOM_CURVE_POINTS_SECONDARY_RED = 477
+    A_CUSTOM_CURVE_POINTS_SECONDARY_GREEN = 478
+    A_CUSTOM_CURVE_POINTS_SECONDARY_BLUE = 479
     A_SHARED_SURFACE_ID = 480
 
 
@@ -1793,6 +2002,7 @@ class RenderPassID:
     Shadow = 32
     Irradiance = 33
     LightDirection = 34
+    PostfxMedia = 84
     PostProcessing = 16
     Noise = 31
     LayerShadows = 17
@@ -1828,6 +2038,42 @@ class RenderPassID:
     LightID8 = 30
     LightID8Direct = 65
     LightID8Indirect = 73
+    LightID9 = 85
+    LightID9Direct = 97
+    LightID9Indirect = 109
+    LightID10 = 86
+    LightID10Direct = 98
+    LightID10Indirect = 110
+    LightID11 = 87
+    LightID11Direct = 99
+    LightID11Indirect = 111
+    LightID12 = 88
+    LightID12Direct = 100
+    LightID12Indirect = 112
+    LightID13 = 89
+    LightID13Direct = 101
+    LightID13Indirect = 113
+    LightID14 = 90
+    LightID14Direct = 102
+    LightID14Indirect = 114
+    LightID15 = 91
+    LightID15Direct = 103
+    LightID15Indirect = 115
+    LightID16 = 92
+    LightID16Direct = 104
+    LightID16Indirect = 116
+    LightID17 = 93
+    LightID17Direct = 105
+    LightID17Indirect = 117
+    LightID18 = 94
+    LightID18Direct = 106
+    LightID18Indirect = 118
+    LightID19 = 95
+    LightID19Direct = 107
+    LightID19Indirect = 119
+    LightID20 = 96
+    LightID20Direct = 108
+    LightID20Indirect = 120
     DenoisedBeauty = 43
     DenoisedDiffuseDirect = 44
     DenoisedDiffuseIndirect = 45
@@ -1939,6 +2185,7 @@ OCTANE_PASS_ID_TO_COMPACT_LONG_NAME = {
     RenderPassID.Shadow: "Shadow",
     RenderPassID.Irradiance: "Irradiance",
     RenderPassID.LightDirection: "LightDirection",
+    RenderPassID.PostfxMedia: "PostfxMedia",
     RenderPassID.PostProcessing: "PostProcessing",
     RenderPassID.Noise: "Noise",
     RenderPassID.LayerShadows: "LayerShadows",
@@ -1974,6 +2221,42 @@ OCTANE_PASS_ID_TO_COMPACT_LONG_NAME = {
     RenderPassID.LightID8: "LightID8",
     RenderPassID.LightID8Direct: "LightID8Direct",
     RenderPassID.LightID8Indirect: "LightID8Indirect",
+    RenderPassID.LightID9: "LightID9",
+    RenderPassID.LightID9Direct: "LightID9Direct",
+    RenderPassID.LightID9Indirect: "LightID9Indirect",
+    RenderPassID.LightID10: "LightID10",
+    RenderPassID.LightID10Direct: "LightID10Direct",
+    RenderPassID.LightID10Indirect: "LightID10Indirect",
+    RenderPassID.LightID11: "LightID11",
+    RenderPassID.LightID11Direct: "LightID11Direct",
+    RenderPassID.LightID11Indirect: "LightID11Indirect",
+    RenderPassID.LightID12: "LightID12",
+    RenderPassID.LightID12Direct: "LightID12Direct",
+    RenderPassID.LightID12Indirect: "LightID12Indirect",
+    RenderPassID.LightID13: "LightID13",
+    RenderPassID.LightID13Direct: "LightID13Direct",
+    RenderPassID.LightID13Indirect: "LightID13Indirect",
+    RenderPassID.LightID14: "LightID14",
+    RenderPassID.LightID14Direct: "LightID14Direct",
+    RenderPassID.LightID14Indirect: "LightID14Indirect",
+    RenderPassID.LightID15: "LightID15",
+    RenderPassID.LightID15Direct: "LightID15Direct",
+    RenderPassID.LightID15Indirect: "LightID15Indirect",
+    RenderPassID.LightID16: "LightID16",
+    RenderPassID.LightID16Direct: "LightID16Direct",
+    RenderPassID.LightID16Indirect: "LightID16Indirect",
+    RenderPassID.LightID17: "LightID17",
+    RenderPassID.LightID17Direct: "LightID17Direct",
+    RenderPassID.LightID17Indirect: "LightID17Indirect",
+    RenderPassID.LightID18: "LightID18",
+    RenderPassID.LightID18Direct: "LightID18Direct",
+    RenderPassID.LightID18Indirect: "LightID18Indirect",
+    RenderPassID.LightID19: "LightID19",
+    RenderPassID.LightID19Direct: "LightID19Direct",
+    RenderPassID.LightID19Indirect: "LightID19Indirect",
+    RenderPassID.LightID20: "LightID20",
+    RenderPassID.LightID20Direct: "LightID20Direct",
+    RenderPassID.LightID20Indirect: "LightID20Indirect",
     RenderPassID.DenoisedBeauty: "DenoisedBeauty",
     RenderPassID.DenoisedDiffuseDirect: "DenoisedDiffuseDirect",
     RenderPassID.DenoisedDiffuseIndirect: "DenoisedDiffuseIndirect",
@@ -2085,6 +2368,7 @@ OCTANE_COMPACT_LONG_NAME_TO_PASS_ID = {
     "Shadow": RenderPassID.Shadow,
     "Irradiance": RenderPassID.Irradiance,
     "LightDirection": RenderPassID.LightDirection,
+    "PostfxMedia": RenderPassID.PostfxMedia,
     "PostProcessing": RenderPassID.PostProcessing,
     "Noise": RenderPassID.Noise,
     "LayerShadows": RenderPassID.LayerShadows,
@@ -2120,6 +2404,42 @@ OCTANE_COMPACT_LONG_NAME_TO_PASS_ID = {
     "LightID8": RenderPassID.LightID8,
     "LightID8Direct": RenderPassID.LightID8Direct,
     "LightID8Indirect": RenderPassID.LightID8Indirect,
+    "LightID9": RenderPassID.LightID9,
+    "LightID9Direct": RenderPassID.LightID9Direct,
+    "LightID9Indirect": RenderPassID.LightID9Indirect,
+    "LightID10": RenderPassID.LightID10,
+    "LightID10Direct": RenderPassID.LightID10Direct,
+    "LightID10Indirect": RenderPassID.LightID10Indirect,
+    "LightID11": RenderPassID.LightID11,
+    "LightID11Direct": RenderPassID.LightID11Direct,
+    "LightID11Indirect": RenderPassID.LightID11Indirect,
+    "LightID12": RenderPassID.LightID12,
+    "LightID12Direct": RenderPassID.LightID12Direct,
+    "LightID12Indirect": RenderPassID.LightID12Indirect,
+    "LightID13": RenderPassID.LightID13,
+    "LightID13Direct": RenderPassID.LightID13Direct,
+    "LightID13Indirect": RenderPassID.LightID13Indirect,
+    "LightID14": RenderPassID.LightID14,
+    "LightID14Direct": RenderPassID.LightID14Direct,
+    "LightID14Indirect": RenderPassID.LightID14Indirect,
+    "LightID15": RenderPassID.LightID15,
+    "LightID15Direct": RenderPassID.LightID15Direct,
+    "LightID15Indirect": RenderPassID.LightID15Indirect,
+    "LightID16": RenderPassID.LightID16,
+    "LightID16Direct": RenderPassID.LightID16Direct,
+    "LightID16Indirect": RenderPassID.LightID16Indirect,
+    "LightID17": RenderPassID.LightID17,
+    "LightID17Direct": RenderPassID.LightID17Direct,
+    "LightID17Indirect": RenderPassID.LightID17Indirect,
+    "LightID18": RenderPassID.LightID18,
+    "LightID18Direct": RenderPassID.LightID18Direct,
+    "LightID18Indirect": RenderPassID.LightID18Indirect,
+    "LightID19": RenderPassID.LightID19,
+    "LightID19Direct": RenderPassID.LightID19Direct,
+    "LightID19Indirect": RenderPassID.LightID19Indirect,
+    "LightID20": RenderPassID.LightID20,
+    "LightID20Direct": RenderPassID.LightID20Direct,
+    "LightID20Indirect": RenderPassID.LightID20Indirect,
     "DenoisedBeauty": RenderPassID.DenoisedBeauty,
     "DenoisedDiffuseDirect": RenderPassID.DenoisedDiffuseDirect,
     "DenoisedDiffuseIndirect": RenderPassID.DenoisedDiffuseIndirect,
@@ -2231,6 +2551,7 @@ OCTANE_PASS_ID_TO_EXR_LAYER_NAME = {
     RenderPassID.Shadow: "Shadow",
     RenderPassID.Irradiance: "Irradiance",
     RenderPassID.LightDirection: "Light direction",
+    RenderPassID.PostfxMedia: "Postfx media",
     RenderPassID.PostProcessing: "Post processing",
     RenderPassID.Noise: "Noise",
     RenderPassID.LayerShadows: "Layer shadows",
@@ -2266,6 +2587,42 @@ OCTANE_PASS_ID_TO_EXR_LAYER_NAME = {
     RenderPassID.LightID8: "Light ID 8",
     RenderPassID.LightID8Direct: "Light ID 8 direct",
     RenderPassID.LightID8Indirect: "Light ID 8 indirect",
+    RenderPassID.LightID9: "Light ID 9",
+    RenderPassID.LightID9Direct: "Light ID 9 direct",
+    RenderPassID.LightID9Indirect: "Light ID 9 indirect",
+    RenderPassID.LightID10: "Light ID 10",
+    RenderPassID.LightID10Direct: "Light ID 10 direct",
+    RenderPassID.LightID10Indirect: "Light ID 10 indirect",
+    RenderPassID.LightID11: "Light ID 11",
+    RenderPassID.LightID11Direct: "Light ID 11 direct",
+    RenderPassID.LightID11Indirect: "Light ID 11 indirect",
+    RenderPassID.LightID12: "Light ID 12",
+    RenderPassID.LightID12Direct: "Light ID 12 direct",
+    RenderPassID.LightID12Indirect: "Light ID 12 indirect",
+    RenderPassID.LightID13: "Light ID 13",
+    RenderPassID.LightID13Direct: "Light ID 13 direct",
+    RenderPassID.LightID13Indirect: "Light ID 13 indirect",
+    RenderPassID.LightID14: "Light ID 14",
+    RenderPassID.LightID14Direct: "Light ID 14 direct",
+    RenderPassID.LightID14Indirect: "Light ID 14 indirect",
+    RenderPassID.LightID15: "Light ID 15",
+    RenderPassID.LightID15Direct: "Light ID 15 direct",
+    RenderPassID.LightID15Indirect: "Light ID 15 indirect",
+    RenderPassID.LightID16: "Light ID 16",
+    RenderPassID.LightID16Direct: "Light ID 16 direct",
+    RenderPassID.LightID16Indirect: "Light ID 16 indirect",
+    RenderPassID.LightID17: "Light ID 17",
+    RenderPassID.LightID17Direct: "Light ID 17 direct",
+    RenderPassID.LightID17Indirect: "Light ID 17 indirect",
+    RenderPassID.LightID18: "Light ID 18",
+    RenderPassID.LightID18Direct: "Light ID 18 direct",
+    RenderPassID.LightID18Indirect: "Light ID 18 indirect",
+    RenderPassID.LightID19: "Light ID 19",
+    RenderPassID.LightID19Direct: "Light ID 19 direct",
+    RenderPassID.LightID19Indirect: "Light ID 19 indirect",
+    RenderPassID.LightID20: "Light ID 20",
+    RenderPassID.LightID20Direct: "Light ID 20 direct",
+    RenderPassID.LightID20Indirect: "Light ID 20 indirect",
     RenderPassID.DenoisedBeauty: "Denoised beauty",
     RenderPassID.DenoisedDiffuseDirect: "Denoised diffuse direct",
     RenderPassID.DenoisedDiffuseIndirect: "Denoised diffuse indirect",
@@ -2377,6 +2734,7 @@ OCTANE_EXR_LAYER_NAME_TO_PASS_ID = {
     "Shadow": RenderPassID.Shadow,
     "Irradiance": RenderPassID.Irradiance,
     "Light direction": RenderPassID.LightDirection,
+    "Postfx media": RenderPassID.PostfxMedia,
     "Post processing": RenderPassID.PostProcessing,
     "Noise": RenderPassID.Noise,
     "Layer shadows": RenderPassID.LayerShadows,
@@ -2412,6 +2770,42 @@ OCTANE_EXR_LAYER_NAME_TO_PASS_ID = {
     "Light ID 8": RenderPassID.LightID8,
     "Light ID 8 direct": RenderPassID.LightID8Direct,
     "Light ID 8 indirect": RenderPassID.LightID8Indirect,
+    "Light ID 9": RenderPassID.LightID9,
+    "Light ID 9 direct": RenderPassID.LightID9Direct,
+    "Light ID 9 indirect": RenderPassID.LightID9Indirect,
+    "Light ID 10": RenderPassID.LightID10,
+    "Light ID 10 direct": RenderPassID.LightID10Direct,
+    "Light ID 10 indirect": RenderPassID.LightID10Indirect,
+    "Light ID 11": RenderPassID.LightID11,
+    "Light ID 11 direct": RenderPassID.LightID11Direct,
+    "Light ID 11 indirect": RenderPassID.LightID11Indirect,
+    "Light ID 12": RenderPassID.LightID12,
+    "Light ID 12 direct": RenderPassID.LightID12Direct,
+    "Light ID 12 indirect": RenderPassID.LightID12Indirect,
+    "Light ID 13": RenderPassID.LightID13,
+    "Light ID 13 direct": RenderPassID.LightID13Direct,
+    "Light ID 13 indirect": RenderPassID.LightID13Indirect,
+    "Light ID 14": RenderPassID.LightID14,
+    "Light ID 14 direct": RenderPassID.LightID14Direct,
+    "Light ID 14 indirect": RenderPassID.LightID14Indirect,
+    "Light ID 15": RenderPassID.LightID15,
+    "Light ID 15 direct": RenderPassID.LightID15Direct,
+    "Light ID 15 indirect": RenderPassID.LightID15Indirect,
+    "Light ID 16": RenderPassID.LightID16,
+    "Light ID 16 direct": RenderPassID.LightID16Direct,
+    "Light ID 16 indirect": RenderPassID.LightID16Indirect,
+    "Light ID 17": RenderPassID.LightID17,
+    "Light ID 17 direct": RenderPassID.LightID17Direct,
+    "Light ID 17 indirect": RenderPassID.LightID17Indirect,
+    "Light ID 18": RenderPassID.LightID18,
+    "Light ID 18 direct": RenderPassID.LightID18Direct,
+    "Light ID 18 indirect": RenderPassID.LightID18Indirect,
+    "Light ID 19": RenderPassID.LightID19,
+    "Light ID 19 direct": RenderPassID.LightID19Direct,
+    "Light ID 19 indirect": RenderPassID.LightID19Indirect,
+    "Light ID 20": RenderPassID.LightID20,
+    "Light ID 20 direct": RenderPassID.LightID20Direct,
+    "Light ID 20 indirect": RenderPassID.LightID20Indirect,
     "Denoised beauty": RenderPassID.DenoisedBeauty,
     "Denoised diffuse direct": RenderPassID.DenoisedDiffuseDirect,
     "Denoised diffuse indirect": RenderPassID.DenoisedDiffuseIndirect,
@@ -2523,6 +2917,7 @@ OCTANE_PASS_ID_TO_SHORT_NAME = {
     RenderPassID.Shadow: "Shdw",
     RenderPassID.Irradiance: "Irr",
     RenderPassID.LightDirection: "LiDir",
+    RenderPassID.PostfxMedia: "PostM",
     RenderPassID.PostProcessing: "Post",
     RenderPassID.Noise: "Noise",
     RenderPassID.LayerShadows: "LSh",
@@ -2558,6 +2953,42 @@ OCTANE_PASS_ID_TO_SHORT_NAME = {
     RenderPassID.LightID8: "Li8",
     RenderPassID.LightID8Direct: "Li8D",
     RenderPassID.LightID8Indirect: "Li8I",
+    RenderPassID.LightID9: "Li9",
+    RenderPassID.LightID9Direct: "Li9D",
+    RenderPassID.LightID9Indirect: "Li9I",
+    RenderPassID.LightID10: "Li10",
+    RenderPassID.LightID10Direct: "Li10D",
+    RenderPassID.LightID10Indirect: "Li10I",
+    RenderPassID.LightID11: "Li11",
+    RenderPassID.LightID11Direct: "Li11D",
+    RenderPassID.LightID11Indirect: "Li11I",
+    RenderPassID.LightID12: "Li12",
+    RenderPassID.LightID12Direct: "Li12D",
+    RenderPassID.LightID12Indirect: "Li12I",
+    RenderPassID.LightID13: "Li13",
+    RenderPassID.LightID13Direct: "Li13D",
+    RenderPassID.LightID13Indirect: "Li13I",
+    RenderPassID.LightID14: "Li14",
+    RenderPassID.LightID14Direct: "Li14D",
+    RenderPassID.LightID14Indirect: "Li14I",
+    RenderPassID.LightID15: "Li15",
+    RenderPassID.LightID15Direct: "Li15D",
+    RenderPassID.LightID15Indirect: "Li15I",
+    RenderPassID.LightID16: "Li16",
+    RenderPassID.LightID16Direct: "Li16D",
+    RenderPassID.LightID16Indirect: "Li16I",
+    RenderPassID.LightID17: "Li17",
+    RenderPassID.LightID17Direct: "Li17D",
+    RenderPassID.LightID17Indirect: "Li17I",
+    RenderPassID.LightID18: "Li18",
+    RenderPassID.LightID18Direct: "Li18D",
+    RenderPassID.LightID18Indirect: "Li18I",
+    RenderPassID.LightID19: "Li19",
+    RenderPassID.LightID19Direct: "Li19D",
+    RenderPassID.LightID19Indirect: "Li19I",
+    RenderPassID.LightID20: "Li20",
+    RenderPassID.LightID20Direct: "Li20D",
+    RenderPassID.LightID20Indirect: "Li20I",
     RenderPassID.DenoisedBeauty: "DeMain",
     RenderPassID.DenoisedDiffuseDirect: "DeDifD",
     RenderPassID.DenoisedDiffuseIndirect: "DeDifI",
@@ -2669,6 +3100,7 @@ OCTANE_SHORT_NAME_TO_PASS_ID = {
     "Shdw": RenderPassID.Shadow,
     "Irr": RenderPassID.Irradiance,
     "LiDir": RenderPassID.LightDirection,
+    "PostM": RenderPassID.PostfxMedia,
     "Post": RenderPassID.PostProcessing,
     "Noise": RenderPassID.Noise,
     "LSh": RenderPassID.LayerShadows,
@@ -2704,6 +3136,42 @@ OCTANE_SHORT_NAME_TO_PASS_ID = {
     "Li8": RenderPassID.LightID8,
     "Li8D": RenderPassID.LightID8Direct,
     "Li8I": RenderPassID.LightID8Indirect,
+    "Li9": RenderPassID.LightID9,
+    "Li9D": RenderPassID.LightID9Direct,
+    "Li9I": RenderPassID.LightID9Indirect,
+    "Li10": RenderPassID.LightID10,
+    "Li10D": RenderPassID.LightID10Direct,
+    "Li10I": RenderPassID.LightID10Indirect,
+    "Li11": RenderPassID.LightID11,
+    "Li11D": RenderPassID.LightID11Direct,
+    "Li11I": RenderPassID.LightID11Indirect,
+    "Li12": RenderPassID.LightID12,
+    "Li12D": RenderPassID.LightID12Direct,
+    "Li12I": RenderPassID.LightID12Indirect,
+    "Li13": RenderPassID.LightID13,
+    "Li13D": RenderPassID.LightID13Direct,
+    "Li13I": RenderPassID.LightID13Indirect,
+    "Li14": RenderPassID.LightID14,
+    "Li14D": RenderPassID.LightID14Direct,
+    "Li14I": RenderPassID.LightID14Indirect,
+    "Li15": RenderPassID.LightID15,
+    "Li15D": RenderPassID.LightID15Direct,
+    "Li15I": RenderPassID.LightID15Indirect,
+    "Li16": RenderPassID.LightID16,
+    "Li16D": RenderPassID.LightID16Direct,
+    "Li16I": RenderPassID.LightID16Indirect,
+    "Li17": RenderPassID.LightID17,
+    "Li17D": RenderPassID.LightID17Direct,
+    "Li17I": RenderPassID.LightID17Indirect,
+    "Li18": RenderPassID.LightID18,
+    "Li18D": RenderPassID.LightID18Direct,
+    "Li18I": RenderPassID.LightID18Indirect,
+    "Li19": RenderPassID.LightID19,
+    "Li19D": RenderPassID.LightID19Direct,
+    "Li19I": RenderPassID.LightID19Indirect,
+    "Li20": RenderPassID.LightID20,
+    "Li20D": RenderPassID.LightID20Direct,
+    "Li20I": RenderPassID.LightID20Indirect,
     "DeMain": RenderPassID.DenoisedBeauty,
     "DeDifD": RenderPassID.DenoisedDiffuseDirect,
     "DeDifI": RenderPassID.DenoisedDiffuseIndirect,
@@ -2815,6 +3283,7 @@ OCTANE_PASS_ID_TO_NODE_PIN_ID = {
     RenderPassID.Shadow: "renderPassShadow",
     RenderPassID.Irradiance: "renderPassIrradiance",
     RenderPassID.LightDirection: "renderPassLightDirection",
+    RenderPassID.PostfxMedia: "renderPassPostFxMedia",
     RenderPassID.PostProcessing: "renderPassPostProcessing",
     RenderPassID.Noise: "renderPassNoise",
     RenderPassID.LayerShadows: "renderPassLayerShadows",
@@ -2850,6 +3319,42 @@ OCTANE_PASS_ID_TO_NODE_PIN_ID = {
     RenderPassID.LightID8: "renderPassLight8",
     RenderPassID.LightID8Direct: "renderPassLight8Direct",
     RenderPassID.LightID8Indirect: "renderPassLight8Indirect",
+    RenderPassID.LightID9: "",
+    RenderPassID.LightID9Direct: "",
+    RenderPassID.LightID9Indirect: "",
+    RenderPassID.LightID10: "",
+    RenderPassID.LightID10Direct: "",
+    RenderPassID.LightID10Indirect: "",
+    RenderPassID.LightID11: "",
+    RenderPassID.LightID11Direct: "",
+    RenderPassID.LightID11Indirect: "",
+    RenderPassID.LightID12: "",
+    RenderPassID.LightID12Direct: "",
+    RenderPassID.LightID12Indirect: "",
+    RenderPassID.LightID13: "",
+    RenderPassID.LightID13Direct: "",
+    RenderPassID.LightID13Indirect: "",
+    RenderPassID.LightID14: "",
+    RenderPassID.LightID14Direct: "",
+    RenderPassID.LightID14Indirect: "",
+    RenderPassID.LightID15: "",
+    RenderPassID.LightID15Direct: "",
+    RenderPassID.LightID15Indirect: "",
+    RenderPassID.LightID16: "",
+    RenderPassID.LightID16Direct: "",
+    RenderPassID.LightID16Indirect: "",
+    RenderPassID.LightID17: "",
+    RenderPassID.LightID17Direct: "",
+    RenderPassID.LightID17Indirect: "",
+    RenderPassID.LightID18: "",
+    RenderPassID.LightID18Direct: "",
+    RenderPassID.LightID18Indirect: "",
+    RenderPassID.LightID19: "",
+    RenderPassID.LightID19Direct: "",
+    RenderPassID.LightID19Indirect: "",
+    RenderPassID.LightID20: "",
+    RenderPassID.LightID20Direct: "",
+    RenderPassID.LightID20Indirect: "",
     RenderPassID.DenoisedBeauty: "",
     RenderPassID.DenoisedDiffuseDirect: "renderPassDiffuseDirectDenoiserOutput",
     RenderPassID.DenoisedDiffuseIndirect: "renderPassDiffuseIndirectDenoiserOutput",
@@ -3024,6 +3529,42 @@ OCTANE_PASS_PROPERTY_TO_PASS_ID_DATA = {
     "use_pass_light_pass_8": RenderPassID.LightID8,
     "use_pass_light_dir_pass_8": RenderPassID.LightID8Direct,
     "use_pass_light_indir_pass_8": RenderPassID.LightID8Indirect,
+    "use_pass_light_pass_9": RenderPassID.LightID9,
+    "use_pass_light_dir_pass_9": RenderPassID.LightID9Direct,
+    "use_pass_light_indir_pass_9": RenderPassID.LightID9Indirect,
+    "use_pass_light_pass_10": RenderPassID.LightID10,
+    "use_pass_light_dir_pass_10": RenderPassID.LightID10Direct,
+    "use_pass_light_indir_pass_10": RenderPassID.LightID10Indirect,
+    "use_pass_light_pass_11": RenderPassID.LightID11,
+    "use_pass_light_dir_pass_11": RenderPassID.LightID11Direct,
+    "use_pass_light_indir_pass_11": RenderPassID.LightID11Indirect,
+    "use_pass_light_pass_12": RenderPassID.LightID12,
+    "use_pass_light_dir_pass_12": RenderPassID.LightID12Direct,
+    "use_pass_light_indir_pass_12": RenderPassID.LightID12Indirect,
+    "use_pass_light_pass_13": RenderPassID.LightID13,
+    "use_pass_light_dir_pass_13": RenderPassID.LightID13Direct,
+    "use_pass_light_indir_pass_13": RenderPassID.LightID13Indirect,
+    "use_pass_light_pass_14": RenderPassID.LightID14,
+    "use_pass_light_dir_pass_14": RenderPassID.LightID14Direct,
+    "use_pass_light_indir_pass_14": RenderPassID.LightID14Indirect,
+    "use_pass_light_pass_15": RenderPassID.LightID15,
+    "use_pass_light_dir_pass_15": RenderPassID.LightID15Direct,
+    "use_pass_light_indir_pass_15": RenderPassID.LightID15Indirect,
+    "use_pass_light_pass_16": RenderPassID.LightID16,
+    "use_pass_light_dir_pass_16": RenderPassID.LightID16Direct,
+    "use_pass_light_indir_pass_16": RenderPassID.LightID16Indirect,
+    "use_pass_light_pass_17": RenderPassID.LightID17,
+    "use_pass_light_dir_pass_17": RenderPassID.LightID17Direct,
+    "use_pass_light_indir_pass_17": RenderPassID.LightID17Indirect,
+    "use_pass_light_pass_18": RenderPassID.LightID18,
+    "use_pass_light_dir_pass_18": RenderPassID.LightID18Direct,
+    "use_pass_light_indir_pass_18": RenderPassID.LightID18Indirect,
+    "use_pass_light_pass_19": RenderPassID.LightID19,
+    "use_pass_light_dir_pass_19": RenderPassID.LightID19Direct,
+    "use_pass_light_indir_pass_19": RenderPassID.LightID19Indirect,
+    "use_pass_light_pass_20": RenderPassID.LightID20,
+    "use_pass_light_dir_pass_20": RenderPassID.LightID20Direct,
+    "use_pass_light_indir_pass_20": RenderPassID.LightID20Indirect,
     # Render Cryptomatte Passes
     "use_pass_crypto_instance_id": RenderPassID.CryptoInstanceID,
     "use_pass_crypto_mat_node_name": RenderPassID.CryptoMaterialNodeName,

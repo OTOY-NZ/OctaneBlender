@@ -70,7 +70,6 @@ from . import pixel_flow
 from . import rain_bump
 from . import scratches
 from . import snow_effect
-from . import composite_texture_layer
 from . import floats_to_color
 from . import float3_to_color
 from . import capture_to_custom_aov
@@ -111,6 +110,7 @@ from . import color_space_conversion
 from . import instance_highlight
 from . import star_field
 from . import digits
+from . import texture_switch
 
 def register():
     turbulence_texture.register()
@@ -182,7 +182,6 @@ def register():
     rain_bump.register()
     scratches.register()
     snow_effect.register()
-    composite_texture_layer.register()
     floats_to_color.register()
     float3_to_color.register()
     capture_to_custom_aov.register()
@@ -223,6 +222,7 @@ def register():
     instance_highlight.register()
     star_field.register()
     digits.register()
+    texture_switch.register()
 
 def unregister():
     turbulence_texture.unregister()
@@ -294,7 +294,6 @@ def unregister():
     rain_bump.unregister()
     scratches.unregister()
     snow_effect.unregister()
-    composite_texture_layer.unregister()
     floats_to_color.unregister()
     float3_to_color.unregister()
     capture_to_custom_aov.unregister()
@@ -335,5 +334,6 @@ def unregister():
     instance_highlight.unregister()
     star_field.unregister()
     digits.unregister()
+    texture_switch.unregister()
 
 ##### END OCTANE GENERATED CODE BLOCK #####

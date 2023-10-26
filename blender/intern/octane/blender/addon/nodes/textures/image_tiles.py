@@ -3,11 +3,14 @@ import bpy
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
 from octane.utils import utility, consts
-from octane.nodes.base_node import OctaneBaseNode
-from octane.nodes.base_kernel import OctaneBaseKernelNode
-from octane.nodes.base_osl import OctaneScriptNode
-from octane.nodes.base_image import OctaneBaseImageNode
+from octane.nodes import base_switch_input_socket
 from octane.nodes.base_color_ramp import OctaneBaseRampNode
+from octane.nodes.base_curve import OctaneBaseCurveNode
+from octane.nodes.base_image import OctaneBaseImageNode
+from octane.nodes.base_kernel import OctaneBaseKernelNode
+from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_switch import OctaneBaseSwitchNode
 from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
@@ -162,7 +165,7 @@ class OctaneImageTiles(bpy.types.Node, OctaneBaseImageNode):
     octane_static_pin_count=8
 
     a_filename: StringProperty(name="Filename", default="", update=OctaneBaseNode.update_node_tree, description="Stores the filenames of the texture image tiles. Entries may be left empty if no image is available for a particular tile. If the length doesn't cover the entire grid then the remaining entries are assumed to be empty", subtype="FILE_PATH")
-    a_image_color_format: IntProperty(name="Image color format", default=0, update=OctaneBaseNode.update_node_tree, description="Control in which color format the textures are loaded, see Octane::ImageColorType. If set to IMAGE_COLOR_KEEP_SOURCE images are loaded either as RGB color or grayscale, depending on the format used to save the image file")
+    a_image_color_format: IntProperty(name="Image color format", default=0, update=OctaneBaseNode.update_node_tree, description="The color format in which the textures are loaded, see Octane::ImageColorType. If set to IMAGE_COLOR_KEEP_SOURCE images are loaded either as RGB color or grayscale, depending on the format used to save the image file")
     a_grid_size: IntVectorProperty(name="Grid size", default=(1, 1), size=2, update=OctaneBaseNode.update_node_tree, description="The size of the image tile grid")
     a_reload: BoolProperty(name="Reload", default=False, update=OctaneBaseNode.update_node_tree, description="TRUE if the files needs a reload. After evaluation the attribute will be false again")
     a_image_chosen_layer_name: StringProperty(name="Image chosen layer name", default="", update=OctaneBaseNode.update_node_tree, description="Indicate the chosen layer name, if the current image has multiple layers")

@@ -3,11 +3,14 @@ import bpy
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
 from octane.utils import utility, consts
-from octane.nodes.base_node import OctaneBaseNode
-from octane.nodes.base_kernel import OctaneBaseKernelNode
-from octane.nodes.base_osl import OctaneScriptNode
-from octane.nodes.base_image import OctaneBaseImageNode
+from octane.nodes import base_switch_input_socket
 from octane.nodes.base_color_ramp import OctaneBaseRampNode
+from octane.nodes.base_curve import OctaneBaseCurveNode
+from octane.nodes.base_image import OctaneBaseImageNode
+from octane.nodes.base_kernel import OctaneBaseKernelNode
+from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_switch import OctaneBaseSwitchNode
 from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
@@ -44,7 +47,7 @@ class OctaneAnimationSettingsShutterTime(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=1
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=0.200000, update=OctaneBaseSocket.update_node_tree, description="The shutter time percentage relative to the duration of a single frame", min=0.000000, max=1000.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="PERCENTAGE")
+    default_value: FloatProperty(default=50.000000, update=OctaneBaseSocket.update_node_tree, description="The shutter time as percentage of the duration of a single frame.\n\n50% is equivalent to a shutter angle of 180°.\n100% is equivalent to a shutter angle of 360°", min=0.000000, max=100000.000000, soft_min=0.000000, soft_max=100.000000, step=1, precision=2, subtype="PERCENTAGE")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -61,7 +64,7 @@ class OctaneAnimationSettingsSubFrameStart(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=2
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Minimum sub-frame % time to sample", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="PERCENTAGE")
+    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Minimum sub-frame % time to sample", min=0.000000, max=100.000000, soft_min=0.000000, soft_max=100.000000, step=1, precision=2, subtype="PERCENTAGE")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -78,7 +81,7 @@ class OctaneAnimationSettingsSubFrameEnd(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=3
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Maximum sub-frame % time to sample", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="PERCENTAGE")
+    default_value: FloatProperty(default=100.000000, update=OctaneBaseSocket.update_node_tree, description="Maximum sub-frame % time to sample", min=0.000000, max=100.000000, soft_min=0.000000, soft_max=100.000000, step=1, precision=2, subtype="PERCENTAGE")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -94,7 +97,7 @@ class OctaneAnimationSettings(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
     octane_socket_class_list=[OctaneAnimationSettingsShutterAlignment,OctaneAnimationSettingsShutterTime,OctaneAnimationSettingsSubFrameStart,OctaneAnimationSettingsSubFrameEnd,]
-    octane_min_version=0
+    octane_min_version=3000007
     octane_node_type=consts.NodeType.NT_ANIMATION_SETTINGS
     octane_socket_list=["Shutter alignment", "Shutter time", "Subframe start", "Subframe end", ]
     octane_attribute_list=[]

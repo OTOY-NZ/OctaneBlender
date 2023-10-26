@@ -1035,6 +1035,23 @@ void BlenderSync::update_octane_camera_properties(Camera *cam,
     cam->oct_node.fGlareBlur = RNA_float_get(&post_processing, "glare_blur");
     cam->oct_node.fSpectralIntencity = RNA_float_get(&post_processing, "spectral_intencity");
     cam->oct_node.fSpectralShift = RNA_float_get(&post_processing, "spectral_shift");
+    cam->oct_node.fSpreadStart = RNA_float_get(&post_processing, "spread_start") / 100.0;
+    cam->oct_node.fSpreadEnd = RNA_float_get(&post_processing, "spread_end") / 100.0;
+    cam->oct_node.fChromaticAberrationIntensity = RNA_float_get(&post_processing,
+                                                                "chromatic_aberration_intensity");
+    cam->oct_node.fLensFlare = RNA_float_get(&post_processing, "lens_flare");
+    cam->oct_node.fLensFlareExtent = RNA_float_get(&post_processing, "lens_flare_extent");
+    cam->oct_node.bLightBeams = RNA_boolean_get(&post_processing, "light_beams");
+    cam->oct_node.fMediumDensityForPostfxLightBeams = RNA_float_get(
+        &post_processing, "medium_density_for_postfx_light_beams");
+    cam->oct_node.bEnableFog = RNA_boolean_get(&post_processing, "enable_fog");
+    cam->oct_node.fFogStrength = RNA_float_get(&post_processing, "fog_strength");
+    cam->oct_node.fFogHeightDescend = RNA_float_get(&post_processing, "fog_height_descend");
+    cam->oct_node.fFogEnvContribution = RNA_float_get(&post_processing, "fog_env_contribution");
+    RNA_float_get_array(&post_processing,
+                        "base_fog_color",
+                        reinterpret_cast<float *>(&cam->oct_node.f3BaseFogColor));
+    cam->oct_node.fMediumRadius = RNA_float_get(&post_processing, "medium_radius");
   }
 }
 

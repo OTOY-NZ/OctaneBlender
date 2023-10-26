@@ -176,8 +176,7 @@ class Object(bpy_types.ID):
 
     @property
     def children(self):
-        """
-        All the children of this object.
+        """All the children of this object.
 
         :type: tuple of `Object`
 
@@ -188,8 +187,7 @@ class Object(bpy_types.ID):
 
     @property
     def children_recursive(self):
-        """
-        A list of all children from this object.
+        """A list of all children from this object.
 
         :type: tuple of `Object`
 
@@ -231,8 +229,7 @@ class Object(bpy_types.ID):
 
     @property
     def users_scene(self):
-        """
-        The scenes this object is in.
+        """The scenes this object is in.
 
         :type: tuple of `Scene`
 

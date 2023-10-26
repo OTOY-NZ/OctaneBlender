@@ -3,16 +3,19 @@ import bpy
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
 from octane.utils import utility, consts
-from octane.nodes.base_node import OctaneBaseNode
-from octane.nodes.base_kernel import OctaneBaseKernelNode
-from octane.nodes.base_osl import OctaneScriptNode
-from octane.nodes.base_image import OctaneBaseImageNode
+from octane.nodes import base_switch_input_socket
 from octane.nodes.base_color_ramp import OctaneBaseRampNode
+from octane.nodes.base_curve import OctaneBaseCurveNode
+from octane.nodes.base_image import OctaneBaseImageNode
+from octane.nodes.base_kernel import OctaneBaseKernelNode
+from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_switch import OctaneBaseSwitchNode
 from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
-class OctaneDomainTransformGeometry(OctaneBaseSocket):
-    bl_idname="OctaneDomainTransformGeometry"
+class OctaneSDFDomainTransformGeometry(OctaneBaseSocket):
+    bl_idname="OctaneSDFDomainTransformGeometry"
     bl_label="SDF"
     color=consts.OctanePinColor.Geometry
     octane_default_node_type=consts.NodeType.NT_UNKNOWN
@@ -27,8 +30,8 @@ class OctaneDomainTransformGeometry(OctaneBaseSocket):
     octane_end_version=4294967295
     octane_deprecated=False
 
-class OctaneDomainTransformTransform(OctaneBaseSocket):
-    bl_idname="OctaneDomainTransformTransform"
+class OctaneSDFDomainTransformTransform(OctaneBaseSocket):
+    bl_idname="OctaneSDFDomainTransformTransform"
     bl_label="P transform"
     color=consts.OctanePinColor.Transform
     octane_default_node_type=consts.NodeType.NT_TRANSFORM_3D
@@ -43,8 +46,8 @@ class OctaneDomainTransformTransform(OctaneBaseSocket):
     octane_end_version=4294967295
     octane_deprecated=False
 
-class OctaneDomainTransformProjection(OctaneBaseSocket):
-    bl_idname="OctaneDomainTransformProjection"
+class OctaneSDFDomainTransformProjection(OctaneBaseSocket):
+    bl_idname="OctaneSDFDomainTransformProjection"
     bl_label="Projection"
     color=consts.OctanePinColor.Projection
     octane_default_node_type=consts.NodeType.NT_PROJ_LINEAR
@@ -59,8 +62,8 @@ class OctaneDomainTransformProjection(OctaneBaseSocket):
     octane_end_version=4294967295
     octane_deprecated=False
 
-class OctaneDomainTransformSize(OctaneBaseSocket):
-    bl_idname="OctaneDomainTransformSize"
+class OctaneSDFDomainTransformSize(OctaneBaseSocket):
+    bl_idname="OctaneSDFDomainTransformSize"
     bl_label="Bounds"
     color=consts.OctanePinColor.Float
     octane_default_node_type=consts.NodeType.NT_FLOAT
@@ -76,8 +79,8 @@ class OctaneDomainTransformSize(OctaneBaseSocket):
     octane_end_version=4294967295
     octane_deprecated=False
 
-class OctaneDomainTransformStepScale(OctaneBaseSocket):
-    bl_idname="OctaneDomainTransformStepScale"
+class OctaneSDFDomainTransformStepScale(OctaneBaseSocket):
+    bl_idname="OctaneSDFDomainTransformStepScale"
     bl_label="Step scale"
     color=consts.OctanePinColor.Float
     octane_default_node_type=consts.NodeType.NT_FLOAT
@@ -93,8 +96,8 @@ class OctaneDomainTransformStepScale(OctaneBaseSocket):
     octane_end_version=4294967295
     octane_deprecated=False
 
-class OctaneDomainTransform(bpy.types.Node, OctaneBaseNode):
-    bl_idname="OctaneDomainTransform"
+class OctaneSDFDomainTransform(bpy.types.Node, OctaneBaseNode):
+    bl_idname="OctaneSDFDomainTransform"
     bl_label="Domain transform"
     bl_width_default=200
     octane_render_pass_id=-1
@@ -102,7 +105,7 @@ class OctaneDomainTransform(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
-    octane_socket_class_list=[OctaneDomainTransformGeometry,OctaneDomainTransformTransform,OctaneDomainTransformProjection,OctaneDomainTransformSize,OctaneDomainTransformStepScale,]
+    octane_socket_class_list=[OctaneSDFDomainTransformGeometry,OctaneSDFDomainTransformTransform,OctaneSDFDomainTransformProjection,OctaneSDFDomainTransformSize,OctaneSDFDomainTransformStepScale,]
     octane_min_version=12000001
     octane_node_type=consts.NodeType.NT_GEO_SDF_DOMAIN
     octane_socket_list=["SDF", "P transform", "Projection", "Bounds", "Step scale", ]
@@ -111,11 +114,11 @@ class OctaneDomainTransform(bpy.types.Node, OctaneBaseNode):
     octane_static_pin_count=5
 
     def init(self, context):
-        self.inputs.new("OctaneDomainTransformGeometry", OctaneDomainTransformGeometry.bl_label).init()
-        self.inputs.new("OctaneDomainTransformTransform", OctaneDomainTransformTransform.bl_label).init()
-        self.inputs.new("OctaneDomainTransformProjection", OctaneDomainTransformProjection.bl_label).init()
-        self.inputs.new("OctaneDomainTransformSize", OctaneDomainTransformSize.bl_label).init()
-        self.inputs.new("OctaneDomainTransformStepScale", OctaneDomainTransformStepScale.bl_label).init()
+        self.inputs.new("OctaneSDFDomainTransformGeometry", OctaneSDFDomainTransformGeometry.bl_label).init()
+        self.inputs.new("OctaneSDFDomainTransformTransform", OctaneSDFDomainTransformTransform.bl_label).init()
+        self.inputs.new("OctaneSDFDomainTransformProjection", OctaneSDFDomainTransformProjection.bl_label).init()
+        self.inputs.new("OctaneSDFDomainTransformSize", OctaneSDFDomainTransformSize.bl_label).init()
+        self.inputs.new("OctaneSDFDomainTransformStepScale", OctaneSDFDomainTransformStepScale.bl_label).init()
         self.outputs.new("OctaneGeometryOutSocket", "Geometry out").init()
 
     @classmethod
@@ -124,12 +127,12 @@ class OctaneDomainTransform(bpy.types.Node, OctaneBaseNode):
 
 
 _CLASSES=[
-    OctaneDomainTransformGeometry,
-    OctaneDomainTransformTransform,
-    OctaneDomainTransformProjection,
-    OctaneDomainTransformSize,
-    OctaneDomainTransformStepScale,
-    OctaneDomainTransform,
+    OctaneSDFDomainTransformGeometry,
+    OctaneSDFDomainTransformTransform,
+    OctaneSDFDomainTransformProjection,
+    OctaneSDFDomainTransformSize,
+    OctaneSDFDomainTransformStepScale,
+    OctaneSDFDomainTransform,
 ]
 
 _SOCKET_INTERFACE_CLASSES = []

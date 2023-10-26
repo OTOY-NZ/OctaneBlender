@@ -1,6 +1,6 @@
-OCTANE_BLENDER_VERSION = '27.17'
-OCTANE_VERSION = 12000200
-OCTANE_VERSION_STR = "2022.1.2"
+OCTANE_BLENDER_VERSION = '28.0'
+OCTANE_VERSION = 13000004
+OCTANE_VERSION_STR = "2023.1 Beta 1"
 
 import bpy
 import math
@@ -147,7 +147,10 @@ def check_octane_output_settings(file_version):
             oct_scene.octane_deep_exr_compression_mode = image_settings.octane_exr_compression_type
         except:
             oct_scene.octane_deep_exr_compression_mode = "ZIPS_LOSSLESS"
-
+    if check_update(file_version, "28.0"):
+        oct_scene = bpy.context.scene.octane
+        oct_scene.octane_integer_bit_depth = oct_scene.octane_png_bit_depth
+        oct_scene.octane_float_bit_depth = oct_scene.octane_exr_bit_depth
 
 def check_compatible_render_settings():
     for scene in bpy.data.scenes:
@@ -286,6 +289,7 @@ def check_compatibility_camera_imagers_27_16(file_version):
 # post processing
 def check_compatibility_post_processing(file_version):
     check_compatibility_post_processing_25_0(file_version)
+    check_compatibility_post_processing_28_0(file_version)
 
 
 def check_compatibility_post_processing_25_0(file_version):
@@ -297,6 +301,35 @@ def check_compatibility_post_processing_25_0(file_version):
     for camera in bpy.data.cameras:
         if getattr(camera, "octane", None) is not None:
             camera.octane.post_processing.update_legacy_data(bpy.context, camera.octane)
+
+def _update_post_processing_data_28_0(post_processing, imagelength):
+    if imagelength == 0:
+        return
+    post_processing.spread_start = 0.6 * math.sqrt(2.0) / imagelength * 100.0
+    post_processing.spread_end = 614.4 * math.sqrt(2.0) / imagelength * 100.0
+    post_processing.spectral_shift = post_processing.spectral_shift + math.log2(imagelength)
+
+def check_compatibility_post_processing_28_0(file_version):
+    from octane import utility
+    UPDATE_VERSION = '28.0'
+    if not check_update(file_version, UPDATE_VERSION):
+        return
+    scene = bpy.context.scene
+    full_width = utility.render_resolution_x(scene)
+    full_height = utility.render_resolution_y(scene)
+    render_imagelength = max(full_width, full_height)
+    viewport_imagelength = 0
+    for window in bpy.context.window_manager.windows:
+        for area in window.screen.areas:
+            if area.type == "VIEW_3D":
+                for region in area.regions:
+                    if region.type == "WINDOW":
+                        viewport_imagelength = max(region.width, region.height, viewport_imagelength)
+    if getattr(bpy.context.scene, "oct_view_cam", None) is not None:
+        _update_post_processing_data_28_0(bpy.context.scene.oct_view_cam.post_processing, viewport_imagelength)
+    for camera in bpy.data.cameras:
+        if getattr(camera, "octane", None) is not None:
+            _update_post_processing_data_28_0(camera.octane.post_processing, render_imagelength)
 
 # animation settings
 def check_compatibility_animation_settings(file_version):
@@ -361,8 +394,8 @@ def check_compatibility_octane_passes_24_2(file_version):
         node_tree = bpy.data.node_groups[composite_node_tree_name]
         if aov_output_group_name in node_tree.nodes:
             node = node_tree.nodes[aov_output_group_name]
-            node.outputs.new("OctaneAOVOutputGroupOutSocket", "AOV output group out").init()
-            new_output = node_tree.nodes.new("OctaneAOVOutputGroupOutputNode")
+            node.outputs.new("OctaneOutputAOVGroupOutSocket", "Output AOV group out").init()
+            new_output = node_tree.nodes.new("OctaneOutputAOVGroupOutputNode")
             node_tree.links.new(node.outputs[0], new_output.inputs[0])
             composite_node_graph_property = octane_view_layer.composite_node_graph_property
             composite_node_graph_property.node_tree = node_tree            
@@ -860,6 +893,7 @@ def check_compatibility_octane_node_tree(file_version):
     check_compatibility_octane_node_tree_27_6(file_version)
     check_compatibility_octane_node_tree_27_9(file_version)
     check_compatibility_octane_node_tree_27_12(file_version)
+    check_compatibility_octane_node_tree_28_0(file_version)
 
 
 def check_compatibility_octane_node_tree_15_2_5(file_version):
@@ -1054,6 +1088,42 @@ def check_compatibility_octane_node_tree_27_12(file_version):
             _check_compatibility_octane_object_data_node_27_12(material.node_tree)
     for node_group in bpy.data.node_groups:
         _check_compatibility_octane_object_data_node_27_12(node_group)
+
+def _check_compatibility_octane_node_tree_28_0(node_tree):
+    for node in node_tree.nodes:
+        octane_node_type = getattr(node, "octane_node_type", consts.NodeType.NT_UNKNOWN)
+        # Update of the "NT_PROJ_DISTORTED_MESH_UV"
+        if octane_node_type == consts.NodeType.NT_PROJ_DISTORTED_MESH_UV:
+            node.inputs["Translation range"].default_value[0] /= 2
+            node.inputs["Translation range"].default_value[1] /= 2       
+        # Update of the "Hue"
+        # consts.NodeType.NT_OUTPUT_AOV_COLOR_CORRECTION
+        if octane_node_type == consts.NodeType.NT_TEX_COLORCORRECTION:
+            node.inputs["Hue"].default_value *= 180.0
+        if octane_node_type == consts.NodeType.NT_TEX_JITTERED_COLOR_CORRECTION:
+            node.inputs["Hue range"].default_value[0] *= 180.0
+            node.inputs["Hue range"].default_value[1] *= 180.0
+        # Update of the "Percentage" socket
+        if octane_node_type == consts.NodeType.NT_TEX_COLORCORRECTION:
+            node.inputs["Saturation"].default_value *= 100.0
+        if octane_node_type == consts.NodeType.NT_TEX_IMAGE_ADJUSTMENT:
+            node.inputs["Saturation"].default_value *= 100.0
+
+def check_compatibility_octane_node_tree_28_0(file_version):
+    UPDATE_VERSION = '28.0'
+    if not check_update(file_version, UPDATE_VERSION):
+        return
+    for material in bpy.data.materials:
+        if material.use_nodes:
+            _check_compatibility_octane_node_tree_28_0(material.node_tree)
+    for world in bpy.data.worlds:
+        if world.use_nodes:
+            _check_compatibility_octane_node_tree_28_0(world.node_tree)
+    for light in bpy.data.lights:
+        if light.use_nodes:
+            _check_compatibility_octane_node_tree_28_0(light.node_tree)            
+    for node_group in bpy.data.node_groups:
+        _check_compatibility_octane_node_tree_28_0(node_group)
 
 def _check_compatibility_octane_specular_material_node_15_2_5(node_tree, node):
     try:

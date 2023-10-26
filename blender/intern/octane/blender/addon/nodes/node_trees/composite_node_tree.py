@@ -24,10 +24,13 @@ class OctaneCompositeNodeTree(OctaneBaseNodeTree, bpy.types.NodeTree):
             if _link.from_node is None:
                 continue
             target_node = _link.from_node
-            if target_node.bl_idname == "ShaderNodeOctAovOutputGroup":
-                max_aov_output_count = max(max_aov_output_count, int(target_node.group_number))
-            elif target_node.bl_idname == "OctaneAOVOutputGroup":
-                max_aov_output_count = max(max_aov_output_count, int(target_node.a_aov_count))
+            if target_node and target_node.bl_idname == "OctaneOutputAOVGroupSwitch":
+                target_node = target_node.get_current_input_node_recursively()
+            if target_node is not None:
+                if target_node.bl_idname == "ShaderNodeOctAovOutputGroup":
+                    max_aov_output_count = max(max_aov_output_count, int(target_node.group_number))
+                elif target_node.bl_idname in ("OctaneAOVOutputGroup", "OctaneOutputAOVsOutputAOVGroup"):
+                    max_aov_output_count = max(max_aov_output_count, int(target_node.a_aov_count))
         return max_aov_output_count
 
     def update(self):

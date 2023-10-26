@@ -85,4 +85,4 @@ class OctaneAOVOutputGroup_Override(OctaneAOVOutputGroup):
         
 _ADDED_CLASSES = [OctaneAOVOutputGroupAOVOutputMovableInput, ]
 _CLASSES = _ADDED_CLASSES + _CLASSES
-utility.override_class(_CLASSES, OctaneAOVOutputGroup, OctaneAOVOutputGroup_Override)    
+utility.override_class(_CLASSES, OctaneAOVOutputGroup, OctaneAOVOutputGroup_Override)
