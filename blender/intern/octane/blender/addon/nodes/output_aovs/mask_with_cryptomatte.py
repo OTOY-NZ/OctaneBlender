@@ -123,3 +123,13 @@ def unregister():
     utility.octane_unregister_class(reversed(_CLASSES))
 
 ##### END OCTANE GENERATED CODE BLOCK #####
+
+
+class OctaneOutputAOVsMaskWithCryptomatte_Override(OctaneOutputAOVsMaskWithCryptomatte):
+
+    def draw_buttons(self, context, layout):
+        row = layout.row()
+        row.column().operator("octane.cryptomatte_picker_add_matte", icon="ADD", text="")
+        row.column().operator("octane.cryptomatte_picker_remove_matte", icon="REMOVE", text="")
+
+utility.override_class(_CLASSES, OctaneOutputAOVsMaskWithCryptomatte, OctaneOutputAOVsMaskWithCryptomatte_Override)

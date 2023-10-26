@@ -853,6 +853,108 @@ class OCTANE_OT_visible_environment_node_link_menu(OCTANE_OT_base_node_link_menu
         return {"FINISHED"}
 
 
+class OCTANE_OT_BaseCryptomattePicker(bpy.types.Operator):
+    IS_PICKER_ADD = True
+
+    @classmethod
+    def poll(cls, context):
+        node = getattr(context, "node", None)
+        return node is not None
+
+    def modal(self, context, event):
+        if event.type in {'MIDDLEMOUSE', 'WHEELUPMOUSE', 'WHEELDOWNMOUSE'}:            
+            return {'PASS_THROUGH'}        
+        elif event.type in {'LEFTMOUSE', 'PRESS'}:
+            # print("event.mouse_x", event.mouse_x)
+            # print("event.mouse_y", event.mouse_y)
+            # print("event.mouse_region_x", event.mouse_region_x)
+            # print("event.mouse_region_y", event.mouse_region_y)
+            # print("context.area", context.area, context.area.type)
+            context.window.cursor_set("DEFAULT")
+            import _octane
+            from octane.core.octane_node import OctaneRpcNode, OctaneRpcNodeType
+            import xml.etree.ElementTree as ET
+            node = self.node
+            octane_rpc_node = OctaneRpcNode(OctaneRpcNodeType.SYNC_NODE)
+            octane_rpc_node.set_name("OctaneCryptomattePicker[%s]" % node.name)
+            octane_rpc_node.set_node_type(node.octane_node_type)
+            x_view3d_offset = 0
+            y_view3d_offset = 0
+            for area in bpy.context.screen.areas:
+                if area.type != "VIEW_3D":
+                    continue
+                for space in area.spaces:
+                    if space.type != "VIEW_3D":
+                        continue
+                    if space.shading.type == "RENDERED":
+                        x_view3d_offset = area.x
+                        y_view3d_offset = area.y
+                        break
+            octane_rpc_node.set_attribute("mouse_x", consts.AttributeType.AT_INT, event.mouse_x - x_view3d_offset)
+            octane_rpc_node.set_attribute("mouse_y", consts.AttributeType.AT_INT, event.mouse_y - y_view3d_offset)
+            render_pass_id = utility.get_enum_int_value(node.inputs["Type"], "default_value", 2006)
+            octane_rpc_node.set_attribute("render_pass_id", consts.AttributeType.AT_INT, render_pass_id)
+            octane_rpc_node.set_attribute("is_add", consts.AttributeType.AT_BOOL, self.IS_PICKER_ADD)
+            current_mattes = node.inputs["Mattes"].default_value
+            octane_rpc_node.set_attribute("mattes", consts.AttributeType.AT_STRING, current_mattes)
+            # node.sync_data(octane_rpc_node, None, consts.OctaneNodeTreeIDName.GENERAL)
+            header_data = "[COMMAND]CRYPTOMATTE_PICKER"        
+            body_data = octane_rpc_node.get_xml_data()
+            response_data = _octane.update_octane_custom_node(header_data, body_data)
+            if len(response_data):
+                root = ET.fromstring(response_data)
+                custom_data_et = root.find("custom_data")
+                error = custom_data_et.findtext("error")
+                if len(error):
+                    self.report({'ERROR'}, error)
+                else:
+                    mattes = custom_data_et.findtext("mattes")
+                    node.inputs["Mattes"].default_value = mattes
+            return {'FINISHED'}
+        elif event.type in {'RIGHTMOUSE', 'ESC'}:
+            context.window.cursor_set("DEFAULT")
+            return {'CANCELLED'}
+        return {'RUNNING_MODAL'}
+
+    def invoke(self, context, event):
+        self.node = context.node
+        from octane import engine
+        if engine.IS_RENDERING:
+            render_pass_id = utility.get_enum_int_value(context.node.inputs["Type"], "default_value", consts.RenderPassID.CryptoMaterialNodeName)
+            render_pass_ids = utility.get_view_layer_render_pass_ids(context.view_layer)
+            if render_pass_id not in render_pass_ids:
+                render_pass_name = context.node.inputs["Type"].default_value
+                self.report({'ERROR'}, "Please enable the selected render pass(%s) when using the cryptomatte picker" % render_pass_name)
+                return {'CANCELLED'}
+            if render_pass_id in (consts.RenderPassID.CryptoMaterialNode, consts.RenderPassID.CryptoObjectNode):
+                warning_msg_fmt = "The currently selected '%s' will be changed among render sessions. We recommend to use the '%s' to get a stable result"
+                if render_pass_id == consts.RenderPassID.CryptoMaterialNode:
+                    warning_msg = warning_msg_fmt % ("MaterialNode", "MaterialNodeName")
+                elif render_pass_id == consts.RenderPassID.CryptoObjectNode:
+                    warning_msg = warning_msg_fmt % ("ObjectNode", "ObjectNodeName")
+                self.report({"WARNING"}, warning_msg)
+            context.window.cursor_set("EYEDROPPER")
+            context.window_manager.modal_handler_add(self)
+            return {'RUNNING_MODAL'}
+        else:
+            self.report({'ERROR'}, "Please activate the viewport rendering when using the cryptomatte picker")
+            return {'CANCELLED'}
+
+
+class OCTANE_OT_CryptomattePickerAddMatte(OCTANE_OT_BaseCryptomattePicker):
+    """Add mattes by picking in the rendering viewport"""
+    bl_idname = "octane.cryptomatte_picker_add_matte"
+    bl_label = "Add Matte"
+    IS_PICKER_ADD = True
+
+
+class OCTANE_OT_CryptomattePickerRemoveMatte(OCTANE_OT_BaseCryptomattePicker):
+    """Remove mattes by picking in the rendering viewport"""
+    bl_idname = "octane.cryptomatte_picker_remove_matte"
+    bl_label = "Remove Matte"
+    IS_PICKER_ADD = False
+
+
 _CLASSES = [
     OCTANE_OT_add_default_node_helper,
     OCTANE_OT_add_default_node,
@@ -868,6 +970,8 @@ _CLASSES = [
     OCTANE_OT_environment_node_link_menu,
     OCTANE_OT_visible_environment_node_link_menu,
     OctaneGroupTitleSocket,
+    OCTANE_OT_CryptomattePickerAddMatte,
+    OCTANE_OT_CryptomattePickerRemoveMatte,
 ]
 
 

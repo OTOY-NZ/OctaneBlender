@@ -3313,30 +3313,6 @@ class AddPresetLegacyKernel(AddPresetBase, Operator):
     preset_subdir = "octane/kernel"
 
 
-class ExecutePresetLegacyKernel(ExecutePreset):
-    bl_label = "Execute Preset Legacy Kernel"
-    bl_idname = "script.execute_preset_legacy_kernel"
-
-    def execute(self, context):
-        from os.path import basename
-        from octane.utils import utility
-        result = super().execute(context)
-        preset_name = bpy.path.display_name(basename(self.filepath), title_case=False)
-        octane_scene = bpy.context.scene.octane
-        utility.quick_add_octane_kernel_node_tree(assign_to_kernel_node_graph=True, generate_from_legacy_octane_property=True, preset_name=preset_name)
-        octane_scene.kernel_data_mode = "NODETREE"
-        return result
-
-
-class ExecutePresetOctaneBase(ExecutePreset):
-    bl_label = "Execute Preset Octane"
-    bl_idname = "script.execute_preset_octane"
-
-    def execute(self, context):
-        result = super().execute(context)
-        return result
-
-
 _CLASSES = [
     KernelNodeGraphPropertyGroup,
     RenderAOVNodeGraphPropertyGroup,
@@ -3351,8 +3327,6 @@ _CLASSES = [
     OctaneRenderSettings,
     AddPresetRenderPasses,
     AddPresetLegacyKernel,
-    ExecutePresetLegacyKernel,
-    ExecutePresetOctaneBase,
 ]
 
 

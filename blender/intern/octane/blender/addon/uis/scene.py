@@ -10,15 +10,24 @@ from octane import core
 class OCTANE_MT_legacy_kernel_presets(Menu):
     bl_label = "Kernel presets"
     preset_subdir = "octane/kernel"
-    preset_operator = "script.execute_preset_legacy_kernel"
+    preset_operator = "script.execute_preset"
     preset_operator_defaults = {"menu_idname" : "OCTANE_MT_legacy_kernel_presets"}
     COMPAT_ENGINES = {"octane"}
     draw = Menu.draw_preset
 
+    @classmethod
+    def post_cb(cls, context):
+        from os.path import basename
+        from octane.utils import utility
+        preset_name = cls.bl_label
+        octane_scene = context.scene.octane
+        utility.quick_add_octane_kernel_node_tree(assign_to_kernel_node_graph=True, generate_from_legacy_octane_property=True, preset_name=preset_name)
+        octane_scene.kernel_data_mode = "NODETREE"
+
 
 class OCTANE_MT_renderpasses_presets(Menu):
     bl_label = "Render Passes presets"
-    preset_subdir = "octane/renderpasses_presets"
+    preset_subdir = "octane/renderpasses"
     preset_operator = "script.execute_preset_octane"
     preset_operator_defaults = {"menu_idname" : "OCTANE_MT_renderpasses_presets"}
     COMPAT_ENGINES = {"octane"}
