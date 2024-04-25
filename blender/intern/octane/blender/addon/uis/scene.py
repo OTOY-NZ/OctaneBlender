@@ -142,7 +142,9 @@ class OCTANE_RENDER_PT_server(common.OctanePropertyPanel, Panel):
         col.active = not is_viewport_rendering
         col.prop(oct_scene, "meshes_type")
         col = layout.column()
+        col.active = not is_viewport_rendering
         col.prop(oct_scene, "enable_realtime")
+        col = layout.column()
         col.prop(oct_scene, "prefer_image_type")
         col.prop(oct_scene, "maximize_instancing")
         col.prop(oct_scene, "clay_mode")
@@ -655,7 +657,6 @@ def octane_presets_light_menu(self, context):
     rd = context.scene.render
     if rd.engine != "octane":
         return
-    self.layout.separator()
     self.layout.operator("octane.quick_add_octane_toon_point_light", icon="LIGHT_POINT", text="Octane Toon Point Light")
     self.layout.operator("octane.quick_add_octane_toon_directional_light", icon="LIGHT_SUN",
                          text="Octane Toon Directional Light")
@@ -666,6 +667,7 @@ def octane_presets_light_menu(self, context):
     self.layout.operator("octane.quick_add_octane_mesh_light", icon="LIGHT_AREA", text="Octane Mesh Light")
     self.layout.operator("octane.quick_add_octane_directional_light", icon="LIGHT_SUN", text="Octane Directional Light")
     self.layout.operator("octane.quick_add_octane_analytical_light", icon="LIGHT_AREA", text="Octane Analytical Light")
+    self.layout.separator()
 
 
 _CLASSES = [
@@ -701,7 +703,7 @@ def register():
     for cls in _CLASSES:
         register_class(cls)
     bpy.types.VIEW3D_MT_add.append(octane_presets_object_menu)
-    bpy.types.VIEW3D_MT_light_add.append(octane_presets_light_menu)
+    bpy.types.VIEW3D_MT_light_add.prepend(octane_presets_light_menu)
 
 
 def unregister():

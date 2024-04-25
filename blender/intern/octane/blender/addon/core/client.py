@@ -70,21 +70,28 @@ class OctaneBlender(metaclass=utility.Singleton):
             return
         return octane_blender.stop_utils_client(client_name)
 
-    def utils_function(self, command_type, data, client_name=None):
+    def utils_function(self, command_type, data, timeout=-1, client_name=None):
         if client_name is None:
             client_name = self.GENERAL_CLIENT_NAME
             self.start_utils_client(client_name)
-        logger.debug("OctaneBlender.utils_function(%d, %s, %s)" % (command_type, data, client_name))
+        logger.debug("OctaneBlender.utils_function(%d, %s, %s, %d)" % (command_type, data, client_name, timeout))
         if not self.enabled:
             return
-        response = octane_blender.utils_function(command_type, data, client_name)
+        response = octane_blender.utils_function(command_type, data, client_name, timeout)
         logger.debug("OctaneBlender.utils_function: %s" % response)
         return response
 
+    def is_server_connected(self):
+        result = self.utils_function(consts.UtilsFunctionType.TEST, "", 100)
+        return len(result) != 0
+
     def init_server(self):
-        self.utils_function(consts.UtilsFunctionType.SHOW_ACTIVATION, "Activation")
-        if platform.system() == "Windows":
-            self.utils_function(consts.UtilsFunctionType.SHOW_VIEWPORT, "InitOnly")
+        if self.is_server_connected():
+            self.utils_function(consts.UtilsFunctionType.SHOW_ACTIVATION, "Activation")
+            if platform.system() == "Windows":
+                self.utils_function(consts.UtilsFunctionType.SHOW_VIEWPORT, "InitOnly")
+            return True
+        return False
 
     def copy_color_ramp(self, from_addr, to_addr):
         # logger.debug("OctaneBlender.copy_color_ramp")

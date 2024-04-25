@@ -142,9 +142,20 @@ static inline BL::Mesh object_to_mesh(BL::BlendData & /*data*/,
   return mesh;
 }
 
+static std::string generate_mesh_shader_tag(std::vector<Shader*> &shaders)
+{
+  std::string result = "";
+  for (int i = 0; i < shaders.size(); ++i) {
+    if (shaders[i]) {
+      result += shaders[i]->name;
+    }
+  }
+  return result;
+}
+
 static std::string generate_mesh_tag(BL::Depsgraph &b_depsgraph,
                                      BL::Object &b_ob,
-                                     std::vector<Shader *> &shaders)
+                                     std::vector<Shader*> &shaders)
 {
   // using milli = std::chrono::milliseconds;
   // auto start = std::chrono::high_resolution_clock::now();
@@ -195,11 +206,7 @@ static std::string generate_mesh_tag(BL::Depsgraph &b_depsgraph,
     ss << me->flag << "|";
     result = ss.str();
   }
-  for (int i = 0; i < shaders.size(); ++i) {
-    if (shaders[i]) {
-      result += shaders[i]->name;
-    }
-  }
+  result += generate_mesh_shader_tag(shaders);
   // auto finish = std::chrono::high_resolution_clock::now();
   // stringstream profile;
   // profile << "generate_mesh_tag() took "

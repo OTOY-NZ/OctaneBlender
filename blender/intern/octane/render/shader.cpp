@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
+#include "render/shader.h"
 #include "render/graph.h"
 #include "render/scene.h"
-#include "render/shader.h"
+#include <boost/algorithm/string.hpp>
 
 OCT_NAMESPACE_BEGIN
 
@@ -81,12 +82,22 @@ void Shader::tag_used(Scene *scene)
   }
 }
 
+bool Shader::is_empty()
+{
+  if (graph && graph->nodes.size() == 1) {
+    ShaderNode* node = graph->nodes.front();    
+    if (node && node->oct_node) {
+      std::string name = node->oct_node->sName;
+      return boost::ends_with(name, "Material Output");
+    }
+  }
+  return false;
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // SHADER MANAGER
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-ShaderManager::ShaderManager() : need_update(true)
-{
-}
+ShaderManager::ShaderManager() : need_update(true) {}
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
@@ -126,7 +137,8 @@ void ShaderManager::server_update(::OctaneEngine::OctaneClient *server,
 
     for (list<ShaderNode *>::iterator it = shader->graph->nodes.begin();
          it != shader->graph->nodes.end();
-         ++it) {
+         ++it)
+    {
       ShaderNode *node = *it;
       if (node->input("Surface"))
         continue;
@@ -186,7 +198,7 @@ void ShaderManager::add_default(Scene *scene)
   render_aov_shader->graph = render_aov_graph;
   scene->shaders.push_back(render_aov_shader);
   scene->default_render_aov_node_tree = render_aov_shader;
-  
+
 }  // add_default()
 
 OCT_NAMESPACE_END

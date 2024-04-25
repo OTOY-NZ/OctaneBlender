@@ -847,7 +847,10 @@ class ObjectCache(OctaneNodeCache):
         mask_value = 0
         for idx, property_name in enumerate(("light_id_sunlight", "light_id_env", "light_id_pass_1", "light_id_pass_2",
                                              "light_id_pass_3", "light_id_pass_4", "light_id_pass_5", "light_id_pass_6",
-                                             "light_id_pass_7", "light_id_pass_8")):
+                                             "light_id_pass_7", "light_id_pass_8", "light_id_pass_9", "light_id_pass_10",
+                                             "light_id_pass_11", "light_id_pass_12", "light_id_pass_13", "light_id_pass_14",
+                                             "light_id_pass_15", "light_id_pass_16", "light_id_pass_17", "light_id_pass_18",
+                                             "light_id_pass_19", "light_id_pass_20")):
             mask_value += (int(getattr(octane_data, property_name)) << idx)
         pin_info = OctaneInfoManger().get_pin_info_by_id(node.node_type, consts.PinID.P_LIGHT_PASS_MASK)
         node.node.set_pin(consts.OctaneDataBlockSymbolType.PIN_NAME, pin_info.index, pin_info.name,

@@ -1091,6 +1091,12 @@ def export_menu_func(self, _context):
         self.layout.operator(OCTANE_OT_SaveAsAddonFile.bl_idname, text="OctaneBlender Addon(.blend)")
 
 
+def octane_db_menu_func(self, _context):
+    self.layout.operator_context = 'INVOKE_DEFAULT'
+    self.layout.separator()
+    self.layout.operator(OCTANE_OT_ShowOctaneDB.bl_idname, text="Open Octane DB")
+
+
 classes = (
     OCTANE_OT_use_shading_nodes,
 
@@ -1148,6 +1154,7 @@ def register():
         register_class(cls)
     bpy.types.TOPBAR_MT_file_new.append(new_menu_func)
     bpy.types.TOPBAR_MT_file_export.append(export_menu_func)
+    bpy.types.TOPBAR_MT_window.append(octane_db_menu_func)
 
 
 def unregister():
@@ -1156,3 +1163,4 @@ def unregister():
         unregister_class(cls)
     bpy.types.TOPBAR_MT_file_new.remove(new_menu_func)
     bpy.types.TOPBAR_MT_file_export.remove(export_menu_func)
+    bpy.types.TOPBAR_MT_window.remove(octane_db_menu_func)

@@ -1227,6 +1227,11 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
       }
     }
   }
+  std::string old_mesh_shader_tag = generate_mesh_shader_tag(octane_mesh->used_shaders);
+  std::string new_mesh_shader_tag = generate_mesh_shader_tag(used_shaders);
+  if (old_mesh_shader_tag != new_mesh_shader_tag) {
+    is_mesh_data_updated = true;
+  }
   if (depgraph_updated_mesh_names.find(b_ob_data_name) != depgraph_updated_mesh_names.end()) {
     is_mesh_data_updated = true;
   }
@@ -1241,7 +1246,8 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
   if (!is_mesh_data_updated) {
     return octane_mesh;
   }
-  std::string new_mesh_tag = "";  // generate_mesh_tag(b_depsgraph, b_ob, used_shaders);
+  std::string new_mesh_tag =
+      generate_mesh_shader_tag(used_shaders);  // generate_mesh_tag(b_depsgraph, b_ob, used_shaders);
   if (b_ob.type() == BL::Object::type_MESH) {
     std::string coordinate_mode = std::to_string(
         RNA_enum_get(&oct_mesh, "primitive_coordinate_mode"));

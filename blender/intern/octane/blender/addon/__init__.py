@@ -2,9 +2,9 @@
 
 
 bl_info = {
-    "name": "OctaneBlender (v. 28.10)",
+    "name": "OctaneBlender (v. 28.11)",
     "author": "OTOY Inc.",
-    "version": (28, 8, 0),
+    "version": (28, 10, 0),
     "blender": (4, 0, 2),
     "location": "Info header, render engine menu",
     "description": "OctaneBlender",
@@ -113,6 +113,10 @@ class OctaneRender(bpy.types.RenderEngine):
             engine.render(self, depsgraph)
 
     def final_render(self, depsgraph):
+        if not OctaneBlender().init_server():
+            self.update_stats("Error", "OctaneServer is not connected or activated")
+            self.report({"ERROR"}, "OctaneServer is not connected or activated")
+            return
         self.session.session_type = consts.SessionType.FINAL_RENDER
         scene = depsgraph.scene_eval
         width = utility.render_resolution_x(scene)
@@ -204,7 +208,9 @@ class OctaneRender(bpy.types.RenderEngine):
                                     break
                             self.report({'INFO'}, "Wait for the Render Result of Pass %s. Samples: %d/%d" % (
                                 render_pass.name, tonemapped_samples_per_pixel, max_sample))
-                            time.sleep(0.5)
+                            if self.test_break():
+                                break
+                            time.sleep(0.05)
                     else:
                         if not render_pass_draw_data.update_render_result(False):
                             self.report({'ERROR'}, "Cannot Get the Render Result of Pass %s" % render_pass.name)
@@ -212,6 +218,8 @@ class OctaneRender(bpy.types.RenderEngine):
                     if not render_pass_draw_data.update_render_result(False):
                         self.report({'ERROR'}, "Cannot Get the Render Result of Pass %s" % render_pass.name)
             self.update_result(result)
+            if self.test_break():
+                break
         self.session.export_render_pass(depsgraph, scene, layer, render_layer)
         self.end_result(result)
         self.session.stop_render()
@@ -232,10 +240,13 @@ class OctaneRender(bpy.types.RenderEngine):
             self.session.session_type = consts.SessionType.VIEWPORT
             if not self.session.is_render_started:
                 set_active_render_engine(self)
-                OctaneBlender().init_server()
-                self.session.start_render(depsgraph.scene, is_viewport=True,
-                                          resource_cache_type=utility.get_enum_int_value(depsgraph.scene.octane,
-                                                                                         "resource_cache_type", 0))
+                result = OctaneBlender().init_server()
+                if result:
+                    self.session.start_render(depsgraph.scene, is_viewport=True,
+                                              resource_cache_type=utility.get_enum_int_value(depsgraph.scene.octane,
+                                                                                             "resource_cache_type", 0))
+                else:
+                    self.update_stats("Error", "OctaneServer is not connected or activated")
             self.session.view_update(self, depsgraph, context)
         else:
             if not self.session:
@@ -274,6 +285,8 @@ class OctaneRender(bpy.types.RenderEngine):
             self.draw_data.tag_immediate_fetch(True)
 
     def draw_render_result(self, view_layer, region, scene):
+        if not self.session.is_render_started:
+            return
         is_demo = self.session.is_demo_version()
         render_pass_id = self.session.get_current_preview_render_pass_id(view_layer)
         is_render_pass_shared_surface_supported = not (utility.is_grayscale_render_pass(render_pass_id)
