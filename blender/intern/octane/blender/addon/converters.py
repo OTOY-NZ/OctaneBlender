@@ -10,17 +10,23 @@ major, minor, patch = bpy.app.version
 if major >= 4:
     CYCLES_SPECULAR_SOCKET_NAME = "Specular IOR Level"
     CYCLES_SHEEN_SOCKET_NAME = "Sheen Tint"
+    CYCLES_SHEEN_WEIGHT_SOCKET_NAME = "Sheen Weight"
     CYCLES_COAT_SOCKET_NAME = "Coat Tint"
     CYCLES_COAT_ROUGHNESS_SOCKET_NAME = "Coat Roughness"
+    CYCLES_COAT_WEIGHT_SOCKET_NAME = "Coat Weight"
     CYCLES_EMISSION_COLOR_SOCKET_NAME = "Emission Color"
+    CYCLES_EMISSION_STRENGTH_SOCKET_NAME = "Emission Strength"
     CYCLES_TRANSMISSION_SOCKET_NAME = "Transmission Weight"
     CYCLES_COAT_NORMAL_SOCKET_NAME = NORMAL_TYPE_TAG + "Coat Normal"
 else:
     CYCLES_SPECULAR_SOCKET_NAME = "Specular"
     CYCLES_SHEEN_SOCKET_NAME = "Sheen"
+    CYCLES_SHEEN_WEIGHT_SOCKET_NAME = "Sheen Weight"
     CYCLES_COAT_SOCKET_NAME = "Clearcoat"
     CYCLES_COAT_ROUGHNESS_SOCKET_NAME = "Clearcoat Roughness"
+    CYCLES_COAT_WEIGHT_SOCKET_NAME = "Coat Weight"
     CYCLES_EMISSION_COLOR_SOCKET_NAME = "Emission"
+    CYCLES_EMISSION_STRENGTH_SOCKET_NAME = "Emission Strength"
     CYCLES_TRANSMISSION_SOCKET_NAME = "Transmission"
     CYCLES_COAT_NORMAL_SOCKET_NAME = NORMAL_TYPE_TAG + "Clearcoat Normal"
 
@@ -118,7 +124,10 @@ def _convert_color_input(cur_node, cur_input, _octane_node, octane_input, _cur_n
             and octane_input.octane_socket_type != consts.SocketType.ST_RGBA):
         octane_color_node = None
         if cur_input.name == CYCLES_EMISSION_COLOR_SOCKET_NAME and octane_input.name == "Emission":
-            if cur_input.default_value[0] != 0 or cur_input.default_value[1] != 0 or cur_input.default_value[2] != 0:
+            if (cur_node.inputs[CYCLES_EMISSION_STRENGTH_SOCKET_NAME].default_value != 0 and
+                (cur_input.default_value[0] != 0 or
+                 cur_input.default_value[1] != 0 or
+                 cur_input.default_value[2] != 0)):
                 octane_emission_node = octane_node_tree.nodes.new("OctaneTextureEmission")
                 octane_color_node = octane_node_tree.nodes.new("OctaneRGBColor")
                 octane_node_tree.links.new(octane_emission_node.outputs[0], octane_input)
@@ -273,6 +282,10 @@ def convert_to_octane_node(cur_node, cur_node_tree, octane_node_tree, cur_node_l
             octane_greyscale_color_node = octane_node_tree.nodes.new("OctaneGreyscaleColor")
             octane_greyscale_color_node.a_value = cur_node.inputs[CYCLES_TRANSMISSION_SOCKET_NAME].default_value
             octane_node_tree.links.new(octane_greyscale_color_node.outputs[0], octane_node.inputs["Transmission"])
+        if cur_node.inputs[CYCLES_SHEEN_WEIGHT_SOCKET_NAME].default_value == 0:
+            octane_node.inputs["Sheen"].default_value = (0, 0, 0)
+        if cur_node.inputs[CYCLES_COAT_WEIGHT_SOCKET_NAME].default_value == 0:
+            octane_node.inputs["Coating"].default_value = (0, 0, 0)
     if octane_node and cur_node.type == "TEX_IMAGE" and octane_node.bl_idname in (
             "OctaneRGBImage", "OctaneGreyscaleImage", "OctaneAlphaImage"):
         if cur_node.image:

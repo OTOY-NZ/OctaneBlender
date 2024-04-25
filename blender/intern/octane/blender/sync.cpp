@@ -207,6 +207,12 @@ void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph)
       mesh_map.set_recalc(b_mesh);
       depgraph_updated_mesh_names.insert(b_mesh.name());
     }
+    /* Curve */
+    else if (b_id.is_a(&RNA_Curve)) {
+      BL::Curve b_curve(b_id);
+      mesh_map.set_recalc(b_curve);
+      depgraph_updated_mesh_names.insert(b_curve.name());
+    }
     /* MetaBall */
     else if (b_id.is_a(&RNA_MetaBall)) {
       BL::MetaBall b_metaball(b_id);

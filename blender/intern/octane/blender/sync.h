@@ -85,6 +85,7 @@ class BlenderSync {
                    int height,
                    void **python_thread_state);
   void sync_mesh_motion(BL::Depsgraph &b_depsgraph,
+                        BObjectInfo &b_ob_info,
                         BL::Object &b_ob,
                         Object *object,
                         float motion_time);
@@ -181,11 +182,13 @@ class BlenderSync {
                       bool show_particles,
                       bool *use_portal);
   Mesh *sync_mesh(BL::Depsgraph &b_depsgraph,
+                  BObjectInfo &b_ob_info,
                   BL::Object &b_ob,
                   BL::Object &b_ob_instance,
                   bool object_updated,
                   bool show_self,
                   bool show_particles,
+                  std::string object_mesh_name,
                   OctaneDataTransferObject::OctaneObjectLayer &object_layer,
                   MeshType mesh_type);
   void sync_light(BL::Object &b_parent,
@@ -234,6 +237,7 @@ class BlenderSync {
   bool object_is_light(BL::Object &b_ob);
   bool object_is_camera(BL::Object &b_ob);
 
+  bool use_geonodes_modifiers(BL::Object &b_ob);
   std::string resolve_octane_object_data_name(BL::Object &b_ob, BL::Object &b_ob_instance);
   static BL::Node find_active_environment_output(BL::NodeTree &node_tree);
   static BL::Node find_active_kernel_output(BL::NodeTree &node_tree);

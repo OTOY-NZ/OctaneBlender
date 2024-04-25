@@ -116,27 +116,33 @@ def octane_register_interface_class(classes, socket_interface_classes):
             bl_idname = _class.bl_idname + "Interface"
             bl_socket_idname = _class.bl_idname
             bl_label = _class.bl_label
+            socket_type = getattr(_class, "octane_socket_type", consts.SocketType.ST_UNKNOWN)
             ntype = type(bl_idname, (node_tree_interface, OctaneBaseSocketInterface), {
                 'bl_idname': bl_idname,
                 'bl_socket_idname': bl_socket_idname,
                 'bl_label': bl_label,
                 'color': _class.color,
+                'octane_socket_type': socket_type,
             })
             if "__annotations__" not in ntype.__dict__:
                 setattr(ntype, "__annotations__", {})
-            socket_type = getattr(_class, "octane_socket_type", consts.SocketType.ST_UNKNOWN)
             if socket_type == consts.SocketType.ST_BOOL:
                 ntype.__annotations__["default_value"] = BoolProperty()
             elif socket_type == consts.SocketType.ST_ENUM:
-                ntype.__annotations__["default_value"] = EnumProperty(items=[])
+                if _class.bl_idname == "OctaneOSLEnumSocket":
+                    ntype.__annotations__["default_value"] = EnumProperty(items=[])
+                else:
+                    ntype.__annotations__["default_value"] = EnumProperty(items=getattr(_class, "items", []))
             elif socket_type == consts.SocketType.ST_INT:
                 ntype.__annotations__["default_value"] = IntProperty()
             elif socket_type in (consts.SocketType.ST_INT2, consts.SocketType.ST_INT3):
                 ntype.__annotations__["default_value"] = IntVectorProperty()
             elif socket_type == consts.SocketType.ST_FLOAT:
                 ntype.__annotations__["default_value"] = FloatProperty()
-            elif socket_type in (consts.SocketType.ST_FLOAT2, consts.SocketType.ST_FLOAT3, consts.SocketType.ST_RGBA):
+            elif socket_type in (consts.SocketType.ST_FLOAT2, consts.SocketType.ST_FLOAT3):
                 ntype.__annotations__["default_value"] = FloatVectorProperty()
+            elif socket_type == consts.SocketType.ST_RGBA:
+                ntype.__annotations__["default_value"] = FloatVectorProperty(subtype="COLOR")
             elif socket_type == consts.SocketType.ST_STRING:
                 ntype.__annotations__["default_value"] = StringProperty()
             socket_interface_classes.append(ntype)

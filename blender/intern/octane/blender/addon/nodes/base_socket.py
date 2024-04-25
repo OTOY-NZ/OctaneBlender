@@ -91,6 +91,10 @@ class OctaneBaseSocket(bpy.types.NodeSocket):
     def draw(self, context, layout, node, text):
         self.draw_prop(context, layout, text)
 
+    @classmethod
+    def draw_color_simple(cls):
+        return cls.color
+
     def draw_color(self, context, node):
         return self.color
 
@@ -141,12 +145,30 @@ class OctaneBaseSocketInterface:
     bl_socket_idname = ""
     color = consts.OctanePinColor.Default
 
-    def draw_color(self, _context):
-        return self.color
+    @classmethod
+    def draw_color_simple(cls):
+        return cls.color
 
     def draw(self, _context, layout):
-        # noinspection PyUnresolvedReferences
-        layout.label(text=self.name)
+        layout.separator()
+        if hasattr(self, "default_value"):
+            if self.octane_socket_type in (SocketType.ST_INT2, SocketType.ST_INT3,
+                                           SocketType.ST_FLOAT2, SocketType.ST_FLOAT3):
+                # layout in column to enable multiple selections for vector properties
+                layout.column(heading=self.name).prop(self, "default_value", text="")
+            else:
+                if self.octane_socket_type == SocketType.ST_ENUM:
+                    c = layout.column()
+                    row = c.row()
+                    split = row.split(factor=0.5)
+                    c = split.column()
+                    c.label(text=self.name)
+                    split = split.split()
+                    c = split.column()
+                    c.alignment = "LEFT"
+                    c.prop(self, "default_value", text="")
+                else:
+                    layout.prop(self, "default_value", text=self.name)
 
 
 class OctaneGroupTitleSocket(OctaneBaseSocket):

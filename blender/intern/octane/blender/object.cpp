@@ -76,8 +76,20 @@ bool BlenderSync::object_is_geometry(BObjectInfo &b_ob_info)
 
   BL::Object::type_enum type = b_ob_info.iter_object.type();
 
-  if (type == BL::Object::type_VOLUME || type == BL::Object::type_CURVE ||
-      type == BL::Object::type_CURVES ||
+  BL::Object b_real_ob = b_ob_info.real_object;
+  if (b_real_ob && b_real_ob.type() == BL::Object::type_CURVE) {
+    BL::ID b_real_ob_data = b_real_ob.data();
+    PointerRNA oct_mesh = RNA_pointer_get(&b_real_ob_data.ptr, "octane");
+    bool use_curve_as_octane_hair = RNA_boolean_get(&oct_mesh, "render_curve_as_octane_hair");
+    if (use_curve_as_octane_hair) {
+      return type == BL::Object::type_CURVE;
+    }
+    else {
+      return b_ob_data.is_a(&RNA_Mesh);
+    }
+  }
+
+  if (type == BL::Object::type_VOLUME || type == BL::Object::type_CURVES ||
       type == BL::Object::type_POINTCLOUD)
   {
     /* Will be exported attached to mesh. */
@@ -162,10 +174,8 @@ static void update_light_transform(Light *light,
     }
     case BL::Light::type_SUN: {
       if (octane_directional_light_type == 2) {
-        float3 dir = transform_get_column(&tfm, 2);
-        dir *= -1;
-        transform_set_column(&tfm, 2, dir);
-        light->update_transform(tfm, motion_time);
+        Transform octane_tfm = tfm * transform_rotate(M_PI_F, make_float3(1, 0, 0));
+        light->update_transform(octane_tfm, motion_time);
       }
       else {
         light->update_transform(tfm, motion_time);
@@ -559,23 +569,14 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
         }
         object->update_motion_blur_transforms(motion_time, octane_tfm);
         if (object->mesh) {
-          sync_mesh_motion(b_depsgraph, b_ob, object, motion_time);
+          sync_mesh_motion(b_depsgraph, b_ob_info, b_ob, object, motion_time);
         }
       }
     }
     return object;
   }
 
-  bool use_geometry_node_modifier = false;
-  BL::Object::modifiers_iterator b_mod;
-  for (b_ob.modifiers.begin(b_mod); b_mod != b_ob.modifiers.end(); ++b_mod) {
-    if (b_mod->type() == BL::Modifier::type_NODES) {
-      if ((preview && b_mod->show_viewport()) || (!preview && b_mod->show_render())) {
-        use_geometry_node_modifier = true;
-        break;
-      }
-    }
-  }
+  bool use_geometry_node_modifier = use_geonodes_modifiers(b_ob);
 
   std::string object_name;
   if (scene && scene->session && scene->session->params.maximize_instancing &&
@@ -616,12 +617,15 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
   object->is_instance = is_instance;
   object->object_mesh_type = mesh_type;
   /* mesh sync */
+  std::string object_mesh_name = object_name + "[Mesh]";
   object->mesh = sync_mesh(b_depsgraph,
+                           b_ob_info,
                            b_ob,
                            b_ob_instance,
                            need_update,
                            show_self,
                            show_particles,
+                           object_mesh_name,
                            object_layer,
                            mesh_type);
 
@@ -654,7 +658,7 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
   if (preview && octane_tfm != object->transform) {
     need_update = true;
   }
-  
+
   std::string mesh_name = resolve_octane_object_data_name(b_ob, b_ob_instance);
   object->need_update |= need_update;
 
