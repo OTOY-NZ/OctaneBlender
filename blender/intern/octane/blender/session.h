@@ -22,8 +22,8 @@
 #include <cstdlib>
 
 #include "MEM_guardedalloc.h"
-#include "RNA_types.h"
-#include "RNA_access.h"
+#include "RNA_types.hh"
+#include "RNA_access.hh"
 #include "RNA_blender_cpp.h"
 
 #include "util/string.h"

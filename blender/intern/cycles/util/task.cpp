@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #include "util/task.h"
 #include "util/foreach.h"
@@ -128,10 +129,12 @@ void DedicatedTaskPool::push(TaskRunFunction &&task, bool front)
 
   /* add task to queue */
   queue_mutex.lock();
-  if (front)
+  if (front) {
     queue.emplace_front(std::move(task));
-  else
+  }
+  else {
     queue.emplace_back(std::move(task));
+  }
 
   queue_cond.notify_one();
   queue_mutex.unlock();
@@ -141,8 +144,9 @@ void DedicatedTaskPool::wait()
 {
   thread_scoped_lock num_lock(num_mutex);
 
-  while (num)
+  while (num) {
     num_cond.wait(num_lock);
+  }
 }
 
 void DedicatedTaskPool::cancel()
@@ -166,8 +170,9 @@ void DedicatedTaskPool::num_decrease(int done)
   num -= done;
 
   assert(num >= 0);
-  if (num == 0)
+  if (num == 0) {
     num_cond.notify_all();
+  }
 }
 
 void DedicatedTaskPool::num_increase()
@@ -181,8 +186,9 @@ bool DedicatedTaskPool::thread_wait_pop(TaskRunFunction &task)
 {
   thread_scoped_lock queue_lock(queue_mutex);
 
-  while (queue.empty() && !do_exit)
+  while (queue.empty() && !do_exit) {
     queue_cond.wait(queue_lock);
+  }
 
   if (queue.empty()) {
     assert(do_exit);

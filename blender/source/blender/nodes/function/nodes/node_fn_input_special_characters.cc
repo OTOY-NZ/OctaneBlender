@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "node_function_util.hh"
 
@@ -24,15 +26,15 @@ class MF_SpecialCharacters : public mf::MultiFunction {
     this->set_signature(&signature);
   }
 
-  void call(IndexMask mask, mf::Params params, mf::Context /*context*/) const override
+  void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
   {
     MutableSpan<std::string> lb = params.uninitialized_single_output<std::string>(0, "Line Break");
     MutableSpan<std::string> tab = params.uninitialized_single_output<std::string>(1, "Tab");
 
-    for (const int i : mask) {
+    mask.foreach_index([&](const int64_t i) {
       new (&lb[i]) std::string("\n");
       new (&tab[i]) std::string("\t");
-    }
+    });
   }
 };
 
@@ -42,17 +44,16 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
   builder.set_matching_fn(special_characters_fn);
 }
 
-}  // namespace blender::nodes::node_fn_input_special_characters_cc
-
-void register_node_type_fn_input_special_characters()
+static void node_register()
 {
-  namespace file_ns = blender::nodes::node_fn_input_special_characters_cc;
-
   static bNodeType ntype;
 
   fn_node_type_base(
       &ntype, FN_NODE_INPUT_SPECIAL_CHARACTERS, "Special Characters", NODE_CLASS_INPUT);
-  ntype.declare = file_ns::node_declare;
-  ntype.build_multi_function = file_ns::node_build_multi_function;
+  ntype.declare = node_declare;
+  ntype.build_multi_function = node_build_multi_function;
   nodeRegisterType(&ntype);
 }
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_fn_input_special_characters_cc

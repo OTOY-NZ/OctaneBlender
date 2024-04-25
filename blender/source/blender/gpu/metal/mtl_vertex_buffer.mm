@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2022-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup gpu
@@ -128,7 +130,7 @@ void MTLVertBuf::bind()
   uint64_t required_size = max_ulul(required_size_raw, 128);
 
   if (required_size_raw == 0) {
-    MTL_LOG_WARNING("Warning: Vertex buffer required_size = 0\n");
+    MTL_LOG_INFO("Vertex buffer required_size = 0");
   }
 
   /* If the vertex buffer has already been allocated, but new data is ready,
@@ -348,7 +350,7 @@ void MTLVertBuf::read(void *data) const
 
   if (usage_ != GPU_USAGE_DEVICE_ONLY) {
 
-    /* Ensure data is flushed for host caches.  */
+    /* Ensure data is flushed for host caches. */
     id<MTLBuffer> source_buffer = vbo_->get_metal_buffer();
     if (source_buffer.storageMode == MTLStorageModeManaged) {
       id<MTLBlitCommandEncoder> enc = ctx->main_command_buffer.ensure_begin_blit_encoder();

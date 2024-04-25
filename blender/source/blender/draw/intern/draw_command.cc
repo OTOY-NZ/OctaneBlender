@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2022 Blender Foundation. */
+/* SPDX-FileCopyrightText: 2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup draw
@@ -563,6 +564,16 @@ void DrawCommandBuf::finalize_commands(Vector<Header, 0> &headers,
       cmd.vertex_len = batch_vert_len;
     }
 
+#ifdef WITH_METAL_BACKEND
+    /* For SSBO vertex fetch, mutate output vertex count by ssbo vertex fetch expansion factor. */
+    if (cmd.shader) {
+      int num_input_primitives = gpu_get_prim_count_from_type(cmd.vertex_len,
+                                                              cmd.batch->prim_type);
+      cmd.vertex_len = num_input_primitives *
+                       GPU_shader_get_ssbo_vertex_fetch_num_verts_per_prim(cmd.shader);
+    }
+#endif
+
     if (cmd.handle.raw > 0) {
       /* Save correct offset to start of resource_id buffer region for this draw. */
       uint instance_first = resource_id_count;
@@ -614,13 +625,28 @@ void DrawMultiBuf::bind(RecordingState &state,
     group.start = resource_id_count_;
     resource_id_count_ += group.len * view_len;
 
-    int batch_inst_len;
+    int batch_vert_len, batch_vert_first, batch_base_index, batch_inst_len;
     /* Now that GPUBatches are guaranteed to be finished, extract their parameters. */
-    GPU_batch_draw_parameter_get(group.gpu_batch,
-                                 &group.vertex_len,
-                                 &group.vertex_first,
-                                 &group.base_index,
-                                 &batch_inst_len);
+    GPU_batch_draw_parameter_get(
+        group.gpu_batch, &batch_vert_len, &batch_vert_first, &batch_base_index, &batch_inst_len);
+
+    group.vertex_len = group.vertex_len == -1 ? batch_vert_len : group.vertex_len;
+    group.vertex_first = group.vertex_first == -1 ? batch_vert_first : group.vertex_first;
+    group.base_index = batch_base_index;
+
+#ifdef WITH_METAL_BACKEND
+    /* For SSBO vertex fetch, mutate output vertex count by ssbo vertex fetch expansion factor. */
+    if (group.gpu_shader) {
+      int num_input_primitives = gpu_get_prim_count_from_type(group.vertex_len,
+                                                              group.gpu_batch->prim_type);
+      group.vertex_len = num_input_primitives *
+                         GPU_shader_get_ssbo_vertex_fetch_num_verts_per_prim(group.gpu_shader);
+      /* Override base index to -1, as all SSBO calls are submitted as non-indexed, with the
+       * index buffer indirection handled within the implemnetation. This is to ensure
+       * command generation can correctly assigns baseInstance in the non-indexed formatting. */
+      group.base_index = -1;
+    }
+#endif
 
     /* Instancing attributes are not supported using the new pipeline since we use the base
      * instance to set the correct resource_id. Workaround is a storage_buf + gl_InstanceID. */
@@ -635,7 +661,7 @@ void DrawMultiBuf::bind(RecordingState &state,
   prototype_buf_.push_update();
   /* Allocate enough for the expansion pass. */
   resource_id_buf_.get_or_resize(resource_id_count_ * (use_custom_ids ? 2 : 1));
-  /* Two command per group. */
+  /* Two commands per group (inverted and non-inverted scale). */
   command_buf_.get_or_resize(group_count_ * 2);
 
   if (prototype_count_ > 0) {

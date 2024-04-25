@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bke
@@ -14,24 +16,24 @@
 #include "DNA_scene_types.h"
 
 #include "BLI_listbase.h"
-#include "BLI_math.h"
+#include "BLI_math_rotation.h"
 #include "BLI_rand.h"
 
 #include "BLT_translation.h"
 
 #include "BKE_bpath.h"
-#include "BKE_brush.h"
+#include "BKE_brush.hh"
 #include "BKE_colortools.h"
 #include "BKE_context.h"
 #include "BKE_gpencil_legacy.h"
-#include "BKE_icons.h"
 #include "BKE_idtype.h"
 #include "BKE_lib_id.h"
 #include "BKE_lib_query.h"
 #include "BKE_lib_remap.h"
 #include "BKE_main.h"
 #include "BKE_material.h"
-#include "BKE_paint.h"
+#include "BKE_paint.hh"
+#include "BKE_preview_image.hh"
 #include "BKE_texture.h"
 
 #include "IMB_colormanagement.h"
@@ -40,7 +42,7 @@
 
 #include "RE_texture.h" /* RE_texture_evaluate */
 
-#include "BLO_read_write.h"
+#include "BLO_read_write.hh"
 
 static void brush_init_data(ID *id)
 {
@@ -206,7 +208,8 @@ static void brush_foreach_path(ID *id, BPathForeachPathData *bpath_data)
 {
   Brush *brush = (Brush *)id;
   if (brush->icon_filepath[0] != '\0') {
-    BKE_bpath_foreach_path_fixed_process(bpath_data, brush->icon_filepath);
+    BKE_bpath_foreach_path_fixed_process(
+        bpath_data, brush->icon_filepath, sizeof(brush->icon_filepath));
   }
 }
 
@@ -356,22 +359,13 @@ static void brush_blend_read_data(BlendDataReader *reader, ID *id)
   brush->icon_imbuf = nullptr;
 }
 
-static void brush_blend_read_lib(BlendLibReader *reader, ID *id)
+static void brush_blend_read_after_liblink(BlendLibReader * /*reader*/, ID *id)
 {
-  Brush *brush = (Brush *)id;
+  Brush *brush = reinterpret_cast<Brush *>(id);
 
-  /* brush->(mask_)mtex.obj is ignored on purpose? */
-  BLO_read_id_address(reader, brush->id.lib, &brush->mtex.tex);
-  BLO_read_id_address(reader, brush->id.lib, &brush->mask_mtex.tex);
-  BLO_read_id_address(reader, brush->id.lib, &brush->clone.image);
-  BLO_read_id_address(reader, brush->id.lib, &brush->toggle_brush);
-  BLO_read_id_address(reader, brush->id.lib, &brush->paint_curve);
-
-  /* link default grease pencil palette */
+  /* Update brush settings depending on availability of other IDs. */
   if (brush->gpencil_settings != nullptr) {
     if (brush->gpencil_settings->flag & GP_BRUSH_MATERIAL_PINNED) {
-      BLO_read_id_address(reader, brush->id.lib, &brush->gpencil_settings->material);
-
       if (!brush->gpencil_settings->material) {
         brush->gpencil_settings->flag &= ~GP_BRUSH_MATERIAL_PINNED;
       }
@@ -379,30 +373,18 @@ static void brush_blend_read_lib(BlendLibReader *reader, ID *id)
     else {
       brush->gpencil_settings->material = nullptr;
     }
-    BLO_read_id_address(reader, brush->id.lib, &brush->gpencil_settings->material_alt);
-  }
-}
-
-static void brush_blend_read_expand(BlendExpander *expander, ID *id)
-{
-  Brush *brush = (Brush *)id;
-  BLO_expand(expander, brush->mtex.tex);
-  BLO_expand(expander, brush->mask_mtex.tex);
-  BLO_expand(expander, brush->clone.image);
-  BLO_expand(expander, brush->paint_curve);
-  if (brush->gpencil_settings != nullptr) {
-    BLO_expand(expander, brush->gpencil_settings->material);
-    BLO_expand(expander, brush->gpencil_settings->material_alt);
   }
 }
 
 static int brush_undo_preserve_cb(LibraryIDLinkCallbackData *cb_data)
 {
   BlendLibReader *reader = (BlendLibReader *)cb_data->user_data;
+  ID *self_id = cb_data->self_id;
   ID *id_old = *cb_data->id_pointer;
   /* Old data has not been remapped to new values of the pointers, if we want to keep the old
    * pointer here we need its new address. */
-  ID *id_old_new = id_old != nullptr ? BLO_read_get_new_id_address(reader, id_old->lib, id_old) :
+  ID *id_old_new = id_old != nullptr ? BLO_read_get_new_id_address(
+                                           reader, self_id, ID_IS_LINKED(self_id), id_old) :
                                        nullptr;
   BLI_assert(id_old_new == nullptr || ELEM(id_old, id_old_new, id_old_new->orig_id));
   if (cb_data->cb_flag & IDWALK_CB_USER) {
@@ -433,7 +415,7 @@ IDTypeInfo IDType_ID_BR = {
     /*main_listbase_index*/ INDEX_ID_BR,
     /*struct_size*/ sizeof(Brush),
     /*name*/ "Brush",
-    /*name_plural*/ "brushes",
+    /*name_plural*/ N_("brushes"),
     /*translation_context*/ BLT_I18NCONTEXT_ID_BRUSH,
     /*flags*/ IDTYPE_FLAGS_NO_ANIMDATA,
     /*asset_type_info*/ nullptr,
@@ -449,8 +431,7 @@ IDTypeInfo IDType_ID_BR = {
 
     /*blend_write*/ brush_blend_write,
     /*blend_read_data*/ brush_blend_read_data,
-    /*blend_read_lib*/ brush_blend_read_lib,
-    /*blend_read_expand*/ brush_blend_read_expand,
+    /*blend_read_after_liblink*/ brush_blend_read_after_liblink,
 
     /*blend_read_undo_preserve*/ brush_undo_preserve,
 
@@ -459,13 +440,13 @@ IDTypeInfo IDType_ID_BR = {
 
 static RNG *brush_rng;
 
-void BKE_brush_system_init(void)
+void BKE_brush_system_init()
 {
   brush_rng = BLI_rng_new(0);
   BLI_rng_srandom(brush_rng, 31415682);
 }
 
-void BKE_brush_system_exit(void)
+void BKE_brush_system_exit()
 {
   if (brush_rng == nullptr) {
     return;
@@ -522,6 +503,8 @@ static void brush_defaults(Brush *brush)
   FROM_DEFAULT(mtex);
   FROM_DEFAULT(mask_mtex);
   FROM_DEFAULT(falloff_shape);
+  FROM_DEFAULT(tip_scale_x);
+  FROM_DEFAULT(tip_roundness);
 
 #undef FROM_DEFAULT
 #undef FROM_DEFAULT_PTR
@@ -574,19 +557,19 @@ Brush *BKE_brush_add_gpencil(Main *bmain, ToolSettings *ts, const char *name, eO
   Paint *paint = nullptr;
   Brush *brush;
   switch (mode) {
-    case OB_MODE_PAINT_GPENCIL: {
+    case OB_MODE_PAINT_GPENCIL_LEGACY: {
       paint = &ts->gp_paint->paint;
       break;
     }
-    case OB_MODE_SCULPT_GPENCIL: {
+    case OB_MODE_SCULPT_GPENCIL_LEGACY: {
       paint = &ts->gp_sculptpaint->paint;
       break;
     }
-    case OB_MODE_WEIGHT_GPENCIL: {
+    case OB_MODE_WEIGHT_GPENCIL_LEGACY: {
       paint = &ts->gp_weightpaint->paint;
       break;
     }
-    case OB_MODE_VERTEX_GPENCIL: {
+    case OB_MODE_VERTEX_GPENCIL_LEGACY: {
       paint = &ts->gp_vertexpaint->paint;
       break;
     }
@@ -755,7 +738,7 @@ void BKE_gpencil_brush_preset_set(Main *bmain, Brush *brush, const short type)
       brush->gpencil_settings->active_smooth = ACTIVE_SMOOTH;
       brush->gpencil_settings->draw_angle = 0.0f;
       brush->gpencil_settings->draw_angle_factor = 0.0f;
-      brush->gpencil_settings->hardeness = 0.9f;
+      brush->gpencil_settings->hardness = 0.9f;
       copy_v2_fl(brush->gpencil_settings->aspect_ratio, 1.0f);
 
       brush->gpencil_tool = GPAINT_TOOL_DRAW;
@@ -778,7 +761,7 @@ void BKE_gpencil_brush_preset_set(Main *bmain, Brush *brush, const short type)
       brush->gpencil_settings->active_smooth = ACTIVE_SMOOTH;
       brush->gpencil_settings->draw_angle = 0.0f;
       brush->gpencil_settings->draw_angle_factor = 0.0f;
-      brush->gpencil_settings->hardeness = 1.0f;
+      brush->gpencil_settings->hardness = 1.0f;
       copy_v2_fl(brush->gpencil_settings->aspect_ratio, 1.0f);
 
       brush->gpencil_settings->flag |= GP_BRUSH_GROUP_SETTINGS;
@@ -793,7 +776,7 @@ void BKE_gpencil_brush_preset_set(Main *bmain, Brush *brush, const short type)
 
       /* Curve. */
       custom_curve = brush->gpencil_settings->curve_sensitivity;
-      BKE_curvemapping_set_defaults(custom_curve, 0, 0.0f, 0.0f, 1.0f, 1.0f);
+      BKE_curvemapping_set_defaults(custom_curve, 0, 0.0f, 0.0f, 1.0f, 1.0f, HD_AUTO);
       BKE_curvemapping_init(custom_curve);
       brush_gpencil_curvemap_reset(custom_curve->cm, 3, GPCURVE_PRESET_INK);
 
@@ -813,7 +796,7 @@ void BKE_gpencil_brush_preset_set(Main *bmain, Brush *brush, const short type)
       brush->gpencil_settings->active_smooth = ACTIVE_SMOOTH;
       brush->gpencil_settings->draw_angle = 0.0f;
       brush->gpencil_settings->draw_angle_factor = 0.0f;
-      brush->gpencil_settings->hardeness = 1.0f;
+      brush->gpencil_settings->hardness = 1.0f;
       copy_v2_fl(brush->gpencil_settings->aspect_ratio, 1.0f);
 
       brush->gpencil_settings->flag &= ~GP_BRUSH_GROUP_SETTINGS;
@@ -830,7 +813,7 @@ void BKE_gpencil_brush_preset_set(Main *bmain, Brush *brush, const short type)
 
       /* Curve. */
       custom_curve = brush->gpencil_settings->curve_sensitivity;
-      BKE_curvemapping_set_defaults(custom_curve, 0, 0.0f, 0.0f, 1.0f, 1.0f);
+      BKE_curvemapping_set_defaults(custom_curve, 0, 0.0f, 0.0f, 1.0f, 1.0f, HD_AUTO);
       BKE_curvemapping_init(custom_curve);
       brush_gpencil_curvemap_reset(custom_curve->cm, 3, GPCURVE_PRESET_INKNOISE);
 
@@ -850,7 +833,7 @@ void BKE_gpencil_brush_preset_set(Main *bmain, Brush *brush, const short type)
       brush->gpencil_settings->active_smooth = ACTIVE_SMOOTH;
       brush->gpencil_settings->draw_angle = 0.0f;
       brush->gpencil_settings->draw_angle_factor = 0.0f;
-      brush->gpencil_settings->hardeness = 1.0f;
+      brush->gpencil_settings->hardness = 1.0f;
       copy_v2_fl(brush->gpencil_settings->aspect_ratio, 1.0f);
 
       brush->gpencil_settings->flag |= GP_BRUSH_GROUP_SETTINGS;
@@ -867,7 +850,7 @@ void BKE_gpencil_brush_preset_set(Main *bmain, Brush *brush, const short type)
 
       /* Curve. */
       custom_curve = brush->gpencil_settings->curve_sensitivity;
-      BKE_curvemapping_set_defaults(custom_curve, 0, 0.0f, 0.0f, 1.0f, 1.0f);
+      BKE_curvemapping_set_defaults(custom_curve, 0, 0.0f, 0.0f, 1.0f, 1.0f, HD_AUTO);
       BKE_curvemapping_init(custom_curve);
       brush_gpencil_curvemap_reset(custom_curve->cm, 4, GPCURVE_PRESET_MARKER);
 
@@ -887,7 +870,7 @@ void BKE_gpencil_brush_preset_set(Main *bmain, Brush *brush, const short type)
       brush->gpencil_settings->active_smooth = 0.3f;
       brush->gpencil_settings->draw_angle = DEG2RAD(35.0f);
       brush->gpencil_settings->draw_angle_factor = 0.5f;
-      brush->gpencil_settings->hardeness = 1.0f;
+      brush->gpencil_settings->hardness = 1.0f;
       copy_v2_fl(brush->gpencil_settings->aspect_ratio, 1.0f);
 
       brush->gpencil_settings->flag |= GP_BRUSH_GROUP_SETTINGS;
@@ -903,12 +886,12 @@ void BKE_gpencil_brush_preset_set(Main *bmain, Brush *brush, const short type)
 
       /* Curve. */
       custom_curve = brush->gpencil_settings->curve_sensitivity;
-      BKE_curvemapping_set_defaults(custom_curve, 0, 0.0f, 0.0f, 1.0f, 1.0f);
+      BKE_curvemapping_set_defaults(custom_curve, 0, 0.0f, 0.0f, 1.0f, 1.0f, HD_AUTO);
       BKE_curvemapping_init(custom_curve);
       brush_gpencil_curvemap_reset(custom_curve->cm, 3, GPCURVE_PRESET_CHISEL_SENSIVITY);
 
       custom_curve = brush->gpencil_settings->curve_strength;
-      BKE_curvemapping_set_defaults(custom_curve, 0, 0.0f, 0.0f, 1.0f, 1.0f);
+      BKE_curvemapping_set_defaults(custom_curve, 0, 0.0f, 0.0f, 1.0f, 1.0f, HD_AUTO);
       BKE_curvemapping_init(custom_curve);
       brush_gpencil_curvemap_reset(custom_curve->cm, 4, GPCURVE_PRESET_CHISEL_STRENGTH);
 
@@ -929,7 +912,7 @@ void BKE_gpencil_brush_preset_set(Main *bmain, Brush *brush, const short type)
       brush->gpencil_settings->active_smooth = ACTIVE_SMOOTH;
       brush->gpencil_settings->draw_angle = 0.0f;
       brush->gpencil_settings->draw_angle_factor = 0.0f;
-      brush->gpencil_settings->hardeness = 1.0f;
+      brush->gpencil_settings->hardness = 1.0f;
       copy_v2_fl(brush->gpencil_settings->aspect_ratio, 1.0f);
 
       brush->gpencil_settings->flag |= GP_BRUSH_GROUP_SETTINGS;
@@ -960,7 +943,7 @@ void BKE_gpencil_brush_preset_set(Main *bmain, Brush *brush, const short type)
       brush->gpencil_settings->active_smooth = ACTIVE_SMOOTH;
       brush->gpencil_settings->draw_angle = 0.0f;
       brush->gpencil_settings->draw_angle_factor = 0.0f;
-      brush->gpencil_settings->hardeness = 0.8f;
+      brush->gpencil_settings->hardness = 0.8f;
       copy_v2_fl(brush->gpencil_settings->aspect_ratio, 1.0f);
 
       brush->gpencil_settings->flag |= GP_BRUSH_GROUP_SETTINGS;
@@ -994,7 +977,7 @@ void BKE_gpencil_brush_preset_set(Main *bmain, Brush *brush, const short type)
       brush->gpencil_settings->active_smooth = ACTIVE_SMOOTH;
       brush->gpencil_settings->draw_angle = 0.0f;
       brush->gpencil_settings->draw_angle_factor = 0.0f;
-      brush->gpencil_settings->hardeness = 1.0f;
+      brush->gpencil_settings->hardness = 1.0f;
       copy_v2_fl(brush->gpencil_settings->aspect_ratio, 1.0f);
 
       brush->gpencil_settings->flag |= GP_BRUSH_GROUP_SETTINGS;
@@ -1021,7 +1004,7 @@ void BKE_gpencil_brush_preset_set(Main *bmain, Brush *brush, const short type)
       brush->gpencil_settings->fill_factor = 1.0f;
 
       brush->gpencil_settings->draw_strength = 1.0f;
-      brush->gpencil_settings->hardeness = 1.0f;
+      brush->gpencil_settings->hardness = 1.0f;
       copy_v2_fl(brush->gpencil_settings->aspect_ratio, 1.0f);
       brush->gpencil_settings->draw_smoothfac = 0.1f;
       brush->gpencil_settings->draw_smoothlvl = 1;
@@ -1393,86 +1376,86 @@ void BKE_brush_gpencil_paint_presets(Main *bmain, ToolSettings *ts, const bool r
   Brush *brush_prev = paint->brush;
   Brush *brush, *deft_draw;
   /* Airbrush brush. */
-  brush = gpencil_brush_ensure(bmain, ts, "Airbrush", OB_MODE_PAINT_GPENCIL, &r_new);
+  brush = gpencil_brush_ensure(bmain, ts, "Airbrush", OB_MODE_PAINT_GPENCIL_LEGACY, &r_new);
   if ((reset) || (r_new)) {
     BKE_gpencil_brush_preset_set(bmain, brush, GP_BRUSH_PRESET_AIRBRUSH);
   }
 
   /* Ink Pen brush. */
-  brush = gpencil_brush_ensure(bmain, ts, "Ink Pen", OB_MODE_PAINT_GPENCIL, &r_new);
+  brush = gpencil_brush_ensure(bmain, ts, "Ink Pen", OB_MODE_PAINT_GPENCIL_LEGACY, &r_new);
   if ((reset) || (r_new)) {
     BKE_gpencil_brush_preset_set(bmain, brush, GP_BRUSH_PRESET_INK_PEN);
   }
 
   /* Ink Pen Rough brush. */
-  brush = gpencil_brush_ensure(bmain, ts, "Ink Pen Rough", OB_MODE_PAINT_GPENCIL, &r_new);
+  brush = gpencil_brush_ensure(bmain, ts, "Ink Pen Rough", OB_MODE_PAINT_GPENCIL_LEGACY, &r_new);
   if ((reset) || (r_new)) {
     BKE_gpencil_brush_preset_set(bmain, brush, GP_BRUSH_PRESET_INK_PEN_ROUGH);
   }
 
   /* Marker Bold brush. */
-  brush = gpencil_brush_ensure(bmain, ts, "Marker Bold", OB_MODE_PAINT_GPENCIL, &r_new);
+  brush = gpencil_brush_ensure(bmain, ts, "Marker Bold", OB_MODE_PAINT_GPENCIL_LEGACY, &r_new);
   if ((reset) || (r_new)) {
     BKE_gpencil_brush_preset_set(bmain, brush, GP_BRUSH_PRESET_MARKER_BOLD);
   }
 
   /* Marker Chisel brush. */
-  brush = gpencil_brush_ensure(bmain, ts, "Marker Chisel", OB_MODE_PAINT_GPENCIL, &r_new);
+  brush = gpencil_brush_ensure(bmain, ts, "Marker Chisel", OB_MODE_PAINT_GPENCIL_LEGACY, &r_new);
   if ((reset) || (r_new)) {
     BKE_gpencil_brush_preset_set(bmain, brush, GP_BRUSH_PRESET_MARKER_CHISEL);
   }
 
   /* Pen brush. */
-  brush = gpencil_brush_ensure(bmain, ts, "Pen", OB_MODE_PAINT_GPENCIL, &r_new);
+  brush = gpencil_brush_ensure(bmain, ts, "Pen", OB_MODE_PAINT_GPENCIL_LEGACY, &r_new);
   if ((reset) || (r_new)) {
     BKE_gpencil_brush_preset_set(bmain, brush, GP_BRUSH_PRESET_PEN);
   }
 
   /* Pencil Soft brush. */
-  brush = gpencil_brush_ensure(bmain, ts, "Pencil Soft", OB_MODE_PAINT_GPENCIL, &r_new);
+  brush = gpencil_brush_ensure(bmain, ts, "Pencil Soft", OB_MODE_PAINT_GPENCIL_LEGACY, &r_new);
   if ((reset) || (r_new)) {
     BKE_gpencil_brush_preset_set(bmain, brush, GP_BRUSH_PRESET_PENCIL_SOFT);
   }
 
   /* Pencil brush. */
-  brush = gpencil_brush_ensure(bmain, ts, "Pencil", OB_MODE_PAINT_GPENCIL, &r_new);
+  brush = gpencil_brush_ensure(bmain, ts, "Pencil", OB_MODE_PAINT_GPENCIL_LEGACY, &r_new);
   if ((reset) || (r_new)) {
     BKE_gpencil_brush_preset_set(bmain, brush, GP_BRUSH_PRESET_PENCIL);
   }
   deft_draw = brush; /* save default brush. */
 
   /* Fill brush. */
-  brush = gpencil_brush_ensure(bmain, ts, "Fill Area", OB_MODE_PAINT_GPENCIL, &r_new);
+  brush = gpencil_brush_ensure(bmain, ts, "Fill Area", OB_MODE_PAINT_GPENCIL_LEGACY, &r_new);
   if ((reset) || (r_new)) {
     BKE_gpencil_brush_preset_set(bmain, brush, GP_BRUSH_PRESET_FILL_AREA);
   }
 
   /* Soft Eraser brush. */
-  brush = gpencil_brush_ensure(bmain, ts, "Eraser Soft", OB_MODE_PAINT_GPENCIL, &r_new);
+  brush = gpencil_brush_ensure(bmain, ts, "Eraser Soft", OB_MODE_PAINT_GPENCIL_LEGACY, &r_new);
   if ((reset) || (r_new)) {
     BKE_gpencil_brush_preset_set(bmain, brush, GP_BRUSH_PRESET_ERASER_SOFT);
   }
 
   /* Hard Eraser brush. */
-  brush = gpencil_brush_ensure(bmain, ts, "Eraser Hard", OB_MODE_PAINT_GPENCIL, &r_new);
+  brush = gpencil_brush_ensure(bmain, ts, "Eraser Hard", OB_MODE_PAINT_GPENCIL_LEGACY, &r_new);
   if ((reset) || (r_new)) {
     BKE_gpencil_brush_preset_set(bmain, brush, GP_BRUSH_PRESET_ERASER_HARD);
   }
 
   /* Point Eraser brush. */
-  brush = gpencil_brush_ensure(bmain, ts, "Eraser Point", OB_MODE_PAINT_GPENCIL, &r_new);
+  brush = gpencil_brush_ensure(bmain, ts, "Eraser Point", OB_MODE_PAINT_GPENCIL_LEGACY, &r_new);
   if ((reset) || (r_new)) {
     BKE_gpencil_brush_preset_set(bmain, brush, GP_BRUSH_PRESET_ERASER_POINT);
   }
 
   /* Stroke Eraser brush. */
-  brush = gpencil_brush_ensure(bmain, ts, "Eraser Stroke", OB_MODE_PAINT_GPENCIL, &r_new);
+  brush = gpencil_brush_ensure(bmain, ts, "Eraser Stroke", OB_MODE_PAINT_GPENCIL_LEGACY, &r_new);
   if ((reset) || (r_new)) {
     BKE_gpencil_brush_preset_set(bmain, brush, GP_BRUSH_PRESET_ERASER_STROKE);
   }
 
   /* Tint brush. */
-  brush = gpencil_brush_ensure(bmain, ts, "Tint", OB_MODE_PAINT_GPENCIL, &r_new);
+  brush = gpencil_brush_ensure(bmain, ts, "Tint", OB_MODE_PAINT_GPENCIL_LEGACY, &r_new);
   if ((reset) || (r_new)) {
     BKE_gpencil_brush_preset_set(bmain, brush, GP_BRUSH_PRESET_TINT);
   }
@@ -1494,29 +1477,29 @@ void BKE_brush_gpencil_vertex_presets(Main *bmain, ToolSettings *ts, const bool 
   Brush *brush_prev = vertexpaint->brush;
   Brush *brush, *deft_vertex;
   /* Vertex Draw brush. */
-  brush = gpencil_brush_ensure(bmain, ts, "Vertex Draw", OB_MODE_VERTEX_GPENCIL, &r_new);
+  brush = gpencil_brush_ensure(bmain, ts, "Vertex Draw", OB_MODE_VERTEX_GPENCIL_LEGACY, &r_new);
   if ((reset) || (r_new)) {
     BKE_gpencil_brush_preset_set(bmain, brush, GP_BRUSH_PRESET_VERTEX_DRAW);
   }
   deft_vertex = brush; /* save default brush. */
 
   /* Vertex Blur brush. */
-  brush = gpencil_brush_ensure(bmain, ts, "Vertex Blur", OB_MODE_VERTEX_GPENCIL, &r_new);
+  brush = gpencil_brush_ensure(bmain, ts, "Vertex Blur", OB_MODE_VERTEX_GPENCIL_LEGACY, &r_new);
   if ((reset) || (r_new)) {
     BKE_gpencil_brush_preset_set(bmain, brush, GP_BRUSH_PRESET_VERTEX_BLUR);
   }
   /* Vertex Average brush. */
-  brush = gpencil_brush_ensure(bmain, ts, "Vertex Average", OB_MODE_VERTEX_GPENCIL, &r_new);
+  brush = gpencil_brush_ensure(bmain, ts, "Vertex Average", OB_MODE_VERTEX_GPENCIL_LEGACY, &r_new);
   if ((reset) || (r_new)) {
     BKE_gpencil_brush_preset_set(bmain, brush, GP_BRUSH_PRESET_VERTEX_AVERAGE);
   }
   /* Vertex Smear brush. */
-  brush = gpencil_brush_ensure(bmain, ts, "Vertex Smear", OB_MODE_VERTEX_GPENCIL, &r_new);
+  brush = gpencil_brush_ensure(bmain, ts, "Vertex Smear", OB_MODE_VERTEX_GPENCIL_LEGACY, &r_new);
   if ((reset) || (r_new)) {
     BKE_gpencil_brush_preset_set(bmain, brush, GP_BRUSH_PRESET_VERTEX_SMEAR);
   }
   /* Vertex Replace brush. */
-  brush = gpencil_brush_ensure(bmain, ts, "Vertex Replace", OB_MODE_VERTEX_GPENCIL, &r_new);
+  brush = gpencil_brush_ensure(bmain, ts, "Vertex Replace", OB_MODE_VERTEX_GPENCIL_LEGACY, &r_new);
   if ((reset) || (r_new)) {
     BKE_gpencil_brush_preset_set(bmain, brush, GP_BRUSH_PRESET_VERTEX_REPLACE);
   }
@@ -1541,56 +1524,59 @@ void BKE_brush_gpencil_sculpt_presets(Main *bmain, ToolSettings *ts, const bool 
   Brush *brush, *deft_sculpt;
 
   /* Smooth brush. */
-  brush = gpencil_brush_ensure(bmain, ts, "Smooth Stroke", OB_MODE_SCULPT_GPENCIL, &r_new);
+  brush = gpencil_brush_ensure(bmain, ts, "Smooth Stroke", OB_MODE_SCULPT_GPENCIL_LEGACY, &r_new);
   if ((reset) || (r_new)) {
     BKE_gpencil_brush_preset_set(bmain, brush, GP_BRUSH_PRESET_SMOOTH_STROKE);
   }
   deft_sculpt = brush;
 
   /* Strength brush. */
-  brush = gpencil_brush_ensure(bmain, ts, "Strength Stroke", OB_MODE_SCULPT_GPENCIL, &r_new);
+  brush = gpencil_brush_ensure(
+      bmain, ts, "Strength Stroke", OB_MODE_SCULPT_GPENCIL_LEGACY, &r_new);
   if ((reset) || (r_new)) {
     BKE_gpencil_brush_preset_set(bmain, brush, GP_BRUSH_PRESET_STRENGTH_STROKE);
   }
 
   /* Thickness brush. */
-  brush = gpencil_brush_ensure(bmain, ts, "Thickness Stroke", OB_MODE_SCULPT_GPENCIL, &r_new);
+  brush = gpencil_brush_ensure(
+      bmain, ts, "Thickness Stroke", OB_MODE_SCULPT_GPENCIL_LEGACY, &r_new);
   if ((reset) || (r_new)) {
     BKE_gpencil_brush_preset_set(bmain, brush, GP_BRUSH_PRESET_THICKNESS_STROKE);
   }
 
   /* Grab brush. */
-  brush = gpencil_brush_ensure(bmain, ts, "Grab Stroke", OB_MODE_SCULPT_GPENCIL, &r_new);
+  brush = gpencil_brush_ensure(bmain, ts, "Grab Stroke", OB_MODE_SCULPT_GPENCIL_LEGACY, &r_new);
   if ((reset) || (r_new)) {
     BKE_gpencil_brush_preset_set(bmain, brush, GP_BRUSH_PRESET_GRAB_STROKE);
   }
 
   /* Push brush. */
-  brush = gpencil_brush_ensure(bmain, ts, "Push Stroke", OB_MODE_SCULPT_GPENCIL, &r_new);
+  brush = gpencil_brush_ensure(bmain, ts, "Push Stroke", OB_MODE_SCULPT_GPENCIL_LEGACY, &r_new);
   if ((reset) || (r_new)) {
     BKE_gpencil_brush_preset_set(bmain, brush, GP_BRUSH_PRESET_PUSH_STROKE);
   }
 
   /* Twist brush. */
-  brush = gpencil_brush_ensure(bmain, ts, "Twist Stroke", OB_MODE_SCULPT_GPENCIL, &r_new);
+  brush = gpencil_brush_ensure(bmain, ts, "Twist Stroke", OB_MODE_SCULPT_GPENCIL_LEGACY, &r_new);
   if ((reset) || (r_new)) {
     BKE_gpencil_brush_preset_set(bmain, brush, GP_BRUSH_PRESET_TWIST_STROKE);
   }
 
   /* Pinch brush. */
-  brush = gpencil_brush_ensure(bmain, ts, "Pinch Stroke", OB_MODE_SCULPT_GPENCIL, &r_new);
+  brush = gpencil_brush_ensure(bmain, ts, "Pinch Stroke", OB_MODE_SCULPT_GPENCIL_LEGACY, &r_new);
   if ((reset) || (r_new)) {
     BKE_gpencil_brush_preset_set(bmain, brush, GP_BRUSH_PRESET_PINCH_STROKE);
   }
 
   /* Randomize brush. */
-  brush = gpencil_brush_ensure(bmain, ts, "Randomize Stroke", OB_MODE_SCULPT_GPENCIL, &r_new);
+  brush = gpencil_brush_ensure(
+      bmain, ts, "Randomize Stroke", OB_MODE_SCULPT_GPENCIL_LEGACY, &r_new);
   if ((reset) || (r_new)) {
     BKE_gpencil_brush_preset_set(bmain, brush, GP_BRUSH_PRESET_RANDOMIZE_STROKE);
   }
 
   /* Clone brush. */
-  brush = gpencil_brush_ensure(bmain, ts, "Clone Stroke", OB_MODE_SCULPT_GPENCIL, &r_new);
+  brush = gpencil_brush_ensure(bmain, ts, "Clone Stroke", OB_MODE_SCULPT_GPENCIL_LEGACY, &r_new);
   if ((reset) || (r_new)) {
     BKE_gpencil_brush_preset_set(bmain, brush, GP_BRUSH_PRESET_CLONE_STROKE);
   }
@@ -1615,26 +1601,26 @@ void BKE_brush_gpencil_weight_presets(Main *bmain, ToolSettings *ts, const bool 
   Brush *brush, *deft_weight;
 
   /* Weight Draw brush. */
-  brush = gpencil_brush_ensure(bmain, ts, "Weight Draw", OB_MODE_WEIGHT_GPENCIL, &r_new);
+  brush = gpencil_brush_ensure(bmain, ts, "Weight Draw", OB_MODE_WEIGHT_GPENCIL_LEGACY, &r_new);
   if ((reset) || (r_new)) {
     BKE_gpencil_brush_preset_set(bmain, brush, GP_BRUSH_PRESET_WEIGHT_DRAW);
   }
   deft_weight = brush; /* save default brush. */
 
   /* Weight Blur brush. */
-  brush = gpencil_brush_ensure(bmain, ts, "Weight Blur", OB_MODE_WEIGHT_GPENCIL, &r_new);
+  brush = gpencil_brush_ensure(bmain, ts, "Weight Blur", OB_MODE_WEIGHT_GPENCIL_LEGACY, &r_new);
   if ((reset) || (r_new)) {
     BKE_gpencil_brush_preset_set(bmain, brush, GP_BRUSH_PRESET_WEIGHT_BLUR);
   }
 
   /* Weight Average brush. */
-  brush = gpencil_brush_ensure(bmain, ts, "Weight Average", OB_MODE_WEIGHT_GPENCIL, &r_new);
+  brush = gpencil_brush_ensure(bmain, ts, "Weight Average", OB_MODE_WEIGHT_GPENCIL_LEGACY, &r_new);
   if ((reset) || (r_new)) {
     BKE_gpencil_brush_preset_set(bmain, brush, GP_BRUSH_PRESET_WEIGHT_AVERAGE);
   }
 
   /* Weight Smear brush. */
-  brush = gpencil_brush_ensure(bmain, ts, "Weight Smear", OB_MODE_WEIGHT_GPENCIL, &r_new);
+  brush = gpencil_brush_ensure(bmain, ts, "Weight Smear", OB_MODE_WEIGHT_GPENCIL_LEGACY, &r_new);
   if ((reset) || (r_new)) {
     BKE_gpencil_brush_preset_set(bmain, brush, GP_BRUSH_PRESET_WEIGHT_SMEAR);
   }
@@ -1664,7 +1650,7 @@ void BKE_brush_init_curves_sculpt_settings(Brush *brush)
   settings->curve_parameter_falloff = BKE_curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
 }
 
-struct Brush *BKE_brush_first_search(struct Main *bmain, const eObjectMode ob_mode)
+Brush *BKE_brush_first_search(Main *bmain, const eObjectMode ob_mode)
 {
   LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
     if (brush->ob_mode & ob_mode) {
@@ -1931,8 +1917,6 @@ void BKE_brush_sculpt_reset(Brush *br)
       br->spacing = 10;
       br->alpha = 1.0f;
       br->flow = 1.0f;
-      br->tip_scale_x = 1.0f;
-      br->tip_roundness = 1.0f;
       br->density = 1.0f;
       br->flag &= ~BRUSH_SPACE_ATTEN;
       zero_v3(br->rgb);
@@ -2056,8 +2040,7 @@ void BKE_brush_curve_preset(Brush *b, eCurveMappingPreset preset)
   BKE_curvemapping_changed(cumap, false);
 }
 
-const struct MTex *BKE_brush_mask_texture_get(const struct Brush *brush,
-                                              const eObjectMode object_mode)
+const MTex *BKE_brush_mask_texture_get(const Brush *brush, const eObjectMode object_mode)
 {
   if (object_mode == OB_MODE_SCULPT) {
     return &brush->mtex;
@@ -2065,8 +2048,7 @@ const struct MTex *BKE_brush_mask_texture_get(const struct Brush *brush,
   return &brush->mask_mtex;
 }
 
-const struct MTex *BKE_brush_color_texture_get(const struct Brush *brush,
-                                               const eObjectMode object_mode)
+const MTex *BKE_brush_color_texture_get(const Brush *brush, const eObjectMode object_mode)
 {
   if (object_mode == OB_MODE_SCULPT) {
     return &brush->mask_mtex;
@@ -2080,7 +2062,7 @@ float BKE_brush_sample_tex_3d(const Scene *scene,
                               const float point[3],
                               float rgba[4],
                               const int thread,
-                              struct ImagePool *pool)
+                              ImagePool *pool)
 {
   UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
   float intensity = 1.0;
@@ -2198,7 +2180,7 @@ float BKE_brush_sample_tex_3d(const Scene *scene,
 }
 
 float BKE_brush_sample_masktex(
-    const Scene *scene, Brush *br, const float point[2], const int thread, struct ImagePool *pool)
+    const Scene *scene, Brush *br, const float point[2], const int thread, ImagePool *pool)
 {
   UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
   MTex *mtex = &br->mask_mtex;
@@ -2325,19 +2307,19 @@ float BKE_brush_sample_masktex(
  * In any case, a better solution is needed to prevent
  * inconsistency. */
 
-const float *BKE_brush_color_get(const struct Scene *scene, const struct Brush *brush)
+const float *BKE_brush_color_get(const Scene *scene, const Brush *brush)
 {
   UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
   return (ups->flag & UNIFIED_PAINT_COLOR) ? ups->rgb : brush->rgb;
 }
 
-const float *BKE_brush_secondary_color_get(const struct Scene *scene, const struct Brush *brush)
+const float *BKE_brush_secondary_color_get(const Scene *scene, const Brush *brush)
 {
   UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
   return (ups->flag & UNIFIED_PAINT_COLOR) ? ups->secondary_rgb : brush->secondary_rgb;
 }
 
-void BKE_brush_color_set(struct Scene *scene, struct Brush *brush, const float color[3])
+void BKE_brush_color_set(Scene *scene, Brush *brush, const float color[3])
 {
   UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
 
@@ -2615,25 +2597,29 @@ static bool brush_gen_texture(const Brush *br,
   return true;
 }
 
-struct ImBuf *BKE_brush_gen_radial_control_imbuf(Brush *br, bool secondary, bool display_gradient)
+ImBuf *BKE_brush_gen_radial_control_imbuf(Brush *br, bool secondary, bool display_gradient)
 {
   ImBuf *im = MEM_cnew<ImBuf>("radial control texture");
   int side = 512;
   int half = side / 2;
 
   BKE_curvemapping_init(br->curve);
-  im->rect_float = (float *)MEM_callocN(sizeof(float) * side * side, "radial control rect");
+
+  float *rect_float = (float *)MEM_callocN(sizeof(float) * side * side, "radial control rect");
+  IMB_assign_float_buffer(im, rect_float, IB_DO_NOT_TAKE_OWNERSHIP);
+
   im->x = im->y = side;
 
-  const bool have_texture = brush_gen_texture(br, side, secondary, im->rect_float);
+  const bool have_texture = brush_gen_texture(br, side, secondary, im->float_buffer.data);
 
   if (display_gradient || have_texture) {
     for (int i = 0; i < side; i++) {
       for (int j = 0; j < side; j++) {
         const float magn = sqrtf(pow2f(i - half) + pow2f(j - half));
         const float strength = BKE_brush_curve_strength_clamped(br, magn, half);
-        im->rect_float[i * side + j] = (have_texture) ? im->rect_float[i * side + j] * strength :
-                                                        strength;
+        im->float_buffer.data[i * side + j] = (have_texture) ?
+                                                  im->float_buffer.data[i * side + j] * strength :
+                                                  strength;
       }
     }
   }
@@ -2650,7 +2636,7 @@ bool BKE_brush_has_cube_tip(const Brush *brush, ePaintMode paint_mode)
       }
 
       if (ELEM(brush->sculpt_tool, SCULPT_TOOL_CLAY_STRIPS, SCULPT_TOOL_PAINT) &&
-          brush->tip_roundness < 1.0f)
+          (brush->tip_roundness < 1.0f || brush->tip_scale_x != 1.0f))
       {
         return true;
       }

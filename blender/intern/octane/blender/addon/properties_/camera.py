@@ -717,7 +717,8 @@ class OctaneImagerSettings(bpy.types.PropertyGroup, common.OctanePropertySetting
         octane_node.set_pin_id(consts.PinID.P_OCIO_VIEW, True, consts.OCTANE_BLENDER_CAMERA_IMAGER_OCIO_VIEW, "")
         octane_node.set_pin_id(consts.PinID.P_OCIO_LOOK, True, consts.OCTANE_BLENDER_CAMERA_IMAGER_OCIO_LOOK, "")
 
-    def sync_custom_data(self, octane_node, scene, region, v3d, rv3d, session_type):        
+    def sync_custom_data(self, octane_node, scene, region, v3d, rv3d, session_type):
+        # LUT settings
         lut_node = octane_node.get_subnode(consts.OCTANE_BLENDER_CAMERA_IMAGER_LUT, consts.NodeType.NT_LUT_CUSTOM)
         lut_node.set_pin_id(consts.PinID.P_STRENGTH, False, "", self.lut_strength)
         lut_path = ""
@@ -728,6 +729,7 @@ class OctaneImagerSettings(bpy.types.PropertyGroup, common.OctanePropertySetting
             need_reload = lut_node.set_attribute_id(consts.AttributeID.A_FILENAME, "")
         lut_node.set_attribute_id(consts.AttributeID.A_RELOAD, need_reload)
         octane_node.set_pin_id(consts.PinID.P_LUT, len(self.custom_lut) > 0, consts.OCTANE_BLENDER_CAMERA_IMAGER_LUT, "")
+        # OCIO settings
         self.sync_ocio_settings(octane_node, scene, session_type)
 
     def update_legacy_data(self, context, legacy_data, is_viewport=None):
@@ -817,13 +819,11 @@ class OctaneImagerSettings(bpy.types.PropertyGroup, common.OctanePropertySetting
         col.prop(self, "max_denoise_interval")
         col.prop(self, "denoiser_original_blend")
 
-    def draw_upsampler_header(self, context, layout, is_viewport=None):
-        layout.prop(self, "enable_ai_up_sampling", text="")
-
     def draw_upsampler(self, context, layout, is_viewport=None):
         col = layout.column()
         col.use_property_split = True
         col.prop(self, "up_sample_mode")
+        col.prop(self, "enable_ai_up_sampling")
         col.prop(self, "up_sampling_on_completion")
         col.prop(self, "min_up_sampler_samples")
 
@@ -1278,7 +1278,7 @@ class OctaneBaseCameraSettings(common.OctanePropertySettings):
         camera_node.set_pin_id(consts.PinID.P_DIOPTER_ROTATION, False, "", diopter_rotation)
         camera_node.set_pin_id(consts.PinID.P_DIOPTER_TRANSLATION, False, "", diopter_translation)
         camera_node.set_pin_id(consts.PinID.P_DIOPTER_BOUNDARY_WIDTH, False, "", diopter_boundary_width)
-        camera_node.set_pin_id(consts.PinID.P_DIOPTER_BOUNDARY_FALLOFF, False, "", diopter_boundary_falloff)                
+        camera_node.set_pin_id(consts.PinID.P_DIOPTER_BOUNDARY_FALLOFF, False, "", diopter_boundary_falloff)
         camera_node.set_pin_id(consts.PinID.P_DIOPTER_SHOW_GUIDE, False, "", show_diopter_guide)
 
     def calculate_octane_camera_position_parameters(self, camera_matrix, camera_direction, is_ortho_viewport):
@@ -1408,9 +1408,9 @@ class OctaneBaseCameraSettings(common.OctanePropertySettings):
         camera_node.set_pin_id(consts.PinID.P_TOLERANCE, False, "", baking_tolerance)
         camera_node.set_pin_id(consts.PinID.P_BAKING_UVBOX_MIN, False, "", (baking_uvbox_min_x, baking_uvbox_min_y))
         camera_node.set_pin_id(consts.PinID.P_BAKING_UVBOX_SIZE, False, "", (baking_uvbox_size_x, baking_uvbox_size_y))
-        camera_node.set_pin_id(consts.PinID.P_POSITION, False, "", baking_use_position)
+        camera_node.set_pin_id(consts.PinID.P_BAKE_FROM_POSITION, False, "", baking_use_position)
         camera_node.set_pin_id(consts.PinID.P_BAKE_BACKFACE_CULLING, False, "", baking_bkface_culling)
-        self.sync_octane_camera_position(blender_camera, camera_node)
+        self.sync_octane_camera_position(blender_camera, octane_node, camera_node)
 
     def sync_octane_camera_parameters(self, blender_camera, octane_node, width, height, border, is_viewport):
         camera_node = self.setup_octane_node_type(blender_camera, octane_node, is_viewport)
@@ -1419,12 +1419,12 @@ class OctaneBaseCameraSettings(common.OctanePropertySettings):
             camera_node.need_update = False
             return
         if camera_node_type == consts.NodeType.NT_CAM_BAKING:
-            self.sync_octane_camera_baking(blender_camera, camera_node)
-            return        
+            self.sync_octane_camera_baking(blender_camera, octane_node, camera_node)
+            return
         # General
         if camera_node_type == consts.NodeType.NT_CAM_THINLENS:
             camera_node.set_pin_id(consts.PinID.P_ORTHOGRAPHIC, False, "", blender_camera.type == BlenderCameraType.ORTHOGRAPHIC)
-        elif camera_node_type == consts.NodeType.NT_CAM_PANORAMIC:                        
+        elif camera_node_type == consts.NodeType.NT_CAM_PANORAMIC:
             pan_mode = utility.get_enum_int_value(self, "pan_mode", 0)
             camera_node.set_pin_id(consts.PinID.P_CAMERA_MODE, False, "", pan_mode)
         elif camera_node_type == consts.NodeType.NT_CAM_UNIVERSAL:
@@ -1442,7 +1442,7 @@ class OctaneBaseCameraSettings(common.OctanePropertySettings):
         use_fstop = getattr(self, "use_fstop", False)
         fstop = getattr(self, "fstop", 2.8) if use_fstop else 1000
         if use_fstop:
-            camera_node.set_pin_id(consts.PinID.P_FSTOP, False, "", fstop)            
+            camera_node.set_pin_id(consts.PinID.P_FSTOP, False, "", fstop)
         else:
             camera_node.clear_pin_id(consts.PinID.P_FSTOP)
         # Viewing angle

@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2020 Blender Foundation */
+/* SPDX-FileCopyrightText: 2020 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bke
@@ -13,26 +14,25 @@ struct BMesh;
 struct Mesh;
 struct MultiresModifierData;
 
-typedef struct MultiresUnsubdivideGrid {
+struct MultiresUnsubdivideGrid {
   /* For sanity checks. */
   int grid_index;
   int grid_size;
 
   /** Grid coordinates in object space. */
   float (*grid_co)[3];
+};
 
-} MultiresUnsubdivideGrid;
-
-typedef struct MultiresUnsubdivideContext {
+struct MultiresUnsubdivideContext {
   /* Input Mesh to un-subdivide. */
-  struct Mesh *original_mesh;
-  struct MDisps *original_mdisp;
+  Mesh *original_mesh;
+  MDisps *original_mdisp;
 
   /** Number of subdivision in the grids of the input mesh. */
   int num_original_levels;
 
   /** Level 0 base mesh after applying the maximum amount of unsubdivisions. */
-  struct Mesh *base_mesh;
+  Mesh *base_mesh;
 
   /** Limit on how many levels down the unsubdivide operation should create, if possible. */
   int max_new_levels;
@@ -48,21 +48,21 @@ typedef struct MultiresUnsubdivideContext {
 
   /** Data for the new grids, indexed by base mesh loop index. */
   int num_grids;
-  struct MultiresUnsubdivideGrid *base_mesh_grids;
+  MultiresUnsubdivideGrid *base_mesh_grids;
 
   /* Private data. */
-  struct BMesh *bm_original_mesh;
-  blender::Array<int> loop_to_face_map;
+  BMesh *bm_original_mesh;
+  blender::Span<int> loop_to_face_map;
   const int *base_to_orig_vmap;
-} MultiresUnsubdivideContext;
+};
 
 /* --------------------------------------------------------------------
  * Construct/destruct reshape context.
  */
 
 void multires_unsubdivide_context_init(MultiresUnsubdivideContext *context,
-                                       struct Mesh *original_mesh,
-                                       struct MultiresModifierData *mmd);
+                                       Mesh *original_mesh,
+                                       MultiresModifierData *mmd);
 void multires_unsubdivide_context_free(MultiresUnsubdivideContext *context);
 
 /* --------------------------------------------------------------------

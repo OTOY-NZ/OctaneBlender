@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup avi
@@ -8,6 +9,10 @@
  */
 
 #pragma once
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #define AVI_RAW 0
 #define AVI_CHUNK 1
@@ -18,4 +23,8 @@
 #define AVI_INDEXE 6
 #define AVI_MJPEGU 7
 
-void awrite(AviMovie *movie, void *datain, int block, int size, FILE *fp, int type);
+void awrite(AviMovie *movie, const void *datain, int block, int size, FILE *fp, int type);
+
+#ifdef __cplusplus
+}
+#endif

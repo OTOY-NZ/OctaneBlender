@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup obj
@@ -103,7 +105,7 @@ struct Geometry {
   Vector<PolyCorner> face_corners_;
   Vector<PolyElem> face_elements_;
 
-  bool has_invalid_polys_ = false;
+  bool has_invalid_faces_ = false;
   bool has_vertex_groups_ = false;
   NurbsElement nurbs_element_;
   int total_loops_ = 0;

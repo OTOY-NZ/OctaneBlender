@@ -1,7 +1,13 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2005 Blender Foundation */
+/* SPDX-FileCopyrightText: 2005 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "node_shader_util.hh"
+#include "node_util.hh"
+
+#include "BKE_texture.h"
+
+#include "NOD_multi_function.hh"
 
 namespace blender::nodes::node_shader_tex_checker_cc {
 
@@ -60,7 +66,7 @@ class NodeTexChecker : public mf::MultiFunction {
     this->set_signature(&signature);
   }
 
-  void call(IndexMask mask, mf::Params params, mf::Context /*context*/) const override
+  void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
   {
     const VArray<float3> &vector = params.readonly_single_input<float3>(0, "Vector");
     const VArray<ColorGeometry4f> &color1 = params.readonly_single_input<ColorGeometry4f>(
@@ -72,7 +78,7 @@ class NodeTexChecker : public mf::MultiFunction {
         params.uninitialized_single_output_if_required<ColorGeometry4f>(4, "Color");
     MutableSpan<float> r_fac = params.uninitialized_single_output<float>(5, "Fac");
 
-    for (int64_t i : mask) {
+    mask.foreach_index([&](const int64_t i) {
       /* Avoid precision issues on unit coordinates. */
       const float3 p = (vector[i] * scale[i] + 0.000001f) * 0.999999f;
 
@@ -81,12 +87,11 @@ class NodeTexChecker : public mf::MultiFunction {
       const int zi = abs(int(floorf(p.z)));
 
       r_fac[i] = ((xi % 2 == yi % 2) == (zi % 2)) ? 1.0f : 0.0f;
-    }
+    });
 
     if (!r_color.is_empty()) {
-      for (int64_t i : mask) {
-        r_color[i] = (r_fac[i] == 1.0f) ? color1[i] : color2[i];
-      }
+      mask.foreach_index(
+          [&](const int64_t i) { r_color[i] = (r_fac[i] == 1.0f) ? color1[i] : color2[i]; });
     }
   }
 };
@@ -96,6 +101,28 @@ static void sh_node_tex_checker_build_multi_function(NodeMultiFunctionBuilder &b
   static NodeTexChecker fn;
   builder.set_matching_fn(fn);
 }
+
+NODE_SHADER_MATERIALX_BEGIN
+#ifdef WITH_MATERIALX
+{
+  NodeItem vector = get_input_link("Vector", NodeItem::Type::Vector2);
+  if (!vector) {
+    vector = texcoord_node();
+  }
+  NodeItem value1 = val(1.0f);
+  NodeItem value2 = val(0.0f);
+  if (STREQ(socket_out_->name, "Color")) {
+    value1 = get_input_value("Color1", NodeItem::Type::Color4);
+    value2 = get_input_value("Color2", NodeItem::Type::Color4);
+  }
+  NodeItem scale = get_input_value("Scale", NodeItem::Type::Float);
+
+  vector = (vector * scale) % val(2.0f);
+  return (vector[0].floor() + vector[1].floor())
+      .if_else(NodeItem::CompareOp::Eq, val(1.0f), value1, value2);
+}
+#endif
+NODE_SHADER_MATERIALX_END
 
 }  // namespace blender::nodes::node_shader_tex_checker_cc
 
@@ -112,6 +139,7 @@ void register_node_type_sh_tex_checker()
       &ntype, "NodeTexChecker", node_free_standard_storage, node_copy_standard_storage);
   ntype.gpu_fn = file_ns::node_shader_gpu_tex_checker;
   ntype.build_multi_function = file_ns::sh_node_tex_checker_build_multi_function;
+  ntype.materialx_fn = file_ns::node_shader_materialx;
 
   nodeRegisterType(&ntype);
 }

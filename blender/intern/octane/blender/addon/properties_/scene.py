@@ -2139,7 +2139,7 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
     out_of_core_enable: BoolProperty(
         name="Enable out of core",
         description="Tick to enable Octane out of core",
-        default=True,
+        default=False,
     )
     out_of_core_limit: IntProperty(
         name="Out of core memory limit (MB)",
@@ -2197,8 +2197,9 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
     )
     def update_octane_shading_type(self, context):
         view = context.space_data
-        if view and view.shading:
-            view.shading.type = self.octane_shading_type
+        if view and getattr(view, "shading", False):
+            if view.shading.type != self.octane_shading_type:
+                view.shading.type = self.octane_shading_type
     octane_shading_type: EnumProperty(
         name="Octane Shading Type",
         description="",

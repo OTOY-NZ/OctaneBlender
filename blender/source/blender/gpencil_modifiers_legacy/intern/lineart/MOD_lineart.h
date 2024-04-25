@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2008 Blender Foundation */
+/* SPDX-FileCopyrightText: 2008 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup editors
@@ -9,7 +10,7 @@
 
 #include "BLI_linklist.h"
 #include "BLI_listbase.h"
-#include "BLI_math.h" /* Needed here for inline functions. */
+#include "BLI_math_vector.h"
 #include "BLI_threads.h"
 
 #include <math.h>
@@ -169,7 +170,8 @@ typedef struct LineartEdge {
   uint16_t flags;
   uint8_t intersection_mask;
 
-  /** Matches the shadow result, used to determine whether a line is in the shadow or not.
+  /**
+   * Matches the shadow result, used to determine whether a line is in the shadow or not.
    * #edge_identifier usages:
    * - Intersection lines:
    *    ((e->t1->target_reference << 32) | e->t2->target_reference);
@@ -178,8 +180,10 @@ typedef struct LineartEdge {
    */
   uint64_t edge_identifier;
 
-  /** - Light contour: original_e->t1->target_reference | original_e->t2->target_reference.
-   *  - Cast shadow: triangle_projected_onto->target_reference. */
+  /**
+   * - Light contour: original_e->t1->target_reference | original_e->t2->target_reference.
+   * - Cast shadow: triangle_projected_onto->target_reference.
+   */
   uint64_t target_reference;
 
   /**
@@ -739,13 +743,16 @@ BLI_INLINE int lineart_intersect_seg_seg(const double a1[2],
 
   if (LRT_DOUBLE_CLOSE_ENOUGH(b1[0], b2[0])) {
     y = interpd(a2[1], a1[1], ratio);
-    if (y > MAX2(b1[1], b2[1]) || y < MIN2(b1[1], b2[1]))
+    if (y > MAX2(b1[1], b2[1]) || y < MIN2(b1[1], b2[1])) {
       return 0;
+    }
   }
   else if (ratio <= 0 || ratio > 1 || (b1[0] > b2[0] && x > b1[0]) ||
            (b1[0] < b2[0] && x < b1[0]) || (b2[0] > b1[0] && x > b2[0]) ||
            (b2[0] < b1[0] && x < b2[0]))
+  {
     return 0;
+  }
 
   if (LRT_DOUBLE_CLOSE_ENOUGH_TRI(*r_ratio, 1)) {
     *r_ratio = 1;

@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2023 Blender Authors
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 import subprocess
@@ -104,7 +106,7 @@ def main() -> None:
     if USE_MULTIPROCESS:
         import multiprocessing
         job_total = multiprocessing.cpu_count()
-        pool = multiprocessing.Pool(processes=job_total * 2)
+        pool = multiprocessing.Pool(processes=job_total)
         pool.map(autopep8_format_file, paths)
     else:
         for f in paths:

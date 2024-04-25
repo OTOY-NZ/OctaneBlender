@@ -1,11 +1,14 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup gpu
  */
 
 #ifndef USE_GPU_SHADER_CREATE_INFO
+#  pragma once
+
 #  include "GPU_shader_shared_utils.h"
 
 typedef struct TestOutputRawData TestOutputRawData;
@@ -38,16 +41,16 @@ struct NodeLinkData {
   bool1 doMuted;
   float dim_factor;
   float thickness;
-  float dash_factor;
-  float dash_alpha;
-  float expandSize;
+  float4 dash_params;
+  float aspect;
   float arrowSize;
+  float2 _pad;
 };
 BLI_STATIC_ASSERT_ALIGN(struct NodeLinkData, 16)
 
 struct NodeLinkInstanceData {
   float4 colors[6];
-  float expandSize;
+  float aspect;
   float arrowSize;
   float2 _pad;
 };
@@ -128,7 +131,7 @@ struct TestOutput {
   TestOutputRawData result;
   /** TestStatus. */
   uint status;
-  /** Line error in the glsl file. */
+  /** Line error in the GLSL file. */
   int line;
   /** TestType of expect and result. */
   uint type;

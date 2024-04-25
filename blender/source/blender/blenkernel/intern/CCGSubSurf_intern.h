@@ -1,10 +1,16 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bke
  */
 
 #pragma once
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /**
  * Definitions which defines internal behavior of CCGSubSurf.
@@ -45,7 +51,7 @@ typedef struct _EHash {
 
 typedef void (*EHEntryFreeFP)(EHEntry *, void *);
 
-#define EHASH_alloc(eh, nb) ((eh)->allocatorIFC.alloc((eh)->allocator, nb))
+#define EHASH_alloc(eh, nb) (EHEntry **)((eh)->allocatorIFC.alloc((eh)->allocator, nb))
 #define EHASH_free(eh, ptr) ((eh)->allocatorIFC.free((eh)->allocator, ptr))
 #define EHASH_hash(eh, item) (((uintptr_t)(item)) % ((unsigned int)(eh)->curSize))
 
@@ -54,7 +60,7 @@ typedef void (*EHEntryFreeFP)(EHEntry *, void *);
 EHash *ccg_ehash_new(int estimatedNumEntries,
                      CCGAllocatorIFC *allocatorIFC,
                      CCGAllocatorHDL allocator);
-void ccg_ehash_free(EHash *eh, EHEntryFreeFP freeEntry, void *userData);
+void ccg_ehash_free(EHash *eh, EHEntryFreeFP freeEntry, void *user_data);
 void ccg_ehash_insert(EHash *eh, EHEntry *entry);
 void *ccg_ehash_lookupWithPrev(EHash *eh, void *key, void ***prevp_r);
 void *ccg_ehash_lookup(EHash *eh, void *key);
@@ -104,8 +110,8 @@ struct CCGVert {
 
   CCGEdge **edges;
   CCGFace **faces;
-  /* byte *levelData; */
-  /* byte *userData; */
+  // byte *levelData;
+  // byte *user_data;
 };
 
 struct CCGEdge {
@@ -118,8 +124,8 @@ struct CCGEdge {
   CCGVert *v0, *v1;
   CCGFace **faces;
 
-  /* byte *levelData; */
-  /* byte *userData; */
+  // byte *levelData;
+  // byte *user_data;
 };
 
 struct CCGFace {
@@ -129,11 +135,11 @@ struct CCGFace {
   short numVerts, flags;
   int osd_index;
 
-  /* CCGVert **verts; */
-  /* CCGEdge **edges; */
-  /* byte *centerData; */
-  /* byte **gridData; */
-  /* byte *userData; */
+  // CCGVert **verts;
+  // CCGEdge **edges;
+  // byte *centerData;
+  // byte **gridData;
+  // byte *user_data;
 };
 
 typedef enum {
@@ -193,9 +199,9 @@ struct CCGSubSurf {
   ((ss)->allocatorIFC.realloc((ss)->allocator, ptr, nb, ob))
 #define CCGSUBSURF_free(ss, ptr) ((ss)->allocatorIFC.free((ss)->allocator, ptr))
 
-#define VERT_getCo(v, lvl) ccg_vert_getCo(v, lvl, vertDataSize)
+#define VERT_getCo(v, lvl) (float *)ccg_vert_getCo(v, lvl, vertDataSize)
 #define VERT_getNo(v, lvl) ccg_vert_getNo(v, lvl, vertDataSize, normalDataOffset)
-#define EDGE_getCo(e, lvl, x) ccg_edge_getCo(e, lvl, x, vertDataSize)
+#define EDGE_getCo(e, lvl, x) (float *)ccg_edge_getCo(e, lvl, x, vertDataSize)
 #define EDGE_getNo(e, lvl, x) ccg_edge_getNo(e, lvl, x, vertDataSize, normalDataOffset)
 #define FACE_getIFNo(f, lvl, S, x, y) \
   ccg_face_getIFNo(f, lvl, S, x, y, subdivLevels, vertDataSize, normalDataOffset)
@@ -205,8 +211,10 @@ struct CCGSubSurf {
 #endif
 #define FACE_getIENo(f, lvl, S, x) \
   ccg_face_getIENo(f, lvl, S, x, subdivLevels, vertDataSize, normalDataOffset)
-#define FACE_getIECo(f, lvl, S, x) ccg_face_getIECo(f, lvl, S, x, subdivLevels, vertDataSize)
-#define FACE_getIFCo(f, lvl, S, x, y) ccg_face_getIFCo(f, lvl, S, x, y, subdivLevels, vertDataSize)
+#define FACE_getIECo(f, lvl, S, x) \
+  (float *)ccg_face_getIECo(f, lvl, S, x, subdivLevels, vertDataSize)
+#define FACE_getIFCo(f, lvl, S, x, y) \
+  (float *)ccg_face_getIFCo(f, lvl, S, x, y, subdivLevels, vertDataSize)
 
 #define NormZero(av) \
   { \
@@ -233,7 +241,7 @@ struct CCGSubSurf {
 
 /* ** General purpose functions  ** */
 
-/* * CCGSubSurf.c * */
+/* `CCGSubSurf.cc` */
 
 void ccgSubSurf__allFaces(CCGSubSurf *ss, CCGFace ***faces, int *numFaces, int *freeFaces);
 void ccgSubSurf__effectedFaceNeighbors(CCGSubSurf *ss,
@@ -244,30 +252,20 @@ void ccgSubSurf__effectedFaceNeighbors(CCGSubSurf *ss,
                                        CCGEdge ***edges,
                                        int *numEdges);
 
-/* * CCGSubSurf_legacy.c * */
+/* `CCGSubSurf_legacy.cc` */
 
 void ccgSubSurf__sync_legacy(CCGSubSurf *ss);
 
-/* * CCGSubSurf_opensubdiv.c * */
-
-void ccgSubSurf__sync_opensubdiv(CCGSubSurf *ss);
-
-/* * CCGSubSurf_opensubdiv_converter.c * */
-
 struct OpenSubdiv_Converter;
 
-void ccgSubSurf_converter_setup_from_derivedmesh(CCGSubSurf *ss,
-                                                 struct DerivedMesh *dm,
-                                                 struct OpenSubdiv_Converter *converter);
-
-void ccgSubSurf_converter_setup_from_ccg(CCGSubSurf *ss, struct OpenSubdiv_Converter *converter);
-
-void ccgSubSurf_converter_free(struct OpenSubdiv_Converter *converter);
-
-/* * CCGSubSurf_util.c * */
+/* `CCGSubSurf_util.cc` */
 
 #ifdef DUMP_RESULT_GRIDS
 void ccgSubSurf__dumpCoords(CCGSubSurf *ss);
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #include "CCGSubSurf_inline.h"

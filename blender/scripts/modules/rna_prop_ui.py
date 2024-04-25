@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2009-2023 Blender Authors
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 import bpy
@@ -80,6 +82,7 @@ def rna_idprop_ui_create(
         subtype=None,
         step=None,
         precision=None,
+        id_type='OBJECT',
 ):
     """Create and initialize a custom property with limits, defaults and other settings."""
 
@@ -96,10 +99,14 @@ def rna_idprop_ui_create(
         soft_max = max
 
     if (proptype is bool) or (proptype is str):
-        ui_data = item.id_properties_ui(prop)
         ui_data.update(
             description=description,
             default=default,
+        )
+    elif proptype is type(None) or issubclass(proptype, bpy.types.ID):
+        ui_data.update(
+            description=description,
+            id_type=id_type,
         )
     elif proptype is float:
         if step is None:
@@ -179,6 +186,7 @@ def draw(layout, context, context_member, property_type, *, use_edit=True):
 
         to_dict = getattr(value, "to_dict", None)
         to_list = getattr(value, "to_list", None)
+        is_datablock = value is None or isinstance(value, bpy.types.ID)
 
         if to_dict:
             value = to_dict()
@@ -201,14 +209,16 @@ def draw(layout, context, context_member, property_type, *, use_edit=True):
             props = value_column.operator("wm.properties_edit_value", text="Edit Value")
             props.data_path = context_member
             props.property_name = key
+        elif is_datablock:
+            value_column.template_ID(rna_item, rna_idprop_quote_path(key), text="")
         else:
-            value_column.prop(rna_item, '["%s"]' % escape_identifier(key), text="")
+            value_column.prop(rna_item, rna_idprop_quote_path(key), text="")
 
         operator_row = value_row.row()
         operator_row.alignment = 'RIGHT'
 
         # Do not allow editing of overridden properties (we cannot use a poll function
-        # of the operators here since they's have no access to the specific property).
+        # of the operators here since they have no access to the specific property).
         operator_row.enabled = not (is_lib_override and key in rna_item.id_data.override_library.reference)
 
         if use_edit:

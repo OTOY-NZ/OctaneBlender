@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2016 by Mike Erwin. All rights reserved. */
+/* SPDX-FileCopyrightText: 2016 by Mike Erwin. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup gpu
@@ -8,7 +9,7 @@
  */
 
 #ifndef GPU_STANDALONE
-#  include "UI_resources.h"
+#  include "UI_resources.hh"
 #endif
 
 #include "GPU_immediate.h"

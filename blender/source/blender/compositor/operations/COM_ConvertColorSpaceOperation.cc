@@ -1,7 +1,10 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2021 Blender Foundation. */
+/* SPDX-FileCopyrightText: 2021 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "COM_ConvertColorSpaceOperation.h"
+
+#include "BLI_string.h"
 
 namespace blender::compositor {
 

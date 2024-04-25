@@ -20,9 +20,9 @@
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "MEM_guardedalloc.h"
-#include "RNA_access.h"
+#include "RNA_access.hh"
 #include "RNA_blender_cpp.h"
-#include "RNA_types.h"
+#include "RNA_types.hh"
 #include "render/mesh.h"
 #include "render/osl.h"
 
@@ -56,6 +56,28 @@ OCT_NAMESPACE_BEGIN
 
 void python_thread_state_save(void **python_thread_state);
 void python_thread_state_restore(void **python_thread_state);
+
+struct BObjectInfo {
+  /* Object directly provided by the depsgraph iterator. This object is only valid during one
+   * iteration and must not be accessed afterwards. Transforms and visibility should be checked on
+   * this object. */
+  BL::Object iter_object;
+
+  /* This object remains alive even after the object iterator is done. It corresponds to one
+   * original object. It is the object that owns the object data below. */
+  BL::Object real_object;
+
+  /* The object-data referenced by the iter object. This is still valid after the depsgraph
+   * iterator is done. It might have a different type compared to real_object.data(). */
+  BL::ID object_data;
+
+  /* True when the current geometry is the data of the referenced object. False when it is a
+   * geometry instance that does not have a 1-to-1 relationship with an object. */
+  bool is_real_object_data() const
+  {
+    return const_cast<BL::Object &>(real_object).data() == object_data;
+  }
+};
 
 static inline BL::Mesh object_to_mesh(BL::BlendData & /*data*/,
                                       BL::Object &object,
@@ -111,7 +133,7 @@ static inline BL::Mesh object_to_mesh(BL::BlendData & /*data*/,
   if ((bool)mesh && !enable_subdivision) {
     if (mesh.use_auto_smooth()) {
       mesh.calc_normals_split();
-      mesh.split_faces(false);
+      mesh.split_faces();
     }
 
     mesh.calc_loop_triangles();

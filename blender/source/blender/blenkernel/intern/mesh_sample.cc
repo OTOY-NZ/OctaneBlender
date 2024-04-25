@@ -1,14 +1,17 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_attribute_math.hh"
 #include "BKE_bvhutils.h"
 #include "BKE_mesh.hh"
-#include "BKE_mesh_runtime.h"
+#include "BKE_mesh_runtime.hh"
 #include "BKE_mesh_sample.hh"
 
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 
+#include "BLI_math_geom.h"
 #include "BLI_rand.hh"
 #include "BLI_task.hh"
 
@@ -20,16 +23,34 @@ BLI_NOINLINE static void sample_point_attribute(const Span<int> corner_verts,
                                                 const Span<int> looptri_indices,
                                                 const Span<float3> bary_coords,
                                                 const VArray<T> &src,
-                                                const IndexMask mask,
+                                                const IndexMask &mask,
                                                 const MutableSpan<T> dst)
 {
-  for (const int i : mask) {
+  mask.foreach_index([&](const int i) {
     const MLoopTri &tri = looptris[looptri_indices[i]];
     dst[i] = attribute_math::mix3(bary_coords[i],
                                   src[corner_verts[tri.tri[0]]],
                                   src[corner_verts[tri.tri[1]]],
                                   src[corner_verts[tri.tri[2]]]);
-  }
+  });
+}
+
+void sample_point_normals(const Span<int> corner_verts,
+                          const Span<MLoopTri> looptris,
+                          const Span<int> looptri_indices,
+                          const Span<float3> bary_coords,
+                          const Span<float3> src,
+                          const IndexMask mask,
+                          const MutableSpan<float3> dst)
+{
+  mask.foreach_index([&](const int i) {
+    const MLoopTri &tri = looptris[looptri_indices[i]];
+    const float3 value = attribute_math::mix3(bary_coords[i],
+                                              src[corner_verts[tri.tri[0]]],
+                                              src[corner_verts[tri.tri[1]]],
+                                              src[corner_verts[tri.tri[2]]]);
+    dst[i] = math::normalize(value);
+  });
 }
 
 void sample_point_attribute(const Span<int> corner_verts,
@@ -37,7 +58,7 @@ void sample_point_attribute(const Span<int> corner_verts,
                             const Span<int> looptri_indices,
                             const Span<float3> bary_coords,
                             const GVArray &src,
-                            const IndexMask mask,
+                            const IndexMask &mask,
                             const GMutableSpan dst)
 {
   BLI_assert(src.type() == dst.type());
@@ -60,40 +81,40 @@ BLI_NOINLINE static void sample_corner_attribute(const Span<MLoopTri> looptris,
                                                  const Span<int> looptri_indices,
                                                  const Span<float3> bary_coords,
                                                  const VArray<T> &src,
-                                                 const IndexMask mask,
+                                                 const IndexMask &mask,
                                                  const MutableSpan<T> dst)
 {
-  for (const int i : mask) {
+  mask.foreach_index([&](const int i) {
     if constexpr (check_indices) {
       if (looptri_indices[i] == -1) {
         dst[i] = {};
-        continue;
+        return;
       }
     }
     const MLoopTri &tri = looptris[looptri_indices[i]];
     dst[i] = sample_corner_attribute_with_bary_coords(bary_coords[i], tri, src);
-  }
+  });
 }
 
 void sample_corner_normals(const Span<MLoopTri> looptris,
                            const Span<int> looptri_indices,
                            const Span<float3> bary_coords,
                            const Span<float3> src,
-                           const IndexMask mask,
+                           const IndexMask &mask,
                            const MutableSpan<float3> dst)
 {
-  for (const int i : mask) {
+  mask.foreach_index([&](const int i) {
     const MLoopTri &tri = looptris[looptri_indices[i]];
     const float3 value = sample_corner_attribute_with_bary_coords(bary_coords[i], tri, src);
     dst[i] = math::normalize(value);
-  }
+  });
 }
 
 void sample_corner_attribute(const Span<MLoopTri> looptris,
                              const Span<int> looptri_indices,
                              const Span<float3> bary_coords,
                              const GVArray &src,
-                             const IndexMask mask,
+                             const IndexMask &mask,
                              const GMutableSpan dst)
 {
   BLI_assert(src.type() == dst.type());
@@ -107,23 +128,23 @@ void sample_corner_attribute(const Span<MLoopTri> looptris,
 }
 
 template<typename T>
-void sample_face_attribute(const Span<int> looptri_polys,
+void sample_face_attribute(const Span<int> looptri_faces,
                            const Span<int> looptri_indices,
                            const VArray<T> &src,
-                           const IndexMask mask,
+                           const IndexMask &mask,
                            const MutableSpan<T> dst)
 {
-  for (const int i : mask) {
+  mask.foreach_index([&](const int i) {
     const int looptri_index = looptri_indices[i];
-    const int poly_index = looptri_polys[looptri_index];
-    dst[i] = src[poly_index];
-  }
+    const int face_index = looptri_faces[looptri_index];
+    dst[i] = src[face_index];
+  });
 }
 
-void sample_face_attribute(const Span<int> looptri_polys,
+void sample_face_attribute(const Span<int> looptri_faces,
                            const Span<int> looptri_indices,
                            const GVArray &src,
-                           const IndexMask mask,
+                           const IndexMask &mask,
                            const GMutableSpan dst)
 {
   BLI_assert(src.type() == dst.type());
@@ -131,7 +152,7 @@ void sample_face_attribute(const Span<int> looptri_polys,
   const CPPType &type = src.type();
   attribute_math::convert_to_static_type(type, [&](auto dummy) {
     using T = decltype(dummy);
-    sample_face_attribute<T>(looptri_polys, looptri_indices, src.typed<T>(), mask, dst.typed<T>());
+    sample_face_attribute<T>(looptri_faces, looptri_indices, src.typed<T>(), mask, dst.typed<T>());
   });
 }
 
@@ -141,20 +162,20 @@ static void sample_barycentric_weights(const Span<float3> vert_positions,
                                        const Span<MLoopTri> looptris,
                                        const Span<int> looptri_indices,
                                        const Span<float3> sample_positions,
-                                       const IndexMask mask,
+                                       const IndexMask &mask,
                                        MutableSpan<float3> bary_coords)
 {
-  for (const int i : mask) {
+  mask.foreach_index([&](const int i) {
     if constexpr (check_indices) {
       if (looptri_indices[i] == -1) {
         bary_coords[i] = {};
-        continue;
+        return;
       }
     }
     const MLoopTri &tri = looptris[looptri_indices[i]];
     bary_coords[i] = compute_bary_coord_in_triangle(
         vert_positions, corner_verts, tri, sample_positions[i]);
-  }
+  });
 }
 
 template<bool check_indices = false>
@@ -163,14 +184,14 @@ static void sample_nearest_weights(const Span<float3> vert_positions,
                                    const Span<MLoopTri> looptris,
                                    const Span<int> looptri_indices,
                                    const Span<float3> sample_positions,
-                                   const IndexMask mask,
+                                   const IndexMask &mask,
                                    MutableSpan<float3> bary_coords)
 {
-  for (const int i : mask) {
+  mask.foreach_index([&](const int i) {
     if constexpr (check_indices) {
       if (looptri_indices[i] == -1) {
         bary_coords[i] = {};
-        continue;
+        return;
       }
     }
     const MLoopTri &tri = looptris[looptri_indices[i]];
@@ -181,7 +202,7 @@ static void sample_nearest_weights(const Span<float3> vert_positions,
         float3(1, 0, 0),
         float3(0, 1, 0),
         float3(0, 0, 1));
-  }
+  });
 }
 
 int sample_surface_points_spherical(RandomNumberGenerator &rng,
@@ -370,13 +391,13 @@ BaryWeightFromPositionFn::BaryWeightFromPositionFn(GeometrySet geometry)
     return signature;
   }();
   this->set_signature(&signature);
-  const Mesh &mesh = *source_.get_mesh_for_read();
+  const Mesh &mesh = *source_.get_mesh();
   vert_positions_ = mesh.vert_positions();
   corner_verts_ = mesh.corner_verts();
   looptris_ = mesh.looptris();
 }
 
-void BaryWeightFromPositionFn::call(IndexMask mask,
+void BaryWeightFromPositionFn::call(const IndexMask &mask,
                                     mf::Params params,
                                     mf::Context /*context*/) const
 {
@@ -406,13 +427,13 @@ CornerBaryWeightFromPositionFn::CornerBaryWeightFromPositionFn(GeometrySet geome
     return signature;
   }();
   this->set_signature(&signature);
-  const Mesh &mesh = *source_.get_mesh_for_read();
+  const Mesh &mesh = *source_.get_mesh();
   vert_positions_ = mesh.vert_positions();
   corner_verts_ = mesh.corner_verts();
   looptris_ = mesh.looptris();
 }
 
-void CornerBaryWeightFromPositionFn::call(IndexMask mask,
+void CornerBaryWeightFromPositionFn::call(const IndexMask &mask,
                                           mf::Params params,
                                           mf::Context /*context*/) const
 {
@@ -441,7 +462,7 @@ BaryWeightSampleFn::BaryWeightSampleFn(GeometrySet geometry, fn::GField src_fiel
   this->set_signature(&signature_);
 }
 
-void BaryWeightSampleFn::call(const IndexMask mask,
+void BaryWeightSampleFn::call(const IndexMask &mask,
                               mf::Params params,
                               mf::Context /*context*/) const
 {
@@ -458,7 +479,7 @@ void BaryWeightSampleFn::call(const IndexMask mask,
 
 void BaryWeightSampleFn::evaluate_source(fn::GField src_field)
 {
-  const Mesh &mesh = *source_.get_mesh_for_read();
+  const Mesh &mesh = *source_.get_mesh();
   looptris_ = mesh.looptris();
   /* Use the most complex domain for now, ensuring no information is lost. In the future, it should
    * be possible to use the most complex domain required by the field inputs, to simplify sampling

@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <queue>
 
@@ -17,11 +19,11 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Bool>("End Vertex").default_value(false).hide_value().supports_field();
   b.add_input<decl::Float>("Edge Cost").default_value(1.0f).hide_value().supports_field();
-  b.add_output<decl::Int>("Next Vertex Index").field_source();
-  b.add_output<decl::Float>("Total Cost").field_source();
+  b.add_output<decl::Int>("Next Vertex Index").reference_pass_all();
+  b.add_output<decl::Float>("Total Cost").reference_pass_all();
 }
 
-typedef std::pair<float, int> VertPriority;
+using VertPriority = std::pair<float, int>;
 
 struct EdgeVertMap {
   Array<Vector<int>> edges_by_vertex_map;
@@ -50,10 +52,10 @@ static void shortest_paths(const Mesh &mesh,
 
   std::priority_queue<VertPriority, std::vector<VertPriority>, std::greater<VertPriority>> queue;
 
-  for (const int start_vert_i : end_selection) {
+  end_selection.foreach_index([&](const int start_vert_i) {
     r_cost[start_vert_i] = 0.0f;
     queue.emplace(0.0f, start_vert_i);
-  }
+  });
 
   while (!queue.empty()) {
     const float cost_i = queue.top().first;
@@ -97,7 +99,7 @@ class ShortestEdgePathsNextVertFieldInput final : public bke::MeshFieldInput {
 
   GVArray get_varray_for_context(const Mesh &mesh,
                                  const eAttrDomain domain,
-                                 const IndexMask /*mask*/) const final
+                                 const IndexMask & /*mask*/) const final
   {
     const bke::MeshFieldContext edge_context{mesh, ATTR_DOMAIN_EDGE};
     fn::FieldEvaluator edge_evaluator{edge_context, mesh.totedge};
@@ -173,7 +175,7 @@ class ShortestEdgePathsCostFieldInput final : public bke::MeshFieldInput {
 
   GVArray get_varray_for_context(const Mesh &mesh,
                                  const eAttrDomain domain,
-                                 const IndexMask /*mask*/) const final
+                                 const IndexMask & /*mask*/) const final
   {
     const bke::MeshFieldContext edge_context{mesh, ATTR_DOMAIN_EDGE};
     fn::FieldEvaluator edge_evaluator{edge_context, mesh.totedge};
@@ -203,6 +205,12 @@ class ShortestEdgePathsCostFieldInput final : public bke::MeshFieldInput {
     });
     return mesh.attributes().adapt_domain<float>(
         VArray<float>::ForContainer(std::move(cost)), ATTR_DOMAIN_POINT, domain);
+  }
+
+  void for_each_field_input_recursive(FunctionRef<void(const FieldInput &)> fn) const override
+  {
+    end_selection_.node().for_each_field_input_recursive(fn);
+    cost_.node().for_each_field_input_recursive(fn);
   }
 
   uint64_t hash() const override
@@ -238,17 +246,16 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("Total Cost", std::move(cost_field));
 }
 
-}  // namespace blender::nodes::node_geo_input_shortest_edge_paths_cc
-
-void register_node_type_geo_input_shortest_edge_paths()
+static void node_register()
 {
-  namespace file_ns = blender::nodes::node_geo_input_shortest_edge_paths_cc;
-
   static bNodeType ntype;
 
   geo_node_type_base(
       &ntype, GEO_NODE_INPUT_SHORTEST_EDGE_PATHS, "Shortest Edge Paths", NODE_CLASS_INPUT);
-  ntype.declare = file_ns::node_declare;
-  ntype.geometry_node_execute = file_ns::node_geo_exec;
+  ntype.declare = node_declare;
+  ntype.geometry_node_execute = node_geo_exec;
   nodeRegisterType(&ntype);
 }
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_geo_input_shortest_edge_paths_cc

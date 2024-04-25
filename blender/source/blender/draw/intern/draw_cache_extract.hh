@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2019 Blender Foundation. */
+/* SPDX-FileCopyrightText: 2019 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup draw
@@ -16,7 +17,7 @@
 #include "DNA_view3d_enums.h"
 
 #include "BKE_attribute.h"
-#include "BKE_object.h"
+#include "BKE_object.hh"
 
 #include "GPU_batch.h"
 #include "GPU_index_buffer.h"
@@ -111,7 +112,7 @@ struct MeshBufferList {
     /* Selection */
     GPUVertBuf *vert_idx; /* extend */
     GPUVertBuf *edge_idx; /* extend */
-    GPUVertBuf *poly_idx;
+    GPUVertBuf *face_idx;
     GPUVertBuf *fdot_idx;
     GPUVertBuf *attr[GPU_MAX_ATTR];
     GPUVertBuf *attr_viewer;
@@ -228,7 +229,7 @@ struct MeshExtractLooseGeom {
   blender::Array<int> edges;
 };
 
-struct SortedPolyData {
+struct SortedFaceData {
   /** The first triangle index for each polygon, sorted into slices by material. */
   blender::Array<int> tri_first_index;
   /** The number of visible triangles assigned to each material. */
@@ -247,22 +248,22 @@ struct MeshBufferCache {
 
   MeshExtractLooseGeom loose_geom;
 
-  SortedPolyData poly_sorted;
+  SortedFaceData face_sorted;
 };
 
 #define FOREACH_MESH_BUFFER_CACHE(batch_cache, mbc) \
-  for (MeshBufferCache *mbc = &batch_cache->final; \
-       mbc == &batch_cache->final || mbc == &batch_cache->cage || mbc == &batch_cache->uv_cage; \
-       mbc = (mbc == &batch_cache->final) ? \
-                 &batch_cache->cage : \
-                 ((mbc == &batch_cache->cage) ? &batch_cache->uv_cage : NULL))
+  for (MeshBufferCache *mbc = &batch_cache.final; \
+       mbc == &batch_cache.final || mbc == &batch_cache.cage || mbc == &batch_cache.uv_cage; \
+       mbc = (mbc == &batch_cache.final) ? \
+                 &batch_cache.cage : \
+                 ((mbc == &batch_cache.cage) ? &batch_cache.uv_cage : NULL))
 
 struct MeshBatchCache {
   MeshBufferCache final, cage, uv_cage;
 
   MeshBatchList batch;
 
-  /* Index buffer per material. These are subranges of `ibo.tris` */
+  /* Index buffer per material. These are sub-ranges of `ibo.tris`. */
   GPUIndexBuf **tris_per_mat;
 
   GPUBatch **surface_per_mat;
@@ -275,7 +276,7 @@ struct MeshBatchCache {
   /* Settings to determine if cache is invalid. */
   int edge_len;
   int tri_len;
-  int poly_len;
+  int face_len;
   int vert_len;
   int mat_len;
   /* Instantly invalidates cache, skipping mesh check */
@@ -313,8 +314,8 @@ struct MeshBatchCache {
 namespace blender::draw {
 
 void mesh_buffer_cache_create_requested(TaskGraph *task_graph,
-                                        MeshBatchCache *cache,
-                                        MeshBufferCache *mbc,
+                                        MeshBatchCache &cache,
+                                        MeshBufferCache &mbc,
                                         Object *object,
                                         Mesh *me,
                                         bool is_editmode,
@@ -327,9 +328,9 @@ void mesh_buffer_cache_create_requested(TaskGraph *task_graph,
                                         const ToolSettings *ts,
                                         bool use_hide);
 
-void mesh_buffer_cache_create_requested_subdiv(MeshBatchCache *cache,
-                                               MeshBufferCache *mbc,
-                                               DRWSubdivCache *subdiv_cache,
-                                               MeshRenderData *mr);
+void mesh_buffer_cache_create_requested_subdiv(MeshBatchCache &cache,
+                                               MeshBufferCache &mbc,
+                                               DRWSubdivCache &subdiv_cache,
+                                               MeshRenderData &mr);
 
 }  // namespace blender::draw

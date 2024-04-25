@@ -1,6 +1,9 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Adapted from code copyright 2009-2010 NVIDIA Corporation
- * Modifications Copyright 2011-2022 Blender Foundation. */
+/* SPDX-FileCopyrightText: 2009-2010 NVIDIA Corporation
+ * SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Adapted code from NVIDIA Corporation. */
 
 #include "bvh/sort.h"
 
@@ -43,22 +46,30 @@ struct BVHReferenceCompare {
     float ca = ra_bounds.min[dim] + ra_bounds.max[dim];
     float cb = rb_bounds.min[dim] + rb_bounds.max[dim];
 
-    if (ca < cb)
+    if (ca < cb) {
       return -1;
-    else if (ca > cb)
+    }
+    else if (ca > cb) {
       return 1;
-    else if (ra.prim_object() < rb.prim_object())
+    }
+    else if (ra.prim_object() < rb.prim_object()) {
       return -1;
-    else if (ra.prim_object() > rb.prim_object())
+    }
+    else if (ra.prim_object() > rb.prim_object()) {
       return 1;
-    else if (ra.prim_index() < rb.prim_index())
+    }
+    else if (ra.prim_index() < rb.prim_index()) {
       return -1;
-    else if (ra.prim_index() > rb.prim_index())
+    }
+    else if (ra.prim_index() > rb.prim_index()) {
       return 1;
-    else if (ra.prim_type() < rb.prim_type())
+    }
+    else if (ra.prim_type() < rb.prim_type()) {
       return -1;
-    else if (ra.prim_type() > rb.prim_type())
+    }
+    else if (ra.prim_type() > rb.prim_type()) {
       return 1;
+    }
 
     return 0;
   }

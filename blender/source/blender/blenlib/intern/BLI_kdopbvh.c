@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2006 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2006 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bli
@@ -27,7 +28,7 @@
 #include "BLI_alloca.h"
 #include "BLI_heap_simple.h"
 #include "BLI_kdopbvh.h"
-#include "BLI_math.h"
+#include "BLI_math_geom.h"
 #include "BLI_stack.h"
 #include "BLI_task.h"
 #include "BLI_utildefines.h"
@@ -104,7 +105,7 @@ typedef struct BVHOverlapData_Shared {
 
 typedef struct BVHOverlapData_Thread {
   BVHOverlapData_Shared *shared;
-  struct BLI_Stack *overlap; /* store BVHTreeOverlap */
+  BLI_Stack *overlap; /* store BVHTreeOverlap */
   uint max_interactions;
   /* use for callbacks */
   int thread;
@@ -141,21 +142,20 @@ typedef struct BVHRayCastData {
 } BVHRayCastData;
 
 typedef struct BVHNearestProjectedData {
-  const BVHTree *tree;
   struct DistProjectedAABBPrecalc precalc;
   bool closest_axis[3];
-  float clip_plane[6][4];
-  int clip_plane_len;
   BVHTree_NearestProjectedCallback callback;
   void *userdata;
   BVHTreeNearest nearest;
 
+  int clip_plane_len;
+  float clip_plane[0][4];
 } BVHNearestProjectedData;
 
 typedef struct BVHIntersectPlaneData {
   const BVHTree *tree;
   float plane[4];
-  struct BLI_Stack *intersect; /* Store indexes. */
+  BLI_Stack *intersect; /* Store indexes. */
 } BVHIntersectPlaneData;
 
 /** \} */
@@ -302,7 +302,8 @@ static BVHNode *bvh_medianof3(BVHNode **a, int lo, int mid, int hi, int axis)
 /**
  * \note after a call to this function you can expect one of:
  * - every node to left of a[n] are smaller or equal to it
- * - every node to the right of a[n] are greater or equal to it */
+ * - every node to the right of a[n] are greater or equal to it.
+ */
 static void partition_nth_element(BVHNode **a, int begin, int end, const int n, const int axis)
 {
   while (end - begin > 3) {
@@ -400,8 +401,9 @@ static void refit_kdop_hull(const BVHTree *tree, BVHNode *node, int start, int e
 }
 
 /**
- * only supports x,y,z axis in the moment
- * but we should use a plain and simple function here for speed sake */
+ * Only supports x,y,z axis in the moment
+ * but we should use a plain and simple function here for speed sake.
+ */
 static char get_largest_axis(const float *bv)
 {
   float middle_point[3];
@@ -423,7 +425,8 @@ static char get_largest_axis(const float *bv)
 
 /**
  * bottom-up update of bvh node BV
- * join the children on the parent BV */
+ * join the children on the parent BV.
+ */
 static void node_join(BVHTree *tree, BVHNode *node)
 {
   int i;
@@ -2328,7 +2331,7 @@ int BLI_bvhtree_find_nearest_projected(const BVHTree *tree,
                                        float projmat[4][4],
                                        float winsize[2],
                                        float mval[2],
-                                       float clip_plane[6][4],
+                                       float (*clip_plane)[4],
                                        int clip_plane_len,
                                        BVHTreeNearest *nearest,
                                        BVHTree_NearestProjectedCallback callback,
@@ -2336,54 +2339,57 @@ int BLI_bvhtree_find_nearest_projected(const BVHTree *tree,
 {
   BVHNode *root = tree->nodes[tree->leaf_num];
   if (root != NULL) {
-    BVHNearestProjectedData data;
-    dist_squared_to_projected_aabb_precalc(&data.precalc, projmat, winsize, mval);
+    BVHNearestProjectedData *data = (BVHNearestProjectedData *)alloca(
+        sizeof(*data) + (sizeof(*clip_plane) * (size_t)max_ii(1, clip_plane_len)));
 
-    data.callback = callback;
-    data.userdata = userdata;
+    dist_squared_to_projected_aabb_precalc(&data->precalc, projmat, winsize, mval);
+
+    data->callback = callback;
+    data->userdata = userdata;
 
     if (clip_plane) {
-      data.clip_plane_len = clip_plane_len;
-      for (int i = 0; i < data.clip_plane_len; i++) {
-        copy_v4_v4(data.clip_plane[i], clip_plane[i]);
+      data->clip_plane_len = clip_plane_len;
+      for (int i = 0; i < clip_plane_len; i++) {
+        copy_v4_v4(data->clip_plane[i], clip_plane[i]);
       }
     }
     else {
-      data.clip_plane_len = 1;
-      planes_from_projmat(projmat, NULL, NULL, NULL, NULL, data.clip_plane[0], NULL);
+      data->clip_plane_len = 1;
+      planes_from_projmat(projmat, NULL, NULL, NULL, NULL, data->clip_plane[0], NULL);
     }
 
     if (nearest) {
-      memcpy(&data.nearest, nearest, sizeof(*nearest));
+      memcpy(&data->nearest, nearest, sizeof(*nearest));
     }
     else {
-      data.nearest.index = -1;
-      data.nearest.dist_sq = FLT_MAX;
+      data->nearest.index = -1;
+      data->nearest.dist_sq = FLT_MAX;
     }
     {
       const float bb_min[3] = {root->bv[0], root->bv[2], root->bv[4]};
       const float bb_max[3] = {root->bv[1], root->bv[3], root->bv[5]};
 
-      int isect_type = isect_aabb_planes_v3(data.clip_plane, data.clip_plane_len, bb_min, bb_max);
+      int isect_type = isect_aabb_planes_v3(
+          data->clip_plane, data->clip_plane_len, bb_min, bb_max);
 
       if (isect_type != 0 &&
-          dist_squared_to_projected_aabb(&data.precalc, bb_min, bb_max, data.closest_axis) <=
-              data.nearest.dist_sq)
+          dist_squared_to_projected_aabb(&data->precalc, bb_min, bb_max, data->closest_axis) <=
+              data->nearest.dist_sq)
       {
         if (isect_type == 1) {
-          bvhtree_nearest_projected_with_clipplane_test_dfs_recursive(&data, root);
+          bvhtree_nearest_projected_with_clipplane_test_dfs_recursive(data, root);
         }
         else {
-          bvhtree_nearest_projected_dfs_recursive(&data, root);
+          bvhtree_nearest_projected_dfs_recursive(data, root);
         }
       }
     }
 
     if (nearest) {
-      memcpy(nearest, &data.nearest, sizeof(*nearest));
+      memcpy(nearest, &data->nearest, sizeof(*nearest));
     }
 
-    return data.nearest.index;
+    return data->nearest.index;
   }
   return -1;
 }

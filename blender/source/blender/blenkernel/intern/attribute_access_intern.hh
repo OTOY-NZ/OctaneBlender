@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_map.hh"
 #include "BLI_span.hh"
@@ -343,7 +345,7 @@ inline bool contains(const void *owner, const blender::bke::AttributeIDRef &attr
   bool found = false;
   for_all<providers>(
       owner,
-      [&](const AttributeIDRef &other_attribute_id, const AttributeMetaData & /* meta_data */) {
+      [&](const AttributeIDRef &other_attribute_id, const AttributeMetaData & /*meta_data*/) {
         if (attribute_id == other_attribute_id) {
           found = true;
           return false;

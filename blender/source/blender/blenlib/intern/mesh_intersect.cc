@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bli
@@ -20,6 +22,8 @@
 #  include "BLI_kdopbvh.h"
 #  include "BLI_map.hh"
 #  include "BLI_math_boolean.hh"
+#  include "BLI_math_geom.h"
+#  include "BLI_math_matrix.h"
 #  include "BLI_math_mpq.hh"
 #  include "BLI_math_vector.h"
 #  include "BLI_math_vector_mpq_types.hh"
@@ -1583,7 +1587,8 @@ struct CDT_data {
   Vector<bool> is_reversed;
   /** Result of running CDT on input with (vert, edge, face). */
   CDT_result<mpq_class> cdt_out;
-  /** To speed up get_cdt_edge_orig, sometimes populate this map from vertex pair to output edge.
+  /**
+   * To speed up get_cdt_edge_orig, sometimes populate this map from vertex pair to output edge.
    */
   Map<std::pair<int, int>, int> verts_to_edge;
   int proj_axis;
@@ -2095,7 +2100,7 @@ static Array<Face *> exact_triangulate_poly(Face *f, IMeshArena *arena)
   const double3 &poly_normal = f->plane->norm;
   int axis = math::dominant_axis(poly_normal);
   /* If project down y axis as opposed to x or z, the orientation
-   * of the polygon will be reversed.
+   * of the face will be reversed.
    * Yet another reversal happens if the poly normal in the dominant
    * direction is opposite that of the positive dominant axis. */
   bool rev1 = (axis == 1);

@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2008 Blender Foundation */
+/* SPDX-FileCopyrightText: 2008 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup edinterface
@@ -14,12 +15,12 @@
 #include "MEM_guardedalloc.h"
 
 #include "BKE_context.h"
-#include "BKE_screen.h"
+#include "BKE_screen.hh"
 
-#include "WM_api.h"
-#include "wm_draw.h"
+#include "WM_api.hh"
+#include "wm_draw.hh"
 
-#include "ED_screen.h"
+#include "ED_screen.hh"
 
 #include "interface_regions_intern.hh"
 

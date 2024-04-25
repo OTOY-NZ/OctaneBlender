@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2022 Blender Foundation. */
+/* SPDX-FileCopyrightText: 2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 #include "testing/testing.h"
 
 #include "BLI_utildefines.h"
@@ -11,7 +12,7 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "RNA_define.h"
+#include "RNA_define.hh"
 
 #include "BKE_appdir.h"
 #include "BKE_context.h"
@@ -22,12 +23,12 @@
 #include "BKE_main.h"
 #include "BKE_mesh.hh"
 #include "BKE_node.hh"
-#include "BKE_object.h"
+#include "BKE_object.hh"
 #include "BKE_scene.h"
 
 #include "IMB_imbuf.h"
 
-#include "ED_node.h"
+#include "ED_node.hh"
 
 #include "MEM_guardedalloc.h"
 
@@ -36,7 +37,7 @@ namespace blender::bke::tests {
 class TestData {
  public:
   Main *bmain = nullptr;
-  struct bContext *C = nullptr;
+  bContext *C = nullptr;
 
   virtual void setup()
   {

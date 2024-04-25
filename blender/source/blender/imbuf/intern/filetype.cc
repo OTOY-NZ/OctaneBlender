@@ -1,10 +1,12 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup imbuf
  */
 
-#include <stddef.h>
+#include <cstddef>
 
 #include "BLI_utildefines.h"
 
@@ -197,6 +199,22 @@ const ImFileType IMB_FILE_TYPES[] = {
         /*default_save_role*/ COLOR_ROLE_DEFAULT_BYTE,
     },
 #endif
+    {
+        /* Only implementing thumbnailing for SVG file type to support specialized importers.
+         * General file loading, if wanted, would require a better library and would have to
+         * support features like user-specified resolution. */
+
+        /*init*/ nullptr,
+        /*exit*/ nullptr,
+        /*is_a*/ nullptr,
+        /*load*/ nullptr,
+        /*load_filepath*/ nullptr,
+        /*load_filepath_thumbnail*/ imb_load_filepath_thumbnail_svg,
+        /*save*/ nullptr,
+        /*flag*/ 0,
+        /*filetype*/ IMB_FTYPE_NONE,
+        /*default_save_role*/ COLOR_ROLE_DEFAULT_BYTE,
+    },
     {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, 0, 0, 0},
 };
 
@@ -217,9 +235,11 @@ const ImFileType *IMB_file_type_from_ibuf(const ImBuf *ibuf)
   return IMB_file_type_from_ftype(ibuf->ftype);
 }
 
-void imb_filetypes_init(void)
+void imb_filetypes_init()
 {
   const ImFileType *type;
+
+  OIIO_init();
 
   for (type = IMB_FILE_TYPES; type < IMB_FILE_TYPES_LAST; type++) {
     if (type->init) {
@@ -228,7 +248,7 @@ void imb_filetypes_init(void)
   }
 }
 
-void imb_filetypes_exit(void)
+void imb_filetypes_exit()
 {
   const ImFileType *type;
 

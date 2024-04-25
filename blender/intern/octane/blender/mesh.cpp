@@ -18,8 +18,11 @@
 #include "DNA_curve_types.h"
 #include "DNA_curves_types.h"
 
+#include "BKE_attribute.hh"
+#include "BKE_attribute_math.hh"
 #include "BKE_curve_legacy_convert.hh"
 #include "BKE_curves.hh"
+#include "BKE_mesh.hh"
 
 #include "render/graph.h"
 #include "render/mesh.h"
@@ -729,11 +732,16 @@ static void create_mesh(Scene *scene,
   int vertex_colors_count = std::min(MAX_OCTANE_COLOR_VERTEX_SETS,
                                      b_mesh.color_attributes.length());
   int tessface_vertex_colors_count = b_mesh.color_attributes.length();
-  int inactive_count = MAX_OCTANE_COLOR_VERTEX_SETS - 1;
+  int inactive_count = MAX_OCTANE_COLOR_VERTEX_SETS;
   std::string active_color_name = b_mesh.attributes.active_color_name();
+  // Check if active color attribute is assigned. If so, we need to reverse a space for it.
+  if (active_color_name != "") {
+    inactive_count -= 1;
+  }
   BL::Mesh::color_attributes_iterator l;
   for (b_mesh.color_attributes.begin(l); l != b_mesh.color_attributes.end(); ++l) {
-    bool active_render = (l->name() == active_color_name);
+    std::string attribute_name = l->name();
+    bool active_render = (attribute_name == active_color_name);
     if (inactive_count == 0 && !active_render) {
       continue;
     }
@@ -743,7 +751,7 @@ static void create_mesh(Scene *scene,
     if (!active_render) {
       inactive_count--;
     }
-    mesh->octane_mesh.oMeshData.sVertexColorNames.emplace_back(l->name());
+    mesh->octane_mesh.oMeshData.sVertexColorNames.emplace_back(attribute_name);
     mesh->octane_mesh.oMeshData.f3VertexColors.emplace_back(
         std::vector<OctaneDataTransferObject::float_3>());
     std::vector<OctaneDataTransferObject::float_3> &colorVertex =
@@ -844,22 +852,24 @@ static void create_subd_mesh(Scene *scene,
                              const std::vector<Shader *> &used_shaders,
                              Mesh::WindingOrder winding_order)
 {
-  bool subdivide_uvs = false;
-  if (b_ob.modifiers.length()) {
-    BL::SubsurfModifier subsurf_mod(b_ob.modifiers[b_ob.modifiers.length() - 1]);
-    subdivide_uvs = subsurf_mod.uv_smooth() != BL::SubsurfModifier::uv_smooth_NONE;
-  }
+  BL::SubsurfModifier subsurf_mod(b_ob.modifiers[b_ob.modifiers.length() - 1]);
+  bool subdivide_uvs = subsurf_mod.uv_smooth() != BL::SubsurfModifier::uv_smooth_NONE;
 
   create_mesh(scene, b_ob, mesh, b_mesh, used_shaders, winding_order, true, subdivide_uvs);
 
   mesh->octane_mesh.oMeshOpenSubdivision.bUpdate = true;
 
+  const ::Mesh &dna_mesh = *static_cast<const ::Mesh *>(b_mesh.ptr.data);
+  const blender::VArraySpan<float> creases = *dna_mesh.attributes().lookup<float>(
+      "crease_edge", ATTR_DOMAIN_EDGE);
+  const blender::Span<blender::int2> edges = dna_mesh.edges();
+
   /* export creases */
   size_t num_creases = 0;
-  BL::Mesh::edges_iterator e;
 
-  for (b_mesh.edges.begin(e); e != b_mesh.edges.end(); ++e) {
-    if (e->crease() != 0.0f) {
+  for (const int i : edges.index_range()) {
+    const float crease = creases[i];
+    if (crease != 0.0f) {
       num_creases++;
     }
   }
@@ -871,13 +881,13 @@ static void create_subd_mesh(Scene *scene,
     int *crease_indices = mesh->octane_mesh.oMeshOpenSubdivision.iOpenSubdCreasesIndices.data();
     float *crease_sharpnesses =
         mesh->octane_mesh.oMeshOpenSubdivision.fOpenSubdCreasesSharpnesses.data();
-
-    for (b_mesh.edges.begin(e); e != b_mesh.edges.end(); ++e) {
-      if (e->crease() != 0.0f) {
-        crease_indices[0] = e->vertices()[0];
-        crease_indices[1] = e->vertices()[1];
-        *crease_sharpnesses = e->crease();
-
+    for (const int i : edges.index_range()) {
+      const float crease = creases[i];
+      if (crease != 0.0f) {
+        const blender::int2 &b_edge = edges[i];
+        crease_indices[0] = b_edge[0];
+        crease_indices[1] = b_edge[1];
+        *crease_sharpnesses = crease;
         crease_indices += 2;
         ++crease_sharpnesses;
       }
@@ -1166,7 +1176,7 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
                                 NULL;
         if (prop) {
           oct_mesh = RNA_pointer_get(&obj_data.ptr, "octane");
-        }          
+        }
         if (use_default_shader) {
           BL::Material material_override = view_layer.material_override;
           BL::Object::material_slots_iterator slot;
@@ -1197,17 +1207,9 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
       break;
     }
   }
-  std::string modifier_object_tag = is_modified ? b_ob.name_full() : "";
-  if (is_instance && use_geometry_node_modifier) {
-    modifier_object_tag += "[Instance]";
-  }
   std::string b_ob_name = b_ob.name();
   std::string b_ob_data_name = b_ob_data.name();
-  std::string post_tag = b_ob.type() == BL::Object::type_CURVE ? "[Curve]" : MESH_TAG;
-  std::string mesh_name = resolve_octane_name(b_ob_data, modifier_object_tag, post_tag);
-  if (b_ob.mode() == b_ob.mode_EDIT) {
-    mesh_name += "[EDIT_MODE]";
-  }
+  std::string mesh_name = resolve_octane_object_data_name(b_ob, b_ob_instance);
   synced_object_to_octane_mesh_name_map[b_ob_name].insert(mesh_name);
   if (b_ob.mode() == b_ob.mode_EDIT) {
     for (auto &it : synced_object_to_octane_mesh_name_map[b_ob_name]) {
@@ -1228,7 +1230,7 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
   if (!is_mesh_data_updated) {
     return octane_mesh;
   }
-  std::string new_mesh_tag = ""; //generate_mesh_tag(b_depsgraph, b_ob, used_shaders);
+  std::string new_mesh_tag = "";  // generate_mesh_tag(b_depsgraph, b_ob, used_shaders);
   if (b_ob.type() == BL::Object::type_MESH) {
     std::string coordinate_mode = std::to_string(
         RNA_enum_get(&oct_mesh, "primitive_coordinate_mode"));
@@ -1386,8 +1388,6 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
     if (b_mod->type() == BL::Modifier::type_MESH_TO_VOLUME) {
       BL::MeshToVolumeModifier mesh_to_volume_mod(*b_mod);
       mesh_to_volume_tag << mesh_to_volume_mod.object().ptr.data << mesh_to_volume_mod.density()
-                         << mesh_to_volume_mod.use_fill_volume()
-                         << mesh_to_volume_mod.exterior_band_width()
                          << mesh_to_volume_mod.interior_band_width()
                          << mesh_to_volume_mod.resolution_mode()
                          << mesh_to_volume_mod.voxel_amount();
@@ -1494,8 +1494,6 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
         octane_mesh->octane_volume.sScatterGridId = selected_grid_name;
       }
       if (octane_mesh->octane_volume.sVelocityGridId.sVal.length() == 0) {
-        octane_mesh->octane_volume.sVelocityGridId = selected_grid_name;
-        octane_mesh->octane_volume.sVelocityGridId = selected_grid_name;
         octane_mesh->octane_volume.sVelocityGridId = selected_grid_name;
       }
     }

@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2005 Blender Foundation */
+/* SPDX-FileCopyrightText: 2005 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "node_shader_util.hh"
 
@@ -52,7 +53,7 @@ static int node_shader_gpu_eevee_specular(GPUMaterial *mat,
     GPU_link(mat, "world_normals_get", &in[5].link);
   }
 
-  /* Clearcoat Normals */
+  /* Coat Normals */
   if (!in[8].link) {
     GPU_link(mat, "world_normals_get", &in[8].link);
   }

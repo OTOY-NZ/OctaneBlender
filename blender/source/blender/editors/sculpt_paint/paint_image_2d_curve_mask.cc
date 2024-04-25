@@ -1,17 +1,18 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup ed
  */
 
-#include "BLI_math.h"
-
 #include "MEM_guardedalloc.h"
 
 #include "DNA_brush_types.h"
 
-#include "BKE_brush.h"
+#include "BKE_brush.hh"
+
+#include "BLI_math_vector.h"
 
 #include "paint_intern.hh"
 

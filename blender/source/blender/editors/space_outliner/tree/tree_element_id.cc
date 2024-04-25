@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup spoutliner
@@ -10,22 +12,33 @@
 #include "BLI_listbase_wrapper.hh"
 #include "BLI_utildefines.h"
 
-#include "BKE_lib_override.h"
+#include "BKE_anim_data.h"
+#include "BKE_lib_override.hh"
 
 #include "BLT_translation.h"
 
-#include "RNA_access.h"
+#include "RNA_access.hh"
 
 #include "../outliner_intern.hh"
 #include "common.hh"
+#include "tree_element_id_armature.hh"
+#include "tree_element_id_collection.hh"
+#include "tree_element_id_curve.hh"
+#include "tree_element_id_gpencil_legacy.hh"
+#include "tree_element_id_grease_pencil.hh"
 #include "tree_element_id_library.hh"
+#include "tree_element_id_linestyle.hh"
+#include "tree_element_id_mesh.hh"
+#include "tree_element_id_metaball.hh"
+#include "tree_element_id_object.hh"
 #include "tree_element_id_scene.hh"
+#include "tree_element_id_texture.hh"
 
 #include "tree_element_id.hh"
 
 namespace blender::ed::outliner {
 
-std::unique_ptr<TreeElementID> TreeElementID::createFromID(TreeElement &legacy_te, ID &id)
+std::unique_ptr<TreeElementID> TreeElementID::create_from_id(TreeElement &legacy_te, ID &id)
 {
   if (ID_TYPE_IS_DEPRECATED(GS(id.name))) {
     BLI_assert_msg(0, "Outliner trying to build tree-element for deprecated ID type");
@@ -37,12 +50,27 @@ std::unique_ptr<TreeElementID> TreeElementID::createFromID(TreeElement &legacy_t
       return std::make_unique<TreeElementIDLibrary>(legacy_te, (Library &)id);
     case ID_SCE:
       return std::make_unique<TreeElementIDScene>(legacy_te, (Scene &)id);
-    case ID_OB:
     case ID_ME:
+      return std::make_unique<TreeElementIDMesh>(legacy_te, (Mesh &)id);
     case ID_CU_LEGACY:
+      return std::make_unique<TreeElementIDCurve>(legacy_te, (Curve &)id);
     case ID_MB:
-    case ID_MA:
+      return std::make_unique<TreeElementIDMetaBall>(legacy_te, (MetaBall &)id);
     case ID_TE:
+      return std::make_unique<TreeElementIDTexture>(legacy_te, (Tex &)id);
+    case ID_LS:
+      return std::make_unique<TreeElementIDLineStyle>(legacy_te, (FreestyleLineStyle &)id);
+    case ID_GD_LEGACY:
+      return std::make_unique<TreeElementIDGPLegacy>(legacy_te, (bGPdata &)id);
+    case ID_GP:
+      return std::make_unique<TreeElementIDGreasePencil>(legacy_te, (GreasePencil &)id);
+    case ID_GR:
+      return std::make_unique<TreeElementIDCollection>(legacy_te, (Collection &)id);
+    case ID_AR:
+      return std::make_unique<TreeElementIDArmature>(legacy_te, (bArmature &)id);
+    case ID_OB:
+      return std::make_unique<TreeElementIDObject>(legacy_te, (Object &)id);
+    case ID_MA:
     case ID_LT:
     case ID_LA:
     case ID_CA:
@@ -50,26 +78,21 @@ std::unique_ptr<TreeElementID> TreeElementID::createFromID(TreeElement &legacy_t
     case ID_SCR:
     case ID_WO:
     case ID_SPK:
-    case ID_GR:
     case ID_NT:
     case ID_BR:
     case ID_PA:
     case ID_MC:
     case ID_MSK:
-    case ID_LS:
     case ID_LP:
-    case ID_GD_LEGACY:
     case ID_WS:
     case ID_CV:
     case ID_PT:
     case ID_VO:
-    case ID_SIM:
     case ID_WM:
     case ID_IM:
     case ID_VF:
     case ID_TXT:
     case ID_SO:
-    case ID_AR:
     case ID_AC:
     case ID_PAL:
     case ID_PC:
@@ -97,18 +120,25 @@ TreeElementID::TreeElementID(TreeElement &legacy_te, ID &id)
   legacy_te_.idcode = GS(id.name);
 }
 
-bool TreeElementID::expandPoll(const SpaceOutliner &space_outliner) const
+bool TreeElementID::expand_poll(const SpaceOutliner &space_outliner) const
 {
   const TreeStoreElem *tsepar = legacy_te_.parent ? TREESTORE(legacy_te_.parent) : nullptr;
   return (tsepar == nullptr || tsepar->type != TSE_ID_BASE || space_outliner.filter_id_type);
 }
 
-void TreeElementID::expand_animation_data(SpaceOutliner &space_outliner,
-                                          const AnimData *anim_data) const
+void TreeElementID::expand(SpaceOutliner & /*space_outliner*/) const
+{
+  /* Not all IDs support animation data. Will be null then. */
+  AnimData *anim_data = BKE_animdata_from_id(&id_);
+  if (anim_data) {
+    expand_animation_data(anim_data);
+  }
+}
+
+void TreeElementID::expand_animation_data(AnimData *anim_data) const
 {
   if (outliner_animdata_test(anim_data)) {
-    outliner_add_element(
-        &space_outliner, &legacy_te_.subtree, &id_, &legacy_te_, TSE_ANIM_DATA, 0);
+    add_element(&legacy_te_.subtree, &id_, anim_data, &legacy_te_, TSE_ANIM_DATA, 0);
   }
 }
 

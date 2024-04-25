@@ -1,13 +1,14 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2011 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup spclip
  */
 
-#include <errno.h>
+#include <cerrno>
+#include <cstddef>
 #include <fcntl.h>
-#include <stddef.h>
 #include <sys/types.h>
 
 #ifndef WIN32
@@ -23,7 +24,6 @@
 
 #include "BLI_fileops.h"
 #include "BLI_listbase.h"
-#include "BLI_math.h"
 #include "BLI_rect.h"
 #include "BLI_task.h"
 #include "BLI_utildefines.h"
@@ -40,15 +40,15 @@
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
 
-#include "ED_clip.h"
-#include "ED_mask.h"
-#include "ED_screen.h"
-#include "ED_select_utils.h"
+#include "ED_clip.hh"
+#include "ED_mask.hh"
+#include "ED_screen.hh"
+#include "ED_select_utils.hh"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
-#include "UI_view2d.h"
+#include "UI_view2d.hh"
 
 #include "clip_intern.h" /* own include */
 
@@ -243,7 +243,7 @@ ImBuf *ED_space_clip_get_buffer(const SpaceClip *sc)
 
     ibuf = BKE_movieclip_get_postprocessed_ibuf(sc->clip, &sc->user, sc->postproc_flag);
 
-    if (ibuf && (ibuf->rect || ibuf->rect_float)) {
+    if (ibuf && (ibuf->byte_buffer.data || ibuf->float_buffer.data)) {
       return ibuf;
     }
 
@@ -266,7 +266,7 @@ ImBuf *ED_space_clip_get_stable_buffer(const SpaceClip *sc,
     ibuf = BKE_movieclip_get_stable_ibuf(
         sc->clip, &sc->user, loc, scale, angle, sc->postproc_flag);
 
-    if (ibuf && (ibuf->rect || ibuf->rect_float)) {
+    if (ibuf && (ibuf->byte_buffer.data || ibuf->float_buffer.data)) {
       return ibuf;
     }
 
@@ -323,15 +323,15 @@ bool ED_space_clip_color_sample(const SpaceClip *sc,
     CLAMP(x, 0, ibuf->x - 1);
     CLAMP(y, 0, ibuf->y - 1);
 
-    if (ibuf->rect_float) {
-      fp = (ibuf->rect_float + (ibuf->channels) * (y * ibuf->x + x));
+    if (ibuf->float_buffer.data) {
+      fp = (ibuf->float_buffer.data + (ibuf->channels) * (y * ibuf->x + x));
       copy_v3_v3(r_col, fp);
       ret = true;
     }
-    else if (ibuf->rect) {
-      cp = (uchar *)(ibuf->rect + y * ibuf->x + x);
+    else if (ibuf->byte_buffer.data) {
+      cp = ibuf->byte_buffer.data + 4 * (y * ibuf->x + x);
       rgb_uchar_to_float(r_col, cp);
-      IMB_colormanagement_colorspace_to_scene_linear_v3(r_col, ibuf->rect_colorspace);
+      IMB_colormanagement_colorspace_to_scene_linear_v3(r_col, ibuf->byte_buffer.colorspace);
       ret = true;
     }
   }
@@ -654,7 +654,7 @@ void ED_space_clip_set_mask(bContext *C, SpaceClip *sc, Mask *mask)
 /** \name Pre-Fetching Functions
  * \{ */
 
-typedef struct PrefetchJob {
+struct PrefetchJob {
   /** Clip into which cache the frames will be pre-fetched into. */
   MovieClip *clip;
 
@@ -667,9 +667,9 @@ typedef struct PrefetchJob {
 
   int start_frame, current_frame, end_frame;
   short render_size, render_flag;
-} PrefetchJob;
+};
 
-typedef struct PrefetchQueue {
+struct PrefetchQueue {
   int initial_frame, current_frame, start_frame, end_frame;
   short render_size, render_flag;
 
@@ -683,10 +683,10 @@ typedef struct PrefetchQueue {
   bool *stop;
   bool *do_update;
   float *progress;
-} PrefetchQueue;
+};
 
 /* check whether pre-fetching is allowed */
-static bool check_prefetch_break(void)
+static bool check_prefetch_break()
 {
   return G.is_break;
 }
@@ -709,7 +709,7 @@ static uchar *prefetch_read_file_to_memory(
   }
 
   const size_t size = BLI_file_descriptor_size(file);
-  if (size < 1) {
+  if (UNLIKELY(ELEM(size, 0, size_t(-1)))) {
     close(file);
     return nullptr;
   }
@@ -720,7 +720,7 @@ static uchar *prefetch_read_file_to_memory(
     return nullptr;
   }
 
-  if (read(file, mem, size) != size) {
+  if (BLI_read(file, mem, size) != size) {
     close(file);
     MEM_freeN(mem);
     return nullptr;
@@ -901,7 +901,7 @@ static void start_prefetch_threads(MovieClip *clip,
   queue.end_frame = end_frame;
   queue.render_size = render_size;
   queue.render_flag = render_flag;
-  queue.forward = 1;
+  queue.forward = true;
 
   queue.stop = stop;
   queue.do_update = do_update;

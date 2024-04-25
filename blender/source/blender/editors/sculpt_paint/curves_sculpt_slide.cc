@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <algorithm>
 
@@ -8,17 +10,17 @@
 #include "BLI_task.hh"
 #include "BLI_vector.hh"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
 #include "BKE_attribute_math.hh"
-#include "BKE_brush.h"
+#include "BKE_brush.hh"
 #include "BKE_bvhutils.h"
 #include "BKE_context.h"
 #include "BKE_curves.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_sample.hh"
-#include "BKE_object.h"
-#include "BKE_paint.h"
+#include "BKE_object.hh"
+#include "BKE_paint.hh"
 #include "BKE_report.h"
 
 #include "DNA_brush_enums.h"
@@ -28,12 +30,12 @@
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 
-#include "ED_screen.h"
-#include "ED_view3d.h"
+#include "ED_screen.hh"
+#include "ED_view3d.hh"
 
-#include "WM_api.h"
+#include "WM_api.hh"
 
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_query.hh"
 
 #include "GEO_add_curves_on_mesh.hh"
 #include "GEO_reverse_uv_sampler.hh"
@@ -111,7 +113,7 @@ struct SlideOperationExecutor {
   BVHTreeFromMesh surface_bvh_eval_;
 
   VArray<float> curve_factors_;
-  Vector<int64_t> selected_curve_indices_;
+  IndexMaskMemory selected_curve_memory_;
   IndexMask curve_selection_;
 
   float2 brush_pos_re_;
@@ -157,7 +159,7 @@ struct SlideOperationExecutor {
 
     curve_factors_ = *curves_orig_->attributes().lookup_or_default(
         ".selection", ATTR_DOMAIN_CURVE, 1.0f);
-    curve_selection_ = curves::retrieve_selected_curves(*curves_id_orig_, selected_curve_indices_);
+    curve_selection_ = curves::retrieve_selected_curves(*curves_id_orig_, selected_curve_memory_);
 
     brush_pos_re_ = stroke_extension.mouse_position;
 
@@ -165,7 +167,7 @@ struct SlideOperationExecutor {
 
     surface_ob_orig_ = curves_id_orig_->surface;
     surface_orig_ = static_cast<Mesh *>(surface_ob_orig_->data);
-    if (surface_orig_->totpoly == 0) {
+    if (surface_orig_->faces_num == 0) {
       report_empty_original_surface(stroke_extension.reports);
       return;
     }
@@ -176,12 +178,12 @@ struct SlideOperationExecutor {
       report_missing_uv_map_on_original_surface(stroke_extension.reports);
       return;
     }
-    if (!CustomData_has_layer(&surface_orig_->ldata, CD_NORMAL)) {
+    if (!CustomData_has_layer(&surface_orig_->loop_data, CD_NORMAL)) {
       BKE_mesh_calc_normals_split(surface_orig_);
     }
-    corner_normals_orig_su_ = {
-        reinterpret_cast<const float3 *>(CustomData_get_layer(&surface_orig_->ldata, CD_NORMAL)),
-        surface_orig_->totloop};
+    corner_normals_orig_su_ = {reinterpret_cast<const float3 *>(
+                                   CustomData_get_layer(&surface_orig_->loop_data, CD_NORMAL)),
+                               surface_orig_->totloop};
 
     surface_ob_eval_ = DEG_get_evaluated_object(ctx_.depsgraph, surface_ob_orig_);
     if (surface_ob_eval_ == nullptr) {
@@ -191,7 +193,7 @@ struct SlideOperationExecutor {
     if (surface_eval_ == nullptr) {
       return;
     }
-    if (surface_eval_->totpoly == 0) {
+    if (surface_eval_->faces_num == 0) {
       report_empty_evaluated_surface(stroke_extension.reports);
       return;
     }
@@ -269,35 +271,37 @@ struct SlideOperationExecutor {
     const float brush_radius_sq_cu = pow2f(brush_radius_cu);
 
     const Span<int> offsets = curves_orig_->offsets();
-    for (const int curve_i : curve_selection_) {
-      const int first_point_i = offsets[curve_i];
-      const float3 old_pos_cu = self_->initial_deformed_positions_cu_[first_point_i];
-      const float dist_to_brush_sq_cu = math::distance_squared(old_pos_cu, brush_pos_cu);
-      if (dist_to_brush_sq_cu > brush_radius_sq_cu) {
-        /* Root point is too far away from curve center. */
-        continue;
-      }
-      const float dist_to_brush_cu = std::sqrt(dist_to_brush_sq_cu);
-      const float radius_falloff = BKE_brush_curve_strength(
-          brush_, dist_to_brush_cu, brush_radius_cu);
+    curve_selection_.foreach_segment([&](const IndexMaskSegment segment) {
+      for (const int curve_i : segment) {
+        const int first_point_i = offsets[curve_i];
+        const float3 old_pos_cu = self_->initial_deformed_positions_cu_[first_point_i];
+        const float dist_to_brush_sq_cu = math::distance_squared(old_pos_cu, brush_pos_cu);
+        if (dist_to_brush_sq_cu > brush_radius_sq_cu) {
+          /* Root point is too far away from curve center. */
+          continue;
+        }
+        const float dist_to_brush_cu = std::sqrt(dist_to_brush_sq_cu);
+        const float radius_falloff = BKE_brush_curve_strength(
+            brush_, dist_to_brush_cu, brush_radius_cu);
 
-      const float2 uv = surface_uv_coords[curve_i];
-      ReverseUVSampler::Result result = reverse_uv_sampler_orig.sample(uv);
-      if (result.type != ReverseUVSampler::ResultType::Ok) {
-        /* The curve does not have a valid surface attachment. */
-        found_invalid_uv_mapping_.store(true);
-        continue;
-      }
-      /* Compute the normal at the initial surface position. */
-      const float3 point_no = geometry::compute_surface_point_normal(
-          surface_looptris_orig_[result.looptri_index],
-          result.bary_weights,
-          corner_normals_orig_su_);
-      const float3 normal_cu = math::normalize(
-          math::transform_point(transforms_.surface_to_curves_normal, point_no));
+        const float2 uv = surface_uv_coords[curve_i];
+        ReverseUVSampler::Result result = reverse_uv_sampler_orig.sample(uv);
+        if (result.type != ReverseUVSampler::ResultType::Ok) {
+          /* The curve does not have a valid surface attachment. */
+          found_invalid_uv_mapping_.store(true);
+          continue;
+        }
+        /* Compute the normal at the initial surface position. */
+        const float3 point_no = geometry::compute_surface_point_normal(
+            surface_looptris_orig_[result.looptri_index],
+            result.bary_weights,
+            corner_normals_orig_su_);
+        const float3 normal_cu = math::normalize(
+            math::transform_point(transforms_.surface_to_curves_normal, point_no));
 
-      r_curves_to_slide.append({curve_i, radius_falloff, normal_cu});
-    }
+        r_curves_to_slide.append({curve_i, radius_falloff, normal_cu});
+      }
+    });
   }
 
   void slide_with_symmetry()

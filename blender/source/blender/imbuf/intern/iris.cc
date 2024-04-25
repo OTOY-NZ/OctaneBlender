@@ -1,11 +1,12 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup imbuf
  */
 
-#include <string.h>
+#include <cstring>
 
 #include "BLI_fileops.h"
 #include "BLI_utildefines.h"
@@ -22,7 +23,7 @@
 
 #define IMAGIC 0732
 
-typedef struct {
+struct IMAGE {
   ushort imagic; /* Stuff saved on disk. */
   ushort type;
   ushort dim;
@@ -35,7 +36,7 @@ typedef struct {
   char name[80];
   uint colormap;
   uchar _pad2[404];
-} IMAGE;
+};
 
 #define HEADER_SIZE 512
 
@@ -67,10 +68,10 @@ BLI_STATIC_ASSERT(sizeof(IMAGE) == HEADER_SIZE, "Invalid header size");
 // #define RLE_NOP         0x00
 
 /* local struct for mem access */
-typedef struct MFileOffset {
+struct MFileOffset {
   const uchar *_file_data;
   uint _file_offset;
-} MFileOffset;
+};
 
 #define MFILE_DATA(inf) ((void)0, ((inf)->_file_data + (inf)->_file_offset))
 #define MFILE_STEP(inf, step) \
@@ -200,29 +201,6 @@ static void readtab(MFileOffset *inf, uint *tab, int len)
   }
 }
 
-static void test_endian_zbuf(struct ImBuf *ibuf)
-{
-  int len;
-  int *zval;
-
-  /* `BIG_LONG(1) == 1`, no change needed. */
-#ifdef __BIG_ENDIAN__
-  return;
-#endif
-
-  if (ibuf->zbuf == nullptr) {
-    return;
-  }
-
-  len = ibuf->x * ibuf->y;
-  zval = ibuf->zbuf;
-
-  while (len--) {
-    zval[0] = BIG_LONG(zval[0]);
-    zval++;
-  }
-}
-
 /* From misc_util: flip the bytes from x. */
 #define GS(x) (((uchar *)(x))[0] << 8 | ((uchar *)(x))[1])
 
@@ -237,11 +215,10 @@ bool imb_is_a_iris(const uchar *mem, size_t size)
   return ((GS(mem) == IMAGIC) || (GSS(mem) == IMAGIC));
 }
 
-struct ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, char colorspace[IM_MAX_SPACE])
+ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, char colorspace[IM_MAX_SPACE])
 {
   uint *base, *lptr = nullptr;
   float *fbase, *fptr = nullptr;
-  uint *zbase, *zptr;
   const uchar *rledat;
   const uchar *mem_end = mem + size;
   MFileOffset _inf_data = {mem, 0}, *inf = &_inf_data;
@@ -282,7 +259,9 @@ struct ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, char colors
 
   const int xsize = image.xsize;
   const int ysize = image.ysize;
-  const int zsize = image.zsize;
+
+  const int zsize_file = image.zsize;
+  const int zsize_read = min_ii(image.zsize, 4);
 
   if (flags & IB_test) {
     ibuf = IMB_allocImBuf(image.xsize, image.ysize, 8 * image.zsize, 0);
@@ -293,7 +272,7 @@ struct ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, char colors
   }
 
   if (rle) {
-    size_t tablen = size_t(ysize) * size_t(zsize) * sizeof(int);
+    size_t tablen = size_t(ysize) * size_t(zsize_file) * sizeof(int);
     MFILE_SEEK(inf, HEADER_SIZE);
 
     uint *starttab = static_cast<uint *>(MEM_mallocN(tablen, "iris starttab"));
@@ -315,7 +294,7 @@ struct ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, char colors
     cur = 0;
     badorder = 0;
     for (size_t y = 0; y < ysize; y++) {
-      for (size_t z = 0; z < zsize; z++) {
+      for (size_t z = 0; z < zsize_file; z++) {
         if (starttab[y + z * ysize] < cur) {
           badorder = 1;
           break;
@@ -329,18 +308,17 @@ struct ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, char colors
 
     if (bpp == 1) {
 
-      ibuf = IMB_allocImBuf(xsize, ysize, 8 * zsize, IB_rect);
+      ibuf = IMB_allocImBuf(xsize, ysize, 8 * zsize_read, IB_rect);
       if (!ibuf) {
         goto fail_rle;
       }
       if (ibuf->planes > 32) {
         ibuf->planes = 32;
       }
-      base = ibuf->rect;
-      zbase = (uint *)ibuf->zbuf;
+      base = (uint *)ibuf->byte_buffer.data;
 
       if (badorder) {
-        for (size_t z = 0; z < zsize; z++) {
+        for (size_t z = 0; z < zsize_read; z++) {
           lptr = base;
           for (size_t y = 0; y < ysize; y++) {
             MFILE_SEEK(inf, starttab[y + z * ysize]);
@@ -356,13 +334,11 @@ struct ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, char colors
       }
       else {
         lptr = base;
-        zptr = zbase;
         for (size_t y = 0; y < ysize; y++) {
 
           uint *lptr_next = lptr + xsize;
-          uint *zptr_next = zptr + xsize;
 
-          for (size_t z = 0; z < zsize; z++) {
+          for (size_t z = 0; z < zsize_read; z++) {
             MFILE_SEEK(inf, starttab[y + z * ysize]);
             rledat = MFILE_DATA(inf);
             MFILE_STEP(inf, lengthtab[y + z * ysize]);
@@ -372,13 +348,11 @@ struct ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, char colors
               dirty_flag |= expandrow(
                   (uchar *)lptr, (uchar *)lptr_next, rledat, rledat_next, 3 - z);
             }
-            else if (z < 8) {
-              dirty_flag |= expandrow(
-                  (uchar *)zptr, (uchar *)zptr_next, rledat, rledat_next, 7 - z);
+            else {
+              break;
             }
           }
           lptr = lptr_next;
-          zptr = zptr_next;
         }
       }
     }
@@ -389,10 +363,10 @@ struct ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, char colors
         goto fail_rle;
       }
 
-      fbase = ibuf->rect_float;
+      fbase = ibuf->float_buffer.data;
 
       if (badorder) {
-        for (size_t z = 0; z < zsize; z++) {
+        for (size_t z = 0; z < zsize_read; z++) {
           fptr = fbase;
           for (size_t y = 0; y < ysize; y++) {
             MFILE_SEEK(inf, starttab[y + z * ysize]);
@@ -412,7 +386,7 @@ struct ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, char colors
 
         for (size_t y = 0; y < ysize; y++) {
 
-          for (size_t z = 0; z < zsize; z++) {
+          for (size_t z = 0; z < zsize_read; z++) {
             MFILE_SEEK(inf, starttab[y + z * ysize]);
             rledat = MFILE_DATA(inf);
             MFILE_STEP(inf, lengthtab[y + z * ysize]);
@@ -444,7 +418,7 @@ struct ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, char colors
 
     if (bpp == 1) {
 
-      ibuf = IMB_allocImBuf(xsize, ysize, 8 * zsize, IB_rect);
+      ibuf = IMB_allocImBuf(xsize, ysize, 8 * zsize_read, IB_rect);
       if (!ibuf) {
         goto fail_uncompressed;
       }
@@ -452,19 +426,18 @@ struct ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, char colors
         ibuf->planes = 32;
       }
 
-      base = ibuf->rect;
-      zbase = (uint *)ibuf->zbuf;
+      base = (uint *)ibuf->byte_buffer.data;
 
       MFILE_SEEK(inf, HEADER_SIZE);
       rledat = MFILE_DATA(inf);
 
-      for (size_t z = 0; z < zsize; z++) {
+      for (size_t z = 0; z < zsize_read; z++) {
 
         if (z < 4) {
           lptr = base;
         }
-        else if (z < 8) {
-          lptr = zbase;
+        else {
+          break;
         }
 
         for (size_t y = 0; y < ysize; y++) {
@@ -484,12 +457,12 @@ struct ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, char colors
         goto fail_uncompressed;
       }
 
-      fbase = ibuf->rect_float;
+      fbase = ibuf->float_buffer.data;
 
       MFILE_SEEK(inf, HEADER_SIZE);
       rledat = MFILE_DATA(inf);
 
-      for (size_t z = 0; z < zsize; z++) {
+      for (size_t z = 0; z < zsize_read; z++) {
 
         fptr = fbase;
 
@@ -514,7 +487,7 @@ struct ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, char colors
     uchar *rect;
 
     if (image.zsize == 1) {
-      rect = (uchar *)ibuf->rect;
+      rect = ibuf->byte_buffer.data;
       for (size_t x = size_t(ibuf->x) * size_t(ibuf->y); x > 0; x--) {
         rect[0] = 255;
         rect[1] = rect[2] = rect[3];
@@ -523,7 +496,7 @@ struct ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, char colors
     }
     else if (image.zsize == 2) {
       /* Gray-scale with alpha. */
-      rect = (uchar *)ibuf->rect;
+      rect = ibuf->byte_buffer.data;
       for (size_t x = size_t(ibuf->x) * size_t(ibuf->y); x > 0; x--) {
         rect[0] = rect[2];
         rect[1] = rect[2] = rect[3];
@@ -532,7 +505,7 @@ struct ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, char colors
     }
     else if (image.zsize == 3) {
       /* add alpha */
-      rect = (uchar *)ibuf->rect;
+      rect = ibuf->byte_buffer.data;
       for (size_t x = size_t(ibuf->x) * size_t(ibuf->y); x > 0; x--) {
         rect[0] = 255;
         rect += 4;
@@ -542,7 +515,7 @@ struct ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, char colors
   else { /* bpp == 2 */
 
     if (image.zsize == 1) {
-      fbase = ibuf->rect_float;
+      fbase = ibuf->float_buffer.data;
       for (size_t x = size_t(ibuf->x) * size_t(ibuf->y); x > 0; x--) {
         fbase[0] = 1;
         fbase[1] = fbase[2] = fbase[3];
@@ -551,7 +524,7 @@ struct ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, char colors
     }
     else if (image.zsize == 2) {
       /* Gray-scale with alpha. */
-      fbase = ibuf->rect_float;
+      fbase = ibuf->float_buffer.data;
       for (size_t x = size_t(ibuf->x) * size_t(ibuf->y); x > 0; x--) {
         fbase[0] = fbase[2];
         fbase[1] = fbase[2] = fbase[3];
@@ -560,7 +533,7 @@ struct ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, char colors
     }
     else if (image.zsize == 3) {
       /* add alpha */
-      fbase = ibuf->rect_float;
+      fbase = ibuf->float_buffer.data;
       for (size_t x = size_t(ibuf->x) * size_t(ibuf->y); x > 0; x--) {
         fbase[0] = 1;
         fbase += 4;
@@ -577,9 +550,7 @@ struct ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, char colors
   }
   ibuf->ftype = IMB_FTYPE_IMAGIC;
 
-  test_endian_zbuf(ibuf);
-
-  if (ibuf->rect) {
+  if (ibuf->byte_buffer.data) {
     IMB_convert_rgba_to_abgr(ibuf);
   }
 
@@ -627,7 +598,7 @@ static int expandrow2(
 
   optr += z;
   optr_end += z;
-  while (1) {
+  while (true) {
     const uchar *iptr_next = iptr + 2;
     EXPAND_CAPACITY_AT_INPUT_OK_OR_FAIL(iptr_next);
     pixel = (iptr[0] << 8) | (iptr[1] << 0);
@@ -714,7 +685,7 @@ static int expandrow(
 
   optr += z;
   optr_end += z;
-  while (1) {
+  while (true) {
     const uchar *iptr_next = iptr + 1;
     EXPAND_CAPACITY_AT_INPUT_OK_OR_FAIL(iptr_next);
     pixel = *iptr;
@@ -811,7 +782,7 @@ static bool output_iris(const char *filepath,
   goodwrite = 1;
   outf = BLI_fopen(filepath, "wb");
   if (!outf) {
-    return 0;
+    return false;
   }
 
   tablen = ysize * zsize * sizeof(int);
@@ -880,11 +851,11 @@ static bool output_iris(const char *filepath,
   MEM_freeN(lumbuf);
   fclose(outf);
   if (goodwrite) {
-    return 1;
+    return true;
   }
 
   fprintf(stderr, "output_iris: not enough space for image!!\n");
-  return 0;
+  return false;
 }
 
 /* static utility functions for output_iris */
@@ -960,23 +931,17 @@ static int compressrow(const uchar *lbuf, uchar *rlebuf, const int z, const int 
   return optr - (uchar *)rlebuf;
 }
 
-bool imb_saveiris(struct ImBuf *ibuf, const char *filepath, int flags)
+bool imb_saveiris(ImBuf *ibuf, const char *filepath, int /*flags*/)
 {
-  short zsize;
-
-  zsize = (ibuf->planes + 7) >> 3;
-  if (flags & IB_zbuf && ibuf->zbuf != nullptr) {
-    zsize = 8;
-  }
+  const short zsize = (ibuf->planes + 7) >> 3;
 
   IMB_convert_rgba_to_abgr(ibuf);
-  test_endian_zbuf(ibuf);
 
-  const bool ok = output_iris(filepath, ibuf->rect, ibuf->zbuf, ibuf->x, ibuf->y, zsize);
+  const bool ok = output_iris(
+      filepath, (uint *)ibuf->byte_buffer.data, nullptr, ibuf->x, ibuf->y, zsize);
 
   /* restore! Quite clumsy, 2 times a switch... maybe better a malloc ? */
   IMB_convert_rgba_to_abgr(ibuf);
-  test_endian_zbuf(ibuf);
 
   return ok;
 }

@@ -255,6 +255,7 @@ void MeshManager::server_update_mesh(::OctaneEngine::OctaneClient *server,
       OctaneDataTransferObject::OctaneMeshes &meshes =
           octaneLocalMeshesList[octaneLocalMeshesList.size() - 1];
       meshes.oMeshes.emplace_back(mesh->octane_mesh);
+      meshes.bUpdateRender = false;
       meshes.oMeshes[0].oMeshData.bShowVertexData = mesh->octane_mesh.oMeshData.bShowVertexData;
 
       if (progress.get_cancel()) {
@@ -268,10 +269,23 @@ void MeshManager::server_update_mesh(::OctaneEngine::OctaneClient *server,
       octaneMeshes.iTotalFrameIdx = total_frames;
       server->uploadOctaneMesh(octaneMeshes);
     }
-    for (auto &meshes : octaneLocalMeshesList) {
+    for (size_t mesh_idx = 0; mesh_idx < octaneLocalMeshesList.size(); ++mesh_idx)
+    {
+      auto &meshes = octaneLocalMeshesList[mesh_idx];
       if (meshes.oMeshes.size() && !progress.get_cancel()) {
-        std::string status_msg = "Transferring " + meshes.oMeshes[0].sMeshName + "...";
-        progress.set_status("Loading Meshes to render-server", status_msg);
+        // Only force to update the render when the last mesh is updated(to filter out the
+        // unnecessary updates)
+        meshes.bUpdateRender = (mesh_idx + 1 == octaneLocalMeshesList.size());        
+        if (meshes.bUpdateRender) {
+          std::string status_msg = "Total transferred mesh count: " +
+                                   std::to_string(octaneLocalMeshesList.size()) +
+                                   "...";
+          progress.set_status("Evaluating uploaded meshes on render-server", status_msg);
+        }
+        else {
+          std::string status_msg = "Transferring " + meshes.oMeshes[0].sMeshName + "...";
+          progress.set_status("Loading Meshes to render-server", status_msg);
+        }
         meshes.bGlobal = false;
         meshes.iCurrentFrameIdx = frame_idx;
         meshes.iTotalFrameIdx = total_frames;

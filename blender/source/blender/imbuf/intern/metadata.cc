@@ -1,12 +1,13 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2005 Blender Foundation */
+/* SPDX-FileCopyrightText: 2005 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup imbuf
  */
 
-#include <stdlib.h>
-#include <string.h>
+#include <cstdlib>
+#include <cstring>
 
 #include "BLI_listbase.h"
 #include "BLI_string.h"
@@ -23,7 +24,7 @@
 
 #include "IMB_metadata.h"
 
-void IMB_metadata_ensure(struct IDProperty **metadata)
+void IMB_metadata_ensure(IDProperty **metadata)
 {
   if (*metadata != nullptr) {
     return;
@@ -33,7 +34,7 @@ void IMB_metadata_ensure(struct IDProperty **metadata)
   *metadata = IDP_New(IDP_GROUP, &val, "metadata");
 }
 
-void IMB_metadata_free(struct IDProperty *metadata)
+void IMB_metadata_free(IDProperty *metadata)
 {
   if (metadata == nullptr) {
     return;
@@ -42,7 +43,7 @@ void IMB_metadata_free(struct IDProperty *metadata)
   IDP_FreeProperty(metadata);
 }
 
-bool IMB_metadata_get_field(struct IDProperty *metadata,
+bool IMB_metadata_get_field(IDProperty *metadata,
                             const char *key,
                             char *value,
                             const size_t value_maxncpy)
@@ -62,7 +63,7 @@ bool IMB_metadata_get_field(struct IDProperty *metadata,
   return false;
 }
 
-void IMB_metadata_copy(struct ImBuf *dimb, struct ImBuf *simb)
+void IMB_metadata_copy(ImBuf *dimb, ImBuf *simb)
 {
   BLI_assert(dimb != simb);
   if (simb->metadata) {
@@ -71,7 +72,7 @@ void IMB_metadata_copy(struct ImBuf *dimb, struct ImBuf *simb)
   }
 }
 
-void IMB_metadata_set_field(struct IDProperty *metadata, const char *key, const char *value)
+void IMB_metadata_set_field(IDProperty *metadata, const char *key, const char *value)
 {
   BLI_assert(metadata);
   IDProperty *prop = IDP_GetPropertyFromGroup(metadata, key);
@@ -90,7 +91,7 @@ void IMB_metadata_set_field(struct IDProperty *metadata, const char *key, const 
   }
 }
 
-void IMB_metadata_foreach(struct ImBuf *ibuf, IMBMetadataForeachCb callback, void *userdata)
+void IMB_metadata_foreach(ImBuf *ibuf, IMBMetadataForeachCb callback, void *userdata)
 {
   if (ibuf->metadata == nullptr) {
     return;

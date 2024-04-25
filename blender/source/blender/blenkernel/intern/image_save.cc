@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bke
@@ -42,7 +43,7 @@ static char imtype_best_depth(ImBuf *ibuf, const char imtype)
 {
   const char depth_ok = BKE_imtype_valid_depths(imtype);
 
-  if (ibuf->rect_float) {
+  if (ibuf->float_buffer.data) {
     if (depth_ok & R_IMF_CHAN_DEPTH_32) {
       return R_IMF_CHAN_DEPTH_32;
     }
@@ -298,18 +299,8 @@ static void image_save_post(ReportList *reports,
     /* workaround to ensure the render result buffer is no longer used
      * by this image, otherwise can crash when a new render result is
      * created. */
-    if (ibuf->rect && !(ibuf->mall & IB_rect)) {
-      imb_freerectImBuf(ibuf);
-    }
-    if (ibuf->rect_float && !(ibuf->mall & IB_rectfloat)) {
-      imb_freerectfloatImBuf(ibuf);
-    }
-    if (ibuf->zbuf && !(ibuf->mall & IB_zbuf)) {
-      IMB_freezbufImBuf(ibuf);
-    }
-    if (ibuf->zbuf_float && !(ibuf->mall & IB_zbuffloat)) {
-      IMB_freezbuffloatImBuf(ibuf);
-    }
+    imb_freerectImBuf(ibuf);
+    imb_freerectfloatImBuf(ibuf);
   }
   if (ELEM(ima->source, IMA_SRC_GENERATED, IMA_SRC_VIEWER)) {
     ima->source = IMA_SRC_FILE;
@@ -365,7 +356,8 @@ static bool image_save_single(ReportList *reports,
   RenderResult *rr = nullptr;
   bool ok = false;
 
-  if (ibuf == nullptr || (ibuf->rect == nullptr && ibuf->rect_float == nullptr)) {
+  if (ibuf == nullptr || (ibuf->byte_buffer.data == nullptr && ibuf->float_buffer.data == nullptr))
+  {
     BKE_image_release_ibuf(ima, ibuf, lock);
     return ok;
   }
@@ -723,7 +715,6 @@ bool BKE_image_render_write_exr(ReportList *reports,
   void *exrhandle = IMB_exr_get_handle();
   const bool half_float = (imf && imf->depth == R_IMF_CHAN_DEPTH_16);
   const bool multi_layer = !(imf && imf->imtype == R_IMF_IMTYPE_OPENEXR);
-  const bool write_z = !multi_layer && (imf && (imf->flag & R_IMF_FLAG_ZBUF));
   const int channels = (!multi_layer && imf && imf->planes == R_IMF_PLANES_RGB) ? 3 : 4;
   Vector<float *> tmp_output_rects;
 
@@ -745,7 +736,7 @@ bool BKE_image_render_write_exr(ReportList *reports,
   /* Compositing result. */
   if (rr->have_combined) {
     LISTBASE_FOREACH (RenderView *, rview, &rr->views) {
-      if (!rview->rectf) {
+      if (!rview->ibuf || !rview->ibuf->float_buffer.data) {
         continue;
       }
 
@@ -763,10 +754,11 @@ bool BKE_image_render_write_exr(ReportList *reports,
         continue;
       }
 
-      float *output_rect = (save_as_render) ?
-                               image_exr_from_scene_linear_to_output(
-                                   rview->rectf, rr->rectx, rr->recty, 4, imf, tmp_output_rects) :
-                               rview->rectf;
+      float *output_rect =
+          (save_as_render) ?
+              image_exr_from_scene_linear_to_output(
+                  rview->ibuf->float_buffer.data, rr->rectx, rr->recty, 4, imf, tmp_output_rects) :
+              rview->ibuf->float_buffer.data;
 
       for (int a = 0; a < channels; a++) {
         char passname[EXR_PASS_MAXNAME];
@@ -787,11 +779,6 @@ bool BKE_image_render_write_exr(ReportList *reports,
         IMB_exr_add_channel(
             exrhandle, layname, passname, viewname, 4, 4 * rr->rectx, output_rect + a, half_float);
       }
-
-      if (write_z && rview->rectz) {
-        const char *layname = (multi_layer) ? "Composite" : "";
-        IMB_exr_add_channel(exrhandle, layname, "Z", viewname, 1, rr->rectx, rview->rectz, false);
-      }
     }
   }
 
@@ -807,9 +794,7 @@ bool BKE_image_render_write_exr(ReportList *reports,
 
     LISTBASE_FOREACH (RenderPass *, rp, &rl->passes) {
       /* Skip non-RGBA and Z passes if not using multi layer. */
-      if (!multi_layer && !(STREQ(rp->name, RE_PASSNAME_COMBINED) || STREQ(rp->name, "") ||
-                            (STREQ(rp->name, RE_PASSNAME_Z) && write_z)))
-      {
+      if (!multi_layer && !STR_ELEM(rp->name, RE_PASSNAME_COMBINED, "")) {
         continue;
       }
 
@@ -829,11 +814,14 @@ bool BKE_image_render_write_exr(ReportList *reports,
       const bool pass_half_float = half_float && pass_RGBA;
 
       /* Color-space conversion only happens on RGBA passes. */
-      float *output_rect =
-          (save_as_render && pass_RGBA) ?
-              image_exr_from_scene_linear_to_output(
-                  rp->rect, rr->rectx, rr->recty, rp->channels, imf, tmp_output_rects) :
-              rp->rect;
+      float *output_rect = (save_as_render && pass_RGBA) ?
+                               image_exr_from_scene_linear_to_output(rp->ibuf->float_buffer.data,
+                                                                     rr->rectx,
+                                                                     rr->recty,
+                                                                     rp->channels,
+                                                                     imf,
+                                                                     tmp_output_rects) :
+                               rp->ibuf->float_buffer.data;
 
       for (int a = 0; a < std::min(channels, rp->channels); a++) {
         /* Save Combined as RGBA or RGB if single layer save. */

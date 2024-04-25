@@ -1,8 +1,10 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Adapted from code Copyright 2009-2010 NVIDIA Corporation,
- * and code copyright 2009-2012 Intel Corporation
+/* SPDX-FileCopyrightText: 2009-2010 NVIDIA Corporation
+ * SPDX-FileCopyrightText: 2009-2012 Intel Corporation
+ * SPDX-FileCopyrightText: 2011-2022 Blender Foundation
  *
- * Modifications Copyright 2011-2022 Blender Foundation. */
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Adapted code from NVIDIA Corporation. */
 
 #if BVH_FEATURE(BVH_HAIR)
 #  define NODE_INTERSECT bvh_node_intersect
@@ -129,6 +131,12 @@ ccl_device_noinline bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals kg,
               continue;
             }
 
+#ifdef __SHADOW_LINKING__
+            if (intersection_skip_shadow_link(kg, ray->self, prim_object)) {
+              continue;
+            }
+#endif
+
             switch (type & PRIMITIVE_ALL) {
               case PRIMITIVE_TRIANGLE: {
                 if (triangle_intersect(kg,
@@ -143,8 +151,9 @@ ccl_device_noinline bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals kg,
                                        prim_addr))
                 {
                   /* shadow ray early termination */
-                  if (visibility & PATH_RAY_SHADOW_OPAQUE)
+                  if (visibility & PATH_RAY_SHADOW_OPAQUE) {
                     return true;
+                  }
                 }
                 break;
               }

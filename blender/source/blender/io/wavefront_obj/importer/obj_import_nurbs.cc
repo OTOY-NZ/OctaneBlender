@@ -1,11 +1,14 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup obj
  */
 
-#include "BKE_object.h"
+#include "BKE_object.hh"
 
+#include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 
 #include "DNA_curve_types.h"

@@ -1,24 +1,28 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <algorithm>
 
 #include "curves_sculpt_intern.hh"
 
+#include "BLI_math_geom.h"
+
 #include "BKE_attribute_math.hh"
 #include "BKE_bvhutils.h"
 #include "BKE_context.h"
 #include "BKE_curves.hh"
-#include "BKE_object.h"
+#include "BKE_object.hh"
 #include "BKE_report.h"
 
-#include "ED_view3d.h"
+#include "ED_view3d.hh"
 
-#include "UI_interface.h"
+#include "UI_interface.hh"
 
 #include "BLI_length_parameterize.hh"
 #include "BLI_task.hh"
 
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_query.hh"
 
 #include "BLT_translation.h"
 
@@ -435,7 +439,7 @@ void report_invalid_uv_map(ReportList *reports)
 }
 
 void CurvesConstraintSolver::initialize(const bke::CurvesGeometry &curves,
-                                        const IndexMask curve_selection,
+                                        const IndexMask &curve_selection,
                                         const bool use_surface_collision)
 {
   use_surface_collision_ = use_surface_collision;
@@ -448,7 +452,7 @@ void CurvesConstraintSolver::initialize(const bke::CurvesGeometry &curves,
 }
 
 void CurvesConstraintSolver::solve_step(bke::CurvesGeometry &curves,
-                                        const IndexMask curve_selection,
+                                        const IndexMask &curve_selection,
                                         const Mesh *surface,
                                         const CurvesSurfaceTransforms &transforms)
 {

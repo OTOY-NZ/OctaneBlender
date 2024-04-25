@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2006 Blender Foundation */
+/* SPDX-FileCopyrightText: 2006 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup render
@@ -11,6 +12,9 @@
 #include "DNA_listBase.h"
 #include "DNA_vec_types.h"
 
+#include "BLI_implicit_sharing.h"
+
+struct GPUTexture;
 struct ImBuf;
 struct Image;
 struct ImageFormatData;
@@ -38,25 +42,14 @@ extern "C" {
 /* only used as handle */
 typedef struct Render Render;
 
-/* Render Result usage:
- *
- * - render engine allocates/frees and delivers raw floating point rects
- * - right now it's full rects, but might become tiles or file
- * - the display client has to allocate display rects, sort out what to display,
- *   and how it's converted
- */
-
 typedef struct RenderView {
   struct RenderView *next, *prev;
   char name[64]; /* EXR_VIEW_MAXNAME */
 
-  /* if this exists, result of composited layers */
-  float *rectf;
-  /* if this exists, result of composited layers */
-  float *rectz;
-  /* optional, 32 bits version of picture, used for sequencer, OpenGL render and image curves */
-  int *rect32;
-
+  /* Image buffer of a composited layer or a sequencer output.
+   * The ibuf is only allocated if it has an actual data in one of its buffers (float, byte, or
+   * GPU). */
+  struct ImBuf *ibuf;
 } RenderView;
 
 typedef struct RenderPass {
@@ -64,7 +57,16 @@ typedef struct RenderPass {
   int channels;
   char name[64];   /* amount defined in IMB_openexr.h */
   char chan_id[8]; /* amount defined in IMB_openexr.h */
-  float *rect;
+
+  /* Image buffer which contains data of this pass.
+   *
+   * The data can be either CPU side stored in ibuf->float_buffer, or a GPU-side stored in
+   * ibuf->gpu (during rendering, i.e.).
+   *
+   * The pass data storage is lazily allocated, and until data is actually provided (via either CPU
+   * buffer of GPU texture) the ibuf is not allocated. */
+  struct ImBuf *ibuf;
+
   int rectx, recty;
 
   char fullname[64]; /* EXR_PASS_MAXNAME */
@@ -89,7 +91,7 @@ typedef struct RenderLayer {
 
   int rectx, recty;
 
-  /** Optional saved endresult on disk. */
+  /** Optional saved end-result on disk. */
   void *exrhandle;
 
   ListBase passes;
@@ -105,15 +107,10 @@ typedef struct RenderResult {
   /* target image size */
   int rectx, recty;
 
-  /* The following rect32, rectf and rectz buffers are for temporary storage only,
-   * for RenderResult structs created in #RE_AcquireResultImage - which do not have RenderView */
-
-  /* Optional, 32 bits version of picture, used for OpenGL render and image curves. */
-  int *rect32;
-  /* if this exists, a copy of one of layers, or result of composited layers */
-  float *rectf;
-  /* if this exists, a copy of one of layers, or result of composited layers */
-  float *rectz;
+  /* The temporary storage to pass image data from #RE_AcquireResultImage.
+   * Is null pointer when the RenderResult is not coming from the #RE_AcquireResultImage, and is
+   * a pointer to an existing ibuf in either RenderView or a RenderPass otherwise. */
+  struct ImBuf *ibuf;
 
   /* coordinates within final image (after cropping) */
   rcti tilerect;
@@ -166,6 +163,9 @@ struct Scene;
 struct Render *RE_NewSceneRender(const struct Scene *scene);
 struct Render *RE_GetSceneRender(const struct Scene *scene);
 
+struct RenderEngineType;
+struct ViewRender *RE_NewViewRender(struct RenderEngineType *engine_type);
+
 /* Assign default dummy callbacks. */
 
 /**
@@ -180,6 +180,7 @@ void RE_InitRenderCB(struct Render *re);
  * Only call this while you know it will remove the link too.
  */
 void RE_FreeRender(struct Render *re);
+void RE_FreeViewRender(struct ViewRender *view_render);
 /**
  * Only called on exit.
  */
@@ -189,6 +190,7 @@ void RE_FreeAllRender(void);
  * On file load, free render results.
  */
 void RE_FreeAllRenderResults(void);
+
 /**
  * On file load or changes engines, free persistent render data.
  * Assumes no engines are currently rendering.
@@ -198,6 +200,17 @@ void RE_FreeAllPersistentData(void);
  * Free persistent render data, optionally only for the given scene.
  */
 void RE_FreePersistentData(const struct Scene *scene);
+
+/**
+ * Free cached GPU textures to reduce memory usage.
+ */
+void RE_FreeGPUTextureCaches(void);
+
+/**
+ * Free cached GPU textures, contexts and compositor to reduce memory usage,
+ * when nothing in the UI requires them anymore.
+ */
+void RE_FreeUnusedGPUResources(void);
 
 /**
  * Get results and statistics.
@@ -235,15 +248,7 @@ struct RenderStats *RE_GetStats(struct Render *re);
  * Caller is responsible for allocating `rect` in correct size!
  */
 void RE_ResultGet32(struct Render *re, unsigned int *rect);
-/**
- * Only for acquired results, for lock.
- *
- * \note The caller is responsible for allocating `rect` in correct size!
- */
-void RE_AcquiredResultGet32(struct Render *re,
-                            struct RenderResult *result,
-                            unsigned int *rect,
-                            int view_id);
+void RE_ResultGetFloat(struct Render *re, float *rect);
 
 void RE_render_result_full_channel_name(char *fullname,
                                         const char *layname,
@@ -262,6 +267,9 @@ void RE_render_result_rect_from_ibuf(struct RenderResult *rr,
 
 struct RenderLayer *RE_GetRenderLayer(struct RenderResult *rr, const char *name);
 float *RE_RenderLayerGetPass(struct RenderLayer *rl, const char *name, const char *viewname);
+struct ImBuf *RE_RenderLayerGetPassImBuf(struct RenderLayer *rl,
+                                         const char *name,
+                                         const char *viewname);
 
 bool RE_HasSingleLayer(struct Render *re);
 
@@ -402,14 +410,19 @@ void RE_stats_draw_cb(struct Render *re, void *handle, void (*f)(void *handle, R
 void RE_progress_cb(struct Render *re, void *handle, void (*f)(void *handle, float));
 void RE_draw_lock_cb(struct Render *re, void *handle, void (*f)(void *handle, bool lock));
 void RE_test_break_cb(struct Render *re, void *handle, bool (*f)(void *handle));
+void RE_prepare_viewlayer_cb(struct Render *re,
+                             void *handle,
+                             bool (*f)(void *handle, ViewLayer *vl, struct Depsgraph *depsgraph));
 void RE_current_scene_update_cb(struct Render *re,
                                 void *handle,
                                 void (*f)(void *handle, struct Scene *scene));
 
-void RE_gl_context_create(Render *re);
-void RE_gl_context_destroy(Render *re);
-void *RE_gl_context_get(Render *re);
-void *RE_gpu_context_get(Render *re);
+void RE_system_gpu_context_ensure(Render *re);
+void RE_system_gpu_context_free(Render *re);
+void *RE_system_gpu_context_get(Render *re);
+
+void *RE_blender_gpu_context_ensure(Render *re);
+void RE_blender_gpu_context_free(Render *re);
 
 /**
  * \param x: ranges from -1 to 1.
@@ -436,6 +449,18 @@ struct RenderPass *RE_pass_find_by_type(struct RenderLayer *rl,
                                         int passtype,
                                         const char *viewname);
 
+/**
+ * Set the buffer data of the render pass.
+ * The pass takes ownership of the data, and creates an implicit sharing handle to allow its
+ * sharing with other users.
+ */
+void RE_pass_set_buffer_data(struct RenderPass *pass, float *data);
+
+/**
+ * Ensure a GPU texture corresponding to the render buffer data exists.
+ */
+struct GPUTexture *RE_pass_ensure_gpu_texture_cache(struct Render *re, struct RenderPass *rpass);
+
 /* shaded view or baking options */
 #define RE_BAKE_NORMALS 0
 #define RE_BAKE_DISPLACEMENT 1
@@ -450,6 +475,13 @@ void RE_GetCameraModelMatrix(const struct Render *re,
                              const struct Object *camera,
                              float r_modelmat[4][4]);
 
+void RE_GetWindowMatrixWithOverscan(bool is_ortho,
+                                    float clip_start,
+                                    float clip_end,
+                                    rctf viewplane,
+                                    float overscan,
+                                    float r_winmat[4][4]);
+
 struct Scene *RE_GetScene(struct Render *re);
 void RE_SetScene(struct Render *re, struct Scene *sce);
 
@@ -460,7 +492,7 @@ bool RE_is_rendering_allowed(struct Scene *scene,
 
 bool RE_allow_render_generic_object(struct Object *ob);
 
-/******* defined in render_result.c *********/
+/******* defined in `render_result.cc` *********/
 
 bool RE_HasCombinedLayer(const RenderResult *result);
 bool RE_HasFloatPixels(const RenderResult *result);
@@ -469,6 +501,9 @@ struct RenderView *RE_RenderViewGetById(struct RenderResult *rr, int view_id);
 struct RenderView *RE_RenderViewGetByName(struct RenderResult *rr, const char *viewname);
 
 RenderResult *RE_DuplicateRenderResult(RenderResult *rr);
+
+struct ImBuf *RE_RenderPassEnsureImBuf(RenderPass *render_pass);
+struct ImBuf *RE_RenderViewEnsureImBuf(const RenderResult *render_result, RenderView *render_view);
 
 #ifdef __cplusplus
 }

@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2016 Blender Foundation */
+/* SPDX-FileCopyrightText: 2016 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup spclip
@@ -22,19 +23,19 @@
 #include "BKE_report.h"
 #include "BKE_tracking.h"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
-#include "ED_clip.h"
+#include "ED_clip.hh"
 
 #include "clip_intern.h"
 
 /********************** solve camera operator *********************/
 
-typedef struct {
-  struct wmWindowManager *wm;
+struct SolveCameraJob {
+  wmWindowManager *wm;
   Scene *scene;
   MovieClip *clip;
   MovieClipUser user;
@@ -43,8 +44,8 @@ typedef struct {
 
   char stats_message[256];
 
-  struct MovieReconstructContext *context;
-} SolveCameraJob;
+  MovieReconstructContext *context;
+};
 
 static bool solve_camera_initjob(
     bContext *C, SolveCameraJob *scj, wmOperator *op, char *error_msg, int max_error)

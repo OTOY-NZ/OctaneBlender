@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bke
@@ -13,12 +15,12 @@
 #  include <io.h> /* for open close read */
 #endif
 
-#include <errno.h>
+#include <cerrno>
+#include <cstddef>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <fcntl.h> /* for open */
-#include <stddef.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 #include "MEM_guardedalloc.h"
 
@@ -37,10 +39,10 @@
 #include "BKE_undo_system.h"
 
 #include "BLO_readfile.h"
-#include "BLO_undofile.h"
-#include "BLO_writefile.h"
+#include "BLO_undofile.hh"
+#include "BLO_writefile.hh"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
 /* -------------------------------------------------------------------- */
 /** \name Global Undo
@@ -65,23 +67,22 @@ bool BKE_memfile_undo_decode(MemFileUndoData *mfu,
   if (UNDO_DISK) {
     const BlendFileReadParams params{};
     BlendFileReadReport bf_reports{};
-    struct BlendFileData *bfd = BKE_blendfile_read(mfu->filepath, &params, &bf_reports);
+    BlendFileData *bfd = BKE_blendfile_read(mfu->filepath, &params, &bf_reports);
     if (bfd != nullptr) {
-      BKE_blendfile_read_setup(C, bfd, &params, &bf_reports);
+      BKE_blendfile_read_setup_undo(C, bfd, &params, &bf_reports);
       success = true;
     }
   }
   else {
-    struct BlendFileReadParams params = {0};
+    BlendFileReadParams params = {0};
     params.undo_direction = undo_direction;
     if (!use_old_bmain_data) {
       params.skip_flags |= BLO_READ_SKIP_UNDO_OLD_MAIN;
     }
     BlendFileReadReport blend_file_read_report{};
-    struct BlendFileData *bfd = BKE_blendfile_read_from_memfile(
-        bmain, &mfu->memfile, &params, nullptr);
+    BlendFileData *bfd = BKE_blendfile_read_from_memfile(bmain, &mfu->memfile, &params, nullptr);
     if (bfd != nullptr) {
-      BKE_blendfile_read_setup(C, bfd, &params, &blend_file_read_report);
+      BKE_blendfile_read_setup_undo(C, bfd, &params, &blend_file_read_report);
       success = true;
     }
   }

@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -102,7 +103,7 @@ void BLI_array_randomize(void *data,
 void BLI_bitmap_randomize(unsigned int *bitmap, unsigned int bits_num, unsigned int seed)
     ATTR_NONNULL(1);
 
-/** Better seed for the random number generator, using noise.c hash[] */
+/** Better seed for the random number generator, using `noise.cc` hash[] */
 /** Allows up to BLENDER_MAX_THREADS threads to address */
 void BLI_thread_srandom(int thread, unsigned int seed);
 

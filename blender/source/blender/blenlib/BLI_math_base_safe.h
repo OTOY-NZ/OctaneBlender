@@ -1,11 +1,13 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
 /** \file
  * \ingroup bli
  *
- * This file provides safe alternatives to common math functions like sqrt, powf.
+ * This file provides safe alternatives to common math functions like `sqrt`, `powf`.
  * In this context "safe" means that the output is not NaN if the input is not NaN.
  */
 

@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bke
@@ -27,6 +29,7 @@
 #include "BKE_anim_data.h"
 #include "BKE_curves.hh"
 #include "BKE_customdata.h"
+#include "BKE_geometry_fields.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_global.h"
 #include "BKE_idtype.h"
@@ -35,13 +38,13 @@
 #include "BKE_lib_remap.h"
 #include "BKE_main.h"
 #include "BKE_modifier.h"
-#include "BKE_object.h"
+#include "BKE_object.hh"
 
 #include "BLT_translation.h"
 
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_query.hh"
 
-#include "BLO_read_write.h"
+#include "BLO_read_write.hh"
 
 using blender::float3;
 using blender::IndexRange;
@@ -116,16 +119,11 @@ static void curves_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   BLO_write_string(writer, curves->surface_uv_map);
 
   BLO_write_pointer_array(writer, curves->totcol, curves->mat);
-  if (curves->adt) {
-    BKE_animdata_blend_write(writer, curves->adt);
-  }
 }
 
 static void curves_blend_read_data(BlendDataReader *reader, ID *id)
 {
   Curves *curves = (Curves *)id;
-  BLO_read_data_address(reader, &curves->adt);
-  BKE_animdata_blend_read_data(reader, curves->adt);
 
   /* Geometry */
   curves->geometry.wrap().blend_read(*reader);
@@ -136,31 +134,13 @@ static void curves_blend_read_data(BlendDataReader *reader, ID *id)
   BLO_read_pointer_array(reader, (void **)&curves->mat);
 }
 
-static void curves_blend_read_lib(BlendLibReader *reader, ID *id)
-{
-  Curves *curves = (Curves *)id;
-  for (int a = 0; a < curves->totcol; a++) {
-    BLO_read_id_address(reader, curves->id.lib, &curves->mat[a]);
-  }
-  BLO_read_id_address(reader, curves->id.lib, &curves->surface);
-}
-
-static void curves_blend_read_expand(BlendExpander *expander, ID *id)
-{
-  Curves *curves = (Curves *)id;
-  for (int a = 0; a < curves->totcol; a++) {
-    BLO_expand(expander, curves->mat[a]);
-  }
-  BLO_expand(expander, curves->surface);
-}
-
 IDTypeInfo IDType_ID_CV = {
     /*id_code*/ ID_CV,
     /*id_filter*/ FILTER_ID_CV,
     /*main_listbase_index*/ INDEX_ID_CV,
     /*struct_size*/ sizeof(Curves),
     /*name*/ "Curves",
-    /*name_plural*/ "hair_curves",
+    /*name_plural*/ N_("hair_curves"),
     /*translation_context*/ BLT_I18NCONTEXT_ID_CURVES,
     /*flags*/ IDTYPE_FLAGS_APPEND_IS_REUSABLE,
     /*asset_type_info*/ nullptr,
@@ -176,8 +156,7 @@ IDTypeInfo IDType_ID_CV = {
 
     /*blend_write*/ curves_blend_write,
     /*blend_read_data*/ curves_blend_read_data,
-    /*blend_read_lib*/ curves_blend_read_lib,
-    /*blend_read_expand*/ curves_blend_read_expand,
+    /*blend_read_after_liblink*/ nullptr,
 
     /*blend_read_undo_preserve*/ nullptr,
 
@@ -193,6 +172,7 @@ void *BKE_curves_add(Main *bmain, const char *name)
 
 BoundBox *BKE_curves_boundbox_get(Object *ob)
 {
+  using namespace blender;
   BLI_assert(ob->type == OB_CURVES);
   const Curves *curves_id = static_cast<const Curves *>(ob->data);
 
@@ -202,17 +182,13 @@ BoundBox *BKE_curves_boundbox_get(Object *ob)
 
   if (ob->runtime.bb == nullptr) {
     ob->runtime.bb = MEM_cnew<BoundBox>(__func__);
-
-    const blender::bke::CurvesGeometry &curves = curves_id->geometry.wrap();
-
-    float3 min(FLT_MAX);
-    float3 max(-FLT_MAX);
-    if (!curves.bounds_min_max(min, max)) {
-      min = float3(-1);
-      max = float3(1);
+    const bke::CurvesGeometry &curves = curves_id->geometry.wrap();
+    if (const std::optional<Bounds<float3>> bounds = curves.bounds_min_max()) {
+      BKE_boundbox_init_from_minmax(ob->runtime.bb, bounds->min, bounds->max);
     }
-
-    BKE_boundbox_init_from_minmax(ob->runtime.bb, min, max);
+    else {
+      BKE_boundbox_init_from_minmax(ob->runtime.bb, float3(-1), float3(1));
+    }
   }
 
   return ob->runtime.bb;
@@ -223,16 +199,16 @@ bool BKE_curves_attribute_required(const Curves * /*curves*/, const char *name)
   return STREQ(name, ATTR_POSITION);
 }
 
-Curves *BKE_curves_copy_for_eval(Curves *curves_src)
+Curves *BKE_curves_copy_for_eval(const Curves *curves_src)
 {
   return reinterpret_cast<Curves *>(
       BKE_id_copy_ex(nullptr, &curves_src->id, nullptr, LIB_ID_COPY_LOCALIZE));
 }
 
-static void curves_evaluate_modifiers(struct Depsgraph *depsgraph,
-                                      struct Scene *scene,
+static void curves_evaluate_modifiers(Depsgraph *depsgraph,
+                                      Scene *scene,
                                       Object *object,
-                                      GeometrySet &geometry_set)
+                                      blender::bke::GeometrySet &geometry_set)
 {
   /* Modifier evaluation modes. */
   const bool use_render = (DEG_get_mode(depsgraph) == DAG_EVAL_RENDER);
@@ -247,8 +223,8 @@ static void curves_evaluate_modifiers(struct Depsgraph *depsgraph,
 
   /* Get effective list of modifiers to execute. Some effects like shape keys
    * are added as virtual modifiers before the user created modifiers. */
-  VirtualModifierData virtualModifierData;
-  ModifierData *md = BKE_modifiers_get_virtual_modifierlist(object, &virtualModifierData);
+  VirtualModifierData virtual_modifier_data;
+  ModifierData *md = BKE_modifiers_get_virtual_modifierlist(object, &virtual_modifier_data);
 
   /* Evaluate modifiers. */
   for (; md; md = md->next) {
@@ -260,35 +236,36 @@ static void curves_evaluate_modifiers(struct Depsgraph *depsgraph,
 
     blender::bke::ScopedModifierTimer modifier_timer{*md};
 
-    if (mti->modifyGeometrySet != nullptr) {
-      mti->modifyGeometrySet(md, &mectx, &geometry_set);
+    if (mti->modify_geometry_set != nullptr) {
+      mti->modify_geometry_set(md, &mectx, &geometry_set);
     }
   }
 }
 
-void BKE_curves_data_update(struct Depsgraph *depsgraph, struct Scene *scene, Object *object)
+void BKE_curves_data_update(Depsgraph *depsgraph, Scene *scene, Object *object)
 {
+  using namespace blender;
+  using namespace blender::bke;
   /* Free any evaluated data and restore original data. */
   BKE_object_free_derived_caches(object);
 
   /* Evaluate modifiers. */
   Curves *curves = static_cast<Curves *>(object->data);
-  GeometrySet geometry_set = GeometrySet::create_with_curves(curves,
-                                                             GeometryOwnershipType::ReadOnly);
+  GeometrySet geometry_set = GeometrySet::from_curves(curves, GeometryOwnershipType::ReadOnly);
   if (object->mode == OB_MODE_SCULPT_CURVES) {
     /* Try to propagate deformation data through modifier evaluation, so that sculpt mode can work
      * on evaluated curves. */
     GeometryComponentEditData &edit_component =
         geometry_set.get_component_for_write<GeometryComponentEditData>();
-    edit_component.curves_edit_hints_ = std::make_unique<blender::bke::CurvesEditHints>(
+    edit_component.curves_edit_hints_ = std::make_unique<CurvesEditHints>(
         *static_cast<const Curves *>(DEG_get_original_object(object)->data));
   }
   curves_evaluate_modifiers(depsgraph, scene, object, geometry_set);
 
   /* Assign evaluated object. */
-  Curves *curves_eval = const_cast<Curves *>(geometry_set.get_curves_for_read());
+  Curves *curves_eval = const_cast<Curves *>(geometry_set.get_curves());
   if (curves_eval == nullptr) {
-    curves_eval = blender::bke::curves_new_nomain(0, 0);
+    curves_eval = curves_new_nomain(0, 0);
     BKE_object_eval_assign_data(object, &curves_eval->id, true);
   }
   else {
@@ -389,6 +366,15 @@ bool CurvesEditHints::is_valid() const
     }
   }
   return true;
+}
+
+void curves_normals_point_domain_calc(const CurvesGeometry &curves, MutableSpan<float3> normals)
+{
+  const bke::CurvesFieldContext context(curves, ATTR_DOMAIN_POINT);
+  fn::FieldEvaluator evaluator(context, curves.points_num());
+  fn::Field<float3> field(std::make_shared<bke::NormalFieldInput>());
+  evaluator.add_with_destination(std::move(field), normals);
+  evaluator.evaluate();
 }
 
 }  // namespace blender::bke

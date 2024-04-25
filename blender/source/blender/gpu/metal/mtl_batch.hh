@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup gpu
@@ -81,10 +83,10 @@ class MTLBatch : public Batch {
 
   void draw(int v_first, int v_count, int i_first, int i_count) override;
   void draw_indirect(GPUStorageBuf *indirect_buf, intptr_t offset) override;
-  void multi_draw_indirect(GPUStorageBuf *indirect_buf,
-                           int count,
-                           intptr_t offset,
-                           intptr_t stride) override
+  void multi_draw_indirect(GPUStorageBuf * /*indirect_buf*/,
+                           int /*count*/,
+                           intptr_t /*offset*/,
+                           intptr_t /*stride*/) override
   {
     /* TODO(Metal): Support indirect draw commands. */
   }
@@ -92,7 +94,7 @@ class MTLBatch : public Batch {
   /* Returns an initialized RenderComandEncoder for drawing if all is good.
    * Otherwise, nil. */
   id<MTLRenderCommandEncoder> bind(uint v_count);
-  void unbind();
+  void unbind(id<MTLRenderCommandEncoder> rec);
 
   /* Convenience getters. */
   MTLIndexBuf *elem_() const

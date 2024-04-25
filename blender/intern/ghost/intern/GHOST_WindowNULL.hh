@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2011-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup GHOST
@@ -72,6 +74,10 @@ class GHOST_WindowNULL : public GHOST_Window {
   std::string getTitle() const override
   {
     return "untitled";
+  }
+  GHOST_TSuccess setPath(const char * /*filepath*/) override
+  {
+    return GHOST_kFailure;
   }
   void getWindowBounds(GHOST_Rect &bounds) const override
   {

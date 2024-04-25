@@ -1,10 +1,16 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bpygpu
  */
 
 #pragma once
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 extern PyTypeObject BPyGPU_BufferType;
 
@@ -45,3 +51,7 @@ BPyGPUBuffer *BPyGPU_Buffer_CreatePyObject(int format,
                                            const Py_ssize_t *shape,
                                            int shape_len,
                                            void *buffer);
+
+#ifdef __cplusplus
+}
+#endif

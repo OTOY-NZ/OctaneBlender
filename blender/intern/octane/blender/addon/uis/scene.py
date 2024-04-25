@@ -153,7 +153,9 @@ class OCTANE_RENDER_PT_server(common.OctanePropertyPanel, Panel):
         col.operator("octane.show_octane_device_setting", text="Device Preferences")
         col.operator("octane.show_octane_network_preference", text="Network Preferences")
         col.operator("octane.activate", text="Activation state")
-
+        # if True:
+        #    col.operator("octane.toggle_record", text="Debug: Toggle Record")
+        #    col.operator("octane.play_record", text="Debug: Play Record")
 
 class OCTANE_RENDER_PT_out_of_core(common.OctanePropertyPanel, Panel):
     bl_label = "Octane Out Of Core"

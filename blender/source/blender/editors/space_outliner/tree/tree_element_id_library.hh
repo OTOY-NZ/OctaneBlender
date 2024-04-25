@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup spoutliner
@@ -16,9 +18,7 @@ class TreeElementIDLibrary final : public TreeElementID {
  public:
   TreeElementIDLibrary(TreeElement &legacy_te, Library &library);
 
-  bool isExpandValid() const override;
-
-  blender::StringRefNull getWarning() const override;
+  blender::StringRefNull get_warning() const override;
 };
 
 }  // namespace blender::ed::outliner

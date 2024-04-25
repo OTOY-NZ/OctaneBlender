@@ -25,7 +25,7 @@
 /* SpaceType struct has a member called 'new' which obviously conflicts with C++
  * so temporarily redefining the new keyword to make it compile. */
 #define new extern_new
-#include "BKE_screen.h"
+#include "BKE_screen.hh"
 #undef new
 
 #include "BLI_fileops.h"
@@ -36,10 +36,10 @@
 #include "pipeline.hh"
 #include "render_types.h"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_build.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_build.hh"
 
-#include "WM_api.h"
+#include "WM_api.hh"
 
 #include <boost/algorithm/string.hpp>
 #include <boost/algorithm/string_regex.hpp>
@@ -1333,13 +1333,11 @@ bool BlenderSession::export_scene(BL::Scene &b_scene,
   ::Main *m_main = CTX_data_main(context);
   ::Scene *m_scene = (::Scene *)b_scene.ptr.data;
   ::ViewLayer *m_viewlayer = CTX_data_view_layer(context);
-  // Create depsgraph
-  PointerRNA depsgraphptr;
+  // Create depsgraph  
   ::Depsgraph *m_depsgraph = DEG_graph_new(m_main, m_scene, m_viewlayer, DAG_EVAL_RENDER);
-  RNA_pointer_create(NULL, &RNA_Depsgraph, (ID *)m_depsgraph, &depsgraphptr);
+  PointerRNA depsgraphptr = RNA_pointer_create(NULL, &RNA_Depsgraph, (ID *)m_depsgraph);
   BL::Depsgraph b_depsgraph(depsgraphptr);
-  // Create engine
-  PointerRNA engineptr;
+  // Create engine  
   BL::RenderSettings rs = b_scene.render();
   // Create render
   Render *re = RE_NewRender(b_scene.name().c_str());
@@ -1360,7 +1358,7 @@ bool BlenderSession::export_scene(BL::Scene &b_scene,
   engine->camera_override = re->camera_override;
   engine->resolution_x = re->rectx;
   engine->resolution_y = re->recty;
-  RNA_pointer_create(NULL, &RNA_RenderEngine, engine, &engineptr);
+  PointerRNA engineptr = RNA_pointer_create(NULL, &RNA_RenderEngine, engine);
   BL::RenderEngine b_engine(engineptr);
 
   OctaneExportJobData *job;
@@ -1409,13 +1407,11 @@ bool BlenderSession::export_localdb(BL::Scene &b_scene,
   ::Main *m_main = CTX_data_main(context);
   ::Scene *m_scene = (::Scene *)b_scene.ptr.data;
   ::ViewLayer *m_viewlayer = CTX_data_view_layer(context);
-  // Create depsgraph
-  PointerRNA depsgraphptr;
+  // Create depsgraph  
   ::Depsgraph *m_depsgraph = DEG_graph_new(m_main, m_scene, m_viewlayer, DAG_EVAL_RENDER);
-  RNA_pointer_create(NULL, &RNA_Depsgraph, (ID *)m_depsgraph, &depsgraphptr);
+  PointerRNA depsgraphptr = RNA_pointer_create(NULL, &RNA_Depsgraph, (ID *)m_depsgraph);
   BL::Depsgraph b_depsgraph(depsgraphptr);
-  // Create engine
-  PointerRNA engineptr;
+  // Create engine  
   BL::RenderSettings rs = b_scene.render();
   // Create render
   Render *re = RE_NewRender(b_scene.name().c_str());
@@ -1436,7 +1432,7 @@ bool BlenderSession::export_localdb(BL::Scene &b_scene,
   engine->camera_override = re->camera_override;
   engine->resolution_x = re->rectx;
   engine->resolution_y = re->recty;
-  RNA_pointer_create(NULL, &RNA_RenderEngine, engine, &engineptr);
+  PointerRNA engineptr = RNA_pointer_create(NULL, &RNA_RenderEngine, engine);
   BL::RenderEngine b_engine(engineptr);
   std::string empty("");
   std::unordered_set<std::string> dirty_resources;

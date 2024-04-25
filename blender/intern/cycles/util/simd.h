@@ -1,6 +1,7 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2013 Intel Corporation
- * Modifications Copyright 2014-2022 Blender Foundation. */
+/* SPDX-FileCopyrightText: 2011-2013 Intel Corporation
+ * SPDX-FileCopyrightText: 2014-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #ifndef __UTIL_SIMD_TYPES_H__
 #define __UTIL_SIMD_TYPES_H__
@@ -385,8 +386,9 @@ __forceinline uint64_t bitscan(uint64_t v)
 __forceinline uint32_t __bsf(const uint32_t x)
 {
   for (int i = 0; i < 32; i++) {
-    if (x & (1U << i))
+    if (x & (1U << i)) {
       return i;
+    }
   }
   return 32;
 }
@@ -394,8 +396,9 @@ __forceinline uint32_t __bsf(const uint32_t x)
 __forceinline uint32_t __bsr(const uint32_t x)
 {
   for (int i = 0; i < 32; i++) {
-    if (x & (1U << (31 - i)))
+    if (x & (1U << (31 - i))) {
       return (31 - i);
+    }
   }
   return 32;
 }
@@ -409,8 +412,9 @@ __forceinline uint32_t __btc(const uint32_t x, const uint32_t bit)
 __forceinline uint32_t __bsf(const uint64_t x)
 {
   for (int i = 0; i < 64; i++) {
-    if (x & (1UL << i))
+    if (x & (1UL << i)) {
       return i;
+    }
   }
   return 64;
 }
@@ -418,8 +422,9 @@ __forceinline uint32_t __bsf(const uint64_t x)
 __forceinline uint32_t __bsr(const uint64_t x)
 {
   for (int i = 0; i < 64; i++) {
-    if (x & (1UL << (63 - i)))
+    if (x & (1UL << (63 - i))) {
       return (63 - i);
+    }
   }
   return 64;
 }

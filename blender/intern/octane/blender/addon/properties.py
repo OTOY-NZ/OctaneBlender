@@ -64,16 +64,16 @@ object_mesh_types = (
 )
 
 bound_interp = (
-    ('1', "None", ""),
-    ('2', "Edge only", ""),
-    ('3', "Edge and corner", ""),
-    ('4', "Always sharp", ""),
+    ('1', "None", "", 1),
+    ('2', "Edge only", "", 2),
+    ('3', "Edge and corner", "", 3),
+    ('4', "Always sharp", "", 4),
     )
 
 subd_scheme = (
-    ('1', "Catmull Clark", ""),
-    ('2', "Loop", ""),
-    ('3', "Bilinear", ""),
+    ('1', "Catmull Clark", "", 1),
+    ('2', "Loop", "", 2),
+    ('3', "Bilinear", "", 3),
     )
 
 winding_orders = (
@@ -1463,14 +1463,8 @@ classes = (
     OctaneVolumeSettings,
 )
 
-
-def register():
-    from bpy.utils import register_class
+def register_legacy_nodeitems_octane():
     from octane import nodeitems_octane
-    for cls in classes:
-        register_class(cls)
-    use_factor_subtype_for_property = bpy.context.preferences.addons["octane"].preferences.use_factor_subtype_for_property
-    consts.USE_FACTOR_SUBTYPE_FOR_PROPERTIES = use_factor_subtype_for_property
     shader_node_categories = nodeitems_octane.shader_node_categories_based_functions
     texture_node_categories = nodeitems_octane.texture_node_categories_based_functions
     try:
@@ -1480,6 +1474,14 @@ def register():
             texture_node_categories = nodeitems_octane.texture_node_categories_based_octane
     except:
         pass
+
+def register():
+    from bpy.utils import register_class
+    for cls in classes:
+        register_class(cls)
+    use_factor_subtype_for_property = bpy.context.preferences.addons["octane"].preferences.use_factor_subtype_for_property
+    consts.use_factor_property_subtype(use_factor_subtype_for_property)
+    register_legacy_nodeitems_octane()
     octane_server_address = str(bpy.context.preferences.addons['octane'].preferences.octane_server_address)
     update_octane_data()
 

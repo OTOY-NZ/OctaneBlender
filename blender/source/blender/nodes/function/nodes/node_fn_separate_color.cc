@@ -1,11 +1,17 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "node_function_util.hh"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
 
-namespace blender::nodes {
+#include "NOD_rna_define.hh"
+
+#include "RNA_enum_types.hh"
+
+namespace blender::nodes::node_fn_separate_color_cc {
 
 NODE_STORAGE_FUNCS(NodeCombSepColor)
 
@@ -21,7 +27,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "mode", 0, "", ICON_NONE);
+  uiItemR(layout, ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_update(bNodeTree * /*tree*/, bNode *node)
@@ -54,7 +60,7 @@ class SeparateRGBAFunction : public mf::MultiFunction {
     this->set_signature(&signature);
   }
 
-  void call(IndexMask mask, mf::Params params, mf::Context /*context*/) const override
+  void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
   {
     const VArray<ColorGeometry4f> &colors = params.readonly_single_input<ColorGeometry4f>(0,
                                                                                           "Color");
@@ -80,11 +86,11 @@ class SeparateRGBAFunction : public mf::MultiFunction {
     }
 
     devirtualize_varray(colors, [&](auto colors) {
-      mask.to_best_mask_type([&](auto mask) {
+      mask.foreach_segment_optimized([&](const auto segment) {
         const int used_outputs_num = used_outputs.size();
         const int *used_outputs_data = used_outputs.data();
 
-        for (const int64_t i : mask) {
+        for (const int64_t i : segment) {
           const ColorGeometry4f &color = colors[i];
           for (const int out_i : IndexRange(used_outputs_num)) {
             const int channel = used_outputs_data[out_i];
@@ -113,7 +119,7 @@ class SeparateHSVAFunction : public mf::MultiFunction {
     this->set_signature(&signature);
   }
 
-  void call(IndexMask mask, mf::Params params, mf::Context /*context*/) const override
+  void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
   {
     const VArray<ColorGeometry4f> &colors = params.readonly_single_input<ColorGeometry4f>(0,
                                                                                           "Color");
@@ -122,14 +128,12 @@ class SeparateHSVAFunction : public mf::MultiFunction {
     MutableSpan<float> value = params.uninitialized_single_output<float>(3, "Value");
     MutableSpan<float> alpha = params.uninitialized_single_output_if_required<float>(4, "Alpha");
 
-    for (int64_t i : mask) {
+    mask.foreach_index_optimized<int64_t>([&](const int64_t i) {
       rgb_to_hsv(colors[i].r, colors[i].g, colors[i].b, &hue[i], &saturation[i], &value[i]);
-    }
+    });
 
     if (!alpha.is_empty()) {
-      for (int64_t i : mask) {
-        alpha[i] = colors[i].a;
-      }
+      mask.foreach_index_optimized<int64_t>([&](const int64_t i) { alpha[i] = colors[i].a; });
     }
   }
 };
@@ -151,7 +155,7 @@ class SeparateHSLAFunction : public mf::MultiFunction {
     this->set_signature(&signature);
   }
 
-  void call(IndexMask mask, mf::Params params, mf::Context /*context*/) const override
+  void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
   {
     const VArray<ColorGeometry4f> &colors = params.readonly_single_input<ColorGeometry4f>(0,
                                                                                           "Color");
@@ -160,14 +164,12 @@ class SeparateHSLAFunction : public mf::MultiFunction {
     MutableSpan<float> lightness = params.uninitialized_single_output<float>(3, "Lightness");
     MutableSpan<float> alpha = params.uninitialized_single_output_if_required<float>(4, "Alpha");
 
-    for (int64_t i : mask) {
+    mask.foreach_index_optimized<int64_t>([&](const int64_t i) {
       rgb_to_hsl(colors[i].r, colors[i].g, colors[i].b, &hue[i], &saturation[i], &lightness[i]);
-    }
+    });
 
     if (!alpha.is_empty()) {
-      for (int64_t i : mask) {
-        alpha[i] = colors[i].a;
-      }
+      mask.foreach_index_optimized<int64_t>([&](const int64_t i) { alpha[i] = colors[i].a; });
     }
   }
 };
@@ -199,20 +201,33 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
   }
 }
 
-}  // namespace blender::nodes
+static void node_rna(StructRNA *srna)
+{
+  RNA_def_node_enum(srna,
+                    "mode",
+                    "Mode",
+                    "Mode of color processing",
+                    rna_enum_node_combsep_color_items,
+                    NOD_storage_enum_accessors(mode));
+}
 
-void register_node_type_fn_separate_color(void)
+static void node_register()
 {
   static bNodeType ntype;
 
   fn_node_type_base(&ntype, FN_NODE_SEPARATE_COLOR, "Separate Color", NODE_CLASS_CONVERTER);
-  ntype.declare = blender::nodes::node_declare;
-  ntype.updatefunc = blender::nodes::node_update;
-  ntype.initfunc = blender::nodes::node_init;
+  ntype.declare = node_declare;
+  ntype.updatefunc = node_update;
+  ntype.initfunc = node_init;
   node_type_storage(
       &ntype, "NodeCombSepColor", node_free_standard_storage, node_copy_standard_storage);
-  ntype.build_multi_function = blender::nodes::node_build_multi_function;
-  ntype.draw_buttons = blender::nodes::node_layout;
+  ntype.build_multi_function = node_build_multi_function;
+  ntype.draw_buttons = node_layout;
 
   nodeRegisterType(&ntype);
+
+  node_rna(ntype.rna_ext.srna);
 }
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_fn_separate_color_cc

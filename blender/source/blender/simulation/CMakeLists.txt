@@ -1,18 +1,16 @@
+# SPDX-FileCopyrightText: 2014 Blender Authors
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
-# Copyright 2014 Blender Foundation
 
 set(INC
   .
   intern
   ../blenkernel
-  ../blenlib
   ../depsgraph
   ../functions
   ../imbuf
-  ../makesdna
   ../makesrna
   ../nodes
-  ../../../intern/guardedalloc
 )
 
 set(INC_SYS
@@ -20,10 +18,10 @@ set(INC_SYS
 )
 
 set(SRC
-  intern/SIM_mass_spring.cpp
-  intern/hair_volume.cpp
-  intern/implicit_blender.c
-  intern/implicit_eigen.cpp
+  intern/SIM_mass_spring.cc
+  intern/hair_volume.cc
+  intern/implicit_blender.cc
+  intern/implicit_eigen.cc
 
   intern/ConstrainedConjugateGradient.h
   intern/eigen_utils.h
@@ -34,9 +32,13 @@ set(SRC
 
 set(LIB
   bf_blenkernel
+  PRIVATE bf::blenlib
+  PRIVATE bf::dna
+  PRIVATE bf::intern::guardedalloc
 )
 
-if(WITH_OPENMP_STATIC)
+
+if(WITH_OPENMP AND WITH_OPENMP_STATIC)
   list(APPEND LIB
     ${OpenMP_LIBRARIES}
   )

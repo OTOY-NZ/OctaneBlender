@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2019 Blender Foundation. */
+/* SPDX-FileCopyrightText: 2019 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup draw_engine
@@ -7,13 +8,13 @@
 
 #include "DRW_render.h"
 
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_query.hh"
 
 #include "DNA_particle_types.h"
 
 #include "BKE_pointcache.h"
 
-#include "ED_particle.h"
+#include "ED_particle.hh"
 
 #include "overlay_private.hh"
 
@@ -85,7 +86,7 @@ void OVERLAY_edit_particle_cache_populate(OVERLAY_Data *vedata, Object *ob)
     return;
   }
 
-  struct GPUBatch *geom;
+  GPUBatch *geom;
   {
     geom = DRW_cache_particles_get_edit_strands(ob, psys, edit, pd->edit_particle.use_weight);
     DRW_shgroup_call(pd->edit_particle_strand_grp, geom, nullptr);
@@ -164,8 +165,8 @@ void OVERLAY_particle_cache_populate(OVERLAY_Data *vedata, Object *ob)
     }
 
     if (!ELEM(draw_as, PART_DRAW_NOT, PART_DRAW_OB, PART_DRAW_GR)) {
-      struct GPUBatch *geom = DRW_cache_particles_get_dots(ob, psys);
-      struct GPUBatch *shape = nullptr;
+      GPUBatch *geom = DRW_cache_particles_get_dots(ob, psys);
+      GPUBatch *shape = nullptr;
       DRWShadingGroup *grp;
 
       /* TODO(fclem): Here would be a good place for preemptive culling. */

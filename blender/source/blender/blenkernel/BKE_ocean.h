@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -141,7 +143,7 @@ void BKE_ocean_cache_eval_ij(struct OceanCache *och, struct OceanResult *ocr, in
 void BKE_ocean_free_cache(struct OceanCache *och);
 void BKE_ocean_free_modifier_cache(struct OceanModifierData *omd);
 
-/* ocean_spectrum.c */
+/* `ocean_spectrum.cc` */
 
 /**
  * Pierson-Moskowitz model, 1964, assumes waves reach equilibrium with wind.

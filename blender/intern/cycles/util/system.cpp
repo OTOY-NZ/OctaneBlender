@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #include "util/system.h"
 
@@ -154,7 +155,7 @@ static CPUCapabilities &system_cpu_capabilities()
 
       const bool ssse3 = (result[2] & ((int)1 << 9)) != 0;
       const bool sse41 = (result[2] & ((int)1 << 19)) != 0;
-      /* const bool sse42 = (result[2] & ((int)1 << 20)) != 0; */
+      // const bool sse42 = (result[2] & ((int)1 << 20)) != 0;
 
       const bool fma3 = (result[2] & ((int)1 << 12)) != 0;
       const bool os_uses_xsave_xrestore = (result[2] & ((int)1 << 27)) != 0;

@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2019 Blender Foundation */
+/* SPDX-FileCopyrightText: 2019 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup depsgraph
@@ -8,11 +9,11 @@
 #include <memory>
 #include <mutex>
 
-#include "intern/depsgraph_registry.h"
+#include "intern/depsgraph_registry.hh"
 
 #include "BLI_utildefines.h"
 
-#include "intern/depsgraph.h"
+#include "intern/depsgraph.hh"
 
 namespace blender::deg {
 
@@ -23,7 +24,7 @@ namespace blender::deg {
 
 /* Use pointer for map value to ensure span returned by get_all_registered_graphs
  * remains unchanged as other mains are added or removed. */
-typedef std::unique_ptr<VectorSet<Depsgraph *>> GraphSetPtr;
+using GraphSetPtr = std::unique_ptr<VectorSet<Depsgraph *>>;
 struct GraphRegistry {
   Map<Main *, GraphSetPtr> map;
   std::mutex mutex;

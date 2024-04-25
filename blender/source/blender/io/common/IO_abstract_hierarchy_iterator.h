@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2019 Blender Foundation */
+/* SPDX-FileCopyrightText: 2019 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /*
  * This file contains the AbstractHierarchyIterator. It is intended for exporters for file
@@ -21,7 +22,7 @@
 
 #include "IO_dupli_persistent_id.hh"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
 #include <map>
 #include <set>
@@ -69,7 +70,7 @@ struct HierarchyContext {
 
   /*********** Determined during writer creation: ***************/
   float parent_matrix_inv_world[4][4]; /* Inverse of the parent's world matrix. */
-  std::string export_path; /* Hierarchical path, such as "/grandparent/parent/objectname". */
+  std::string export_path; /* Hierarchical path, such as "/grandparent/parent/object_name". */
   ParticleSystem *particle_system; /* Only set for particle/hair writers. */
 
   /* Hierarchical path of the object this object is duplicating; only set when this object should
@@ -262,7 +263,7 @@ class AbstractHierarchyIterator {
 
   void determine_export_paths(const HierarchyContext *parent_context);
   void determine_duplication_references(const HierarchyContext *parent_context,
-                                        std::string indent);
+                                        const std::string &indent);
 
   /* These three functions create writers and call their write() method. */
   void make_writers(const HierarchyContext *parent_context);

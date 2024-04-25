@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #include <stdlib.h>
 
@@ -148,10 +149,12 @@ void Scene::free_memory(bool final)
 
     bake_manager->device_free(device, &dscene);
 
-    if (final)
+    if (final) {
       image_manager->device_free(device);
-    else
+    }
+    else {
       image_manager->device_free_builtin(device);
+    }
 
     lookup_tables->device_free(device, &dscene);
   }
@@ -172,8 +175,9 @@ void Scene::free_memory(bool final)
 
 void Scene::device_update(Device *device_, Progress &progress)
 {
-  if (!device)
+  if (!device) {
     device = device_;
+  }
 
   bool print_stats = need_data_update();
 
@@ -212,108 +216,126 @@ void Scene::device_update(Device *device_, Progress &progress)
   progress.set_status("Updating Shaders");
   shader_manager->device_update(device, &dscene, this, progress);
 
-  if (progress.get_cancel() || device->have_error())
+  if (progress.get_cancel() || device->have_error()) {
     return;
+  }
 
   procedural_manager->update(this, progress);
 
-  if (progress.get_cancel())
+  if (progress.get_cancel()) {
     return;
+  }
 
   progress.set_status("Updating Background");
   background->device_update(device, &dscene, this);
 
-  if (progress.get_cancel() || device->have_error())
+  if (progress.get_cancel() || device->have_error()) {
     return;
+  }
 
   progress.set_status("Updating Camera");
   camera->device_update(device, &dscene, this);
 
-  if (progress.get_cancel() || device->have_error())
+  if (progress.get_cancel() || device->have_error()) {
     return;
+  }
 
   geometry_manager->device_update_preprocess(device, this, progress);
 
-  if (progress.get_cancel() || device->have_error())
+  if (progress.get_cancel() || device->have_error()) {
     return;
+  }
 
   progress.set_status("Updating Objects");
   object_manager->device_update(device, &dscene, this, progress);
 
-  if (progress.get_cancel() || device->have_error())
+  if (progress.get_cancel() || device->have_error()) {
     return;
+  }
 
   progress.set_status("Updating Particle Systems");
   particle_system_manager->device_update(device, &dscene, this, progress);
 
-  if (progress.get_cancel() || device->have_error())
+  if (progress.get_cancel() || device->have_error()) {
     return;
+  }
 
   progress.set_status("Updating Meshes");
   geometry_manager->device_update(device, &dscene, this, progress);
 
-  if (progress.get_cancel() || device->have_error())
+  if (progress.get_cancel() || device->have_error()) {
     return;
+  }
 
   progress.set_status("Updating Objects Flags");
   object_manager->device_update_flags(device, &dscene, this, progress);
 
-  if (progress.get_cancel() || device->have_error())
+  if (progress.get_cancel() || device->have_error()) {
     return;
+  }
 
   progress.set_status("Updating Primitive Offsets");
   object_manager->device_update_prim_offsets(device, &dscene, this);
 
-  if (progress.get_cancel() || device->have_error())
+  if (progress.get_cancel() || device->have_error()) {
     return;
+  }
 
   progress.set_status("Updating Images");
   image_manager->device_update(device, this, progress);
 
-  if (progress.get_cancel() || device->have_error())
+  if (progress.get_cancel() || device->have_error()) {
     return;
+  }
 
   progress.set_status("Updating Camera Volume");
   camera->device_update_volume(device, &dscene, this);
 
-  if (progress.get_cancel() || device->have_error())
+  if (progress.get_cancel() || device->have_error()) {
     return;
+  }
 
   progress.set_status("Updating Lookup Tables");
   lookup_tables->device_update(device, &dscene, this);
 
-  if (progress.get_cancel() || device->have_error())
+  if (progress.get_cancel() || device->have_error()) {
     return;
+  }
 
   progress.set_status("Updating Lights");
   light_manager->device_update(device, &dscene, this, progress);
 
-  if (progress.get_cancel() || device->have_error())
+  if (progress.get_cancel() || device->have_error()) {
     return;
+  }
 
   progress.set_status("Updating Integrator");
   integrator->device_update(device, &dscene, this);
 
-  if (progress.get_cancel() || device->have_error())
+  if (progress.get_cancel() || device->have_error()) {
     return;
+  }
 
   progress.set_status("Updating Film");
   film->device_update(device, &dscene, this);
 
-  if (progress.get_cancel() || device->have_error())
+  if (progress.get_cancel() || device->have_error()) {
     return;
+  }
 
   progress.set_status("Updating Lookup Tables");
   lookup_tables->device_update(device, &dscene, this);
 
-  if (progress.get_cancel() || device->have_error())
+  if (progress.get_cancel() || device->have_error()) {
     return;
+  }
 
   progress.set_status("Updating Baking");
   bake_manager->device_update(device, &dscene, this, progress);
 
-  if (progress.get_cancel() || device->have_error())
+  if (progress.get_cancel() || device->have_error()) {
     return;
+  }
 
   if (device->have_error() == false) {
     dscene.data.volume_stack_size = get_volume_stack_size();
@@ -338,30 +360,38 @@ void Scene::device_update(Device *device_, Progress &progress)
 
 Scene::MotionType Scene::need_motion() const
 {
-  if (integrator->get_motion_blur())
+  if (integrator->get_motion_blur()) {
     return MOTION_BLUR;
-  else if (Pass::contains(passes, PASS_MOTION))
+  }
+  else if (Pass::contains(passes, PASS_MOTION)) {
     return MOTION_PASS;
-  else
+  }
+  else {
     return MOTION_NONE;
+  }
 }
 
 float Scene::motion_shutter_time()
 {
-  if (need_motion() == Scene::MOTION_PASS)
+  if (need_motion() == Scene::MOTION_PASS) {
     return 2.0f;
-  else
+  }
+  else {
     return camera->get_shuttertime();
+  }
 }
 
 bool Scene::need_global_attribute(AttributeStandard std)
 {
-  if (std == ATTR_STD_UV)
+  if (std == ATTR_STD_UV) {
     return Pass::contains(passes, PASS_UV);
-  else if (std == ATTR_STD_MOTION_VERTEX_POSITION)
+  }
+  else if (std == ATTR_STD_MOTION_VERTEX_POSITION) {
     return need_motion() != MOTION_NONE;
-  else if (std == ATTR_STD_MOTION_VERTEX_NORMAL)
+  }
+  else if (std == ATTR_STD_MOTION_VERTEX_NORMAL) {
     return need_motion() == MOTION_BLUR;
+  }
   else if (std == ATTR_STD_VOLUME_VELOCITY || std == ATTR_STD_VOLUME_VELOCITY_X ||
            std == ATTR_STD_VOLUME_VELOCITY_Y || std == ATTR_STD_VOLUME_VELOCITY_Z)
   {
@@ -373,9 +403,11 @@ bool Scene::need_global_attribute(AttributeStandard std)
 
 void Scene::need_global_attributes(AttributeRequestSet &attributes)
 {
-  for (int std = ATTR_STD_NONE; std < ATTR_STD_NUM; std++)
-    if (need_global_attribute((AttributeStandard)std))
+  for (int std = ATTR_STD_NONE; std < ATTR_STD_NUM; std++) {
+    if (need_global_attribute((AttributeStandard)std)) {
       attributes.add((AttributeStandard)std);
+    }
+  }
 }
 
 bool Scene::need_update()
@@ -491,11 +523,24 @@ void Scene::update_kernel_features()
     else if (geom->is_pointcloud()) {
       kernel_features |= KERNEL_FEATURE_POINTCLOUD;
     }
+    if (object->has_light_linking()) {
+      kernel_features |= KERNEL_FEATURE_LIGHT_LINKING;
+    }
+    if (object->has_shadow_linking()) {
+      kernel_features |= KERNEL_FEATURE_SHADOW_LINKING;
+    }
   }
 
   foreach (Light *light, lights) {
     if (light->get_use_caustics()) {
       has_caustics_light = true;
+    }
+
+    if (light->has_light_linking()) {
+      kernel_features |= KERNEL_FEATURE_LIGHT_LINKING;
+    }
+    if (light->has_shadow_linking()) {
+      kernel_features |= KERNEL_FEATURE_SHADOW_LINKING;
     }
   }
 
@@ -583,8 +628,9 @@ bool Scene::load_kernels(Progress &progress)
     log_kernel_features(kernel_features);
     if (!device->load_kernels(kernel_features)) {
       string message = device->error_message();
-      if (message.empty())
+      if (message.empty()) {
         message = "Failed loading render kernel, see console for errors";
+      }
 
       progress.set_error(message);
       progress.set_status(message);

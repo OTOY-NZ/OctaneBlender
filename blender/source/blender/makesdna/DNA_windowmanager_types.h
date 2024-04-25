@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2007 Blender Foundation */
+/* SPDX-FileCopyrightText: 2007 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup DNA
@@ -12,10 +13,6 @@
 #include "DNA_xr_types.h"     /* for #XrSessionSettings */
 
 #include "DNA_ID.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /* Defined here: */
 
@@ -56,6 +53,7 @@ typedef enum eReportType {
   RPT_ERROR_INVALID_CONTEXT = (1 << 7),
   RPT_ERROR_OUT_OF_MEMORY = (1 << 8),
 } eReportType;
+ENUM_OPERATORS(eReportType, RPT_ERROR_OUT_OF_MEMORY)
 
 #define RPT_DEBUG_ALL (RPT_DEBUG)
 #define RPT_INFO_ALL (RPT_INFO)
@@ -74,7 +72,7 @@ enum ReportListFlags {
   RPT_PRINT_HANDLED_BY_OWNER = (1 << 4),
 };
 
-/* These two Lines with # tell makesdna this struct can be excluded. */
+/* These two lines with # tell `makesdna` this struct can be excluded. */
 #
 #
 typedef struct Report {
@@ -102,13 +100,13 @@ typedef struct ReportList {
   struct wmTimer *reporttimer;
 } ReportList;
 
-/* timer customdata to control reports display */
-/* These two Lines with # tell makesdna this struct can be excluded. */
+/* Timer custom-data to control reports display. */
+/* These two lines with # tell `makesdna` this struct can be excluded. */
 #
 #
 typedef struct ReportTimerInfo {
-  float col[4];
   float widthfac;
+  float flash_progress;
 } ReportTimerInfo;
 
 //#ifdef WITH_XR_OPENXR
@@ -139,7 +137,8 @@ typedef struct wmWindowManager {
   ListBase windows;
 
   /** Set on file read. */
-  short initialized;
+  uint8_t init_flag;
+  char _pad0[1];
   /** Indicator whether data was saved. */
   short file_saved;
   /** Operator stack depth to avoid nested undo pushes. */
@@ -176,8 +175,12 @@ typedef struct wmWindowManager {
   /** Active dragged items. */
   ListBase drags;
 
-  /** Known key configurations. */
+  /**
+   * Known key configurations.
+   * This includes all the #wmKeyConfig members (`defaultconf`, `addonconf`, etc).
+   */
   ListBase keyconfigs;
+
   /** Default configuration. */
   struct wmKeyConfig *defaultconf;
   /** Addon configuration. */
@@ -204,10 +207,12 @@ typedef struct wmWindowManager {
   //#endif
 } wmWindowManager;
 
-/** #wmWindowManager.initialized */
+#define WM_KEYCONFIG_ARRAY_P(wm) &(wm)->defaultconf, &(wm)->addonconf, &(wm)->userconf
+
+/** #wmWindowManager.init_flag */
 enum {
-  WM_WINDOW_IS_INIT = (1 << 0),
-  WM_KEYCONFIG_IS_INIT = (1 << 1),
+  WM_INIT_FLAG_WINDOW = (1 << 0),
+  WM_INIT_FLAG_KEYCONFIG = (1 << 1),
 };
 
 /** #wmWindowManager.outliner_sync_select_dirty */
@@ -265,9 +270,20 @@ typedef struct wmWindow {
 
   /** Window-ID also in screens, is for retrieving this window after read. */
   int winid;
-  /** Window coords. */
-  short posx, posy, sizex, sizey;
-  /** Borderless, full. */
+  /** Window coords (in pixels). */
+  short posx, posy;
+  /**
+   * Window size (in pixels).
+   *
+   * \note Loading a window typically uses the size & position saved in the blend-file,
+   * there is an exception for startup files which works as follows:
+   * Setting the window size to zero before `ghostwin` has been set has a special meaning,
+   * it causes the window size to be initialized to `wm_init_state.size_x` (& `size_y`).
+   * These default to the main screen size but can be overridden by the `--window-geometry`
+   * command line argument.
+   */
+  short sizex, sizey;
+  /** Normal, maximized, full-screen, #GHOST_TWindowState. */
   char windowstate;
   /** Set to 1 if an active window, for quick rejects. */
   char active;
@@ -338,8 +354,10 @@ typedef struct wmWindow {
    */
   struct wmEvent *event_last_handled;
 
-  /* Input Method Editor data - complex character input (especially for Asian character input)
-   * Currently WIN32 and APPLE, runtime-only data. */
+  /**
+   * Input Method Editor data - complex character input (especially for Asian character input)
+   * Currently WIN32 and APPLE, runtime-only data.
+   */
   struct wmIMEData *ime_data;
 
   /** All events #wmEvent (ghost level events were handled). */
@@ -355,10 +373,10 @@ typedef struct wmWindow {
   /** Properties for stereoscopic displays. */
   struct Stereo3dFormat *stereo3d_format;
 
-  /* custom drawing callbacks */
+  /** Custom drawing callbacks. */
   ListBase drawcalls;
 
-  /* Private runtime info to show text in the status bar. */
+  /** Private runtime info to show text in the status bar. */
   void *cursor_keymap_status;
 } wmWindow;
 
@@ -366,7 +384,7 @@ typedef struct wmWindow {
 #  undef ime_data
 #endif
 
-/* These two Lines with # tell makesdna this struct can be excluded. */
+/* These two lines with # tell `makesdna` this struct can be excluded. */
 /* should be something like DNA_EXCLUDE
  * but the preprocessor first removes all comments, spaces etc */
 #
@@ -645,7 +663,3 @@ enum {
    */
   OP_IS_MODAL_CURSOR_REGION = (1 << 3),
 };
-
-#ifdef __cplusplus
-}
-#endif

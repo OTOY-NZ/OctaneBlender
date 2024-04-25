@@ -106,22 +106,25 @@ void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph)
 {
   ///* Sync recalc flags from blender to octane. Actual update is done separate,
   // * so we can do it later on if doing it immediate is not suitable. */
+  bool experimental = false;
+  std::unordered_set<std::string> updated_id_names;
+  depgraph_updated_mesh_names.clear();
 
   bool has_updated_objects = b_depsgraph.id_type_updated(BL::DriverTarget::id_type_OBJECT);
   bool has_updated_nodetree = b_depsgraph.id_type_updated(BL::DriverTarget::id_type_NODETREE);
   bool has_updated_shading = b_depsgraph.id_type_updated(BL::DriverTarget::id_type_MATERIAL) ||
                              b_depsgraph.id_type_updated(BL::DriverTarget::id_type_TEXTURE);
-  bool dicing_prop_changed = false, experimental = false;
 
   /* Iterate over all IDs in this depsgraph. */
-  BL::Depsgraph::updates_iterator b_update;
+  for (BL::DepsgraphUpdate &b_update : b_depsgraph.updates) {
+    /* TODO(sergey): Can do more selective filter here. For example, ignore changes made to
+     * screen datablock. Note that sync_data() needs to be called after object deletion, and
+     * currently this is ensured by the scene ID tagged for update, which sets the `has_updates_`
+     * flag. */
+    has_updates_ = true;
 
-  std::unordered_set<std::string> updated_id_names;
+    BL::ID b_id(b_update.id());
 
-  depgraph_updated_mesh_names.clear();
-
-  for (b_depsgraph.updates.begin(b_update); b_update != b_depsgraph.updates.end(); ++b_update) {
-    BL::ID b_id(b_update->id());
     /* Material */
     if (b_id.is_a(&RNA_Material)) {
       BL::Material b_mat(b_id);
@@ -135,34 +138,64 @@ void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph)
     /* Object */
     else if (b_id.is_a(&RNA_Object)) {
       BL::Object b_ob(b_id);
+      const bool can_have_geometry = object_can_have_geometry(b_ob);
+      const bool is_light = !can_have_geometry && object_is_light(b_ob);
+
       updated_id_names.insert(
           ShaderGraph::generate_dependent_name(b_ob.name(), DEPENDENT_ID_OBJECT));
-      const bool updated_geometry = b_update->is_updated_geometry();
 
-      if (b_update->is_updated_transform()) {
+      if (b_ob.is_instancer() && b_update.is_updated_shading()) {
+        /* Needed for e.g. object color updates on instancer. */
         object_map.set_recalc(b_ob);
-        light_map.set_recalc(b_ob);
       }
 
-      if (object_is_mesh(b_ob)) {
-        if (updated_geometry ||
-            (dicing_prop_changed &&
-             object_subdivision_type(b_ob, preview, experimental) != Mesh::SUBDIVISION_NONE))
-        {
-          BL::ID key = BKE_object_is_modified(b_ob) ? b_ob : b_ob.data();
-          mesh_map.set_recalc(key);
-        }
-      }
-      else if (object_is_light(b_ob)) {
-        if (updated_geometry) {
-          light_map.set_recalc(b_ob);
-        }
-      }
+      if (can_have_geometry || is_light) {
+        const bool updated_geometry = b_update.is_updated_geometry();
 
-      if (updated_geometry) {
-        BL::Object::particle_systems_iterator b_psys;
-        for (b_ob.particle_systems.begin(b_psys); b_psys != b_ob.particle_systems.end(); ++b_psys)
-          particle_system_map.set_recalc(b_ob);
+        /* Geometry (mesh, hair, volume). */
+        if (can_have_geometry) {
+          if (b_update.is_updated_transform() || b_update.is_updated_shading()) {
+            object_map.set_recalc(b_ob);
+          }
+
+          if (updated_geometry ||
+              (object_subdivision_type(b_ob, preview, experimental) != Mesh::SUBDIVISION_NONE))
+          {
+            BL::ID key = BKE_object_is_modified(b_ob) ? b_ob : b_ob.data();
+            mesh_map.set_recalc(key);
+
+            /* Sync all contained geometry instances as well when the object changed.. */
+            map<void *, set<BL::ID>>::const_iterator instance_geometries =
+                instance_geometries_by_object.find(b_ob.ptr.data);
+            if (instance_geometries != instance_geometries_by_object.end()) {
+              for (BL::ID geometry : instance_geometries->second) {
+                mesh_map.set_recalc(geometry);
+              }
+            }
+          }
+
+          if (updated_geometry) {
+            BL::Object::particle_systems_iterator b_psys;
+            for (b_ob.particle_systems.begin(b_psys); b_psys != b_ob.particle_systems.end();
+                 ++b_psys) {
+              particle_system_map.set_recalc(b_ob);
+            }
+          }
+        }
+        /* Light */
+        else if (is_light) {
+          if (b_update.is_updated_transform() || b_update.is_updated_shading()) {
+            object_map.set_recalc(b_ob);
+            light_map.set_recalc(b_ob);
+          }
+
+          if (updated_geometry) {
+            light_map.set_recalc(b_ob);
+          }
+        }
+      }
+      else if (object_is_camera(b_ob)) {
+        shader_map.set_recalc(b_ob);
       }
     }
     /* Mesh */
@@ -177,6 +210,11 @@ void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph)
       if (world_map == b_world.ptr.data) {
         world_recalc = true;
       }
+      shader_map.set_recalc(b_world);
+    }
+    /* World */
+    else if (b_id.is_a(&RNA_Scene)) {
+      shader_map.set_recalc(b_id);
     }
     /* Volume */
     else if (b_id.is_a(&RNA_Volume)) {

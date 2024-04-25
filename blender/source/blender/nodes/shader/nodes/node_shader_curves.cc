@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2005 Blender Foundation */
+/* SPDX-FileCopyrightText: 2005 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup shdnodes
@@ -7,7 +8,15 @@
 
 #include "node_shader_util.hh"
 
-namespace blender::nodes::node_shader_curves_cc {
+#include "BKE_colortools.h"
+
+#include "BLI_math_vector.h"
+
+#include "NOD_multi_function.hh"
+
+#include "node_util.hh"
+
+namespace blender::nodes::node_shader_curves_cc::vec {
 
 static void sh_node_curve_vec_declare(NodeDeclarationBuilder &b)
 {
@@ -77,18 +86,18 @@ class CurveVecFunction : public mf::MultiFunction {
     this->set_signature(&signature);
   }
 
-  void call(IndexMask mask, mf::Params params, mf::Context /*context*/) const override
+  void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
   {
     const VArray<float> &fac = params.readonly_single_input<float>(0, "Fac");
     const VArray<float3> &vec_in = params.readonly_single_input<float3>(1, "Vector");
     MutableSpan<float3> vec_out = params.uninitialized_single_output<float3>(2, "Vector");
 
-    for (int64_t i : mask) {
+    mask.foreach_index([&](const int64_t i) {
       BKE_curvemapping_evaluate3F(&cumap_, vec_out[i], vec_in[i]);
       if (fac[i] != 1.0f) {
         interp_v3_v3v3(vec_out[i], vec_in[i], vec_out[i], fac[i]);
       }
-    }
+    });
   }
 };
 
@@ -100,11 +109,20 @@ static void sh_node_curve_vec_build_multi_function(NodeMultiFunctionBuilder &bui
   builder.construct_and_set_matching_fn<CurveVecFunction>(*cumap);
 }
 
-}  // namespace blender::nodes::node_shader_curves_cc
+NODE_SHADER_MATERIALX_BEGIN
+#ifdef WITH_MATERIALX
+{
+  /* TODO: implement */
+  return get_input_value("Vector", NodeItem::Type::Vector3);
+}
+#endif
+NODE_SHADER_MATERIALX_END
+
+}  // namespace blender::nodes::node_shader_curves_cc::vec
 
 void register_node_type_sh_curve_vec()
 {
-  namespace file_ns = blender::nodes::node_shader_curves_cc;
+  namespace file_ns = blender::nodes::node_shader_curves_cc::vec;
 
   static bNodeType ntype;
 
@@ -115,13 +133,14 @@ void register_node_type_sh_curve_vec()
   node_type_storage(&ntype, "CurveMapping", node_free_curves, node_copy_curves);
   ntype.gpu_fn = file_ns::gpu_shader_curve_vec;
   ntype.build_multi_function = file_ns::sh_node_curve_vec_build_multi_function;
+  ntype.materialx_fn = file_ns::node_shader_materialx;
 
   nodeRegisterType(&ntype);
 }
 
 /* **************** CURVE RGB  ******************** */
 
-namespace blender::nodes::node_shader_curves_cc {
+namespace blender::nodes::node_shader_curves_cc::rgb {
 
 static void sh_node_curve_rgb_declare(NodeDeclarationBuilder &b)
 {
@@ -217,7 +236,7 @@ class CurveRGBFunction : public mf::MultiFunction {
     this->set_signature(&signature);
   }
 
-  void call(IndexMask mask, mf::Params params, mf::Context /*context*/) const override
+  void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
   {
     const VArray<float> &fac = params.readonly_single_input<float>(0, "Fac");
     const VArray<ColorGeometry4f> &col_in = params.readonly_single_input<ColorGeometry4f>(1,
@@ -225,12 +244,12 @@ class CurveRGBFunction : public mf::MultiFunction {
     MutableSpan<ColorGeometry4f> col_out = params.uninitialized_single_output<ColorGeometry4f>(
         2, "Color");
 
-    for (int64_t i : mask) {
+    mask.foreach_index([&](const int64_t i) {
       BKE_curvemapping_evaluateRGBF(&cumap_, col_out[i], col_in[i]);
       if (fac[i] != 1.0f) {
         interp_v3_v3v3(col_out[i], col_in[i], col_out[i], fac[i]);
       }
-    }
+    });
   }
 };
 
@@ -242,11 +261,20 @@ static void sh_node_curve_rgb_build_multi_function(NodeMultiFunctionBuilder &bui
   builder.construct_and_set_matching_fn<CurveRGBFunction>(*cumap);
 }
 
-}  // namespace blender::nodes::node_shader_curves_cc
+NODE_SHADER_MATERIALX_BEGIN
+#ifdef WITH_MATERIALX
+{
+  /* TODO: implement */
+  return get_input_value("Color", NodeItem::Type::Color4);
+}
+#endif
+NODE_SHADER_MATERIALX_END
+
+}  // namespace blender::nodes::node_shader_curves_cc::rgb
 
 void register_node_type_sh_curve_rgb()
 {
-  namespace file_ns = blender::nodes::node_shader_curves_cc;
+  namespace file_ns = blender::nodes::node_shader_curves_cc::rgb;
 
   static bNodeType ntype;
 
@@ -257,13 +285,14 @@ void register_node_type_sh_curve_rgb()
   node_type_storage(&ntype, "CurveMapping", node_free_curves, node_copy_curves);
   ntype.gpu_fn = file_ns::gpu_shader_curve_rgb;
   ntype.build_multi_function = file_ns::sh_node_curve_rgb_build_multi_function;
+  ntype.materialx_fn = file_ns::node_shader_materialx;
 
   nodeRegisterType(&ntype);
 }
 
 /* **************** CURVE FLOAT  ******************** */
 
-namespace blender::nodes::node_shader_curves_cc {
+namespace blender::nodes::node_shader_curves_cc::flt {
 
 static void sh_node_curve_float_declare(NodeDeclarationBuilder &b)
 {
@@ -337,18 +366,18 @@ class CurveFloatFunction : public mf::MultiFunction {
     this->set_signature(&signature);
   }
 
-  void call(IndexMask mask, mf::Params params, mf::Context /*context*/) const override
+  void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
   {
     const VArray<float> &fac = params.readonly_single_input<float>(0, "Factor");
     const VArray<float> &val_in = params.readonly_single_input<float>(1, "Value");
     MutableSpan<float> val_out = params.uninitialized_single_output<float>(2, "Value");
 
-    for (int64_t i : mask) {
+    mask.foreach_index([&](const int64_t i) {
       val_out[i] = BKE_curvemapping_evaluateF(&cumap_, 0, val_in[i]);
       if (fac[i] != 1.0f) {
         val_out[i] = (1.0f - fac[i]) * val_in[i] + fac[i] * val_out[i];
       }
-    }
+    });
   }
 };
 
@@ -360,11 +389,20 @@ static void sh_node_curve_float_build_multi_function(NodeMultiFunctionBuilder &b
   builder.construct_and_set_matching_fn<CurveFloatFunction>(*cumap);
 }
 
-}  // namespace blender::nodes::node_shader_curves_cc
+NODE_SHADER_MATERIALX_BEGIN
+#ifdef WITH_MATERIALX
+{
+  /* TODO: implement */
+  return get_input_value("Value", NodeItem::Type::Float);
+}
+#endif
+NODE_SHADER_MATERIALX_END
+
+}  // namespace blender::nodes::node_shader_curves_cc::flt
 
 void register_node_type_sh_curve_float()
 {
-  namespace file_ns = blender::nodes::node_shader_curves_cc;
+  namespace file_ns = blender::nodes::node_shader_curves_cc::flt;
 
   static bNodeType ntype;
 
@@ -375,6 +413,7 @@ void register_node_type_sh_curve_float()
   node_type_storage(&ntype, "CurveMapping", node_free_curves, node_copy_curves);
   ntype.gpu_fn = file_ns::gpu_shader_curve_float;
   ntype.build_multi_function = file_ns::sh_node_curve_float_build_multi_function;
+  ntype.materialx_fn = file_ns::node_shader_materialx;
 
   nodeRegisterType(&ntype);
 }

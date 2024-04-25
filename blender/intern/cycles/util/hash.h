@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #ifndef __UTIL_HASH_H__
 #define __UTIL_HASH_H__
@@ -499,8 +500,9 @@ static inline uint hash_string(const char *str)
 {
   uint i = 0, c;
 
-  while ((c = *str++))
+  while ((c = *str++)) {
     i = i * 37 + c;
+  }
 
   return i;
 }

@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup gpu
@@ -62,11 +64,11 @@ struct TextureUpdateRoutineSpecialisation {
  * 1 = 24 bit integer (0 - 2^24)
  * 2 = 32 bit integer (0 - 2^32) */
 
-typedef enum {
+enum DepthTextureUpdateMode {
   MTL_DEPTH_UPDATE_MODE_FLOAT = 0,
   MTL_DEPTH_UPDATE_MODE_INT24 = 1,
   MTL_DEPTH_UPDATE_MODE_INT32 = 2
-} DepthTextureUpdateMode;
+};
 
 struct DepthTextureUpdateRoutineSpecialisation {
   DepthTextureUpdateMode data_mode;
@@ -219,6 +221,7 @@ class MTLTexture : public Texture {
   MTLTextureSwizzleChannels mtl_swizzle_mask_;
   bool mip_range_dirty_ = false;
 
+  bool texture_view_stencil_ = false;
   int mip_texture_base_level_ = 0;
   int mip_texture_max_level_ = 1000;
   int mip_texture_base_layer_ = 0;
@@ -256,9 +259,6 @@ class MTLTexture : public Texture {
   void copy_to(Texture *dst) override;
   void clear(eGPUDataFormat format, const void *data) override;
   void swizzle_set(const char swizzle_mask[4]) override;
-  void stencil_texture_mode_set(bool use_stencil) override{
-      /* TODO(Metal): implement. */
-  };
   void mip_range_set(int min, int max) override;
   void *read(int mip, eGPUDataFormat type) override;
 
@@ -285,7 +285,8 @@ class MTLTexture : public Texture {
   bool init_internal(GPUVertBuf *vbo) override;
   bool init_internal(GPUTexture *src,
                      int mip_offset,
-                     int layer_offset) override; /* Texture View */
+                     int layer_offset,
+                     bool use_stencil) override; /* Texture View */
 
  private:
   /* Common Constructor, default initialization. */
@@ -518,6 +519,32 @@ inline std::string tex_data_format_to_msl_texture_template_type(eGPUDataFormat t
   return "";
 }
 
+/* Fetch Metal texture type from GPU texture type. */
+inline MTLTextureType to_metal_type(eGPUTextureType type)
+{
+  switch (type) {
+    case GPU_TEXTURE_1D:
+      return MTLTextureType1D;
+    case GPU_TEXTURE_2D:
+      return MTLTextureType2D;
+    case GPU_TEXTURE_3D:
+      return MTLTextureType3D;
+    case GPU_TEXTURE_CUBE:
+      return MTLTextureTypeCube;
+    case GPU_TEXTURE_BUFFER:
+      return MTLTextureTypeTextureBuffer;
+    case GPU_TEXTURE_1D_ARRAY:
+      return MTLTextureType1DArray;
+    case GPU_TEXTURE_2D_ARRAY:
+      return MTLTextureType2DArray;
+    case GPU_TEXTURE_CUBE_ARRAY:
+      return MTLTextureTypeCubeArray;
+    default:
+      BLI_assert_unreachable();
+  }
+  return MTLTextureType2D;
+}
+
 /* Determine whether format is writable or not. Use mtl_format_get_writeable_view_format(..) for
  * these. */
 inline bool mtl_format_is_writable(MTLPixelFormat format)
@@ -551,19 +578,19 @@ inline MTLPixelFormat mtl_format_get_writeable_view_format(MTLPixelFormat format
     case MTLPixelFormatDepth32Float:
       return MTLPixelFormatR32Float;
     case MTLPixelFormatDepth32Float_Stencil8:
-      /* return MTLPixelFormatRG32Float; */
+      // return MTLPixelFormatRG32Float;
       /* No alternative mirror format. This should not be used for
        * manual data upload */
       return MTLPixelFormatInvalid;
     case MTLPixelFormatBGR10A2Unorm:
-      /* return MTLPixelFormatBGRA8Unorm; */
+      // return MTLPixelFormatBGRA8Unorm;
       /* No alternative mirror format. This should not be used for
        * manual data upload */
       return MTLPixelFormatInvalid;
     case MTLPixelFormatDepth24Unorm_Stencil8:
-      /* No direct format, but we'll just mirror the bytes -- Uint
+      /* No direct format, but we'll just mirror the bytes -- `Uint`
        * should ensure bytes are not re-normalized or manipulated */
-      /* return MTLPixelFormatR32Uint; */
+      // return MTLPixelFormatR32Uint;
       return MTLPixelFormatInvalid;
     default:
       return format;
@@ -591,6 +618,14 @@ inline MTLTextureUsage mtl_usage_from_gpu(eGPUTextureUsage usage)
   if (usage & GPU_TEXTURE_USAGE_MIP_SWIZZLE_VIEW) {
     mtl_usage = mtl_usage | MTLTextureUsagePixelFormatView;
   }
+#if defined(MAC_OS_VERSION_14_0)
+  if (@available(macOS 14.0, *)) {
+    if (usage & GPU_TEXTURE_USAGE_ATOMIC) {
+
+      mtl_usage = mtl_usage | MTLTextureUsageShaderAtomic;
+    }
+  }
+#endif
   return mtl_usage;
 }
 

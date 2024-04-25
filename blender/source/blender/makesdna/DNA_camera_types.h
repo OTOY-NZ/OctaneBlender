@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup DNA
@@ -12,10 +13,6 @@
 #include "DNA_gpu_types.h"
 #include "DNA_image_types.h"
 #include "DNA_movieclip_types.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 struct AnimData;
 struct Ipo;
@@ -90,6 +87,21 @@ typedef struct Camera {
   float shiftx, shifty;
   float dof_distance DNA_DEPRECATED;
 
+  char sensor_fit;
+  char panorama_type;
+  char _pad[2];
+
+  /* Fish-eye properties. */
+  float fisheye_fov;
+  float fisheye_lens;
+  float latitude_min, latitude_max;
+  float longitude_min, longitude_max;
+  float fisheye_polynomial_k0;
+  float fisheye_polynomial_k1;
+  float fisheye_polynomial_k2;
+  float fisheye_polynomial_k3;
+  float fisheye_polynomial_k4;
+
   /** Old animation system, deprecated for 2.5. */
   struct Ipo *ipo DNA_DEPRECATED;
 
@@ -99,9 +111,6 @@ typedef struct Camera {
 
   /* CameraBGImage reference images */
   struct ListBase bg_images;
-
-  char sensor_fit;
-  char _pad[7];
 
   /* Stereo settings */
   struct CameraStereoSettings stereo;
@@ -117,6 +126,16 @@ enum {
   CAM_PERSP = 0,
   CAM_ORTHO = 1,
   CAM_PANO = 2,
+};
+
+/* panorama_type */
+enum {
+  CAM_PANORAMA_EQUIRECTANGULAR = 0,
+  CAM_PANORAMA_FISHEYE_EQUIDISTANT = 1,
+  CAM_PANORAMA_FISHEYE_EQUISOLID = 2,
+  CAM_PANORAMA_MIRRORBALL = 3,
+  CAM_PANORAMA_FISHEYE_LENS_POLYNOMIAL = 4,
+  CAM_PANORAMA_EQUIANGULAR_CUBEMAP_FACE = 5,
 };
 
 /* dtx */
@@ -211,7 +230,3 @@ enum {
 enum {
   CAM_DOF_ENABLED = (1 << 0),
 };
-
-#ifdef __cplusplus
-}
-#endif

@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup avi
@@ -8,6 +9,10 @@
 #pragma once
 
 #include <stdio.h> /* for FILE */
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 unsigned int GET_FCC(FILE *fp);
 unsigned int GET_TCC(FILE *fp);
@@ -44,3 +49,7 @@ int avi_get_data_id(AviFormat format, int stream);
 int avi_get_format_type(AviFormat format);
 int avi_get_format_fcc(AviFormat format);
 int avi_get_format_compression(AviFormat format);
+
+#ifdef __cplusplus
+}
+#endif

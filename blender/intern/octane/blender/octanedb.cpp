@@ -12,10 +12,10 @@
 #include "DNA_material_types.h"
 #include "DNA_text_types.h"
 
-#include "WM_api.h"
+#include "WM_api.hh"
 
-#include "BLI_fileops.h"
-#include "DEG_depsgraph.h"
+#include "BLI_fileops.hh"
+#include "DEG_depsgraph.hh"
 
 #include "blender/octanedb.h"
 #include "blender/util.h"
@@ -58,8 +58,7 @@ struct BNodeSocketSetter : BaseVisitor {
       is_custom_node = true;
     }
     if (base_dto_ptr && base_dto_ptr->sName.size()) {
-      PointerRNA ptr;
-      RNA_pointer_create(NULL, bnode->typeinfo->rna_ext.srna, bnode, &ptr);
+      PointerRNA ptr = RNA_pointer_create(NULL, bnode->typeinfo->rna_ext.srna, bnode);
       BL::ShaderNode b_shader_node(ptr);
       if (!base_dto_ptr->bUseSocket) {
         set_blender_node(base_dto_ptr, b_shader_node.ptr, false, is_custom_node);
@@ -236,8 +235,7 @@ void UpdateArrayData(std::vector<std::string> &sArrayData,
                      std::string sPrefix,
                      std::string sPostfix)
 {
-  PointerRNA ptr;
-  RNA_pointer_create(NULL, setter->bnode->typeinfo->rna_ext.srna, setter->bnode, &ptr);
+  PointerRNA ptr = RNA_pointer_create(NULL, setter->bnode->typeinfo->rna_ext.srna, setter->bnode);
   BL::ShaderNode b_shader_node(ptr);
   int arraySize = sArrayData.size();
   RNA_enum_set(&b_shader_node.ptr, sArraySizeName.c_str(), arraySize);
@@ -367,8 +365,7 @@ void OctaneVertexDisplacementMixer::UpdateOctaneDBNode(void *data)
   UpdateArrayData(this->sDisplacements, setter, "displacement_number", "Displacement", "");
   UpdateArrayData(this->sWeightLinks, setter, "displacement_number", "Blend weight", "");
 
-  PointerRNA ptr;
-  RNA_pointer_create(NULL, setter->bnode->typeinfo->rna_ext.srna, setter->bnode, &ptr);
+  PointerRNA ptr = RNA_pointer_create(NULL, setter->bnode->typeinfo->rna_ext.srna, setter->bnode);
   BL::ShaderNode b_shader_node(ptr);
   BL::Node::inputs_iterator b_input;
   for (int i = 1; i <= arraySize; ++i) {

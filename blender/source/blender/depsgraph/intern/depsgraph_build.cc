@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2013 Blender Foundation */
+/* SPDX-FileCopyrightText: 2013 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup depsgraph
@@ -20,15 +21,14 @@
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_simulation_types.h"
 
 #include "BKE_collection.h"
 #include "BKE_main.h"
 #include "BKE_scene.h"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_build.h"
-#include "DEG_depsgraph_debug.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_build.hh"
+#include "DEG_depsgraph_debug.hh"
 
 #include "builder/deg_builder_relations.h"
 #include "builder/pipeline_all_objects.h"
@@ -39,15 +39,15 @@
 
 #include "intern/debug/deg_debug.h"
 
-#include "intern/node/deg_node.h"
-#include "intern/node/deg_node_component.h"
-#include "intern/node/deg_node_id.h"
-#include "intern/node/deg_node_operation.h"
+#include "intern/node/deg_node.hh"
+#include "intern/node/deg_node_component.hh"
+#include "intern/node/deg_node_id.hh"
+#include "intern/node/deg_node_operation.hh"
 
-#include "intern/depsgraph_registry.h"
-#include "intern/depsgraph_relation.h"
-#include "intern/depsgraph_tag.h"
-#include "intern/depsgraph_type.h"
+#include "intern/depsgraph_registry.hh"
+#include "intern/depsgraph_relation.hh"
+#include "intern/depsgraph_tag.hh"
+#include "intern/depsgraph_type.hh"
 
 /* ****************** */
 /* External Build API */
@@ -122,16 +122,6 @@ void DEG_add_collection_geometry_customdata_mask(DepsNodeHandle *node_handle,
   FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
 }
 
-void DEG_add_simulation_relation(DepsNodeHandle *node_handle,
-                                 Simulation *simulation,
-                                 const char *description)
-{
-  deg::OperationKey operation_key(
-      &simulation->id, deg::NodeType::SIMULATION, deg::OperationCode::SIMULATION_EVAL);
-  deg::DepsNodeHandle *deg_node_handle = get_node_handle(node_handle);
-  deg_node_handle->builder->add_node_handle_relation(operation_key, deg_node_handle, description);
-}
-
 void DEG_add_node_tree_output_relation(DepsNodeHandle *node_handle,
                                        bNodeTree *node_tree,
                                        const char *description)
@@ -171,8 +161,8 @@ void DEG_add_bone_relation(DepsNodeHandle *node_handle,
   deg_node_handle->builder->add_node_handle_relation(comp_key, deg_node_handle, description);
 }
 
-void DEG_add_object_pointcache_relation(struct DepsNodeHandle *node_handle,
-                                        struct Object *object,
+void DEG_add_object_pointcache_relation(DepsNodeHandle *node_handle,
+                                        Object *object,
                                         eDepsObjectComponentType component,
                                         const char *description)
 {
@@ -194,9 +184,7 @@ void DEG_add_object_pointcache_relation(struct DepsNodeHandle *node_handle,
   }
 }
 
-void DEG_add_generic_id_relation(struct DepsNodeHandle *node_handle,
-                                 struct ID *id,
-                                 const char *description)
+void DEG_add_generic_id_relation(DepsNodeHandle *node_handle, ID *id, const char *description)
 {
   deg::OperationKey operation_key(
       id, deg::NodeType::GENERIC_DATABLOCK, deg::OperationCode::GENERIC_DATABLOCK_UPDATE);
@@ -204,34 +192,33 @@ void DEG_add_generic_id_relation(struct DepsNodeHandle *node_handle,
   deg_node_handle->builder->add_node_handle_relation(operation_key, deg_node_handle, description);
 }
 
-void DEG_add_depends_on_transform_relation(struct DepsNodeHandle *node_handle,
-                                           const char *description)
+void DEG_add_depends_on_transform_relation(DepsNodeHandle *node_handle, const char *description)
 {
   deg::DepsNodeHandle *deg_node_handle = get_node_handle(node_handle);
   deg_node_handle->builder->add_depends_on_transform_relation(deg_node_handle, description);
 }
 
-void DEG_add_special_eval_flag(struct DepsNodeHandle *node_handle, ID *id, uint32_t flag)
+void DEG_add_special_eval_flag(DepsNodeHandle *node_handle, ID *id, uint32_t flag)
 {
   deg::DepsNodeHandle *deg_node_handle = get_node_handle(node_handle);
   deg_node_handle->builder->add_special_eval_flag(id, flag);
 }
 
-void DEG_add_customdata_mask(struct DepsNodeHandle *node_handle,
-                             struct Object *object,
+void DEG_add_customdata_mask(DepsNodeHandle *node_handle,
+                             Object *object,
                              const CustomData_MeshMasks *masks)
 {
   deg::DepsNodeHandle *deg_node_handle = get_node_handle(node_handle);
   deg_node_handle->builder->add_customdata_mask(object, deg::DEGCustomDataMeshMasks(masks));
 }
 
-struct ID *DEG_get_id_from_handle(struct DepsNodeHandle *node_handle)
+ID *DEG_get_id_from_handle(DepsNodeHandle *node_handle)
 {
   deg::DepsNodeHandle *deg_handle = get_node_handle(node_handle);
   return deg_handle->node->owner->owner->id_orig;
 }
 
-struct Depsgraph *DEG_get_graph_from_handle(struct DepsNodeHandle *node_handle)
+Depsgraph *DEG_get_graph_from_handle(DepsNodeHandle *node_handle)
 {
   deg::DepsNodeHandle *deg_node_handle = get_node_handle(node_handle);
   deg::DepsgraphRelationBuilder *relation_builder = deg_node_handle->builder;
@@ -247,7 +234,7 @@ void DEG_graph_build_from_view_layer(Depsgraph *graph)
   builder.build();
 }
 
-void DEG_graph_build_for_all_objects(struct Depsgraph *graph)
+void DEG_graph_build_for_all_objects(Depsgraph *graph)
 {
   deg::AllObjectsBuilderPipeline builder(graph);
   builder.build();

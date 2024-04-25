@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2023 Blender Authors
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 # Note: this code should be cleaned up / refactored.
@@ -220,6 +222,9 @@ def cmake_get_src(f: str) -> None:
                 l = l.replace("${CMAKE_CURRENT_SOURCE_DIR}", cmake_base)
                 l = l.replace("${CMAKE_CURRENT_BINARY_DIR}", cmake_base_bin)
                 l = l.strip('"')
+                # For library lists.
+                for known_prefix in ("PUBLIC ", "PRIVATE "):
+                    l = l.removeprefix(known_prefix).lstrip()
 
                 if not l:
                     pass
@@ -349,8 +354,8 @@ def main() -> None:
     errs.reverse()
     for cf, i in errs:
         print("%s:%d" % (cf, i))
-        # Write a 'sed' script, useful if we get a lot of these
-        # print("sed '%dd' '%s' > '%s.tmp' ; mv '%s.tmp' '%s'" % (i, cf, cf, cf, cf))
+        # Write a `sed` script, useful if we get a lot of theses:
+        # `print("sed '%dd' '%s' > '%s.tmp' ; mv '%s.tmp' '%s'" % (i, cf, cf, cf, cf))`
 
     if is_err:
         raise Exception("CMake references missing files, aborting!")

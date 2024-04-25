@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -24,15 +26,15 @@ namespace ContextFunctions {
 
 // GetTimeStamp
 /** Returns the system time stamp */
-unsigned GetTimeStampCF();
+uint GetTimeStampCF();
 
 // GetCanvasWidth
 /** Returns the canvas width */
-unsigned GetCanvasWidthCF();
+uint GetCanvasWidthCF();
 
 // GetCanvasHeight
 /** Returns the canvas height */
-unsigned GetCanvasHeightCF();
+uint GetCanvasHeightCF();
 
 // GetBorder
 /** Returns the border */
@@ -42,7 +44,7 @@ BBox<Vec2i> GetBorderCF();
 /** Loads an image map for further reading */
 void LoadMapCF(const char *iFileName,
                const char *iMapName,
-               unsigned iNbLevels = 4,
+               uint iNbLevels = 4,
                float iSigma = 1.0f);
 
 // ReadMapPixel
@@ -57,7 +59,7 @@ void LoadMapCF(const char *iFileName,
  * \param y:
  *    The y-coordinate of the pixel we wish to read. The origin is in the lower-left corner.
  */
-float ReadMapPixelCF(const char *iMapName, int level, unsigned x, unsigned y);
+float ReadMapPixelCF(const char *iMapName, int level, uint x, uint y);
 
 // ReadCompleteViewMapPixel
 /** Reads a pixel in the complete view map
@@ -69,7 +71,7 @@ float ReadMapPixelCF(const char *iMapName, int level, unsigned x, unsigned y);
  * \param y:
  *    The y-coordinate of the pixel we wish to read. The origin is in the lower-left corner.
  */
-float ReadCompleteViewMapPixelCF(int level, unsigned x, unsigned y);
+float ReadCompleteViewMapPixelCF(int level, uint x, uint y);
 
 // ReadOrientedViewMapPixel
 /** Reads a pixel in one of the oriented view map images
@@ -83,7 +85,7 @@ float ReadCompleteViewMapPixelCF(int level, unsigned x, unsigned y);
  * \param y:
  *    The y-coordinate of the pixel we wish to read. The origin is in the lower-left corner.
  */
-float ReadDirectionalViewMapPixelCF(int iOrientation, int level, unsigned x, unsigned y);
+float ReadDirectionalViewMapPixelCF(int iOrientation, int level, uint x, uint y);
 
 // DEBUG
 FEdge *GetSelectedFEdgeCF();

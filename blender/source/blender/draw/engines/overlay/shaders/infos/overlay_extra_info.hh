@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "gpu_shader_create_info.hh"
 
@@ -13,6 +15,7 @@ GPU_SHADER_INTERFACE_INFO(overlay_extra_iface, "")
 
 GPU_SHADER_CREATE_INFO(overlay_extra)
     .do_static_compilation(true)
+    .typedef_source("overlay_shader_shared.h")
     .vertex_in(0, Type::VEC3, "pos")
     .vertex_in(1, Type::INT, "vclass")
     /* Instance attributes. */
@@ -179,12 +182,9 @@ GPU_SHADER_CREATE_INFO(overlay_extra_loose_point_clipped)
 /** \name Motion Path
  * \{ */
 
-GPU_SHADER_INTERFACE_INFO(overlay_motion_path_line_iface, "interp")
-    .flat(Type::VEC2, "ss_pos")
-    .smooth(Type::VEC4, "color");
-
-GPU_SHADER_INTERFACE_INFO(overlay_motion_path_line_no_geom_iface, "interp")
-    .smooth(Type::VEC4, "color");
+GPU_SHADER_INTERFACE_INFO(overlay_motion_path_line_iface, "interp").smooth(Type::VEC4, "color");
+GPU_SHADER_INTERFACE_INFO(overlay_motion_path_line_flat_iface, "interp_flat")
+    .flat(Type::VEC2, "ss_pos");
 
 GPU_SHADER_CREATE_INFO(overlay_motion_path_line)
     .do_static_compilation(true)
@@ -194,6 +194,7 @@ GPU_SHADER_CREATE_INFO(overlay_motion_path_line)
     .push_constant(Type::VEC3, "customColor")
     .push_constant(Type::INT, "lineThickness") /* In pixels. */
     .vertex_out(overlay_motion_path_line_iface)
+    .vertex_out(overlay_motion_path_line_flat_iface)
     .geometry_out(overlay_motion_path_line_iface)
     .geometry_layout(PrimitiveIn::LINES, PrimitiveOut::TRIANGLE_STRIP, 4)
     .fragment_out(0, Type::VEC4, "fragColor")
@@ -210,7 +211,7 @@ GPU_SHADER_CREATE_INFO(overlay_motion_path_line_no_geom)
     .push_constant(Type::BOOL, "selected")
     .push_constant(Type::VEC3, "customColor")
     .push_constant(Type::INT, "lineThickness") /* In pixels. */
-    .vertex_out(overlay_motion_path_line_no_geom_iface)
+    .vertex_out(overlay_motion_path_line_iface)
     .fragment_out(0, Type::VEC4, "fragColor")
     .vertex_source("overlay_motion_path_line_vert_no_geom.glsl")
     .fragment_source("overlay_motion_path_line_frag.glsl")

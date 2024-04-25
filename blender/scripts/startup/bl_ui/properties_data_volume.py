@@ -1,4 +1,7 @@
+# SPDX-FileCopyrightText: 2020-2023 Blender Authors
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
+
 import bpy
 from bpy.types import Panel, UIList
 from rna_prop_ui import PropertyPanel
@@ -23,7 +26,7 @@ class DATA_PT_context_volume(DataButtonsPanel, Panel):
         'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
-        'BLENDER_WORKBENCH_NEXT'}
+    }
 
     def draw(self, context):
         layout = self.layout
@@ -45,7 +48,7 @@ class DATA_PT_volume_file(DataButtonsPanel, Panel):
         'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
-        'BLENDER_WORKBENCH_NEXT'}
+    }
 
     def draw(self, context):
         layout = self.layout
@@ -96,7 +99,7 @@ class DATA_PT_volume_grids(DataButtonsPanel, Panel):
         'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
-        'BLENDER_WORKBENCH_NEXT'}
+    }
 
     def draw(self, context):
         layout = self.layout
@@ -114,7 +117,7 @@ class DATA_PT_volume_render(DataButtonsPanel, Panel):
         'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
-        'BLENDER_WORKBENCH_NEXT'}
+    }
 
     def draw(self, context):
         layout = self.layout
@@ -151,7 +154,7 @@ class DATA_PT_volume_viewport_display(DataButtonsPanel, Panel):
         'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
-        'BLENDER_WORKBENCH_NEXT'}
+    }
 
     def draw(self, context):
         layout = self.layout
@@ -174,13 +177,13 @@ class DATA_PT_volume_viewport_display(DataButtonsPanel, Panel):
 
 class DATA_PT_volume_viewport_display_slicing(DataButtonsPanel, Panel):
     bl_label = ""
-    bl_parent_id = 'DATA_PT_volume_viewport_display'
+    bl_parent_id = "DATA_PT_volume_viewport_display"
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
         'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
-        'BLENDER_WORKBENCH_NEXT'}
+    }
 
     def draw_header(self, context):
         layout = self.layout
@@ -211,7 +214,7 @@ class DATA_PT_custom_props_volume(DataButtonsPanel, PropertyPanel, Panel):
         'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
-        'BLENDER_WORKBENCH_NEXT'}
+    }
     _context_path = "object.data"
     _property_type = bpy.types.Volume
 

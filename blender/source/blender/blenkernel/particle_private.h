@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2018 Blender Foundation */
+/* SPDX-FileCopyrightText: 2018 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bke
@@ -48,7 +49,7 @@ float do_clump(ParticleKey *state,
                float pa_clump,
                bool use_clump_noise,
                float clump_noise_size,
-               struct CurveMapping *clumpcurve);
+               const struct CurveMapping *clumpcurve);
 void do_child_modifiers(const ParticleChildModifierContext *modifier_ctx,
                         float mat[4][4],
                         ParticleKey *state,

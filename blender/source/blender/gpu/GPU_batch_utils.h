@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup gpu
@@ -15,7 +17,7 @@ extern "C" {
 
 struct rctf;
 
-/* gpu_batch_utils.c */
+/* `gpu_batch_utils.cc` */
 
 /**
  * Creates triangles from a byte-array of polygons.

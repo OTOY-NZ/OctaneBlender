@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bli
@@ -14,7 +16,6 @@
 
 #include "DNA_listBase.h"
 
-#include "BLI_math.h"
 #include "BLI_mempool.h"
 #include "BLI_task.h"
 #include "BLI_threads.h"
@@ -25,10 +26,11 @@
 #  include <tbb/task_group.h>
 #endif
 
-/* Task
+/**
+ * Task
  *
- * Unit of work to execute. This is a C++ class to work with TBB. */
-
+ * Unit of work to execute. This is a C++ class to work with TBB.
+ */
 class Task {
  public:
   TaskPool *pool;

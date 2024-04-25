@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bpygpu
@@ -7,6 +9,10 @@
 #pragma once
 
 #include "GPU_vertex_format.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 extern PyTypeObject BPyGPUVertFormat_Type;
 
@@ -18,3 +24,7 @@ typedef struct BPyGPUVertFormat {
 } BPyGPUVertFormat;
 
 PyObject *BPyGPUVertFormat_CreatePyObject(struct GPUVertFormat *fmt);
+
+#ifdef __cplusplus
+}
+#endif

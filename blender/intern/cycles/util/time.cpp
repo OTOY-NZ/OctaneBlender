@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #include "util/time.h"
 
@@ -55,8 +56,9 @@ void time_sleep(double t)
 
   /* get microseconds */
   int us = (int)(t * 1e6);
-  if (us > 0)
+  if (us > 0) {
     usleep(us);
+  }
 }
 #endif
 

@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bli
@@ -173,7 +174,7 @@ struct direntry;
 
 /**
  * Does the specified path point to a directory?
- * \note Would be better in `fileops.c` except that it needs `stat.h` so add here.
+ * \note Would be better in `fileops.cc` except that it needs `stat.h` so add here.
  */
 bool BLI_is_dir(const char *path) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
 /**
@@ -185,7 +186,7 @@ bool BLI_is_file(const char *path) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
  */
 bool BLI_dir_create_recursive(const char *dir) ATTR_NONNULL();
 /**
- * Returns the number of free bytes on the volume containing the specified pathname.
+ * Returns the number of free bytes on the volume containing the specified path.
  *
  * \note Not actually used anywhere.
  */
@@ -204,8 +205,8 @@ eFileAttributes BLI_file_attributes(const char *path);
  * Usage of this function is strongly discouraged as it is not thread safe. It will likely cause
  * issues if there is an operation on another thread that does not expect the current working
  * directory to change. This has been added to support USDZ export, which has a problematic
- * "feature" described in this issue https://projects.blender.org/blender/blender/issues/99807. It
- * will be removed if it is possible to resolve that issue upstream in the USD library.
+ * "feature" described in this issue #99807. It will be removed if it is possible to resolve
+ * that issue upstream in the USD library.
  *
  * \return true on success, false otherwise.
  */
@@ -290,6 +291,14 @@ int BLI_open(const char *filepath, int oflag, int pmode) ATTR_WARN_UNUSED_RESULT
 int BLI_access(const char *filepath, int mode) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
 
 /**
+ * A version of `read` with the following differences:
+ * - continues reading until failure or the requested size is met.
+ * - Reads `size_t` bytes instead of `int` on WIN32.
+ * \return the number of bytes read.
+ */
+int64_t BLI_read(int fd, void *buf, size_t nbytes);
+
+/**
  * Returns true if the file with the specified name can be written.
  * This implementation uses access(2), which makes the check according
  * to the real UID and GID of the process, not its effective UID and GID.
@@ -322,11 +331,11 @@ size_t BLI_file_unzstd_to_mem_at_pos(void *buf, size_t len, FILE *file, size_t f
 bool BLI_file_magic_is_zstd(const char header[4]);
 
 /**
- * Returns the file size of an opened file descriptor.
+ * Returns the file size of an opened file descriptor or `size_t(-1)` on failure.
  */
 size_t BLI_file_descriptor_size(int file) ATTR_WARN_UNUSED_RESULT;
 /**
- * Returns the size of a file.
+ * Returns the size of a file or `size_t(-1)` on failure..
  */
 size_t BLI_file_size(const char *path) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
 

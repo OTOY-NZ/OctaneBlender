@@ -1,4 +1,7 @@
+# SPDX-FileCopyrightText: 2009-2023 Blender Authors
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
+
 from bpy.types import Panel
 from bpy.app.translations import contexts as i18n_contexts
 
@@ -954,7 +957,7 @@ class ConstraintButtonsPanel:
         self.draw_influence(layout, con)
 
 
-# Parent class for constraint subpanels
+# Parent class for constraint sub-panels.
 class ConstraintButtonsSubPanel:
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
@@ -1440,7 +1443,7 @@ class BONE_PT_bTransformConstraint_to(BoneConstraintPanel, ConstraintButtonsSubP
         self.draw_transform_to(context)
 
 
-# Shrinkwrap Constraint
+# Shrink-wrap Constraint.
 
 class OBJECT_PT_bShrinkwrapConstraint(ObjectConstraintPanel, ConstraintButtonsPanel, Panel):
     def draw(self, context):

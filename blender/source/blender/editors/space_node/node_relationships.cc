@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2005 Blender Foundation */
+/* SPDX-FileCopyrightText: 2005 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup spnode
@@ -11,6 +12,7 @@
 #include "DNA_node_types.h"
 
 #include "BLI_easing.h"
+#include "BLI_math_geom.h"
 #include "BLI_stack.hh"
 
 #include "BKE_anim_data.h"
@@ -21,29 +23,29 @@
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_node_tree_update.h"
-#include "BKE_screen.h"
+#include "BKE_screen.hh"
 
 #include "ED_node.hh" /* own include */
-#include "ED_render.h"
-#include "ED_screen.h"
-#include "ED_space_api.h"
-#include "ED_util.h"
+#include "ED_render.hh"
+#include "ED_screen.hh"
+#include "ED_space_api.hh"
+#include "ED_util.hh"
 #include "ED_viewer_path.hh"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 #include "RNA_prototypes.h"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
 #include "GPU_state.h"
 
-#include "UI_interface_icons.h"
-#include "UI_resources.h"
-#include "UI_view2d.h"
+#include "UI_interface_icons.hh"
+#include "UI_resources.hh"
+#include "UI_view2d.hh"
 
 #include "BLT_translation.h"
 
@@ -65,8 +67,6 @@ struct NodeInsertOfsData {
 };
 
 namespace blender::ed::space_node {
-
-bNodeSocket *get_main_socket(bNodeTree &ntree, bNode &node, eNodeSocketInOut in_out);
 
 static void clear_picking_highlight(ListBase *links)
 {
@@ -414,9 +414,9 @@ namespace viewer_linking {
  * \{ */
 
 /* Depending on the node tree type, different socket types are supported by viewer nodes. */
-static bool socket_can_be_viewed(const bNodeSocket &socket)
+static bool socket_can_be_viewed(const bNode &node, const bNodeSocket &socket)
 {
-  if (!socket.is_visible()) {
+  if (!node.is_socket_icon_drawn(socket)) {
     return false;
   }
   if (STREQ(socket.idname, "NodeSocketVirtual")) {
@@ -431,6 +431,7 @@ static bool socket_can_be_viewed(const bNodeSocket &socket)
               SOCK_VECTOR,
               SOCK_INT,
               SOCK_BOOLEAN,
+              SOCK_ROTATION,
               SOCK_RGBA);
 }
 
@@ -447,6 +448,8 @@ static eCustomDataType socket_type_to_custom_data_type(const eNodeSocketDatatype
       return CD_PROP_BOOL;
     case SOCK_RGBA:
       return CD_PROP_COLOR;
+    case SOCK_ROTATION:
+      return CD_PROP_QUATERNION;
     default:
       /* Fallback. */
       return CD_AUTO_FROM_NAME;
@@ -527,7 +530,7 @@ static bNodeSocket *determine_socket_to_view(bNode &node_to_view)
   int last_linked_data_socket_index = -1;
   bool has_linked_geometry_socket = false;
   for (bNodeSocket *socket : node_to_view.output_sockets()) {
-    if (!socket_can_be_viewed(*socket)) {
+    if (!socket_can_be_viewed(node_to_view, *socket)) {
       continue;
     }
     for (bNodeLink *link : socket->directly_linked_links()) {
@@ -551,7 +554,7 @@ static bNodeSocket *determine_socket_to_view(bNode &node_to_view)
   if (last_linked_data_socket_index == -1 && !has_linked_geometry_socket) {
     /* Return the first socket that can be viewed. */
     for (bNodeSocket *socket : node_to_view.output_sockets()) {
-      if (socket_can_be_viewed(*socket)) {
+      if (socket_can_be_viewed(node_to_view, *socket)) {
         return socket;
       }
     }
@@ -563,7 +566,7 @@ static bNodeSocket *determine_socket_to_view(bNode &node_to_view)
   for (const int offset : IndexRange(1, tot_outputs)) {
     const int index = (last_linked_data_socket_index + offset) % tot_outputs;
     bNodeSocket &output_socket = node_to_view.output_socket(index);
-    if (!socket_can_be_viewed(output_socket)) {
+    if (!socket_can_be_viewed(node_to_view, output_socket)) {
       continue;
     }
     if (has_linked_geometry_socket && output_socket.type == SOCK_GEOMETRY) {
@@ -737,7 +740,17 @@ static bool node_active_link_viewer_poll(bContext *C)
     return false;
   }
   SpaceNode *snode = CTX_wm_space_node(C);
-  return ED_node_is_compositor(snode) || ED_node_is_geometry(snode);
+  if (ED_node_is_compositor(snode)) {
+    return true;
+  }
+  if (ED_node_is_geometry(snode)) {
+    if (snode->geometry_nodes_type == SNODE_GEOMETRY_TOOL) {
+      /* The viewer node is not supported in the "Tool" context. */
+      return false;
+    }
+    return true;
+  }
+  return false;
 }
 
 void NODE_OT_link_viewer(wmOperatorType *ot)
@@ -2198,7 +2211,7 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode)
   }
 
   /* Set up insert offset data, it needs stuff from here. */
-  if ((snode.flag & SNODE_SKIP_INSOFFSET) == 0) {
+  if (U.uiflag & USER_NODE_AUTO_OFFSET) {
     BLI_assert(snode.runtime->iofsd == nullptr);
     NodeInsertOfsData *iofsd = MEM_cnew<NodeInsertOfsData>(__func__);
 
@@ -2221,8 +2234,6 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode)
 static int get_main_socket_priority(const bNodeSocket *socket)
 {
   switch ((eNodeSocketDatatype)socket->type) {
-    case __SOCK_MESH:
-      return -1;
     case SOCK_CUSTOM:
       return 0;
     case SOCK_BOOLEAN:
@@ -2239,6 +2250,7 @@ static int get_main_socket_priority(const bNodeSocket *socket)
     case SOCK_SHADER:
     case SOCK_OBJECT:
     case SOCK_IMAGE:
+    case SOCK_ROTATION:
     case SOCK_GEOMETRY:
     case SOCK_COLLECTION:
     case SOCK_TEXTURE:
@@ -2257,8 +2269,8 @@ bNodeSocket *get_main_socket(bNodeTree &ntree, bNode &node, eNodeSocketInOut in_
   bke::nodeDeclarationEnsure(&ntree, &node);
   const nodes::NodeDeclaration *node_decl = node.declaration();
   if (node_decl != nullptr) {
-    Span<nodes::SocketDeclarationPtr> socket_decls = (in_out == SOCK_IN) ? node_decl->inputs :
-                                                                           node_decl->outputs;
+    Span<nodes::SocketDeclaration *> socket_decls = (in_out == SOCK_IN) ? node_decl->inputs :
+                                                                          node_decl->outputs;
     int index;
     LISTBASE_FOREACH_INDEX (bNodeSocket *, socket, sockets, index) {
       const nodes::SocketDeclaration &socket_decl = *socket_decls[index];
@@ -2446,11 +2458,10 @@ static void node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
   if (!insert.parent ||
       (prev->parent && (prev->parent == next->parent) && (prev->parent != insert.parent)))
   {
-    bNode *frame;
     rctf totr_frame;
 
     /* check nodes front to back */
-    for (frame = (bNode *)ntree->nodes.last; frame; frame = frame->prev) {
+    LISTBASE_FOREACH_BACKWARD (bNode *, frame, &ntree->nodes) {
       /* skip selected, those are the nodes we want to attach */
       if ((frame->type != NODE_FRAME) || (frame->flag & NODE_SELECT)) {
         continue;
@@ -2546,13 +2557,13 @@ static int node_insert_offset_modal(bContext *C, wmOperator *op, const wmEvent *
     return OPERATOR_PASS_THROUGH;
   }
 
-  const float duration = float(iofsd->anim_timer->duration);
+  const float duration = float(iofsd->anim_timer->time_duration);
 
   /* handle animation - do this before possibly aborting due to duration, since
    * main thread might be so busy that node hasn't reached final position yet */
   for (bNode *node : snode->edittree->all_nodes()) {
     if (UNLIKELY(node->runtime->anim_ofsx)) {
-      const float prev_duration = duration - float(iofsd->anim_timer->delta);
+      const float prev_duration = duration - float(iofsd->anim_timer->time_delta);
       /* Clamp duration to not overshoot. */
       const float clamped_duration = math::min(duration, NODE_INSOFS_ANIM_DURATION);
       if (prev_duration < clamped_duration) {
@@ -2572,7 +2583,7 @@ static int node_insert_offset_modal(bContext *C, wmOperator *op, const wmEvent *
 
   /* end timer + free insert offset data */
   if (duration > NODE_INSOFS_ANIM_DURATION) {
-    WM_event_remove_timer(CTX_wm_manager(C), nullptr, iofsd->anim_timer);
+    WM_event_timer_remove(CTX_wm_manager(C), nullptr, iofsd->anim_timer);
 
     for (bNode *node : snode->edittree->all_nodes()) {
       node->runtime->anim_ofsx = 0.0f;
@@ -2599,10 +2610,10 @@ static int node_insert_offset_invoke(bContext *C, wmOperator *op, const wmEvent 
     return OPERATOR_CANCELLED;
   }
 
-  BLI_assert((snode->flag & SNODE_SKIP_INSOFFSET) == 0);
+  BLI_assert(U.uiflag & USER_NODE_AUTO_OFFSET);
 
   iofsd->ntree = snode->edittree;
-  iofsd->anim_timer = WM_event_add_timer(CTX_wm_manager(C), CTX_wm_window(C), TIMER, 0.02);
+  iofsd->anim_timer = WM_event_timer_add(CTX_wm_manager(C), CTX_wm_window(C), TIMER, 0.02);
 
   node_link_insert_offset_ntree(
       iofsd, CTX_wm_region(C), event->mval, (snode->insert_ofs_dir == SNODE_INSERTOFS_DIR_RIGHT));

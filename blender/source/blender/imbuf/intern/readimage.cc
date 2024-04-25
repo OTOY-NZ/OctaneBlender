@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup imbuf
@@ -16,7 +17,7 @@
 #include "BLI_path_util.h"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
-#include <stdlib.h>
+#include <cstdlib>
 
 #include "IMB_allocimbuf.h"
 #include "IMB_filetype.h"
@@ -32,14 +33,14 @@
 static void imb_handle_alpha(ImBuf *ibuf,
                              int flags,
                              char colorspace[IM_MAX_SPACE],
-                             char effective_colorspace[IM_MAX_SPACE])
+                             const char effective_colorspace[IM_MAX_SPACE])
 {
   if (colorspace) {
-    if (ibuf->rect != nullptr && ibuf->rect_float == nullptr) {
+    if (ibuf->byte_buffer.data != nullptr && ibuf->float_buffer.data == nullptr) {
       /* byte buffer is never internally converted to some standard space,
        * store pointer to its color space descriptor instead
        */
-      ibuf->rect_colorspace = colormanage_colorspace_get_named(effective_colorspace);
+      ibuf->byte_buffer.colorspace = colormanage_colorspace_get_named(effective_colorspace);
     }
 
     BLI_strncpy(colorspace, effective_colorspace, IM_MAX_SPACE);
@@ -59,7 +60,7 @@ static void imb_handle_alpha(ImBuf *ibuf,
   }
   else {
     if (alpha_flags & IB_alphamode_premul) {
-      if (ibuf->rect) {
+      if (ibuf->byte_buffer.data) {
         IMB_unpremultiply_alpha(ibuf);
       }
       else {
@@ -67,7 +68,7 @@ static void imb_handle_alpha(ImBuf *ibuf,
       }
     }
     else {
-      if (ibuf->rect_float) {
+      if (ibuf->float_buffer.data) {
         IMB_premultiply_alpha(ibuf);
       }
       else {
@@ -118,13 +119,15 @@ ImBuf *IMB_loadifffile(int file, int flags, char colorspace[IM_MAX_SPACE], const
 {
   ImBuf *ibuf;
   uchar *mem;
-  size_t size;
 
   if (file == -1) {
     return nullptr;
   }
 
-  size = BLI_file_descriptor_size(file);
+  const size_t size = BLI_file_descriptor_size(file);
+  if (size == size_t(-1)) {
+    return nullptr;
+  }
 
   imb_mmap_lock();
   BLI_mmap_file *mmap_file = BLI_mmap_open(file);
@@ -168,9 +171,9 @@ ImBuf *IMB_loadiffname(const char *filepath, int flags, char colorspace[IM_MAX_S
   return ibuf;
 }
 
-struct ImBuf *IMB_thumb_load_image(const char *filepath,
-                                   size_t max_thumb_size,
-                                   char colorspace[IM_MAX_SPACE])
+ImBuf *IMB_thumb_load_image(const char *filepath,
+                            size_t max_thumb_size,
+                            char colorspace[IM_MAX_SPACE])
 {
   const ImFileType *type = IMB_file_type_from_ftype(IMB_ispic_type(filepath));
   if (type == nullptr) {

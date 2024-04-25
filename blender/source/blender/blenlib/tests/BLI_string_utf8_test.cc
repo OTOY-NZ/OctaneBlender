@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0 */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #include "testing/testing.h"
 
@@ -19,7 +21,7 @@
 /* Breaking strings is confusing here, prefer over-long lines. */
 /* clang-format off */
 
-/* Each test is made of a 79 bytes (80 with NULL char) string to test, expected string result after
+/* Each test is made of a 79 bytes (80 with null char) string to test, expected string result after
  * stripping invalid utf8 bytes, and a single-byte string encoded with expected number of errors.
  *
  * Based on utf-8 decoder stress-test (https://www.cl.cam.ac.uk/~mgk25/ucs/examples/UTF-8-test.txt)
@@ -291,17 +293,14 @@ TEST(string, Utf8InvalidBytes)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Test #BLI_str_utf8_as_unicode_step
+/** \name Test #BLI_str_utf8_as_unicode_step_safe
  * \{ */
 
 static size_t utf8_as_char32(const char *str, const char str_len, char32_t *r_result)
 {
   size_t i = 0, result_len = 0;
   while ((i < str_len) && (str[i] != '\0')) {
-    char32_t c = BLI_str_utf8_as_unicode_step(str, str_len, &i);
-    if (c != BLI_UTF8_ERR) {
-      r_result[result_len++] = c;
-    }
+    r_result[result_len++] = BLI_str_utf8_as_unicode_step_safe(str, str_len, &i);
   }
   return i;
 }
@@ -761,21 +760,21 @@ TEST(string, StrCursorStepNextUtf8Invalid)
   const char invalid[] = "\xC0\xCC\x80\x09\x0D\x0A\xCC\x80";
   const size_t len = 8;
   int pos = 0;
-  EXPECT_TRUE(BLI_str_cursor_step_next_utf8(invalid, len, &pos) && pos == 8);
+  EXPECT_EQ(BLI_str_cursor_step_next_utf8(invalid, len, &pos) ? pos : -1, 3);
   pos = 1;
-  EXPECT_TRUE(BLI_str_cursor_step_next_utf8(invalid, len, &pos) && pos == 8);
+  EXPECT_EQ(BLI_str_cursor_step_next_utf8(invalid, len, &pos) ? pos : -1, 3);
   pos = 2;
-  EXPECT_TRUE(BLI_str_cursor_step_next_utf8(invalid, len, &pos) && pos == 8);
+  EXPECT_EQ(BLI_str_cursor_step_next_utf8(invalid, len, &pos) ? pos : -1, 3);
   pos = 3;
-  EXPECT_TRUE(BLI_str_cursor_step_next_utf8(invalid, len, &pos) && pos == 8);
+  EXPECT_EQ(BLI_str_cursor_step_next_utf8(invalid, len, &pos) ? pos : -1, 4);
   pos = 4;
-  EXPECT_TRUE(BLI_str_cursor_step_next_utf8(invalid, len, &pos) && pos == 8);
+  EXPECT_EQ(BLI_str_cursor_step_next_utf8(invalid, len, &pos) ? pos : -1, 5);
   pos = 5;
-  EXPECT_TRUE(BLI_str_cursor_step_next_utf8(invalid, len, &pos) && pos == 8);
+  EXPECT_EQ(BLI_str_cursor_step_next_utf8(invalid, len, &pos) ? pos : -1, 8);
   pos = 6;
-  EXPECT_TRUE(BLI_str_cursor_step_next_utf8(invalid, len, &pos) && pos == 8);
+  EXPECT_EQ(BLI_str_cursor_step_next_utf8(invalid, len, &pos) ? pos : -1, 8);
   pos = 7;
-  EXPECT_TRUE(BLI_str_cursor_step_next_utf8(invalid, len, &pos) && pos == 8);
+  EXPECT_EQ(BLI_str_cursor_step_next_utf8(invalid, len, &pos) ? pos : -1, 8);
   pos = 8;
   EXPECT_FALSE(BLI_str_cursor_step_next_utf8(invalid, len, &pos));
 }

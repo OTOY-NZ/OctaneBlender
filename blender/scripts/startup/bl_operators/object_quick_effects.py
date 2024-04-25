@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2011-2023 Blender Authors
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 from mathutils import Vector
@@ -187,7 +189,7 @@ class QuickFur(ObjectModeOperator, Operator):
                 with context.temp_override(object=curves_object):
                     try:
                         bpy.ops.object.modifier_apply(modifier=generate_modifier.name)
-                    except:
+                    except BaseException:
                         modifier_apply_error = True
 
             curves_object.modifiers.move(0, len(curves_object.modifiers) - 1)
@@ -260,15 +262,17 @@ class QuickExplode(ObjectModeOperator, Operator):
     )
 
     def execute(self, context):
-        fake_context = context.copy()
+        context_override = context.copy()
         obj_act = context.active_object
 
         if obj_act is None or obj_act.type != 'MESH':
             self.report({'ERROR'}, "Active object is not a mesh")
             return {'CANCELLED'}
 
-        mesh_objects = [obj for obj in context.selected_objects
-                        if obj.type == 'MESH' and obj != obj_act]
+        mesh_objects = [
+            obj for obj in context.selected_objects
+            if obj.type == 'MESH' and obj != obj_act
+        ]
         mesh_objects.insert(0, obj_act)
 
         if self.style == 'BLEND' and len(mesh_objects) != 2:
@@ -292,8 +296,9 @@ class QuickExplode(ObjectModeOperator, Operator):
             to_obj = mesh_objects[0]
 
         for obj in mesh_objects:
-            fake_context["object"] = obj
-            bpy.ops.object.particle_system_add(fake_context)
+            context_override["object"] = obj
+            with context.temp_override(**context_override):
+                bpy.ops.object.particle_system_add()
 
             settings = obj.particle_systems[-1].settings
             settings.count = self.amount
@@ -374,9 +379,10 @@ class QuickExplode(ObjectModeOperator, Operator):
 
                 psys = obj.particle_systems[-1]
 
-                fake_context["particle_system"] = obj.particle_systems[-1]
-                bpy.ops.particle.new_target(fake_context)
-                bpy.ops.particle.new_target(fake_context)
+                context_override["particle_system"] = obj.particle_systems[-1]
+                with context.temp_override(**context_override):
+                    bpy.ops.particle.new_target()
+                    bpy.ops.particle.new_target()
 
                 if obj == from_obj:
                     psys.targets[1].object = to_obj
@@ -440,9 +446,11 @@ class QuickSmoke(ObjectModeOperator, Operator):
             self.report({'ERROR'}, "Built without Fluid modifier")
             return {'CANCELLED'}
 
-        fake_context = context.copy()
-        mesh_objects = [obj for obj in context.selected_objects
-                        if obj.type == 'MESH']
+        context_override = context.copy()
+        mesh_objects = [
+            obj for obj in context.selected_objects
+            if obj.type == 'MESH'
+        ]
         min_co = Vector((100000.0, 100000.0, 100000.0))
         max_co = -min_co
 
@@ -451,9 +459,10 @@ class QuickSmoke(ObjectModeOperator, Operator):
             return {'CANCELLED'}
 
         for obj in mesh_objects:
-            fake_context["object"] = obj
+            context_override["object"] = obj
             # make each selected object a smoke flow
-            bpy.ops.object.modifier_add(fake_context, type='FLUID')
+            with context.temp_override(**context_override):
+                bpy.ops.object.modifier_add(type='FLUID')
             obj.modifiers[-1].fluid_type = 'FLOW'
 
             # set type
@@ -492,7 +501,7 @@ class QuickSmoke(ObjectModeOperator, Operator):
 
         # Setup material
 
-        # Cycles and Eevee
+        # Cycles and EEVEE.
         bpy.ops.object.material_slot_add()
 
         mat = bpy.data.materials.new("Smoke Domain Material")
@@ -545,9 +554,11 @@ class QuickLiquid(Operator):
             self.report({'ERROR'}, "Built without Fluid modifier")
             return {'CANCELLED'}
 
-        fake_context = context.copy()
-        mesh_objects = [obj for obj in context.selected_objects
-                        if obj.type == 'MESH']
+        context_override = context.copy()
+        mesh_objects = [
+            obj for obj in context.selected_objects
+            if obj.type == 'MESH'
+        ]
         min_co = Vector((100000.0, 100000.0, 100000.0))
         max_co = -min_co
 
@@ -563,9 +574,10 @@ class QuickLiquid(Operator):
                         space.shading.type = 'WIREFRAME'
 
         for obj in mesh_objects:
-            fake_context["object"] = obj
+            context_override["object"] = obj
             # make each selected object a liquid flow
-            bpy.ops.object.modifier_add(fake_context, type='FLUID')
+            with context.temp_override(**context_override):
+                bpy.ops.object.modifier_add(type='FLUID')
             obj.modifiers[-1].fluid_type = 'FLOW'
 
             # set type

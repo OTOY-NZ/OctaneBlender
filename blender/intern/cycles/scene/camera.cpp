@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #include "scene/camera.h"
 #include "scene/mesh.h"
@@ -226,8 +227,9 @@ void Camera::update(Scene *scene)
     need_device_update = true;
   }
 
-  if (!is_modified())
+  if (!is_modified()) {
     return;
+  }
 
   scoped_callback_timer timer([scene](double time) {
     if (scene->update_stats) {
@@ -253,12 +255,15 @@ void Camera::update(Scene *scene)
 
   /* Screen to camera. */
   ProjectionTransform cameratoscreen;
-  if (camera_type == CAMERA_PERSPECTIVE)
+  if (camera_type == CAMERA_PERSPECTIVE) {
     cameratoscreen = projection_perspective(fov, nearclip, farclip);
-  else if (camera_type == CAMERA_ORTHOGRAPHIC)
+  }
+  else if (camera_type == CAMERA_ORTHOGRAPHIC) {
     cameratoscreen = projection_orthographic(nearclip, farclip);
-  else
+  }
+  else {
     cameratoscreen = projection_identity();
+  }
 
   ProjectionTransform screentocamera = projection_inverse(cameratoscreen);
 
@@ -473,8 +478,9 @@ void Camera::device_update(Device * /* device */, DeviceScene *dscene, Scene *sc
 {
   update(scene);
 
-  if (!need_device_update)
+  if (!need_device_update) {
     return;
+  }
 
   scoped_callback_timer timer([scene](double time) {
     if (scene->update_stats) {
@@ -752,19 +758,15 @@ float Camera::world_to_raster_size(float3 P)
       /* No differentials, just use from directly ahead. */
       camera_sample_panorama(&kernel_camera,
                              kernel_camera_motion.data(),
-                             0.5f * full_width,
-                             0.5f * full_height,
-                             0.0f,
-                             0.0f,
+                             0.5f * make_float2(full_width, full_height),
+                             zero_float2(),
                              &ray);
     }
 #else
     camera_sample_panorama(&kernel_camera,
                            kernel_camera_motion.data(),
-                           0.5f * full_width,
-                           0.5f * full_height,
-                           0.0f,
-                           0.0f,
+                           0.5f * make_float2(full_width, full_height),
+                           zero_float2(),
                            &ray);
 #endif
 

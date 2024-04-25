@@ -77,12 +77,17 @@ def octane_unregister_class(classes):
 def octane_register_interface_class(classes, socket_interface_classes):
     from bpy.utils import register_class
     from octane.nodes.base_socket import OctaneBaseSocketInterface
+    major, minor, patch = bpy.app.version
+    if major >= 4:
+        node_tree_interface = bpy.types.NodeTreeInterfaceSocket
+    else:
+        node_tree_interface = bpy.types.NodeSocketInterface
     for _class in classes:
         if issubclass(_class, bpy.types.NodeSocket):
             bl_idname = _class.bl_idname + "Interface"
             bl_socket_idname = _class.bl_idname
             bl_label = _class.bl_label
-            ntype = type(bl_idname, (bpy.types.NodeSocketInterface, OctaneBaseSocketInterface), {
+            ntype = type(bl_idname, (node_tree_interface, OctaneBaseSocketInterface), {
                 'bl_idname': bl_idname,
                 'bl_socket_idname': bl_socket_idname,
                 'bl_label': bl_label,
@@ -992,6 +997,22 @@ def beautifier_nodetree_layout_by_owner(id_data):
     return beautifier_nodetree_layout_with_nodetree(node_tree, owner_type)
 
 ##### Scenes #####
+
+
+def update_octane_viewport_shading_type(shading_type=None):
+    if shading_type is None:
+        for window in bpy.context.window_manager.windows:
+            for area in window.screen.areas:
+                if area.type == "VIEW_3D":
+                    for space in area.spaces:
+                        if space.type == "VIEW_3D":
+                            shading_type = space.shading.type
+                            break
+    if shading_type is not None:
+        scene = bpy.context.scene
+        if getattr(scene, "octane", None) is not None:
+            oct_scene = scene.octane
+            oct_scene.octane_shading_type = shading_type
 
 def set_all_viewport_shading_type(shading_type="SOLID"):
     scene = bpy.context.scene

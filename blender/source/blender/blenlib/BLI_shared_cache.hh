@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -28,6 +30,8 @@ template<typename T> class SharedCache {
   struct CacheData {
     CacheMutex mutex;
     T data;
+    CacheData() = default;
+    CacheData(const T &data) : data(data) {}
   };
   std::shared_ptr<CacheData> cache_;
 
@@ -58,8 +62,25 @@ template<typename T> class SharedCache {
     cache_->mutex.ensure([&]() { compute_cache(this->cache_->data); });
   }
 
+  /**
+   * Represents a combination of "tag dirty" and "update cache for new data." Existing cached
+   * values are kept available (copied from shared data if necessary). This can be helpful when
+   * the recalculation is only expected to make a small change to the cached data, since using
+   * #tag_dirty() and #ensure() separately may require rebuilding the cache from scratch.
+   */
+  void update(FunctionRef<void(T &data)> compute_cache)
+  {
+    if (cache_.unique()) {
+      cache_->mutex.tag_dirty();
+    }
+    else {
+      cache_ = std::make_shared<CacheData>(cache_->data);
+    }
+    cache_->mutex.ensure([&]() { compute_cache(this->cache_->data); });
+  }
+
   /** Retrieve the cached data. */
-  const T &data()
+  const T &data() const
   {
     BLI_assert(cache_->mutex.is_cached());
     return cache_->data;

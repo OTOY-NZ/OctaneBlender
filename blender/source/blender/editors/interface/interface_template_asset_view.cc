@@ -1,13 +1,17 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup edinterface
  */
 
+#include "AS_asset_representation.hh"
+
 #include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
 
-#include "BKE_screen.h"
+#include "BKE_screen.hh"
 
 #include "BLI_path_util.h"
 #include "BLI_string.h"
@@ -15,21 +19,22 @@
 
 #include "BLO_readfile.h"
 
-#include "ED_asset.h"
-#include "ED_screen.h"
+#include "ED_asset.hh"
+#include "ED_screen.hh"
 
 #include "MEM_guardedalloc.h"
 
-#include "RNA_access.h"
+#include "RNA_access.hh"
 #include "RNA_prototypes.h"
 
-#include "UI_interface.h"
 #include "UI_interface.hh"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
 #include "interface_intern.hh"
+
+using namespace blender;
 
 struct AssetViewListData {
   AssetLibraryReference asset_library_ref;
@@ -40,28 +45,23 @@ struct AssetViewListData {
 
 static void asset_view_item_but_drag_set(uiBut *but, AssetHandle *asset_handle)
 {
-  ID *id = ED_asset_handle_get_local_id(asset_handle);
+  blender::asset_system::AssetRepresentation *asset = ED_asset_handle_get_representation(
+      asset_handle);
+
+  UI_but_dragflag_enable(but, UI_BUT_DRAG_FULL_BUT);
+
+  ID *id = asset->local_id();
   if (id != nullptr) {
     UI_but_drag_set_id(but, id);
     return;
   }
 
-  char blend_path[FILE_MAX_LIBEXTRA];
-  ED_asset_handle_get_full_library_path(asset_handle, blend_path);
+  const eAssetImportMethod import_method = asset->get_import_method().value_or(
+      ASSET_IMPORT_APPEND_REUSE);
 
-  const eAssetImportMethod import_method =
-      ED_asset_handle_get_import_method(asset_handle).value_or(ASSET_IMPORT_APPEND_REUSE);
-
-  if (blend_path[0]) {
-    ImBuf *imbuf = ED_assetlist_asset_image_get(asset_handle);
-    UI_but_drag_set_asset(but,
-                          asset_handle,
-                          BLI_strdup(blend_path),
-                          import_method,
-                          ED_asset_handle_get_preview_icon_id(asset_handle),
-                          imbuf,
-                          1.0f);
-  }
+  ImBuf *imbuf = ED_assetlist_asset_image_get(asset_handle);
+  UI_but_drag_set_asset(
+      but, asset, import_method, ED_asset_handle_get_preview_icon_id(asset_handle), imbuf, 1.0f);
 }
 
 static void asset_view_draw_item(uiList *ui_list,
@@ -77,39 +77,39 @@ static void asset_view_draw_item(uiList *ui_list,
 {
   AssetViewListData *list_data = (AssetViewListData *)ui_list->dyn_data->customdata;
 
-  AssetHandle asset_handle = ED_assetlist_asset_get_by_index(&list_data->asset_library_ref, index);
+  AssetHandle asset_handle = ED_assetlist_asset_handle_get_by_index(&list_data->asset_library_ref,
+                                                                    index);
 
-  PointerRNA file_ptr;
-  RNA_pointer_create(&list_data->screen->id,
-                     &RNA_FileSelectEntry,
-                     const_cast<FileDirEntry *>(asset_handle.file_data),
-                     &file_ptr);
+  PointerRNA file_ptr = RNA_pointer_create(&list_data->screen->id,
+                                           &RNA_FileSelectEntry,
+                                           const_cast<FileDirEntry *>(asset_handle.file_data));
   uiLayoutSetContextPointer(layout, "active_file", &file_ptr);
 
   uiBlock *block = uiLayoutGetBlock(layout);
   const bool show_names = list_data->show_names;
-  /* TODO ED_fileselect_init_layout(). Share somehow? */
-  const float size_x = (96.0f / 20.0f) * UI_UNIT_X;
-  const float size_y = (96.0f / 20.0f) * UI_UNIT_Y - (show_names ? 0 : UI_UNIT_Y);
-  uiBut *but = uiDefIconTextBut(block,
-                                UI_BTYPE_PREVIEW_TILE,
-                                0,
-                                ED_asset_handle_get_preview_icon_id(&asset_handle),
-                                show_names ? ED_asset_handle_get_name(&asset_handle) : "",
-                                0,
-                                0,
-                                size_x,
-                                size_y,
-                                nullptr,
-                                0,
-                                0,
-                                0,
-                                0,
-                                "");
+  const float size_x = UI_preview_tile_size_x();
+  const float size_y = show_names ? UI_preview_tile_size_y() : UI_preview_tile_size_y_no_label();
+  uiBut *but = uiDefIconTextBut(
+      block,
+      UI_BTYPE_PREVIEW_TILE,
+      0,
+      ED_asset_handle_get_preview_icon_id(&asset_handle),
+      show_names ? ED_asset_handle_get_representation(&asset_handle)->get_name().c_str() : "",
+      0,
+      0,
+      size_x,
+      size_y,
+      nullptr,
+      0,
+      0,
+      0,
+      0,
+      "");
   ui_def_but_icon(but,
                   ED_asset_handle_get_preview_icon_id(&asset_handle),
                   /* NOLINTNEXTLINE: bugprone-suspicious-enum-usage */
                   UI_HAS_ICON | UI_BUT_ICON_PREVIEW);
+  but->emboss = UI_EMBOSS_NONE;
   if (!ui_list->dyn_data->custom_drag_optype) {
     asset_view_item_but_drag_set(but, &asset_handle);
   }
@@ -130,8 +130,10 @@ static void asset_view_filter_items(uiList *ui_list,
       C,
       [&name_filter, list_data, &filter_settings](
           const PointerRNA &itemptr, blender::StringRefNull name, int index) {
-        AssetHandle asset = ED_assetlist_asset_get_by_index(&list_data->asset_library_ref, index);
-        if (!ED_asset_filter_matches_asset(&filter_settings, &asset)) {
+        asset_system::AssetRepresentation *asset = ED_assetlist_asset_get_by_index(
+            list_data->asset_library_ref, index);
+
+        if (!ED_asset_filter_matches_asset(&filter_settings, *asset)) {
           return UI_LIST_ITEM_NEVER_SHOW;
         }
         return name_filter(itemptr, name, index);
@@ -139,14 +141,15 @@ static void asset_view_filter_items(uiList *ui_list,
       dataptr,
       propname,
       [list_data](const PointerRNA & /*itemptr*/, int index) -> std::string {
-        AssetHandle asset = ED_assetlist_asset_get_by_index(&list_data->asset_library_ref, index);
-        return ED_asset_handle_get_name(&asset);
+        asset_system::AssetRepresentation *asset = ED_assetlist_asset_get_by_index(
+            list_data->asset_library_ref, index);
+
+        return asset->get_name();
       });
 }
 
-static void asset_view_listener(uiList *ui_list, wmRegionListenerParams *params)
+static void asset_view_listener(uiList * /*ui_list*/, wmRegionListenerParams *params)
 {
-  AssetViewListData *list_data = (AssetViewListData *)ui_list->dyn_data->customdata;
   const wmNotifier *notifier = params->notifier;
 
   switch (notifier->category) {
@@ -158,7 +161,7 @@ static void asset_view_listener(uiList *ui_list, wmRegionListenerParams *params)
     }
   }
 
-  if (ED_assetlist_listen(&list_data->asset_library_ref, params->notifier)) {
+  if (ED_assetlist_listen(params->notifier)) {
     ED_region_tag_redraw(params->region);
   }
 }
@@ -201,10 +204,9 @@ static void populate_asset_collection(const AssetLibraryReference &asset_library
      * because the #FileDirEntry may be freed while iterating, there's a cache for them with a
      * maximum size. Further code will query as needed it using the collection index. */
 
-    PointerRNA itemptr, fileptr;
+    PointerRNA itemptr;
     RNA_property_collection_add(&assets_dataptr, assets_prop, &itemptr);
-
-    RNA_pointer_create(nullptr, &RNA_FileSelectEntry, nullptr, &fileptr);
+    PointerRNA fileptr = RNA_pointer_create(nullptr, &RNA_FileSelectEntry, nullptr);
     RNA_pointer_set(&itemptr, "file_data", fileptr);
 
     return true;
@@ -241,7 +243,14 @@ void uiTemplateAssetView(uiLayout *layout,
 
   uiLayout *row = uiLayoutRow(col, true);
   if ((display_flags & UI_TEMPLATE_ASSET_DRAW_NO_LIBRARY) == 0) {
-    uiItemFullR(row, asset_library_dataptr, asset_library_prop, RNA_NO_INDEX, 0, 0, "", 0);
+    uiItemFullR(row,
+                asset_library_dataptr,
+                asset_library_prop,
+                RNA_NO_INDEX,
+                0,
+                UI_ITEM_NONE,
+                "",
+                ICON_NONE);
     if (asset_library_ref.type != ASSET_LIBRARY_LOCAL) {
       uiItemO(row, "", ICON_FILE_REFRESH, "ASSET_OT_library_refresh");
     }
@@ -268,9 +277,14 @@ void uiTemplateAssetView(uiLayout *layout,
     template_list_flags |= UI_TEMPLATE_LIST_NO_FILTER_OPTIONS;
   }
 
+  uiLayout *subcol = uiLayoutColumn(col, false);
+
+  uiLayoutSetScaleX(subcol, 0.8f);
+  uiLayoutSetScaleY(subcol, 0.8f);
+
   /* TODO can we have some kind of model-view API to handle referencing, filtering and lazy loading
    * (of previews) of the items? */
-  uiList *list = uiTemplateList_ex(col,
+  uiList *list = uiTemplateList_ex(subcol,
                                    C,
                                    "UI_UL_asset_view",
                                    list_id,

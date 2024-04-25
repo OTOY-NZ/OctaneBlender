@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup DNA
@@ -8,10 +9,6 @@
 #pragma once
 
 #include "DNA_listBase.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 struct Ipo;
 struct Object;
@@ -32,9 +29,11 @@ typedef struct bActionModifier {
   struct Object *ob;
 } bActionModifier;
 
-/* NLA-Modifier Types (UNUSED) */
-// #define ACTSTRIP_MOD_DEFORM      0
-// #define ACTSTRIP_MOD_NOISE       1
+// /* NLA-Modifier Types (UNUSED) */
+// enum {
+// 	ACTSTRIP_MOD_DEFORM = 0,
+// 	ACTSTRIP_MOD_NOISE = 1,
+// };
 
 typedef struct bActionStrip {
   struct bActionStrip *next, *prev;
@@ -56,7 +55,7 @@ typedef struct bActionStrip {
   float actstart, actend;
   /** Offset within action, for cycles and striding. */
   float actoffs;
-  /** The stridelength (considered when flag & ACT_USESTRIDE). */
+  /** The stride-length (considered when flag & ACT_USESTRIDE). */
   float stridelen;
   /** The number of times to repeat the action range. */
   float repeat;
@@ -75,9 +74,11 @@ typedef struct bActionStrip {
   ListBase modifiers;
 } bActionStrip;
 
-/* strip->mode (these defines aren't really used, but are here for reference) */
-#define ACTSTRIPMODE_BLEND 0
-#define ACTSTRIPMODE_ADD 1
+/** #Strip::mode (these defines aren't really used, but are here for reference) */
+enum {
+  ACTSTRIPMODE_BLEND = 0,
+  ACTSTRIPMODE_ADD = 1,
+};
 
 /** #bActionStrip.flag */
 typedef enum eActStrip_Flag {
@@ -93,7 +94,3 @@ typedef enum eActStrip_Flag {
   ACTSTRIP_REVERSE = (1 << 7),
   ACTSTRIP_AUTO_BLENDS = (1 << 11),
 } eActStrip_Flag;
-
-#ifdef __cplusplus
-}
-#endif

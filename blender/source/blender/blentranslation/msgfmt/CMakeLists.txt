@@ -1,21 +1,20 @@
+# SPDX-FileCopyrightText: 2017 Blender Authors
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
-# Copyright 2017 Blender Foundation
 
 # -----------------------------------------------------------------------------
 # Build msgfmt executable
 
 set(INC
-  ../../../../intern/guardedalloc
-  ../../blenlib
 )
 
 set(SRC
-  msgfmt.c
+  msgfmt.cc
 )
 
 set(LIB
-  bf_blenlib
-  bf_intern_guardedalloc
+  PRIVATE PRIVATE bf::blenlib
+  PRIVATE bf::intern::guardedalloc
   ${ZLIB_LIBRARIES}
   ${PLATFORM_LINKLIBS})
 

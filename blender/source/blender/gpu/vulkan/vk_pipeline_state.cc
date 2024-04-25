@@ -1,11 +1,14 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2023 Blender Foundation */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup gpu
  */
 
 #include "vk_pipeline_state.hh"
+#include "vk_framebuffer.hh"
+#include "vk_texture.hh"
 
 namespace blender::gpu {
 VKPipelineStateManager::VKPipelineStateManager()
@@ -13,6 +16,7 @@ VKPipelineStateManager::VKPipelineStateManager()
   rasterization_state = {};
   rasterization_state.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
   rasterization_state.lineWidth = 1.0f;
+  rasterization_state.frontFace = VK_FRONT_FACE_CLOCKWISE;
 
   pipeline_color_blend_state = {};
   pipeline_color_blend_state.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
@@ -20,14 +24,11 @@ VKPipelineStateManager::VKPipelineStateManager()
   depth_stencil_state = {};
   depth_stencil_state.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
 
-  /* TODO should be extracted from current frame-buffer and should not be done here and now. */
-  /* When the attachments differ the state should be forced. */
-  VkPipelineColorBlendAttachmentState color_blend_attachment = {};
-  color_blend_attachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
-                                          VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-  color_blend_attachments.append(color_blend_attachment);
-  pipeline_color_blend_state.attachmentCount = color_blend_attachments.size();
-  pipeline_color_blend_state.pAttachments = color_blend_attachments.data();
+  color_blend_attachment_template = {};
+  color_blend_attachment_template.colorWriteMask = VK_COLOR_COMPONENT_R_BIT |
+                                                   VK_COLOR_COMPONENT_G_BIT |
+                                                   VK_COLOR_COMPONENT_B_BIT |
+                                                   VK_COLOR_COMPONENT_A_BIT;
 }
 
 void VKPipelineStateManager::set_state(const GPUState &state, const GPUStateMutable &mutable_state)
@@ -74,10 +75,24 @@ void VKPipelineStateManager::force_state(const GPUState &state,
   set_state(state, mutable_state);
 }
 
+void VKPipelineStateManager::finalize_color_blend_state(const VKFrameBuffer &framebuffer)
+{
+  color_blend_attachments.clear();
+  for (int color_slot = 0; color_slot < GPU_FB_MAX_COLOR_ATTACHMENT; color_slot++) {
+    VKTexture *texture = unwrap(unwrap(framebuffer.color_tex(color_slot)));
+    if (texture) {
+      color_blend_attachments.append(color_blend_attachment_template);
+    }
+  }
+
+  pipeline_color_blend_state.attachmentCount = color_blend_attachments.size();
+  pipeline_color_blend_state.pAttachments = color_blend_attachments.data();
+}
+
 void VKPipelineStateManager::set_blend(const eGPUBlend blend)
 {
   VkPipelineColorBlendStateCreateInfo &cb = pipeline_color_blend_state;
-  VkPipelineColorBlendAttachmentState &att_state = color_blend_attachments.last();
+  VkPipelineColorBlendAttachmentState &att_state = color_blend_attachment_template;
 
   att_state.blendEnable = VK_TRUE;
   att_state.alphaBlendOp = VK_BLEND_OP_ADD;
@@ -186,20 +201,19 @@ void VKPipelineStateManager::set_write_mask(const eGPUWriteMask write_mask)
 {
   depth_stencil_state.depthWriteEnable = (write_mask & GPU_WRITE_DEPTH) ? VK_TRUE : VK_FALSE;
 
-  VkPipelineColorBlendAttachmentState &att_state = color_blend_attachments.last();
-  att_state.colorWriteMask = 0;
+  color_blend_attachment_template.colorWriteMask = 0;
 
   if ((write_mask & GPU_WRITE_RED) != 0) {
-    att_state.colorWriteMask |= VK_COLOR_COMPONENT_R_BIT;
+    color_blend_attachment_template.colorWriteMask |= VK_COLOR_COMPONENT_R_BIT;
   }
   if ((write_mask & GPU_WRITE_GREEN) != 0) {
-    att_state.colorWriteMask |= VK_COLOR_COMPONENT_G_BIT;
+    color_blend_attachment_template.colorWriteMask |= VK_COLOR_COMPONENT_G_BIT;
   }
   if ((write_mask & GPU_WRITE_BLUE) != 0) {
-    att_state.colorWriteMask |= VK_COLOR_COMPONENT_B_BIT;
+    color_blend_attachment_template.colorWriteMask |= VK_COLOR_COMPONENT_B_BIT;
   }
   if ((write_mask & GPU_WRITE_ALPHA) != 0) {
-    att_state.colorWriteMask |= VK_COLOR_COMPONENT_A_BIT;
+    color_blend_attachment_template.colorWriteMask |= VK_COLOR_COMPONENT_A_BIT;
   }
 }
 
@@ -234,8 +248,6 @@ void VKPipelineStateManager::set_depth_test(const eGPUDepthTest value)
     depth_stencil_state.depthTestEnable = VK_FALSE;
     depth_stencil_state.depthCompareOp = VK_COMPARE_OP_NEVER;
   }
-
-  depth_stencil_state.depthBoundsTestEnable = VK_TRUE;
 }
 
 void VKPipelineStateManager::set_stencil_test(const eGPUStencilTest test,
@@ -289,12 +301,11 @@ void VKPipelineStateManager::set_stencil_test(const eGPUStencilTest test,
 void VKPipelineStateManager::set_stencil_mask(const eGPUStencilTest test,
                                               const GPUStateMutable &mutable_state)
 {
-  depth_stencil_state.front.writeMask = static_cast<uint32_t>(mutable_state.stencil_write_mask);
-  depth_stencil_state.front.reference = static_cast<uint32_t>(mutable_state.stencil_reference);
+  depth_stencil_state.front.writeMask = uint32_t(mutable_state.stencil_write_mask);
+  depth_stencil_state.front.reference = uint32_t(mutable_state.stencil_reference);
 
   depth_stencil_state.front.compareOp = VK_COMPARE_OP_ALWAYS;
-  depth_stencil_state.front.compareMask = static_cast<uint32_t>(
-      mutable_state.stencil_compare_mask);
+  depth_stencil_state.front.compareMask = uint32_t(mutable_state.stencil_compare_mask);
 
   switch (test) {
     case GPU_STENCIL_NEQUAL:
@@ -355,9 +366,9 @@ void VKPipelineStateManager::set_shadow_bias(const bool enable)
 {
   if (enable) {
     rasterization_state.depthBiasEnable = VK_TRUE;
-    rasterization_state.depthBiasSlopeFactor = 2.f;
-    rasterization_state.depthBiasConstantFactor = 1.f;
-    rasterization_state.depthBiasClamp = 0.f;
+    rasterization_state.depthBiasSlopeFactor = 2.0f;
+    rasterization_state.depthBiasConstantFactor = 1.0f;
+    rasterization_state.depthBiasClamp = 0.0f;
   }
   else {
     rasterization_state.depthBiasEnable = VK_FALSE;

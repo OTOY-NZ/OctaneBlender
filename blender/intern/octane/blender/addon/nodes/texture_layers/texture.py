@@ -282,3 +282,6 @@ original_register = register
 original_unregister = unregister
 register = override_register
 unregister = override_unregister
+
+
+OctaneTexLayerTexture.bl_label = "Composite Texture Layer"

@@ -221,6 +221,18 @@ class OCTANE_OT_ActivateOctane(OCTANE_OT_BaseCommand):
     bl_label = "Open activation state dialog on OctaneServer"
     command_type = consts.UtilsFunctionType.SHOW_ACTIVATION
 
+class OCTANE_OT_ToggleRecord(OCTANE_OT_BaseCommand):
+    """DEBUG: Toggle Record"""
+    bl_idname = "octane.toggle_record"
+    bl_label = "Toggle Record"
+    command_type = consts.UtilsFunctionType.TOGGLE_RECORD
+
+class OCTANE_OT_PlayRecord(OCTANE_OT_BaseCommand):
+    """DEBUG: Play Record"""
+    bl_idname = "octane.play_record"
+    bl_label = "Play Record"
+    command_type = consts.UtilsFunctionType.PLAY_RECORD
+
 
 class OCTANE_OT_ClearResourceCache(Operator):
     """Clear the Resource Cache"""
@@ -1077,6 +1089,8 @@ classes = (
     OCTANE_OT_ShowOctaneDB,
     OCTANE_OT_SaveOctaneDB,
     OCTANE_OT_ClearResourceCache,
+    OCTANE_OT_ToggleRecord,
+    OCTANE_OT_PlayRecord,
 
     OCTANE_OT_UpdateOctaneGeoNodeCollections,
     OCTANE_OT_UpdateOSLCameraNodeCollections,

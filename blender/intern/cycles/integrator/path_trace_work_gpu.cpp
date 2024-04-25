@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #include "integrator/path_trace_work_gpu.h"
 #include "integrator/path_trace_display.h"
@@ -508,7 +509,8 @@ void PathTraceWorkGPU::enqueue_path_iteration(DeviceKernel kernel, const int num
 
     case DEVICE_KERNEL_INTEGRATOR_INTERSECT_SHADOW:
     case DEVICE_KERNEL_INTEGRATOR_INTERSECT_SUBSURFACE:
-    case DEVICE_KERNEL_INTEGRATOR_INTERSECT_VOLUME_STACK: {
+    case DEVICE_KERNEL_INTEGRATOR_INTERSECT_VOLUME_STACK:
+    case DEVICE_KERNEL_INTEGRATOR_INTERSECT_DEDICATED_LIGHT: {
       /* Ray intersection kernels with integrator state. */
       DeviceKernelArguments args(&d_path_index, &work_size);
 
@@ -521,7 +523,8 @@ void PathTraceWorkGPU::enqueue_path_iteration(DeviceKernel kernel, const int num
     case DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE:
     case DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_RAYTRACE:
     case DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_MNEE:
-    case DEVICE_KERNEL_INTEGRATOR_SHADE_VOLUME: {
+    case DEVICE_KERNEL_INTEGRATOR_SHADE_VOLUME:
+    case DEVICE_KERNEL_INTEGRATOR_SHADE_DEDICATED_LIGHT: {
       /* Shading kernels with integrator state and render buffer. */
       DeviceKernelArguments args(&d_path_index, &buffers_->buffer.device_pointer, &work_size);
 
@@ -1022,6 +1025,10 @@ void PathTraceWorkGPU::get_render_tile_film_pixels(const PassAccessor::Destinati
   const KernelFilm &kfilm = device_scene_->data.film;
 
   const PassAccessor::PassAccessInfo pass_access_info = get_display_pass_access_info(pass_mode);
+  if (pass_access_info.type == PASS_NONE) {
+    return;
+  }
+
   const PassAccessorGPU pass_accessor(queue_.get(), pass_access_info, kfilm.exposure, num_samples);
 
   pass_accessor.get_render_tile_pixels(buffers_.get(), effective_buffer_params_, destination);
@@ -1177,7 +1184,8 @@ bool PathTraceWorkGPU::kernel_creates_shadow_paths(DeviceKernel kernel)
   return (kernel == DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE ||
           kernel == DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_RAYTRACE ||
           kernel == DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_MNEE ||
-          kernel == DEVICE_KERNEL_INTEGRATOR_SHADE_VOLUME);
+          kernel == DEVICE_KERNEL_INTEGRATOR_SHADE_VOLUME ||
+          kernel == DEVICE_KERNEL_INTEGRATOR_SHADE_DEDICATED_LIGHT);
 }
 
 bool PathTraceWorkGPU::kernel_creates_ao_paths(DeviceKernel kernel)

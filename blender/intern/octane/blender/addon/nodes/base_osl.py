@@ -25,7 +25,9 @@ class OctaneOSLBaseSocket(base_socket.OctaneBaseSocket):
         self["value"] = min(self.osl_value_max, max(self.osl_value_min, value))
 
     def get_osl_value(self):
-        return self["value"]
+        if "value"in self:
+            return self["value"]
+        return ""
 
     def set_osl_vector_value(self, vector_value):
         self["value"] = vector_value
@@ -33,7 +35,9 @@ class OctaneOSLBaseSocket(base_socket.OctaneBaseSocket):
             self["value"][idx] = min(self.osl_value_max, max(self.osl_value_min, value))
 
     def get_osl_vector_value(self):
-        return self["value"]
+        if "value" in self:
+            return self["value"]
+        return ""
 
     def get_enum_items(self, context):
         if len(self.enum_items_str) == 0:

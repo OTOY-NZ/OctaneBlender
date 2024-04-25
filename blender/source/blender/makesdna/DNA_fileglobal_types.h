@@ -1,15 +1,12 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup DNA
  */
 
 #pragma once
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /**
  * FileGlobal stores a part of the current user-interface settings at
@@ -41,7 +38,3 @@ typedef struct FileGlobal {
 /* example: if in 2.43 the meshes lose mesh data, minversion is 2.43 then too */
 /* or: in 2.42, subversion 1, same as above, minversion then is 2.42, min subversion 1 */
 /* (defines for version are in the BKE_blender_version.h file, for historic reasons) */
-
-#ifdef __cplusplus
-}
-#endif

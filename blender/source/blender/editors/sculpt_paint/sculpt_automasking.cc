@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2020 Blender Foundation */
+/* SPDX-FileCopyrightText: 2020 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup edsculpt
@@ -11,7 +12,6 @@
 #include "BLI_blenlib.h"
 #include "BLI_hash.h"
 #include "BLI_index_range.hh"
-#include "BLI_math.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_set.hh"
 #include "BLI_task.h"
@@ -21,31 +21,31 @@
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 
-#include "BKE_brush.h"
+#include "BKE_brush.hh"
 #include "BKE_colortools.h"
 #include "BKE_context.h"
 #include "BKE_mesh.hh"
-#include "BKE_mesh_mapping.h"
-#include "BKE_object.h"
-#include "BKE_paint.h"
-#include "BKE_pbvh.h"
+#include "BKE_mesh_mapping.hh"
+#include "BKE_object.hh"
+#include "BKE_paint.hh"
+#include "BKE_pbvh_api.hh"
 #include "BKE_scene.h"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
-#include "WM_api.h"
-#include "WM_message.h"
+#include "WM_api.hh"
+#include "WM_message.hh"
 #include "WM_toolsystem.h"
-#include "WM_types.h"
+#include "WM_types.hh"
 
-#include "ED_object.h"
-#include "ED_screen.h"
-#include "ED_sculpt.h"
+#include "ED_object.hh"
+#include "ED_screen.hh"
+#include "ED_sculpt.hh"
 #include "paint_intern.hh"
 #include "sculpt_intern.hh"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 
 #include "bmesh.h"
 
@@ -639,11 +639,6 @@ static void SCULPT_topology_automasking_init(Sculpt *sd, Object *ob)
   SculptSession *ss = ob->sculpt;
   Brush *brush = BKE_paint_brush(&sd->paint);
 
-  if (BKE_pbvh_type(ss->pbvh) == PBVH_FACES && !ss->pmap) {
-    BLI_assert_unreachable();
-    return;
-  }
-
   const int totvert = SCULPT_vertex_count_get(ss);
   for (int i : IndexRange(totvert)) {
     PBVHVertRef vertex = BKE_pbvh_index_to_vertex(ss->pbvh, i);
@@ -678,11 +673,6 @@ static void sculpt_face_sets_automasking_init(Sculpt *sd, Object *ob)
     return;
   }
 
-  if (BKE_pbvh_type(ss->pbvh) == PBVH_FACES && !ss->pmap) {
-    BLI_assert_msg(0, "Face Sets automasking: pmap missing");
-    return;
-  }
-
   int tot_vert = SCULPT_vertex_count_get(ss);
   int active_face_set = SCULPT_active_face_set_get(ss);
   for (int i : IndexRange(tot_vert)) {
@@ -701,11 +691,6 @@ static void SCULPT_boundary_automasking_init(Object *ob,
                                              int propagation_steps)
 {
   SculptSession *ss = ob->sculpt;
-
-  if (!ss->pmap) {
-    BLI_assert_msg(0, "Boundary Edges masking: pmap missing");
-    return;
-  }
 
   const int totvert = SCULPT_vertex_count_get(ss);
   int *edge_distance = (int *)MEM_callocN(sizeof(int) * totvert, "automask_factor");

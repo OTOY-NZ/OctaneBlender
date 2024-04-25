@@ -1,5 +1,6 @@
+# SPDX-FileCopyrightText: 2006 Blender Authors
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
-# Copyright 2006 Blender Foundation
 
 set(SRC
   FRS_freestyle.h
@@ -529,6 +530,9 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::blenlib
+  PRIVATE bf::dna
+  PRIVATE bf::intern::guardedalloc
   bf_python_mathutils
 
   ${PYTHON_LINKFLAGS}
@@ -538,17 +542,14 @@ set(LIB
 set(INC
   .
   ../blenkernel
-  ../blenlib
   ../blentranslation
   ../depsgraph
   ../imbuf
-  ../makesdna
   ../makesrna
   ../python
   ../python/intern
   ../render
   ../render/intern
-  ../../../intern/guardedalloc
 
   # RNA_prototypes.h
   ${CMAKE_BINARY_DIR}/source/blender/makesrna

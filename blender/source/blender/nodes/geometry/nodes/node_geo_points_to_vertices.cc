@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_array_utils.hh"
 
@@ -15,7 +17,7 @@ using blender::Array;
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>("Points").supported_type(GEO_COMPONENT_TYPE_POINT_CLOUD);
+  b.add_input<decl::Geometry>("Points").supported_type(GeometryComponent::Type::PointCloud);
   b.add_input<decl::Bool>("Selection").default_value(true).field_on_all().hide_value();
   b.add_output<decl::Geometry>("Mesh").propagate_all();
 }
@@ -26,7 +28,7 @@ static void geometry_set_points_to_vertices(
     Field<bool> &selection_field,
     const AnonymousAttributePropagationInfo &propagation_info)
 {
-  const PointCloud *points = geometry_set.get_pointcloud_for_read();
+  const PointCloud *points = geometry_set.get_pointcloud();
   if (points == nullptr) {
     geometry_set.remove_geometry_during_modify();
     return;
@@ -43,8 +45,8 @@ static void geometry_set_points_to_vertices(
   const IndexMask selection = selection_evaluator.get_evaluated_as_mask(0);
 
   Map<AttributeIDRef, AttributeKind> attributes;
-  geometry_set.gather_attributes_for_propagation({GEO_COMPONENT_TYPE_POINT_CLOUD},
-                                                 GEO_COMPONENT_TYPE_MESH,
+  geometry_set.gather_attributes_for_propagation({GeometryComponent::Type::PointCloud},
+                                                 GeometryComponent::Type::Mesh,
                                                  false,
                                                  propagation_info,
                                                  attributes);
@@ -53,7 +55,7 @@ static void geometry_set_points_to_vertices(
   if (selection.size() == points->totpoint) {
     /* Create a mesh without positions so the attribute can be shared. */
     mesh = BKE_mesh_new_nomain(0, 0, 0, 0);
-    CustomData_free_layer_named(&mesh->vdata, "position", mesh->totvert);
+    CustomData_free_layer_named(&mesh->vert_data, "position", mesh->totvert);
     mesh->totvert = selection.size();
   }
   else {
@@ -80,10 +82,10 @@ static void geometry_set_points_to_vertices(
     }
   }
 
-  mesh->loose_edges_tag_none();
+  mesh->tag_loose_edges_none();
 
   geometry_set.replace_mesh(mesh);
-  geometry_set.keep_only_during_modify({GEO_COMPONENT_TYPE_MESH});
+  geometry_set.keep_only_during_modify({GeometryComponent::Type::Mesh});
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -99,17 +101,16 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("Mesh", std::move(geometry_set));
 }
 
-}  // namespace blender::nodes::node_geo_points_to_vertices_cc
-
-void register_node_type_geo_points_to_vertices()
+static void node_register()
 {
-  namespace file_ns = blender::nodes::node_geo_points_to_vertices_cc;
-
   static bNodeType ntype;
 
   geo_node_type_base(
       &ntype, GEO_NODE_POINTS_TO_VERTICES, "Points to Vertices", NODE_CLASS_GEOMETRY);
-  ntype.declare = file_ns::node_declare;
-  ntype.geometry_node_execute = file_ns::node_geo_exec;
+  ntype.declare = node_declare;
+  ntype.geometry_node_execute = node_geo_exec;
   nodeRegisterType(&ntype);
 }
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_geo_points_to_vertices_cc

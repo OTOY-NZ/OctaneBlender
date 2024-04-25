@@ -162,7 +162,8 @@ class BlenderSync {
   static BL::Node find_active_kernel_node(BL::NodeTree &b_node_tree);
   static bool is_switch_node(BL::Node &node);
   static BL::Node find_input_node_from_switch_node(BL::NodeTree &b_node_tree, BL::Node &node);
-  static BL::Node find_input_node_from_switch_node_recursively(BL::NodeTree &b_node_tree, BL::Node &node);
+  static BL::Node find_input_node_from_switch_node_recursively(BL::NodeTree &b_node_tree,
+                                                               BL::Node &node);
   static void get_samples(PointerRNA oct_scene,
                           int &max_sample,
                           int &max_preview_sample,
@@ -222,11 +223,18 @@ class BlenderSync {
                          std::vector<Shader *> &used_shaders,
                          bool &use_octane_vertex_displacement_subdvision,
                          bool &use_default_shader);
-  void find_shader_by_id_and_name(BL::ID &id, std::vector<Shader *> &used_shaders, Shader *default_shader);
+  /* util */
+  void find_shader_by_id_and_name(BL::ID &id,
+                                  std::vector<Shader *> &used_shaders,
+                                  Shader *default_shader);
   void find_shader(BL::ID &id, std::vector<Shader *> &used_shaders, Shader *default_shader);
   bool BKE_object_is_modified(BL::Object &b_ob);
-  bool object_is_mesh(BL::Object &b_ob);
+  bool object_is_geometry(BObjectInfo &b_ob_info);
+  bool object_can_have_geometry(BL::Object &b_ob);
   bool object_is_light(BL::Object &b_ob);
+  bool object_is_camera(BL::Object &b_ob);
+
+  std::string resolve_octane_object_data_name(BL::Object &b_ob, BL::Object &b_ob_instance);
   static BL::Node find_active_environment_output(BL::NodeTree &node_tree);
   static BL::Node find_active_kernel_output(BL::NodeTree &node_tree);
   static BL::Node find_active_render_aov_output(BL::NodeTree &node_tree);
@@ -248,6 +256,8 @@ class BlenderSync {
   set<Mesh *> mesh_synced;
   set<Mesh *> mesh_motion_synced;
   set<float> motion_times;
+  /** Remember which geometries come from which objects to be able to sync them after changes. */
+  map<void *, set<BL::ID>> instance_geometries_by_object;
   void *world_map;
   bool world_recalc;
   std::string world_custom_node_tree_content_tag;
@@ -312,6 +322,11 @@ class BlenderSync {
   bool use_render_aov_node_tree;
 
   BL::NodeTree kernel_node_tree;
+
+  /* Indicates that `sync_recalc()` detected changes in the scene.
+   * If this flag is false then the data is considered to be up-to-date and will not be
+   * synchronized at all. */
+  bool has_updates_ = true;
 };
 
 OCT_NAMESPACE_END

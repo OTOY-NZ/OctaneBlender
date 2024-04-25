@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2021-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2021-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #pragma once
 
@@ -30,6 +31,7 @@ enum AppleGPUArchitecture {
   APPLE_M1,
   APPLE_M2,
   APPLE_M2_BIG,
+  APPLE_M3,
 };
 
 /* Contains static Metal helper functions. */

@@ -1,11 +1,12 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2011 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup spclip
  */
 
-#include <errno.h>
+#include <cerrno>
 #include <fcntl.h>
 #include <sys/types.h>
 
@@ -22,7 +23,7 @@
 #include "DNA_userdef_types.h"
 
 #include "BLI_fileops.h"
-#include "BLI_math.h"
+#include "BLI_math_vector.h"
 #include "BLI_path_util.h"
 #include "BLI_rect.h"
 #include "BLI_string.h"
@@ -39,27 +40,27 @@
 #include "BKE_report.h"
 #include "BKE_tracking.h"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
 
-#include "ED_clip.h"
-#include "ED_screen.h"
+#include "ED_clip.hh"
+#include "ED_screen.hh"
 
-#include "UI_interface.h"
+#include "UI_interface.hh"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
-#include "RNA_enum_types.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
+#include "RNA_enum_types.hh"
 
-#include "UI_view2d.h"
+#include "UI_view2d.hh"
 
 #include "PIL_time.h"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_build.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_build.hh"
 
 #include "clip_intern.h" /* own include */
 
@@ -155,9 +156,9 @@ static void sclip_zoom_set_factor_exec(bContext *C, const wmEvent *event, float 
 /** \name Open Clip Operator
  * \{ */
 
-static void clip_filesel(bContext *C, wmOperator *op, const char *path)
+static void clip_filesel(bContext *C, wmOperator *op, const char *dirpath)
 {
-  RNA_string_set(op->ptr, "directory", path);
+  RNA_string_set(op->ptr, "directory", dirpath);
 
   WM_event_add_fileselect(C, op);
 }
@@ -182,9 +183,8 @@ static int open_exec(bContext *C, wmOperator *op)
   bScreen *screen = CTX_wm_screen(C);
   Main *bmain = CTX_data_main(C);
   PropertyPointerRNA *pprop;
-  PointerRNA idptr;
   MovieClip *clip = nullptr;
-  char str[FILE_MAX];
+  char filepath[FILE_MAX];
 
   if (!RNA_collection_is_empty(op->ptr, "files")) {
     PointerRNA fileptr;
@@ -201,7 +201,7 @@ static int open_exec(bContext *C, wmOperator *op)
     RNA_property_collection_lookup_int(op->ptr, prop, 0, &fileptr);
     RNA_string_get(&fileptr, "name", file_only);
 
-    BLI_path_join(str, sizeof(str), dir_only, file_only);
+    BLI_path_join(filepath, sizeof(filepath), dir_only, file_only);
   }
   else {
     BKE_report(op->reports, RPT_ERROR, "No files selected to be opened");
@@ -213,7 +213,7 @@ static int open_exec(bContext *C, wmOperator *op)
 
   errno = 0;
 
-  clip = BKE_movieclip_file_add_exists(bmain, str);
+  clip = BKE_movieclip_file_add_exists(bmain, filepath);
 
   if (!clip) {
     if (op->customdata) {
@@ -223,7 +223,7 @@ static int open_exec(bContext *C, wmOperator *op)
     BKE_reportf(op->reports,
                 RPT_ERROR,
                 "Cannot read '%s': %s",
-                str,
+                filepath,
                 errno ? strerror(errno) : TIP_("unsupported movie clip format"));
 
     return OPERATOR_CANCELLED;
@@ -241,7 +241,7 @@ static int open_exec(bContext *C, wmOperator *op)
      * pointer use also increases user, so this compensates it */
     id_us_min(&clip->id);
 
-    RNA_id_pointer_create(&clip->id, &idptr);
+    PointerRNA idptr = RNA_id_pointer_create(&clip->id);
     RNA_property_pointer_set(&pprop->ptr, pprop->prop, idptr, nullptr);
     RNA_property_update(C, &pprop->ptr, pprop->prop);
   }
@@ -260,7 +260,7 @@ static int open_exec(bContext *C, wmOperator *op)
 static int open_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
-  char path[FILE_MAX];
+  char dirpath[FILE_MAX];
   MovieClip *clip = nullptr;
 
   if (sc) {
@@ -268,13 +268,13 @@ static int open_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
   }
 
   if (clip) {
-    STRNCPY(path, clip->filepath);
+    STRNCPY(dirpath, clip->filepath);
 
-    BLI_path_abs(path, CTX_data_main(C)->filepath);
-    BLI_path_parent_dir(path);
+    BLI_path_abs(dirpath, CTX_data_main(C)->filepath);
+    BLI_path_parent_dir(dirpath);
   }
   else {
-    STRNCPY(path, U.textudir);
+    STRNCPY(dirpath, U.textudir);
   }
 
   if (RNA_struct_property_is_set(op->ptr, "files")) {
@@ -287,7 +287,7 @@ static int open_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 
   open_init(C, op);
 
-  clip_filesel(C, op, path);
+  clip_filesel(C, op, dirpath);
 
   return OPERATOR_RUNNING_MODAL;
 }
@@ -356,13 +356,13 @@ void CLIP_OT_reload(wmOperatorType *ot)
 /** \name View Pan Operator
  * \{ */
 
-typedef struct ViewPanData {
+struct ViewPanData {
   float x, y;
   float xof, yof, xorig, yorig;
   int launch_event;
   bool own_cursor;
   float *vec;
-} ViewPanData;
+};
 
 static void view_pan_init(bContext *C, wmOperator *op, const wmEvent *event)
 {
@@ -469,16 +469,16 @@ static int view_pan_modal(bContext *C, wmOperator *op, const wmEvent *event)
       view_pan_exec(C, op);
       break;
     case EVT_ESCKEY:
-      view_pan_exit(C, op, 1);
+      view_pan_exit(C, op, true);
 
       return OPERATOR_CANCELLED;
     case EVT_SPACEKEY:
-      view_pan_exit(C, op, 0);
+      view_pan_exit(C, op, false);
 
       return OPERATOR_FINISHED;
     default:
       if (event->type == vpd->launch_event && event->val == KM_RELEASE) {
-        view_pan_exit(C, op, 0);
+        view_pan_exit(C, op, false);
 
         return OPERATOR_FINISHED;
       }
@@ -529,7 +529,7 @@ void CLIP_OT_view_pan(wmOperatorType *ot)
 /** \name View Zoom Operator
  * \{ */
 
-typedef struct ViewZoomData {
+struct ViewZoomData {
   float x, y;
   float zoom;
   int launch_event;
@@ -537,7 +537,7 @@ typedef struct ViewZoomData {
   wmTimer *timer;
   double timer_lastdraw;
   bool own_cursor;
-} ViewZoomData;
+};
 
 static void view_zoom_init(bContext *C, wmOperator *op, const wmEvent *event)
 {
@@ -556,7 +556,7 @@ static void view_zoom_init(bContext *C, wmOperator *op, const wmEvent *event)
 
   if (U.viewzoom == USER_ZOOM_CONTINUE) {
     /* needs a timer to continue redrawing */
-    vpd->timer = WM_event_add_timer(CTX_wm_manager(C), CTX_wm_window(C), TIMER, 0.01f);
+    vpd->timer = WM_event_timer_add(CTX_wm_manager(C), CTX_wm_window(C), TIMER, 0.01f);
     vpd->timer_lastdraw = PIL_check_seconds_timer();
   }
 
@@ -581,7 +581,7 @@ static void view_zoom_exit(bContext *C, wmOperator *op, bool cancel)
   }
 
   if (vpd->timer) {
-    WM_event_remove_timer(CTX_wm_manager(C), vpd->timer->win, vpd->timer);
+    WM_event_timer_remove(CTX_wm_manager(C), vpd->timer->win, vpd->timer);
   }
 
   if (vpd->own_cursor) {
@@ -681,7 +681,7 @@ static int view_zoom_modal(bContext *C, wmOperator *op, const wmEvent *event)
       break;
     default:
       if (event->type == vpd->launch_event && event->val == KM_RELEASE) {
-        view_zoom_exit(C, op, 0);
+        view_zoom_exit(C, op, false);
 
         return OPERATOR_FINISHED;
       }
@@ -971,7 +971,7 @@ void CLIP_OT_view_all(wmOperatorType *ot)
   ot->flag = OPTYPE_LOCK_BYPASS;
 
   /* properties */
-  prop = RNA_def_boolean(ot->srna, "fit_view", 0, "Fit View", "Fit frame to the viewport");
+  prop = RNA_def_boolean(ot->srna, "fit_view", false, "Fit View", "Fit frame to the viewport");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
@@ -1019,7 +1019,7 @@ static int view_selected_exec(bContext *C, wmOperator * /*op*/)
   sc->xlockof = 0.0f;
   sc->ylockof = 0.0f;
 
-  ED_clip_view_selection(C, region, 1);
+  ED_clip_view_selection(C, region, true);
   ED_region_tag_redraw(region);
 
   return OPERATOR_FINISHED;
@@ -1167,14 +1167,14 @@ void CLIP_OT_change_frame(wmOperatorType *ot)
 /** \name Rebuild Proxies Operator
  * \{ */
 
-typedef struct ProxyBuildJob {
+struct ProxyJob {
   Scene *scene;
-  struct Main *main;
+  Main *main;
   MovieClip *clip;
   int clip_flag;
   bool stop;
-  struct IndexBuildContext *index_context;
-} ProxyJob;
+  IndexBuildContext *index_context;
+};
 
 static void proxy_freejob(void *pjv)
 {
@@ -1225,7 +1225,7 @@ static void do_movie_proxy(void *pjv,
 {
   ProxyJob *pj = static_cast<ProxyJob *>(pjv);
   MovieClip *clip = pj->clip;
-  struct MovieDistortion *distortion = nullptr;
+  MovieDistortion *distortion = nullptr;
 
   if (pj->index_context) {
     IMB_anim_index_rebuild(pj->index_context, stop, do_update, progress);
@@ -1233,7 +1233,7 @@ static void do_movie_proxy(void *pjv,
 
   if (!build_undistort_count) {
     if (*stop) {
-      pj->stop = 1;
+      pj->stop = true;
     }
 
     return;
@@ -1254,7 +1254,7 @@ static void do_movie_proxy(void *pjv,
 
   for (int cfra = sfra; cfra <= efra; cfra++) {
     BKE_movieclip_build_proxy_frame(
-        clip, pj->clip_flag, distortion, cfra, build_undistort_sizes, build_undistort_count, 1);
+        clip, pj->clip_flag, distortion, cfra, build_undistort_sizes, build_undistort_count, true);
 
     if (*stop || G.is_break) {
       break;
@@ -1269,7 +1269,7 @@ static void do_movie_proxy(void *pjv,
   }
 
   if (*stop) {
-    pj->stop = 1;
+    pj->stop = true;
   }
 }
 
@@ -1279,7 +1279,7 @@ static void do_movie_proxy(void *pjv,
  * thread for maximal speed
  */
 
-typedef struct ProxyQueue {
+struct ProxyQueue {
   int cfra;
   int sfra;
   int efra;
@@ -1288,14 +1288,14 @@ typedef struct ProxyQueue {
   const bool *stop;
   bool *do_update;
   float *progress;
-} ProxyQueue;
+};
 
-typedef struct ProxyThread {
+struct ProxyThread {
   MovieClip *clip;
-  struct MovieDistortion *distortion;
+  MovieDistortion *distortion;
   int *build_sizes, build_count;
   int *build_undistort_sizes, build_undistort_count;
-} ProxyThread;
+};
 
 static uchar *proxy_thread_next_frame(ProxyQueue *queue,
                                       MovieClip *clip,
@@ -1308,7 +1308,6 @@ static uchar *proxy_thread_next_frame(ProxyQueue *queue,
   if (!*queue->stop && queue->cfra <= queue->efra) {
     MovieClipUser user = *DNA_struct_default_get(MovieClipUser);
     char filepath[FILE_MAX];
-    size_t size;
     int file;
 
     user.framenr = queue->cfra;
@@ -1321,8 +1320,8 @@ static uchar *proxy_thread_next_frame(ProxyQueue *queue,
       return nullptr;
     }
 
-    size = BLI_file_descriptor_size(file);
-    if (size < 1) {
+    const size_t size = BLI_file_descriptor_size(file);
+    if (UNLIKELY(ELEM(size, 0, size_t(-1)))) {
       close(file);
       BLI_spin_unlock(&queue->spin);
       return nullptr;
@@ -1330,7 +1329,7 @@ static uchar *proxy_thread_next_frame(ProxyQueue *queue,
 
     mem = MEM_cnew_array<uchar>(size, "movieclip proxy memory file");
 
-    if (read(file, mem, size) != size) {
+    if (BLI_read(file, mem, size) != size) {
       close(file);
       BLI_spin_unlock(&queue->spin);
       MEM_freeN(mem);
@@ -1869,7 +1868,7 @@ void CLIP_OT_lock_selection_toggle(wmOperatorType *ot)
 /** \name Macros
  * \{ */
 
-void ED_operatormacros_clip(void)
+void ED_operatormacros_clip()
 {
   wmOperatorType *ot;
   wmOperatorTypeMacro *otmacro;

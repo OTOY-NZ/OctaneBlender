@@ -1,10 +1,16 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
 /** \file
  * \ingroup bmesh
  */
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 struct BMOperator;
 struct BMesh;
@@ -89,3 +95,7 @@ void bmo_unsubdivide_exec(BMesh *bm, BMOperator *op);
 void bmo_weld_verts_exec(BMesh *bm, BMOperator *op);
 void bmo_wireframe_exec(BMesh *bm, BMOperator *op);
 void bmo_flip_quad_tessellation_exec(BMesh *bm, BMOperator *op);
+
+#ifdef __cplusplus
+}
+#endif

@@ -1,15 +1,16 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2020 Blender Foundation */
+/* SPDX-FileCopyrightText: 2020 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 #include "abc_writer_abstract.h"
 #include "abc_hierarchy_iterator.h"
 
 #include "BKE_animsys.h"
 #include "BKE_key.h"
-#include "BKE_object.h"
+#include "BKE_object.hh"
 
 #include "DNA_modifier_types.h"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
 #include <Alembic/AbcGeom/Visibility.h>
 

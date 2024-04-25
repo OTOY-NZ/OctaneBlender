@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup GHOST
@@ -82,6 +83,11 @@ class GHOST_Window : public GHOST_IWindow {
    * \return The associated OS object/handle
    */
   virtual void *getOSWindow() const override;
+
+  virtual GHOST_TSuccess setPath(const char * /*filepath*/) override
+  {
+    return GHOST_kFailure;
+  }
 
   /**
    * Returns the current cursor shape.
@@ -269,13 +275,10 @@ class GHOST_Window : public GHOST_IWindow {
    */
   virtual unsigned int getDefaultFramebuffer() override;
 
-  /**
-   * Gets the Vulkan framebuffer related resource handles associated with the Vulkan context.
-   * Needs to be called after each swap events as the framebuffer will change.
-   * \return  A boolean success indicator.
-   */
-  virtual GHOST_TSuccess getVulkanBackbuffer(
-      void *image, void *framebuffer, void *render_pass, void *extent, uint32_t *fb_id) override;
+#ifdef WITH_VULKAN_BACKEND
+  virtual GHOST_TSuccess getVulkanSwapChainFormat(
+      GHOST_VulkanSwapChainData *r_swap_chain_data) override;
+#endif
 
   /**
    * Returns the window user data.

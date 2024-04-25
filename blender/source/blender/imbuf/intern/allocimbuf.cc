@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup imbuf
@@ -8,7 +9,7 @@
 /* It's become a bit messy... Basically, only the IMB_ prefixed files
  * should remain. */
 
-#include <stddef.h>
+#include <cstddef>
 
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
@@ -25,14 +26,16 @@
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
+#include "GPU_texture.h"
+
 static SpinLock refcounter_spin;
 
-void imb_refcounter_lock_init(void)
+void imb_refcounter_lock_init()
 {
   BLI_spin_init(&refcounter_spin);
 }
 
-void imb_refcounter_lock_exit(void)
+void imb_refcounter_lock_exit()
 {
   BLI_spin_end(&refcounter_spin);
 }
@@ -40,26 +43,108 @@ void imb_refcounter_lock_exit(void)
 #ifndef WIN32
 static SpinLock mmap_spin;
 
-void imb_mmap_lock_init(void)
+void imb_mmap_lock_init()
 {
   BLI_spin_init(&mmap_spin);
 }
 
-void imb_mmap_lock_exit(void)
+void imb_mmap_lock_exit()
 {
   BLI_spin_end(&mmap_spin);
 }
 
-void imb_mmap_lock(void)
+void imb_mmap_lock()
 {
   BLI_spin_lock(&mmap_spin);
 }
 
-void imb_mmap_unlock(void)
+void imb_mmap_unlock()
 {
   BLI_spin_unlock(&mmap_spin);
 }
 #endif
+
+/* Free the specified buffer storage, freeing memory when needed and restoring the state of the
+ * buffer to its defaults. */
+template<class BufferType> static void imb_free_buffer(BufferType &buffer)
+{
+  if (buffer.data) {
+    switch (buffer.ownership) {
+      case IB_DO_NOT_TAKE_OWNERSHIP:
+        break;
+
+      case IB_TAKE_OWNERSHIP:
+        MEM_freeN(buffer.data);
+        break;
+    }
+  }
+
+  /* Reset buffer to defaults. */
+  buffer.data = nullptr;
+  buffer.ownership = IB_DO_NOT_TAKE_OWNERSHIP;
+}
+
+/* Allocate pixel storage of the given buffer. The buffer owns the allocated memory.
+ * Returns true of allocation succeeded, false otherwise. */
+template<class BufferType>
+bool imb_alloc_buffer(
+    BufferType &buffer, const uint x, const uint y, const uint channels, const size_t type_size)
+{
+  buffer.data = static_cast<decltype(BufferType::data)>(
+      imb_alloc_pixels(x, y, channels, type_size, __func__));
+  if (!buffer.data) {
+    return false;
+  }
+
+  buffer.ownership = IB_TAKE_OWNERSHIP;
+
+  return true;
+}
+
+/* Make the buffer available for modification.
+ * Is achieved by ensuring that the buffer is the only owner of its data. */
+template<class BufferType> void imb_make_writeable_buffer(BufferType &buffer)
+{
+  if (!buffer.data) {
+    return;
+  }
+
+  switch (buffer.ownership) {
+    case IB_DO_NOT_TAKE_OWNERSHIP:
+      buffer.data = static_cast<decltype(BufferType::data)>(MEM_dupallocN(buffer.data));
+      buffer.ownership = IB_TAKE_OWNERSHIP;
+
+    case IB_TAKE_OWNERSHIP:
+      break;
+  }
+}
+
+template<class BufferType>
+auto imb_steal_buffer_data(BufferType &buffer) -> decltype(BufferType::data)
+{
+  if (!buffer.data) {
+    return nullptr;
+  }
+
+  switch (buffer.ownership) {
+    case IB_DO_NOT_TAKE_OWNERSHIP:
+      BLI_assert(!"Unexpected behavior: stealing non-owned data pointer");
+      return nullptr;
+
+    case IB_TAKE_OWNERSHIP: {
+      decltype(BufferType::data) data = buffer.data;
+
+      buffer.data = nullptr;
+      buffer.ownership = IB_DO_NOT_TAKE_OWNERSHIP;
+
+      return data;
+    }
+  }
+
+  BLI_assert_unreachable();
+
+  return nullptr;
+}
 
 void imb_freemipmapImBuf(ImBuf *ibuf)
 {
@@ -83,15 +168,11 @@ void imb_freerectfloatImBuf(ImBuf *ibuf)
     return;
   }
 
-  if (ibuf->rect_float && (ibuf->mall & IB_rectfloat)) {
-    MEM_freeN(ibuf->rect_float);
-    ibuf->rect_float = nullptr;
-  }
+  imb_free_buffer(ibuf->float_buffer);
 
   imb_freemipmapImBuf(ibuf);
 
-  ibuf->rect_float = nullptr;
-  ibuf->mall &= ~IB_rectfloat;
+  ibuf->flags &= ~IB_rectfloat;
 }
 
 void imb_freerectImBuf(ImBuf *ibuf)
@@ -100,14 +181,11 @@ void imb_freerectImBuf(ImBuf *ibuf)
     return;
   }
 
-  if (ibuf->rect && (ibuf->mall & IB_rect)) {
-    MEM_freeN(ibuf->rect);
-  }
-  ibuf->rect = nullptr;
+  imb_free_buffer(ibuf->byte_buffer);
 
   imb_freemipmapImBuf(ibuf);
 
-  ibuf->mall &= ~IB_rect;
+  ibuf->flags &= ~IB_rect;
 }
 
 static void freeencodedbufferImBuf(ImBuf *ibuf)
@@ -116,51 +194,29 @@ static void freeencodedbufferImBuf(ImBuf *ibuf)
     return;
   }
 
-  if (ibuf->encodedbuffer && (ibuf->mall & IB_mem)) {
-    MEM_freeN(ibuf->encodedbuffer);
-  }
+  imb_free_buffer(ibuf->encoded_buffer);
 
-  ibuf->encodedbuffer = nullptr;
-  ibuf->encodedbuffersize = 0;
-  ibuf->encodedsize = 0;
-  ibuf->mall &= ~IB_mem;
-}
+  ibuf->encoded_buffer_size = 0;
+  ibuf->encoded_size = 0;
 
-void IMB_freezbufImBuf(ImBuf *ibuf)
-{
-  if (ibuf == nullptr) {
-    return;
-  }
-
-  if (ibuf->zbuf && (ibuf->mall & IB_zbuf)) {
-    MEM_freeN(ibuf->zbuf);
-  }
-
-  ibuf->zbuf = nullptr;
-  ibuf->mall &= ~IB_zbuf;
-}
-
-void IMB_freezbuffloatImBuf(ImBuf *ibuf)
-{
-  if (ibuf == nullptr) {
-    return;
-  }
-
-  if (ibuf->zbuf_float && (ibuf->mall & IB_zbuffloat)) {
-    MEM_freeN(ibuf->zbuf_float);
-  }
-
-  ibuf->zbuf_float = nullptr;
-  ibuf->mall &= ~IB_zbuffloat;
+  ibuf->flags &= ~IB_mem;
 }
 
 void imb_freerectImbuf_all(ImBuf *ibuf)
 {
   imb_freerectImBuf(ibuf);
   imb_freerectfloatImBuf(ibuf);
-  IMB_freezbufImBuf(ibuf);
-  IMB_freezbuffloatImBuf(ibuf);
   freeencodedbufferImBuf(ibuf);
+}
+
+void IMB_free_gpu_textures(ImBuf *ibuf)
+{
+  if (!ibuf || !ibuf->gpu.texture) {
+    return;
+  }
+
+  GPU_texture_free(ibuf->gpu.texture);
+  ibuf->gpu.texture = nullptr;
 }
 
 void IMB_freeImBuf(ImBuf *ibuf)
@@ -186,6 +242,7 @@ void IMB_freeImBuf(ImBuf *ibuf)
                    "'.blend' relative \"//\" must not be used in ImBuf!");
 
     imb_freerectImbuf_all(ibuf);
+    IMB_free_gpu_textures(ibuf);
     IMB_metadata_free(ibuf->metadata);
     colormanage_cache_free(ibuf);
 
@@ -226,44 +283,6 @@ ImBuf *IMB_makeSingleUser(ImBuf *ibuf)
   return rval;
 }
 
-bool addzbufImBuf(ImBuf *ibuf)
-{
-  if (ibuf == nullptr) {
-    return false;
-  }
-
-  IMB_freezbufImBuf(ibuf);
-
-  if ((ibuf->zbuf = static_cast<int *>(
-           imb_alloc_pixels(ibuf->x, ibuf->y, 1, sizeof(uint), __func__))))
-  {
-    ibuf->mall |= IB_zbuf;
-    ibuf->flags |= IB_zbuf;
-    return true;
-  }
-
-  return false;
-}
-
-bool addzbuffloatImBuf(ImBuf *ibuf)
-{
-  if (ibuf == nullptr) {
-    return false;
-  }
-
-  IMB_freezbuffloatImBuf(ibuf);
-
-  if ((ibuf->zbuf_float = static_cast<float *>(
-           imb_alloc_pixels(ibuf->x, ibuf->y, 1, sizeof(float), __func__))))
-  {
-    ibuf->mall |= IB_zbuffloat;
-    ibuf->flags |= IB_zbuffloat;
-    return true;
-  }
-
-  return false;
-}
-
 bool imb_addencodedbufferImBuf(ImBuf *ibuf)
 {
   if (ibuf == nullptr) {
@@ -272,61 +291,53 @@ bool imb_addencodedbufferImBuf(ImBuf *ibuf)
 
   freeencodedbufferImBuf(ibuf);
 
-  if (ibuf->encodedbuffersize == 0) {
-    ibuf->encodedbuffersize = 10000;
+  if (ibuf->encoded_buffer_size == 0) {
+    ibuf->encoded_buffer_size = 10000;
   }
 
-  ibuf->encodedsize = 0;
+  ibuf->encoded_size = 0;
 
-  if ((ibuf->encodedbuffer = static_cast<uchar *>(MEM_mallocN(ibuf->encodedbuffersize, __func__))))
-  {
-    ibuf->mall |= IB_mem;
-    ibuf->flags |= IB_mem;
-    return true;
+  if (!imb_alloc_buffer(ibuf->encoded_buffer, ibuf->encoded_buffer_size, 1, 1, sizeof(uint8_t))) {
+    return false;
   }
 
-  return false;
+  ibuf->flags |= IB_mem;
+
+  return true;
 }
 
 bool imb_enlargeencodedbufferImBuf(ImBuf *ibuf)
 {
-  uint newsize, encodedsize;
-  void *newbuffer;
-
   if (ibuf == nullptr) {
     return false;
   }
 
-  if (ibuf->encodedbuffersize < ibuf->encodedsize) {
+  if (ibuf->encoded_buffer_size < ibuf->encoded_size) {
     printf("%s: error in parameters\n", __func__);
     return false;
   }
 
-  newsize = 2 * ibuf->encodedbuffersize;
+  uint newsize = 2 * ibuf->encoded_buffer_size;
   if (newsize < 10000) {
     newsize = 10000;
   }
 
-  newbuffer = MEM_mallocN(newsize, __func__);
-  if (newbuffer == nullptr) {
+  ImBufByteBuffer new_buffer;
+  if (!imb_alloc_buffer(new_buffer, newsize, 1, 1, sizeof(uint8_t))) {
     return false;
   }
 
-  if (ibuf->encodedbuffer) {
-    memcpy(newbuffer, ibuf->encodedbuffer, ibuf->encodedsize);
+  if (ibuf->encoded_buffer.data) {
+    memcpy(new_buffer.data, ibuf->encoded_buffer.data, ibuf->encoded_size);
   }
   else {
-    ibuf->encodedsize = 0;
+    ibuf->encoded_size = 0;
   }
 
-  encodedsize = ibuf->encodedsize;
+  imb_free_buffer(ibuf->encoded_buffer);
 
-  freeencodedbufferImBuf(ibuf);
-
-  ibuf->encodedbuffersize = newsize;
-  ibuf->encodedsize = encodedsize;
-  ibuf->encodedbuffer = static_cast<uchar *>(newbuffer);
-  ibuf->mall |= IB_mem;
+  ibuf->encoded_buffer = new_buffer;
+  ibuf->encoded_buffer_size = newsize;
   ibuf->flags |= IB_mem;
 
   return true;
@@ -350,20 +361,21 @@ bool imb_addrectfloatImBuf(ImBuf *ibuf, const uint channels)
     return false;
   }
 
-  if (ibuf->rect_float) {
+  /* NOTE: Follows the historical code.
+   * Is unclear if it is desired or not to free mipmaps. If mipmaps are to be preserved a simple
+   * `imb_free_buffer(ibuf->float_buffer)` can be used instead. */
+  if (ibuf->float_buffer.data) {
     imb_freerectfloatImBuf(ibuf); /* frees mipmap too, hrm */
   }
 
-  ibuf->channels = channels;
-  if ((ibuf->rect_float = static_cast<float *>(
-           imb_alloc_pixels(ibuf->x, ibuf->y, channels, sizeof(float), __func__))))
-  {
-    ibuf->mall |= IB_rectfloat;
-    ibuf->flags |= IB_rectfloat;
-    return true;
+  if (!imb_alloc_buffer(ibuf->float_buffer, ibuf->x, ibuf->y, channels, sizeof(float))) {
+    return false;
   }
 
-  return false;
+  ibuf->channels = channels;
+  ibuf->flags |= IB_rectfloat;
+
+  return true;
 }
 
 bool imb_addrectImBuf(ImBuf *ibuf)
@@ -376,63 +388,111 @@ bool imb_addrectImBuf(ImBuf *ibuf)
 
   /* Don't call imb_freerectImBuf, it frees mipmaps,
    * this call is used only too give float buffers display. */
-  if (ibuf->rect && (ibuf->mall & IB_rect)) {
-    MEM_freeN(ibuf->rect);
-  }
-  ibuf->rect = nullptr;
+  imb_free_buffer(ibuf->byte_buffer);
 
-  if ((ibuf->rect = static_cast<uint *>(
-           imb_alloc_pixels(ibuf->x, ibuf->y, 4, sizeof(uchar), __func__))))
-  {
-    ibuf->mall |= IB_rect;
-    ibuf->flags |= IB_rect;
-    if (ibuf->planes > 32) {
-      return addzbufImBuf(ibuf);
-    }
-
-    return true;
+  if (!imb_alloc_buffer(ibuf->byte_buffer, ibuf->x, ibuf->y, 4, sizeof(uint8_t))) {
+    return false;
   }
 
-  return false;
+  ibuf->flags |= IB_rect;
+
+  return true;
 }
 
-struct ImBuf *IMB_allocFromBufferOwn(uint *rect, float *rectf, uint w, uint h, uint channels)
+uint8_t *IMB_steal_byte_buffer(ImBuf *ibuf)
 {
-  ImBuf *ibuf = nullptr;
+  uint8_t *data = imb_steal_buffer_data(ibuf->byte_buffer);
+  ibuf->flags &= ~IB_rect;
+  return data;
+}
 
-  if (!(rect || rectf)) {
+float *IMB_steal_float_buffer(ImBuf *ibuf)
+{
+  float *data = imb_steal_buffer_data(ibuf->float_buffer);
+  ibuf->flags &= ~IB_rectfloat;
+  return data;
+}
+
+uint8_t *IMB_steal_encoded_buffer(ImBuf *ibuf)
+{
+  uint8_t *data = imb_steal_buffer_data(ibuf->encoded_buffer);
+
+  ibuf->encoded_size = 0;
+  ibuf->encoded_buffer_size = 0;
+
+  ibuf->flags &= ~IB_mem;
+
+  return data;
+}
+
+void IMB_make_writable_byte_buffer(ImBuf *ibuf)
+{
+  imb_make_writeable_buffer(ibuf->byte_buffer);
+}
+
+void IMB_make_writable_float_buffer(ImBuf *ibuf)
+{
+  imb_make_writeable_buffer(ibuf->float_buffer);
+}
+
+void IMB_assign_byte_buffer(ImBuf *ibuf, uint8_t *buffer_data, const ImBufOwnership ownership)
+{
+  imb_free_buffer(ibuf->byte_buffer);
+  ibuf->flags &= ~IB_rect;
+
+  if (buffer_data) {
+    ibuf->byte_buffer.data = buffer_data;
+    ibuf->byte_buffer.ownership = ownership;
+
+    ibuf->flags |= IB_rect;
+  }
+}
+
+void IMB_assign_float_buffer(ImBuf *ibuf, float *buffer_data, const ImBufOwnership ownership)
+{
+  imb_free_buffer(ibuf->float_buffer);
+  ibuf->flags &= ~IB_rectfloat;
+
+  if (buffer_data) {
+    ibuf->float_buffer.data = buffer_data;
+    ibuf->float_buffer.ownership = ownership;
+
+    ibuf->flags |= IB_rectfloat;
+  }
+}
+
+ImBuf *IMB_allocFromBufferOwn(
+    uint8_t *byte_buffer, float *float_buffer, uint w, uint h, uint channels)
+{
+  if (!(byte_buffer || float_buffer)) {
     return nullptr;
   }
 
-  ibuf = IMB_allocImBuf(w, h, 32, 0);
+  ImBuf *ibuf = IMB_allocImBuf(w, h, 32, 0);
 
   ibuf->channels = channels;
 
-  /* Avoid #MEM_dupallocN since the buffers might not be allocated using guarded-allocation. */
-  if (rectf) {
-    BLI_assert(MEM_allocN_len(rectf) == sizeof(float[4]) * w * h);
-    ibuf->rect_float = rectf;
-
-    ibuf->flags |= IB_rectfloat;
-    ibuf->mall |= IB_rectfloat;
+  if (float_buffer) {
+    /* TODO(sergey): The 4 channels is the historical code. Should probably be `channels`, but
+     * needs a dedicated investigation. */
+    BLI_assert(MEM_allocN_len(float_buffer) == sizeof(float[4]) * w * h);
+    IMB_assign_float_buffer(ibuf, float_buffer, IB_TAKE_OWNERSHIP);
   }
-  if (rect) {
-    BLI_assert(MEM_allocN_len(rect) == sizeof(uchar[4]) * w * h);
-    ibuf->rect = rect;
 
-    ibuf->flags |= IB_rect;
-    ibuf->mall |= IB_rect;
+  if (byte_buffer) {
+    BLI_assert(MEM_allocN_len(byte_buffer) == sizeof(uint8_t[4]) * w * h);
+    IMB_assign_byte_buffer(ibuf, byte_buffer, IB_TAKE_OWNERSHIP);
   }
 
   return ibuf;
 }
 
-struct ImBuf *IMB_allocFromBuffer(
-    const uint *rect, const float *rectf, uint w, uint h, uint channels)
+ImBuf *IMB_allocFromBuffer(
+    const uint8_t *byte_buffer, const float *float_buffer, uint w, uint h, uint channels)
 {
   ImBuf *ibuf = nullptr;
 
-  if (!(rect || rectf)) {
+  if (!(byte_buffer || float_buffer)) {
     return nullptr;
   }
 
@@ -440,22 +500,20 @@ struct ImBuf *IMB_allocFromBuffer(
 
   ibuf->channels = channels;
 
-  /* Avoid #MEM_dupallocN since the buffers might not be allocated using guarded-allocation. */
-  if (rectf) {
-    const size_t size = sizeof(float[4]) * w * h;
-    ibuf->rect_float = static_cast<float *>(MEM_mallocN(size, __func__));
-    memcpy(ibuf->rect_float, rectf, size);
+  /* NOTE: Avoid #MEM_dupallocN since the buffers might not be allocated using guarded-allocation.
+   */
+  if (float_buffer) {
+    /* TODO(sergey): The 4 channels is the historical code. Should probably be `channels`, but
+     * needs a dedicated investigation. */
+    imb_alloc_buffer(ibuf->float_buffer, w, h, 4, sizeof(float));
 
-    ibuf->flags |= IB_rectfloat;
-    ibuf->mall |= IB_rectfloat;
+    memcpy(ibuf->float_buffer.data, float_buffer, sizeof(float[4]) * w * h);
   }
-  if (rect) {
-    const size_t size = sizeof(uchar[4]) * w * h;
-    ibuf->rect = static_cast<uint *>(MEM_mallocN(size, __func__));
-    memcpy(ibuf->rect, rect, size);
 
-    ibuf->flags |= IB_rect;
-    ibuf->mall |= IB_rect;
+  if (byte_buffer) {
+    imb_alloc_buffer(ibuf->byte_buffer, w, h, 4, sizeof(uint8_t));
+
+    memcpy(ibuf->byte_buffer.data, byte_buffer, sizeof(uint8_t[4]) * w * h);
   }
 
   return ibuf;
@@ -475,7 +533,7 @@ ImBuf *IMB_allocImBuf(uint x, uint y, uchar planes, uint flags)
   return ibuf;
 }
 
-bool IMB_initImBuf(struct ImBuf *ibuf, uint x, uint y, uchar planes, uint flags)
+bool IMB_initImBuf(ImBuf *ibuf, uint x, uint y, uchar planes, uint flags)
 {
   memset(ibuf, 0, sizeof(ImBuf));
 
@@ -488,7 +546,7 @@ bool IMB_initImBuf(struct ImBuf *ibuf, uint x, uint y, uchar planes, uint flags)
   /* float option, is set to other values when buffers get assigned. */
   ibuf->channels = 4;
   /* IMB_DPI_DEFAULT -> pixels-per-meter. */
-  ibuf->ppm[0] = ibuf->ppm[1] = IMB_DPI_DEFAULT / 0.0254f;
+  ibuf->ppm[0] = ibuf->ppm[1] = IMB_DPI_DEFAULT / 0.0254;
 
   if (flags & IB_rect) {
     if (imb_addrectImBuf(ibuf) == false) {
@@ -498,18 +556,6 @@ bool IMB_initImBuf(struct ImBuf *ibuf, uint x, uint y, uchar planes, uint flags)
 
   if (flags & IB_rectfloat) {
     if (imb_addrectfloatImBuf(ibuf, ibuf->channels) == false) {
-      return false;
-    }
-  }
-
-  if (flags & IB_zbuf) {
-    if (addzbufImBuf(ibuf) == false) {
-      return false;
-    }
-  }
-
-  if (flags & IB_zbuffloat) {
-    if (addzbuffloatImBuf(ibuf) == false) {
       return false;
     }
   }
@@ -530,17 +576,11 @@ ImBuf *IMB_dupImBuf(const ImBuf *ibuf1)
     return nullptr;
   }
 
-  if (ibuf1->rect) {
+  if (ibuf1->byte_buffer.data) {
     flags |= IB_rect;
   }
-  if (ibuf1->rect_float) {
+  if (ibuf1->float_buffer.data) {
     flags |= IB_rectfloat;
-  }
-  if (ibuf1->zbuf) {
-    flags |= IB_zbuf;
-  }
-  if (ibuf1->zbuf_float) {
-    flags |= IB_zbuffloat;
   }
 
   x = ibuf1->x;
@@ -552,47 +592,41 @@ ImBuf *IMB_dupImBuf(const ImBuf *ibuf1)
   }
 
   if (flags & IB_rect) {
-    memcpy(ibuf2->rect, ibuf1->rect, size_t(x) * y * sizeof(int));
+    memcpy(ibuf2->byte_buffer.data, ibuf1->byte_buffer.data, size_t(x) * y * 4 * sizeof(uint8_t));
   }
 
   if (flags & IB_rectfloat) {
-    memcpy(ibuf2->rect_float, ibuf1->rect_float, size_t(ibuf1->channels) * x * y * sizeof(float));
+    memcpy(ibuf2->float_buffer.data,
+           ibuf1->float_buffer.data,
+           size_t(ibuf1->channels) * x * y * sizeof(float));
   }
 
-  if (flags & IB_zbuf) {
-    memcpy(ibuf2->zbuf, ibuf1->zbuf, size_t(x) * y * sizeof(int));
-  }
-
-  if (flags & IB_zbuffloat) {
-    memcpy(ibuf2->zbuf_float, ibuf1->zbuf_float, size_t(x) * y * sizeof(float));
-  }
-
-  if (ibuf1->encodedbuffer) {
-    ibuf2->encodedbuffersize = ibuf1->encodedbuffersize;
+  if (ibuf1->encoded_buffer.data) {
+    ibuf2->encoded_buffer_size = ibuf1->encoded_buffer_size;
     if (imb_addencodedbufferImBuf(ibuf2) == false) {
       IMB_freeImBuf(ibuf2);
       return nullptr;
     }
 
-    memcpy(ibuf2->encodedbuffer, ibuf1->encodedbuffer, ibuf1->encodedsize);
+    memcpy(ibuf2->encoded_buffer.data, ibuf1->encoded_buffer.data, ibuf1->encoded_size);
   }
+
+  ibuf2->byte_buffer.colorspace = ibuf1->byte_buffer.colorspace;
+  ibuf2->float_buffer.colorspace = ibuf1->float_buffer.colorspace;
 
   /* silly trick to copy the entire contents of ibuf1 struct over to ibuf */
   tbuf = *ibuf1;
 
   /* fix pointers */
-  tbuf.rect = ibuf2->rect;
-  tbuf.rect_float = ibuf2->rect_float;
-  tbuf.encodedbuffer = ibuf2->encodedbuffer;
-  tbuf.zbuf = ibuf2->zbuf;
-  tbuf.zbuf_float = ibuf2->zbuf_float;
+  tbuf.byte_buffer = ibuf2->byte_buffer;
+  tbuf.float_buffer = ibuf2->float_buffer;
+  tbuf.encoded_buffer = ibuf2->encoded_buffer;
   for (a = 0; a < IMB_MIPMAP_LEVELS; a++) {
     tbuf.mipmap[a] = nullptr;
   }
   tbuf.dds_data.data = nullptr;
 
   /* set malloc flag */
-  tbuf.mall = ibuf2->mall;
   tbuf.refcounter = 0;
 
   /* for now don't duplicate metadata */
@@ -618,11 +652,11 @@ size_t IMB_get_size_in_memory(ImBuf *ibuf)
 
   size += sizeof(ImBuf);
 
-  if (ibuf->rect) {
+  if (ibuf->byte_buffer.data) {
     channel_size += sizeof(char);
   }
 
-  if (ibuf->rect_float) {
+  if (ibuf->float_buffer.data) {
     channel_size += sizeof(float);
   }
 

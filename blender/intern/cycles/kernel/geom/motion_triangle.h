@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 /* Motion Triangle Primitive
  *
@@ -36,8 +37,9 @@ ccl_device_inline void motion_triangle_verts_for_step(KernelGlobals kg,
   }
   else {
     /* center step not store in this array */
-    if (step > numsteps)
+    if (step > numsteps) {
       step--;
+    }
 
     offset += step * numverts;
 
@@ -63,8 +65,9 @@ ccl_device_inline void motion_triangle_normals_for_step(KernelGlobals kg,
   }
   else {
     /* center step is not stored in this array */
-    if (step > numsteps)
+    if (step > numsteps) {
       step--;
+    }
 
     offset += step * numverts;
 

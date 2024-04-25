@@ -1,12 +1,12 @@
+# SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+#
 # SPDX-License-Identifier: Apache-2.0
-# Copyright 2011-2022 Blender Foundation
 
 # OSL node shaders
 
 set(SRC_OSL
   node_add_closure.osl
   node_ambient_occlusion.osl
-  node_anisotropic_bsdf.osl
   node_attribute.osl
   node_background.osl
   node_bevel.osl
@@ -78,6 +78,7 @@ set(SRC_OSL
   node_separate_hsv.osl
   node_separate_xyz.osl
   node_set_normal.osl
+  node_sheen_bsdf.osl
   node_sky_texture.osl
   node_subsurface_scattering.osl
   node_tangent.osl
@@ -91,7 +92,6 @@ set(SRC_OSL
   node_vector_map_range.osl
   node_vector_rotate.osl
   node_vector_transform.osl
-  node_velvet_bsdf.osl
   node_vertex_color.osl
   node_voronoi_texture.osl
   node_voxel_texture.osl
@@ -114,11 +114,13 @@ file(GLOB SRC_OSL_HEADER_DIST ${OSL_SHADER_DIR}/*.h)
 set(SRC_OSL_HEADERS
   node_color.h
   node_color_blend.h
+  node_fractal_voronoi.h
   node_fresnel.h
   node_hash.h
   node_math.h
   node_noise.h
   node_ramp_util.h
+  node_voronoi.h
   stdcycles.h
   ${SRC_OSL_HEADER_DIST}
 )

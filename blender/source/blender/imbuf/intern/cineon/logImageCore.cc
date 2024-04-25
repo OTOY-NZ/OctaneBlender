@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 1999-2001 David Hodson <hodsond@acm.org>. */
+/* SPDX-FileCopyrightText: 1999-2001 David Hodson <hodsond@acm.org>.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup imbcineon
@@ -12,9 +13,9 @@
 #include "dpxlib.h"
 #include "logmemfile.h"
 
-#include <math.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cmath>
+#include <cstdlib>
+#include <cstring>
 
 #include "BLI_fileops.h"
 #include "BLI_utildefines.h"

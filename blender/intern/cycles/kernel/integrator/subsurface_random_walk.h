@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #include "kernel/camera/projection.h"
 
@@ -167,23 +168,13 @@ ccl_device_inline bool subsurface_random_walk(KernelGlobals kg,
                                               ccl_private Ray &ray,
                                               ccl_private LocalIntersection &ss_isect)
 {
-  const float2 rand_bsdf = path_state_rng_2D(kg, &rng_state, PRNG_SUBSURFACE_BSDF);
-
   const float3 P = INTEGRATOR_STATE(state, ray, P);
-  const float3 N = INTEGRATOR_STATE(state, ray, D);
+  const float3 D = INTEGRATOR_STATE(state, ray, D);
   const float ray_dP = INTEGRATOR_STATE(state, ray, dP);
   const float time = INTEGRATOR_STATE(state, ray, time);
-  const float3 Ng = INTEGRATOR_STATE(state, subsurface, Ng);
+  const float3 N = INTEGRATOR_STATE(state, subsurface, N);
   const int object = INTEGRATOR_STATE(state, isect, object);
   const int prim = INTEGRATOR_STATE(state, isect, prim);
-
-  /* Sample diffuse surface scatter into the object. */
-  float3 D;
-  float pdf;
-  sample_cos_hemisphere(-N, rand_bsdf.x, rand_bsdf.y, &D, &pdf);
-  if (dot(-Ng, D) <= 0.0f) {
-    return false;
-  }
 
   /* Setup ray. */
   ray.P = P;
@@ -197,6 +188,7 @@ ccl_device_inline bool subsurface_random_walk(KernelGlobals kg,
   ray.self.prim = prim;
   ray.self.light_object = OBJECT_NONE;
   ray.self.light_prim = PRIM_NONE;
+  ray.self.light = LAMP_NONE;
 
   /* Convert subsurface to volume coefficients.
    * The single-scattering albedo is named alpha to avoid confusion with the surface albedo. */
@@ -325,8 +317,7 @@ ccl_device_inline bool subsurface_random_walk(KernelGlobals kg,
         ray.D = newD;
       }
       else {
-        float3 newD = henyey_greenstrein_sample(
-            ray.D, anisotropy, rand_scatter.x, rand_scatter.y, &hg_pdf);
+        float3 newD = henyey_greenstrein_sample(ray.D, anisotropy, rand_scatter, &hg_pdf);
         cos_theta = dot(newD, N);
         ray.D = newD;
       }
@@ -435,10 +426,11 @@ ccl_device_inline bool subsurface_random_walk(KernelGlobals kg,
   if (hit) {
     kernel_assert(isfinite_safe(throughput));
 
+    /* TODO(lukas): Which PDF should we report here? Entry bounce? The random walk? Just 1.0? */
     guiding_record_bssrdf_bounce(
         kg,
         state,
-        pdf,
+        1.0f,
         N,
         D,
         safe_divide_color(throughput, INTEGRATOR_STATE(state, path, throughput)),

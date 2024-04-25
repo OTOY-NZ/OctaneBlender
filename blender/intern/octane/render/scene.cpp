@@ -199,17 +199,94 @@ bool Scene::is_osl_camera_used(std::string tree_name, std::string name)
   // return camera && camera->is_osl_camera_used(tree_name, name);
 }
 
+static bool is_uploaded_octane_object_same(
+    OctaneDataTransferObject::OctaneObjects &uploaded_octane_objects,
+    OctaneDataTransferObject::OctaneObjects &current_octane_objects,
+    std::unordered_map<std::string, int32_t> &uploaded_objects_name_to_index,
+    OctaneDataTransferObject::OctaneObject &object)
+{
+  std::string object_name = object.sObjectName;
+  if (uploaded_objects_name_to_index.find(object_name) == uploaded_objects_name_to_index.end()) {
+    return false;
+  }
+  size_t uploaded_object_index = uploaded_objects_name_to_index[object_name];
+  if (uploaded_object_index >= uploaded_octane_objects.oObjects.size()) {
+    return false;
+  }
+  const OctaneDataTransferObject::OctaneObject &uploaded_object =
+      uploaded_octane_objects.oObjects[uploaded_object_index];
+  if (!object.isSameValue(uploaded_object)) {
+    return false;
+  }
+  std::vector<uint32_t> default_instance_ids;
+  std::vector<float> default_matrices;
+  std::vector<uint32_t> &uploaded_object_instance_ids =
+      (uploaded_octane_objects.iInstanceIDMap.find(object_name) !=
+       uploaded_octane_objects.iInstanceIDMap.end()) ?
+          uploaded_octane_objects.iInstanceIDMap[object_name] :
+          default_instance_ids;
+  std::vector<uint32_t> &current_object_instance_ids =
+      (current_octane_objects.iInstanceIDMap.find(object_name) !=
+       current_octane_objects.iInstanceIDMap.end()) ?
+          current_octane_objects.iInstanceIDMap[object_name] :
+          default_instance_ids;
+  std::vector<float> &uploaded_object_matrices =
+      (uploaded_octane_objects.fMatrixMap.find(object_name) !=
+       uploaded_octane_objects.fMatrixMap.end()) ?
+          uploaded_octane_objects.fMatrixMap[object_name] :
+          default_matrices;
+  std::vector<float> &current_object_matrices =
+      (current_octane_objects.fMatrixMap.find(object_name) !=
+       current_octane_objects.fMatrixMap.end()) ?
+          current_octane_objects.fMatrixMap[object_name] :
+          default_matrices;
+  if (uploaded_object_instance_ids != current_object_instance_ids) {
+    return false;
+  }
+  if (uploaded_object_matrices != current_object_matrices) {
+    return false;
+  }
+  return true;
+}
+
+void Scene::generate_final_octane_objects_data(
+    OctaneDataTransferObject::OctaneObjects &octane_objects,
+    OctaneDataTransferObject::OctaneObjects &current_octane_objects)
+{
+  std::unordered_map<std::string, int32_t> uploaded_objects_name_to_index;
+  for (size_t idx = 0; idx < octane_objects.oObjects.size(); ++idx) {
+    uploaded_objects_name_to_index[octane_objects.oObjects[idx].sObjectName] = idx;
+  }
+  std::vector<OctaneDataTransferObject::OctaneObject> diff_objects;
+  for (auto &current_object : current_octane_objects.oObjects) {
+    if (is_uploaded_octane_object_same(octane_objects,
+                                       current_octane_objects,
+                                       uploaded_objects_name_to_index,
+                                       current_object))
+    {
+      continue;
+    }
+    diff_objects.emplace_back(current_object);
+  }
+  octane_objects.bGlobal = current_octane_objects.bGlobal;
+  octane_objects.iCurrentFrameIdx = current_octane_objects.iCurrentFrameIdx;
+  octane_objects.iTotalFrameIdx = current_octane_objects.iTotalFrameIdx;
+  octane_objects.iInstanceIDMap = current_octane_objects.iInstanceIDMap;
+  octane_objects.fMatrixMap = current_octane_objects.fMatrixMap;
+  octane_objects.oObjects = current_octane_objects.oObjects;
+  current_octane_objects.oObjects = diff_objects;
+}
+
 void Scene::generate_updated_octane_objects_data(
     std::unordered_set<std::string> &updated_object_names,
-    OctaneDataTransferObject::OctaneObjects &octane_objects,
+    OctaneDataTransferObject::OctaneObjects &current_octane_objects,
     bool is_light_object,
     std::unordered_set<std::string> *geo_nodes_object_names)
 {
   std::unordered_map<std::string, uint32_t> object_counters;
-  octane_objects.iInstanceIDMap.clear();
-  octane_objects.fMatrixMap.clear();
+  current_octane_objects.iInstanceIDMap.clear();
+  current_octane_objects.fMatrixMap.clear();
   std::unordered_set<std::string> added_octane_object;
-
   std::vector<OctaneScatter *> octane_scatters;
 
   if (is_light_object) {
@@ -223,7 +300,8 @@ void Scene::generate_updated_octane_objects_data(
     object_counters[octane_scatter->name] += octane_scatter->motion_blur_times.size();
     // Complete all necessary samples
     if (octane_scatter->motion_blur_transforms.size() > 0 &&
-        octane_scatter->motion_blur_transforms.size() < octane_scatter->sample_number()) {
+        octane_scatter->motion_blur_transforms.size() < octane_scatter->sample_number())
+    {
       float min_time, max_time;
       min_time = max_time = octane_scatter->motion_blur_transforms.begin()->first;
       for (auto it : octane_scatter->motion_blur_transforms) {
@@ -232,7 +310,8 @@ void Scene::generate_updated_octane_objects_data(
       }
       for (auto candidate_motion_time : octane_scatter->motion_blur_times) {
         if (octane_scatter->motion_blur_transforms.find(candidate_motion_time) ==
-            octane_scatter->motion_blur_transforms.end()) {
+            octane_scatter->motion_blur_transforms.end())
+        {
 
           if (candidate_motion_time < min_time) {
             octane_scatter->update_motion_blur_transforms(
@@ -249,8 +328,8 @@ void Scene::generate_updated_octane_objects_data(
 
   for (auto name : updated_object_names) {
     if (object_counters.find(name) != object_counters.end()) {
-      octane_objects.iInstanceIDMap[name].reserve(object_counters[name]);
-      octane_objects.fMatrixMap[name].reserve(object_counters[name] * 12);
+      current_octane_objects.iInstanceIDMap[name].reserve(object_counters[name]);
+      current_octane_objects.fMatrixMap[name].reserve(object_counters[name] * 12);
     }
     else {
       // Set and upload empty object to make it removed in the server
@@ -260,7 +339,7 @@ void Scene::generate_updated_octane_objects_data(
       object.iInstanceId = 0;
       object.iSamplesNum = 1;
       object.iUseObjectLayer = OctaneDataTransferObject::OctaneObject::NO_OBJECT_LAYER;
-      octane_objects.oObjects.emplace_back(object);
+      current_octane_objects.oObjects.emplace_back(object);
       if (geo_nodes_object_names != NULL) {
         if (geo_nodes_object_names->find(name) != geo_nodes_object_names->end()) {
           geo_nodes_object_names->erase(name);
@@ -272,22 +351,23 @@ void Scene::generate_updated_octane_objects_data(
   if (is_light_object) {
     for (auto &light : lights) {
       if (updated_object_names.find(light->name) != updated_object_names.end()) {
-        if (added_octane_object.find(light->name) == added_octane_object.end()) {
-          added_octane_object.insert(light->name);
-          octane_objects.oObjects.emplace_back(light->light.oObject);
-        }
-        octane_objects.iInstanceIDMap[light->name].emplace_back(light->light.oObject.iInstanceId);
+        current_octane_objects.iInstanceIDMap[light->name].emplace_back(
+            light->light.oObject.iInstanceId);
         if (light->light.oObject.iSamplesNum == 1) {
           float *pMat = (float *)(&light->light.oObject.oMatrix);
-          octane_objects.fMatrixMap[light->name].insert(
-              octane_objects.fMatrixMap[light->name].end(), pMat, pMat + 12);
+          current_octane_objects.fMatrixMap[light->name].insert(
+              current_octane_objects.fMatrixMap[light->name].end(), pMat, pMat + 12);
         }
         else {
           for (auto it : light->light.oObject.oMotionMatrices) {
             float *pMat = (float *)(&it.second);
-            octane_objects.fMatrixMap[light->name].insert(
-                octane_objects.fMatrixMap[light->name].end(), pMat, pMat + 12);
+            current_octane_objects.fMatrixMap[light->name].insert(
+                current_octane_objects.fMatrixMap[light->name].end(), pMat, pMat + 12);
           }
+        }
+        if (added_octane_object.find(light->name) == added_octane_object.end()) {
+          added_octane_object.insert(light->name);
+          current_octane_objects.oObjects.emplace_back(light->light.oObject);
         }
       }
     }
@@ -297,23 +377,23 @@ void Scene::generate_updated_octane_objects_data(
       if (updated_object_names.find(object->name) != updated_object_names.end()) {
         if (added_octane_object.find(object->name) == added_octane_object.end()) {
           added_octane_object.insert(object->name);
-          octane_objects.oObjects.emplace_back(object->octane_object);
+          current_octane_objects.oObjects.emplace_back(object->octane_object);
         }
         int32_t instance_id = object->octane_object.iInstanceId;
         if (object->use_seq_instance_id) {
-          instance_id = octane_objects.iInstanceIDMap[object->name].size(); 
+          instance_id = current_octane_objects.iInstanceIDMap[object->name].size();
         }
-        octane_objects.iInstanceIDMap[object->name].emplace_back(instance_id);
+        current_octane_objects.iInstanceIDMap[object->name].emplace_back(instance_id);
         if (object->octane_object.iSamplesNum == 1) {
           float *pMat = (float *)(&object->octane_object.oMatrix);
-          octane_objects.fMatrixMap[object->name].insert(
-              octane_objects.fMatrixMap[object->name].end(), pMat, pMat + 12);
+          current_octane_objects.fMatrixMap[object->name].insert(
+              current_octane_objects.fMatrixMap[object->name].end(), pMat, pMat + 12);
         }
         else {
           for (auto it : object->octane_object.oMotionMatrices) {
             float *pMat = (float *)(&it.second);
-            octane_objects.fMatrixMap[object->name].insert(
-                octane_objects.fMatrixMap[object->name].end(), pMat, pMat + 12);
+            current_octane_objects.fMatrixMap[object->name].insert(
+                current_octane_objects.fMatrixMap[object->name].end(), pMat, pMat + 12);
           }
         }
       }

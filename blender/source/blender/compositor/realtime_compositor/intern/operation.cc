@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <limits>
 #include <memory>
@@ -33,6 +35,8 @@ void Operation::evaluate()
 
   execute();
 
+  compute_preview();
+
   release_inputs();
 
   release_unneeded_results();
@@ -66,8 +70,8 @@ Domain Operation::compute_domain()
       continue;
     }
 
-    /* An input that skips realization can't be a domain input. */
-    if (descriptor.skip_realization) {
+    /* An input that skips operation domain realization can't be a domain input. */
+    if (!descriptor.realization_options.realize_on_operation_domain) {
       continue;
     }
 
@@ -103,6 +107,12 @@ void Operation::add_and_evaluate_input_processors()
   }
 
   for (const StringRef &identifier : results_mapped_to_inputs_.keys()) {
+    SimpleOperation *realize_transformation = RealizeTransformationOperation::construct_if_needed(
+        context(), get_input(identifier), get_input_descriptor(identifier));
+    add_and_evaluate_input_processor(identifier, realize_transformation);
+  }
+
+  for (const StringRef &identifier : results_mapped_to_inputs_.keys()) {
     SimpleOperation *realize_on_domain = RealizeOnDomainOperation::construct_if_needed(
         context(), get_input(identifier), get_input_descriptor(identifier), compute_domain());
     add_and_evaluate_input_processor(identifier, realize_on_domain);
@@ -133,6 +143,8 @@ void Operation::add_and_evaluate_input_processor(StringRef identifier, SimpleOpe
 
   processor->evaluate();
 }
+
+void Operation::compute_preview(){};
 
 Result &Operation::get_input(StringRef identifier) const
 {

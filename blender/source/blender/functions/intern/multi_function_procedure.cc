@@ -1,9 +1,13 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "FN_multi_function_procedure.hh"
 
 #include "BLI_dot_export.hh"
 #include "BLI_stack.hh"
+
+#include <sstream>
 
 namespace blender::fn::multi_function {
 

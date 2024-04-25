@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "openimageio_support.hh"
 #include <OpenImageIO/imagebuf.h>
@@ -41,17 +43,17 @@ class ImBufMemWriter : public Filesystem::IOProxy {
   {
     /* If buffer is too small increase it. */
     size_t end = offset + size;
-    while (end > ibuf_->encodedbuffersize) {
+    while (end > ibuf_->encoded_buffer_size) {
       if (!imb_enlargeencodedbufferImBuf(ibuf_)) {
         /* Out of memory. */
         return 0;
       }
     }
 
-    memcpy(ibuf_->encodedbuffer + offset, buf, size);
+    memcpy(ibuf_->encoded_buffer.data + offset, buf, size);
 
-    if (end > ibuf_->encodedsize) {
-      ibuf_->encodedsize = end;
+    if (end > ibuf_->encoded_size) {
+      ibuf_->encoded_size = end;
     }
 
     return size;
@@ -59,7 +61,7 @@ class ImBufMemWriter : public Filesystem::IOProxy {
 
   size_t size() const override
   {
-    return ibuf_->encodedsize;
+    return ibuf_->encoded_size;
   }
 
  private:
@@ -116,8 +118,8 @@ static ImBuf *load_pixels(
   const stride_t ibuf_xstride = sizeof(T) * 4;
   const stride_t ibuf_ystride = ibuf_xstride * width;
   const TypeDesc format = is_float ? TypeDesc::FLOAT : TypeDesc::UINT8;
-  uchar *rect = is_float ? reinterpret_cast<uchar *>(ibuf->rect_float) :
-                           reinterpret_cast<uchar *>(ibuf->rect);
+  uchar *rect = is_float ? reinterpret_cast<uchar *>(ibuf->float_buffer.data) :
+                           reinterpret_cast<uchar *>(ibuf->byte_buffer.data);
   void *ibuf_data = rect + ((stride_t(height) - 1) * ibuf_ystride);
 
   bool ok = in->read_image(
@@ -299,13 +301,28 @@ bool imb_oiio_write(const WriteContext &ctx, const char *filepath, const ImageSp
 
   /* Grayscale images need to be based on luminance weights rather than only
    * using a single channel from the source. */
-  if (file_spec.nchannels == 1) {
+  if (ctx.ibuf->channels > 1 && file_spec.nchannels == 1) {
     float weights[4]{};
     IMB_colormanagement_get_luminance_coefficients(weights);
     ImageBufAlgo::channel_sum(final_buf, orig_buf, {weights, orig_buf.nchannels()});
   }
   else {
-    final_buf = std::move(orig_buf);
+    /* If we are moving from an 1-channel format to n-channel we need to
+     * ensure the orignal data is copied into the higher channels. */
+    if (ctx.ibuf->channels == 1 && file_spec.nchannels > 1) {
+      final_buf = ImageBuf(file_spec, InitializePixels::No);
+      ImageBufAlgo::paste(final_buf, 0, 0, 0, 0, orig_buf);
+      ImageBufAlgo::paste(final_buf, 0, 0, 0, 1, orig_buf);
+      ImageBufAlgo::paste(final_buf, 0, 0, 0, 2, orig_buf);
+      if (file_spec.alpha_channel == 3) {
+        ROI alpha_roi = file_spec.roi();
+        alpha_roi.chbegin = file_spec.alpha_channel;
+        ImageBufAlgo::fill(final_buf, {0, 0, 0, 1.0f}, alpha_roi);
+      }
+    }
+    else {
+      final_buf = std::move(orig_buf);
+    }
   }
 
   bool write_ok = false;
@@ -343,19 +360,19 @@ WriteContext imb_create_write_context(const char *file_format,
 
   const int width = ibuf->x;
   const int height = ibuf->y;
-  const bool use_float = prefer_float && (ibuf->rect_float != nullptr);
+  const bool use_float = prefer_float && (ibuf->float_buffer.data != nullptr);
   if (use_float) {
     const int mem_channels = ibuf->channels ? ibuf->channels : 4;
     ctx.mem_xstride = sizeof(float) * mem_channels;
     ctx.mem_ystride = width * ctx.mem_xstride;
-    ctx.mem_start = reinterpret_cast<uchar *>(ibuf->rect_float);
+    ctx.mem_start = reinterpret_cast<uchar *>(ibuf->float_buffer.data);
     ctx.mem_spec = ImageSpec(width, height, mem_channels, TypeDesc::FLOAT);
   }
   else {
     const int mem_channels = 4;
     ctx.mem_xstride = sizeof(uchar) * mem_channels;
     ctx.mem_ystride = width * ctx.mem_xstride;
-    ctx.mem_start = reinterpret_cast<uchar *>(ibuf->rect);
+    ctx.mem_start = ibuf->byte_buffer.data;
     ctx.mem_spec = ImageSpec(width, height, mem_channels, TypeDesc::UINT8);
   }
 
@@ -381,9 +398,7 @@ ImageSpec imb_create_write_spec(const WriteContext &ctx, int file_channels, Type
    */
 
   if (ctx.ibuf->metadata) {
-    for (IDProperty *prop = static_cast<IDProperty *>(ctx.ibuf->metadata->data.group.first); prop;
-         prop = prop->next)
-    {
+    LISTBASE_FOREACH (IDProperty *, prop, &ctx.ibuf->metadata->data.group) {
       if (prop->type == IDP_STRING) {
         /* If this property has a prefixed name (oiio:, tiff:, etc.) and it belongs to
          * oiio or a different format, then skip. */

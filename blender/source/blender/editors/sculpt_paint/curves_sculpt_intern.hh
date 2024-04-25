@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -14,8 +16,8 @@
 #include "BKE_crazyspace.hh"
 #include "BKE_curves.hh"
 
-#include "ED_curves.h"
-#include "ED_curves_sculpt.h"
+#include "ED_curves.hh"
+#include "ED_curves_sculpt.hh"
 
 struct ARegion;
 struct RegionView3D;
@@ -155,11 +157,11 @@ struct CurvesConstraintSolver {
 
  public:
   void initialize(const bke::CurvesGeometry &curves,
-                  const IndexMask curve_selection,
+                  const IndexMask &curve_selection,
                   const bool use_surface_collision);
 
   void solve_step(bke::CurvesGeometry &curves,
-                  const IndexMask curve_selection,
+                  const IndexMask &curve_selection,
                   const Mesh *surface,
                   const CurvesSurfaceTransforms &transforms);
 
@@ -171,5 +173,5 @@ struct CurvesConstraintSolver {
 
 }  // namespace blender::ed::sculpt_paint
 
-bool CURVES_SCULPT_mode_poll(struct bContext *C);
-bool CURVES_SCULPT_mode_poll_view3d(struct bContext *C);
+bool CURVES_SCULPT_mode_poll(bContext *C);
+bool CURVES_SCULPT_mode_poll_view3d(bContext *C);

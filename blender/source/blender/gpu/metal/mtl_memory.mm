@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2022-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_global.h"
 
@@ -68,10 +70,17 @@ void MTLBufferPool::free()
     delete completed_safelist_queue_[safe_pool_free_index];
   }
   completed_safelist_queue_.clear();
+
+  safelist_lock_.lock();
   if (current_free_list_ != nullptr) {
     delete current_free_list_;
     current_free_list_ = nullptr;
   }
+  if (prev_free_buffer_list_ != nullptr) {
+    delete prev_free_buffer_list_;
+    prev_free_buffer_list_ = nullptr;
+  }
+  safelist_lock_.unlock();
 
   /* Clear and release memory pools. */
   for (std::multiset<blender::gpu::MTLBufferHandle, blender::gpu::CompareMTLBuffer> *buffer_pool :
@@ -144,7 +153,7 @@ gpu::MTLBuffer *MTLBufferPool::allocate_aligned(uint64_t size,
           found_size <= (aligned_alloc_size * mtl_buffer_size_threshold_factor_))
       {
         MTL_LOG_INFO(
-            "[MemoryAllocator] Suitable Buffer of size %lld found, for requested size: %lld\n",
+            "[MemoryAllocator] Suitable Buffer of size %lld found, for requested size: %lld",
             found_size,
             aligned_alloc_size);
 
@@ -157,8 +166,7 @@ gpu::MTLBuffer *MTLBufferPool::allocate_aligned(uint64_t size,
       else {
         MTL_LOG_INFO(
             "[MemoryAllocator] Buffer of size %lld found, but was incompatible with requested "
-            "size: "
-            "%lld\n",
+            "size: %lld",
             found_size,
             aligned_alloc_size);
         new_buffer = nullptr;
@@ -203,7 +211,7 @@ gpu::MTLBuffer *MTLBufferPool::allocate_aligned(uint64_t size,
 }
 
 gpu::MTLBuffer *MTLBufferPool::allocate_aligned_with_data(uint64_t size,
-                                                          uint32_t alignment,
+                                                          uint32_t /*alignment*/,
                                                           bool cpu_visible,
                                                           const void *data)
 {
@@ -326,7 +334,7 @@ void MTLBufferPool::update_memory_pools()
       {
         deletion_time_threshold_s = 4;
       }
-      /* Spare pool memory >= 512MB.*/
+      /* Spare pool memory >= 512MB. */
       else if (allocations_in_pool_ >= MEMORY_SIZE_512MB) {
         deletion_time_threshold_s = 15;
       }
@@ -424,8 +432,17 @@ MTLSafeFreeList *MTLBufferPool::get_current_safe_list()
 void MTLBufferPool::begin_new_safe_list()
 {
   safelist_lock_.lock();
+  MTLSafeFreeList *previous_list = prev_free_buffer_list_;
+  MTLSafeFreeList *active_list = get_current_safe_list();
   current_free_list_ = new MTLSafeFreeList();
+  prev_free_buffer_list_ = active_list;
   safelist_lock_.unlock();
+
+  /* Release final reference for previous list.
+   * Note: Outside of lock as this function itself locks. */
+  if (previous_list) {
+    previous_list->decrement_reference();
+  }
 }
 
 void MTLBufferPool::ensure_buffer_pool(MTLResourceOptions options)
@@ -456,7 +473,7 @@ void MTLBufferPool::insert_buffer_into_pool(MTLResourceOptions options, gpu::MTL
    * can reset this state.
    *  TODO(Metal): Purgeability state does not update instantly, so this requires a deferral. */
   BLI_assert(buffer->get_metal_buffer());
-  /* buffer->metal_buffer); [buffer->metal_buffer setPurgeableState:MTLPurgeableStateVolatile]; */
+  // buffer->metal_buffer); [buffer->metal_buffer setPurgeableState:MTLPurgeableStateVolatile];
 
   std::multiset<MTLBufferHandle, CompareMTLBuffer> *pool = buffer_pools_.lookup(options);
   pool->insert(MTLBufferHandle(buffer));
@@ -881,7 +898,7 @@ void MTLScratchBufferManager::ensure_increment_scratch_buffer()
     active_scratch_buf = scratch_buffers_[current_scratch_buffer_];
     active_scratch_buf->reset();
     BLI_assert(&active_scratch_buf->own_context_ == &context_);
-    MTL_LOG_INFO("Scratch buffer %d reset - (ctx %p)(Frame index: %d)\n",
+    MTL_LOG_INFO("Scratch buffer %d reset - (ctx %p)(Frame index: %d)",
                  current_scratch_buffer_,
                  &context_,
                  context_.get_current_frame_index());
@@ -968,12 +985,11 @@ MTLTemporaryBuffer MTLCircularBuffer::allocate_range_aligned(uint64_t alloc_size
          * maximum */
         if (aligned_alloc_size > MTLScratchBufferManager::mtl_scratch_buffer_max_size_) {
           new_size = aligned_alloc_size;
-          MTL_LOG_INFO("Temporarily growing Scratch buffer to %d MB\n",
-                       (int)new_size / 1024 / 1024);
+          MTL_LOG_INFO("Temporarily growing Scratch buffer to %d MB", (int)new_size / 1024 / 1024);
         }
         else {
           new_size = MTLScratchBufferManager::mtl_scratch_buffer_max_size_;
-          MTL_LOG_INFO("Shrinking Scratch buffer back to %d MB\n", (int)new_size / 1024 / 1024);
+          MTL_LOG_INFO("Shrinking Scratch buffer back to %d MB", (int)new_size / 1024 / 1024);
         }
       }
       BLI_assert(aligned_alloc_size <= new_size);
@@ -996,7 +1012,7 @@ MTLTemporaryBuffer MTLCircularBuffer::allocate_range_aligned(uint64_t alloc_size
     else {
       MTL_LOG_WARNING(
           "Performance Warning: Reached the end of circular buffer of size: %llu, but cannot "
-          "resize. Starting new buffer\n",
+          "resize. Starting new buffer",
           cbuffer_->get_size());
       BLI_assert(aligned_alloc_size <= new_size);
 
@@ -1026,7 +1042,7 @@ MTLTemporaryBuffer MTLCircularBuffer::allocate_range_aligned(uint64_t alloc_size
     if (G.debug & G_DEBUG_GPU) {
       cbuffer_->set_label(@"Circular Scratch Buffer");
     }
-    MTL_LOG_INFO("Resized Metal circular buffer to %llu bytes\n", new_size);
+    MTL_LOG_INFO("Resized Metal circular buffer to %llu bytes", new_size);
 
     /* Reset allocation Status. */
     aligned_current_offset = 0;
@@ -1083,4 +1099,4 @@ void MTLCircularBuffer::reset()
 
 /** \} */
 
-}  // blender::gpu
+}  // namespace blender::gpu

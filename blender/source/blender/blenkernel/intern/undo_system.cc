@@ -1,13 +1,15 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bke
  *
- * Used by ED_undo.h, internal implementation.
+ * Used by ED_undo.hh, internal implementation.
  */
 
-#include <stdio.h>
-#include <string.h>
+#include <cstdio>
+#include <cstring>
 
 #include "CLG_log.h"
 
@@ -23,11 +25,11 @@
 
 #include "BKE_context.h"
 #include "BKE_global.h"
-#include "BKE_lib_override.h"
+#include "BKE_lib_override.hh"
 #include "BKE_main.h"
 #include "BKE_undo_system.h"
 
-#include "RNA_access.h"
+#include "RNA_access.hh"
 
 #include "MEM_guardedalloc.h"
 
@@ -247,7 +249,7 @@ static void undosys_stack_validate(UndoStack *ustack, bool expect_non_empty)
 static void undosys_stack_validate(UndoStack * /*ustack*/, bool /*expect_non_empty*/) {}
 #endif
 
-UndoStack *BKE_undosys_stack_create(void)
+UndoStack *BKE_undosys_stack_create()
 {
   UndoStack *ustack = MEM_cnew<UndoStack>(__func__);
   return ustack;
@@ -324,7 +326,7 @@ static void undosys_stack_clear_all_first(UndoStack *ustack, UndoStep *us, UndoS
   }
 }
 
-static bool undosys_stack_push_main(UndoStack *ustack, const char *name, struct Main *bmain)
+static bool undosys_stack_push_main(UndoStack *ustack, const char *name, Main *bmain)
 {
   UNDO_NESTED_ASSERT(false);
   BLI_assert(ustack->step_init == nullptr);
@@ -337,7 +339,7 @@ static bool undosys_stack_push_main(UndoStack *ustack, const char *name, struct 
   return (ret & UNDO_PUSH_RET_SUCCESS);
 }
 
-void BKE_undosys_stack_init_from_main(UndoStack *ustack, struct Main *bmain)
+void BKE_undosys_stack_init_from_main(UndoStack *ustack, Main *bmain)
 {
   UNDO_NESTED_ASSERT(false);
   undosys_stack_push_main(ustack, IFACE_("Original"), bmain);
@@ -636,7 +638,7 @@ UndoStep *BKE_undosys_step_find_by_name_with_type(UndoStack *ustack,
                                                   const char *name,
                                                   const UndoType *ut)
 {
-  for (UndoStep *us = static_cast<UndoStep *>(ustack->steps.last); us; us = us->prev) {
+  LISTBASE_FOREACH_BACKWARD (UndoStep *, us, &ustack->steps) {
     if (us->type == ut) {
       if (STREQ(name, us->name)) {
         return us;
@@ -653,7 +655,7 @@ UndoStep *BKE_undosys_step_find_by_name(UndoStack *ustack, const char *name)
 
 UndoStep *BKE_undosys_step_find_by_type(UndoStack *ustack, const UndoType *ut)
 {
-  for (UndoStep *us = static_cast<UndoStep *>(ustack->steps.last); us; us = us->prev) {
+  LISTBASE_FOREACH_BACKWARD (UndoStep *, us, &ustack->steps) {
     if (us->type == ut) {
       return us;
     }
@@ -891,10 +893,9 @@ UndoType *BKE_undosys_type_append(void (*undosys_fn)(UndoType *))
   return ut;
 }
 
-void BKE_undosys_type_free_all(void)
+void BKE_undosys_type_free_all()
 {
-  UndoType *ut;
-  while ((ut = static_cast<UndoType *>(BLI_pophead(&g_undo_types)))) {
+  while (UndoType *ut = static_cast<UndoType *>(BLI_pophead(&g_undo_types))) {
     MEM_freeN(ut);
   }
 }

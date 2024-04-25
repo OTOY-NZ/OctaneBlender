@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #include "bvh/bvh.h"
 #include "bvh/bvh2.h"
@@ -124,8 +125,9 @@ void GeometryManager::device_update_mesh(Device *,
                            &tri_patch_uv[mesh->vert_offset]);
         }
 
-        if (progress.get_cancel())
+        if (progress.get_cancel()) {
           return;
+        }
       }
     }
 
@@ -168,8 +170,9 @@ void GeometryManager::device_update_mesh(Device *,
                           &curve_keys[hair->curve_key_offset],
                           &curves[hair->prim_offset],
                           &curve_segments[hair->curve_segment_offset]);
-        if (progress.get_cancel())
+        if (progress.get_cancel()) {
           return;
+        }
       }
     }
 
@@ -189,8 +192,9 @@ void GeometryManager::device_update_mesh(Device *,
         PointCloud *pointcloud = static_cast<PointCloud *>(geom);
         pointcloud->pack(
             scene, &points[pointcloud->prim_offset], &points_shader[pointcloud->prim_offset]);
-        if (progress.get_cancel())
+        if (progress.get_cancel()) {
           return;
+        }
       }
     }
 
@@ -213,8 +217,9 @@ void GeometryManager::device_update_mesh(Device *,
                                                     mesh->patch_table_offset);
         }
 
-        if (progress.get_cancel())
+        if (progress.get_cancel()) {
           return;
+        }
       }
     }
 

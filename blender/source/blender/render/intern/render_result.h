@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2007 Blender Foundation */
+/* SPDX-FileCopyrightText: 2007 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup render
@@ -131,6 +132,11 @@ void render_result_views_shallowcopy(struct RenderResult *dst, struct RenderResu
  * Free the views created temporarily.
  */
 void render_result_views_shallowdelete(struct RenderResult *rr);
+
+/**
+ * Free GPU texture caches to reduce memory usage.
+ */
+void render_result_free_gpu_texture_caches(struct RenderResult *rr);
 
 #define FOREACH_VIEW_LAYER_TO_RENDER_BEGIN(re_, iter_) \
   { \

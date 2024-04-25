@@ -1,11 +1,10 @@
+# SPDX-FileCopyrightText: 2006 Blender Authors
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
-# Copyright 2006 Blender Foundation
 
 set(INC
   .
-  ../../blenlib
   ../../imbuf
-  ../../../../intern/guardedalloc
 )
 
 set(INC_SYS
@@ -13,13 +12,13 @@ set(INC_SYS
 )
 
 set(SRC
-  intern/avi.c
-  intern/avi_codecs.c
-  intern/avi_endian.c
-  intern/avi_mjpeg.c
-  intern/avi_options.c
-  intern/avi_rgb.c
-  intern/avi_rgb32.c
+  intern/avi.cc
+  intern/avi_codecs.cc
+  intern/avi_endian.cc
+  intern/avi_mjpeg.cc
+  intern/avi_options.cc
+  intern/avi_rgb.cc
+  intern/avi_rgb32.cc
 
   AVI_avi.h
   intern/avi_endian.h
@@ -31,6 +30,9 @@ set(SRC
 
 set(LIB
   ${JPEG_LIBRARIES}
+  PRIVATE bf::blenlib
+  PRIVATE bf::dna
+  PRIVATE bf::intern::guardedalloc
 )
 
 blender_add_lib(bf_avi "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

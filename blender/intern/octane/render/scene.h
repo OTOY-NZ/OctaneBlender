@@ -19,11 +19,11 @@
 #ifndef __SCENE_H__
 #define __SCENE_H__
 
-#include "util/thread.h"
-#include "util/transform.h"
 #include "mesh.h"
 #include "particles.h"
 #include "session.h"
+#include "util/thread.h"
+#include "util/transform.h"
 
 namespace OctaneEngine {
 class OctaneClient;
@@ -56,9 +56,7 @@ const Transform OCTANE_OBJECT_ROTATION_MATRIX = transform_rotate(M_PI_2_F, make_
 
 class SceneParams {
  public:
-  SceneParams()
-  {
-  }
+  SceneParams() {}
 
   bool modified(const SceneParams &params)
   {
@@ -84,9 +82,12 @@ class Scene {
   bool is_osl_camera_used(std::string tree_name, std::string name);
   void generate_updated_octane_objects_data(
       std::unordered_set<std::string> &updated_object_names,
-      OctaneDataTransferObject::OctaneObjects &octane_objects,
+      OctaneDataTransferObject::OctaneObjects &current_octane_objects,
       bool is_light_object,
       std::unordered_set<std::string> *geo_nodes_object_names = NULL);
+  void generate_final_octane_objects_data(
+      OctaneDataTransferObject::OctaneObjects &octane_objects,
+      OctaneDataTransferObject::OctaneObjects &current_octane_objects);
   void free_memory(bool final);
   bool is_addon_mode()
   {

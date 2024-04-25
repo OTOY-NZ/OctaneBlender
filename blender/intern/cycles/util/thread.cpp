@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #include "util/thread.h"
 
@@ -12,8 +13,8 @@ CCL_NAMESPACE_BEGIN
 
 thread::thread(function<void()> run_cb) : run_cb_(run_cb), joined_(false)
 {
-#ifdef __APPLE__
-  /* Set the stack size to 2MB to match Linux. The default 512KB on macOS is
+#if defined(__APPLE__) || defined(__linux__) && !defined(__GLIBC__)
+  /* Set the stack size to 2MB to match glibc. The default 512KB on macOS is
    * too small for Embree, and consistent stack size also makes things more
    * predictable in general. */
   pthread_attr_t attribute;
@@ -42,7 +43,7 @@ void *thread::run(void *arg)
 bool thread::join()
 {
   joined_ = true;
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(__linux__) && !defined(__GLIBC__)
   return pthread_join(pthread_id, NULL) == 0;
 #else
   try {

@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 1999-2001 David Hodson <hodsond@acm.org>. */
+/* SPDX-FileCopyrightText: 1999-2001 David Hodson <hodsond@acm.org>.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup imbcineon
@@ -10,12 +11,12 @@
 #include "cineonlib.h"
 #include "logmemfile.h"
 
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <ctime>
 #include <sys/types.h>
-#include <time.h>
 
 #include "BLI_fileops.h"
 #include "BLI_string.h"
@@ -40,7 +41,7 @@ static void fillCineonMainHeader(LogImageFile *cineon,
                                  const char *creator)
 {
   time_t fileClock;
-  struct tm *fileTime;
+  tm *fileTime;
   int i;
 
   memset(header, 0, sizeof(CineonMainHeader));
@@ -300,13 +301,13 @@ LogImageFile *cineonOpen(const uchar *byteStuff, int fromMemory, size_t bufferSi
     }
 
     if (cineon->element[i].refLowQuantity == CINEON_UNDEFINED_R32 ||
-        isnan(cineon->element[i].refLowQuantity))
+        std::isnan(cineon->element[i].refLowQuantity))
     {
       cineon->element[i].refLowQuantity = 0.0f;
     }
 
     if (cineon->element[i].refHighQuantity == CINEON_UNDEFINED_R32 ||
-        isnan(cineon->element[i].refHighQuantity))
+        std::isnan(cineon->element[i].refHighQuantity))
     {
       if (cineon->element[i].transfer == transfer_PrintingDensity) {
         cineon->element[i].refHighQuantity = 2.048f;
@@ -355,7 +356,7 @@ LogImageFile *cineonCreate(
 {
   CineonMainHeader header;
   const char *shortFilename = nullptr;
-  /* uchar pad[6044]; */
+  // uchar pad[6044];
 
   LogImageFile *cineon = (LogImageFile *)MEM_mallocN(sizeof(LogImageFile), __func__);
   if (cineon == nullptr) {

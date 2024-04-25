@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2022-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup gpu
@@ -154,7 +156,6 @@ void MTLBackend::render_step()
       MTLContext::get_global_memory_manager()->get_current_safe_list();
   if (cmd_free_buffer_list->should_flush()) {
     MTLContext::get_global_memory_manager()->begin_new_safe_list();
-    cmd_free_buffer_list->decrement_reference();
   }
 }
 
@@ -189,7 +190,9 @@ void MTLBackend::platform_init(MTLContext *ctx)
   const char *vendor = [gpu_name UTF8String];
   const char *renderer = "Metal API";
   const char *version = "1.2";
-  printf("METAL API - DETECTED GPU: %s\n", vendor);
+  if (G.debug & G_DEBUG_GPU) {
+    printf("METAL API - DETECTED GPU: %s\n", vendor);
+  }
 
   /* macOS is the only supported platform, but check to ensure we are not building with Metal
    * enablement on another platform. */
@@ -229,7 +232,7 @@ void MTLBackend::platform_init(MTLContext *ctx)
     device = GPU_DEVICE_SOFTWARE;
     driver = GPU_DRIVER_SOFTWARE;
   }
-  else {
+  else if (G.debug & G_DEBUG_GPU) {
     printf("Warning: Could not find a matching GPU name. Things may not behave as expected.\n");
     printf("Detected configuration:\n");
     printf("Vendor: %s\n", vendor);
@@ -252,7 +255,7 @@ void MTLBackend::platform_exit()
  * \{ */
 MTLCapabilities MTLBackend::capabilities = {};
 
-static const char *mtl_extensions_get_null(int i)
+static const char *mtl_extensions_get_null(int /*i*/)
 {
   return nullptr;
 }
@@ -338,19 +341,21 @@ bool MTLBackend::metal_is_supported()
     bool result = supports_argument_buffers_tier2 && supports_barycentrics &&
                   supported_os_version && supported_metal_version;
 
-    if (!supports_argument_buffers_tier2) {
-      printf("[Metal] Device does not support argument buffers tier 2\n");
-    }
-    if (!supports_barycentrics) {
-      printf("[Metal] Device does not support barycentrics coordinates\n");
-    }
-    if (!supported_metal_version) {
-      printf("[Metal] Device does not support metal 2.2 or higher\n");
-    }
+    if (G.debug & G_DEBUG_GPU) {
+      if (!supports_argument_buffers_tier2) {
+        printf("[Metal] Device does not support argument buffers tier 2\n");
+      }
+      if (!supports_barycentrics) {
+        printf("[Metal] Device does not support barycentrics coordinates\n");
+      }
+      if (!supported_metal_version) {
+        printf("[Metal] Device does not support metal 2.2 or higher\n");
+      }
 
-    if (result) {
-      printf("Device with name %s supports metal minimum requirements\n",
-             [[device name] UTF8String]);
+      if (result) {
+        printf("Device with name %s supports metal minimum requirements\n",
+               [[device name] UTF8String]);
+      }
     }
 
     return result;
@@ -412,8 +417,8 @@ void MTLBackend::capabilities_init(MTLContext *ctx)
                                            MTLBackend::capabilities.supports_family_mac1 ||
                                            MTLBackend::capabilities.supports_family_mac2);
   GCaps.compute_shader_support = true;
-  GCaps.shader_storage_buffer_objects_support = true;
   GCaps.shader_draw_parameters_support = true;
+  GCaps.hdr_viewport_support = true;
 
   GCaps.geometry_shader_support = false;
 

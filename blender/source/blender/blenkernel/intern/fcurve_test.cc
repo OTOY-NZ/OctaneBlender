@@ -1,12 +1,13 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2020 Blender Foundation. */
+/* SPDX-FileCopyrightText: 2020 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 #include "testing/testing.h"
 
 #include "MEM_guardedalloc.h"
 
 #include "BKE_fcurve.h"
 
-#include "ED_keyframing.h"
+#include "ED_keyframing.hh"
 
 #include "DNA_anim_types.h"
 

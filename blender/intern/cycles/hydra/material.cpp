@@ -1,6 +1,7 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2022 NVIDIA Corporation
- * Copyright 2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2022 NVIDIA Corporation
+ * SPDX-FileCopyrightText: 2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #include "hydra/material.h"
 #include "hydra/node_util.h"
@@ -138,7 +139,7 @@ class UsdToCycles {
           {TfToken("diffuseColor"), ustring("base_color")},
           {TfToken("emissiveColor"), ustring("emission")},
           {TfToken("specularColor"), ustring("specular")},
-          {TfToken("clearcoatRoughness"), ustring("clearcoat_roughness")},
+          {TfToken("clearcoatRoughness"), ustring("coat_roughness")},
           {TfToken("opacity"), ustring("alpha")},
           // opacityThreshold
           // occlusion

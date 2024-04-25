@@ -1,13 +1,14 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup imbuf
  */
 
 /* This little block needed for linking to Blender... */
-#include <setjmp.h>
-#include <stdio.h>
+#include <csetjmp>
+#include <cstdio>
 
 #include "MEM_guardedalloc.h"
 
@@ -26,6 +27,7 @@
 #include "IMB_metadata.h"
 #include "imbuf.h"
 
+#include <cstring>
 #include <jerror.h>
 #include <jpeglib.h>
 
@@ -40,11 +42,8 @@ static void skip_input_data(j_decompress_ptr cinfo, long num_bytes);
 static void term_source(j_decompress_ptr cinfo);
 static void memory_source(j_decompress_ptr cinfo, const uchar *buffer, size_t size);
 static boolean handle_app1(j_decompress_ptr cinfo);
-static ImBuf *ibJpegImageFromCinfo(struct jpeg_decompress_struct *cinfo,
-                                   int flags,
-                                   int max_size,
-                                   size_t *r_width,
-                                   size_t *r_height);
+static ImBuf *ibJpegImageFromCinfo(
+    jpeg_decompress_struct *cinfo, int flags, int max_size, size_t *r_width, size_t *r_height);
 
 static const uchar jpeg_default_quality = 75;
 static uchar ibuf_quality;
@@ -62,13 +61,13 @@ bool imb_is_a_jpeg(const uchar *mem, const size_t size)
  * JPG ERROR HANDLING
  *---------------------------------------------------------- */
 
-typedef struct my_error_mgr {
-  struct jpeg_error_mgr pub; /* "public" fields */
+struct my_error_mgr {
+  jpeg_error_mgr pub; /* "public" fields */
 
   jmp_buf setjmp_buffer; /* for return to caller */
-} my_error_mgr;
+};
 
-typedef my_error_mgr *my_error_ptr;
+using my_error_ptr = my_error_mgr *;
 
 static void jpeg_error(j_common_ptr cinfo)
 {
@@ -88,22 +87,15 @@ static void jpeg_error(j_common_ptr cinfo)
  * INPUT HANDLER FROM MEMORY
  *---------------------------------------------------------- */
 
-#if 0
-typedef struct {
-  uchar *buffer;
-  int filled;
-} buffer_struct;
-#endif
-
-typedef struct {
-  struct jpeg_source_mgr pub; /* public fields */
+struct my_source_mgr {
+  jpeg_source_mgr pub; /* public fields */
 
   const uchar *buffer;
   int size;
   JOCTET terminal[2];
-} my_source_mgr;
+};
 
-typedef my_source_mgr *my_src_ptr;
+using my_src_ptr = my_source_mgr *;
 
 static void init_source(j_decompress_ptr cinfo)
 {
@@ -150,7 +142,7 @@ static void memory_source(j_decompress_ptr cinfo, const uchar *buffer, size_t si
   my_src_ptr src;
 
   if (cinfo->src == nullptr) { /* first time for this JPEG object? */
-    cinfo->src = (struct jpeg_source_mgr *)(*cinfo->mem->alloc_small)(
+    cinfo->src = (jpeg_source_mgr *)(*cinfo->mem->alloc_small)(
         (j_common_ptr)cinfo, JPOOL_PERMANENT, sizeof(my_source_mgr));
   }
 
@@ -174,7 +166,7 @@ static void memory_source(j_decompress_ptr cinfo, const uchar *buffer, size_t si
   } while (0)
 
 #define INPUT_VARS(cinfo) \
-  struct jpeg_source_mgr *datasrc = (cinfo)->src; \
+  jpeg_source_mgr *datasrc = (cinfo)->src; \
   const JOCTET *next_input_byte = datasrc->next_input_byte; \
   size_t bytes_in_buffer = datasrc->bytes_in_buffer
 
@@ -221,7 +213,7 @@ struct NeoGeo_Word {
   uchar pad3;
   uchar quality;
 };
-BLI_STATIC_ASSERT(sizeof(struct NeoGeo_Word) == 4, "Must be 4 bytes");
+BLI_STATIC_ASSERT(sizeof(NeoGeo_Word) == 4, "Must be 4 bytes");
 
 static boolean handle_app1(j_decompress_ptr cinfo)
 {
@@ -240,7 +232,7 @@ static boolean handle_app1(j_decompress_ptr cinfo)
     }
     length = 0;
     if (STRPREFIX(neogeo, "NeoGeo")) {
-      struct NeoGeo_Word *neogeo_word = (struct NeoGeo_Word *)(neogeo + 6);
+      NeoGeo_Word *neogeo_word = (NeoGeo_Word *)(neogeo + 6);
       ibuf_quality = neogeo_word->quality;
     }
   }
@@ -251,17 +243,14 @@ static boolean handle_app1(j_decompress_ptr cinfo)
   return true;
 }
 
-static ImBuf *ibJpegImageFromCinfo(struct jpeg_decompress_struct *cinfo,
-                                   int flags,
-                                   int max_size,
-                                   size_t *r_width,
-                                   size_t *r_height)
+static ImBuf *ibJpegImageFromCinfo(
+    jpeg_decompress_struct *cinfo, int flags, int max_size, size_t *r_width, size_t *r_height)
 {
   JSAMPARRAY row_pointer;
   JSAMPLE *buffer = nullptr;
   int row_stride;
   int x, y, depth, r, g, b, k;
-  struct ImBuf *ibuf = nullptr;
+  ImBuf *ibuf = nullptr;
   uchar *rect;
   jpeg_saved_marker_ptr marker;
   char *str, *key, *value;
@@ -315,7 +304,7 @@ static ImBuf *ibJpegImageFromCinfo(struct jpeg_decompress_struct *cinfo,
 
       for (y = ibuf->y - 1; y >= 0; y--) {
         jpeg_read_scanlines(cinfo, row_pointer, 1);
-        rect = (uchar *)(ibuf->rect + y * ibuf->x);
+        rect = ibuf->byte_buffer.data + 4 * y * ibuf->x;
         buffer = row_pointer[0];
 
         switch (depth) {
@@ -363,10 +352,13 @@ static ImBuf *ibJpegImageFromCinfo(struct jpeg_decompress_struct *cinfo,
         }
 
         /*
-         * JPEG marker strings are not null-terminated,
-         * create a null-terminated copy before going further
-         */
-        str = BLI_strdupn((char *)marker->data, marker->data_length);
+         * JPEG marker strings are not meant to be null-terminated,
+         * create a null-terminated copy before going further.
+         *
+         * Files saved from Blender pre v4.0 were null terminated,
+         * use `BLI_strnlen` to prevent assertion on passing in too short a string. */
+        str = BLI_strdupn((const char *)marker->data,
+                          BLI_strnlen((const char *)marker->data, marker->data_length));
 
         /*
          * Because JPEG format don't support the
@@ -429,12 +421,12 @@ static ImBuf *ibJpegImageFromCinfo(struct jpeg_decompress_struct *cinfo,
       /* Density_unit may be 0 for unknown, 1 for dots/inch, or 2 for dots/cm. */
       if (cinfo->density_unit == 1) {
         /* Convert inches to meters. */
-        ibuf->ppm[0] = cinfo->X_density / 0.0254f;
-        ibuf->ppm[1] = cinfo->Y_density / 0.0254f;
+        ibuf->ppm[0] = double(cinfo->X_density) / 0.0254;
+        ibuf->ppm[1] = double(cinfo->Y_density) / 0.0254;
       }
       else if (cinfo->density_unit == 2) {
-        ibuf->ppm[0] = cinfo->X_density * 100.0f;
-        ibuf->ppm[1] = cinfo->Y_density * 100.0f;
+        ibuf->ppm[0] = double(cinfo->X_density) * 100.0;
+        ibuf->ppm[1] = double(cinfo->Y_density) * 100.0;
       }
 
       ibuf->ftype = IMB_FTYPE_JPG;
@@ -448,8 +440,8 @@ static ImBuf *ibJpegImageFromCinfo(struct jpeg_decompress_struct *cinfo,
 
 ImBuf *imb_load_jpeg(const uchar *buffer, size_t size, int flags, char colorspace[IM_MAX_SPACE])
 {
-  struct jpeg_decompress_struct _cinfo, *cinfo = &_cinfo;
-  struct my_error_mgr jerr;
+  jpeg_decompress_struct _cinfo, *cinfo = &_cinfo;
+  my_error_mgr jerr;
   ImBuf *ibuf;
 
   if (!imb_is_a_jpeg(buffer, size)) {
@@ -484,15 +476,15 @@ ImBuf *imb_load_jpeg(const uchar *buffer, size_t size, int flags, char colorspac
 #define JPEG_MARKER_APP1 (0xE1)
 #define JPEG_APP1_MAX (1 << 16)
 
-struct ImBuf *imb_thumbnail_jpeg(const char *filepath,
-                                 const int flags,
-                                 const size_t max_thumb_size,
-                                 char colorspace[IM_MAX_SPACE],
-                                 size_t *r_width,
-                                 size_t *r_height)
+ImBuf *imb_thumbnail_jpeg(const char *filepath,
+                          const int flags,
+                          const size_t max_thumb_size,
+                          char colorspace[IM_MAX_SPACE],
+                          size_t *r_width,
+                          size_t *r_height)
 {
-  struct jpeg_decompress_struct _cinfo, *cinfo = &_cinfo;
-  struct my_error_mgr jerr;
+  jpeg_decompress_struct _cinfo, *cinfo = &_cinfo;
+  my_error_mgr jerr;
   FILE *infile = nullptr;
 
   colorspace_set_default_role(colorspace, IM_MAX_SPACE, COLOR_ROLE_DEFAULT_BYTE);
@@ -561,19 +553,19 @@ struct ImBuf *imb_thumbnail_jpeg(const char *filepath,
 #undef JPEG_MARKER_APP1
 #undef JPEG_APP1_MAX
 
-static void write_jpeg(struct jpeg_compress_struct *cinfo, struct ImBuf *ibuf)
+static void write_jpeg(jpeg_compress_struct *cinfo, ImBuf *ibuf)
 {
   JSAMPLE *buffer = nullptr;
   JSAMPROW row_pointer[1];
   uchar *rect;
   int x, y;
   char neogeo[128];
-  struct NeoGeo_Word *neogeo_word;
+  NeoGeo_Word *neogeo_word;
 
   jpeg_start_compress(cinfo, true);
 
-  strcpy(neogeo, "NeoGeo");
-  neogeo_word = (struct NeoGeo_Word *)(neogeo + 6);
+  STRNCPY(neogeo, "NeoGeo");
+  neogeo_word = (NeoGeo_Word *)(neogeo + 6);
   memset(neogeo_word, 0, sizeof(*neogeo_word));
   neogeo_word->quality = ibuf->foptions.quality;
   jpeg_write_marker(cinfo, 0xe1, (JOCTET *)neogeo, 10);
@@ -586,13 +578,14 @@ static void write_jpeg(struct jpeg_compress_struct *cinfo, struct ImBuf *ibuf)
       if (prop->type == IDP_STRING) {
         int text_len;
         if (STREQ(prop->name, "None")) {
-          jpeg_write_marker(cinfo, JPEG_COM, (JOCTET *)IDP_String(prop), prop->len + 1);
+          jpeg_write_marker(cinfo, JPEG_COM, (JOCTET *)IDP_String(prop), prop->len);
         }
 
         char *text = static_text;
         int text_size = static_text_size;
         /* 7 is for Blender, 2 colon separators, length of property
-         * name and property value, followed by the nullptr-terminator. */
+         * name and property value, followed by the nullptr-terminator
+         * which isn't needed by JPEG but #BLI_snprintf_rlen requires it. */
         const int text_length_required = 7 + 2 + strlen(prop->name) + strlen(IDP_String(prop)) + 1;
         if (text_length_required <= static_text_size) {
           text = static_cast<char *>(MEM_mallocN(text_length_required, "jpeg metadata field"));
@@ -610,7 +603,8 @@ static void write_jpeg(struct jpeg_compress_struct *cinfo, struct ImBuf *ibuf)
          */
         text_len = BLI_snprintf_rlen(
             text, text_size, "Blender:%s:%s", prop->name, IDP_String(prop));
-        jpeg_write_marker(cinfo, JPEG_COM, (JOCTET *)text, text_len + 1);
+        /* Don't write the null byte (not expected by the JPEG format). */
+        jpeg_write_marker(cinfo, JPEG_COM, (JOCTET *)text, text_len);
 
         /* TODO(sergey): Ideally we will try to re-use allocation as
          * much as possible. In practice, such long fields don't happen
@@ -626,7 +620,7 @@ static void write_jpeg(struct jpeg_compress_struct *cinfo, struct ImBuf *ibuf)
       sizeof(JSAMPLE) * cinfo->input_components * cinfo->image_width, "jpeg row_pointer"));
 
   for (y = ibuf->y - 1; y >= 0; y--) {
-    rect = (uchar *)(ibuf->rect + y * ibuf->x);
+    rect = ibuf->byte_buffer.data + 4 * y * ibuf->x;
     buffer = row_pointer[0];
 
     switch (cinfo->in_color_space) {
@@ -660,7 +654,7 @@ static void write_jpeg(struct jpeg_compress_struct *cinfo, struct ImBuf *ibuf)
   MEM_freeN(row_pointer[0]);
 }
 
-static int init_jpeg(FILE *outfile, struct jpeg_compress_struct *cinfo, struct ImBuf *ibuf)
+static int init_jpeg(FILE *outfile, jpeg_compress_struct *cinfo, ImBuf *ibuf)
 {
   int quality;
 
@@ -715,14 +709,14 @@ static int init_jpeg(FILE *outfile, struct jpeg_compress_struct *cinfo, struct I
   return 0;
 }
 
-static bool save_stdjpeg(const char *filepath, struct ImBuf *ibuf)
+static bool save_stdjpeg(const char *filepath, ImBuf *ibuf)
 {
   FILE *outfile;
-  struct jpeg_compress_struct _cinfo, *cinfo = &_cinfo;
-  struct my_error_mgr jerr;
+  jpeg_compress_struct _cinfo, *cinfo = &_cinfo;
+  my_error_mgr jerr;
 
   if ((outfile = BLI_fopen(filepath, "wb")) == nullptr) {
-    return 0;
+    return false;
   }
 
   cinfo->err = jpeg_std_error(&jerr.pub);
@@ -736,7 +730,7 @@ static bool save_stdjpeg(const char *filepath, struct ImBuf *ibuf)
     jpeg_destroy_compress(cinfo);
     fclose(outfile);
     remove(filepath);
-    return 0;
+    return false;
   }
 
   init_jpeg(outfile, cinfo, ibuf);
@@ -746,10 +740,10 @@ static bool save_stdjpeg(const char *filepath, struct ImBuf *ibuf)
   fclose(outfile);
   jpeg_destroy_compress(cinfo);
 
-  return 1;
+  return true;
 }
 
-bool imb_savejpeg(struct ImBuf *ibuf, const char *filepath, int flags)
+bool imb_savejpeg(ImBuf *ibuf, const char *filepath, int flags)
 {
 
   ibuf->flags = flags;

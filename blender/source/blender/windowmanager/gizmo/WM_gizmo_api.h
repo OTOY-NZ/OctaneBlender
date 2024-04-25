@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2016 Blender Foundation */
+/* SPDX-FileCopyrightText: 2016 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup wm
@@ -7,7 +8,7 @@
  * \name Gizmo API
  * \brief API for external use of wmGizmo types.
  *
- * Only included in WM_api.h
+ * Only included in WM_api.hh
  */
 
 #pragma once
@@ -113,11 +114,11 @@ void WM_gizmo_set_fn_custom_modal(struct wmGizmo *gz, wmGizmoFnModal fn);
 
 void WM_gizmo_set_matrix_location(struct wmGizmo *gz, const float origin[3]);
 /**
- * #wmGizmo.matrix utility, set the orientation by it's Z axis.
+ * #wmGizmo.matrix utility, set the orientation by its Z axis.
  */
 void WM_gizmo_set_matrix_rotation_from_z_axis(struct wmGizmo *gz, const float z_axis[3]);
 /**
- * #wmGizmo.matrix utility, set the orientation by it's Y/Z axis.
+ * #wmGizmo.matrix utility, set the orientation by its Y/Z axis.
  */
 void WM_gizmo_set_matrix_rotation_from_yz_axis(struct wmGizmo *gz,
                                                const float y_axis[3],
@@ -125,11 +126,11 @@ void WM_gizmo_set_matrix_rotation_from_yz_axis(struct wmGizmo *gz,
 
 void WM_gizmo_set_matrix_offset_location(struct wmGizmo *gz, const float offset[3]);
 /**
- * #wmGizmo.matrix_offset utility, set the orientation by it's Z axis.
+ * #wmGizmo.matrix_offset utility, set the orientation by its Z axis.
  */
 void WM_gizmo_set_matrix_offset_rotation_from_z_axis(struct wmGizmo *gz, const float z_axis[3]);
 /**
- * #wmGizmo.matrix_offset utility, set the orientation by it's Y/Z axis.
+ * #wmGizmo.matrix_offset utility, set the orientation by its Y/Z axis.
  */
 void WM_gizmo_set_matrix_offset_rotation_from_yz_axis(struct wmGizmo *gz,
                                                       const float y_axis[3],
@@ -189,7 +190,7 @@ void WM_gizmo_properties_reset(struct wmGizmo *gz);
 void WM_gizmo_properties_clear(struct PointerRNA *ptr);
 void WM_gizmo_properties_free(struct PointerRNA *ptr);
 
-/* wm_gizmo_type.c */
+/* `wm_gizmo_type.cc` */
 
 const struct wmGizmoType *WM_gizmotype_find(const char *idname, bool quiet);
 void WM_gizmotype_append(void (*gtfunc)(struct wmGizmoType *));
@@ -205,7 +206,7 @@ void WM_gizmotype_free_ptr(struct wmGizmoType *gzt);
  */
 void WM_gizmotype_iter(struct GHashIterator *ghi);
 
-/* wm_gizmo_group_type.c */
+/* `wm_gizmo_group_type.cc` */
 
 struct wmGizmoGroupType *WM_gizmogrouptype_find(const char *idname, bool quiet);
 struct wmGizmoGroupType *WM_gizmogrouptype_append(void (*wtfunc)(struct wmGizmoGroupType *));
@@ -218,13 +219,13 @@ struct wmGizmoGroupType *WM_gizmogrouptype_append_ptr(void (*wtfunc)(struct wmGi
 void WM_gizmogrouptype_iter(struct GHashIterator *ghi);
 
 /**
- * Append and insert into a gizmo typemap.
+ * Append and insert into a gizmo type-map.
  * This is most common for C gizmos which are enabled by default.
  */
 struct wmGizmoGroupTypeRef *WM_gizmogrouptype_append_and_link(
     struct wmGizmoMapType *gzmap_type, void (*wtfunc)(struct wmGizmoGroupType *));
 
-/* wm_gizmo_map.c */
+/* `wm_gizmo_map.cc` */
 
 /* Dynamic Updates (for RNA runtime registration) */
 void WM_gizmoconfig_update_tag_group_type_init(struct wmGizmoMapType *gzmap_type,

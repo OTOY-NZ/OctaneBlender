@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -25,11 +27,12 @@
 
 #include "BKE_attribute.hh"
 
-struct GeometrySet;
 struct Object;
 struct Collection;
 
 namespace blender::bke {
+
+struct GeometrySet;
 
 /**
  * Holds a reference to conceptually unique geometry or a pointer to object/collection data
@@ -70,22 +73,22 @@ class InstanceReference {
   Type type() const;
   Object &object() const;
   Collection &collection() const;
+  GeometrySet &geometry_set();
   const GeometrySet &geometry_set() const;
 
   bool owns_direct_data() const;
   void ensure_owns_direct_data();
 
-  uint64_t hash() const;
   friend bool operator==(const InstanceReference &a, const InstanceReference &b);
 };
 
 class Instances {
  private:
   /**
-   * Indexed set containing information about the data that is instanced.
-   * Actual instances store an index ("handle") into this set.
+   * Contains the data that is used by the individual instances.
+   * Actual instances store an index ("handle") into this vector.
    */
-  blender::VectorSet<InstanceReference> references_;
+  blender::Vector<InstanceReference> references_;
 
   /** Indices into `references_`. Determines what data is instanced. */
   blender::Vector<int> reference_handles_;
@@ -120,6 +123,7 @@ class Instances {
    * Otherwise a new handle is added.
    */
   int add_reference(const InstanceReference &reference);
+  std::optional<int> find_reference_handle(const InstanceReference &query);
   /**
    * Add a reference to the instance reference with an index specified by the #instance_handle
    * argument. For adding many instances, using #resize and accessing the transform array
@@ -155,7 +159,7 @@ class Instances {
    * Remove the indices that are not contained in the mask input, and remove unused instance
    * references afterwards.
    */
-  void remove(const blender::IndexMask mask,
+  void remove(const blender::IndexMask &mask,
               const blender::bke::AnonymousAttributePropagationInfo &propagation_info);
   /**
    * Get an id for every instance. These can be used for e.g. motion blur.
@@ -240,6 +244,12 @@ inline Collection &InstanceReference::collection() const
   return *(Collection *)data_;
 }
 
+inline GeometrySet &InstanceReference::geometry_set()
+{
+  BLI_assert(type_ == Type::GeometrySet);
+  return *geometry_set_;
+}
+
 inline const GeometrySet &InstanceReference::geometry_set() const
 {
   BLI_assert(type_ == Type::GeometrySet);
@@ -254,16 +264,6 @@ inline CustomDataAttributes &Instances::custom_data_attributes()
 inline const CustomDataAttributes &Instances::custom_data_attributes() const
 {
   return attributes_;
-}
-
-inline uint64_t InstanceReference::hash() const
-{
-  return blender::get_default_hash_2(data_, geometry_set_.get());
-}
-
-inline bool operator==(const InstanceReference &a, const InstanceReference &b)
-{
-  return a.data_ == b.data_ && a.geometry_set_.get() == b.geometry_set_.get();
 }
 
 /** \} */

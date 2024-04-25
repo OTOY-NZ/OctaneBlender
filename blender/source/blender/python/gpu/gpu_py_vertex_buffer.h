@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bpygpu
@@ -7,6 +9,10 @@
 #pragma once
 
 #include "BLI_compiler_attrs.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 extern PyTypeObject BPyGPUVertBuf_Type;
 
@@ -19,3 +25,7 @@ typedef struct BPyGPUVertBuf {
 } BPyGPUVertBuf;
 
 PyObject *BPyGPUVertBuf_CreatePyObject(struct GPUVertBuf *buf) ATTR_NONNULL(1);
+
+#ifdef __cplusplus
+}
+#endif

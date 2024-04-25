@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2006 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2006 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup DNA
@@ -8,10 +9,6 @@
 #pragma once
 
 #include "DNA_listBase.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /**
  * #FluidDomainSettings.flags
@@ -835,7 +832,7 @@ typedef struct FluidEffectorSettings {
 
   /* -- User-accessible fields (from here on). -- */
 
-  float surface_distance; /* Thickness of mesh surface, used in obstacle sdf. */
+  float surface_distance; /* Thickness of mesh surface, used in obstacle SDF. */
   int flags;
   int subframes;
   short type;
@@ -846,7 +843,3 @@ typedef struct FluidEffectorSettings {
   short guide_mode;
   char _pad2[2];
 } FluidEffectorSettings;
-
-#ifdef __cplusplus
-}
-#endif

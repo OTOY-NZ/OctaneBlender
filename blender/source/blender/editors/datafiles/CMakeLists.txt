@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2023 Blender Authors
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 set(INC
@@ -16,7 +18,7 @@ set(SRC
 set(LIB
 )
 
-# Order matches `UI_icons.h`, final name will be formatted: `icons{size}_{name}.dat`.
+# Order matches `UI_icons.hh`, final name will be formatted: `icons{size}_{name}.dat`.
 set(ICON_NAMES
   question
   error
@@ -872,6 +874,7 @@ set_property(GLOBAL PROPERTY ICON_GEOM_NAMES
   ops.sculpt.mask_by_color
   ops.sculpt.mesh_filter
   ops.sequencer.blade
+  ops.sequencer.retime
   ops.transform.bone_envelope
   ops.transform.bone_size
   ops.transform.edge_slide

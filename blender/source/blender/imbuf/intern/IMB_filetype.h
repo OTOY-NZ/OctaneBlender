@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup imbuf
@@ -285,6 +287,19 @@ struct ImBuf *imb_load_psd(const unsigned char *mem,
                            size_t size,
                            int flags,
                            char colorspace[IM_MAX_SPACE]);
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Format: SVG - Only for thumbnails.
+ * \{ */
+
+struct ImBuf *imb_load_filepath_thumbnail_svg(const char *filepath,
+                                              const int flags,
+                                              const size_t max_thumb_size,
+                                              char colorspace[],
+                                              size_t *r_width,
+                                              size_t *r_height);
 
 /** \} */
 

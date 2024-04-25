@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup edobj
@@ -34,7 +35,8 @@
 
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
-#include "BLI_math.h"
+#include "BLI_math_matrix.h"
+#include "BLI_math_rotation.h"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
@@ -55,16 +57,18 @@
 #include "BKE_displist.h"
 #include "BKE_duplilist.h"
 #include "BKE_effect.h"
-#include "BKE_geometry_set.h"
 #include "BKE_geometry_set.hh"
+#include "BKE_geometry_set_instances.hh"
 #include "BKE_gpencil_curve_legacy.h"
 #include "BKE_gpencil_geom_legacy.h"
+#include "BKE_gpencil_legacy.h"
 #include "BKE_gpencil_modifier_legacy.h"
+#include "BKE_grease_pencil.hh"
 #include "BKE_key.h"
 #include "BKE_lattice.h"
 #include "BKE_layer.h"
 #include "BKE_lib_id.h"
-#include "BKE_lib_override.h"
+#include "BKE_lib_override.hh"
 #include "BKE_lib_query.h"
 #include "BKE_lib_remap.h"
 #include "BKE_light.h"
@@ -73,10 +77,10 @@
 #include "BKE_material.h"
 #include "BKE_mball.h"
 #include "BKE_mesh.hh"
-#include "BKE_mesh_runtime.h"
+#include "BKE_mesh_runtime.hh"
 #include "BKE_nla.h"
 #include "BKE_node.hh"
-#include "BKE_object.h"
+#include "BKE_object.hh"
 #include "BKE_particle.h"
 #include "BKE_pointcloud.h"
 #include "BKE_report.h"
@@ -85,36 +89,39 @@
 #include "BKE_vfont.h"
 #include "BKE_volume.h"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_build.h"
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_build.hh"
+#include "DEG_depsgraph_query.hh"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
-#include "RNA_enum_types.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
+#include "RNA_enum_types.hh"
 
-#include "UI_interface.h"
+#include "UI_interface.hh"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
-#include "ED_armature.h"
-#include "ED_curve.h"
-#include "ED_curves.h"
-#include "ED_gpencil_legacy.h"
-#include "ED_mball.h"
-#include "ED_mesh.h"
-#include "ED_node.h"
-#include "ED_object.h"
-#include "ED_outliner.h"
-#include "ED_physics.h"
-#include "ED_render.h"
-#include "ED_screen.h"
-#include "ED_select_utils.h"
-#include "ED_transform.h"
-#include "ED_view3d.h"
+#include "ED_armature.hh"
+#include "ED_curve.hh"
+#include "ED_curves.hh"
+#include "ED_gpencil_legacy.hh"
+#include "ED_grease_pencil.hh"
+#include "ED_mball.hh"
+#include "ED_mesh.hh"
+#include "ED_node.hh"
+#include "ED_object.hh"
+#include "ED_outliner.hh"
+#include "ED_physics.hh"
+#include "ED_render.hh"
+#include "ED_screen.hh"
+#include "ED_select_utils.hh"
+#include "ED_transform.hh"
+#include "ED_view3d.hh"
 
-#include "UI_resources.h"
+#include "ANIM_bone_collections.h"
+
+#include "UI_resources.hh"
 
 #include "object_intern.h"
 
@@ -126,7 +133,7 @@ using blender::Vector;
 /** \name Local Enum Declarations
  * \{ */
 
-/* This is an exact copy of the define in `rna_light.c`
+/* This is an exact copy of the define in `rna_light.cc`
  * kept here because of linking order.
  * Icons are only defined here. */
 
@@ -148,7 +155,7 @@ const EnumPropertyItem rna_enum_light_type_addon_version_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-/* copy from rna_object_force.c */
+/* copy from rna_object_force.cc */
 static const EnumPropertyItem field_type_items[] = {
     {PFIELD_FORCE, "FORCE", ICON_FORCE_FORCE, "Force", ""},
     {PFIELD_WIND, "WIND", ICON_FORCE_WIND, "Wind", ""},
@@ -376,7 +383,7 @@ float ED_object_new_primitive_matrix(bContext *C,
     return dia;
   }
 
-  /* return 1.0f; */
+  // return 1.0f;
 }
 
 /** \} */
@@ -385,9 +392,7 @@ float ED_object_new_primitive_matrix(bContext *C,
 /** \name Add Object Operator
  * \{ */
 
-static void view_align_update(struct Main * /*main*/,
-                              struct Scene * /*scene*/,
-                              struct PointerRNA *ptr)
+static void view_align_update(Main * /*main*/, Scene * /*scene*/, PointerRNA *ptr)
 {
   RNA_struct_idprops_unset(ptr, "rotation");
 }
@@ -424,7 +429,7 @@ void ED_object_add_generic_props(wmOperatorType *ot, bool do_editmode)
   /* NOTE: this property gets hidden for add-camera operator. */
   prop = RNA_def_enum(
       ot->srna, "align", align_options, ALIGN_WORLD, "Align", "The alignment of the new object");
-  RNA_def_property_update_runtime(prop, (void *)view_align_update);
+  RNA_def_property_update_runtime(prop, view_align_update);
 
   prop = RNA_def_float_vector_xyz(ot->srna,
                                   "location",
@@ -1151,6 +1156,11 @@ static int object_armature_add_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
+  /* Give the Armature its default bone collection. */
+  bArmature *armature = static_cast<bArmature *>(obedit->data);
+  BoneCollection *default_bonecoll = ANIM_armature_bonecoll_new(armature, "");
+  ANIM_armature_bonecoll_active_set(armature, default_bonecoll);
+
   dia = RNA_float_get(op->ptr, "radius");
   ED_armature_ebone_add_primitive(obedit, dia, view_aligned);
 
@@ -1313,7 +1323,7 @@ void OBJECT_OT_drop_named_image(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Add Gpencil Operator
+/** \name Add Gpencil (legacy) Operator
  * \{ */
 
 static bool object_gpencil_add_poll(bContext *C)
@@ -1457,7 +1467,7 @@ static int object_gpencil_add_exec(bContext *C, wmOperator *op)
         md->source_type = LRT_SOURCE_SCENE;
       }
       /* Only created one layer and one material. */
-      strcpy(md->target_layer, ((bGPDlayer *)gpd->layers.first)->info);
+      STRNCPY(md->target_layer, ((bGPDlayer *)gpd->layers.first)->info);
       md->target_material = BKE_gpencil_material(ob, 1);
       if (md->target_material) {
         id_us_plus(&md->target_material->id);
@@ -1505,21 +1515,21 @@ static void object_add_ui(bContext * /*C*/, wmOperator *op)
 
   uiLayoutSetPropSep(layout, true);
 
-  uiItemR(layout, op->ptr, "radius", 0, nullptr, ICON_NONE);
-  uiItemR(layout, op->ptr, "align", 0, nullptr, ICON_NONE);
-  uiItemR(layout, op->ptr, "location", 0, nullptr, ICON_NONE);
-  uiItemR(layout, op->ptr, "rotation", 0, nullptr, ICON_NONE);
-  uiItemR(layout, op->ptr, "type", 0, nullptr, ICON_NONE);
+  uiItemR(layout, op->ptr, "radius", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, op->ptr, "align", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, op->ptr, "location", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, op->ptr, "rotation", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, op->ptr, "type", UI_ITEM_NONE, nullptr, ICON_NONE);
 
   int type = RNA_enum_get(op->ptr, "type");
   if (ELEM(type, GP_LRT_COLLECTION, GP_LRT_OBJECT, GP_LRT_SCENE)) {
-    uiItemR(layout, op->ptr, "use_lights", 0, nullptr, ICON_NONE);
-    uiItemR(layout, op->ptr, "use_in_front", 0, nullptr, ICON_NONE);
+    uiItemR(layout, op->ptr, "use_lights", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(layout, op->ptr, "use_in_front", UI_ITEM_NONE, nullptr, ICON_NONE);
     bool in_front = RNA_boolean_get(op->ptr, "use_in_front");
     uiLayout *col = uiLayoutColumn(layout, false);
     uiLayoutSetActive(col, !in_front);
-    uiItemR(col, op->ptr, "stroke_depth_offset", 0, nullptr, ICON_NONE);
-    uiItemR(col, op->ptr, "stroke_depth_order", 0, nullptr, ICON_NONE);
+    uiItemR(col, op->ptr, "stroke_depth_offset", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(col, op->ptr, "stroke_depth_order", UI_ITEM_NONE, nullptr, ICON_NONE);
   }
 }
 
@@ -1579,6 +1589,118 @@ void OBJECT_OT_gpencil_add(wmOperatorType *ot)
       GP_DRAWMODE_3D,
       "Stroke Depth Order",
       "Defines how the strokes are ordered in 3D space (for objects not displayed 'In Front')");
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Add Grease Pencil Operator
+ * \{ */
+
+static int object_grease_pencil_add_exec(bContext *C, wmOperator *op)
+{
+  using namespace blender::ed;
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  /* TODO: For now, only support adding the 'Stroke' type. */
+  const int type = RNA_enum_get(op->ptr, "type");
+
+  ushort local_view_bits;
+  float loc[3], rot[3];
+
+  /* NOTE: We use 'Y' here (not 'Z'), as. */
+  WM_operator_view3d_unit_defaults(C, op);
+  if (!ED_object_add_generic_get_opts(
+          C, op, 'Y', loc, rot, nullptr, nullptr, &local_view_bits, nullptr))
+  {
+    return OPERATOR_CANCELLED;
+  }
+
+  const char *ob_name = nullptr;
+  switch (type) {
+    case GP_EMPTY: {
+      ob_name = CTX_DATA_(BLT_I18NCONTEXT_ID_GPENCIL, "GPencil");
+      break;
+    }
+    case GP_STROKE: {
+      ob_name = CTX_DATA_(BLT_I18NCONTEXT_ID_GPENCIL, "Stroke");
+      break;
+    }
+    case GP_MONKEY: {
+      ob_name = CTX_DATA_(BLT_I18NCONTEXT_ID_GPENCIL, "Suzanne");
+      break;
+    }
+    case GP_LRT_OBJECT:
+    case GP_LRT_SCENE:
+    case GP_LRT_COLLECTION: {
+      ob_name = CTX_DATA_(BLT_I18NCONTEXT_ID_GPENCIL, "LineArt");
+      break;
+    }
+    default: {
+      break;
+    }
+  }
+
+  Object *object = ED_object_add_type(
+      C, OB_GREASE_PENCIL, ob_name, loc, rot, false, local_view_bits);
+  GreasePencil &grease_pencil_id = *static_cast<GreasePencil *>(object->data);
+  switch (type) {
+    case GP_EMPTY: {
+      greasepencil::create_blank(*bmain, *object, scene->r.cfra);
+      break;
+    }
+    case GP_STROKE: {
+      const float radius = RNA_float_get(op->ptr, "radius");
+      const float3 scale(radius);
+
+      float4x4 mat;
+      ED_object_new_primitive_matrix(C, object, loc, rot, scale, mat.ptr());
+
+      greasepencil::create_stroke(*bmain, *object, mat, scene->r.cfra);
+      break;
+    }
+    case GP_MONKEY: {
+      const float radius = RNA_float_get(op->ptr, "radius");
+      const float3 scale(radius);
+
+      float4x4 mat;
+      ED_object_new_primitive_matrix(C, object, loc, rot, scale, mat.ptr());
+
+      greasepencil::create_suzanne(*bmain, *object, mat, scene->r.cfra);
+      break;
+    }
+    case GP_LRT_OBJECT:
+    case GP_LRT_SCENE:
+    case GP_LRT_COLLECTION: {
+      /* TODO. */
+      break;
+    }
+  }
+
+  DEG_id_tag_update(&grease_pencil_id.id, ID_RECALC_GEOMETRY);
+  WM_main_add_notifier(NC_GEOM | ND_DATA, &grease_pencil_id.id);
+
+  return OPERATOR_FINISHED;
+}
+
+void OBJECT_OT_grease_pencil_add(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Add Grease Pencil";
+  ot->description = "Add a Grease Pencil object to the scene";
+  ot->idname = "OBJECT_OT_grease_pencil_add";
+
+  /* api callbacks */
+  ot->exec = object_grease_pencil_add_exec;
+  ot->poll = ED_operator_objectmode;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  ot->prop = RNA_def_enum(ot->srna, "type", rna_enum_object_gpencil_type_items, 0, "Type", "");
+
+  ED_object_add_unit_props_radius(ot);
+  ED_object_add_generic_props(ot, false);
 }
 
 /** \} */
@@ -1802,7 +1924,7 @@ void OBJECT_OT_collection_instance_add(wmOperatorType *ot)
   /* properties */
   RNA_def_string(
       ot->srna, "name", "Collection", MAX_ID_NAME - 2, "Name", "Collection name to add");
-  prop = RNA_def_enum(ot->srna, "collection", DummyRNA_NULL_items, 0, "Collection", "");
+  prop = RNA_def_enum(ot->srna, "collection", rna_enum_dummy_NULL_items, 0, "Collection", "");
   RNA_def_enum_funcs(prop, RNA_collection_itemf);
   RNA_def_property_flag(prop, PROP_ENUM_NO_TRANSLATE);
   ot->prop = prop;
@@ -1919,7 +2041,7 @@ void OBJECT_OT_collection_external_asset_drop(wmOperatorType *ot)
 
   object_add_drop_xy_props(ot);
 
-  prop = RNA_def_enum(ot->srna, "collection", DummyRNA_NULL_items, 0, "Collection", "");
+  prop = RNA_def_enum(ot->srna, "collection", rna_enum_dummy_NULL_items, 0, "Collection", "");
   RNA_def_enum_funcs(prop, RNA_collection_itemf);
   RNA_def_property_flag(prop,
                         (PropertyFlag)(PROP_SKIP_SAVE | PROP_HIDDEN | PROP_ENUM_NO_TRANSLATE));
@@ -2133,7 +2255,7 @@ static int object_curves_empty_hair_add_exec(bContext *C, wmOperator *op)
 
   /* Decide which UV map to use for attachment. */
   Mesh *surface_mesh = static_cast<Mesh *>(surface_ob->data);
-  const char *uv_name = CustomData_get_active_layer_name(&surface_mesh->ldata, CD_PROP_FLOAT2);
+  const char *uv_name = CustomData_get_active_layer_name(&surface_mesh->loop_data, CD_PROP_FLOAT2);
   if (uv_name != nullptr) {
     curves_id->surface_uv_map = BLI_strdup(uv_name);
   }
@@ -2477,7 +2599,9 @@ static uint dupliobject_instancer_hash(const void *ptr)
   return hash;
 }
 
-/* Compare function that matches dupliobject_hash */
+/**
+ * Compare function that matches #dupliobject_hash.
+ */
 static bool dupliobject_cmp(const void *a_, const void *b_)
 {
   const DupliObject *a = static_cast<const DupliObject *>(a_);
@@ -2543,7 +2667,8 @@ static void make_object_duplilist_real(bContext *C,
 
   Object *object_eval = DEG_get_evaluated_object(depsgraph, base->object);
 
-  if (!(base->object->transflag & OB_DUPLI) && !BKE_object_has_geometry_set_instances(object_eval))
+  if (!(base->object->transflag & OB_DUPLI) &&
+      !blender::bke::object_has_geometry_set_instances(*object_eval))
   {
     return;
   }
@@ -2812,6 +2937,13 @@ static const EnumPropertyItem convert_target_items[] = {
      "Point Cloud from Mesh objects"},
 #endif
     {OB_CURVES, "CURVES", ICON_OUTLINER_OB_CURVES, "Curves", "Curves from evaluated curve data"},
+#ifdef WITH_GREASE_PENCIL_V3
+    {OB_GREASE_PENCIL,
+     "GREASEPENCIL",
+     ICON_OUTLINER_OB_GREASEPENCIL,
+     "Grease Pencil v3",
+     "Grease Pencil v3 from Grease Pencil"},
+#endif
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -3100,11 +3232,36 @@ static int object_convert_exec(bContext *C, wmOperator *op)
       }
       ob_gpencil->actcol = actcol;
     }
+    else if (U.experimental.use_grease_pencil_version3 && ob->type == OB_GPENCIL_LEGACY &&
+             target == OB_GREASE_PENCIL)
+    {
+      ob->flag |= OB_DONE;
+
+      bGPdata *gpd = static_cast<bGPdata *>(ob->data);
+
+      if (keep_original) {
+        BLI_assert_unreachable();
+      }
+      else {
+        newob = ob;
+      }
+
+      GreasePencil *new_grease_pencil = static_cast<GreasePencil *>(
+          BKE_id_new(bmain, ID_GP, newob->id.name + 2));
+      newob->data = new_grease_pencil;
+      newob->type = OB_GREASE_PENCIL;
+
+      bke::greasepencil::convert::legacy_gpencil_to_grease_pencil(
+          *bmain, *new_grease_pencil, *gpd);
+
+      BKE_object_free_derived_caches(newob);
+      BKE_object_free_modifiers(newob, 0);
+    }
     else if (target == OB_CURVES) {
       ob->flag |= OB_DONE;
 
       Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
-      GeometrySet geometry;
+      bke::GeometrySet geometry;
       if (ob_eval->runtime.geometry_set_eval != nullptr) {
         geometry = *ob_eval->runtime.geometry_set_eval;
       }
@@ -3125,8 +3282,7 @@ static int object_convert_exec(bContext *C, wmOperator *op)
           newob = ob;
         }
 
-        const CurveComponent &curve_component = *geometry.get_component_for_read<CurveComponent>();
-        const Curves *curves_eval = curve_component.get_for_read();
+        const Curves *curves_eval = geometry.get_curves();
         Curves *new_curves = static_cast<Curves *>(BKE_id_new(bmain, ID_CV, newob->id.name + 2));
 
         newob->data = new_curves;
@@ -3191,20 +3347,19 @@ static int object_convert_exec(bContext *C, wmOperator *op)
       /* NOTE: get the mesh from the original, not from the copy in some
        * cases this doesn't give correct results (when MDEF is used for eg)
        */
-      Scene *scene_eval = (Scene *)DEG_get_evaluated_id(depsgraph, &scene->id);
-      Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
-      Mesh *me_eval = mesh_get_eval_final(depsgraph, scene_eval, ob_eval, &CD_MASK_MESH);
-      me_eval = BKE_mesh_copy_for_eval(me_eval);
-      BKE_object_material_from_eval_data(bmain, newob, &me_eval->id);
-      Mesh *new_mesh = (Mesh *)newob->data;
-      BKE_mesh_nomain_to_mesh(me_eval, new_mesh, newob);
-
+      const Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
+      const Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob_eval);
+      Mesh *new_mesh = mesh_eval ? BKE_mesh_copy_for_eval(mesh_eval) :
+                                   BKE_mesh_new_nomain(0, 0, 0, 0);
+      BKE_object_material_from_eval_data(bmain, newob, &new_mesh->id);
+      /* Anonymous attributes shouldn't be available on the applied geometry. */
+      new_mesh->attributes_for_write().remove_anonymous();
       if (do_merge_customdata) {
         BKE_mesh_merge_customdata_for_apply_modifier(new_mesh);
       }
 
-      /* Anonymous attributes shouldn't be available on the applied geometry. */
-      new_mesh->attributes_for_write().remove_anonymous();
+      Mesh *ob_data_mesh = (Mesh *)newob->data;
+      BKE_mesh_nomain_to_mesh(new_mesh, ob_data_mesh, newob);
 
       BKE_object_free_modifiers(newob, 0); /* after derivedmesh calls! */
     }
@@ -3404,7 +3559,7 @@ static int object_convert_exec(bContext *C, wmOperator *op)
       ob->flag |= OB_DONE;
 
       Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
-      GeometrySet geometry;
+      bke::GeometrySet geometry;
       if (ob_eval->runtime.geometry_set_eval != nullptr) {
         geometry = *ob_eval->runtime.geometry_set_eval;
       }
@@ -3426,12 +3581,12 @@ static int object_convert_exec(bContext *C, wmOperator *op)
       newob->data = new_mesh;
       newob->type = OB_MESH;
 
-      if (const Mesh *mesh_eval = geometry.get_mesh_for_read()) {
+      if (const Mesh *mesh_eval = geometry.get_mesh()) {
         BKE_mesh_nomain_to_mesh(BKE_mesh_copy_for_eval(mesh_eval), new_mesh, newob);
         BKE_object_material_from_eval_data(bmain, newob, &mesh_eval->id);
         new_mesh->attributes_for_write().remove_anonymous();
       }
-      else if (const Curves *curves_eval = geometry.get_curves_for_read()) {
+      else if (const Curves *curves_eval = geometry.get_curves()) {
         bke::AnonymousAttributePropagationInfo propagation_info;
         propagation_info.propagate_all = false;
         Mesh *mesh = bke::curve_to_wire_mesh(curves_eval->geometry.wrap(), propagation_info);
@@ -3566,19 +3721,19 @@ static void object_convert_ui(bContext * /*C*/, wmOperator *op)
 
   uiLayoutSetPropSep(layout, true);
 
-  uiItemR(layout, op->ptr, "target", 0, nullptr, ICON_NONE);
-  uiItemR(layout, op->ptr, "keep_original", 0, nullptr, ICON_NONE);
+  uiItemR(layout, op->ptr, "target", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, op->ptr, "keep_original", UI_ITEM_NONE, nullptr, ICON_NONE);
 
   const int target = RNA_enum_get(op->ptr, "target");
   if (target == OB_MESH) {
-    uiItemR(layout, op->ptr, "merge_customdata", 0, nullptr, ICON_NONE);
+    uiItemR(layout, op->ptr, "merge_customdata", UI_ITEM_NONE, nullptr, ICON_NONE);
   }
   else if (target == OB_GPENCIL_LEGACY) {
-    uiItemR(layout, op->ptr, "thickness", 0, nullptr, ICON_NONE);
-    uiItemR(layout, op->ptr, "angle", 0, nullptr, ICON_NONE);
-    uiItemR(layout, op->ptr, "offset", 0, nullptr, ICON_NONE);
-    uiItemR(layout, op->ptr, "seams", 0, nullptr, ICON_NONE);
-    uiItemR(layout, op->ptr, "faces", 0, nullptr, ICON_NONE);
+    uiItemR(layout, op->ptr, "thickness", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(layout, op->ptr, "angle", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(layout, op->ptr, "offset", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(layout, op->ptr, "seams", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(layout, op->ptr, "faces", UI_ITEM_NONE, nullptr, ICON_NONE);
   }
 }
 
@@ -3888,7 +4043,7 @@ void OBJECT_OT_duplicate(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 
   prop = RNA_def_enum(
-      ot->srna, "mode", rna_enum_transform_mode_types, TFM_TRANSLATION, "Mode", "");
+      ot->srna, "mode", rna_enum_transform_mode_type_items, TFM_TRANSLATION, "Mode", "");
   RNA_def_property_flag(prop, PROP_HIDDEN);
 }
 
@@ -4151,7 +4306,7 @@ static bool object_join_poll(bContext *C)
   }
 
   if (ELEM(ob->type, OB_MESH, OB_CURVES_LEGACY, OB_SURF, OB_ARMATURE, OB_GPENCIL_LEGACY)) {
-    return ED_operator_screenactive(C);
+    return true;
   }
   return false;
 }

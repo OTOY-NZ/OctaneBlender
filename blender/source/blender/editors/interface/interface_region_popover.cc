@@ -1,12 +1,13 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2008 Blender Foundation */
+/* SPDX-FileCopyrightText: 2008 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup edinterface
  *
  * Pop-Over Region
  *
- * \note This is very close to 'interface_region_menu_popup.c'
+ * \note This is very close to `interface_region_menu_popup.cc`.
  *
  * We could even merge them, however menu logic is already over-loaded.
  * PopOver's have the following differences.
@@ -36,14 +37,14 @@
 
 #include "BKE_context.h"
 #include "BKE_report.h"
-#include "BKE_screen.h"
+#include "BKE_screen.hh"
 
-#include "ED_screen.h"
+#include "ED_screen.hh"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
-#include "UI_interface.h"
+#include "UI_interface.hh"
 
 #include "interface_intern.hh"
 #include "interface_regions_intern.hh"
@@ -61,7 +62,7 @@ struct uiPopover {
   /* Needed for keymap removal. */
   wmWindow *window;
   wmKeyMap *keymap;
-  struct wmEventHandler_Keymap *keymap_handler;
+  wmEventHandler_Keymap *keymap_handler;
 
   uiMenuCreateFunc menu_func;
   void *menu_arg;
@@ -74,13 +75,21 @@ struct uiPopover {
 #endif
 };
 
-static void ui_popover_create_block(bContext *C, uiPopover *pup, wmOperatorCallContext opcontext)
+/**
+ * \param region: Optional, the region the block will be placed in. Must be set if the popover is
+ *                supposed to support refreshing.
+ */
+static void ui_popover_create_block(bContext *C,
+                                    ARegion *region,
+                                    uiPopover *pup,
+                                    wmOperatorCallContext opcontext)
 {
   BLI_assert(pup->ui_size_x != 0);
 
   const uiStyle *style = UI_style_get_dpi();
 
-  pup->block = UI_block_begin(C, nullptr, __func__, UI_EMBOSS);
+  pup->block = UI_block_begin(C, region, __func__, UI_EMBOSS);
+
   UI_block_flag_enable(pup->block, UI_BLOCK_KEEP_OPEN | UI_BLOCK_POPOVER);
 #ifdef USE_UI_POPOVER_ONCE
   if (pup->is_once) {
@@ -98,8 +107,6 @@ static void ui_popover_create_block(bContext *C, uiPopover *pup, wmOperatorCallC
       uiLayoutContextCopy(pup->layout, pup->but->context);
     }
   }
-
-  pup->block->flag |= UI_BLOCK_NO_FLIP;
 }
 
 static uiBlock *ui_block_func_POPOVER(bContext *C, uiPopupBlockHandle *handle, void *arg_pup)
@@ -108,7 +115,7 @@ static uiBlock *ui_block_func_POPOVER(bContext *C, uiPopupBlockHandle *handle, v
 
   /* Create UI block and layout now if it wasn't done between begin/end. */
   if (!pup->layout) {
-    ui_popover_create_block(C, pup, WM_OP_INVOKE_REGION_WIN);
+    ui_popover_create_block(C, handle->region, pup, WM_OP_INVOKE_REGION_WIN);
 
     if (pup->menu_func) {
       pup->block->handle = handle;
@@ -123,7 +130,12 @@ static uiBlock *ui_block_func_POPOVER(bContext *C, uiPopupBlockHandle *handle, v
   uiBlock *block = pup->block;
   int width, height;
 
-  UI_block_region_set(block, handle->region);
+  /* in some cases we create the block before the region,
+   * so we set it delayed here if necessary */
+  if (BLI_findindex(&handle->region->uiblocks, block) == -1) {
+    UI_block_region_set(block, handle->region);
+  }
+
   UI_block_layout_resolve(block, &width, &height);
   UI_block_direction_set(block, UI_DIR_DOWN | UI_DIR_CENTER_X);
 
@@ -347,7 +359,7 @@ uiPopover *UI_popover_begin(bContext *C, int ui_menu_width, bool from_active_but
   pup->butregion = butregion;
 
   /* Operator context default same as menus, change if needed. */
-  ui_popover_create_block(C, pup, WM_OP_EXEC_REGION_WIN);
+  ui_popover_create_block(C, nullptr, pup, WM_OP_EXEC_REGION_WIN);
 
   /* create in advance so we can let buttons point to retval already */
   pup->block->handle = MEM_cnew<uiPopupBlockHandle>(__func__);
@@ -401,9 +413,6 @@ void UI_popover_end(bContext *C, uiPopover *pup, wmKeyMap *keymap)
    * The begin/end stype of calling popups doesn't allow 'can_refresh' to be set.
    * For now close this style of popovers when accessed. */
   UI_block_flag_disable(pup->block, UI_BLOCK_KEEP_OPEN);
-
-  /* Panels are created flipped (from event handling POV). */
-  pup->block->flag ^= UI_BLOCK_IS_FLIP;
 }
 
 uiLayout *UI_popover_layout(uiPopover *pup)

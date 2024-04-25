@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_task.hh"
 
@@ -59,7 +61,7 @@ class ControlPointNeighborFieldInput final : public bke::CurvesFieldInput {
 
   GVArray get_varray_for_context(const bke::CurvesGeometry &curves,
                                  const eAttrDomain domain,
-                                 const IndexMask mask) const final
+                                 const IndexMask &mask) const final
   {
     const OffsetIndices points_by_curve = curves.points_by_curve();
     const VArray<bool> cyclic = curves.cyclic();
@@ -74,7 +76,7 @@ class ControlPointNeighborFieldInput final : public bke::CurvesFieldInput {
     const VArray<int> offsets = evaluator.get_evaluated<int>(1);
 
     Array<int> output(mask.min_array_size());
-    for (const int i_selection : mask) {
+    mask.foreach_index([&](const int i_selection) {
       const int i_point = std::clamp(indices[i_selection], 0, curves.points_num() - 1);
       const int i_curve = parent_curves[i_point];
       const IndexRange curve_points = points_by_curve[i_curve];
@@ -83,10 +85,10 @@ class ControlPointNeighborFieldInput final : public bke::CurvesFieldInput {
       if (cyclic[i_curve]) {
         output[i_selection] = apply_offset_in_cyclic_range(
             curve_points, i_point, offsets[i_selection]);
-        continue;
+        return;
       }
       output[i_selection] = std::clamp(offset_point, 0, curves.points_num() - 1);
-    }
+    });
 
     return VArray<int>::ForContainer(std::move(output));
   }
@@ -114,7 +116,7 @@ class OffsetValidFieldInput final : public bke::CurvesFieldInput {
 
   GVArray get_varray_for_context(const bke::CurvesGeometry &curves,
                                  const eAttrDomain domain,
-                                 const IndexMask mask) const final
+                                 const IndexMask &mask) const final
   {
     const VArray<bool> cyclic = curves.cyclic();
     const OffsetIndices points_by_curve = curves.points_by_curve();
@@ -129,21 +131,21 @@ class OffsetValidFieldInput final : public bke::CurvesFieldInput {
     const VArray<int> offsets = evaluator.get_evaluated<int>(1);
 
     Array<bool> output(mask.min_array_size());
-    for (const int i_selection : mask) {
+    mask.foreach_index([&](const int i_selection) {
       const int i_point = indices[i_selection];
       if (!curves.points_range().contains(i_point)) {
         output[i_selection] = false;
-        continue;
+        return;
       }
 
       const int i_curve = parent_curves[i_point];
       const IndexRange curve_points = points_by_curve[i_curve];
       if (cyclic[i_curve]) {
         output[i_selection] = true;
-        continue;
+        return;
       }
       output[i_selection] = curve_points.contains(i_point + offsets[i_selection]);
-    };
+    });
     return VArray<bool>::ForContainer(std::move(output));
   }
 
@@ -169,15 +171,15 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 }
 
-}  // namespace blender::nodes::node_geo_offset_point_in_curve_cc
-
-void register_node_type_geo_offset_point_in_curve()
+static void node_register()
 {
-  namespace file_ns = blender::nodes::node_geo_offset_point_in_curve_cc;
   static bNodeType ntype;
   geo_node_type_base(
       &ntype, GEO_NODE_OFFSET_POINT_IN_CURVE, "Offset Point in Curve", NODE_CLASS_INPUT);
-  ntype.geometry_node_execute = file_ns::node_geo_exec;
-  ntype.declare = file_ns::node_declare;
+  ntype.geometry_node_execute = node_geo_exec;
+  ntype.declare = node_declare;
   nodeRegisterType(&ntype);
 }
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_geo_offset_point_in_curve_cc

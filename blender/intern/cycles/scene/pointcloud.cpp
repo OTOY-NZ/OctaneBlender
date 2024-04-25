@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #include "bvh/bvh.h"
 
@@ -187,23 +188,26 @@ void PointCloud::compute_bounds()
       size_t steps_size = points.size() * (motion_steps - 1);
       float4 *point_steps = attr->data_float4();
 
-      for (size_t i = 0; i < steps_size; i++)
+      for (size_t i = 0; i < steps_size; i++) {
         bnds.grow(float4_to_float3(point_steps[i]), point_steps[i].w);
+      }
     }
 
     if (!bnds.valid()) {
       bnds = BoundBox::empty;
 
       /* skip nan or inf coordinates */
-      for (size_t i = 0; i < numpoints; i++)
+      for (size_t i = 0; i < numpoints; i++) {
         bnds.grow_safe(points[i], radius[i]);
+      }
 
       if (use_motion_blur && attr) {
         size_t steps_size = points.size() * (motion_steps - 1);
         float4 *point_steps = attr->data_float4();
 
-        for (size_t i = 0; i < steps_size; i++)
+        for (size_t i = 0; i < steps_size; i++) {
           bnds.grow_safe(float4_to_float3(point_steps[i]), point_steps[i].w);
+        }
       }
     }
   }

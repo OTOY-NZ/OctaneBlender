@@ -1,13 +1,16 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bli
  */
 
 #include "BLI_dial_2d.h"
-#include "BLI_math.h"
 
 #include "MEM_guardedalloc.h"
+
+#include "BLI_math_vector.h"
 
 struct Dial {
   /* center of the dial */

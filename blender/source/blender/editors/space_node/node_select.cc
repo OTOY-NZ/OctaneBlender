@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2008 Blender Foundation */
+/* SPDX-FileCopyrightText: 2008 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup spnode
@@ -15,7 +16,6 @@
 #include "BLI_listbase.h"
 #include "BLI_rect.h"
 #include "BLI_string.h"
-#include "BLI_string_search.h"
 #include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
@@ -26,24 +26,24 @@
 #include "BKE_node_tree_update.h"
 #include "BKE_workspace.h"
 
-#include "ED_node.h"  /* own include */
 #include "ED_node.hh" /* own include */
-#include "ED_screen.h"
-#include "ED_select_utils.h"
-#include "ED_view3d.h"
+#include "ED_screen.hh"
+#include "ED_select_utils.hh"
+#include "ED_view3d.hh"
 #include "ED_viewer_path.hh"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
-#include "UI_view2d.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
+#include "UI_string_search.hh"
+#include "UI_view2d.hh"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
 #include "MEM_guardedalloc.h"
 
@@ -88,9 +88,9 @@ static bool has_workbench_in_texture_color(const wmWindowManager *wm,
 /** \name Public Node Selection API
  * \{ */
 
-rctf node_frame_rect_inside(const bNode &node)
+rctf node_frame_rect_inside(const SpaceNode &snode, const bNode &node)
 {
-  const float margin = 1.5f * U.widget_unit;
+  const float margin = 4.0f * NODE_RESIZE_MARGIN * math::max(snode.runtime->aspect, 1.0f);
   rctf frame_inside = {
       node.runtime->totr.xmin,
       node.runtime->totr.xmax,
@@ -108,11 +108,13 @@ bool node_or_socket_isect_event(const bContext &C, const wmEvent &event)
   return is_event_over_node_or_socket(C, event);
 }
 
-static bool node_frame_select_isect_mouse(const bNode &node, const float2 &mouse)
+static bool node_frame_select_isect_mouse(const SpaceNode &snode,
+                                          const bNode &node,
+                                          const float2 &mouse)
 {
   /* Frame nodes are selectable by their borders (including their whole rect - as for other nodes -
    * would prevent e.g. box selection of nodes inside that frame). */
-  const rctf frame_inside = node_frame_rect_inside(node);
+  const rctf frame_inside = node_frame_rect_inside(snode, node);
   if (BLI_rctf_isect_pt(&node.runtime->totr, mouse.x, mouse.y) &&
       !BLI_rctf_isect_pt(&frame_inside, mouse.x, mouse.y))
   {
@@ -122,12 +124,13 @@ static bool node_frame_select_isect_mouse(const bNode &node, const float2 &mouse
   return false;
 }
 
-static bNode *node_under_mouse_select(bNodeTree &ntree, const float2 mouse)
+static bNode *node_under_mouse_select(const SpaceNode &snode, const float2 mouse)
 {
+  const bNodeTree &ntree = *snode.edittree;
   LISTBASE_FOREACH_BACKWARD (bNode *, node, &ntree.nodes) {
     switch (node->type) {
       case NODE_FRAME: {
-        if (node_frame_select_isect_mouse(*node, mouse)) {
+        if (node_frame_select_isect_mouse(snode, *node, mouse)) {
           return node;
         }
         break;
@@ -143,8 +146,9 @@ static bNode *node_under_mouse_select(bNodeTree &ntree, const float2 mouse)
   return nullptr;
 }
 
-static bool node_under_mouse_tweak(const bNodeTree &ntree, const float2 &mouse)
+static bool node_under_mouse_tweak(const SpaceNode &snode, const float2 &mouse)
 {
+  const bNodeTree &ntree = *snode.edittree;
   LISTBASE_FOREACH_BACKWARD (const bNode *, node, &ntree.nodes) {
     switch (node->type) {
       case NODE_REROUTE: {
@@ -155,7 +159,7 @@ static bool node_under_mouse_tweak(const bNodeTree &ntree, const float2 &mouse)
         break;
       }
       case NODE_FRAME: {
-        if (node_frame_select_isect_mouse(*node, mouse)) {
+        if (node_frame_select_isect_mouse(snode, *node, mouse)) {
           return true;
         }
         break;
@@ -173,7 +177,7 @@ static bool node_under_mouse_tweak(const bNodeTree &ntree, const float2 &mouse)
 
 static bool is_position_over_node_or_socket(SpaceNode &snode, const float2 &mouse)
 {
-  if (node_under_mouse_tweak(*snode.edittree, mouse)) {
+  if (node_under_mouse_tweak(snode, mouse)) {
     return true;
   }
   if (node_find_indicated_socket(snode, mouse, SOCK_IN | SOCK_OUT)) {
@@ -311,14 +315,15 @@ void node_deselect_all_output_sockets(bNodeTree &node_tree, const bool deselect_
 
 void node_select_paired(bNodeTree &node_tree)
 {
-  for (bNode *input_node : node_tree.nodes_by_type("GeometryNodeSimulationInput")) {
-    const auto *storage = static_cast<const NodeGeometrySimulationInput *>(input_node->storage);
-    if (bNode *output_node = node_tree.node_by_id(storage->output_node_id)) {
-      if (input_node->flag & NODE_SELECT) {
-        output_node->flag |= NODE_SELECT;
-      }
-      if (output_node->flag & NODE_SELECT) {
-        input_node->flag |= NODE_SELECT;
+  for (const bke::bNodeZoneType *zone_type : bke::all_zone_types()) {
+    for (bNode *input_node : node_tree.nodes_by_type(zone_type->input_idname)) {
+      if (bNode *output_node = zone_type->get_corresponding_output(node_tree, *input_node)) {
+        if (input_node->flag & NODE_SELECT) {
+          output_node->flag |= NODE_SELECT;
+        }
+        if (output_node->flag & NODE_SELECT) {
+          input_node->flag |= NODE_SELECT;
+        }
       }
     }
   }
@@ -617,7 +622,7 @@ static bool node_mouse_select(bContext *C,
   if (!sock) {
 
     /* Find the closest visible node. */
-    node = node_under_mouse_select(node_tree, cursor);
+    node = node_under_mouse_select(snode, cursor);
     found = (node != nullptr);
     node_was_selected = node && (node->flag & SELECT);
 
@@ -793,7 +798,7 @@ static int node_box_select_exec(bContext *C, wmOperator *op)
       case NODE_FRAME: {
         /* Frame nodes are selectable by their borders (including their whole rect - as for other
          * nodes - would prevent selection of other nodes inside that frame. */
-        const rctf frame_inside = node_frame_rect_inside(*node);
+        const rctf frame_inside = node_frame_rect_inside(snode, *node);
         if (BLI_rctf_isect(&rectf, &node->runtime->totr, nullptr) &&
             !BLI_rctf_inside_rctf(&frame_inside, &rectf))
         {
@@ -897,7 +902,7 @@ static int node_circleselect_exec(bContext *C, wmOperator *op)
       case NODE_FRAME: {
         /* Frame nodes are selectable by their borders (including their whole rect - as for other
          * nodes - would prevent selection of _only_ other nodes inside that frame. */
-        rctf frame_inside = node_frame_rect_inside(*node);
+        rctf frame_inside = node_frame_rect_inside(*snode, *node);
         const float radius_adjusted = float(radius) / zoom;
         BLI_rctf_pad(&frame_inside, -2.0f * radius_adjusted, -2.0f * radius_adjusted);
         if (BLI_rctf_isect_circle(&node->runtime->totr, offset, radius_adjusted) &&
@@ -994,7 +999,7 @@ static bool do_lasso_select_node(bContext *C,
         rctf rectf;
         BLI_rctf_rcti_copy(&rectf, &rect);
         UI_view2d_region_to_view_rctf(&region->v2d, &rectf, &rectf);
-        const rctf frame_inside = node_frame_rect_inside(*node);
+        const rctf frame_inside = node_frame_rect_inside(*snode, *node);
         if (BLI_rctf_isect(&rectf, &node->runtime->totr, nullptr) &&
             !BLI_rctf_inside_rctf(&frame_inside, &rectf))
         {
@@ -1341,28 +1346,23 @@ static void node_find_update_fn(const bContext *C,
 {
   SpaceNode *snode = CTX_wm_space_node(C);
 
-  StringSearch *search = BLI_string_search_new();
+  ui::string_search::StringSearch<bNode> search;
 
   for (bNode *node : snode->edittree->all_nodes()) {
     char name[256];
     node_find_create_label(node, name, ARRAY_SIZE(name));
-    BLI_string_search_add(search, name, node, 0);
+    search.add(name, node);
   }
 
-  bNode **filtered_nodes;
-  int filtered_amount = BLI_string_search_query(search, str, (void ***)&filtered_nodes);
+  const Vector<bNode *> filtered_nodes = search.query(str);
 
-  for (int i = 0; i < filtered_amount; i++) {
-    bNode *node = filtered_nodes[i];
+  for (bNode *node : filtered_nodes) {
     char name[256];
     node_find_create_label(node, name, ARRAY_SIZE(name));
     if (!UI_search_item_add(items, name, node, ICON_NONE, 0, 0)) {
       break;
     }
   }
-
-  MEM_freeN(filtered_nodes);
-  BLI_string_search_free(search);
 }
 
 static void node_find_exec_fn(bContext *C, void * /*arg1*/, void *arg2)

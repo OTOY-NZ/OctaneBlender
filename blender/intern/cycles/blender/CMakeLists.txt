@@ -1,14 +1,12 @@
+# SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+#
 # SPDX-License-Identifier: Apache-2.0
-# Copyright 2011-2022 Blender Foundation
 
 set(INC
   ..
-  ../../guardedalloc
   ../../mikktspace
-  ../../../source/blender/makesdna
   ../../../source/blender/makesrna
   ../../../source/blender/blenkernel
-  ../../../source/blender/blenlib
   ../../../source/blender/gpu
   ../../../source/blender/render
   ${CMAKE_BINARY_DIR}/source/blender/makesrna/intern
@@ -26,6 +24,7 @@ set(SRC
   image.cpp
   geometry.cpp
   light.cpp
+  light_linking.cpp
   mesh.cpp
   object.cpp
   object_cull.cpp
@@ -42,11 +41,13 @@ set(SRC
   viewport.cpp
   volume.cpp
 
+  attribute_convert.h
   CCL_api.h
   device.h
   display_driver.h
   id_map.h
   image.h
+  light_linking.h
   object_cull.h
   output_driver.h
   sync.h
@@ -57,6 +58,9 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::blenlib
+  PRIVATE bf::dna
+  PRIVATE bf::intern::guardedalloc
   cycles_bvh
   cycles_device
   cycles_graph

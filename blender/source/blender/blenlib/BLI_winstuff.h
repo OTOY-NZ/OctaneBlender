@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -16,7 +17,13 @@
 
 #define WIN32_LEAN_AND_MEAN
 
-#include <windows.h>
+#ifndef NOMINMAX
+#  define NOMINMAX
+#  include <windows.h>
+#  undef NOMINMAX
+#else
+#  include <windows.h>
+#endif
 
 #undef rad
 #undef rad1
@@ -58,15 +65,6 @@ extern "C" {
 
 typedef unsigned int mode_t;
 
-#ifndef _SSIZE_T_
-#  define _SSIZE_T_
-/* python uses HAVE_SSIZE_T */
-#  ifndef HAVE_SSIZE_T
-#    define HAVE_SSIZE_T 1
-typedef SSIZE_T ssize_t;
-#  endif
-#endif
-
 /** Directory reading compatibility with UNIX. */
 struct dirent {
   int d_ino;
@@ -85,7 +83,17 @@ const char *dirname(char *path);
 
 /* Windows utility functions. */
 
-bool BLI_windows_register_blend_extension(bool background);
+bool BLI_windows_is_store_install(void);
+bool BLI_windows_register_blend_extension(bool all_users);
+bool BLI_windows_unregister_blend_extension(bool all_users);
+bool BLI_windows_update_pinned_launcher(const char *launcher_path);
+
+/* Gets the version of the currently loaded DirectX driver for the first device that matches
+ * deviceString. This is required for Qualcomm devices which use Mesa's Gallium D2D12 layer for
+ * OpenGL functionality */
+bool BLI_windows_get_directx_driver_version(const wchar_t *deviceSubString,
+                                            long long *r_driverVersion);
+
 /**
  * Set the `root_dir` to the default root directory on MS-Windows,
  * The string is guaranteed to be set with a length of 3 & null terminated,
@@ -98,6 +106,19 @@ int BLI_windows_get_executable_dir(char r_dirpath[/*FILE_MAXDIR*/]);
 
 bool BLI_windows_external_operation_supported(const char *filepath, const char *operation);
 bool BLI_windows_external_operation_execute(const char *filepath, const char *operation);
+
+/**
+ * Launch our own executable.
+ *
+ * \param parameters: application parameters separated by spaces.
+ * \param wait: whether to wait for the instance to exit.
+ * \param elevated: run as administrator. Will do UAC prompt.
+ * \param silent: Not show the launched program.
+ */
+bool BLI_windows_execute_self(const char *parameters,
+                              const bool wait,
+                              const bool elevated,
+                              const bool silent);
 
 #ifdef __cplusplus
 }

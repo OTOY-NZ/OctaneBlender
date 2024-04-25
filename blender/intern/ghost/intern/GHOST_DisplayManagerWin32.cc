@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup GHOST
@@ -27,7 +28,7 @@ GHOST_TSuccess GHOST_DisplayManagerWin32::getNumDisplays(uint8_t &numDisplays) c
 static BOOL get_dd(DWORD d, DISPLAY_DEVICE *dd)
 {
   dd->cb = sizeof(DISPLAY_DEVICE);
-  return ::EnumDisplayDevices(NULL, d, dd, 0);
+  return ::EnumDisplayDevices(nullptr, d, dd, 0);
 }
 
 GHOST_TSuccess GHOST_DisplayManagerWin32::getNumDisplaySettings(uint8_t display,
@@ -40,8 +41,9 @@ GHOST_TSuccess GHOST_DisplayManagerWin32::getNumDisplaySettings(uint8_t display,
    * function was called with #iModeNum set to zero. */
 
   DISPLAY_DEVICE display_device;
-  if (!get_dd(display, &display_device))
+  if (!get_dd(display, &display_device)) {
     return GHOST_kFailure;
+  }
 
   numSettings = 0;
   DEVMODE dm;
@@ -56,8 +58,9 @@ GHOST_TSuccess GHOST_DisplayManagerWin32::getDisplaySetting(uint8_t display,
                                                             GHOST_DisplaySetting &setting) const
 {
   DISPLAY_DEVICE display_device;
-  if (!get_dd(display, &display_device))
+  if (!get_dd(display, &display_device)) {
     return GHOST_kFailure;
+  }
 
   GHOST_TSuccess success;
   DEVMODE dm;
@@ -101,8 +104,9 @@ GHOST_TSuccess GHOST_DisplayManagerWin32::setCurrentDisplaySetting(
     uint8_t display, const GHOST_DisplaySetting &setting)
 {
   DISPLAY_DEVICE display_device;
-  if (!get_dd(display, &display_device))
+  if (!get_dd(display, &display_device)) {
     return GHOST_kFailure;
+  }
 
   GHOST_DisplaySetting match;
   findMatch(display, setting, match);

@@ -37,6 +37,8 @@ namespace OctaneDataTransferObject {
 		SHOW_OCTANE_VIEWPORT = 9,
 		CLEAR_RESOURCE_CACHE_SYSTEM = 10,
 		RESET_BLENDER_VIEWLAYER = 11,
+		TOGGLE_RECORD = 10000,
+		PLAY_RECORD = 10001,
 	};
 
 	enum EngineDataType {

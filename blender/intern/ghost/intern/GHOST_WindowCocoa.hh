@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup GHOST
@@ -83,6 +84,12 @@ class GHOST_WindowCocoa : public GHOST_Window {
    * \param title: The title displayed in the title bar.
    */
   std::string getTitle() const;
+
+  /**
+   * Sets the file name represented by this window.
+   * \param filepath: The file directory.
+   */
+  GHOST_TSuccess setPath(const char *filepath);
 
   /**
    * Returns the window rectangle dimensions.

@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2005 Blender Foundation */
+/* SPDX-FileCopyrightText: 2005 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "node_geometry_util.hh"
 
@@ -13,8 +14,8 @@
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
 
 namespace blender::nodes::node_geo_image_texture_cc {
 
@@ -79,15 +80,15 @@ class ImageFieldsFunction : public mf::MultiFunction {
       throw std::runtime_error("cannot acquire image buffer");
     }
 
-    if (image_buffer_->rect_float == nullptr) {
+    if (image_buffer_->float_buffer.data == nullptr) {
       BLI_thread_lock(LOCK_IMAGE);
-      if (!image_buffer_->rect_float) {
+      if (!image_buffer_->float_buffer.data) {
         IMB_float_from_rect(image_buffer_);
       }
       BLI_thread_unlock(LOCK_IMAGE);
     }
 
-    if (image_buffer_->rect_float == nullptr) {
+    if (image_buffer_->float_buffer.data == nullptr) {
       BKE_image_release_ibuf(&image_, image_buffer_, image_lock_);
       throw std::runtime_error("cannot get float buffer");
     }
@@ -126,7 +127,7 @@ class ImageFieldsFunction : public mf::MultiFunction {
     if (px < 0 || py < 0 || px >= ibuf.x || py >= ibuf.y) {
       return float4(0.0f, 0.0f, 0.0f, 0.0f);
     }
-    return ((const float4 *)ibuf.rect_float)[px + py * ibuf.x];
+    return ((const float4 *)ibuf.float_buffer.data)[px + py * ibuf.x];
   }
 
   static float frac(const float x, int *ix)
@@ -316,7 +317,7 @@ class ImageFieldsFunction : public mf::MultiFunction {
     }
   }
 
-  void call(IndexMask mask, mf::Params params, mf::Context /*context*/) const override
+  void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
   {
     const VArray<float3> &vectors = params.readonly_single_input<float3>(0, "Vector");
     MutableSpan<ColorGeometry4f> r_color = params.uninitialized_single_output<ColorGeometry4f>(
@@ -328,23 +329,23 @@ class ImageFieldsFunction : public mf::MultiFunction {
     /* Sample image texture. */
     switch (interpolation_) {
       case SHD_INTERP_LINEAR:
-        for (const int64_t i : mask) {
+        mask.foreach_index([&](const int64_t i) {
           const float3 p = vectors[i];
           color_data[i] = image_linear_texture_lookup(*image_buffer_, p.x, p.y, extension_);
-        }
+        });
         break;
       case SHD_INTERP_CLOSEST:
-        for (const int64_t i : mask) {
+        mask.foreach_index([&](const int64_t i) {
           const float3 p = vectors[i];
           color_data[i] = image_closest_texture_lookup(*image_buffer_, p.x, p.y, extension_);
-        }
+        });
         break;
       case SHD_INTERP_CUBIC:
       case SHD_INTERP_SMART:
-        for (const int64_t i : mask) {
+        mask.foreach_index([&](const int64_t i) {
           const float3 p = vectors[i];
           color_data[i] = image_cubic_texture_lookup(*image_buffer_, p.x, p.y, extension_);
-        }
+        });
         break;
     }
 
@@ -356,9 +357,7 @@ class ImageFieldsFunction : public mf::MultiFunction {
     switch (alpha_mode) {
       case IMA_ALPHA_STRAIGHT: {
         /* #ColorGeometry expects premultiplied alpha, so convert from straight to that. */
-        for (int64_t i : mask) {
-          straight_to_premul_v4(color_data[i]);
-        }
+        mask.foreach_index([&](const int64_t i) { straight_to_premul_v4(color_data[i]); });
         break;
       }
       case IMA_ALPHA_PREMUL: {
@@ -371,17 +370,13 @@ class ImageFieldsFunction : public mf::MultiFunction {
       }
       case IMA_ALPHA_IGNORE: {
         /* The image should be treated as being opaque. */
-        for (int64_t i : mask) {
-          color_data[i].w = 1.0f;
-        }
+        mask.foreach_index([&](const int64_t i) { color_data[i].w = 1.0f; });
         break;
       }
     }
 
     if (!r_alpha.is_empty()) {
-      for (int64_t i : mask) {
-        r_alpha[i] = r_color[i].a;
-      }
+      mask.foreach_index([&](const int64_t i) { r_alpha[i] = r_color[i].a; });
     }
   }
 };
@@ -421,22 +416,21 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("Alpha", Field<float>(image_op, 1));
 }
 
-}  // namespace blender::nodes::node_geo_image_texture_cc
-
-void register_node_type_geo_image_texture()
+static void node_register()
 {
-  namespace file_ns = blender::nodes::node_geo_image_texture_cc;
-
   static bNodeType ntype;
 
   geo_node_type_base(&ntype, GEO_NODE_IMAGE_TEXTURE, "Image Texture", NODE_CLASS_TEXTURE);
-  ntype.declare = file_ns::node_declare;
-  ntype.draw_buttons = file_ns::node_layout;
-  ntype.initfunc = file_ns::node_init;
+  ntype.declare = node_declare;
+  ntype.draw_buttons = node_layout;
+  ntype.initfunc = node_init;
   node_type_storage(
       &ntype, "NodeGeometryImageTexture", node_free_standard_storage, node_copy_standard_storage);
   blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::LARGE);
-  ntype.geometry_node_execute = file_ns::node_geo_exec;
+  ntype.geometry_node_execute = node_geo_exec;
 
   nodeRegisterType(&ntype);
 }
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_geo_image_texture_cc

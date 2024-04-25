@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup eduv
@@ -11,13 +13,14 @@
  * This API uses #BMesh data structures and doesn't have limitations for manifold meshes.
  */
 
-#include "BKE_editmesh.h"
+#include "BLI_listbase.h"
+#include "BLI_math_vector.h"
 
-#include "BLI_math.h"
+#include "BKE_editmesh.h"
 
 #include "DNA_image_types.h"
 
-#include "ED_uvedit.h" /* Own include. */
+#include "ED_uvedit.hh" /* Own include. */
 
 /* -------------------------------------------------------------------- */
 /** \name UDIM packing helper functions
@@ -65,7 +68,7 @@ struct SharedUVLoopData {
 
 static bool bm_loop_uv_shared_edge_check(const BMLoop *l_a, const BMLoop *l_b, void *user_data)
 {
-  const struct SharedUVLoopData *data = static_cast<const struct SharedUVLoopData *>(user_data);
+  const SharedUVLoopData *data = static_cast<const SharedUVLoopData *>(user_data);
 
   if (data->use_seams) {
     if (BM_elem_flag_test(l_a->e, BM_ELEM_SEAM)) {
@@ -131,7 +134,7 @@ int bm_mesh_calc_uv_islands(const Scene *scene,
     BM_elem_flag_set(f, BM_ELEM_TAG, face_affected);
   }
 
-  struct SharedUVLoopData user_data = {{0}};
+  SharedUVLoopData user_data = {{0}};
   user_data.offsets = uv_offsets;
   user_data.use_seams = use_seams;
 
@@ -156,8 +159,7 @@ int bm_mesh_calc_uv_islands(const Scene *scene,
       faces[j] = BM_face_at_index(bm, groups_array[faces_start + j]);
     }
 
-    struct FaceIsland *island = static_cast<struct FaceIsland *>(
-        MEM_callocN(sizeof(*island), __func__));
+    FaceIsland *island = static_cast<FaceIsland *>(MEM_callocN(sizeof(*island), __func__));
     island->faces = faces;
     island->faces_len = faces_len;
     island->offsets = uv_offsets;

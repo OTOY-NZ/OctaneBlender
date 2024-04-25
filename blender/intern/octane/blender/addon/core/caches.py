@@ -682,7 +682,7 @@ class SceneCache(OctaneNodeCache):
             camera_data.sync_data(self.camera_node, scene=scene, region=context.region, v3d=context.space_data, rv3d=context.region_data, session_type=self.session.session_type)
         else:
             camera_data.sync_data(self.camera_node, scene=scene, session_type=self.session.session_type)
-        self.camera_border_box = self.camera_node.border
+        self.camera_border_box = getattr(self.camera_node, "border", None)
         if self.camera_node.need_update:
             need_update = True
             self.camera_node.update_to_engine(update_now)

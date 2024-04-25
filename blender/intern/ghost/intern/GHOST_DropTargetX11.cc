@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2012 Blender Foundation */
+/* SPDX-FileCopyrightText: 2012 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup GHOST
@@ -81,7 +82,7 @@ GHOST_DropTargetX11::GHOST_DropTargetX11(GHOST_WindowX11 *window, GHOST_SystemX1
 
   Window wnd = window->getXWindow();
 
-  xdnd_set_dnd_aware(&m_dndClass, wnd, 0);
+  xdnd_set_dnd_aware(&m_dndClass, wnd, nullptr);
   xdnd_set_type_list(&m_dndClass, wnd, m_dndTypes);
 
   m_draggedObjectType = GHOST_kDragnDropTypeUnknown;
@@ -98,7 +99,7 @@ GHOST_DropTargetX11::~GHOST_DropTargetX11()
   }
 }
 
-char *GHOST_DropTargetX11::FileUrlDecode(char *fileUrl)
+char *GHOST_DropTargetX11::FileUrlDecode(const char *fileUrl)
 {
   if (strncmp(fileUrl, "file://", 7) == 0) {
     return GHOST_URL_decode_alloc(fileUrl + 7);
@@ -107,7 +108,7 @@ char *GHOST_DropTargetX11::FileUrlDecode(char *fileUrl)
   return nullptr;
 }
 
-void *GHOST_DropTargetX11::getURIListGhostData(uchar *dropBuffer, int dropBufferSize)
+void *GHOST_DropTargetX11::getURIListGhostData(const uchar *dropBuffer, int dropBufferSize)
 {
   GHOST_TStringArray *strArray = nullptr;
   int totPaths = 0, curLength = 0;
@@ -157,7 +158,7 @@ void *GHOST_DropTargetX11::getURIListGhostData(uchar *dropBuffer, int dropBuffer
   return strArray;
 }
 
-void *GHOST_DropTargetX11::getGhostData(Atom dropType, uchar *dropBuffer, int dropBufferSize)
+void *GHOST_DropTargetX11::getGhostData(Atom dropType, const uchar *dropBuffer, int dropBufferSize)
 {
   void *data = nullptr;
   uchar *tmpBuffer = (uchar *)malloc(dropBufferSize + 1);
@@ -173,7 +174,7 @@ void *GHOST_DropTargetX11::getGhostData(Atom dropType, uchar *dropBuffer, int dr
   }
   else if (dropType == dndTypeURL) {
     /* need to be tested */
-    char *decodedPath = FileUrlDecode((char *)tmpBuffer);
+    char *decodedPath = FileUrlDecode((const char *)tmpBuffer);
 
     if (decodedPath) {
       m_draggedObjectType = GHOST_kDragnDropTypeString;

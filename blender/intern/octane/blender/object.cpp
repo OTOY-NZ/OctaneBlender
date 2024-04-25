@@ -41,6 +41,8 @@
 
 OCT_NAMESPACE_BEGIN
 
+/* Utilities */
+
 bool BlenderSync::BKE_object_is_modified(BL::Object &b_ob)
 {
   /* test if we can instance or if the object is modified */
@@ -54,30 +56,25 @@ bool BlenderSync::BKE_object_is_modified(BL::Object &b_ob)
   }
   else {
     /* object level material links */
-    BL::Object::material_slots_iterator slot;
-    for (b_ob.material_slots.begin(slot); slot != b_ob.material_slots.end(); ++slot)
-      if (slot->link() == BL::MaterialSlot::link_OBJECT)
+    for (BL::MaterialSlot &b_slot : b_ob.material_slots) {
+      if (b_slot.link() == BL::MaterialSlot::link_OBJECT) {
         return true;
+      }
+    }
   }
 
   return false;
 }
 
-static bool object_ray_visibility(BL::Object &b_ob)
+bool BlenderSync::object_is_geometry(BObjectInfo &b_ob_info)
 {
-  PointerRNA oct_properties = RNA_pointer_get(&b_ob.ptr, "octane_properties");
-  return get_boolean(oct_properties, "visibility");
-}
-
-bool BlenderSync::object_is_mesh(BL::Object &b_ob)
-{
-  BL::ID b_ob_data = b_ob.data();
+  BL::ID b_ob_data = b_ob_info.object_data;
 
   if (!b_ob_data) {
     return false;
   }
 
-  BL::Object::type_enum type = b_ob.type();
+  BL::Object::type_enum type = b_ob_info.iter_object.type();
 
   if (type == BL::Object::type_VOLUME || type == BL::Object::type_CURVES ||
       type == BL::Object::type_POINTCLOUD)
@@ -86,18 +83,39 @@ bool BlenderSync::object_is_mesh(BL::Object &b_ob)
     return true;
   }
 
-  /* Other object types that are not meshes but evaluate to meshes are presented to render engines
-   * as separate instance objects. */
-  if (type == BL::Object::type_SURFACE) {
-    return true;
-  }
-
-  if (type == BL::Object::type_CURVE) {
-    PointerRNA oct_mesh = RNA_pointer_get(&b_ob_data.ptr, "octane");
-    return RNA_boolean_get(&oct_mesh, "render_curve_as_octane_hair");
-  }
-
   return b_ob_data.is_a(&RNA_Mesh);
+}
+
+bool BlenderSync::object_can_have_geometry(BL::Object &b_ob)
+{
+  BL::Object::type_enum type = b_ob.type();
+  switch (type) {
+    case BL::Object::type_MESH:
+    case BL::Object::type_CURVE:
+    case BL::Object::type_SURFACE:
+    case BL::Object::type_META:
+    case BL::Object::type_FONT:
+    case BL::Object::type_CURVES:
+    case BL::Object::type_POINTCLOUD:
+    case BL::Object::type_VOLUME:
+      return true;
+    default:
+      return false;
+  }
+}
+
+bool BlenderSync::object_is_light(BL::Object &b_ob)
+{
+  BL::ID b_ob_data = b_ob.data();
+
+  return (b_ob_data && b_ob_data.is_a(&RNA_Light));
+}
+
+bool BlenderSync::object_is_camera(BL::Object &b_ob)
+{
+  BL::ID b_ob_data = b_ob.data();
+
+  return (b_ob_data && b_ob_data.is_a(&RNA_Camera));
 }
 
 extern "C" DupliObject *rna_hack_DepsgraphObjectInstance_dupli_object_get(PointerRNA *ptr);
@@ -451,13 +469,6 @@ void BlenderSync::sync_light(BL::Object &b_parent,
   light->tag_update(scene);
 }
 
-bool BlenderSync::object_is_light(BL::Object &b_ob)
-{
-  BL::ID b_ob_data = b_ob.data();
-
-  return (b_ob_data && b_ob_data.is_a(&RNA_Light));
-}
-
 Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
                                  BL::ViewLayer &b_view_layer,
                                  BL::DepsgraphObjectInstance &b_instance,
@@ -469,6 +480,7 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
   const bool is_instance = b_instance.is_instance();
   BL::Object b_ob = b_instance.object();
   BL::Object b_parent = is_instance ? b_instance.parent() : b_instance.object();
+  BObjectInfo b_ob_info{b_ob, is_instance ? b_instance.instance_object() : b_ob, b_ob.data()};
   BL::Object b_ob_instance = is_instance ? b_instance.instance_object() : b_ob;
   std::string parent_name, instance_tag;
   if (b_parent.ptr.data) {
@@ -487,6 +499,11 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
   if (is_instance) {
     persistent_id_array = b_instance.persistent_id();
     persistent_id = persistent_id_array.data;
+    if (!b_ob_info.is_real_object_data()) {
+      /* Remember which object data the geometry is coming from, so that we can sync it when the
+       * object has changed. */
+      instance_geometries_by_object[b_ob_info.real_object.ptr.data].insert(b_ob_info.object_data);
+    }
   }
 
   OctaneDataTransferObject::OctaneObjectLayer object_layer;
@@ -514,7 +531,7 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
   }
 
   /* only interested in object that we can create meshes from */
-  if (!object_is_mesh(b_ob) && b_ob.type() != BL::Object::type_VOLUME) {
+  if (!object_is_geometry(b_ob_info)) {
     return NULL;
   }
 
@@ -593,7 +610,6 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
   object->scene = scene;
   object->is_instance = is_instance;
   object->object_mesh_type = mesh_type;
-
   /* mesh sync */
   object->mesh = sync_mesh(b_depsgraph,
                            b_ob,
@@ -633,7 +649,8 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
   if (preview && octane_tfm != object->transform) {
     need_update = true;
   }
-
+  
+  std::string mesh_name = resolve_octane_object_data_name(b_ob, b_ob_instance);
   object->need_update |= need_update;
 
   if (need_update || (object->mesh && object->mesh->need_update)) {
@@ -645,7 +662,7 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
       object->octane_object.sMeshName = object->mesh->octane_mesh.sScriptGeoName;
     }
     else {
-      object->octane_object.sMeshName = object->mesh->name;
+      object->octane_object.sMeshName = object->mesh->octane_mesh.sMeshName;
     }
     object->octane_object.oObjectLayer = object_layer;
     if (!show_self) {
@@ -717,11 +734,6 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
     object->tag_update(scene);
   }
 
-  // if (is_instance) {
-  //	/* Sync possible particle data. */
-  //	sync_dupli_particle(b_parent, b_instance, object);
-  //}
-
   std::string scatter_id_source_type = get_enum_identifier(octane_object,
                                                            "scatter_id_source_type");
   if (scatter_id_source_type == "Built-in") {
@@ -767,6 +779,7 @@ void BlenderSync::sync_objects(BL::Depsgraph &b_depsgraph,
   else {
     mesh_motion_synced.clear();
   }
+  instance_geometries_by_object.clear();
 
   /* object loop */
   bool cancel = false;

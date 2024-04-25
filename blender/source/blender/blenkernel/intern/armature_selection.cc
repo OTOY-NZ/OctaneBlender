@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bke
@@ -10,6 +12,8 @@
 
 #include "DNA_action_types.h"
 #include "DNA_armature_types.h"
+
+#include "ANIM_bone_collections.h"
 
 namespace blender::bke {
 

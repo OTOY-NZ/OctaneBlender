@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -6,7 +8,7 @@
  * \ingroup bmesh
  */
 
-/* See comments in `intern/bmesh_opdefines.c` for documentation of specific operators. */
+/* See comments in `intern/bmesh_opdefines.cc` for documentation of specific operators. */
 
 #ifdef __cplusplus
 extern "C" {
@@ -60,7 +62,6 @@ enum {
   SIMFACE_NORMAL,
   SIMFACE_COPLANAR,
   SIMFACE_SMOOTH,
-  SIMFACE_FACEMAP,
   SIMFACE_FREESTYLE,
 };
 

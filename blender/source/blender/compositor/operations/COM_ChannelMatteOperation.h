@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2012 Blender Foundation. */
+/* SPDX-FileCopyrightText: 2012 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -15,16 +16,17 @@ class ChannelMatteOperation : public MultiThreadedOperation {
  private:
   SocketReader *input_image_program_;
 
-  /* int color_space_; */ /* node->custom1 */ /* UNUSED */ /* TODO ? */
-  int matte_channel_;                                      /* node->custom2 */
-  int limit_method_;                                       /* node->algorithm */
-  int limit_channel_;                                      /* node->channel */
-  float limit_max_;                                        /* node->storage->t1 */
-  float limit_min_;                                        /* node->storage->t2 */
+  // int color_space_; /* node->custom1 */ /* UNUSED */ /* TODO? */
+  int matte_channel_; /* node->custom2 */
+  int limit_method_;  /* node->algorithm */
+  int limit_channel_; /* node->channel */
+  float limit_max_;   /* node->storage->t1 */
+  float limit_min_;   /* node->storage->t2 */
 
   float limit_range_;
 
-  /** ids to use for the operations (max and simple)
+  /**
+   * ids to use for the operations (max and simple)
    * alpha = in[ids[0]] - MAX2(in[ids[1]], in[ids[2]])
    * the simple operation is using:
    * alpha = in[ids[0]] - in[ids[1]]

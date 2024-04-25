@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup DNA
@@ -442,7 +444,7 @@
     .offset = {0.0f, 0.0f, 0.0f}, \
   }
 
-/* Some fields are initialized in #initData. */
+/* Some fields are initialized in #init_data. */
 #define _DNA_DEFAULT_OceanModifierData \
   { \
     .ocean = NULL, \

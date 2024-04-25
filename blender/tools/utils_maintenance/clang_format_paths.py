@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2023 Blender Authors
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
+
 """
 This script runs clang-format on multiple files/directories.
 
@@ -34,7 +37,8 @@ extensions = (
     ".c", ".cc", ".cpp", ".cxx",
     ".h", ".hh", ".hpp", ".hxx",
     ".m", ".mm",
-    ".osl", ".glsl",
+    ".osl", ".glsl", ".msl",
+    ".metal",
 )
 
 extensions_only_retab = (

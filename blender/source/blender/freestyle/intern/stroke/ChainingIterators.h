@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -157,14 +159,14 @@ class ChainingIterator : public ViewEdgeInternal::ViewEdgeIterator {
    */
   ChainingIterator(bool iRestrictToSelection = true,
                    bool iRestrictToUnvisited = true,
-                   ViewEdge *begin = NULL,
+                   ViewEdge *begin = nullptr,
                    bool orientation = true)
       : ViewEdgeIterator(begin, orientation)
   {
     _restrictToSelection = iRestrictToSelection;
     _restrictToUnvisited = iRestrictToUnvisited;
     _increment = true;
-    py_c_it = NULL;
+    py_c_it = nullptr;
   }
 
   /** Copy constructor */
@@ -260,7 +262,7 @@ class ChainSilhouetteIterator : public ChainingIterator {
    *    ViewVertex of begin.
    */
   ChainSilhouetteIterator(bool iRestrictToSelection = true,
-                          ViewEdge *begin = NULL,
+                          ViewEdge *begin = nullptr,
                           bool orientation = true)
       : ChainingIterator(iRestrictToSelection, true, begin, orientation)
   {
@@ -324,7 +326,7 @@ class ChainPredicateIterator : public ChainingIterator {
    */
   ChainPredicateIterator(bool iRestrictToSelection = true,
                          bool iRestrictToUnvisited = true,
-                         ViewEdge *begin = NULL,
+                         ViewEdge *begin = nullptr,
                          bool orientation = true)
       : ChainingIterator(iRestrictToSelection, iRestrictToUnvisited, begin, orientation)
   {
@@ -355,7 +357,7 @@ class ChainPredicateIterator : public ChainingIterator {
                          BinaryPredicate1D &bpred,
                          bool iRestrictToSelection = true,
                          bool iRestrictToUnvisited = true,
-                         ViewEdge *begin = NULL,
+                         ViewEdge *begin = nullptr,
                          bool orientation = true)
       : ChainingIterator(iRestrictToSelection, iRestrictToUnvisited, begin, orientation)
   {

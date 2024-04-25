@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup obj
@@ -17,7 +19,6 @@
 
 /* SEP macro from BLI path utils clashes with SEP symbol in fmt headers. */
 #undef SEP
-#define FMT_HEADER_ONLY
 #include <fmt/format.h>
 
 namespace blender::io::obj {
@@ -41,16 +42,18 @@ class FormatHandler : NonCopyable, NonMovable {
   /* Write contents to the buffer(s) into a file, and clear the buffers. */
   void write_to_file(FILE *f)
   {
-    for (const auto &b : blocks_)
+    for (const auto &b : blocks_) {
       fwrite(b.data(), 1, b.size(), f);
+    }
     blocks_.clear();
   }
 
   std::string get_as_string() const
   {
     std::string s;
-    for (const auto &b : blocks_)
+    for (const auto &b : blocks_) {
       s.append(b.data(), b.size());
+    }
     return s;
   }
   size_t get_block_count() const
@@ -108,11 +111,11 @@ class FormatHandler : NonCopyable, NonMovable {
   }
   void write_obj_usemtl(StringRef s)
   {
-    write_impl("usemtl {}\n", s);
+    write_impl("usemtl {}\n", std::string_view(s));
   }
   void write_obj_mtllib(StringRef s)
   {
-    write_impl("mtllib {}\n", s);
+    write_impl("mtllib {}\n", std::string_view(s));
   }
   void write_obj_smooth(int s)
   {
@@ -120,11 +123,11 @@ class FormatHandler : NonCopyable, NonMovable {
   }
   void write_obj_group(StringRef s)
   {
-    write_impl("g {}\n", s);
+    write_impl("g {}\n", std::string_view(s));
   }
   void write_obj_object(StringRef s)
   {
-    write_impl("o {}\n", s);
+    write_impl("o {}\n", std::string_view(s));
   }
   void write_obj_edge(int a, int b)
   {
@@ -169,7 +172,7 @@ class FormatHandler : NonCopyable, NonMovable {
 
   void write_mtl_newmtl(StringRef s)
   {
-    write_impl("newmtl {}\n", s);
+    write_impl("newmtl {}\n", std::string_view(s));
   }
   void write_mtl_float(const char *type, float v)
   {
@@ -186,12 +189,12 @@ class FormatHandler : NonCopyable, NonMovable {
   /* NOTE: options, if present, will have its own leading space. */
   void write_mtl_map(const char *type, StringRef options, StringRef value)
   {
-    write_impl("{}{} {}\n", type, options, value);
+    write_impl("{}{} {}\n", type, std::string_view(options), std::string_view(value));
   }
 
   void write_string(StringRef s)
   {
-    write_impl("{}\n", s);
+    write_impl("{}\n", std::string_view(s));
   }
 
  private:

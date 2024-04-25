@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2012 Blender Foundation */
+/* SPDX-FileCopyrightText: 2012 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <algorithm>
 #include <cstring>
@@ -28,7 +29,7 @@ enum TransformType {
 #define COLORSPACE_SRGB ((OCIO_ConstColorSpaceRcPtr *)2)
 #define COLORSPACE_DATA ((OCIO_ConstColorSpaceRcPtr *)3)
 
-typedef struct OCIO_PackedImageDescription {
+struct OCIO_PackedImageDescription {
   float *data;
   long width;
   long height;
@@ -36,7 +37,7 @@ typedef struct OCIO_PackedImageDescription {
   long chanStrideBytes;
   long xStrideBytes;
   long yStrideBytes;
-} OCIO_PackedImageDescription;
+};
 
 struct FallbackTransform {
   FallbackTransform() : type(TRANSFORM_UNKNOWN), scale(1.0f), exponent(1.0f) {}
@@ -76,6 +77,12 @@ struct FallbackTransform {
     applyRGB(pixel);
   }
 
+  bool isNoOp()
+  {
+    /* Rely on the short-circuiting based on name-space comparison in the IMB_colormanagement. */
+    return false;
+  }
+
   TransformType type;
   /* Scale transform. */
   float scale;
@@ -96,6 +103,11 @@ struct FallbackProcessor {
   void applyRGBA(float *pixel)
   {
     transform.applyRGBA(pixel);
+  }
+
+  bool isNoOp()
+  {
+    return transform.isNoOp();
   }
 
   FallbackTransform transform;
@@ -130,10 +142,12 @@ int FallbackImpl::configGetNumColorSpaces(OCIO_ConstConfigRcPtr * /*config*/)
 const char *FallbackImpl::configGetColorSpaceNameByIndex(OCIO_ConstConfigRcPtr * /*config*/,
                                                          int index)
 {
-  if (index == 0)
+  if (index == 0) {
     return "Linear";
-  else if (index == 1)
+  }
+  else if (index == 1) {
     return "sRGB";
+  }
 
   return NULL;
 }
@@ -141,24 +155,33 @@ const char *FallbackImpl::configGetColorSpaceNameByIndex(OCIO_ConstConfigRcPtr *
 OCIO_ConstColorSpaceRcPtr *FallbackImpl::configGetColorSpace(OCIO_ConstConfigRcPtr * /*config*/,
                                                              const char *name)
 {
-  if (strcmp(name, "scene_linear") == 0)
+  if (strcmp(name, "scene_linear") == 0) {
     return COLORSPACE_LINEAR;
-  else if (strcmp(name, "color_picking") == 0)
+  }
+  else if (strcmp(name, "color_picking") == 0) {
     return COLORSPACE_SRGB;
-  else if (strcmp(name, "texture_paint") == 0)
+  }
+  else if (strcmp(name, "texture_paint") == 0) {
     return COLORSPACE_LINEAR;
-  else if (strcmp(name, "default_byte") == 0)
+  }
+  else if (strcmp(name, "default_byte") == 0) {
     return COLORSPACE_SRGB;
-  else if (strcmp(name, "default_float") == 0)
+  }
+  else if (strcmp(name, "default_float") == 0) {
     return COLORSPACE_LINEAR;
-  else if (strcmp(name, "default_sequencer") == 0)
+  }
+  else if (strcmp(name, "default_sequencer") == 0) {
     return COLORSPACE_SRGB;
-  else if (strcmp(name, "Linear") == 0)
+  }
+  else if (strcmp(name, "Linear") == 0) {
     return COLORSPACE_LINEAR;
-  else if (strcmp(name, "sRGB") == 0)
+  }
+  else if (strcmp(name, "sRGB") == 0) {
     return COLORSPACE_SRGB;
-  else if (strcmp(name, "data") == 0)
+  }
+  else if (strcmp(name, "data") == 0) {
     return COLORSPACE_DATA;
+  }
 
   return NULL;
 }
@@ -336,6 +359,11 @@ void FallbackImpl::processorRelease(OCIO_ConstProcessorRcPtr *processor)
   delete (FallbackProcessor *)(processor);
 }
 
+bool FallbackImpl::cpuProcessorIsNoOp(OCIO_ConstCPUProcessorRcPtr *cpu_processor)
+{
+  return ((FallbackProcessor *)cpu_processor)->isNoOp();
+}
+
 void FallbackImpl::cpuProcessorApply(OCIO_ConstCPUProcessorRcPtr *cpu_processor,
                                      OCIO_PackedImageDesc *img)
 {
@@ -351,10 +379,12 @@ void FallbackImpl::cpuProcessorApply(OCIO_ConstCPUProcessorRcPtr *cpu_processor,
     for (x = 0; x < width; x++) {
       float *pixel = pixels + channels * (y * width + x);
 
-      if (channels == 4)
+      if (channels == 4) {
         cpuProcessorApplyRGBA(cpu_processor, pixel);
-      else if (channels == 3)
+      }
+      else if (channels == 3) {
         cpuProcessorApplyRGB(cpu_processor, pixel);
+      }
     }
   }
 }
@@ -374,10 +404,12 @@ void FallbackImpl::cpuProcessorApply_predivide(OCIO_ConstCPUProcessorRcPtr *cpu_
     for (x = 0; x < width; x++) {
       float *pixel = pixels + channels * (y * width + x);
 
-      if (channels == 4)
+      if (channels == 4) {
         cpuProcessorApplyRGBA_predivide(cpu_processor, pixel);
-      else if (channels == 3)
+      }
+      else if (channels == 3) {
         cpuProcessorApplyRGB(cpu_processor, pixel);
+      }
     }
   }
 }

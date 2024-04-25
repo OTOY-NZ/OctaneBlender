@@ -1,6 +1,8 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
+#include "blender/light_linking.h"
 #include "blender/object_cull.h"
 #include "blender/sync.h"
 #include "blender/util.h"
@@ -258,9 +260,10 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
       }
 
       /* mesh deformation */
-      if (object->get_geometry())
+      if (object->get_geometry()) {
         sync_geometry_motion(
             b_depsgraph, b_ob_info, object, motion_time, use_particle_hair, object_geom_task_pool);
+      }
     }
 
     return object;
@@ -348,12 +351,17 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
       object->set_random_id(hash_uint2(hash_string(object->name.c_str()), 0));
     }
 
-    /* lightgroup */
+    /* Light group and linking. */
     string lightgroup = b_ob.lightgroup();
     if (lightgroup.empty()) {
       lightgroup = b_parent.lightgroup();
     }
     object->set_lightgroup(ustring(lightgroup));
+
+    object->set_light_set_membership(BlenderLightLink::get_light_set_membership(b_parent, b_ob));
+    object->set_receiver_light_set(BlenderLightLink::get_receiver_light_set(b_parent, b_ob));
+    object->set_shadow_set_membership(BlenderLightLink::get_shadow_set_membership(b_parent, b_ob));
+    object->set_blocker_shadow_set(BlenderLightLink::get_blocker_shadow_set(b_parent, b_ob));
 
     object->tag_update(scene);
   }
@@ -662,13 +670,15 @@ void BlenderSync::sync_motion(BL::RenderSettings &b_render,
                               int height,
                               void **python_thread_state)
 {
-  if (scene->need_motion() == Scene::MOTION_NONE)
+  if (scene->need_motion() == Scene::MOTION_NONE) {
     return;
+  }
 
   /* get camera object here to deal with camera switch */
   BL::Object b_cam = b_scene.camera();
-  if (b_override)
+  if (b_override) {
     b_cam = b_override;
+  }
 
   int frame_center = b_scene.frame_current();
   float subframe_center = b_scene.frame_subframe();

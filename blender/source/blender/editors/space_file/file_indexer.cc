@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup edfile
@@ -6,7 +8,7 @@
  * This file implements the default file browser indexer and has some helper function to work with
  * `FileIndexerEntries`.
  */
-#include "file_indexer.h"
+#include "file_indexer.hh"
 
 #include "MEM_guardedalloc.h"
 
@@ -53,8 +55,6 @@ static FileIndexerEntry *file_indexer_entry_create_from_datablock_info(
 
 }  // namespace blender::ed::file::indexer
 
-extern "C" {
-
 void ED_file_indexer_entries_extend_from_datablock_infos(
     FileIndexerEntries *indexer_entries,
     LinkNode * /*BLODataBlockInfo*/ datablock_infos,
@@ -69,18 +69,15 @@ void ED_file_indexer_entries_extend_from_datablock_infos(
   }
 }
 
-static void ED_file_indexer_entry_free(void *indexer_entry_ptr)
-{
-  FileIndexerEntry *indexer_entry = static_cast<FileIndexerEntry *>(indexer_entry_ptr);
-  BLO_datablock_info_free(&indexer_entry->datablock_info);
-  MEM_freeN(indexer_entry);
-}
-
 void ED_file_indexer_entries_clear(FileIndexerEntries *indexer_entries)
 {
-  BLI_linklist_free(indexer_entries->entries, ED_file_indexer_entry_free);
+  BLI_linklist_free(indexer_entries->entries, [](void *indexer_entry_ptr) {
+    FileIndexerEntry *indexer_entry = static_cast<FileIndexerEntry *>(indexer_entry_ptr);
+    BLO_datablock_info_free(&indexer_entry->datablock_info);
+    MEM_freeN(indexer_entry);
+  });
+
   indexer_entries->entries = nullptr;
 }
 
 const FileIndexerType file_indexer_noop = blender::ed::file::indexer::default_indexer();
-}

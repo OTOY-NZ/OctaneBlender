@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2016 by Mike Erwin. All rights reserved. */
+/* SPDX-FileCopyrightText: 2016 by Mike Erwin. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup gpu
@@ -257,7 +258,7 @@ void GPU_vertformat_safe_attr_name(const char *attr_name, char *r_safe_name, uin
   uint len = strlen(attr_name);
 
   if (len > 8) {
-    /* Start with the first 4 chars of the name; */
+    /* Start with the first 4 chars of the name. */
     for (int i = 0; i < 4; i++) {
       data[i] = attr_name[i];
     }
@@ -429,7 +430,7 @@ static void recommended_fetch_mode_and_comp_type(Type gpu_type,
   }
 }
 
-void GPU_vertformat_from_shader(GPUVertFormat *format, const struct GPUShader *gpushader)
+void GPU_vertformat_from_shader(GPUVertFormat *format, const GPUShader *gpushader)
 {
   GPU_vertformat_clear(format);
 

@@ -1,4 +1,7 @@
+# SPDX-FileCopyrightText: 2012-2023 Blender Authors
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
+
 from __future__ import annotations
 
 import bpy
@@ -9,6 +12,7 @@ from bpy.types import (
 from bpy.props import (
     BoolProperty,
     CollectionProperty,
+    EnumProperty,
     FloatVectorProperty,
     StringProperty,
 )
@@ -70,8 +74,8 @@ class NodeAddOperator:
 
         try:
             node = tree.nodes.new(type=node_type)
-        except RuntimeError as e:
-            self.report({'ERROR'}, str(e))
+        except RuntimeError as ex:
+            self.report({'ERROR'}, str(ex))
             return None
 
         for setting in self.settings:
@@ -87,11 +91,11 @@ class NodeAddOperator:
 
             try:
                 setattr(node_data, node_attr_name, value)
-            except AttributeError as e:
+            except AttributeError as ex:
                 self.report(
                     {'ERROR_INVALID_INPUT'},
                     tip_("Node has no attribute %s") % setting.name)
-                print(str(e))
+                print(str(ex))
                 # Continue despite invalid attribute
 
         node.select = True
@@ -150,14 +154,7 @@ class NODE_OT_add_node(NodeAddOperator, Operator):
             return ""
 
 
-class NODE_OT_add_simulation_zone(NodeAddOperator, Operator):
-    """Add simulation zone input and output nodes to the active tree"""
-    bl_idname = "node.add_simulation_zone"
-    bl_label = "Add Simulation Zone"
-    bl_options = {'REGISTER', 'UNDO'}
-
-    input_node_type = "GeometryNodeSimulationInput"
-    output_node_type = "GeometryNodeSimulationOutput"
+class NodeAddZoneOperator(NodeAddOperator):
     offset: FloatVectorProperty(
         name="Offset",
         description="Offset of nodes from the cursor when added",
@@ -190,6 +187,26 @@ class NODE_OT_add_simulation_zone(NodeAddOperator, Operator):
         tree.links.new(to_socket, from_socket)
 
         return {'FINISHED'}
+
+
+class NODE_OT_add_simulation_zone(NodeAddZoneOperator, Operator):
+    """Add simulation zone input and output nodes to the active tree"""
+    bl_idname = "node.add_simulation_zone"
+    bl_label = "Add Simulation Zone"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    input_node_type = "GeometryNodeSimulationInput"
+    output_node_type = "GeometryNodeSimulationOutput"
+
+
+class NODE_OT_add_repeat_zone(NodeAddZoneOperator, Operator):
+    """Add a repeat zone that allows executing nodes a dynamic number of times"""
+    bl_idname = "node.add_repeat_zone"
+    bl_label = "Add Repeat Zone"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    input_node_type = "GeometryNodeRepeatInput"
+    output_node_type = "GeometryNodeRepeatOutput"
 
 
 class NODE_OT_collapse_hide_unused_toggle(Operator):
@@ -243,11 +260,140 @@ class NODE_OT_tree_path_parent(Operator):
         return {'FINISHED'}
 
 
+class NodeInterfaceOperator():
+    @classmethod
+    def poll(cls, context):
+        space = context.space_data
+        if not space or space.type != 'NODE_EDITOR' or not space.edit_tree:
+            return False
+        if space.edit_tree.is_embedded_data:
+            return False
+        return True
+
+
+class NODE_OT_interface_item_new(NodeInterfaceOperator, Operator):
+    '''Add a new item to the interface'''
+    bl_idname = "node.interface_item_new"
+    bl_label = "New Item"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    item_type: EnumProperty(
+        name="Item Type",
+        description="Type of the item to create",
+        items=(
+            ('INPUT', "Input", ""),
+            ('OUTPUT', "Output", ""),
+            ('PANEL', "Panel", ""),
+        ),
+        default='INPUT',
+    )
+
+    # Returns a valid socket type for the given tree or None.
+    @staticmethod
+    def find_valid_socket_type(tree):
+        socket_type = 'NodeSocketFloat'
+        # Socket type validation function is only available for custom
+        # node trees. Assume that 'NodeSocketFloat' is valid for
+        # built-in node tree types.
+        if not hasattr(tree, "valid_socket_type") or tree.valid_socket_type(socket_type):
+            return socket_type
+        # Custom nodes may not support float sockets, search all
+        # registered socket subclasses.
+        types_to_check = [bpy.types.NodeSocket]
+        while types_to_check:
+            t = types_to_check.pop()
+            idname = getattr(t, "bl_idname", "")
+            if tree.valid_socket_type(idname):
+                return idname
+            # Test all subclasses
+            types_to_check.extend(t.__subclasses__())
+
+    def execute(self, context):
+        snode = context.space_data
+        tree = snode.edit_tree
+        interface = tree.interface
+
+        # Remember active item and position to determine target position.
+        active_item = interface.active
+        active_pos = active_item.position if active_item else -1
+
+        if self.item_type == 'INPUT':
+            item = interface.new_socket("Socket", socket_type=self.find_valid_socket_type(tree), in_out='INPUT')
+        elif self.item_type == 'OUTPUT':
+            item = interface.new_socket("Socket", socket_type=self.find_valid_socket_type(tree), in_out='OUTPUT')
+        elif self.item_type == 'PANEL':
+            item = interface.new_panel("Panel")
+        else:
+            return {'CANCELLED'}
+
+        if active_item:
+            # Insert into active panel if possible, otherwise insert after active item.
+            if active_item.item_type == 'PANEL' and item.item_type != 'PANEL':
+                interface.move_to_parent(item, active_item, len(active_item.interface_items))
+            else:
+                interface.move_to_parent(item, active_item.parent, active_pos + 1)
+        interface.active = item
+
+        return {'FINISHED'}
+
+
+class NODE_OT_interface_item_duplicate(NodeInterfaceOperator, Operator):
+    '''Add a copy of the active item to the interface'''
+    bl_idname = "node.interface_item_duplicate"
+    bl_label = "Duplicate Item"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        if not super().poll(context):
+            return False
+
+        snode = context.space_data
+        tree = snode.edit_tree
+        interface = tree.interface
+        return interface.active is not None
+
+    def execute(self, context):
+        snode = context.space_data
+        tree = snode.edit_tree
+        interface = tree.interface
+        item = interface.active
+
+        if item:
+            item_copy = interface.copy(item)
+            interface.active = item_copy
+
+        return {'FINISHED'}
+
+
+class NODE_OT_interface_item_remove(NodeInterfaceOperator, Operator):
+    '''Remove active item from the interface'''
+    bl_idname = "node.interface_item_remove"
+    bl_label = "Remove Item"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        snode = context.space_data
+        tree = snode.edit_tree
+        interface = tree.interface
+        item = interface.active
+
+        if item:
+            interface.remove(item)
+            interface.active_index = min(interface.active_index, len(interface.items_tree) - 1)
+
+        return {'FINISHED'}
+
+
 classes = (
     NodeSetting,
 
     NODE_OT_add_node,
     NODE_OT_add_simulation_zone,
+    NODE_OT_add_repeat_zone,
     NODE_OT_collapse_hide_unused_toggle,
+    NODE_OT_interface_item_new,
+    NODE_OT_interface_item_duplicate,
+    NODE_OT_interface_item_remove,
     NODE_OT_tree_path_parent,
 )

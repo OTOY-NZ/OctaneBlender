@@ -230,6 +230,26 @@ namespace OctaneDataTransferObject {
 			OctaneNodeBase(Octane::NT_OBJECTLAYER, "OctaneObjectLayer") 
 		{
 		}
+
+    inline bool IsSameValue(const OctaneObjectLayer& other) {
+      return iRenderLayerID.IsSameValue(other.iRenderLayerID) &&
+        fGeneralVisibility.IsSameValue(other.fGeneralVisibility) &&
+        bCameraVisibility.IsSameValue(other.bCameraVisibility) &&
+        bShadowVisibility.IsSameValue(other.bShadowVisibility) &&
+        bDirtVisibility.IsSameValue(other.bDirtVisibility) &&
+        bCurvatureVisibility.IsSameValue(other.bCurvatureVisibility) &&
+        iRandomColorSeed.IsSameValue(other.iRandomColorSeed) &&
+        f3Color.IsSameValue(other.f3Color) &&
+        fRotationZ.IsSameValue(other.fRotationZ) &&
+        fScaleX.IsSameValue(other.fScaleX) &&
+        fScaleY.IsSameValue(other.fScaleY) &&
+        fTranslationX.IsSameValue(other.fTranslationX) &&
+        fTranslationY.IsSameValue(other.fTranslationY) &&
+        iCustomAOV.IsSameValue(other.iCustomAOV) &&
+        iCustomAOVChannel.IsSameValue(other.iCustomAOVChannel) &&
+        oBakingTransform.IsSameValue(other.oBakingTransform);
+    }
+
 		MSGPACK_DEFINE(iRenderLayerID, fGeneralVisibility, bCameraVisibility, bShadowVisibility, bDirtVisibility, bCurvatureVisibility, iRandomColorSeed, iLightPassMask, i3Color,
 			iBakingGroupId, oBakingTransform, iCustomAOV, iCustomAOVChannel, MSGPACK_BASE(OctaneNodeBase));
 	};
@@ -274,7 +294,8 @@ namespace OctaneDataTransferObject {
 	};
 
 	struct OctaneMeshes : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_MESH;		
+		const static PacketType packetType = LOAD_MESH;
+		bool						bUpdateRender;
 		bool						bGlobal;
 		std::string					sGlobalMeshName;
 		std::string					sGlobalLayerName;
@@ -284,8 +305,8 @@ namespace OctaneDataTransferObject {
 		OctaneMesh					oGlobalMesh;
 		int32_t*					iData;
 		float*						fData;
-		OctaneMeshes() : OctaneNodeBase(Octane::ENT_MESHES, "OctaneMeshes") {}
-		MSGPACK_DEFINE(bGlobal, sGlobalMeshName, sGlobalLayerName, iCurrentFrameIdx, iTotalFrameIdx, oMeshes, oGlobalMesh);
+		OctaneMeshes() : bUpdateRender(true), OctaneNodeBase(Octane::ENT_MESHES, "OctaneMeshes") {}
+		MSGPACK_DEFINE(bUpdateRender, bGlobal, sGlobalMeshName, sGlobalLayerName, iCurrentFrameIdx, iTotalFrameIdx, oMeshes, oGlobalMesh);
 	};
 
 	struct OctaneGeoNodes : public OctaneNodeBase {
@@ -319,12 +340,24 @@ namespace OctaneDataTransferObject {
       iSamplesNum = 1;
       iUseObjectLayer = NO_OBJECT_LAYER;
     }
+    bool isSameValue(const OctaneObject& other) {
+      return sObjectName == other.sObjectName
+        && sMeshName == other.sMeshName
+        && iInstanceSize == other.iInstanceSize
+        && oMatrix == other.oMatrix
+        && oMotionMatrices == other.oMotionMatrices
+        && iSamplesNum == other.iSamplesNum
+        && iInstanceId == other.iInstanceId
+        && bMovable == other.bMovable
+        && iUseObjectLayer == other.iUseObjectLayer
+        && oObjectLayer.IsSameValue(other.oObjectLayer);
+    }
 		MSGPACK_DEFINE(sObjectName, sMeshName, iInstanceSize, bMovable, iUseObjectLayer, iSamplesNum, oObjectLayer, oArrayInfo, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneObjects : public OctaneNodeBase {
 		const static PacketType packetType = LOAD_OBJECT;
-
+		bool						bUpdateRender;
 		bool						bGlobal;
 		int32_t						iCurrentFrameIdx;
 		int32_t						iTotalFrameIdx;
@@ -333,8 +366,8 @@ namespace OctaneDataTransferObject {
 		std::unordered_map<std::string, std::vector<float>> fMatrixMap;
 		int32_t*					iData;
 		float*						fData;
-		OctaneObjects() : OctaneNodeBase(Octane::ENT_OBJECTS, "OctaneObjects") {}
-		MSGPACK_DEFINE(bGlobal, iCurrentFrameIdx, iTotalFrameIdx, oObjects, MSGPACK_BASE(OctaneNodeBase));
+		OctaneObjects() : bUpdateRender(true), OctaneNodeBase(Octane::ENT_OBJECTS, "OctaneObjects") {}
+		MSGPACK_DEFINE(bUpdateRender, bGlobal, iCurrentFrameIdx, iTotalFrameIdx, oObjects, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneLight : public OctaneNodeBase {

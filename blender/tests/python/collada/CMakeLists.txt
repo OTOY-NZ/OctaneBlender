@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2018-2023 Blender Authors
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 # --env-system-scripts allows to run without the install target.
@@ -37,7 +39,7 @@ endif()
 # GENERAL PYTHON CORRECTNESS TESTS
 macro(COLLADA_TEST module test_name blend_file)
   add_test(
-    NAME collada_${module}_${test_name}
+    NAME bf_io_collada_${module}_${test_name}
     COMMAND "$<TARGET_FILE:blender>" ${TEST_BLENDER_EXE_PARAMS} ${TEST_SRC_DIR}/collada/${module}/${blend_file}
     --python ${CMAKE_CURRENT_LIST_DIR}/${module}/test_${module}_${test_name}.py --
     --testdir ${TEST_SRC_DIR}/collada/${module}

@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 #pragma once
 
 /** \file
@@ -13,7 +14,7 @@ extern "C" {
 struct Main;
 
 /**
- * Called from #do_versions() in `readfile.c` to convert the old 'IPO/adrcode' system
+ * Called from #do_versions() in `readfile.cc` to convert the old 'IPO/adrcode' system
  * to the new 'Animato/RNA' system.
  *
  * The basic method used here, is to loop over data-blocks which have IPO-data,

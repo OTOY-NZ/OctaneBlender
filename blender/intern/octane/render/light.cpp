@@ -100,7 +100,7 @@ void LightManager::server_update(::OctaneEngine::OctaneClient *server,
     removed_light_names.clear();
   }
 
-  OctaneDataTransferObject::OctaneObjects octane_objects;
+  OctaneDataTransferObject::OctaneObjects current_octane_objects;
   for (auto &light : scene->lights) {
     if (light->need_update && light->enable) {
       updated_light_names.insert(light->name);
@@ -110,12 +110,14 @@ void LightManager::server_update(::OctaneEngine::OctaneClient *server,
       }
     }
   }
-  scene->generate_updated_octane_objects_data(updated_light_names, octane_objects, true);
-  octane_objects.iCurrentFrameIdx = frame_idx;
-  octane_objects.iTotalFrameIdx = total_frames;
-  octane_objects.bGlobal = false;
+  scene->generate_updated_octane_objects_data(
+      updated_light_names, current_octane_objects, true);  
+  current_octane_objects.iCurrentFrameIdx = frame_idx;
+  current_octane_objects.iTotalFrameIdx = total_frames;
+  current_octane_objects.bGlobal = false;
 
-  server->uploadOctaneObjects(octane_objects);
+  scene->generate_final_octane_objects_data(octane_objects, current_octane_objects);
+  server->uploadOctaneObjects(current_octane_objects);
 }
 
 void LightManager::tag_update(Scene *scene)

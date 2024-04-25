@@ -1,10 +1,11 @@
+# SPDX-FileCopyrightText: 2022-2023 Blender Authors
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 # ./blender.bin --background -noaudio --python tests/python/bl_pyapi_bpy_driver_secure_eval.py -- --verbose
 import bpy
 import unittest
 import builtins
-from types import ModuleType
 
 
 # -----------------------------------------------------------------------------
@@ -174,6 +175,7 @@ class TestRejectModuleAccess(unittest.TestCase, TestExprMixIn_Reject):
         "__import__('os').expect_os_unreachable()",
         "exec(\"__import__('os').expect_os_unreachable()\")",
         "(globals().update(__import__('os').__dict__), expect_os_unreachable())",
+        "__builtins__['getattr'](__builtins__['__import__']('os'), 'expect_os_unreachable')()",
     )
 
     # Ensure the functions are actually called.

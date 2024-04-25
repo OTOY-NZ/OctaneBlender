@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -11,7 +13,7 @@
 
 #ifdef WITH_GMP
 
-#  include <iostream>
+#  include <iosfwd>
 
 #  include "BLI_array.hh"
 #  include "BLI_index_range.hh"
@@ -237,7 +239,6 @@ class IMeshArena : NonCopyable, NonMovable {
  * internal structures for indexing exactly the set of needed Verts,
  * and also going from a Vert pointer to the index in that system.
  */
-
 class IMesh {
   Array<Face *> face_;                   /* Not `const` so can lazily populate planes. */
   Array<const Vert *> vert_;             /* Only valid if vert_populated_. */

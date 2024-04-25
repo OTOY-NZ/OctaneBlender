@@ -60,6 +60,16 @@ namespace OctaneDataTransferObject {
 		{
 			bUseMatrix = false;
 		}
+
+    bool IsSameValue(const OctaneValueTransform& other) {
+      return bUseMatrix == other.bUseMatrix
+        && oMatrix == other.oMatrix
+        && iOrder.IsSameValue(other.iOrder)
+        && fRotation.IsSameValue(other.fRotation)
+        && fScale.IsSameValue(other.fScale)
+        && fTranslation.IsSameValue(other.fTranslation);
+    }
+
 		OCTANE_NODE_SERIALIZARION_FUNCTIONS
 		OCTANE_NODE_VISIT_FUNCTIONS
 		OCTANE_NODE_POST_UPDATE_FUNCTIONS

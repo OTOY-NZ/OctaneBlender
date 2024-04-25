@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "testing/testing.h"
 #include "tests/blendfile_loading_base_test.h"
@@ -13,23 +15,22 @@
 #include "BLI_path_util.h"
 #include "BLO_readfile.h"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
-#include "WM_api.h"
+#include "WM_api.hh"
 
 #include "usd.h"
-#include "usd_tests_common.h"
 
 namespace blender::io::usd {
 
 const StringRefNull usdz_export_test_filename = "usd/usdz_export_test.blend";
 char temp_dir[FILE_MAX];
 char temp_output_dir[FILE_MAX];
-char output_filename[FILE_MAX];
+char output_filepath[FILE_MAX];
 
 class UsdUsdzExportTest : public BlendfileLoadingBaseTest {
  protected:
-  struct bContext *context = nullptr;
+  bContext *context = nullptr;
 
  public:
   bool load_file_and_depsgraph(const StringRefNull &filepath,
@@ -50,10 +51,6 @@ class UsdUsdzExportTest : public BlendfileLoadingBaseTest {
   virtual void SetUp() override
   {
     BlendfileLoadingBaseTest::SetUp();
-    std::string usd_plugin_path = register_usd_plugins_for_tests();
-    if (usd_plugin_path.empty()) {
-      FAIL();
-    }
 
     BKE_tempdir_init(nullptr);
     const char *temp_base_dir = BKE_tempdir_base();
@@ -64,7 +61,7 @@ class UsdUsdzExportTest : public BlendfileLoadingBaseTest {
     BLI_path_join(temp_output_dir, FILE_MAX, temp_base_dir, "usdz_test_output_dir");
     BLI_dir_create_recursive(temp_output_dir);
 
-    BLI_path_join(output_filename, FILE_MAX, temp_output_dir, "output_новый.usdz");
+    BLI_path_join(output_filepath, FILE_MAX, temp_output_dir, "output_новый.usdz");
   }
 
   virtual void TearDown() override
@@ -97,12 +94,14 @@ TEST_F(UsdUsdzExportTest, usdz_export)
       << "BLI_current_working_dir is not expected to return a different value than the given char "
          "buffer.";
 
-  USDExportParams params{};
+  USDExportParams params;
+  params.export_materials = false;
+  params.visible_objects_only = false;
 
-  bool result = USD_export(context, output_filename, &params, false);
-  ASSERT_TRUE(result) << "usd export to " << output_filename << " failed.";
+  bool result = USD_export(context, output_filepath, &params, false);
+  ASSERT_TRUE(result) << "usd export to " << output_filepath << " failed.";
 
-  pxr::UsdStageRefPtr stage = pxr::UsdStage::Open(output_filename);
+  pxr::UsdStageRefPtr stage = pxr::UsdStage::Open(output_filepath);
   ASSERT_TRUE(bool(stage)) << "unable to open stage for the exported usdz file.";
 
   std::string prim_name = pxr::TfMakeValidIdentifier("Cube");

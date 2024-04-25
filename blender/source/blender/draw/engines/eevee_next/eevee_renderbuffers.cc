@@ -1,6 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2021 Blender Foundation.
- */
+/* SPDX-FileCopyrightText: 2021 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup eevee
@@ -24,54 +24,76 @@
 
 namespace blender::eevee {
 
+void RenderBuffers::sync()
+{
+  const eViewLayerEEVEEPassType enabled_passes = inst_.film.enabled_passes_get();
+
+  data.color_len = 0;
+  data.value_len = 0;
+
+  auto pass_index_get = [&](eViewLayerEEVEEPassType pass_type, int dependent_passes = 0) {
+    if (enabled_passes & (pass_type | dependent_passes)) {
+      return pass_storage_type(pass_type) == PASS_STORAGE_COLOR ? data.color_len++ :
+                                                                  data.value_len++;
+    }
+    return -1;
+  };
+
+  data.normal_id = pass_index_get(EEVEE_RENDER_PASS_NORMAL, EEVEE_RENDER_PASS_AO);
+  data.position_id = pass_index_get(EEVEE_RENDER_PASS_POSITION);
+  data.diffuse_light_id = pass_index_get(EEVEE_RENDER_PASS_DIFFUSE_LIGHT);
+  data.diffuse_color_id = pass_index_get(EEVEE_RENDER_PASS_DIFFUSE_COLOR);
+  data.specular_light_id = pass_index_get(EEVEE_RENDER_PASS_SPECULAR_LIGHT);
+  data.specular_color_id = pass_index_get(EEVEE_RENDER_PASS_SPECULAR_COLOR);
+  data.volume_light_id = pass_index_get(EEVEE_RENDER_PASS_VOLUME_LIGHT);
+  data.emission_id = pass_index_get(EEVEE_RENDER_PASS_EMIT);
+  data.environment_id = pass_index_get(EEVEE_RENDER_PASS_ENVIRONMENT);
+  data.shadow_id = pass_index_get(EEVEE_RENDER_PASS_SHADOW);
+  data.ambient_occlusion_id = pass_index_get(EEVEE_RENDER_PASS_AO);
+
+  data.aovs = inst_.film.aovs_info;
+}
+
 void RenderBuffers::acquire(int2 extent)
 {
   const eViewLayerEEVEEPassType enabled_passes = inst_.film.enabled_passes_get();
+
+  extent_ = extent;
 
   auto pass_extent = [&](eViewLayerEEVEEPassType pass_bit) -> int2 {
     /* Use dummy texture for disabled passes. Allows correct bindings. */
     return (enabled_passes & pass_bit) ? extent : int2(1);
   };
 
-  eGPUTextureFormat color_format = GPU_RGBA16F;
-  eGPUTextureFormat float_format = GPU_R16F;
+  eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT;
 
   /* Depth and combined are always needed. */
-  depth_tx.acquire(extent, GPU_DEPTH24_STENCIL8);
+  depth_tx.ensure_2d(GPU_DEPTH24_STENCIL8, extent, usage | GPU_TEXTURE_USAGE_MIP_SWIZZLE_VIEW);
+  /* TODO(fclem): depth_tx should ideally be a texture from pool but we need stencil_view
+   * which is currently unsupported by pool textures. */
+  // depth_tx.acquire(extent, GPU_DEPTH24_STENCIL8);
   combined_tx.acquire(extent, color_format);
 
-  bool do_vector_render_pass = (enabled_passes & EEVEE_RENDER_PASS_VECTOR) ||
-                               (inst_.motion_blur.postfx_enabled() && !inst_.is_viewport());
-  uint32_t max_light_color_layer = max_ii(enabled_passes & EEVEE_RENDER_PASS_DIFFUSE_LIGHT ?
-                                              int(RENDER_PASS_LAYER_DIFFUSE_LIGHT) :
-                                              -1,
-                                          enabled_passes & EEVEE_RENDER_PASS_SPECULAR_LIGHT ?
-                                              int(RENDER_PASS_LAYER_SPECULAR_LIGHT) :
-                                              -1) +
-                                   1;
-  /* Only RG16F when only doing only reprojection or motion blur. */
-  eGPUTextureFormat vector_format = do_vector_render_pass ? GPU_RGBA16F : GPU_RG16F;
+  eGPUTextureUsage usage_attachment_read_write = GPU_TEXTURE_USAGE_ATTACHMENT |
+                                                 GPU_TEXTURE_USAGE_SHADER_READ |
+                                                 GPU_TEXTURE_USAGE_SHADER_WRITE;
+
   /* TODO(fclem): Make vector pass allocation optional if no TAA or motion blur is needed. */
-  vector_tx.acquire(extent, vector_format);
+  vector_tx.acquire(extent,
+                    vector_tx_format(),
+                    usage_attachment_read_write | GPU_TEXTURE_USAGE_MIP_SWIZZLE_VIEW);
 
-  normal_tx.acquire(pass_extent(EEVEE_RENDER_PASS_NORMAL), color_format);
-  diffuse_color_tx.acquire(pass_extent(EEVEE_RENDER_PASS_DIFFUSE_COLOR), color_format);
-  specular_color_tx.acquire(pass_extent(EEVEE_RENDER_PASS_SPECULAR_COLOR), color_format);
-  volume_light_tx.acquire(pass_extent(EEVEE_RENDER_PASS_VOLUME_LIGHT), color_format);
-  emission_tx.acquire(pass_extent(EEVEE_RENDER_PASS_EMIT), color_format);
-  environment_tx.acquire(pass_extent(EEVEE_RENDER_PASS_ENVIRONMENT), color_format);
-  shadow_tx.acquire(pass_extent(EEVEE_RENDER_PASS_SHADOW), float_format);
-  ambient_occlusion_tx.acquire(pass_extent(EEVEE_RENDER_PASS_AO), float_format);
+  int color_len = data.color_len + data.aovs.color_len;
+  int value_len = data.value_len + data.aovs.value_len;
 
-  light_tx.ensure_2d_array(color_format,
-                           max_light_color_layer > 0 ? extent : int2(1),
-                           max_ii(1, max_light_color_layer));
-
-  const AOVsInfoData &aovs = inst_.film.aovs_info;
-  aov_color_tx.ensure_2d_array(
-      color_format, (aovs.color_len > 0) ? extent : int2(1), max_ii(1, aovs.color_len));
-  aov_value_tx.ensure_2d_array(
-      float_format, (aovs.value_len > 0) ? extent : int2(1), max_ii(1, aovs.value_len));
+  rp_color_tx.ensure_2d_array(color_format,
+                              (color_len > 0) ? extent : int2(1),
+                              math::max(1, color_len),
+                              usage_attachment_read_write);
+  rp_value_tx.ensure_2d_array(float_format,
+                              (value_len > 0) ? extent : int2(1),
+                              math::max(1, value_len),
+                              usage_attachment_read_write);
 
   eGPUTextureFormat cryptomatte_format = GPU_R32F;
   const int cryptomatte_layer_len = inst_.film.cryptomatte_layer_max_get();
@@ -85,24 +107,29 @@ void RenderBuffers::acquire(int2 extent)
       pass_extent(static_cast<eViewLayerEEVEEPassType>(EEVEE_RENDER_PASS_CRYPTOMATTE_OBJECT |
                                                        EEVEE_RENDER_PASS_CRYPTOMATTE_ASSET |
                                                        EEVEE_RENDER_PASS_CRYPTOMATTE_MATERIAL)),
-      cryptomatte_format);
+      cryptomatte_format,
+      GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_SHADER_WRITE);
 }
 
 void RenderBuffers::release()
 {
-  depth_tx.release();
+  /* TODO(fclem): depth_tx should ideally be a texture from pool but we need stencil_view
+   * which is currently unsupported by pool textures. */
+  // depth_tx.release();
   combined_tx.release();
 
-  normal_tx.release();
   vector_tx.release();
-  diffuse_color_tx.release();
-  specular_color_tx.release();
-  volume_light_tx.release();
-  emission_tx.release();
-  environment_tx.release();
-  shadow_tx.release();
-  ambient_occlusion_tx.release();
   cryptomatte_tx.release();
+}
+
+eGPUTextureFormat RenderBuffers::vector_tx_format()
+{
+  const eViewLayerEEVEEPassType enabled_passes = inst_.film.enabled_passes_get();
+  bool do_vector_render_pass = (enabled_passes & EEVEE_RENDER_PASS_VECTOR) ||
+                               (inst_.motion_blur.postfx_enabled() && !inst_.is_viewport());
+
+  /* Only RG16F when only doing only reprojection or motion blur. */
+  return do_vector_render_pass ? GPU_RGBA16F : GPU_RG16F;
 }
 
 }  // namespace blender::eevee

@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #include "scene/background.h"
 #include "scene/camera.h"
@@ -119,8 +120,7 @@ void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph, BL::SpaceView3D &b_v3d
         if (geom->is_mesh()) {
           Mesh *mesh = static_cast<Mesh *>(geom);
           if (mesh->get_subdivision_type() != Mesh::SUBDIVISION_NONE) {
-            PointerRNA id_ptr;
-            RNA_id_pointer_create((::ID *)iter.first.id, &id_ptr);
+            PointerRNA id_ptr = RNA_id_pointer_create((::ID *)iter.first.id);
             geometry_map.set_recalc(BL::ID(id_ptr));
           }
         }
@@ -355,8 +355,14 @@ void BlenderSync::sync_integrator(BL::ViewLayer &b_view_layer, bool background)
     scene->light_manager->tag_update(scene, LightManager::UPDATE_ALL);
   }
 
-  SamplingPattern sampling_pattern = (SamplingPattern)get_enum(
-      cscene, "sampling_pattern", SAMPLING_NUM_PATTERNS, SAMPLING_PATTERN_TABULATED_SOBOL);
+  SamplingPattern sampling_pattern;
+  if (use_developer_ui) {
+    sampling_pattern = (SamplingPattern)get_enum(
+        cscene, "sampling_pattern", SAMPLING_NUM_PATTERNS, SAMPLING_PATTERN_TABULATED_SOBOL);
+  }
+  else {
+    sampling_pattern = SAMPLING_PATTERN_TABULATED_SOBOL;
+  }
   integrator->set_sampling_pattern(sampling_pattern);
 
   int samples = 1;
@@ -440,6 +446,13 @@ void BlenderSync::sync_integrator(BL::ViewLayer &b_view_layer, bool background)
     GuidingDistributionType guiding_distribution_type = (GuidingDistributionType)get_enum(
         cscene, "guiding_distribution_type", GUIDING_NUM_TYPES, GUIDING_TYPE_PARALLAX_AWARE_VMM);
     integrator->set_guiding_distribution_type(guiding_distribution_type);
+    GuidingDirectionalSamplingType guiding_directional_sampling_type =
+        (GuidingDirectionalSamplingType)get_enum(cscene,
+                                                 "guiding_directional_sampling_type",
+                                                 GUIDING_DIRECTIONAL_SAMPLING_NUM_TYPES,
+                                                 GUIDING_DIRECTIONAL_SAMPLING_TYPE_RIS);
+    integrator->set_guiding_directional_sampling_type(guiding_directional_sampling_type);
+    integrator->set_guiding_roughness_threshold(get_float(cscene, "guiding_roughness_threshold"));
   }
 
   DenoiseParams denoise_params = get_denoise_params(b_scene, b_view_layer, background);
@@ -786,15 +799,19 @@ SceneParams BlenderSync::get_scene_params(BL::Scene &b_scene,
   PointerRNA cscene = RNA_pointer_get(&b_scene.ptr, "cycles");
   const bool shadingsystem = RNA_boolean_get(&cscene, "shading_system");
 
-  if (shadingsystem == 0)
+  if (shadingsystem == 0) {
     params.shadingsystem = SHADINGSYSTEM_SVM;
-  else if (shadingsystem == 1)
+  }
+  else if (shadingsystem == 1) {
     params.shadingsystem = SHADINGSYSTEM_OSL;
+  }
 
-  if (background || (use_developer_ui && get_enum(cscene, "debug_bvh_type")))
+  if (background || (use_developer_ui && get_enum(cscene, "debug_bvh_type"))) {
     params.bvh_type = BVH_TYPE_STATIC;
-  else
+  }
+  else {
     params.bvh_type = BVH_TYPE_DYNAMIC;
+  }
 
   params.use_bvh_spatial_split = RNA_boolean_get(&cscene, "debug_use_spatial_splits");
   params.use_bvh_compact_structure = RNA_boolean_get(&cscene, "debug_use_compact_bvh");
@@ -896,10 +913,12 @@ SessionParams BlenderSync::get_session_params(BL::RenderEngine &b_engine,
   /* shading system - scene level needs full refresh */
   const bool shadingsystem = RNA_boolean_get(&cscene, "shading_system");
 
-  if (shadingsystem == 0)
+  if (shadingsystem == 0) {
     params.shadingsystem = SHADINGSYSTEM_SVM;
-  else if (shadingsystem == 1)
+  }
+  else if (shadingsystem == 1) {
     params.shadingsystem = SHADINGSYSTEM_OSL;
+  }
 
   /* Time limit. */
   if (background) {

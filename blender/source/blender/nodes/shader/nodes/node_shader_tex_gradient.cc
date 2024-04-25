@@ -1,10 +1,20 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2005 Gradienter Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2005 Gradienter Foundation. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "node_shader_util.hh"
+#include "node_util.hh"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "BKE_texture.h"
+
+#include "BLI_math_vector.hh"
+
+#include "FN_multi_function_builder.hh"
+
+#include "NOD_multi_function.hh"
+
+#include "UI_interface.hh"
+#include "UI_resources.hh"
 
 namespace blender::nodes::node_shader_tex_gradient_cc {
 
@@ -63,7 +73,7 @@ class GradientFunction : public mf::MultiFunction {
     this->set_signature(&signature);
   }
 
-  void call(IndexMask mask, mf::Params params, mf::Context /*context*/) const override
+  void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
   {
     const VArray<float3> &vector = params.readonly_single_input<float3>(0, "Vector");
 
@@ -75,62 +85,57 @@ class GradientFunction : public mf::MultiFunction {
 
     switch (gradient_type_) {
       case SHD_BLEND_LINEAR: {
-        for (int64_t i : mask) {
-          fac[i] = vector[i].x;
-        }
+        mask.foreach_index([&](const int64_t i) { fac[i] = vector[i].x; });
         break;
       }
       case SHD_BLEND_QUADRATIC: {
-        for (int64_t i : mask) {
+        mask.foreach_index([&](const int64_t i) {
           const float r = std::max(vector[i].x, 0.0f);
           fac[i] = r * r;
-        }
+        });
         break;
       }
       case SHD_BLEND_EASING: {
-        for (int64_t i : mask) {
+        mask.foreach_index([&](const int64_t i) {
           const float r = std::min(std::max(vector[i].x, 0.0f), 1.0f);
           const float t = r * r;
           fac[i] = (3.0f * t - 2.0f * t * r);
-        }
+        });
         break;
       }
       case SHD_BLEND_DIAGONAL: {
-        for (int64_t i : mask) {
-          fac[i] = (vector[i].x + vector[i].y) * 0.5f;
-        }
+        mask.foreach_index([&](const int64_t i) { fac[i] = (vector[i].x + vector[i].y) * 0.5f; });
         break;
       }
       case SHD_BLEND_RADIAL: {
-        for (int64_t i : mask) {
+        mask.foreach_index([&](const int64_t i) {
           fac[i] = atan2f(vector[i].y, vector[i].x) / (M_PI * 2.0f) + 0.5f;
-        }
+        });
         break;
       }
       case SHD_BLEND_QUADRATIC_SPHERE: {
-        for (int64_t i : mask) {
+        mask.foreach_index([&](const int64_t i) {
           /* Bias a little bit for the case where input is a unit length vector,
            * to get exactly zero instead of a small random value depending
            * on float precision. */
           const float r = std::max(0.999999f - math::length(vector[i]), 0.0f);
           fac[i] = r * r;
-        }
+        });
         break;
       }
       case SHD_BLEND_SPHERICAL: {
-        for (int64_t i : mask) {
+        mask.foreach_index([&](const int64_t i) {
           /* Bias a little bit for the case where input is a unit length vector,
            * to get exactly zero instead of a small random value depending
            * on float precision. */
           fac[i] = std::max(0.999999f - math::length(vector[i]), 0.0f);
-        }
+        });
         break;
       }
     }
     if (compute_color) {
-      for (int64_t i : mask) {
-        r_color[i] = ColorGeometry4f(fac[i], fac[i], fac[i], 1.0f);
-      }
+      mask.foreach_index(
+          [&](const int64_t i) { r_color[i] = ColorGeometry4f(fac[i], fac[i], fac[i], 1.0f); });
     }
   }
 };
@@ -141,6 +146,50 @@ static void sh_node_gradient_tex_build_multi_function(NodeMultiFunctionBuilder &
   NodeTexGradient *tex = (NodeTexGradient *)node.storage;
   builder.construct_and_set_matching_fn<GradientFunction>(tex->gradient_type);
 }
+
+NODE_SHADER_MATERIALX_BEGIN
+#ifdef WITH_MATERIALX
+{
+  NodeTexGradient *tex = (NodeTexGradient *)node_->storage;
+  const int gradient_type = tex->gradient_type;
+  NodeItem vector = get_input_link("Vector", NodeItem::Type::Vector2);
+  if (!vector) {
+    vector = texcoord_node();
+  }
+  NodeItem res = empty();
+
+  switch (gradient_type) {
+    case SHD_BLEND_LINEAR:
+      res = vector[0];
+      break;
+    case SHD_BLEND_QUADRATIC:
+      res = vector[0];
+      res = res * res;
+      break;
+    case SHD_BLEND_EASING:
+      res = vector[0].clamp();
+      res = res * res * (val(3.0f) - val(2.0f) * res);
+      break;
+    case SHD_BLEND_DIAGONAL:
+      res = (vector[0] + vector[1]) * val(0.5f);
+      break;
+    case SHD_BLEND_RADIAL:
+      res = vector[1].atan2(vector[0]) / (val(float(M_PI * 2.0f))) + val(0.5f);
+      break;
+    case SHD_BLEND_QUADRATIC_SPHERE:
+      res = (val(1.0f) - vector.dotproduct(vector).sqrt()).max(val(0.0f));
+      res = res * res;
+      break;
+    case SHD_BLEND_SPHERICAL:
+      res = (val(1.0f) - vector.dotproduct(vector).sqrt()).max(val(0.0f));
+      break;
+    default:
+      BLI_assert_unreachable();
+  }
+  return res;
+}
+#endif
+NODE_SHADER_MATERIALX_END
 
 }  // namespace blender::nodes::node_shader_tex_gradient_cc
 
@@ -158,6 +207,7 @@ void register_node_type_sh_tex_gradient()
       &ntype, "NodeTexGradient", node_free_standard_storage, node_copy_standard_storage);
   ntype.gpu_fn = file_ns::node_shader_gpu_tex_gradient;
   ntype.build_multi_function = file_ns::sh_node_gradient_tex_build_multi_function;
+  ntype.materialx_fn = file_ns::node_shader_materialx;
 
   nodeRegisterType(&ntype);
 }

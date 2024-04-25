@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2005 Blender Foundation */
+/* SPDX-FileCopyrightText: 2005 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -15,7 +16,7 @@
 /* for FOREACH_NODETREE_BEGIN */
 #include "DNA_node_types.h"
 
-#include "RNA_types.h"
+#include "RNA_types.hh"
 
 #ifdef __cplusplus
 #  include "BLI_map.hh"
@@ -30,7 +31,6 @@ extern "C" {
 #define MAX_SOCKET 512
 
 struct BlendDataReader;
-struct BlendExpander;
 struct BlendLibReader;
 struct BlendWriter;
 struct FreestyleLineStyle;
@@ -115,9 +115,8 @@ using NodeDeclareFunction = void (*)(blender::nodes::NodeDeclarationBuilder &bui
 using NodeDeclareDynamicFunction = void (*)(const bNodeTree &tree,
                                             const bNode &node,
                                             blender::nodes::NodeDeclaration &r_declaration);
-using SocketGetCPPValueFunction = void (*)(const struct bNodeSocket &socket, void *r_value);
-using SocketGetGeometryNodesCPPValueFunction = void (*)(const struct bNodeSocket &socket,
-                                                        void *r_value);
+using SocketGetCPPValueFunction = void (*)(const void *socket_value, void *r_value);
+using SocketGetGeometryNodesCPPValueFunction = void (*)(const void *socket_value, void *r_value);
 
 /* Adds socket link operations that are specific to this node type. */
 using NodeGatherSocketLinkOperationsFunction =
@@ -170,18 +169,21 @@ typedef struct bNodeSocketType {
                      struct PointerRNA *ptr,
                      struct PointerRNA *node_ptr,
                      float *r_color);
+  void (*draw_color_simple)(const bNodeSocketType *socket_type, float *r_color);
 
-  void (*interface_draw)(struct bContext *C, struct uiLayout *layout, struct PointerRNA *ptr);
-  void (*interface_draw_color)(struct bContext *C, struct PointerRNA *ptr, float *r_color);
-  void (*interface_init_socket)(struct bNodeTree *ntree,
-                                const struct bNodeSocket *interface_socket,
+  void (*interface_draw)(struct ID *id,
+                         struct bNodeTreeInterfaceSocket *socket,
+                         struct bContext *C,
+                         struct uiLayout *layout);
+  void (*interface_init_socket)(struct ID *id,
+                                const struct bNodeTreeInterfaceSocket *interface_socket,
                                 struct bNode *node,
-                                struct bNodeSocket *sock,
+                                struct bNodeSocket *socket,
                                 const char *data_path);
-  void (*interface_from_socket)(struct bNodeTree *ntree,
-                                struct bNodeSocket *interface_socket,
+  void (*interface_from_socket)(struct ID *id,
+                                struct bNodeTreeInterfaceSocket *interface_socket,
                                 const struct bNode *node,
-                                const struct bNodeSocket *sock);
+                                const struct bNodeSocket *socket);
 
   /* RNA integration */
   ExtensionRNA ext_socket;
@@ -223,6 +225,7 @@ typedef int (*NodeGPUExecFunction)(struct GPUMaterial *mat,
                                    struct bNodeExecData *execdata,
                                    struct GPUNodeStack *in,
                                    struct GPUNodeStack *out);
+typedef void (*NodeMaterialXFunction)(void *data, struct bNode *node, struct bNodeSocket *out);
 
 /**
  * \brief Defines a node type.
@@ -237,6 +240,8 @@ typedef struct bNodeType {
   char ui_name[64]; /* MAX_NAME */
   char ui_description[256];
   int ui_icon;
+  /** Should usually use the idname instead, but this enum type is still exposed in Python. */
+  const char *enum_name_legacy;
 
   float width, minwidth, maxwidth;
   float height, minheight, maxheight;
@@ -316,7 +321,8 @@ typedef struct bNodeType {
   bool (*poll)(const struct bNodeType *ntype,
                const struct bNodeTree *nodetree,
                const char **r_disabled_hint);
-  /** Can this node be added to a node tree?
+  /**
+   * Can this node be added to a node tree?
    * \param r_disabled_hint: See `poll()`.
    */
   bool (*poll_instance)(const struct bNode *node,
@@ -334,6 +340,8 @@ typedef struct bNodeType {
   NodeExecFunction exec_fn;
   /* gpu */
   NodeGPUExecFunction gpu_fn;
+  /* MaterialX */
+  NodeMaterialXFunction materialx_fn;
 
   /* Get an instance of this node's compositor operation. Freeing the instance is the
    * responsibility of the caller. */
@@ -372,13 +380,6 @@ typedef struct bNodeType {
    * custom behavior here like adding custom search items.
    */
   NodeGatherSocketLinkOperationsFunction gather_link_search_ops;
-
-  /**
-   * Add to the list of search items gathered by the add-node search. The default behavior of
-   * adding a single item with the node name is usually enough, but node types can have any number
-   * of custom search items.
-   */
-  NodeGatherAddOperationsFunction gather_add_node_search_ops;
 
   /** True when the node cannot be muted. */
   bool no_muting;
@@ -452,7 +453,7 @@ typedef struct bNodeTreeType {
   void (*localize)(struct bNodeTree *localtree, struct bNodeTree *ntree);
   void (*local_merge)(struct Main *bmain, struct bNodeTree *localtree, struct bNodeTree *ntree);
 
-  /* Tree update. Overrides `nodetype->updatetreefunc` ! */
+  /* Tree update. Overrides `nodetype->updatetreefunc`. */
   void (*update)(struct bNodeTree *ntree);
 
   bool (*validate_link)(eNodeSocketDatatype from, eNodeSocketDatatype to);
@@ -553,25 +554,14 @@ void ntreeBlendWrite(struct BlendWriter *writer, struct bNodeTree *ntree);
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Node Tree Interface
- * \{ */
-
-void ntreeRemoveSocketInterface(bNodeTree *ntree, bNodeSocket *sock);
-
-struct bNodeSocket *ntreeAddSocketInterface(struct bNodeTree *ntree,
-                                            eNodeSocketInOut in_out,
-                                            const char *idname,
-                                            const char *name);
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
 /** \name Generic API, Nodes
  * \{ */
 
 struct bNodeType *nodeTypeFind(const char *idname);
+const char *nodeTypeFindAlias(const char *idname);
 void nodeRegisterType(struct bNodeType *ntype);
 void nodeUnregisterType(struct bNodeType *ntype);
+void nodeRegisterAlias(struct bNodeType *nt, const char *alias);
 struct GHashIterator *nodeTypeGetIterator(void);
 
 /* Helper macros for iterating over node types. */
@@ -596,7 +586,7 @@ struct GHashIterator *nodeSocketTypeGetIterator(void);
 const char *nodeSocketTypeLabel(const bNodeSocketType *stype);
 
 const char *nodeStaticSocketType(int type, int subtype);
-const char *nodeStaticSocketInterfaceType(int type, int subtype);
+const char *nodeStaticSocketInterfaceTypeNew(int type, int subtype);
 const char *nodeStaticSocketLabel(int type, int subtype);
 
 /* Helper macros for iterating over node types. */
@@ -752,7 +742,6 @@ bool BKE_node_instance_hash_tag_key(bNodeInstanceHash *hash, bNodeInstanceKey ke
 void BKE_node_instance_hash_remove_untagged(bNodeInstanceHash *hash,
                                             bNodeInstanceValueFP valfreefp);
 
-void BKE_node_preview_clear_tree(struct bNodeTree *ntree);
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -766,6 +755,7 @@ bool nodeGroupPoll(const struct bNodeTree *nodetree,
 void node_type_base_custom(struct bNodeType *ntype,
                            const char *idname,
                            const char *name,
+                           const char *enum_name,
                            short nclass);
 
 /**
@@ -781,7 +771,9 @@ void node_type_storage(struct bNodeType *ntype,
 
 /** \} */
 
-/* ************** COMMON NODES *************** */
+/* -------------------------------------------------------------------- */
+/** \name Common Node Types
+ * \{ */
 
 #define NODE_UNDEFINED -2 /* node type is not registered */
 #define NODE_CUSTOM -1    /* for dynamically registered custom types */
@@ -808,7 +800,7 @@ void node_type_storage(struct bNodeType *ntype,
  *
  * - nodetree:
  *   The actual bNodeTree data block.
- *   Check nodetree->idname or nodetree->typeinfo to use only specific types.
+ *   Check `nodetree->idname` or `nodetree->typeinfo` to use only specific types.
  *
  * - id:
  *   The owner of the bNodeTree data block.
@@ -841,7 +833,6 @@ struct NodeTreeIterStore {
   struct Light *light;
   struct World *world;
   struct FreestyleLineStyle *linestyle;
-  struct Simulation *simulation;
 };
 
 void BKE_node_tree_iter_init(struct NodeTreeIterStore *ntreeiter, struct Main *bmain);
@@ -879,16 +870,16 @@ void BKE_nodetree_remove_layer_n(struct bNodeTree *ntree, struct Scene *scene, i
 
 /* NOTE: types are needed to restore callbacks, don't change values. */
 
-//#define SH_NODE_MATERIAL  100
+// #define SH_NODE_MATERIAL  100
 #define SH_NODE_RGB 101
 #define SH_NODE_VALUE 102
 #define SH_NODE_MIX_RGB_LEGACY 103
 #define SH_NODE_VALTORGB 104
 #define SH_NODE_RGBTOBW 105
 #define SH_NODE_SHADERTORGB 106
-//#define SH_NODE_TEXTURE       106
+// #define SH_NODE_TEXTURE       106
 #define SH_NODE_NORMAL 107
-//#define SH_NODE_GEOMETRY  108
+// #define SH_NODE_GEOMETRY  108
 #define SH_NODE_MAPPING 109
 #define SH_NODE_CURVE_VEC 110
 #define SH_NODE_CURVE_RGB 111
@@ -896,7 +887,7 @@ void BKE_nodetree_remove_layer_n(struct bNodeTree *ntree, struct Scene *scene, i
 #define SH_NODE_MATH 115
 #define SH_NODE_VECTOR_MATH 116
 #define SH_NODE_SQUEEZE 117
-//#define SH_NODE_MATERIAL_EXT  118
+// #define SH_NODE_MATERIAL_EXT  118
 #define SH_NODE_INVERT 119
 #define SH_NODE_SEPRGB_LEGACY 120
 #define SH_NODE_COMBRGB_LEGACY 121
@@ -909,13 +900,13 @@ void BKE_nodetree_remove_layer_n(struct bNodeTree *ntree, struct Scene *scene, i
 #define SH_NODE_MIX_SHADER 128
 #define SH_NODE_ATTRIBUTE 129
 #define SH_NODE_BACKGROUND 130
-#define SH_NODE_BSDF_ANISOTROPIC 131
+#define SH_NODE_BSDF_GLOSSY 131
 #define SH_NODE_BSDF_DIFFUSE 132
-#define SH_NODE_BSDF_GLOSSY 133
+#define SH_NODE_BSDF_GLOSSY_LEGACY 133
 #define SH_NODE_BSDF_GLASS 134
 #define SH_NODE_BSDF_TRANSLUCENT 137
 #define SH_NODE_BSDF_TRANSPARENT 138
-#define SH_NODE_BSDF_VELVET 139
+#define SH_NODE_BSDF_SHEEN 139
 #define SH_NODE_EMISSION 140
 #define SH_NODE_NEW_GEOMETRY 141
 #define SH_NODE_LIGHT_PATH 142
@@ -1073,6 +1064,7 @@ void BKE_nodetree_remove_layer_n(struct bNodeTree *ntree, struct Scene *scene, i
 #define CMP_NODE_INPAINT 272
 #define CMP_NODE_DESPECKLE 273
 #define CMP_NODE_ANTIALIASING 274
+#define CMP_NODE_KUWAHARA 275
 
 #define CMP_NODE_GLARE 301
 #define CMP_NODE_TONEMAP 302
@@ -1378,7 +1370,7 @@ void BKE_nodetree_remove_layer_n(struct bNodeTree *ntree, struct Scene *scene, i
 #define GEO_NODE_INPUT_RADIUS 1105
 #define GEO_NODE_INPUT_CURVE_TILT 1106
 #define GEO_NODE_INPUT_CURVE_HANDLES 1107
-#define GEO_NODE_INPUT_SHADE_SMOOTH 1108
+#define GEO_NODE_INPUT_FACE_SMOOTH 1108
 #define GEO_NODE_INPUT_SPLINE_RESOLUTION 1109
 #define GEO_NODE_INPUT_SPLINE_CYCLIC 1110
 #define GEO_NODE_SET_CURVE_RADIUS 1111
@@ -1474,6 +1466,18 @@ void BKE_nodetree_remove_layer_n(struct bNodeTree *ntree, struct Scene *scene, i
 #define GEO_NODE_SIMULATION_OUTPUT 2101
 #define GEO_NODE_INPUT_SIGNED_DISTANCE 2102
 #define GEO_NODE_SAMPLE_VOLUME 2103
+#define GEO_NODE_MESH_TOPOLOGY_CORNERS_OF_EDGE 2104
+/* Leaving out two indices to avoid crashes with files that were created during the development of
+ * the repeat zone. */
+#define GEO_NODE_REPEAT_INPUT 2107
+#define GEO_NODE_REPEAT_OUTPUT 2108
+#define GEO_NODE_TOOL_SELECTION 2109
+#define GEO_NODE_TOOL_SET_SELECTION 2110
+#define GEO_NODE_TOOL_3D_CURSOR 2111
+#define GEO_NODE_TOOL_FACE_SET 2112
+#define GEO_NODE_TOOL_SET_FACE_SET 2113
+#define GEO_NODE_POINTS_TO_CURVES 2114
+#define GEO_NODE_INPUT_EDGE_SMOOTH 2115
 
 /** \} */
 
@@ -1500,6 +1504,15 @@ void BKE_nodetree_remove_layer_n(struct bNodeTree *ntree, struct Scene *scene, i
 #define FN_NODE_INPUT_INT 1220
 #define FN_NODE_SEPARATE_COLOR 1221
 #define FN_NODE_COMBINE_COLOR 1222
+#define FN_NODE_AXIS_ANGLE_TO_ROTATION 1223
+#define FN_NODE_EULER_TO_ROTATION 1224
+#define FN_NODE_QUATERNION_TO_ROTATION 1225
+#define FN_NODE_ROTATION_TO_AXIS_ANGLE 1226
+#define FN_NODE_ROTATION_TO_EULER 1227
+#define FN_NODE_ROTATION_TO_QUATERNION 1228
+#define FN_NODE_ROTATE_VECTOR 1229
+#define FN_NODE_ROTATE_ROTATION 1230
+#define FN_NODE_INVERT_ROTATION 1231
 
 /** \} */
 

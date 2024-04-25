@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2023 Blender Foundation */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup gpu
@@ -134,6 +135,7 @@ void VKPipeline::finalize(VKContext &context,
   }
 
   VKFrameBuffer &framebuffer = *context.active_framebuffer_get();
+  framebuffer.vk_render_pass_ensure();
 
   VkGraphicsPipelineCreateInfo pipeline_create_info = {};
   pipeline_create_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -156,17 +158,19 @@ void VKPipeline::finalize(VKContext &context,
   VkPipelineInputAssemblyStateCreateInfo pipeline_input_assembly = {};
   pipeline_input_assembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
   pipeline_input_assembly.topology = to_vk_primitive_topology(prim_type);
+  pipeline_input_assembly.primitiveRestartEnable =
+      ELEM(prim_type, GPU_PRIM_TRIS, GPU_PRIM_LINES, GPU_PRIM_POINTS) ? VK_FALSE : VK_TRUE;
   pipeline_create_info.pInputAssemblyState = &pipeline_input_assembly;
 
   /* Viewport state. */
   VkPipelineViewportStateCreateInfo viewport_state = {};
   viewport_state.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-  VkViewport viewport = framebuffer.vk_viewport_get();
-  viewport_state.pViewports = &viewport;
-  viewport_state.viewportCount = 1;
-  VkRect2D scissor = framebuffer.vk_render_area_get();
-  viewport_state.pScissors = &scissor;
-  viewport_state.scissorCount = 1;
+  Array<VkViewport, 16> viewports = framebuffer.vk_viewports_get();
+  viewport_state.pViewports = &viewports[0];
+  viewport_state.viewportCount = viewports.size();
+  Array<VkRect2D, 16> scissors = framebuffer.vk_render_areas_get();
+  viewport_state.pScissors = &scissors[0];
+  viewport_state.scissorCount = scissors.size();
   pipeline_create_info.pViewportState = &viewport_state;
 
   /* Multi-sample state. */
@@ -177,7 +181,8 @@ void VKPipeline::finalize(VKContext &context,
   pipeline_create_info.pMultisampleState = &multisample_state;
 
   /* States from the state manager. */
-  const VKPipelineStateManager &state_manager = state_manager_get();
+  VKPipelineStateManager &state_manager = state_manager_get();
+  state_manager.finalize_color_blend_state(framebuffer);
   pipeline_create_info.pColorBlendState = &state_manager.pipeline_color_blend_state;
   pipeline_create_info.pRasterizationState = &state_manager.rasterization_state;
   pipeline_create_info.pDepthStencilState = &state_manager.depth_stencil_state;

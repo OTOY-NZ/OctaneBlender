@@ -1,10 +1,16 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
 /** \file
  * \ingroup bmesh
  */
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /**
  * \brief BM_mesh_decimate
@@ -29,7 +35,8 @@ void BM_mesh_decimate_collapse(BMesh *bm,
                                float symmetry_eps);
 
 /**
- * \param tag_only: so we can call this from an operator */
+ * \param tag_only: so we can call this from an operator.
+ */
 void BM_mesh_decimate_unsubdivide_ex(BMesh *bm, int iterations, bool tag_only);
 void BM_mesh_decimate_unsubdivide(BMesh *bm, int iterations);
 
@@ -46,3 +53,7 @@ void BM_mesh_decimate_dissolve(BMesh *bm,
                                float angle_limit,
                                bool do_dissolve_boundaries,
                                const BMO_Delimit delimit);
+
+#ifdef __cplusplus
+}
+#endif

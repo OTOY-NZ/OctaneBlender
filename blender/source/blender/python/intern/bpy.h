@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup pythonintern
@@ -17,7 +19,7 @@ void BPy_init_modules(struct bContext *C);
 
 extern PyObject *bpy_package_py;
 
-/* bpy_interface_atexit.c */
+/* `bpy_interface_atexit.cc` */
 
 void BPY_atexit_register(void);
 void BPY_atexit_unregister(void);

@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2020 Blender Foundation */
+/* SPDX-FileCopyrightText: 2020 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup Alembic
@@ -16,6 +17,8 @@
 
 #include <Alembic/Abc/OTypedArrayProperty.h>
 #include <Alembic/Abc/OTypedScalarProperty.h>
+
+#include "BLI_listbase.h"
 
 #include "BKE_idprop.h"
 #include "DNA_ID.h"
@@ -52,7 +55,7 @@ void CustomPropertiesExporter::write(const IDProperty *id_property)
 
   switch (id_property->type) {
     case IDP_STRING: {
-      /* The Alembic library doesn't accept NULL-terminated character arrays. */
+      /* The Alembic library doesn't accept null-terminated character arrays. */
       const std::string prop_value(IDP_String(id_property), id_property->len - 1);
       set_scalar_property<OStringArrayProperty, std::string>(id_property->name, prop_value);
       break;

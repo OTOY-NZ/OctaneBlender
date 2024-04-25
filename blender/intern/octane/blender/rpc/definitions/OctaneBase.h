@@ -8,7 +8,7 @@
 #  define OCTANE_SERVER_MAJOR_VERSION "28"
 #endif
 #ifndef OCTANE_SERVER_MINOR_VERSION
-#  define OCTANE_SERVER_MINOR_VERSION "5"
+#  define OCTANE_SERVER_MINOR_VERSION "7"
 #endif
 
 #ifdef OCTANE_SERVER
@@ -1104,7 +1104,7 @@ namespace OctaneDataTransferObject {
 		Vec2(const ST x = 0, const ST y = 0) : x(x), y(y){}
 		void set(const ST _x, const ST _y, const ST _z) { x = _x; y = _y; }
 		Vec2& operator=(const Vec2<ST>& other) { if (&other != this) { x = other.x; y = other.y; } return *this; }
-		inline bool operator==(const Vec2<ST> &r) { return x == r.x && y == r.y; }
+		inline bool operator==(const Vec2<ST> &r) const { return x == r.x && y == r.y; }
 		inline bool operator!=(const Vec2<ST> &r) { return x != r.x || y != r.y; }
 #ifdef OCTANE_SERVER
 		Vec2& operator=(const Octane::Vec2<ST>& other) { x = other.x; y = other.y; return *this; }
@@ -1128,7 +1128,7 @@ namespace OctaneDataTransferObject {
 		Vec3(const ST x = 0, const ST y = 0, const ST z = 0) : x(x), y(y), z(z){}
 		void set(const ST _x, const ST _y, const ST _z) { x = _x; y = _y; z = _z; }
 		Vec3& operator=(const Vec3<ST>& other) { if (&other != this) { x = other.x; y = other.y; z = other.z; } return *this; }
-		inline bool operator==(const Vec3<ST> &r) { return x == r.x && y == r.y && z == r.z; }
+		inline bool operator==(const Vec3<ST> &r) const { return x == r.x && y == r.y && z == r.z; }
 		inline bool operator!=(const Vec3<ST> &r) { return x != r.x || y != r.y || z != r.z; }
 #ifdef OCTANE_SERVER
 		Vec3& operator=(const Octane::Vec3<ST>& other) { x = other.x; y = other.y; z = other.z; return *this; }
@@ -1153,7 +1153,7 @@ namespace OctaneDataTransferObject {
 		Vec4(const ST x = 0, const ST y = 0, const ST z = 0, const ST w = 0) : x(x), y(y), z(z), w(w){}
 		void set(const ST _x, const ST _y, const ST _z, const ST _w) { x = _x; y = _y; z = _z; w = _w; }
 		Vec4& operator=(const Vec4<ST>& other) { if (&other != this) { x = other.x; y = other.y; z = other.z; w = other.w; } return *this; }
-		inline bool operator==(const Vec4<ST> &r) { return x == r.x && y == r.y && z == r.z && w == r.w; }
+		inline bool operator==(const Vec4<ST> &r) const { return x == r.x && y == r.y && z == r.z && w == r.w; }
 		inline bool operator!=(const Vec4<ST> &r) { return x != r.x || y != r.y || z != r.z || w != r.w; }
 #ifdef OCTANE_SERVER
 		Vec4& operator=(const Octane::Vec4<ST>& other) { x = other.x; y = other.y; z = other.z; w = other.w; return *this; }
@@ -1170,6 +1170,7 @@ namespace OctaneDataTransferObject {
 		/// every Vec4 is one row
 		Vec4<ST> m[3];
 		Matrix<ST>& operator=(const Matrix<ST>& other) { if (&other != this) { m[0] = other.m[0]; m[1] = other.m[1]; m[2] = other.m[2]; } return *this; }
+    inline bool operator==(const Matrix<ST> &other) const { return m[0] == other.m[0] && m[1] == other.m[1] && m[2] == other.m[2]; }
 #ifdef OCTANE_SERVER
 		Matrix<ST>& operator=(const Octane::Matrix<ST>& other) { m[0] = other.m[0]; m[1] = other.m[1]; m[2] = other.m[2]; return *this; }
 #endif
@@ -1282,7 +1283,9 @@ namespace OctaneDataTransferObject {
 		OctaneDTOBase(const std::string &name, OctaneDTOType type = DTO_NONE, bool bUseSocket = true) : 
 			type(type), sName(name), bUseSocket(bUseSocket), bUseLinked(false), sLinkNodeName("") {}
 		friend std::ostream& operator<< (std::ostream& out, const OctaneDTOBase& obj);
-		MSGPACK_DEFINE(sName, bUseSocket, bUseLinked, sLinkNodeName)
+    inline bool operator==(const OctaneDTOBase& other) { return type == other.type && sName == other.sName && bUseSocket == other.bUseSocket && bUseLinked == other.bUseLinked && sLinkNodeName == other.sLinkNodeName; }
+    bool IsSameValue(const OctaneDTOBase& other) { return bUseLinked == other.bUseLinked && sLinkNodeName == other.sLinkNodeName; }
+    MSGPACK_DEFINE(sName, bUseSocket, bUseLinked, sLinkNodeName)
 	};
 
 	struct OctaneDTOBool : OctaneDTOBase {		
@@ -1293,6 +1296,8 @@ namespace OctaneDataTransferObject {
 		inline bool operator==(const bool& val) { return bVal == val; }
 		inline bool operator!=(const bool& val) { return bVal != val; }
 		inline OctaneDTOBool& operator=(const bool& val) { bVal = val;  return *this; }
+    inline bool operator==(const OctaneDTOBool& other) { return OctaneDTOBase::operator==(other) && bVal == other.bVal; }
+    bool IsSameValue(const OctaneDTOBool& other) { return OctaneDTOBase::IsSameValue(other) && bVal == other.bVal; }
 		friend std::ostream& operator<< (std::ostream& out, const OctaneDTOBool& obj);
 		MSGPACK_DEFINE(bVal, MSGPACK_BASE(OctaneDTOBase));
 	};
@@ -1304,6 +1309,8 @@ namespace OctaneDataTransferObject {
 		inline bool operator==(const float& val) { return fVal == val; }
 		inline bool operator!=(const float& val) { return fVal != val; }
 		inline OctaneDTOFloat& operator=(const float& val) { fVal = val;  return *this; }
+    inline bool operator==(const OctaneDTOFloat& other) { return OctaneDTOBase::operator==(other) && fVal == other.fVal; }
+    bool IsSameValue(const OctaneDTOFloat& other) { return OctaneDTOBase::IsSameValue(other) && fVal == other.fVal; }
 		friend std::ostream& operator<< (std::ostream& out, const OctaneDTOFloat& obj);
 		MSGPACK_DEFINE(fVal, MSGPACK_BASE(OctaneDTOBase));
 	};
@@ -1315,6 +1322,8 @@ namespace OctaneDataTransferObject {
 		inline bool operator==(const float_2& val) { return fVal == val; }
 		inline bool operator!=(const float_2& val) { return fVal != val; }
 		inline OctaneDTOFloat2& operator=(const float_2& val) { fVal = val;  return *this; }
+    inline bool operator==(const OctaneDTOFloat2& other) { return OctaneDTOBase::operator==(other) && fVal == other.fVal; }
+    bool IsSameValue(const OctaneDTOFloat2& other) { return OctaneDTOBase::IsSameValue(other) && fVal == other.fVal; }
 		friend std::ostream& operator<< (std::ostream& out, const OctaneDTOFloat2& obj);
 		MSGPACK_DEFINE(fVal, MSGPACK_BASE(OctaneDTOBase));
 	};
@@ -1326,6 +1335,8 @@ namespace OctaneDataTransferObject {
 		inline bool operator==(const float_3& val) { return fVal == val; }
 		inline bool operator!=(const float_3& val) { return fVal != val; }
 		inline OctaneDTOFloat3& operator=(const float_3& val) { fVal = val;  return *this; }
+    inline bool operator==(const OctaneDTOFloat3& other) { return OctaneDTOBase::operator==(other) && fVal == other.fVal; }
+    bool IsSameValue(const OctaneDTOFloat3& other) { return OctaneDTOBase::IsSameValue(other) && fVal == other.fVal; }
 		friend std::ostream& operator<< (std::ostream& out, const OctaneDTOFloat3& obj);
 		MSGPACK_DEFINE(fVal, MSGPACK_BASE(OctaneDTOBase));
 	};
@@ -1337,6 +1348,8 @@ namespace OctaneDataTransferObject {
 		inline bool operator==(const float_3& val) { return fVal == val; }
 		inline bool operator!=(const float_3& val) { return fVal != val; }
 		inline OctaneDTORGB& operator=(const float_3& val) { fVal = val;  return *this; }
+    inline bool operator==(const OctaneDTORGB& other) { return OctaneDTOBase::operator==(other) && fVal == other.fVal; }
+    bool IsSameValue(const OctaneDTORGB& other) { return OctaneDTOBase::IsSameValue(other) && fVal == other.fVal; }
 		friend std::ostream& operator<< (std::ostream& out, const OctaneDTORGB& obj);
 		MSGPACK_DEFINE(fVal, MSGPACK_BASE(OctaneDTOBase));
 	};
@@ -1348,6 +1361,8 @@ namespace OctaneDataTransferObject {
 		inline bool operator==(const int32_t& val) { return iVal == val; }
 		inline bool operator!=(const int32_t& val) { return iVal != val; }
 		inline OctaneDTOEnum& operator=(const int32_t& val) { iVal = val;  return *this; }
+    inline bool operator==(const OctaneDTOEnum& other) { return OctaneDTOBase::operator==(other) && iVal == other.iVal; }
+    bool IsSameValue(const OctaneDTOEnum& other) { return OctaneDTOBase::IsSameValue(other) && iVal == other.iVal; }
 		friend std::ostream& operator<< (std::ostream& out, const OctaneDTOEnum& obj);
 		MSGPACK_DEFINE(iVal, MSGPACK_BASE(OctaneDTOBase));
 	};
@@ -1359,7 +1374,9 @@ namespace OctaneDataTransferObject {
 		inline operator int() { return iVal; }
 		inline bool operator==(const int32_t& val) { return iVal == val; }
 		inline bool operator!=(const int32_t& val) { return iVal != val; }
-		inline OctaneDTOInt& operator=(const int32_t& val) { iVal = val;  return *this; }		
+		inline OctaneDTOInt& operator=(const int32_t& val) { iVal = val;  return *this; }
+    inline bool operator==(const OctaneDTOInt& other) { return OctaneDTOBase::operator==(other) && iVal == other.iVal; }
+    bool IsSameValue(const OctaneDTOInt& other) { return OctaneDTOBase::IsSameValue(other) && iVal == other.iVal; }
 		friend std::ostream& operator<< (std::ostream& out, const OctaneDTOInt& obj);
 		MSGPACK_DEFINE(iVal, MSGPACK_BASE(OctaneDTOBase));
 	};
@@ -1371,6 +1388,8 @@ namespace OctaneDataTransferObject {
 		inline bool operator==(const int32_2& val) { return iVal == val; }
 		inline bool operator!=(const int32_2& val) { return iVal != val; }
 		inline OctaneDTOInt2& operator=(const int32_2& val) { iVal = val;  return *this; }
+    inline bool operator==(const OctaneDTOInt2& other) { return OctaneDTOBase::operator==(other) && iVal == other.iVal; }
+    bool IsSameValue(const OctaneDTOInt2& other) { return OctaneDTOBase::IsSameValue(other) && iVal == other.iVal; }
 		friend std::ostream& operator<< (std::ostream& out, const OctaneDTOInt2& obj);
 		MSGPACK_DEFINE(iVal, MSGPACK_BASE(OctaneDTOBase));
 	};
@@ -1382,6 +1401,8 @@ namespace OctaneDataTransferObject {
 		inline bool operator==(const int32_3& val) { return iVal == val; }
 		inline bool operator!=(const int32_3& val) { return iVal != val; }
 		inline OctaneDTOInt3& operator=(const int32_3& val) { iVal = val;  return *this; }
+    inline bool operator==(const OctaneDTOInt3& other) { return OctaneDTOBase::operator==(other) && iVal == other.iVal; }
+    bool IsSameValue(const OctaneDTOInt3& other) { return OctaneDTOBase::IsSameValue(other) && iVal == other.iVal; }
 		friend std::ostream& operator<< (std::ostream& out, const OctaneDTOInt3& obj);
 		MSGPACK_DEFINE(iVal, MSGPACK_BASE(OctaneDTOBase));
 	};
@@ -1393,6 +1414,8 @@ namespace OctaneDataTransferObject {
 		inline bool operator==(const std::string& val) { return sVal == val; }
 		inline bool operator!=(const std::string& val) { return sVal != val; }
 		inline OctaneDTOString& operator=(const std::string& val) { sVal = val;  return *this; }
+    inline bool operator==(const OctaneDTOString& other) { return OctaneDTOBase::operator==(other) && sVal == other.sVal; }
+    bool IsSameValue(const OctaneDTOString& other) { return OctaneDTOBase::IsSameValue(other) && sVal == other.sVal; }
 		friend std::ostream& operator<< (std::ostream& out, const OctaneDTOString& obj);
 		MSGPACK_DEFINE(sVal, MSGPACK_BASE(OctaneDTOBase));
 	};
@@ -1404,6 +1427,8 @@ namespace OctaneDataTransferObject {
 		inline bool operator!=(const std::string& val) { return sLinkNodeName != val; }
 		inline OctaneDTOShader& operator=(const std::string& val) { sLinkNodeName = val;  return *this; }
 		inline operator std::string() const { return sLinkNodeName; }
+    inline bool operator==(const OctaneDTOShader& other) { return OctaneDTOBase::operator==(other); }
+    bool IsSameValue(const OctaneDTOShader& other) { return OctaneDTOBase::IsSameValue(other); }
 		friend std::ostream& operator<< (std::ostream& out, const OctaneDTOShader& obj);
 		MSGPACK_DEFINE(MSGPACK_BASE(OctaneDTOBase));
 	};

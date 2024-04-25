@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2013 by Campbell Barton. All rights reserved. */
+/* SPDX-FileCopyrightText: 2013 by Campbell Barton. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -79,7 +80,8 @@ bool BM_edgeloop_overlap_check(struct BMEdgeLoopStore *el_store_a,
 #define BM_EDGELINK_NEXT(el_store, elink) \
   (elink)->next ? \
       (elink)->next : \
-      (BM_edgeloop_is_closed(el_store) ? BM_edgeloop_verts_get(el_store)->first : NULL)
+      (BM_edgeloop_is_closed(el_store) ? (LinkData *)BM_edgeloop_verts_get(el_store)->first : \
+                                         NULL)
 
 #define BM_EDGELOOP_NEXT(el_store) \
   (CHECK_TYPE_INLINE(el_store, struct BMEdgeLoopStore *), \

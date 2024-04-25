@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #pragma once
 
@@ -29,6 +30,10 @@ ccl_device_noinline void svm_node_enter_bump_eval(KernelGlobals kg,
 
     sd->P = P;
     sd->dP = differential_make_compact(dP);
+
+    /* Save the full differential, the compact form isn't enough for svm_node_set_bump. */
+    stack_store_float3(stack, offset + 4, dP.dx);
+    stack_store_float3(stack, offset + 7, dP.dy);
   }
 }
 

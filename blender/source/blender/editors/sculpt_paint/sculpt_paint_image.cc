@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /* Paint a color made from hash of node pointer. */
 //#define DEBUG_PIXEL_NODES
@@ -7,10 +8,10 @@
 #include "DNA_image_types.h"
 #include "DNA_object_types.h"
 
-#include "ED_paint.h"
+#include "ED_paint.hh"
 
-#include "BLI_math.h"
 #include "BLI_math_color_blend.h"
+#include "BLI_math_geom.h"
 #include "BLI_task.h"
 #ifdef DEBUG_PIXEL_NODES
 #  include "BLI_hash.h"
@@ -19,9 +20,9 @@
 #include "IMB_colormanagement.h"
 #include "IMB_imbuf.h"
 
-#include "BKE_brush.h"
+#include "BKE_brush.hh"
 #include "BKE_image_wrappers.hh"
-#include "BKE_pbvh.h"
+#include "BKE_pbvh_api.hh"
 #include "BKE_pbvh_pixels.hh"
 
 #include "bmesh.h"
@@ -73,12 +74,12 @@ class ImageBufferFloat4 {
 
   float4 read_pixel(ImBuf *image_buffer) const
   {
-    return &image_buffer->rect_float[pixel_offset * 4];
+    return &image_buffer->float_buffer.data[pixel_offset * 4];
   }
 
   void write_pixel(ImBuf *image_buffer, const float4 pixel_data) const
   {
-    copy_v4_v4(&image_buffer->rect_float[pixel_offset * 4], pixel_data);
+    copy_v4_v4(&image_buffer->float_buffer.data[pixel_offset * 4], pixel_data);
   }
 
   const char *get_colorspace_name(ImBuf *image_buffer)
@@ -107,15 +108,16 @@ class ImageBufferByte4 {
   {
     float4 result;
     rgba_uchar_to_float(result,
-                        static_cast<const uchar *>(
-                            static_cast<const void *>(&(image_buffer->rect[pixel_offset]))));
+                        static_cast<const uchar *>(static_cast<const void *>(
+                            &(image_buffer->byte_buffer.data[4 * pixel_offset]))));
     return result;
   }
 
   void write_pixel(ImBuf *image_buffer, const float4 pixel_data) const
   {
-    rgba_float_to_uchar(
-        static_cast<uchar *>(static_cast<void *>(&image_buffer->rect[pixel_offset])), pixel_data);
+    rgba_float_to_uchar(static_cast<uchar *>(static_cast<void *>(
+                            &image_buffer->byte_buffer.data[4 * pixel_offset])),
+                        pixel_data);
   }
 
   const char *get_colorspace_name(ImBuf *image_buffer)
@@ -354,9 +356,9 @@ static void do_paint_pixels(void *__restrict userdata,
 #ifdef DEBUG_PIXEL_NODES
   uint hash = BLI_hash_int(POINTER_AS_UINT(node));
 
-  brush_color[0] = (float)(hash & 255) / 255.0f;
-  brush_color[1] = (float)((hash >> 8) & 255) / 255.0f;
-  brush_color[2] = (float)((hash >> 16) & 255) / 255.0f;
+  brush_color[0] = float(hash & 255) / 255.0f;
+  brush_color[1] = float((hash >> 8) & 255) / 255.0f;
+  brush_color[2] = float((hash >> 16) & 255) / 255.0f;
 #else
   copy_v3_v3(brush_color,
              ss->cache->invert ? BKE_brush_secondary_color_get(ss->scene, brush) :
@@ -381,7 +383,7 @@ static void do_paint_pixels(void *__restrict userdata,
           continue;
         }
 
-        if (image_buffer->rect_float != nullptr) {
+        if (image_buffer->float_buffer.data != nullptr) {
           kernel_float4.init_brush_color(image_buffer, brush_color);
         }
         else {
@@ -393,7 +395,7 @@ static void do_paint_pixels(void *__restrict userdata,
             continue;
           }
           bool pixels_painted = false;
-          if (image_buffer->rect_float != nullptr) {
+          if (image_buffer->float_buffer.data != nullptr) {
             pixels_painted = kernel_float4.paint(pbvh_data.geom_primitives,
                                                  node_data.uv_primitives,
                                                  pixel_row,

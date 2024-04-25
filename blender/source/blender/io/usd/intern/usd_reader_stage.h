@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2021 Tangent Animation and. NVIDIA Corporation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2021 Tangent Animation and. NVIDIA Corporation. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 #pragma once
 
 struct Main;
@@ -43,6 +44,13 @@ class USDStageReader {
   USDPrimReader *create_reader(const pxr::UsdPrim &prim);
 
   void collect_readers(struct Main *bmain);
+
+  /**
+   * Complete setting up the armature modifiers that
+   * were created for skinned meshes by setting the
+   * modifier object on the corresponding modifier.
+   */
+  void process_armature_modifiers() const;
 
   /* Convert every material prim on the stage to a Blender
    * material, including materials not used by any geometry.

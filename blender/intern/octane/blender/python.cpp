@@ -146,29 +146,23 @@ static PyObject *create_func(PyObject * /*self*/, PyObject *args)
   /* RNA */
   ID *bScreen = (ID *)PyLong_AsVoidPtr(pyscreen);
 
-  PointerRNA engineptr;
-  RNA_pointer_create(NULL, &RNA_RenderEngine, (void *)PyLong_AsVoidPtr(pyengine), &engineptr);
+  PointerRNA engineptr = RNA_pointer_create(NULL, &RNA_RenderEngine, (void *)PyLong_AsVoidPtr(pyengine));
   BL::RenderEngine engine(engineptr);
 
-  PointerRNA preferencesptr;
-  RNA_pointer_create(
-      NULL, &RNA_Preferences, (void *)PyLong_AsVoidPtr(pypreferences), &preferencesptr);
+  PointerRNA preferencesptr = RNA_pointer_create(
+      NULL, &RNA_Preferences, (void *)PyLong_AsVoidPtr(pypreferences));
   BL::Preferences preferences(preferencesptr);
 
-  PointerRNA dataptr;
-  RNA_main_pointer_create((Main *)PyLong_AsVoidPtr(pydata), &dataptr);
+  PointerRNA dataptr = RNA_main_pointer_create((Main *)PyLong_AsVoidPtr(pydata));
   BL::BlendData data(dataptr);
 
-  PointerRNA regionptr;
-  RNA_pointer_create(bScreen, &RNA_Region, pylong_as_voidptr_typesafe(pyregion), &regionptr);
+  PointerRNA regionptr = RNA_pointer_create(bScreen, &RNA_Region, pylong_as_voidptr_typesafe(pyregion));
   BL::Region region(regionptr);
 
-  PointerRNA v3dptr;
-  RNA_pointer_create(bScreen, &RNA_SpaceView3D, pylong_as_voidptr_typesafe(pyv3d), &v3dptr);
+  PointerRNA v3dptr = RNA_pointer_create(bScreen, &RNA_SpaceView3D, pylong_as_voidptr_typesafe(pyv3d));
   BL::SpaceView3D v3d(v3dptr);
 
-  PointerRNA rv3dptr;
-  RNA_pointer_create(bScreen, &RNA_RegionView3D, pylong_as_voidptr_typesafe(pyrv3d), &rv3dptr);
+  PointerRNA rv3dptr = RNA_pointer_create(bScreen, &RNA_RegionView3D, pylong_as_voidptr_typesafe(pyrv3d));
   BL::RegionView3D rv3d(rv3dptr);
 
   std::string export_path("");
@@ -228,8 +222,7 @@ static PyObject *render_func(PyObject * /*self*/, PyObject *args)
 
   BlenderSession *session = (BlenderSession *)PyLong_AsVoidPtr(pysession);
 
-  PointerRNA depsgraphptr;
-  RNA_pointer_create(NULL, &RNA_Depsgraph, (ID *)PyLong_AsVoidPtr(pydepsgraph), &depsgraphptr);
+  PointerRNA depsgraphptr = RNA_pointer_create(NULL, &RNA_Depsgraph, (ID *)PyLong_AsVoidPtr(pydepsgraph));
   BL::Depsgraph b_depsgraph(depsgraphptr);
 
   python_thread_state_save(&session->python_thread_state);
@@ -270,8 +263,7 @@ static PyObject *sync_func(PyObject * /*self*/, PyObject *args)
 
   BlenderSession *session = (BlenderSession *)PyLong_AsVoidPtr(pysession);
 
-  PointerRNA depsgraphptr;
-  RNA_pointer_create(NULL, &RNA_Depsgraph, PyLong_AsVoidPtr(pydepsgraph), &depsgraphptr);
+  PointerRNA depsgraphptr = RNA_pointer_create(NULL, &RNA_Depsgraph, PyLong_AsVoidPtr(pydepsgraph));
   BL::Depsgraph b_depsgraph(depsgraphptr);
 
   python_thread_state_save(&session->python_thread_state);
@@ -292,12 +284,10 @@ static PyObject *reset_func(PyObject * /*self*/, PyObject *args)
 
   BlenderSession *session = (BlenderSession *)PyLong_AsVoidPtr(pysession);
 
-  PointerRNA dataptr;
-  RNA_main_pointer_create((Main *)PyLong_AsVoidPtr(pydata), &dataptr);
+  PointerRNA dataptr = RNA_main_pointer_create((Main *)PyLong_AsVoidPtr(pydata));
   BL::BlendData b_data(dataptr);
 
-  PointerRNA depsgraphptr;
-  RNA_pointer_create(NULL, &RNA_Depsgraph, PyLong_AsVoidPtr(pydepsgraph), &depsgraphptr);
+  PointerRNA depsgraphptr = RNA_pointer_create(NULL, &RNA_Depsgraph, PyLong_AsVoidPtr(pydepsgraph));
   BL::Depsgraph b_depsgraph(depsgraphptr);
 
   python_thread_state_save(&session->python_thread_state);
@@ -367,11 +357,9 @@ static PyObject *osl_compile_func(PyObject *self, PyObject *args)
   if (PyArg_ParseTuple(
           args, "OOOOO", &py_osl_identifier, &pynodegroup, &pynode, &py_osl_path, &py_osl_code)) {
     /* RNA */
-    PointerRNA nodeptr;
-    RNA_pointer_create((ID *)PyLong_AsVoidPtr(pynodegroup),
+    PointerRNA nodeptr = RNA_pointer_create((ID *)PyLong_AsVoidPtr(pynodegroup),
                        &RNA_ShaderNode,
-                       (void *)PyLong_AsVoidPtr(pynode),
-                       &nodeptr);
+                       (void *)PyLong_AsVoidPtr(pynode));
     PyObject *path_coerce = NULL;
     std::string osl_identifier = PyC_UnicodeAsByte(py_osl_identifier, &path_coerce);
     std::string osl_path = PyC_UnicodeAsByte(py_osl_path, &path_coerce);
@@ -402,19 +390,16 @@ static PyObject *osl_update_node_func(PyObject * /*self*/, PyObject *args)
     return NULL;
 
   /* RNA */
-  PointerRNA dataptr;
-  RNA_main_pointer_create((Main *)PyLong_AsVoidPtr(pydata), &dataptr);
+  PointerRNA dataptr = RNA_main_pointer_create((Main *)PyLong_AsVoidPtr(pydata));
   BL::BlendData b_data(dataptr);
 
   PyObject *path_coerce = NULL;
   std::string osl_identifier = PyC_UnicodeAsByte(py_osl_identifier, &path_coerce);
   Py_XDECREF(path_coerce);
   /* RNA */
-  PointerRNA nodeptr;
-  RNA_pointer_create((ID *)PyLong_AsVoidPtr(pynodegroup),
+  PointerRNA nodeptr = RNA_pointer_create((ID *)PyLong_AsVoidPtr(pynodegroup),
                      &RNA_ShaderNode,
-                     (void *)PyLong_AsVoidPtr(pynode),
-                     &nodeptr);
+                     (void *)PyLong_AsVoidPtr(pynode));
   BL::ShaderNode b_node(nodeptr);
   OctaneDataTransferObject::OSLNodeInfo oslNodeInfo;
   if (OSLManager::Instance().query_osl(osl_identifier, oslNodeInfo)) {
@@ -614,19 +599,16 @@ static PyObject *export_func(PyObject * /*self*/, PyObject *args)
     return NULL;
   }
 
-  PointerRNA sceneptr;
-  RNA_id_pointer_create((ID *)PyLong_AsVoidPtr(pyscene), &sceneptr);
+  PointerRNA sceneptr = RNA_id_pointer_create((ID *)PyLong_AsVoidPtr(pyscene));
   BL::Scene b_scene(sceneptr);
 
   bContext *context = (bContext *)PyLong_AsVoidPtr(pycontext);
 
-  PointerRNA preferencesptr;
-  RNA_pointer_create(
-      NULL, &RNA_Preferences, (void *)PyLong_AsVoidPtr(pypreferences), &preferencesptr);
+  PointerRNA preferencesptr = RNA_pointer_create(
+      NULL, &RNA_Preferences, (void *)PyLong_AsVoidPtr(pypreferences));
   BL::Preferences preferences(preferencesptr);
 
-  PointerRNA dataptr;
-  RNA_main_pointer_create((Main *)PyLong_AsVoidPtr(pydata), &dataptr);
+  PointerRNA dataptr = RNA_main_pointer_create((Main *)PyLong_AsVoidPtr(pydata));
   BL::BlendData data(dataptr);
 
   PyObject *path_coerce = NULL;
@@ -653,23 +635,19 @@ static PyObject *export_localdb_func(PyObject * /*self*/, PyObject *args)
     return NULL;
   }
 
-  PointerRNA sceneptr;
-  RNA_id_pointer_create((ID *)PyLong_AsVoidPtr(pyscene), &sceneptr);
+  PointerRNA sceneptr = RNA_id_pointer_create((ID *)PyLong_AsVoidPtr(pyscene));
   BL::Scene b_scene(sceneptr);
 
   bContext *context = (bContext *)PyLong_AsVoidPtr(pycontext);
 
-  PointerRNA preferencesptr;
-  RNA_pointer_create(
-      NULL, &RNA_Preferences, (void *)PyLong_AsVoidPtr(pypreferences), &preferencesptr);
+  PointerRNA preferencesptr = RNA_pointer_create(
+      NULL, &RNA_Preferences, (void *)PyLong_AsVoidPtr(pypreferences));
   BL::Preferences preferences(preferencesptr);
 
-  PointerRNA dataptr;
-  RNA_main_pointer_create((Main *)PyLong_AsVoidPtr(pydata), &dataptr);
+  PointerRNA dataptr = RNA_main_pointer_create((Main *)PyLong_AsVoidPtr(pydata));
   BL::BlendData data(dataptr);
 
-  PointerRNA matptr;
-  RNA_id_pointer_create((ID *)PyLong_AsVoidPtr(pymaterial), &matptr);
+  PointerRNA matptr = RNA_id_pointer_create((ID *)PyLong_AsVoidPtr(pymaterial));
   BL::Material material(matptr);
 
   Py_BEGIN_ALLOW_THREADS;
@@ -687,8 +665,7 @@ static PyObject *get_octanedb_func(PyObject *self, PyObject *args)
 {
   PyObject *pyscene = NULL, *pycontext = NULL;
   if (PyArg_ParseTuple(args, "OO", &pyscene, &pycontext)) {
-    PointerRNA sceneptr;
-    RNA_id_pointer_create((ID *)PyLong_AsVoidPtr(pyscene), &sceneptr);
+    PointerRNA sceneptr = RNA_id_pointer_create((ID *)PyLong_AsVoidPtr(pyscene));
     BL::Scene b_scene(sceneptr);
     bContext *context = (bContext *)PyLong_AsVoidPtr(pycontext);
     Py_BEGIN_ALLOW_THREADS;
@@ -771,16 +748,13 @@ static PyObject *update_vdb_info_func(PyObject *self, PyObject *args)
   PyObject *pydata, *pyscene, *pyobject;
   if (PyArg_ParseTuple(args, "OOO", &pyobject, &pydata, &pyscene)) {
 
-    PointerRNA dataptr;
-    RNA_main_pointer_create((Main *)PyLong_AsVoidPtr(pydata), &dataptr);
+    PointerRNA dataptr = RNA_main_pointer_create((Main *)PyLong_AsVoidPtr(pydata));
     BL::BlendData b_data(dataptr);
 
-    PointerRNA sceneptr;
-    RNA_id_pointer_create((ID *)PyLong_AsVoidPtr(pyscene), &sceneptr);
+    PointerRNA sceneptr = RNA_id_pointer_create((ID *)PyLong_AsVoidPtr(pyscene));
     BL::Scene b_scene(sceneptr);
 
-    PointerRNA objectptr;
-    RNA_id_pointer_create((ID *)PyLong_AsVoidPtr(pyobject), &objectptr);
+    PointerRNA objectptr = RNA_id_pointer_create((ID *)PyLong_AsVoidPtr(pyobject));
     BL::Object b_object(objectptr);
     BL::ID b_ob_data = b_object.data();
     PointerRNA oct_mesh = RNA_pointer_get(&b_ob_data.ptr, "octane");

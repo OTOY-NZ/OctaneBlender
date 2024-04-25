@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup render
@@ -67,7 +68,7 @@ struct ImagePool;
 struct Tex;
 struct TexResult;
 
-/* texture_image.c */
+/* `texture_image.cc` */
 
 int imagewraposa(struct Tex *tex,
                  struct Image *ima,

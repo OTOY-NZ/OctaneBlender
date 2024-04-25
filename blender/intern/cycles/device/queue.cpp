@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #include "device/queue.h"
 
@@ -45,9 +46,10 @@ DeviceQueue::~DeviceQueue()
                         << "s: " << device_kernel_mask_as_string(mask);
     }
 
-    if (is_per_kernel_performance_)
+    if (is_per_kernel_performance_) {
       VLOG_DEVICE_STATS << "GPU queue total time: " << std::fixed << std::setprecision(5)
                         << total_time;
+    }
   }
 }
 

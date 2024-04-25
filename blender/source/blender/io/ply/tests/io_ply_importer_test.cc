@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "testing/testing.h"
 
@@ -12,7 +14,7 @@
 namespace blender::io::ply {
 
 struct Expectation {
-  int totvert, totpoly, totindex, totedge;
+  int totvert, faces_num, totindex, totedge;
   uint16_t polyhash = 0, edgehash = 0;
   float3 vert_first, vert_last;
   float3 normal_first = {0, 0, 0};
@@ -39,14 +41,14 @@ class ply_import_test : public testing::Test {
     if (!data->error.empty()) {
       fprintf(stderr, "%s\n", data->error.c_str());
       ASSERT_EQ(0, exp.totvert);
-      ASSERT_EQ(0, exp.totpoly);
+      ASSERT_EQ(0, exp.faces_num);
       return;
     }
 
     /* Test expected amount of vertices, edges, and faces. */
     ASSERT_EQ(data->vertices.size(), exp.totvert);
     ASSERT_EQ(data->edges.size(), exp.totedge);
-    ASSERT_EQ(data->face_sizes.size(), exp.totpoly);
+    ASSERT_EQ(data->face_sizes.size(), exp.faces_num);
     ASSERT_EQ(data->face_vertices.size(), exp.totindex);
 
     /* Test hash of face and edge index data. */
@@ -145,6 +147,22 @@ TEST_F(ply_import_test, PlyImportColorNotFull)
   Expectation expect = {4, 1, 4, 0, 37235, 0, float3(1, 0, 1), float3(-1, 0, 1)};
   import_and_check("color_not_full_a.ply", expect);
   import_and_check("color_not_full_b.ply", expect);
+}
+
+TEST_F(ply_import_test, PlyImportCustomDataElements)
+{
+  Expectation expect = {600,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        float3(-0.78193f, 0.40659f, -1),
+                        float3(-0.75537f, 1, -0.24777f),
+                        float3(0, 0, 0),
+                        float2(0, 0),
+                        float4(0.31373f, 0, 0, 1)};
+  import_and_check("custom_data_elements.ply", expect);
 }
 
 TEST_F(ply_import_test, PlyImportDoubleXYZ)

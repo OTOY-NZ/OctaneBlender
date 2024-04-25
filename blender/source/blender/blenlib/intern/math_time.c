@@ -1,11 +1,13 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2021 Blender Foundation */
+/* SPDX-FileCopyrightText: 2021 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bli
  */
 
-#include "BLI_math.h"
+#include "BLI_math_base.h"
+#include "BLI_math_time.h"
 
 void BLI_math_time_seconds_decompose(double seconds,
                                      double *r_days,

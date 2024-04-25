@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2013 Blender Foundation */
+/* SPDX-FileCopyrightText: 2013 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup depsgraph
@@ -9,7 +10,7 @@
 
 #include "BLI_string_ref.hh"
 
-#include "RNA_types.h"
+#include "RNA_types.hh"
 
 #include "intern/builder/deg_builder_relations.h"
 

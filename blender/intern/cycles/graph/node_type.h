@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #pragma once
 
@@ -21,12 +22,13 @@ typedef uint64_t SocketModifiedFlags;
 
 struct SocketType {
   enum Type {
-    UNDEFINED,
+    UNDEFINED = 0,
 
     BOOLEAN,
     FLOAT,
     INT,
     UINT,
+    UINT64,
     COLOR,
     VECTOR,
     POINT,
@@ -49,6 +51,8 @@ struct SocketType {
     STRING_ARRAY,
     TRANSFORM_ARRAY,
     NODE_ARRAY,
+
+    NUM_TYPES,
   };
 
   enum Flags {
@@ -62,13 +66,14 @@ struct SocketType {
     LINK_TEXTURE_GENERATED = (1 << 4),
     LINK_TEXTURE_NORMAL = (1 << 5),
     LINK_TEXTURE_UV = (1 << 6),
-    LINK_INCOMING = (1 << 7),
-    LINK_NORMAL = (1 << 8),
-    LINK_POSITION = (1 << 9),
-    LINK_TANGENT = (1 << 10),
-    LINK_OSL_INITIALIZER = (1 << 11),
+    LINK_TEXTURE_INCOMING = (1 << 7),
+    LINK_INCOMING = (1 << 8),
+    LINK_NORMAL = (1 << 9),
+    LINK_POSITION = (1 << 10),
+    LINK_TANGENT = (1 << 11),
+    LINK_OSL_INITIALIZER = (1 << 12),
     DEFAULT_LINK_MASK = (1 << 4) | (1 << 5) | (1 << 6) | (1 << 7) | (1 << 8) | (1 << 9) |
-                        (1 << 10) | (1 << 11)
+                        (1 << 10) | (1 << 11) | (1 << 12)
   };
 
   ustring name;
@@ -191,6 +196,8 @@ struct NodeType {
   SOCKET_DEFINE(name, ui_name, default_value, int, SocketType::INT, 0, ##__VA_ARGS__)
 #define SOCKET_UINT(name, ui_name, default_value, ...) \
   SOCKET_DEFINE(name, ui_name, default_value, uint, SocketType::UINT, 0, ##__VA_ARGS__)
+#define SOCKET_UINT64(name, ui_name, default_value, ...) \
+  SOCKET_DEFINE(name, ui_name, default_value, uint64_t, SocketType::UINT64, 0, ##__VA_ARGS__)
 #define SOCKET_FLOAT(name, ui_name, default_value, ...) \
   SOCKET_DEFINE(name, ui_name, default_value, float, SocketType::FLOAT, 0, ##__VA_ARGS__)
 #define SOCKET_COLOR(name, ui_name, default_value, ...) \

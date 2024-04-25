@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 #pragma once
 
 /** \file
@@ -43,9 +45,15 @@ void BKE_main_namemap_clear(struct Main *bmain) ATTR_NONNULL();
  *
  * In case of name collisions, the name will be adjusted to be unique.
  *
+ * \param do_unique_in_bmain: if `true`, ensure that the final name is unique in the whole Main
+ * (for the given ID type), not only in the set of IDs from the same library.
+ *
  * \return true if the name had to be adjusted for uniqueness.
  */
-bool BKE_main_namemap_get_name(struct Main *bmain, struct ID *id, char *name) ATTR_NONNULL();
+bool BKE_main_namemap_get_name(struct Main *bmain,
+                               struct ID *id,
+                               char *name,
+                               const bool do_unique_in_bmain) ATTR_NONNULL();
 
 /**
  * Remove a given name from usage.
@@ -63,7 +71,8 @@ void BKE_main_namemap_remove_name(struct Main *bmain, struct ID *id, const char 
  */
 bool BKE_main_namemap_validate(struct Main *bmain) ATTR_NONNULL();
 
-/** Same as #BKE_main_namemap_validate, but also fixes any issue by re-generating all name maps,
+/**
+ * Same as #BKE_main_namemap_validate, but also fixes any issue by re-generating all name maps,
  * and ensuring again all ID names are unique.
  *
  * This is typically only used in `do_versions` code to fix broken files.

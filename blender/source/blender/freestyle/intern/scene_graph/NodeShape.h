@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -36,7 +38,7 @@ class NodeShape : public Node {
    */
   virtual void AddRep(Rep *iRep)
   {
-    if (NULL == iRep) {
+    if (nullptr == iRep) {
       return;
     }
     _Shapes.push_back(iRep);

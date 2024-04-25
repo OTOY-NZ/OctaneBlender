@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup obj
@@ -12,6 +14,7 @@
 #include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
 #include "BLI_path_util.h"
+#include "BLI_string.h"
 
 #include "DNA_material_types.h"
 #include "DNA_node_types.h"
@@ -24,12 +27,12 @@ namespace blender::io::obj {
 const char *tex_map_type_to_socket_id[] = {
     "Base Color",
     "Metallic",
-    "Specular",
+    "Specular IOR Level",
     "Roughness", /* Map specular exponent to roughness. */
     "Roughness",
-    "Sheen",
+    "Sheen Weight",
     "Metallic", /* Map reflection to metallic. */
-    "Emission",
+    "Emission Color",
     "Alpha",
     "Normal",
 };
@@ -148,18 +151,18 @@ static std::string get_image_filepath(const bNode *tex_node)
     return filename;
   }
 
-  char path[FILE_MAX];
-  STRNCPY(path, tex_image->filepath);
+  char filepath[FILE_MAX];
+  STRNCPY(filepath, tex_image->filepath);
 
   if (tex_image->source == IMA_SRC_SEQUENCE) {
     char head[FILE_MAX], tail[FILE_MAX];
     ushort numlen;
     int framenr = static_cast<NodeTexImage *>(tex_node->storage)->iuser.framenr;
-    BLI_path_sequence_decode(path, head, sizeof(head), tail, sizeof(tail), &numlen);
-    BLI_path_sequence_encode(path, sizeof(path), head, tail, numlen, framenr);
+    BLI_path_sequence_decode(filepath, head, sizeof(head), tail, sizeof(tail), &numlen);
+    BLI_path_sequence_encode(filepath, sizeof(filepath), head, tail, numlen, framenr);
   }
 
-  return path;
+  return filepath;
 }
 
 /**
@@ -201,7 +204,7 @@ static void store_bsdf_properties(const bNode *bsdf_node,
 
   float specular = material->spec;
   if (bsdf_node) {
-    copy_property_from_node(SOCK_FLOAT, bsdf_node, "Specular", {&specular, 1});
+    copy_property_from_node(SOCK_FLOAT, bsdf_node, "Specular IOR Level", {&specular, 1});
   }
 
   float metallic = material->metallic;
@@ -229,24 +232,26 @@ static void store_bsdf_properties(const bNode *bsdf_node,
   float emission_strength = 0.0f;
   if (bsdf_node) {
     copy_property_from_node(SOCK_FLOAT, bsdf_node, "Emission Strength", {&emission_strength, 1});
-    copy_property_from_node(SOCK_RGBA, bsdf_node, "Emission", {emission_col, 3});
+    copy_property_from_node(SOCK_RGBA, bsdf_node, "Emission Color", {emission_col, 3});
   }
   mul_v3_fl(emission_col, emission_strength);
 
   float sheen = -1.0f;
-  float clearcoat = -1.0f;
-  float clearcoat_roughness = -1.0f;
+  float coat = -1.0f;
+  float coat_roughness = -1.0f;
   float aniso = -1.0f;
   float aniso_rot = -1.0f;
   float transmission = -1.0f;
   if (bsdf_node) {
-    copy_property_from_node(SOCK_FLOAT, bsdf_node, "Sheen", {&sheen, 1});
-    copy_property_from_node(SOCK_FLOAT, bsdf_node, "Clearcoat", {&clearcoat, 1});
-    copy_property_from_node(
-        SOCK_FLOAT, bsdf_node, "Clearcoat Roughness", {&clearcoat_roughness, 1});
+    copy_property_from_node(SOCK_FLOAT, bsdf_node, "Sheen Weight", {&sheen, 1});
+    copy_property_from_node(SOCK_FLOAT, bsdf_node, "Coat Weight", {&coat, 1});
+    copy_property_from_node(SOCK_FLOAT, bsdf_node, "Coat Roughness", {&coat_roughness, 1});
     copy_property_from_node(SOCK_FLOAT, bsdf_node, "Anisotropic", {&aniso, 1});
     copy_property_from_node(SOCK_FLOAT, bsdf_node, "Anisotropic Rotation", {&aniso_rot, 1});
-    copy_property_from_node(SOCK_FLOAT, bsdf_node, "Transmission", {&transmission, 1});
+    copy_property_from_node(SOCK_FLOAT, bsdf_node, "Transmission Weight", {&transmission, 1});
+
+    /* Clearcoat used to include an implicit 0.25 factor, so stay compatible to old versions. */
+    coat *= 4.0f;
   }
 
   /* See https://wikipedia.org/wiki/Wavefront_.obj_file for all possible values of `illum`. */
@@ -287,8 +292,8 @@ static void store_bsdf_properties(const bNode *bsdf_node,
   r_mtl_mat.roughness = roughness;
   r_mtl_mat.metallic = metallic;
   r_mtl_mat.sheen = sheen;
-  r_mtl_mat.cc_thickness = clearcoat;
-  r_mtl_mat.cc_roughness = clearcoat_roughness;
+  r_mtl_mat.cc_thickness = coat;
+  r_mtl_mat.cc_roughness = coat_roughness;
   r_mtl_mat.aniso = aniso;
   r_mtl_mat.aniso_rot = aniso_rot;
   r_mtl_mat.transmit_color = {transmission, transmission, transmission};

@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup DNA
@@ -7,10 +9,6 @@
 #pragma once
 
 #include "BLI_utildefines.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /**
  * #UserDef.dupflag
@@ -53,7 +51,3 @@ typedef enum eDupli_ID_Flags {
   USER_DUP_LINKED_ID = (1 << 30),
 } eDupli_ID_Flags;
 ENUM_OPERATORS(eDupli_ID_Flags, USER_DUP_LINKED_ID)
-
-#ifdef __cplusplus
-}
-#endif

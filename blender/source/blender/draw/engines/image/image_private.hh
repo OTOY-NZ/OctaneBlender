@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2020 Blender Foundation. */
+/* SPDX-FileCopyrightText: 2020 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup draw_engine
@@ -47,7 +48,7 @@ class AbstractDrawingMode {
   virtual void draw_finish(IMAGE_Data *vedata) const = 0;
 };
 
-/* image_shader.c */
+/* `image_shader.cc` */
 
 GPUShader *IMAGE_shader_image_get();
 GPUShader *IMAGE_shader_depth_get();

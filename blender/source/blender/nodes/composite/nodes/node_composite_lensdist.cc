@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2006 Blender Foundation */
+/* SPDX-FileCopyrightText: 2006 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup cmpnodes
@@ -8,10 +9,10 @@
 #include "BLI_math_base.h"
 #include "BLI_math_vector_types.hh"
 
-#include "RNA_access.h"
+#include "RNA_access.hh"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
 
 #include "GPU_shader.h"
 #include "GPU_texture.h"
@@ -39,7 +40,7 @@ static void cmp_node_lensdist_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Color>("Image")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
       .compositor_domain_priority(0);
-  b.add_input<decl::Float>("Distort")
+  b.add_input<decl::Float>("Distortion")
       .default_value(0.0f)
       .min(MINIMUM_DISTORTION)
       .max(1.0f)
@@ -159,7 +160,7 @@ class LensDistortionOperation : public NodeOperation {
 
   float get_distortion()
   {
-    const Result &input = get_input("Distort");
+    const Result &input = get_input("Distortion");
     return clamp_f(input.get_float_value_default(0.0f), MINIMUM_DISTORTION, 1.0f);
   }
 

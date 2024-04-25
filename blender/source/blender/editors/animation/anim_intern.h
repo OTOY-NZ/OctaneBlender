@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2009 Blender Foundation, Joshua Leung. */
+/* SPDX-FileCopyrightText: 2009 Blender Authors, Joshua Leung.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup edanimation
@@ -7,9 +8,13 @@
 
 #pragma once
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* KeyingSets/Keyframing Interface ------------- */
 
-/* list of builtin KeyingSets (defined in keyingsets.c) */
+/** List of builtin KeyingSets (defined in `keyingsets.cc`). */
 extern ListBase builtin_keyingsets;
 
 /* Operator Define Prototypes ------------------- */
@@ -91,3 +96,7 @@ void ANIM_OT_copy_driver_button(struct wmOperatorType *ot);
 void ANIM_OT_paste_driver_button(struct wmOperatorType *ot);
 
 /** \} */
+
+#ifdef __cplusplus
+}
+#endif

@@ -1,14 +1,15 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2006 Blender Foundation. */
+/* SPDX-FileCopyrightText: 2006 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup imbcineon
  */
 
 #include "logImageCore.h"
-#include <math.h>
-#include <stdio.h>
-#include <string.h>
+#include <cmath>
+#include <cstdio>
+#include <cstring>
 
 #include "IMB_filetype.h"
 #include "IMB_imbuf.h"
@@ -21,7 +22,7 @@
 
 #include "MEM_guardedalloc.h"
 
-static struct ImBuf *imb_load_dpx_cineon(
+static ImBuf *imb_load_dpx_cineon(
     const uchar *mem, size_t size, int use_cineon, int flags, char colorspace[IM_MAX_SPACE])
 {
   ImBuf *ibuf;
@@ -48,7 +49,7 @@ static struct ImBuf *imb_load_dpx_cineon(
   }
 
   if (!(flags & IB_test)) {
-    if (logImageGetDataRGBA(image, ibuf->rect_float, 1) != 0) {
+    if (logImageGetDataRGBA(image, ibuf->float_buffer.data, 1) != 0) {
       logImageClose(image);
       IMB_freeImBuf(ibuf);
       return nullptr;
@@ -117,7 +118,7 @@ static int imb_save_dpx_cineon(ImBuf *ibuf, const char *filepath, int use_cineon
     return 0;
   }
 
-  if (ibuf->rect_float != nullptr && bitspersample != 8) {
+  if (ibuf->float_buffer.data != nullptr && bitspersample != 8) {
     /* Don't use the float buffer to save 8 BPP picture to prevent color banding
      * (there's no dithering algorithm behind the #logImageSetDataRGBA function). */
 
@@ -126,7 +127,7 @@ static int imb_save_dpx_cineon(ImBuf *ibuf, const char *filepath, int use_cineon
 
     for (y = 0; y < ibuf->y; y++) {
       float *dst_ptr = fbuf + 4 * ((ibuf->y - y - 1) * ibuf->x);
-      float *src_ptr = ibuf->rect_float + 4 * (y * ibuf->x);
+      float *src_ptr = ibuf->float_buffer.data + 4 * (y * ibuf->x);
 
       memcpy(dst_ptr, src_ptr, 4 * ibuf->x * sizeof(float));
     }
@@ -136,7 +137,7 @@ static int imb_save_dpx_cineon(ImBuf *ibuf, const char *filepath, int use_cineon
     MEM_freeN(fbuf);
   }
   else {
-    if (ibuf->rect == nullptr) {
+    if (ibuf->byte_buffer.data == nullptr) {
       IMB_rect_from_float(ibuf);
     }
 
@@ -150,7 +151,7 @@ static int imb_save_dpx_cineon(ImBuf *ibuf, const char *filepath, int use_cineon
     for (y = 0; y < ibuf->y; y++) {
       for (x = 0; x < ibuf->x; x++) {
         fbuf_ptr = fbuf + 4 * ((ibuf->y - y - 1) * ibuf->x + x);
-        rect_ptr = (uchar *)ibuf->rect + 4 * (y * ibuf->x + x);
+        rect_ptr = ibuf->byte_buffer.data + 4 * (y * ibuf->x + x);
         fbuf_ptr[0] = float(rect_ptr[0]) / 255.0f;
         fbuf_ptr[1] = float(rect_ptr[1]) / 255.0f;
         fbuf_ptr[2] = float(rect_ptr[2]) / 255.0f;
@@ -165,7 +166,7 @@ static int imb_save_dpx_cineon(ImBuf *ibuf, const char *filepath, int use_cineon
   return rvalue;
 }
 
-bool imb_save_cineon(struct ImBuf *buf, const char *filepath, int flags)
+bool imb_save_cineon(ImBuf *buf, const char *filepath, int flags)
 {
   return imb_save_dpx_cineon(buf, filepath, 1, flags);
 }

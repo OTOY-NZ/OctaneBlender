@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2007 Blender Foundation */
+/* SPDX-FileCopyrightText: 2007 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup wm
@@ -7,14 +8,9 @@
  * Manage initializing resources and correctly shutting down.
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-#ifdef _WIN32
-#  define WIN32_LEAN_AND_MEAN
-#  include <windows.h>
-#endif
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 
 #include "MEM_guardedalloc.h"
 
@@ -34,8 +30,8 @@
 #include "BLI_timer.h"
 #include "BLI_utildefines.h"
 
-#include "BLO_undofile.h"
-#include "BLO_writefile.h"
+#include "BLO_undofile.hh"
+#include "BLO_writefile.hh"
 
 #include "BKE_blender.h"
 #include "BKE_blendfile.h"
@@ -49,9 +45,10 @@
 #include "BKE_main.h"
 #include "BKE_mball_tessellate.h"
 #include "BKE_node.hh"
+#include "BKE_preview_image.hh"
 #include "BKE_report.h"
 #include "BKE_scene.h"
-#include "BKE_screen.h"
+#include "BKE_screen.hh"
 #include "BKE_sound.h"
 #include "BKE_vfont.h"
 
@@ -60,7 +57,7 @@
 #include "BKE_mask.h"     /* free mask clipboard */
 #include "BKE_material.h" /* BKE_material_copybuf_clear */
 #include "BKE_studiolight.h"
-#include "BKE_subdiv.h"
+#include "BKE_subdiv.hh"
 #include "BKE_tracking.h" /* free tracking clipboard */
 
 #include "RE_engine.h"
@@ -79,38 +76,40 @@
 #include "GHOST_C-api.h"
 #include "GHOST_Path-api.hh"
 
-#include "RNA_define.h"
+#include "RNA_define.hh"
 
-#include "WM_api.h"
-#include "WM_message.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_message.hh"
+#include "WM_types.hh"
 
-#include "wm.h"
-#include "wm_cursors.h"
+#include "wm.hh"
+#include "wm_cursors.hh"
 #include "wm_event_system.h"
-#include "wm_files.h"
+#include "wm_files.hh"
 #include "wm_platform_support.h"
-#include "wm_surface.h"
-#include "wm_window.h"
+#include "wm_surface.hh"
+#include "wm_window.hh"
 
-#include "ED_anim_api.h"
-#include "ED_armature.h"
-#include "ED_asset.h"
-#include "ED_gpencil_legacy.h"
-#include "ED_keyframes_edit.h"
-#include "ED_keyframing.h"
-#include "ED_node.h"
-#include "ED_render.h"
-#include "ED_screen.h"
-#include "ED_space_api.h"
-#include "ED_undo.h"
-#include "ED_util.h"
-#include "ED_view3d.h"
+#include "ED_anim_api.hh"
+#include "ED_armature.hh"
+#include "ED_asset.hh"
+#include "ED_gpencil_legacy.hh"
+#include "ED_keyframes_edit.hh"
+#include "ED_keyframing.hh"
+#include "ED_node.hh"
+#include "ED_render.hh"
+#include "ED_screen.hh"
+#include "ED_space_api.hh"
+#include "ED_undo.hh"
+#include "ED_util.hh"
+#include "ED_view3d.hh"
 
 #include "BLF_api.h"
 #include "BLT_lang.h"
-#include "UI_interface.h"
-#include "UI_resources.h"
+
+#include "UI_interface.hh"
+#include "UI_resources.hh"
+#include "UI_string_search.hh"
 
 #include "GPU_context.h"
 #include "GPU_init_exit.h"
@@ -118,8 +117,8 @@
 
 #include "COM_compositor.h"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_query.hh"
 
 #include "DRW_engine.h"
 
@@ -132,6 +131,8 @@ CLG_LOGREF_DECLARE_GLOBAL(WM_LOG_KEYMAPS, "wm.keymap");
 CLG_LOGREF_DECLARE_GLOBAL(WM_LOG_TOOLS, "wm.tool");
 CLG_LOGREF_DECLARE_GLOBAL(WM_LOG_MSGBUS_PUB, "wm.msgbus.pub");
 CLG_LOGREF_DECLARE_GLOBAL(WM_LOG_MSGBUS_SUB, "wm.msgbus.sub");
+
+static void wm_init_scripts_extensions_once(bContext *C);
 
 static void wm_init_reports(bContext *C)
 {
@@ -160,12 +161,12 @@ void WM_init_state_start_with_console_set(bool value)
  * so that it does not break anything that can run in headless mode (as in
  * without display server attached).
  */
-static bool opengl_is_init = false;
+static bool gpu_is_init = false;
 
-void WM_init_opengl(void)
+void WM_init_gpu()
 {
   /* Must be called only once. */
-  BLI_assert(opengl_is_init == false);
+  BLI_assert(gpu_is_init == false);
 
   if (G.background) {
     /* Ghost is still not initialized elsewhere in background mode. */
@@ -177,13 +178,13 @@ void WM_init_opengl(void)
   }
 
   /* Needs to be first to have an OpenGL context bound. */
-  DRW_opengl_context_create();
+  DRW_gpu_context_create();
 
   GPU_init();
 
   GPU_pass_cache_init();
 
-  opengl_is_init = true;
+  gpu_is_init = true;
 }
 
 static void sound_jack_sync_callback(Main *bmain, int mode, double time)
@@ -255,10 +256,11 @@ void WM_init(bContext *C, int argc, const char **argv)
    * since versioning code may create new IDs. See #57066. */
   BLT_lang_set(nullptr);
 
-  /* Init icons before reading .blend files for preview icons, which can
+  /* Init icons & previews before reading .blend files for preview icons, which can
    * get triggered by the depsgraph. This is also done in background mode
    * for scripts that do background processing with preview icons. */
-  BKE_icons_init(BIFICONID_LAST);
+  BKE_icons_init(BIFICONID_LAST_STATIC);
+  BKE_preview_images_init();
 
   /* Reports can't be initialized before the window-manager,
    * but keep before file reading, since that may report errors */
@@ -290,7 +292,7 @@ void WM_init(bContext *C, int argc, const char **argv)
    * Creating a dummy window-manager early, or moving the key-maps into the preferences
    * would resolve this and may be worth looking into long-term, see: D12184 for details.
    */
-  struct wmFileReadPost_Params *params_file_read_post = nullptr;
+  wmFileReadPost_Params *params_file_read_post = nullptr;
   wmHomeFileRead_Params read_homefile_params{};
   read_homefile_params.use_data = true;
   read_homefile_params.use_userdef = true;
@@ -318,11 +320,10 @@ void WM_init(bContext *C, int argc, const char **argv)
     /* Sets 3D mouse dead-zone. */
     WM_ndof_deadzone_set(U.ndof_deadzone);
 #endif
-    WM_init_opengl();
+    WM_init_gpu();
 
     if (!WM_platform_support_perform_checks()) {
-      /* No attempt to avoid memory leaks here. */
-      exit(-1);
+      WM_exit(C, -1);
     }
 
     GPU_context_begin_frame(GPU_context_active_get());
@@ -355,7 +356,26 @@ void WM_init(bContext *C, int argc, const char **argv)
 
   wm_history_file_read();
 
+  if (!G.background) {
+    blender::ui::string_search::read_recent_searches_file();
+  }
+
   STRNCPY(G.lib, BKE_main_blendfile_path_from_global());
+
+  CTX_py_init_set(C, true);
+
+  /* Postpone updating the key-configuration until after add-ons have been registered,
+   * needed to properly load user-configured add-on key-maps, see: #113603. */
+  WM_keyconfig_update_postpone_begin();
+
+  WM_keyconfig_init(C);
+
+  /* Load add-ons after key-maps have been initialized (but before the blend file has been read),
+   * important to guarantee default key-maps have been declared & before post-read handlers run. */
+  wm_init_scripts_extensions_once(C);
+
+  WM_keyconfig_update_postpone_end();
+  WM_keyconfig_update(static_cast<wmWindowManager *>(G_MAIN->wm.first));
 
   wm_homefile_read_post(C, params_file_read_post);
 }
@@ -415,8 +435,19 @@ void WM_init_splash(bContext *C)
   CTX_wm_window_set(C, prevwin);
 }
 
+/** Load add-ons & app-templates once on startup. */
+static void wm_init_scripts_extensions_once(bContext *C)
+{
+#ifdef WITH_PYTHON
+  const char *imports[] = {"bpy", nullptr};
+  BPY_run_string_eval(C, imports, "bpy.utils.load_scripts_extensions()");
+#else
+  UNUSED_VARS(C);
+#endif
+}
+
 /* free strings of open recent files */
-static void free_openrecent(void)
+static void free_openrecent()
 {
   LISTBASE_FOREACH (RecentFile *, recent, &G.recent_files) {
     MEM_freeN(recent->filepath);
@@ -424,30 +455,6 @@ static void free_openrecent(void)
 
   BLI_freelistN(&(G.recent_files));
 }
-
-#ifdef WIN32
-/* Read console events until there is a key event. Also returns on any error. */
-static void wait_for_console_key(void)
-{
-  HANDLE hConsoleInput = GetStdHandle(STD_INPUT_HANDLE);
-
-  if (!ELEM(hConsoleInput, nullptr, INVALID_HANDLE_VALUE) &&
-      FlushConsoleInputBuffer(hConsoleInput)) {
-    for (;;) {
-      INPUT_RECORD buffer;
-      DWORD ignored;
-
-      if (!ReadConsoleInput(hConsoleInput, &buffer, 1, &ignored)) {
-        break;
-      }
-
-      if (buffer.EventType == KEY_EVENT) {
-        break;
-      }
-    }
-  }
-}
-#endif
 
 static int wm_exit_handler(bContext *C, const wmEvent *event, void *userdata)
 {
@@ -473,7 +480,7 @@ void wm_exit_schedule_delayed(const bContext *C)
 
 void UV_clipboard_free();
 
-void WM_exit_ex(bContext *C, const bool do_python, const bool do_user_exit_actions)
+void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_actions)
 {
   wmWindowManager *wm = C ? CTX_wm_manager(C) : nullptr;
 
@@ -488,24 +495,25 @@ void WM_exit_ex(bContext *C, const bool do_python, const bool do_user_exit_actio
   /* NOTE: same code copied in `wm_files.cc`. */
   if (C && wm) {
     if (do_user_exit_actions) {
-      struct MemFile *undo_memfile = wm->undo_stack ?
-                                         ED_undosys_stack_memfile_get_active(wm->undo_stack) :
-                                         nullptr;
+      MemFile *undo_memfile = wm->undo_stack ?
+                                  ED_undosys_stack_memfile_get_active(wm->undo_stack) :
+                                  nullptr;
       if (undo_memfile != nullptr) {
         /* save the undo state as quit.blend */
         Main *bmain = CTX_data_main(C);
         char filepath[FILE_MAX];
-        bool has_edited;
         const int fileflags = G.fileflags & ~G_FILE_COMPRESS;
 
         BLI_path_join(filepath, sizeof(filepath), BKE_tempdir_base(), BLENDER_QUIT_FILE);
 
-        has_edited = ED_editors_flush_edits(bmain);
+        /* When true, the `undo_memfile` doesn't contain all information necessary
+         * for writing and up to date blend file. */
+        const bool is_memfile_outdated = ED_editors_flush_edits(bmain);
 
         BlendFileWriteParams blend_file_write_params{};
-        if ((has_edited &&
-             BLO_write_file(bmain, filepath, fileflags, &blend_file_write_params, nullptr)) ||
-            BLO_memfile_write_file(undo_memfile, filepath))
+        if (is_memfile_outdated ?
+                BLO_write_file(bmain, filepath, fileflags, &blend_file_write_params, nullptr) :
+                BLO_memfile_write_file(undo_memfile, filepath))
         {
           printf("Saved session recovery to \"%s\"\n", filepath);
         }
@@ -519,6 +527,10 @@ void WM_exit_ex(bContext *C, const bool do_python, const bool do_user_exit_actio
       WM_event_remove_handlers(C, &win->handlers);
       WM_event_remove_handlers(C, &win->modalhandlers);
       ED_screen_exit(C, win, WM_window_get_active_screen(win));
+    }
+
+    if (!G.background) {
+      blender::ui::string_search::write_recent_searches_file();
     }
 
     if (do_user_exit_actions) {
@@ -541,9 +553,20 @@ void WM_exit_ex(bContext *C, const bool do_python, const bool do_user_exit_actio
    *
    * Don't run this code when built as a Python module as this runs when Python is in the
    * process of shutting down, where running a snippet like this will crash, see #82675.
-   * Instead use the `atexit` module, installed by #BPY_python_start */
-  const char *imports[2] = {"addon_utils", nullptr};
-  BPY_run_string_eval(C, imports, "addon_utils.disable_all()");
+   * Instead use the `atexit` module, installed by #BPY_python_start.
+   *
+   * Don't run this code when `C` is null because #pyrna_unregister_class
+   * passes in `CTX_data_main(C)` to un-registration functions.
+   * Further: `addon_utils.disable_all()` may call into functions that expect a valid context,
+   * supporting all these code-paths with a null context is quite involved for such a corner-case.
+   *
+   * Check `CTX_py_init_get(C)` in case this function runs before Python has been initialized.
+   * Which can happen when the GPU backend fails to initialize.
+   */
+  if (C && CTX_py_init_get(C)) {
+    const char *imports[2] = {"addon_utils", nullptr};
+    BPY_run_string_eval(C, imports, "addon_utils.disable_all()");
+  }
 #endif
 
   BLI_timer_free();
@@ -565,8 +588,6 @@ void WM_exit_ex(bContext *C, const bool do_python, const bool do_user_exit_actio
     ED_editors_exit(bmain, true);
   }
 
-  ED_undosys_type_free();
-
   free_openrecent();
 
   BKE_mball_cubeTable_free();
@@ -584,7 +605,7 @@ void WM_exit_ex(bContext *C, const bool do_python, const bool do_user_exit_actio
     wm_free_reports(wm);
   }
 
-  SEQ_clipboard_free(); /* sequencer.c */
+  SEQ_clipboard_free(); /* `sequencer.cc` */
   BKE_tracking_clipboard_free();
   BKE_mask_clipboard_free();
   BKE_vfont_clipboard_free();
@@ -597,15 +618,21 @@ void WM_exit_ex(bContext *C, const bool do_python, const bool do_user_exit_actio
 
   BKE_subdiv_exit();
 
-  if (opengl_is_init) {
+  if (gpu_is_init) {
     BKE_image_free_unused_gpu_textures();
   }
 
-  BKE_blender_free(); /* blender.c, does entire library and spacetypes */
+  /* Frees the entire library (#G_MAIN) and space-types. */
+  BKE_blender_free();
+
+  /* Important this runs after #BKE_blender_free because the window manager may be allocated
+   * when `C` is null, holding references to undo steps which will fail to free if their types
+   * have been freed first. */
+  ED_undosys_type_free();
 
   /* Free the GPU subdivision data after the database to ensure that subdivision structs used by
    * the modifiers were garbage collected. */
-  if (opengl_is_init) {
+  if (gpu_is_init) {
     DRW_subdiv_free();
   }
 
@@ -633,8 +660,8 @@ void WM_exit_ex(bContext *C, const bool do_python, const bool do_user_exit_actio
   //  free_txt_data();
 
 #ifdef WITH_PYTHON
-  /* option not to close python so we can use 'atexit' */
-  if (do_python && ((C == nullptr) || CTX_py_init_get(C))) {
+  /* Option not to exit Python so this function can be called from 'atexit'. */
+  if ((C == nullptr) || CTX_py_init_get(C)) {
     /* NOTE: (old note)
      * before BKE_blender_free so Python's garbage-collection happens while library still exists.
      * Needed at least for a rare crash that can happen in python-drivers.
@@ -642,23 +669,23 @@ void WM_exit_ex(bContext *C, const bool do_python, const bool do_user_exit_actio
      * Update for Blender 2.5, move after #BKE_blender_free because Blender now holds references
      * to #PyObject's so #Py_DECREF'ing them after Python ends causes bad problems every time
      * the python-driver bug can be fixed if it happens again we can deal with it then. */
-    BPY_python_end();
+    BPY_python_end(do_python_exit);
   }
 #else
-  (void)do_python;
+  (void)do_python_exit;
 #endif
 
   ED_file_exit(); /* For file-selector menu data. */
 
   /* Delete GPU resources and context. The UI also uses GPU resources and so
    * is also deleted with the context active. */
-  if (opengl_is_init) {
-    DRW_opengl_context_enable_ex(false);
+  if (gpu_is_init) {
+    DRW_gpu_context_enable_ex(false);
     UI_exit();
     GPU_pass_cache_free();
     GPU_exit();
-    DRW_opengl_context_disable_ex(false);
-    DRW_opengl_context_destroy();
+    DRW_gpu_context_disable_ex(false);
+    DRW_gpu_context_destroy();
   }
   else {
     UI_exit();
@@ -670,7 +697,9 @@ void WM_exit_ex(bContext *C, const bool do_python, const bool do_user_exit_actio
 
   wm_ghost_exit();
 
-  CTX_free(C);
+  if (C) {
+    CTX_free(C);
+  }
 
   GHOST_DisposeSystemPaths();
 
@@ -705,18 +734,10 @@ void WM_exit(bContext *C, const int exit_code)
 
   printf("\nBlender quit\n");
 
-#ifdef WIN32
-  /* ask user to press a key when in debug mode */
-  if (G.debug & G_DEBUG) {
-    printf("Press any key to exit . . .\n\n");
-    wait_for_console_key();
-  }
-#endif
-
   exit(exit_code);
 }
 
-void WM_script_tag_reload(void)
+void WM_script_tag_reload()
 {
   UI_interface_tag_script_reload();
 }

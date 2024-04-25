@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2011-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #ifndef __OCTREE_H__
 #define __OCTREE_H__
@@ -507,10 +509,12 @@ class Octree {
   {
     printf("INFO AT: %d %d %d\n", st[0] >> minshift, st[1] >> minshift, st[2] >> minshift);
     LeafNode *leaf = (LeafNode *)locateLeafCheck(st);
-    if (leaf)
+    if (leaf) {
       printInfo(leaf);
-    else
+    }
+    else {
       printf("Leaf not exists!\n");
+    }
   }
 
   void printInfo(const LeafNode *leaf)
@@ -1171,9 +1175,10 @@ class Octree {
     return nleaf;
   }
 
-  /** Locate a leaf
-   * WARNING: assuming this leaf already exists! */
-
+  /**
+   * Locate a leaf
+   * WARNING: assuming this leaf already exists!
+   */
   LeafNode *locateLeaf(int st[3])
   {
     Node *node = (Node *)root;

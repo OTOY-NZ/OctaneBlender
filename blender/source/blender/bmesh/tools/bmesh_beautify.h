@@ -1,10 +1,16 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
 /** \file
  * \ingroup bmesh
  */
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 enum {
   /** Vertices tags must match (special case). */
@@ -36,3 +42,7 @@ float BM_verts_calc_rotate_beauty(const BMVert *v1,
                                   const BMVert *v4,
                                   short flag,
                                   short method);
+
+#ifdef __cplusplus
+}
+#endif

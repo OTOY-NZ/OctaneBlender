@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup spoutliner
@@ -23,12 +25,12 @@ TreeElementLabel::TreeElementLabel(TreeElement &legacy_te, const char *label)
   legacy_te_.name = label_.c_str();
 }
 
-void TreeElementLabel::setIcon(const BIFIconID icon)
+void TreeElementLabel::set_icon(const BIFIconID icon)
 {
   icon_ = icon;
 }
 
-std::optional<BIFIconID> TreeElementLabel::getIcon() const
+std::optional<BIFIconID> TreeElementLabel::get_icon() const
 {
   return icon_;
 }

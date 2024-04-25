@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -20,7 +22,7 @@ class FastGrid : public Grid {
  public:
   FastGrid() : Grid()
   {
-    _cells = NULL;
+    _cells = nullptr;
     _cells_size = 0;
   }
 
@@ -43,7 +45,7 @@ class FastGrid : public Grid {
    *    nb
    *      The number of cells of the grid
    */
-  virtual void configure(const Vec3r &orig, const Vec3r &size, unsigned nb);
+  virtual void configure(const Vec3r &orig, const Vec3r &size, uint nb);
 
   /** returns the cell whose coordinates are passed as argument */
   Cell *getCell(const Vec3u &p);
@@ -53,7 +55,7 @@ class FastGrid : public Grid {
 
  protected:
   Cell **_cells;
-  unsigned _cells_size;
+  uint _cells_size;
 
 #ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:FastGrid")

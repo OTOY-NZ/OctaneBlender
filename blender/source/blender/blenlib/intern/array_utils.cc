@@ -1,6 +1,11 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_array_utils.hh"
+#include "BLI_threads.h"
+
+#include "atomic_ops.h"
 
 namespace blender::array_utils {
 
@@ -14,7 +19,7 @@ void copy(const GVArray &src, GMutableSpan dst, const int64_t grain_size)
 }
 
 void copy(const GVArray &src,
-          const IndexMask selection,
+          const IndexMask &selection,
           GMutableSpan dst,
           const int64_t grain_size)
 {
@@ -27,7 +32,7 @@ void copy(const GVArray &src,
 }
 
 void gather(const GVArray &src,
-            const IndexMask indices,
+            const IndexMask &indices,
             GMutableSpan dst,
             const int64_t grain_size)
 {
@@ -38,9 +43,25 @@ void gather(const GVArray &src,
   });
 }
 
-void gather(const GSpan src, const IndexMask indices, GMutableSpan dst, const int64_t grain_size)
+void gather(const GSpan src, const IndexMask &indices, GMutableSpan dst, const int64_t grain_size)
 {
   gather(GVArray::ForSpan(src), indices, dst, grain_size);
+}
+
+void count_indices(const Span<int> indices, MutableSpan<int> counts)
+{
+  if (indices.size() < 8192 || BLI_system_thread_count() < 4) {
+    for (const int i : indices) {
+      counts[i]++;
+    }
+  }
+  else {
+    threading::parallel_for(indices.index_range(), 4096, [&](const IndexRange range) {
+      for (const int i : indices.slice(range)) {
+        atomic_add_and_fetch_int32(&counts[i], 1);
+      }
+    });
+  }
 }
 
 void invert_booleans(MutableSpan<bool> span)
@@ -50,6 +71,57 @@ void invert_booleans(MutableSpan<bool> span)
       span[i] = !span[i];
     }
   });
+}
+
+BooleanMix booleans_mix_calc(const VArray<bool> &varray, const IndexRange range_to_check)
+{
+  if (varray.is_empty()) {
+    return BooleanMix::None;
+  }
+  const CommonVArrayInfo info = varray.common_info();
+  if (info.type == CommonVArrayInfo::Type::Single) {
+    return *static_cast<const bool *>(info.data) ? BooleanMix::AllTrue : BooleanMix::AllFalse;
+  }
+  if (info.type == CommonVArrayInfo::Type::Span) {
+    const Span<bool> span(static_cast<const bool *>(info.data), varray.size());
+    return threading::parallel_reduce(
+        range_to_check,
+        4096,
+        BooleanMix::None,
+        [&](const IndexRange range, const BooleanMix init) {
+          if (init == BooleanMix::Mixed) {
+            return init;
+          }
+
+          const Span<bool> slice = span.slice(range);
+          const bool first = slice.first();
+          for (const bool value : slice.drop_front(1)) {
+            if (value != first) {
+              return BooleanMix::Mixed;
+            }
+          }
+          return first ? BooleanMix::AllTrue : BooleanMix::AllFalse;
+        },
+        [&](BooleanMix a, BooleanMix b) { return (a == b) ? a : BooleanMix::Mixed; });
+  }
+  return threading::parallel_reduce(
+      range_to_check,
+      2048,
+      BooleanMix::None,
+      [&](const IndexRange range, const BooleanMix init) {
+        if (init == BooleanMix::Mixed) {
+          return init;
+        }
+        /* Alternatively, this could use #materialize to retrieve many values at once. */
+        const bool first = varray[range.first()];
+        for (const int64_t i : range.drop_front(1)) {
+          if (varray[i] != first) {
+            return BooleanMix::Mixed;
+          }
+        }
+        return first ? BooleanMix::AllTrue : BooleanMix::AllFalse;
+      },
+      [&](BooleanMix a, BooleanMix b) { return (a == b) ? a : BooleanMix::Mixed; });
 }
 
 }  // namespace blender::array_utils

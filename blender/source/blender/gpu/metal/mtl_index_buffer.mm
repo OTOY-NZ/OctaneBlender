@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2022-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup gpu
@@ -65,7 +67,7 @@ void MTLIndexBuf::read(uint32_t *data) const
     MTLContext *ctx = MTLContext::get();
     BLI_assert(ctx);
 
-    /* Ensure data is flushed for host caches.  */
+    /* Ensure data is flushed for host caches. */
     id<MTLBuffer> source_buffer = ibo_->get_metal_buffer();
     if (source_buffer.storageMode == MTLStorageModeManaged) {
       id<MTLBlitCommandEncoder> enc = ctx->main_command_buffer.ensure_begin_blit_encoder();
@@ -208,6 +210,14 @@ void MTLIndexBuf::update_sub(uint32_t start, uint32_t len, const void *data)
 void MTLIndexBuf::flag_can_optimize(bool can_optimize)
 {
   can_optimize_ = can_optimize;
+
+  /* NOTE: Index buffer optimization needs to be disabled for Indirect draws, as the index count is
+   * unknown at submission time. However, if the index buffer has already been optimized by a
+   * separate draw pass, errors will occur and these cases need to be resolved at the high-level,
+   * ensuring primitive types without primitive restart are used instead, as these perform far
+   * more optimally on hardware. */
+  BLI_assert_msg(can_optimize_ || (optimized_ibo_ == nullptr),
+                 "Index buffer optimization disabled, but optimal buffer already generated.");
 }
 
 /** \} */
@@ -448,7 +458,7 @@ id<MTLBuffer> MTLIndexBuf::get_index_buffer(GPUPrimType &in_out_primitive_type,
         /* TODO(Metal): Line strip topology types would benefit from optimization to remove
          * primitive restarts, however, these do not occur frequently, nor with
          * significant geometry counts. */
-        MTL_LOG_INFO("TODO: Primitive topology: Optimize line strip topology types\n");
+        MTL_LOG_INFO("TODO: Primitive topology: Optimize line strip topology types");
       } break;
 
       case GPU_PRIM_LINE_LOOP: {
@@ -457,7 +467,7 @@ id<MTLBuffer> MTLIndexBuf::get_index_buffer(GPUPrimType &in_out_primitive_type,
          * does not currently appear to be used alongside an index buffer. */
         MTL_LOG_WARNING(
             "TODO: Primitive topology: Line Loop Index buffer optimization required for "
-            "emulation.\n");
+            "emulation.");
       } break;
 
       case GPU_PRIM_TRIS:
@@ -551,4 +561,4 @@ void MTLIndexBuf::strip_restart_indices()
 
 /** \} */
 
-}  // blender::gpu
+}  // namespace blender::gpu

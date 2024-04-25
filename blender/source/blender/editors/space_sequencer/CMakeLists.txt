@@ -1,25 +1,21 @@
+# SPDX-FileCopyrightText: 2023 Blender Authors
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 set(INC
   ../include
   ../../blenfont
   ../../blenkernel
-  ../../blenlib
   ../../blenloader
   ../../blentranslation
   ../../depsgraph
   ../../draw
   ../../gpu
   ../../imbuf
-  ../../makesdna
   ../../makesrna
   ../../sequencer
   ../../windowmanager
-  ../../../../intern/atomic
-  ../../../../intern/guardedalloc
 
-  # dna_type_offsets.h
-  ${CMAKE_CURRENT_BINARY_DIR}/../../makesdna/intern
   # RNA_prototypes.h
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
@@ -28,29 +24,36 @@ set(INC_SYS
 )
 
 set(SRC
-  sequencer_add.c
-  sequencer_buttons.c
-  sequencer_channels_draw.c
-  sequencer_channels_edit.c
-  sequencer_drag_drop.c
-  sequencer_draw.c
-  sequencer_edit.c
-  sequencer_modifier.c
-  sequencer_ops.c
-  sequencer_preview.c
-  sequencer_proxy.c
-  sequencer_scopes.c
-  sequencer_select.c
-  sequencer_thumbnails.c
-  sequencer_view.c
-  space_sequencer.c
+  sequencer_add.cc
+  sequencer_buttons.cc
+  sequencer_channels_draw.cc
+  sequencer_channels_edit.cc
+  sequencer_drag_drop.cc
+  sequencer_edit.cc
+  sequencer_modifier.cc
+  sequencer_ops.cc
+  sequencer_preview.cc
+  sequencer_preview_draw.cc
+  sequencer_proxy.cc
+  sequencer_retiming.cc
+  sequencer_retiming_draw.cc
+  sequencer_scopes.cc
+  sequencer_select.cc
+  sequencer_thumbnails.cc
+  sequencer_timeline_draw.cc
+  sequencer_view.cc
+  space_sequencer.cc
 
-  sequencer_intern.h
+  sequencer_intern.hh
 )
 
 set(LIB
+  PRIVATE bf::blenlib
+  PRIVATE bf::dna
   bf_editor_interface
   bf_editor_util
+  PRIVATE bf::intern::atomic
+  PRIVATE bf::intern::guardedalloc
 )
 
 if(WITH_AUDASPACE)

@@ -128,8 +128,17 @@ class ObjectCache(OctaneNodeCache):
                     if object_name in depsgraph.objects:
                         self.dg_updated_object_data_names.add(depsgraph.objects[object_name].data.name)
         # Detection for changes of numbers of instances
-        if self.depsgraph_object_instances_num != len(depsgraph.object_instances):
-            self.depsgraph_object_instances_num = len(depsgraph.object_instances)
+        depsgraph_object_instances_num = 0
+        for instance_object in depsgraph.object_instances:
+            eval_object = instance_object.object
+            if context and context.space_data:
+                show_in_viewport = eval_object.visible_in_viewport_get(context.space_data)
+            else:
+                show_in_viewport = True
+            if show_in_viewport:
+                depsgraph_object_instances_num += 1
+        if self.depsgraph_object_instances_num != depsgraph_object_instances_num:
+            self.depsgraph_object_instances_num = depsgraph_object_instances_num
             self.need_update = True
             self.depsgraph_object_instances_num_changed = True
         self.need_update |= (len(self.dg_updated_object_data_names) > 0 or len(self.changed_data_ids) > 0)
@@ -277,14 +286,13 @@ class ObjectCache(OctaneNodeCache):
             # Color attributes
             color_attribute_data_list = []
             available_color_vertex_sets_num = self.MAX_OCTANE_COLOR_VERTEX_SETS
-            for idx, color_attribute in enumerate(mesh.color_attributes):
-                if available_color_vertex_sets_num == 1:
-                    if mesh.color_attributes.active_color_index != idx:
-                        continue
-                elif available_color_vertex_sets_num == 0:
-                    continue
-                color_attribute_data_list.append([color_attribute.data[0].as_pointer(), color_attribute.name, color_attribute.data_type])
+            # Always sync the active color attribute if there is one
+            if mesh.color_attributes.active_color_index != -1:
                 available_color_vertex_sets_num -= 1
+            for idx, color_attribute in enumerate(mesh.color_attributes):
+                if mesh.color_attributes.active_color_index == idx or available_color_vertex_sets_num > 0:
+                    color_attribute_data_list.append([color_attribute.data[0].as_pointer(), color_attribute.name, color_attribute.data_type])
+                    available_color_vertex_sets_num -= 1
             # Sphere attributes
             sphere_attribute_data = [
                 octane_property.octane_enable_sphere_attribute,
@@ -308,6 +316,14 @@ class ObjectCache(OctaneNodeCache):
                 active_uv_layer_index, uv_data,
                 mesh.auto_smooth_angle / math.pi * 180.0,
                 use_octane_coordinate, show_mesh_data, need_subdivision, winding_order)
+            # Octane Subdivision
+            if octane_property.open_subd_enable:
+                octane_node.set_attribute_id(consts.AttributeID.A_SUBD_LEVEL, octane_property.open_subd_level)
+                octane_node.set_attribute_id(consts.AttributeID.A_SUBD_SHARPNESS, octane_property.open_subd_sharpness)            
+                octane_node.set_attribute_id(consts.AttributeID.A_SUBD_BOUND_INTERP, utility.get_enum_int_value(octane_property, "octane.open_subd_bound_interp", 0))
+                octane_node.set_attribute_id(consts.AttributeID.A_SUBD_SCHEME, utility.get_enum_int_value(octane_property, "octane.octane.open_subd_scheme", 0))
+            else:
+                octane_node.set_attribute_id(consts.AttributeID.A_SUBD_LEVEL, 0)            
         else:
             octane_node.node.set_mesh_motion_attribute(vertices_addr, vertices_num, motion_time_offset, use_octane_coordinate)
 
@@ -440,7 +456,7 @@ class ObjectCache(OctaneNodeCache):
 
     def need_subdivision(self, _object, octane_property):
         origin_object = _object.original
-        need_subdivision = False
+        need_subdivision = octane_property.open_subd_enable
         # Check the vertex displacement setting
         if not need_subdivision:
             for mat_slot in origin_object.material_slots:
@@ -880,6 +896,12 @@ class ObjectCache(OctaneNodeCache):
         updated_motion_blur_node_names = set()
         for instance_object in depsgraph.object_instances:
             eval_object = instance_object.object
+            if context and context.space_data:
+                show_in_viewport = eval_object.visible_in_viewport_get(context.space_data)
+            else:
+                show_in_viewport = True
+            if not show_in_viewport:
+                continue
             is_instance = instance_object.is_instance
             eval_object_name = eval_object.name
             eval_object_blender_id = BlenderID(eval_object)

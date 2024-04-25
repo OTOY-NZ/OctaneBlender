@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "COM_static_cache_manager.hh"
 
@@ -13,6 +15,7 @@ void StaticCacheManager::reset()
   cached_masks.reset();
   smaa_precomputed_textures.reset();
   ocio_color_space_conversion_shaders.reset();
+  distortion_grids.reset();
 }
 
 }  // namespace blender::realtime_compositor

@@ -71,6 +71,7 @@ class LightManager {
 
   bool need_update;
   std::unordered_set<std::string> removed_light_names;
+  OctaneDataTransferObject::OctaneObjects octane_objects;
 };  // LightManager
 
 OCT_NAMESPACE_END

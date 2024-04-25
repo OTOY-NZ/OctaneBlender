@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2016 Blender Foundation. */
+/* SPDX-FileCopyrightText: 2016 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup draw
@@ -44,7 +45,7 @@ enum {
   DRW_TEXT_CACHE_STRING_PTR = (1 << 3),
 };
 
-/* draw_manager.c */
+/* `draw_manager.cc` */
 
 struct DRWTextStore *DRW_text_cache_ensure(void);
 

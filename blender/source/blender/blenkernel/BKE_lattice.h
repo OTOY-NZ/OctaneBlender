@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -76,7 +77,7 @@ extern void (*BKE_lattice_batch_cache_dirty_tag_cb)(struct Lattice *lt, int mode
 extern void (*BKE_lattice_batch_cache_free_cb)(struct Lattice *lt);
 
 /* -------------------------------------------------------------------- */
-/** \name Deform 3D Coordinates by Lattice (lattice_deform.c)
+/** \name Deform 3D Coordinates by Lattice (`lattice_deform.cc`)
  * \{ */
 
 struct LatticeDeformData *BKE_lattice_deform_data_create(

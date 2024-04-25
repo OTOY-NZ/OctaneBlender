@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2013 Blender Foundation */
+/* SPDX-FileCopyrightText: 2013 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup depsgraph
@@ -9,7 +10,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include <cstring> /* XXX: memcpy */
+#include <cstring> /* XXX: `memcpy`. */
 
 #include "BLI_listbase.h"
 #include "BLI_utildefines.h"
@@ -22,16 +23,16 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "RNA_access.h"
-#include "RNA_path.h"
+#include "RNA_access.hh"
+#include "RNA_path.hh"
 #include "RNA_prototypes.h"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_query.hh"
 
-#include "intern/depsgraph.h"
+#include "intern/depsgraph.hh"
 #include "intern/eval/deg_eval_copy_on_write.h"
-#include "intern/node/deg_node_id.h"
+#include "intern/node/deg_node_id.hh"
 
 namespace blender::deg {
 
@@ -78,19 +79,19 @@ static ID *get_evaluated_id(const Depsgraph *deg_graph, ID *id)
 
 namespace deg = blender::deg;
 
-struct Scene *DEG_get_input_scene(const Depsgraph *graph)
+Scene *DEG_get_input_scene(const Depsgraph *graph)
 {
   const deg::Depsgraph *deg_graph = reinterpret_cast<const deg::Depsgraph *>(graph);
   return deg_graph->scene;
 }
 
-struct ViewLayer *DEG_get_input_view_layer(const Depsgraph *graph)
+ViewLayer *DEG_get_input_view_layer(const Depsgraph *graph)
 {
   const deg::Depsgraph *deg_graph = reinterpret_cast<const deg::Depsgraph *>(graph);
   return deg_graph->view_layer;
 }
 
-struct Main *DEG_get_bmain(const Depsgraph *graph)
+Main *DEG_get_bmain(const Depsgraph *graph)
 {
   const deg::Depsgraph *deg_graph = reinterpret_cast<const deg::Depsgraph *>(graph);
   return deg_graph->bmain;
@@ -210,6 +211,9 @@ ViewLayer *DEG_get_evaluated_view_layer(const Depsgraph *graph)
 
 Object *DEG_get_evaluated_object(const Depsgraph *depsgraph, Object *object)
 {
+  if (object == nullptr) {
+    return nullptr;
+  }
   return (Object *)DEG_get_evaluated_id(depsgraph, &object->id);
 }
 
@@ -252,8 +256,7 @@ void DEG_get_evaluated_rna_pointer(const Depsgraph *depsgraph,
      * common types too above (e.g. modifiers) */
     char *path = RNA_path_from_ID_to_struct(ptr);
     if (path) {
-      PointerRNA cow_id_ptr;
-      RNA_id_pointer_create(cow_id, &cow_id_ptr);
+      PointerRNA cow_id_ptr = RNA_id_pointer_create(cow_id);
       if (!RNA_path_resolve(&cow_id_ptr, path, r_ptr_eval, nullptr)) {
         /* Couldn't find COW copy of data */
         fprintf(stderr,
@@ -325,7 +328,7 @@ bool DEG_is_evaluated_object(const Object *object)
   return !DEG_is_original_object(object);
 }
 
-bool DEG_is_fully_evaluated(const struct Depsgraph *depsgraph)
+bool DEG_is_fully_evaluated(const Depsgraph *depsgraph)
 {
   const deg::Depsgraph *deg_graph = (const deg::Depsgraph *)depsgraph;
   /* Check whether relations are up to date. */

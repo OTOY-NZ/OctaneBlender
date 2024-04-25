@@ -138,22 +138,24 @@ void ObjectManager::server_update(::OctaneEngine::OctaneClient *server,
     updated_object_names.insert(geo_nodes_object_names.begin(), geo_nodes_object_names.end());
   }
 
-  OctaneDataTransferObject::OctaneObjects octane_objects;
+  OctaneDataTransferObject::OctaneObjects current_octane_objects;
   for (auto object : scene->objects) {
     if (object->need_update && !object->is_global_mesh_type()) {
       updated_object_names.insert(object->name);
       // object->need_update = false;
     }
   }
-  scene->generate_updated_octane_objects_data(updated_object_names, octane_objects, false, &geo_nodes_object_names);
-  octane_objects.iCurrentFrameIdx = frame_idx;
-  octane_objects.iTotalFrameIdx = total_frames;
-  octane_objects.bGlobal = false;
+  scene->generate_updated_octane_objects_data(
+      updated_object_names, current_octane_objects, false, &geo_nodes_object_names);
+  current_octane_objects.iCurrentFrameIdx = frame_idx;
+  current_octane_objects.iTotalFrameIdx = total_frames;
+  current_octane_objects.bGlobal = false;
 
   if (progress.get_cancel())
     return;
 
-  server->uploadOctaneObjects(octane_objects);
+  scene->generate_final_octane_objects_data(octane_objects, current_octane_objects);
+  server->uploadOctaneObjects(current_octane_objects);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

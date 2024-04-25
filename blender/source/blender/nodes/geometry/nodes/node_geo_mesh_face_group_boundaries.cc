@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
@@ -36,10 +38,10 @@ class BoundaryFieldInput final : public bke::MeshFieldInput {
 
   GVArray get_varray_for_context(const Mesh &mesh,
                                  const eAttrDomain domain,
-                                 const IndexMask /*mask*/) const final
+                                 const IndexMask & /*mask*/) const final
   {
     const bke::MeshFieldContext face_context{mesh, ATTR_DOMAIN_FACE};
-    FieldEvaluator face_evaluator{face_context, mesh.totpoly};
+    FieldEvaluator face_evaluator{face_context, mesh.faces_num};
     face_evaluator.add(face_set_);
     face_evaluator.evaluate();
     const VArray<int> face_set = face_evaluator.get_evaluated<int>(0);
@@ -47,10 +49,10 @@ class BoundaryFieldInput final : public bke::MeshFieldInput {
     Array<bool> boundary(mesh.totedge, false);
     Array<bool> edge_visited(mesh.totedge, false);
     Array<int> edge_face_set(mesh.totedge, 0);
-    const OffsetIndices polys = mesh.polys();
+    const OffsetIndices faces = mesh.faces();
     const Span<int> corner_edges = mesh.corner_edges();
-    for (const int i : polys.index_range()) {
-      for (const int edge : corner_edges.slice(polys[i])) {
+    for (const int i : faces.index_range()) {
+      for (const int edge : corner_edges.slice(faces[i])) {
         if (edge_visited[edge]) {
           if (edge_face_set[edge] != face_set[i]) {
             /* This edge is connected to two faces on different face sets. */
@@ -83,17 +85,16 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("Boundary Edges", std::move(face_set_boundaries));
 }
 
-}  // namespace blender::nodes::node_geo_mesh_face_group_boundaries_cc
-
-void register_node_type_geo_mesh_face_group_boundaries()
+static void node_register()
 {
-  namespace file_ns = blender::nodes::node_geo_mesh_face_group_boundaries_cc;
-
   static bNodeType ntype;
   geo_node_type_base(
       &ntype, GEO_NODE_MESH_FACE_GROUP_BOUNDARIES, "Face Group Boundaries", NODE_CLASS_INPUT);
   blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::MIDDLE);
-  ntype.declare = file_ns::node_declare;
-  ntype.geometry_node_execute = file_ns::node_geo_exec;
+  ntype.declare = node_declare;
+  ntype.geometry_node_execute = node_geo_exec;
   nodeRegisterType(&ntype);
 }
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_geo_mesh_face_group_boundaries_cc

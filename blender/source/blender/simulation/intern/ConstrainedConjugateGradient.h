@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright Blender Foundation */
+/* SPDX-FileCopyrightText: Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -13,7 +14,8 @@ namespace Eigen {
 
 namespace internal {
 
-/** \internal Low-level conjugate gradient algorithm
+/**
+ * \internal Low-level conjugate gradient algorithm
  * \param mat: The matrix A
  * \param rhs: The right hand side vector b
  * \param x: On input and initial solution, on output the computed solution.
@@ -104,13 +106,9 @@ EIGEN_DONT_INLINE void constrained_conjugate_gradient(const MatrixType &mat,
 
 #if 0 /* unused */
 template<typename MatrixType> struct MatrixFilter {
-  MatrixFilter() : m_cmat(NULL)
-  {
-  }
+  MatrixFilter() : m_cmat(NULL) {}
 
-  MatrixFilter(const MatrixType &cmat) : m_cmat(&cmat)
-  {
-  }
+  MatrixFilter(const MatrixType &cmat) : m_cmat(&cmat) {}
 
   void setMatrix(const MatrixType &cmat)
   {
@@ -219,7 +217,8 @@ class ConstrainedConjugateGradient
   /** Default constructor. */
   ConstrainedConjugateGradient() : Base() {}
 
-  /** Initialize the solver with matrix \a A for further \c Ax=b solving.
+  /**
+   * Initialize the solver with matrix \a A for further \c Ax=b solving.
    *
    * This constructor is a shortcut for the default constructor followed
    * by a call to compute().
@@ -242,7 +241,8 @@ class ConstrainedConjugateGradient
     return m_filter;
   }
 
-  /** \returns the solution x of \f$ A x = b \f$ using the current decomposition of A
+  /**
+   * \returns the solution x of \f$ A x = b \f$ using the current decomposition of A
    * \a x0 as an initial solution.
    *
    * \sa compute()

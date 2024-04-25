@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2005 Blender Foundation */
+/* SPDX-FileCopyrightText: 2005 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup modifiers
@@ -31,15 +32,15 @@
 #include "BKE_context.h"
 #include "BKE_deform.h"
 #include "BKE_modifier.h"
-#include "BKE_screen.h"
+#include "BKE_screen.hh"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
 
-#include "RNA_access.h"
+#include "RNA_access.hh"
 #include "RNA_prototypes.h"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
 #include "MOD_modifiertypes.hh"
 #include "MOD_ui_common.hh"
@@ -48,6 +49,7 @@
 
 using blender::Array;
 using blender::IndexMask;
+using blender::IndexMaskMemory;
 using blender::Span;
 using blender::Vector;
 
@@ -57,25 +59,22 @@ static Span<MDeformVert> get_vertex_group(const Mesh &mesh, const int defgrp_ind
     return {};
   }
   const MDeformVert *vertex_group = static_cast<const MDeformVert *>(
-      CustomData_get_layer(&mesh.vdata, CD_MDEFORMVERT));
+      CustomData_get_layer(&mesh.vert_data, CD_MDEFORMVERT));
   if (!vertex_group) {
     return {};
   }
   return {vertex_group, mesh.totvert};
 }
 
-static Vector<int64_t> selected_indices_from_vertex_group(Span<MDeformVert> vertex_group,
-                                                          const int index,
-                                                          const bool invert)
+static IndexMask selected_indices_from_vertex_group(Span<MDeformVert> vertex_group,
+                                                    const int index,
+                                                    const bool invert,
+                                                    IndexMaskMemory &memory)
 {
-  Vector<int64_t> selected_indices;
-  for (const int i : vertex_group.index_range()) {
-    const bool found = BKE_defvert_find_weight(&vertex_group[i], index) > 0.0f;
-    if (found != invert) {
-      selected_indices.append(i);
-    }
-  }
-  return selected_indices;
+  return IndexMask::from_predicate(
+      vertex_group.index_range(), blender::GrainSize(512), memory, [&](const int i) {
+        return (BKE_defvert_find_weight(&vertex_group[i], index) > 0.0f) != invert;
+      });
 }
 
 static Array<bool> selection_array_from_vertex_group(Span<MDeformVert> vertex_group,
@@ -98,8 +97,9 @@ static std::optional<Mesh *> calculate_weld(const Mesh &mesh, const WeldModifier
 
   if (wmd.mode == MOD_WELD_MODE_ALL) {
     if (!vertex_group.is_empty()) {
-      Vector<int64_t> selected_indices = selected_indices_from_vertex_group(
-          vertex_group, defgrp_index, invert);
+      IndexMaskMemory memory;
+      const IndexMask selected_indices = selected_indices_from_vertex_group(
+          vertex_group, defgrp_index, invert, memory);
       return blender::geometry::mesh_merge_by_distance_all(
           mesh, IndexMask(selected_indices), wmd.merge_dist);
     }
@@ -123,7 +123,7 @@ static std::optional<Mesh *> calculate_weld(const Mesh &mesh, const WeldModifier
   return nullptr;
 }
 
-static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext * /*ctx*/, Mesh *mesh)
+static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext * /*ctx*/, Mesh *mesh)
 {
   const WeldModifierData &wmd = reinterpret_cast<WeldModifierData &>(*md);
 
@@ -134,7 +134,7 @@ static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext * /*ctx*/, M
   return *result;
 }
 
-static void initData(ModifierData *md)
+static void init_data(ModifierData *md)
 {
   WeldModifierData *wmd = (WeldModifierData *)md;
 
@@ -143,7 +143,7 @@ static void initData(ModifierData *md)
   MEMCPY_STRUCT_AFTER(wmd, DNA_struct_default_get(WeldModifierData), modifier);
 }
 
-static void requiredDataMask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
+static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
 {
   WeldModifierData *wmd = (WeldModifierData *)md;
 
@@ -163,25 +163,26 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  uiItemR(layout, ptr, "mode", 0, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "merge_threshold", 0, IFACE_("Distance"), ICON_NONE);
+  uiItemR(layout, ptr, "mode", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "merge_threshold", UI_ITEM_NONE, IFACE_("Distance"), ICON_NONE);
   if (weld_mode == MOD_WELD_MODE_CONNECTED) {
-    uiItemR(layout, ptr, "loose_edges", 0, nullptr, ICON_NONE);
+    uiItemR(layout, ptr, "loose_edges", UI_ITEM_NONE, nullptr, ICON_NONE);
   }
   modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", nullptr);
 
   modifier_panel_end(layout, ptr);
 }
 
-static void panelRegister(ARegionType *region_type)
+static void panel_register(ARegionType *region_type)
 {
   modifier_panel_register(region_type, eModifierType_Weld, panel_draw);
 }
 
 ModifierTypeInfo modifierType_Weld = {
+    /*idname*/ "Weld",
     /*name*/ N_("Weld"),
-    /*structName*/ "WeldModifierData",
-    /*structSize*/ sizeof(WeldModifierData),
+    /*struct_name*/ "WeldModifierData",
+    /*struct_size*/ sizeof(WeldModifierData),
     /*srna*/ &RNA_WeldModifier,
     /*type*/ eModifierTypeType_Constructive,
     /*flags*/
@@ -190,26 +191,26 @@ ModifierTypeInfo modifierType_Weld = {
                        eModifierTypeFlag_AcceptsCVs),
     /*icon*/ ICON_AUTOMERGE_OFF, /* TODO: Use correct icon. */
 
-    /*copyData*/ BKE_modifier_copydata_generic,
+    /*copy_data*/ BKE_modifier_copydata_generic,
 
-    /*deformVerts*/ nullptr,
-    /*deformMatrices*/ nullptr,
-    /*deformVertsEM*/ nullptr,
-    /*deformMatricesEM*/ nullptr,
-    /*modifyMesh*/ modifyMesh,
-    /*modifyGeometrySet*/ nullptr,
+    /*deform_verts*/ nullptr,
+    /*deform_matrices*/ nullptr,
+    /*deform_verts_EM*/ nullptr,
+    /*deform_matrices_EM*/ nullptr,
+    /*modify_mesh*/ modify_mesh,
+    /*modify_geometry_set*/ nullptr,
 
-    /*initData*/ initData,
-    /*requiredDataMask*/ requiredDataMask,
-    /*freeData*/ nullptr,
-    /*isDisabled*/ nullptr,
-    /*updateDepsgraph*/ nullptr,
-    /*dependsOnTime*/ nullptr,
-    /*dependsOnNormals*/ nullptr,
-    /*foreachIDLink*/ nullptr,
-    /*foreachTexLink*/ nullptr,
-    /*freeRuntimeData*/ nullptr,
-    /*panelRegister*/ panelRegister,
-    /*blendWrite*/ nullptr,
-    /*blendRead*/ nullptr,
+    /*init_data*/ init_data,
+    /*required_data_mask*/ required_data_mask,
+    /*free_data*/ nullptr,
+    /*is_disabled*/ nullptr,
+    /*update_depsgraph*/ nullptr,
+    /*depends_on_time*/ nullptr,
+    /*depends_on_normals*/ nullptr,
+    /*foreach_ID_link*/ nullptr,
+    /*foreach_tex_link*/ nullptr,
+    /*free_runtime_data*/ nullptr,
+    /*panel_register*/ panel_register,
+    /*blend_write*/ nullptr,
+    /*blend_read*/ nullptr,
 };

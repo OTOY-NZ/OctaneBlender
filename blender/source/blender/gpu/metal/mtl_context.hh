@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup gpu
@@ -51,9 +53,6 @@ class MTLStorageBuf;
 /* Structs containing information on current binding state for textures and samplers. */
 struct MTLTextureBinding {
   bool used;
-
-  /* Same value as index in bindings array. */
-  uint slot_index;
   gpu::MTLTexture *texture_resource;
 };
 
@@ -423,7 +422,7 @@ struct MTLSamplerArray {
   }
 };
 
-typedef enum MTLPipelineStateDirtyFlag {
+enum MTLPipelineStateDirtyFlag {
   MTL_PIPELINE_STATE_NULL_FLAG = 0,
   /* Whether we need to call setViewport. */
   MTL_PIPELINE_STATE_VIEWPORT_FLAG = (1 << 0),
@@ -442,7 +441,7 @@ typedef enum MTLPipelineStateDirtyFlag {
       (MTL_PIPELINE_STATE_VIEWPORT_FLAG | MTL_PIPELINE_STATE_SCISSOR_FLAG |
        MTL_PIPELINE_STATE_DEPTHSTENCIL_FLAG | MTL_PIPELINE_STATE_PSO_FLAG |
        MTL_PIPELINE_STATE_FRONT_FACING_FLAG | MTL_PIPELINE_STATE_CULLMODE_FLAG)
-} MTLPipelineStateDirtyFlag;
+};
 
 /* Ignore full flag bit-mask `MTL_PIPELINE_STATE_ALL_FLAG`. */
 ENUM_OPERATORS(MTLPipelineStateDirtyFlag, MTL_PIPELINE_STATE_CULLMODE_FLAG);
@@ -513,10 +512,11 @@ struct MTLContextGlobalShaderPipelineState {
   MTLContextDepthStencilState depth_stencil_state;
 
   /* Viewport/Scissor Region. */
-  int viewport_offset_x;
-  int viewport_offset_y;
-  int viewport_width;
-  int viewport_height;
+  int num_active_viewports = 1;
+  int viewport_offset_x[GPU_MAX_VIEWPORTS];
+  int viewport_offset_y[GPU_MAX_VIEWPORTS];
+  int viewport_width[GPU_MAX_VIEWPORTS];
+  int viewport_height[GPU_MAX_VIEWPORTS];
   bool scissor_enabled;
   int scissor_x;
   int scissor_y;
@@ -590,6 +590,13 @@ class MTLCommandBufferManager {
   int vertex_submitted_count_ = 0;
   bool empty_ = true;
 
+  /** Debug groups. */
+  /* Stack tracking all calls to push_debug_group. */
+  std::vector<std::string> debug_group_stack;
+  /* Stack tracking calls resulting in active API calls to pushDebugGroup on the current command
+   * buffer. */
+  std::vector<std::string> debug_group_pushed_stack;
+
  public:
   MTLCommandBufferManager(MTLContext &context)
       : context_(context), render_pass_state_(context, *this), compute_state_(context, *this){};
@@ -654,12 +661,17 @@ class MTLCommandBufferManager {
   id<MTLCommandBuffer> ensure_begin();
 
   void register_encoder_counters();
+
+  /* Debug group management. */
+  void unfold_pending_debug_groups();
 };
 
-/** MTLContext -- Core render loop and state management. **/
-/* NOTE(Metal): Partial #MTLContext stub to provide wrapper functionality
- * for work-in-progress `MTL*` classes. */
-
+/**
+ * MTLContext -- Core render loop and state management.
+ *
+ * NOTE(Metal): Partial #MTLContext stub to provide wrapper functionality
+ * for work-in-progress `MTL*` classes.
+ */
 class MTLContext : public Context {
   friend class MTLBackend;
   friend class MTLRenderPassState;
@@ -848,6 +860,7 @@ class MTLContext : public Context {
 
   /* State assignment. */
   void set_viewport(int origin_x, int origin_y, int width, int height);
+  void set_viewports(int count, const int (&viewports)[GPU_MAX_VIEWPORTS][4]);
   void set_scissor(int scissor_x, int scissor_y, int scissor_width, int scissor_height);
   void set_scissor_enabled(bool scissor_enabled);
 

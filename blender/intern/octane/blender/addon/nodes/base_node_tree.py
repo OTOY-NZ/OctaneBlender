@@ -823,7 +823,7 @@ class NodeTreeHandler:
 @persistent
 def node_tree_update_handler(scene):
     # last_op_bl_idname = bpy.context.window_manager.operators[-1].bl_idname if len(bpy.context.window_manager.operators) else None
-    last_op_bl_idname = bpy.context.active_operator.bl_idname if getattr(bpy.context, "active_operator", None) is not None else None    
+    last_op_bl_idname = bpy.context.active_operator.bl_idname if getattr(bpy.context, "active_operator", None) is not None else None
     if scene is None:
         scene = bpy.context.scene
     if scene.render.engine != consts.ENGINE_NAME:

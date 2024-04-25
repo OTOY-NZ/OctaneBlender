@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2016 Blender Foundation */
+/* SPDX-FileCopyrightText: 2016 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup edgizmolib
@@ -14,6 +15,10 @@
 #pragma once
 
 #include "BLI_sys_types.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct GizmoGeomInfo {
   int nverts;
@@ -31,3 +36,7 @@ extern GizmoGeomInfo wm_gizmo_geom_data_cube;
 
 /* dial gizmo */
 extern GizmoGeomInfo wm_gizmo_geom_data_dial;
+
+#ifdef __cplusplus
+}
+#endif

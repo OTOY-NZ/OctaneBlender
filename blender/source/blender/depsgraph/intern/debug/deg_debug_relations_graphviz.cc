@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2014 Blender Foundation */
+/* SPDX-FileCopyrightText: 2014 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup depsgraph
@@ -14,16 +15,18 @@
 
 #include "DNA_listBase.h"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_debug.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_debug.hh"
 
-#include "intern/depsgraph.h"
-#include "intern/depsgraph_relation.h"
+#include "intern/depsgraph.hh"
+#include "intern/depsgraph_relation.hh"
 
-#include "intern/node/deg_node_component.h"
-#include "intern/node/deg_node_id.h"
-#include "intern/node/deg_node_operation.h"
-#include "intern/node/deg_node_time.h"
+#include "intern/node/deg_node_component.hh"
+#include "intern/node/deg_node_id.hh"
+#include "intern/node/deg_node_operation.hh"
+#include "intern/node/deg_node_time.hh"
+
+#include <sstream>
 
 namespace deg = blender::deg;
 namespace dot = blender::dot;
@@ -37,7 +40,7 @@ namespace blender::deg {
  * get colored by individual types or classes.
  */
 #define COLOR_SCHEME_NODE_CLASS 1
-//#define COLOR_SCHEME_NODE_TYPE  2
+// #define COLOR_SCHEME_NODE_TYPE  2
 
 static const char *deg_debug_graphviz_fontname = "helvetica";
 static float deg_debug_graphviz_graph_label_size = 20.0f;
@@ -400,6 +403,7 @@ static void deg_debug_graphviz_node(DotExportContext &ctx,
     case NodeType::PARTICLE_SETTINGS:
     case NodeType::COPY_ON_WRITE:
     case NodeType::OBJECT_FROM_LAYER:
+    case NodeType::HIERARCHY:
     case NodeType::BATCH_CACHE:
     case NodeType::DUPLI:
     case NodeType::SYNCHRONIZATION:
@@ -408,8 +412,7 @@ static void deg_debug_graphviz_node(DotExportContext &ctx,
     case NodeType::GENERIC_DATABLOCK:
     case NodeType::VISIBILITY:
     case NodeType::NTREE_OUTPUT:
-    case NodeType::NTREE_GEOMETRY_PREPROCESS:
-    case NodeType::SIMULATION: {
+    case NodeType::NTREE_GEOMETRY_PREPROCESS: {
       ComponentNode *comp_node = (ComponentNode *)node;
       if (comp_node->operations.is_empty()) {
         deg_debug_graphviz_node_single(ctx, node, parent_cluster);

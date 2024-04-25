@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bmesh
@@ -8,7 +10,8 @@
 
 #include "BLI_array.hh"
 #include "BLI_linklist.h"
-#include "BLI_math.h"
+#include "BLI_math_geom.h"
+#include "BLI_math_vector.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_utildefines_stack.h"
 
@@ -47,6 +50,9 @@ BMUVOffsets BM_uv_map_get_offsets_from_layer(const BMesh *bm, const int layer)
 BMUVOffsets BM_uv_map_get_offsets(const BMesh *bm)
 {
   const int layer = CustomData_get_active_layer(&bm->ldata, CD_PROP_FLOAT2);
+  if (layer == -1) {
+    return {-1, -1, -1, -1};
+  }
   return BM_uv_map_get_offsets_from_layer(bm, layer);
 }
 
@@ -174,7 +180,7 @@ bool BM_edge_uv_share_vert_check(BMEdge *e, BMLoop *l_a, BMLoop *l_b, const int 
     return false;
   }
 
-  /* No need for NULL checks, these will always succeed. */
+  /* No need for null checks, these will always succeed. */
   const BMLoop *l_other_a = BM_loop_other_vert_loop_by_edge(l_a, e);
   const BMLoop *l_other_b = BM_loop_other_vert_loop_by_edge(l_b, e);
 

@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -109,7 +111,7 @@ template<class T, class Point> class Segment {
     _Intersections.clear();
   }
 
-  inline Point operator[](const unsigned short int &i) const
+  inline Point operator[](const ushort &i) const
   {
     return (i % 2 == 0) ? A : B;
   }

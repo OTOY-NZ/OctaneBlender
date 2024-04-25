@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2008 Blender Foundation. */
+/* SPDX-FileCopyrightText: 2008 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup DNA
@@ -10,10 +11,6 @@
 #include "DNA_ID.h"
 #include "DNA_brush_types.h"
 #include "DNA_listBase.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 struct AnimData;
 struct Curve;
@@ -293,7 +290,7 @@ typedef struct bGPDstroke {
   short caps[2];
 
   /** gradient control along y for color */
-  float hardeness;
+  float hardness;
   /** factor xy of shape for dots gradients */
   float aspect_ratio[2];
 
@@ -720,7 +717,8 @@ typedef struct bGPdata {
    * active frame and the one before it (0 = only the ghost itself).
    */
   short gstep;
-  /** Ghosts After: max number of ghost frames to show after
+  /**
+   * Ghosts After: max number of ghost frames to show after
    * active frame and the following it (0 = only the ghost itself).
    */
   short gstep_next;
@@ -910,7 +908,3 @@ typedef enum eGP_DrawMode {
             GP_VERTEX_MASK_SELECTMODE_SEGMENT)))
 
 #define GPENCIL_PLAY_ON(gpd) ((gpd) && ((gpd)->runtime.playing == 1))
-
-#ifdef __cplusplus
-}
-#endif

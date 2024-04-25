@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2020 Blender Foundation */
+/* SPDX-FileCopyrightText: 2020 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "pipeline_from_ids.h"
 
@@ -7,7 +8,7 @@
 
 #include "intern/builder/deg_builder_nodes.h"
 #include "intern/builder/deg_builder_relations.h"
-#include "intern/depsgraph.h"
+#include "intern/depsgraph.hh"
 
 namespace blender::deg {
 
@@ -95,7 +96,7 @@ void FromIDsBuilderPipeline::build_nodes(DepsgraphNodeBuilder &node_builder)
 {
   node_builder.build_view_layer(scene_, view_layer_, DEG_ID_LINKED_DIRECTLY);
   for (ID *id : ids_) {
-    node_builder.build_id(id);
+    node_builder.build_id(id, true);
   }
 }
 

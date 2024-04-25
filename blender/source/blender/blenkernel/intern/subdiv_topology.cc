@@ -1,13 +1,14 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2019 Blender Foundation */
+/* SPDX-FileCopyrightText: 2019 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bke
  */
 
-#include "BKE_subdiv_topology.h"
+#include "BKE_subdiv_topology.hh"
 
-#include "BKE_subdiv.h"
+#include "BKE_subdiv.hh"
 
 #include "opensubdiv_topology_refiner_capi.h"
 

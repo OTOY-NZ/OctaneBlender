@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_array_utils.hh"
 
@@ -6,10 +8,14 @@
 
 #include "BKE_bvhutils.h"
 #include "BKE_mesh.hh"
-#include "BKE_mesh_runtime.h"
+#include "BKE_mesh_runtime.hh"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "NOD_rna_define.hh"
+
+#include "UI_interface.hh"
+#include "UI_resources.hh"
+
+#include "RNA_enum_types.hh"
 
 #include "node_geometry_util.hh"
 
@@ -17,7 +23,7 @@ namespace blender::nodes {
 
 void get_closest_in_bvhtree(BVHTreeFromMesh &tree_data,
                             const VArray<float3> &positions,
-                            const IndexMask mask,
+                            const IndexMask &mask,
                             const MutableSpan<int> r_indices,
                             const MutableSpan<float> r_distances_sq,
                             const MutableSpan<float3> r_positions)
@@ -26,7 +32,7 @@ void get_closest_in_bvhtree(BVHTreeFromMesh &tree_data,
   BLI_assert(positions.size() >= r_distances_sq.size());
   BLI_assert(positions.size() >= r_positions.size());
 
-  for (const int i : mask) {
+  mask.foreach_index([&](const int i) {
     BVHTreeNearest nearest;
     nearest.dist_sq = FLT_MAX;
     const float3 position = positions[i];
@@ -41,7 +47,7 @@ void get_closest_in_bvhtree(BVHTreeFromMesh &tree_data,
     if (!r_positions.is_empty()) {
       r_positions[i] = nearest.co;
     }
-  }
+  });
 }
 
 }  // namespace blender::nodes
@@ -51,14 +57,14 @@ namespace blender::nodes::node_geo_sample_nearest_cc {
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Geometry>("Geometry")
-      .supported_type({GEO_COMPONENT_TYPE_MESH, GEO_COMPONENT_TYPE_POINT_CLOUD});
+      .supported_type({GeometryComponent::Type::Mesh, GeometryComponent::Type::PointCloud});
   b.add_input<decl::Vector>("Sample Position").implicit_field(implicit_field_inputs::position);
   b.add_output<decl::Int>("Index").dependent_field({1});
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "domain", 0, "", ICON_NONE);
+  uiItemR(layout, ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -69,7 +75,7 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 
 static void get_closest_pointcloud_points(const PointCloud &pointcloud,
                                           const VArray<float3> &positions,
-                                          const IndexMask mask,
+                                          const IndexMask &mask,
                                           MutableSpan<int> r_indices,
                                           MutableSpan<float> r_distances_sq)
 {
@@ -84,7 +90,7 @@ static void get_closest_pointcloud_points(const PointCloud &pointcloud,
     return;
   }
 
-  for (const int i : mask) {
+  mask.foreach_index([&](const int i) {
     BVHTreeNearest nearest;
     nearest.dist_sq = FLT_MAX;
     const float3 position = positions[i];
@@ -94,14 +100,14 @@ static void get_closest_pointcloud_points(const PointCloud &pointcloud,
     if (!r_distances_sq.is_empty()) {
       r_distances_sq[i] = nearest.dist_sq;
     }
-  }
+  });
 
   free_bvhtree_from_pointcloud(&tree_data);
 }
 
 static void get_closest_mesh_points(const Mesh &mesh,
                                     const VArray<float3> &positions,
-                                    const IndexMask mask,
+                                    const IndexMask &mask,
                                     const MutableSpan<int> r_point_indices,
                                     const MutableSpan<float> r_distances_sq,
                                     const MutableSpan<float3> r_positions)
@@ -115,7 +121,7 @@ static void get_closest_mesh_points(const Mesh &mesh,
 
 static void get_closest_mesh_edges(const Mesh &mesh,
                                    const VArray<float3> &positions,
-                                   const IndexMask mask,
+                                   const IndexMask &mask,
                                    const MutableSpan<int> r_edge_indices,
                                    const MutableSpan<float> r_distances_sq,
                                    const MutableSpan<float3> r_positions)
@@ -129,12 +135,12 @@ static void get_closest_mesh_edges(const Mesh &mesh,
 
 static void get_closest_mesh_looptris(const Mesh &mesh,
                                       const VArray<float3> &positions,
-                                      const IndexMask mask,
+                                      const IndexMask &mask,
                                       const MutableSpan<int> r_looptri_indices,
                                       const MutableSpan<float> r_distances_sq,
                                       const MutableSpan<float3> r_positions)
 {
-  BLI_assert(mesh.totpoly > 0);
+  BLI_assert(mesh.faces_num > 0);
   BVHTreeFromMesh tree_data;
   BKE_bvhtree_from_mesh_get(&tree_data, &mesh, BVHTREE_FROM_LOOPTRI, 2);
   get_closest_in_bvhtree(
@@ -142,50 +148,48 @@ static void get_closest_mesh_looptris(const Mesh &mesh,
   free_bvhtree_from_mesh(&tree_data);
 }
 
-static void get_closest_mesh_polys(const Mesh &mesh,
+static void get_closest_mesh_faces(const Mesh &mesh,
                                    const VArray<float3> &positions,
-                                   const IndexMask mask,
-                                   const MutableSpan<int> r_poly_indices,
+                                   const IndexMask &mask,
+                                   const MutableSpan<int> r_face_indices,
                                    const MutableSpan<float> r_distances_sq,
                                    const MutableSpan<float3> r_positions)
 {
-  BLI_assert(mesh.totpoly > 0);
+  BLI_assert(mesh.faces_num > 0);
 
   Array<int> looptri_indices(positions.size());
   get_closest_mesh_looptris(mesh, positions, mask, looptri_indices, r_distances_sq, r_positions);
 
-  const Span<int> looptri_polys = mesh.looptri_polys();
+  const Span<int> looptri_faces = mesh.looptri_faces();
 
-  for (const int i : mask) {
-    r_poly_indices[i] = looptri_polys[looptri_indices[i]];
-  }
+  mask.foreach_index([&](const int i) { r_face_indices[i] = looptri_faces[looptri_indices[i]]; });
 }
 
 /* The closest corner is defined to be the closest corner on the closest face. */
 static void get_closest_mesh_corners(const Mesh &mesh,
                                      const VArray<float3> &positions,
-                                     const IndexMask mask,
+                                     const IndexMask &mask,
                                      const MutableSpan<int> r_corner_indices,
                                      const MutableSpan<float> r_distances_sq,
                                      const MutableSpan<float3> r_positions)
 {
   const Span<float3> vert_positions = mesh.vert_positions();
-  const OffsetIndices polys = mesh.polys();
+  const OffsetIndices faces = mesh.faces();
   const Span<int> corner_verts = mesh.corner_verts();
 
   BLI_assert(mesh.totloop > 0);
-  Array<int> poly_indices(positions.size());
-  get_closest_mesh_polys(mesh, positions, mask, poly_indices, {}, {});
+  Array<int> face_indices(positions.size());
+  get_closest_mesh_faces(mesh, positions, mask, face_indices, {}, {});
 
-  for (const int i : mask) {
+  mask.foreach_index([&](const int i) {
     const float3 position = positions[i];
-    const int poly_index = poly_indices[i];
+    const int face_index = face_indices[i];
 
-    /* Find the closest vertex in the polygon. */
+    /* Find the closest vertex in the face. */
     float min_distance_sq = FLT_MAX;
     int closest_vert_index = 0;
     int closest_loop_index = 0;
-    for (const int loop_index : polys[poly_index]) {
+    for (const int loop_index : faces[face_index]) {
       const int vertex_index = corner_verts[loop_index];
       const float distance_sq = math::distance_squared(position, vert_positions[vertex_index]);
       if (distance_sq < min_distance_sq) {
@@ -203,17 +207,17 @@ static void get_closest_mesh_corners(const Mesh &mesh,
     if (!r_distances_sq.is_empty()) {
       r_distances_sq[i] = min_distance_sq;
     }
-  }
+  });
 }
 
 static bool component_is_available(const GeometrySet &geometry,
-                                   const GeometryComponentType type,
+                                   const GeometryComponent::Type type,
                                    const eAttrDomain domain)
 {
   if (!geometry.has(type)) {
     return false;
   }
-  const GeometryComponent &component = *geometry.get_component_for_read(type);
+  const GeometryComponent &component = *geometry.get_component(type);
   return component.attribute_domain_size(domain) != 0;
 }
 
@@ -222,13 +226,11 @@ static const GeometryComponent *find_source_component(const GeometrySet &geometr
 {
   /* Choose the other component based on a consistent order, rather than some more complicated
    * heuristic. This is the same order visible in the spreadsheet and used in the ray-cast node. */
-  static const Array<GeometryComponentType> supported_types = {GEO_COMPONENT_TYPE_MESH,
-                                                               GEO_COMPONENT_TYPE_POINT_CLOUD,
-                                                               GEO_COMPONENT_TYPE_CURVE,
-                                                               GEO_COMPONENT_TYPE_INSTANCES};
-  for (const GeometryComponentType src_type : supported_types) {
+  static const Array<GeometryComponent::Type> supported_types = {
+      GeometryComponent::Type::Mesh, GeometryComponent::Type::PointCloud};
+  for (const GeometryComponent::Type src_type : supported_types) {
     if (component_is_available(geometry, src_type, domain)) {
-      return geometry.get_component_for_read(src_type);
+      return geometry.get_component(src_type);
     }
   }
 
@@ -256,19 +258,19 @@ class SampleNearestFunction : public mf::MultiFunction {
     this->set_signature(&signature_);
   }
 
-  void call(IndexMask mask, mf::Params params, mf::Context /*context*/) const override
+  void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
   {
     const VArray<float3> &positions = params.readonly_single_input<float3>(0, "Position");
     MutableSpan<int> indices = params.uninitialized_single_output<int>(1, "Index");
     if (!src_component_) {
-      indices.fill_indices(mask.indices(), 0);
+      index_mask::masked_fill(indices, 0, mask);
       return;
     }
 
     switch (src_component_->type()) {
-      case GEO_COMPONENT_TYPE_MESH: {
+      case GeometryComponent::Type::Mesh: {
         const MeshComponent &component = *static_cast<const MeshComponent *>(src_component_);
-        const Mesh &mesh = *component.get_for_read();
+        const Mesh &mesh = *component.get();
         switch (domain_) {
           case ATTR_DOMAIN_POINT:
             get_closest_mesh_points(mesh, positions, mask, indices, {}, {});
@@ -277,7 +279,7 @@ class SampleNearestFunction : public mf::MultiFunction {
             get_closest_mesh_edges(mesh, positions, mask, indices, {}, {});
             break;
           case ATTR_DOMAIN_FACE:
-            get_closest_mesh_polys(mesh, positions, mask, indices, {}, {});
+            get_closest_mesh_faces(mesh, positions, mask, indices, {}, {});
             break;
           case ATTR_DOMAIN_CORNER:
             get_closest_mesh_corners(mesh, positions, mask, indices, {}, {});
@@ -287,10 +289,10 @@ class SampleNearestFunction : public mf::MultiFunction {
         }
         break;
       }
-      case GEO_COMPONENT_TYPE_POINT_CLOUD: {
+      case GeometryComponent::Type::PointCloud: {
         const PointCloudComponent &component = *static_cast<const PointCloudComponent *>(
             src_component_);
-        const PointCloud &points = *component.get_for_read();
+        const PointCloud &points = *component.get();
         get_closest_pointcloud_points(points, positions, mask, indices, {});
         break;
       }
@@ -317,18 +319,30 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output<Field<int>>("Index", Field<int>(std::move(op)));
 }
 
-}  // namespace blender::nodes::node_geo_sample_nearest_cc
-
-void register_node_type_geo_sample_nearest()
+static void node_rna(StructRNA *srna)
 {
-  namespace file_ns = blender::nodes::node_geo_sample_nearest_cc;
+  RNA_def_node_enum(srna,
+                    "domain",
+                    "Domain",
+                    "",
+                    rna_enum_attribute_domain_only_mesh_items,
+                    NOD_inline_enum_accessors(custom2),
+                    ATTR_DOMAIN_POINT);
+}
 
+static void node_register()
+{
   static bNodeType ntype;
 
   geo_node_type_base(&ntype, GEO_NODE_SAMPLE_NEAREST, "Sample Nearest", NODE_CLASS_GEOMETRY);
-  ntype.initfunc = file_ns::node_init;
-  ntype.declare = file_ns::node_declare;
-  ntype.geometry_node_execute = file_ns::node_geo_exec;
-  ntype.draw_buttons = file_ns::node_layout;
+  ntype.initfunc = node_init;
+  ntype.declare = node_declare;
+  ntype.geometry_node_execute = node_geo_exec;
+  ntype.draw_buttons = node_layout;
   nodeRegisterType(&ntype);
+
+  node_rna(ntype.rna_ext.srna);
 }
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_geo_sample_nearest_cc

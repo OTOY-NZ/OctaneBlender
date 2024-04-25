@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2011 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -20,6 +21,7 @@ struct MovieClipUser;
 struct MovieDistortion;
 struct MovieReconstructContext;
 struct MovieTracking;
+struct MovieTrackingCamera;
 struct MovieTrackingMarker;
 struct MovieTrackingObject;
 struct MovieTrackingPlaneMarker;
@@ -215,7 +217,7 @@ bool BKE_tracking_track_has_enabled_marker_at_frame(struct MovieTrackingTrack *t
  * \note frame number should be in clip space, not scene space.
  */
 typedef enum eTrackClearAction {
-  /* Clear path from `ref_frame+1` up to the . */
+  /* Clear path from `ref_frame+1` up to the. */
   TRACK_CLEAR_UPTO,
   /* Clear path from the beginning up to `ref_frame-1`. */
   TRACK_CLEAR_REMAINED,
@@ -462,6 +464,16 @@ void BKE_tracking_camera_principal_point_pixel_get(struct MovieClip *clip,
                                                    float r_principal_point_pixel[2]);
 void BKE_tracking_camera_principal_point_pixel_set(struct MovieClip *clip,
                                                    const float principal_point_pixel[2]);
+
+/* Compares distortion related parameters of camera. Ideally, this implementation will be
+ * abstracted away in the future, but for now, one needs to be careful about it and handle any
+ * extra parameters of distortions models. */
+bool BKE_tracking_camera_distortion_equal(const struct MovieTrackingCamera *a,
+                                          const struct MovieTrackingCamera *b);
+/* Hashes distortion related parameters of camera. Ideally, this implementation will be
+ * abstracted away in the future, but for now, one needs to be careful about it and handle any
+ * extra parameters of distortions models. */
+uint64_t BKE_tracking_camera_distortion_hash(const struct MovieTrackingCamera *camera);
 
 /* --------------------------------------------------------------------
  * (Un)distortion.

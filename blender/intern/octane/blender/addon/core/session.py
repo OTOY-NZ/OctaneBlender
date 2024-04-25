@@ -143,6 +143,8 @@ class RenderSession(object):
         OctaneBlender().start_render(cache_path, is_viewport, self.use_shared_surface)
         if is_viewport:
             bpy.app.timers.register(self.update_viewport_render_result)
+            # Fix the problem that Octane's shading type does not be updated when users use shortcut to start a preview render session
+            utility.update_octane_viewport_shading_type("RENDERED")
         self.is_render_started = True
         self.render_start_time = time.time()
 
@@ -150,6 +152,9 @@ class RenderSession(object):
         OctaneBlender().stop_render()
         ResourceCache().reset()
         self.is_render_started = False
+        # Fix the problem that Octane's shading type does not be updated when users use shortcut to start a preview render session
+        utility.update_octane_viewport_shading_type()
+        OctaneBlender().utils_function(consts.UtilsFunctionType.RENDER_STOP, "")
         return True
 
     def reset_render(self):
@@ -160,11 +165,25 @@ class RenderSession(object):
         return time.time() - self.render_start_time
 
     def set_resolution(self, width, height, update_now=True):
-        use_border = False
-        region_start_x = 0
-        region_start_y = 0
-        region_width = 65535
-        region_height = 65535
+        camera_border_box = self.scene_cache.camera_border_box
+        if camera_border_box is not None:
+            use_border = True
+            border_width = camera_border_box.right - camera_border_box.left
+            border_height = camera_border_box.top - camera_border_box.bottom
+            region_left = int(camera_border_box.left * width)
+            region_bottom = int(camera_border_box.bottom * height)
+            region_right = int(camera_border_box.right * width)
+            region_top = int(camera_border_box.top * height)
+            region_width = region_right - region_left
+            region_height = region_top - region_bottom
+            region_start_x = region_left
+            region_start_y = height - region_bottom - region_height
+        else:
+            use_border = False
+            region_start_x = 0
+            region_start_y = 0
+            region_width = 65535
+            region_height = 65535
         OctaneBlender().set_resolution(width, height, use_border, False, region_start_x, region_start_y, region_width, region_height, update_now)
 
     def update_graph_time(self, scene):

@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2016 by Mike Erwin. All rights reserved. */
+/* SPDX-FileCopyrightText: 2016 by Mike Erwin. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup gpu
@@ -127,6 +128,11 @@ void GLVaoCache::remove(const GLShaderInterface *interface)
       interfaces[i] = nullptr;
       break; /* cannot have duplicates */
     }
+  }
+
+  if (interface_ == interface) {
+    interface_ = nullptr;
+    vao_id_ = 0;
   }
 }
 

@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2020 Blender Foundation */
+/* SPDX-FileCopyrightText: 2020 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup gpu
@@ -76,9 +77,7 @@ class GLFrameBuffer : public FrameBuffer {
                         const void *clear_value) override;
 
   /* Attachment load-stores are currently no-op's in OpenGL. */
-  void attachment_set_loadstore_op(GPUAttachmentType /*type*/,
-                                   eGPULoadOp /*load_action*/,
-                                   eGPUStoreOp /*store_action*/) override{};
+  void attachment_set_loadstore_op(GPUAttachmentType /*type*/, GPULoadStore /*ls*/) override{};
 
   void read(eGPUFrameBufferBits planes,
             eGPUDataFormat format,

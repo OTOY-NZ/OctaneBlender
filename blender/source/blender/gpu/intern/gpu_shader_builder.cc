@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2021 Blender Foundation */
+/* SPDX-FileCopyrightText: 2021 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup gpu
@@ -42,21 +43,23 @@ void ShaderBuilder::init()
 {
   CLG_init();
 
-  GHOST_GLSettings glSettings = {0};
+  GHOST_GPUSettings gpuSettings = {0};
   switch (GPU_backend_type_selection_get()) {
+#ifdef WITH_OPENGL_BACKEND
     case GPU_BACKEND_OPENGL:
-      glSettings.context_type = GHOST_kDrawingContextTypeOpenGL;
+      gpuSettings.context_type = GHOST_kDrawingContextTypeOpenGL;
       break;
+#endif
 
 #ifdef WITH_METAL_BACKEND
     case GPU_BACKEND_METAL:
-      glSettings.context_type = GHOST_kDrawingContextTypeMetal;
+      gpuSettings.context_type = GHOST_kDrawingContextTypeMetal;
       break;
 #endif
 
 #ifdef WITH_VULKAN_BACKEND
     case GPU_BACKEND_VULKAN:
-      glSettings.context_type = GHOST_kDrawingContextTypeVulkan;
+      gpuSettings.context_type = GHOST_kDrawingContextTypeVulkan;
       break;
 #endif
 
@@ -66,8 +69,8 @@ void ShaderBuilder::init()
   }
 
   ghost_system_ = GHOST_CreateSystemBackground();
-  ghost_context_ = GHOST_CreateOpenGLContext(ghost_system_, glSettings);
-  GHOST_ActivateOpenGLContext(ghost_context_);
+  ghost_context_ = GHOST_CreateGPUContext(ghost_system_, gpuSettings);
+  GHOST_ActivateGPUContext(ghost_context_);
 
   gpu_context_ = GPU_context_create(nullptr, ghost_context_);
   GPU_init();
@@ -79,7 +82,7 @@ void ShaderBuilder::exit()
 
   GPU_context_discard(gpu_context_);
 
-  GHOST_DisposeOpenGLContext(ghost_system_, ghost_context_);
+  GHOST_DisposeGPUContext(ghost_system_, ghost_context_);
   GHOST_DisposeSystem(ghost_system_);
 
   CLG_exit();
@@ -103,7 +106,9 @@ int main(int argc, const char *argv[])
   };
 
   blender::Vector<NamedBackend> backends_to_validate;
+#ifdef WITH_OPENGL_BACKEND
   backends_to_validate.append({"OpenGL", GPU_BACKEND_OPENGL});
+#endif
 #ifdef WITH_METAL_BACKEND
   backends_to_validate.append({"Metal", GPU_BACKEND_METAL});
 #endif

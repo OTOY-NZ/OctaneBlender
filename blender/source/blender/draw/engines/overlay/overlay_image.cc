@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2019 Blender Foundation. */
+/* SPDX-FileCopyrightText: 2019 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup draw_engine
@@ -10,16 +11,17 @@
 #include "BKE_camera.h"
 #include "BKE_image.h"
 #include "BKE_movieclip.h"
-#include "BKE_object.h"
+#include "BKE_object.hh"
 
 #include "BLI_listbase.h"
+#include "BLI_math_rotation.h"
 
 #include "DNA_camera_types.h"
 #include "DNA_screen_types.h"
 
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_query.hh"
 
-#include "ED_view3d.h"
+#include "ED_view3d.hh"
 
 #include "IMB_imbuf_types.h"
 
@@ -120,12 +122,12 @@ static void camera_background_images_stereo_setup(const Scene *scene,
   }
 }
 
-static struct GPUTexture *image_camera_background_texture_get(CameraBGImage *bgpic,
-                                                              const DRWContextState *draw_ctx,
-                                                              OVERLAY_PrivateData *pd,
-                                                              float *r_aspect,
-                                                              bool *r_use_alpha_premult,
-                                                              bool *r_use_view_transform)
+static GPUTexture *image_camera_background_texture_get(CameraBGImage *bgpic,
+                                                       const DRWContextState *draw_ctx,
+                                                       OVERLAY_PrivateData *pd,
+                                                       float *r_aspect,
+                                                       bool *r_use_alpha_premult,
+                                                       bool *r_use_view_transform)
 {
   void *lock;
   Image *image = bgpic->ima;
@@ -220,8 +222,7 @@ static struct GPUTexture *image_camera_background_texture_get(CameraBGImage *bgp
 static void OVERLAY_image_free_movieclips_textures(OVERLAY_Data *data)
 {
   /* Free Movie clip textures after rendering */
-  LinkData *link;
-  while ((link = static_cast<LinkData *>(BLI_pophead(&data->stl->pd->bg_movie_clips)))) {
+  while (LinkData *link = static_cast<LinkData *>(BLI_pophead(&data->stl->pd->bg_movie_clips))) {
     MovieClip *clip = (MovieClip *)link->data;
     BKE_movieclip_free_gputexture(clip);
     MEM_freeN(link);
@@ -400,7 +401,8 @@ void OVERLAY_image_empty_cache_populate(OVERLAY_Data *vedata, Object *ob)
   }
 
   /* Use the actual depth if we are doing depth tests to determine the distance to the object */
-  char depth_mode = DRW_state_is_depth() ? OB_EMPTY_IMAGE_DEPTH_DEFAULT : ob->empty_image_depth;
+  char depth_mode = DRW_state_is_depth() ? char(OB_EMPTY_IMAGE_DEPTH_DEFAULT) :
+                                           ob->empty_image_depth;
   DRWPass *pass = nullptr;
   if ((ob->dtx & OB_DRAW_IN_FRONT) != 0) {
     /* Object In Front overrides image empty depth mode. */

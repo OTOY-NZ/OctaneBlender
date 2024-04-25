@@ -1,11 +1,21 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2005 Blender Foundation */
+/* SPDX-FileCopyrightText: 2005 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup shdnodes
  */
 
 #include "node_shader_util.hh"
+#include "node_util.hh"
+
+#include "BKE_material.h"
+
+#include "BLI_math_vector.h"
+
+#include "DNA_material_types.h"
+
+#include "NOD_multi_function.hh"
 
 namespace blender::nodes::node_shader_mix_rgb_cc {
 
@@ -111,7 +121,7 @@ class MixRGBFunction : public mf::MultiFunction {
     this->set_signature(&signature);
   }
 
-  void call(IndexMask mask, mf::Params params, mf::Context /*context*/) const override
+  void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
   {
     const VArray<float> &fac = params.readonly_single_input<float>(0, "Fac");
     const VArray<ColorGeometry4f> &col1 = params.readonly_single_input<ColorGeometry4f>(1,
@@ -121,15 +131,13 @@ class MixRGBFunction : public mf::MultiFunction {
     MutableSpan<ColorGeometry4f> results = params.uninitialized_single_output<ColorGeometry4f>(
         3, "Color");
 
-    for (int64_t i : mask) {
+    mask.foreach_index([&](const int64_t i) {
       results[i] = col1[i];
       ramp_blend(type_, results[i], clamp_f(fac[i], 0.0f, 1.0f), col2[i]);
-    }
+    });
 
     if (clamp_) {
-      for (int64_t i : mask) {
-        clamp_v3(results[i], 0.0f, 1.0f);
-      }
+      mask.foreach_index([&](const int64_t i) { clamp_v3(results[i], 0.0f, 1.0f); });
     }
   }
 };
@@ -156,6 +164,5 @@ void register_node_type_sh_mix_rgb()
   ntype.gpu_fn = file_ns::gpu_shader_mix_rgb;
   ntype.build_multi_function = file_ns::sh_node_mix_rgb_build_multi_function;
   ntype.gather_link_search_ops = nullptr;
-  ntype.gather_add_node_search_ops = nullptr;
   nodeRegisterType(&ntype);
 }

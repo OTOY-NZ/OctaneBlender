@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2004 Blender Foundation */
+/* SPDX-FileCopyrightText: 2004 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -73,6 +74,8 @@ int SEQ_time_find_next_prev_edit(struct Scene *scene,
 bool SEQ_time_strip_intersects_frame(const struct Scene *scene,
                                      const struct Sequence *seq,
                                      int timeline_frame);
+/* Convert timeline frame so strip frame index. */
+float SEQ_give_frame_index(const struct Scene *scene, struct Sequence *seq, float timeline_frame);
 /**
  * Returns true if strip has frames without content to render.
  */
@@ -112,13 +115,6 @@ void SEQ_time_right_handle_frame_set(const struct Scene *scene,
  */
 int SEQ_time_strip_length_get(const struct Scene *scene, const struct Sequence *seq);
 /**
- * Set strip playback speed.
- * Strip length is affected by changing speed factor.
- */
-void SEQ_time_speed_factor_set(const struct Scene *scene,
-                               struct Sequence *seq,
-                               const float speed_factor);
-/**
  * Get timeline frame where strip content starts.
  */
 float SEQ_time_start_frame_get(const struct Sequence *seq);
@@ -138,7 +134,6 @@ void SEQ_time_start_frame_set(const struct Scene *scene, struct Sequence *seq, i
  * \note this function is currently only used internally and in versioning code.
  */
 void SEQ_time_update_meta_strip_range(const struct Scene *scene, struct Sequence *seq_meta);
-
 #ifdef __cplusplus
 }
 #endif

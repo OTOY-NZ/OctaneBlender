@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2009 Blender Foundation */
+/* SPDX-FileCopyrightText: 2009 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup blf
@@ -14,11 +15,11 @@
 extern "C" {
 #endif
 
-/* Name of subfolder inside BLENDER_DATAFILES that contains font files. */
+/* Name of sub-directory inside #BLENDER_DATAFILES that contains font files. */
 #define BLF_DATAFILES_FONTS_DIR "fonts"
 
 /* File name of the default variable-width font. */
-#define BLF_DEFAULT_PROPORTIONAL_FONT "DejaVuSans.woff2"
+#define BLF_DEFAULT_PROPORTIONAL_FONT "Inter.woff2"
 
 /* File name of the default fixed-pitch font. */
 #define BLF_DEFAULT_MONOSPACED_FONT "DejaVuSansMono.woff2"
@@ -127,7 +128,8 @@ void BLF_batch_draw_end(void);
 void BLF_draw_ex(int fontid, const char *str, size_t str_len, struct ResultBLF *r_info)
     ATTR_NONNULL(2);
 void BLF_draw(int fontid, const char *str, size_t str_len) ATTR_NONNULL(2);
-int BLF_draw_mono(int fontid, const char *str, size_t str_len, int cwidth) ATTR_NONNULL(2);
+int BLF_draw_mono(int fontid, const char *str, size_t str_len, int cwidth, int tab_columns)
+    ATTR_NONNULL(2);
 
 typedef bool (*BLF_GlyphBoundsFn)(const char *str,
                                   size_t str_step_ofs,
@@ -290,7 +292,7 @@ void BLF_draw_buffer_ex(int fontid, const char *str, size_t str_len, struct Resu
     ATTR_NONNULL(2);
 void BLF_draw_buffer(int fontid, const char *str, size_t str_len) ATTR_NONNULL(2);
 
-/* blf_thumbs.c */
+/* `blf_thumbs.cc` */
 
 /**
  * This function is used for generating thumbnail previews.
@@ -300,7 +302,7 @@ void BLF_draw_buffer(int fontid, const char *str, size_t str_len) ATTR_NONNULL(2
 bool BLF_thumb_preview(const char *filename, unsigned char *buf, int w, int h, int channels)
     ATTR_NONNULL();
 
-/* blf_default.c */
+/* `blf_default.cc` */
 
 void BLF_default_size(float size);
 void BLF_default_set(int fontid);
@@ -317,7 +319,7 @@ void BLF_draw_default(float x, float y, float z, const char *str, size_t str_len
  */
 int BLF_set_default(void);
 
-/* blf_font_default.c */
+/* `blf_font_default.cc` */
 
 int BLF_load_default(bool unique);
 int BLF_load_mono_default(bool unique);
@@ -353,6 +355,8 @@ enum {
   BLF_BAD_FONT = 1 << 16,
   /** This font is managed by the FreeType cache subsystem. */
   BLF_CACHED = 1 << 17,
+  /** At small sizes glyphs are rendered at multiple sub-pixel positions. */
+  BLF_RENDER_SUBPIXELAA = 1 << 18,
 };
 
 #define BLF_DRAW_STR_DUMMY_MAX 1024

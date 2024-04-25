@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup DNA
@@ -8,10 +10,6 @@
 
 #include "DNA_defs.h"
 #include "DNA_listBase.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 struct LatticeDeformData;
 struct ShrinkwrapTreeData;
@@ -322,7 +320,7 @@ typedef struct OpacityGpencilModifierData {
   /** Custom index for passes. */
   int layer_pass;
 
-  float hardeness;
+  float hardness;
   struct CurveMapping *curve_intensity;
 } OpacityGpencilModifierData;
 
@@ -1245,8 +1243,9 @@ typedef struct ShrinkwrapGpencilModifierData {
   /** Axis to project over. */
   char proj_axis;
 
-  /** If using projection over vertex normal this controls the level of subsurface that must be
-   * done before getting the vertex coordinates and normal
+  /**
+   * If using projection over vertex normal this controls the level of subsurface that must be
+   * done before getting the vertex coordinates and normal.
    */
   char subsurf_levels;
   char _pad[6];
@@ -1311,7 +1310,3 @@ typedef enum eEnvelopeGpencil_Mode {
   GP_ENVELOPE_SEGMENTS = 1,
   GP_ENVELOPE_FILLS = 2,
 } eEnvelopeGpencil_Mode;
-
-#ifdef __cplusplus
-}
-#endif

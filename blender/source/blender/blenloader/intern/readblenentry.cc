@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup blenloader
@@ -25,15 +26,15 @@
 #include "DNA_sdna_types.h"
 
 #include "BKE_asset.h"
-#include "BKE_icons.h"
 #include "BKE_idtype.h"
 #include "BKE_main.h"
+#include "BKE_preview_image.hh"
 
-#include "BLO_blend_defs.h"
+#include "BLO_blend_defs.hh"
 #include "BLO_readfile.h"
-#include "BLO_undofile.h"
+#include "BLO_undofile.hh"
 
-#include "readfile.h"
+#include "readfile.hh"
 
 #include "BLI_sys_types.h" /* Needed for `intptr_t`. */
 
@@ -44,7 +45,7 @@
 /* local prototypes --------------------- */
 void BLO_blendhandle_print_sizes(BlendHandle *bh, void *fp);
 
-/* Access routines used by filesel. */
+/* Access routines used by file-selector. */
 
 void BLO_datablock_info_free(BLODataBlockInfo *datablock_info)
 {
@@ -157,7 +158,7 @@ LinkNode *BLO_blendhandle_get_datablock_info(BlendHandle *bh,
   BHead *bhead;
   int tot = 0;
 
-  const int sdna_nr_preview_image = DNA_struct_find_nr(fd->filesdna, "PreviewImage");
+  const int sdna_nr_preview_image = DNA_struct_find_with_alias(fd->filesdna, "PreviewImage");
 
   for (bhead = blo_bhead_first(fd); bhead; bhead = blo_bhead_next(fd, bhead)) {
     if (bhead->code == BLO_CODE_ENDB) {
@@ -174,7 +175,7 @@ LinkNode *BLO_blendhandle_get_datablock_info(BlendHandle *bh,
       if (skip_datablock) {
         continue;
       }
-      struct BLODataBlockInfo *info = static_cast<BLODataBlockInfo *>(
+      BLODataBlockInfo *info = static_cast<BLODataBlockInfo *>(
           MEM_mallocN(sizeof(*info), __func__));
 
       /* Lastly, read asset data from the following blocks. */
@@ -260,7 +261,7 @@ PreviewImage *BLO_blendhandle_get_preview_for_id(BlendHandle *bh,
 {
   FileData *fd = (FileData *)bh;
   bool looking = false;
-  const int sdna_preview_image = DNA_struct_find_nr(fd->filesdna, "PreviewImage");
+  const int sdna_preview_image = DNA_struct_find_with_alias(fd->filesdna, "PreviewImage");
 
   for (BHead *bhead = blo_bhead_first(fd); bhead; bhead = blo_bhead_next(fd, bhead)) {
     if (bhead->code == BLO_CODE_DATA) {
@@ -271,6 +272,7 @@ PreviewImage *BLO_blendhandle_get_preview_for_id(BlendHandle *bh,
         if (preview_from_file == nullptr) {
           break;
         }
+        BKE_previewimg_runtime_data_clear(preview_from_file);
 
         PreviewImage *result = static_cast<PreviewImage *>(MEM_dupallocN(preview_from_file));
         bhead = blo_blendhandle_read_preview_rects(fd, bhead, result, preview_from_file);
@@ -329,10 +331,12 @@ LinkNode *BLO_blendhandle_get_previews(BlendHandle *bh, int ofblocktype, int *r_
     }
     else if (bhead->code == BLO_CODE_DATA) {
       if (looking) {
-        if (bhead->SDNAnr == DNA_struct_find_nr(fd->filesdna, "PreviewImage")) {
+        if (bhead->SDNAnr == DNA_struct_find_with_alias(fd->filesdna, "PreviewImage")) {
           prv = static_cast<PreviewImage *>(BLO_library_read_struct(fd, bhead, "PreviewImage"));
 
           if (prv) {
+            BKE_previewimg_runtime_data_clear(prv);
+
             memcpy(new_prv, prv, sizeof(PreviewImage));
             bhead = blo_blendhandle_read_preview_rects(fd, bhead, new_prv, prv);
             MEM_freeN(prv);
@@ -440,7 +444,7 @@ BlendFileData *BLO_read_from_memory(const void *mem,
 BlendFileData *BLO_read_from_memfile(Main *oldmain,
                                      const char *filepath,
                                      MemFile *memfile,
-                                     const struct BlendFileReadParams *params,
+                                     const BlendFileReadParams *params,
                                      ReportList *reports)
 {
   BlendFileData *bfd = nullptr;
@@ -454,21 +458,20 @@ BlendFileData *BLO_read_from_memfile(Main *oldmain,
     fd->skip_flags = eBLOReadSkip(params->skip_flags);
     STRNCPY(fd->relabase, filepath);
 
-    /* separate libraries from old main */
+    /* Build old ID map for all old IDs. */
+    blo_make_old_idmap_from_main(fd, oldmain);
+
+    /* Separate linked data from old main. */
     blo_split_main(&old_mainlist, oldmain);
-    /* add the library pointers in oldmap lookup */
-    blo_add_library_pointer_map(&old_mainlist, fd);
+    fd->old_mainlist = &old_mainlist;
 
-    if ((params->skip_flags & BLO_READ_SKIP_UNDO_OLD_MAIN) == 0) {
-      /* Build idmap of old main (we only care about local data here, so we can do that after
-       * split_main() call. */
-      blo_make_old_idmap_from_main(fd, static_cast<Main *>(old_mainlist.first));
-    }
-
-    /* removed packed data from this trick - it's internal data that needs saves */
+    /* Removed packed data from this trick - it's internal data that needs saves. */
 
     /* Store all existing ID caches pointers into a mapping, to allow restoring them into newly
-     * read IDs whenever possible. */
+     * read IDs whenever possible.
+     *
+     * Note that this is only required for local data, since linked data are always re-used
+     * 'as-is'. */
     blo_cache_storage_init(fd, oldmain);
 
     bfd = blo_read_file_internal(fd, filepath);
@@ -501,4 +504,9 @@ void BLO_blendfiledata_free(BlendFileData *bfd)
   }
 
   MEM_freeN(bfd);
+}
+
+void BLO_read_do_version_after_setup(Main *new_bmain, BlendFileReadReport *reports)
+{
+  do_versions_after_setup(new_bmain, reports);
 }

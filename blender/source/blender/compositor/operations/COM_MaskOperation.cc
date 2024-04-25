@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2012 Blender Foundation. */
+/* SPDX-FileCopyrightText: 2012 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "COM_MaskOperation.h"
 
@@ -42,12 +43,9 @@ void MaskOperation::init_execution()
 
       /* trick so we can get unkeyed edits to display */
       {
-        MaskLayer *masklay;
-        MaskLayerShape *masklay_shape;
-
-        for (masklay = (MaskLayer *)mask_temp->masklayers.first; masklay; masklay = masklay->next)
-        {
-          masklay_shape = BKE_mask_layer_shape_verify_frame(masklay, frame_number_);
+        LISTBASE_FOREACH (MaskLayer *, masklay, &mask_temp->masklayers) {
+          MaskLayerShape *masklay_shape = BKE_mask_layer_shape_verify_frame(masklay,
+                                                                            frame_number_);
           BKE_mask_layer_shape_from_mask(masklay, masklay_shape);
         }
       }

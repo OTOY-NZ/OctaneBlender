@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright Blender Foundation */
+/* SPDX-FileCopyrightText: Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 #pragma once
 
 /** \file
@@ -72,10 +73,10 @@ typedef struct ShrinkwrapTreeData {
   BVHTree *bvh;
   BVHTreeFromMesh treeData;
 
-  const int *poly_offsets;
+  const int *face_offsets;
   const float (*vert_normals)[3];
   const int *corner_edges;
-  const float (*poly_normals)[3];
+  const float (*face_normals)[3];
   const bool *sharp_faces;
   const float (*clnors)[3];
   ShrinkwrapBoundaryData *boundary;

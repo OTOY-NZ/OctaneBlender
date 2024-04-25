@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2013 Blender Foundation */
+/* SPDX-FileCopyrightText: 2013 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup depsgraph
@@ -7,7 +8,7 @@
  * Core routines for how the Depsgraph works.
  */
 
-#include "intern/depsgraph.h" /* own include */
+#include "intern/depsgraph.hh" /* own include */
 
 #include <algorithm>
 #include <cstring>
@@ -22,22 +23,22 @@
 #include "BKE_idtype.h"
 #include "BKE_scene.h"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_debug.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_debug.hh"
 
-#include "intern/depsgraph_physics.h"
-#include "intern/depsgraph_registry.h"
-#include "intern/depsgraph_relation.h"
-#include "intern/depsgraph_update.h"
+#include "intern/depsgraph_physics.hh"
+#include "intern/depsgraph_registry.hh"
+#include "intern/depsgraph_relation.hh"
+#include "intern/depsgraph_update.hh"
 
 #include "intern/eval/deg_eval_copy_on_write.h"
 
-#include "intern/node/deg_node.h"
-#include "intern/node/deg_node_component.h"
-#include "intern/node/deg_node_factory.h"
-#include "intern/node/deg_node_id.h"
-#include "intern/node/deg_node_operation.h"
-#include "intern/node/deg_node_time.h"
+#include "intern/node/deg_node.hh"
+#include "intern/node/deg_node_component.hh"
+#include "intern/node/deg_node_factory.hh"
+#include "intern/node/deg_node_id.hh"
+#include "intern/node/deg_node_operation.hh"
+#include "intern/node/deg_node_time.hh"
 
 namespace deg = blender::deg;
 
@@ -167,6 +168,8 @@ void Depsgraph::clear_id_nodes()
   id_nodes.clear();
   /* Clear physics relation caches. */
   clear_physics_relations(this);
+
+  light_linking_cache.clear();
 }
 
 Relation *Depsgraph::add_new_relation(Node *from, Node *to, const char *description, int flags)
@@ -272,7 +275,7 @@ Depsgraph *DEG_graph_new(Main *bmain, Scene *scene, ViewLayer *view_layer, eEval
   return reinterpret_cast<Depsgraph *>(deg_depsgraph);
 }
 
-void DEG_graph_replace_owners(struct Depsgraph *depsgraph,
+void DEG_graph_replace_owners(Depsgraph *depsgraph,
                               Main *bmain,
                               Scene *scene,
                               ViewLayer *view_layer)
@@ -304,13 +307,13 @@ void DEG_graph_free(Depsgraph *graph)
   delete deg_depsgraph;
 }
 
-bool DEG_is_evaluating(const struct Depsgraph *depsgraph)
+bool DEG_is_evaluating(const Depsgraph *depsgraph)
 {
   const deg::Depsgraph *deg_graph = reinterpret_cast<const deg::Depsgraph *>(depsgraph);
   return deg_graph->is_evaluating;
 }
 
-bool DEG_is_active(const struct Depsgraph *depsgraph)
+bool DEG_is_active(const Depsgraph *depsgraph)
 {
   if (depsgraph == nullptr) {
     /* Happens for such cases as work object in what_does_obaction(),
@@ -323,20 +326,20 @@ bool DEG_is_active(const struct Depsgraph *depsgraph)
   return deg_graph->is_active;
 }
 
-void DEG_make_active(struct Depsgraph *depsgraph)
+void DEG_make_active(Depsgraph *depsgraph)
 {
   deg::Depsgraph *deg_graph = reinterpret_cast<deg::Depsgraph *>(depsgraph);
   deg_graph->is_active = true;
   /* TODO(sergey): Copy data from evaluated state to original. */
 }
 
-void DEG_make_inactive(struct Depsgraph *depsgraph)
+void DEG_make_inactive(Depsgraph *depsgraph)
 {
   deg::Depsgraph *deg_graph = reinterpret_cast<deg::Depsgraph *>(depsgraph);
   deg_graph->is_active = false;
 }
 
-void DEG_disable_visibility_optimization(struct Depsgraph *depsgraph)
+void DEG_disable_visibility_optimization(Depsgraph *depsgraph)
 {
   deg::Depsgraph *deg_graph = reinterpret_cast<deg::Depsgraph *>(depsgraph);
   deg_graph->use_visibility_optimization = false;

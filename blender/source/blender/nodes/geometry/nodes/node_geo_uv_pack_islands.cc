@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "GEO_uv_parametrizer.hh"
 
@@ -33,11 +35,11 @@ static VArray<float3> construct_uv_gvarray(const Mesh &mesh,
                                            const eAttrDomain domain)
 {
   const Span<float3> positions = mesh.vert_positions();
-  const OffsetIndices polys = mesh.polys();
+  const OffsetIndices faces = mesh.faces();
   const Span<int> corner_verts = mesh.corner_verts();
 
   const bke::MeshFieldContext face_context{mesh, ATTR_DOMAIN_FACE};
-  FieldEvaluator face_evaluator{face_context, polys.size()};
+  FieldEvaluator face_evaluator{face_context, faces.size()};
   face_evaluator.add(selection_field);
   face_evaluator.evaluate();
   const IndexMask selection = face_evaluator.get_evaluated_as_mask(0);
@@ -51,16 +53,16 @@ static VArray<float3> construct_uv_gvarray(const Mesh &mesh,
   evaluator.add_with_destination(uv_field, uv.as_mutable_span());
   evaluator.evaluate();
 
-  geometry::ParamHandle *handle = geometry::uv_parametrizer_construct_begin();
-  for (const int poly_index : selection) {
-    const IndexRange poly = polys[poly_index];
-    Array<geometry::ParamKey, 16> mp_vkeys(poly.size());
-    Array<bool, 16> mp_pin(poly.size());
-    Array<bool, 16> mp_select(poly.size());
-    Array<const float *, 16> mp_co(poly.size());
-    Array<float *, 16> mp_uv(poly.size());
-    for (const int i : IndexRange(poly.size())) {
-      const int corner = poly[i];
+  geometry::ParamHandle *handle = new geometry::ParamHandle();
+  selection.foreach_index([&](const int face_index) {
+    const IndexRange face = faces[face_index];
+    Array<geometry::ParamKey, 16> mp_vkeys(face.size());
+    Array<bool, 16> mp_pin(face.size());
+    Array<bool, 16> mp_select(face.size());
+    Array<const float *, 16> mp_co(face.size());
+    Array<float *, 16> mp_uv(face.size());
+    for (const int i : IndexRange(face.size())) {
+      const int corner = face[i];
       const int vert = corner_verts[corner];
       mp_vkeys[i] = vert;
       mp_co[i] = positions[vert];
@@ -69,19 +71,19 @@ static VArray<float3> construct_uv_gvarray(const Mesh &mesh,
       mp_select[i] = false;
     }
     geometry::uv_parametrizer_face_add(handle,
-                                       poly_index,
-                                       poly.size(),
+                                       face_index,
+                                       face.size(),
                                        mp_vkeys.data(),
                                        mp_co.data(),
                                        mp_uv.data(),
                                        mp_pin.data(),
                                        mp_select.data());
-  }
+  });
   geometry::uv_parametrizer_construct_end(handle, true, true, nullptr);
 
   geometry::uv_parametrizer_pack(handle, margin, rotate, true);
   geometry::uv_parametrizer_flush(handle);
-  geometry::uv_parametrizer_delete(handle);
+  delete (handle);
 
   return mesh.attributes().adapt_domain<float3>(
       VArray<float3>::ForContainer(std::move(uv)), ATTR_DOMAIN_CORNER, domain);
@@ -110,7 +112,7 @@ class PackIslandsFieldInput final : public bke::MeshFieldInput {
 
   GVArray get_varray_for_context(const Mesh &mesh,
                                  const eAttrDomain domain,
-                                 const IndexMask /*mask*/) const final
+                                 const IndexMask & /*mask*/) const final
   {
     return construct_uv_gvarray(mesh, selection_field_, uv_field_, rotate_, margin_, domain);
   }
@@ -138,16 +140,15 @@ static void node_geo_exec(GeoNodeExecParams params)
                         selection_field, uv_field, rotate, margin)));
 }
 
-}  // namespace blender::nodes::node_geo_uv_pack_islands_cc
-
-void register_node_type_geo_uv_pack_islands()
+static void node_register()
 {
-  namespace file_ns = blender::nodes::node_geo_uv_pack_islands_cc;
-
   static bNodeType ntype;
 
   geo_node_type_base(&ntype, GEO_NODE_UV_PACK_ISLANDS, "Pack UV Islands", NODE_CLASS_CONVERTER);
-  ntype.declare = file_ns::node_declare;
-  ntype.geometry_node_execute = file_ns::node_geo_exec;
+  ntype.declare = node_declare;
+  ntype.geometry_node_execute = node_geo_exec;
   nodeRegisterType(&ntype);
 }
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_geo_uv_pack_islands_cc

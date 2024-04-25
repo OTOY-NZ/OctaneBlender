@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2021 Blender Foundation. */
+/* SPDX-FileCopyrightText: 2021 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup draw
@@ -42,7 +43,7 @@ struct DRWViewData {
   DRWViewData()
   {
     /* Only for GL >= 4.3 implementation for now. */
-    if (GPU_shader_storage_buffer_objects_support() && GPU_compute_shader_support()) {
+    if (GPU_compute_shader_support()) {
       manager = new draw::Manager();
     }
   };

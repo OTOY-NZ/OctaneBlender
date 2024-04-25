@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2022 Blender Foundation. */
+/* SPDX-FileCopyrightText: 2022 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup draw
@@ -30,6 +31,11 @@ void Manager::begin_sync()
   matrix_buf.swap();
   bounds_buf.swap();
   infos_buf.swap();
+
+  matrix_buf.current().trim_to_next_power_of_2(resource_len_);
+  bounds_buf.current().trim_to_next_power_of_2(resource_len_);
+  infos_buf.current().trim_to_next_power_of_2(resource_len_);
+  attributes_buf.trim_to_next_power_of_2(attribute_len_);
 
   /* TODO: This means the reference is kept until further redraw or manager tear-down. Instead,
    * they should be released after each draw loop. But for now, mimics old DRW behavior. */

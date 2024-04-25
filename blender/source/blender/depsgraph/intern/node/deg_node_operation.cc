@@ -1,20 +1,21 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2013 Blender Foundation */
+/* SPDX-FileCopyrightText: 2013 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup depsgraph
  */
 
-#include "intern/node/deg_node_operation.h"
+#include "intern/node/deg_node_operation.hh"
 
 #include "MEM_guardedalloc.h"
 
 #include "BLI_utildefines.h"
 
-#include "intern/depsgraph.h"
-#include "intern/node/deg_node_component.h"
-#include "intern/node/deg_node_factory.h"
-#include "intern/node/deg_node_id.h"
+#include "intern/depsgraph.hh"
+#include "intern/node/deg_node_component.hh"
+#include "intern/node/deg_node_factory.hh"
+#include "intern/node/deg_node_id.hh"
 
 namespace blender::deg {
 
@@ -34,6 +35,9 @@ const char *operationCodeAsString(OperationCode opcode)
       return "PARAMETERS_EXIT";
     case OperationCode::VISIBILITY:
       return "VISIBILITY";
+    /* Hierarchy. */
+    case OperationCode::HIERARCHY:
+      return "HIERARCHY";
     /* Animation, Drivers, etc. */
     case OperationCode::ANIMATION_ENTRY:
       return "ANIMATION_ENTRY";
@@ -170,6 +174,9 @@ const char *operationCodeAsString(OperationCode opcode)
       return "LIGHT_UPDATE";
     case OperationCode::WORLD_UPDATE:
       return "WORLD_UPDATE";
+    /* Light linking. */
+    case OperationCode::LIGHT_LINKING_UPDATE:
+      return "LIGHT_LINKING_UPDATE";
     /* Node Tree. */
     case OperationCode::NTREE_OUTPUT:
       return "NTREE_OUTPUT";
@@ -193,8 +200,6 @@ const char *operationCodeAsString(OperationCode opcode)
     /* instancing/duplication. */
     case OperationCode::DUPLI:
       return "DUPLI";
-    case OperationCode::SIMULATION_EVAL:
-      return "SIMULATION_EVAL";
   }
   BLI_assert_msg(0, "Unhandled operation code, should never happen.");
   return "UNKNOWN";

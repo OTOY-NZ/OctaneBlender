@@ -192,6 +192,9 @@ class ViewportDrawData(object):
         if self.frame_buffer.calculated_samples_per_pixel == 0 and self.frame_buffer.tonemapped_samples_per_pixel == 0:
             return
         if self.frame_buffer.use_shared_surface:
+            if abs(self.frame_buffer.width - self.frame_buffer.gl_texture_width) > 64 or abs(self.frame_buffer.height - self.frame_buffer.gl_texture_height) > 64:
+                return
+        if self.frame_buffer.use_shared_surface:
             if self.transparent:
                 bgl.glEnable(bgl.GL_BLEND)
                 # bgl.glBlendFunc(bgl.GL_ONE, bgl.GL_ONE_MINUS_SRC_ALPHA)

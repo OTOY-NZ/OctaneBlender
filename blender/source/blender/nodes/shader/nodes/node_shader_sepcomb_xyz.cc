@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2014 Blender Foundation */
+/* SPDX-FileCopyrightText: 2014 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup shdnodes
@@ -7,7 +8,11 @@
 
 #include "node_shader_util.hh"
 
-namespace blender::nodes::node_shader_sepcomb_xyz_cc {
+#include "FN_multi_function_builder.hh"
+
+#include "NOD_multi_function.hh"
+
+namespace blender::nodes::node_shader_sepcomb_xyz_cc::sep {
 
 static void sh_node_sepxyz_declare(NodeDeclarationBuilder &b)
 {
@@ -43,7 +48,7 @@ class MF_SeparateXYZ : public mf::MultiFunction {
     this->set_signature(&signature);
   }
 
-  void call(IndexMask mask, mf::Params params, mf::Context /*context*/) const override
+  void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
   {
     const VArray<float3> &vectors = params.readonly_single_input<float3>(0, "XYZ");
     MutableSpan<float> xs = params.uninitialized_single_output_if_required<float>(1, "X");
@@ -63,11 +68,11 @@ class MF_SeparateXYZ : public mf::MultiFunction {
     }
 
     devirtualize_varray(vectors, [&](auto vectors) {
-      mask.to_best_mask_type([&](auto mask) {
+      mask.foreach_segment_optimized([&](const auto segment) {
         const int used_outputs_num = used_outputs.size();
         const int *used_outputs_data = used_outputs.data();
 
-        for (const int64_t i : mask) {
+        for (const int64_t i : segment) {
           const float3 &vector = vectors[i];
           for (const int out_i : IndexRange(used_outputs_num)) {
             const int coordinate = used_outputs_data[out_i];
@@ -85,11 +90,21 @@ static void sh_node_sepxyz_build_multi_function(NodeMultiFunctionBuilder &builde
   builder.set_matching_fn(separate_fn);
 }
 
-}  // namespace blender::nodes::node_shader_sepcomb_xyz_cc
+NODE_SHADER_MATERIALX_BEGIN
+#ifdef WITH_MATERIALX
+{
+  NodeItem vector = get_input_value("Vector", NodeItem::Type::Vector3);
+  int index = STREQ(socket_out_->name, "X") ? 0 : STREQ(socket_out_->name, "Y") ? 1 : 2;
+  return vector[index];
+}
+#endif
+NODE_SHADER_MATERIALX_END
+
+}  // namespace blender::nodes::node_shader_sepcomb_xyz_cc::sep
 
 void register_node_type_sh_sepxyz()
 {
-  namespace file_ns = blender::nodes::node_shader_sepcomb_xyz_cc;
+  namespace file_ns = blender::nodes::node_shader_sepcomb_xyz_cc::sep;
 
   static bNodeType ntype;
 
@@ -97,11 +112,12 @@ void register_node_type_sh_sepxyz()
   ntype.declare = file_ns::sh_node_sepxyz_declare;
   ntype.gpu_fn = file_ns::gpu_shader_sepxyz;
   ntype.build_multi_function = file_ns::sh_node_sepxyz_build_multi_function;
+  ntype.materialx_fn = file_ns::node_shader_materialx;
 
   nodeRegisterType(&ntype);
 }
 
-namespace blender::nodes::node_shader_sepcomb_xyz_cc {
+namespace blender::nodes::node_shader_sepcomb_xyz_cc::comb {
 
 static void sh_node_combxyz_declare(NodeDeclarationBuilder &b)
 {
@@ -130,11 +146,23 @@ static void sh_node_combxyz_build_multi_function(NodeMultiFunctionBuilder &build
   builder.set_matching_fn(fn);
 }
 
-}  // namespace blender::nodes::node_shader_sepcomb_xyz_cc
+NODE_SHADER_MATERIALX_BEGIN
+#ifdef WITH_MATERIALX
+{
+  NodeItem x = get_input_value("X", NodeItem::Type::Float);
+  NodeItem y = get_input_value("Y", NodeItem::Type::Float);
+  NodeItem z = get_input_value("Z", NodeItem::Type::Float);
+
+  return create_node("combine3", NodeItem::Type::Vector3, {{"in1", x}, {"in2", y}, {"in3", z}});
+}
+#endif
+NODE_SHADER_MATERIALX_END
+
+}  // namespace blender::nodes::node_shader_sepcomb_xyz_cc::comb
 
 void register_node_type_sh_combxyz()
 {
-  namespace file_ns = blender::nodes::node_shader_sepcomb_xyz_cc;
+  namespace file_ns = blender::nodes::node_shader_sepcomb_xyz_cc::comb;
 
   static bNodeType ntype;
 
@@ -142,6 +170,7 @@ void register_node_type_sh_combxyz()
   ntype.declare = file_ns::sh_node_combxyz_declare;
   ntype.gpu_fn = file_ns::gpu_shader_combxyz;
   ntype.build_multi_function = file_ns::sh_node_combxyz_build_multi_function;
+  ntype.materialx_fn = file_ns::node_shader_materialx;
 
   nodeRegisterType(&ntype);
 }

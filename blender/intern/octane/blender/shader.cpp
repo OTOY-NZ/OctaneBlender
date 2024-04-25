@@ -15,13 +15,13 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
+#include "render/shader.h"
 #include "render/camera.h"
 #include "render/environment.h"
 #include "render/graph.h"
 #include "render/kernel.h"
 #include "render/osl.h"
 #include "render/scene.h"
-#include "render/shader.h"
 
 #include "DNA_node_types.h"
 
@@ -432,9 +432,8 @@ static bool update_octane_image_data(
        */
       int scene_frame = b_scene.frame_current();
       int image_frame = image_user_frame_number(b_image_user, b_image, scene_frame);
-      if (b_image.ptr.data) {
-        PointerRNA ptr;
-        RNA_id_pointer_create((ID *)b_image.ptr.data, &ptr);
+      if (b_image.ptr.data) {        
+        PointerRNA ptr = RNA_id_pointer_create((ID *)b_image.ptr.data);
         BL::ID b_id(ptr);
         if (b_id.is_a(&RNA_Image)) {
           BL::Image b_image(b_id);
@@ -1038,7 +1037,7 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
       int octane_static_pin_count = OctaneInfo::instance().get_static_pin_count(octane_node_type);
       std::vector<::OctaneDataTransferObject::OctaneDTOBase *> octane_dtos;
       BlenderSocketVisitor visitor(prefix_name, b_node, link_resolver);
-      // clang-format off
+// clang-format off
 	    #define ADD_OCTANE_ATTR_DTO(PROPERTY_TYPE, DTO_CLASS, SOCKET_CONTAINER) \
 	    if (property_type == PROPERTY_TYPE) { \
 		    octane_node->SOCKET_CONTAINER.emplace_back(::OctaneDataTransferObject::DTO_CLASS(dto_name, false)); \
@@ -1300,7 +1299,9 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
       }
       octane_node->sCustomDataBody = curve_data;
     }
-    if (bl_idname == "OctaneOutputAOVsMaskWithCryptomatte" || bl_idname == "OctaneCryptomatteMaskAOVOutput") {
+    if (bl_idname == "OctaneOutputAOVsMaskWithCryptomatte" ||
+        bl_idname == "OctaneCryptomatteMaskAOVOutput")
+    {
       ::OctaneDataTransferObject::OctaneCustomNode *octane_node =
           (::OctaneDataTransferObject::OctaneCustomNode *)(node->oct_node);
       for (auto &strSocket : octane_node->oStringSockets) {
@@ -3186,7 +3187,7 @@ void BlenderSync::find_shader_by_id_and_name(BL::ID &id,
 }
 
 void BlenderSync::find_shader(BL::ID &id,
-                              std::vector<Shader *> &used_shaders,
+                              std::vector<Shader*> &used_shaders,
                               Shader *default_shader)
 {
   Shader *shader = (id) ? shader_map.find(id) : default_shader;
@@ -3271,6 +3272,32 @@ int BlenderSync::get_render_aov_preview_pass(BL::NodeTree &node_tree)
     preview_render_pass = get_enum(active_output.ptr, "preview_render_pass");
   }
   return preview_render_pass;
+}
+
+std::string BlenderSync::resolve_octane_object_data_name(BL::Object &b_ob,
+                                                         BL::Object &b_ob_instance)
+{
+  BL::ID b_ob_data = b_ob.data();
+  bool is_instance = (b_ob == b_ob_instance);
+  bool is_modified = BKE_object_is_modified(b_ob);
+  bool use_geometry_node_modifier = false;
+  BL::Object::modifiers_iterator b_mod;
+  for (b_ob.modifiers.begin(b_mod); b_mod != b_ob.modifiers.end(); ++b_mod) {
+    if (b_mod->type() == BL::Modifier::type_NODES) {
+      use_geometry_node_modifier = true;
+      break;
+    }
+  }
+  std::string modifier_object_tag = is_modified ? b_ob.name_full() : "";
+  if (is_instance && use_geometry_node_modifier) {
+    modifier_object_tag += "[Instance]";
+  }
+  std::string post_tag = b_ob.type() == BL::Object::type_CURVE ? "[Curve]" : MESH_TAG;
+  std::string mesh_name = resolve_octane_name(b_ob_data, modifier_object_tag, post_tag);
+  if (b_ob.mode() == b_ob.mode_EDIT) {
+    mesh_name += "[EDIT_MODE]";
+  }
+  return mesh_name;
 }
 
 OCT_NAMESPACE_END

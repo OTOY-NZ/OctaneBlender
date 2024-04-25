@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2020 Blender Foundation */
+/* SPDX-FileCopyrightText: 2020 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 #include "usd_writer_metaball.h"
 #include "usd_hierarchy_iterator.h"
 
@@ -13,7 +14,7 @@
 #include "BKE_lib_id.h"
 #include "BKE_mball.h"
 #include "BKE_mesh.hh"
-#include "BKE_object.h"
+#include "BKE_object.hh"
 
 #include "DNA_mesh_types.h"
 #include "DNA_meta_types.h"

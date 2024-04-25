@@ -1,6 +1,7 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2019, NVIDIA Corporation
- * Copyright 2019-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2019 NVIDIA Corporation
+ * SPDX-FileCopyrightText: 2019-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #ifdef WITH_OPTIX
 
@@ -421,6 +422,10 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
   group_descs[PG_RGEN_INTERSECT_VOLUME_STACK].raygen.module = optix_module;
   group_descs[PG_RGEN_INTERSECT_VOLUME_STACK].raygen.entryFunctionName =
       "__raygen__kernel_optix_integrator_intersect_volume_stack";
+  group_descs[PG_RGEN_INTERSECT_DEDICATED_LIGHT].kind = OPTIX_PROGRAM_GROUP_KIND_RAYGEN;
+  group_descs[PG_RGEN_INTERSECT_DEDICATED_LIGHT].raygen.module = optix_module;
+  group_descs[PG_RGEN_INTERSECT_DEDICATED_LIGHT].raygen.entryFunctionName =
+      "__raygen__kernel_optix_integrator_intersect_dedicated_light";
   group_descs[PG_MISS].kind = OPTIX_PROGRAM_GROUP_KIND_MISS;
   group_descs[PG_MISS].miss.module = optix_module;
   group_descs[PG_MISS].miss.entryFunctionName = "__miss__kernel_optix_miss";
@@ -547,6 +552,10 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
     group_descs[PG_RGEN_SHADE_SHADOW].raygen.module = optix_module;
     group_descs[PG_RGEN_SHADE_SHADOW].raygen.entryFunctionName =
         "__raygen__kernel_optix_integrator_shade_shadow";
+    group_descs[PG_RGEN_SHADE_DEDICATED_LIGHT].kind = OPTIX_PROGRAM_GROUP_KIND_RAYGEN;
+    group_descs[PG_RGEN_SHADE_DEDICATED_LIGHT].raygen.module = optix_module;
+    group_descs[PG_RGEN_SHADE_DEDICATED_LIGHT].raygen.entryFunctionName =
+        "__raygen__kernel_optix_integrator_shade_dedicated_light";
     group_descs[PG_RGEN_EVAL_DISPLACE].kind = OPTIX_PROGRAM_GROUP_KIND_RAYGEN;
     group_descs[PG_RGEN_EVAL_DISPLACE].raygen.module = optix_module;
     group_descs[PG_RGEN_EVAL_DISPLACE].raygen.entryFunctionName =
@@ -659,6 +668,7 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
     pipeline_groups.push_back(groups[PG_RGEN_INTERSECT_SHADOW]);
     pipeline_groups.push_back(groups[PG_RGEN_INTERSECT_SUBSURFACE]);
     pipeline_groups.push_back(groups[PG_RGEN_INTERSECT_VOLUME_STACK]);
+    pipeline_groups.push_back(groups[PG_RGEN_INTERSECT_DEDICATED_LIGHT]);
     pipeline_groups.push_back(groups[PG_MISS]);
     pipeline_groups.push_back(groups[PG_HITD]);
     pipeline_groups.push_back(groups[PG_HITS]);
@@ -733,7 +743,11 @@ bool OptiXDevice::load_osl_kernels()
             group.get(), "ptx_compiled_version", OSL::TypeDesc::PTR, &osl_ptx);
 
         int groupdata_size = 0;
-        osl_globals.ss->getattribute(group.get(), "groupdata_size", groupdata_size);
+        osl_globals.ss->getattribute(group.get(), "llvm_groupdata_size", groupdata_size);
+        if (groupdata_size == 0) {
+          // Old attribute name from our patched OSL version as fallback.
+          osl_globals.ss->getattribute(group.get(), "groupdata_size", groupdata_size);
+        }
         if (groupdata_size > 2048) { /* See 'group_data' array in kernel/osl/osl.h */
           set_error(
               string_printf("Requested OSL group data size (%d) is greater than the maximum "
@@ -948,6 +962,7 @@ bool OptiXDevice::load_osl_kernels()
     pipeline_groups.push_back(groups[PG_RGEN_SHADE_SURFACE_MNEE]);
     pipeline_groups.push_back(groups[PG_RGEN_SHADE_VOLUME]);
     pipeline_groups.push_back(groups[PG_RGEN_SHADE_SHADOW]);
+    pipeline_groups.push_back(groups[PG_RGEN_SHADE_DEDICATED_LIGHT]);
     pipeline_groups.push_back(groups[PG_RGEN_EVAL_DISPLACE]);
     pipeline_groups.push_back(groups[PG_RGEN_EVAL_BACKGROUND]);
     pipeline_groups.push_back(groups[PG_RGEN_EVAL_CURVE_SHADOW_TRANSPARENCY]);
@@ -1145,7 +1160,7 @@ void OptiXDevice::build_bvh(BVH *bvh, Progress &progress, bool refit)
     if (geom->geometry_type == Geometry::HAIR) {
       /* Build BLAS for curve primitives. */
       Hair *const hair = static_cast<Hair *const>(geom);
-      if (hair->num_curves() == 0) {
+      if (hair->num_segments() == 0) {
         return;
       }
 

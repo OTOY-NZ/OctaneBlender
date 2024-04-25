@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #pragma once
 
@@ -40,10 +41,12 @@ ccl_device float svm_gradient(float3 p, NodeGradientType type)
      * on float precision. */
     float r = fmaxf(0.999999f - sqrtf(x * x + y * y + z * z), 0.0f);
 
-    if (type == NODE_BLEND_QUADRATIC_SPHERE)
+    if (type == NODE_BLEND_QUADRATIC_SPHERE) {
       return r * r;
-    else if (type == NODE_BLEND_SPHERICAL)
+    }
+    else if (type == NODE_BLEND_SPHERICAL) {
       return r;
+    }
   }
 
   return 0.0f;

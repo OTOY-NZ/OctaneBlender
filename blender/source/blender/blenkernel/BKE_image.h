@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 #pragma once
 
 /** \file
@@ -437,7 +438,7 @@ void BKE_image_get_size(struct Image *image, struct ImageUser *iuser, int *r_wid
 void BKE_image_get_size_fl(struct Image *image, struct ImageUser *iuser, float r_size[2]);
 void BKE_image_get_aspect(struct Image *image, float *r_aspx, float *r_aspy);
 
-/* image_gen.c */
+/* `image_gen.cc` */
 
 void BKE_image_buf_fill_color(
     unsigned char *rect, float *rect_float, int width, int height, const float color[4]);

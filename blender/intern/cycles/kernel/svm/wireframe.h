@@ -1,10 +1,9 @@
-/* SPDX-License-Identifier: BSD-3-Clause
+/* SPDX-FileCopyrightText: 2009-2010 Sony Pictures Imageworks Inc., et al. All Rights Reserved.
+ * SPDX-FileCopyrightText: 2011-2022 Blender Foundation
  *
- * Adapted from Open Shading Language
- * Copyright (c) 2009-2010 Sony Pictures Imageworks Inc., et al.
- * All Rights Reserved.
+ * SPDX-License-Identifier: BSD-3-Clause
  *
- * Modifications Copyright 2011-2022 Blender Foundation. */
+ * Adapted code from Open Shading Language. */
 
 #pragma once
 
@@ -65,8 +64,9 @@ ccl_device_inline float wireframe(KernelGlobals kg,
       // At this point dot(crs, crs) / dot(edge, edge) is
       // the square of area / length(edge) == square of the
       // distance to the edge.
-      if (dot(crs, crs) < (dot(edge, edge) * pixelwidth))
+      if (dot(crs, crs) < (dot(edge, edge) * pixelwidth)) {
         return 1.0f;
+      }
     }
   }
   return 0.0f;

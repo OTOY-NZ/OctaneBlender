@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Foundation
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -21,6 +21,7 @@
 #include "BKE_mesh.hh"
 
 #include "GEO_mesh_merge_by_distance.hh"
+#include "GEO_randomize.hh"
 
 #ifdef USE_WELD_DEBUG_TIME
 #  include "BLI_timeit.hh"
@@ -1231,7 +1232,7 @@ static void weld_mesh_context_create(const Mesh &mesh,
                                      WeldMesh *r_weld_mesh)
 {
   const Span<int2> edges = mesh.edges();
-  const OffsetIndices faces = mesh.polys();
+  const OffsetIndices faces = mesh.faces();
   const Span<int> corner_verts = mesh.corner_verts();
   const Span<int> corner_edges = mesh.corner_edges();
 
@@ -1545,7 +1546,7 @@ static Mesh *create_merged_mesh(const Mesh &mesh,
   SCOPED_TIMER(__func__);
 #endif
 
-  const OffsetIndices src_faces = mesh.polys();
+  const OffsetIndices src_faces = mesh.faces();
   const Span<int> src_corner_verts = mesh.corner_verts();
   const Span<int> src_corner_edges = mesh.corner_edges();
   const int totvert = mesh.totvert;
@@ -1562,7 +1563,7 @@ static Mesh *create_merged_mesh(const Mesh &mesh,
   Mesh *result = BKE_mesh_new_nomain_from_template(
       &mesh, result_nverts, result_nedges, result_nfaces, result_nloops);
   MutableSpan<int2> dst_edges = result->edges_for_write();
-  MutableSpan<int> dst_face_offsets = result->poly_offsets_for_write();
+  MutableSpan<int> dst_face_offsets = result->face_offsets_for_write();
   MutableSpan<int> dst_corner_verts = result->corner_verts_for_write();
   MutableSpan<int> dst_corner_edges = result->corner_edges_for_write();
 
@@ -1570,8 +1571,8 @@ static Mesh *create_merged_mesh(const Mesh &mesh,
 
   Array<int> vert_final_map;
 
-  merge_customdata_all(&mesh.vdata,
-                       &result->vdata,
+  merge_customdata_all(&mesh.vert_data,
+                       &result->vert_data,
                        vert_dest_map,
                        weld_mesh.double_verts,
                        result_nverts,
@@ -1582,8 +1583,8 @@ static Mesh *create_merged_mesh(const Mesh &mesh,
 
   Array<int> edge_final_map;
 
-  merge_customdata_all(&mesh.edata,
-                       &result->edata,
+  merge_customdata_all(&mesh.edge_data,
+                       &result->edge_data,
                        weld_mesh.edge_dest_map,
                        weld_mesh.double_edges,
                        result_nedges,
@@ -1609,7 +1610,7 @@ static Mesh *create_merged_mesh(const Mesh &mesh,
     if (poly_ctx == OUT_OF_CONTEXT) {
       int mp_loop_len = src_faces[i].size();
       CustomData_copy_data(
-          &mesh.ldata, &result->ldata, src_faces[i].start(), loop_cur, src_faces[i].size());
+          &mesh.loop_data, &result->loop_data, src_faces[i].start(), loop_cur, mp_loop_len);
       for (; mp_loop_len--; loop_cur++) {
         dst_corner_verts[loop_cur] = vert_final_map[dst_corner_verts[loop_cur]];
         dst_corner_edges[loop_cur] = edge_final_map[dst_corner_edges[loop_cur]];
@@ -1634,14 +1635,14 @@ static Mesh *create_merged_mesh(const Mesh &mesh,
       }
       do {
         customdata_weld(
-            &mesh.ldata, &result->ldata, group_buffer.data(), iter.group_len, loop_cur);
+            &mesh.loop_data, &result->loop_data, group_buffer.data(), iter.group_len, loop_cur);
         dst_corner_verts[loop_cur] = vert_final_map[iter.v];
         dst_corner_edges[loop_cur] = edge_final_map[iter.e];
         loop_cur++;
       } while (weld_iter_loop_of_poly_next(iter));
     }
 
-    CustomData_copy_data(&mesh.pdata, &result->pdata, i, r_i, 1);
+    CustomData_copy_data(&mesh.face_data, &result->face_data, i, r_i, 1);
     dst_face_offsets[r_i] = loop_start;
     r_i++;
   }
@@ -1667,7 +1668,7 @@ static Mesh *create_merged_mesh(const Mesh &mesh,
     }
     do {
       customdata_weld(
-          &mesh.ldata, &result->ldata, group_buffer.data(), iter.group_len, loop_cur);
+          &mesh.loop_data, &result->loop_data, group_buffer.data(), iter.group_len, loop_cur);
       dst_corner_verts[loop_cur] = vert_final_map[iter.v];
       dst_corner_edges[loop_cur] = edge_final_map[iter.e];
       loop_cur++;
@@ -1680,6 +1681,8 @@ static Mesh *create_merged_mesh(const Mesh &mesh,
   BLI_assert(int(r_i) == result_nfaces);
   BLI_assert(loop_cur == result_nloops);
 
+  debug_randomize_mesh_order(result);
+
   return result;
 }
 
@@ -1690,7 +1693,7 @@ static Mesh *create_merged_mesh(const Mesh &mesh,
  * \{ */
 
 std::optional<Mesh *> mesh_merge_by_distance_all(const Mesh &mesh,
-                                                 const IndexMask selection,
+                                                 const IndexMask &selection,
                                                  const float merge_distance)
 {
   Array<int> vert_dest_map(mesh.totvert, OUT_OF_CONTEXT);
@@ -1698,9 +1701,7 @@ std::optional<Mesh *> mesh_merge_by_distance_all(const Mesh &mesh,
   KDTree_3d *tree = BLI_kdtree_3d_new(selection.size());
 
   const Span<float3> positions = mesh.vert_positions();
-  for (const int i : selection) {
-    BLI_kdtree_3d_insert(tree, i, positions[i]);
-  }
+  selection.foreach_index([&](const int64_t i) { BLI_kdtree_3d_insert(tree, i, positions[i]); });
 
   BLI_kdtree_3d_balance(tree);
   const int vert_kill_len = BLI_kdtree_3d_calc_duplicates_fast(

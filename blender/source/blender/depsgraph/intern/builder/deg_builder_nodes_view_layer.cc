@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2013 Blender Foundation */
+/* SPDX-FileCopyrightText: 2013 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup depsgraph
@@ -30,15 +31,15 @@
 #include "BKE_main.h"
 #include "BKE_node.hh"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_build.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_build.hh"
 
 #include "intern/builder/deg_builder.h"
-#include "intern/depsgraph.h"
-#include "intern/depsgraph_type.h"
-#include "intern/node/deg_node.h"
-#include "intern/node/deg_node_component.h"
-#include "intern/node/deg_node_operation.h"
+#include "intern/depsgraph.hh"
+#include "intern/depsgraph_type.hh"
+#include "intern/node/deg_node.hh"
+#include "intern/node/deg_node_component.hh"
+#include "intern/node/deg_node_operation.hh"
 
 namespace blender::deg {
 
@@ -47,7 +48,7 @@ void DepsgraphNodeBuilder::build_layer_collections(ListBase *lb)
   const int visibility_flag = (graph_->mode == DAG_EVAL_VIEWPORT) ? COLLECTION_HIDE_VIEWPORT :
                                                                     COLLECTION_HIDE_RENDER;
 
-  for (LayerCollection *lc = (LayerCollection *)lb->first; lc; lc = lc->next) {
+  LISTBASE_FOREACH (LayerCollection *, lc, lb) {
     if (lc->collection->flag & visibility_flag) {
       continue;
     }
@@ -78,6 +79,9 @@ void DepsgraphNodeBuilder::build_view_layer(Scene *scene,
   /* Scene ID block. */
   IDNode *id_node = add_id_node(&scene->id);
   id_node->linked_state = linked_state;
+
+  add_operation_node(&scene->id, NodeType::HIERARCHY, OperationCode::HIERARCHY);
+
   /* Time source. */
   add_time_source();
   /* Setup currently building context. */
@@ -110,9 +114,7 @@ void DepsgraphNodeBuilder::build_view_layer(Scene *scene,
     }
   }
   build_layer_collections(&view_layer->layer_collections);
-  if (scene->camera != nullptr) {
-    build_object(-1, scene->camera, DEG_ID_LINKED_INDIRECTLY, true);
-  }
+  build_scene_camera(scene);
   /* Rigidbody. */
   if (scene->rigidbody_world != nullptr) {
     build_rigidbody(scene);

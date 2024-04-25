@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2020-2023 Blender Authors
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 # A framework to run regression tests on mesh modifiers and operators based on howardt's mesh_ops_test.py
@@ -599,15 +601,17 @@ class SpecMeshTest(MeshTest):
                 elif modifier.type == 'CLOTH' or modifier.type == 'SOFT_BODY':
                     test_object.modifiers[test_modifier_name].point_cache.frame_end = frame_end
                     override_setting = modifier.point_cache
-                    override = {'scene': scene, 'active_object': test_object, 'point_cache': override_setting}
-                    bpy.ops.ptcache.bake(override, bake=True)
+                    context_override = {'scene': scene, 'active_object': test_object, 'point_cache': override_setting}
+                    with bpy.context.temp_override(**context_override):
+                        bpy.ops.ptcache.bake(bake=True)
                     break
 
                 elif modifier.type == 'DYNAMIC_PAINT':
                     dynamic_paint_setting = modifier.canvas_settings.canvas_surfaces.active
                     override_setting = dynamic_paint_setting.point_cache
-                    override = {'scene': scene, 'active_object': test_object, 'point_cache': override_setting}
-                    bpy.ops.ptcache.bake(override, bake=True)
+                    context_override = {'scene': scene, 'active_object': test_object, 'point_cache': override_setting}
+                    with bpy.context.temp_override(**context_override):
+                        bpy.ops.ptcache.bake(bake=True)
                     break
 
     def _apply_particle_system(self, test_object, particle_sys_spec: ParticleSystemSpec):
@@ -741,6 +745,32 @@ class BlendFileTest(MeshTest):
         modifiers_list = evaluated_test_object.modifiers
         if not modifiers_list:
             raise Exception("No modifiers are added to test object.")
+        for modifier in modifiers_list:
+            bpy.ops.object.modifier_apply(modifier=modifier.name)
+
+
+class GeoNodesSimulationTest(MeshTest):
+    """
+    A mesh test that works similar to BlendFileTest but evaluates the scene at multiple
+    frames so that simulations can run.
+    """
+
+    def __init__(self, test_object_name, exp_object_name, *, frames_num, **kwargs):
+        super().__init__(test_object_name, exp_object_name, **kwargs)
+        self.frames_num = frames_num
+
+    def apply_operations(self, evaluated_test_object_name):
+        GeoNodesSimulationTest.apply_operations.__doc__ = MeshTest.apply_operations.__doc__
+
+        evaluated_test_object = bpy.data.objects[evaluated_test_object_name]
+        modifiers_list = evaluated_test_object.modifiers
+        if not modifiers_list:
+            raise Exception("The object has no modifiers.")
+
+        scene = bpy.context.scene
+        for frame in range(1, self.frames_num + 1):
+            scene.frame_set(frame)
+
         for modifier in modifiers_list:
             bpy.ops.object.modifier_apply(modifier=modifier.name)
 

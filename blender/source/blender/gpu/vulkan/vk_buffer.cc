@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2023 Blender Foundation */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup gpu
@@ -13,7 +14,9 @@ namespace blender::gpu {
 
 VKBuffer::~VKBuffer()
 {
-  free();
+  if (is_allocated()) {
+    free();
+  }
 }
 
 bool VKBuffer::is_allocated() const
@@ -46,6 +49,8 @@ bool VKBuffer::create(int64_t size_in_bytes,
                       VkBufferUsageFlagBits buffer_usage)
 {
   BLI_assert(!is_allocated());
+  BLI_assert(vk_buffer_ == VK_NULL_HANDLE);
+  BLI_assert(mapped_memory_ == nullptr);
 
   size_in_bytes_ = size_in_bytes;
   const VKDevice &device = VKBackend::get().device_get();
@@ -88,7 +93,7 @@ void VKBuffer::update(const void *data) const
 
   const VKDevice &device = VKBackend::get().device_get();
   VmaAllocator allocator = device.mem_allocator_get();
-  vmaFlushAllocation(allocator, allocation_, 0, VK_WHOLE_SIZE);
+  vmaFlushAllocation(allocator, allocation_, 0, max_ii(size_in_bytes(), 1));
 }
 
 void VKBuffer::clear(VKContext &context, uint32_t clear_value)
@@ -138,9 +143,10 @@ bool VKBuffer::free()
     unmap();
   }
 
-  const VKDevice &device = VKBackend::get().device_get();
-  VmaAllocator allocator = device.mem_allocator_get();
-  vmaDestroyBuffer(allocator, vk_buffer_, allocation_);
+  VKDevice &device = VKBackend::get().device_get();
+  device.discard_buffer(vk_buffer_, allocation_);
+  allocation_ = VK_NULL_HANDLE;
+  vk_buffer_ = VK_NULL_HANDLE;
   return true;
 }
 

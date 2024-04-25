@@ -1,5 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_assert.h"
 #include "BLI_math_base.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
@@ -8,6 +11,7 @@
 #include "GPU_texture.h"
 
 #include "COM_context.hh"
+#include "COM_result.hh"
 #include "COM_utilities.hh"
 
 #include "COM_algorithm_symmetric_separable_blur.hh"
@@ -16,6 +20,23 @@
 
 namespace blender::realtime_compositor {
 
+static const char *get_blur_shader(ResultType type)
+{
+  switch (type) {
+    case ResultType::Float:
+      return "compositor_symmetric_separable_blur_float";
+    case ResultType::Vector:
+    case ResultType::Color:
+      return "compositor_symmetric_separable_blur_color";
+    case ResultType::Int2:
+      /* Blur does not support integer types. */
+      break;
+  }
+
+  BLI_assert_unreachable();
+  return nullptr;
+}
+
 static Result horizontal_pass(Context &context,
                               Result &input,
                               float radius,
@@ -23,7 +44,7 @@ static Result horizontal_pass(Context &context,
                               bool extend_bounds,
                               bool gamma_correct)
 {
-  GPUShader *shader = context.shader_manager().get("compositor_symmetric_separable_blur");
+  GPUShader *shader = context.shader_manager().get(get_blur_shader(input.type()));
   GPU_shader_bind(shader);
 
   GPU_shader_uniform_1b(shader, "extend_bounds", extend_bounds);
@@ -51,7 +72,7 @@ static Result horizontal_pass(Context &context,
    * pass. */
   const int2 transposed_domain = int2(domain.size.y, domain.size.x);
 
-  Result output = Result::Temporary(ResultType::Color, context.texture_pool());
+  Result output = Result::Temporary(input.type(), context.texture_pool());
   output.allocate_texture(transposed_domain);
   output.bind_as_image(shader, "output_img");
 
@@ -74,7 +95,7 @@ static void vertical_pass(Context &context,
                           bool extend_bounds,
                           bool gamma_correct)
 {
-  GPUShader *shader = context.shader_manager().get("compositor_symmetric_separable_blur");
+  GPUShader *shader = context.shader_manager().get(get_blur_shader(original_input.type()));
   GPU_shader_bind(shader);
 
   GPU_shader_uniform_1b(shader, "extend_bounds", extend_bounds);

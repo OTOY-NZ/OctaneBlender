@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2020 Blender Foundation */
+/* SPDX-FileCopyrightText: 2020 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 #pragma once
 
 /** \file
@@ -21,7 +22,7 @@ namespace blender::io::gpencil {
 class GpencilExporterPDF : public GpencilExporter {
 
  public:
-  GpencilExporterPDF(const char *filepath, const struct GpencilIOParams *iparams);
+  GpencilExporterPDF(const char *filepath, const GpencilIOParams *iparams);
   bool new_document();
   bool add_newpage();
   bool add_body();

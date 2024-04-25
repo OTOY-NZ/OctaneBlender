@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -15,10 +17,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#define TODO_LAYER_OVERRIDE  /* CollectionOverride */
-#define TODO_LAYER_OPERATORS /* collection mamanger and property panel operators */
-#define TODO_LAYER           /* generic todo */
 
 struct Base;
 struct BlendDataReader;
@@ -274,9 +272,9 @@ void BKE_view_layer_blend_write(struct BlendWriter *writer,
                                 const struct Scene *scene,
                                 struct ViewLayer *view_layer);
 void BKE_view_layer_blend_read_data(struct BlendDataReader *reader, struct ViewLayer *view_layer);
-void BKE_view_layer_blend_read_lib(struct BlendLibReader *reader,
-                                   struct Library *lib,
-                                   struct ViewLayer *view_layer);
+void BKE_view_layer_blend_read_after_liblink(struct BlendLibReader *reader,
+                                             struct ID *self_id,
+                                             struct ViewLayer *view_layer);
 
 /* iterators */
 
@@ -495,7 +493,7 @@ void BKE_view_layer_visible_bases_iterator_end(BLI_Iterator *iter);
   } \
   ((void)0)
 
-/* layer_utils.c */
+/* `layer_utils.cc` */
 
 struct ObjectsInViewLayerParams {
   uint no_dup_data : 1;

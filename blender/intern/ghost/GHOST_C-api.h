@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 /** \file
  * \ingroup GHOST
  * \brief GHOST C-API function and type declarations.
@@ -129,31 +130,32 @@ extern uint8_t GHOST_GetNumDisplays(GHOST_SystemHandle systemhandle);
 /**
  * Returns the dimensions of the main display on this system.
  * \param systemhandle: The handle to the system.
- * \param width: A pointer the width gets put in.
- * \param height: A pointer the height gets put in.
+ * \param r_width: A pointer the width gets put in.
+ * \param r_height: A pointer the height gets put in.
+ * \return success.
  */
-extern void GHOST_GetMainDisplayDimensions(GHOST_SystemHandle systemhandle,
-                                           uint32_t *width,
-                                           uint32_t *height);
+extern GHOST_TSuccess GHOST_GetMainDisplayDimensions(GHOST_SystemHandle systemhandle,
+                                                     uint32_t *r_width,
+                                                     uint32_t *r_height);
 
 /**
  * Returns the dimensions of all displays combine
  * (the current workspace).
  * No need to worry about overlapping monitors.
  * \param systemhandle: The handle to the system.
- * \param width: A pointer the width gets put in.
- * \param height: A pointer the height gets put in.
+ * \param r_width: A pointer the width gets put in.
+ * \param r_height: A pointer the height gets put in.
+ * \return success.
  */
-extern void GHOST_GetAllDisplayDimensions(GHOST_SystemHandle systemhandle,
-                                          uint32_t *width,
-                                          uint32_t *height);
-
+extern GHOST_TSuccess GHOST_GetAllDisplayDimensions(GHOST_SystemHandle systemhandle,
+                                                    uint32_t *r_width,
+                                                    uint32_t *r_height);
 /**
  * Create a new window.
  * The new window is added to the list of windows managed.
  * Never explicitly delete the window, use disposeWindow() instead.
  * \param systemhandle: The handle to the system.
- * \param parent_windowhandle: Handle of parent (or owner) window, or NULL
+ * \param parent_windowhandle: Handle of parent (or owner) window, or nullptr
  * \param title: The name of the window.
  * (displayed in the title bar of the window if the OS supports it).
  * \param left: The coordinate of the left edge of the window.
@@ -162,8 +164,8 @@ extern void GHOST_GetAllDisplayDimensions(GHOST_SystemHandle systemhandle,
  * \param height: The height the window.
  * \param state: The state of the window when opened.
  * \param is_dialog: Stay on top of parent window, no icon in taskbar, can't be minimized.
- * \param glSettings: Misc OpenGL options.
- * \return A handle to the new window ( == NULL if creation failed).
+ * \param gpuSettings: Misc GPU options.
+ * \return A handle to the new window ( == nullptr if creation failed).
  */
 extern GHOST_WindowHandle GHOST_CreateWindow(GHOST_SystemHandle systemhandle,
                                              GHOST_WindowHandle parent_windowhandle,
@@ -174,17 +176,17 @@ extern GHOST_WindowHandle GHOST_CreateWindow(GHOST_SystemHandle systemhandle,
                                              uint32_t height,
                                              GHOST_TWindowState state,
                                              bool is_dialog,
-                                             GHOST_GLSettings glSettings);
+                                             GHOST_GPUSettings gpuSettings);
 
 /**
  * Create a new off-screen context.
  * Never explicitly delete the context, use #disposeContext() instead.
  * \param systemhandle: The handle to the system.
- * \param glSettings: Misc OpenGL options.
- * \return A handle to the new context ( == NULL if creation failed).
+ * \param gpuSettings: Misc GPU options.
+ * \return A handle to the new context ( == nullptr if creation failed).
  */
-extern GHOST_ContextHandle GHOST_CreateOpenGLContext(GHOST_SystemHandle systemhandle,
-                                                     GHOST_GLSettings glSettings);
+extern GHOST_ContextHandle GHOST_CreateGPUContext(GHOST_SystemHandle systemhandle,
+                                                  GHOST_GPUSettings gpuSettings);
 
 /**
  * Dispose of a context.
@@ -192,8 +194,8 @@ extern GHOST_ContextHandle GHOST_CreateOpenGLContext(GHOST_SystemHandle systemha
  * \param contexthandle: Handle to the context to be disposed.
  * \return Indication of success.
  */
-extern GHOST_TSuccess GHOST_DisposeOpenGLContext(GHOST_SystemHandle systemhandle,
-                                                 GHOST_ContextHandle contexthandle);
+extern GHOST_TSuccess GHOST_DisposeGPUContext(GHOST_SystemHandle systemhandle,
+                                              GHOST_ContextHandle contexthandle);
 
 /**
  * Returns the window user data.
@@ -237,7 +239,7 @@ extern bool GHOST_ValidWindow(GHOST_SystemHandle systemhandle, GHOST_WindowHandl
  *         This window is invalid after full screen has been ended.
  */
 extern GHOST_WindowHandle GHOST_BeginFullScreen(GHOST_SystemHandle systemhandle,
-                                                GHOST_DisplaySetting *setting,
+                                                const GHOST_DisplaySetting *setting,
                                                 const bool stereoVisual);
 
 /**
@@ -255,7 +257,10 @@ extern GHOST_TSuccess GHOST_EndFullScreen(GHOST_SystemHandle systemhandle);
 extern bool GHOST_GetFullScreen(GHOST_SystemHandle systemhandle);
 
 /**
- * Get the Window under the cursor.
+ * Get the Window under the cursor. Although coordinates of the mouse are supplied, platform-
+ * specific implementations are free to ignore these and query the mouse location themselves, due
+ * to them possibly being incorrect under certain conditions, for example when using multiple
+ * monitors that vary in scale and/or DPI.
  * \param x: The x-coordinate of the cursor.
  * \param y: The y-coordinate of the cursor.
  * \return The window under the cursor or nullptr in none.
@@ -428,7 +433,7 @@ void GHOST_GetCursorGrabState(GHOST_WindowHandle windowhandle,
 extern GHOST_TSuccess GHOST_SetCursorGrab(GHOST_WindowHandle windowhandle,
                                           GHOST_TGrabCursorMode mode,
                                           GHOST_TAxisFlag wrap_axis,
-                                          int bounds[4],
+                                          const int bounds[4],
                                           const int mouse_ungrab_xy[2]);
 
 /***************************************************************************************
@@ -494,7 +499,7 @@ extern uint64_t GHOST_GetEventTime(GHOST_EventHandle eventhandle);
 
 /**
  * Returns the window this event was generated on,
- * or NULL if it is a 'system' event.
+ * or nullptr if it is a 'system' event.
  * \param eventhandle: The handle to the event.
  * \return The generating window.
  */
@@ -582,6 +587,13 @@ extern void GHOST_SetTitle(GHOST_WindowHandle windowhandle, const char *title);
  * \return The title, free with free().
  */
 extern char *GHOST_GetTitle(GHOST_WindowHandle windowhandle);
+
+/**
+ * Sets the file name represented by this window.
+ * \param filepath: The file directory.
+ * \return Indication if the backend implements file associated with window.
+ */
+extern GHOST_TSuccess GHOST_SetPath(GHOST_WindowHandle windowhandle, const char *filepath);
 
 /**
  * Returns the window rectangle dimensions.
@@ -730,24 +742,24 @@ extern GHOST_TSuccess GHOST_InvalidateWindow(GHOST_WindowHandle windowhandle);
  * \param contexthandle: The handle to the context.
  * \return A success indicator.
  */
-extern GHOST_TSuccess GHOST_ActivateOpenGLContext(GHOST_ContextHandle contexthandle);
+extern GHOST_TSuccess GHOST_ActivateGPUContext(GHOST_ContextHandle contexthandle);
 
 /**
  * Release the drawing context bound to this thread.
  * \param contexthandle: The handle to the context.
  * \return A success indicator.
  */
-extern GHOST_TSuccess GHOST_ReleaseOpenGLContext(GHOST_ContextHandle contexthandle);
+extern GHOST_TSuccess GHOST_ReleaseGPUContext(GHOST_ContextHandle contexthandle);
 
 /**
- * Get the OpenGL frame-buffer handle that serves as a default frame-buffer.
+ * Get the GPU frame-buffer handle that serves as a default frame-buffer.
  */
-extern unsigned int GHOST_GetContextDefaultOpenGLFramebuffer(GHOST_ContextHandle contexthandle);
+extern unsigned int GHOST_GetContextDefaultGPUFramebuffer(GHOST_ContextHandle contexthandle);
 
 /**
- * Get the OpenGL frame-buffer handle that serves as a default frame-buffer.
+ * Get the GPU frame-buffer handle that serves as a default frame-buffer.
  */
-extern unsigned int GHOST_GetDefaultOpenGLFramebuffer(GHOST_WindowHandle windowhandle);
+extern unsigned int GHOST_GetDefaultGPUFramebuffer(GHOST_WindowHandle windowhandle);
 
 /**
  * Use multi-touch gestures if supported.
@@ -762,6 +774,13 @@ extern void GHOST_SetMultitouchGestures(GHOST_SystemHandle systemhandle, const b
  * \param api: Enum indicating which API to use.
  */
 extern void GHOST_SetTabletAPI(GHOST_SystemHandle systemhandle, GHOST_TTabletAPI api);
+
+/**
+ * Get the color of the pixel at the current mouse cursor location
+ * \param r_color: returned sRGB float colors
+ * \return Success value (true == successful and supported by platform)
+ */
+extern GHOST_TSuccess GHOST_GetPixelAtCursor(float r_color[3]);
 
 /**
  * Access to rectangle width.
@@ -950,7 +969,7 @@ extern bool GHOST_UseNativePixels(void);
 extern GHOST_TCapabilityFlag GHOST_GetCapabilities(void);
 
 /**
- * Assign the callback which generates a back-trace (may be NULL).
+ * Assign the callback which generates a back-trace (may be nullptr).
  */
 extern void GHOST_SetBacktraceHandler(GHOST_TBacktraceFn backtrace_fn);
 
@@ -1072,7 +1091,7 @@ int GHOST_XrSessionIsRunning(const GHOST_XrContextHandle xr_context);
 
 /**
  * Check if \a xr_context has a session that requires an upside-down frame-buffer (compared to
- * OpenGL). If true, the render result should be flipped vertically for correct output.
+ * GPU). If true, the render result should be flipped vertically for correct output.
  * \note Only to be called after session start, may otherwise result in a false negative.
  */
 int GHOST_XrSessionNeedsUpsideDownDrawing(const GHOST_XrContextHandle xr_context);
@@ -1080,7 +1099,7 @@ int GHOST_XrSessionNeedsUpsideDownDrawing(const GHOST_XrContextHandle xr_context
 /* events */
 /**
  * Invoke handling of all OpenXR events for \a xr_context. Should be called on every main-loop
- * iteration and will early-exit if \a xr_context is NULL (so caller doesn't have to check).
+ * iteration and will early-exit if \a xr_context is nullptr (so caller doesn't have to check).
  *
  * \returns GHOST_kSuccess if any event was handled, otherwise GHOST_kFailure.
  */
@@ -1138,7 +1157,7 @@ int GHOST_XrAttachActionSets(GHOST_XrContextHandle xr_context);
 /**
  * Update button/tracking states for OpenXR actions.
  *
- * \param action_set_name: The name of the action set to sync. If NULL, all action sets
+ * \param action_set_name: The name of the action set to sync. If nullptr, all action sets
  * attached to the session will be synced.
  */
 int GHOST_XrSyncActions(GHOST_XrContextHandle xr_context, const char *action_set_name);
@@ -1249,56 +1268,35 @@ void GHOST_GetVulkanHandles(GHOST_ContextHandle context,
                             void *r_queue);
 
 /**
- * Return Vulkan command buffer.
+ * Set the pre and post callbacks for vulkan swap chain in the given context.
  *
- * Command buffers are different for each image in the swap chain.
- * At the start of each frame the correct command buffer should be
- * retrieved with this function.
- *
- * Should only be called when using a Vulkan context.
- * Other contexts will not return any handles and leave the
- * handles where the parameters are referring to unmodified.
- *
- * \param context:  GHOST context handle to a vulkan context to get the
- *     command queue from.
- * \param r_command_buffer: After calling this function the VkCommandBuffer
- *     referenced by this parameter will contain the VKCommandBuffer handle
- *     of the current back buffer (when swap chains are enabled) or
- *     it will contain a general VkCommandQueue.
+ * \param context: GHOST context handle of a vulkan context to
+ *     get the Vulkan handles from.
+ * \param swap_buffers_pre_callback: Function pointer to be called at the beginning of swapBuffers.
+ *     Inside this callback the next swap chain image needs to be acquired and filled.
+ * \param swap_buffers_post_callback: Function to be called at th end of swapBuffers. swapBuffers
+ *     can recreate the swap chain. When this is done the application should be informed by those
+ *     changes.
  */
-void GHOST_GetVulkanCommandBuffer(GHOST_ContextHandle context, void *r_command_buffer);
+void GHOST_SetVulkanSwapBuffersCallbacks(
+    GHOST_ContextHandle context,
+    void (*swap_buffers_pre_callback)(const GHOST_VulkanSwapChainData *),
+    void (*swap_buffers_post_callback)(void));
 
 /**
- * Gets the Vulkan back-buffer related resource handles associated with the Vulkan context.
- * Needs to be called after each swap event as the back-buffer will change.
- *
- * Should only be called when using a Vulkan context with an active swap chain.
- * Other contexts will not return any handles and leave the
- * handles where the parameters are referring to unmodified.
+ * Acquire the current swap chain format.
  *
  * \param windowhandle:  GHOST window handle to a window to get the resource from.
- * \param r_image: After calling this function the VkImage
- *     referenced by this parameter will contain the VKImage handle
- *     of the current back buffer.
- * \param r_framebuffer: After calling this function the VkFramebuffer
- *     referenced by this parameter will contain the VKFramebuffer handle
- *     of the current back buffer.
- * \param r_render_pass: After calling this function the VkRenderPass
- *     referenced by this parameter will contain the VKRenderPass handle
- *     of the current back buffer.
+ * \param r_surface_format: After calling this function the VkSurfaceFormatKHR
+ *     referenced by this parameter will contain the surface format of the
+ *     surface. The format is the same as the image returned in the r_image
+ *     parameter.
  * \param r_extent: After calling this function the VkExtent2D
  *     referenced by this parameter will contain the size of the
  *     frame buffer and image in pixels.
- * \param r_fb_id: After calling this function the uint32_t
- *     referenced by this parameter will contain the id of the
- *     framebuffer of the current back buffer.
  */
-void GHOST_GetVulkanBackbuffer(GHOST_WindowHandle windowhandle,
-                               void *r_image,
-                               void *r_framebuffer,
-                               void *r_render_pass,
-                               void *r_extent,
-                               uint32_t *r_fb_id);
+void GHOST_GetVulkanSwapChainFormat(GHOST_WindowHandle windowhandle,
+                                    GHOST_VulkanSwapChainData *r_swap_chain_data);
 
 #endif
 

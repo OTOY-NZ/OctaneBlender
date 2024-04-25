@@ -2,11 +2,13 @@
 set(INC
 	../blender/rpc/include
 	..
+	../../guardedalloc
 	../../glew-mx
 	../../../source/blender/makesdna
 	../../../source/blender/makesrna
 	../../../source/blender/blenlib
 	../../../source/blender/gpu
+  ../../../source/blender/blenkernel
 	${CMAKE_BINARY_DIR}/source/blender/makesrna/intern
 )
 

@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup DNA
@@ -10,6 +12,9 @@
 #include "DNA_customdata_types.h"
 
 #ifdef __cplusplus
+#  include <optional>
+
+#  include "BLI_bounds_types.hh"
 #  include "BLI_math_vector_types.hh"
 #  include "BLI_span.hh"
 #endif
@@ -26,10 +31,6 @@ struct PointCloudRuntime;
 using PointCloudRuntimeHandle = blender::bke::PointCloudRuntime;
 #else
 typedef struct PointCloudRuntimeHandle PointCloudRuntimeHandle;
-#endif
-
-#ifdef __cplusplus
-extern "C" {
 #endif
 
 typedef struct PointCloud {
@@ -61,7 +62,7 @@ typedef struct PointCloud {
   void tag_positions_changed();
   void tag_radii_changed();
 
-  bool bounds_min_max(blender::float3 &min, blender::float3 &max) const;
+  std::optional<blender::Bounds<blender::float3>> bounds_min_max() const;
 #endif
 
   PointCloudRuntimeHandle *runtime;
@@ -77,7 +78,3 @@ enum {
 
 /* Only one material supported currently. */
 #define POINTCLOUD_MATERIAL_NR 1
-
-#ifdef __cplusplus
-}
-#endif

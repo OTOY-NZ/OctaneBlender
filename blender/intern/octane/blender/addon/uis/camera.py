@@ -325,10 +325,6 @@ class OCTANE_CAMERA_PT_imager_Upsampler(common.OctanePropertyPanel, Panel):
     bl_context = "data"
     bl_parent_id = "OCTANE_CAMERA_PT_imager"
 
-    def draw_header(self, context):
-        layout = self.layout
-        context.camera.octane.imager.draw_upsampler_header(context, layout, True)
-
     def draw(self, context):
         layout = self.layout
         context.camera.octane.imager.draw_upsampler(context, layout, True)
@@ -417,11 +413,6 @@ class OCTANE_VIEW3D_PT_imager_Upsampler(common.OctanePropertyPanel, Panel):
     bl_parent_id = "OCTANE_VIEW3D_PT_imager"
     bl_category = "Octane"    
     COMPAT_ENGINES = {'octane'}
-
-    def draw_header(self, context):
-        layout = self.layout
-        oct_cam = context.scene.oct_view_cam
-        oct_cam.imager.draw_upsampler_header(context, layout, True)
 
     def draw(self, context):
         layout = self.layout

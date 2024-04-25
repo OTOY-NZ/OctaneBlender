@@ -1,23 +1,31 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2019 Blender Foundation. */
+/* SPDX-FileCopyrightText: 2019 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup draw_engine
  */
+
+#include "BLI_math_color.h"
 
 #include "DRW_render.h"
 
 #include "DNA_camera_types.h"
 #include "DNA_screen_types.h"
 
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_query.hh"
 
-#include "ED_image.h"
-#include "ED_view3d.h"
+#include "ED_image.hh"
+#include "ED_view3d.hh"
 
-#include "UI_resources.h"
+#include "UI_resources.hh"
 
+#include "overlay_next_instance.hh"
 #include "overlay_private.hh"
+
+using namespace blender::draw;
+
+using Instance = blender::draw::overlay::Instance;
 
 BLI_STATIC_ASSERT(SI_GRID_STEPS_LEN == OVERLAY_GRID_STEPS_LEN, "")
 
@@ -226,10 +234,11 @@ void OVERLAY_grid_cache_init(OVERLAY_Data *ved)
     return;
   }
 
-  if (ved->instance->grid_ubo == nullptr) {
-    ved->instance->grid_ubo = GPU_uniformbuf_create(sizeof(OVERLAY_GridData));
+  GPUUniformBuf *&grid_ubo = reinterpret_cast<Instance *>(ved->instance)->grid_ubo;
+  if (grid_ubo == nullptr) {
+    grid_ubo = GPU_uniformbuf_create(sizeof(OVERLAY_GridData));
   }
-  GPU_uniformbuf_update(ved->instance->grid_ubo, &pd->grid_data);
+  GPU_uniformbuf_update(grid_ubo, &pd->grid_data);
 
   DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ALPHA;
   DRW_PASS_CREATE(psl->grid_ps, state);
@@ -253,13 +262,13 @@ void OVERLAY_grid_cache_init(OVERLAY_Data *ved)
 
   {
     DRWShadingGroup *grp;
-    struct GPUBatch *geom = DRW_cache_grid_get();
+    GPUBatch *geom = DRW_cache_grid_get();
 
     GPUShader *sh = OVERLAY_shader_grid();
 
     /* Create 3 quads to render ordered transparency Z axis */
     grp = DRW_shgroup_create(sh, psl->grid_ps);
-    DRW_shgroup_uniform_block(grp, "grid_buf", ved->instance->grid_ubo);
+    DRW_shgroup_uniform_block(grp, "grid_buf", grid_ubo);
     DRW_shgroup_uniform_block(grp, "globalsBlock", G_draw.block_ubo);
     DRW_shgroup_uniform_texture_ref(grp, "depth_tx", &dtxl->depth);
 

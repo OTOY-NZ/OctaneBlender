@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -22,16 +24,15 @@ extern "C" {
 struct BLI_Iterator;
 struct Base;
 struct BlendDataReader;
-struct BlendExpander;
 struct BlendLibReader;
 struct BlendWriter;
 struct Collection;
+struct Depsgraph;
 struct ID;
 struct Library;
 struct Main;
 struct Object;
 struct Scene;
-struct SceneCollection;
 struct ViewLayer;
 
 typedef struct CollectionParent {
@@ -315,17 +316,6 @@ void BKE_collection_blend_write_nolib(struct BlendWriter *writer, struct Collect
 void BKE_collection_blend_read_data(struct BlendDataReader *reader,
                                     struct Collection *collection,
                                     struct ID *owner_id);
-void BKE_collection_blend_read_lib(struct BlendLibReader *reader, struct Collection *collection);
-void BKE_collection_blend_read_expand(struct BlendExpander *expander,
-                                      struct Collection *collection);
-
-void BKE_collection_compat_blend_read_data(struct BlendDataReader *reader,
-                                           struct SceneCollection *sc);
-void BKE_collection_compat_blend_read_lib(struct BlendLibReader *reader,
-                                          struct Library *lib,
-                                          struct SceneCollection *sc);
-void BKE_collection_compat_blend_read_expand(struct BlendExpander *expander,
-                                             struct SceneCollection *sc);
 
 /* Iteration callbacks. */
 
@@ -421,16 +411,16 @@ struct GSet *BKE_scene_objects_as_gset(struct Scene *scene, struct GSet *objects
       _instance_next = _scene->master_collection; \
     } \
     else { \
-      _instance_next = (_bmain)->collections.first; \
+      _instance_next = (Collection *)(_bmain)->collections.first; \
     } \
 \
     while ((_instance = _instance_next)) { \
       if (is_scene_collection) { \
-        _instance_next = (_bmain)->collections.first; \
+        _instance_next = (Collection *)(_bmain)->collections.first; \
         is_scene_collection = false; \
       } \
       else { \
-        _instance_next = _instance->id.next; \
+        _instance_next = (Collection *)_instance->id.next; \
       }
 
 #define FOREACH_COLLECTION_END \

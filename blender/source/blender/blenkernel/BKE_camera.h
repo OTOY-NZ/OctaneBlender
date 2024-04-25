@@ -1,7 +1,10 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
+
+#include "BLI_rect.h"
 
 /** \file
  * \ingroup bke
@@ -19,7 +22,6 @@ struct RegionView3D;
 struct RenderData;
 struct Scene;
 struct View3D;
-struct rctf;
 
 /* Camera Data-block */
 

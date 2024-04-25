@@ -1,18 +1,24 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2015 Blender Foundation */
+/* SPDX-FileCopyrightText: 2015 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bli
  */
 
+#include "BLI_math_base.h"
+#include "BLI_math_matrix.h"
+#include "BLI_math_solvers.h"
+#include "BLI_math_vector.h"
 #include "MEM_guardedalloc.h"
 
-#include "BLI_math.h"
 #include "BLI_utildefines.h"
 
 #include "BLI_strict_flags.h"
 
 #include "eigen_capi.h"
+
+#include <string.h>
 
 /********************************** Eigen Solvers *********************************/
 

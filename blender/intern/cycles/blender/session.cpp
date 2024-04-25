@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #include <stdlib.h>
 
@@ -445,8 +446,9 @@ void BlenderSession::render(BL::Depsgraph &b_depsgraph_)
       printf("Render statistics:\n%s\n", stats.full_report().c_str());
     }
 
-    if (session->progress.get_cancel())
+    if (session->progress.get_cancel()) {
       break;
+    }
   }
 
   /* add metadata */
@@ -512,11 +514,14 @@ void BlenderSession::render_frame_finish()
   full_buffer_files_.clear();
 }
 
-static bool bake_setup_pass(Scene *scene, const string &bake_type_str, const int bake_filter)
+static bool bake_setup_pass(Scene *scene, const string &bake_type, const int bake_filter)
 {
   Integrator *integrator = scene->integrator;
   Film *film = scene->film;
-  const char *bake_type = bake_type_str.c_str();
+
+  const bool filter_direct = (bake_filter & BL::BakeSettings::pass_filter_DIRECT) != 0;
+  const bool filter_indirect = (bake_filter & BL::BakeSettings::pass_filter_INDIRECT) != 0;
+  const bool filter_color = (bake_filter & BL::BakeSettings::pass_filter_COLOR) != 0;
 
   PassType type = PASS_NONE;
   bool use_direct_light = false;
@@ -524,31 +529,31 @@ static bool bake_setup_pass(Scene *scene, const string &bake_type_str, const int
   bool include_albedo = false;
 
   /* Data passes. */
-  if (strcmp(bake_type, "POSITION") == 0) {
+  if (bake_type == "POSITION") {
     type = PASS_POSITION;
   }
-  else if (strcmp(bake_type, "NORMAL") == 0) {
+  else if (bake_type == "NORMAL") {
     type = PASS_NORMAL;
   }
-  else if (strcmp(bake_type, "UV") == 0) {
+  else if (bake_type == "UV") {
     type = PASS_UV;
   }
-  else if (strcmp(bake_type, "ROUGHNESS") == 0) {
+  else if (bake_type == "ROUGHNESS") {
     type = PASS_ROUGHNESS;
   }
-  else if (strcmp(bake_type, "EMIT") == 0) {
+  else if (bake_type == "EMIT") {
     type = PASS_EMISSION;
   }
   /* Environment pass. */
-  else if (strcmp(bake_type, "ENVIRONMENT") == 0) {
+  else if (bake_type == "ENVIRONMENT") {
     type = PASS_BACKGROUND;
   }
   /* AO pass. */
-  else if (strcmp(bake_type, "AO") == 0) {
+  else if (bake_type == "AO") {
     type = PASS_AO;
   }
   /* Shadow pass. */
-  else if (strcmp(bake_type, "SHADOW") == 0) {
+  else if (bake_type == "SHADOW") {
     /* Bake as combined pass, together with marking the object as a shadow catcher. */
     type = PASS_SHADOW_CATCHER;
     film->set_use_approximate_shadow_catcher(true);
@@ -563,13 +568,13 @@ static bool bake_setup_pass(Scene *scene, const string &bake_type_str, const int
     integrator->set_use_emission(true);
   }
   /* Combined pass. */
-  else if (strcmp(bake_type, "COMBINED") == 0) {
+  else if (bake_type == "COMBINED") {
     type = PASS_COMBINED;
     film->set_use_approximate_shadow_catcher(true);
 
-    use_direct_light = (bake_filter & BL::BakeSettings::pass_filter_DIRECT) != 0;
-    use_indirect_light = (bake_filter & BL::BakeSettings::pass_filter_INDIRECT) != 0;
-    include_albedo = (bake_filter & BL::BakeSettings::pass_filter_COLOR);
+    use_direct_light = filter_direct;
+    use_indirect_light = filter_indirect;
+    include_albedo = filter_color;
 
     integrator->set_use_diffuse((bake_filter & BL::BakeSettings::pass_filter_DIFFUSE) != 0);
     integrator->set_use_glossy((bake_filter & BL::BakeSettings::pass_filter_GLOSSY) != 0);
@@ -578,71 +583,57 @@ static bool bake_setup_pass(Scene *scene, const string &bake_type_str, const int
     integrator->set_use_emission((bake_filter & BL::BakeSettings::pass_filter_EMIT) != 0);
   }
   /* Light component passes. */
-  else if (strcmp(bake_type, "DIFFUSE") == 0) {
-    if ((bake_filter & BL::BakeSettings::pass_filter_DIRECT) &&
-        bake_filter & BL::BakeSettings::pass_filter_INDIRECT)
-    {
-      type = PASS_DIFFUSE;
-      use_direct_light = true;
-      use_indirect_light = true;
-    }
-    else if (bake_filter & BL::BakeSettings::pass_filter_DIRECT) {
-      type = PASS_DIFFUSE_DIRECT;
-      use_direct_light = true;
-    }
-    else if (bake_filter & BL::BakeSettings::pass_filter_INDIRECT) {
-      type = PASS_DIFFUSE_INDIRECT;
-      use_indirect_light = true;
-    }
-    else {
-      type = PASS_DIFFUSE_COLOR;
-    }
+  else if ((bake_type == "DIFFUSE") || (bake_type == "GLOSSY") || (bake_type == "TRANSMISSION")) {
+    use_direct_light = filter_direct;
+    use_indirect_light = filter_indirect;
+    include_albedo = filter_color;
 
-    include_albedo = (bake_filter & BL::BakeSettings::pass_filter_COLOR);
-  }
-  else if (strcmp(bake_type, "GLOSSY") == 0) {
-    if ((bake_filter & BL::BakeSettings::pass_filter_DIRECT) &&
-        bake_filter & BL::BakeSettings::pass_filter_INDIRECT)
-    {
-      type = PASS_GLOSSY;
-      use_direct_light = true;
-      use_indirect_light = true;
-    }
-    else if (bake_filter & BL::BakeSettings::pass_filter_DIRECT) {
-      type = PASS_GLOSSY_DIRECT;
-      use_direct_light = true;
-    }
-    else if (bake_filter & BL::BakeSettings::pass_filter_INDIRECT) {
-      type = PASS_GLOSSY_INDIRECT;
-      use_indirect_light = true;
-    }
-    else {
-      type = PASS_GLOSSY_COLOR;
-    }
+    integrator->set_use_diffuse(bake_type == "DIFFUSE");
+    integrator->set_use_glossy(bake_type == "GLOSSY");
+    integrator->set_use_transmission(bake_type == "TRANSMISSION");
 
-    include_albedo = (bake_filter & BL::BakeSettings::pass_filter_COLOR);
-  }
-  else if (strcmp(bake_type, "TRANSMISSION") == 0) {
-    if ((bake_filter & BL::BakeSettings::pass_filter_DIRECT) &&
-        bake_filter & BL::BakeSettings::pass_filter_INDIRECT)
-    {
-      type = PASS_TRANSMISSION;
-      use_direct_light = true;
-      use_indirect_light = true;
+    if (bake_type == "DIFFUSE") {
+      if (filter_direct && filter_indirect) {
+        type = PASS_DIFFUSE;
+      }
+      else if (filter_direct) {
+        type = PASS_DIFFUSE_DIRECT;
+      }
+      else if (filter_indirect) {
+        type = PASS_DIFFUSE_INDIRECT;
+      }
+      else {
+        type = PASS_DIFFUSE_COLOR;
+      }
     }
-    else if (bake_filter & BL::BakeSettings::pass_filter_DIRECT) {
-      type = PASS_TRANSMISSION_DIRECT;
-      use_direct_light = true;
+    else if (bake_type == "GLOSSY") {
+      if (filter_direct && filter_indirect) {
+        type = PASS_GLOSSY;
+      }
+      else if (filter_direct) {
+        type = PASS_GLOSSY_DIRECT;
+      }
+      else if (filter_indirect) {
+        type = PASS_GLOSSY_INDIRECT;
+      }
+      else {
+        type = PASS_GLOSSY_COLOR;
+      }
     }
-    else if (bake_filter & BL::BakeSettings::pass_filter_INDIRECT) {
-      type = PASS_TRANSMISSION_INDIRECT;
-      use_indirect_light = true;
+    else if (bake_type == "TRANSMISSION") {
+      if (filter_direct && filter_indirect) {
+        type = PASS_TRANSMISSION;
+      }
+      else if (filter_direct) {
+        type = PASS_TRANSMISSION_DIRECT;
+      }
+      else if (filter_indirect) {
+        type = PASS_TRANSMISSION_INDIRECT;
+      }
+      else {
+        type = PASS_TRANSMISSION_COLOR;
+      }
     }
-    else {
-      type = PASS_TRANSMISSION_COLOR;
-    }
-
-    include_albedo = (bake_filter & BL::BakeSettings::pass_filter_COLOR);
   }
 
   if (type == PASS_NONE) {
@@ -751,8 +742,9 @@ void BlenderSession::bake(BL::Depsgraph &b_depsgraph_,
 void BlenderSession::synchronize(BL::Depsgraph &b_depsgraph_)
 {
   /* only used for viewport render */
-  if (!b_v3d)
+  if (!b_v3d) {
     return;
+  }
 
   /* on session/scene parameter changes, we recreate session entirely */
   const SessionParams session_params = BlenderSync::get_session_params(
@@ -796,10 +788,12 @@ void BlenderSession::synchronize(BL::Depsgraph &b_depsgraph_)
   sync->sync_data(
       b_render, b_depsgraph, b_v3d, b_camera_override, width, height, &python_thread_state);
 
-  if (b_rv3d)
+  if (b_rv3d) {
     sync->sync_view(b_v3d, b_rv3d, width, height);
-  else
+  }
+  else {
     sync->sync_camera(b_render, b_camera_override, width, height, "");
+  }
 
   /* get buffer parameters */
   const BufferParams buffer_params = BlenderSync::get_buffer_params(
@@ -901,8 +895,9 @@ void BlenderSession::view_draw(int w, int h)
 
       sync->sync_view(b_v3d, b_rv3d, width, height);
 
-      if (scene->camera->is_modified())
+      if (scene->camera->is_modified()) {
         reset = true;
+      }
 
       session->scene->mutex.unlock();
     }
@@ -970,13 +965,16 @@ void BlenderSession::update_status_progress()
   }
 
   if (background) {
-    if (scene)
+    if (scene) {
       scene_status += " | " + scene->name;
-    if (b_rlay_name != "")
+    }
+    if (b_rlay_name != "") {
       scene_status += ", " + b_rlay_name;
+    }
 
-    if (b_rview_name != "")
+    if (b_rview_name != "") {
       scene_status += ", " + b_rview_name;
+    }
 
     if (remaining_time > 0) {
       timestatus += "Remaining:" + time_human_readable_from_seconds(remaining_time) + " | ";
@@ -984,10 +982,12 @@ void BlenderSession::update_status_progress()
 
     timestatus += string_printf("Mem:%.2fM, Peak:%.2fM", (double)mem_used, (double)mem_peak);
 
-    if (status.size() > 0)
+    if (status.size() > 0) {
       status = " | " + status;
-    if (substatus.size() > 0)
+    }
+    if (substatus.size() > 0) {
       status += " | " + substatus;
+    }
   }
 
   double current_time = time_dt();
@@ -1056,9 +1056,11 @@ void BlenderSession::tag_redraw()
 void BlenderSession::test_cancel()
 {
   /* test if we need to cancel rendering */
-  if (background)
-    if (b_engine.test_break())
+  if (background) {
+    if (b_engine.test_break()) {
       session->progress.set_cancel("Cancelled");
+    }
+  }
 }
 
 void BlenderSession::free_blender_memory_if_possible()

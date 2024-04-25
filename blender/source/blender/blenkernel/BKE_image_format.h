@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -77,7 +78,6 @@ char BKE_ftype_to_imtype(int ftype, const struct ImbFormatOptions *options);
 int BKE_imtype_to_ftype(char imtype, struct ImbFormatOptions *r_options);
 
 bool BKE_imtype_is_movie(char imtype);
-bool BKE_imtype_supports_zbuf(char imtype);
 bool BKE_imtype_supports_compress(char imtype);
 bool BKE_imtype_supports_quality(char imtype);
 bool BKE_imtype_requires_linear_float(char imtype);

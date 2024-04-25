@@ -1,12 +1,12 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
-
-#include "BLI_index_mask_ops.hh"
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_curves.hh"
 
 #include "curves_sculpt_intern.hh"
 
-#include "ED_curves_sculpt.h"
+#include "ED_curves_sculpt.hh"
 
 namespace blender::ed::sculpt_paint {
 

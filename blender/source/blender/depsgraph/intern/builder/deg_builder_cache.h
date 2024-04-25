@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2018 Blender Foundation */
+/* SPDX-FileCopyrightText: 2018 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup depsgraph
@@ -9,9 +10,9 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "intern/depsgraph_type.h"
+#include "intern/depsgraph_type.hh"
 
-#include "RNA_access.h"
+#include "RNA_access.hh"
 
 struct ID;
 struct PointerRNA;

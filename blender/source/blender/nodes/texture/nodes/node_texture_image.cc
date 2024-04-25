@@ -1,12 +1,18 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2006 Blender Foundation */
+/* SPDX-FileCopyrightText: 2006 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup texnodes
  */
 
+#include "BKE_image.h"
+#include "BLI_math_vector.h"
+#include "BLI_threads.h"
+#include "IMB_imbuf.h"
 #include "NOD_texture.h"
 #include "node_texture_util.hh"
+#include "node_util.hh"
 
 static bNodeSocketTemplate outputs[] = {
     {SOCK_RGBA, N_("Image")},
@@ -40,9 +46,9 @@ static void colorfn(float *out, TexParams *p, bNode *node, bNodeStack ** /*in*/,
         return;
       }
 
-      if (!ibuf->rect_float) {
+      if (!ibuf->float_buffer.data) {
         BLI_thread_lock(LOCK_IMAGE);
-        if (!ibuf->rect_float) {
+        if (!ibuf->float_buffer.data) {
           IMB_float_from_rect(ibuf);
         }
         BLI_thread_unlock(LOCK_IMAGE);
@@ -61,7 +67,7 @@ static void colorfn(float *out, TexParams *p, bNode *node, bNodeStack ** /*in*/,
         py -= ibuf->y;
       }
 
-      result = ibuf->rect_float + py * ibuf->x * 4 + px * 4;
+      result = ibuf->float_buffer.data + py * ibuf->x * 4 + px * 4;
       copy_v4_v4(out, result);
 
       BKE_image_release_ibuf(ima, ibuf, nullptr);

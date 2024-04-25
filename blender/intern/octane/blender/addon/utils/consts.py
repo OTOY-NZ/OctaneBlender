@@ -28,9 +28,17 @@ DEPRECATED_PREFIX = "[Deprecated]"
 
 
 # GUI
-USE_FACTOR_SUBTYPE_FOR_PROPERTIES = True
+FACTOR_PROPERTY_SUBTYPE = "NONE"
+
+def use_factor_property_subtype(enable):
+    global FACTOR_PROPERTY_SUBTYPE
+    if enable:
+        FACTOR_PROPERTY_SUBTYPE = "FACTOR"
+    else:
+        FACTOR_PROPERTY_SUBTYPE = "NONE"
+
 def factor_property_subtype():
-    return "FACTOR" if USE_FACTOR_SUBTYPE_FOR_PROPERTIES else "NONE"
+    return FACTOR_PROPERTY_SUBTYPE
 
 
 # Add Blender Pin Type
@@ -400,7 +408,8 @@ class UtilsFunctionType:
     RENDER_PAUSE = 302
     OCTANE_ORBX_PROXY = 400
     OCTANE_NODE_PROXY = 401
-
+    TOGGLE_RECORD = 10000
+    PLAY_RECORD = 10001
 
 # Pin Id
 P_INVALID = -1

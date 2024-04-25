@@ -1,5 +1,5 @@
 bl_info = {
-    "name": "OctaneBlender (v. 28.5)",
+    "name": "OctaneBlender (v. 28.7)",
     "author": "OTOY Inc.",
     "version": (28, 5, 0),
     "blender": (3, 6, 5),
@@ -189,7 +189,7 @@ class OctaneRender(bpy.types.RenderEngine):
         # Update on data changes for viewport render
         if utility.is_multiple_viewport_rendering():
             self.report({'ERROR'}, "Multiple rendered viewports are active! Only one active render task is supported at the same time! Please turn off viewport shading and try again!")
-            return        
+            return
         if core.ENABLE_OCTANE_ADDON_CLIENT:
             self.session.session_type = consts.SessionType.VIEWPORT
             if not self.session.is_render_started:
@@ -291,15 +291,18 @@ def octane_load_post_handler(arg):
     utility.set_all_viewport_shading_type("SOLID")
 
 
-def register():
-    from bpy.utils import register_class    
+@persistent
+def octane_depsgraph_update_post_handler(self):
+    pass
 
+
+def register():
+    from bpy.utils import register_class
     path = os.path.dirname(__file__)
     user_path = os.path.dirname(os.path.abspath(bpy.utils.user_resource('CONFIG', path='')))
     OctaneBlender().init(path, user_path)
     major, minor, patch = bpy.app.version
     OctaneBlender().set_blender_version(major, minor, patch)
-
     from octane import properties
     properties.register()
 
@@ -327,6 +330,7 @@ def register():
     bpy.app.handlers.depsgraph_update_post.append(operators.update_resource_cache_tag)
     bpy.app.handlers.depsgraph_update_post.append(operators.update_blender_volume_grid_info)
     bpy.app.handlers.depsgraph_update_post.append(resource_cache.update_dirty_mesh_names)
+    bpy.app.handlers.depsgraph_update_post.append(octane_depsgraph_update_post_handler)
 
 
 def unregister():
@@ -349,6 +353,7 @@ def unregister():
     bpy.app.handlers.depsgraph_update_post.remove(operators.update_resource_cache_tag)
     bpy.app.handlers.depsgraph_update_post.remove(operators.update_blender_volume_grid_info)
     bpy.app.handlers.depsgraph_update_post.remove(resource_cache.update_dirty_mesh_names)
+    bpy.app.handlers.depsgraph_update_post.remove(octane_depsgraph_update_post_handler)
     
     properties_.unregister()
     properties.unregister()

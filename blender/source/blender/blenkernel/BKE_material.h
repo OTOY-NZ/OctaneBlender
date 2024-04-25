@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -56,6 +57,7 @@ void BKE_object_material_from_eval_data(struct Main *bmain,
 struct Material *BKE_material_add(struct Main *bmain, const char *name);
 struct Material *BKE_gpencil_material_add(struct Main *bmain, const char *name);
 void BKE_gpencil_material_attr_init(struct Material *ma);
+void BKE_material_make_node_previews_dirty(struct Material *ma);
 
 /* UNUSED */
 // void automatname(struct Material *);
@@ -150,7 +152,7 @@ void BKE_id_material_clear(struct Main *bmain, struct ID *id);
  * material indices might be overwritten by the object.
  */
 struct Material *BKE_object_material_get_eval(struct Object *ob, short act);
-int BKE_object_material_count_eval(struct Object *ob);
+int BKE_object_material_count_eval(const struct Object *ob);
 void BKE_id_material_eval_assign(struct ID *id, int slot, struct Material *material);
 /**
  * Add an empty material slot if the id has no material slots. This material slot allows the

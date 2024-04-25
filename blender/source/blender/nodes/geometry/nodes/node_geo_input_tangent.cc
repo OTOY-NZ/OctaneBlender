@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_task.hh"
 
@@ -97,7 +99,7 @@ class TangentFieldInput final : public bke::CurvesFieldInput {
 
   GVArray get_varray_for_context(const bke::CurvesGeometry &curves,
                                  const eAttrDomain domain,
-                                 const IndexMask /*mask*/) const final
+                                 const IndexMask & /*mask*/) const final
   {
     return construct_curve_tangent_gvarray(curves, domain);
   }
@@ -125,16 +127,15 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("Tangent", std::move(tangent_field));
 }
 
-}  // namespace blender::nodes::node_geo_input_tangent_cc
-
-void register_node_type_geo_input_tangent()
+static void node_register()
 {
-  namespace file_ns = blender::nodes::node_geo_input_tangent_cc;
-
   static bNodeType ntype;
 
   geo_node_type_base(&ntype, GEO_NODE_INPUT_TANGENT, "Curve Tangent", NODE_CLASS_INPUT);
-  ntype.geometry_node_execute = file_ns::node_geo_exec;
-  ntype.declare = file_ns::node_declare;
+  ntype.geometry_node_execute = node_geo_exec;
+  ntype.declare = node_declare;
   nodeRegisterType(&ntype);
 }
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_geo_input_tangent_cc

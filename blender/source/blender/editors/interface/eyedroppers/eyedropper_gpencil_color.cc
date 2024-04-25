@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2009 Blender Foundation */
+/* SPDX-FileCopyrightText: 2009 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup edinterface
@@ -26,36 +27,36 @@
 #include "BKE_lib_id.h"
 #include "BKE_main.h"
 #include "BKE_material.h"
-#include "BKE_paint.h"
+#include "BKE_paint.hh"
 #include "BKE_report.h"
 
-#include "UI_interface.h"
+#include "UI_interface.hh"
 
 #include "IMB_colormanagement.h"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 
-#include "ED_gpencil_legacy.h"
-#include "ED_screen.h"
-#include "ED_undo.h"
+#include "ED_gpencil_legacy.hh"
+#include "ED_screen.hh"
+#include "ED_undo.hh"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_build.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_build.hh"
 
 #include "eyedropper_intern.hh"
 #include "interface_intern.hh"
 
-typedef enum eGP_EyeMode {
+enum eGP_EyeMode {
   GP_EYE_MATERIAL = 0,
   GP_EYE_PALETTE = 1,
-} eGP_EyeMode;
+};
 
 struct EyedropperGPencil {
-  struct ColorManagedDisplay *display;
+  ColorManagedDisplay *display;
   /** color under cursor RGB */
   float color[3];
   /** Mode */

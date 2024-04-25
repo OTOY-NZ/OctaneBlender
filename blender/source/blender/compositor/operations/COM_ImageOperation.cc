@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2011 Blender Foundation. */
+/* SPDX-FileCopyrightText: 2011 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "COM_ImageOperation.h"
 
@@ -21,8 +22,6 @@ BaseImageOperation::BaseImageOperation()
   imagewidth_ = 0;
   imageheight_ = 0;
   framenumber_ = 0;
-  image_depth_buffer_ = nullptr;
-  depth_buffer_ = nullptr;
   number_of_channels_ = 0;
   rd_ = nullptr;
   view_name_ = nullptr;
@@ -32,10 +31,6 @@ ImageOperation::ImageOperation() : BaseImageOperation()
   this->add_output_socket(DataType::Color);
 }
 ImageAlphaOperation::ImageAlphaOperation() : BaseImageOperation()
-{
-  this->add_output_socket(DataType::Value);
-}
-ImageDepthOperation::ImageDepthOperation() : BaseImageOperation()
 {
   this->add_output_socket(DataType::Value);
 }
@@ -55,7 +50,8 @@ ImBuf *BaseImageOperation::get_im_buf()
   }
 
   ibuf = BKE_image_acquire_ibuf(image_, &iuser, nullptr);
-  if (ibuf == nullptr || (ibuf->rect == nullptr && ibuf->rect_float == nullptr)) {
+  if (ibuf == nullptr || (ibuf->byte_buffer.data == nullptr && ibuf->float_buffer.data == nullptr))
+  {
     BKE_image_release_ibuf(image_, ibuf, nullptr);
     return nullptr;
   }
@@ -67,12 +63,8 @@ void BaseImageOperation::init_execution()
   ImBuf *stackbuf = get_im_buf();
   buffer_ = stackbuf;
   if (stackbuf) {
-    image_float_buffer_ = stackbuf->rect_float;
-    image_byte_buffer_ = stackbuf->rect;
-    image_depth_buffer_ = stackbuf->zbuf_float;
-    if (stackbuf->zbuf_float) {
-      depth_buffer_ = new MemoryBuffer(stackbuf->zbuf_float, 1, stackbuf->x, stackbuf->y);
-    }
+    image_float_buffer_ = stackbuf->float_buffer.data;
+    image_byte_buffer_ = stackbuf->byte_buffer.data;
     imagewidth_ = stackbuf->x;
     imageheight_ = stackbuf->y;
     number_of_channels_ = stackbuf->channels;
@@ -84,10 +76,6 @@ void BaseImageOperation::deinit_execution()
   image_float_buffer_ = nullptr;
   image_byte_buffer_ = nullptr;
   BKE_image_release_ibuf(image_, buffer_, nullptr);
-  if (depth_buffer_) {
-    delete depth_buffer_;
-    depth_buffer_ = nullptr;
-  }
 }
 
 void BaseImageOperation::determine_canvas(const rcti & /*preferred_area*/, rcti &r_area)
@@ -106,7 +94,7 @@ void BaseImageOperation::determine_canvas(const rcti & /*preferred_area*/, rcti 
 static void sample_image_at_location(
     ImBuf *ibuf, float x, float y, PixelSampler sampler, bool make_linear_rgb, float color[4])
 {
-  if (ibuf->rect_float) {
+  if (ibuf->float_buffer.data) {
     switch (sampler) {
       case PixelSampler::Nearest:
         nearest_interpolation_color(ibuf, nullptr, color, x, y);
@@ -134,7 +122,8 @@ static void sample_image_at_location(
     }
     rgba_uchar_to_float(color, byte_color);
     if (make_linear_rgb) {
-      IMB_colormanagement_colorspace_to_scene_linear_v4(color, false, ibuf->rect_colorspace);
+      IMB_colormanagement_colorspace_to_scene_linear_v4(
+          color, false, ibuf->byte_buffer.colorspace);
     }
   }
 }
@@ -182,37 +171,6 @@ void ImageAlphaOperation::update_memory_buffer_partial(MemoryBuffer *output,
                                                        Span<MemoryBuffer *> /*inputs*/)
 {
   output->copy_from(buffer_, area, 3, COM_DATA_TYPE_VALUE_CHANNELS, 0);
-}
-
-void ImageDepthOperation::execute_pixel_sampled(float output[4],
-                                                float x,
-                                                float y,
-                                                PixelSampler /*sampler*/)
-{
-  if (image_depth_buffer_ == nullptr) {
-    output[0] = 0.0f;
-  }
-  else {
-    if (x < 0 || y < 0 || x >= this->get_width() || y >= this->get_height()) {
-      output[0] = 0.0f;
-    }
-    else {
-      int offset = y * get_width() + x;
-      output[0] = image_depth_buffer_[offset];
-    }
-  }
-}
-
-void ImageDepthOperation::update_memory_buffer_partial(MemoryBuffer *output,
-                                                       const rcti &area,
-                                                       Span<MemoryBuffer *> /*inputs*/)
-{
-  if (depth_buffer_) {
-    output->copy_from(depth_buffer_, area);
-  }
-  else {
-    output->fill(area, COM_VALUE_ZERO);
-  }
 }
 
 }  // namespace blender::compositor

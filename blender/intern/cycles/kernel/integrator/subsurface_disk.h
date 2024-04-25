@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #include "kernel/integrator/guiding.h"
 
@@ -33,7 +34,7 @@ ccl_device_inline bool subsurface_disk(KernelGlobals kg,
   const float3 P = INTEGRATOR_STATE(state, ray, P);
   const float ray_dP = INTEGRATOR_STATE(state, ray, dP);
   const float time = INTEGRATOR_STATE(state, ray, time);
-  const float3 Ng = INTEGRATOR_STATE(state, subsurface, Ng);
+  const float3 Ng = INTEGRATOR_STATE(state, subsurface, N);
   const int object = INTEGRATOR_STATE(state, isect, object);
   const uint32_t path_flag = INTEGRATOR_STATE(state, path, flag);
 
@@ -91,7 +92,8 @@ ccl_device_inline bool subsurface_disk(KernelGlobals kg,
   ray.self.object = OBJECT_NONE;
   ray.self.prim = PRIM_NONE;
   ray.self.light_object = OBJECT_NONE;
-  ray.self.light_prim = OBJECT_NONE;
+  ray.self.light_prim = PRIM_NONE;
+  ray.self.light = LAMP_NONE;
 
   /* Intersect with the same object. if multiple intersections are found it
    * will use at most BSSRDF_MAX_HITS hits, a random subset of all hits. */

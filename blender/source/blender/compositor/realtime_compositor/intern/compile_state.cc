@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <limits>
 
@@ -148,8 +150,8 @@ Domain CompileState::compute_shader_node_domain(DNode node)
       continue;
     }
 
-    /* An input that skips realization can't be a domain input. */
-    if (input_descriptor.skip_realization) {
+    /* An input that skips operation domain realization can't be a domain input. */
+    if (!input_descriptor.realization_options.realize_on_operation_domain) {
       continue;
     }
 

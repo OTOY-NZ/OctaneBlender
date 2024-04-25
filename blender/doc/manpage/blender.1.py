@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2010-2023 Blender Authors
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 """
@@ -29,10 +31,16 @@ def man_format(data: str) -> str:
 
 
 def blender_extract_info(blender_bin: str) -> Dict[str, str]:
-
     blender_env = {
-        "ASAN_OPTIONS": "exitcode=0:" + os.environ.get("ASAN_OPTIONS", ""),
+        "ASAN_OPTIONS": (
+            os.environ.get("ASAN_OPTIONS", "") +
+            ":exitcode=0:check_initialization_order=0:strict_init_order=0"
+        ).lstrip(":"),
     }
+
+    # NOTE: in some ways it's more elegant to use `bpy.app.help_text()` which was done but had to be reverted.
+    # however - this requires Blender to run with a full environment (initializing it's Python environment).
+    # See #115056 & !115320 for details.
 
     blender_help = subprocess.run(
         [blender_bin, "--help"],
@@ -53,15 +61,28 @@ def blender_extract_info(blender_bin: str) -> Dict[str, str]:
     # check for each lines prefix to ensure these aren't included.
     blender_version = ""
     blender_date = ""
+
+    # The full text (use to manipulate `blender_version_text`).
+    blender_version_text = ""
+
     for l in blender_version_output.split("\n"):
         if l.startswith("Blender "):
-            # Remove 'Blender' prefix.
+            if blender_version_text == "":
+                blender_version_text = l
+            # Remove `Blender` prefix.
             blender_version = l.split(" ", 1)[1].strip()
         elif l.lstrip().startswith("build date:"):
-            # Remove 'build date:' prefix.
+            # Remove `build date:` prefix.
             blender_date = l.split(":", 1)[1].strip()
         if blender_version and blender_date:
             break
+
+    # The `--help` text also contains the version, skip it so as not to include it twice.
+    if blender_version_text:
+        i = blender_help.find(blender_version_text)
+        if i != -1:
+            blender_help = blender_help[i + len(blender_version_text) + 1:]
+        del i
 
     if not blender_date:
         # Happens when built without WITH_BUILD_INFO e.g.
@@ -192,8 +213,8 @@ def main() -> None:
     parser = create_argparse()
     args = parser.parse_args()
 
-    blender_bin = args.blender
     output_filename = args.output
+    blender_bin = args.blender
     verbose = args.verbose
 
     with open(output_filename, "w", encoding="utf-8") as fh:

@@ -1,13 +1,14 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2008 Blender Foundation */
+/* SPDX-FileCopyrightText: 2008 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup spoutliner
  */
 
-#include "WM_api.h"
+#include "WM_api.hh"
 
-#include "ED_screen.h"
+#include "ED_screen.hh"
 
 #include "outliner_intern.hh"
 
@@ -100,7 +101,7 @@ void outliner_operatortypes()
 
 void outliner_keymap(wmKeyConfig *keyconf)
 {
-  WM_keymap_ensure(keyconf, "Outliner", SPACE_OUTLINER, 0);
+  WM_keymap_ensure(keyconf, "Outliner", SPACE_OUTLINER, RGN_TYPE_WINDOW);
 }
 
 /** \} */

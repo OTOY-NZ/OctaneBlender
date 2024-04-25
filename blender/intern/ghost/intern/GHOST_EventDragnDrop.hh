@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup GHOST
@@ -8,10 +9,8 @@
 #pragma once
 
 #include "GHOST_Event.hh"
-extern "C" {
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
-};
 
 /**
  * Drag & drop event
@@ -75,8 +74,9 @@ class GHOST_EventDragnDrop : public GHOST_Event {
   ~GHOST_EventDragnDrop()
   {
     /* Free the dropped object data. */
-    if (m_dragnDropEventData.data == NULL)
+    if (m_dragnDropEventData.data == nullptr) {
       return;
+    }
 
     switch (m_dragnDropEventData.dataType) {
       case GHOST_kDragnDropTypeBitmap:
@@ -86,12 +86,14 @@ class GHOST_EventDragnDrop : public GHOST_Event {
         GHOST_TStringArray *strArray = (GHOST_TStringArray *)m_dragnDropEventData.data;
         int i;
 
-        for (i = 0; i < strArray->count; i++)
+        for (i = 0; i < strArray->count; i++) {
           free(strArray->strings[i]);
+        }
 
         free(strArray->strings);
         free(strArray);
-      } break;
+        break;
+      }
       case GHOST_kDragnDropTypeString:
         free(m_dragnDropEventData.data);
         break;

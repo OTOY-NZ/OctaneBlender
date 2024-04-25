@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #include <limits.h>
 #include <string.h>
@@ -272,10 +273,12 @@ void Session::thread_render()
   profiler.stop();
 
   /* progress update */
-  if (progress.get_cancel())
+  if (progress.get_cancel()) {
     progress.set_status(progress.get_cancel_message());
-  else
+  }
+  else {
     progress.set_update();
+  }
 }
 
 bool Session::is_session_thread_rendering()

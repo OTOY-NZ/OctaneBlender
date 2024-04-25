@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2005 Blender Foundation */
+/* SPDX-FileCopyrightText: 2005 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup gpu
@@ -173,7 +174,6 @@ typedef enum GPUSamplerStateType {
  * GPU_texture_compare_mode(texture, true);
  * // Use the texture ...
  * GPU_texture_compare_mode(texture, false);
- *
  */
 typedef struct GPUSamplerState {
   /** Specifies the enabled filtering options for the sampler. */
@@ -315,32 +315,32 @@ typedef struct GPUSamplerState {
 
     /* The sampler state is of type PARAMETERS, so serialize the parameters. */
     BLI_assert(this->type == GPU_SAMPLER_STATE_TYPE_PARAMETERS);
-    std::string serialized_paramaters;
+    std::string serialized_parameters;
 
     if (this->filtering & GPU_SAMPLER_FILTERING_LINEAR) {
-      serialized_paramaters += "linear-filter_";
+      serialized_parameters += "linear-filter_";
     }
 
     if (this->filtering & GPU_SAMPLER_FILTERING_MIPMAP) {
-      serialized_paramaters += "mipmap_";
+      serialized_parameters += "mipmap_";
     }
 
     if (this->filtering & GPU_SAMPLER_FILTERING_ANISOTROPIC) {
-      serialized_paramaters += "anisotropic_";
+      serialized_parameters += "anisotropic_";
     }
 
     switch (this->extend_x) {
       case GPU_SAMPLER_EXTEND_MODE_EXTEND:
-        serialized_paramaters += "extend-x_";
+        serialized_parameters += "extend-x_";
         break;
       case GPU_SAMPLER_EXTEND_MODE_REPEAT:
-        serialized_paramaters += "repeat-x_";
+        serialized_parameters += "repeat-x_";
         break;
       case GPU_SAMPLER_EXTEND_MODE_MIRRORED_REPEAT:
-        serialized_paramaters += "mirrored-repeat-x_";
+        serialized_parameters += "mirrored-repeat-x_";
         break;
       case GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER:
-        serialized_paramaters += "clamp-to-border-x_";
+        serialized_parameters += "clamp-to-border-x_";
         break;
       default:
         BLI_assert_unreachable();
@@ -348,16 +348,16 @@ typedef struct GPUSamplerState {
 
     switch (this->extend_yz) {
       case GPU_SAMPLER_EXTEND_MODE_EXTEND:
-        serialized_paramaters += "extend-y_";
+        serialized_parameters += "extend-y_";
         break;
       case GPU_SAMPLER_EXTEND_MODE_REPEAT:
-        serialized_paramaters += "repeat-y_";
+        serialized_parameters += "repeat-y_";
         break;
       case GPU_SAMPLER_EXTEND_MODE_MIRRORED_REPEAT:
-        serialized_paramaters += "mirrored-repeat-y_";
+        serialized_parameters += "mirrored-repeat-y_";
         break;
       case GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER:
-        serialized_paramaters += "clamp-to-border-y_";
+        serialized_parameters += "clamp-to-border-y_";
         break;
       default:
         BLI_assert_unreachable();
@@ -365,22 +365,22 @@ typedef struct GPUSamplerState {
 
     switch (this->extend_yz) {
       case GPU_SAMPLER_EXTEND_MODE_EXTEND:
-        serialized_paramaters += "extend-z";
+        serialized_parameters += "extend-z";
         break;
       case GPU_SAMPLER_EXTEND_MODE_REPEAT:
-        serialized_paramaters += "repeat-z";
+        serialized_parameters += "repeat-z";
         break;
       case GPU_SAMPLER_EXTEND_MODE_MIRRORED_REPEAT:
-        serialized_paramaters += "mirrored-repeat-z";
+        serialized_parameters += "mirrored-repeat-z";
         break;
       case GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER:
-        serialized_paramaters += "clamp-to-border-z";
+        serialized_parameters += "clamp-to-border-z";
         break;
       default:
         BLI_assert_unreachable();
     }
 
-    return serialized_paramaters;
+    return serialized_parameters;
   }
 
   bool operator==(GPUSamplerState const &rhs) const
@@ -543,16 +543,17 @@ typedef enum eGPUTextureUsage {
    * OR, uses swizzle access masks. Mip-map base layer adjustment and texture channel swizzling
    * requires a texture view under-the-hood. */
   GPU_TEXTURE_USAGE_MIP_SWIZZLE_VIEW = (1 << 3),
-  /* Whether a texture can be allocated without any backing memory. It is used as an
-   * attachment to store data, but is not needed by any future passes.
-   * This usage mode should be used in scenarios where an attachment has no previous
-   * contents and is not stored after a render pass. */
-  GPU_TEXTURE_USAGE_MEMORYLESS = (1 << 4),
   /* Whether the texture needs to be read from by the CPU. */
-  GPU_TEXTURE_USAGE_HOST_READ = (1 << 5),
+  GPU_TEXTURE_USAGE_HOST_READ = (1 << 4),
+  /* When used, the texture will not have any backing storage and can solely exist as a virtual
+   * frame-buffer attachment. */
+  GPU_TEXTURE_USAGE_MEMORYLESS = (1 << 5),
+  /* Whether a texture can support atomic operations. */
+  GPU_TEXTURE_USAGE_ATOMIC = (1 << 6),
   /* Create a texture whose usage cannot be defined prematurely.
    * This is unoptimized and should not be used. */
-  GPU_TEXTURE_USAGE_GENERAL = 0xFF,
+  GPU_TEXTURE_USAGE_GENERAL = (0xFF &
+                               (~(GPU_TEXTURE_USAGE_MEMORYLESS | GPU_TEXTURE_USAGE_ATOMIC))),
 } eGPUTextureUsage;
 
 ENUM_OPERATORS(eGPUTextureUsage, GPU_TEXTURE_USAGE_GENERAL);
@@ -700,6 +701,13 @@ void GPU_texture_free(GPUTexture *texture);
  * \note If \a cube_as_array is true, then the created view will be a 2D array texture instead of a
  * cube-map texture or cube-map-array texture.
  *
+ * For Depth-Stencil texture view formats:
+ * \note If \a use_stencil is true, the texture is expected to be bound to a UINT sampler and will
+ * return the stencil value (in a range of [0..255]) as the first component.
+ * \note If \a use_stencil is false (default), the texture is expected to be bound to a DEPTH
+ * sampler and will return the normalized depth value (in a range of [0..1])  as the first
+ * component.
+ *
  * TODO(fclem): Target conversion (ex: Texture 2D as Texture 2D Array) is not implemented yet.
  */
 GPUTexture *GPU_texture_create_view(const char *name,
@@ -709,7 +717,8 @@ GPUTexture *GPU_texture_create_view(const char *name,
                                     int mip_len,
                                     int layer_start,
                                     int layer_len,
-                                    bool cube_as_array);
+                                    bool cube_as_array,
+                                    bool use_stencil);
 
 /** \} */
 
@@ -761,7 +770,7 @@ void GPU_texture_update_sub(GPUTexture *texture,
  * Update the content of a texture's specific mip-map level.
  * \a data_format is the format of the \a pixels . It needs to be compatible with the internal
  * texture storage.
- * The \a data should be the size of the entire \a mip_level .
+ * The \a data should be the size of the entire \a mip_level.
  */
 void GPU_texture_update_mipmap(GPUTexture *texture,
                                int mip_level,
@@ -908,16 +917,6 @@ void GPU_texture_extend_mode(GPUTexture *texture, GPUSamplerExtendMode extend_mo
  */
 void GPU_texture_swizzle_set(GPUTexture *texture, const char swizzle[4]);
 
-/**
- * Set a depth-stencil texture read mode.
- *
- * If \a use_stencil is true, the texture is expected to be bound to a UINT sampler and will return
- * the stencil value (in a range of [0..255]) as the first component.
- * If \a use_stencil is false, the texture is expected to be bound to a DEPTH sampler and will
- * return the normalized depth value (in a range of [0..1])  as the first component.
- */
-void GPU_texture_stencil_texture_mode_set(GPUTexture *texture, bool use_stencil);
-
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -931,12 +930,12 @@ void GPU_texture_stencil_texture_mode_set(GPUTexture *texture, bool use_stencil)
 int GPU_texture_dimensions(const GPUTexture *texture);
 
 /**
- * Return the width of \a tex .
+ * Return the width of \a tex.
  */
 int GPU_texture_width(const GPUTexture *texture);
 
 /**
- * Return the height of \a tex . Correspond to number of layers for 1D array texture.
+ * Return the height of \a tex. Correspond to number of layers for 1D array texture.
  */
 int GPU_texture_height(const GPUTexture *texture);
 
@@ -947,7 +946,7 @@ int GPU_texture_height(const GPUTexture *texture);
 int GPU_texture_depth(const GPUTexture *texture);
 
 /**
- * Return the number of layers of \a tex . Return 1 if the texture is not layered.
+ * Return the number of layers of \a tex. Return 1 if the texture is not layered.
  */
 int GPU_texture_layer_count(const GPUTexture *texture);
 
@@ -957,12 +956,12 @@ int GPU_texture_layer_count(const GPUTexture *texture);
 int GPU_texture_mip_count(const GPUTexture *texture);
 
 /**
- * Return the texture format of \a tex .
+ * Return the texture format of \a tex.
  */
 eGPUTextureFormat GPU_texture_format(const GPUTexture *texture);
 
 /**
- * Return the usage flags of \a tex .
+ * Return the usage flags of \a tex.
  */
 eGPUTextureUsage GPU_texture_usage(const GPUTexture *texture);
 
@@ -1104,7 +1103,7 @@ void *GPU_pixel_buffer_map(GPUPixelBuffer *pixel_buf);
 void GPU_pixel_buffer_unmap(GPUPixelBuffer *pixel_buf);
 
 /**
- * Return size in bytes of the \a pix_buf .
+ * Return size in bytes of the \a pix_buf.
  */
 size_t GPU_pixel_buffer_size(GPUPixelBuffer *pixel_buf);
 

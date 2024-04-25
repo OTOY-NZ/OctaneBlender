@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -16,7 +18,8 @@ namespace blender::meshintersect {
 
 /**
  * Enum values after BOOLEAN_NONE need to match BMESH_ISECT_BOOLEAN_... values in
- * editmesh_intersect.c. */
+ * `editmesh_intersect.cc`.
+ */
 enum class BoolOpType {
   None = -1,
   /* Aligned with #BooleanModifierOp. */

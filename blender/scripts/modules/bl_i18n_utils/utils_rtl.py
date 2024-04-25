@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2012-2023 Blender Authors
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 # Pre-process right-to-left languages.
@@ -126,7 +128,7 @@ def protect_format_seq(msg):
 def log2vis(msgs, settings):
     """
     Globally mimics deprecated fribidi_log2vis.
-    msgs should be an iterable of messages to rtl-process.
+    msgs should be an iterable of messages to RTL-process.
     """
     fbd = ctypes.CDLL(settings.FRIBIDI_LIB)
 

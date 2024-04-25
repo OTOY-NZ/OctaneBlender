@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #include "graph/node.h"
 #include "graph/node_type.h"
@@ -65,6 +66,12 @@ void Node::set(const SocketType &input, int value)
 void Node::set(const SocketType &input, uint value)
 {
   assert(input.type == SocketType::UINT);
+  set_if_different(input, value);
+}
+
+void Node::set(const SocketType &input, uint64_t value)
+{
+  assert(input.type == SocketType::UINT64);
   set_if_different(input, value);
 }
 
@@ -188,6 +195,12 @@ uint Node::get_uint(const SocketType &input) const
 {
   assert(input.type == SocketType::UINT);
   return get_socket_value<uint>(this, input);
+}
+
+uint64_t Node::get_uint64(const SocketType &input) const
+{
+  assert(input.type == SocketType::UINT64);
+  return get_socket_value<uint64_t>(this, input);
 }
 
 float Node::get_float(const SocketType &input) const
@@ -434,6 +447,9 @@ void Node::set_value(const SocketType &socket, const Node &other, const SocketTy
       case SocketType::UINT:
         set(socket, get_socket_value<uint>(&other, socket));
         break;
+      case SocketType::UINT64:
+        set(socket, get_socket_value<uint64_t>(&other, socket));
+        break;
       case SocketType::COLOR:
       case SocketType::VECTOR:
       case SocketType::POINT:
@@ -489,6 +505,8 @@ bool Node::equals_value(const Node &other, const SocketType &socket) const
       return is_value_equal<int>(this, &other, socket);
     case SocketType::UINT:
       return is_value_equal<uint>(this, &other, socket);
+    case SocketType::UINT64:
+      return is_value_equal<uint64_t>(this, &other, socket);
     case SocketType::COLOR:
       return is_value_equal<float3>(this, &other, socket);
     case SocketType::VECTOR:
@@ -534,6 +552,7 @@ bool Node::equals_value(const Node &other, const SocketType &socket) const
       return is_array_equal<void *>(this, &other, socket);
 
     case SocketType::UNDEFINED:
+    case SocketType::NUM_TYPES:
       return true;
   }
 
@@ -547,8 +566,9 @@ bool Node::equals(const Node &other) const
   assert(type == other.type);
 
   foreach (const SocketType &socket, type->inputs) {
-    if (!equals_value(other, socket))
+    if (!equals_value(other, socket)) {
       return false;
+    }
   }
 
   return true;
@@ -607,6 +627,9 @@ void Node::hash(MD5Hash &md5)
         break;
       case SocketType::UINT:
         value_hash<uint>(this, socket, md5);
+        break;
+      case SocketType::UINT64:
+        value_hash<uint64_t>(this, socket, md5);
         break;
       case SocketType::COLOR:
         float3_hash(this, socket, md5);
@@ -673,6 +696,7 @@ void Node::hash(MD5Hash &md5)
         break;
 
       case SocketType::UNDEFINED:
+      case SocketType::NUM_TYPES:
         break;
     }
   }
@@ -697,6 +721,7 @@ size_t Node::get_total_size_in_bytes() const
       case SocketType::FLOAT:
       case SocketType::INT:
       case SocketType::UINT:
+      case SocketType::UINT64:
       case SocketType::COLOR:
       case SocketType::VECTOR:
       case SocketType::POINT:
@@ -745,6 +770,7 @@ size_t Node::get_total_size_in_bytes() const
         break;
 
       case SocketType::UNDEFINED:
+      case SocketType::NUM_TYPES:
         break;
     }
   }

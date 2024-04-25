@@ -1114,7 +1114,7 @@ def _check_compatibility_octane_node_tree_28_0(node_tree):
         # Update of the "NT_PROJ_DISTORTED_MESH_UV"
         if octane_node_type == consts.NodeType.NT_PROJ_DISTORTED_MESH_UV:
             node.inputs["Translation range"].default_value[0] /= 2
-            node.inputs["Translation range"].default_value[1] /= 2       
+            node.inputs["Translation range"].default_value[1] /= 2
         # Update of the "Hue"
         # consts.NodeType.NT_OUTPUT_AOV_COLOR_CORRECTION
         if octane_node_type == consts.NodeType.NT_TEX_COLORCORRECTION:
@@ -1140,7 +1140,7 @@ def check_compatibility_octane_node_tree_28_0(file_version):
             _check_compatibility_octane_node_tree_28_0(world.node_tree)
     for light in bpy.data.lights:
         if light.use_nodes:
-            _check_compatibility_octane_node_tree_28_0(light.node_tree)            
+            _check_compatibility_octane_node_tree_28_0(light.node_tree)
     for node_group in bpy.data.node_groups:
         _check_compatibility_octane_node_tree_28_0(node_group)
 
@@ -1166,6 +1166,8 @@ def _check_compatibility_octane_node_tree_28_5(node_tree):
                 new_node.inputs["Alpha operation"].default_value = node.inputs["Alpha operation"].default_value
             if len(node.inputs["Input"].links) > 0:
                 node_tree.links.new(node.inputs["Input"].links[0].from_socket, new_node.inputs["Input"])
+            if len(node.inputs["Opacity"].links) > 0:
+                node_tree.links.new(node.inputs["Opacity"].links[0].from_socket, new_node.inputs["Opacity"])
             if len(node.outputs[0].links) > 0:
                 node_tree.links.new(new_node.outputs[0], node.outputs[0].links[0].to_socket)
             old_nodes.append(node)
@@ -1184,7 +1186,7 @@ def check_compatibility_octane_node_tree_28_5(file_version):
             _check_compatibility_octane_node_tree_28_5(world.node_tree)
     for light in bpy.data.lights:
         if light.use_nodes:
-            _check_compatibility_octane_node_tree_28_5(light.node_tree)            
+            _check_compatibility_octane_node_tree_28_5(light.node_tree)
     for node_group in bpy.data.node_groups:
         _check_compatibility_octane_node_tree_28_5(node_group)
 
@@ -1231,7 +1233,7 @@ def _check_compatibility_octane_universal_material_node_17_5(node_tree, node):
         links = node_tree.links
         input_bump = node.inputs['Bump']
         input_coating_bump = node.inputs['Coating Bump']
-        input_sheen_bump = node.inputs['Sheen Bump']        
+        input_sheen_bump = node.inputs['Sheen Bump']
         if len(input_bump.links):
             if not len(input_coating_bump.links):
                 links.new(input_bump.links[0].from_socket, input_coating_bump)
@@ -1239,7 +1241,7 @@ def _check_compatibility_octane_universal_material_node_17_5(node_tree, node):
                 links.new(input_bump.links[0].from_socket, input_sheen_bump)
         input_normal = node.inputs['Normal']
         input_coating_normal = node.inputs['Coating Normal']
-        input_sheen_normal = node.inputs['Sheen Normal']        
+        input_sheen_normal = node.inputs['Sheen Normal']
         if len(input_normal.links):
             if not len(input_coating_normal.links):
                 links.new(input_normal.links[0].from_socket, input_coating_normal)
@@ -1248,7 +1250,7 @@ def _check_compatibility_octane_universal_material_node_17_5(node_tree, node):
         else:
             pass
     except Exception as e:
-        pass        
+        pass
 
 
 def _check_compatibility_octane_displacement_node_15_2_7(node_tree, node):
@@ -1266,20 +1268,20 @@ def _check_compatibility_octane_object_data_node_23_5(node_tree, node):
     try:        
         if node.object is not None:
             node.inputs['Object'].default_value = node.object
-            node.object = None        
+            node.object = None
     except Exception as e:
         pass        
 
 def _check_compatibility_octane_materials_node_24_0(node_tree, node):
-    try:        
+    try:
         # Custom AOV settings
         node.custom_aov = 'INVALID_CUSTOM_AOV'
         node.custom_aov_channel = 'CUSTOM_AOV_CHANNEL_ALL'
     except Exception as e:
-        pass                
+        pass
 
 def _check_compatibility_octane_images_node_24_0(node_tree, node):
-    try:      
+    try:
         if node.octane_ies_mode == "":  
             node.octane_ies_mode = "IES_MAX_1"
     except Exception as e:
@@ -1313,7 +1315,7 @@ def upgrade_octane_node_tree(octane_version, tree_name, node_tree):
                 socket_class, idx = config
                 new_socket = node.inputs.new(socket_class.__name__, socket_class.bl_label)
                 new_socket.init()
-                node.inputs.move(len(node.inputs) - 1, idx)                
+                node.inputs.move(len(node.inputs) - 1, idx)
                 # Check for deprecated socket and copy the values(if possible)
                 deprecated_socket_name = consts.DEPRECATED_PREFIX + socket_class.bl_label
                 if deprecated_socket_name in node.inputs:

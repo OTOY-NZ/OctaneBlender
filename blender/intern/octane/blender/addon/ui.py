@@ -82,8 +82,7 @@ class OCTANE_PT_mesh_properties_geometric_node(OctaneButtonsPanel, Panel):
         row.operator('update.octane_geo_nodes', icon='FILE_REFRESH')
         row = col.row()
         row.prop_search(ob_data_octane.octane_geo_node_collections, "osl_geo_node", ob_data_octane.octane_geo_node_collections, "osl_geo_nodes")
-        row = col.row()
-        osl_node_draw(context, row, str(ob_data_octane.octane_geo_node_collections.node_graph_tree), str(ob_data_octane.octane_geo_node_collections.osl_geo_node))
+        osl_node_draw(context, col, str(ob_data_octane.octane_geo_node_collections.node_graph_tree), str(ob_data_octane.octane_geo_node_collections.osl_geo_node))
 
 
 class OCTANE_PT_mesh_properties_open_subdivision(OctaneButtonsPanel, Panel):

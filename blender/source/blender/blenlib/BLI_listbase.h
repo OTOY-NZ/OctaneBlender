@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -62,6 +63,12 @@ void *BLI_findstring(const struct ListBase *listbase,
 void *BLI_findstring_ptr(const struct ListBase *listbase,
                          const char *id,
                          int offset) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL(1);
+/**
+ * Finds the first element in the listbase after the given \a link element which contains a pointer
+ * to the null-terminated string \a id at the specified offset, returning NULL if not found.
+ */
+void *BLI_listbase_findafter_string_ptr(struct Link *link, const char *id, const int offset);
+
 /**
  * Finds the first element of listbase which contains the specified pointer value
  * at the specified offset, returning NULL if not found.
@@ -285,8 +292,9 @@ BLI_INLINE void BLI_listbase_clear(struct ListBase *lb)
   lb->first = lb->last = (void *)0;
 }
 
-/** Validate the integrity of a given ListBase, returns `true` if everything is OK, false
- * otherwise.
+/**
+ * Validate the integrity of a given ListBase.
+ * \return true if everything is OK, false otherwise.
  */
 bool BLI_listbase_validate(struct ListBase *lb);
 

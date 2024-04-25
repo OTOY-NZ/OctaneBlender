@@ -1,12 +1,17 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_math_matrix.h"
+#include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
-#include "BLI_task.hh"
 
-#include "RNA_enum_types.h"
+#include "RNA_enum_types.hh"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
+
+#include "NOD_rna_define.hh"
 
 #include "node_function_util.hh"
 
@@ -26,106 +31,100 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
   uiItemR(layout, ptr, "axis", UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
-  uiItemR(layout, ptr, "pivot_axis", 0, IFACE_("Pivot"), ICON_NONE);
+  uiItemR(layout, ptr, "pivot_axis", UI_ITEM_NONE, IFACE_("Pivot"), ICON_NONE);
 }
 
-static void align_rotations_auto_pivot(IndexMask mask,
+static void align_rotations_auto_pivot(const IndexMask &mask,
                                        const VArray<float3> &input_rotations,
                                        const VArray<float3> &vectors,
                                        const VArray<float> &factors,
                                        const float3 local_main_axis,
-                                       const MutableSpan<float3> output_rotations)
+                                       MutableSpan<float3> output_rotations)
 {
-  threading::parallel_for(mask.index_range(), 512, [&](IndexRange mask_range) {
-    for (const int maski : mask_range) {
-      const int64_t i = mask[maski];
-      const float3 vector = vectors[i];
-      if (is_zero_v3(vector)) {
-        output_rotations[i] = input_rotations[i];
-        continue;
-      }
-
-      float old_rotation[3][3];
-      eul_to_mat3(old_rotation, input_rotations[i]);
-      float3 old_axis;
-      mul_v3_m3v3(old_axis, old_rotation, local_main_axis);
-
-      const float3 new_axis = math::normalize(vector);
-      float3 rotation_axis = math::cross_high_precision(old_axis, new_axis);
-      if (is_zero_v3(rotation_axis)) {
-        /* The vectors are linearly dependent, so we fall back to another axis. */
-        rotation_axis = math::cross_high_precision(old_axis, float3(1, 0, 0));
-        if (is_zero_v3(rotation_axis)) {
-          /* This is now guaranteed to not be zero. */
-          rotation_axis = math::cross_high_precision(old_axis, float3(0, 1, 0));
-        }
-      }
-
-      const float full_angle = angle_normalized_v3v3(old_axis, new_axis);
-      const float angle = factors[i] * full_angle;
-
-      float rotation[3][3];
-      axis_angle_to_mat3(rotation, rotation_axis, angle);
-
-      float new_rotation_matrix[3][3];
-      mul_m3_m3m3(new_rotation_matrix, rotation, old_rotation);
-
-      float3 new_rotation;
-      mat3_to_eul(new_rotation, new_rotation_matrix);
-
-      output_rotations[i] = new_rotation;
+  mask.foreach_index([&](const int64_t i) {
+    const float3 vector = vectors[i];
+    if (is_zero_v3(vector)) {
+      output_rotations[i] = input_rotations[i];
+      return;
     }
+
+    float old_rotation[3][3];
+    eul_to_mat3(old_rotation, input_rotations[i]);
+    float3 old_axis;
+    mul_v3_m3v3(old_axis, old_rotation, local_main_axis);
+
+    const float3 new_axis = math::normalize(vector);
+    float3 rotation_axis = math::cross_high_precision(old_axis, new_axis);
+    if (is_zero_v3(rotation_axis)) {
+      /* The vectors are linearly dependent, so we fall back to another axis. */
+      rotation_axis = math::cross_high_precision(old_axis, float3(1, 0, 0));
+      if (is_zero_v3(rotation_axis)) {
+        /* This is now guaranteed to not be zero. */
+        rotation_axis = math::cross_high_precision(old_axis, float3(0, 1, 0));
+      }
+    }
+
+    const float full_angle = angle_normalized_v3v3(old_axis, new_axis);
+    const float angle = factors[i] * full_angle;
+
+    float rotation[3][3];
+    axis_angle_to_mat3(rotation, rotation_axis, angle);
+
+    float new_rotation_matrix[3][3];
+    mul_m3_m3m3(new_rotation_matrix, rotation, old_rotation);
+
+    float3 new_rotation;
+    mat3_to_eul(new_rotation, new_rotation_matrix);
+
+    output_rotations[i] = new_rotation;
   });
 }
 
-static void align_rotations_fixed_pivot(IndexMask mask,
+static void align_rotations_fixed_pivot(const IndexMask &mask,
                                         const VArray<float3> &input_rotations,
                                         const VArray<float3> &vectors,
                                         const VArray<float> &factors,
                                         const float3 local_main_axis,
                                         const float3 local_pivot_axis,
-                                        const MutableSpan<float3> output_rotations)
+                                        MutableSpan<float3> output_rotations)
 {
-  threading::parallel_for(mask.index_range(), 512, [&](IndexRange mask_range) {
-    for (const int64_t maski : mask_range) {
-      const int64_t i = mask[maski];
-      if (local_main_axis == local_pivot_axis) {
-        /* Can't compute any meaningful rotation angle in this case. */
-        output_rotations[i] = input_rotations[i];
-        continue;
-      }
-
-      const float3 vector = vectors[i];
-      if (is_zero_v3(vector)) {
-        output_rotations[i] = input_rotations[i];
-        continue;
-      }
-
-      float old_rotation[3][3];
-      eul_to_mat3(old_rotation, input_rotations[i]);
-      float3 old_axis;
-      mul_v3_m3v3(old_axis, old_rotation, local_main_axis);
-      float3 pivot_axis;
-      mul_v3_m3v3(pivot_axis, old_rotation, local_pivot_axis);
-
-      float full_angle = angle_signed_on_axis_v3v3_v3(vector, old_axis, pivot_axis);
-      if (full_angle > M_PI) {
-        /* Make sure the point is rotated as little as possible. */
-        full_angle -= 2.0f * M_PI;
-      }
-      const float angle = factors[i] * full_angle;
-
-      float rotation[3][3];
-      axis_angle_to_mat3(rotation, pivot_axis, angle);
-
-      float new_rotation_matrix[3][3];
-      mul_m3_m3m3(new_rotation_matrix, rotation, old_rotation);
-
-      float3 new_rotation;
-      mat3_to_eul(new_rotation, new_rotation_matrix);
-
-      output_rotations[i] = new_rotation;
+  mask.foreach_index([&](const int64_t i) {
+    if (local_main_axis == local_pivot_axis) {
+      /* Can't compute any meaningful rotation angle in this case. */
+      output_rotations[i] = input_rotations[i];
+      return;
     }
+
+    const float3 vector = vectors[i];
+    if (is_zero_v3(vector)) {
+      output_rotations[i] = input_rotations[i];
+      return;
+    }
+
+    float old_rotation[3][3];
+    eul_to_mat3(old_rotation, input_rotations[i]);
+    float3 old_axis;
+    mul_v3_m3v3(old_axis, old_rotation, local_main_axis);
+    float3 pivot_axis;
+    mul_v3_m3v3(pivot_axis, old_rotation, local_pivot_axis);
+
+    float full_angle = angle_signed_on_axis_v3v3_v3(vector, old_axis, pivot_axis);
+    if (full_angle > M_PI) {
+      /* Make sure the point is rotated as little as possible. */
+      full_angle -= 2.0f * M_PI;
+    }
+    const float angle = factors[i] * full_angle;
+
+    float rotation[3][3];
+    axis_angle_to_mat3(rotation, pivot_axis, angle);
+
+    float new_rotation_matrix[3][3];
+    mul_m3_m3m3(new_rotation_matrix, rotation, old_rotation);
+
+    float3 new_rotation;
+    mat3_to_eul(new_rotation, new_rotation_matrix);
+
+    output_rotations[i] = new_rotation;
   });
 }
 
@@ -150,7 +149,7 @@ class MF_AlignEulerToVector : public mf::MultiFunction {
     this->set_signature(&signature);
   }
 
-  void call(IndexMask mask, mf::Params params, mf::Context /*context*/) const override
+  void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
   {
     const VArray<float3> &input_rotations = params.readonly_single_input<float3>(0, "Rotation");
     const VArray<float> &factors = params.readonly_single_input<float>(1, "Factor");
@@ -177,6 +176,13 @@ class MF_AlignEulerToVector : public mf::MultiFunction {
                                   output_rotations);
     }
   }
+
+  ExecutionHints get_execution_hints() const override
+  {
+    ExecutionHints hints;
+    hints.min_grain_size = 512;
+    return hints;
+  }
 };
 
 static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
@@ -185,18 +191,79 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
   builder.construct_and_set_matching_fn<MF_AlignEulerToVector>(node.custom1, node.custom2);
 }
 
-}  // namespace blender::nodes::node_fn_align_euler_to_vector_cc
-
-void register_node_type_fn_align_euler_to_vector()
+static void node_rna(StructRNA *srna)
 {
-  namespace file_ns = blender::nodes::node_fn_align_euler_to_vector_cc;
+  static const EnumPropertyItem axis_items[] = {
+      {FN_NODE_ALIGN_EULER_TO_VECTOR_AXIS_X,
+       "X",
+       ICON_NONE,
+       "X",
+       "Align the X axis with the vector"},
+      {FN_NODE_ALIGN_EULER_TO_VECTOR_AXIS_Y,
+       "Y",
+       ICON_NONE,
+       "Y",
+       "Align the Y axis with the vector"},
+      {FN_NODE_ALIGN_EULER_TO_VECTOR_AXIS_Z,
+       "Z",
+       ICON_NONE,
+       "Z",
+       "Align the Z axis with the vector"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
 
+  static const EnumPropertyItem pivot_axis_items[] = {
+      {FN_NODE_ALIGN_EULER_TO_VECTOR_PIVOT_AXIS_AUTO,
+       "AUTO",
+       ICON_NONE,
+       "Auto",
+       "Automatically detect the best rotation axis to rotate towards the vector"},
+      {FN_NODE_ALIGN_EULER_TO_VECTOR_PIVOT_AXIS_X,
+       "X",
+       ICON_NONE,
+       "X",
+       "Rotate around the local X axis"},
+      {FN_NODE_ALIGN_EULER_TO_VECTOR_PIVOT_AXIS_Y,
+       "Y",
+       ICON_NONE,
+       "Y",
+       "Rotate around the local Y axis"},
+      {FN_NODE_ALIGN_EULER_TO_VECTOR_PIVOT_AXIS_Z,
+       "Z",
+       ICON_NONE,
+       "Z",
+       "Rotate around the local Z axis"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  RNA_def_node_enum(srna,
+                    "axis",
+                    "Axis",
+                    "Axis to align to the vector",
+                    axis_items,
+                    NOD_inline_enum_accessors(custom1));
+
+  RNA_def_node_enum(srna,
+                    "pivot_axis",
+                    "Pivot Axis",
+                    "Axis to rotate around",
+                    pivot_axis_items,
+                    NOD_inline_enum_accessors(custom2));
+}
+
+static void node_register()
+{
   static bNodeType ntype;
 
   fn_node_type_base(
       &ntype, FN_NODE_ALIGN_EULER_TO_VECTOR, "Align Euler to Vector", NODE_CLASS_CONVERTER);
-  ntype.declare = file_ns::node_declare;
-  ntype.draw_buttons = file_ns::node_layout;
-  ntype.build_multi_function = file_ns::node_build_multi_function;
+  ntype.declare = node_declare;
+  ntype.draw_buttons = node_layout;
+  ntype.build_multi_function = node_build_multi_function;
   nodeRegisterType(&ntype);
+
+  node_rna(ntype.rna_ext.srna);
 }
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_fn_align_euler_to_vector_cc

@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup imbuf
@@ -7,7 +8,6 @@
 
 #include "imbuf.h"
 
-#include "BLI_math.h"
 #include "BLI_utildefines.h"
 #include "MEM_guardedalloc.h"
 
@@ -28,14 +28,31 @@ static bool imb_is_grayscale_texture_format_compatible(const ImBuf *ibuf)
   if (ibuf->planes > 8) {
     return false;
   }
+
+  if (ibuf->byte_buffer.data && !ibuf->float_buffer.data) {
+
+    if (IMB_colormanagement_space_is_srgb(ibuf->byte_buffer.colorspace) ||
+        IMB_colormanagement_space_is_scene_linear(ibuf->byte_buffer.colorspace))
+    {
+      /* Gresycale byte buffers with these color transforms utilise float buffers under the hood
+       * and can therefore be optimized. */
+      return true;
+    }
+    else {
+      /* TODO: Support grayscale byte buffers.
+       * The challenge is that Blender always stores byte images as RGBA. */
+      return false;
+    }
+  }
+
   /* Only imbufs with colorspace that do not modify the chrominance of the texture data relative
    * to the scene color space can be uploaded as single channel textures. */
-  if (IMB_colormanagement_space_is_data(ibuf->rect_colorspace) ||
-      IMB_colormanagement_space_is_srgb(ibuf->rect_colorspace) ||
-      IMB_colormanagement_space_is_scene_linear(ibuf->rect_colorspace))
+  if (IMB_colormanagement_space_is_data(ibuf->float_buffer.colorspace) ||
+      IMB_colormanagement_space_is_srgb(ibuf->float_buffer.colorspace) ||
+      IMB_colormanagement_space_is_scene_linear(ibuf->float_buffer.colorspace))
   {
     return true;
-  };
+  }
   return false;
 }
 
@@ -45,7 +62,7 @@ static void imb_gpu_get_format(const ImBuf *ibuf,
                                eGPUDataFormat *r_data_format,
                                eGPUTextureFormat *r_texture_format)
 {
-  const bool float_rect = (ibuf->rect_float != nullptr);
+  const bool float_rect = (ibuf->float_buffer.data != nullptr);
   const bool is_grayscale = use_grayscale && imb_is_grayscale_texture_format_compatible(ibuf);
 
   if (float_rect) {
@@ -56,14 +73,14 @@ static void imb_gpu_get_format(const ImBuf *ibuf,
                                        (use_high_bitdepth ? GPU_RGBA32F : GPU_RGBA16F);
   }
   else {
-    if (IMB_colormanagement_space_is_data(ibuf->rect_colorspace) ||
-        IMB_colormanagement_space_is_scene_linear(ibuf->rect_colorspace))
+    if (IMB_colormanagement_space_is_data(ibuf->byte_buffer.colorspace) ||
+        IMB_colormanagement_space_is_scene_linear(ibuf->byte_buffer.colorspace))
     {
       /* Non-color data or scene linear, just store buffer as is. */
       *r_data_format = GPU_DATA_UBYTE;
       *r_texture_format = (is_grayscale) ? GPU_R8 : GPU_RGBA8;
     }
-    else if (IMB_colormanagement_space_is_srgb(ibuf->rect_colorspace)) {
+    else if (IMB_colormanagement_space_is_srgb(ibuf->byte_buffer.colorspace)) {
       /* sRGB, store as byte texture that the GPU can decode directly. */
       *r_data_format = (is_grayscale) ? GPU_DATA_FLOAT : GPU_DATA_UBYTE;
       *r_texture_format = (is_grayscale) ? GPU_R16F : GPU_SRGB8_A8;
@@ -86,8 +103,8 @@ static bool IMB_gpu_get_compressed_format(const ImBuf *ibuf, eGPUTextureFormat *
 {
   /* For DDS we only support data, scene linear and sRGB. Converting to
    * different colorspace would break the compression. */
-  const bool use_srgb = (!IMB_colormanagement_space_is_data(ibuf->rect_colorspace) &&
-                         !IMB_colormanagement_space_is_scene_linear(ibuf->rect_colorspace));
+  const bool use_srgb = (!IMB_colormanagement_space_is_data(ibuf->byte_buffer.colorspace) &&
+                         !IMB_colormanagement_space_is_scene_linear(ibuf->byte_buffer.colorspace));
 
   if (ibuf->dds_data.fourcc == FOURCC_DXT1) {
     *r_texture_format = (use_srgb) ? GPU_SRGB8_A8_DXT1 : GPU_RGBA8_DXT1;
@@ -112,11 +129,13 @@ static void *imb_gpu_get_data(const ImBuf *ibuf,
                               const bool do_rescale,
                               const int rescale_size[2],
                               const bool store_premultiplied,
-                              bool *r_freedata)
+                              bool *r_freedata,
+                              eGPUDataFormat *out_data_format)
 {
-  bool is_float_rect = (ibuf->rect_float != nullptr);
+  bool is_float_rect = (ibuf->float_buffer.data != nullptr);
   const bool is_grayscale = imb_is_grayscale_texture_format_compatible(ibuf);
-  void *data_rect = (is_float_rect) ? (void *)ibuf->rect_float : (void *)ibuf->rect;
+  void *data_rect = (is_float_rect) ? (void *)ibuf->float_buffer.data :
+                                      (void *)ibuf->byte_buffer.data;
   bool freedata = false;
 
   if (is_float_rect) {
@@ -140,11 +159,11 @@ static void *imb_gpu_get_data(const ImBuf *ibuf,
      *
      * We must also convert to premultiplied for correct texture interpolation
      * and consistency with float images. */
-    if (IMB_colormanagement_space_is_data(ibuf->rect_colorspace)) {
+    if (IMB_colormanagement_space_is_data(ibuf->byte_buffer.colorspace)) {
       /* Non-color data, just store buffer as is. */
     }
-    else if (IMB_colormanagement_space_is_srgb(ibuf->rect_colorspace) ||
-             IMB_colormanagement_space_is_scene_linear(ibuf->rect_colorspace))
+    else if (IMB_colormanagement_space_is_srgb(ibuf->byte_buffer.colorspace) ||
+             IMB_colormanagement_space_is_scene_linear(ibuf->byte_buffer.colorspace))
     {
       /* sRGB or scene linear, store as byte texture that the GPU can decode directly. */
       data_rect = MEM_mallocN(
@@ -192,7 +211,7 @@ static void *imb_gpu_get_data(const ImBuf *ibuf,
   }
 
   if (do_rescale) {
-    uint *rect = (is_float_rect) ? nullptr : (uint *)data_rect;
+    uint8_t *rect = (is_float_rect) ? nullptr : (uint8_t *)data_rect;
     float *rect_float = (is_float_rect) ? (float *)data_rect : nullptr;
 
     ImBuf *scale_ibuf = IMB_allocFromBuffer(rect, rect_float, ibuf->x, ibuf->y, 4);
@@ -202,11 +221,12 @@ static void *imb_gpu_get_data(const ImBuf *ibuf,
       MEM_freeN(data_rect);
     }
 
-    data_rect = (is_float_rect) ? (void *)scale_ibuf->rect_float : (void *)scale_ibuf->rect;
+    data_rect = (is_float_rect) ? (void *)scale_ibuf->float_buffer.data :
+                                  (void *)scale_ibuf->byte_buffer.data;
     *r_freedata = freedata = true;
     /* Steal the rescaled buffer to avoid double free. */
-    scale_ibuf->rect_float = nullptr;
-    scale_ibuf->rect = nullptr;
+    (void)IMB_steal_byte_buffer(scale_ibuf);
+    (void)IMB_steal_float_buffer(scale_ibuf);
     IMB_freeImBuf(scale_ibuf);
   }
 
@@ -236,6 +256,8 @@ static void *imb_gpu_get_data(const ImBuf *ibuf,
       }
     }
   }
+
+  *out_data_format = (is_float_rect) ? GPU_DATA_FLOAT : GPU_DATA_UBYTE;
   return data_rect;
 }
 
@@ -298,7 +320,7 @@ void IMB_update_gpu_texture_sub(GPUTexture *tex,
 
   bool freebuf = false;
 
-  void *data = imb_gpu_get_data(ibuf, do_rescale, size, use_premult, &freebuf);
+  void *data = imb_gpu_get_data(ibuf, do_rescale, size, use_premult, &freebuf, &data_format);
 
   /* Update Texture. */
   GPU_texture_update_sub(tex, data_format, data, x, y, z, w, h, 1);
@@ -382,7 +404,7 @@ GPUTexture *IMB_create_gpu_texture(const char *name,
     do_rescale = true;
   }
   BLI_assert(tex != nullptr);
-  void *data = imb_gpu_get_data(ibuf, do_rescale, size, use_premult, &freebuf);
+  void *data = imb_gpu_get_data(ibuf, do_rescale, size, use_premult, &freebuf, &data_format);
   GPU_texture_update(tex, data_format, data);
 
   GPU_texture_swizzle_set(tex, imb_gpu_get_swizzle(ibuf));
@@ -411,14 +433,16 @@ void IMB_gpu_clamp_half_float(ImBuf *image_buffer)
 {
   const float half_min = -65504;
   const float half_max = 65504;
-  if (!image_buffer->rect_float) {
+  if (!image_buffer->float_buffer.data) {
     return;
   }
+
+  float *rect_float = image_buffer->float_buffer.data;
 
   int rect_float_len = image_buffer->x * image_buffer->y *
                        (image_buffer->channels == 0 ? 4 : image_buffer->channels);
 
   for (int i = 0; i < rect_float_len; i++) {
-    image_buffer->rect_float[i] = clamp_f(image_buffer->rect_float[i], half_min, half_max);
+    rect_float[i] = clamp_f(rect_float[i], half_min, half_max);
   }
 }

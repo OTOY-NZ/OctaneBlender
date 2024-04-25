@@ -1,11 +1,12 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2018 Blender Foundation */
+/* SPDX-FileCopyrightText: 2018 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bke
  */
 
-#include "BKE_subdiv.h"
+#include "BKE_subdiv.hh"
 
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
@@ -14,11 +15,11 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_modifier.h"
-#include "BKE_subdiv_modifier.h"
+#include "BKE_subdiv_modifier.hh"
 
 #include "MEM_guardedalloc.h"
 
-#include "subdiv_converter.h"
+#include "subdiv_converter.hh"
 
 #include "opensubdiv_capi.h"
 #include "opensubdiv_converter_capi.h"

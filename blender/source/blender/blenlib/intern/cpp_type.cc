@@ -1,29 +1,30 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BLI_color.hh"
-#include "BLI_cpp_type_make.hh"
-#include "BLI_float4x4.hh"
-#include "BLI_math_vec_types.hh"
+#include "BLI_cpp_type.hh"
 
-BLI_CPP_TYPE_MAKE(bool, bool, CPPTypeFlags::BasicType)
+#include <sstream>
 
-BLI_CPP_TYPE_MAKE(float, float, CPPTypeFlags::BasicType)
-BLI_CPP_TYPE_MAKE(float2, blender::float2, CPPTypeFlags::BasicType)
-BLI_CPP_TYPE_MAKE(float3, blender::float3, CPPTypeFlags::BasicType)
-BLI_CPP_TYPE_MAKE(float4x4, blender::float4x4, CPPTypeFlags::BasicType)
+namespace blender {
 
-BLI_CPP_TYPE_MAKE(int8, int8_t, CPPTypeFlags::BasicType)
-BLI_CPP_TYPE_MAKE(int16, int16_t, CPPTypeFlags::BasicType)
-BLI_CPP_TYPE_MAKE(int32, int32_t, CPPTypeFlags::BasicType)
-BLI_CPP_TYPE_MAKE(int64, int64_t, CPPTypeFlags::BasicType)
+std::string CPPType::to_string(const void *value) const
+{
+  std::stringstream ss;
+  this->print(value, ss);
+  return ss.str();
+}
 
-BLI_CPP_TYPE_MAKE(uint8, uint8_t, CPPTypeFlags::BasicType)
-BLI_CPP_TYPE_MAKE(uint16, uint16_t, CPPTypeFlags::BasicType)
-BLI_CPP_TYPE_MAKE(uint32, uint32_t, CPPTypeFlags::BasicType)
-BLI_CPP_TYPE_MAKE(uint64, uint64_t, CPPTypeFlags::BasicType)
+void CPPType::print_or_default(const void *value,
+                               std::stringstream &ss,
+                               StringRef default_value) const
+{
+  if (this->is_printable()) {
+    this->print(value, ss);
+  }
+  else {
+    ss << default_value;
+  }
+}
 
-BLI_CPP_TYPE_MAKE(ColorGeometry4f, blender::ColorGeometry4f, CPPTypeFlags::BasicType)
-BLI_CPP_TYPE_MAKE(ColorGeometry4b, blender::ColorGeometry4b, CPPTypeFlags::BasicType)
-
-BLI_CPP_TYPE_MAKE(string, std::string, CPPTypeFlags::BasicType)
-BLI_CPP_TYPE_MAKE(StringVector, blender::Vector<std::string>, CPPTypeFlags::None)
+}  // namespace blender

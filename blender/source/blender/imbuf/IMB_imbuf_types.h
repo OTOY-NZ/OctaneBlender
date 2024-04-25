@@ -1,9 +1,14 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
 #include "DNA_vec_types.h" /* for rcti */
+
+#include "BLI_sys_types.h"
+
+struct GPUTexture;
 
 #ifdef __cplusplus
 extern "C" {
@@ -17,7 +22,7 @@ extern "C" {
  * Types needed for using the image buffer.
  *
  * Imbuf is external code, slightly adapted to live in the Blender
- * context. It requires an external jpeg module, and the avi-module
+ * context. It requires an external JPEG module, and the AVI-module
  * (also external code) in order to function correctly.
  *
  * This file contains types and some constants that go with them. Most
@@ -128,10 +133,8 @@ typedef struct ImbFormatOptions {
 typedef enum eImBufFlags {
   IB_rect = 1 << 0,
   IB_test = 1 << 1,
-  IB_zbuf = 1 << 3,
   IB_mem = 1 << 4,
   IB_rectfloat = 1 << 5,
-  IB_zbuffloat = 1 << 6,
   IB_multilayer = 1 << 7,
   IB_metadata = 1 << 8,
   IB_animdeinterlace = 1 << 9,
@@ -148,6 +151,55 @@ typedef enum eImBufFlags {
   IB_multiview = 1 << 17,
   IB_halffloat = 1 << 18,
 } eImBufFlags;
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Imbuf buffer storage
+ * \{ */
+
+/* Specialization of an ownership whenever a bare pointer is provided to the ImBuf buffers
+ * assignment API. */
+typedef enum ImBufOwnership {
+  /* The ImBuf simply shares pointer with data owned by someone else, and will not perform any
+   * memory management when the ImBuf frees the buffer. */
+  IB_DO_NOT_TAKE_OWNERSHIP = 0,
+
+  /* The ImBuf takes ownership of the buffer data, and will use MEM_freeN() to free this memory
+   * when the ImBuf needs to free the data. */
+  IB_TAKE_OWNERSHIP = 1,
+} ImBufOwnership;
+
+/* Different storage specialization.
+ *
+ * NOTE: Avoid direct assignments and allocations, use the buffer utilities from the IMB_imbuf.h
+ * instead.
+ *
+ * Accessing the data pointer directly is fine and is an expected way of accessing it. */
+
+typedef struct ImBufByteBuffer {
+  uint8_t *data;
+  ImBufOwnership ownership;
+
+  struct ColorSpace *colorspace;
+} ImBufByteBuffer;
+
+typedef struct ImBufFloatBuffer {
+  float *data;
+  ImBufOwnership ownership;
+
+  struct ColorSpace *colorspace;
+} ImBufFloatBuffer;
+
+typedef struct ImBufGPU {
+  /* Texture which corresponds to the state of the ImBug on the GPU.
+   *
+   * Allocation is supposed to happen outside of the ImBug module from a proper GPU context.
+   * De-referencing the ImBuf or its GPU texture can happen from any state. */
+  /* TODO(sergey): This should become a list of textures, to support having high-res ImBuf on GPU
+   * without hitting hardware limitations. */
+  struct GPUTexture *texture;
+} ImBufGPU;
 
 /** \} */
 
@@ -171,32 +223,30 @@ typedef struct ImBuf {
   /* flags */
   /** Controls which components should exist. */
   int flags;
-  /** what is malloced internal, and can be freed */
-  int mall;
 
   /* pixels */
 
-  /** Image pixel buffer (8bit representation):
+  /**
+   * Image pixel buffer (8bit representation):
    * - color space defaults to `sRGB`.
    * - alpha defaults to 'straight'.
    */
-  unsigned int *rect;
-  /** Image pixel buffer (float representation):
+  ImBufByteBuffer byte_buffer;
+
+  /**
+   * Image pixel buffer (float representation):
    * - color space defaults to 'linear' (`rec709`).
    * - alpha defaults to 'premul'.
    * \note May need gamma correction to `sRGB` when generating 8bit representations.
    * \note Formats that support higher more than 8 but channels load as floats.
    */
-  float *rect_float;
+  ImBufFloatBuffer float_buffer;
+
+  /* Image buffer on the GPU. */
+  ImBufGPU gpu;
 
   /** Resolution in pixels per meter. Multiply by `0.0254` for DPI. */
   double ppm[2];
-
-  /* zbuffer */
-  /** z buffer data, original zbuffer */
-  int *zbuf;
-  /** z buffer data, camera coordinates */
-  float *zbuf_float;
 
   /* parameters used by conversion between byte and float */
   /** random dither value, for conversion from float -> byte rect */
@@ -231,17 +281,13 @@ typedef struct ImBuf {
 
   /* some parameters to pass along for packing images */
   /** Compressed image only used with PNG and EXR currently. */
-  unsigned char *encodedbuffer;
-  /** Size of data written to `encodedbuffer`. */
-  unsigned int encodedsize;
-  /** Size of `encodedbuffer` */
-  unsigned int encodedbuffersize;
+  ImBufByteBuffer encoded_buffer;
+  /** Size of data written to `encoded_buffer`. */
+  unsigned int encoded_size;
+  /** Size of `encoded_buffer` */
+  unsigned int encoded_buffer_size;
 
   /* color management */
-  /** color space of byte buffer */
-  struct ColorSpace *rect_colorspace;
-  /** color space of float buffer, used by sequencer only */
-  struct ColorSpace *float_colorspace;
   /** array of per-display display buffers dirty flags */
   unsigned int *display_buffer_flags;
   /** cache used by color management */

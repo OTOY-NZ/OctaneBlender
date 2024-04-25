@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #pragma once
 
@@ -94,6 +95,11 @@ class Denoiser {
       return false;
     }
     return is_cancelled_cb();
+  }
+
+  void set_error(const string &error)
+  {
+    path_trace_device_->set_error(error);
   }
 
  protected:

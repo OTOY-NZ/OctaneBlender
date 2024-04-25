@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_task.hh"
 
@@ -8,6 +10,7 @@
 #include "BKE_attribute_math.hh"
 #include "BKE_curve.h"
 #include "BKE_curves.hh"
+#include "BKE_deform.h"
 #include "BKE_geometry_fields.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_lib_id.h"
@@ -16,13 +19,13 @@
 
 #include "attribute_access_intern.hh"
 
-using blender::GVArray;
+namespace blender::bke {
 
 /* -------------------------------------------------------------------- */
 /** \name Geometry Component Implementation
  * \{ */
 
-CurveComponent::CurveComponent() : GeometryComponent(GEO_COMPONENT_TYPE_CURVE) {}
+CurveComponent::CurveComponent() : GeometryComponent(Type::Curve) {}
 
 CurveComponent::~CurveComponent()
 {
@@ -78,7 +81,7 @@ Curves *CurveComponent::release()
   return curves;
 }
 
-const Curves *CurveComponent::get_for_read() const
+const Curves *CurveComponent::get() const
 {
   return curves_;
 }
@@ -132,8 +135,6 @@ const Curve *CurveComponent::get_curve_for_render() const
 }
 
 /** \} */
-
-namespace blender::bke {
 
 /* -------------------------------------------------------------------- */
 /** \name Curve Normals Access
@@ -266,7 +267,7 @@ CurveLengthFieldInput::CurveLengthFieldInput()
 
 GVArray CurveLengthFieldInput::get_varray_for_context(const CurvesGeometry &curves,
                                                       const eAttrDomain domain,
-                                                      const IndexMask /*mask*/) const
+                                                      const IndexMask & /*mask*/) const
 {
   return construct_curve_length_gvarray(curves, domain);
 }
@@ -290,50 +291,142 @@ std::optional<eAttrDomain> CurveLengthFieldInput::preferred_domain(
 
 /** \} */
 
-}  // namespace blender::bke
-
 /* -------------------------------------------------------------------- */
 /** \name Attribute Access Helper Functions
  * \{ */
 
 static void tag_component_topology_changed(void *owner)
 {
-  blender::bke::CurvesGeometry &curves = *static_cast<blender::bke::CurvesGeometry *>(owner);
+  CurvesGeometry &curves = *static_cast<CurvesGeometry *>(owner);
   curves.tag_topology_changed();
 }
 
 static void tag_component_curve_types_changed(void *owner)
 {
-  blender::bke::CurvesGeometry &curves = *static_cast<blender::bke::CurvesGeometry *>(owner);
+  CurvesGeometry &curves = *static_cast<CurvesGeometry *>(owner);
   curves.update_curve_types();
   curves.tag_topology_changed();
 }
 
 static void tag_component_positions_changed(void *owner)
 {
-  blender::bke::CurvesGeometry &curves = *static_cast<blender::bke::CurvesGeometry *>(owner);
+  CurvesGeometry &curves = *static_cast<CurvesGeometry *>(owner);
   curves.tag_positions_changed();
 }
 
 static void tag_component_radii_changed(void *owner)
 {
-  blender::bke::CurvesGeometry &curves = *static_cast<blender::bke::CurvesGeometry *>(owner);
+  CurvesGeometry &curves = *static_cast<CurvesGeometry *>(owner);
   curves.tag_radii_changed();
 }
 
 static void tag_component_normals_changed(void *owner)
 {
-  blender::bke::CurvesGeometry &curves = *static_cast<blender::bke::CurvesGeometry *>(owner);
+  CurvesGeometry &curves = *static_cast<CurvesGeometry *>(owner);
   curves.tag_normals_changed();
 }
 
 /** \} */
 
-namespace blender::bke {
-
 /* -------------------------------------------------------------------- */
 /** \name Attribute Provider Declaration
  * \{ */
+
+/**
+ * This provider makes vertex groups available as float attributes.
+ */
+class CurvesVertexGroupsAttributeProvider final : public DynamicAttributesProvider {
+ public:
+  GAttributeReader try_get_for_read(const void *owner,
+                                    const AttributeIDRef &attribute_id) const final
+  {
+    if (attribute_id.is_anonymous()) {
+      return {};
+    }
+    const CurvesGeometry *curves = static_cast<const CurvesGeometry *>(owner);
+    if (curves == nullptr) {
+      return {};
+    }
+    const std::string name = attribute_id.name();
+    const int vertex_group_index = BLI_findstringindex(
+        &curves->vertex_group_names, name.c_str(), offsetof(bDeformGroup, name));
+    if (vertex_group_index < 0) {
+      return {};
+    }
+    const Span<MDeformVert> dverts = curves->deform_verts();
+    if (dverts.is_empty()) {
+      static const float default_value = 0.0f;
+      return {VArray<float>::ForSingle(default_value, curves->points_num()), ATTR_DOMAIN_POINT};
+    }
+    return {bke::varray_for_deform_verts(dverts, vertex_group_index), ATTR_DOMAIN_POINT};
+  }
+
+  GAttributeWriter try_get_for_write(void *owner, const AttributeIDRef &attribute_id) const final
+  {
+    if (attribute_id.is_anonymous()) {
+      return {};
+    }
+    CurvesGeometry *curves = static_cast<CurvesGeometry *>(owner);
+    if (curves == nullptr) {
+      return {};
+    }
+    const std::string name = attribute_id.name();
+    const int vertex_group_index = BLI_findstringindex(
+        &curves->vertex_group_names, name.c_str(), offsetof(bDeformGroup, name));
+    if (vertex_group_index < 0) {
+      return {};
+    }
+    MutableSpan<MDeformVert> dverts = curves->deform_verts_for_write();
+    return {bke::varray_for_mutable_deform_verts(dverts, vertex_group_index), ATTR_DOMAIN_POINT};
+  }
+
+  bool try_delete(void *owner, const AttributeIDRef &attribute_id) const final
+  {
+    if (attribute_id.is_anonymous()) {
+      return false;
+    }
+    CurvesGeometry *curves = static_cast<CurvesGeometry *>(owner);
+    if (curves == nullptr) {
+      return true;
+    }
+    const std::string name = attribute_id.name();
+
+    int index;
+    bDeformGroup *group;
+    if (!BKE_defgroup_listbase_name_find(
+            &curves->vertex_group_names, name.c_str(), &index, &group)) {
+      return false;
+    }
+    BLI_remlink(&curves->vertex_group_names, group);
+    MEM_freeN(group);
+    if (curves->deform_verts().is_empty()) {
+      return true;
+    }
+
+    MutableSpan<MDeformVert> dverts = curves->deform_verts_for_write();
+    bke::remove_defgroup_index(dverts, index);
+    return true;
+  }
+
+  bool foreach_attribute(const void *owner, const AttributeForeachCallback callback) const final
+  {
+    const CurvesGeometry *curves = static_cast<const CurvesGeometry *>(owner);
+    if (curves == nullptr) {
+      return true;
+    }
+    LISTBASE_FOREACH (const bDeformGroup *, group, &curves->vertex_group_names) {
+      if (!callback(group->name, {ATTR_DOMAIN_POINT, CD_PROP_FLOAT})) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  void foreach_domain(const FunctionRef<void(eAttrDomain)> callback) const final
+  {
+    callback(ATTR_DOMAIN_POINT);
+  }
+};
 
 /**
  * In this function all the attribute providers for a curves component are created.
@@ -542,6 +635,7 @@ static ComponentAttributeProviders create_attribute_providers_for_curve()
                                                curve_access,
                                                tag_component_topology_changed);
 
+  static CurvesVertexGroupsAttributeProvider vertex_groups;
   static CustomDataAttributeProvider curve_custom_data(ATTR_DOMAIN_CURVE, curve_access);
   static CustomDataAttributeProvider point_custom_data(ATTR_DOMAIN_POINT, point_access);
 
@@ -560,7 +654,7 @@ static ComponentAttributeProviders create_attribute_providers_for_curve()
                                       &curve_type,
                                       &resolution,
                                       &cyclic},
-                                     {&curve_custom_data, &point_custom_data});
+                                     {&vertex_groups, &curve_custom_data, &point_custom_data});
 }
 
 /** \} */
@@ -588,7 +682,7 @@ static AttributeAccessorFunctions get_curves_accessor_functions()
     return ELEM(domain, ATTR_DOMAIN_POINT, ATTR_DOMAIN_CURVE);
   };
   fn.adapt_domain = [](const void *owner,
-                       const blender::GVArray &varray,
+                       const GVArray &varray,
                        const eAttrDomain from_domain,
                        const eAttrDomain to_domain) -> GVArray {
     if (owner == nullptr) {
@@ -616,17 +710,17 @@ MutableAttributeAccessor CurvesGeometry::attributes_for_write()
   return MutableAttributeAccessor(this, get_curves_accessor_functions_ref());
 }
 
-}  // namespace blender::bke
-
-std::optional<blender::bke::AttributeAccessor> CurveComponent::attributes() const
+std::optional<AttributeAccessor> CurveComponent::attributes() const
 {
-  return blender::bke::AttributeAccessor(curves_ ? &curves_->geometry : nullptr,
-                                         blender::bke::get_curves_accessor_functions_ref());
+  return AttributeAccessor(curves_ ? &curves_->geometry : nullptr,
+                           get_curves_accessor_functions_ref());
 }
 
-std::optional<blender::bke::MutableAttributeAccessor> CurveComponent::attributes_for_write()
+std::optional<MutableAttributeAccessor> CurveComponent::attributes_for_write()
 {
   Curves *curves = this->get_for_write();
-  return blender::bke::MutableAttributeAccessor(curves ? &curves->geometry : nullptr,
-                                                blender::bke::get_curves_accessor_functions_ref());
+  return MutableAttributeAccessor(curves ? &curves->geometry : nullptr,
+                                  get_curves_accessor_functions_ref());
 }
+
+}  // namespace blender::bke

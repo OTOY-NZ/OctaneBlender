@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup DNA
@@ -8,10 +10,6 @@
 
 #include "DNA_defs.h"
 #include "DNA_listBase.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 struct DRWShadingGroup;
 
@@ -241,7 +239,3 @@ typedef struct WaveShaderFxData {
   char _pad[4];
   ShaderFxData_Runtime runtime;
 } WaveShaderFxData;
-
-#ifdef __cplusplus
-}
-#endif

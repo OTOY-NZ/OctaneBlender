@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2011-2023 Blender Authors
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 __all__ = (
@@ -285,7 +287,7 @@ def bake_action_iter(
                 while pbone.constraints:
                     pbone.constraints.remove(pbone.constraints[0])
 
-            # Create compatible eulers, quats.
+            # Create compatible euler & quaternion rotation values.
             euler_prev = None
             quat_prev = None
 
@@ -362,7 +364,7 @@ def bake_action_iter(
             while obj.constraints:
                 obj.constraints.remove(obj.constraints[0])
 
-        # Create compatible eulers, quats.
+        # Create compatible euler & quaternion rotations.
         euler_prev = None
         quat_prev = None
 
@@ -571,8 +573,6 @@ class KeyframesCo:
             keyframe_points.foreach_set("co", co_buffer)
             keyframe_points.foreach_set("interpolation", ipo_buffer)
 
-            # TODO: in Blender 4.0 the next lines can be replaced with one call to `fcurve.update()`.
-            # See https://projects.blender.org/blender/blender/issues/107126 for more info.
-            keyframe_points.sort()
-            keyframe_points.deduplicate()
-            keyframe_points.handles_recalc()
+            # This also deduplicates keys where baked keys were inserted on the
+            # same frame as existing ones.
+            fcurve.update()

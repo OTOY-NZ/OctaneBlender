@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -20,7 +22,7 @@ namespace Freestyle {
 
 class WFillGrid {
  public:
-  inline WFillGrid(Grid *grid = NULL, WingedEdge *winged_edge = NULL)
+  inline WFillGrid(Grid *grid = nullptr, WingedEdge *winged_edge = nullptr)
   {
     _winged_edge = winged_edge;
     _grid = grid;
@@ -60,7 +62,7 @@ class WFillGrid {
  private:
   Grid *_grid;
   WingedEdge *_winged_edge;
-  unsigned _polygon_id;
+  uint _polygon_id;
 
 #ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:WFillGrid")

@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_curves.hh"
 
@@ -20,7 +22,7 @@ class ResolutionFieldInput final : public bke::CurvesFieldInput {
 
   GVArray get_varray_for_context(const bke::CurvesGeometry &curves,
                                  const eAttrDomain domain,
-                                 const IndexMask /*mask*/) const final
+                                 const IndexMask & /*mask*/) const final
   {
     return curves.adapt_domain(curves.resolution(), ATTR_DOMAIN_CURVE, domain);
   }
@@ -46,17 +48,16 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("Resolution", Field<int>(std::make_shared<ResolutionFieldInput>()));
 }
 
-}  // namespace blender::nodes::node_geo_input_spline_resolution_cc
-
-void register_node_type_geo_input_spline_resolution()
+static void node_register()
 {
-  namespace file_ns = blender::nodes::node_geo_input_spline_resolution_cc;
-
   static bNodeType ntype;
 
   geo_node_type_base(
       &ntype, GEO_NODE_INPUT_SPLINE_RESOLUTION, "Spline Resolution", NODE_CLASS_INPUT);
-  ntype.geometry_node_execute = file_ns::node_geo_exec;
-  ntype.declare = file_ns::node_declare;
+  ntype.geometry_node_execute = node_geo_exec;
+  ntype.declare = node_declare;
   nodeRegisterType(&ntype);
 }
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_geo_input_spline_resolution_cc

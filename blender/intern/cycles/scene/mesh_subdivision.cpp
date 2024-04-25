@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #include "scene/attribute.h"
 #include "scene/camera.h"
@@ -606,10 +607,12 @@ void Mesh::tessellate(DiagSplit *split)
             ngons++;
           }
         }
-      } break;
+        break;
+      }
       case ATTR_ELEMENT_VERTEX_MOTION: {
         // TODO(mai): implement
-      } break;
+        break;
+      }
       case ATTR_ELEMENT_CORNER: {
         for (int f = 0; f < num_faces; f++) {
           SubdFace face = get_subd_face(f);
@@ -628,7 +631,8 @@ void Mesh::tessellate(DiagSplit *split)
             ngons++;
           }
         }
-      } break;
+        break;
+      }
       case ATTR_ELEMENT_CORNER_BYTE: {
         for (int f = 0; f < num_faces; f++) {
           SubdFace face = get_subd_face(f);
@@ -653,7 +657,8 @@ void Mesh::tessellate(DiagSplit *split)
             ngons++;
           }
         }
-      } break;
+        break;
+      }
       default:
         break;
     }

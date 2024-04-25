@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup DNA
@@ -8,10 +9,6 @@
 #pragma once
 
 #include "DNA_vec_types.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /* ---------------------------------- */
 
@@ -48,8 +45,10 @@ typedef struct View2D {
 
   /** Storage of current winx/winy values, set in UI_view2d_size_update. */
   short winx, winy;
-  /** Storage of previous winx/winy values encountered by UI_view2d_curRect_validate(),
-   * for keepaspect. */
+  /**
+   * Storage of previous winx/winy values encountered by #UI_view2d_curRect_validate(),
+   * for keep-aspect.
+   */
   short oldwinx, oldwiny;
 
   /** Pivot point for transforms (rotate and scale). */
@@ -58,7 +57,11 @@ typedef struct View2D {
   /* Usually set externally (as in, not in view2d files). */
   /** Alpha of vertical and horizontal scroll-bars (range is [0, 255]). */
   char alpha_vert, alpha_hor;
-  char _pad[6];
+
+  char _pad[2];
+  /** When set (not 0), determines how many pixels to scroll when scrolling an entire page.
+   * Otherwise the height of #View2D.mask is used. */
+  float page_size_y;
 
   /* animated smooth view */
   struct SmoothView2DStore *sms;
@@ -120,6 +123,9 @@ enum {
   V2D_IS_NAVIGATING = (1 << 9),
   /* view settings need to be set still... */
   V2D_IS_INIT = (1 << 10),
+  /* Ensure scrolling always snaps to multiples of #View2D.page_size_y or the #View2D.mask height
+   * if this is 0. Zooming doesn't respect this. */
+  V2D_SNAP_TO_PAGESIZE_Y = (1 << 11),
 };
 
 /** Scroller flags for View2D (#View2D.scroll). */
@@ -165,7 +171,3 @@ enum {
   V2D_ALIGN_NO_POS_Y = (1 << 2),
   V2D_ALIGN_NO_NEG_Y = (1 << 3),
 };
-
-#ifdef __cplusplus
-}
-#endif

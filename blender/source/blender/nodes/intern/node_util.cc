@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2007 Blender Foundation */
+/* SPDX-FileCopyrightText: 2007 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup nodes
@@ -23,8 +24,8 @@
 #include "BKE_node_runtime.hh"
 #include "BKE_node_tree_update.h"
 
-#include "RNA_access.h"
-#include "RNA_enum_types.h"
+#include "RNA_access.hh"
+#include "RNA_enum_types.hh"
 #include "RNA_prototypes.h"
 
 #include "MEM_guardedalloc.h"
@@ -292,22 +293,19 @@ bool node_insert_link_default(bNodeTree * /*ntree*/,
 
 float node_socket_get_float(bNodeTree *ntree, bNode * /*node*/, bNodeSocket *sock)
 {
-  PointerRNA ptr;
-  RNA_pointer_create((ID *)ntree, &RNA_NodeSocket, sock, &ptr);
+  PointerRNA ptr = RNA_pointer_create((ID *)ntree, &RNA_NodeSocket, sock);
   return RNA_float_get(&ptr, "default_value");
 }
 
 void node_socket_set_float(bNodeTree *ntree, bNode * /*node*/, bNodeSocket *sock, float value)
 {
-  PointerRNA ptr;
-  RNA_pointer_create((ID *)ntree, &RNA_NodeSocket, sock, &ptr);
+  PointerRNA ptr = RNA_pointer_create((ID *)ntree, &RNA_NodeSocket, sock);
   RNA_float_set(&ptr, "default_value", value);
 }
 
 void node_socket_get_color(bNodeTree *ntree, bNode * /*node*/, bNodeSocket *sock, float *value)
 {
-  PointerRNA ptr;
-  RNA_pointer_create((ID *)ntree, &RNA_NodeSocket, sock, &ptr);
+  PointerRNA ptr = RNA_pointer_create((ID *)ntree, &RNA_NodeSocket, sock);
   RNA_float_get_array(&ptr, "default_value", value);
 }
 
@@ -316,15 +314,13 @@ void node_socket_set_color(bNodeTree *ntree,
                            bNodeSocket *sock,
                            const float *value)
 {
-  PointerRNA ptr;
-  RNA_pointer_create((ID *)ntree, &RNA_NodeSocket, sock, &ptr);
+  PointerRNA ptr = RNA_pointer_create((ID *)ntree, &RNA_NodeSocket, sock);
   RNA_float_set_array(&ptr, "default_value", value);
 }
 
 void node_socket_get_vector(bNodeTree *ntree, bNode * /*node*/, bNodeSocket *sock, float *value)
 {
-  PointerRNA ptr;
-  RNA_pointer_create((ID *)ntree, &RNA_NodeSocket, sock, &ptr);
+  PointerRNA ptr = RNA_pointer_create((ID *)ntree, &RNA_NodeSocket, sock);
   RNA_float_get_array(&ptr, "default_value", value);
 }
 
@@ -333,8 +329,7 @@ void node_socket_set_vector(bNodeTree *ntree,
                             bNodeSocket *sock,
                             const float *value)
 {
-  PointerRNA ptr;
-  RNA_pointer_create((ID *)ntree, &RNA_NodeSocket, sock, &ptr);
+  PointerRNA ptr = RNA_pointer_create((ID *)ntree, &RNA_NodeSocket, sock);
   RNA_float_set_array(&ptr, "default_value", value);
 }
 
@@ -346,8 +341,7 @@ void node_octane_projection_conversion_verify(bNodeTree *ntree, bNode *node, str
 
   LISTBASE_FOREACH_MUTABLE (bNodeSocket *, sock, &node->inputs) {
     if (STREQ(sock->name, "Coordinate Space")) {
-      PointerRNA ptr;
-      RNA_pointer_create((ID *)ntree, &RNA_NodeSocket, sock, &ptr);
+      PointerRNA ptr = RNA_pointer_create((ID *)ntree, &RNA_NodeSocket, sock);
       int mode = RNA_int_get(&ptr, "default_value");
       if (mode >= 0 && mode < 255 && node->custom1 == 0) {
         switch (RNA_int_get(&ptr, "default_value")) {
@@ -382,8 +376,7 @@ void node_octane_image_texture_conversion_verify(bNodeTree *ntree, bNode *node, 
 {
   LISTBASE_FOREACH_MUTABLE (bNodeSocket *, sock, &node->inputs) {
     if (STREQ(sock->name, "Border mode")) {
-      PointerRNA ptr;
-      RNA_pointer_create((ID *)ntree, &RNA_NodeSocket, sock, &ptr);
+      PointerRNA ptr = RNA_pointer_create((ID *)ntree, &RNA_NodeSocket, sock);
       int mode = RNA_int_get(&ptr, "default_value");
       if (mode >= 0 && mode < 255) {
         switch (mode) {
@@ -438,8 +431,7 @@ void node_octane_transform_conversion_verify(bNodeTree *ntree, bNode *node, stru
 {
   LISTBASE_FOREACH_MUTABLE (bNodeSocket *, sock, &node->inputs) {
     if (STREQ(sock->name, "Rotation order")) {
-      PointerRNA ptr;
-      RNA_pointer_create((ID *)ntree, &RNA_NodeSocket, sock, &ptr);
+      PointerRNA ptr = RNA_pointer_create((ID *)ntree, &RNA_NodeSocket, sock);
       int mode = RNA_int_get(&ptr, "default_value");
       if (mode >= 0 && mode < 255) {
         switch (mode) {
@@ -479,8 +471,7 @@ void node_octane_noise_tex_conversion_verify(bNodeTree *ntree, bNode *node, stru
 {
   LISTBASE_FOREACH_MUTABLE (bNodeSocket *, sock, &node->inputs) {
     if (STREQ(sock->name, "Noise type")) {
-      PointerRNA ptr;
-      RNA_pointer_create((ID *)ntree, &RNA_NodeSocket, sock, &ptr);
+      PointerRNA ptr = RNA_pointer_create((ID *)ntree, &RNA_NodeSocket, sock);
       int mode = RNA_int_get(&ptr, "default_value");
       if (mode >= 0 && mode < 255) {
         switch (mode) {
@@ -514,8 +505,7 @@ void node_octane_falloff_tex_conversion_verify(bNodeTree *ntree, bNode *node, st
 {
   LISTBASE_FOREACH_MUTABLE (bNodeSocket *, sock, &node->inputs) {
     if (STREQ(sock->name, "Mode")) {
-      PointerRNA ptr;
-      RNA_pointer_create((ID *)ntree, &RNA_NodeSocket, sock, &ptr);
+      PointerRNA ptr = RNA_pointer_create((ID *)ntree, &RNA_NodeSocket, sock);
       int mode = RNA_int_get(&ptr, "default_value");
       if (mode >= 0 && mode < 255) {
         switch (mode) {
@@ -546,8 +536,7 @@ void node_octane_displacement_tex_conversion_verify(bNodeTree *ntree, bNode *nod
 {
   LISTBASE_FOREACH_MUTABLE (bNodeSocket *, sock, &node->inputs) {
     if (STREQ(sock->name, "Level of details")) {
-      PointerRNA ptr;
-      RNA_pointer_create((ID *)ntree, &RNA_NodeSocket, sock, &ptr);
+      PointerRNA ptr = RNA_pointer_create((ID *)ntree, &RNA_NodeSocket, sock);
       int mode = RNA_int_get(&ptr, "default_value");
       if (mode >= 0 && mode < 255) {
         switch (mode) {
@@ -576,8 +565,7 @@ void node_octane_displacement_tex_conversion_verify(bNodeTree *ntree, bNode *nod
       }
     }
     else if (STREQ(sock->name, "Displacement direction")) {
-      PointerRNA ptr;
-      RNA_pointer_create((ID *)ntree, &RNA_NodeSocket, sock, &ptr);
+      PointerRNA ptr = RNA_pointer_create((ID *)ntree, &RNA_NodeSocket, sock);
       int mode = RNA_int_get(&ptr, "default_value");
       if (mode >= 0 && mode < 255) {
         switch (mode) {
@@ -597,8 +585,7 @@ void node_octane_displacement_tex_conversion_verify(bNodeTree *ntree, bNode *nod
       }
     }
     else if (STREQ(sock->name, "Filter type")) {
-      PointerRNA ptr;
-      RNA_pointer_create((ID *)ntree, &RNA_NodeSocket, sock, &ptr);
+      PointerRNA ptr = RNA_pointer_create((ID *)ntree, &RNA_NodeSocket, sock);
       int mode = RNA_int_get(&ptr, "default_value");
       if (mode >= 0 && mode < 255) {
         switch (mode) {
