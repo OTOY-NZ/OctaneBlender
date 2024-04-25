@@ -1063,7 +1063,7 @@ class OCTANE_OT_QuickAddOctaneAnalyticalLight(OCTANE_OT_QuickAddOctaneLight):
     """Add an Octane Analytical Light to the scene"""
     bl_idname = "octane.quick_add_octane_analytical_light"
     bl_label = "Octane Analytical Light"
-    light_typename = "POINT"
+    light_typename = "SUN"
     bl_register = True
     bl_undo = False
 
@@ -1073,8 +1073,7 @@ class OCTANE_OT_QuickAddOctaneAnalyticalLight(OCTANE_OT_QuickAddOctaneLight):
 
     def update_octane_light(self, light_data):
         octane_light_data = light_data.octane
-        octane_light_data.octane_point_light_type = "Analytical"
-        light_data.shadow_soft_size = 0.0
+        octane_light_data.octane_directional_light_type = "Analytical"
         light_data.use_nodes = True
 
 

@@ -1,6 +1,6 @@
 # <pep8 compliant>
 
-OCTANE_BLENDER_VERSION = '28.9.0'
+OCTANE_BLENDER_VERSION = '28.11.0'
 OCTANE_VERSION = 13000200
 OCTANE_VERSION_STR = "2023.1.2"
 
@@ -528,9 +528,20 @@ def check_compatibility_octane_light_27_16(file_version):
                         break
 
 
+def check_compatibility_octane_light_28_11(file_version):
+    if not check_update(file_version, '28.11'):
+        return
+    for light in bpy.data.lights:
+        oct_light = light.octane
+        if light.type == "POINT" and oct_light.octane_point_light_type == "Analytical":
+            light.type = "SUN"
+            oct_light.octane_directional_light_type = "Analytical"
+
+
 # light
 def check_compatibility_octane_light(file_version):
     check_compatibility_octane_light_27_16(file_version)
+    check_compatibility_octane_light_28_11(file_version)
 
 
 # mesh
@@ -945,9 +956,11 @@ def _check_compatibility_octane_node_tree_28_0(node_tree):
             node.inputs["Translation range"].default_value[1] /= 2
         # Update of the "Percentage" socket
         if octane_node_type == consts.NodeType.NT_TEX_COLORCORRECTION:
-            node.inputs["Saturation"].default_value *= 100.0
+            if 0 <= node.inputs["Saturation"].default_value <= 3:
+                node.inputs["Saturation"].default_value *= 100.0
         if octane_node_type == consts.NodeType.NT_TEX_IMAGE_ADJUSTMENT:
-            node.inputs["Saturation"].default_value *= 100.0
+            if 0 <= node.inputs["Saturation"].default_value <= 3:
+                node.inputs["Saturation"].default_value *= 100.0
 
 
 def check_compatibility_octane_node_tree_28_0(file_version):

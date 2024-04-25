@@ -76,7 +76,8 @@ bool BlenderSync::object_is_geometry(BObjectInfo &b_ob_info)
 
   BL::Object::type_enum type = b_ob_info.iter_object.type();
 
-  if (type == BL::Object::type_VOLUME || type == BL::Object::type_CURVES ||
+  if (type == BL::Object::type_VOLUME || type == BL::Object::type_CURVE ||
+      type == BL::Object::type_CURVES ||
       type == BL::Object::type_POINTCLOUD)
   {
     /* Will be exported attached to mesh. */
@@ -151,22 +152,24 @@ static void update_light_transform(Light *light,
     return;
   }
   PointerRNA oct_light = RNA_pointer_get(&b_light.ptr, "octane");
-  int32_t octane_point_light_type = get_enum(oct_light, "octane_point_light_type");
   bool used_as_octane_mesh_light = get_boolean(oct_light, "used_as_octane_mesh_light");
+  int32_t octane_directional_light_type = get_enum(oct_light, "octane_directional_light_type");
 
   switch (b_light.type()) {
     case BL::Light::type_POINT: {
-      if (octane_point_light_type == 2) {
-        Transform t = tfm;
+      light->update_transform(tfm, motion_time);
+      break;
+    }
+    case BL::Light::type_SUN: {
+      if (octane_directional_light_type == 2) {
+        float3 dir = transform_get_column(&tfm, 2);
+        dir *= -1;
+        transform_set_column(&tfm, 2, dir);
         light->update_transform(tfm, motion_time);
       }
       else {
         light->update_transform(tfm, motion_time);
       }
-      break;
-    }
-    case BL::Light::type_SUN: {
-      light->update_transform(tfm, motion_time);
       break;
     }
     case BL::Light::type_SPOT: {
@@ -340,16 +343,6 @@ void BlenderSync::sync_light(BL::Object &b_parent,
         light->light.fRadius = b_point_light.shadow_soft_size();
         light->enable = true;
       }
-      else if (octane_point_light_type == 2) {
-        // Analytical Point
-        light->light.iLightNodeType = Octane::NT_LIGHT_ANALYTIC;
-        light->light.sLightMeshName = "";
-        light->light.oObject.sMeshName = light->light.sShaderName;
-        light->light.oObject.iUseObjectLayer =
-            OctaneDataTransferObject::OctaneObject::NO_OBJECT_LAYER;
-        light->need_light_object_update = true;
-        light->enable = true;
-      }
       break;
     }
     case BL::Light::type_SPOT: {
@@ -367,6 +360,16 @@ void BlenderSync::sync_light(BL::Object &b_parent,
       BL::SunLight b_sun_light(b_light);
       if (octane_directional_light_type == 0) {
         light->light.iLightNodeType = Octane::NT_TOON_DIRECTIONAL_LIGHT;
+      }
+      else if (octane_directional_light_type == 2) {
+        // Analytical Point
+        light->light.iLightNodeType = Octane::NT_LIGHT_ANALYTIC;
+        light->light.sLightMeshName = "";
+        light->light.oObject.sMeshName = light->light.sShaderName;
+        light->light.oObject.iUseObjectLayer =
+            OctaneDataTransferObject::OctaneObject::NO_OBJECT_LAYER;
+        light->need_light_object_update = true;
+        light->enable = true;
       }
       else {
         light->light.iLightNodeType = Octane::NT_LIGHT_DIRECTIONAL;
@@ -567,8 +570,10 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
   BL::Object::modifiers_iterator b_mod;
   for (b_ob.modifiers.begin(b_mod); b_mod != b_ob.modifiers.end(); ++b_mod) {
     if (b_mod->type() == BL::Modifier::type_NODES) {
-      use_geometry_node_modifier = true;
-      break;
+      if ((preview && b_mod->show_viewport()) || (!preview && b_mod->show_render())) {
+        use_geometry_node_modifier = true;
+        break;
+      }
     }
   }
 

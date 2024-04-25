@@ -113,7 +113,7 @@ PointerRNA get_object_data_node_source_ptr(BL::BlendData &b_data,
   else {
     BL::Node::inputs_iterator b_input;
     for (b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
-      std::string name = b_input->name();
+      std::string name = b_input->identifier();
       if (name == source_name) {
         source_ptr = RNA_pointer_get(&b_input->ptr, "default_value");
         break;
@@ -551,7 +551,7 @@ struct BlenderSocketVisitor : BaseVisitor {
       else {
         BL::Node::inputs_iterator b_input;
         for (b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
-          if (b_input->name() == data_name) {
+          if (b_input->identifier() == data_name) {
             int retInt[4];
             float retFloat[4];
             char retChar[512];
@@ -670,7 +670,7 @@ static void generateOSLNode(OctaneDataTransferObject::OctaneOSLNodeBase *cur_nod
           cur_node->oOSLNodeInfo.mPinInfo.get_param(osl_pin_idx);
       BL::Node::inputs_iterator b_input;
       for (b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
-        if (b_input->name() == pinInfo.mLabelName) {
+        if (b_input->identifier() == pinInfo.mLabelName) {
           int retInt[4];
           float retFloat[4];
           char retChar[512];
@@ -759,7 +759,7 @@ static void generateRampNode(OctaneDataTransferObject::OctaneBaseRampNode *cur_n
     ramp = BL::ColorRamp(b_tex_node.color_ramp());
     BL::Node::inputs_iterator b_input;
     for (b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
-      std::string input_name = b_input->name();
+      std::string input_name = b_input->identifier();
       if (input_name == "Interpolation" || input_name == "Interpolation type") {
         ((DT *)cur_node)->iInterpolationType = get_enum(b_input->ptr, "default_value");
         break;
@@ -1108,7 +1108,7 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
         }
       }
       for (b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
-        std::string socket_name = b_input->name();
+        std::string socket_name = b_input->identifier();
         std::string octane_name = socket_name;
         bool is_static_pin = false;
         PinInfoPtr pinInfoPtr = NULL;
@@ -1249,7 +1249,7 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
         float spot_size = 0.f;
         BL::Node::inputs_iterator b_input;
         for (b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
-          std::string socket_name = b_input->name();
+          std::string socket_name = b_input->identifier();
           if (socket_name == "Throw distance") {
             distance = get_float(b_input->ptr, "default_value");
           }
@@ -1323,7 +1323,8 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
           b_image_user, b_image, b_scene.frame_current(), false);
       ::OctaneDataTransferObject::OctaneCustomNode *octane_node =
           (::OctaneDataTransferObject::OctaneCustomNode *)(node->oct_node);
-      octane_node->oStringSockets.emplace_back(::OctaneDataTransferObject::OctaneDTOString("a_filename"));
+      octane_node->oStringSockets.emplace_back(
+          ::OctaneDataTransferObject::OctaneDTOString("a_filename"));
       ::OctaneDataTransferObject::OctaneDTOString *filename_dto_ptr =
           &octane_node->oStringSockets[octane_node->oStringSockets.size() - 1];
       filename_dto_ptr->bUseLinked = false;
@@ -1345,7 +1346,7 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
       if (source_type == OBJECT_DATA_NODE_TYPE_OBJECT) {
         BL::Node::outputs_iterator b_output;
         for (b_node.outputs.begin(b_output); b_output != b_node.outputs.end(); ++b_output) {
-          std::string name = b_output->name();
+          std::string name = b_output->identifier();
           if (!b_output->is_linked()) {
             continue;
           }
@@ -1458,6 +1459,7 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
               std::string geo_name = resolve_octane_name(
                   b_ob_data, is_modified ? b_ob.name_full() : "", MESH_TAG);
               if (b_ob.mode() == b_ob.mode_EDIT) {
+                geo_name += ("[" + b_ob.name_full() + "]");
                 geo_name += "[EDIT_MODE]";
               }
               OctaneDataTransferObject::OctanePlacement *oct_placement_node =
@@ -1477,7 +1479,7 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
       else if (source_type == OBJECT_DATA_NODE_TYPE_COLLECTION) {
         BL::Node::outputs_iterator b_output;
         for (b_node.outputs.begin(b_output); b_output != b_node.outputs.end(); ++b_output) {
-          std::string name = b_output->name();
+          std::string name = b_output->identifier();
           if (!b_output->is_linked()) {
             continue;
           }
@@ -1515,7 +1517,7 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
     camera_node->sCameraDataOrbxPath = blender_absolute_path(b_data, b_ntree, path_get(orbx_path));
     camera_node->bEnvironmentProjection = graph->type == SHADER_GRAPH_ENVIRONMENT;
     for (b_node.outputs.begin(b_output); b_output != b_node.outputs.end(); ++b_output) {
-      std::string name = b_output->name();
+      std::string name = b_output->identifier();
       if (name == "Octane View Vector" || (is_addon_node && name == "View Vector")) {
         camera_node->sViewVectorNodeName = b_output->is_linked() ?
                                                link_resolver.get_output_node_name(
@@ -1556,7 +1558,7 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
     for (int i = 1; i <= layer_number; ++i) {
       std::string sock_name = "Layer " + std::to_string(i);
       for (b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
-        if (b_input->name() == sock_name) {
+        if (b_input->identifier() == sock_name) {
           octane_node->sLayers[i - 1] = link_resolver.get_link_node_name(b_input->ptr.data);
         }
       }
@@ -1571,7 +1573,7 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
     for (int i = 1; i <= layer_number; ++i) {
       std::string sock_name = "Layer " + std::to_string(i);
       for (b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
-        if (b_input->name() == sock_name) {
+        if (b_input->identifier() == sock_name) {
           octane_node->sLayers[i - 1] = link_resolver.get_link_node_name(b_input->ptr.data);
         }
       }
@@ -1586,7 +1588,7 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
     for (int i = 1; i <= group_number; ++i) {
       std::string sock_name = "AOV output " + std::to_string(i);
       for (b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
-        if (b_input->name() == sock_name) {
+        if (b_input->identifier() == sock_name) {
           octane_node->sGroups[i - 1] = link_resolver.get_link_node_name(b_input->ptr.data);
         }
       }
@@ -1601,7 +1603,7 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
     for (int i = 1; i <= layer_number; ++i) {
       std::string sock_name = "Layer " + std::to_string(i);
       for (b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
-        if (b_input->name() == sock_name) {
+        if (b_input->identifier() == sock_name) {
           octane_node->sLayers[i - 1] = link_resolver.get_link_node_name(b_input->ptr.data);
         }
       }
@@ -1617,13 +1619,13 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
     for (int i = 1; i <= layer_number; ++i) {
       std::string sock_name = "Material " + std::to_string(i);
       for (b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
-        if (b_input->name() == sock_name) {
+        if (b_input->identifier() == sock_name) {
           octane_node->sMaterials[i - 1] = link_resolver.get_link_node_name(b_input->ptr.data);
         }
       }
       sock_name = "Material " + std::to_string(i) + " mask";
       for (b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
-        if (b_input->name() == sock_name) {
+        if (b_input->identifier() == sock_name) {
           octane_node->sMasks[i - 1] = link_resolver.get_link_node_name(b_input->ptr.data);
         }
       }
@@ -1638,7 +1640,7 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
     for (int i = 1; i <= layer_number; ++i) {
       std::string sock_name = "Layer " + std::to_string(i);
       for (b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
-        if (b_input->name() == sock_name) {
+        if (b_input->identifier() == sock_name) {
           octane_node->sLayers[i - 1] = link_resolver.get_link_node_name(b_input->ptr.data);
         }
       }
@@ -1664,13 +1666,13 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
     for (int i = 1; i <= displacement_number; ++i) {
       std::string sock_name = "Displacement " + std::to_string(i);
       for (b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
-        if (b_input->name() == sock_name) {
+        if (b_input->identifier() == sock_name) {
           octane_node->sDisplacements[i - 1] = link_resolver.get_link_node_name(b_input->ptr.data);
         }
       }
       sock_name = "Blend weight " + std::to_string(i);
       for (b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
-        if (b_input->name() == sock_name) {
+        if (b_input->identifier() == sock_name) {
           octane_node->sWeightLinks[i - 1] = link_resolver.get_link_node_name(b_input->ptr.data);
           octane_node->fWeights[i - 1] = RNA_float_get(&b_input->ptr, "default_value");
         }
@@ -1857,10 +1859,10 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
         std::string value_sock_name = "Value " + std::to_string(i);
         std::string position_sock_name = "Position " + std::to_string(i);
         for (b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
-          if (b_input->name() == value_sock_name) {
+          if (b_input->identifier() == value_sock_name) {
             cur_node->sTextureData[i] = link_resolver.get_link_node_name(b_input->ptr.data);
           }
-          if (b_input->name() == position_sock_name) {
+          if (b_input->identifier() == position_sock_name) {
             cur_node->sPositionData[i] = link_resolver.get_link_node_name(b_input->ptr.data);
           }
         }
@@ -1868,14 +1870,14 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
     }
     if (num > 1) {
       for (b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
-        if (b_input->name() == "End Value") {
+        if (b_input->identifier() == "End Value") {
           cur_node->sTextureData[num - 1] = link_resolver.get_link_node_name(b_input->ptr.data);
         }
       }
     }
     if (num > 0) {
       for (b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
-        if (b_input->name() == "Start Value") {
+        if (b_input->identifier() == "Start Value") {
           cur_node->sTextureData[0] = link_resolver.get_link_node_name(b_input->ptr.data);
         }
       }
@@ -1954,7 +1956,7 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
     BL::Node::inputs_iterator b_input;
     PointerRNA source_ptr = PointerRNA_NULL;
     for (b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
-      std::string name = b_input->name();
+      std::string name = b_input->identifier();
       if (name == "VDB") {
         source_ptr = RNA_pointer_get(&b_input->ptr, "default_value");
         break;
@@ -2036,7 +2038,7 @@ static BL::Node get_input_node(BL::NodeSocket from_sock, BL::NodeSocket &new_soc
       b_group_ntree = BL::TextureNodeTree(((BL::NodeCustomGroup)cur_node).node_tree());
 
     if (b_group_ntree) {
-      std::string from_sock_name = from_sock.name();
+      std::string from_sock_name = from_sock.identifier();
 
       BL::NodeTree::links_iterator b_nested_link;
       for (b_group_ntree.links.begin(b_nested_link); b_nested_link != b_group_ntree.links.end();
@@ -2045,7 +2047,7 @@ static BL::Node get_input_node(BL::NodeSocket from_sock, BL::NodeSocket &new_soc
         BL::Node b_nested_to_node = b_nested_link->to_node();
         BL::NodeSocket b_nested_to_sock = b_nested_link->to_socket();
         if (!b_nested_to_node.is_a(&RNA_NodeGroupOutput) ||
-            b_nested_to_sock.name() != from_sock_name)
+            b_nested_to_sock.identifier() != from_sock_name)
           continue;
 
         BL::Node b_nested_from_node = b_nested_link->from_node();
@@ -2148,7 +2150,8 @@ static void resolve_octane_outputs(std::string shader_name,
         }
       }
       if (b_to_node && b_from_node && b_to_node.name() == output_node_name) {
-        if (group_output_socket_name.length() && b_to_sock.name() != group_output_socket_name) {
+        if (group_output_socket_name.length() &&
+            b_to_sock.identifier() != group_output_socket_name) {
           continue;
         }
         std::string current_name = link_resolver.resolve_name(prefix_name, b_from_node);
@@ -2167,22 +2170,22 @@ static void resolve_octane_outputs(std::string shader_name,
                                  b_group_ntree,
                                  link_resolver,
                                  is_shader_node,
-                                 b_from_sock.name());
+                                 b_from_sock.identifier());
         }
         else {
           if (b_to_node.is_a(&RNA_ShaderNodeOutputWorld)) {
-            if (b_to_sock.name() == "Octane VisibleEnvironment") {
+            if (b_to_sock.identifier() == "Octane VisibleEnvironment") {
               link_resolver.add_octane_output(current_name, VISIBLE_ENVIRONMENT_NODE_NAME);
             }
-            else if (b_to_sock.name() == "Octane Environment") {
+            else if (b_to_sock.identifier() == "Octane Environment") {
               link_resolver.add_octane_output(current_name, ENVIRONMENT_NODE_NAME);
             }
           }
           else if (b_to_node.bl_idname() == "OctaneEditorWorldOutputNode") {
-            if (b_to_sock.name() == "Visible Environment") {
+            if (b_to_sock.identifier() == "Visible Environment") {
               link_resolver.add_octane_output(current_name, VISIBLE_ENVIRONMENT_NODE_NAME);
             }
-            else if (b_to_sock.name() == "Environment") {
+            else if (b_to_sock.identifier() == "Environment") {
               link_resolver.add_octane_output(current_name, ENVIRONMENT_NODE_NAME);
             }
           }
@@ -2206,7 +2209,7 @@ static void resolve_octane_outputs(std::string shader_name,
               is_octane_proxy_node = true;
             }
             if (is_octane_proxy_node && b_to_node.is_a(&RNA_ShaderNodeOutputMaterial)) {
-              if (b_to_sock.name() == "Octane Geometry") {
+              if (b_to_sock.identifier() == "Octane Geometry") {
                 link_resolver.add_octane_output(current_name, current_name);
               }
               else {
@@ -2214,9 +2217,11 @@ static void resolve_octane_outputs(std::string shader_name,
               }
             }
             else {
-              if ((b_from_sock.name() == "OutGeo" || b_from_sock.name() == "OutVectron" ||
-                   b_from_sock.name() == "Geometry out") &&
-                  b_to_node.is_a(&RNA_ShaderNodeOutputMaterial))
+              if ((b_from_sock.identifier() == "OutGeo" ||
+                   b_from_sock.identifier() == "OutVectron" ||
+                   b_from_sock.identifier() == "Geometry out") &&
+                  (b_to_node.is_a(&RNA_ShaderNodeOutputMaterial) ||
+                   b_to_node.is_a(&RNA_NodeGroupOutput)))
               {
                 link_resolver.add_octane_output(current_name, current_name);
               }
@@ -2260,11 +2265,11 @@ static void generate_sockets_map(std::string prefix_name,
 
       for (b_node->inputs.begin(b_input); b_input != b_node->inputs.end(); ++b_input) {
         link_resolver.add_socket(
-            b_input->ptr.data, current_name, b_input->name(), true, b_input->ptr);
+            b_input->ptr.data, current_name, b_input->identifier(), true, b_input->ptr);
       }
       for (b_node->outputs.begin(b_output); b_output != b_node->outputs.end(); ++b_output) {
         link_resolver.add_socket(
-            b_output->ptr.data, current_name, b_output->name(), false, b_output->ptr);
+            b_output->ptr.data, current_name, b_output->identifier(), false, b_output->ptr);
       }
 
       if (b_group_ntree) {
@@ -2275,9 +2280,9 @@ static void generate_sockets_map(std::string prefix_name,
     else if (b_node->is_a(&RNA_NodeGroupInput)) {
       for (b_node->outputs.begin(b_output); b_output != b_node->outputs.end(); ++b_output) {
         link_resolver.add_socket(
-            b_output->ptr.data, current_name, b_output->name(), false, b_output->ptr);
+            b_output->ptr.data, current_name, b_output->identifier(), false, b_output->ptr);
         PointerRNA mapping_node_ptr = link_resolver.get_mapping_node_ptr(
-            prefix_name, b_output->name(), true);
+            prefix_name, b_output->identifier(), true);
         if (mapping_node_ptr.data) {
           link_resolver.add_node_mapping(b_output->ptr.data, mapping_node_ptr.data);
         }
@@ -2290,9 +2295,9 @@ static void generate_sockets_map(std::string prefix_name,
         /* map each socket to a proxy node */
         for (b_node->inputs.begin(b_input); b_input != b_node->inputs.end(); ++b_input) {
           link_resolver.add_socket(
-              b_input->ptr.data, current_name, b_input->name(), true, b_input->ptr);
+              b_input->ptr.data, current_name, b_input->identifier(), true, b_input->ptr);
           PointerRNA mapping_node_ptr = link_resolver.get_mapping_node_ptr(
-              prefix_name, b_input->name(), false);
+              prefix_name, b_input->identifier(), false);
           if (mapping_node_ptr.data) {
             link_resolver.add_node_mapping(mapping_node_ptr.data, b_input->ptr.data);
           }
@@ -2312,7 +2317,7 @@ static void generate_sockets_map(std::string prefix_name,
         link_resolver.tag_multiple_outputs_node(current_name);
       }
       for (b_node->inputs.begin(b_input); b_input != b_node->inputs.end(); ++b_input) {
-        std::string b_input_socket_name = b_input->name();
+        std::string b_input_socket_name = b_input->identifier();
         if (is_octane_proxy_node) {
           int octane_proxy_link_index = get_int(b_input->ptr, "octane_proxy_link_index");
           b_input_socket_name = OCTANE_BLENDER_OCTANE_PROXY_TAG + b_input_socket_name + "_" +
@@ -2322,7 +2327,7 @@ static void generate_sockets_map(std::string prefix_name,
             b_input->ptr.data, current_name, b_input_socket_name, true, b_input->ptr);
       }
       for (b_node->outputs.begin(b_output); b_output != b_node->outputs.end(); ++b_output) {
-        std::string output_socket_name = b_output->name();
+        std::string output_socket_name = b_output->identifier();
         if (is_octane_proxy_node) {
           int octane_proxy_link_index = get_int(b_output->ptr, "octane_proxy_link_index");
           output_socket_name = OCTANE_BLENDER_OCTANE_PROXY_TAG + output_socket_name + "_" +
@@ -3208,7 +3213,7 @@ void BlenderSync::find_shader(BL::ID &id,
                               std::vector<Shader *> &used_shaders,
                               Shader *default_shader)
 {
-  Shader *shader = (id) ? shader_map.find(id) : default_shader;  
+  Shader *shader = (id) ? shader_map.find(id) : default_shader;
   if (shader && !shader->is_empty()) {
     used_shaders.push_back(shader);
   }
@@ -3303,8 +3308,10 @@ std::string BlenderSync::resolve_octane_object_data_name(BL::Object &b_ob,
   BL::Object::modifiers_iterator b_mod;
   for (b_ob.modifiers.begin(b_mod); b_mod != b_ob.modifiers.end(); ++b_mod) {
     if (b_mod->type() == BL::Modifier::type_NODES) {
-      use_geometry_node_modifier = true;
-      break;
+      if ((preview && b_mod->show_viewport()) || (!preview && b_mod->show_render())) {
+        use_geometry_node_modifier = true;
+        break;
+      }
     }
   }
   std::string modifier_object_tag = is_modified ? b_ob.name_full() : "";
@@ -3314,6 +3321,7 @@ std::string BlenderSync::resolve_octane_object_data_name(BL::Object &b_ob,
   std::string post_tag = b_ob.type() == BL::Object::type_CURVE ? "[Curve]" : MESH_TAG;
   std::string mesh_name = resolve_octane_name(b_ob_data, modifier_object_tag, post_tag);
   if (b_ob.mode() == b_ob.mode_EDIT) {
+    mesh_name += ("[" + b_ob.name_full() + "]");
     mesh_name += "[EDIT_MODE]";
   }
   return mesh_name;

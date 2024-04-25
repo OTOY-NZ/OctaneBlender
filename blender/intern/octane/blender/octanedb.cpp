@@ -67,7 +67,7 @@ struct BNodeSocketSetter : BaseVisitor {
         BL::Node::inputs_iterator b_input;
         for (b_shader_node.inputs.begin(b_input); b_input != b_shader_node.inputs.end();
              ++b_input) {
-          if (b_input->name() == base_dto_ptr->sName) {
+          if (b_input->identifier() == base_dto_ptr->sName) {
             BL::NodeSocket value_sock(*b_input);
             if (base_dto_ptr->bUseLinked) {
               link_node(base_dto_ptr->sLinkNodeName,
@@ -244,7 +244,7 @@ void UpdateArrayData(std::vector<std::string> &sArrayData,
     std::string sock_name = sPrefix + " " + std::to_string(i) +
                             (sPostfix.length() ? (" " + sPostfix) : "");
     for (b_shader_node.inputs.begin(b_input); b_input != b_shader_node.inputs.end(); ++b_input) {
-      if (b_input->name() == sock_name) {
+      if (b_input->identifier() == sock_name) {
         oct::link_node(sArrayData[i - 1],
                        setter->bnode,
                        setter->bnode_tree,

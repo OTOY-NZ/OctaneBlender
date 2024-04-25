@@ -55,6 +55,7 @@ class OCTANE_PT_mesh_properties(OctaneButtonsPanel, Panel):
         col = layout.column(align=True)
         col.use_property_split = True
         col.use_property_decorate = False
+        col.prop(ob_data_octane, "octane_hide_original_mesh")
         col.prop(ob_data_octane, "infinite_plane")
         col.prop(ob_data_octane, "primitive_coordinate_mode")
         col.prop(ob_data_octane, "force_load_vertex_normals")
@@ -124,7 +125,6 @@ class OCTANE_PT_mesh_properties_sphere_attributes(OctaneButtonsPanel, Panel):
         col.use_property_split = True
         col.use_property_decorate = False
         col.prop(ob_data_octane, "octane_enable_sphere_attribute")
-        col.prop(ob_data_octane, "octane_hide_original_mesh")
         col.prop(ob_data_octane, "octane_sphere_radius")
         col.prop(ob_data_octane, "octane_use_randomized_radius")
         col.prop(ob_data_octane, "octane_sphere_randomized_radius_seed")

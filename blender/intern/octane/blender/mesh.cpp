@@ -856,7 +856,7 @@ static void create_subd_mesh(Scene *scene,
   size_t modifier_size = b_ob.modifiers.length();
   if (modifier_size > 0) {
     BL::SubsurfModifier subsurf_mod(b_ob.modifiers[modifier_size - 1]);
-    subdivide_uvs = subsurf_mod.uv_smooth() != BL::SubsurfModifier::uv_smooth_NONE;  
+    subdivide_uvs = subsurf_mod.uv_smooth() != BL::SubsurfModifier::uv_smooth_NONE;
   }
 
   create_mesh(scene, b_ob, mesh, b_mesh, used_shaders, winding_order, true, subdivide_uvs);
@@ -1156,10 +1156,14 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
                              MeshType mesh_type)
 {
   BL::ID b_ob_data = b_ob.data();
+  bool is_modified = BKE_object_is_modified(b_ob);
+  PointerRNA oct_mesh = RNA_pointer_get(&b_ob_data.ptr, "octane");
   bool is_instance = (b_ob == b_ob_instance);
   bool is_metaball = (b_ob.type() == BL::Object::type_META ||
                       b_ob_instance.type() == BL::Object::type_META);
-  BL::ID key = (BKE_object_is_modified(b_ob) && !is_instance) ? b_ob_data : b_ob_instance;
+  bool is_mesh_curve = (b_ob.type() == BL::Object::type_CURVE ||
+                        b_ob_instance.type() == BL::Object::type_CURVE);
+  BL::ID key = ((is_modified && !is_instance) || is_mesh_curve) ? b_ob_data : b_ob_instance;
   bool is_edit_mode_modified = false;
   /* find shader indices */
   std::vector<Shader *> used_shaders;
@@ -1169,8 +1173,7 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
       b_ob, used_shaders, use_octane_vertex_displacement_subdvision, use_default_shader);
 
   Mesh *octane_mesh;
-  bool is_modified = BKE_object_is_modified(b_ob);
-  PointerRNA oct_mesh = RNA_pointer_get(&b_ob_data.ptr, "octane");
+
   if (oct_mesh.data == NULL) {
     BL::ID b_ob_instance_data = b_ob_instance.data();
     oct_mesh = RNA_pointer_get(&b_ob_instance_data.ptr, "octane");
@@ -1211,8 +1214,10 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
   BL::Object::modifiers_iterator b_mod;
   for (b_ob.modifiers.begin(b_mod); b_mod != b_ob.modifiers.end(); ++b_mod) {
     if (b_mod->type() == BL::Modifier::type_NODES) {
-      use_geometry_node_modifier = true;
-      break;
+      if ((preview && b_mod->show_viewport()) || (!preview && b_mod->show_render())) {
+        use_geometry_node_modifier = true;
+        break;
+      }
     }
   }
   std::string b_ob_name = b_ob.name();
@@ -1243,11 +1248,14 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
       resource_cache_data.erase(mesh_name);
     }
   }
+  if (b_ob.type() == BL::Object::type_CURVE || b_ob.type() == BL::Object::type_CURVES) {
+    is_mesh_data_updated = true;
+  }
   if (!is_mesh_data_updated) {
     return octane_mesh;
   }
-  std::string new_mesh_tag =
-      generate_mesh_shader_tag(used_shaders);  // generate_mesh_tag(b_depsgraph, b_ob, used_shaders);
+  std::string new_mesh_tag = generate_mesh_shader_tag(
+      used_shaders);  // generate_mesh_tag(b_depsgraph, b_ob, used_shaders);
   if (b_ob.type() == BL::Object::type_MESH) {
     std::string coordinate_mode = std::to_string(
         RNA_enum_get(&oct_mesh, "primitive_coordinate_mode"));
@@ -1908,7 +1916,7 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
           (int32_t)::Octane::HairInterpolationType::HAIR_INTERP_DEFAULT :
           octane_mesh->octane_mesh.iHairInterpolations;
 
-  if (bHideOriginalMesh && octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.bEnable) {
+  if (bHideOriginalMesh) {
     octane_mesh->octane_mesh.oMeshData.bShowVertexData = false;
   }
   else if (octane_mesh->octane_mesh.oMeshData.f3HairPoints.size()) {

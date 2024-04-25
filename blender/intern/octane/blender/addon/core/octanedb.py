@@ -48,7 +48,7 @@ class OctaneDBManager(metaclass=utility.Singleton):
             texture_cache_path = self.get_texture_cache_path()
         else:
             localdb_path = ""
-            texture_cache_path = ""
+            texture_cache_path = self.get_texture_cache_path()
         if len(texture_cache_path) == 0:
             texture_cache_path = bpy.app.tempdir
         request_et = ElementTree.Element('fetchOctaneDb')

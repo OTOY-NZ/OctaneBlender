@@ -1007,7 +1007,9 @@ static PyObject *py_utils_function(PyObject *self, PyObject *args)
   std::string result_data;
   int32_t command_type;
   PyObject *py_client_name, *py_command_data;
-  if (!PyArg_ParseTuple(args, "iOO", &command_type, &py_command_data, &py_client_name)) {
+  float timeout;
+  if (!PyArg_ParseTuple(args, "iOOf", &command_type, &py_command_data, &py_client_name, &timeout))
+  {
     Py_RETURN_FALSE;
   }
   PyObject *py_coerce = NULL;
