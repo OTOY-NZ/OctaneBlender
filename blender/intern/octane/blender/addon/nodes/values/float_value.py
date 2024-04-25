@@ -1,39 +1,41 @@
-##### BEGIN OCTANE GENERATED CODE BLOCK #####
-import bpy
-from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
-from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
-from octane.utils import utility, consts
-from octane.nodes import base_switch_input_socket
-from octane.nodes.base_color_ramp import OctaneBaseRampNode
-from octane.nodes.base_curve import OctaneBaseCurveNode
-from octane.nodes.base_image import OctaneBaseImageNode
-from octane.nodes.base_kernel import OctaneBaseKernelNode
-from octane.nodes.base_node import OctaneBaseNode
-from octane.nodes.base_osl import OctaneScriptNode
-from octane.nodes.base_switch import OctaneBaseSwitchNode
-from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
+# <pep8 compliant>
+
+# BEGIN OCTANE GENERATED CODE BLOCK #
+import bpy  # noqa
+from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom # noqa
+from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty  # noqa
+from octane.utils import consts, runtime_globals, utility  # noqa
+from octane.nodes import base_switch_input_socket  # noqa
+from octane.nodes.base_color_ramp import OctaneBaseRampNode  # noqa
+from octane.nodes.base_curve import OctaneBaseCurveNode  # noqa
+from octane.nodes.base_image import OctaneBaseImageNode  # noqa
+from octane.nodes.base_kernel import OctaneBaseKernelNode  # noqa
+from octane.nodes.base_node import OctaneBaseNode  # noqa
+from octane.nodes.base_osl import OctaneScriptNode  # noqa
+from octane.nodes.base_switch import OctaneBaseSwitchNode  # noqa
+from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs  # noqa
 
 
 class OctaneFloatValue(bpy.types.Node, OctaneBaseNode):
-    bl_idname="OctaneFloatValue"
-    bl_label="Float value"
-    bl_width_default=200
-    octane_render_pass_id=-1
-    octane_render_pass_name=""
-    octane_render_pass_short_name=""
-    octane_render_pass_description=""
-    octane_render_pass_sub_type_name=""
-    octane_socket_class_list=[]
-    octane_min_version=0
-    octane_node_type=consts.NodeType.NT_FLOAT
-    octane_socket_list=[]
-    octane_attribute_list=["a_value", ]
-    octane_attribute_config={"a_value": [consts.AttributeID.A_VALUE, "value", consts.AttributeType.AT_FLOAT3], }
-    octane_static_pin_count=0
+    bl_idname = "OctaneFloatValue"
+    bl_label = "Float value"
+    bl_width_default = 200
+    octane_render_pass_id = -1
+    octane_render_pass_name = ""
+    octane_render_pass_short_name = ""
+    octane_render_pass_description = ""
+    octane_render_pass_sub_type_name = ""
+    octane_socket_class_list = []
+    octane_min_version = 0
+    octane_node_type = consts.NodeType.NT_FLOAT
+    octane_socket_list = []
+    octane_attribute_list = ["a_value", ]
+    octane_attribute_config = {"a_value": [consts.AttributeID.A_VALUE, "value", consts.AttributeType.AT_FLOAT3], }
+    octane_static_pin_count = 0
 
     a_value: FloatVectorProperty(name="Value", default=(0.000000, 0.000000, 0.000000), size=3, update=OctaneBaseNode.update_node_tree, description="The value of the float node")
 
-    def init(self, context):
+    def init(self, context):  # noqa
         self.outputs.new("OctaneFloatOutSocket", "Float out").init()
 
     @classmethod
@@ -41,27 +43,30 @@ class OctaneFloatValue(bpy.types.Node, OctaneBaseNode):
         return OctaneBaseNode.poll(node_tree)
 
 
-_CLASSES=[
+_CLASSES = [
     OctaneFloatValue,
 ]
 
+
 _SOCKET_INTERFACE_CLASSES = []
+
 
 def register():
     utility.octane_register_class(_CLASSES)
     utility.octane_register_interface_class(_CLASSES, _SOCKET_INTERFACE_CLASSES)
 
+
 def unregister():
     utility.octane_unregister_interface_class(_SOCKET_INTERFACE_CLASSES)
     utility.octane_unregister_class(reversed(_CLASSES))
 
-##### END OCTANE GENERATED CODE BLOCK #####
+# END OCTANE GENERATED CODE BLOCK #
 
-from ...utils import utility
 
 class OctaneFloatValue_Override(OctaneFloatValue):
     def draw_buttons(self, context, layout):
         # layout in column to enable multiple selections for vector properties
         layout.row().column().prop(self, "a_value")
 
-utility.override_class(_CLASSES, OctaneFloatValue, OctaneFloatValue_Override)       
+
+utility.override_class(_CLASSES, OctaneFloatValue, OctaneFloatValue_Override)

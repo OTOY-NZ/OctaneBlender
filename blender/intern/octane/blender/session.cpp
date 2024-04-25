@@ -525,6 +525,7 @@ void BlenderSession::render(BL::Depsgraph &b_depsgraph_)
     session->update_scene_to_server(0, 1);
     session->server->startRender(!background,
                                  session_params.use_shared_surface,
+                                 session_params.enable_realtime,
                                  session_params.process_id,
                                  session_params.device_luid,
                                  width,
@@ -812,8 +813,11 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult b_rr,
       }
       saveImage.iTiffCompressionType = get_enum(oct_scene, "octane_tiff_compression_mode");
       saveImage.iJpegQuality = get_int(oct_scene, "octane_export_jpeg_quality");
-      string raw_export_file_path = blender_absolute_path(
-          b_data, b_scene, b_scene.render().filepath().c_str());
+      std::string filepath = b_scene.render().filepath();
+      if (!get_boolean(oct_scene, "reuse_blender_output_path")) {
+        filepath = get_string(oct_scene, "octane_output_path");
+      }
+      string raw_export_file_path = blender_absolute_path(b_data, b_scene, filepath.c_str());
       std::string post_tag = get_string(oct_scene, "octane_export_postfix_tag");
       int digits = 4;
       if (post_tag.find("#") != std::string::npos) {

@@ -12,115 +12,115 @@ from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, O
 
 
 class OctaneImageAOVOutputColorSpace(OctaneBaseSocket):
-    bl_idname="OctaneImageAOVOutputColorSpace"
-    bl_label="Color space"
-    color=consts.OctanePinColor.Enum
-    octane_default_node_type=consts.NodeType.NT_ENUM
-    octane_default_node_name="OctaneEnumValue"
+    bl_idname = "OctaneImageAOVOutputColorSpace"
+    bl_label = "Color space"
+    color = consts.OctanePinColor.Enum
+    octane_default_node_type = consts.NodeType.NT_ENUM
+    octane_default_node_name = "OctaneEnumValue"
     octane_pin_id=consts.PinID.P_COLOR_SPACE
     octane_pin_name="colorSpace"
-    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_type = consts.PinType.PT_ENUM
     octane_pin_index=0
-    octane_socket_type=consts.SocketType.ST_ENUM
+    octane_socket_type = consts.SocketType.ST_ENUM
     items = [
         ("sRGB", "sRGB", "", 1),
         ("Linear sRGB", "Linear sRGB", "", 2),
     ]
     default_value: EnumProperty(default="sRGB", update=OctaneBaseSocket.update_node_tree, description="Select the color space of the input image. Octane compositing happens in the Linear sRGB space. All sRGB images are converted to linear sRGB during compositing. Currently NAMED_COLOR_SPACE_SRGB and NAMED_COLOR_SPACE_LINEAR_SRGB from NamedColorSpace enum are the only two allowed as the inputs in this pin", items=items)
-    octane_hide_value=False
-    octane_min_version=0
-    octane_end_version=4294967295
-    octane_deprecated=False
+    octane_hide_value = False
+    octane_min_version = 0
+    octane_end_version = 4294967295
+    octane_deprecated = False
 
 class OctaneImageAOVOutputOutputChannels(OctaneBaseSocket):
-    bl_idname="OctaneImageAOVOutputOutputChannels"
-    bl_label="Output channels"
-    color=consts.OctanePinColor.Enum
-    octane_default_node_type=consts.NodeType.NT_ENUM
-    octane_default_node_name="OctaneEnumValue"
+    bl_idname = "OctaneImageAOVOutputOutputChannels"
+    bl_label = "Output channels"
+    color = consts.OctanePinColor.Enum
+    octane_default_node_type = consts.NodeType.NT_ENUM
+    octane_default_node_name = "OctaneEnumValue"
     octane_pin_id=consts.PinID.P_OUTPUT_CHANNELS
     octane_pin_name="outputChannels"
-    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_type = consts.PinType.PT_ENUM
     octane_pin_index=1
-    octane_socket_type=consts.SocketType.ST_ENUM
+    octane_socket_type = consts.SocketType.ST_ENUM
     items = [
         ("RGBA", "RGBA", "", 0),
         ("RGB", "RGB", "", 1),
         ("Alpha", "Alpha", "", 2),
     ]
     default_value: EnumProperty(default="RGBA", update=OctaneBaseSocket.update_node_tree, description="Select output channels type of this node. Can be set to one of enum ChannelGroups", items=items)
-    octane_hide_value=False
-    octane_min_version=0
-    octane_end_version=4294967295
-    octane_deprecated=False
+    octane_hide_value = False
+    octane_min_version = 0
+    octane_end_version = 4294967295
+    octane_deprecated = False
 
 class OctaneImageAOVOutputImager(OctaneBaseSocket):
-    bl_idname="OctaneImageAOVOutputImager"
-    bl_label="Enable imager"
-    color=consts.OctanePinColor.Bool
-    octane_default_node_type=consts.NodeType.NT_BOOL
-    octane_default_node_name="OctaneBoolValue"
+    bl_idname = "OctaneImageAOVOutputImager"
+    bl_label = "Enable imager"
+    color = consts.OctanePinColor.Bool
+    octane_default_node_type = consts.NodeType.NT_BOOL
+    octane_default_node_name = "OctaneBoolValue"
     octane_pin_id=consts.PinID.P_IMAGER
     octane_pin_name="imager"
-    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_type = consts.PinType.PT_BOOL
     octane_pin_index=2
-    octane_socket_type=consts.SocketType.ST_BOOL
+    octane_socket_type = consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Whether to apply the imager settings on the final AOV output. Only used if this node is the root output AOV node (i.e. directly connected to the output AOV group node)")
-    octane_hide_value=False
-    octane_min_version=10021000
-    octane_end_version=4294967295
-    octane_deprecated=False
+    octane_hide_value = False
+    octane_min_version = 10021000
+    octane_end_version = 4294967295
+    octane_deprecated = False
 
 class OctaneImageAOVOutputPostproc(OctaneBaseSocket):
-    bl_idname="OctaneImageAOVOutputPostproc"
-    bl_label="Enable post processing"
-    color=consts.OctanePinColor.Bool
-    octane_default_node_type=consts.NodeType.NT_BOOL
-    octane_default_node_name="OctaneBoolValue"
+    bl_idname = "OctaneImageAOVOutputPostproc"
+    bl_label = "Enable post processing"
+    color = consts.OctanePinColor.Bool
+    octane_default_node_type = consts.NodeType.NT_BOOL
+    octane_default_node_name = "OctaneBoolValue"
     octane_pin_id=consts.PinID.P_POST_PROCESSING
     octane_pin_name="postproc"
-    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_type = consts.PinType.PT_BOOL
     octane_pin_index=3
-    octane_socket_type=consts.SocketType.ST_BOOL
+    octane_socket_type = consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Whether to apply the post processing settings on the final AOV output. Only used if this node is the root output AOV node (i.e. directly connected to the output AOV group node)")
-    octane_hide_value=False
-    octane_min_version=10021000
-    octane_end_version=4294967295
-    octane_deprecated=False
+    octane_hide_value = False
+    octane_min_version = 10021000
+    octane_end_version = 4294967295
+    octane_deprecated = False
 
 class OctaneImageAOVOutputPremultipliedAlpha(OctaneBaseSocket):
-    bl_idname="OctaneImageAOVOutputPremultipliedAlpha"
-    bl_label="[Deprecated]Premultiplied alpha"
-    color=consts.OctanePinColor.Bool
-    octane_default_node_type=consts.NodeType.NT_BOOL
-    octane_default_node_name="OctaneBoolValue"
+    bl_idname = "OctaneImageAOVOutputPremultipliedAlpha"
+    bl_label = "[Deprecated]Premultiplied alpha"
+    color = consts.OctanePinColor.Bool
+    octane_default_node_type = consts.NodeType.NT_BOOL
+    octane_default_node_name = "OctaneBoolValue"
     octane_pin_id=consts.PinID.P_PREMULTIPLIED_ALPHA
     octane_pin_name="premultiplied_alpha"
-    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_type = consts.PinType.PT_BOOL
     octane_pin_index=4
-    octane_socket_type=consts.SocketType.ST_BOOL
+    octane_socket_type = consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="(deprecated) Ignored")
-    octane_hide_value=False
-    octane_min_version=0
-    octane_end_version=10021500
-    octane_deprecated=True
+    octane_hide_value = False
+    octane_min_version = 0
+    octane_end_version = 10021500
+    octane_deprecated = True
 
 class OctaneImageAOVOutputGroupOutputSettings(OctaneGroupTitleSocket):
-    bl_idname="OctaneImageAOVOutputGroupOutputSettings"
-    bl_label="[OctaneGroupTitle]Output settings"
+    bl_idname = "OctaneImageAOVOutputGroupOutputSettings"
+    bl_label = "[OctaneGroupTitle]Output settings"
     octane_group_sockets: StringProperty(name="Group Sockets", default="Enable imager;Enable post processing;")
 
 class OctaneImageAOVOutput(bpy.types.Node, OctaneBaseImageNode):
-    bl_idname="OctaneImageAOVOutput"
-    bl_label="Image output AOV"
-    bl_width_default=200
-    octane_render_pass_id=-1
-    octane_render_pass_name=""
-    octane_render_pass_short_name=""
-    octane_render_pass_description=""
-    octane_render_pass_sub_type_name=""
+    bl_idname = "OctaneImageAOVOutput"
+    bl_label = "Image output AOV"
+    bl_width_default = 200
+    octane_render_pass_id = -1
+    octane_render_pass_name = ""
+    octane_render_pass_short_name = ""
+    octane_render_pass_description = ""
+    octane_render_pass_sub_type_name = ""
     octane_socket_class_list=[OctaneImageAOVOutputColorSpace,OctaneImageAOVOutputOutputChannels,OctaneImageAOVOutputGroupOutputSettings,OctaneImageAOVOutputImager,OctaneImageAOVOutputPostproc,OctaneImageAOVOutputPremultipliedAlpha,]
-    octane_min_version=0
+    octane_min_version = 0
     octane_node_type=consts.NodeType.NT_OUTPUT_AOV_IMAGE
     octane_socket_list=["Color space", "Output channels", "Enable imager", "Enable post processing", "[Deprecated]Premultiplied alpha", ]
     octane_attribute_list=["a_filename", "a_reload", "a_compatibility_version", "a_size", "a_type", "a_image_file_type", "a_can_wrap_x", "a_can_wrap_y", "a_image_flip", "a_source_info", "a_image_layer_names", "a_image_chosen_layer_name", "a_legacy_png_gamma", ]
@@ -181,7 +181,7 @@ def unregister():
     utility.octane_unregister_interface_class(_SOCKET_INTERFACE_CLASSES)
     utility.octane_unregister_class(reversed(_CLASSES))
 
-##### END OCTANE GENERATED CODE BLOCK #####
+# END OCTANE GENERATED CODE BLOCK #
 
 
 class OctaneImageAOVOutput_Override(OctaneImageAOVOutput):

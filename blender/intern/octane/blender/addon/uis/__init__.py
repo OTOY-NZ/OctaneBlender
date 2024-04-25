@@ -1,3 +1,6 @@
+# <pep8 compliant>
+
+from . import color_management
 from . import common
 from . import scene
 from . import mesh
@@ -9,6 +12,7 @@ from . import light
 
 
 def register():
+    color_management.register()
     common.register()
     viewport_header.register()
     mesh.register()
@@ -18,7 +22,9 @@ def register():
     world.register()
     light.register()
 
-def unregister():    
+
+def unregister():
+    color_management.unregister()
     common.unregister()
     viewport_header.unregister()
     mesh.unregister()

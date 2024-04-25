@@ -1,9 +1,12 @@
+# <pep8 compliant>
+
 from . import common
 from . import scene
 from . import mesh
 from . import _object
 from . import camera
 from . import world
+
 
 def register():
     common.register()
@@ -12,6 +15,7 @@ def register():
     _object.register()
     camera.register()
     world.register()
+
 
 def unregister():
     common.unregister()

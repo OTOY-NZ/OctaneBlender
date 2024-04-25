@@ -1,25 +1,28 @@
-import bpy
+# <pep8 compliant>
+
+# noinspection PyUnresolvedReferences
+from bl_ui.space_node import NODE_HT_header, NODE_MT_editor_menus, NODE_MT_context_menu
 from bpy.app.handlers import persistent
 from bpy.props import StringProperty
-from bpy.utils import register_class, unregister_class
-from bl_ui.space_node import NODE_HT_header, NODE_MT_editor_menus, NODE_MT_context_menu
-from octane.utils import consts, utility
-from octane import core
 
+import bpy
+from bpy.utils import register_class, unregister_class
+from octane import core
+from octane.utils import consts, logger, utility
 
 _NODE_HT_header_draw = None
 _NODE_MT_context_menu_draw = None
 
 
 class OctaneBaseNodeTree(object):
-    USE_LEGACY_NODE=True
-    LEGACY_OUTPUT_SOCKET_CONVERSION_MAP={
+    USE_LEGACY_NODE = True
+    LEGACY_OUTPUT_SOCKET_CONVERSION_MAP = {
         "OutGeo": consts.PinType.PT_GEOMETRY,
-        "OutTex": consts.PinType.PT_UNKNOWN, # (consts.PinType.PT_TEXTURE, consts.PinType.PT_TOON_RAMP),
+        "OutTex": consts.PinType.PT_UNKNOWN,  # (consts.PinType.PT_TEXTURE, consts.PinType.PT_TOON_RAMP),
         "OutMat": consts.PinType.PT_MATERIAL,
         "OutMatLayer": consts.PinType.PT_MATERIAL_LAYER,
         "OutMedium": consts.PinType.PT_MEDIUM,
-        "OutRotation": consts.PinType.PT_UNKNOWN, # (consts.PinType.PT_TRANSFORM, consts.PinType.PT_FLOAT),
+        "OutRotation": consts.PinType.PT_UNKNOWN,  # (consts.PinType.PT_TRANSFORM, consts.PinType.PT_FLOAT),
         "OutTransform": consts.PinType.PT_TRANSFORM,
         "OutProjection": consts.PinType.PT_PROJECTION,
         "OutAOV": consts.PinType.PT_OUTPUT_AOV,
@@ -51,7 +54,7 @@ class OctaneBaseNodeTree(object):
             node_tree["active_output_name"] = name
         else:
             if name == node_tree["active_output_name"]:
-                node_tree["active_output_name"] = ""    
+                node_tree["active_output_name"] = ""
 
     def update(self):
         # This is a workaround to solve the link validation issue
@@ -59,14 +62,16 @@ class OctaneBaseNodeTree(object):
         bpy.app.timers.register(self.update_post)
 
     def update_post(self):
-        self.update_link_validity(self, None, None)   
-    
-    # Ensure the viewport update
+        # noinspection PyTypeChecker
+        self.update_link_validity(self, None, None)
+
+        # Ensure the viewport update
+
     def update_viewport(self):
-        self.update_tag()        
+        self.update_tag()
 
     @staticmethod
-    def resovle_socket_octane_pin_type(node_tree, socket):
+    def resolve_socket_octane_pin_type(node_tree, socket):
         socket_pin_type = getattr(socket, "octane_pin_type", consts.PinType.PT_UNKNOWN)
         if getattr(node_tree, "USE_LEGACY_NODE", True):
             if socket_pin_type == consts.PinType.PT_UNKNOWN:
@@ -78,8 +83,10 @@ class OctaneBaseNodeTree(object):
     @staticmethod
     def update_link_validity_for_blender_insert_links(node_tree, last_op_bl_idname=None):
         try:
-            is_node_op = last_op_bl_idname is None or last_op_bl_idname.startswith("NODE_OT") or last_op_bl_idname.startswith("OCTANE_OT_node")
-        except:
+            is_node_op = last_op_bl_idname is None or last_op_bl_idname.startswith(
+                "NODE_OT") or last_op_bl_idname.startswith("OCTANE_OT_node")
+        except Exception as e:
+            logger.exception(e)
             is_node_op = True
         if not is_node_op:
             return
@@ -92,7 +99,7 @@ class OctaneBaseNodeTree(object):
                 link2 = None
                 for _input in selected_node.inputs:
                     if _input.is_linked:
-                        link1 = _input.links[0]                           
+                        link1 = _input.links[0]
                         break
                 if len(selected_node.outputs) >= 1 and selected_node.outputs[0].is_linked:
                     link2 = selected_node.outputs[0].links[0]
@@ -109,13 +116,16 @@ class OctaneBaseNodeTree(object):
                     if insert_in_link and insert_out_link:
                         if not insert_in_link.is_valid:
                             # Find the compatible socket to link
-                            from_socket_pin_type = OctaneBaseNodeTree.resovle_socket_octane_pin_type(node_tree, insert_in_link.from_socket)                        
+                            from_socket_pin_type = (
+                                OctaneBaseNodeTree.resolve_socket_octane_pin_type(node_tree,
+                                                                                  insert_in_link.from_socket))
                             for to_socket in selected_node.inputs:
-                                to_socket_pin_type = OctaneBaseNodeTree.resovle_socket_octane_pin_type(node_tree, to_socket)
-                                if from_socket_pin_type == to_socket_pin_type:                                
+                                to_socket_pin_type = OctaneBaseNodeTree.resolve_socket_octane_pin_type(node_tree,
+                                                                                                       to_socket)
+                                if from_socket_pin_type == to_socket_pin_type:
                                     node_tree.links.new(insert_in_link.from_socket, to_socket)
                                     node_tree.links.remove(insert_in_link)
-                                    break        
+                                    break
 
     @staticmethod
     def update_link_validity(node_tree, data_owner=None, last_op_bl_idname=None):
@@ -123,8 +133,8 @@ class OctaneBaseNodeTree(object):
             from_socket = link.from_socket
             to_socket = link.to_socket
             if from_socket and to_socket:
-                from_socket_pin_type = OctaneBaseNodeTree.resovle_socket_octane_pin_type(node_tree, from_socket)
-                to_socket_pin_type = OctaneBaseNodeTree.resovle_socket_octane_pin_type(node_tree, to_socket)
+                from_socket_pin_type = OctaneBaseNodeTree.resolve_socket_octane_pin_type(node_tree, from_socket)
+                to_socket_pin_type = OctaneBaseNodeTree.resolve_socket_octane_pin_type(node_tree, to_socket)
                 if from_socket_pin_type == consts.PinType.PT_UNKNOWN:
                     continue
                 if to_socket_pin_type == consts.PinType.PT_UNKNOWN:
@@ -147,10 +157,11 @@ class OctaneBaseNodeTree(object):
             elif isinstance(node, OctaneBaseCurveNode):
                 node.validate(data_owner)
         # If Adding Cycles Image Node?
-        if last_op_bl_idname == "NODE_OT_add_file":            
+        if last_op_bl_idname == "NODE_OT_add_file":
             if len(original_node_tree.nodes) and original_node_tree.nodes[-1].select \
-                and original_node_tree.nodes[-1].bl_idname == "ShaderNodeTexImage":
+                    and original_node_tree.nodes[-1].bl_idname == "ShaderNodeTexImage":
                 OCTANE_convert_to_octane_node.convert_tex_image_node(None, original_node_tree.nodes[-1])
+
 
 def NODE_HT_header_octane_draw(self, context):
     layout = self.layout
@@ -162,7 +173,11 @@ def NODE_HT_header_octane_draw(self, context):
     tool_settings = context.tool_settings
     is_compositor = snode.tree_type == 'CompositorNodeTree'
 
-    if snode.tree_type not in (consts.OctaneNodeTreeIDName.COMPOSITE, consts.OctaneNodeTreeIDName.RENDER_AOV, consts.OctaneNodeTreeIDName.KERNEL,consts.OctaneNodeTreeIDName.CAMERA_IMAGER,):
+    if snode.tree_type not in (
+            consts.OctaneNodeTreeIDName.COMPOSITE, consts.OctaneNodeTreeIDName.RENDER_AOV,
+            consts.OctaneNodeTreeIDName.KERNEL,
+            consts.OctaneNodeTreeIDName.CAMERA_IMAGER,):
+        # noinspection PyCallingNonCallable
         _NODE_HT_header_draw(self, context)
         return
 
@@ -189,7 +204,7 @@ def NODE_HT_header_octane_draw(self, context):
 
             types_that_support_material = {'MESH', 'CURVE', 'SURFACE', 'FONT', 'META',
                                            'GPENCIL', 'VOLUME', 'HAIR', 'POINTCLOUD'}
-            # disable material slot buttons when pinned, cannot find correct slot within id_from (T36589)
+            # disable material slot buttons when pinned, cannot find the correct slot within id_from (T36589)
             # disable also when the selected object does not support materials
             has_material_slots = not snode.pin and ob_type in types_that_support_material
 
@@ -329,23 +344,24 @@ def NODE_HT_header_octane_draw(self, context):
 
 
 def NODE_MT_context_menu_draw(self, context):
+    # noinspection PyCallingNonCallable
     _NODE_MT_context_menu_draw(self, context)
     layout = self.layout
     selected_nodes_len = len(context.selected_nodes)
     if selected_nodes_len > 0:
-        layout.separator()        
+        layout.separator()
         layout.operator("octane.convert_to_octane_node", text="Convert to Octane Node")
 
 
 class OCTANE_convert_to_octane_node(bpy.types.Operator):
     """Convert the Cycles' node to the compatible Octane node if applicable"""
-    
+
     bl_idname = "octane.convert_to_octane_node"
     bl_label = "Convert to Octane Node"
     bl_description = "Convert the Cycles' node to the compatible Octane node if applicable"
 
     @staticmethod
-    def convert_tex_image_node(context, node):
+    def convert_tex_image_node(_context, node):
         node_tree = node.id_data
         node_name = node.name
         octane_node = node_tree.nodes.new("OctaneRGBImage")
@@ -357,41 +373,43 @@ class OCTANE_convert_to_octane_node(bpy.types.Operator):
     def execute(self, context):
         for node in context.selected_nodes:
             if node.type == "TEX_IMAGE":
-                self.convert_tex_image_node(context, node)            
+                self.convert_tex_image_node(context, node)
         return {"FINISHED"}
 
 
 class OCTANE_quick_add_composite_nodetree(bpy.types.Operator):
     """Add an Octane Composite node tree with the default node configuration"""
-    
+
     bl_idname = "octane.quick_add_composite_nodetree"
     bl_label = "Quick-Add Composite NodeTree"
     bl_description = "Add an Octane Composite node tree with the default node configuration"
 
     def execute(self, context):
         from octane.utils import utility
-        node_tree = bpy.data.node_groups.new(name=consts.OctanePresetNodeTreeNames.COMPOSITE, type=consts.OctaneNodeTreeIDName.COMPOSITE)
+        node_tree = bpy.data.node_groups.new(name=consts.OctanePresetNodeTreeNames.COMPOSITE,
+                                             type=consts.OctaneNodeTreeIDName.COMPOSITE)
         node_tree.use_fake_user = True
         nodes = node_tree.nodes
         output = nodes.new("OctaneOutputAOVGroupOutputNode")
         output.location = (0, 0)
         aov_output_group = nodes.new("OctaneOutputAOVsOutputAOVGroup")
         aov_output_group.location = (-300, 0)
-        node_tree.links.new(aov_output_group.outputs[0], output.inputs[0])        
+        node_tree.links.new(aov_output_group.outputs[0], output.inputs[0])
         utility.show_nodetree(context, node_tree)
         return {"FINISHED"}
 
 
 class OCTANE_quick_add_render_aov_nodetree(bpy.types.Operator):
     """Add an Octane Render AOV node tree with the default node configuration"""
-    
+
     bl_idname = "octane.quick_add_render_aov_nodetree"
     bl_label = "Quick-Add Render AOV NodeTree"
     bl_description = "Add an Octane Render AOV node tree with the default node configuration"
 
     def execute(self, context):
         from octane.utils import utility
-        node_tree = bpy.data.node_groups.new(name=consts.OctanePresetNodeTreeNames.RENDER_AOV, type=consts.OctaneNodeTreeIDName.RENDER_AOV)
+        node_tree = bpy.data.node_groups.new(name=consts.OctanePresetNodeTreeNames.RENDER_AOV,
+                                             type=consts.OctaneNodeTreeIDName.RENDER_AOV)
         node_tree.use_fake_user = True
         nodes = node_tree.nodes
         output = nodes.new("OctaneRenderAOVOutputNode")
@@ -405,7 +423,7 @@ class OCTANE_quick_add_render_aov_nodetree(bpy.types.Operator):
 
 class OCTANE_quick_add_kernel_nodetree(bpy.types.Operator):
     """Add an Octane Kernel node tree with the default node configuration"""
-    
+
     bl_idname = "octane.quick_add_kernel_nodetree"
     bl_label = "Quick-Add Kernel NodeTree"
     bl_description = "Add an Octane Kernel node tree with the default node configuration"
@@ -425,7 +443,7 @@ class OCTANE_quick_add_kernel_nodetree(bpy.types.Operator):
 
 class OCTANE_show_nodetree(bpy.types.Operator):
     """Show the active Octane node tree"""
-    
+
     bl_idname = "octane.show_nodetree"
     bl_label = "Show NodeTree"
     bl_description = "Show the active Octane node tree"
@@ -453,7 +471,7 @@ class OCTANE_show_nodetree(bpy.types.Operator):
 
 class OCTANE_show_kernel_nodetree(OCTANE_show_nodetree):
     """Show the active Octane kernel node tree"""
-    
+
     bl_idname = "octane.show_kernel_nodetree"
     bl_label = "Show Kernel NodeTree"
     bl_description = "Show the active Octane kernel node tree"
@@ -470,7 +488,7 @@ class OCTANE_show_kernel_nodetree(OCTANE_show_nodetree):
         return {"FINISHED"}
 
 
-class NodeTreeHandler:    
+class NodeTreeHandler:
     material_node_tree_count = 0
     world_node_tree_count = 0
     light_node_tree_count = 0
@@ -491,30 +509,33 @@ class NodeTreeHandler:
     def init_octane_node_helper():
         from octane.nodes.base_color_ramp import OctaneBaseRampNode
         from octane.nodes.base_curve import OctaneBaseCurveNode
-        def _init_octane_node_helper(node_tree, used_color_ramp_names, used_curve_names, data_owner=None):            
+
+        def nest_init_octane_node_helper(node_tree, current_used_color_ramp_names, current_used_curve_names,
+                                         data_owner=None):
             original_node_tree = node_tree.original
             for node in original_node_tree.nodes:
                 if isinstance(node, OctaneBaseRampNode):
                     node.init_helper_color_ramp_watcher()
-                    node.validate_color_ramp(True, data_owner)
-                    used_color_ramp_names.add(node.color_ramp_name)
+                    node.validate_color_ramp(data_owner, True)
+                    current_used_color_ramp_names.add(node.color_ramp_name)
                 elif isinstance(node, OctaneBaseCurveNode):
                     node.init_helper_curve_watcher()
-                    node.validate(True, data_owner)
-                    used_curve_names.add(node.curve_name)
+                    node.validate(data_owner, True)
+                    current_used_curve_names.add(node.curve_name)
+
         used_color_ramp_names = set()
         used_curve_names = set()
         for material in bpy.data.materials:
             if material.use_nodes and material.node_tree:
-                _init_octane_node_helper(material.node_tree, used_color_ramp_names, used_curve_names, material)
+                nest_init_octane_node_helper(material.node_tree, used_color_ramp_names, used_curve_names, material)
         for world in bpy.data.worlds:
             if world.use_nodes and world.node_tree:
-                _init_octane_node_helper(world.node_tree, used_color_ramp_names, used_curve_names, world)
+                nest_init_octane_node_helper(world.node_tree, used_color_ramp_names, used_curve_names, world)
         for light in bpy.data.lights:
             if light.use_nodes and light.node_tree:
-                _init_octane_node_helper(light.node_tree, used_color_ramp_names, used_curve_names, light)
+                nest_init_octane_node_helper(light.node_tree, used_color_ramp_names, used_curve_names, light)
         for node_group in bpy.data.node_groups:
-            _init_octane_node_helper(node_group, used_color_ramp_names, used_curve_names, node_group)
+            nest_init_octane_node_helper(node_group, used_color_ramp_names, used_curve_names, node_group)
         OctaneBaseRampNode.clear_unused_color_ramp_helpers(used_color_ramp_names)
         OctaneBaseCurveNode.clear_unused_curve_helpers(used_curve_names)
 
@@ -524,7 +545,8 @@ class NodeTreeHandler:
         octane_scene = bpy.context.scene.octane
         if octane_scene.kernel_data_mode == "PROPERTY_PANEL":
             from octane.utils import utility
-            utility.quick_add_octane_kernel_node_tree(assign_to_kernel_node_graph=True, generate_from_legacy_octane_property=True)
+            utility.quick_add_octane_kernel_node_tree(assign_to_kernel_node_graph=True,
+                                                      generate_from_legacy_octane_property=True)
             octane_scene.kernel_data_mode = "NODETREE"
         else:
             if octane_scene.kernel_node_graph_property.node_tree is None:
@@ -541,11 +563,10 @@ class NodeTreeHandler:
                 if node_tree and NodeTreeHandler.WORLD_OUTPUT_NODE_NAME in node_tree.nodes:
                     node_bl_idnames = [node.bl_idname for node in node_tree.nodes]
                     if "ShaderNodeOutputWorld" in node_bl_idnames and "NodeUndefined" in node_bl_idnames:
-                        # Convert legacy envrionment node
+                        # Convert legacy environment node
                         original_env_node = None
                         addon_env_node = None
                         original_sun_direction_node = None
-                        addon_sun_direction_node = None
                         original_env_bl_idname = ""
                         addon_env_bl_idname = ""
                         original_sun_direction_bl_idname = ""
@@ -570,7 +591,7 @@ class NodeTreeHandler:
                                         original_sun_direction_node = node
                                         original_sun_direction_bl_idname = "ShaderNodeOctSunDirectionValue"
                                         addon_sun_direction_bl_idname = "OctaneSunDirection"
-                        # Create new world
+                        # Create a new world
                         new_world = bpy.data.worlds.new(world.name)
                         new_world.use_nodes = True
                         NodeTreeHandler._on_world_new(new_world.node_tree, new_world, None, addon_env_bl_idname)
@@ -578,13 +599,17 @@ class NodeTreeHandler:
                             if node.bl_idname == addon_env_bl_idname:
                                 addon_env_node = node
                             elif node.bl_idname == addon_sun_direction_bl_idname:
-                                addon_sun_direction_node = node
+                                pass
                         if original_env_node and addon_env_node:
-                            addon_env_node.load_legacy_node(original_env_node, original_env_bl_idname, world.node_tree, bpy.context, None)
+                            addon_env_node.load_legacy_node(original_env_node, original_env_bl_idname, world.node_tree,
+                                                            bpy.context, None)
                         if original_sun_direction_node and addon_env_node and "Sun direction" in addon_env_node.inputs:
                             addon_sun_direction_node = new_world.node_tree.nodes.new(addon_sun_direction_bl_idname)
-                            addon_sun_direction_node.load_legacy_node(original_sun_direction_node, original_sun_direction_bl_idname, world.node_tree, bpy.context, None)                        
-                            new_world.node_tree.links.new(addon_sun_direction_node.outputs[0], addon_env_node.inputs["Sun direction"])
+                            addon_sun_direction_node.load_legacy_node(original_sun_direction_node,
+                                                                      original_sun_direction_bl_idname, world.node_tree,
+                                                                      bpy.context, None)
+                            new_world.node_tree.links.new(addon_sun_direction_node.outputs[0],
+                                                          addon_env_node.inputs["Sun direction"])
                         utility.beautifier_nodetree_layout_by_owner(new_world)
                         scene.world = new_world
 
@@ -595,10 +620,10 @@ class NodeTreeHandler:
         NodeTreeHandler.world_node_tree_count = len(bpy.data.worlds)
         NodeTreeHandler.light_node_tree_count = NodeTreeHandler.get_light_node_tree_count(scene)
         if scene.render.engine != consts.ENGINE_NAME:
-            return        
+            return
         utility.update_active_render_aov_node_tree(bpy.context.view_layer)
         # Init node helper
-        NodeTreeHandler.init_node_helper()        
+        NodeTreeHandler.init_node_helper()
         # Init color ramp watchers
         NodeTreeHandler.init_octane_node_helper()
         # Init kernel
@@ -607,9 +632,10 @@ class NodeTreeHandler:
         NodeTreeHandler.convert_legacy_worlds(scene)
 
     @staticmethod
-    def convert_to_octane_new_addon_node(node_tree, output_node, new_output_node, socket_name, new_socket_name, octane_node_type, octane_node_output_name=None):
+    def convert_to_octane_new_addon_node(node_tree, output_node, new_output_node, socket_name, new_socket_name,
+                                         octane_node_type, octane_node_output_name=None):
         _input = output_node.inputs[socket_name]
-        if len(_input.links):            
+        if len(_input.links):
             from_node = _input.links[0].from_node
             # Do not convert new add-on style nodes
             if hasattr(from_node, "octane_node_type"):
@@ -619,7 +645,6 @@ class NodeTreeHandler:
                 return False
             octane_node = node_tree.nodes.new(octane_node_type)
             octane_node.location = from_node.location
-            octane_output_socket = None
             if octane_node_output_name is None:
                 octane_output_socket = octane_node.outputs[0]
             else:
@@ -644,7 +669,7 @@ class NodeTreeHandler:
             node_names = [node.name for node in node_tree.nodes]
             if "Material Output" in node_names and "Principled Volume" in node_names:
                 return True
-        return False          
+        return False
 
     @staticmethod
     def _on_material_new(node_tree, data_owner=None, last_op_bl_idname=None):
@@ -652,16 +677,22 @@ class NodeTreeHandler:
             blender_output = node_tree.nodes[NodeTreeHandler.MATERIAL_OUTPUT_NODE_NAME]
             if NodeTreeHandler._is_blender_default_material(node_tree):
                 material_node_bl_idname = utility.get_default_material_node_bl_idname()
-                NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, blender_output, blender_output, NodeTreeHandler.SURFACE_INPUT_NAME, NodeTreeHandler.SURFACE_INPUT_NAME, material_node_bl_idname)
+                NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, blender_output, blender_output,
+                                                                 NodeTreeHandler.SURFACE_INPUT_NAME,
+                                                                 NodeTreeHandler.SURFACE_INPUT_NAME,
+                                                                 material_node_bl_idname)
             elif NodeTreeHandler._is_blender_default_volume(node_tree):
-                NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, blender_output, blender_output, NodeTreeHandler.VOLUME_INPUT_NAME, NodeTreeHandler.VOLUME_INPUT_NAME, "OctaneVolumeMedium")
+                NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, blender_output, blender_output,
+                                                                 NodeTreeHandler.VOLUME_INPUT_NAME,
+                                                                 NodeTreeHandler.VOLUME_INPUT_NAME,
+                                                                 "OctaneVolumeMedium")
+            if blender_output and getattr(blender_output, "target", None) == "":
+                blender_output.target = "ALL"
         if node_tree:
             OctaneBaseNodeTree.update_link_validity(node_tree, data_owner, last_op_bl_idname)
 
     @staticmethod
-    def on_material_new(scene, last_op_bl_idname=None):
-        from octane.nodes import base_output_node
-        from octane.utils import utility
+    def on_material_new(_scene, last_op_bl_idname=None):
         if len(bpy.data.materials) > NodeTreeHandler.material_node_tree_count:
             active_object = bpy.context.active_object
             active_material = None
@@ -676,7 +707,7 @@ class NodeTreeHandler:
                 if current_material.node_tree is not node_tree:
                     NodeTreeHandler._on_material_new(current_material.node_tree, current_material, last_op_bl_idname)
         NodeTreeHandler.material_node_tree_count = len(bpy.data.materials)
-        
+
     @staticmethod
     def _is_blender_default_world(node_tree):
         if node_tree and len(node_tree.nodes) == 2:
@@ -686,20 +717,23 @@ class NodeTreeHandler:
         return False
 
     @staticmethod
-    def _on_world_new(node_tree, data_owner=None, last_op_bl_idname=None, environment_bl_idname="OctaneTextureEnvironment"):
+    def _on_world_new(node_tree, data_owner=None, last_op_bl_idname=None,
+                      environment_bl_idname="OctaneTextureEnvironment"):
         if node_tree and NodeTreeHandler.WORLD_OUTPUT_NODE_NAME in node_tree.nodes:
             if NodeTreeHandler._is_blender_default_world(node_tree):
                 blender_output = node_tree.nodes[NodeTreeHandler.WORLD_OUTPUT_NODE_NAME]
                 output = node_tree.nodes.new("OctaneEditorWorldOutputNode")
                 output.location = blender_output.location
-                NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, blender_output, output, NodeTreeHandler.WORLD_INPUT_NAME, NodeTreeHandler.OCTANE_WORLD_INPUT_NAME, environment_bl_idname)
+                NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, blender_output, output,
+                                                                 NodeTreeHandler.WORLD_INPUT_NAME,
+                                                                 NodeTreeHandler.OCTANE_WORLD_INPUT_NAME,
+                                                                 environment_bl_idname)
                 node_tree.nodes.remove(blender_output)
         if node_tree:
             OctaneBaseNodeTree.update_link_validity(node_tree, data_owner, last_op_bl_idname)
 
     @staticmethod
     def on_world_new(scene, last_op_bl_idname=None):
-        from octane.nodes import base_output_node
         if len(bpy.data.worlds) > NodeTreeHandler.world_node_tree_count:
             active_world = scene.world
             node_tree = None
@@ -713,7 +747,7 @@ class NodeTreeHandler:
         NodeTreeHandler.world_node_tree_count = len(bpy.data.worlds)
 
     @staticmethod
-    def get_light_node_tree_count(scene):
+    def get_light_node_tree_count(_scene):
         return len([light.node_tree for light in bpy.data.lights if light.node_tree is not None])
 
     @staticmethod
@@ -725,8 +759,7 @@ class NodeTreeHandler:
         return False
 
     @staticmethod
-    def on_light_new(scene, last_op_bl_idname=None):
-        from octane.nodes import base_output_node
+    def on_light_new(scene, _last_op_bl_idname=None):
         current_light_node_tree_count = NodeTreeHandler.get_light_node_tree_count(scene)
         if current_light_node_tree_count > NodeTreeHandler.light_node_tree_count:
             active_object = bpy.context.active_object
@@ -741,35 +774,56 @@ class NodeTreeHandler:
                         if light_data.type in ("POINT", "AREA", "MESH", "SPHERE"):
                             if light_data.type == "POINT":
                                 if light_data.octane.octane_point_light_type == "Toon Point":
-                                    NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, output, output, NodeTreeHandler.SURFACE_INPUT_NAME, NodeTreeHandler.SURFACE_INPUT_NAME, "OctaneToonPointLight")
+                                    NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, output, output,
+                                                                                     NodeTreeHandler.SURFACE_INPUT_NAME,
+                                                                                     NodeTreeHandler.SURFACE_INPUT_NAME,
+                                                                                     "OctaneToonPointLight")
                                 elif light_data.octane.octane_point_light_type == "Analytical":
-                                    NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, output, output, NodeTreeHandler.SURFACE_INPUT_NAME, NodeTreeHandler.SURFACE_INPUT_NAME, "OctaneAnalyticLight")
+                                    NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, output, output,
+                                                                                     NodeTreeHandler.SURFACE_INPUT_NAME,
+                                                                                     NodeTreeHandler.SURFACE_INPUT_NAME,
+                                                                                     "OctaneAnalyticLight")
                                     light_node = node_tree.nodes["Analytic light"]
                                     emission_node = node_tree.nodes.new("OctaneTextureEmission")
                                     node_tree.links.new(emission_node.outputs[0], light_node.inputs["Emission"])
                                 else:
-                                    NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, output, output, NodeTreeHandler.SURFACE_INPUT_NAME, NodeTreeHandler.SURFACE_INPUT_NAME, "OctaneDiffuseMaterial")
+                                    NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, output, output,
+                                                                                     NodeTreeHandler.SURFACE_INPUT_NAME,
+                                                                                     NodeTreeHandler.SURFACE_INPUT_NAME,
+                                                                                     "OctaneDiffuseMaterial")
                                     material_node = node_tree.nodes["Diffuse material"]
                                     emission_node = node_tree.nodes.new("OctaneTextureEmission")
                                     node_tree.links.new(emission_node.outputs[0], material_node.inputs["Emission"])
                             else:
-                                NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, output, output, NodeTreeHandler.SURFACE_INPUT_NAME, NodeTreeHandler.SURFACE_INPUT_NAME, "OctaneDiffuseMaterial")
+                                NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, output, output,
+                                                                                 NodeTreeHandler.SURFACE_INPUT_NAME,
+                                                                                 NodeTreeHandler.SURFACE_INPUT_NAME,
+                                                                                 "OctaneDiffuseMaterial")
                                 material_node = node_tree.nodes["Diffuse material"]
                                 emission_node = node_tree.nodes.new("OctaneTextureEmission")
                                 node_tree.links.new(emission_node.outputs[0], material_node.inputs["Emission"])
                         elif light_data.type == "SUN":
                             if light_data.octane.octane_directional_light_type == "Toon Directional":
-                                NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, output, output, NodeTreeHandler.SURFACE_INPUT_NAME, NodeTreeHandler.SURFACE_INPUT_NAME, "OctaneToonDirectionalLight")
+                                NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, output, output,
+                                                                                 NodeTreeHandler.SURFACE_INPUT_NAME,
+                                                                                 NodeTreeHandler.SURFACE_INPUT_NAME,
+                                                                                 "OctaneToonDirectionalLight")
                                 light_node = node_tree.nodes["Toon directional light"]
                                 utility.setup_directional_light(node_tree, light_node, active_object)
                             else:
-                                NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, output, output, NodeTreeHandler.SURFACE_INPUT_NAME, NodeTreeHandler.SURFACE_INPUT_NAME, "OctaneDirectionalLight")
+                                NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, output, output,
+                                                                                 NodeTreeHandler.SURFACE_INPUT_NAME,
+                                                                                 NodeTreeHandler.SURFACE_INPUT_NAME,
+                                                                                 "OctaneDirectionalLight")
                                 light_node = node_tree.nodes["Directional light"]
                                 emission_node = node_tree.nodes.new("OctaneTextureEmission")
                                 node_tree.links.new(emission_node.outputs[0], light_node.inputs["Emission"])
                                 utility.setup_directional_light(node_tree, light_node, active_object)
                         elif light_data.type == "SPOT":
-                            NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, output, output, NodeTreeHandler.SURFACE_INPUT_NAME, NodeTreeHandler.SURFACE_INPUT_NAME, "OctaneVolumetricSpotlight")
+                            NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, output, output,
+                                                                             NodeTreeHandler.SURFACE_INPUT_NAME,
+                                                                             NodeTreeHandler.SURFACE_INPUT_NAME,
+                                                                             "OctaneVolumetricSpotlight")
                             light_data.spot_blend = 0
                             light_data.shadow_soft_size = 0
                         utility.beautifier_nodetree_layout_by_owner(light_data)
@@ -791,7 +845,7 @@ class NodeTreeHandler:
             elif isinstance(update.id, bpy.types.World):
                 node_tree = update.id.node_tree
             elif isinstance(update.id, bpy.types.Material):
-                node_tree = update.id.node_tree                
+                node_tree = update.id.node_tree
             if node_tree is not None:
                 if update.id is scene.world:
                     is_active_world_updated = True
@@ -822,8 +876,10 @@ class NodeTreeHandler:
 
 @persistent
 def node_tree_update_handler(scene):
-    # last_op_bl_idname = bpy.context.window_manager.operators[-1].bl_idname if len(bpy.context.window_manager.operators) else None
-    last_op_bl_idname = bpy.context.active_operator.bl_idname if getattr(bpy.context, "active_operator", None) is not None else None
+    # last_op_bl_idname = bpy.context.window_manager.operators[-1].bl_idname
+    # if len(bpy.context.window_manager.operators) else None
+    last_op_bl_idname = bpy.context.active_operator.bl_idname if getattr(bpy.context, "active_operator",
+                                                                         None) is not None else None
     if scene is None:
         scene = bpy.context.scene
     if scene.render.engine != consts.ENGINE_NAME:
@@ -852,7 +908,7 @@ def register():
     bpy.app.handlers.depsgraph_update_post.append(node_tree_update_handler)
     for cls in _CLASSES:
         register_class(cls)
-    
+
 
 def unregister():
     global _NODE_HT_header_draw
@@ -861,4 +917,4 @@ def unregister():
     NODE_MT_context_menu.draw = _NODE_MT_context_menu_draw
     bpy.app.handlers.depsgraph_update_post.remove(node_tree_update_handler)
     for cls in _CLASSES:
-        unregister_class(cls)    
+        unregister_class(cls)

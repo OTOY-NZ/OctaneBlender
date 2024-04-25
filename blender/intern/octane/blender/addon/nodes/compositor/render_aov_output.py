@@ -12,16 +12,16 @@ from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, O
 
 
 class OctaneRenderAOVOutputInput(OctaneBaseSocket):
-    bl_idname="OctaneRenderAOVOutputInput"
-    bl_label="Input"
-    color=consts.OctanePinColor.Enum
-    octane_default_node_type=consts.NodeType.NT_ENUM
-    octane_default_node_name="OctaneEnumValue"
+    bl_idname = "OctaneRenderAOVOutputInput"
+    bl_label = "Input"
+    color = consts.OctanePinColor.Enum
+    octane_default_node_type = consts.NodeType.NT_ENUM
+    octane_default_node_name = "OctaneEnumValue"
     octane_pin_id=consts.PinID.P_INPUT
     octane_pin_name="input"
-    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_type = consts.PinType.PT_ENUM
     octane_pin_index=0
-    octane_socket_type=consts.SocketType.ST_ENUM
+    octane_socket_type = consts.SocketType.ST_ENUM
     items = [
         ("Beauty", "Beauty", "", 0),
         ("Denoised beauty", "Denoised beauty", "", 43),
@@ -158,83 +158,83 @@ class OctaneRenderAOVOutputInput(OctaneBaseSocket):
         ("Render layer|Layer shadows", "Render layer|Layer shadows", "", 17),
     ]
     default_value: EnumProperty(default="Beauty", update=OctaneBaseSocket.update_node_tree, description="Select a render AOV from the list of all available render AOVs", items=items)
-    octane_hide_value=False
-    octane_min_version=0
-    octane_end_version=4294967295
-    octane_deprecated=False
+    octane_hide_value = False
+    octane_min_version = 0
+    octane_end_version = 4294967295
+    octane_deprecated = False
 
 class OctaneRenderAOVOutputOutputChannels(OctaneBaseSocket):
-    bl_idname="OctaneRenderAOVOutputOutputChannels"
-    bl_label="Output channels"
-    color=consts.OctanePinColor.Enum
-    octane_default_node_type=consts.NodeType.NT_ENUM
-    octane_default_node_name="OctaneEnumValue"
+    bl_idname = "OctaneRenderAOVOutputOutputChannels"
+    bl_label = "Output channels"
+    color = consts.OctanePinColor.Enum
+    octane_default_node_type = consts.NodeType.NT_ENUM
+    octane_default_node_name = "OctaneEnumValue"
     octane_pin_id=consts.PinID.P_OUTPUT_CHANNELS
     octane_pin_name="outputChannels"
-    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_type = consts.PinType.PT_ENUM
     octane_pin_index=1
-    octane_socket_type=consts.SocketType.ST_ENUM
+    octane_socket_type = consts.SocketType.ST_ENUM
     items = [
         ("RGBA", "RGBA", "", 0),
         ("RGB", "RGB", "", 1),
         ("Alpha", "Alpha", "", 2),
     ]
     default_value: EnumProperty(default="RGBA", update=OctaneBaseSocket.update_node_tree, description="Select output channels type of this node. Can be set to one of enum ChannelGroups", items=items)
-    octane_hide_value=False
-    octane_min_version=0
-    octane_end_version=4294967295
-    octane_deprecated=False
+    octane_hide_value = False
+    octane_min_version = 0
+    octane_end_version = 4294967295
+    octane_deprecated = False
 
 class OctaneRenderAOVOutputImager(OctaneBaseSocket):
-    bl_idname="OctaneRenderAOVOutputImager"
-    bl_label="Enable imager"
-    color=consts.OctanePinColor.Bool
-    octane_default_node_type=consts.NodeType.NT_BOOL
-    octane_default_node_name="OctaneBoolValue"
+    bl_idname = "OctaneRenderAOVOutputImager"
+    bl_label = "Enable imager"
+    color = consts.OctanePinColor.Bool
+    octane_default_node_type = consts.NodeType.NT_BOOL
+    octane_default_node_name = "OctaneBoolValue"
     octane_pin_id=consts.PinID.P_IMAGER
     octane_pin_name="imager"
-    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_type = consts.PinType.PT_BOOL
     octane_pin_index=2
-    octane_socket_type=consts.SocketType.ST_BOOL
+    octane_socket_type = consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Whether to apply the imager settings on the final AOV output. Only used if this node is the root output AOV node (i.e. directly connected to the output AOV group node)")
-    octane_hide_value=False
-    octane_min_version=10021000
-    octane_end_version=4294967295
-    octane_deprecated=False
+    octane_hide_value = False
+    octane_min_version = 10021000
+    octane_end_version = 4294967295
+    octane_deprecated = False
 
 class OctaneRenderAOVOutputPostproc(OctaneBaseSocket):
-    bl_idname="OctaneRenderAOVOutputPostproc"
-    bl_label="Enable post processing"
-    color=consts.OctanePinColor.Bool
-    octane_default_node_type=consts.NodeType.NT_BOOL
-    octane_default_node_name="OctaneBoolValue"
+    bl_idname = "OctaneRenderAOVOutputPostproc"
+    bl_label = "Enable post processing"
+    color = consts.OctanePinColor.Bool
+    octane_default_node_type = consts.NodeType.NT_BOOL
+    octane_default_node_name = "OctaneBoolValue"
     octane_pin_id=consts.PinID.P_POST_PROCESSING
     octane_pin_name="postproc"
-    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_type = consts.PinType.PT_BOOL
     octane_pin_index=3
-    octane_socket_type=consts.SocketType.ST_BOOL
+    octane_socket_type = consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Whether to apply the post processing settings on the final AOV output. Only used if this node is the root output AOV node (i.e. directly connected to the output AOV group node)")
-    octane_hide_value=False
-    octane_min_version=10021000
-    octane_end_version=4294967295
-    octane_deprecated=False
+    octane_hide_value = False
+    octane_min_version = 10021000
+    octane_end_version = 4294967295
+    octane_deprecated = False
 
 class OctaneRenderAOVOutputGroupOutputSettings(OctaneGroupTitleSocket):
-    bl_idname="OctaneRenderAOVOutputGroupOutputSettings"
-    bl_label="[OctaneGroupTitle]Output settings"
+    bl_idname = "OctaneRenderAOVOutputGroupOutputSettings"
+    bl_label = "[OctaneGroupTitle]Output settings"
     octane_group_sockets: StringProperty(name="Group Sockets", default="Enable imager;Enable post processing;")
 
 class OctaneRenderAOVOutput(bpy.types.Node, OctaneBaseNode):
-    bl_idname="OctaneRenderAOVOutput"
-    bl_label="Render output AOV"
-    bl_width_default=200
-    octane_render_pass_id=-1
-    octane_render_pass_name=""
-    octane_render_pass_short_name=""
-    octane_render_pass_description=""
-    octane_render_pass_sub_type_name=""
+    bl_idname = "OctaneRenderAOVOutput"
+    bl_label = "Render output AOV"
+    bl_width_default = 200
+    octane_render_pass_id = -1
+    octane_render_pass_name = ""
+    octane_render_pass_short_name = ""
+    octane_render_pass_description = ""
+    octane_render_pass_sub_type_name = ""
     octane_socket_class_list=[OctaneRenderAOVOutputInput,OctaneRenderAOVOutputOutputChannels,OctaneRenderAOVOutputGroupOutputSettings,OctaneRenderAOVOutputImager,OctaneRenderAOVOutputPostproc,]
-    octane_min_version=0
+    octane_min_version = 0
     octane_node_type=consts.NodeType.NT_OUTPUT_AOV_RENDER
     octane_socket_list=["Input", "Output channels", "Enable imager", "Enable post processing", ]
     octane_attribute_list=["a_compatibility_version", ]
@@ -281,7 +281,7 @@ def unregister():
     utility.octane_unregister_interface_class(_SOCKET_INTERFACE_CLASSES)
     utility.octane_unregister_class(reversed(_CLASSES))
 
-##### END OCTANE GENERATED CODE BLOCK #####
+# END OCTANE GENERATED CODE BLOCK #
 
 from ...utils import utility
 

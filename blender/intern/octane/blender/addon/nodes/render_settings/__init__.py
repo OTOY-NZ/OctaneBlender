@@ -1,7 +1,7 @@
-##### BEGIN OCTANE GENERATED CODE BLOCK #####
-import bpy
-from bpy.utils import register_class, unregister_class
-from . import camera_imager
+# <pep8 compliant>
+
+# BEGIN OCTANE GENERATED CODE BLOCK #
+from . import imager
 from . import post_processing
 from . import render_passes
 from . import render_layer
@@ -24,8 +24,9 @@ from . import ocio_look_switch
 from . import ocio_color_space_switch
 from . import post_volume_switch
 
+
 def register():
-    camera_imager.register()
+    imager.register()
     post_processing.register()
     render_passes.register()
     render_layer.register()
@@ -48,8 +49,9 @@ def register():
     ocio_color_space_switch.register()
     post_volume_switch.register()
 
+
 def unregister():
-    camera_imager.unregister()
+    imager.unregister()
     post_processing.unregister()
     render_passes.unregister()
     render_layer.unregister()
@@ -72,4 +74,4 @@ def unregister():
     ocio_color_space_switch.unregister()
     post_volume_switch.unregister()
 
-##### END OCTANE GENERATED CODE BLOCK #####
+# END OCTANE GENERATED CODE BLOCK #

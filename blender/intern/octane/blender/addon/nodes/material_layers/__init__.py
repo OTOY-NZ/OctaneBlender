@@ -1,12 +1,13 @@
-##### BEGIN OCTANE GENERATED CODE BLOCK #####
-import bpy
-from bpy.utils import register_class, unregister_class
+# <pep8 compliant>
+
+# BEGIN OCTANE GENERATED CODE BLOCK #
 from . import specular_layer
 from . import diffuse_layer
 from . import metallic_layer
 from . import sheen_layer
 from . import material_layer_group
 from . import material_layer_switch
+
 
 def register():
     specular_layer.register()
@@ -16,6 +17,7 @@ def register():
     material_layer_group.register()
     material_layer_switch.register()
 
+
 def unregister():
     specular_layer.unregister()
     diffuse_layer.unregister()
@@ -24,4 +26,4 @@ def unregister():
     material_layer_group.unregister()
     material_layer_switch.unregister()
 
-##### END OCTANE GENERATED CODE BLOCK #####
+# END OCTANE GENERATED CODE BLOCK #

@@ -389,12 +389,14 @@ static void blender_camera_sync(Camera *cam,
   float yratio = (float)height * bcam->pixelaspect.y;
   float xaspectratio = 1.f, yaspectratio = 1.f;
   if (bcam->sensor_fit == BlenderCamera::HORIZONTAL ||
-      (bcam->sensor_fit == BlenderCamera::AUTO && xratio > yratio)) {
+      (bcam->sensor_fit == BlenderCamera::AUTO && xratio > yratio))
+  {
     xaspectratio = 1.f;
     yaspectratio = aspectratio;
   }
   if (bcam->sensor_fit == BlenderCamera::VERTICAL ||
-      (bcam->sensor_fit == BlenderCamera::AUTO && xratio < yratio)) {
+      (bcam->sensor_fit == BlenderCamera::AUTO && xratio < yratio))
+  {
     xaspectratio = aspectratio;
     yaspectratio = 1.f;
   }
@@ -417,8 +419,12 @@ static void blender_camera_sync(Camera *cam,
 
   if (cam->oct_node.bOrtho) {
     cam->oct_node.fFOV = calculate_ortho_scale(bcam, xratio, yratio) * zoom;
+    // Lens shift to the right/top as a proportion of the image width/height.
     cam->oct_node.f2LensShift.x = (bcam->shift.x + offset.x * 2.f) / zoom;
     cam->oct_node.f2LensShift.y = (bcam->shift.y + offset.y * 2.f) / zoom;
+    if (yratio > 0) {
+      cam->oct_node.f2LensShift.y *= (xratio / yratio);
+    }
   }
   else {
     cam->oct_node.fFOV = 2.0f * atanf((0.5f * sensor_size * zoom) / bcam->lens) * 180.0f / M_PI_F;
@@ -835,9 +841,20 @@ void BlenderSync::update_octane_camera_properties(Camera *cam,
                                                   PointerRNA oct_view_camera,
                                                   bool view)
 {
+  bool use_global_imager = false, use_global_postprocess = false;
+  PointerRNA octane_preferences;
+  for (BL::Addon &b_addon : b_userpref.addons) {
+    if (b_addon.module() == "octane") {
+      octane_preferences = b_addon.preferences().ptr;
+      use_global_imager = get_enum_identifier(octane_preferences, "imager_panel_mode") == "Global";
+      use_global_postprocess = get_enum_identifier(octane_preferences, "postprocess_panel_mode") ==
+                               "Global";
+    }
+  }
   if (!view && oct_camera.data != NULL) {
     cam->oct_node.bUseFstopValue = false;
-    cam->oct_node.bUseUniversalCamera = RNA_boolean_get(&oct_camera, "used_as_universal_camera");
+    cam->oct_node.bUseUniversalCamera = (get_enum_identifier(oct_camera, "octane_camera_type") ==
+                                        "Universal");
     cam->oct_node.bUseCameraDimensionAsPreviewResolution =
         preview && RNA_boolean_get(&oct_camera, "use_camera_dimension_as_preview_resolution");
 
@@ -910,11 +927,12 @@ void BlenderSync::update_octane_camera_properties(Camera *cam,
         &osl_camera_node_collections, "osl_camera_material_tree", oslCameraNodeMaterialName);
     RNA_string_get(&osl_camera_node_collections, "osl_camera_node", oslCameraNodeName);
     cam->oct_node.sOSLCameraNodeMaterialName = std::string(oslCameraNodeMaterialName);
+    std::string octane_camera_type = get_enum_identifier(oct_camera, "octane_camera_type");
     cam->oct_node.sOSLCameraNodeName = std::string(oslCameraNodeName);
-    cam->oct_node.bUseOSLCamera = cam->oct_node.sOSLCameraNodeMaterialName.size() != 0 &&
+    cam->oct_node.bUseOSLCamera = (octane_camera_type == "OSL") && cam->oct_node.sOSLCameraNodeMaterialName.size() != 0 &&
                                   cam->oct_node.sOSLCameraNodeName.size() != 0;
 
-    bool baking_camera = RNA_boolean_get(&oct_camera, "baking_camera");
+    bool baking_camera = (octane_camera_type == "Baking");
     if (baking_camera) {
       cam->oct_node.type = ::OctaneEngine::Camera::CAMERA_BAKING;
       cam->oct_node.iBakingGroupId = RNA_int_get(&oct_camera, "baking_group_id");
@@ -952,11 +970,13 @@ void BlenderSync::update_octane_camera_properties(Camera *cam,
   PointerRNA oct_scene = RNA_pointer_get(&b_scene.ptr, "octane");
   bool use_preview_camera_imager = get_boolean(oct_scene, "use_preview_camera_imager");
   bool use_render_camera_imager = get_boolean(oct_scene, "use_render_camera_imager");
-  bool force_use_preview_setting = get_boolean(oct_scene,
-                                               "use_preview_setting_for_camera_imager") &&
+  bool force_use_preview_setting = (get_boolean(oct_scene,
+                                                "use_preview_setting_for_camera_imager") ||
+                                    use_global_imager) &&
                                    use_preview_camera_imager;
   bool force_use_preview_post_process_setting = get_boolean(oct_scene,
-                                                            "use_preview_post_process_setting");
+                                                            "use_preview_post_process_setting") ||
+                                                use_global_postprocess;
   PointerRNA &target_camera = (view || force_use_preview_setting) ? oct_view_camera : oct_camera;
   bool enable_camera_imager = (view || force_use_preview_setting) ? use_preview_camera_imager :
                                                                     use_render_camera_imager;
@@ -1041,9 +1061,11 @@ void BlenderSync::update_octane_camera_properties(Camera *cam,
     cam->oct_node.fMediumDensityForPostfxLightBeams = RNA_float_get(
         &post_processing, "medium_density_for_postfx_light_beams");
     cam->oct_node.bEnableFog = RNA_boolean_get(&post_processing, "enable_fog");
-    cam->oct_node.fFogExtinctionDistance = RNA_float_get(&post_processing, "fog_extinction_distance");
+    cam->oct_node.fFogExtinctionDistance = RNA_float_get(&post_processing,
+                                                         "fog_extinction_distance");
     cam->oct_node.fFogBaseLevel = RNA_float_get(&post_processing, "fog_base_level");
-    cam->oct_node.fFogHalfDensityHeight = RNA_float_get(&post_processing, "fog_half_density_height");
+    cam->oct_node.fFogHalfDensityHeight = RNA_float_get(&post_processing,
+                                                        "fog_half_density_height");
     cam->oct_node.fFogEnvContribution = RNA_float_get(&post_processing, "fog_env_contribution");
     RNA_float_get_array(&post_processing,
                         "base_fog_color",
@@ -1074,6 +1096,7 @@ void BlenderSync::update_octane_universal_camera_properties(Camera *cam, Pointer
   universalCamera.fSensorWidth.fVal = 36.f;
   universalCamera.fFocalLength.fVal = 50.f;
   universalCamera.fFstop.fVal = RNA_float_get(&oct_camera, "fstop");
+  universalCamera.bUseFstop.bVal = RNA_boolean_get(&oct_camera, "use_fstop");
 
   universalCamera.fFieldOfView.fVal = cam->oct_node.fFOV;
   universalCamera.fScaleOfView.fVal = cam->oct_node.fFOV;

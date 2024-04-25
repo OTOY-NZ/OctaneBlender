@@ -39,4 +39,4 @@ def unregister():
     map_range_aov_output.unregister()
     light_mixer_aov_output.unregister()
 
-##### END OCTANE GENERATED CODE BLOCK #####
+# END OCTANE GENERATED CODE BLOCK #

@@ -79,7 +79,7 @@ set(ADDON_FILES
   addon/operators.py
   addon/properties.py
   addon/ui.py
-  addon/nodeitems_octane.py
+  addon/preferences.py
   addon/osl.py
   addon/version_update.py
   addon/converters.py
@@ -107,6 +107,7 @@ set(ADDON_UI_FILES
   addon/uis/__init__.py
   addon/uis/_object.py
   addon/uis/camera.py
+  addon/uis/color_management.py
   addon/uis/common.py
   addon/uis/light.py
   addon/uis/mesh.py
@@ -204,6 +205,7 @@ set(ADDON_NODES_GEOMETRY_FILES
     addon/nodes/geometry/placement.py
     addon/nodes/geometry/scatter.py
     addon/nodes/geometry/object_layer_map.py
+    addon/nodes/geometry/object_layer.py
     addon/nodes/geometry/volume.py
     addon/nodes/geometry/joint.py
     addon/nodes/geometry/plane.py
@@ -212,6 +214,7 @@ set(ADDON_NODES_GEOMETRY_FILES
     addon/nodes/geometry/geometric_primitive.py
     addon/nodes/geometry/union.py
     addon/nodes/geometry/subtract.py
+    addon/nodes/geometry/geometry_exporter.py
     addon/nodes/geometry/scatter_on_surface.py
     addon/nodes/geometry/scatter_in_volume.py
     addon/nodes/geometry/mesh_volume_sdf.py
@@ -231,6 +234,7 @@ set(ADDON_NODES_GEOMETRY_FILES
     addon/nodes/geometry/clip.py
     addon/nodes/geometry/offset.py
     addon/nodes/geometry/geometry_switch.py
+    addon/nodes/geometry/object_layer_switch.py
 )
 
 set(ADDON_NODES_KERNELS_FILES
@@ -316,7 +320,7 @@ set(ADDON_NODES_OTHER_FILES
 set(ADDON_NODES_OUTPUT_AOVS_FILES
     addon/nodes/output_aovs/__init__.py
     addon/nodes/output_aovs/output_aov_group.py
-    addon/nodes/output_aovs/light_mixer_output_aov.py
+    addon/nodes/output_aovs/legacy_output_aov.py
     addon/nodes/output_aovs/blending_settings.py
     addon/nodes/output_aovs/channel_clamp.py
     addon/nodes/output_aovs/adjust_contrast_sdr_only_.py
@@ -342,6 +346,7 @@ set(ADDON_NODES_OUTPUT_AOVS_FILES
     addon/nodes/output_aovs/adjust_hue.py
     addon/nodes/output_aovs/channel_invert_sdr_only_.py
     addon/nodes/output_aovs/convert_for_sdr_display_agx_.py
+    addon/nodes/output_aovs/light_mixer.py
     addon/nodes/output_aovs/apply_custom_curve.py
     addon/nodes/output_aovs/apply_lut.py
     addon/nodes/output_aovs/apply_camera_response_curve_sdr_only_.py
@@ -352,6 +357,10 @@ set(ADDON_NODES_OUTPUT_AOVS_FILES
     addon/nodes/output_aovs/add_chromatic_aberration.py
     addon/nodes/output_aovs/blur.py
     addon/nodes/output_aovs/convert_for_sdr_display_smooth_.py
+    addon/nodes/output_aovs/save_checkpoint.py
+    addon/nodes/output_aovs/load_checkpoint.py
+    addon/nodes/output_aovs/discard_checkpoint.py
+    addon/nodes/output_aovs/sharpen.py
     addon/nodes/output_aovs/output_aov_group_switch.py
     addon/nodes/output_aovs/output_aov_switch.py
     addon/nodes/output_aovs/output_aov_layer_switch.py
@@ -453,7 +462,7 @@ set(ADDON_NODES_RENDER_AOVS_FILES
 
 set(ADDON_NODES_RENDER_SETTINGS_FILES
     addon/nodes/render_settings/__init__.py
-    addon/nodes/render_settings/camera_imager.py
+    addon/nodes/render_settings/imager.py
     addon/nodes/render_settings/post_processing.py
     addon/nodes/render_settings/render_passes.py
     addon/nodes/render_settings/render_layer.py
@@ -627,7 +636,7 @@ set(ADDON_NODES_TEXTURES_FILES
     addon/nodes/textures/star_field.py
     addon/nodes/textures/digits.py
     addon/nodes/textures/texture_switch.py
-    addon/nodes/textures/composite_texture_layer.py
+    addon/nodes/textures/composite_texture_layer.py	
 )
 
 set(ADDON_NODES_TRANSFORMS_FILES
@@ -694,9 +703,11 @@ set(ADDON_NODES_NODE_TREES_FILES
 
 set(ADDON_NODES_UTIL_FILES
   addon/utils/__init__.py
+  addon/utils/runtime_globals.py
   addon/utils/utility.py
   addon/utils/consts.py
   addon/utils/curve.py
+  addon/utils/logger.py
   addon/utils/ocio.py
   addon/utils/octaneid.py
   addon/utils/octane_name.py

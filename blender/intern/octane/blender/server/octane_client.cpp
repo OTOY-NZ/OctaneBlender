@@ -650,6 +650,7 @@ bool OctaneClient::update()
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void OctaneClient::startRender(bool bInteractive,
                                bool bUseSharedSurface,
+                               bool bEnableRealtime,
                                uint64_t iClientProcessId,
                                uint64_t iDeviceLuid,
                                int32_t iWidth,
@@ -670,10 +671,11 @@ void OctaneClient::startRender(bool bInteractive,
   LOCK_MUTEX(m_SocketMutex);
 
   RPCSend snd(m_Socket,
-              sizeof(int32_t) * 8 + sizeof(uint32_t) * 2 + sizeof(uint64_t) * 2 +
+              sizeof(int32_t) * 9 + sizeof(uint32_t) * 2 + sizeof(uint64_t) * 2 +
                   (m_sOutPath.size() + 2) + m_sCachePath.size() + 2,
               OctaneDataTransferObject::START);
-  snd << bInteractive << bUseSharedSurface << iClientProcessId << iDeviceLuid << bOutOfCoreEnabled
+  snd << bInteractive << bUseSharedSurface << bEnableRealtime << iClientProcessId << iDeviceLuid
+      << bOutOfCoreEnabled
       << iOutOfCoreMemLimit << iOutOfCoreGPUHeadroom << iRenderPriority << iResourceCacheType
       << iWidth << iHeigth << imgType << m_sOutPath.c_str() << m_sCachePath.c_str();
   snd.write();
@@ -1211,6 +1213,7 @@ bool OctaneClient::checkUniversalCameraUpdated(
       lastUniversalCamera.fSensorWidth.fVal == current.fSensorWidth.fVal &&
       lastUniversalCamera.fFocalLength.fVal == current.fFocalLength.fVal &&
       lastUniversalCamera.fFstop.fVal == current.fFstop.fVal &&
+      lastUniversalCamera.bUseFstop.bVal == current.bUseFstop.bVal &&
       lastUniversalCamera.fFieldOfView.fVal == current.fFieldOfView.fVal &&
       lastUniversalCamera.fScaleOfView.fVal == current.fScaleOfView.fVal &&
       lastUniversalCamera.f2LensShift.fVal == current.f2LensShift.fVal &&
@@ -1271,6 +1274,7 @@ bool OctaneClient::checkUniversalCameraUpdated(
   lastUniversalCamera.fSensorWidth.fVal = current.fSensorWidth.fVal;
   lastUniversalCamera.fFocalLength.fVal = current.fFocalLength.fVal;
   lastUniversalCamera.fFstop.fVal = current.fFstop.fVal;
+  lastUniversalCamera.bUseFstop.bVal = current.bUseFstop.bVal;
   lastUniversalCamera.fFieldOfView.fVal = current.fFieldOfView.fVal;
   lastUniversalCamera.fScaleOfView.fVal = current.fScaleOfView.fVal;
   lastUniversalCamera.f2LensShift.fVal = current.f2LensShift.fVal;

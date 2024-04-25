@@ -852,8 +852,12 @@ static void create_subd_mesh(Scene *scene,
                              const std::vector<Shader *> &used_shaders,
                              Mesh::WindingOrder winding_order)
 {
-  BL::SubsurfModifier subsurf_mod(b_ob.modifiers[b_ob.modifiers.length() - 1]);
-  bool subdivide_uvs = subsurf_mod.uv_smooth() != BL::SubsurfModifier::uv_smooth_NONE;
+  bool subdivide_uvs = false;
+  size_t modifier_size = b_ob.modifiers.length();
+  if (modifier_size > 0) {
+    BL::SubsurfModifier subsurf_mod(b_ob.modifiers[modifier_size - 1]);
+    subdivide_uvs = subsurf_mod.uv_smooth() != BL::SubsurfModifier::uv_smooth_NONE;  
+  }
 
   create_mesh(scene, b_ob, mesh, b_mesh, used_shaders, winding_order, true, subdivide_uvs);
 
@@ -867,10 +871,12 @@ static void create_subd_mesh(Scene *scene,
   /* export creases */
   size_t num_creases = 0;
 
-  for (const int i : edges.index_range()) {
-    const float crease = creases[i];
-    if (crease != 0.0f) {
-      num_creases++;
+  if (!creases.is_empty()) {
+    for (const int i : edges.index_range()) {
+      const float crease = creases[i];
+      if (crease != 0.0f) {
+        num_creases++;
+      }
     }
   }
 
@@ -1151,6 +1157,8 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
 {
   BL::ID b_ob_data = b_ob.data();
   bool is_instance = (b_ob == b_ob_instance);
+  bool is_metaball = (b_ob.type() == BL::Object::type_META ||
+                      b_ob_instance.type() == BL::Object::type_META);
   BL::ID key = (BKE_object_is_modified(b_ob) && !is_instance) ? b_ob_data : b_ob_instance;
   bool is_edit_mode_modified = false;
   /* find shader indices */
@@ -1210,6 +1218,7 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
   std::string b_ob_name = b_ob.name();
   std::string b_ob_data_name = b_ob_data.name();
   std::string mesh_name = resolve_octane_object_data_name(b_ob, b_ob_instance);
+  bool is_mesh_data_updated = mesh_map.sync(&octane_mesh, key);
   synced_object_to_octane_mesh_name_map[b_ob_name].insert(mesh_name);
   if (b_ob.mode() == b_ob.mode_EDIT) {
     for (auto &it : synced_object_to_octane_mesh_name_map[b_ob_name]) {
@@ -1218,7 +1227,9 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
       }
     }
   }
-  bool is_mesh_data_updated = mesh_map.sync(&octane_mesh, key);
+  if (depgraph_updated_mesh_names.find(b_ob_data_name) != depgraph_updated_mesh_names.end()) {
+    is_mesh_data_updated = true;
+  }
   if (edited_mesh_names.find(mesh_name) != edited_mesh_names.end()) {
     is_mesh_data_updated = true;
     unsync_resource_to_octane_manager(mesh_name, OctaneResourceType::GEOMETRY);
@@ -1632,6 +1643,9 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
       if (b_ob.type() == BL::Object::type_CURVE) {
         need_update |= is_octane_property_update;
         is_mesh_tag_data_updated |= is_octane_property_update;
+      }
+      if (is_metaball && is_mesh_data_updated) {
+        is_mesh_tag_data_updated = true;
       }
       synced_mesh_tags[mesh_name] = new_mesh_tag;
       bool paint_mode = b_ob.mode() == b_ob.mode_VERTEX_PAINT ||

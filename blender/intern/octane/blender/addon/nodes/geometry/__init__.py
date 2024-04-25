@@ -1,12 +1,13 @@
-##### BEGIN OCTANE GENERATED CODE BLOCK #####
-import bpy
-from bpy.utils import register_class, unregister_class
+# <pep8 compliant>
+
+# BEGIN OCTANE GENERATED CODE BLOCK #
 from . import mesh
 from . import material_map
 from . import geometry_group
 from . import placement
 from . import scatter
 from . import object_layer_map
+from . import object_layer
 from . import volume
 from . import joint
 from . import plane
@@ -15,6 +16,7 @@ from . import volume_sdf
 from . import geometric_primitive
 from . import union
 from . import subtract
+from . import geometry_exporter
 from . import scatter_on_surface
 from . import scatter_in_volume
 from . import mesh_volume_sdf
@@ -34,6 +36,8 @@ from . import intersect
 from . import clip
 from . import offset
 from . import geometry_switch
+from . import object_layer_switch
+
 
 def register():
     mesh.register()
@@ -42,6 +46,7 @@ def register():
     placement.register()
     scatter.register()
     object_layer_map.register()
+    object_layer.register()
     volume.register()
     joint.register()
     plane.register()
@@ -50,6 +55,7 @@ def register():
     geometric_primitive.register()
     union.register()
     subtract.register()
+    geometry_exporter.register()
     scatter_on_surface.register()
     scatter_in_volume.register()
     mesh_volume_sdf.register()
@@ -69,6 +75,8 @@ def register():
     clip.register()
     offset.register()
     geometry_switch.register()
+    object_layer_switch.register()
+
 
 def unregister():
     mesh.unregister()
@@ -77,6 +85,7 @@ def unregister():
     placement.unregister()
     scatter.unregister()
     object_layer_map.unregister()
+    object_layer.unregister()
     volume.unregister()
     joint.unregister()
     plane.unregister()
@@ -85,6 +94,7 @@ def unregister():
     geometric_primitive.unregister()
     union.unregister()
     subtract.unregister()
+    geometry_exporter.unregister()
     scatter_on_surface.unregister()
     scatter_in_volume.unregister()
     mesh_volume_sdf.unregister()
@@ -104,5 +114,6 @@ def unregister():
     clip.unregister()
     offset.unregister()
     geometry_switch.unregister()
+    object_layer_switch.unregister()
 
-##### END OCTANE GENERATED CODE BLOCK #####
+# END OCTANE GENERATED CODE BLOCK #

@@ -12,16 +12,16 @@ from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, O
 
 
 class OctaneAOVOutputGroup(bpy.types.Node, OctaneBaseNode):
-    bl_idname="OctaneAOVOutputGroup"
-    bl_label="Output AOV group"
-    bl_width_default=200
-    octane_render_pass_id=-1
-    octane_render_pass_name=""
-    octane_render_pass_short_name=""
-    octane_render_pass_description=""
-    octane_render_pass_sub_type_name=""
+    bl_idname = "OctaneAOVOutputGroup"
+    bl_label = "Output AOV group"
+    bl_width_default = 200
+    octane_render_pass_id = -1
+    octane_render_pass_name = ""
+    octane_render_pass_short_name = ""
+    octane_render_pass_description = ""
+    octane_render_pass_sub_type_name = ""
     octane_socket_class_list=[]
-    octane_min_version=0
+    octane_min_version = 0
     octane_node_type=consts.NodeType.NT_OUTPUT_AOV_GROUP
     octane_socket_list=[]
     octane_attribute_list=["a_aov_count", ]
@@ -52,16 +52,16 @@ def unregister():
     utility.octane_unregister_interface_class(_SOCKET_INTERFACE_CLASSES)
     utility.octane_unregister_class(reversed(_CLASSES))
 
-##### END OCTANE GENERATED CODE BLOCK #####
+# END OCTANE GENERATED CODE BLOCK #
 
 
 class OctaneAOVOutputGroupAOVOutputMovableInput(OctaneMovableInput):
-    bl_idname="OctaneAOVOutputGroupAOVOutputMovableInput"
-    bl_label="Input"
-    octane_movable_input_count_attribute_name="a_aov_count"
-    octane_input_pattern=r"Input (\d+)"
-    octane_input_format_pattern="Input {}"
-    color=consts.OctanePinColor.AOVOutput
+    bl_idname = "OctaneAOVOutputGroupAOVOutputMovableInput"
+    bl_label = "Input"
+    octane_movable_input_count_attribute_name = "a_aov_count"
+    octane_input_pattern = r"Input (\d+)"
+    octane_input_format_pattern = "Input {}"
+    color = consts.OctanePinColor.AOVOutput
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_OUTPUT_AOV)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
 

@@ -432,7 +432,7 @@ static bool update_octane_image_data(
        */
       int scene_frame = b_scene.frame_current();
       int image_frame = image_user_frame_number(b_image_user, b_image, scene_frame);
-      if (b_image.ptr.data) {        
+      if (b_image.ptr.data) {
         PointerRNA ptr = RNA_id_pointer_create((ID *)b_image.ptr.data);
         BL::ID b_id(ptr);
         if (b_id.is_a(&RNA_Image)) {
@@ -1037,7 +1037,7 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
       int octane_static_pin_count = OctaneInfo::instance().get_static_pin_count(octane_node_type);
       std::vector<::OctaneDataTransferObject::OctaneDTOBase *> octane_dtos;
       BlenderSocketVisitor visitor(prefix_name, b_node, link_resolver);
-// clang-format off
+      // clang-format off
 	    #define ADD_OCTANE_ATTR_DTO(PROPERTY_TYPE, DTO_CLASS, SOCKET_CONTAINER) \
 	    if (property_type == PROPERTY_TYPE) { \
 		    octane_node->SOCKET_CONTAINER.emplace_back(::OctaneDataTransferObject::DTO_CLASS(dto_name, false)); \
@@ -1091,8 +1091,10 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
       static std::map<int, std::pair<std::string, int>> reversed_pin_node_configs = {
           {Octane::NT_TEX_COMPOSITE, {"a_layer_count", 1}},
           {Octane::NT_TEX_COMPOSITE_LAYER_GROUP, {"a_layer_count", 1}},
+          {Octane::NT_TEX_COMPOSITE_LAYER_MASK_WITH_LAYERS, {"a_layer_count", 1}},
           {Octane::NT_OUTPUT_AOV, {"a_layer_count", 1}},
           {Octane::NT_OUTPUT_AOV_COMPOSITE, {"a_layer_count", 1}},
+          {Octane::NT_OUTPUT_AOV_LAYER_MASK_WITH_LAYERS, {"a_layer_count", 1}},
           {Octane::NT_OUTPUT_AOV_LAYER_BLEND_LAYERS, {"a_layer_count", 1}},
           {Octane::NT_OUTPUT_AOV_LAYER_GROUP, {"a_layer_count", 1}}};
       int dynamic_pin_count = 0;
@@ -1310,6 +1312,22 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
           break;
         }
       }
+    }
+    if (bl_idname == "OctaneOutputAOVsImageFile") {
+      BL::Node helper_node = get_octane_helper_node(b_data, OCTANE_TEXTURE_HELPER_NAME);
+      BL::ShaderNodeTexImage b_tex_node(helper_node);
+      BL::ImageUser b_image_user(b_tex_node.image_user());
+      PointerRNA ptr = RNA_pointer_get(&b_node.ptr, "image");
+      BL::Image b_image(ptr);
+      std::string filepath = image_user_file_path(
+          b_image_user, b_image, b_scene.frame_current(), false);
+      ::OctaneDataTransferObject::OctaneCustomNode *octane_node =
+          (::OctaneDataTransferObject::OctaneCustomNode *)(node->oct_node);
+      octane_node->oStringSockets.emplace_back(::OctaneDataTransferObject::OctaneDTOString("a_filename"));
+      ::OctaneDataTransferObject::OctaneDTOString *filename_dto_ptr =
+          &octane_node->oStringSockets[octane_node->oStringSockets.size() - 1];
+      filename_dto_ptr->bUseLinked = false;
+      filename_dto_ptr->sVal = filepath;
     }
   }
   else if (b_node.is_a(&RNA_ShaderNodeOctObjectData) || bl_idname == "OctaneObjectData") {
@@ -3187,7 +3205,7 @@ void BlenderSync::find_shader_by_id_and_name(BL::ID &id,
 }
 
 void BlenderSync::find_shader(BL::ID &id,
-                              std::vector<Shader*> &used_shaders,
+                              std::vector<Shader *> &used_shaders,
                               Shader *default_shader)
 {
   Shader *shader = (id) ? shader_map.find(id) : default_shader;

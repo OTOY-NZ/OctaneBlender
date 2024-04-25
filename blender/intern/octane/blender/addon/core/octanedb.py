@@ -1,9 +1,11 @@
+# <pep8 compliant>
+
+from xml.etree import ElementTree
+
 import bpy
-import xml.etree.ElementTree as ET
-from octane import utils
-from octane.utils import consts, utility
-from octane.core.octane_info import OctaneInfoManger
 from octane.core.client import OctaneBlender
+from octane.core.octane_info import OctaneInfoManger
+from octane.utils import consts, utility
 
 
 class OctaneDBStatus:
@@ -18,12 +20,12 @@ class OctaneDBManager(metaclass=utility.Singleton):
     def __init__(self):
         self.status = OctaneDBStatus.CLOSED
 
-    def get_localdb_path(self):            
+    def get_localdb_path(self):
         preferences = utility.get_preferences()
         octane_localdb_path = utility.resolve_octane_format_path(preferences.octane_localdb_path)
         return octane_localdb_path
 
-    def get_texture_cache_path(self):            
+    def get_texture_cache_path(self):
         preferences = utility.get_preferences()
         octane_texture_cache_path = utility.resolve_octane_format_path(preferences.octane_texture_cache_path)
         return octane_texture_cache_path
@@ -38,7 +40,7 @@ class OctaneDBManager(metaclass=utility.Singleton):
         # OctaneBlender().stop_utils_client(self.OCTANEDB_CLIENT_NAME)
 
     def add_polling_callback(self):
-        bpy.app.timers.register(lambda : OctaneDBManager().fetch_octanedb(), first_interval=0.3)
+        bpy.app.timers.register(lambda: OctaneDBManager().fetch_octanedb(), first_interval=0.3)
 
     def fetch_octanedb(self, is_open_request=False):
         if is_open_request:
@@ -49,15 +51,16 @@ class OctaneDBManager(metaclass=utility.Singleton):
             texture_cache_path = ""
         if len(texture_cache_path) == 0:
             texture_cache_path = bpy.app.tempdir
-        request_et = ET.Element('fetchOctaneDb')
+        request_et = ElementTree.Element('fetchOctaneDb')
         request_et.set("path", localdb_path)
         request_et.set("cachePath", texture_cache_path)
         request_et.set("open", str(int(is_open_request)))
-        xml_data = ET.tostring(request_et, encoding="unicode")
-        response = OctaneBlender().utils_function(consts.UtilsFunctionType.FETCH_LIVEDB, xml_data, self.OCTANEDB_CLIENT_NAME)
+        xml_data = ElementTree.tostring(request_et, encoding="unicode")
+        response = OctaneBlender().utils_function(consts.UtilsFunctionType.FETCH_LIVEDB, xml_data,
+                                                  self.OCTANEDB_CLIENT_NAME)
         if len(response):
-            content = ET.fromstring(response).get("content")
-            content_et = ET.fromstring(content)
+            content = ElementTree.fromstring(response).get("content")
+            content_et = ElementTree.fromstring(content)
             status = int(content_et.find("status").text)
         else:
             content_et = None
@@ -85,7 +88,7 @@ class OctaneDBCreator(object):
         self.output = None
         self.node_id_to_name = {}
         self.link_requests = {}
-        
+
     def get_asset_filepath(self, filepath):
         path = self.texture_cache_path + filepath
         return bpy.path.abspath(path)
@@ -94,7 +97,7 @@ class OctaneDBCreator(object):
         node_id = node_et.get("id", self.INVALID_NODE_ID)
         node_type = int(node_et.get("type", consts.NodeType.NT_UNKNOWN))
         node_name = node_et.get("name", "")
-        if node_type != consts.NodeType.NT_UNKNOWN:            
+        if node_type != consts.NodeType.NT_UNKNOWN:
             blender_node_idname = OctaneInfoManger().get_node_name(node_type)
             if len(blender_node_idname):
                 node = self.material.node_tree.nodes.new(blender_node_idname)
@@ -133,10 +136,9 @@ class OctaneDBCreator(object):
         content = self.content_et.find("content").text
         input_node_id = self.INVALID_NODE_ID
         octane_db_type = consts.NodeType.NT_UNKNOWN
-        OctaneBlender().debug_console("OctaneDB Update: %s" % content)
         if content is not None and len(content):
             self.new_octane_db_material(material_name)
-            ocs_et = ET.fromstring(content)
+            ocs_et = ElementTree.fromstring(content)
             graph_et = ocs_et.find("graph")
             for node_et in graph_et.findall("node"):
                 self.new_octane_node(node_et)
@@ -147,7 +149,7 @@ class OctaneDBCreator(object):
                         input_node_id = input_pin_et.get("connect", self.INVALID_NODE_ID)
             # Links
             linked_node_names = set()
-            for socket, (from_node_name, from_socket_name) in self.link_requests.items():                
+            for socket, (from_node_name, from_socket_name) in self.link_requests.items():
                 from_node = self.material.node_tree.nodes.get(self.node_id_to_name.get(from_node_name, ""), None)
                 if from_node:
                     from_socket = from_node.outputs[0]
@@ -167,7 +169,7 @@ class OctaneDBCreator(object):
                         else:
                             octane_db_type = consts.NodeType.NT_OUT_TEXTURE
                         break
-            if input_node:                
+            if input_node:
                 if octane_db_type == consts.NodeType.NT_OUT_MATERIAL:
                     self.material.node_tree.links.new(input_node.outputs[0], self.output.inputs["Surface"])
                 if octane_db_type == consts.NodeType.NT_OUT_MEDIUM:
@@ -176,5 +178,5 @@ class OctaneDBCreator(object):
                     mat = self.material.node_tree.nodes.new("OctaneUniversalMaterial")
                     self.material.node_tree.links.new(mat.outputs[0], self.output.inputs["Surface"])
                     self.material.node_tree.links.new(input_node.outputs[0], mat.inputs["Albedo"])
-            utility.beautifier_nodetree_layout_by_owner(self.material)            
-            self.assign_octane_db_material()            
+            utility.beautifier_nodetree_layout_by_owner(self.material)
+            self.assign_octane_db_material()

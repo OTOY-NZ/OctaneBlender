@@ -1,4 +1,4 @@
-import bpy
+# <pep8 compliant>
 
 SEPERATOR = "."
 OBJECT_TAG = "[Object]"
@@ -17,6 +17,7 @@ OBJECTLAYER_TAG = "[ObjLayer]"
 OBJECTLAYER_MAP_TAG = "[ObjLM]"
 MATERIAL_MAP_TAG = "[MatMap]"
 
+
 def resolve_octane_name(id_data, type_tag, modifier_tag=""):
     if getattr(id_data, "library", None) is not None:
         lib_tag = id_data.library.name + SEPERATOR
@@ -25,11 +26,14 @@ def resolve_octane_name(id_data, type_tag, modifier_tag=""):
     if modifier_tag != "":
         modifier_tag = modifier_tag + SEPERATOR
     id_data_name = id_data.name
-    return "{lib_tag}{modifier_tag}{id_data_name}{type_tag}".format(lib_tag=lib_tag, \
-        modifier_tag=modifier_tag, id_data_name=id_data_name, type_tag=type_tag)
+    return "{lib_tag}{modifier_tag}{id_data_name}{type_tag}".format(lib_tag=lib_tag,
+                                                                    modifier_tag=modifier_tag,
+                                                                    id_data_name=id_data_name, type_tag=type_tag)
 
-def resolve_object_octane_name(_object, scene, is_viewport):
+
+def resolve_object_octane_name(_object, _scene, _is_viewport):
     return resolve_octane_name(_object, OBJECT_TAG, "")
+
 
 def resolve_object_data_octane_name(_object, scene, is_viewport):
     is_modified = _object.is_modified(scene, "PREVIEW" if is_viewport else "RENDER")
@@ -71,7 +75,8 @@ def resolve_object_data_octane_name(_object, scene, is_viewport):
                 type_tag = VOLUME_TAG
     return "{object_data_name}{type_tag}".format(object_data_name=object_data_name, type_tag=type_tag)
 
-def resolve_scatter_octane_name(instance_object, scene, is_viewport):
+
+def resolve_scatter_octane_name(instance_object, _scene, _is_viewport):
     parent_tag = getattr(getattr(instance_object, "parent", None), "name", "")
     if parent_tag != "":
         parent_tag = "{parent_tag}.".format(parent_tag=parent_tag)
@@ -83,13 +88,18 @@ def resolve_scatter_octane_name(instance_object, scene, is_viewport):
     if object_data_tag != "":
         object_data_tag = ".{object_data_tag}.".format(object_data_tag=object_data_tag)
     object_name = resolve_octane_name(_object, "", "")
-    return "{parent_tag}{object_name}{object_data_tag}{type_tag}".format(parent_tag=parent_tag, object_name=object_name, object_data_tag=object_data_tag, type_tag=SCATTER_TAG)
+    return "{parent_tag}{object_name}{object_data_tag}{type_tag}".format(parent_tag=parent_tag, object_name=object_name,
+                                                                         object_data_tag=object_data_tag,
+                                                                         type_tag=SCATTER_TAG)
+
 
 def resolve_objectlayer_octane_name(scatter_name):
     return "{scatter_name}{type_tag}".format(scatter_name=scatter_name, type_tag=OBJECTLAYER_TAG)
 
+
 def resolve_objectlayer_map_octane_name(scatter_name):
     return "{scatter_name}{type_tag}".format(scatter_name=scatter_name, type_tag=OBJECTLAYER_MAP_TAG)
+
 
 def resolve_material_map_octane_name(scatter_name):
     return "{scatter_name}{type_tag}".format(scatter_name=scatter_name, type_tag=MATERIAL_MAP_TAG)

@@ -1,3 +1,5 @@
+# <pep8 compliant>
+
 import bpy
 from bpy.app.handlers import persistent
 from collections import defaultdict
@@ -6,37 +8,64 @@ from octane import core
 from octane.core.client import OctaneBlender
 
 
+class ResourceCache(metaclass=utility.Singleton):
+
+    def __init__(self):
+        # resource type => set(resource names)
+        self.cached_node_resource_names = defaultdict(set)
+        # updated mesh_names
+        self.dirty_mesh_names = set()
+
+    def reset(self):
+        self.cached_node_resource_names.clear()
+        self.dirty_mesh_names.clear()
+
+    def is_mesh_node_cached(self, mesh_name, mesh_node_name):
+        if mesh_name in self.dirty_mesh_names:
+            return False
+        if mesh_node_name not in self.cached_node_resource_names[consts.NodeResourceType.GEOMETRY]:
+            return False
+        return True
+
+    def update_cached_node_resource(self):
+        node_resource_dict = {}
+        OctaneBlender().get_cached_node_resource(node_resource_dict)
+        self.cached_node_resource_names.clear()
+        for name, _type in node_resource_dict.items():
+            self.cached_node_resource_names[_type].add(name)
+
+    def add_dirty_mesh_names(self, mesh_name):
+        self.dirty_mesh_names.add(mesh_name)
+
+
 @persistent
-def reset_resource_cache(scene):
-    from octane import engine
+def reset_resource_cache(_scene):
     from octane import operators
+    from octane import is_render_engine_active
     if core.ENABLE_OCTANE_ADDON_CLIENT:
-        if engine.IS_RENDERING:
+        if is_render_engine_active():
             print("Cannot clear the resource cache during the Octane engine is rendering.")
         else:
             from octane.core.client import OctaneBlender
-            from octane.core.resource_cache import ResourceCache
-            if scene is None:
-                scene = bpy.context.scene
-            oct_scene = scene.octane
             OctaneBlender().update_server_settings(consts.ResourceCacheType.NONE)
             OctaneBlender().reset_render()
             ResourceCache().reset()
     else:
         import _octane
-        if not engine.IS_RENDERING:
+        if not is_render_engine_active():
             print("Clear Octane Resource Cache System")
             _octane.command_to_octane(operators.COMMAND_TYPES['CLEAR_RESOURCE_CACHE_SYSTEM'])
 
+
 @persistent
 def update_dirty_mesh_names(scene, depsgraph):
-    from octane import engine
-    if engine.IS_RENDERING:
+    from octane import is_render_engine_active
+    if is_render_engine_active():
         return
     for update in depsgraph.updates:
         if update.is_updated_geometry and isinstance(update.id, bpy.types.Mesh):
-            ResourceCache().add_dirty_mesh_names(update.id.name)           
-    oct_scene = scene.octane    
+            ResourceCache().add_dirty_mesh_names(update.id.name)
+    oct_scene = scene.octane
     active_obj = getattr(bpy.context, "active_object", None)
     if not active_obj:
         active_obj = bpy.context.view_layer.objects.active
@@ -48,33 +77,3 @@ def update_dirty_mesh_names(scene, depsgraph):
     if strategy_type == "Select" or (strategy_type == "Edit Mode" and is_editmode):
         if eval_obj.type == "MESH":
             ResourceCache().add_dirty_mesh_names(eval_obj.data.name)
-
-
-class ResourceCache(metaclass=utility.Singleton):
-
-    def __init__(self):
-        # resouce type => set(resouce names)
-        self.cached_node_resource_names = defaultdict(set)
-        # updated mesh_names
-        self.dirty_mesh_names = set()
-
-    def reset(self):
-        self.cached_node_resource_names.clear()
-        self.dirty_mesh_names.clear()
-
-    def is_mesh_node_cached(self, mesh_name, mesh_node_name):
-        if mesh_name in self.dirty_mesh_names:
-            return False        
-        if mesh_node_name not in self.cached_node_resource_names[consts.NodeResourceType.GEOMETRY]:
-            return False
-        return True
-
-    def update_cached_node_resouce(self):
-        node_resouce_dict = {}
-        OctaneBlender().get_cached_node_resource(node_resouce_dict)
-        self.cached_node_resource_names.clear()
-        for name, _type in node_resouce_dict.items():
-            self.cached_node_resource_names[_type].add(name)
-
-    def add_dirty_mesh_names(self, mesh_name):
-        self.dirty_mesh_names.add(mesh_name)

@@ -151,17 +151,21 @@ void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph)
 
       if (can_have_geometry || is_light) {
         const bool updated_geometry = b_update.is_updated_geometry();
+        const bool updated_shading = b_update.is_updated_shading();
 
         /* Geometry (mesh, hair, volume). */
         if (can_have_geometry) {
-          if (b_update.is_updated_transform() || b_update.is_updated_shading()) {
+          if (updated_geometry || updated_shading) {
             object_map.set_recalc(b_ob);
           }
 
           if (updated_geometry ||
+              updated_shading ||
               (object_subdivision_type(b_ob, preview, experimental) != Mesh::SUBDIVISION_NONE))
           {
-            BL::ID key = BKE_object_is_modified(b_ob) ? b_ob : b_ob.data();
+            BL::ID key = (BKE_object_is_modified(b_ob) || b_ob.mode() == b_ob.mode_EDIT) ?
+                             b_ob :
+                             b_ob.data();
             mesh_map.set_recalc(key);
 
             /* Sync all contained geometry instances as well when the object changed.. */
@@ -184,11 +188,10 @@ void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph)
         }
         /* Light */
         else if (is_light) {
-          if (b_update.is_updated_transform() || b_update.is_updated_shading()) {
+          if (b_update.is_updated_transform() || updated_shading) {
             object_map.set_recalc(b_ob);
             light_map.set_recalc(b_ob);
           }
-
           if (updated_geometry) {
             light_map.set_recalc(b_ob);
           }
@@ -203,6 +206,12 @@ void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph)
       BL::Mesh b_mesh(b_id);
       mesh_map.set_recalc(b_mesh);
       depgraph_updated_mesh_names.insert(b_mesh.name());
+    }
+    /* MetaBall */
+    else if (b_id.is_a(&RNA_MetaBall)) {
+      BL::MetaBall b_metaball(b_id);
+      mesh_map.set_recalc(b_metaball);
+      depgraph_updated_mesh_names.insert(b_metaball.name());
     }
     /* World */
     else if (b_id.is_a(&RNA_World)) {
@@ -220,6 +229,7 @@ void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph)
     else if (b_id.is_a(&RNA_Volume)) {
       BL::Volume b_volume(b_id);
       mesh_map.set_recalc(b_volume);
+      depgraph_updated_mesh_names.insert(b_volume.name());
     }
     else if (b_id.is_a(&RNA_Collection)) {
       BL::Collection b_col(b_id);
@@ -585,10 +595,21 @@ SessionParams BlenderSync::get_session_params(
   bool use_render_camera_imager = get_boolean(oct_scene, "use_render_camera_imager");
   params.prefer_image_type = static_cast<PreferImageType>(
       get_enum(oct_scene, "prefer_image_type"));
+  params.enable_realtime = params.interactive ?
+      get_boolean(oct_scene, "enable_realtime") : false;
   params.render_priority = RNA_enum_get(&oct_scene, "priority_mode");
   params.resource_cache_type = RNA_enum_get(&oct_scene, "resource_cache_type");
+  bool use_global_imager = false;
+  PointerRNA octane_preferences;
+  for (BL::Addon &b_addon : b_userpref.addons) {
+    if (b_addon.module() == "octane") {
+      octane_preferences = b_addon.preferences().ptr;
+      use_global_imager = get_enum_identifier(octane_preferences, "imager_panel_mode") == "Global";
+    }
+  }
   bool use_preview_setting_for_camera_imager =
-      get_boolean(oct_scene, "use_preview_setting_for_camera_imager") && use_preview_camera_imager;
+      (get_boolean(oct_scene, "use_preview_setting_for_camera_imager") || use_global_imager) &&
+      use_preview_camera_imager;
   params.enable_camera_imager = !params.interactive && (use_preview_setting_for_camera_imager ?
                                                             use_preview_camera_imager :
                                                             use_render_camera_imager);

@@ -1,10 +1,9 @@
-import bpy
-import xml.etree.ElementTree as ET
-from bpy.types import Panel, Menu, Operator
+# <pep8 compliant>
+
+from bpy.types import Panel
+
 from bpy.utils import register_class, unregister_class
 from octane.uis import common
-from octane.utils import consts, utility
-from octane import core
 
 
 class OCTANE_RENDER_PT_HairSettings(common.OctanePropertyPanel, Panel):
@@ -25,9 +24,9 @@ class OCTANE_RENDER_PT_HairSettings(common.OctanePropertyPanel, Panel):
         layout.label(text="Thickness:")
         row = layout.row(align=True)
         row.prop(psys_octane, "root_width")
-        row.prop(psys_octane, "tip_width")        
+        row.prop(psys_octane, "tip_width")
         layout.label(text="W coordinate:")
-        row = layout.row(align=True)  
+        row = layout.row(align=True)
         row.prop(psys_octane, "w_min")
         row.prop(psys_octane, "w_max")
 
@@ -51,8 +50,9 @@ class OCTANE_CURVE_PT_curve_properties(common.OctanePropertyPanel, Panel):
         col.prop(cdata, "render_curve_as_octane_hair")
         if cdata.render_curve_as_octane_hair:
             sub = col.column(align=True)
-            sub.prop(cdata, "hair_root_width")            
+            sub.prop(cdata, "hair_root_width")
             sub.prop(cdata, "hair_tip_width")
+
 
 class OCTANE_CURVES_PT_curves_properties(common.OctanePropertyPanel, Panel):
     bl_label = "Octane properties"
@@ -73,7 +73,7 @@ class OCTANE_CURVES_PT_curves_properties(common.OctanePropertyPanel, Panel):
         col.prop(cdata, "use_octane_radius_setting")
         if cdata.use_octane_radius_setting:
             sub = col.column(align=True)
-            sub.prop(cdata, "hair_root_width")            
+            sub.prop(cdata, "hair_root_width")
             sub.prop(cdata, "hair_tip_width")
 
 
@@ -84,9 +84,10 @@ _CLASSES = [
 ]
 
 
-def register(): 
+def register():
     for cls in _CLASSES:
         register_class(cls)
+
 
 def unregister():
     for cls in _CLASSES:

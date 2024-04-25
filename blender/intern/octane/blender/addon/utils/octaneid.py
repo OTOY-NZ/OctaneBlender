@@ -1,4 +1,6 @@
-##### BEGIN OCTANE GENERATED CODE BLOCK #####
+# <pep8 compliant>
+
+# BEGIN OCTANE GENERATED CODE BLOCK #
 
 # Attribute Type
 class AttributeType:
@@ -470,6 +472,8 @@ class NodeType:
     NT_TEX_COMPOSITE_LAYER_MASK_WITH_LAYERS = 432
     NT_TEX_COMPOSITE_LAYER_APPLY_GRADIENT_MAP = 433
     NT_OUTPUT_AOV_LAYER_CONVERT_FOR_SDR_DISPLAY_AGX = 434
+    NT_METADATA = 439
+    NT_OUTPUT_AOV_LAYER_BLEND_LIGHT_MIXER = 445
     NT_OUTPUT_AOV_LAYER_APPLY_CUSTOM_CURVE = 448
     NT_OUTPUT_AOV_LAYER_BLEND_SHARED_SURFACE = 449
     NT_OUTPUT_AOV_SHARED_SURFACE = 450
@@ -482,6 +486,10 @@ class NodeType:
     NT_OUTPUT_AOV_LAYER_ADD_CHROMATIC_ABERRATION = 457
     NT_OUTPUT_AOV_LAYER_BLUR = 458
     NT_OUTPUT_AOV_LAYER_CONVERT_FOR_SDR_DISPLAY_SMOOTH = 459
+    NT_OUTPUT_AOV_LAYER_SAVE_CHECKPOINT = 461
+    NT_OUTPUT_AOV_LAYER_LOAD_CHECKPOINT = 462
+    NT_OUTPUT_AOV_LAYER_DISCARD_CHECKPOINT = 463
+    NT_OUTPUT_AOV_LAYER_SHARPEN = 464
     NT_IN_BOOL = 20001
     NT_IN_FLOAT = 20002
     NT_IN_INT = 20003
@@ -1457,6 +1465,8 @@ class PinID:
     P_POSTFX_FOG_MEDIA_ENABLED = 927
     P_POSTFX_FOG_STRENGTH = 928
     P_POSTFX_FOG_EXPONENT = 929
+    P_LOCK_RELATIVE_REGION = 930
+    P_AFFECT_OCCLUSION_ONLY = 931
     P_POSTFX_LIGHT_BEAMS_ENABLED = 932
     P_RENDER_PASS_POSTFX_MEDIA = 933
     P_ENABLE_POSTFX_MEDIA = 934
@@ -1466,6 +1476,7 @@ class PinID:
     P_LENS_FLARE = 938
     P_LENS_FLARE_EXTENT = 939
     P_POSTFX_LIGHT_BEAMS_MEDIUM_DENSITY = 943
+    P_CHECKPOINT_NAME = 949
     P_IOR = 951
     P_COATING_IOR = 952
     P_FILM_IOR = 953
@@ -1550,6 +1561,9 @@ class PinID:
     P_POSTFX_FOG_EXTINCTION_DISTANCE = 1052
     P_POSTFX_FOG_HALF_DENSITY_HEIGHT = 1053
     P_SCALE_WITH_FILM = 1054
+    P_CLEAR_AFTER_SAVE = 1061
+    P_DISCARD_AFTER_LOAD = 1062
+    P_APPLY_BUMP = 2577
 
 
 # Attribute ID
@@ -1974,6 +1988,13 @@ class AttributeID:
     A_SAVE_IMAGE_JPEG_QUALITY = 446
     A_EXPORT_PASSES_JPEG_QUALITY = 447
     A_IMAGE_DEVICE = 449
+    A_HARDWARE_RAY_TRACING_ENABLED = 450
+    A_GPU_NAMES = 451
+    A_GPU_RAM = 452
+    A_SYSTEM_CPU = 453
+    A_SYSTEM_RAM = 454
+    A_PLUGIN_TYPE = 455
+    A_UPDATE = 456
     A_CUSTOM_CURVE_POINTS_PRIMARY = 476
     A_CUSTOM_CURVE_POINTS_SECONDARY_RED = 477
     A_CUSTOM_CURVE_POINTS_SECONDARY_GREEN = 478
@@ -3446,14 +3467,14 @@ OCTANE_PASS_ID_TO_NODE_PIN_NAME = {
     RenderPassID.CryptoGeometryNodeName: "",
 }
 
-GrayscaleRenderPassIDs = set([RenderPassID.VolumeZDepthFront, RenderPassID.VolumeZDepthBack, RenderPassID.ZDepth, RenderPassID.RenderLayerMask, RenderPassID.AmbientOcclusion, RenderPassID.Opacity, RenderPassID.Roughness, RenderPassID.IndexOfRefraction, ])
-DenoiseRenderPassIDs = set([RenderPassID.DenoisedBeauty, RenderPassID.DenoisedDiffuseDirect, RenderPassID.DenoisedDiffuseIndirect, RenderPassID.DenoisedReflectionDirect, RenderPassID.DenoisedReflectionIndirect, RenderPassID.DenoisedEmission, RenderPassID.DenoisedRemainder, RenderPassID.DenoisedVolume, RenderPassID.DenoisedVolumeEmission, ])
-CryptomatteRenderPassIDs = set([RenderPassID.CryptoInstanceID, RenderPassID.CryptoMaterialNodeName, RenderPassID.CryptoMaterialNode, RenderPassID.CryptoMaterialPinName, RenderPassID.CryptoObjectNodeName, RenderPassID.CryptoObjectNode, RenderPassID.CryptoObjectPinName, RenderPassID.CryptoRenderLayer, RenderPassID.CryptoUserInstanceID, RenderPassID.CryptoGeometryNodeName, ])
-CustomAovRenderPassIDs = set([RenderPassID.CustomAOV1, RenderPassID.CustomAOV2, RenderPassID.CustomAOV3, RenderPassID.CustomAOV4, RenderPassID.CustomAOV5, RenderPassID.CustomAOV6, RenderPassID.CustomAOV7, RenderPassID.CustomAOV8, RenderPassID.CustomAOV9, RenderPassID.CustomAOV10, RenderPassID.CustomAOV11, RenderPassID.CustomAOV12, RenderPassID.CustomAOV13, RenderPassID.CustomAOV14, RenderPassID.CustomAOV15, RenderPassID.CustomAOV16, RenderPassID.CustomAOV17, RenderPassID.CustomAOV18, RenderPassID.CustomAOV19, RenderPassID.CustomAOV20, ])
-OutputAOVRenderPassIDs = set([])
-GlobalTextureAOVRenderPassIDs = set([RenderPassID.GlobalTextureAOV1, RenderPassID.GlobalTextureAOV2, RenderPassID.GlobalTextureAOV3, RenderPassID.GlobalTextureAOV4, RenderPassID.GlobalTextureAOV5, RenderPassID.GlobalTextureAOV6, RenderPassID.GlobalTextureAOV7, RenderPassID.GlobalTextureAOV8, RenderPassID.GlobalTextureAOV9, RenderPassID.GlobalTextureAOV10, RenderPassID.GlobalTextureAOV11, RenderPassID.GlobalTextureAOV12, RenderPassID.GlobalTextureAOV13, RenderPassID.GlobalTextureAOV14, RenderPassID.GlobalTextureAOV15, RenderPassID.GlobalTextureAOV16, RenderPassID.GlobalTextureAOV17, RenderPassID.GlobalTextureAOV18, RenderPassID.GlobalTextureAOV19, RenderPassID.GlobalTextureAOV20, ])
+GrayscaleRenderPassIDs = {RenderPassID.VolumeZDepthFront, RenderPassID.VolumeZDepthBack, RenderPassID.ZDepth, RenderPassID.RenderLayerMask, RenderPassID.AmbientOcclusion, RenderPassID.Opacity, RenderPassID.Roughness, RenderPassID.IndexOfRefraction, }
+DenoiseRenderPassIDs = {RenderPassID.DenoisedBeauty, RenderPassID.DenoisedDiffuseDirect, RenderPassID.DenoisedDiffuseIndirect, RenderPassID.DenoisedReflectionDirect, RenderPassID.DenoisedReflectionIndirect, RenderPassID.DenoisedEmission, RenderPassID.DenoisedRemainder, RenderPassID.DenoisedVolume, RenderPassID.DenoisedVolumeEmission, }
+CryptomatteRenderPassIDs = {RenderPassID.CryptoInstanceID, RenderPassID.CryptoMaterialNodeName, RenderPassID.CryptoMaterialNode, RenderPassID.CryptoMaterialPinName, RenderPassID.CryptoObjectNodeName, RenderPassID.CryptoObjectNode, RenderPassID.CryptoObjectPinName, RenderPassID.CryptoRenderLayer, RenderPassID.CryptoUserInstanceID, RenderPassID.CryptoGeometryNodeName, }
+CustomAovRenderPassIDs = {RenderPassID.CustomAOV1, RenderPassID.CustomAOV2, RenderPassID.CustomAOV3, RenderPassID.CustomAOV4, RenderPassID.CustomAOV5, RenderPassID.CustomAOV6, RenderPassID.CustomAOV7, RenderPassID.CustomAOV8, RenderPassID.CustomAOV9, RenderPassID.CustomAOV10, RenderPassID.CustomAOV11, RenderPassID.CustomAOV12, RenderPassID.CustomAOV13, RenderPassID.CustomAOV14, RenderPassID.CustomAOV15, RenderPassID.CustomAOV16, RenderPassID.CustomAOV17, RenderPassID.CustomAOV18, RenderPassID.CustomAOV19, RenderPassID.CustomAOV20, }
+OutputAOVRenderPassIDs = {}
+GlobalTextureAOVRenderPassIDs = {RenderPassID.GlobalTextureAOV1, RenderPassID.GlobalTextureAOV2, RenderPassID.GlobalTextureAOV3, RenderPassID.GlobalTextureAOV4, RenderPassID.GlobalTextureAOV5, RenderPassID.GlobalTextureAOV6, RenderPassID.GlobalTextureAOV7, RenderPassID.GlobalTextureAOV8, RenderPassID.GlobalTextureAOV9, RenderPassID.GlobalTextureAOV10, RenderPassID.GlobalTextureAOV11, RenderPassID.GlobalTextureAOV12, RenderPassID.GlobalTextureAOV13, RenderPassID.GlobalTextureAOV14, RenderPassID.GlobalTextureAOV15, RenderPassID.GlobalTextureAOV16, RenderPassID.GlobalTextureAOV17, RenderPassID.GlobalTextureAOV18, RenderPassID.GlobalTextureAOV19, RenderPassID.GlobalTextureAOV20, }
 
-##### END OCTANE GENERATED CODE BLOCK #####
+# END OCTANE GENERATED CODE BLOCK #
 
 RENDER_PASS_OUTPUT_AOV_NAME = "AOVOutput"
 RENDER_PASS_OUTPUT_AOV_IDS_OFFSET = 10000

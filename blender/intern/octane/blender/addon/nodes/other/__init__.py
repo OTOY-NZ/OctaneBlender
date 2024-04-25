@@ -1,15 +1,14 @@
-##### BEGIN OCTANE GENERATED CODE BLOCK #####
-import bpy
-from bpy.utils import register_class, unregister_class
+# <pep8 compliant>
+
+# BEGIN OCTANE GENERATED CODE BLOCK #
 from . import note
-from . import geometry_exporter
+
 
 def register():
     note.register()
-    geometry_exporter.register()
+
 
 def unregister():
     note.unregister()
-    geometry_exporter.unregister()
 
-##### END OCTANE GENERATED CODE BLOCK #####
+# END OCTANE GENERATED CODE BLOCK #

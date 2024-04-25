@@ -1,34 +1,17 @@
-import bpy
-from bpy.types import (
-    Header,
-    Menu,
-    Panel,
-)
-from bl_ui.properties_paint_common import (
-    UnifiedPaintPanel,
-    brush_basic_texpaint_settings,
-    brush_basic_gpencil_weight_settings,
-)
-from bl_ui.properties_grease_pencil_common import (
-    AnnotationDataPanel,
-    AnnotationOnionSkin,
-    GreasePencilMaterialsPanel,
-    GreasePencilVertexcolorPanel,
-)
-from bl_ui.space_toolsystem_common import (
-    ToolActivePanelHelper,
-)
-from bpy.app.translations import (
-    pgettext_iface as iface_,
-    pgettext_tip as tip_,
-    contexts as i18n_contexts,
-)
+# <pep8 compliant>
+
+# noinspection PyUnresolvedReferences
 from bl_ui.space_view3d import (
-    VIEW3D_MT_editor_menus, 
+    VIEW3D_MT_editor_menus,
     VIEW3D_HT_header
 )
-from octane import core
+# noinspection PyUnresolvedReferences
+from bpy.app.translations import (
+    pgettext_iface as iface_,
+)
 
+import bpy
+from octane import core
 
 _VIEW3D_HT_header_draw = None
 
@@ -47,8 +30,8 @@ def Octane_VIEW3D_HT_header_draw(self, context):
     # mode_string = context.mode
     object_mode = 'OBJECT' if obj is None else obj.mode
     has_pose_mode = (
-        (object_mode == 'POSE') or
-        (object_mode == 'WEIGHT_PAINT' and context.pose_object is not None)
+            (object_mode == 'POSE') or
+            (object_mode == 'WEIGHT_PAINT' and context.pose_object is not None)
     )
 
     # Note: This is actually deadly in case enum_items have to be dynamically generated
@@ -248,7 +231,7 @@ def Octane_VIEW3D_HT_header_draw(self, context):
     row = layout.row()
     row.active = (object_mode == 'EDIT') or (shading.type in {'WIREFRAME', 'SOLID'})
 
-    # While exposing `shading.show_xray(_wireframe)` is correct.
+    # while exposing `shading.show_xray(_wireframe)` is correct.
     # this hides the key shortcut from users: #70433.
     if has_pose_mode:
         draw_depressed = overlay.show_xray_bone
@@ -282,7 +265,7 @@ _CLASSES = [
 ]
 
 
-def register(): 
+def register():
     for cls in _CLASSES:
         register_class(cls)
     if not core.ENABLE_OCTANE_ADDON_CLIENT:

@@ -184,8 +184,6 @@ struct Material *BKE_material_default_holdout(void);
 struct Material *BKE_material_default_surface(void);
 struct Material *BKE_material_default_volume(void);
 struct Material *BKE_material_default_gpencil(void);
-struct Material *BKE_material_default_octane_surface(void);
-struct Material *BKE_material_default_octane_volume(void);
 
 void BKE_material_defaults_free_gpu(void);
 

@@ -1,3 +1,5 @@
+# <pep8 compliant>
+
 from octane.utils.octaneid import *
 
 ENGINE_NAME = "octane"
@@ -26,21 +28,6 @@ OCTANE_HELPER_NODE_GROUP = ".[OCTANE_HELPER_NODE_GROUP]"
 
 DEPRECATED_PREFIX = "[Deprecated]"
 
-
-# GUI
-FACTOR_PROPERTY_SUBTYPE = "NONE"
-
-def use_factor_property_subtype(enable):
-    global FACTOR_PROPERTY_SUBTYPE
-    if enable:
-        FACTOR_PROPERTY_SUBTYPE = "FACTOR"
-    else:
-        FACTOR_PROPERTY_SUBTYPE = "NONE"
-
-def factor_property_subtype():
-    return FACTOR_PROPERTY_SUBTYPE
-
-
 # Add Blender Pin Type
 PinType.PT_BLENDER_OUTPUT = -10000
 PinType.PT_BLENDER_INPUT = -10001
@@ -66,6 +53,7 @@ NodeType.NT_BLENDER_NODE_GRAPH_NODE = -100012
 # Add Octane Legacy Node Type
 NodeType.NT_OUT_COMPOSITE_AOV_LAYER = NodeType.NT_OUT_OUTPUT_AOV_LAYER
 
+
 # Octane Version Type
 class VersionType:
     UNKNOWN = -1
@@ -73,14 +61,23 @@ class VersionType:
     PRIME = 1
     DEMO = 2
 
+
 # Scene State
 class SceneState:
     UNINIT = 0
     INITIALIZED = 1
 
+
+# Batch State
+class BatchState:
+    DISABLED = 0
+    START_BATCH = 1
+    END_BATCH = 2
+
+
 # Render Frame Data Type
 class RenderFrameDataType:
-    RENDER_FRAME_SIGNED_BYTE_RGBA = 0 # -127~128
+    RENDER_FRAME_SIGNED_BYTE_RGBA = 0  # -127~128
     RENDER_FRAME_FLOAT_RGBA = 1
     RENDER_FRAME_FLOAT_MONO = 2
 
@@ -92,22 +89,24 @@ class ExportRenderPassMode:
 
 
 class ImageSaveFormat:
-    IMAGE_SAVE_FORMAT_PNG_8  = 0
+    IMAGE_SAVE_FORMAT_PNG_8 = 0
     IMAGE_SAVE_FORMAT_PNG_16 = 1
     IMAGE_SAVE_FORMAT_EXR_16 = 2
     IMAGE_SAVE_FORMAT_EXR_32 = 3
-    IMAGE_SAVE_FORMAT_TIFF_8  = 4
+    IMAGE_SAVE_FORMAT_TIFF_8 = 4
     IMAGE_SAVE_FORMAT_TIFF_16 = 5
-    IMAGE_SAVE_FORMAT_JPEG    = 6
+    IMAGE_SAVE_FORMAT_JPEG = 6
 
 
 # The different tonemap result buffer formats we support.
 class TonemapBufferType:
-    # LDR tonemapping resulting in uint8_t per channel (should only be used when outputting in a non-linear color space).
+    # LDR tonemapping resulting in uint8_t per channel (should only be used when outputting in a non-linear color
+    # space).
     TONEMAP_BUFFER_TYPE_LDR = 0
     # HDR tonemapping resulting in float per channel.
     TONEMAP_BUFFER_TYPE_HDR_FLOAT = 1
-    # Same as TONEMAP_BUFFER_TYPE_HDR_FLOAT but the results are converted to half (16-bit) floating point. This is only supported on macOS/iOS.
+    # Same as TONEMAP_BUFFER_TYPE_HDR_FLOAT but the results are converted to half (16-bit) floating point.
+    # This is only supported on macOS/iOS.
     TONEMAP_BUFFER_TYPE_HDR_HALF = 2
 
 
@@ -119,13 +118,16 @@ class NamedColorSpace:
     NAMED_COLOR_SPACE_SRGB = 1
     # The sRGB color space with a linear transfer function.
     NAMED_COLOR_SPACE_LINEAR_SRGB = 2
-    # The ACES2065-1 color space, which is a linear color space using the ACES AP0 primaries and a white point very close to "D60".
+    # The ACES2065-1 color space, which is a linear color space using the ACES AP0 primaries and a white point very
+    # close to "D60".
     NAMED_COLOR_SPACE_ACES2065_1 = 3
-    # The ACEScg color space, which is a linear color space using the ACES AP1 primaries and a white point very close to "D60".
+    # The ACEScg color space, which is a linear color space using the ACES AP1 primaries and a white point very close
+    # to "D60".
     NAMED_COLOR_SPACE_ACESCG = 4
     # The XYZ color space (with E white point).
     NAMED_COLOR_SPACE_XYZ_E = 5
-    # A placeholder value to represent some OCIO color space. We don't have any further details about these color spaces.
+    # A placeholder value to represent some OCIO color space. We don't have any further details about these color
+    # spaces.
     NAMED_COLOR_SPACE_OCIO = 1000
 
 
@@ -137,6 +139,7 @@ class SessionType:
     PREVIEW = 3
     EXPORT = 4
 
+
 # Node Resource type
 class NodeResourceType:
     LIGHT = 0
@@ -144,12 +147,14 @@ class NodeResourceType:
     TEXTURE = 1
     GEOMETRY = 2
 
+
 # Resource cache type
 class ResourceCacheType:
     NONE = 0
     TEXTURE_ONLY = 1
     GEOMETRY_ONLY = 2
     ALL = 127
+
 
 # Blender Scene Data type
 class SceneDataType:
@@ -190,23 +195,23 @@ class LegacyDTOType:
 # Socket type
 class SocketType:
     ST_UNKNOWN = 0
-    ST_BOOL    = 1
-    ST_ENUM    = 2
-    ST_INT     = 3
-    ST_INT2    = 4
-    ST_INT3    = 5
-    ST_FLOAT   = 6
-    ST_FLOAT2  = 7
-    ST_FLOAT3  = 8
-    ST_RGBA    = 9
-    ST_STRING  = 10
-    ST_LINK    = 11
-    ST_OUTPUT  = 100
+    ST_BOOL = 1
+    ST_ENUM = 2
+    ST_INT = 3
+    ST_INT2 = 4
+    ST_INT3 = 5
+    ST_FLOAT = 6
+    ST_FLOAT2 = 7
+    ST_FLOAT3 = 8
+    ST_RGBA = 9
+    ST_STRING = 10
+    ST_LINK = 11
+    ST_OUTPUT = 100
     ST_GROUP_TITLE = 1000
 
 
 # Auto Refresh Strategy
-class AutoRereshStrategy:
+class AutoRefreshStrategy:
     DISABLE = 0
     FRAME_CHANGE = 1
     ALWAYS = 2
@@ -263,7 +268,7 @@ class OctanePinColor:
     AOVOutputGroup = OutputAOVGroup
     AOVOutput = OutputAOV
     CompositeAOVOutputLayer = OutputAOVLayer
-    CompositeTextureLayer = TextureLayer  
+    CompositeTextureLayer = TextureLayer
 
 
 class ArrayIdentifier:
@@ -321,7 +326,7 @@ class OctaneNodeTreeIDName:
     CAMERA_IMAGER = "octane_camera_imager_nodes"
     COMPOSITE = "octane_composite_nodes"
     KERNEL = "octane_kernel_nodes"
-    RENDER_AOV = "octane_render_aov_nodes"        
+    RENDER_AOV = "octane_render_aov_nodes"
     BLENDER_SHADER = "ShaderNodeTree"
     BLENDER_TEXTURE = "TextureNodeTree"
 
@@ -350,6 +355,7 @@ class OctanePresetNodeNames:
     CAMERA_POSITION = "OCTANE_CAMERA_POSITION"
     CAMERA_TARGET = "OCTANE_CAMERA_TARGET"
     CAMERA_UP = "OCTANE_CAMERA_UP"
+    GEOMETRY_GROUP = "OCTANE_GEOMETRY_GROUP"
 
 
 # Octane OutputNode Socket Names
@@ -379,7 +385,7 @@ class UtilsFunctionType:
     TEST = 0
     SHOW_NODEGRAPH = 1
     SHOW_NETWORK_PREFERENCE = 2
-    STOP_RENDERING = 3     
+    STOP_RENDERING = 3
     SHOW_LOG = 4
     SHOW_DEVICE_SETTINGS = 5
     FETCH_LIVEDB = 6
@@ -411,13 +417,13 @@ class UtilsFunctionType:
     TOGGLE_RECORD = 10000
     PLAY_RECORD = 10001
 
+
 # Pin Id
 P_INVALID = -1
 P_UNKNOWN = 0
 
-# Attribute Id
+# Attribute ID
 A_UNKNOWN = 0
-
 
 # OSL Compilation Results
 COMPILE_NONE = 0
@@ -425,14 +431,11 @@ COMPILE_SUCCESS = 1
 COMPILE_FAILED = 2
 COMPILE_FORCE = 3
 
-
 # Socket colors
 SOCKET_COLOR_OCIO_COLOR_SPACE = (1, 0, 1, 1)
 
-
 # Render pass ID
 RENDER_PASS_INVALID = -1
-
 
 # Link Utility Menu
 LINK_UTILITY_REMOVE = "LINK_UTILITY_REMOVE_OPERATOR"
@@ -442,8 +445,8 @@ LINK_UTILITY_REMOVE_INDEX = 10002
 LINK_UTILITY_DISCONNECT_INDEX = 10001
 LINK_UTILITY_DEFAULT_INDEX = 10000
 LINK_UTILITY_MENU = (
-    ("", "Link", ""), 
-    (LINK_UTILITY_REMOVE, "Remove", "Remove nodes connected to the input", LINK_UTILITY_REMOVE_INDEX), 
+    ("", "Link", ""),
+    (LINK_UTILITY_REMOVE, "Remove", "Remove nodes connected to the input", LINK_UTILITY_REMOVE_INDEX),
     (LINK_UTILITY_DISCONNECT, "Disconnect", "Disconnect nodes connected to the input", LINK_UTILITY_DISCONNECT_INDEX),
     (LINK_UTILITY_DEFAULT, "Default", "Same effect as the 'Disconnect'", LINK_UTILITY_DEFAULT_INDEX),
 )

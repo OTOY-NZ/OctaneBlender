@@ -1,53 +1,55 @@
-import bpy
+# <pep8 compliant>
+
 import platform
-import xml.etree.ElementTree as ET
-from bpy.types import Panel, Menu, Operator
+
+from bpy.types import Panel, Menu
+
+import bpy
 from bpy.utils import register_class, unregister_class
 from octane.uis import common
 from octane.utils import consts, utility
-from octane import core
 
 
 class OCTANE_MT_kernel_presets(Menu):
     bl_label = "Kernel presets"
     preset_subdir = "octane/kernel_presets"
     preset_operator = "script.execute_preset"
-    preset_operator_defaults = {"menu_idname" : "OCTANE_MT_kernel_presets"}
+    preset_operator_defaults = {"menu_idname": "OCTANE_MT_kernel_presets"}
     COMPAT_ENGINES = {"octane"}
     draw = Menu.draw_preset
 
     @classmethod
     def post_cb(cls, context):
-        from os.path import basename
         from octane.utils import utility
         preset_name = cls.bl_label
         octane_scene = context.scene.octane
         kernel_json_node_tree_helper = octane_scene.kernel_json_node_tree_helper
-        utility.quick_add_octane_kernel_node_tree(assign_to_kernel_node_graph=True, generate_from_legacy_octane_property=False, json_node_tree=kernel_json_node_tree_helper, preset_name=preset_name)
+        utility.quick_add_octane_kernel_node_tree(assign_to_kernel_node_graph=True,
+                                                  generate_from_legacy_octane_property=False,
+                                                  json_node_tree=kernel_json_node_tree_helper, preset_name=preset_name)
 
 
 class OCTANE_MT_legacy_kernel_presets(Menu):
     bl_label = "Legacy Kernel presets"
     preset_subdir = "octane/kernel"
     preset_operator = "script.execute_preset"
-    preset_operator_defaults = {"menu_idname" : "OCTANE_MT_legacy_kernel_presets"}
+    preset_operator_defaults = {"menu_idname": "OCTANE_MT_legacy_kernel_presets"}
     COMPAT_ENGINES = {"octane"}
     draw = Menu.draw_preset
 
     @classmethod
-    def post_cb(cls, context):
-        from os.path import basename
+    def post_cb(cls, _context):
         from octane.utils import utility
         preset_name = cls.bl_label
-        octane_scene = context.scene.octane
-        utility.quick_add_octane_kernel_node_tree(assign_to_kernel_node_graph=True, generate_from_legacy_octane_property=True, preset_name=preset_name)
+        utility.quick_add_octane_kernel_node_tree(assign_to_kernel_node_graph=True,
+                                                  generate_from_legacy_octane_property=True, preset_name=preset_name)
 
 
 class OCTANE_MT_renderpasses_presets(Menu):
     bl_label = "Render Passes presets"
     preset_subdir = "octane/renderpasses_presets"
     preset_operator = "script.execute_preset"
-    preset_operator_defaults = {"menu_idname" : "OCTANE_MT_renderpasses_presets"}
+    preset_operator_defaults = {"menu_idname": "OCTANE_MT_renderpasses_presets"}
     COMPAT_ENGINES = {"octane"}
     draw = Menu.draw_preset
 
@@ -65,7 +67,7 @@ class OCTANE_RENDER_PT_kernel_preset(common.OctanePropertyPanel, Panel):
     bl_context = "render"
     bl_parent_id = "OCTANE_RENDER_PT_kernel"
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
         row = layout.row()
         row.menu("OCTANE_MT_kernel_presets", text=OCTANE_MT_kernel_presets.bl_label)
@@ -79,9 +81,9 @@ class OCTANE_RENDER_PT_kernel_legacy_preset(common.OctanePropertyPanel, Panel):
     bl_parent_id = "OCTANE_RENDER_PT_kernel_preset"
     bl_options = {'DEFAULT_CLOSED'}
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
-        row = layout.row()    
+        row = layout.row()
         row.menu("OCTANE_MT_legacy_kernel_presets", text="Load the legacy panel kernel presets")
 
 
@@ -100,7 +102,8 @@ class OCTANE_RENDER_PT_kernel_nodetree(common.OctanePropertyPanel, Panel):
         row.operator("octane.show_kernel_nodetree", icon="NODETREE", text="Show in NodeEditor").create_new_window = True
         row = layout.row()
         row.prop(octane_scene.kernel_node_graph_property, "node_tree", text="Kernel Node Tree", icon='NODETREE')
-        utility.panel_ui_node_tree_view(context, layout, node_tree, consts.OctaneNodeTreeIDName.KERNEL, consts.OctaneOutputNodeSocketNames.KERNEL)
+        utility.panel_ui_node_tree_view(context, layout, node_tree, consts.OctaneNodeTreeIDName.KERNEL,
+                                        consts.OctaneOutputNodeSocketNames.KERNEL)
 
 
 class OCTANE_RENDER_PT_motion_blur(common.OctanePropertyPanel, Panel):
@@ -123,7 +126,7 @@ class OCTANE_RENDER_PT_server(common.OctanePropertyPanel, Panel):
     bl_label = "Octane Server"
     bl_context = "render"
 
-    def draw(self, context):        
+    def draw(self, context):
         scene = context.scene
         oct_scene = scene.octane
         is_viewport_rendering = utility.is_viewport_rendering()
@@ -134,11 +137,12 @@ class OCTANE_RENDER_PT_server(common.OctanePropertyPanel, Panel):
         col.active = not is_viewport_rendering
         col.prop(oct_scene, "resource_cache_type")
         col.prop(oct_scene, "dirty_resource_detection_strategy_type")
-        col.operator("octane.clear_resource_cache", text="Clear")        
+        col.operator("octane.clear_resource_cache", text="Clear")
         col = layout.column()
         col.active = not is_viewport_rendering
         col.prop(oct_scene, "meshes_type")
         col = layout.column()
+        col.prop(oct_scene, "enable_realtime")
         col.prop(oct_scene, "prefer_image_type")
         col.prop(oct_scene, "maximize_instancing")
         col.prop(oct_scene, "clay_mode")
@@ -156,6 +160,7 @@ class OCTANE_RENDER_PT_server(common.OctanePropertyPanel, Panel):
         # if True:
         #    col.operator("octane.toggle_record", text="Debug: Toggle Record")
         #    col.operator("octane.play_record", text="Debug: Play Record")
+
 
 class OCTANE_RENDER_PT_out_of_core(common.OctanePropertyPanel, Panel):
     bl_label = "Octane Out Of Core"
@@ -201,7 +206,7 @@ class OCTANE_RENDER_PT_octane_global_view_layers(common.OctanePropertyPanel, Pan
 
     def draw(self, context):
         layout = self.layout
-        context.scene.octane.render_layer.draw(context, layout)       
+        context.scene.octane.render_layer.draw(context, layout)
 
 
 class OctaneRenderAOVNodeGraphPanel(common.OctanePropertyPanel):
@@ -211,7 +216,7 @@ class OctaneRenderAOVNodeGraphPanel(common.OctanePropertyPanel):
             return False
         view_layer = context.view_layer
         octane_view_layer = view_layer.octane
-        return octane_view_layer.render_pass_style == "RENDER_AOV_GRAPH" 
+        return octane_view_layer.render_pass_style == "RENDER_AOV_GRAPH"
 
 
 class OCTANE_RENDER_PT_AOV_node_graph(OctaneRenderAOVNodeGraphPanel, Panel):
@@ -220,7 +225,7 @@ class OCTANE_RENDER_PT_AOV_node_graph(OctaneRenderAOVNodeGraphPanel, Panel):
 
     def draw(self, context):
         view_layer = context.view_layer
-        octane_view_layer = view_layer.octane  
+        octane_view_layer = view_layer.octane
         layout = self.layout
         layout.use_property_split = True
         layout.use_property_decorate = False
@@ -228,7 +233,8 @@ class OCTANE_RENDER_PT_AOV_node_graph(OctaneRenderAOVNodeGraphPanel, Panel):
         col.prop(octane_view_layer, "render_pass_style")
         render_aov_node_graph_property = octane_view_layer.render_aov_node_graph_property
         col.prop(render_aov_node_graph_property, "node_tree", text="AOV Node Tree", icon="NODETREE")
-        utility.panel_ui_node_tree_view1(context, layout, render_aov_node_graph_property.node_tree, consts.OctaneNodeTreeIDName.RENDER_AOV)
+        utility.panel_ui_node_tree_view1(context, layout, render_aov_node_graph_property.node_tree,
+                                         consts.OctaneNodeTreeIDName.RENDER_AOV)
 
 
 class OctaneRenderPassesPanel(common.OctanePropertyPanel):
@@ -299,8 +305,8 @@ class OCTANE_RENDER_PT_passes_beauty(OctaneRenderPassesPanel, Panel):
         row = split.row(align=True)
         row.prop(octane_view_layer, "use_pass_diff", text="Diffuse", toggle=True)
         row.prop(octane_view_layer, "use_pass_diff_dir", text="Direct", toggle=True)
-        row.prop(octane_view_layer, "use_pass_diff_indir", text="Indirect", toggle=True)        
-        row.prop(octane_view_layer, "use_pass_diff_filter", text="Filter", toggle=True)         
+        row.prop(octane_view_layer, "use_pass_diff_indir", text="Indirect", toggle=True)
+        row.prop(octane_view_layer, "use_pass_diff_filter", text="Filter", toggle=True)
 
         layout.row().separator()
         split = layout.split(factor=1)
@@ -308,8 +314,8 @@ class OCTANE_RENDER_PT_passes_beauty(OctaneRenderPassesPanel, Panel):
         row = split.row(align=True)
         row.prop(octane_view_layer, "use_pass_reflect", text="Reflection", toggle=True)
         row.prop(octane_view_layer, "use_pass_reflect_dir", text="Direct", toggle=True)
-        row.prop(octane_view_layer, "use_pass_reflect_indir", text="Indirect", toggle=True)        
-        row.prop(octane_view_layer, "use_pass_reflect_filter", text="Filter", toggle=True)     
+        row.prop(octane_view_layer, "use_pass_reflect_indir", text="Indirect", toggle=True)
+        row.prop(octane_view_layer, "use_pass_reflect_filter", text="Filter", toggle=True)
 
         layout.row().separator()
         split = layout.split(factor=1)
@@ -323,16 +329,16 @@ class OCTANE_RENDER_PT_passes_beauty(OctaneRenderPassesPanel, Panel):
         split.use_property_split = False
         row = split.row(align=True)
         row.prop(octane_view_layer, "use_pass_transm", text="Transmission", toggle=True)
-        row.prop(octane_view_layer, "use_pass_transm_filter", text="Transm Filter", toggle=True)        
+        row.prop(octane_view_layer, "use_pass_transm_filter", text="Transm Filter", toggle=True)
 
         layout.row().separator()
-        row = layout.row()
+        _row = layout.row()
         split = layout.split(factor=1)
         split.use_property_split = False
         row = split.row(align=True)
         row.prop(octane_view_layer, "use_pass_volume", text="Volume", toggle=True)
         row.prop(octane_view_layer, "use_pass_vol_mask", text="Mask", toggle=True)
-        row.prop(octane_view_layer, "use_pass_vol_emission", text="Emission", toggle=True)        
+        row.prop(octane_view_layer, "use_pass_vol_emission", text="Emission", toggle=True)
         row.prop(octane_view_layer, "use_pass_vol_z_front", text="ZFront", toggle=True)
         row.prop(octane_view_layer, "use_pass_vol_z_back", text="ZBack", toggle=True)
 
@@ -536,8 +542,8 @@ class OCTANE_RENDER_PT_passes_info(OctaneRenderPassesPanel, Panel):
         split = layout.split(factor=0.15)
         split.use_property_split = False
         split.label(text="Normal")
-        row = split.row(align=True)       
-        row.prop(octane_view_layer, "use_pass_info_geo_normal", text="Geometric", toggle=True)         
+        row = split.row(align=True)
+        row.prop(octane_view_layer, "use_pass_info_geo_normal", text="Geometric", toggle=True)
         row.prop(octane_view_layer, "use_pass_info_smooth_normal", text="Smooth", toggle=True)
         row.prop(octane_view_layer, "use_pass_info_shading_normal", text="Shading", toggle=True)
         row.prop(octane_view_layer, "use_pass_info_tangent_normal", text="Tangent", toggle=True)
@@ -580,8 +586,8 @@ class OCTANE_RENDER_PT_passes_material(OctaneRenderPassesPanel, Panel):
         split = layout.split(factor=0.15)
         split.use_property_split = False
         split.label(text="Filter")
-        row = split.row(align=True)       
-        row.prop(octane_view_layer, "use_pass_mat_diff_filter_info", text="Diffuse", toggle=True)         
+        row = split.row(align=True)
+        row.prop(octane_view_layer, "use_pass_mat_diff_filter_info", text="Diffuse", toggle=True)
         row.prop(octane_view_layer, "use_pass_mat_reflect_filter_info", text="Reflection", toggle=True)
         row.prop(octane_view_layer, "use_pass_mat_refract_filter_info", text="Refraction", toggle=True)
         row.prop(octane_view_layer, "use_pass_mat_transm_filter_info", text="Transmission", toggle=True)
@@ -599,7 +605,8 @@ class OCTANE_RENDER_PT_AOV_Output_node_graph(common.OctanePropertyPanel, Panel):
         row = layout.row()
         composite_node_graph_property = octane_view_layer.composite_node_graph_property
         row.prop(composite_node_graph_property, "node_tree", text="AOV Output Node Tree", icon='NODETREE')
-        utility.panel_ui_node_tree_view1(context, layout, composite_node_graph_property.node_tree, consts.OctaneNodeTreeIDName.COMPOSITE)
+        utility.panel_ui_node_tree_view1(context, layout, composite_node_graph_property.node_tree,
+                                         consts.OctaneNodeTreeIDName.COMPOSITE)
 
 
 class OCTANE_RENDER_PT_override(common.OctanePropertyPanel, Panel):
@@ -623,7 +630,7 @@ class OCTANE_VIEW3D_MT_presets_object_menu(bpy.types.Menu):
         rd = context.scene.render
         return rd.engine == "octane"
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
         layout.operator("octane.quick_add_octane_vectron", text="Vectron®")
         layout.operator("octane.quick_add_octane_box", text="Box")
@@ -650,7 +657,8 @@ def octane_presets_light_menu(self, context):
         return
     self.layout.separator()
     self.layout.operator("octane.quick_add_octane_toon_point_light", icon="LIGHT_POINT", text="Octane Toon Point Light")
-    self.layout.operator("octane.quick_add_octane_toon_directional_light", icon="LIGHT_SUN", text="Octane Toon Directional Light")
+    self.layout.operator("octane.quick_add_octane_toon_directional_light", icon="LIGHT_SUN",
+                         text="Octane Toon Directional Light")
     self.layout.separator()
     self.layout.operator("octane.quick_add_octane_spot_light", icon="LIGHT_SPOT", text="Octane SpotLight")
     self.layout.operator("octane.quick_add_octane_area_light", icon="LIGHT_AREA", text="Octane Area Light")
@@ -689,11 +697,12 @@ _CLASSES = [
 ]
 
 
-def register(): 
+def register():
     for cls in _CLASSES:
         register_class(cls)
     bpy.types.VIEW3D_MT_add.append(octane_presets_object_menu)
     bpy.types.VIEW3D_MT_light_add.append(octane_presets_light_menu)
+
 
 def unregister():
     for cls in _CLASSES:

@@ -1,8 +1,8 @@
-##### BEGIN OCTANE GENERATED CODE BLOCK #####
-import bpy
-from bpy.utils import register_class, unregister_class
+# <pep8 compliant>
+
+# BEGIN OCTANE GENERATED CODE BLOCK #
 from . import output_aov_group
-from . import light_mixer_output_aov
+from . import legacy_output_aov
 from . import blending_settings
 from . import channel_clamp
 from . import adjust_contrast_sdr_only_
@@ -28,6 +28,7 @@ from . import apply_gamma_curve_sdr_only_
 from . import adjust_hue
 from . import channel_invert_sdr_only_
 from . import convert_for_sdr_display_agx_
+from . import light_mixer
 from . import apply_custom_curve
 from . import apply_lut
 from . import apply_camera_response_curve_sdr_only_
@@ -38,14 +39,19 @@ from . import add_lens_flare
 from . import add_chromatic_aberration
 from . import blur
 from . import convert_for_sdr_display_smooth_
+from . import save_checkpoint
+from . import load_checkpoint
+from . import discard_checkpoint
+from . import sharpen
 from . import output_aov_group_switch
 from . import output_aov_switch
 from . import output_aov_layer_switch
 from . import blending_settings_switch
 
+
 def register():
     output_aov_group.register()
-    light_mixer_output_aov.register()
+    legacy_output_aov.register()
     blending_settings.register()
     channel_clamp.register()
     adjust_contrast_sdr_only_.register()
@@ -71,6 +77,7 @@ def register():
     adjust_hue.register()
     channel_invert_sdr_only_.register()
     convert_for_sdr_display_agx_.register()
+    light_mixer.register()
     apply_custom_curve.register()
     apply_lut.register()
     apply_camera_response_curve_sdr_only_.register()
@@ -81,14 +88,19 @@ def register():
     add_chromatic_aberration.register()
     blur.register()
     convert_for_sdr_display_smooth_.register()
+    save_checkpoint.register()
+    load_checkpoint.register()
+    discard_checkpoint.register()
+    sharpen.register()
     output_aov_group_switch.register()
     output_aov_switch.register()
     output_aov_layer_switch.register()
     blending_settings_switch.register()
 
+
 def unregister():
     output_aov_group.unregister()
-    light_mixer_output_aov.unregister()
+    legacy_output_aov.unregister()
     blending_settings.unregister()
     channel_clamp.unregister()
     adjust_contrast_sdr_only_.unregister()
@@ -114,6 +126,7 @@ def unregister():
     adjust_hue.unregister()
     channel_invert_sdr_only_.unregister()
     convert_for_sdr_display_agx_.unregister()
+    light_mixer.unregister()
     apply_custom_curve.unregister()
     apply_lut.unregister()
     apply_camera_response_curve_sdr_only_.unregister()
@@ -124,9 +137,13 @@ def unregister():
     add_chromatic_aberration.unregister()
     blur.unregister()
     convert_for_sdr_display_smooth_.unregister()
+    save_checkpoint.unregister()
+    load_checkpoint.unregister()
+    discard_checkpoint.unregister()
+    sharpen.unregister()
     output_aov_group_switch.unregister()
     output_aov_switch.unregister()
     output_aov_layer_switch.unregister()
     blending_settings_switch.unregister()
 
-##### END OCTANE GENERATED CODE BLOCK #####
+# END OCTANE GENERATED CODE BLOCK #

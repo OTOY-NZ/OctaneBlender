@@ -239,6 +239,7 @@ namespace OctaneDataTransferObject {
         bDirtVisibility.IsSameValue(other.bDirtVisibility) &&
         bCurvatureVisibility.IsSameValue(other.bCurvatureVisibility) &&
         iRandomColorSeed.IsSameValue(other.iRandomColorSeed) &&
+        iLightPassMask.IsSameValue(other.iLightPassMask) &&
         f3Color.IsSameValue(other.f3Color) &&
         fRotationZ.IsSameValue(other.fRotationZ) &&
         fScaleX.IsSameValue(other.fScaleX) &&

@@ -12,55 +12,55 @@ from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, O
 
 
 class OctaneCompositeAOVOutputImager(OctaneBaseSocket):
-    bl_idname="OctaneCompositeAOVOutputImager"
-    bl_label="Enable imager"
-    color=consts.OctanePinColor.Bool
-    octane_default_node_type=consts.NodeType.NT_BOOL
-    octane_default_node_name="OctaneBoolValue"
+    bl_idname = "OctaneCompositeAOVOutputImager"
+    bl_label = "Enable imager"
+    color = consts.OctanePinColor.Bool
+    octane_default_node_type = consts.NodeType.NT_BOOL
+    octane_default_node_name = "OctaneBoolValue"
     octane_pin_id=consts.PinID.P_IMAGER
     octane_pin_name="imager"
-    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_type = consts.PinType.PT_BOOL
     octane_pin_index=0
-    octane_socket_type=consts.SocketType.ST_BOOL
+    octane_socket_type = consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Whether to apply the imager settings on the final AOV output. Only used if this node is the root output AOV node (i.e. directly connected to the output AOV group node)")
-    octane_hide_value=False
-    octane_min_version=10021000
-    octane_end_version=4294967295
-    octane_deprecated=False
+    octane_hide_value = False
+    octane_min_version = 10021000
+    octane_end_version = 4294967295
+    octane_deprecated = False
 
 class OctaneCompositeAOVOutputPostproc(OctaneBaseSocket):
-    bl_idname="OctaneCompositeAOVOutputPostproc"
-    bl_label="Enable post processing"
-    color=consts.OctanePinColor.Bool
-    octane_default_node_type=consts.NodeType.NT_BOOL
-    octane_default_node_name="OctaneBoolValue"
+    bl_idname = "OctaneCompositeAOVOutputPostproc"
+    bl_label = "Enable post processing"
+    color = consts.OctanePinColor.Bool
+    octane_default_node_type = consts.NodeType.NT_BOOL
+    octane_default_node_name = "OctaneBoolValue"
     octane_pin_id=consts.PinID.P_POST_PROCESSING
     octane_pin_name="postproc"
-    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_type = consts.PinType.PT_BOOL
     octane_pin_index=1
-    octane_socket_type=consts.SocketType.ST_BOOL
+    octane_socket_type = consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Whether to apply the post processing settings on the final AOV output. Only used if this node is the root output AOV node (i.e. directly connected to the output AOV group node)")
-    octane_hide_value=False
-    octane_min_version=10021000
-    octane_end_version=4294967295
-    octane_deprecated=False
+    octane_hide_value = False
+    octane_min_version = 10021000
+    octane_end_version = 4294967295
+    octane_deprecated = False
 
 class OctaneCompositeAOVOutputGroupOutputSettings(OctaneGroupTitleSocket):
-    bl_idname="OctaneCompositeAOVOutputGroupOutputSettings"
-    bl_label="[OctaneGroupTitle]Output settings"
+    bl_idname = "OctaneCompositeAOVOutputGroupOutputSettings"
+    bl_label = "[OctaneGroupTitle]Output settings"
     octane_group_sockets: StringProperty(name="Group Sockets", default="Enable imager;Enable post processing;")
 
 class OctaneCompositeAOVOutput(bpy.types.Node, OctaneBaseNode):
-    bl_idname="OctaneCompositeAOVOutput"
-    bl_label="Composite output AOV"
-    bl_width_default=200
-    octane_render_pass_id=-1
-    octane_render_pass_name=""
-    octane_render_pass_short_name=""
-    octane_render_pass_description=""
-    octane_render_pass_sub_type_name=""
+    bl_idname = "OctaneCompositeAOVOutput"
+    bl_label = "Composite output AOV"
+    bl_width_default = 200
+    octane_render_pass_id = -1
+    octane_render_pass_name = ""
+    octane_render_pass_short_name = ""
+    octane_render_pass_description = ""
+    octane_render_pass_sub_type_name = ""
     octane_socket_class_list=[OctaneCompositeAOVOutputGroupOutputSettings,OctaneCompositeAOVOutputImager,OctaneCompositeAOVOutputPostproc,]
-    octane_min_version=0
+    octane_min_version = 0
     octane_node_type=consts.NodeType.NT_OUTPUT_AOV_COMPOSITE
     octane_socket_list=["Enable imager", "Enable post processing", ]
     octane_attribute_list=["a_layer_count", "a_compatibility_version", ]
@@ -104,25 +104,25 @@ def unregister():
     utility.octane_unregister_interface_class(_SOCKET_INTERFACE_CLASSES)
     utility.octane_unregister_class(reversed(_CLASSES))
 
-##### END OCTANE GENERATED CODE BLOCK #####
+# END OCTANE GENERATED CODE BLOCK #
 
 
 class OctaneCompositeAOVOutputMovableLayerInput(OctaneMovableInput):
-    bl_idname="OctaneCompositeAOVOutputMovableLayerInput"
-    bl_label="Layer"
-    octane_movable_input_count_attribute_name="a_layer_count"
-    octane_input_pattern=r"Layer (\d+)"
-    octane_input_format_pattern="Layer {}"
-    octane_reversed_input_sockets=True
-    color=consts.OctanePinColor.CompositeAOVOutputLayer
-    octane_default_node_type=consts.NodeType.NT_COMPOSITE_AOV_LAYER
+    bl_idname = "OctaneCompositeAOVOutputMovableLayerInput"
+    bl_label = "Layer"
+    octane_movable_input_count_attribute_name = "a_layer_count"
+    octane_input_pattern = r"Layer (\d+)"
+    octane_input_format_pattern = "Layer {}"
+    octane_reversed_input_sockets = True
+    color = consts.OctanePinColor.CompositeAOVOutputLayer
+    octane_default_node_type = consts.NodeType.NT_COMPOSITE_AOV_LAYER
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_OUTPUT_AOV_LAYER)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)    
 
 
 class OctaneCompositeAOVOutputGroupLayers(OctaneGroupTitleMovableInputs):
-    bl_idname="OctaneCompositeAOVOutputGroupLayers"
-    bl_label="[OctaneGroupTitle]Layers"
+    bl_idname = "OctaneCompositeAOVOutputGroupLayers"
+    bl_label = "[OctaneGroupTitle]Layers"
     octane_group_sockets: StringProperty(name="Group Sockets", default="")
 
 

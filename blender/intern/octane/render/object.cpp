@@ -154,7 +154,9 @@ void ObjectManager::server_update(::OctaneEngine::OctaneClient *server,
   if (progress.get_cancel())
     return;
 
-  scene->generate_final_octane_objects_data(octane_objects, current_octane_objects);
+  if (scene && scene->session && scene->session->params.interactive) {
+    scene->generate_final_octane_objects_data(octane_objects, current_octane_objects);
+  }
   server->uploadOctaneObjects(current_octane_objects);
 }
 

@@ -15,33 +15,33 @@ from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, O
 
 
 class OctaneObjectLayerSwitchIndex(OctaneBaseSocket):
-    bl_idname="OctaneObjectLayerSwitchIndex"
-    bl_label="Input"
-    color=consts.OctanePinColor.Int
-    octane_default_node_type=consts.NodeType.NT_INT
-    octane_default_node_name="OctaneIntValue"
+    bl_idname = "OctaneObjectLayerSwitchIndex"
+    bl_label = "Input"
+    color = consts.OctanePinColor.Int
+    octane_default_node_type = consts.NodeType.NT_INT
+    octane_default_node_name = "OctaneIntValue"
     octane_pin_id=consts.PinID.P_INDEX
     octane_pin_name="index"
-    octane_pin_type=consts.PinType.PT_INT
+    octane_pin_type = consts.PinType.PT_INT
     octane_pin_index=0
-    octane_socket_type=consts.SocketType.ST_INT
+    octane_socket_type = consts.SocketType.ST_INT
     default_value: IntProperty(default=1, update=OctaneBaseSocket.update_node_tree, description="", min=1, max=2147483647, soft_min=1, soft_max=2147483647, step=1, subtype="NONE")
-    octane_hide_value=False
-    octane_min_version=0
-    octane_end_version=4294967295
-    octane_deprecated=False
+    octane_hide_value = False
+    octane_min_version = 0
+    octane_end_version = 4294967295
+    octane_deprecated = False
 
 class OctaneObjectLayerSwitch(bpy.types.Node, OctaneBaseSwitchNode):
-    bl_idname="OctaneObjectLayerSwitch"
-    bl_label="Object layer switch"
-    bl_width_default=200
-    octane_render_pass_id=-1
-    octane_render_pass_name=""
-    octane_render_pass_short_name=""
-    octane_render_pass_description=""
-    octane_render_pass_sub_type_name=""
+    bl_idname = "OctaneObjectLayerSwitch"
+    bl_label = "Object layer switch"
+    bl_width_default = 200
+    octane_render_pass_id = -1
+    octane_render_pass_name = ""
+    octane_render_pass_short_name = ""
+    octane_render_pass_description = ""
+    octane_render_pass_sub_type_name = ""
     octane_socket_class_list=[OctaneObjectLayerSwitchIndex,]
-    octane_min_version=13000000
+    octane_min_version = 13000000
     octane_node_type=consts.NodeType.NT_SWITCH_OBJECTLAYER
     octane_socket_list=["Input", ]
     octane_attribute_list=["a_option_count", ]
@@ -76,4 +76,4 @@ def unregister():
     utility.octane_unregister_interface_class(_SOCKET_INTERFACE_CLASSES)
     utility.octane_unregister_class(reversed(_CLASSES))
 
-##### END OCTANE GENERATED CODE BLOCK #####
+# END OCTANE GENERATED CODE BLOCK #
