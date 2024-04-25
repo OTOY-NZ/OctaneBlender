@@ -1515,10 +1515,11 @@ struct Kernel {
 
   float fShutterTime;
   float fCurrentTime;
-  MBAlignmentType mbAlignment;
+  MBAlignmentType mbAlignment;  
   float fSubframeStart;
   float fSubframeEnd;
   bool bEmulateOldMotionBlurBehavior;
+  float fFrameCount;
 
   // COMMON
   int32_t iMaxSamples;
@@ -1707,6 +1708,7 @@ struct Kernel {
 
         && fShutterTime == otherKernel.fShutterTime && fCurrentTime == otherKernel.fCurrentTime &&
         fSubframeStart == otherKernel.fSubframeStart && fSubframeEnd == otherKernel.fSubframeEnd &&
+        fFrameCount == otherKernel.fFrameCount &&
         bEmulateOldMotionBlurBehavior == otherKernel.bEmulateOldMotionBlurBehavior &&
         mbAlignment == otherKernel.mbAlignment
 
@@ -1884,6 +1886,8 @@ struct Kernel {
       fSubframeStart = otherKernel.fSubframeStart;
     if (fSubframeEnd != otherKernel.fSubframeEnd)
       fSubframeEnd = otherKernel.fSubframeEnd;
+    if (fFrameCount != otherKernel.fFrameCount)
+      fFrameCount = otherKernel.fFrameCount;
     if (mbAlignment != otherKernel.mbAlignment)
       mbAlignment = otherKernel.mbAlignment;
     if (bEmulateOldMotionBlurBehavior != otherKernel.bEmulateOldMotionBlurBehavior)

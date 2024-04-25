@@ -1,0 +1,47 @@
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
+
+#ifndef __UTIL_MATH_INT2_H__
+#define __UTIL_MATH_INT2_H__
+
+#ifndef __UTIL_MATH_H__
+#  error "Do not include this file directly, include util/types.h instead."
+#endif
+
+OCT_NAMESPACE_BEGIN
+
+#if !defined(__KERNEL_METAL__)
+oct_device_inline bool operator==(const int2 a, const int2 b)
+{
+  return (a.x == b.x && a.y == b.y);
+}
+
+oct_device_inline int2 operator+(const int2 &a, const int2 &b)
+{
+  return make_int2(a.x + b.x, a.y + b.y);
+}
+
+oct_device_inline int2 operator+=(int2 &a, const int2 &b)
+{
+  return a = a + b;
+}
+
+oct_device_inline int2 operator-(const int2 &a, const int2 &b)
+{
+  return make_int2(a.x - b.x, a.y - b.y);
+}
+
+oct_device_inline int2 operator*(const int2 &a, const int2 &b)
+{
+  return make_int2(a.x * b.x, a.y * b.y);
+}
+
+oct_device_inline int2 operator/(const int2 &a, const int2 &b)
+{
+  return make_int2(a.x / b.x, a.y / b.y);
+}
+#endif /* !__KERNEL_METAL__ */
+
+OCT_NAMESPACE_END
+
+#endif /* __UTIL_MATH_INT2_H__ */

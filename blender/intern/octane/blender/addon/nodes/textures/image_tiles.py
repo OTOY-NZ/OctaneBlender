@@ -234,8 +234,8 @@ class OctaneImageTiles_Override(OctaneImageTiles):
                 u = int((tile_number - 1001) % 10)
                 v = int((tile_number - 1001) / 10)
                 uv = (u, v)
-                grid_size[0] = max(grid_size[0], n % 10)
-                grid_size[1] = max(1, max(grid_size[1], int(n / 10) + 1))
+                grid_size[0] = max(grid_size[0], u + 1)
+                grid_size[1] = max(1, max(grid_size[1], v + 1))
                 cycles_image_helper = self.get_octane_image_helper()
                 cycles_image_helper.image_user.tile = tile.number
                 tile_filepath = self.image.filepath_from_user(image_user=cycles_image_helper.image_user)

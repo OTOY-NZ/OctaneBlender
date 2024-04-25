@@ -48,162 +48,233 @@ class OCTANE_PT_mesh_properties(OctaneButtonsPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
+        scene = context.scene
+        ob = context.object
+        ob_data = ob.data
+        if ob_data is None:
+            return
+        ob_data_octane = ob_data.octane
+        col = layout.column(align=True)
+        col.use_property_split = True
+        col.use_property_decorate = False
+        col.prop(ob_data_octane, "infinite_plane")
+        col.prop(ob_data_octane, "primitive_coordinate_mode")
+        col.prop(ob_data_octane, "force_load_vertex_normals")
+        col.prop(ob_data_octane, "winding_order")
 
-        mesh = context.mesh
-        mball = context.meta_ball
 
-        if mesh:
-            cdata = mesh.octane
-        elif mball:
-            cdata = mball.octane
-        
-        sub = layout.row(align=True)
-        sub.prop(cdata, "force_load_vertex_normals")
+class OCTANE_PT_mesh_properties_geometric_node(OctaneButtonsPanel, Panel):
+    bl_label = "Geometric Node"
+    bl_parent_id = "OCTANE_PT_mesh_properties"
+    bl_context = "data"
 
-        sub = layout.row(align=True)
-        sub.prop(cdata, "primitive_coordinate_mode")
-        sub = layout.row(align=True)
-        sub.prop(cdata, "winding_order")
-        sub = layout.row(align=True)
-        sub.prop(cdata, "infinite_plane")        
-        for modifier in context.object.modifiers:
-            if modifier.type in ('SUBSURF', ):                
-                sub = layout.row(align=True)        
-                sub.prop(cdata, "tessface_in_preview")
-                break
-        sub = layout.row(align=True)
-        sub.prop(cdata, "hair_interpolation")
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        ob = context.object
+        ob_data = ob.data
+        if ob_data is None:
+            return
+        ob_data_octane = ob_data.octane
+        col = layout.column(align=True)
+        row = col.row()
+        row.prop_search(ob_data_octane.octane_geo_node_collections, "node_graph_tree", bpy.data, "materials")
+        row.operator('update.octane_geo_nodes', icon='FILE_REFRESH')
+        row = col.row()
+        row.prop_search(ob_data_octane.octane_geo_node_collections, "osl_geo_node", ob_data_octane.octane_geo_node_collections, "osl_geo_nodes")
+        row = col.row()
+        osl_node_draw(context, row, str(ob_data_octane.octane_geo_node_collections.node_graph_tree), str(ob_data_octane.octane_geo_node_collections.osl_geo_node))
 
-        if context.curve:
-            row = layout.row(align=True)
-            sub = row.column(align=True)
-            sub.prop(cdata, "use_auto_smooth")
-            sub = row.column(align=True)
-            sub.prop(cdata, "auto_smooth_angle")
 
+class OCTANE_PT_mesh_properties_open_subdivision(OctaneButtonsPanel, Panel):
+    bl_label = "Open SubDivision"
+    bl_parent_id = "OCTANE_PT_mesh_properties"
+    bl_context = "data"
+    bl_options = {"DEFAULT_CLOSED"}
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        ob = context.object
+        ob_data = ob.data
+        if ob_data is None:
+            return
+        ob_data_octane = ob_data.octane
+        col = layout.column(align=True)
+        col.use_property_split = True
+        col.use_property_decorate = False
+        col.prop(ob_data_octane, "open_subd_enable", text="Enable")
+        col.prop(ob_data_octane, "open_subd_scheme")
+        col.prop(ob_data_octane, "open_subd_bound_interp")
+        col.prop(ob_data_octane, "open_subd_level")
+        col.prop(ob_data_octane, "open_subd_sharpness")
+
+
+class OCTANE_PT_mesh_properties_sphere_attributes(OctaneButtonsPanel, Panel):
+    bl_label = "Sphere Attributes"
+    bl_parent_id = "OCTANE_PT_mesh_properties"
+    bl_context = "data"
+    bl_options = {"DEFAULT_CLOSED"}
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        ob = context.object
+        ob_data = ob.data
+        if ob_data is None:
+            return
+        ob_data_octane = ob_data.octane
+        col = layout.column(align=True)
+        col.use_property_split = True
+        col.use_property_decorate = False
+        col.prop(ob_data_octane, "octane_enable_sphere_attribute")
+        col.prop(ob_data_octane, "octane_hide_original_mesh")
+        col.prop(ob_data_octane, "octane_sphere_radius")
+        col.prop(ob_data_octane, "octane_use_randomized_radius")
+        col.prop(ob_data_octane, "octane_sphere_randomized_radius_seed")
+        col.prop(ob_data_octane, "octane_sphere_randomized_radius_min")
+        col.prop(ob_data_octane, "octane_sphere_randomized_radius_max")
+
+
+class OCTANE_PT_mesh_properties_orbx_properties(OctaneButtonsPanel, Panel):
+    bl_label = "Orbx Properties"
+    bl_parent_id = "OCTANE_PT_mesh_properties"
+    bl_context = "data"
+    bl_options = {"DEFAULT_CLOSED"}
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        ob = context.object
+        ob_data = ob.data
+        if ob_data is None:
+            return
+        ob_data_octane = ob_data.octane
+        col = layout.column(align=True)
+        col.use_property_split = True
+        col.use_property_decorate = False
+        col.prop(ob_data_octane, "imported_orbx_file_path")
+        col.prop(ob_data_octane, "enable_animation_time_transformation")
+        col.prop(ob_data_octane, "animation_time_transformation_delay")
+        col.prop(ob_data_octane, "animation_time_transformation_scale")
+        col.prop(ob_data_octane, "orbx_preview_type")
+        if ob_data_octane.orbx_preview_type == "External Alembic":
+            row = col.row(align=True)
+            row.prop(ob_data_octane, "converted_alembic_asset_path")
+        row = col.row(align=True)
+        row.operator("octane.generate_orbx_preview")
+
+
+class OCTANE_PT_mesh_properties_mesh_volume(OctaneButtonsPanel, Panel):
+    bl_label = "Mesh volume"
+    bl_parent_id = "OCTANE_PT_mesh_properties"
+    bl_context = "data"
+    bl_options = {"DEFAULT_CLOSED"}
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        ob = context.object
+        ob_data = ob.data
+        if ob_data is None:
+            return
+        ob_data_octane = ob_data.octane
+        col = layout.column(align=True)
+        col.use_property_split = True
+        col.use_property_decorate = False
+        col.prop(ob_data_octane, "enable_mesh_volume")
+        col.prop(ob_data_octane, "enable_mesh_volume_sdf")
+        col.prop(ob_data_octane, "mesh_volume_sdf_voxel_size")
+        col.prop(ob_data_octane, "mesh_volume_sdf_border_thickness_inside")
+        col.prop(ob_data_octane, "mesh_volume_sdf_border_thickness_outside")
+
+
+class OCTANE_PT_mesh_properties_offset_transform(OctaneButtonsPanel, Panel):
+    bl_label = "Offset Transform"
+    bl_parent_id = "OCTANE_PT_mesh_properties"
+    bl_context = "data"
+    bl_options = {"DEFAULT_CLOSED"}
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        ob = context.object
+        ob_data = ob.data
+        if ob_data is None:
+            return
+        ob_data_octane = ob_data.octane
+        col = layout.column(align=True)
+        col.use_property_split = True
+        col.use_property_decorate = False
+        col.prop(ob_data_octane, "enable_octane_offset_transform")
+        col.prop(ob_data_octane, "octane_offset_translation")
+        col.prop(ob_data_octane, "octane_offset_rotation_order")
+        col.prop(ob_data_octane, "octane_offset_rotation")
+        col.prop(ob_data_octane, "octane_offset_scale")
+
+
+class OCTANE_PT_mesh_properties_legacy_settings(OctaneButtonsPanel, Panel):
+    bl_label = "Legacy Settings"
+    bl_parent_id = "OCTANE_PT_mesh_properties"
+    bl_context = "data"
+    bl_options = {"DEFAULT_CLOSED"}
+
+    @classmethod
+    def poll(cls, context):
+        if OctaneButtonsPanel.poll(context):
+            scene = context.scene
+            ob = context.object
+            ob_data = ob.data
+            if ob_data is not None:
+                ob_data_octane = ob_data.octane
+                # For the versions after 21.12, we use OpenVDB in Blender volume
+                # This section will be drop so we hide octane volume properites if it's not used
+                if ob_data_octane.is_octane_vdb or len(ob_data_octane.imported_openvdb_file_path) > 0:
+                    return True
+        return False
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        ob = context.object
+        ob_data = ob.data
+        if ob_data is None:
+            return
+        ob_data_octane = ob_data.octane
+        cdata = ob_data_octane
         box = layout.box()
-        box.label(text="Sphere Attributes:")
-        sub = box.row(align=True)
-        sub.prop(cdata, "octane_enable_sphere_attribute")
-        sub = box.row(align=True)
-        sub.active = cdata.octane_enable_sphere_attribute
-        sub.prop(cdata, "octane_hide_original_mesh")
-        sub = box.row(align=True)
-        sub.prop(cdata, "octane_sphere_radius") 
-        sub = box.row(align=True)
-        sub.prop(cdata, "octane_use_randomized_radius")
-        if cdata.octane_use_randomized_radius:
-            sub = box.row(align=True)
-            sub.prop(cdata, "octane_sphere_randomized_radius_seed")
-            sub = box.row(align=True)
-            sub.prop(cdata, "octane_sphere_randomized_radius_min")
-            sub.prop(cdata, "octane_sphere_randomized_radius_max")
-
-        box = layout.box()
-        box.label(text="OpenSubDiv:")
-        sub = box.row(align=True)
-        sub.prop(cdata, "open_subd_enable", text="Enable")
-        sub = box.row(align=True)
-        sub.prop(cdata, "open_subd_scheme")
-        sub = box.row(align=True)
-        sub.prop(cdata, "open_subd_bound_interp")
+        box.label(text="Volume properties:")
         sub = box.column(align=True)
-        sub.prop(cdata, "open_subd_level")
-        sub.prop(cdata, "open_subd_sharpness")
-
-        # For the versions after 21.12, we use OpenVDB in Blender volume
-        # This section will be drop so we hide octane volume properites if it's not used
-        if cdata.is_octane_vdb or len(cdata.imported_openvdb_file_path) > 0:
-            box = layout.box()
-            box.label(text="Volume properties:")            
-            sub = box.column(align=True)     
-            sub.label(text="The new OpenVDB feature is supported in the Blender Volume object since Blender 2.83. Please use that one for the new productions", icon='INFO')
-            sub = box.column(align=True)     
-            sub.prop(cdata, "is_octane_vdb")
-            sub.prop(cdata, "vdb_sdf")
-            sub.prop(cdata, "imported_openvdb_file_path")
-            sub.prop(cdata, "vdb_import_scale")
-            sub = box.row(align=True)
-            sub.prop(cdata, "openvdb_frame_start")
-            sub.prop(cdata, "openvdb_frame_end")   
-            sub = box.row(align=True)     
-            sub.prop(cdata, "openvdb_frame_start_playing_at")
-            sub.prop(cdata, "openvdb_frame_speed_mutiplier")
-            sub = box.column(align=True)
-            sub.prop(cdata, "vdb_iso")
-            sub.prop(cdata, "vdb_abs_scale")
-            sub.prop(cdata, "vdb_emiss_scale")        
-            sub.prop(cdata, "vdb_scatter_scale")             
-            sub.prop_search(cdata, "vdb_absorption_grid_id", cdata.octane_vdb_info, "vdb_float_grid_id_container")        
-            sub.prop_search(cdata, "vdb_emission_grid_id", cdata.octane_vdb_info, "vdb_float_grid_id_container")
-            sub.prop_search(cdata, "vdb_scattering_grid_id", cdata.octane_vdb_info, "vdb_float_grid_id_container")
-            sub = box.column(align=True)
-            sub.prop(cdata, "vdb_motion_blur_enabled")
-            sub.prop(cdata, "vdb_velocity_grid_type")
-            sub.prop(cdata, "vdb_vel_scale")
-            if cdata.vdb_velocity_grid_type == 'Vector grid':
-                sub.prop_search(cdata, "vdb_vector_grid_id", cdata.octane_vdb_info, "vdb_vector_grid_id_container")            
-            else:
-                sub.prop_search(cdata, "vdb_x_components_grid_id", cdata.octane_vdb_info, "vdb_float_grid_id_container")        
-                sub.prop_search(cdata, "vdb_y_components_grid_id", cdata.octane_vdb_info, "vdb_float_grid_id_container")
-                sub.prop_search(cdata, "vdb_z_components_grid_id", cdata.octane_vdb_info, "vdb_float_grid_id_container")            
-
-        box = layout.box()
-        box.label(text="Octane Geometric Node:")        
-        col = box.column(align = True)
-        sub = col.row(align = True)
-        sub.prop_search(cdata.octane_geo_node_collections, "node_graph_tree", bpy.data, "materials")
-        sub.operator('update.octane_geo_nodes', icon='FILE_REFRESH')
-        sub = col.row(align = True)        
-        sub.prop_search(cdata.octane_geo_node_collections, "osl_geo_node", cdata.octane_geo_node_collections, "osl_geo_nodes")            
-        osl_node_draw(context, box, str(cdata.octane_geo_node_collections.node_graph_tree), str(cdata.octane_geo_node_collections.osl_geo_node))
-
-        box = layout.box()
-        box.label(text="Orbx properties:")   
-        sub = box.column(align=True)     
-        sub.prop(cdata, "imported_orbx_file_path")
+        sub.label(text="The new OpenVDB feature is supported in the Blender Volume object since Blender 2.83. Please use that one for the new productions", icon='INFO')
+        sub = box.column(align=True)
+        sub.prop(cdata, "is_octane_vdb")
+        sub.prop(cdata, "vdb_sdf")
+        sub.prop(cdata, "imported_openvdb_file_path")
+        sub.prop(cdata, "vdb_import_scale")
         sub = box.row(align=True)
-        sub.prop(cdata, "enable_animation_time_transformation")
-        sub = box.row(align=True)
-        sub.prop(cdata, "animation_time_transformation_delay")
-        sub = box.row(align=True)
-        sub.prop(cdata, "animation_time_transformation_scale")
-        sub = box.row(align=True)
-        sub.prop(cdata, "orbx_preview_type")
-        if cdata.orbx_preview_type == "External Alembic":
-            sub = box.row(align=True)
-            sub.prop(cdata, "converted_alembic_asset_path")
-        # elif cdata.orbx_preview_type == "Point Cloud":
-        #     sub = box.row(align=True)
-        #     sub.prop(cdata, "point_cloud_lod")
-        sub = box.row(align=True)
-        sub.operator("octane.generate_orbx_preview")
-
-        box = layout.box()
-        box.label(text="Mesh volume")
-        sub = box.row(align=True)
-        sub.prop(cdata, "enable_mesh_volume")
-        sub = box.row(align=True)
-        sub.prop(cdata, "enable_mesh_volume_sdf")
-        sub = box.row(align=True)
-        sub.prop(cdata, "mesh_volume_sdf_voxel_size")
-        sub = box.row(align=True)
-        sub.prop(cdata, "mesh_volume_sdf_border_thickness_inside")
-        sub = box.row(align=True)
-        sub.prop(cdata, "mesh_volume_sdf_border_thickness_outside")
-
-        box = layout.box()
-        box.label(text="Octane Offset Transform:")        
-        sub = box.row(align=True)
-        sub.prop(cdata, "enable_octane_offset_transform")
-        sub = box.row(align=True)
-        sub.prop(cdata, "octane_offset_translation")
-        sub = box.row(align=True)
-        sub.prop(cdata, "octane_offset_rotation_order")
-        sub = box.row(align=True)
-        sub.prop(cdata, "octane_offset_rotation")
-        sub = box.row(align=True)
-        sub.prop(cdata, "octane_offset_scale")
+        sub.prop(cdata, "openvdb_frame_start")
+        sub.prop(cdata, "openvdb_frame_end")   
+        sub = box.row(align=True)     
+        sub.prop(cdata, "openvdb_frame_start_playing_at")
+        sub.prop(cdata, "openvdb_frame_speed_mutiplier")
+        sub = box.column(align=True)
+        sub.prop(cdata, "vdb_iso")
+        sub.prop(cdata, "vdb_abs_scale")
+        sub.prop(cdata, "vdb_emiss_scale")
+        sub.prop(cdata, "vdb_scatter_scale")
+        sub.prop_search(cdata, "vdb_absorption_grid_id", cdata.octane_vdb_info, "vdb_float_grid_id_container")
+        sub.prop_search(cdata, "vdb_emission_grid_id", cdata.octane_vdb_info, "vdb_float_grid_id_container")
+        sub.prop_search(cdata, "vdb_scattering_grid_id", cdata.octane_vdb_info, "vdb_float_grid_id_container")
+        sub = box.column(align=True)
+        sub.prop(cdata, "vdb_motion_blur_enabled")
+        sub.prop(cdata, "vdb_velocity_grid_type")
+        sub.prop(cdata, "vdb_vel_scale")
+        if cdata.vdb_velocity_grid_type == 'Vector grid':
+            sub.prop_search(cdata, "vdb_vector_grid_id", cdata.octane_vdb_info, "vdb_vector_grid_id_container")
+        else:
+            sub.prop_search(cdata, "vdb_x_components_grid_id", cdata.octane_vdb_info, "vdb_float_grid_id_container")
+            sub.prop_search(cdata, "vdb_y_components_grid_id", cdata.octane_vdb_info, "vdb_float_grid_id_container")
+            sub.prop_search(cdata, "vdb_z_components_grid_id", cdata.octane_vdb_info, "vdb_float_grid_id_container")
 
 
 class OCTANE_PT_volume_properties(OctaneButtonsPanel, Panel):
@@ -536,7 +607,7 @@ class OCTANE_OBJECT_PT_octane_settings_baking_settings(OctaneButtonsPanel, Panel
     bl_context = "object"
 
     def draw(self, context):
-        layout = self.layout        
+        layout = self.layout
         scene = context.scene
         ob = context.object
         octane_object = ob.octane
@@ -559,7 +630,7 @@ class OCTANE_OBJECT_PT_octane_settings_scatter_settings(OctaneButtonsPanel, Pane
     bl_context = "object"
 
     def draw(self, context):
-        layout = self.layout        
+        layout = self.layout
         scene = context.scene
         ob = context.object
         octane_object = ob.octane
@@ -655,6 +726,14 @@ classes = (
     OCTANE_RENDER_PT_output,
 
     OCTANE_PT_mesh_properties,
+    OCTANE_PT_mesh_properties_geometric_node,
+    OCTANE_PT_mesh_properties_open_subdivision,
+    OCTANE_PT_mesh_properties_sphere_attributes,
+    OCTANE_PT_mesh_properties_orbx_properties,
+    OCTANE_PT_mesh_properties_mesh_volume,
+    OCTANE_PT_mesh_properties_offset_transform,
+    OCTANE_PT_mesh_properties_legacy_settings,
+
     OCTANE_PT_volume_properties,
     OCTANE_RENDER_PT_SpherePrimitiveSettings,
     OCTANE_PT_context_material,
@@ -666,7 +745,7 @@ classes = (
     OCTANE_OBJECT_PT_octane_settings,
     OCTANE_OBJECT_PT_octane_settings_object_layer,
     OCTANE_OBJECT_PT_octane_settings_baking_settings,
-    # OCTANE_OBJECT_PT_octane_settings_scatter_settings,
+    OCTANE_OBJECT_PT_octane_settings_scatter_settings,
 )
 
 

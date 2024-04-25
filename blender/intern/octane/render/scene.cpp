@@ -30,8 +30,8 @@
 #include "render/shader.h"
 #include "scene.h"
 #include "session.h"
-#include "util/util_foreach.h"
-#include "util/util_progress.h"
+#include "util/foreach.h"
+#include "util/progress.h"
 
 OCT_NAMESPACE_BEGIN
 

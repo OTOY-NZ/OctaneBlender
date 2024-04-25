@@ -19,7 +19,7 @@
 #ifndef __KERNEL_H__
 #define __KERNEL_H__
 
-#include "util/util_types.h"
+#include "util/types.h"
 
 #include "blender/server/octane_client.h"
 

@@ -24,7 +24,7 @@
 #include "session.h"
 #include "shader.h"
 
-#include "util/util_progress.h"
+#include "util/progress.h"
 
 #include <algorithm>
 

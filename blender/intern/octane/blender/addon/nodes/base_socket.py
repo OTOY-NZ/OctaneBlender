@@ -950,8 +950,6 @@ class OCTANE_OT_BaseCryptomattePicker(bpy.types.Operator):
                     else:
                         result = True
                         response_mattes = custom_data_et.findtext("mattes")
-            print("result", result)
-            print("response_mattes", response_mattes)
             if result:
                 node.inputs["Mattes"].default_value = response_mattes
             return {'FINISHED'}

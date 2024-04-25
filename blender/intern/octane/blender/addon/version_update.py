@@ -1,6 +1,6 @@
-OCTANE_BLENDER_VERSION = '28.3'
-OCTANE_VERSION = 13000006
-OCTANE_VERSION_STR = "2023.1 Beta 3"
+OCTANE_BLENDER_VERSION = '28.5'
+OCTANE_VERSION = 13000009
+OCTANE_VERSION_STR = "2023.1"
 
 import bpy
 import math
@@ -912,6 +912,7 @@ def check_compatibility_octane_node_tree(file_version):
     check_compatibility_octane_node_tree_27_9(file_version)
     check_compatibility_octane_node_tree_27_12(file_version)
     check_compatibility_octane_node_tree_28_0(file_version)
+    check_compatibility_octane_node_tree_28_5(file_version)
 
 
 def check_compatibility_octane_node_tree_15_2_5(file_version):
@@ -1142,6 +1143,51 @@ def check_compatibility_octane_node_tree_28_0(file_version):
             _check_compatibility_octane_node_tree_28_0(light.node_tree)            
     for node_group in bpy.data.node_groups:
         _check_compatibility_octane_node_tree_28_0(node_group)
+
+
+def _check_compatibility_octane_node_tree_28_5(node_tree):
+    old_nodes = []
+    nodes = [node for node in node_tree.nodes]
+    for node in nodes:
+        octane_node_type = getattr(node, "octane_node_type", consts.NodeType.NT_UNKNOWN)
+        # Update of the "NT_TEX_COMPOSITE_LAYER"
+        if octane_node_type == consts.NodeType.NT_TEX_COMPOSITE_LAYER:
+            new_node = node_tree.nodes.new("OctaneTexLayerTexture")
+            name = node.name
+            node.name = node.name + "_"
+            new_node.name = name
+            new_node.location = node.location
+            new_node.inputs["Opacity"].default_value = node.inputs["Opacity"].default_value
+            new_node.inputs["Blend mode"].default_value = node.inputs["Blend mode"].default_value
+            new_node.inputs["Overlay mode"].default_value = node.inputs["Overlay mode"].default_value
+            if node.inputs["Alpha operation"].default_value == "Alpha compositing":
+                new_node.inputs["Alpha operation"].default_value = "Normal"
+            else:
+                new_node.inputs["Alpha operation"].default_value = node.inputs["Alpha operation"].default_value
+            if len(node.inputs["Input"].links) > 0:
+                node_tree.links.new(node.inputs["Input"].links[0].from_socket, new_node.inputs["Input"])
+            if len(node.outputs[0].links) > 0:
+                node_tree.links.new(new_node.outputs[0], node.outputs[0].links[0].to_socket)
+            old_nodes.append(node)
+    for node in old_nodes:
+        node_tree.nodes.remove(node)
+
+def check_compatibility_octane_node_tree_28_5(file_version):
+    UPDATE_VERSION = '28.5'
+    if not check_update(file_version, UPDATE_VERSION):
+        return
+    for material in bpy.data.materials:
+        if material.use_nodes:
+            _check_compatibility_octane_node_tree_28_5(material.node_tree)
+    for world in bpy.data.worlds:
+        if world.use_nodes:
+            _check_compatibility_octane_node_tree_28_5(world.node_tree)
+    for light in bpy.data.lights:
+        if light.use_nodes:
+            _check_compatibility_octane_node_tree_28_5(light.node_tree)            
+    for node_group in bpy.data.node_groups:
+        _check_compatibility_octane_node_tree_28_5(node_group)
+
 
 def _check_compatibility_octane_specular_material_node_15_2_5(node_tree, node):
     try:

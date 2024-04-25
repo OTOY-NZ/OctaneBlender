@@ -5,7 +5,7 @@
 //	(c) 2021 OTOY, Inc.
 //--------------------------------------------------------------------------------
 #include "common_d3d.hpp"
-#include "util/util_opengl.h"
+#include "util/opengl.h"
 #if defined(WIN32)
 #  include <d3d11_1.h>
 #  include <dxgi.h>

@@ -23,7 +23,7 @@
 #include "session.h"
 #include "kernel.h"
 
-#include "util/util_progress.h"
+#include "util/progress.h"
 
 OCT_NAMESPACE_BEGIN
 

@@ -1222,7 +1222,7 @@ def find_smoke_domain_modifier(_object):
 
 def is_reshapeable_modifiers_applied(_object):
     for mod in _object.modifiers:
-        if mod.type in ("NODES", "ARMATURE"):
+        if mod.type in ("ARMATURE", ):
             return True
     return False
 

@@ -34,9 +34,9 @@
 #include "GPU_shader.h"
 #include "GPU_state.h"
 
-#include "util/util_opengl.h"
-#include "util/util_path.h"
-#include "util/util_types.h"
+#include "util/opengl.h"
+#include "util/path.h"
+#include "util/types.h"
 #include <random>
 using std::uniform_real_distribution;
 

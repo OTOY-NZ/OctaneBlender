@@ -19,7 +19,7 @@
 #ifndef __PASSES_H__
 #define __PASSES_H__
 
-#include "util/util_types.h"
+#include "util/types.h"
 
 #include "blender/server/octane_client.h"
 

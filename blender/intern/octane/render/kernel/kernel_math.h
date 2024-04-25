@@ -17,12 +17,12 @@
 #ifndef __KERNEL_MATH_H__
 #define __KERNEL_MATH_H__
 
-#include "util/util_color.h"
-#include "util/util_math.h"
-#include "util/util_math_fast.h"
-#include "util/util_math_intersect.h"
-#include "util/util_projection.h"
-#include "util/util_texture.h"
-#include "util/util_transform.h"
+#include "util/color.h"
+#include "util/math.h"
+#include "util/math_fast.h"
+#include "util/math_intersect.h"
+#include "util/projection.h"
+#include "util/texture.h"
+#include "util/transform.h"
 
 #endif /* __KERNEL_MATH_H__ */

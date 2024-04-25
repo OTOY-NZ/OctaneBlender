@@ -586,7 +586,7 @@ class NodeTreeHandler:
                             addon_sun_direction_node.load_legacy_node(original_sun_direction_node, original_sun_direction_bl_idname, world.node_tree, bpy.context, None)                        
                             new_world.node_tree.links.new(addon_sun_direction_node.outputs[0], addon_env_node.inputs["Sun direction"])
                         utility.beautifier_nodetree_layout_by_owner(new_world)
-                        scene.world = new_worlds
+                        scene.world = new_world
 
     @staticmethod
     def on_file_load(scene):

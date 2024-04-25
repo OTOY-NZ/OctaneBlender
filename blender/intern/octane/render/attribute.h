@@ -19,10 +19,10 @@
 
 #include "kernel/kernel_types.h"
 
-#include "util/util_list.h"
-#include "util/util_param.h"
-#include "util/util_types.h"
-#include "util/util_vector.h"
+#include "util/list.h"
+#include "util/param.h"
+#include "util/types.h"
+#include "util/vector.h"
 
 OCT_NAMESPACE_BEGIN
 

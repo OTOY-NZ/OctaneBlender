@@ -19,9 +19,9 @@
 #ifndef __OCTANE_SCATTER_H__
 #define __OCTANE_SCATTER_H__
 
-#include "util/util_types.h"
-#include "util/util_string.h"
-#include "util/util_transform.h"
+#include "util/types.h"
+#include "util/string.h"
+#include "util/transform.h"
 
 #include "blender/server/octane_client.h"
 

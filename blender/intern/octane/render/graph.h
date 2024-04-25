@@ -20,12 +20,12 @@
 #include "graph/node.h"
 #include "graph/node_type.h"
 
-#include "util/util_list.h"
-#include "util/util_map.h"
-#include "util/util_param.h"
-#include "util/util_set.h"
-#include "util/util_types.h"
-#include "util/util_vector.h"
+#include "util/list.h"
+#include "util/map.h"
+#include "util/param.h"
+#include "util/set.h"
+#include "util/types.h"
+#include "util/vector.h"
 
 #include "blender/server/octane_client.h"
 #include <unordered_set>

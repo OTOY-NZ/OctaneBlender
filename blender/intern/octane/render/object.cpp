@@ -21,8 +21,8 @@
 #include "scene.h"
 #include "session.h"
 
-#include "util/util_progress.h"
-#include "util/util_math.h"
+#include "util/progress.h"
+#include "util/math.h"
 
 typedef std::vector<std::string> StringArray;
 

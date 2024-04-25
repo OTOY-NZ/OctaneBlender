@@ -23,6 +23,7 @@ from octane.nodes.base_node import OctaneBaseNode
 class RenderSession(object):
     def __init__(self, engine):
         self.session_type = consts.SessionType.UNKNOWN
+        self.octane_version_type = consts.VersionType.UNKNOWN
         self.session_init_time = time.time()
         self.render_start_time = time.time()
         self.is_render_started = False
@@ -49,6 +50,9 @@ class RenderSession(object):
 
     def __del__(self):
         self.clear()
+
+    def is_demo_version(self):
+        return self.octane_version_type == consts.VersionType.DEMO
 
     def clear(self):
         self.need_motion_blur = False
@@ -124,7 +128,7 @@ class RenderSession(object):
                     color_space_type = consts.NamedColorSpace.NAMED_COLOR_SPACE_SRGB
                 else:
                     tonemap_buffer_type = consts.TonemapBufferType.TONEMAP_BUFFER_TYPE_HDR_FLOAT
-                    color_space_type = consts.NamedColorSpace.NAMED_COLOR_SPACE_LINEAR_SRGB                   
+                    color_space_type = consts.NamedColorSpace.NAMED_COLOR_SPACE_LINEAR_SRGB
             elif octane_scene.prefer_image_type == "LDR":
                 tonemap_buffer_type = consts.TonemapBufferType.TONEMAP_BUFFER_TYPE_LDR
                 color_space_type = consts.NamedColorSpace.NAMED_COLOR_SPACE_SRGB
@@ -132,6 +136,7 @@ class RenderSession(object):
                 tonemap_buffer_type = consts.TonemapBufferType.TONEMAP_BUFFER_TYPE_HDR_FLOAT
                 color_space_type = consts.NamedColorSpace.NAMED_COLOR_SPACE_LINEAR_SRGB
         ocio.update_ocio_info()
+        self.fetch_octane_version()
         OctaneBlender().update_server_settings(resource_cache_type, self.use_shared_surface, tonemap_buffer_type, color_space_type)
         OctaneBlender().reset_render()
         ResourceCache().update_cached_node_resouce()
@@ -509,3 +514,21 @@ class RenderSession(object):
         if is_export_valid:
             xml_data = ET.tostring(root_et, encoding="unicode")
             response = OctaneBlender().utils_function(consts.UtilsFunctionType.EXPORT_RENDER_PASS, xml_data)
+
+    def fetch_octane_version(self):
+        request_et = ET.Element("OctaneVersionInfo")
+        xml_data = ET.tostring(request_et, encoding="unicode")
+        response_data = OctaneBlender().utils_function(consts.UtilsFunctionType.FETCH_VERSION_INFO, xml_data)
+        if len(response_data):
+            content = ET.fromstring(response_data).get("content")
+            content_et = ET.fromstring(content)
+            octane_version = content_et.get("octaneVersion")
+            octane_name = content_et.get("octaneName")
+            is_demo = (content_et.get("isDemoVersion") == "true")
+            is_studio = (content_et.get("isSubscriptionVersion") == "true")
+            if is_demo:
+                self.octane_version_type = consts.VersionType.DEMO
+            elif is_studio:
+                self.octane_version_type = consts.VersionType.STUDIO
+            else:
+                self.octane_version_type = consts.VersionType.PRIME

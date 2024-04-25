@@ -20,11 +20,11 @@
 #define __BUFFERS_H__
 #include "GPU_texture.h"
 #include "blender/server/octane_client.h"
-#include "util/util_boundbox.h"
-#include "util/util_function.h"
-#include "util/util_opengl.h"
-#include "util/util_string.h"
-#include "util/util_types.h"
+#include "util/boundbox.h"
+#include "util/function.h"
+#include "util/opengl.h"
+#include "util/string.h"
+#include "util/types.h"
 #include <stdlib.h>
 
 namespace OctaneEngine {

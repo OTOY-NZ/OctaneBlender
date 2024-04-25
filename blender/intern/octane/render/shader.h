@@ -19,11 +19,11 @@
 
 #include "graph/node.h"
 
-#include "util/util_map.h"
-#include "util/util_param.h"
-#include "util/util_string.h"
-#include "util/util_thread.h"
-#include "util/util_types.h"
+#include "util/map.h"
+#include "util/param.h"
+#include "util/string.h"
+#include "util/thread.h"
+#include "util/types.h"
 
 #include "blender/rpc/definitions/OctanePinInfo.h"
 #include <unordered_map>

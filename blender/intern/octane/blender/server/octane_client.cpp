@@ -1350,20 +1350,23 @@ void OctaneClient::uploadKernel(Kernel *pKernel)
   LOCK_MUTEX(m_SocketMutex);
 
   if (false && pKernel->bUseNodeTree) {
-    RPCSend snd(m_Socket, sizeof(int32_t) * 2, OctaneDataTransferObject::LOAD_KERNEL);
-    snd << pKernel->bUseNodeTree << pKernel->bEmulateOldMotionBlurBehavior;
+    RPCSend snd(
+        m_Socket, sizeof(float) + sizeof(int32_t) * 2, OctaneDataTransferObject::LOAD_KERNEL);
+    snd << pKernel->bUseNodeTree << pKernel->bEmulateOldMotionBlurBehavior << pKernel->fFrameCount;
     snd.write();
   }
   else {
     switch (pKernel->type) {
       case Kernel::DIRECT_LIGHT: {
         RPCSend snd(m_Socket,
-                    sizeof(float) * 14 + sizeof(int32_t) * 39 + pKernel->sAoTexture.length() +
+                    sizeof(float) * 15 + sizeof(int32_t) * 39 + pKernel->sAoTexture.length() +
                         sizeof(float_3) + 2,
                     OctaneDataTransferObject::LOAD_KERNEL);
-        snd << pKernel->bUseNodeTree << pKernel->bEmulateOldMotionBlurBehavior << pKernel->type
+        snd << pKernel->bUseNodeTree << pKernel->bEmulateOldMotionBlurBehavior
+            << pKernel->fFrameCount << pKernel->type
             << pKernel->iMaxSamples << pKernel->fCurrentTime << pKernel->fShutterTime
-            << pKernel->fSubframeStart << pKernel->fSubframeEnd << pKernel->fFilterSize
+            << pKernel->fSubframeStart << pKernel->fSubframeEnd
+            << pKernel->fFilterSize
             << pKernel->fRayEpsilon << pKernel->fPathTermPower << pKernel->fCoherentRatio
             << pKernel->fAODist << pKernel->fDepthTolerance << pKernel->fAdaptiveNoiseThreshold
             << pKernel->fAdaptiveExpectedExposure << pKernel->fAILightStrength
@@ -1385,11 +1388,13 @@ void OctaneClient::uploadKernel(Kernel *pKernel)
       } break;
       case Kernel::PATH_TRACE: {
         RPCSend snd(m_Socket,
-                    sizeof(float) * 15 + sizeof(int32_t) * 38 + sizeof(float_3),
+                    sizeof(float) * 16 + sizeof(int32_t) * 38 + sizeof(float_3),
                     OctaneDataTransferObject::LOAD_KERNEL);
-        snd << pKernel->bUseNodeTree << pKernel->bEmulateOldMotionBlurBehavior << pKernel->type
+        snd << pKernel->bUseNodeTree << pKernel->bEmulateOldMotionBlurBehavior
+            << pKernel->fFrameCount << pKernel->type
             << pKernel->iMaxSamples << pKernel->fCurrentTime << pKernel->fShutterTime
-            << pKernel->fSubframeStart << pKernel->fSubframeEnd << pKernel->fFilterSize
+            << pKernel->fSubframeStart << pKernel->fSubframeEnd
+            << pKernel->fFilterSize
             << pKernel->fRayEpsilon << pKernel->fPathTermPower << pKernel->fCoherentRatio
             << pKernel->fCausticBlur << pKernel->fGIClamp << pKernel->fDepthTolerance
             << pKernel->fAdaptiveNoiseThreshold << pKernel->fAdaptiveExpectedExposure
@@ -1412,11 +1417,13 @@ void OctaneClient::uploadKernel(Kernel *pKernel)
       } break;
       case Kernel::PMC: {
         RPCSend snd(m_Socket,
-                    sizeof(float) * 12 + sizeof(int32_t) * 31 + sizeof(float_3),
+                    sizeof(float) * 13 + sizeof(int32_t) * 31 + sizeof(float_3),
                     OctaneDataTransferObject::LOAD_KERNEL);
-        snd << pKernel->bUseNodeTree << pKernel->bEmulateOldMotionBlurBehavior << pKernel->type
+        snd << pKernel->bUseNodeTree << pKernel->bEmulateOldMotionBlurBehavior
+            << pKernel->fFrameCount << pKernel->type
             << pKernel->iMaxSamples << pKernel->fCurrentTime << pKernel->fShutterTime
-            << pKernel->fSubframeStart << pKernel->fSubframeEnd << pKernel->fFilterSize
+            << pKernel->fSubframeStart << pKernel->fSubframeEnd
+            << pKernel->fFilterSize
             << pKernel->fRayEpsilon << pKernel->fPathTermPower << pKernel->fExploration
             << pKernel->fDLImportance << pKernel->fCausticBlur << pKernel->fGIClamp
             << pKernel->bAlphaChannel << pKernel->bAlphaShadows << pKernel->bKeepEnvironment
@@ -1435,11 +1442,13 @@ void OctaneClient::uploadKernel(Kernel *pKernel)
       } break;
       case Kernel::INFO_CHANNEL: {
         RPCSend snd(m_Socket,
-                    sizeof(float) * 11 + sizeof(int32_t) * 24 + sizeof(float_3),
+                    sizeof(float) * 12 + sizeof(int32_t) * 24 + sizeof(float_3),
                     OctaneDataTransferObject::LOAD_KERNEL);
-        snd << pKernel->bUseNodeTree << pKernel->bEmulateOldMotionBlurBehavior << pKernel->type
+        snd << pKernel->bUseNodeTree << pKernel->bEmulateOldMotionBlurBehavior
+            << pKernel->fFrameCount << pKernel->type
             << pKernel->infoChannelType << pKernel->fCurrentTime << pKernel->fShutterTime
-            << pKernel->fSubframeStart << pKernel->fSubframeEnd << pKernel->fFilterSize
+            << pKernel->fSubframeStart << pKernel->fSubframeEnd
+            << pKernel->fFilterSize
             << pKernel->fZdepthMax << pKernel->fUVMax << pKernel->fRayEpsilon << pKernel->fAODist
             << pKernel->fMaxSpeed << pKernel->fOpacityThreshold << pKernel->bAlphaChannel
             << pKernel->bBumpNormalMapping << pKernel->bBkFaceHighlight << pKernel->bAoAlphaShadows
@@ -1454,11 +1463,13 @@ void OctaneClient::uploadKernel(Kernel *pKernel)
       } break;
       case Kernel::PHOTON_TRACING: {
         RPCSend snd(m_Socket,
-                    sizeof(float) * 18 + sizeof(int32_t) * 41 + sizeof(float_3),
+                    sizeof(float) * 19 + sizeof(int32_t) * 41 + sizeof(float_3),
                     OctaneDataTransferObject::LOAD_KERNEL);
-        snd << pKernel->bUseNodeTree << pKernel->bEmulateOldMotionBlurBehavior << pKernel->type
+        snd << pKernel->bUseNodeTree << pKernel->bEmulateOldMotionBlurBehavior
+            << pKernel->fFrameCount << pKernel->type
             << pKernel->iMaxSamples << pKernel->fCurrentTime << pKernel->fShutterTime
-            << pKernel->fSubframeStart << pKernel->fSubframeEnd << pKernel->fFilterSize
+            << pKernel->fSubframeStart << pKernel->fSubframeEnd
+            << pKernel->fFilterSize
             << pKernel->fRayEpsilon << pKernel->fPathTermPower << pKernel->fCoherentRatio
             << pKernel->fCausticBlur << pKernel->fGIClamp << pKernel->fDepthTolerance
             << pKernel->fAdaptiveNoiseThreshold << pKernel->fAdaptiveExpectedExposure
@@ -1483,12 +1494,14 @@ void OctaneClient::uploadKernel(Kernel *pKernel)
       } break;
       default: {
         RPCSend snd(m_Socket,
-                    sizeof(int32_t) * 13 + sizeof(float) * 4 + sizeof(float_3),
+                    sizeof(int32_t) * 13 + sizeof(float) * 5 + sizeof(float_3),
                     OctaneDataTransferObject::LOAD_KERNEL);
         OctaneEngine::Kernel::KernelType defType = OctaneEngine::Kernel::DEFAULT;
-        snd << pKernel->bUseNodeTree << pKernel->bEmulateOldMotionBlurBehavior << defType
+        snd << pKernel->bUseNodeTree << pKernel->bEmulateOldMotionBlurBehavior
+            << pKernel->fFrameCount << defType
             << pKernel->mbAlignment << pKernel->fCurrentTime << pKernel->fShutterTime
-            << pKernel->fSubframeStart << pKernel->fSubframeEnd << pKernel->bLayersEnable
+            << pKernel->fSubframeStart << pKernel->fSubframeEnd
+            << pKernel->bLayersEnable
             << pKernel->iLayersCurrent << pKernel->bLayersInvert << pKernel->layersMode
             << pKernel->iClayMode << pKernel->iSubsampleMode << pKernel->iMaxSubdivisionLevel
             << pKernel->iWhiteLightSpectrum << pKernel->bUseOldPipeline

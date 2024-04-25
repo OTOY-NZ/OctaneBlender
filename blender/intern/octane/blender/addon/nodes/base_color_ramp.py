@@ -328,7 +328,7 @@ class OctaneBaseRampNode(OctaneBaseNode):
             self.update_node_tree(context)
 
     def auto_refresh(self):
-        return consts.AutoRereshStrategy.ALWAYS
+        return consts.AutoRereshStrategy.DISABLE
 
     def sync_custom_data(self, octane_node, octane_graph_node_data, depsgraph):
         is_viewport = depsgraph.mode == "VIEWPORT"

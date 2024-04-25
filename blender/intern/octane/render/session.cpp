@@ -27,9 +27,9 @@
 #include "scene.h"
 #include "session.h"
 
-#include "util/util_math.h"
-#include "util/util_opengl.h"
-#include "util/util_time.h"
+#include "util/math.h"
+#include "util/opengl.h"
+#include "util/time.h"
 
 OCT_NAMESPACE_BEGIN
 
@@ -530,9 +530,9 @@ void Session::update_status_time(bool show_pause, bool show_done)
               params.image_stat.uiCurDenoiseSamples,
               params.image_stat.uiCurSamples,
               szSamples,
-              static_cast<uint64_t>(ceil(params.image_stat.ulVramUsed / 1048576.0)),
-              static_cast<uint64_t>(ceil(params.image_stat.ulVramFree / 1048576.0)),
-              static_cast<uint64_t>(ceil(params.image_stat.ulVramTotal / 1048576.0)),
+              static_cast<uint64_t>(std::ceil(params.image_stat.ulVramUsed / 1048576.0)),
+              static_cast<uint64_t>(std::ceil(params.image_stat.ulVramFree / 1048576.0)),
+              static_cast<uint64_t>(std::ceil(params.image_stat.ulVramTotal / 1048576.0)),
               params.image_stat.uiMeshesCnt,
               params.image_stat.uiTrianglesCnt,
               params.image_stat.uiRgb32Cnt,
@@ -548,9 +548,9 @@ void Session::update_status_time(bool show_pause, bool show_done)
               params.image_stat.uiCurDenoiseSamples,
               params.image_stat.uiCurSamples,
               szSamples,
-              static_cast<uint64_t>(ceil(params.image_stat.ulVramUsed / 1048576.0)),
-              static_cast<uint64_t>(ceil(params.image_stat.ulVramFree / 1048576.0)),
-              static_cast<uint64_t>(ceil(params.image_stat.ulVramTotal / 1048576.0)),
+              static_cast<uint64_t>(std::ceil(params.image_stat.ulVramUsed / 1048576.0)),
+              static_cast<uint64_t>(std::ceil(params.image_stat.ulVramFree / 1048576.0)),
+              static_cast<uint64_t>(std::ceil(params.image_stat.ulVramTotal / 1048576.0)),
               params.image_stat.uiMeshesCnt,
               params.image_stat.uiTrianglesCnt,
               params.image_stat.uiRgb32Cnt,
@@ -578,9 +578,10 @@ void Session::update_status_time(bool show_pause, bool show_done)
                     string_printf(
                         " | Mem: %dM/%dM/%dM, Meshes: %d, Tris: %d | Tex: ( Rgb32: %d, Rgb64: %d, "
                         "grey8: %d, grey16: %d ) | ",
-                        static_cast<uint64_t>(ceil(params.image_stat.ulVramUsed / 1048576.0)),
-                        static_cast<uint64_t>(ceil(params.image_stat.ulVramFree / 1048576.0)),
-                        static_cast<uint64_t>(ceil(params.image_stat.ulVramTotal / 1048576.0)),
+                        static_cast<uint64_t>(std::ceil(params.image_stat.ulVramUsed / 1048576.0)),
+                        static_cast<uint64_t>(std::ceil(params.image_stat.ulVramFree / 1048576.0)),
+                        static_cast<uint64_t>(
+                            std::ceil(params.image_stat.ulVramTotal / 1048576.0)),
                         params.image_stat.uiMeshesCnt,
                         params.image_stat.uiTrianglesCnt,
                         params.image_stat.uiRgb32Cnt,

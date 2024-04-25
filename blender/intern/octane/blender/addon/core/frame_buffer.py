@@ -14,7 +14,8 @@ class ViewportDrawData(object):
     ENABLE_MULTITHREAD = False
     MULTITHRAD_MIN_UPDATE_GAP = 0.03
 
-    def __init__(self, render_pass_id, width, height, engine, scene, use_shared_surface):
+    def __init__(self, is_demo, render_pass_id, width, height, engine, scene, use_shared_surface):
+        self.is_demo = is_demo
         self.transparent = True
         if self.transparent:
             bufferdepth = 4
@@ -154,6 +155,10 @@ class ViewportDrawData(object):
                 self.render_result_update_time += time_eslapse
 
     def draw(self, engine, scene):
+        is_demo_limited = self.is_demo
+        if is_demo_limited:
+            if self.frame_buffer.width <= 1000 and self.frame_buffer.height <= 600:
+                is_demo_limited = False
         render_pass_id = self.frame_buffer.get_render_pass_id()
         is_denoise_render_pass = utility.is_denoise_render_pass(render_pass_id)
         is_scene_inited = OctaneBlender().get_scene_state() == consts.SceneState.INITIALIZED
@@ -176,7 +181,12 @@ class ViewportDrawData(object):
                 elapsed_time_msg = utility.time_human_readable_from_seconds(elapsed_time)
                 elapsed_time_msg = "Elapsed time: "+ elapsed_time_msg
                 msg = msg + "\n"+ elapsed_time_msg
-        engine.update_stats("Octane Render Statistics", msg)
+        if is_demo_limited:
+            msg = "Demo version does not support the current resolution. Please use smaller resolutions(< 1000 * 600) and try again."
+            engine.update_stats("Octane Render Statistics", msg)
+            return
+        else:
+            engine.update_stats("Octane Render Statistics", msg)
         if not is_scene_inited:
             return
         if self.frame_buffer.calculated_samples_per_pixel == 0 and self.frame_buffer.tonemapped_samples_per_pixel == 0:

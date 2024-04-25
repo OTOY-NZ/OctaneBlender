@@ -1,88 +1,88 @@
 set(INC
-	./rpc/include
-	..
-	../../guardedalloc
-	../../mikktspace
-	../../../source/blender/makesdna
-	../../../source/blender/makesrna
-	../../../source/blender/blenlib
-	../../../source/blender/blentranslation  
-	../../../source/blender/blenkernel
-	../../../source/blender/functions
-	../../../source/blender/depsgraph
-	../../../source/blender/windowmanager
-	../../../source/blender/render
-	../../../source/blender/render/intern
-	../../../source/blender/gpu  
-	${CMAKE_BINARY_DIR}/source/blender/makesrna/intern
+  ./rpc/include
+  ..
+  ../../guardedalloc
+  ../../mikktspace
+  ../../../source/blender/makesdna
+  ../../../source/blender/makesrna
+  ../../../source/blender/blenlib
+  ../../../source/blender/blentranslation  
+  ../../../source/blender/blenkernel
+  ../../../source/blender/functions
+  ../../../source/blender/depsgraph
+  ../../../source/blender/windowmanager
+  ../../../source/blender/render
+  ../../../source/blender/render/intern
+  ../../../source/blender/gpu  
+  ${CMAKE_BINARY_DIR}/source/blender/makesrna/intern
 )
 
 set(INC_SYS
-	${PYTHON_INCLUDE_DIRS}
-	${BOOST_INCLUDE_DIR}
+  ${PYTHON_INCLUDE_DIRS}
+  ${BOOST_INCLUDE_DIR}
   ${Epoxy_INCLUDE_DIRS}
 )
 
 set(SRC
-	blender_python.cpp
-	blender_client.cpp
-	blender_session.cpp
-	blender_sync.cpp
-	blender_camera.cpp
-	blender_object.cpp
-	blender_mesh.cpp
-	blender_shader.cpp
-	blender_hair.cpp
-	blender_octanedb.cpp
+  python.cpp
+  client.cpp
+  session.cpp
+  sync.cpp
+  camera.cpp
+  object.cpp
+  mesh.cpp
+  shader.cpp
+  hair.cpp
+  octanedb.cpp
 
-	blender_octanedb.h
-	blender_sync.h
-	blender_session.h
-	blender_client.h
-	blender_util.h
-	OCT_api.h
-	
-	./server/octane_client.h
-	./server/octane_data_type.h
-	./server/octane_network_const.h
-	./server/octane_network.h
-	./server/octane_manager.h
-	./server/octane_network.cpp
-	./server/octane_client.cpp
-	./server/octane_manager.cpp
+  octanedb.h
+  sync.h
+  session.h
+  client.h
+  util.h
+  OCT_api.h
+  
+  ./server/octane_client.h
+  ./server/octane_data_type.h
+  ./server/octane_network_const.h
+  ./server/octane_network.h
+  ./server/octane_manager.h
+  ./server/octane_network.cpp
+  ./server/octane_client.cpp
+  ./server/octane_manager.cpp
 
-	./rpc/definitions/OctaneNode.h
-	./rpc/definitions/OctaneTransform.h
-	./rpc/definitions/OctaneProjection.h
-	./rpc/definitions/OctanePinInfo.h
-	./rpc/definitions/OctaneMesh.h
-	./rpc/definitions/OctaneNodeFactory.h
-	./rpc/definitions/OctaneNodeFactory.cpp
+  ./rpc/definitions/OctaneNode.h
+  ./rpc/definitions/OctaneTransform.h
+  ./rpc/definitions/OctaneProjection.h
+  ./rpc/definitions/OctanePinInfo.h
+  ./rpc/definitions/OctaneMesh.h
+  ./rpc/definitions/OctaneNodeFactory.h
+  ./rpc/definitions/OctaneNodeFactory.cpp
 )
 
 set(LIB
-	bf_render
-	octane_graph
-	octane_render	
-	octane_util  
+  bf_render
+  octane_graph
+  octane_render  
+  octane_util  
 )
 
 if(WITH_OCTANE_LOGGING)
-	list(APPEND LIB
-		extern_glog
-	)
+  list(APPEND LIB
+    extern_glog
+  )
 endif()
 
 set(ADDON_FILES
-	addon/__init__.py
-	addon/engine.py
-	addon/operators.py
-	addon/properties.py
-	addon/ui.py
-	addon/nodeitems_octane.py
-	addon/osl.py
-	addon/version_update.py
-	addon/converters.py
+  addon/__init__.py
+  addon/engine.py
+  addon/operators.py
+  addon/properties.py
+  addon/ui.py
+  addon/nodeitems_octane.py
+  addon/osl.py
+  addon/version_update.py
+  addon/converters.py
 )
 
 set(ADDON_BIN_FILES
@@ -627,6 +627,7 @@ set(ADDON_NODES_TEXTURES_FILES
     addon/nodes/textures/star_field.py
     addon/nodes/textures/digits.py
     addon/nodes/textures/texture_switch.py
+    addon/nodes/textures/composite_texture_layer.py
 )
 
 set(ADDON_NODES_TRANSFORMS_FILES
@@ -703,34 +704,34 @@ set(ADDON_NODES_UTIL_FILES
 )
 
 set(STARTUP_FILES
-	addon/nodeitems_octane.py
+  addon/nodeitems_octane.py
 )
 
 set(OBJECT_LIBRARY
-	addon/libraries/objects/Circle.obj
-	addon/libraries/objects/Square.obj	
+  addon/libraries/objects/Circle.obj
+  addon/libraries/objects/Square.obj  
 )
 
 set(ORBX_LIBRARY
-	addon/libraries/orbx/CameraData.orbx
-	addon/libraries/orbx/RenderPassesData.orbx
+  addon/libraries/orbx/CameraData.orbx
+  addon/libraries/orbx/RenderPassesData.orbx
 )
 
 set(ASSETS
-	addon/assets/startup.blend
+  addon/assets/startup.blend
 )
 
 add_definitions(${GL_DEFINITIONS} ${BOOST_DEFINITIONS})
 
 if(WIN32)
-	add_compile_options(-bigobj)
+  add_compile_options(-bigobj)
 endif()
 
 blender_add_lib(bf_intern_octane "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
 # avoid link failure with clang 3.4 debug
 if(CMAKE_C_COMPILER_ID MATCHES "Clang" AND NOT ${CMAKE_C_COMPILER_VERSION} VERSION_LESS '3.4')
-	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -gline-tables-only")
+  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -gline-tables-only")
 endif()
 
 add_dependencies(bf_intern_octane bf_rna)

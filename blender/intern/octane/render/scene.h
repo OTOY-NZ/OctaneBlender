@@ -19,8 +19,8 @@
 #ifndef __SCENE_H__
 #define __SCENE_H__
 
-#include "util/util_thread.h"
-#include "util/util_transform.h"
+#include "util/thread.h"
+#include "util/transform.h"
 #include "mesh.h"
 #include "particles.h"
 #include "session.h"

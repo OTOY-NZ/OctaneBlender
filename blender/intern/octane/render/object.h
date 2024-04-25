@@ -21,10 +21,11 @@
 
 #include <cstdlib>
 
-#include "util/util_transform.h"
-#include "util/util_types.h"
-#include "util/util_function.h"
+#include "util/transform.h"
+#include "util/types.h"
+#include "util/function.h"
 #include "blender/server/octane_client.h"
+#include "mesh.h"
 #include "octane_scatter.h"
 
 OCT_NAMESPACE_BEGIN

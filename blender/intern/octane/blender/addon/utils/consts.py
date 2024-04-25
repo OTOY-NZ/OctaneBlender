@@ -58,6 +58,12 @@ NodeType.NT_BLENDER_NODE_GRAPH_NODE = -100012
 # Add Octane Legacy Node Type
 NodeType.NT_OUT_COMPOSITE_AOV_LAYER = NodeType.NT_OUT_OUTPUT_AOV_LAYER
 
+# Octane Version Type
+class VersionType:
+    UNKNOWN = -1
+    STUDIO = 0
+    PRIME = 1
+    DEMO = 2
 
 # Scene State
 class SceneState:
@@ -381,6 +387,7 @@ class UtilsFunctionType:
     FETCH_OSL_INFO = 102
     FETCH_STATISTICS = 103
     FETCH_NODE_INFO = 104
+    FETCH_VERSION_INFO = 105
     EXPORT_OFFSET = 200
     EXPORT_ALEMBIC_START = 201
     EXPORT_ALEMBIC_END = 202

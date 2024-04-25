@@ -1,6 +1,8 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2011-2022 Blender Foundation
 
 set(INC
-	..
+  ..
 )
 
 set(INC_SYS
@@ -8,129 +10,139 @@ set(INC_SYS
 )
 
 set(SRC
-	util_aligned_malloc.cpp
-	util_debug.cpp
-	util_ies.cpp
-	util_logging.cpp
-	util_math_cdf.cpp
-	util_md5.cpp
-	util_murmurhash.cpp
-	util_path.cpp
-	util_profiling.cpp
-	util_string.cpp
-	util_simd.cpp
-	util_system.cpp
-	util_task.cpp
-	util_thread.cpp
-	util_time.cpp
-	util_transform.cpp
-)
-
-list(APPEND INC_SYS ../../numaapi/include)
-
-set(SRC_HEADERS
-	util_algorithm.h
-	util_aligned_malloc.h
-	util_args.h
-	util_array.h
-	util_atomic.h
-	util_boundbox.h
-	util_debug.h
-	util_defines.h
-	util_guarded_allocator.cpp
-	util_foreach.h
-	util_function.h
-	util_guarded_allocator.h
-	util_half.h
-	util_hash.h
-	util_ies.h
-	util_image.h
-	util_image_impl.h
-	util_list.h
-	util_logging.h
-	util_map.h
-	util_math.h
-	util_math_cdf.h
-	util_math_fast.h
-	util_math_intersect.h
-	util_math_float2.h
-	util_math_float3.h
-	util_math_float4.h
-	util_math_int2.h
-	util_math_int3.h
-	util_math_int4.h
-	util_math_matrix.h
-	util_md5.h
-	util_murmurhash.h
-	util_opengl.h
-	util_optimization.h
-	util_param.h
-	util_path.h
-	util_profiling.h
-	util_progress.h
-	util_projection.h
-	util_queue.h
-	util_rect.h
-	util_set.h
-	util_simd.h
-	util_sky_model.cpp
-	util_sky_model.h
-	util_sky_model_data.h
-	util_avxf.h
-	util_avxb.h
-	util_sseb.h
-	util_ssef.h
-	util_ssei.h
-	util_stack_allocator.h
-	util_static_assert.h
-	util_stats.h
-	util_string.h
-	util_system.h
-	util_task.h
-	util_texture.h
-	util_thread.h
-	util_time.h
-	util_transform.h
-	util_types.h
-	util_types_float2.h
-	util_types_float2_impl.h
-	util_types_float3.h
-	util_types_float3_impl.h
-	util_types_float4.h
-	util_types_float4_impl.h
-	util_types_float8.h
-	util_types_float8_impl.h
-	util_types_int2.h
-	util_types_int2_impl.h
-	util_types_int3.h
-	util_types_int3_impl.h
-	util_types_int4.h
-	util_types_int4_impl.h
-	util_types_uchar2.h
-	util_types_uchar2_impl.h
-	util_types_uchar3.h
-	util_types_uchar3_impl.h
-	util_types_uchar4.h
-	util_types_uchar4_impl.h
-	util_types_uint2.h
-	util_types_uint2_impl.h
-	util_types_uint3.h
-	util_types_uint3_impl.h
-	util_types_uint4.h
-	util_types_uint4_impl.h
-	util_types_ushort4.h
-	util_types_vector3.h
-	util_types_vector3_impl.h
-	util_vector.h
-	util_version.h
-	util_view.h
-	util_windows.h
-	util_xml.h
+  aligned_malloc.cpp
+  debug.cpp
+  ies.cpp
+  log.cpp
+  math_cdf.cpp
+  md5.cpp
+  murmurhash.cpp
+  path.cpp
+  profiling.cpp
+  string.cpp
+  simd.cpp
+  system.cpp
+  task.cpp
+  thread.cpp
+  time.cpp
+  transform.cpp
+  transform_avx2.cpp
+  transform_sse41.cpp
+  windows.cpp
 )
 
 set(LIB
-
+  ${TBB_LIBRARIES}
 )
+
+set(SRC_HEADERS
+  algorithm.h
+  aligned_malloc.h
+  args.h
+  array.h
+  atomic.h
+  boundbox.h
+  debug.h
+  defines.h
+  deque.h
+  disjoint_set.h
+  guarded_allocator.cpp
+  foreach.h
+  function.h
+  guarded_allocator.h
+  guiding.h
+  half.h
+  hash.h
+  ies.h
+  image.h
+  image_impl.h
+  list.h
+  log.h
+  map.h
+  math.h
+  math_cdf.h
+  math_fast.h
+  math_intersect.h
+  math_float2.h
+  math_float3.h
+  math_float4.h
+  math_float8.h
+  math_int2.h
+  math_int3.h
+  math_int4.h
+  math_int8.h
+  math_matrix.h
+  md5.h
+  murmurhash.h
+  opengl.h
+  openimagedenoise.h
+  openvdb.h
+  optimization.h
+  param.h
+  path.h
+  profiling.h
+  progress.h
+  projection.h
+  queue.h
+  rect.h
+  set.h
+  simd.h
+  semaphore.h
+  stack_allocator.h
+  static_assert.h
+  stats.h
+  string.h
+  system.h
+  task.h
+  tbb.h
+  texture.h
+  thread.h
+  time.h
+  transform.h
+  types.h
+  types_float2.h
+  types_float2_impl.h
+  types_float3.h
+  types_float3_impl.h
+  types_float4.h
+  types_float4_impl.h
+  types_float8.h
+  types_float8_impl.h
+  types_int2.h
+  types_int2_impl.h
+  types_int3.h
+  types_int3_impl.h
+  types_int4.h
+  types_int4_impl.h
+  types_int8.h
+  types_int8_impl.h
+  types_spectrum.h
+  types_uchar2.h
+  types_uchar2_impl.h
+  types_uchar3.h
+  types_uchar3_impl.h
+  types_uchar4.h
+  types_uchar4_impl.h
+  types_uint2.h
+  types_uint2_impl.h
+  types_uint3.h
+  types_uint3_impl.h
+  types_uint4.h
+  types_uint4_impl.h
+  types_ushort4.h
+  unique_ptr.h
+  vector.h
+  version.h
+  windows.h
+  xml.h
+)
+
+if(CXX_HAS_SSE)
+  set_source_files_properties(transform_sse41.cpp PROPERTIES COMPILE_FLAGS "${OCTANE_SSE41_KERNEL_FLAGS}")
+endif()
+if(CXX_HAS_AVX2)
+  set_source_files_properties(transform_avx2.cpp PROPERTIES COMPILE_FLAGS "${OCTANE_AVX2_KERNEL_FLAGS}")
+endif()
 
 include_directories(${INC})
 include_directories(SYSTEM ${INC_SYS})

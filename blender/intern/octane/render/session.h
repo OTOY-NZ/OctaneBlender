@@ -23,8 +23,8 @@
 #include "mesh.h"
 #include <limits.h>
 
-#include "util/util_progress.h"
-#include "util/util_thread.h"
+#include "util/progress.h"
+#include "util/thread.h"
 
 #include "blender/server/octane_client.h"
 

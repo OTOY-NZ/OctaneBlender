@@ -266,3 +266,19 @@ def unregister():
     utility.octane_unregister_class(reversed(_CLASSES))
 
 ##### END OCTANE GENERATED CODE BLOCK #####
+
+def override_register():
+    original_register()
+    from octane.nodes.textures import composite_texture_layer
+    composite_texture_layer.register()
+
+def override_unregister():
+    original_unregister()
+    from octane.nodes.textures import composite_texture_layer
+    composite_texture_layer.unregister()
+
+
+original_register = register
+original_unregister = unregister
+register = override_register
+unregister = override_unregister

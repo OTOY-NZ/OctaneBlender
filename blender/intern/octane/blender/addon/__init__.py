@@ -1,8 +1,8 @@
 bl_info = {
-    "name": "OctaneBlender (v. 28.4)",
+    "name": "OctaneBlender (v. 28.5)",
     "author": "OTOY Inc.",
-    "version": (28, 4, 0),
-    "blender": (3, 6, 4),
+    "version": (28, 5, 0),
+    "blender": (3, 6, 5),
     "location": "Info header, render engine menu",
     "description": "OctaneBlender",
     "warning": "",
@@ -227,6 +227,7 @@ class OctaneRender(bpy.types.RenderEngine):
             self.draw_data.tag_immediate_fetch(True)
 
     def draw_render_result(self, view_layer, region, scene):
+        is_demo = self.session.is_demo_version()
         render_pass_id = self.session.get_current_preview_render_pass_id(view_layer)
         is_render_pass_shared_surface_supported = not (utility.is_grayscale_render_pass(render_pass_id) \
             or utility.is_cryptomatte_render_pass(render_pass_id) \
@@ -238,7 +239,7 @@ class OctaneRender(bpy.types.RenderEngine):
             # Get viewport dimensions
             if not self.draw_data or self.draw_data.needs_replacement(region.width, region.height, use_shared_surface):
                 self.free_draw_data()
-                self.draw_data = ViewportDrawData(render_pass_id, region.width, region.height, self, scene, use_shared_surface)
+                self.draw_data = ViewportDrawData(is_demo, render_pass_id, region.width, region.height, self, scene, use_shared_surface)
                 is_draw_data_just_created = True
         if self.draw_data:
             self.draw_data.update(render_pass_id, scene)

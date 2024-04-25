@@ -21,10 +21,10 @@
 
 #include "shader.h"
 
-#include "util/util_types.h"
+#include "util/types.h"
 
 #include "blender/server/octane_client.h"
-#include "util/util_transform.h"
+#include "util/transform.h"
 #include <unordered_map>
 
 #include "RNA_blender_cpp.h"
@@ -34,6 +34,8 @@ class OctaneClient;
 }
 
 OCT_NAMESPACE_BEGIN
+
+enum MeshType { GLOBAL, SCATTER, MOVABLE_PROXY, RESHAPABLE_PROXY, AS_IS, AUTO = AS_IS };
 
 class Progress;
 class Scene;

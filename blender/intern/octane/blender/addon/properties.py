@@ -350,10 +350,10 @@ class OctaneVDBInfo(bpy.types.PropertyGroup):
                         root_et = ET.fromstring(content)
                         float_grid_et = root_et.find("floatGrid")
                         for et in float_grid_et.findall("grid"):
-                            vdb_float_grid_ids.append(et.text)                        
+                            vdb_float_grid_ids.append(et.text)
                         vector_grid_et = root_et.find("vectorGrid")
                         for et in vector_grid_et.findall("grid"):
-                            vdb_vector_grid_ids.append(et.text)                                     
+                            vdb_vector_grid_ids.append(et.text)
                 else:
                     import _octane
                     vdb_float_grid_ids, vdb_vector_grid_ids = _octane.update_vdb_info(cur_obj.as_pointer(), context.blend_data.as_pointer(), scene.as_pointer()) 
@@ -649,7 +649,7 @@ class OctaneMeshSettings(bpy.types.PropertyGroup):
             default=False,
             )    
     octane_sphere_radius: FloatProperty(
-            name="Octane Sphere Radius",
+            name="Sphere Primitive Radius",
             description="The radius of the sphere primitive",
             min=0.00001, max=1000000.0, soft_max=1000000.0,
             default=0.1,
@@ -1075,7 +1075,7 @@ class OctaneMeshSettings(bpy.types.PropertyGroup):
         default=1,
     )
     octane_sphere_radius: FloatProperty(
-        name="Octane Sphere Primitive Radius",
+        name="Sphere Primitive Radius",
         description="The radius of the sphere primitive",
         min=0.0, max=1000000.0,
         default=0.0,

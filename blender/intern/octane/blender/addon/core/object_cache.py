@@ -1,5 +1,6 @@
 import bpy
 import array
+import copy
 import math
 import mathutils
 import pyopenvdb
@@ -84,8 +85,8 @@ class ObjectCache(OctaneNodeCache):
         self.depsgraph_object_instance_names = set()
         # Blender object instances' persistent ids => Octane scatter ids
         self.persistent_id_to_octane_scatter_id_map = defaultdict(dict)
-        # Blender object name => Octane scatter node name
-        self.synced_octane_scatter_node_names_map = {}
+        # Octane scatter node names
+        self.synced_octane_scatter_node_names = set()
         # Motion blur
         self.motion_blur_node_names = {}
 
@@ -105,23 +106,12 @@ class ObjectCache(OctaneNodeCache):
             if isinstance(dg_update.id, self.type_class):
                 self.changed_data_ids.add(BlenderID(dg_update.id))
                 self.need_update = True
+            if dg_update.is_updated_geometry:
+                object_data_name = getattr(getattr(dg_update.id, "data", None), "name", "")
+                if len(object_data_name):
+                    self.dg_updated_object_data_names.add(object_data_name)
 
     def custom_diff(self, depsgraph, scene, view_layer, context=None):
-        # Look for all changed object data and trigger updates to their object owners
-        # Look for changes of geometries, volumes, and lights
-        if depsgraph.id_type_updated("MESH") \
-            or depsgraph.id_type_updated("VOLUME") \
-            or depsgraph.id_type_updated("LIGHT") \
-            or depsgraph.id_type_updated("CURVE") \
-            or depsgraph.id_type_updated("CURVES"):
-            for dg_update in depsgraph.updates:
-                _id = dg_update.id
-                if isinstance(_id, bpy.types.Mesh) \
-                    or isinstance(_id, bpy.types.Volume) \
-                    or isinstance(_id, bpy.types.Light) \
-                    or isinstance(_id, bpy.types.Curve) \
-                    or isinstance(_id, bpy.types.Curves):
-                    self.dg_updated_object_data_names.add(_id.name)
         # Look for changes of particle systems
         if depsgraph.id_type_updated("PARTICLE"):
             updated_particle_settings_names = set()
@@ -886,7 +876,7 @@ class ObjectCache(OctaneNodeCache):
         current_object_instance_names = set()
         scatter_map = {}
         updated_object_data_map = set()
-        remove_pending_object_names = set(self.synced_octane_scatter_node_names_map.keys())
+        to_remove_octane_scatter_node_names = copy.deepcopy(self.synced_octane_scatter_node_names)
         updated_motion_blur_node_names = set()
         for instance_object in depsgraph.object_instances:
             eval_object = instance_object.object
@@ -895,8 +885,9 @@ class ObjectCache(OctaneNodeCache):
             eval_object_blender_id = BlenderID(eval_object)
             eval_object_data_name = getattr(eval_object.data, "name", "")
             current_object_instance_names.add(eval_object_name)
-            if eval_object_name in remove_pending_object_names:
-                remove_pending_object_names.remove(eval_object_name)            
+            scatter_name = octane_name.resolve_scatter_octane_name(instance_object, scene, is_viewport)
+            if scatter_name in to_remove_octane_scatter_node_names:
+                to_remove_octane_scatter_node_names.remove(scatter_name)
             need_sync = False
             # Optimizations for viewport rendering
             # For viewport rendering, we do some pre-checkes to get better performance
@@ -911,7 +902,6 @@ class ObjectCache(OctaneNodeCache):
                 need_sync |= eval_object_name not in self.depsgraph_object_instance_names
                 if not need_sync:
                     continue
-            scatter_name = octane_name.resolve_scatter_octane_name(instance_object, scene, is_viewport)
             octane_scatter_node = None
             if scatter_name not in scatter_map:
                 scatter_map[scatter_name] = self.get_octane_node(scatter_name, consts.NodeType.NT_GEO_SCATTER)
@@ -945,18 +935,17 @@ class ObjectCache(OctaneNodeCache):
                 updated_motion_blur_node_names.add(scatter_name)
         # Update scatters
         # Remove objects
-        for object_name in remove_pending_object_names:
-            octane_scatter_name = self.synced_octane_scatter_node_names_map[object_name]            
+        for octane_scatter_name in to_remove_octane_scatter_node_names:
             octane_scatter_node = self.get_octane_node(octane_scatter_name, consts.NodeType.NT_GEO_SCATTER)
             octane_scatter_node.linked_geometry_name = ""
             self.update_scatter_node(depsgraph, octane_scatter_node, True)
-            del self.synced_octane_scatter_node_names_map[object_name]
+            if octane_scatter_name in self.synced_octane_scatter_node_names:
+                self.synced_octane_scatter_node_names.remove(octane_scatter_name)
             self.remove_octane_node(octane_scatter_name, consts.NodeType.NT_GEO_SCATTER)
         # Update transforms
         for scatter_name, octane_scatter_node in scatter_map.items():
-            object_name = octane_scatter_node.object_name
             self.update_scatter_node(depsgraph, octane_scatter_node, update_now)
-            self.synced_octane_scatter_node_names_map[object_name] = octane_scatter_node.name
+            self.synced_octane_scatter_node_names.add(octane_scatter_node.name)
         self.changed_data_ids.clear()
         self.oct_synced_object_data_octane_names.clear()
         self.depsgraph_object_instance_names = current_object_instance_names
@@ -992,7 +981,7 @@ class ObjectCache(OctaneNodeCache):
                     if eval_object.type in ("MESH", "CURVE"):
                         # Mesh Data
                         domain_modifier = utility.find_smoke_domain_modifier(eval_object)
-                        if domain_modifier is None or domain_modifier.domain_settings.use_mesh:                    
+                        if domain_modifier is None or domain_modifier.domain_settings.use_mesh:
                             object_data_name = octane_name.resolve_object_data_octane_name(eval_object, scene, False)
                             octane_node = self.get_octane_node(object_data_name, consts.NodeType.NT_GEO_MESH)
                             if not hasattr(octane_node, "updated_motion_time_offsets"):

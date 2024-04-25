@@ -1,4 +1,5 @@
 import bpy
+import time
 import xml.etree.ElementTree as ET
 from octane.utils import consts, utility
 
@@ -131,6 +132,7 @@ def update_ocio_info(self=None, context=None):
     preferences = utility.get_preferences()
     ocio_intermediate_color_space_octane = preferences.rna_type.properties['ocio_intermediate_color_space_octane'].enum_items[preferences.ocio_intermediate_color_space_octane].value        
     print("Octane Ocio Management Update Start")
+    ocio_start_time = time.time()
     ocio_use_automatic = preferences.ocio_use_automatic
     if core.ENABLE_OCTANE_ADDON_CLIENT:
         results = update_ocio_info_xml_request(preferences.ocio_config_file_path, preferences.ocio_use_other_config_file, ocio_use_automatic, ocio_intermediate_color_space_octane, preferences.octane_format_ocio_intermediate_color_space_ocio)
@@ -200,7 +202,8 @@ def update_ocio_info(self=None, context=None):
     ocio_color_space_map.update(role_name_map)
     ocio_color_space_map.update(color_space_name_map)
     ocio_manager.set_ocio_color_spaces(ocio_color_space_map)
-    print("Octane Ocio Management Update End")
+    ocio_end_time = time.time()
+    print("Octane Ocio Management Update End. Time cost: %.2f secs" % (ocio_end_time - ocio_start_time))
 
 
 def update_ocio_intermediate_color_space_ocio(self=None, context=None):

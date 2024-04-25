@@ -214,7 +214,7 @@ class OctaneBaseCurveNode(OctaneBaseNode):
         self.id_data.update_tag()
 
     def auto_refresh(self):
-        return consts.AutoRereshStrategy.ALWAYS
+        return consts.AutoRereshStrategy.DISABLE
 
     def update_curve_point_array_data(self, node, identifier, point_num, current_point_index, current_data):
         float_data_num = point_num * 2

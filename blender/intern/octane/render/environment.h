@@ -19,8 +19,8 @@
 #ifndef __ENVIRONMENT_H__
 #define __ENVIRONMENT_H__
 
-#include "util/util_types.h"
-#include "util/util_string.h"
+#include "util/types.h"
+#include "util/string.h"
 
 #include "blender/server/octane_client.h"
 
