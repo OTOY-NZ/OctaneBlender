@@ -8,7 +8,7 @@ from . import converters
 
 
 def osl_node_draw(context, layout, node_tree_name, node_name):
-    if bpy.data.materials:      
+    if bpy.data.materials:
         for mat in bpy.data.materials.values():
             if not getattr(mat, 'node_tree', None) or not getattr(mat.node_tree, 'nodes', None):
                 continue
@@ -245,8 +245,8 @@ class OCTANE_PT_mesh_properties_legacy_settings(OctaneButtonsPanel, Panel):
         sub.prop(cdata, "vdb_import_scale")
         sub = box.row(align=True)
         sub.prop(cdata, "openvdb_frame_start")
-        sub.prop(cdata, "openvdb_frame_end")   
-        sub = box.row(align=True)     
+        sub.prop(cdata, "openvdb_frame_end")
+        sub = box.row(align=True)
         sub.prop(cdata, "openvdb_frame_start_playing_at")
         # noinspection SpellCheckingInspection
         sub.prop(cdata, "openvdb_frame_speed_mutiplier")
@@ -283,7 +283,7 @@ class OCTANE_PT_volume_properties(OctaneButtonsPanel, Panel):
 
     def draw(self, context):
         cdata = context.volume.octane
-        layout = self.layout        
+        layout = self.layout
 
         modifiers = context.object.modifiers
         is_volume_modified = False
@@ -298,7 +298,7 @@ class OCTANE_PT_volume_properties(OctaneButtonsPanel, Panel):
 
         box = layout.box()
         box.label(text="Volume properties:")
-        sub = box.column(align=True)     
+        sub = box.column(align=True)
         sub.prop(cdata, "vdb_sdf")
         sub.prop(cdata, "vdb_import_scale")
         sub = box.column(align=True)
@@ -309,24 +309,24 @@ class OCTANE_PT_volume_properties(OctaneButtonsPanel, Panel):
         sub.prop(cdata, "border_thickness_inside")
         sub.prop(cdata, "border_thickness_outside")
         sub.prop(cdata, "vdb_abs_scale")
-        sub.prop(cdata, "vdb_emiss_scale")        
-        sub.prop(cdata, "vdb_scatter_scale")             
-        sub.prop_search(cdata, "vdb_absorption_grid_id", cdata.octane_vdb_info, "vdb_float_grid_id_container")         
-        sub.prop_search(cdata, "vdb_emission_grid_id", cdata.octane_vdb_info, "vdb_float_grid_id_container")  
-        sub.prop_search(cdata, "vdb_scattering_grid_id", cdata.octane_vdb_info, "vdb_float_grid_id_container")  
+        sub.prop(cdata, "vdb_emiss_scale")
+        sub.prop(cdata, "vdb_scatter_scale")
+        sub.prop_search(cdata, "vdb_absorption_grid_id", cdata.octane_vdb_info, "vdb_float_grid_id_container")
+        sub.prop_search(cdata, "vdb_emission_grid_id", cdata.octane_vdb_info, "vdb_float_grid_id_container")
+        sub.prop_search(cdata, "vdb_scattering_grid_id", cdata.octane_vdb_info, "vdb_float_grid_id_container")
         sub = box.column(align=True)
         sub.prop(cdata, "vdb_motion_blur_enabled")
         sub.prop(cdata, "vdb_velocity_grid_type")
         sub.prop(cdata, "vdb_vel_scale")
         if cdata.vdb_velocity_grid_type == 'Vector grid':
-            sub.prop_search(cdata, "vdb_vector_grid_id", cdata.octane_vdb_info, "vdb_vector_grid_id_container")            
+            sub.prop_search(cdata, "vdb_vector_grid_id", cdata.octane_vdb_info, "vdb_vector_grid_id_container")
         else:
-            sub.prop_search(cdata, "vdb_x_components_grid_id", cdata.octane_vdb_info, "vdb_float_grid_id_container")        
+            sub.prop_search(cdata, "vdb_x_components_grid_id", cdata.octane_vdb_info, "vdb_float_grid_id_container")
             sub.prop_search(cdata, "vdb_y_components_grid_id", cdata.octane_vdb_info, "vdb_float_grid_id_container")
-            sub.prop_search(cdata, "vdb_z_components_grid_id", cdata.octane_vdb_info, "vdb_float_grid_id_container") 
+            sub.prop_search(cdata, "vdb_z_components_grid_id", cdata.octane_vdb_info, "vdb_float_grid_id_container")
 
         box = layout.box()
-        box.label(text="Octane Offset Transform:")     
+        box.label(text="Octane Offset Transform:")
         sub = box.row(align=True)
         sub.prop(cdata, "enable_octane_offset_transform")
         sub = box.row(align=True)
@@ -357,7 +357,7 @@ class OCTANE_RENDER_PT_SpherePrimitiveSettings(OctaneButtonsPanel, Panel):
 
         psys = context.particle_system
         particle_settings = context.particle_settings
-        
+
         is_active = psys.settings.type != 'HAIR' and (psys.settings.render_type != 'OBJECT'
                                                       and psys.settings.render_type != 'COLLECTION')
 
@@ -369,7 +369,7 @@ class OCTANE_RENDER_PT_SpherePrimitiveSettings(OctaneButtonsPanel, Panel):
         row.prop(particle_settings, "octane_velocity_multiplier")
         row = layout.row()
         row.active = is_active
-        row.prop(particle_settings, "octane_sphere_size_multiplier")        
+        row.prop(particle_settings, "octane_sphere_size_multiplier")
 
 
 class OCTANE_PT_context_material(OctaneButtonsPanel, Panel):
@@ -440,7 +440,7 @@ class OCTANE_MATERIAL_PT_surface(OctaneButtonsPanel, Panel):
     def poll(cls, context):
         return (context.material or context.object) and OctaneButtonsPanel.poll(context)
 
-    def draw(self, context):        
+    def draw(self, context):
         layout = self.layout
 
         mat = context.material
@@ -512,7 +512,7 @@ class OCTANE_OBJECT_PT_octane_settings(OctaneButtonsPanel, Panel):
         layout = self.layout
         ob = context.object
         octane_object = ob.octane
-        
+
         if ob and ob.type not in ('FONT',):
             sub = layout.row(align=True)
             sub.active = not utility.is_viewport_rendering()
@@ -528,7 +528,8 @@ class OCTANE_OBJECT_PT_octane_settings_object_layer(OctaneButtonsPanel, Panel):
         layout = self.layout
         ob = context.object
         octane_object = ob.octane
-        is_used_as_orbx_proxy = len(ob.data.octane.imported_orbx_file_path) > 0
+        orbx_path = getattr(ob.data.octane, "imported_orbx_file_path", "")
+        is_used_as_orbx_proxy = len(orbx_path) > 0
         if is_used_as_orbx_proxy:
             sub = layout.row(align=True)
             sub.label(text="This object is used as Orbx Proxy.")
@@ -539,7 +540,7 @@ class OCTANE_OBJECT_PT_octane_settings_object_layer(OctaneButtonsPanel, Panel):
         sub.prop(octane_object, "render_layer_id")
         sub = layout.row(align=True)
         sub.prop(octane_object, "general_visibility")
-        sub = layout.row(align=True)        
+        sub = layout.row(align=True)
         sub.prop(octane_object, "camera_visibility")
         sub.prop(octane_object, "shadow_visibility")
         sub.prop(octane_object, "dirt_visibility")
@@ -564,7 +565,7 @@ class OCTANE_OBJECT_PT_octane_settings_object_layer(OctaneButtonsPanel, Panel):
         row.prop(octane_object, "light_id_pass_10", text="10", toggle=True)
         row.prop(octane_object, "light_id_pass_11", text="11", toggle=True)
         row.prop(octane_object, "light_id_pass_12", text="12", toggle=True)
-        row.prop(octane_object, "light_id_pass_13", text="13", toggle=True)        
+        row.prop(octane_object, "light_id_pass_13", text="13", toggle=True)
         row.prop(octane_object, "light_id_pass_14", text="14", toggle=True)
         row = box.row(align=True)
         row.prop(octane_object, "light_id_pass_15", text="15", toggle=True)
@@ -573,11 +574,11 @@ class OCTANE_OBJECT_PT_octane_settings_object_layer(OctaneButtonsPanel, Panel):
         row.prop(octane_object, "light_id_pass_18", text="18", toggle=True)
         row.prop(octane_object, "light_id_pass_19", text="19", toggle=True)
         row.prop(octane_object, "light_id_pass_20", text="20", toggle=True)
-        
+
         sub = layout.row(align=True)
         sub.prop(octane_object, "random_color_seed")
         sub = layout.row(align=True)
-        sub.prop(octane_object, "color")    
+        sub.prop(octane_object, "color")
         sub = layout.row(align=True)
         sub.prop(octane_object, "custom_aov")
         sub = layout.row(align=True)
@@ -597,7 +598,7 @@ class OCTANE_OBJECT_PT_octane_settings_baking_settings(OctaneButtonsPanel, Panel
         sub = layout.row(align=True)
         sub.prop(octane_object, "baking_group_id")
         sub = layout.row(align=True)
-        sub.prop(octane_object, "baking_uv_transform_rz")        
+        sub.prop(octane_object, "baking_uv_transform_rz")
         sub = layout.row(align=True)
         sub.prop(octane_object, "baking_uv_transform_sx")
         sub.prop(octane_object, "baking_uv_transform_sy")

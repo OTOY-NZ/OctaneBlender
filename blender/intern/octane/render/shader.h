@@ -49,6 +49,7 @@ class Shader {
   void set_graph(ShaderGraph *graph);
   void tag_update(Scene *scene);
   void tag_used(Scene *scene);
+  bool is_empty();
 
   string name;
   int pass_id;

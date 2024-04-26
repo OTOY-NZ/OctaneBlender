@@ -1266,8 +1266,8 @@ class OctaneBaseCameraSettings(common.OctanePropertySettings):
             y_aspect_ratio = 1.0
         if blender_camera.type == BlenderCameraType.ORTHOGRAPHIC:
             scale = blender_camera.calculate_ortho_scale(x_ratio, y_ratio) * blender_camera.zoom
-            lens_shift_x = (blender_camera.shift[0] + offset[0] * 2.0) / blender_camera.zoom
-            lens_shift_y = (blender_camera.shift[1] + offset[1] * 2.0) / blender_camera.zoom
+            lens_shift_x = (blender_camera.shift[0] + offset[0] * 2.0 / x_aspect_ratio) / blender_camera.zoom
+            lens_shift_y = (blender_camera.shift[1] + offset[1] * 2.0 / y_aspect_ratio) / blender_camera.zoom
             if y_ratio > 0:
                 lens_shift_y *= (x_ratio / y_ratio)
         else:

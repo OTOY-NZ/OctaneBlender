@@ -419,8 +419,25 @@ static void blender_camera_sync(Camera *cam,
 
   if (cam->oct_node.bOrtho) {
     cam->oct_node.fFOV = calculate_ortho_scale(bcam, xratio, yratio) * zoom;
-    cam->oct_node.f2LensShift.x = (bcam->shift.x + offset.x * 2.f) / zoom;
-    cam->oct_node.f2LensShift.y = (bcam->shift.y + offset.y * 2.f) / zoom;
+    // Lens shift to the right/top as a proportion of the image width/height.
+    float x_aspect_ratio = 1.f, y_aspect_ratio = 1.f; 
+    if (bcam->sensor_fit == BlenderCamera::HORIZONTAL ||
+        (bcam->sensor_fit == BlenderCamera::AUTO && xratio > yratio))
+    {
+      x_aspect_ratio = 1.f;
+      y_aspect_ratio = xratio / yratio;
+    }
+    if (bcam->sensor_fit == BlenderCamera::VERTICAL ||
+        (bcam->sensor_fit == BlenderCamera::AUTO && xratio < yratio))
+    {
+      x_aspect_ratio = yratio / xratio;
+      y_aspect_ratio = 1.f;
+    }
+    cam->oct_node.f2LensShift.x = (bcam->shift.x + offset.x * 2.f / x_aspect_ratio) / zoom;
+    cam->oct_node.f2LensShift.y = (bcam->shift.y + offset.y * 2.f / y_aspect_ratio) / zoom;
+    if (yratio > 0) {
+      cam->oct_node.f2LensShift.y *= (xratio / yratio);
+    }
   }
   else {
     cam->oct_node.fFOV = 2.0f * atanf((0.5f * sensor_size * zoom) / bcam->lens) * 180.0f / M_PI_F;
@@ -850,7 +867,7 @@ void BlenderSync::update_octane_camera_properties(Camera *cam,
   if (!view && oct_camera.data != NULL) {
     cam->oct_node.bUseFstopValue = false;
     cam->oct_node.bUseUniversalCamera = (get_enum_identifier(oct_camera, "octane_camera_type") ==
-                                        "Universal");
+                                         "Universal");
     cam->oct_node.bUseCameraDimensionAsPreviewResolution =
         preview && RNA_boolean_get(&oct_camera, "use_camera_dimension_as_preview_resolution");
 
@@ -925,7 +942,8 @@ void BlenderSync::update_octane_camera_properties(Camera *cam,
     cam->oct_node.sOSLCameraNodeMaterialName = std::string(oslCameraNodeMaterialName);
     std::string octane_camera_type = get_enum_identifier(oct_camera, "octane_camera_type");
     cam->oct_node.sOSLCameraNodeName = std::string(oslCameraNodeName);
-    cam->oct_node.bUseOSLCamera = (octane_camera_type == "OSL") && cam->oct_node.sOSLCameraNodeMaterialName.size() != 0 &&
+    cam->oct_node.bUseOSLCamera = (octane_camera_type == "OSL") &&
+                                  cam->oct_node.sOSLCameraNodeMaterialName.size() != 0 &&
                                   cam->oct_node.sOSLCameraNodeName.size() != 0;
 
     bool baking_camera = (octane_camera_type == "Baking");

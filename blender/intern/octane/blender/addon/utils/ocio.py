@@ -88,7 +88,7 @@ def update_ocio_info_xml_request(ocio_config_file_path, ocio_use_other_config_fi
     root_et.set("intermediateColorSpaceOCIOName", octane_format_ocio_intermediate_color_space_ocio)
     xml_data = ElementTree.tostring(root_et, encoding="unicode")
     # Update the OCIO Settings in temporal connections
-    response = OctaneBlender().utils_function(consts.UtilsFunctionType.UPDATE_OCIO_SETTINGS, xml_data)
+    response = OctaneBlender().utils_function(consts.UtilsFunctionType.UPDATE_OCIO_SETTINGS, xml_data, 100)
     if len(response):
         content = ElementTree.fromstring(response).get("content")
         try:

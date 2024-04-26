@@ -100,7 +100,7 @@ class OctaneOSLBakingCameraBakeOutwards(OctaneBaseSocket):
     octane_pin_type = consts.PinType.PT_BOOL
     octane_pin_index = 4
     octane_socket_type = consts.SocketType.ST_BOOL
-    default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Change the handling of transparency on the fist surface hit of a path. If disabled, a transparent surface will terminate the path, use this if rendering the surface of a baked mesh. If enabled, the ray will continue, use this if you're using the mesh as a custom lens")
+    default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Change the handling of transparency on the first surface hit of a path. If disabled, a transparent surface will terminate the path. Use this if you're rendering the surface of a baked mesh. If enabled, the ray will continue. Use this if you're using the mesh as a custom lens")
     octane_hide_value = False
     octane_min_version = 0
     octane_end_version = 4294967295

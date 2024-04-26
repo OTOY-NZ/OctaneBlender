@@ -302,7 +302,6 @@ class OctaneObjectLayerGroupVisibilitySettings(OctaneGroupTitleSocket):
     octane_group_sockets: StringProperty(name="Group Sockets", default="General visibility;Camera visibility;Shadow visibility;Dirt visibility;Curvature visibility;Round edges visibility;")
 
 
-
 class OctaneObjectLayerGroupBakingSettings(OctaneGroupTitleSocket):
     bl_idname = "OctaneObjectLayerGroupBakingSettings"
     bl_label = "[OctaneGroupTitle]Baking settings"

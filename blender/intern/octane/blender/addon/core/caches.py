@@ -313,7 +313,7 @@ class NodeTreeCache(OctaneNodeCache):
                     root_octane_node.is_root = False
                 queue.append(root_octane_node)
             else:
-                # Avoid cyclic link and redundant process
+                # Avoid a cyclic link and redundant process
                 if octane_graph_node.octane_name in processed_octane_nodes:
                     continue
                 processed_octane_nodes[octane_graph_node.octane_name] = octane_graph_node
@@ -369,6 +369,7 @@ class NodeTreeCache(OctaneNodeCache):
         if owner_type == consts.OctaneNodeTreeIDName.MATERIAL:
             self.session.set_status_msg("Uploading material[%s] to Octane..." % owner_id.name, update_now)
         if active_output_node:
+            is_object_material_node_valid = False
             for _input in active_output_node.inputs:
                 if not _input.enabled:
                     continue
@@ -383,6 +384,7 @@ class NodeTreeCache(OctaneNodeCache):
                 is_object_material_node_tree = (owner_type == consts.OctaneNodeTreeIDName.MATERIAL
                                                 and _input.name != "Displacement")
                 if is_object_material_node_tree:
+                    is_object_material_node_valid = True
                     final_root_name = root_name + "[%d]" % getattr(root_node, "octane_node_type", 0)
                 else:
                     final_root_name = root_name
@@ -391,6 +393,9 @@ class NodeTreeCache(OctaneNodeCache):
                 self._update_node_tree(depsgraph, owner_type,
                                        active_output_node, _input.name, final_root_name,
                                        node_tree_attributes, update_now)
+            if owner_type == consts.OctaneNodeTreeIDName.MATERIAL and not is_object_material_node_valid:
+                self.update_octane_node_tree_name(owner_id, "")
+                self.is_node_tree_octane_name_changed = True
 
     def custom_update(self, depsgraph, scene, view_layer, context=None, update_now=True):
         super().custom_update(depsgraph, scene, view_layer, context, update_now)
@@ -912,4 +917,4 @@ class SceneCache(OctaneNodeCache):
         if need_update:
             xml_data = ElementTree.tostring(request_et, encoding="unicode")
             from octane.core.client import OctaneBlender
-            _response = OctaneBlender().utils_function(consts.UtilsFunctionType.UPDATE_RENDER_SETTINGS, xml_data)
+            _response = OctaneBlender().utils_function(consts.UtilsFunctionType.UPDATE_RENDER_SETTINGS, xml_data, 100)

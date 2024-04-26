@@ -156,7 +156,7 @@ class RenderSession(object):
         # Fix the problem that Octane's shading type does not be updated when users use shortcut to start a preview
         # render session
         utility.update_octane_viewport_shading_type()
-        OctaneBlender().utils_function(consts.UtilsFunctionType.RENDER_STOP, "")
+        OctaneBlender().utils_function(consts.UtilsFunctionType.RENDER_STOP, "", 100)
         return True
 
     def reset_render(self):
@@ -243,13 +243,13 @@ class RenderSession(object):
             if self.material_cache.need_update:
                 self.material_cache.update(depsgraph, scene, view_layer, context, update_now)
                 need_redraw = True
-            self.set_status_msg("Uploading and evaluating objects in Octane...", update_now)
-            if self.object_cache.need_update:
-                self.object_cache.update(depsgraph, scene, view_layer, context, update_now)
-                need_redraw = True
             self.set_status_msg("Uploading and evaluating lights in Octane...", update_now)
             if self.light_cache.need_update:
                 self.light_cache.update(depsgraph, scene, view_layer, context, update_now)
+                need_redraw = True
+            self.set_status_msg("Uploading and evaluating objects in Octane...", update_now)
+            if self.object_cache.need_update:
+                self.object_cache.update(depsgraph, scene, view_layer, context, update_now)
                 need_redraw = True
             self.set_status_msg("Uploading and evaluating worlds in Octane...", update_now)
             if self.world_cache.need_update:
@@ -519,7 +519,7 @@ class RenderSession(object):
         octane_prefix_tag = octane_scene.octane_export_prefix_tag \
             if len(octane_scene.octane_export_prefix_tag) else "[OctaneExport]"
         octane_postfix_tag = octane_scene.octane_export_postfix_tag
-        # octane_prefix_tag + File name + octane_postfix_tag, without suffix
+        # octane_prefix_tag + File name + octane_postfix_tag, without a suffix
         processed_file_name = octane_prefix_tag + file_name_with_frame + octane_postfix_tag
         processed_file_name = utility.blender_path_frame(processed_file_name, scene.frame_current)
         renderlayer_name = render_layer.name

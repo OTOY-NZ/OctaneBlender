@@ -677,8 +677,6 @@ class TOPBAR_MT_window(Menu):
             layout.operator("screen.screenshot_area")
 
         layout.separator()
-        layout.operator("wm.octane_livedb")
-        layout.separator()
 
         if sys.platform[:3] == "win":
             layout.separator()

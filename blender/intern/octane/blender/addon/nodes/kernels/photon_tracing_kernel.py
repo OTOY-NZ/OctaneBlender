@@ -904,7 +904,6 @@ class OctanePhotonTracingKernelGroupSampling(OctaneGroupTitleSocket):
     octane_group_sockets: StringProperty(name="Group Sockets", default="Path term. power;Direct light rays;Coherent ratio;Static noise;Parallel samples;Max. tile samples;Minimize net traffic;")
 
 
-
 class OctanePhotonTracingKernelGroupAdaptiveSampling(OctaneGroupTitleSocket):
     bl_idname = "OctanePhotonTracingKernelGroupAdaptiveSampling"
     bl_label = "[OctaneGroupTitle]Adaptive sampling"
@@ -962,7 +961,7 @@ class OctanePhotonTracingKernel(bpy.types.Node, OctaneBaseKernelNode):
     ]
     a_compatibility_version_enum: EnumProperty(name="Compatibility version", default="Latest (2023.1.1)", update=OctaneBaseNode.update_compatibility_mode, description="The Octane version that the behavior of this node should match", items=compatibility_mode_infos)
 
-    a_compatibility_version: IntProperty(name="Compatibility version", default=14000002, update=OctaneBaseNode.update_node_tree, description="The Octane version that the behavior of this node should match")
+    a_compatibility_version: IntProperty(name="Compatibility version", default=14000003, update=OctaneBaseNode.update_node_tree, description="The Octane version that the behavior of this node should match")
 
     def init(self, context):  # noqa
         self.inputs.new("OctanePhotonTracingKernelGroupQuality", OctanePhotonTracingKernelGroupQuality.bl_label).init()

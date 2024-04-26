@@ -901,7 +901,7 @@ class OctaneUniversalCameraDiopterBoundaryWidth(OctaneBaseSocket):
     octane_pin_type = consts.PinType.PT_FLOAT
     octane_pin_index = 47
     octane_socket_type = consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=0.500000, update=OctaneBaseSocket.update_node_tree, description="Width of the boundary between the two fields relaticve to the image width", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1.000000, precision=2, subtype=runtime_globals.FACTOR_PROPERTY_SUBTYPE)
+    default_value: FloatProperty(default=0.500000, update=OctaneBaseSocket.update_node_tree, description="Width of the boundary between the two fields relative to the image width", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1.000000, precision=2, subtype=runtime_globals.FACTOR_PROPERTY_SUBTYPE)
     octane_hide_value = False
     octane_min_version = 0
     octane_end_version = 4294967295

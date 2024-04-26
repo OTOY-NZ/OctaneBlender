@@ -56,7 +56,7 @@ class OctaneDBManager(metaclass=utility.Singleton):
         request_et.set("cachePath", texture_cache_path)
         request_et.set("open", str(int(is_open_request)))
         xml_data = ElementTree.tostring(request_et, encoding="unicode")
-        response = OctaneBlender().utils_function(consts.UtilsFunctionType.FETCH_LIVEDB, xml_data,
+        response = OctaneBlender().utils_function(consts.UtilsFunctionType.FETCH_LIVEDB, xml_data, -1,
                                                   self.OCTANEDB_CLIENT_NAME)
         if len(response):
             content = ElementTree.fromstring(response).get("content")

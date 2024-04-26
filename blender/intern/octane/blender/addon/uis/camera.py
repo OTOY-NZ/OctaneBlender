@@ -8,7 +8,16 @@ from octane.uis import common
 from octane.utils import runtime_globals, utility
 
 
-class OCTANE_MT_imager_presets(Menu):
+class OctanePresetMenu(Menu):
+    @staticmethod
+    def post_cb(context):
+        # Modify an arbitrary built-in scene property to force a depsgraph
+        # update, because add-on properties don't. (see #62325)
+        render = context.scene.render
+        render.filter_size = render.filter_size
+
+
+class OCTANE_MT_imager_presets(OctanePresetMenu):
     bl_label = "Imager presets"
     preset_subdir = "octane/imager_presets"
     preset_operator = "script.execute_preset"
@@ -17,7 +26,7 @@ class OCTANE_MT_imager_presets(Menu):
     draw = Menu.draw_preset
 
 
-class OCTANE_MT_3dimager_presets(Menu):
+class OCTANE_MT_3dimager_presets(OctanePresetMenu):
     bl_label = "Imager presets"
     preset_subdir = "octane/3dimager_presets"
     preset_operator = "script.execute_preset"
@@ -26,7 +35,7 @@ class OCTANE_MT_3dimager_presets(Menu):
     draw = Menu.draw_preset
 
 
-class OCTANE_MT_postprocess_presets(Menu):
+class OCTANE_MT_postprocess_presets(OctanePresetMenu):
     bl_label = "Postprocess presets"
     preset_subdir = "octane/postprocess_presets"
     preset_operator = "script.execute_preset"
@@ -35,7 +44,7 @@ class OCTANE_MT_postprocess_presets(Menu):
     draw = Menu.draw_preset
 
 
-class OCTANE_MT_3dpostprocess_presets(Menu):
+class OCTANE_MT_3dpostprocess_presets(OctanePresetMenu):
     bl_label = "Postprocess presets"
     preset_subdir = "octane/3dpostprocess_presets"
     preset_operator = "script.execute_preset"

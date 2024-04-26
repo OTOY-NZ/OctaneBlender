@@ -312,9 +312,20 @@ class OctaneBaseNode(object):
                 setattr(self, attribute_name, getattr(other_node, attribute_name, None))
         for socket in self.inputs:
             socket_name = socket.name
+            src_socket_name = None
             if socket_name in other_node.inputs:
+                src_socket_name = socket_name
+            else:
+                dest_socket_pin_id = getattr(socket, "octane_pin_id", consts.PinType.PT_UNKNOWN)
+                if dest_socket_pin_id != consts.PinType.PT_UNKNOWN:
+                    for _input in other_node.inputs:
+                        if getattr(_input, "octane_deprecated", False) or getattr(_input, "hide", False):
+                            continue
+                        if dest_socket_pin_id == getattr(_input, "octane_pin_id", None):
+                            src_socket_name = _input.name
+            if src_socket_name is not None:
                 dest_socket = self.inputs[socket_name]
-                src_socket = other_node.inputs[socket_name]
+                src_socket = other_node.inputs[src_socket_name]
                 dest_socket.copy_from_socket(src_socket, copy_link)
         self.copy_from_custom_node(other_node, copy_link)
 

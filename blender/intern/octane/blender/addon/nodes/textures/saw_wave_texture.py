@@ -80,7 +80,7 @@ class OctaneSawWaveTextureCircular(OctaneBaseSocket):
     octane_pin_type = consts.PinType.PT_BOOL
     octane_pin_index = 3
     octane_socket_type = consts.SocketType.ST_BOOL
-    default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="(deprecated) Use a circulare wave")
+    default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="(deprecated) Use a circular wave")
     octane_hide_value = False
     octane_min_version = 0
     octane_end_version = 1210000

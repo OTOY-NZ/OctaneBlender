@@ -671,7 +671,7 @@ void OctaneClient::startRender(bool bInteractive,
   LOCK_MUTEX(m_SocketMutex);
 
   RPCSend snd(m_Socket,
-              sizeof(int32_t) * 8 + sizeof(uint32_t) * 2 + sizeof(uint64_t) * 2 +
+              sizeof(int32_t) * 9 + sizeof(uint32_t) * 2 + sizeof(uint64_t) * 2 +
                   (m_sOutPath.size() + 2) + m_sCachePath.size() + 2,
               OctaneDataTransferObject::START);
   snd << bInteractive << bUseSharedSurface << bEnableRealtime << iClientProcessId << iDeviceLuid

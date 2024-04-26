@@ -264,6 +264,7 @@ class OctaneBaseImageNode(OctaneBaseNode):
                                                is_data_updated)
 
     def copy_from_custom_node(self, other_node, copy_link=False):
+        super().copy_from_custom_node(other_node, copy_link)
         self.a_channel_format = other_node.a_channel_format
         self.image = other_node.image
         self.frame_current = other_node.frame_current

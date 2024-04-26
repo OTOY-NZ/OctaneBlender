@@ -716,6 +716,7 @@ set(ADDON_NODES_UTIL_FILES
   addon/utils/utility.py
   addon/utils/consts.py
   addon/utils/curve.py
+  addon/utils/logger.py
   addon/utils/ocio.py
   addon/utils/octaneid.py
   addon/utils/octane_name.py
