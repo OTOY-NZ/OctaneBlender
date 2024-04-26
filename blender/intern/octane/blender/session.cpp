@@ -525,6 +525,7 @@ void BlenderSession::render(BL::Depsgraph &b_depsgraph_)
     session->update_scene_to_server(0, 1);
     session->server->startRender(!background,
                                  session_params.use_shared_surface,
+                                 session_params.enable_realtime,
                                  session_params.process_id,
                                  session_params.device_luid,
                                  width,

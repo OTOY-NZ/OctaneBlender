@@ -2119,6 +2119,11 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
         items=meshes_render_types,
         default='4',
     )
+    enable_realtime: BoolProperty(
+        name="Enable Real-time in viewport rendering",
+        description="Enable Octane real-time mode in viewport rendering",
+        default=False,
+    )    
     resource_cache_types = (
         ('None', "None", "Disable resource cache system", consts.ResourceCacheType.NONE),
         ('Texture Only', "Texture Only", "Only cache the textures in RAM", consts.ResourceCacheType.TEXTURE_ONLY),    
@@ -2766,13 +2771,13 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
         default=False,
     )
     use_preview_camera_imager: BoolProperty(
-        name="Enable Imager in Interactive Mode",
-        description="Tick to enable Octane Imager in interactive preview mode",
+        name="Octane Camera Imager(Preview Mode)",
+        description="Tick to enable Octane Camera Imager in interactive preview mode",
         default=True,
     )
     use_render_camera_imager: BoolProperty(
-        name="Enable Imager in Render Mode",
-        description="Tick to enable Octane Imager in render mode",
+        name="Octane Camera Imager(Render Mode)",
+        description="Tick to enable Octane Camera Imager in render mode",
         default=True,
     )
     hdr_tonemap_preview_enable: BoolProperty(

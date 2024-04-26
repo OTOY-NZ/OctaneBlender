@@ -43,10 +43,10 @@ class OCTANE_MT_3dpostprocess_presets(Menu):
     draw = Menu.draw_preset
 
 
-
 class OCTANE_CAMERA_PT_camera(common.OctanePropertyPanel, Panel):
     bl_label = "Octane camera"
     bl_context = "data"
+    COMPAT_ENGINES = {"octane"}
 
     @classmethod
     def poll(cls, context):
@@ -54,216 +54,433 @@ class OCTANE_CAMERA_PT_camera(common.OctanePropertyPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        cam = context.camera
+        oct_cam = cam.octane
+        col = layout.column()
+        col.prop(oct_cam, "octane_camera_type")
+
+
+class OCTANE_CAMERA_PT_camera_General(common.OctanePropertyPanel, Panel):
+    bl_label = "Lens or Panoramic"
+    bl_parent_id = "OCTANE_CAMERA_PT_camera"
+    COMPAT_ENGINES = {"octane"}
+
+    @classmethod
+    def poll(cls, context):
+        cam = context.camera
+        oct_cam = cam.octane        
+        return super().poll(context) and cam and oct_cam.octane_camera_type == "Lens or Panoramic"
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
 
         cam = context.camera
         oct_cam = cam.octane
 
-        row = layout.row(align=True)
-        row.prop(oct_cam, "use_camera_dimension_as_preview_resolution")
+        col = layout.column()
+        row = col.row()
+        row.active = (cam.type == "PANO")
+        col.prop(oct_cam, "pan_mode")
+        col.prop(oct_cam, "fov_x")
+        col.prop(oct_cam, "fov_y", text="Y")
+        row = col.row(heading="Keep upright")
+        row.prop(oct_cam, "keep_upright", text="")
 
-        row = layout.row(align=True)
-        row.prop(oct_cam, "used_as_universal_camera")
-        sub = layout.column(align=True)
+        row = col.row()
+        row.active = (cam.type != "PANO")
+        col.prop(oct_cam, "distortion")
+        col.prop(oct_cam, "pixel_aspect")
+        row = col.row(heading="Persp. correction")
+        row.prop(oct_cam, "persp_corr", text="")
 
-        if oct_cam.used_as_universal_camera:
-            if cam.type == 'PANO':
-                sub.prop(oct_cam, "universal_camera_mode")
-            box = layout.box()
-            box.label(text="Viewing angle")
-            sub = box.row(align=True)
-            sub.prop(oct_cam, "universal_perspective_correction")
-            box = layout.box()
-            box.label(text="Fisheye")
-            sub = box.row(align=True)
-            sub.prop(oct_cam, "fisheye_angle")
-            sub = box.row(align=True)
-            sub.prop(oct_cam, "fisheye_type")
-            sub = box.row(align=True)
-            sub.prop(oct_cam, "hard_vignette")        
-            sub = box.row(align=True)
-            sub.prop(oct_cam, "fisheye_projection_type")       
-            box = layout.box()
-            box.label(text="Panoramic")
-            sub = box.column(align=True)
-            sub.prop(oct_cam, "fov_x")
-            sub.prop(oct_cam, "fov_y")  
-            sub = box.row(align=True)          
-            sub.prop(oct_cam, "cubemap_layout_type")
-            sub = box.row(align=True)
-            sub.prop(oct_cam, "equi_angular_cubemap")                
-            box = layout.box()
-            box.label(text="Distortion")
-            sub = box.column(align=True)
-            sub.prop(oct_cam, "use_distortion_texture")
-            sub = box.row(align=True)
-            sub.prop_search(oct_cam, "distortion_texture", bpy.data, "textures")       
-            sub = box.column(align=True)
-            sub.prop(oct_cam, "spherical_distortion")
-            sub.prop(oct_cam, "barrel_distortion")
-            sub.prop(oct_cam, "barrel_distortion_corners")
-            box = layout.box()
-            box.label(text="Aberration")
-            sub = box.column(align=True)
-            sub.prop(oct_cam, "spherical_aberration")
-            sub.prop(oct_cam, "coma")            
-            sub.prop(oct_cam, "astigmatism")
-            sub.prop(oct_cam, "field_curvature")   
-            box = layout.box()
-            box.label(text="Depth of field:")
-            sub = box.column(align=True)
-            sub.prop(oct_cam, "autofocus")
-            sub = box.row(align=True)
-            sub.active = oct_cam.autofocus is False
-            sub.prop(cam.dof, "focus_object", text="")
-            sub = box.row(align=True)
-            sub.active = oct_cam.autofocus is False and cam.dof.focus_object is None
-            sub.prop(cam.dof, "focus_distance", text="Distance")
-            sub = box.column(align=True)
-            sub.prop(oct_cam, "aperture")
-            sub.prop(oct_cam, "aperture_aspect")
-            sub = box.row(align=True)
-            sub.prop(oct_cam, "aperture_shape_type")
-            sub = box.column(align=True)
-            sub.prop(oct_cam, "aperture_edge")        
-            sub.prop(oct_cam, "aperture_blade_count")
-            sub.prop(oct_cam, "aperture_rotation")
-            sub.prop(oct_cam, "aperture_roundedness") 
-            sub.prop(oct_cam, "central_obstruction")                     
-            sub.prop(oct_cam, "notch_position")
-            sub.prop(oct_cam, "notch_scale")
-            sub = box.row(align=True)
-            sub.prop_search(oct_cam, "custom_aperture_texture", bpy.data, "textures")
-            box = layout.box()
-            box.label(text="Optical vignette")
-            sub = box.column(align=True)
-            sub.prop(oct_cam, "optical_vignette_distance")
-            sub.prop(oct_cam, "optical_vignette_scale")     
-            box = layout.box()
-            box.label(text="Split-focus diopter")
-            sub = box.column(align=True)
-            sub.prop(oct_cam, "enable_split_focus_diopter")
-            sub = box.column(align=True)
-            sub.prop(oct_cam, "diopter_focal_depth")
-            sub.prop(oct_cam, "diopter_rotation")
-            sub = box.row(align=True)
-            sub.prop(oct_cam, "diopter_translation")
-            sub = box.column(align=True)
-            sub.prop(oct_cam, "diopter_boundary_width")
-            sub.prop(oct_cam, "diopter_boundary_falloff")
-            sub = box.row(align=True)
-            sub.prop(oct_cam, "show_diopter_guide")
-        else:            
-            sub.active = (cam.type == 'PANO')
-            sub.prop(oct_cam, "pan_mode")
-            sub.prop(oct_cam, "fov_x")
-            sub.prop(oct_cam, "fov_y")
-            sub.prop(oct_cam, "keep_upright")
+        row = col.row(heading="Use F-stop")
+        row.prop(oct_cam, "use_fstop", text="")
+        row = col.row()
+        row.active = oct_cam.use_fstop
+        row.prop(oct_cam, "fstop")
 
-            col = layout.column(align=True)
-            col.active = (cam.type != 'PANO')
-            col.prop(oct_cam, "distortion")
-            col.prop(oct_cam, "pixel_aspect")
-            col.prop(oct_cam, "persp_corr")
-            
-            sub = layout.row(align=True)
-            sub.prop(oct_cam, "use_fstop")
-            sub.prop(oct_cam, "fstop")        
 
-            box = layout.box()
-            box.label(text="Depth of field:")
-            sub = box.column(align=True)
-            sub.prop(oct_cam, "autofocus")
-            sub = box.row(align=True)
-            sub.active = oct_cam.autofocus is False
-            sub.prop(cam.dof, "focus_object", text="")
-            sub = box.row(align=True)
-            sub.active = oct_cam.autofocus is False and cam.dof.focus_object is None
-            sub.prop(cam.dof, "focus_distance", text="Distance")
-            sub = box.column(align=True)
-            sub.prop(oct_cam, "aperture")
-            sub.prop(oct_cam, "aperture_aspect")
-            sub.prop(oct_cam, "aperture_edge")        
-            sub.prop(oct_cam, "bokeh_sidecount")
-            sub.prop(oct_cam, "bokeh_rotation")
-            sub.prop(oct_cam, "bokeh_roundedness")
+class OCTANE_CAMERA_PT_camera_General_Depth_of_Field(common.OctanePropertyPanel, Panel):
+    bl_label = "Depth of field"
+    bl_parent_id = "OCTANE_CAMERA_PT_camera_General"
+    COMPAT_ENGINES = {"octane"}
 
-            box = layout.box()
-            box.label(text="Stereo:")
-            col = box.column(align=True)
-            sub = box.row()
-            sub.active = (cam.type != 'PANO')
-            sub.prop(oct_cam, "stereo_mode")
-            sub = box.row()
-            #sub.active = (cam.type == 'PANO' or oct_cam.stereo_mode != '1')
-            sub.prop(oct_cam, "stereo_out")
-            sub = box.row()
-            #sub.active = (cam.type == 'PANO' or oct_cam.stereo_mode != '1')
-            sub.prop(oct_cam, "stereo_dist")
-            sub.prop(oct_cam, "stereo_swap_eyes")
-            sub = box.column(align=True)
-            #sub.active = (cam.type == 'PANO')
-            sub.prop(oct_cam, "stereo_dist_falloff")
-            sub.prop(oct_cam, "blackout_lat")
-            col = box.column(align=True)
-            #col.active = (cam.type == 'PANO' or oct_cam.stereo_mode != '1')
-            sub = col.row()
-            sub.prop(oct_cam, "left_filter")
-            sub = col.row()
-            sub.prop(oct_cam, "right_filter")
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        cam = context.camera
+        oct_cam = cam.octane
+        col = layout.column()
+        row = col.row(heading="Autofocus")
+        row.prop(oct_cam, "autofocus", text="")
+        row = col.row(heading="Focus object")
+        row.active = not oct_cam.autofocus
+        row.prop(cam.dof, "focus_object")
+        row = col.row(heading="Distance")
+        row.active = not oct_cam.autofocus and cam.dof.focus_object is None
+        row.prop(cam.dof, "focus_distance")
+        row = col.row()
+        row.active = not oct_cam.use_fstop
+        row.prop(oct_cam, "aperture")
+        col.prop(oct_cam, "aperture_aspect")
+        col.prop(oct_cam, "aperture_edge")
+        col.prop(oct_cam, "bokeh_sidecount")
+        col.prop(oct_cam, "bokeh_rotation")
+        col.prop(oct_cam, "bokeh_roundedness")
 
-            box = layout.box()
-            box.label(text="Baking:")
-            col = box.column(align=True)
 
-            sub = col.row(align=True)
-            sub.prop(oct_cam, "baking_camera")
-            sub = col.row(align=True)
-            sub.active = (oct_cam.baking_camera == True)
-            sub.prop(oct_cam, "baking_revert")
-            sub = col.row(align=True)
-            sub.active = (oct_cam.baking_camera == True)
-            sub.prop(oct_cam, "baking_use_position")
-            sub = col.row(align=True)
-            sub.active = (oct_cam.baking_camera == True)
-            sub.prop(oct_cam, "baking_bkface_culling")
-            sub = col.row(align=True)
-            sub.active = (oct_cam.baking_camera == True)
-            sub.prop(oct_cam, "baking_tolerance")
-            sub = col.row(align=True)
-            sub.active = (oct_cam.baking_camera == True)
-            sub.prop(oct_cam, "baking_group_id")
-            sub = col.row(align=True)
-            sub.active = (oct_cam.baking_camera == True)
-            sub.prop(oct_cam, "baking_padding")
-            sub = col.row(align=True)
-            sub.active = (oct_cam.baking_camera == True)
-            sub.prop(oct_cam, "baking_uv_set")
+class OCTANE_CAMERA_PT_camera_General_Stereo(common.OctanePropertyPanel, Panel):
+    bl_label = "Stereo"
+    bl_parent_id = "OCTANE_CAMERA_PT_camera_General"
+    COMPAT_ENGINES = {"octane"}
 
-            col1 = box.column(align=True)
-            sub = col1.row(align=True)
-            sub.active = (oct_cam.baking_camera == True)
-            sub.prop(oct_cam, "baking_uvbox_min_x")
-            sub = col1.row(align=True)
-            sub.active = (oct_cam.baking_camera == True)
-            sub.prop(oct_cam, "baking_uvbox_min_y")
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        cam = context.camera
+        oct_cam = cam.octane
+        layout.active = (cam.type != "PANO")
+        col = layout.column()
+        col.prop(oct_cam, "stereo_mode")
+        col.prop(oct_cam, "stereo_out")
+        col.prop(oct_cam, "stereo_dist")
+        row = col.row(heading="Swap eyes")
+        row.prop(oct_cam, "stereo_swap_eyes")
+        col.prop(oct_cam, "stereo_dist_falloff")
+        col.prop(oct_cam, "blackout_lat")
+        col.prop(oct_cam, "left_filter")
+        col.prop(oct_cam, "right_filter")
 
-            col1 = box.column(align=True)
-            sub = col1.row(align=True)
-            sub.active = (oct_cam.baking_camera == True)
-            sub.prop(oct_cam, "baking_uvbox_size_x")
-            sub = col1.row(align=True)
-            sub.active = (oct_cam.baking_camera == True)
-            sub.prop(oct_cam, "baking_uvbox_size_y")
 
-            box = layout.box()
-            box.label(text = "OSL Camera:")
-            col = box.column(align = True)
+class OCTANE_CAMERA_PT_camera_OSL(common.OctanePropertyPanel, Panel):
+    bl_label = "Used as OSL Camera"
+    bl_parent_id = "OCTANE_CAMERA_PT_camera"
+    COMPAT_ENGINES = {"octane"}
 
-            sub = col.row(align = True)
-            sub.prop_search(oct_cam.osl_camera_node_collections, "osl_camera_material_tree", bpy.data, "materials")
-            sub = col.row(align = True)        
-            sub.prop_search(oct_cam.osl_camera_node_collections, "osl_camera_node", oct_cam.osl_camera_node_collections, "osl_camera_nodes")        
-            sub.operator('update.osl_camera_nodes', text = 'Update')
+    @classmethod
+    def poll(cls, context):
+        cam = context.camera
+        oct_cam = cam.octane        
+        return super().poll(context) and cam and oct_cam.octane_camera_type == "OSL"
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        cam = context.camera
+        oct_cam = cam.octane
+        col = layout.column()
+        row = col.row()
+        row.prop_search(oct_cam.osl_camera_node_collections, "osl_camera_material_tree", bpy.data, "materials")
+        row = col.row()
+        row.prop_search(oct_cam.osl_camera_node_collections, "osl_camera_node", oct_cam.osl_camera_node_collections, "osl_camera_nodes")        
+        row.operator("update.osl_camera_nodes", text = "Update")
+
+
+class OCTANE_CAMERA_PT_camera_Octane_Camera_data_node(common.OctanePropertyPanel, Panel):
+    bl_label = "Camera data node"
+    bl_parent_id = "OCTANE_CAMERA_PT_camera"
+    bl_options = {"DEFAULT_CLOSED"}
+    COMPAT_ENGINES = {"octane"}
+
+    @classmethod
+    def poll(cls, context):
+        return super().poll(context) and context.camera
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        cam = context.camera
+        oct_cam = cam.octane
+
+        col = layout.column()
+        row = col.row(heading="Front projection")
+        row.prop(oct_cam, "use_camera_dimension_as_preview_resolution", text="Always use camera resolution")
+
+
+class OCTANE_CAMERA_PT_camera_Baking(common.OctanePropertyPanel, Panel):
+    bl_label = "Used as Baking Camera"
+    bl_parent_id = "OCTANE_CAMERA_PT_camera"
+    COMPAT_ENGINES = {"octane"}
+
+    @classmethod
+    def poll(cls, context):
+        cam = context.camera
+        oct_cam = cam.octane        
+        return super().poll(context) and cam and oct_cam.octane_camera_type == "Baking"
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        cam = context.camera
+        oct_cam = cam.octane
+        col = layout.column()
+        col.prop(oct_cam, "baking_group_id")
+        col.prop(oct_cam, "baking_uv_set")
+        row = col.row(heading="Revert baking")
+        row.prop(oct_cam, "baking_revert", text="")
+
+
+class OCTANE_CAMERA_PT_camera_Baking_Padding(common.OctanePropertyPanel, Panel):
+    bl_label = "Padding"
+    bl_parent_id = "OCTANE_CAMERA_PT_camera_Baking"
+    COMPAT_ENGINES = {"octane"}
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        cam = context.camera
+        oct_cam = cam.octane
+        col = layout.column()
+        row = col.row()
+        row.prop(oct_cam, "baking_padding")
+        row = col.row()
+        row.prop(oct_cam, "baking_tolerance")
+
+
+class OCTANE_CAMERA_PT_camera_Baking_UV_region(common.OctanePropertyPanel, Panel):
+    bl_label = "UV region"
+    bl_parent_id = "OCTANE_CAMERA_PT_camera_Baking"
+    COMPAT_ENGINES = {"octane"}
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        cam = context.camera
+        oct_cam = cam.octane
+        col = layout.column()
+        row = col.row(heading="Minimum")
+        col.prop(oct_cam, "baking_uvbox_min_x")
+        col.prop(oct_cam, "baking_uvbox_min_y", text="Y")
+        row = col.row(heading="Size")
+        col.prop(oct_cam, "baking_uvbox_size_x")
+        col.prop(oct_cam, "baking_uvbox_size_y", text="Y")
+
+
+class OCTANE_CAMERA_PT_camera_Baking_Baking_position(common.OctanePropertyPanel, Panel):
+    bl_label = "Baking position"
+    bl_parent_id = "OCTANE_CAMERA_PT_camera_Baking"
+    COMPAT_ENGINES = {"octane"}
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        cam = context.camera
+        oct_cam = cam.octane
+        col = layout.column()
+        row = col.row(heading="Use baking position")
+        row.prop(oct_cam, "baking_use_position", text="")
+        row = col.row(heading="Backface culling")
+        row.prop(oct_cam, "baking_bkface_culling", text="")
+
+
+class OCTANE_CAMERA_PT_camera_Univeral(common.OctanePropertyPanel, Panel):
+    bl_label = "Used as Universal Camera"
+    bl_parent_id = "OCTANE_CAMERA_PT_camera"
+    COMPAT_ENGINES = {"octane"}
+
+    @classmethod
+    def poll(cls, context):
+        cam = context.camera
+        oct_cam = cam.octane        
+        return super().poll(context) and cam and oct_cam.octane_camera_type == "Universal"
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        cam = context.camera
+        oct_cam = cam.octane
+        col = layout.column()
+        row = col.row()
+        row.active = (cam.type == "PANO")
+        row.prop(oct_cam, "universal_camera_mode")
+        row = col.row(heading="Use F-stop")
+        row.prop(oct_cam, "use_fstop", text="")
+        row = col.row()
+        row.active = oct_cam.use_fstop
+        row.prop(oct_cam, "fstop")
+
+
+class OCTANE_CAMERA_PT_camera_Univeral_Viewing_angle(common.OctanePropertyPanel, Panel):
+    bl_label = "Viewing angle"
+    bl_parent_id = "OCTANE_CAMERA_PT_camera_Univeral"
+    COMPAT_ENGINES = {"octane"}
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        cam = context.camera
+        oct_cam = cam.octane
+        col = layout.column()
+        row = col.row(heading="Perspective correction")
+        row.prop(oct_cam, "universal_perspective_correction", text="")
+
+
+class OCTANE_CAMERA_PT_camera_Univeral_Fisheye(common.OctanePropertyPanel, Panel):
+    bl_label = "Fisheye"
+    bl_parent_id = "OCTANE_CAMERA_PT_camera_Univeral"
+    COMPAT_ENGINES = {"octane"}
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        cam = context.camera
+        oct_cam = cam.octane
+        col = layout.column()
+        col.prop(oct_cam, "fisheye_angle")
+        col.prop(oct_cam, "fisheye_type")
+        row = col.row(heading="Hard vignette")
+        row.prop(oct_cam, "hard_vignette", text="")
+        col.prop(oct_cam, "fisheye_projection_type")
+
+
+class OCTANE_CAMERA_PT_camera_Univeral_Panoramic(common.OctanePropertyPanel, Panel):
+    bl_label = "Panoramic"
+    bl_parent_id = "OCTANE_CAMERA_PT_camera_Univeral"
+    COMPAT_ENGINES = {"octane"}
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        cam = context.camera
+        oct_cam = cam.octane
+        col = layout.column()
+        col.prop(oct_cam, "fov_x")
+        col.prop(oct_cam, "fov_y", text="Y")
+        col.prop(oct_cam, "cubemap_layout_type")
+        row = col.row(heading="Equi-angular cubemap")
+        row.prop(oct_cam, "equi_angular_cubemap", text="")
+
+
+class OCTANE_CAMERA_PT_camera_Univeral_Distortion(common.OctanePropertyPanel, Panel):
+    bl_label = "Distortion"
+    bl_parent_id = "OCTANE_CAMERA_PT_camera_Univeral"
+    COMPAT_ENGINES = {"octane"}
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        cam = context.camera
+        oct_cam = cam.octane
+        col = layout.column()
+        row = col.row(heading="Use distortion texture")
+        row.prop(oct_cam, "use_distortion_texture", text="")
+        row = col.row()
+        row.prop_search(oct_cam, "distortion_texture", bpy.data, "textures")
+        col.prop(oct_cam, "spherical_distortion")
+        col.prop(oct_cam, "barrel_distortion")
+        col.prop(oct_cam, "barrel_distortion_corners")
+
+
+class OCTANE_CAMERA_PT_camera_Univeral_Aberration(common.OctanePropertyPanel, Panel):
+    bl_label = "Aberration"
+    bl_parent_id = "OCTANE_CAMERA_PT_camera_Univeral"
+    COMPAT_ENGINES = {"octane"}
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        cam = context.camera
+        oct_cam = cam.octane
+        col = layout.column()
+        row = col.row()
+        col.prop(oct_cam, "spherical_aberration")
+        col.prop(oct_cam, "coma")
+        col.prop(oct_cam, "astigmatism")
+        col.prop(oct_cam, "field_curvature")
+
+
+class OCTANE_CAMERA_PT_camera_Univeral_Depth_of_field(common.OctanePropertyPanel, Panel):
+    bl_label = "Depth of field"
+    bl_parent_id = "OCTANE_CAMERA_PT_camera_Univeral"
+    COMPAT_ENGINES = {"octane"}
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        cam = context.camera
+        oct_cam = cam.octane
+        col = layout.column()
+        row = col.row(heading="Autofocus")
+        row.prop(oct_cam, "autofocus", text="")
+        row = col.row(heading="Focus object")
+        row.active = not oct_cam.autofocus
+        row.prop(cam.dof, "focus_object")
+        row = col.row(heading="Distance")
+        row.active = not oct_cam.autofocus and cam.dof.focus_object is None
+        row.prop(cam.dof, "focus_distance")
+        row = col.row()
+        row.active = not oct_cam.use_fstop
+        row.prop(oct_cam, "aperture")
+        col.prop(oct_cam, "aperture_aspect")
+        col.prop(oct_cam, "aperture_shape_type")
+        col.prop(oct_cam, "aperture_edge")
+        col.prop(oct_cam, "aperture_blade_count")
+        col.prop(oct_cam, "aperture_rotation")
+        col.prop(oct_cam, "aperture_roundedness")
+        col.prop(oct_cam, "central_obstruction")
+        col.prop(oct_cam, "notch_position")
+        col.prop(oct_cam, "notch_scale")
+        row = col.row()
+        row.prop_search(oct_cam, "custom_aperture_texture", bpy.data, "textures")
+
+
+class OCTANE_CAMERA_PT_camera_Univeral_Optical_vignette(common.OctanePropertyPanel, Panel):
+    bl_label = "Optical vignette"
+    bl_parent_id = "OCTANE_CAMERA_PT_camera_Univeral"
+    COMPAT_ENGINES = {"octane"}
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        cam = context.camera
+        oct_cam = cam.octane
+        col = layout.column()
+        col.prop(oct_cam, "optical_vignette_distance")
+        col.prop(oct_cam, "optical_vignette_scale")
+
+
+class OCTANE_CAMERA_PT_camera_Univeral_Split_focus_diopter(common.OctanePropertyPanel, Panel):
+    bl_label = "Split-focus diopter"
+    bl_parent_id = "OCTANE_CAMERA_PT_camera_Univeral"
+    COMPAT_ENGINES = {"octane"}
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        cam = context.camera
+        oct_cam = cam.octane
+        col = layout.column()
+        row = col.row(heading="Enable split-focus diopter")
+        row.prop(oct_cam, "enable_split_focus_diopter", text="")
+        col.prop(oct_cam, "diopter_focal_depth")
+        col.prop(oct_cam, "diopter_rotation")
+        col.prop(oct_cam, "diopter_translation")
+        col.prop(oct_cam, "diopter_boundary_width")
+        col.prop(oct_cam, "diopter_boundary_falloff")
+        row = col.row(heading="Show diopter guide")
+        row.prop(oct_cam, "show_diopter_guide", text="")
 
 
 class OCTANE_CAMERA_PT_imager(common.OctanePropertyPanel, Panel):
@@ -576,6 +793,24 @@ _CLASSES = [
     OCTANE_MT_postprocess_presets,
     OCTANE_MT_3dpostprocess_presets,
     OCTANE_CAMERA_PT_camera,
+    OCTANE_CAMERA_PT_camera_General,
+    OCTANE_CAMERA_PT_camera_General_Depth_of_Field,
+    OCTANE_CAMERA_PT_camera_General_Stereo,
+    OCTANE_CAMERA_PT_camera_OSL,
+    # OCTANE_CAMERA_PT_camera_Octane_Camera_data_node,
+    OCTANE_CAMERA_PT_camera_Baking,
+    OCTANE_CAMERA_PT_camera_Baking_Padding,
+    OCTANE_CAMERA_PT_camera_Baking_UV_region,
+    OCTANE_CAMERA_PT_camera_Baking_Baking_position,
+    OCTANE_CAMERA_PT_camera_Univeral,
+    OCTANE_CAMERA_PT_camera_Univeral_Viewing_angle,
+    OCTANE_CAMERA_PT_camera_Univeral_Fisheye,
+    OCTANE_CAMERA_PT_camera_Univeral_Panoramic,
+    OCTANE_CAMERA_PT_camera_Univeral_Distortion,
+    OCTANE_CAMERA_PT_camera_Univeral_Aberration,
+    OCTANE_CAMERA_PT_camera_Univeral_Depth_of_field,
+    OCTANE_CAMERA_PT_camera_Univeral_Optical_vignette,
+    OCTANE_CAMERA_PT_camera_Univeral_Split_focus_diopter,
     OCTANE_CAMERA_PT_imager,
     OCTANE_CAMERA_PT_imager_OCIO,
     OCTANE_CAMERA_PT_imager_Tonemapping,

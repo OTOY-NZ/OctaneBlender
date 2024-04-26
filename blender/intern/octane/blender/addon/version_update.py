@@ -14,13 +14,14 @@ from octane.utils import consts
 @persistent
 def do_versions(self):
     from octane import core
-    file_version = get_current_octane_blender_version()
+    file_version = get_current_octane_blender_version()    
     check_compatibility_octane_node_group(file_version)
     check_compatibility_octane_light(file_version)
     check_compatibility_octane_mesh(file_version)
     check_compatibility_octane_object(file_version)
     check_compatibility_octane_pariticle(file_version)
     check_compatibility_octane_world(file_version)
+    check_compatibility_octane_camera(file_version)
     check_compatibility_camera_imagers(file_version)
     check_compatibility_post_processing(file_version)
     check_compatibility_octane_node_tree(file_version)
@@ -727,6 +728,28 @@ def check_compatibility_octane_world_24_3(file_version):
     for world in bpy.data.worlds:
         if world.node_tree and world.use_nodes and len(world.node_tree.nodes):
             world.node_tree.nodes[0].width = world.node_tree.nodes[0].width
+
+
+def check_compatibility_octane_camera_28_7_3(file_version):
+    UPDATE_VERSION = "28.7.3"
+    if not check_update(file_version, UPDATE_VERSION):
+        return
+    for camera in bpy.data.cameras:
+        if getattr(camera, "octane", None) is not None:
+            oct_cam = camera.octane
+            osl_camera_node_type = oct_cam.osl_camera_node_collections.get_osl_camera_node_type()
+            if osl_camera_node_type != consts.NodeType.NT_UNKNOWN:
+                oct_cam.octane_camera_type = "OSL"
+            elif oct_cam.used_as_universal_camera:
+                oct_cam.octane_camera_type = "Universal"                            
+            elif oct_cam.baking_camera:
+                oct_cam.octane_camera_type = "Baking"
+            else:
+                oct_cam.octane_camera_type = "Lens or Panoramic"
+
+def check_compatibility_octane_camera(file_version):
+    check_compatibility_octane_camera_28_7_3(file_version)
+
 
 def check_compatibility_octane_light_27_16(file_version):
     UPDATE_VERSION = '27.16'

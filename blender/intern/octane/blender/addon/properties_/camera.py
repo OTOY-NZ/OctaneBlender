@@ -1138,26 +1138,27 @@ class OctaneBaseCameraSettings(common.OctanePropertySettings):
     def setup_octane_node_type(self, blender_camera, octane_node, is_viewport):
         camera_node_type = consts.NodeType.NT_CAM_THINLENS
         camera_node_name_tag = "[Lens]"
+        octane_camera_type = getattr(self, "octane_camera_type", None)
         if getattr(self, "osl_camera_node_collections", None):
             osl_camera_node_type = self.osl_camera_node_collections.get_osl_camera_node_type()
         else:
             osl_camera_node_type = consts.NodeType.NT_UNKNOWN
-        if getattr(self, "used_as_universal_camera", False):
+        if octane_camera_type == "Universal":
             camera_node_type = consts.NodeType.NT_CAM_UNIVERSAL
             camera_node_name_tag = "[Universal]"
-        elif osl_camera_node_type != consts.NodeType.NT_UNKNOWN:
+        elif octane_camera_type == "Baking":
+            camera_node_type = consts.NodeType.NT_CAM_BAKING
+            camera_node_name_tag = "[Baking]"            
+        elif octane_camera_type == "OSL" and osl_camera_node_type != consts.NodeType.NT_UNKNOWN:
             camera_node_type = osl_camera_node_type
             camera_node_name_tag = "[OSL]"
-        elif getattr(self, "baking_camera", False):
-            camera_node_type = consts.NodeType.NT_CAM_BAKING
-            camera_node_name_tag = "[Baking]"
         else:
             if blender_camera.type == BlenderCameraType.PERSPECTIVE:
                 camera_node_type = consts.NodeType.NT_CAM_THINLENS
                 camera_node_name_tag = "[Lens]"
             elif blender_camera.type == BlenderCameraType.ORTHOGRAPHIC:
                 camera_node_type = consts.NodeType.NT_CAM_THINLENS
-                camera_node_name_tag = "[Ortho]"                
+                camera_node_name_tag = "[Ortho]"
             elif blender_camera.type == BlenderCameraType.PANORAMA:
                 camera_node_type = consts.NodeType.NT_CAM_PANORAMIC
                 camera_node_name_tag = "[Pano]"
@@ -1556,7 +1557,18 @@ class OctaneBaseCameraSettings(common.OctanePropertySettings):
             self.sync_camera(octane_node, scene, width, height)
 
 class OctaneCameraSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings):
-
+    octane_camera_types = (
+        ("Lens or Panoramic", "Lens or Panoramic", "Used as Octane lens camera or panoramic camera", 0),
+        ("Universal", "Universal", "Used as Octane Universal camera", 1),
+        ("Baking", "Baking", "Used as Octane Baking camera", 2),
+        ("OSL", "OSL", "Used as Octane OSL camera or OSL baking camera", 3),
+    )
+    octane_camera_type: EnumProperty(
+        name="Camera type",
+        description="Camera node type",
+        items=octane_camera_types,
+        default='Lens or Panoramic',
+    )
     universal_camera_modes = (
         ('Thin lens', "Thin lens", '', 1),
         ('Orthographic', "Orthographic", '', 2),

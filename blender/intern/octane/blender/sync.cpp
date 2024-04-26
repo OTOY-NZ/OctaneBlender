@@ -597,6 +597,8 @@ SessionParams BlenderSync::get_session_params(
   bool use_render_camera_imager = get_boolean(oct_scene, "use_render_camera_imager");
   params.prefer_image_type = static_cast<PreferImageType>(
       get_enum(oct_scene, "prefer_image_type"));
+  params.enable_realtime = params.interactive ?
+      get_boolean(oct_scene, "enable_realtime") : false;
   params.render_priority = RNA_enum_get(&oct_scene, "priority_mode");
   params.resource_cache_type = RNA_enum_get(&oct_scene, "resource_cache_type");
   bool use_global_imager = false;

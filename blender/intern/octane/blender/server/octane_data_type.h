@@ -383,6 +383,7 @@ struct Camera {
         universalCamera.fSensorWidth.fVal != otherCam.universalCamera.fSensorWidth.fVal ||
         universalCamera.fFocalLength.fVal != otherCam.universalCamera.fFocalLength.fVal ||
         universalCamera.fFstop.fVal != otherCam.universalCamera.fFstop.fVal ||
+        universalCamera.bUseFstop.bVal != otherCam.universalCamera.bUseFstop.bVal ||
         universalCamera.fFieldOfView.fVal != otherCam.universalCamera.fFieldOfView.fVal ||
         universalCamera.fScaleOfView.fVal != otherCam.universalCamera.fScaleOfView.fVal ||
         universalCamera.f2LensShift.fVal != otherCam.universalCamera.f2LensShift.fVal ||
@@ -560,6 +561,7 @@ struct Camera {
         universalCamera.fSensorWidth.fVal == otherCam.universalCamera.fSensorWidth.fVal &&
         universalCamera.fFocalLength.fVal == otherCam.universalCamera.fFocalLength.fVal &&
         universalCamera.fFstop.fVal == otherCam.universalCamera.fFstop.fVal &&
+        universalCamera.bUseFstop.bVal == otherCam.universalCamera.bUseFstop.bVal &&
         universalCamera.fFieldOfView.fVal == otherCam.universalCamera.fFieldOfView.fVal &&
         universalCamera.fScaleOfView.fVal == otherCam.universalCamera.fScaleOfView.fVal &&
         universalCamera.f2LensShift.fVal == otherCam.universalCamera.f2LensShift.fVal &&
@@ -893,6 +895,7 @@ struct Camera {
     universalCamera.fSensorWidth.fVal = otherCam.universalCamera.fSensorWidth.fVal;
     universalCamera.fFocalLength.fVal = otherCam.universalCamera.fFocalLength.fVal;
     universalCamera.fFstop.fVal = otherCam.universalCamera.fFstop.fVal;
+    universalCamera.bUseFstop.bVal = otherCam.universalCamera.bUseFstop.bVal;
     universalCamera.fFieldOfView.fVal = otherCam.universalCamera.fFieldOfView.fVal;
     universalCamera.fScaleOfView.fVal = otherCam.universalCamera.fScaleOfView.fVal;
     universalCamera.f2LensShift.fVal = otherCam.universalCamera.f2LensShift.fVal;

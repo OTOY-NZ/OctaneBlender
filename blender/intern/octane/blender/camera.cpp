@@ -849,7 +849,8 @@ void BlenderSync::update_octane_camera_properties(Camera *cam,
   }
   if (!view && oct_camera.data != NULL) {
     cam->oct_node.bUseFstopValue = false;
-    cam->oct_node.bUseUniversalCamera = RNA_boolean_get(&oct_camera, "used_as_universal_camera");
+    cam->oct_node.bUseUniversalCamera = (get_enum_identifier(oct_camera, "octane_camera_type") ==
+                                        "Universal");
     cam->oct_node.bUseCameraDimensionAsPreviewResolution =
         preview && RNA_boolean_get(&oct_camera, "use_camera_dimension_as_preview_resolution");
 
@@ -922,11 +923,12 @@ void BlenderSync::update_octane_camera_properties(Camera *cam,
         &osl_camera_node_collections, "osl_camera_material_tree", oslCameraNodeMaterialName);
     RNA_string_get(&osl_camera_node_collections, "osl_camera_node", oslCameraNodeName);
     cam->oct_node.sOSLCameraNodeMaterialName = std::string(oslCameraNodeMaterialName);
+    std::string octane_camera_type = get_enum_identifier(oct_camera, "octane_camera_type");
     cam->oct_node.sOSLCameraNodeName = std::string(oslCameraNodeName);
-    cam->oct_node.bUseOSLCamera = cam->oct_node.sOSLCameraNodeMaterialName.size() != 0 &&
+    cam->oct_node.bUseOSLCamera = (octane_camera_type == "OSL") && cam->oct_node.sOSLCameraNodeMaterialName.size() != 0 &&
                                   cam->oct_node.sOSLCameraNodeName.size() != 0;
 
-    bool baking_camera = RNA_boolean_get(&oct_camera, "baking_camera");
+    bool baking_camera = (octane_camera_type == "Baking");
     if (baking_camera) {
       cam->oct_node.type = ::OctaneEngine::Camera::CAMERA_BAKING;
       cam->oct_node.iBakingGroupId = RNA_int_get(&oct_camera, "baking_group_id");
@@ -1092,6 +1094,7 @@ void BlenderSync::update_octane_universal_camera_properties(Camera *cam, Pointer
   universalCamera.fSensorWidth.fVal = 36.f;
   universalCamera.fFocalLength.fVal = 50.f;
   universalCamera.fFstop.fVal = RNA_float_get(&oct_camera, "fstop");
+  universalCamera.bUseFstop.bVal = RNA_boolean_get(&oct_camera, "use_fstop");
 
   universalCamera.fFieldOfView.fVal = cam->oct_node.fFOV;
   universalCamera.fScaleOfView.fVal = cam->oct_node.fFOV;
