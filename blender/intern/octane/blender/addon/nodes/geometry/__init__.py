@@ -1,6 +1,6 @@
-# <pep8 compliant>
-
-# BEGIN OCTANE GENERATED CODE BLOCK #
+##### BEGIN OCTANE GENERATED CODE BLOCK #####
+import bpy
+from bpy.utils import register_class, unregister_class
 from . import mesh
 from . import material_map
 from . import geometry_group
@@ -37,7 +37,6 @@ from . import clip
 from . import offset
 from . import geometry_switch
 from . import object_layer_switch
-
 
 def register():
     mesh.register()
@@ -77,7 +76,6 @@ def register():
     geometry_switch.register()
     object_layer_switch.register()
 
-
 def unregister():
     mesh.unregister()
     material_map.unregister()
@@ -116,4 +114,4 @@ def unregister():
     geometry_switch.unregister()
     object_layer_switch.unregister()
 
-# END OCTANE GENERATED CODE BLOCK #
+##### END OCTANE GENERATED CODE BLOCK #####

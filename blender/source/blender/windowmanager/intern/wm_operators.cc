@@ -3927,7 +3927,7 @@ void wm_operatortypes_register()
   WM_operatortype_append(WM_OT_previews_ensure);
   WM_operatortype_append(WM_OT_previews_clear);
   WM_operatortype_append(WM_OT_doc_view_manual_ui_context);
-  // WM_operatortype_append(WM_OT_octane_livedb);
+  WM_operatortype_append(WM_OT_octane_livedb);
 
 #ifdef WITH_XR_OPENXR
   wm_xr_operatortypes_register();

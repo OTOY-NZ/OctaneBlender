@@ -179,7 +179,6 @@ void Session::run_render()
         server->startRender(
             params.interactive,
             params.use_shared_surface,
-            params.enable_realtime,
             params.process_id,
             params.device_luid,
             params.width,

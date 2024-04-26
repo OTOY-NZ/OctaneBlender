@@ -1,10 +1,10 @@
-# <pep8 compliant>
-
 import bpy
+
+IS_RENDERING = False
 
 
 def init():
-    print("OctaneBlender Engine Init")
+    print("OctaneBlender Engine Init")        
     import os.path
 
     path = os.path.dirname(__file__)
@@ -13,11 +13,11 @@ def init():
     from octane import core
     if not core.EXCLUSIVE_OCTANE_ADDON_CLIENT_MODE:
         import _octane
-        _octane.init(path, user_path)
+        _octane.init(path, user_path)    
 
 
 def exit():
-    print("OctaneBlender Engine Exit")
+    print("OctaneBlender Engine Exit")            
     from octane import core
     from octane.core import resource_cache
     resource_cache.reset_resource_cache()
@@ -29,20 +29,31 @@ def exit():
 def create(engine, data, region=None, v3d=None, rv3d=None):
     print("OctaneBlender Engine Create")
 
-    from octane import core
-    from octane.utils import ocio
-    ocio.update_ocio_info()
-    # Init node helper
-    from octane.nodes.base_node_tree import NodeTreeHandler
-    NodeTreeHandler.init_node_helper()
+    global IS_RENDERING
 
+    from octane import core
+    from octane.utils import utility
+    if not core.EXCLUSIVE_OCTANE_ADDON_CLIENT_MODE:
+        if IS_RENDERING:
+            if v3d and rv3d:
+                engine.report({'ERROR'}, "Only one active render task is supported at the same time! Please turn off viewport shading and try again!")
+                engine.session = None
+                return
+            else:
+                utility.set_all_viewport_shading_type("SOLID")
+
+    IS_RENDERING = True
+
+    from octane.utils import ocio    
+    ocio.update_ocio_info()
+    
     import bpy
     data = data.as_pointer()
     prefs = bpy.context.preferences.as_pointer()
     screen = 0
 
     from . import operators
-    dirty_resources = operators.get_dirty_resources()
+    dirty_resources = operators.get_dirty_resources();
 
     if region:
         screen = region.id_data.as_pointer()
@@ -57,7 +68,7 @@ def create(engine, data, region=None, v3d=None, rv3d=None):
     if not core.EXCLUSIVE_OCTANE_ADDON_CLIENT_MODE:
         import _octane
         engine.session = _octane.create(
-            engine.as_pointer(), prefs, data, screen, region, v3d, rv3d, dirty_resources)
+                engine.as_pointer(), prefs, data, screen, region, v3d, rv3d, dirty_resources)
 
 
 def free(engine):
@@ -65,20 +76,26 @@ def free(engine):
     if hasattr(engine, "session"):
         if engine.session:
             from octane import core
-            if not core.EXCLUSIVE_OCTANE_ADDON_CLIENT_MODE:
+            if not core.EXCLUSIVE_OCTANE_ADDON_CLIENT_MODE:            
                 import _octane
                 _octane.free(engine.session)
-        del engine.session
+        del engine.session    
 
     from . import operators
-    operators.set_all_mesh_resource_cache_tags(False)
+    try:
+        operators.set_all_mesh_resource_cache_tags(False)
+    except:
+        pass
+
+    global IS_RENDERING
+    IS_RENDERING = False    
 
 
 def render(engine, depsgraph):
     from octane import utility
     # print("OctaneBlender Engine Render")
     if engine.is_preview:
-        return
+        return    
     scene = depsgraph.scene_eval
     utility.add_render_passes(engine, scene)
     from octane import core
@@ -93,16 +110,16 @@ def bake(engine, depsgraph, obj, pass_type, pass_filter, object_id, pixel_array,
     from octane import core
     if not core.EXCLUSIVE_OCTANE_ADDON_CLIENT_MODE:
         session = getattr(engine, "session", None)
-        import _octane
+        import _octane        
         if session is not None:
-            _octane.bake(engine.session, depsgraph.as_pointer(), obj.as_pointer(), pass_type, pass_filter,
-                         object_id, pixel_array.as_pointer(), num_pixels, depth, result.as_pointer())
+            _octane.bake(engine.session, depsgraph.as_pointer(), obj.as_pointer(), pass_type, pass_filter, object_id, pixel_array.as_pointer(), num_pixels, depth, result.as_pointer())
 
 
 def reset(engine, data, depsgraph):
     # print("OctaneBlender Engine Reset")
+    import bpy
     if engine.is_preview:
-        return
+        return  
     data = data.as_pointer()
     depsgraph = depsgraph.as_pointer()
     from octane import core
@@ -112,16 +129,16 @@ def reset(engine, data, depsgraph):
             _octane.reset(engine.session, data, depsgraph)
 
 
-def sync(engine, depsgraph, _data):
+def sync(engine, depsgraph, data):
     from octane import core
     if not core.EXCLUSIVE_OCTANE_ADDON_CLIENT_MODE:
-        if getattr(engine, "session", None):
+        if getattr(engine, "session", None):    
             import _octane
             _octane.sync(engine.session, depsgraph.as_pointer())
 
 
-def draw(engine, depsgraph, _region, v3d, rv3d):
-    # print("OctaneBlender Engine Draw")
+def draw(engine, depsgraph, region, v3d, rv3d):
+    # print("OctaneBlender Engine Draw")    
     depsgraph = depsgraph.as_pointer()
     v3d = v3d.as_pointer()
     rv3d = rv3d.as_pointer()

@@ -1,9 +1,7 @@
-# <pep8 compliant>
-
+import bpy
+import bmesh
 import math
-
 import mathutils
-
 
 # Calculate points on the Nurbs
 # https://blender.stackexchange.com/questions/34145/calculate-points-on-a-nurbs-curve-without-converting-to-mesh
@@ -11,10 +9,8 @@ import mathutils
 def macro_knotsu(nu):
     return nu.order_u + nu.point_count_u + (nu.order_u - 1 if nu.use_cyclic_u else 0)
 
-
 def macro_segmentsu(nu):
     return nu.point_count_u if nu.use_cyclic_u else nu.point_count_u - 1
-
 
 def makeknots(nu):
     knots = [0.0] * (4 + macro_knotsu(nu))
@@ -26,14 +22,13 @@ def makeknots(nu):
         calcknots(knots, nu.point_count_u, nu.order_u, flag)
     return knots
 
-
 def calcknots(knots, pnts, order, flag):
     pnts_order = pnts + order
     if flag == 1:
         k = 0.0
         for a in range(1, pnts_order + 1):
             knots[a - 1] = k
-            if order <= a <= pnts:
+            if a >= order and a <= pnts:
                 k += 1.0
     elif flag == 2:
         if order == 4:
@@ -44,13 +39,12 @@ def calcknots(knots, pnts, order, flag):
         elif order == 3:
             k = 0.6
             for a in range(pnts_order):
-                if order <= a <= pnts:
+                if a >= order and a <= pnts:
                     k += 0.5
                     knots[a] = math.floor(k)
     else:
         for a in range(pnts_order):
             knots[a] = a
-
 
 def makecyclicknots(knots, pnts, order):
     order2 = order - 1
@@ -70,8 +64,7 @@ def makecyclicknots(knots, pnts, order):
         knots[a] = knots[a - 1] + (knots[b] - knots[b - 1])
         b -= 1
 
-
-def basis_nurb(t, order, pnts, knots, basis, _start, _end):
+def basisNurb(t, order, pnts, knots, basis, start, end):
     i1 = i2 = 0
     orderpluspnts = order + pnts
     opp2 = orderpluspnts - 1
@@ -84,10 +77,8 @@ def basis_nurb(t, order, pnts, knots, basis, _start, _end):
 
     # this part is order '1'
     o2 = order + 1
-    idx = 0
     for i in range(opp2):
-        idx = i
-        if knots[i] != knots[i + 1] and knots[i] <= t <= knots[i + 1]:
+        if knots[i] != knots[i + 1] and t >= knots[i] and t <= knots[i + 1]:
             basis[i] = 1.0
             i1 = i - o2
             if i1 < 0:
@@ -102,7 +93,7 @@ def basis_nurb(t, order, pnts, knots, basis, _start, _end):
         else:
             basis[i] = 0.0
 
-    basis[idx] = 0.0
+    basis[i] = 0.0
 
     # this is order 2, 3, ...
     for j in range(2, order + 1):
@@ -134,33 +125,32 @@ def basis_nurb(t, order, pnts, knots, basis, _start, _end):
 
     return start, end
 
-
-def nurb_make_curve(nu, resolution, stride):
-    eps_constant = 1e-6
-    coord_index = i_start = i_end = 0
+def nurb_make_curve(nu, resolu, stride):
+    EPS = 1e-6
+    coord_index = istart = iend = 0
 
     coord_array = [0.0] * (3 * nu.resolution_u * macro_segmentsu(nu))
     sum_array = [0] * nu.point_count_u
     basisu = [0.0] * macro_knotsu(nu)
     knots = makeknots(nu)
 
-    resolution = resolution * macro_segmentsu(nu)
-    u_start = knots[nu.order_u - 1]
-    u_end = knots[nu.point_count_u + nu.order_u - 1] if nu.use_cyclic_u else \
-        knots[nu.point_count_u]
-    u_step = (u_end - u_start) / (resolution - (0 if nu.use_cyclic_u else 1))
-    cycle = nu.order_u - 1 if nu.use_cyclic_u else 0
+    resolu = resolu * macro_segmentsu(nu)
+    ustart = knots[nu.order_u - 1]
+    uend   = knots[nu.point_count_u + nu.order_u - 1] if nu.use_cyclic_u else \
+             knots[nu.point_count_u]
+    ustep  = (uend - ustart) / (resolu - (0 if nu.use_cyclic_u else 1))
+    cycl = nu.order_u - 1 if nu.use_cyclic_u else 0
 
-    u = u_start
-    while resolution:
-        resolution -= 1
-        i_start, i_end = basis_nurb(u, nu.order_u, nu.point_count_u + cycle, knots, basisu, i_start, i_end)
+    u = ustart
+    while resolu:
+        resolu -= 1
+        istart, iend = basisNurb(u, nu.order_u, nu.point_count_u + cycl, knots, basisu, istart, iend)
 
-        # /* calc sum */
+        #/* calc sum */
         sumdiv = 0.0
         sum_index = 0
-        pt_index = i_start - 1
-        for i in range(i_start, i_end + 1):
+        pt_index = istart - 1
+        for i in range(istart, iend + 1):
             if i >= nu.point_count_u:
                 pt_index = i - nu.point_count_u
             else:
@@ -170,17 +160,17 @@ def nurb_make_curve(nu, resolution, stride):
             sumdiv += sum_array[sum_index]
             sum_index += 1
 
-        if (sumdiv != 0.0) and (sumdiv < 1.0 - eps_constant or sumdiv > 1.0 + eps_constant):
+        if (sumdiv != 0.0) and (sumdiv < 1.0 - EPS or sumdiv > 1.0 + EPS):
             sum_index = 0
-            for i in range(i_start, i_end + 1):
+            for i in range(istart, iend + 1):
                 sum_array[sum_index] /= sumdiv
                 sum_index += 1
 
         coord_array[coord_index: coord_index + 3] = (0.0, 0.0, 0.0)
 
         sum_index = 0
-        pt_index = i_start - 1
-        for i in range(i_start, i_end + 1):
+        pt_index = istart - 1
+        for i in range(istart, iend + 1):
             if i >= nu.point_count_u:
                 pt_index = i - nu.point_count_u
             else:
@@ -192,25 +182,23 @@ def nurb_make_curve(nu, resolution, stride):
             sum_index += 1
 
         coord_index += stride
-        u += u_step
+        u += ustep
 
     return coord_array
-
 
 def calculate_points_on_nurbs_spline(spline, resolution):
     points_array = nurb_make_curve(spline, resolution, 3)
     return points_array
 
-
 def calculate_points_on_bezier_segment(knot1, handle1, handle2, knot2, resolution):
     points_array = []
     vertices_array = mathutils.geometry.interpolate_bezier(knot1, handle1, handle2, knot2, resolution)
     for vertex_idx in range(len(vertices_array)):
+        idx = vertex_idx * 3
         points_array.append(vertices_array[vertex_idx][0])
         points_array.append(vertices_array[vertex_idx][1])
         points_array.append(vertices_array[vertex_idx][2])
     return points_array
-
 
 def calculate_points_on_bezier_spline(spline, resolution):
     points_array = []
@@ -218,23 +206,20 @@ def calculate_points_on_bezier_spline(spline, resolution):
     for i in range(len(bzp)):
         if i + 1 >= len(bzp):
             continue
-        segment_points_array = calculate_points_on_bezier_segment(bzp[i].co, bzp[i].handle_right,
-                                                                  bzp[i + 1].handle_left, bzp[i + 1].co, resolution + 1)
+        segment_points_array = calculate_points_on_bezier_segment(bzp[i].co, bzp[i].handle_right, bzp[i + 1].handle_left, bzp[i + 1].co, resolution + 1)
         if len(points_array) == 0:
             points_array.extend(segment_points_array)
         else:
             points_array.extend(segment_points_array[3:])
     if spline.use_cyclic_u:
-        segment_points_array = calculate_points_on_bezier_segment(bzp[-1].co, bzp[-1].handle_right, bzp[0].handle_left,
-                                                                  bzp[0].co, resolution + 1)
+        segment_points_array = calculate_points_on_bezier_segment(bzp[-1].co, bzp[-1].handle_right, bzp[0].handle_left, bzp[0].co, resolution + 1)
         if len(points_array) == 0:
             points_array.extend(segment_points_array)
         else:
             points_array.extend(segment_points_array[3:])
     return points_array
 
-
-def calculate_points_on_curve(curve, _is_viewport):
+def calculate_points_on_curve(curve, is_viewport):
     curve_points_data = []
     for spline in curve.splines:
         spline_points_data = []

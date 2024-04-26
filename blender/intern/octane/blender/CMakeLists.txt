@@ -106,7 +106,6 @@ set(ADDON_CORE_FILES
 set(ADDON_UI_FILES
   addon/uis/__init__.py
   addon/uis/_object.py
-  addon/uis/asset_browser.py
   addon/uis/camera.py
   addon/uis/color_management.py
   addon/uis/common.py
@@ -136,6 +135,7 @@ set(ADDON_NODES_FILES
   addon/nodes/base_image.py
   addon/nodes/base_color_ramp.py
   addon/nodes/base_curve.py
+  addon/nodes/base_lut.py
   addon/nodes/base_kernel.py
   addon/nodes/base_output_node.py
   addon/nodes/base_output_socket.py
@@ -347,7 +347,9 @@ set(ADDON_NODES_OUTPUT_AOVS_FILES
     addon/nodes/output_aovs/adjust_hue.py
     addon/nodes/output_aovs/channel_invert_sdr_only_.py
     addon/nodes/output_aovs/convert_for_sdr_display_agx_.py
+    addon/nodes/output_aovs/open_image_denoise.py
     addon/nodes/output_aovs/light_mixer.py
+    addon/nodes/output_aovs/texture.py
     addon/nodes/output_aovs/apply_custom_curve.py
     addon/nodes/output_aovs/apply_lut.py
     addon/nodes/output_aovs/apply_camera_response_curve_sdr_only_.py
@@ -390,6 +392,7 @@ set(ADDON_NODES_PROJECTION_FILES
 set(ADDON_NODES_RENDER_AOVS_FILES
     addon/nodes/render_aovs/__init__.py
     addon/nodes/render_aovs/render_aov_group.py
+    addon/nodes/render_aovs/denoise_normal_aov.py
     addon/nodes/render_aovs/ambient_occlusion_aov.py
     addon/nodes/render_aovs/baking_group_id_aov.py
     addon/nodes/render_aovs/cryptomatte_aov.py
@@ -458,6 +461,7 @@ set(ADDON_NODES_RENDER_AOVS_FILES
     addon/nodes/render_aovs/wireframe_aov.py
     addon/nodes/render_aovs/z_depth_aov.py
     addon/nodes/render_aovs/postfx_media_aov.py
+    addon/nodes/render_aovs/denoise_albedo_aov.py
     addon/nodes/render_aovs/render_aov_switch.py
 )
 
@@ -522,6 +526,8 @@ set(ADDON_NODES_TEXTURE_LAYERS_FILES
     addon/nodes/texture_layers/adjust_color_balance.py
     addon/nodes/texture_layers/mask_with_layer_group.py
     addon/nodes/texture_layers/apply_gradient_map.py
+    addon/nodes/texture_layers/apply_lut.py
+    addon/nodes/texture_layers/apply_custom_curve.py
     addon/nodes/texture_layers/texture_layer_switch.py
 )
 
@@ -636,8 +642,9 @@ set(ADDON_NODES_TEXTURES_FILES
     addon/nodes/textures/instance_highlight.py
     addon/nodes/textures/star_field.py
     addon/nodes/textures/digits.py
+    addon/nodes/textures/output_aov_parameter.py
     addon/nodes/textures/texture_switch.py
-    addon/nodes/textures/composite_texture_layer.py	
+    addon/nodes/textures/composite_texture_layer.py
 )
 
 set(ADDON_NODES_TRANSFORMS_FILES
@@ -678,6 +685,7 @@ set(ADDON_NODES_VALUES_FILES
     addon/nodes/values/unary_math_operation.py
     addon/nodes/values/range.py
     addon/nodes/values/rotate.py
+    addon/nodes/values/frame_index.py
     addon/nodes/values/bool_switch.py
     addon/nodes/values/float_switch.py
     addon/nodes/values/int_switch.py
@@ -708,7 +716,6 @@ set(ADDON_NODES_UTIL_FILES
   addon/utils/utility.py
   addon/utils/consts.py
   addon/utils/curve.py
-  addon/utils/logger.py
   addon/utils/ocio.py
   addon/utils/octaneid.py
   addon/utils/octane_name.py

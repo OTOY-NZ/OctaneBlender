@@ -1,33 +1,31 @@
-# <pep8 compliant>
-
-import re
-
-from bpy.props import BoolProperty
-
 import bpy
+import re
+import xml.etree.ElementTree as ET
+import json
 from bpy.utils import register_class, unregister_class
-from octane.core.octane_info import OctaneInfoManger
+from bpy.props import BoolProperty, IntProperty, StringProperty, EnumProperty
 from octane.utils import consts, utility
+from octane.core.octane_info import OctaneInfoManger
 
 
-class OctaneBaseNode(object):
+class OctaneBaseNode(object):	
     """Base class for Octane nodes"""
-    bl_idname = ""
-    bl_label = ""
-    octane_color = consts.OctanePinColor.Default
-    octane_render_pass_id = consts.RENDER_PASS_INVALID
-    octane_render_pass_name = ""
-    octane_render_pass_short_name = ""
-    octane_render_pass_description = ""
-    octane_render_pass_sub_type_name = ""
-    octane_socket_class_list = []
-    octane_min_version = 0
-    octane_end_version = 0
-    octane_node_type = consts.NodeType.NT_UNKNOWN
-    octane_socket_list = []
-    octane_attribute_list = []
-    octane_attribute_config = {}
-    octane_static_pin_count = 0
+    bl_idname=""
+    bl_label=""
+    octane_color=consts.OctanePinColor.Default
+    octane_render_pass_id=consts.RENDER_PASS_INVALID
+    octane_render_pass_name=""
+    octane_render_pass_short_name=""
+    octane_render_pass_description=""
+    octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[]
+    octane_min_version=0
+    octane_end_version=0
+    octane_node_type=consts.NodeType.NT_UNKNOWN 
+    octane_socket_list=[]
+    octane_attribute_list=[]
+    octane_attribute_config={}
+    octane_static_pin_count=0
 
     @classmethod
     def poll(cls, tree):
@@ -36,21 +34,21 @@ class OctaneBaseNode(object):
     def draw_buttons(self, context, layout):
         pass
 
-    def use_multiple_outputs(self):
+    def use_mulitple_outputs(self):
         return False
 
     def auto_refresh(self):
-        return consts.AutoRefreshStrategy.DISABLE
+        return consts.AutoRereshStrategy.DISABLE
 
     def is_octane_image_node(self):
         return False
 
-    def add_input(self, socket_type, name, default, enabled=True):
-        _input = self.inputs.new(socket_type, name)
+    def add_input(self, type, name, default, enabled=True):
+        _input = self.inputs.new(type, name)
         if hasattr(_input, "default_value"):
-            _input.default_value = default
+            _input.default_value = default        
         _input.enabled = enabled
-        return _input
+        return _input        
 
     def update(self):
         pass
@@ -58,15 +56,16 @@ class OctaneBaseNode(object):
     def get_float3_color(self):
         return self.octane_color[:3]
 
-    def is_octane_aov_render_node(self):
+    def is_octane_aov_render_node(self):        
         for _output in self.outputs:
             if _output.bl_idname in ("OctaneRenderAOVsOutSocket", "OctaneRenderAOVOutSocket"):
                 return True
         return False
 
     def is_octane_aov_render_node_enabled(self):
-        if "Enabled" in self.inputs:
-            return self.inputs["Enabled"].default_value
+        AOV_RENDER_NODE_ENABLED = "Enabled"
+        if AOV_RENDER_NODE_ENABLED in self.inputs:
+            return self.inputs[AOV_RENDER_NODE_ENABLED].default_value
         return False
 
     def octane_render_pass_sub_type(self):
@@ -81,13 +80,13 @@ class OctaneBaseNode(object):
         sub_type = self.octane_render_pass_sub_type()
         if sub_type is None:
             return self.octane_render_pass_id
-        return self.octane_render_pass_id[sub_type]
+        return self.octane_render_pass_id[sub_type]       
 
     def get_octane_render_pass_name(self):
         sub_type = self.octane_render_pass_sub_type()
         if sub_type is None:
             return self.octane_render_pass_name
-        return self.octane_render_pass_name[sub_type]
+        return self.octane_render_pass_name[sub_type] 
 
     def get_octane_render_pass_short_name(self):
         sub_type = self.octane_render_pass_sub_type()
@@ -99,23 +98,21 @@ class OctaneBaseNode(object):
         sub_type = self.octane_render_pass_sub_type()
         if sub_type is None:
             return self.octane_render_pass_description
-        return self.octane_render_pass_description[sub_type]
+        return self.octane_render_pass_description[sub_type] 
 
     def get_attribute_value(self, attribute_name, attribute_type):
         attribute_value = getattr(self, attribute_name, None)
         if attribute_type == consts.AttributeType.AT_INT and self.rna_type.properties[attribute_name].type == "ENUM":
             attribute_value = self.rna_type.properties[attribute_name].enum_items[attribute_value].value
-        return attribute_value
+        return attribute_value    
 
-    def load_ocs_attribute(self, _creator, attribute_name, attribute_type, attr_et):
+    def load_ocs_attribute(self, creator, attribute_name, attribute_type, attr_et):
         text_value = attr_et.text
         if not hasattr(self.rna_type.properties, attribute_name):
             return
         if attribute_type == consts.AttributeType.AT_BOOL:
             setattr(self, attribute_name, bool(int(text_value)))
-        elif attribute_type in (consts.AttributeType.AT_INT, consts.AttributeType.AT_INT2, consts.AttributeType.AT_INT3,
-                                consts.AttributeType.AT_INT4, consts.AttributeType.AT_LONG,
-                                consts.AttributeType.AT_LONG2):
+        elif attribute_type in (consts.AttributeType.AT_INT, consts.AttributeType.AT_INT2, consts.AttributeType.AT_INT3, consts.AttributeType.AT_INT4, consts.AttributeType.AT_LONG, consts.AttributeType.AT_LONG2):
             int_value = [int(i) for i in text_value.split(" ")]
             if self.rna_type.properties[attribute_name].is_array:
                 property_array_length = self.rna_type.properties[attribute_name].array_length
@@ -127,21 +124,17 @@ class OctaneBaseNode(object):
                         int_vector_value.append(0)
                 setattr(self, attribute_name, int_vector_value)
             else:
-                if (attribute_type == consts.AttributeType.AT_INT
-                        and self.rna_type.properties[attribute_name].type == "ENUM"):
-                    setattr(self, attribute_name,
-                            self.rna_type.properties[attribute_name].enum_items[int_value[0]].value)
+                if attribute_type == consts.AttributeType.AT_INT and self.rna_type.properties[attribute_name].type == "ENUM":
+                    setattr(self, attribute_name, self.rna_type.properties[attribute_name].enum_items[int_value[0]].value)
                 else:
                     setattr(self, attribute_name, int_value[0])
-        elif attribute_type in (
-                consts.AttributeType.AT_FLOAT, consts.AttributeType.AT_FLOAT2, consts.AttributeType.AT_FLOAT3,
-                consts.AttributeType.AT_FLOAT4):
+        elif attribute_type in (consts.AttributeType.AT_FLOAT, consts.AttributeType.AT_FLOAT2, consts.AttributeType.AT_FLOAT3, consts.AttributeType.AT_FLOAT4):
             float_value = [float(f) for f in text_value.split(" ")]
             if self.rna_type.properties[attribute_name].is_array:
                 property_array_length = self.rna_type.properties[attribute_name].array_length
                 float_vector_value = []
                 for i in range(property_array_length):
-                    if i < len(float_value):
+                    if i < len(int_value):
                         float_vector_value.append(float_value[i])
                     else:
                         float_vector_value.append(0)
@@ -155,7 +148,7 @@ class OctaneBaseNode(object):
         elif attribute_type == consts.AttributeType.AT_BYTE:
             pass
         elif attribute_type == consts.AttributeType.AT_MATRIX:
-            pass
+            pass                                 
 
     def load_ocs_pin(self, creator, socket, pin_et):
         connect = pin_et.get("connect", "")
@@ -167,7 +160,7 @@ class OctaneBaseNode(object):
             internal_node_attr_value = ""
             for internal_node_attr_pt in internal_node_et.findall("attr"):
                 if internal_node_attr_pt.get("name", "") == "value":
-                    internal_node_type = int(internal_node_et.get("type", consts.NodeType.NT_UNKNOWN))
+                    internal_node_type =  int(internal_node_et.get("type", consts.NodeType.NT_UNKNOWN))
                     internal_node_attr_value = internal_node_attr_pt.text
                     break
             if socket.octane_socket_type == consts.SocketType.ST_LINK:
@@ -227,7 +220,7 @@ class OctaneBaseNode(object):
                     socket.default_value = internal_node_attr_value
                 else:
                     creator.new_octane_node(internal_node_et, socket)
-            else:
+            else:                
                 creator.new_octane_node(internal_node_et, socket)
 
     def sync_data(self, octane_node, octane_graph_node_data, depsgraph):
@@ -238,8 +231,7 @@ class OctaneBaseNode(object):
             attribute_octane_name = self.octane_attribute_config[attribute_name][1]
             attribute_type = self.octane_attribute_config[attribute_name][2]
             attribute_value = self.get_attribute_value(attribute_name, attribute_type)
-            octane_node.node.set_attribute(consts.OctaneDataBlockSymbolType.ATTRIBUTE_NAME, attribute_octane_id,
-                                           attribute_octane_name, attribute_type, attribute_value, 1)
+            octane_node.node.set_attribute(consts.OctaneDataBlockSymbolType.ATTRIBUTE_NAME, attribute_octane_id, attribute_octane_name, attribute_type, attribute_value, 1)
         for socket_idx, socket in enumerate(self.inputs):
             socket_bl_idname = socket.bl_idname
             if socket_bl_idname == "NodeSocketUndefined":
@@ -254,9 +246,7 @@ class OctaneBaseNode(object):
                 is_group_socket = True
             if data_socket is None:
                 data_socket = socket
-            is_advanced_pin = (socket.is_octane_proxy_pin()
-                               or socket.is_octane_osl_pin()
-                               or socket.is_octane_dynamic_pin())
+            is_advanced_pin = socket.is_octane_proxy_pin() or socket.is_octane_osl_pin() or socket.is_octane_dynamic_pin()
             if is_advanced_pin or socket_name in self.octane_socket_set:
                 default_value = getattr(data_socket, "default_value", "")
                 if socket.octane_socket_type == consts.SocketType.ST_ENUM:
@@ -265,9 +255,7 @@ class OctaneBaseNode(object):
                     if socket.rna_type.properties["default_value"].subtype == "PERCENTAGE":
                         default_value /= 100.0
                 if is_group_socket:
-                    if socket.octane_socket_type in (
-                            consts.SocketType.ST_INT2, consts.SocketType.ST_INT3, consts.SocketType.ST_FLOAT2,
-                            consts.SocketType.ST_FLOAT3, consts.SocketType.ST_RGBA):
+                    if socket.octane_socket_type in (consts.SocketType.ST_INT2, consts.SocketType.ST_INT3, consts.SocketType.ST_FLOAT2, consts.SocketType.ST_FLOAT3, consts.SocketType.ST_RGBA):
                         if type(default_value) is int:
                             default_value = (default_value, 0, 0)
                         elif type(default_value) is float:
@@ -279,59 +267,32 @@ class OctaneBaseNode(object):
                                 default_value = (default_value[0], default_value[1], 0)
                 if is_advanced_pin:
                     if socket.is_octane_proxy_pin():
-                        octane_node.node.set_pin(consts.OctaneDataBlockSymbolType.PIN_INDEX,
-                                                 socket.octane_proxy_link_index, socket.name, socket.octane_socket_type,
-                                                 socket.octane_pin_type, socket.octane_default_node_type,
-                                                 data_socket.is_linked, link_node_name, default_value)
+                        octane_node.node.set_pin(consts.OctaneDataBlockSymbolType.PIN_INDEX, socket.octane_proxy_link_index, socket.name, socket.octane_socket_type, socket.octane_pin_type, socket.octane_default_node_type, data_socket.is_linked, link_node_name, default_value)
                     elif socket.is_octane_osl_pin():
-                        self.__class__.set_osl_pin(octane_node, socket_idx, socket.osl_pin_name,
-                                                   socket.octane_socket_type, socket.octane_pin_type,
-                                                   socket.octane_default_node_type, data_socket.is_linked,
-                                                   link_node_name, default_value)
+                        self.__class__.set_osl_pin(octane_node, socket_idx, socket.osl_pin_name, socket.octane_socket_type, socket.octane_pin_type, socket.octane_default_node_type, data_socket.is_linked, link_node_name, default_value)
                     elif socket.is_octane_dynamic_pin():
-                        octane_node.node.set_pin(consts.OctaneDataBlockSymbolType.PIN_DYNAMIC,
-                                                 socket.generate_octane_pin_index(), socket.name,
-                                                 socket.octane_socket_type, socket.octane_pin_type,
-                                                 socket.octane_default_node_type, data_socket.is_linked, link_node_name,
-                                                 default_value)
+                        octane_node.node.set_pin(consts.OctaneDataBlockSymbolType.PIN_DYNAMIC, socket.generate_octane_pin_index(), socket.name, socket.octane_socket_type, socket.octane_pin_type, socket.octane_default_node_type, data_socket.is_linked, link_node_name, default_value)
                 else:
-                    octane_node.node.set_pin(consts.OctaneDataBlockSymbolType.PIN_NAME, socket.octane_pin_index,
-                                             socket.octane_pin_name, socket.octane_socket_type, socket.octane_pin_type,
-                                             socket.octane_default_node_type, data_socket.is_linked, link_node_name,
-                                             default_value)
+                    octane_node.node.set_pin(consts.OctaneDataBlockSymbolType.PIN_NAME, socket.octane_pin_index, socket.octane_pin_name, socket.octane_socket_type, socket.octane_pin_type, socket.octane_default_node_type, data_socket.is_linked, link_node_name, default_value)
         self.sync_custom_data(octane_node, octane_graph_node_data, depsgraph)
 
     def sync_custom_data(self, octane_node, octane_graph_node_data, depsgraph):
         pass
 
-    def copy_from_node(self, other_node, only_copy_same_type=False, copy_link=False):
-        if only_copy_same_type and self.bl_idname != other_node.bl_idname:
-            return
+    def copy_from_node(self, other_node):
         for attribute_name in self.octane_attribute_list:
             if hasattr(self, attribute_name) and hasattr(other_node, attribute_name):
                 setattr(self, attribute_name, getattr(other_node, attribute_name, None))
         for socket in self.inputs:
             socket_name = socket.name
-            if not socket.enabled or socket.hide or socket_name.startswith("[Deprecated]"):
-                continue
-            src_socket_name = None
             if socket_name in other_node.inputs:
-                src_socket_name = socket_name
-            else:
-                dest_socket_pin_id = getattr(socket, "octane_pin_id", consts.PinType.PT_UNKNOWN)
-                if dest_socket_pin_id != consts.PinType.PT_UNKNOWN:
-                    for _input in other_node.inputs:
-                        if getattr(_input, "octane_deprecated", False) or getattr(_input, "hide", False):
-                            continue
-                        if dest_socket_pin_id == getattr(_input, "octane_pin_id", None):
-                            src_socket_name = _input.name
-            if src_socket_name is not None:
                 dest_socket = self.inputs[socket_name]
-                src_socket = other_node.inputs[src_socket_name]
-                dest_socket.copy_from_socket(src_socket, copy_link)
-        self.copy_from_custom_node(other_node, copy_link)
+                src_socket = other_node.inputs[socket_name]
+                if hasattr(self, "default_value") and hasattr(other_node, "default_value"):
+                    dest_socket.default_value = src_socket.default_value
+        self.copy_from_custom_node(other_node)
 
-    def copy_from_custom_node(self, other_node, copy_link=False):
+    def copy_from_custom_node(self, other_node):
         pass
 
     def resolve_node_property_data_path(self, id_property, use_full_path=False):
@@ -348,7 +309,7 @@ class OctaneBaseNode(object):
         # Outputs
         legacy_node_enabled_outputs = [output for output in legacy_node.outputs if output.enabled]
         if len(legacy_node_enabled_outputs) == 1 and len(self.outputs) == 1:
-            legacy_node_output_links = [link for link in legacy_node_enabled_outputs[0].links]
+            legacy_node_output_links = [link for link in legacy_node_enabled_outputs[0].links]    
             for link in legacy_node_output_links:
                 node_tree.links.new(self.outputs[0], link.to_socket)
             # while len(legacy_node.outputs[0].links):
@@ -405,22 +366,18 @@ class OctaneBaseNode(object):
                 legacy_data_value = [legacy_data_raw_value, 0, 0, 0]
             elif legacy_data_type == consts.LegacyDTOType.DTO_SHADER:
                 legacy_data_value = legacy_data_raw_value
-            is_pin = legacy_data_info.internal_data_is_pin \
-                if legacy_data_info.is_internal_data else legacy_data_info.is_pin
-            octane_id = legacy_data_info.internal_data_octane_type \
-                if legacy_data_info.is_internal_data else legacy_data_info.octane_type
+            is_pin = legacy_data_info.internal_data_is_pin if legacy_data_info.is_internal_data else legacy_data_info.is_pin
+            octane_id = legacy_data_info.internal_data_octane_type if legacy_data_info.is_internal_data else legacy_data_info.octane_type
             if is_pin:
                 pin_info = OctaneInfoManger().get_pin_info_by_id(node_type, octane_id)
                 if pin_info is not None:
                     if pin_info.blender_name in self.octane_socket_list:
-                        self.load_legacy_pin(node_tree, pin_info, legacy_data_type, legacy_data_value, legacy_data_link,
-                                             legacy_data_path, data_path_mapping)
+                        self.load_legacy_pin(node_tree, pin_info, legacy_data_type, legacy_data_value, legacy_data_link, legacy_data_path, data_path_mapping)
             else:
                 attribute_info = OctaneInfoManger().get_attribute_info_by_id(node_type, octane_id)
                 if attribute_info is not None:
                     if attribute_info.blender_name in self.octane_attribute_list:
-                        self.load_legacy_attribute(node_tree, attribute_info, legacy_data_type, legacy_data_value,
-                                                   legacy_data_path, data_path_mapping)
+                        self.load_legacy_attribute(node_tree, attribute_info, legacy_data_type, legacy_data_value, legacy_data_path, data_path_mapping)
         if node_tree.animation_data and node_tree.animation_data.action:
             for fcurve in node_tree.animation_data.action.fcurves:
                 if fcurve.data_path in data_path_mapping:
@@ -430,8 +387,7 @@ class OctaneBaseNode(object):
     def load_custom_legacy_node(self, legacy_node, node_tree, context, report=None):
         pass
 
-    def load_legacy_attribute(self, _node_tree, info, _legacy_data_type, legacy_data_value, legacy_data_path,
-                              data_path_mapping):
+    def load_legacy_attribute(self, node_tree, info, legacy_data_type, legacy_data_value, legacy_data_path, data_path_mapping):
         attribute_type = info.attribute_type
         attribute_name = info.blender_name
         if attribute_type == consts.AttributeType.AT_BOOL:
@@ -448,7 +404,7 @@ class OctaneBaseNode(object):
         elif attribute_type == consts.AttributeType.AT_INT4:
             setattr(self, attribute_name, legacy_data_value)
         elif attribute_type == consts.AttributeType.AT_FLOAT:
-            setattr(self, attribute_name, legacy_data_value[0])
+            setattr(self, attribute_name, legacy_data_value[0])            
         elif attribute_type == consts.AttributeType.AT_FLOAT2:
             setattr(self, attribute_name, legacy_data_value[:2])
         elif attribute_type == consts.AttributeType.AT_FLOAT3:
@@ -469,12 +425,11 @@ class OctaneBaseNode(object):
             setattr(self, attribute_name, legacy_data_value[:2])
         else:
             pass
-        data_path = self.resolve_node_property_data_path(self) + "." + attribute_name
-        if legacy_data_path and data_path:
+        data_path = self.resolve_node_property_data_path(self) + "." + attribute_name        
+        if legacy_data_path and data_path:      
             data_path_mapping[legacy_data_path] = data_path
 
-    def load_legacy_pin(self, node_tree, info, _legacy_data_type, legacy_data_value, legacy_data_link, legacy_data_path,
-                        data_path_mapping):
+    def load_legacy_pin(self, node_tree, info, legacy_data_type, legacy_data_value, legacy_data_link, legacy_data_path, data_path_mapping):
         socket_type = info.socket_type
         socket_name = info.blender_name
         socket = self.inputs[socket_name]
@@ -523,6 +478,7 @@ class OctaneBaseNode(object):
                     self.load_ocs_attribute(creator, attribute_octane_name, attribute_type, attr_et)
                     break
         for socket in self.inputs:
+            socket_name = socket.name
             if not hasattr(socket, "octane_pin_name"):
                 continue
             pin_name = socket.octane_pin_name
@@ -538,7 +494,7 @@ class OctaneBaseNode(object):
     # Dump json methods
     def dump_json_node(self):
         node_dict = {
-            "name": self.name,
+            "name": self.name, 
             "bl_idname": self.bl_idname,
             "attributes": {},
             "pins": {},
@@ -550,8 +506,7 @@ class OctaneBaseNode(object):
             self.dump_json_attribute("a_compatibility_version_enum", consts.AttributeType.AT_STRING, attributes_dict)
         for attribute_name in self.octane_attribute_list:
             if hasattr(self, attribute_name):
-                self.dump_json_attribute(attribute_name, self.octane_attribute_config[attribute_name][2],
-                                         attributes_dict)
+                self.dump_json_attribute(attribute_name, self.octane_attribute_config[attribute_name][2], attributes_dict)
         # Pins
         for _input in self.inputs:
             if getattr(_input, "octane_deprecated", True):
@@ -628,23 +583,19 @@ class OctaneBaseNode(object):
             data = value
         elif socket_type == consts.SocketType.ST_LINK:
             data = value
-        else:
-            data = ""
         pins_dict[_input.name] = {"value": data, "link": link}
 
     # Load json methods
     def load_json_node(self, node_dict, links_list):
-        # noinspection PyAttributeOutsideInit
         self.name = node_dict["name"]
         attributes_dict = node_dict["attributes"]
         pins_dict = node_dict["pins"]
         # Attributes
         if hasattr(self, "a_compatibility_version_enum") and "a_compatibility_version_enum" in attributes_dict:
-            self.load_json_attribute("a_compatibility_version_enum", consts.AttributeType.AT_STRING, attributes_dict)
+            self.load_json_attribute("a_compatibility_version_enum", consts.AttributeType.AT_STRING, attributes_dict)        
         for attribute_name in self.octane_attribute_list:
             if hasattr(self, attribute_name) and attribute_name in attributes_dict:
-                self.load_json_attribute(attribute_name, self.octane_attribute_config[attribute_name][2],
-                                         attributes_dict)
+                self.load_json_attribute(attribute_name, self.octane_attribute_config[attribute_name][2], attributes_dict)
         # Pins
         for _input in self.inputs:
             if getattr(_input, "octane_deprecated", True):
@@ -660,6 +611,7 @@ class OctaneBaseNode(object):
         pass
 
     def load_json_attribute(self, attribute_name, attribute_type, attributes_dict):
+        data = None
         attribute_dict = attributes_dict[attribute_name]
         value = attribute_dict["value"]
         if attribute_type == consts.AttributeType.AT_UNKNOWN:
@@ -750,24 +702,21 @@ class OctaneBaseNode(object):
                 count += 1
         setattr(self, attribute_name, count)
 
-    def init_movable_inputs(self, _context, socket_class, default_count):
+    def init_movable_inputs(self, context, socket_class, default_count):
         classes = [socket_class, ]
         classes.extend(getattr(socket_class, "octane_sub_movable_inputs", []))
         octane_reversed_input_sockets = getattr(socket_class, "octane_reversed_input_sockets", False)
         if octane_reversed_input_sockets:
             for idx in range(default_count, 0, -1):
                 for offset, _class in enumerate(classes):
-                    self.inputs.new(_class.bl_idname, _class.bl_label).init(index=idx, offset=offset,
-                                                                            group_size=len(classes))
+                    self.inputs.new(_class.bl_idname, _class.bl_label).init(index=idx, offset=offset, group_size=len(classes))
         else:
             for idx in range(1, default_count + 1):
                 for offset, _class in enumerate(classes):
-                    self.inputs.new(_class.bl_idname, _class.bl_label).init(index=idx, offset=offset,
-                                                                            group_size=len(classes))
-        self.update_movable_input_count(socket_class.octane_movable_input_count_attribute_name, socket_class.bl_idname,
-                                        socket_class.octane_input_pattern)
+                    self.inputs.new(_class.bl_idname, _class.bl_label).init(index=idx, offset=offset, group_size=len(classes))
+        self.update_movable_input_count(socket_class.octane_movable_input_count_attribute_name, socket_class.bl_idname, socket_class.octane_input_pattern)        
 
-    def draw_movable_inputs(self, _context, layout, socket_class, max_count):
+    def draw_movable_inputs(self, context, layout, socket_class, max_count):
         row = layout.row()
         c1 = row.column()
         c2 = row.column()
@@ -784,12 +733,11 @@ class OctaneBaseNode(object):
         c2.enabled = current_count > 0
         remove_op.movable_input_count_attribute_name = socket_class.octane_movable_input_count_attribute_name
         remove_op.input_name_pattern = socket_class.octane_input_pattern
-        remove_op.input_socket_bl_idname = socket_class.bl_idname
+        remove_op.input_socket_bl_idname = socket_class.bl_idname 
         remove_op.reversed_input_sockets = getattr(socket_class, "octane_reversed_input_sockets", False)
         remove_op.group_input_num = group_input_num
 
-    def update_compatibility_mode(self, _context):
-        # noinspection PyAttributeOutsideInit
+    def update_compatibility_mode(self, context):
         self.a_compatibility_version = utility.get_enum_int_value(self, "a_compatibility_version_enum", 0)
 
     def update_node_tree(self, context):
@@ -812,17 +760,17 @@ class OctaneBaseOutputNode(OctaneBaseNode):
         return OctaneBaseNode.poll(node_tree)
 
     # Output node methods
-    def update_output_node_active(self, context):
+    def update_output_node_active(output_node, context):
         from octane.nodes.base_node_tree import OctaneBaseNodeTree
-        self.set_active(context, self.active)
-        node_tree = self.id_data
+        output_node.set_active(context, output_node.active)
+        node_tree = output_node.id_data
         if node_tree:
-            OctaneBaseNodeTree.update_active_output_name(node_tree, context, self.name, self.active)
+            OctaneBaseNodeTree.update_active_output_name(node_tree, context, output_node.name, output_node.active)
 
-    use_custom_color = False
+    use_custom_color=False
     active: BoolProperty(name="Active", default=True, update=update_output_node_active)
 
-    def set_active(self, _context, active):
+    def set_active(self, context, active):
         self["active"] = active
 
         # Update color
@@ -831,10 +779,9 @@ class OctaneBaseOutputNode(OctaneBaseNode):
         if self["active"]:
             self.color = color
         else:
-            # noinspection PyAttributeOutsideInit
             self.color = [x * 0.5 for x in color]
 
-    def get_input(self, name=None):
+    def get_input(self, name=None):        
         if len(self.inputs) == 0:
             return None
         if name is None:
@@ -843,7 +790,7 @@ class OctaneBaseOutputNode(OctaneBaseNode):
             return self.inputs[name]
         return None
 
-    def get_octane_name_for_root_node(self, _input_name=None, owner_id=None):
+    def get_octane_name_for_root_node(self, input_name=None, owner_id=None):
         return owner_id.name if owner_id else ""
 
     def init(self, context):
@@ -858,16 +805,16 @@ class OctaneBaseOutputNode(OctaneBaseNode):
     # Force to trigger an update when link is added/removed under viewport render
     def update(self):
         area = getattr(bpy.context, 'area', None)
-        if area and area.type == 'NODE_EDITOR':
+        if area and area.type == 'NODE_EDITOR':        
             # Trick to trigger an update by force
-            self.width = self.width  # noqa
+            self.width = self.width
 
 
 _CLASSES = [
 ]
 
 
-def register():
+def register(): 
     for cls in _CLASSES:
         register_class(cls)
 

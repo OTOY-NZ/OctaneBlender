@@ -14,92 +14,92 @@ from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, O
 
 
 class OctaneOutputAOVsApplyLUTSDROnlyEnabled(OctaneBaseSocket):
-    bl_idname = "OctaneOutputAOVsApplyLUTSDROnlyEnabled"
-    bl_label = "Enabled"
-    color = consts.OctanePinColor.Bool
-    octane_default_node_type = consts.NodeType.NT_BOOL
-    octane_default_node_name = "OctaneBoolValue"
+    bl_idname="OctaneOutputAOVsApplyLUTSDROnlyEnabled"
+    bl_label="Enabled"
+    color=consts.OctanePinColor.Bool
+    octane_default_node_type=consts.NodeType.NT_BOOL
+    octane_default_node_name="OctaneBoolValue"
     octane_pin_id=consts.PinID.P_ENABLED
     octane_pin_name="enabled"
-    octane_pin_type = consts.PinType.PT_BOOL
+    octane_pin_type=consts.PinType.PT_BOOL
     octane_pin_index=0
-    octane_socket_type = consts.SocketType.ST_BOOL
+    octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Whether this layer is applied or skipped")
-    octane_hide_value = False
-    octane_min_version = 0
-    octane_end_version = 4294967295
-    octane_deprecated = False
+    octane_hide_value=False
+    octane_min_version=0
+    octane_end_version=4294967295
+    octane_deprecated=False
 
 class OctaneOutputAOVsApplyLUTSDROnlyStrength(OctaneBaseSocket):
-    bl_idname = "OctaneOutputAOVsApplyLUTSDROnlyStrength"
-    bl_label = "Strength"
-    color = consts.OctanePinColor.Float
-    octane_default_node_type = consts.NodeType.NT_FLOAT
-    octane_default_node_name = "OctaneFloatValue"
+    bl_idname="OctaneOutputAOVsApplyLUTSDROnlyStrength"
+    bl_label="Strength"
+    color=consts.OctanePinColor.Float
+    octane_default_node_type=consts.NodeType.NT_FLOAT
+    octane_default_node_name="OctaneFloatValue"
     octane_pin_id=consts.PinID.P_STRENGTH
     octane_pin_name="strength"
-    octane_pin_type = consts.PinType.PT_FLOAT
+    octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=1
-    octane_socket_type = consts.SocketType.ST_FLOAT
+    octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=100.000000, update=OctaneBaseSocket.update_node_tree, description="The extent to which the LUT should be applied. The output of this operation is linearly interpolated between the input and the LUT output based on this value", min=0.000000, max=100.000000, soft_min=0.000000, soft_max=100.000000, step=1, precision=2, subtype="PERCENTAGE")
-    octane_hide_value = False
-    octane_min_version = 0
-    octane_end_version = 4294967295
-    octane_deprecated = False
+    octane_hide_value=False
+    octane_min_version=0
+    octane_end_version=4294967295
+    octane_deprecated=False
 
 class OctaneOutputAOVsApplyLUTSDROnlyInputColorSpace(OctaneBaseSocket):
-    bl_idname = "OctaneOutputAOVsApplyLUTSDROnlyInputColorSpace"
-    bl_label = "Input color space"
-    color = consts.OctanePinColor.Enum
-    octane_default_node_type = consts.NodeType.NT_ENUM
-    octane_default_node_name = "OctaneEnumValue"
+    bl_idname="OctaneOutputAOVsApplyLUTSDROnlyInputColorSpace"
+    bl_label="Input color space"
+    color=consts.OctanePinColor.Enum
+    octane_default_node_type=consts.NodeType.NT_ENUM
+    octane_default_node_name="OctaneEnumValue"
     octane_pin_id=consts.PinID.P_INPUT_COLOR_SPACE
     octane_pin_name="inputColorSpace"
-    octane_pin_type = consts.PinType.PT_ENUM
+    octane_pin_type=consts.PinType.PT_ENUM
     octane_pin_index=2
-    octane_socket_type = consts.SocketType.ST_ENUM
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("sRGB", "sRGB", "", 1),
         ("Linear sRGB", "Linear sRGB", "", 2),
     ]
     default_value: EnumProperty(default="sRGB", update=OctaneBaseSocket.update_node_tree, description="The color space that the LUT requires for input", items=items)
-    octane_hide_value = False
-    octane_min_version = 0
-    octane_end_version = 4294967295
-    octane_deprecated = False
+    octane_hide_value=False
+    octane_min_version=0
+    octane_end_version=4294967295
+    octane_deprecated=False
 
 class OctaneOutputAOVsApplyLUTSDROnlyOutputColorSpace(OctaneBaseSocket):
-    bl_idname = "OctaneOutputAOVsApplyLUTSDROnlyOutputColorSpace"
-    bl_label = "Output color space"
-    color = consts.OctanePinColor.Enum
-    octane_default_node_type = consts.NodeType.NT_ENUM
-    octane_default_node_name = "OctaneEnumValue"
+    bl_idname="OctaneOutputAOVsApplyLUTSDROnlyOutputColorSpace"
+    bl_label="Output color space"
+    color=consts.OctanePinColor.Enum
+    octane_default_node_type=consts.NodeType.NT_ENUM
+    octane_default_node_name="OctaneEnumValue"
     octane_pin_id=consts.PinID.P_OUTPUT_COLOR_SPACE
     octane_pin_name="outputColorSpace"
-    octane_pin_type = consts.PinType.PT_ENUM
+    octane_pin_type=consts.PinType.PT_ENUM
     octane_pin_index=3
-    octane_socket_type = consts.SocketType.ST_ENUM
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("sRGB", "sRGB", "", 1),
         ("Linear sRGB", "Linear sRGB", "", 2),
     ]
     default_value: EnumProperty(default="sRGB", update=OctaneBaseSocket.update_node_tree, description="The color space that the LUT produces for output", items=items)
-    octane_hide_value = False
-    octane_min_version = 0
-    octane_end_version = 4294967295
-    octane_deprecated = False
+    octane_hide_value=False
+    octane_min_version=0
+    octane_end_version=4294967295
+    octane_deprecated=False
 
 class OctaneOutputAOVsApplyLUTSDROnly(bpy.types.Node, OctaneBaseNode):
-    bl_idname = "OctaneOutputAOVsApplyLUTSDROnly"
-    bl_label = "Apply LUT (SDR only)"
-    bl_width_default = 200
-    octane_render_pass_id = -1
-    octane_render_pass_name = ""
-    octane_render_pass_short_name = ""
-    octane_render_pass_description = ""
-    octane_render_pass_sub_type_name = ""
+    bl_idname="OctaneOutputAOVsApplyLUTSDROnly"
+    bl_label="Apply LUT (SDR only)"
+    bl_width_default=200
+    octane_render_pass_id=-1
+    octane_render_pass_name=""
+    octane_render_pass_short_name=""
+    octane_render_pass_description=""
+    octane_render_pass_sub_type_name=""
     octane_socket_class_list=[OctaneOutputAOVsApplyLUTSDROnlyEnabled,OctaneOutputAOVsApplyLUTSDROnlyStrength,OctaneOutputAOVsApplyLUTSDROnlyInputColorSpace,OctaneOutputAOVsApplyLUTSDROnlyOutputColorSpace,]
-    octane_min_version = 13000000
+    octane_min_version=13000000
     octane_node_type=consts.NodeType.NT_OUTPUT_AOV_LAYER_APPLY_LUT
     octane_socket_list=["Enabled", "Strength", "Input color space", "Output color space", ]
     octane_attribute_list=["a_title", "a_domain_min_1d", "a_domain_max_1d", "a_values_1d", "a_domain_min_3d", "a_domain_max_3d", "a_values_3d", "a_filename", "a_reload", ]
@@ -146,4 +146,4 @@ def unregister():
     utility.octane_unregister_interface_class(_SOCKET_INTERFACE_CLASSES)
     utility.octane_unregister_class(reversed(_CLASSES))
 
-# END OCTANE GENERATED CODE BLOCK #
+##### END OCTANE GENERATED CODE BLOCK #####

@@ -1,6 +1,6 @@
-# <pep8 compliant>
-
-# BEGIN OCTANE GENERATED CODE BLOCK #
+##### BEGIN OCTANE GENERATED CODE BLOCK #####
+import bpy
+from bpy.utils import register_class, unregister_class
 from . import toon_point_light
 from . import toon_directional_light
 from . import quad_light
@@ -8,7 +8,6 @@ from . import sphere_light
 from . import volumetric_spotlight
 from . import analytic_light
 from . import directional_light
-
 
 def register():
     toon_point_light.register()
@@ -19,7 +18,6 @@ def register():
     analytic_light.register()
     directional_light.register()
 
-
 def unregister():
     toon_point_light.unregister()
     toon_directional_light.unregister()
@@ -29,4 +27,4 @@ def unregister():
     analytic_light.unregister()
     directional_light.unregister()
 
-# END OCTANE GENERATED CODE BLOCK #
+##### END OCTANE GENERATED CODE BLOCK #####

@@ -1,9 +1,11 @@
-# <pep8 compliant>
-
 import bpy
+import nodeitems_utils
+from nodeitems_utils import NodeItemCustom
 from bpy.utils import register_class, unregister_class
-from octane.nodes.base_node_tree import OctaneBaseNodeTree
 from octane.utils import consts
+from octane.nodes import node_items
+from octane.nodes.node_items import OctaneNodeItemSeperator, OctaneNodeCategory, OctaneNodeItem
+from octane.nodes.base_node_tree import OctaneBaseNodeTree
 
 
 class OctaneRenderAovNodeTree(OctaneBaseNodeTree, bpy.types.NodeTree):
@@ -17,7 +19,7 @@ class OctaneRenderAovNodeTree(OctaneBaseNodeTree, bpy.types.NodeTree):
         super().update()
         self.update_viewport()
 
-    def get_current_preview_render_pass_id(self, view_layer):
+    def get_current_preview_render_pass_id(self, view_layer):        
         if self.active_output_node:
             return self.active_output_node.get_current_preview_render_pass_id(view_layer)
         return consts.RenderPassID.Beauty
@@ -28,9 +30,8 @@ class OctaneRenderAovNodeTree(OctaneBaseNodeTree, bpy.types.NodeTree):
         return [consts.RenderPassID.Beauty, ]
 
 
-def register():
+def register(): 
     register_class(OctaneRenderAovNodeTree)
-
 
 def unregister():
     unregister_class(OctaneRenderAovNodeTree)

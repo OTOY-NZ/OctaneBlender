@@ -1,18 +1,15 @@
-# <pep8 compliant>
-
-import math
-
-import mathutils
-from bl_operators.presets import AddPresetBase
-from bpy.props import IntProperty, FloatProperty, BoolProperty, StringProperty, EnumProperty, PointerProperty, \
-    FloatVectorProperty, CollectionProperty
-from bpy.types import Operator
-
 import bpy
+import math
+import mathutils
+import xml.etree.ElementTree as ET
+from bl_operators.presets import AddPresetBase
+from bpy.props import IntProperty, FloatProperty, BoolProperty, StringProperty, EnumProperty, PointerProperty, FloatVectorProperty, IntVectorProperty, BoolVectorProperty, CollectionProperty
+from bpy.types import Operator
 from bpy.utils import register_class, unregister_class
-from octane.nodes.render_settings.imager import OctaneImagerOrder, OctaneImagerResponse
 from octane.properties_ import common, scene
 from octane.utils import consts, ocio, utility
+from octane.nodes.render_settings.imager import OctaneImagerOrder, OctaneImagerResponse, OctaneImagerDenoiserType
+
 
 camera_imager_orders = (
     ('0', "Response,Gamma,LUT", '', 0),
@@ -20,8 +17,8 @@ camera_imager_orders = (
     ('2', "LUT,Response,Gamma", '', 2),
     ('3', "LUT,Gamma,Response", '', 3),
     ('4', "Response,LUT,Gamma", '', 4),
-    ('5', "Gamma,LUT,Response", '', 5),
-)
+    ('5', "Gamma,LUT,Response", '', 5),        
+) 
 
 response_types = (
     ('99', "Agfacolor_Futura_100CD", ""),
@@ -77,7 +74,7 @@ response_types = (
     ('308', "DSCS315_4", ""),
     ('309', "DSCS315_5", ""),
     ('310', "DSCS315_6", ""),
-    ('311', "FP2900Z", ""),
+    ('311', "FP2900Z", ""),    
     ('400', "Linear/Off", "",),
     ('401', "sRGB", "",),
     ('402', "Gamma1.8", "",),
@@ -86,8 +83,7 @@ response_types = (
 
 
 def get_int_response_type(self):
-    return int(self.response_type)
-
+    return int(self.response_type) 
 
 # Blender Camera Intermediate: we first convert both the offline and 3d view
 # render camera to this, and from there convert to our native camera format.
@@ -187,9 +183,9 @@ class BlenderCamera(object):
         self.octane_fov = 0
         self.octane_position = None
         self.octane_up = None
-        self.octane_target = None
+        self.octane_target = None        
 
-    def init(self, cur_scene):
+    def init(self, scene):
         self.type = BlenderCameraType.PERSPECTIVE
         self.zoom = 1.0
         self.pixel_aspect = [1.0, 1.0]
@@ -202,8 +198,8 @@ class BlenderCamera(object):
         self.pano_viewplane.reset()
         self.viewport_camera_border.reset()
         self.focal_distance = 1.118034
-        self.full_width = utility.render_resolution_x(cur_scene)
-        self.full_height = utility.render_resolution_y(cur_scene)
+        self.full_width = utility.render_resolution_x(scene)
+        self.full_height = utility.render_resolution_y(scene)
         self.dir = [0, 0, -1]
         self.use_border = False
 
@@ -286,11 +282,11 @@ class BlenderCamera(object):
             if lens > 0:
                 self.lens = lens
 
-    def setup_camera_border(self, cur_scene, _width, _height, is_viewport=False, v3d=None, rv3d=None):
+    def setup_camera_border(self, scene, width, height, is_viewport=False, v3d=None, rv3d=None):
         is_camera_view = rv3d.view_perspective == "CAMERA" if is_viewport else True
         if is_camera_view:
             # Object camera
-            render = cur_scene.render
+            render = scene.render
             border_max_x = render.border_max_x
             border_max_y = render.border_max_y
             border_min_x = render.border_min_x
@@ -309,9 +305,11 @@ class BlenderCamera(object):
         self.border.top = border_max_y
         self.use_border = use_border
 
-    def setup_camera_viewplane(self, _scene, width, height):
+    def setup_camera_viewplane(self, scene, width, height):
         x_ratio = width * self.pixel_aspect[0]
         y_ratio = height * self.pixel_aspect[1]
+        horizontal_fit = False
+        x_aspect = y_aspect = 0
         if self.sensor_fit == BlenderCameraSensorFitType.AUTO:
             horizontal_fit = x_ratio > y_ratio
             self.sensor_size = self.sensor_width
@@ -330,8 +328,7 @@ class BlenderCamera(object):
             x_aspect = 1.0
             y_aspect = self.aspect_ratio
         if not horizontal_fit:
-            base_sensor_size = self.sensor_height \
-                if self.sensor_fit == BlenderCameraSensorFitType.HORIZONTAL else self.sensor_width
+            base_sensor_size = self.sensor_height if self.sensor_fit == BlenderCameraSensorFitType.HORIZONTAL else self.sensor_width
             self.sensor_size = base_sensor_size * x_aspect / y_aspect
         if self.type == BlenderCameraType.PANORAMA:
             self.viewplane = self.pano_viewplane
@@ -348,14 +345,14 @@ class BlenderCamera(object):
             self.viewplane.bottom += dy
             self.viewplane.top += dy
 
-    def setup_from_view(self, cur_scene, v3d, rv3d, _width, _height, skip_panorama):
+    def setup_from_view(self, scene, v3d, rv3d, width, height, skip_panorama):
         self.near_clip = v3d.clip_start
         self.far_clip = v3d.clip_end
         self.lens = v3d.lens
-        self.shutter_time = cur_scene.render.motion_blur_shutter
+        self.shutter_time = scene.render.motion_blur_shutter
         self.matrix = rv3d.view_matrix.inverted_safe()
         if rv3d.view_perspective == "CAMERA":
-            camera_object = v3d.camera if v3d.use_local_camera else cur_scene.camera
+            camera_object = v3d.camera if v3d.use_local_camera else scene.camera
             if camera_object:
                 self.setup_from_camera_object(camera_object, skip_panorama)
                 if not skip_panorama and self.type == BlenderCameraType.PANORAMA:
@@ -382,25 +379,24 @@ class BlenderCamera(object):
         self.zoom *= 2.0
 
 
-class OctaneOSLCameraNode(bpy.types.PropertyGroup):
-    name: StringProperty(name="Node Name")
+class OctaneOSLCameraNode(bpy.types.PropertyGroup):    
+    name: StringProperty(name="Node Name")   
 
 
 class OctaneOSLCameraNodeCollection(bpy.types.PropertyGroup):
     osl_camera_nodes: CollectionProperty(type=OctaneOSLCameraNode)
 
-    def update_nodes(self, _context):
+    def update_nodes(self, context):   
         for i in range(0, len(self.osl_camera_nodes)):
-            self.osl_camera_nodes.remove(0)
-        if bpy.data.materials:
+            self.osl_camera_nodes.remove(0)  
+        if bpy.data.materials:      
             for mat in bpy.data.materials.values():
                 if not getattr(mat, 'node_tree', None) or not getattr(mat.node_tree, 'nodes', None):
                     continue
                 if mat.name != self.osl_camera_material_tree:
                     continue
                 for node in mat.node_tree.nodes.values():
-                    if node.bl_idname in ("OctaneOSLCamera", "OctaneOSLBakingCamera", 'ShaderNodeOctOSLCamera',
-                                          'ShaderNodeOctOSLBakingCamera'):
+                    if node.bl_idname in ("OctaneOSLCamera", "OctaneOSLBakingCamera", 'ShaderNodeOctOSLCamera', 'ShaderNodeOctOSLBakingCamera'):                        
                         self.osl_camera_nodes.add()
                         self.osl_camera_nodes[-1].name = node.name
 
@@ -409,9 +405,9 @@ class OctaneOSLCameraNodeCollection(bpy.types.PropertyGroup):
             material = bpy.data.materials[self.osl_camera_material_tree]
             if material and material.use_nodes and self.osl_camera_node in material.node_tree.nodes:
                 node = material.node_tree.nodes[self.osl_camera_node]
-                if node.bl_idname in ("OctaneOSLCamera", "ShaderNodeOctOSLCamera",):
+                if node.bl_idname in ("OctaneOSLCamera", "ShaderNodeOctOSLCamera", ):
                     return consts.NodeType.NT_CAM_OSL
-                elif node.bl_idname in ("OctaneOSLBakingCamera", "ShaderNodeOctOSLBakingCamera",):
+                elif node.bl_idname in ("OctaneOSLBakingCamera", "ShaderNodeOctOSLBakingCamera", ):
                     return consts.NodeType.NT_CAM_OSL_BAKING
         return consts.NodeType.NT_UNKNOWN
 
@@ -433,14 +429,12 @@ class OctaneOSLCameraNodeCollection(bpy.types.PropertyGroup):
 
 class OctaneImagerSettings(bpy.types.PropertyGroup, common.OctanePropertySettings):
     PROPERTY_CONFIGS = {consts.NodeType.NT_IMAGER_CAMERA: [
-        "exposure", "hotpixel_removal", "vignetting", "white_balance", "saturation", "premultiplied_alpha",
-        "disable_partial_alpha", "dithering", "min_display_samples", "max_tonemap_interval",
-        "force_tone_mapping", "aces_tone_mapping",
-        "highlight_compression", "saturate_to_white", "order", "response", "neutral_response", "gamma",
-        "denoiser", "denoise_volume", "denoise_once", "min_denoise_samples", "max_denoise_interval",
-        "denoiser_original_blend",
-        "up_sample_mode", "enable_ai_up_sampling", "up_sampling_on_completion", "min_up_sampler_samples",
-        "max_up_sampler_interval",
+        "exposure", "hotpixel_removal", "vignetting", "white_balance", "saturation", "premultiplied_alpha", "disable_partial_alpha", "dithering", "min_display_samples", "max_tonemap_interval", \
+        "force_tone_mapping", "aces_tone_mapping", \
+        "highlight_compression", "saturate_to_white", "order", "response", "neutral_response", "gamma", \
+        "denoiser", "denoise_volume", "denoise_once", "min_denoise_samples", "max_denoise_interval", "denoiser_original_blend", \
+        "up_sample_mode", "enable_ai_up_sampling", "up_sampling_on_completion", "min_up_sampler_samples", "max_up_sampler_interval", \
+        "denoiser_type", "denoise_prefilter",
     ]}
     PROPERTY_NAME_TO_PIN_SYMBOL_MAP = {
         "disable_partial_alpha": "disablePartialAlpha",
@@ -459,19 +453,18 @@ class OctaneImagerSettings(bpy.types.PropertyGroup, common.OctanePropertySetting
         "up_sampling_on_completion": "upsamplingOnCompletion",
         "min_up_sampler_samples": "minUpsamplingSamples",
         "max_up_sampler_interval": "maxUpsamplingInterval",
+        "denoiser_type": "denoiserType",
+        "denoise_prefilter": "denoisePrefilter",
     }
-    BLENDER_ATTRIBUTE_LUT_FILEPATH = "LUT_FILEPATH"
-    BLENDER_ATTRIBUTE_LUT_STRENGTH = "LUT_STRENGTH"
-    BLENDER_ATTRIBUTE_OCIO_DISPLAY_NAME = "OCIO_DISPLAY_NAME"
-    BLENDER_ATTRIBUTE_OCIO_VIEW_NAME = "OCIO_VIEW_NAME"
-    BLENDER_ATTRIBUTE_OCIO_LOOK_NAME = "OCIO_LOOK_NAME"
+    BLNEDER_ATTRIBUTE_LUT_FILEPATH = "LUT_FILEPATH"
+    BLNEDER_ATTRIBUTE_LUT_STRENGTH = "LUT_STRENGTH"
+    BLNEDER_ATTRIBUTE_OCIO_DISPLAY_NAME = "OCIO_DISPLAY_NAME"
+    BLNEDER_ATTRIBUTE_OCIO_VIEW_NAME = "OCIO_VIEW_NAME"
+    BLNEDER_ATTRIBUTE_OCIO_LOOK_NAME = "OCIO_LOOK_NAME"
 
     exposure: FloatProperty(
         name="Exposure",
-        description="The exposure or overall brightness. The required value is highly dependent on the lighting of "
-                    "the scene. Outdoor scenes in daylight work well with an exposure between 0.6 and 1. Indoor "
-                    "scenes - even"
-                    "during the day - often need an exposure of 4 to 20",
+        description="The exposure or overall brightness. The required value is highly dependent on the lighting of the scene. Outdoor scenes in daylight work well with an exposure between 0.6 and 1. Indoor scenes - even during the day - often need an exposure of 4 to 20",
         min=0.001, soft_min=0.001, max=4096.0, soft_max=4096.0,
         default=1.0,
         step=10,
@@ -558,17 +551,14 @@ class OctaneImagerSettings(bpy.types.PropertyGroup, common.OctanePropertySetting
     )
     force_tone_mapping: BoolProperty(
         name="Force tone mapping",
-        description="Whether to apply Octane's built-in tone mapping (before applying any OCIO look(s)) when using an "
-                    "OCIO view. This may produce undesirable results due to an intermediate reduction to the sRGB "
-                    "color space",
+        description="Whether to apply Octane's built-in tone mapping (before applying any OCIO look(s)) when using an OCIO view. This may produce undesirable results due to an intermediate reduction to the sRGB color space",
         default=False,
     )
     aces_tone_mapping: BoolProperty(
         name="ACES tone mapping",
-        description="Use the ACES 1.2 RRT + sRGB ODT. If this is enabled, all other tone mapping settings will be "
-                    "ignored",
+        description="Use the ACES 1.2 RRT + sRGB ODT. If this is enabled, all other tone mapping settings will be ignored",
         default=False,
-    )
+    )    
     highlight_compression: FloatProperty(
         name="Highlight compression",
         description="Reduces burned out highlights by compressing them and reducing their contrast",
@@ -599,13 +589,11 @@ class OctaneImagerSettings(bpy.types.PropertyGroup, common.OctanePropertySetting
         items=OctaneImagerResponse.items,
         default="sRGB",
     )
-
-    def update_response_type(self, _context, viewport=True):
+    def update_response_type(self, context, viewport=True):
         if viewport:
             self.response = self.viewport_response_type
         else:
             self.response = self.camera_response_type
-
     viewport_response_type: EnumProperty(
         name="Response curve",
         description="Camera response curve",
@@ -627,10 +615,7 @@ class OctaneImagerSettings(bpy.types.PropertyGroup, common.OctanePropertySetting
     )
     gamma: FloatProperty(
         name="Gamma",
-        description="Gamma correction, which is applied additionally to the camera response curve. Please note that "
-                    "the camera response curves themselves already do a gamma correction, i.e. a gamma of 1 should be "
-                    "used unless"
-                    "you are using the response curve 'Linear/off'",
+        description="Gamma correction, which is applied additionally to the camera response curve. Please note that the camera response curves themselves already do a gamma correction, i.e. a gamma of 1 should be used unless you are using the response curve 'Linear/off'",
         min=0.1, soft_min=0.1, max=32.0, soft_max=32.0,
         default=1.0,
         step=10,
@@ -641,7 +626,7 @@ class OctaneImagerSettings(bpy.types.PropertyGroup, common.OctanePropertySetting
         description="If set the custom LUT is applied in the order as specified in 'Order'",
         default='',
         subtype='FILE_PATH',
-    )
+    )                     
     lut_strength: FloatProperty(
         name="LUT Strength",
         description="",
@@ -649,56 +634,49 @@ class OctaneImagerSettings(bpy.types.PropertyGroup, common.OctanePropertySetting
         default=1.0,
         step=1,
         precision=3,
-        subtype="FACTOR",
+        subtype="FACTOR", 
     )
     denoiser: BoolProperty(
         name="Enable Denoising",
-        description="Enables the spectral AI denoiser, which will denoise some beauty passes including the main "
-                    "beauty pass and writes the outputs into separate denoiser render passes",
+        description="Enables the spectral AI denoiser, which will denoise some beauty passes including the main beauty pass and writes the outputs into separate denoiser render passes",
         default=False,
     )
     denoise_volume: BoolProperty(
         name="Denoise volumes",
         description="If enabled the spectral AI denoiser will denoise volumes in the scene otherwise not",
         default=False,
-    )
+    )            
     denoise_once: BoolProperty(
         name="Denoise on completion",
-        description="If enabled, beauty passes will be denoised only once at the end of a render. This option should "
-                    "be disabled while rendering with an interactive region",
+        description="If enabled, beauty passes will be denoised only once at the end of a render. This option should be disabled while rendering with an interactive region",
         default=True,
-    )
+    )        
     min_denoise_samples: IntProperty(
         name="Min. denoiser samples",
-        description="Minimum number of samples per pixel until denoiser kicks in. Only valid when the denosie once"
-                    "option is false",
+        description="Minimum number of samples per pixel until denoiser kicks in. Only valid when the denosie once option is false",
         min=1, max=100000,
-        default=10,
-    )
+        default=10, 
+    )     
     max_denoise_interval: IntProperty(
         name="Max. denoiser interval",
-        description="Maximum interval between denoiser runs (in seconds). Only valid when the denosie once option is "
-                    "false",
+        description="Maximum interval between denoiser runs (in seconds). Only valid when the denosie once option is false",
         min=1, max=120,
-        default=20,
-    )
+        default=20, 
+    )      
     denoiser_original_blend: FloatProperty(
         name="Blend",
-        description="A value between 0.f to 1.f to blend the original image into the denoiser output. Setting 0.f "
-                    "results with fully denoised image and setting 1.f results with the original image. An "
-                    "intermediate value"
-                    "will produce a blend between the denoised image and the original image",
+        description="A value between 0.f to 1.f to blend the original image into the denoiser output. Setting 0.f results with fully denoised image and setting 1.f results with the original image. An intermediate value will produce a blend between the denoised image and the original image",
         min=0, max=1,
         step=0.1,
-        precision=3,
+        precision=3,                
         default=0.0,
         subtype="FACTOR",
     )
     up_sample_modes = (
         ('No upsampling', "No upsampling", "", 1),
         ('2x2 upsampling', "2x2 upsampling", "", 2),
-        ('4x4 upsampling', "4x4 upsampling", "", 4),
-    )
+        ('4x4 upsampling', "4x4 upsampling", "", 4),    
+    )    
     up_sample_mode: EnumProperty(
         name="Upsampling mode",
         description="The up-sample mode that should be used for rendering",
@@ -707,10 +685,9 @@ class OctaneImagerSettings(bpy.types.PropertyGroup, common.OctanePropertySetting
     )
     enable_ai_up_sampling: BoolProperty(
         name="Enable AI up-sampling",
-        description="Enables the AI up-sampling when the sampling mode is one of the up-samples, and this toggle is "
-                    "on. Otherwise we just trivially scale up the frame",
+        description="Enables the AI up-sampling when the sampling mode is one of the up-samples, and this toggle is on. Otherwise we just trivially scale up the frame",
         default=True,
-    )
+    )           
     up_sampling_on_completion: BoolProperty(
         name="Up-sampling on completion",
         description="If enabled, beauty passes will be up-sampled only once at the end of a render",
@@ -718,51 +695,57 @@ class OctaneImagerSettings(bpy.types.PropertyGroup, common.OctanePropertySetting
     )
     min_up_sampler_samples: IntProperty(
         name="Min. up-sampler samples",
-        description="Minimum number of samples per pixel until up-sampler kicks in. Only valid when the the sampling "
-                    "mode is any of up-sampling",
+        description="Minimum number of samples per pixel until up-sampler kicks in. Only valid when the the sampling mode is any of up-sampling",
         min=1, max=100000,
-        default=10,
-    )
+        default=10,                
+    )     
     max_up_sampler_interval: IntProperty(
         name="Max. up-sampler interval",
-        description="Maximum interval between up-sampler runs (in seconds). Only valid when the the sampling mode is "
-                    "any of up-sampling",
+        description="Maximum interval between up-sampler runs (in seconds). Only valid when the the sampling mode is any of up-sampling",
         min=1, max=120,
         default=10,
     )
+    denoiser_type: EnumProperty(
+        name="Denoiser",
+        description="The denoising method to utilize for reducing noise",
+        items=OctaneImagerDenoiserType.items,
+        default="Octane AI denoiser",
+    )
+    denoise_prefilter: BoolProperty(
+        name="Prefilter auxiliary AOVs",
+        description="Only valid for the Open Image Denoise type. If enabled, it internally pre-filters the albedo and normal AOVs before denoising the beauty AOV. Enabling this may improve the output quality if your albedo and normal AOVs are noisy, but will also increase the time required to complete the denoising process",
+        default=False,
+    )
 
-    def sync_ocio_settings(self, octane_node, _scene, _session_type):
+    def sync_ocio_settings(self, octane_node, scene, session_type):
         ocio_view_display_name = self.ocio_view_display_name
         ocio_view_display_view_name = self.ocio_view_display_view_name
         ocio_look_name = self.ocio_look
-        ocio_view_display_name, ocio_view_display_view_name = ocio.resolve_octane_ocio_view(ocio_view_display_name,
-                                                                                            ocio_view_display_view_name)
+        ocio_view_display_name, ocio_view_display_view_name = ocio.resolve_octane_ocio_view(ocio_view_display_name, ocio_view_display_view_name)
         ocio_look_name, ocio_use_view_look = ocio.resolve_octane_ocio_look(ocio_look_name)
-        ocio_view_node = octane_node.get_subnode(consts.OCTANE_BLENDER_CAMERA_IMAGER_OCIO_VIEW,
-                                                 consts.NodeType.NT_OCIO_VIEW)
+        ocio_view_node = octane_node.get_subnode(consts.OCTANE_BLENDER_CAMERA_IMAGER_OCIO_VIEW, consts.NodeType.NT_OCIO_VIEW)        
         ocio_view_node.set_attribute_id(consts.AttributeID.A_OCIO_DISPLAY_NAME, ocio_view_display_name)
         ocio_view_node.set_attribute_id(consts.AttributeID.A_OCIO_VIEW_NAME, ocio_view_display_view_name)
-        ocio_look_node = octane_node.get_subnode(consts.OCTANE_BLENDER_CAMERA_IMAGER_OCIO_LOOK,
-                                                 consts.NodeType.NT_OCIO_LOOK)
+        ocio_look_node = octane_node.get_subnode(consts.OCTANE_BLENDER_CAMERA_IMAGER_OCIO_LOOK, consts.NodeType.NT_OCIO_LOOK)
         ocio_look_node.set_attribute_id(consts.AttributeID.A_OCIO_USE_VIEW_LOOK, ocio_use_view_look)
         ocio_look_node.set_attribute_id(consts.AttributeID.A_OCIO_LOOK_NAME, ocio_look_name)
         octane_node.set_pin_id(consts.PinID.P_OCIO_VIEW, True, consts.OCTANE_BLENDER_CAMERA_IMAGER_OCIO_VIEW, "")
         octane_node.set_pin_id(consts.PinID.P_OCIO_LOOK, True, consts.OCTANE_BLENDER_CAMERA_IMAGER_OCIO_LOOK, "")
 
-    def sync_custom_data(self, octane_node, cur_scene, region, v3d, rv3d, session_type):
+    def sync_custom_data(self, octane_node, scene, region, v3d, rv3d, session_type):
         # LUT settings
         lut_node = octane_node.get_subnode(consts.OCTANE_BLENDER_CAMERA_IMAGER_LUT, consts.NodeType.NT_LUT_CUSTOM)
         lut_node.set_pin_id(consts.PinID.P_STRENGTH, False, "", self.lut_strength)
+        lut_path = ""
         if len(self.custom_lut):
             lut_path = bpy.path.abspath(self.custom_lut)
             need_reload = lut_node.set_attribute_id(consts.AttributeID.A_FILENAME, lut_path)
         else:
             need_reload = lut_node.set_attribute_id(consts.AttributeID.A_FILENAME, "")
         lut_node.set_attribute_id(consts.AttributeID.A_RELOAD, need_reload)
-        octane_node.set_pin_id(consts.PinID.P_LUT, len(self.custom_lut) > 0, consts.OCTANE_BLENDER_CAMERA_IMAGER_LUT,
-                               "")
+        octane_node.set_pin_id(consts.PinID.P_LUT, len(self.custom_lut) > 0, consts.OCTANE_BLENDER_CAMERA_IMAGER_LUT, "")
         # OCIO settings
-        self.sync_ocio_settings(octane_node, cur_scene, session_type)
+        self.sync_ocio_settings(octane_node, scene, session_type)
 
     def update_legacy_data(self, context, legacy_data, is_viewport=None):
         utility.sync_legacy_property(self, "exposure", legacy_data, "exposure")
@@ -798,12 +781,9 @@ class OctaneImagerSettings(bpy.types.PropertyGroup, common.OctanePropertySetting
         utility.sync_legacy_property(self, "denoiser_original_blend", legacy_data, "denoiser_blend")
         utility.sync_legacy_property(self, "up_sample_mode", legacy_data.ai_up_sampler, "sample_mode")
         utility.sync_legacy_property(self, "enable_ai_up_sampling", legacy_data.ai_up_sampler, "enable_ai_up_sampling")
-        utility.sync_legacy_property(self, "up_sampling_on_completion", legacy_data.ai_up_sampler,
-                                     "up_sampling_on_completion")
-        utility.sync_legacy_property(self, "min_up_sampler_samples", legacy_data.ai_up_sampler,
-                                     "min_up_sampler_samples")
-        utility.sync_legacy_property(self, "max_up_sampler_interval", legacy_data.ai_up_sampler,
-                                     "max_up_sampler_interval")
+        utility.sync_legacy_property(self, "up_sampling_on_completion", legacy_data.ai_up_sampler, "up_sampling_on_completion")
+        utility.sync_legacy_property(self, "min_up_sampler_samples", legacy_data.ai_up_sampler, "min_up_sampler_samples")
+        utility.sync_legacy_property(self, "max_up_sampler_interval", legacy_data.ai_up_sampler, "max_up_sampler_interval")
 
     def draw(self, context, layout, is_viewport=None):
         col = layout.column()
@@ -818,15 +798,15 @@ class OctaneImagerSettings(bpy.types.PropertyGroup, common.OctanePropertySetting
         col.prop(self, "min_display_samples")
         col.prop(self, "max_tonemap_interval")
 
-    def draw_ocio(self, _context, layout, _is_viewport=None):
+    def draw_ocio(self, context, layout, is_viewport=None):
         col = layout.column()
         col.use_property_split = True
         preferences = utility.get_preferences()
-        col.prop_search(self, "ocio_view", preferences, "ocio_view_configs")
-        col.prop_search(self, "ocio_look", preferences, "ocio_look_configs")
+        col.prop_search(self, "ocio_view", preferences, "ocio_view_configs") 
+        col.prop_search(self, "ocio_look", preferences, "ocio_look_configs") 
         col.prop(self, 'force_tone_mapping')
 
-    def draw_tonemapping(self, _context, layout, is_viewport=None):
+    def draw_tonemapping(self, context, layout, is_viewport=None):
         col = layout.column()
         col.use_property_split = True
         col.prop(self, "aces_tone_mapping")
@@ -842,19 +822,21 @@ class OctaneImagerSettings(bpy.types.PropertyGroup, common.OctanePropertySetting
         col.prop(self, "custom_lut")
         col.prop(self, "lut_strength")
 
-    def draw_denoiser_header(self, _context, layout, _is_viewport=None):
+    def draw_denoiser_header(self, context, layout, is_viewport=None):
         layout.prop(self, "denoiser", text="")
 
-    def draw_denoiser(self, _context, layout, _is_viewport=None):
+    def draw_denoiser(self, context, layout, is_viewport=None):
         col = layout.column()
         col.use_property_split = True
+        col.prop(self, "denoiser_type")
         col.prop(self, "denoise_volume")
+        col.prop(self, "denoise_prefilter")
         col.prop(self, "denoise_once")
         col.prop(self, "min_denoise_samples")
         col.prop(self, "max_denoise_interval")
         col.prop(self, "denoiser_original_blend")
 
-    def draw_upsampler(self, _context, layout, _is_viewport=None):
+    def draw_upsampler(self, context, layout, is_viewport=None):
         col = layout.column()
         col.use_property_split = True
         col.prop(self, "up_sample_mode")
@@ -866,14 +848,14 @@ class OctaneImagerSettings(bpy.types.PropertyGroup, common.OctanePropertySetting
 class OctanePostProcessingSettings(bpy.types.PropertyGroup, common.OctanePropertySettings):
     PROPERTY_CONFIGS = {
         consts.NodeType.NT_POSTPROCESSING: [
-            "cutoff", "bloom_power", "glare_power",
-            "glare_ray_amount", "glare_angle", "glare_blur",
-            "spectral_intencity", "spectral_shift", "spectral_intencity",
-            "spread_start", "spread_end", "chromatic_aberration_intensity",
+            "cutoff", "bloom_power", "glare_power", 
+            "glare_ray_amount", "glare_angle", "glare_blur", 
+            "spectral_intencity", "spectral_shift", "spectral_intencity", 
+            "spread_start", "spread_end", "chromatic_aberration_intensity", 
             "lens_flare", "lens_flare_extent", "scale_with_film",
         ],
         consts.NodeType.NT_POST_VOLUME: [
-            "light_beams", "medium_density_for_postfx_light_beams", "enable_fog",
+            "light_beams", "medium_density_for_postfx_light_beams", "enable_fog", 
             "fog_extinction_distance", "fog_base_level", "fog_half_density_height", "fog_env_contribution",
             "base_fog_color", "medium_radius",
         ]
@@ -904,11 +886,7 @@ class OctanePostProcessingSettings(bpy.types.PropertyGroup, common.OctanePropert
     )
     cutoff: FloatProperty(
         name="Cutoff",
-        description="The minimum brightness of a pixel to have bloom and glare applied. The brightness is measured "
-                    "after the application of the exposure. \nIncreasing this value will decrease the overall "
-                    "brightness of bloom"
-                    "and glare, which can be compensated by increasing the bloom/glare power, but that's scene "
-                    "dependent",
+        description="The minimum brightness of a pixel to have bloom and glare applied. The brightness is measured after the application of the exposure. \nIncreasing this value will decrease the overall brightness of bloom and glare, which can be compensated by increasing the bloom/glare power, but that's scene dependent",
         min=0.0, soft_min=0.0, max=1000.0, soft_max=1000.0,
         default=0.0,
         step=1,
@@ -921,7 +899,7 @@ class OctanePostProcessingSettings(bpy.types.PropertyGroup, common.OctanePropert
         default=1.0,
         step=1,
         precision=3,
-    )
+    )     
     glare_power: FloatProperty(
         name="Glare power",
         description="",
@@ -964,41 +942,26 @@ class OctanePostProcessingSettings(bpy.types.PropertyGroup, common.OctanePropert
     spectral_shift: FloatProperty(
         name="Spectral shift",
         description="Spectral shift",
-        min=-340282346638528859811704183484516925440.000000, soft_min=0.0,
-        max=340282346638528859811704183484516925440.000000, soft_max=6.0,
+        min=-340282346638528859811704183484516925440.000000, soft_min=0.0, max=340282346638528859811704183484516925440.000000, soft_max=6.0,
         default=2.0,
         step=10,
         precision=3,
     )
     scale_with_film: BoolProperty(
         name="Scale with film",
-        default=True,
-        description="If enabled, bloom and glare will scale with film size. If disabled, the size of bloom and glare "
-                    "features will be the same number of pixels regardless of film size. This should only be disabled "
-                    "to match"
-                    "the behavior of previous versions of Octane.\n\nTo maintain the same result when enabling this, "
-                    "find the image length in pixels (which is film width or film height, whichever is larger), "
-                    "and set the"
-                    "following values:\n    Spread start = 0.6 * sqrt(2) / image length\n    Spread end = 614.4 * "
-                    "sqrt(2) / image"
-                    "length\n    Spectral shift = old spectral shift + log2(image length)",
-    )
+        default=True, 
+        description="If enabled, bloom and glare will scale with film size. If disabled, the size of bloom and glare features will be the same number of pixels regardless of film size. This should only be disabled to match the behavior of previous versions of Octane.\n\nTo maintain the same result when enabling this, find the image length in pixels (which is film width or film height, whichever is larger), and set the following values:\n    Spread start = 0.6 * sqrt(2) / image length\n    Spread end = 614.4 * sqrt(2) / image length\n    Spectral shift = old spectral shift + log2(image length)",
+    )    
     spread_start: FloatProperty(
         name="Spread start",
         default=0.01,
-        description="The minimum blur radius for bloom/glare, as a proportion of image width or height (whichever is "
-                    "larger).\n\nIdeally this should be set to correspond to about half a pixel (i.e. 0.5 / max(width, "
-                    "height) * 100%) at the maximum resolution you will be using. Too large a value will produce an "
-                    "overly blurry"
-                    "result without fine details. Too small a value will reduce the maximum possible strength of the "
-                    "bloom/glare",
+        description="The minimum blur radius for bloom/glare, as a proportion of image width or height (whichever is larger).\n\nIdeally this should be set to correspond to about half a pixel (i.e. 0.5 / max(width, height) * 100%) at the maximum resolution you will be using. Too large a value will produce an overly blurry result without fine details. Too small a value will reduce the maximum possible strength of the bloom/glare",
         min=0.0005, max=1.0000, soft_min=0.0050, soft_max=0.1000, step=1, precision=3, subtype="PERCENTAGE",
     )
     spread_end: FloatProperty(
         name="Spread end",
         default=100.0,
-        description="The maximum blur radius for bloom/glare, as a proportion of image width or height (whichever is "
-                    "larger)",
+        description="The maximum blur radius for bloom/glare, as a proportion of image width or height (whichever is larger)",
         min=0.1000, max=200.000000, soft_min=0.1000, soft_max=100.000000, step=1, precision=3, subtype="PERCENTAGE",
     )
     chromatic_aberration_intensity: FloatProperty(
@@ -1025,63 +988,61 @@ class OctanePostProcessingSettings(bpy.types.PropertyGroup, common.OctanePropert
     )
     medium_density_for_postfx_light_beams: FloatProperty(
         name="Medium density for postfx light beams",
-        default=1.000000,
-        description="Medium density for postfx light beams",
+        default=1.000000, 
+        description="Medium density for postfx light beams", 
         min=0.000100, max=10000.000000, soft_min=0.000100, soft_max=10000.000000, step=1, precision=2, subtype="NONE",
     )
     enable_fog: BoolProperty(
         name="Fog",
-        default=False,
+        default=False, 
         description="Enables postfx fog",
     )
     fog_strength: FloatProperty(
         name="Fog strength",
-        default=0.100000,
-        description="Fog strength. Only effective when postfx media option is true",
+        default=0.100000, 
+        description="Fog strength. Only effective when postfx media option is true", 
         min=0.000100, max=10000.000000, soft_min=0.000100, soft_max=10000.000000, step=1, precision=2, subtype="NONE",
     )
     fog_height_descend: FloatProperty(
         name="Fog height descend",
-        default=0.050000,
-        description="Fog height descending factor. Only effective when postfx media option is true",
+        default=0.050000, 
+        description="Fog height descending factor. Only effective when postfx media option is true", 
         min=0.010000, max=10.000000, soft_min=0.010000, soft_max=10.000000, step=1, precision=2, subtype="NONE",
     )
     fog_env_contribution: FloatProperty(
         name="Fog environment contribution",
-        default=1.000000,
-        description="Controls how strong fog color is contributed from environment with a base of user selected color",
+        default=1.000000, 
+        description="Controls how strong fog color is contributed from environment with a base of user selected color", 
         min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR",
     )
     fog_extinction_distance: FloatProperty(
         name="Fog extinction distance",
-        default=1000.000000,
+        default=1000.000000, 
         description="The distance where the primary ray's transmittance becomes 0 due to fog's density accumulation",
         min=0.000100, max=10000.000000, soft_min=0.000100, soft_max=10000.000000, step=1, precision=2, subtype="NONE",
     )
     fog_base_level: FloatProperty(
         name="Fog base level",
-        default=0.000000,
-        description="Base height in world space for post fog effects",
-        min=-10000.000000, max=10000.000000, soft_min=-10000.000000, soft_max=10000.000000, step=1, precision=2,
-        subtype="NONE",
+        default=0.000000, 
+        description="Base height in world space for post fog effects", 
+        min=-10000.000000, max=10000.000000, soft_min=-10000.000000, soft_max=10000.000000, step=1, precision=2, subtype="NONE",
     )
     fog_half_density_height: FloatProperty(
         name="Fog half density height",
-        default=1.000000,
-        description="The height from the base level where post fog density halves",
+        default=1.000000, 
+        description="The height from the base level where post fog density halves", 
         min=0.000000, max=10000.000000, soft_min=0.000000, soft_max=10000.000000, step=1, precision=2, subtype="NONE",
     )
     base_fog_color: FloatVectorProperty(
         name="Base fog color",
-        default=(1.000000, 1.000000, 1.000000),
+        default=(1.000000, 1.000000, 1.000000), 
         description="The base color for fog contribution",
         min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3,
     )
     medium_radius: FloatProperty(
         name="Medium radius",
-        default=1.000000,
-        description="Radius of the post volume. The post volume acts as a sphere around the camera position with the "
-                    "specified radius",
+        default=1.000000, 
+        description="Radius of the post volume. The post volume acts as a sphere around the camera position with the specified radius",
         min=0.000000, max=100000.000000, soft_min=0.000000, soft_max=100000.000000, step=1, precision=2, subtype="NONE",
     )
 
@@ -1095,7 +1056,7 @@ class OctanePostProcessingSettings(bpy.types.PropertyGroup, common.OctanePropert
         utility.sync_legacy_property(self, "spectral_intencity", legacy_data, "spectral_intencity")
         utility.sync_legacy_property(self, "spectral_shift", legacy_data, "spectral_shift")
 
-    def draw_post_image_processing(self, _context, layout, _is_viewport=None):
+    def draw_post_image_processing(self, context, layout, is_viewport=None):
         col = layout.column()
         col.use_property_split = True
         col.prop(self, "cutoff")
@@ -1110,14 +1071,14 @@ class OctanePostProcessingSettings(bpy.types.PropertyGroup, common.OctanePropert
         col.prop(self, "spectral_intencity")
         col.prop(self, "spectral_shift")
 
-    def draw_post_lens_effect(self, _context, layout, _is_viewport=None):
+    def draw_post_lens_effect(self, context, layout, is_viewport=None):
         col = layout.column()
         col.use_property_split = True
         col.prop(self, "chromatic_aberration_intensity")
         col.prop(self, "lens_flare")
         col.prop(self, "lens_flare_extent")
 
-    def draw_post_volume_effects(self, _context, layout, _is_viewport=None):
+    def draw_post_volume_effects(self, context, layout, is_viewport=None):
         col = layout.column()
         col.use_property_split = True
         col.prop(self, "light_beams")
@@ -1130,17 +1091,16 @@ class OctanePostProcessingSettings(bpy.types.PropertyGroup, common.OctanePropert
         col.prop(self, "base_fog_color")
         col.prop(self, "medium_radius")
 
-
 #############################################
-# LEGACY OctaneAIUpSamplerSettings
+##### LEGACY OctaneAIUpSamplertSettings #####
 #############################################
 
-class OctaneAIUpSamplerSettings(bpy.types.PropertyGroup):
+class OctaneAIUpSamplertSettings(bpy.types.PropertyGroup):    
     up_sample_modes = (
         ('No upsampling', "No upsampling", "", 1),
         ('2x2 upsampling', "2x2 upsampling", "", 2),
-        ('4x4 upsampling', "4x4 upsampling", "", 4),
-    )
+        ('4x4 upsampling', "4x4 upsampling", "", 4),    
+    )    
     sample_mode: EnumProperty(
         name="Upsampling mode",
         description="The up-sample mode that should be used for rendering",
@@ -1149,26 +1109,23 @@ class OctaneAIUpSamplerSettings(bpy.types.PropertyGroup):
     )
     enable_ai_up_sampling: BoolProperty(
         name="Enable AI up-sampling",
-        description="Enables the AI up-sampling when the sampling mode is one of the up-samples, and this toggle is "
-                    "on. Otherwise we just trivially scale up the frame",
+        description="Enables the AI up-sampling when the sampling mode is one of the up-samples, and this toggle is on. Otherwise we just trivially scale up the frame",
         default=True,
-    )
+    )           
     up_sampling_on_completion: BoolProperty(
         name="Up-sampling on completion",
         description="If enabled, beauty passes will be up-sampled only once at the end of a render",
         default=True,
-    )
+    )   
     min_up_sampler_samples: IntProperty(
         name="Min. up-sampler samples",
-        description="Minimum number of samples per pixel until up-sampler kicks in. Only valid when the the sampling "
-                    "mode is any of up-sampling",
+        description="Minimum number of samples per pixel until up-sampler kicks in. Only valid when the the sampling mode is any of up-sampling",
         min=1, max=100000,
-        default=10,
-    )
+        default=10,                
+    )     
     max_up_sampler_interval: IntProperty(
         name="Max. up-sampler interval",
-        description="Maximum interval between up-sampler runs (in seconds). Only valid when the the sampling mode is "
-                    "any of up-sampling",
+        description="Maximum interval between up-sampler runs (in seconds). Only valid when the the sampling mode is any of up-sampling",
         min=1, max=120,
         default=10,
     )
@@ -1181,28 +1138,26 @@ class OctaneBaseCameraSettings(common.OctanePropertySettings):
     def setup_octane_node_type(self, blender_camera, octane_node, is_viewport):
         camera_node_type = consts.NodeType.NT_CAM_THINLENS
         camera_node_name_tag = "[Lens]"
-        octane_camera_type = getattr(self, "octane_camera_type", None)
         if getattr(self, "osl_camera_node_collections", None):
-            # noinspection PyUnresolvedReferences
             osl_camera_node_type = self.osl_camera_node_collections.get_osl_camera_node_type()
         else:
             osl_camera_node_type = consts.NodeType.NT_UNKNOWN
-        if octane_camera_type == "Universal":
+        if getattr(self, "used_as_universal_camera", False):
             camera_node_type = consts.NodeType.NT_CAM_UNIVERSAL
             camera_node_name_tag = "[Universal]"
-        elif octane_camera_type == "Baking":
-            camera_node_type = consts.NodeType.NT_CAM_BAKING
-            camera_node_name_tag = "[Baking]"
-        elif octane_camera_type == "OSL" and osl_camera_node_type != consts.NodeType.NT_UNKNOWN:
+        elif osl_camera_node_type != consts.NodeType.NT_UNKNOWN:
             camera_node_type = osl_camera_node_type
             camera_node_name_tag = "[OSL]"
+        elif getattr(self, "baking_camera", False):
+            camera_node_type = consts.NodeType.NT_CAM_BAKING
+            camera_node_name_tag = "[Baking]"
         else:
             if blender_camera.type == BlenderCameraType.PERSPECTIVE:
                 camera_node_type = consts.NodeType.NT_CAM_THINLENS
                 camera_node_name_tag = "[Lens]"
             elif blender_camera.type == BlenderCameraType.ORTHOGRAPHIC:
                 camera_node_type = consts.NodeType.NT_CAM_THINLENS
-                camera_node_name_tag = "[Ortho]"
+                camera_node_name_tag = "[Ortho]"                
             elif blender_camera.type == BlenderCameraType.PANORAMA:
                 camera_node_type = consts.NodeType.NT_CAM_PANORAMIC
                 camera_node_name_tag = "[Pano]"
@@ -1223,14 +1178,14 @@ class OctaneBaseCameraSettings(common.OctanePropertySettings):
         octane_node.current_active_camera_name = camera_node_name
         return camera_node
 
-    def sync_octane_camera_viewing_angle(self, blender_camera, _octane_node, camera_node, width, height, _is_viewport):
+    def sync_octane_camera_viewing_angle(self, blender_camera, octane_node, camera_node, width, height, is_viewport):
         camera_node_type = camera_node.node_type
-        if camera_node_type in (
-                consts.NodeType.NT_CAM_BAKING, consts.NodeType.NT_CAM_OSL, consts.NodeType.NT_CAM_OSL_BAKING,):
+        if camera_node_type in (consts.NodeType.NT_CAM_BAKING, consts.NodeType.NT_CAM_OSL, consts.NodeType.NT_CAM_OSL_BAKING, ):
             return
         # Lens camera
         fov = 0.0
         scale = 0.0
+        lens_shift_x = lens_shift_y = 0.0
         distortion = getattr(self, "distortion", 0.0)
         perspective_correction = getattr(self, "persp_corr", False)
         pixel_aspect_ratio = getattr(self, "pixel_aspect", 1.0)
@@ -1239,25 +1194,22 @@ class OctaneBaseCameraSettings(common.OctanePropertySettings):
         x_aspect_ratio = y_aspect_ratio = 1.0
         offset = blender_camera.offset
         if blender_camera.sensor_fit == BlenderCameraSensorFitType.HORIZONTAL or \
-                (blender_camera.sensor_fit == BlenderCameraSensorFitType.AUTO and x_ratio > y_ratio):
+            (blender_camera.sensor_fit == BlenderCameraSensorFitType.AUTO and x_ratio > y_ratio):
             x_aspect_ratio = 1.0
             y_aspect_ratio = blender_camera.aspect_ratio
         if blender_camera.sensor_fit == BlenderCameraSensorFitType.VERTICAL or \
-                (blender_camera.sensor_fit == BlenderCameraSensorFitType.AUTO and x_ratio < y_ratio):
+            (blender_camera.sensor_fit == BlenderCameraSensorFitType.AUTO and x_ratio < y_ratio):
             x_aspect_ratio = blender_camera.aspect_ratio
             y_aspect_ratio = 1.0
         if blender_camera.type == BlenderCameraType.ORTHOGRAPHIC:
             scale = blender_camera.calculate_ortho_scale(x_ratio, y_ratio) * blender_camera.zoom
-            lens_shift_x = (blender_camera.shift[0] + offset[0] * 2.0 / x_aspect_ratio) / blender_camera.zoom
-            lens_shift_y = (blender_camera.shift[1] + offset[1] * 2.0 / y_aspect_ratio) / blender_camera.zoom
-            if y_ratio > 0:
-                lens_shift_y *= (x_ratio / y_ratio)
+            lens_shift_x = (blender_camera.shift[0] + offset[0] * 2.0) / blender_camera.zoom
+            lens_shift_y = (blender_camera.shift[1] + offset[1] * 2.0) / blender_camera.zoom
         else:
-            fov = 2.0 * math.atan(
-                0.5 * blender_camera.sensor_size * blender_camera.zoom / blender_camera.lens) * 180.0 / math.pi
+            fov = 2.0 * math.atan(0.5 * blender_camera.sensor_size * blender_camera.zoom / blender_camera.lens) * 180.0 / math.pi
             lens_shift_x = (blender_camera.shift[0] * x_aspect_ratio + offset[0] * 2.0) / blender_camera.zoom
-            lens_shift_y = (blender_camera.shift[1] * y_aspect_ratio + offset[1] * 2.0) / blender_camera.zoom
-            # Panoramic camera
+            lens_shift_y = (blender_camera.shift[1] * y_aspect_ratio + offset[1] * 2.0) / blender_camera.zoom                
+        # Panoramic camera
         fov_x = getattr(self, "fov_x", 360.0)
         fov_y = getattr(self, "fov_y", 180.0)
         keep_upright = getattr(self, "keep_upright", False)
@@ -1286,7 +1238,7 @@ class OctaneBaseCameraSettings(common.OctanePropertySettings):
             camera_node.set_pin_id(consts.PinID.P_LENS_SHIFT, False, "", (lens_shift_x, lens_shift_y, 0.0))
             camera_node.set_pin_id(consts.PinID.P_PIXEL_ASPECT_RATIO, False, "", pixel_aspect_ratio)
 
-    def sync_octane_universal_camera_properties(self, _blender_camera, _octane_node, camera_node):
+    def sync_octane_universal_camera_properties(self, blender_camera, octane_node, camera_node):
         # Fisheye
         fisheye_angle = getattr(self, "fisheye_angle", 240.0)
         fisheye_type = utility.get_enum_int_value(self, "fisheye_type", 1)
@@ -1305,7 +1257,7 @@ class OctaneBaseCameraSettings(common.OctanePropertySettings):
         camera_node.set_pin_id(consts.PinID.P_FOVY, False, "", fov_y)
         camera_node.set_pin_id(consts.PinID.P_CUBEMAP_LAYOUT, False, "", cubemap_layout_type)
         camera_node.set_pin_id(consts.PinID.P_EQUI_ANGULAR_CUBEMAP, False, "", equi_angular_cubemap)
-        # Distortion
+         # Distortion
         use_distortion_texture = getattr(self, "use_distortion_texture", False)
         distortion_texture = getattr(self, "distortion_texture", "")
         spherical_distortion = getattr(self, "spherical_distortion", 0.0)
@@ -1335,7 +1287,7 @@ class OctaneBaseCameraSettings(common.OctanePropertySettings):
         diopter_focal_depth = getattr(self, "diopter_focal_depth", 1.110)
         diopter_rotation = getattr(self, "diopter_rotation", 0.0)
         diopter_translation = getattr(self, "diopter_translation", (0, 0))
-        diopter_boundary_width = getattr(self, "diopter_boundary_width", 0.5)
+        diopter_boundary_width = getattr(self, "diopter_boundary_width",  0.5)
         diopter_boundary_falloff = getattr(self, "diopter_boundary_falloff", 1.0)
         show_diopter_guide = getattr(self, "show_diopter_guide", False)
         camera_node.set_pin_id(consts.PinID.P_DIOPTER_ENABLE, False, "", enable_split_focus_diopter)
@@ -1362,19 +1314,15 @@ class OctaneBaseCameraSettings(common.OctanePropertySettings):
         up_vector = utility.transform_direction(octane_matrix, (0, 1, 0)).normalized()
         return position_vector, target_vector, up_vector
 
-    def sync_octane_camera_position(self, blender_camera, _octane_node, camera_node):
+    def sync_octane_camera_position(self, blender_camera, octane_node, camera_node):
         camera_node_type = camera_node.node_type
-        position_vector, target_vector, up_vector = self.calculate_octane_camera_position_parameters(
-            blender_camera.matrix, blender_camera.dir,
-            blender_camera.type == BlenderCameraType.ORTHOGRAPHIC and not blender_camera.camera_from_object)
+        position_vector, target_vector, up_vector = self.calculate_octane_camera_position_parameters(blender_camera.matrix, blender_camera.dir, blender_camera.type == BlenderCameraType.ORTHOGRAPHIC and not blender_camera.camera_from_object)
         camera_node.positions = {0: position_vector}
         camera_node.targets = {0: target_vector}
         camera_node.ups = {0: up_vector}
-        camera_node.set_pin_id(consts.PinID.P_POSITION, False, consts.OctanePresetNodeNames.CAMERA_POSITION,
-                               position_vector)
+        camera_node.set_pin_id(consts.PinID.P_POSITION, False, consts.OctanePresetNodeNames.CAMERA_POSITION, position_vector)
         if camera_node_type != consts.NodeType.NT_CAM_BAKING:
-            camera_node.set_pin_id(consts.PinID.P_TARGET, False, consts.OctanePresetNodeNames.CAMERA_TARGET,
-                                   target_vector)
+            camera_node.set_pin_id(consts.PinID.P_TARGET, False, consts.OctanePresetNodeNames.CAMERA_TARGET, target_vector)
             camera_node.set_pin_id(consts.PinID.P_UP, False, consts.OctanePresetNodeNames.CAMERA_UP, up_vector)
         if camera_node_type == consts.NodeType.NT_CAM_UNIVERSAL:
             keep_upright = getattr(self, "keep_upright", False)
@@ -1383,32 +1331,28 @@ class OctaneBaseCameraSettings(common.OctanePropertySettings):
         blender_camera.octane_target = target_vector
         blender_camera.octane_up = up_vector
 
-    def sync_octane_camera_clipping(self, blender_camera, _octane_node, camera_node):
+    def sync_octane_camera_clipping(self, blender_camera, octane_node, camera_node):
         camera_node.set_pin_id(consts.PinID.P_NEAR_CLIP_DEPTH, False, "", blender_camera.near_clip)
         camera_node.set_pin_id(consts.PinID.P_FAR_CLIP_DEPTH, False, "", blender_camera.far_clip)
 
-    def sync_octane_camera_dof(self, blender_camera, _octane_node, camera_node, _is_viewport):
+    def sync_octane_camera_dof(self, blender_camera, octane_node, camera_node, is_viewport):
         camera_node_type = camera_node.node_type
         auto_focus = getattr(self, "autofocus", False)
         focal_depth = blender_camera.focal_distance
-        _fstop = getattr(self, "fstop", 2.8)
         aperture = getattr(self, "aperture", 0)
         use_fstop = getattr(self, "use_fstop", False)
-        # if use_fstop:
-        #     fstop = getattr(self, "fstop", 2.8)
-        #     lens = self.id_data.lens / 2
-        #     try:
-        #         aperture = lens / (20 * self.fstop)
-        #     except:
-        #         aperture = lens / (20 * 0.5)
+        if use_fstop:
+            fstop = getattr(self, "fstop", 2.8)
+            lens = self.id_data.lens / 2
+            try:
+                aperture = lens / (20 * self.fstop)
+            except:
+                aperture = lens / (20 * 0.5)
         aperture_aspect_ratio = getattr(self, "aperture_aspect", 1.0)
         aperture_edge = getattr(self, "aperture_edge", 1.0)
         camera_node.set_pin_id(consts.PinID.P_AUTOFOCUS, False, "", auto_focus)
         camera_node.set_pin_id(consts.PinID.P_FOCAL_DEPTH, False, "", focal_depth)
-        if use_fstop:
-            camera_node.set_pin_id(consts.PinID.P_APERTURE, True, "", aperture)
-        else:
-            camera_node.set_pin_id(consts.PinID.P_APERTURE, False, "", aperture)
+        camera_node.set_pin_id(consts.PinID.P_APERTURE, False, "", aperture)
         camera_node.set_pin_id(consts.PinID.P_APERTURE_ASPECT_RATIO, False, "", aperture_aspect_ratio)
         camera_node.set_pin_id(consts.PinID.P_APERTURE_EDGE, False, "", aperture_edge)
         if camera_node_type == consts.NodeType.NT_CAM_UNIVERSAL:
@@ -1436,7 +1380,7 @@ class OctaneBaseCameraSettings(common.OctanePropertySettings):
             camera_node.set_pin_id(consts.PinID.P_BOKEH_ROTATION, False, "", bokeh_rotation)
             camera_node.set_pin_id(consts.PinID.P_BOKEH_ROUNDEDNESS, False, "", bokeh_roundedness)
 
-    def sync_octane_camera_stereo(self, _blender_camera, _octane_node, camera_node):
+    def sync_octane_camera_stereo(self, blender_camera, octane_node, camera_node):
         camera_node_type = camera_node.node_type
         stereo_output = utility.get_enum_int_value(self, "stereo_out", 0)
         stereo_mode = utility.get_enum_int_value(self, "stereo_mode", 1)
@@ -1488,7 +1432,7 @@ class OctaneBaseCameraSettings(common.OctanePropertySettings):
     def sync_octane_camera_parameters(self, blender_camera, octane_node, width, height, border, is_viewport):
         camera_node = self.setup_octane_node_type(blender_camera, octane_node, is_viewport)
         camera_node_type = camera_node.node_type
-        if camera_node_type in (consts.NodeType.NT_CAM_OSL, consts.NodeType.NT_CAM_OSL_BAKING,):
+        if camera_node_type in (consts.NodeType.NT_CAM_OSL, consts.NodeType.NT_CAM_OSL_BAKING, ):
             camera_node.need_update = False
             return
         if camera_node_type == consts.NodeType.NT_CAM_BAKING:
@@ -1496,12 +1440,12 @@ class OctaneBaseCameraSettings(common.OctanePropertySettings):
             return
         # General
         if camera_node_type == consts.NodeType.NT_CAM_THINLENS:
-            camera_node.set_pin_id(consts.PinID.P_ORTHOGRAPHIC, False, "",
-                                   blender_camera.type == BlenderCameraType.ORTHOGRAPHIC)
+            camera_node.set_pin_id(consts.PinID.P_ORTHOGRAPHIC, False, "", blender_camera.type == BlenderCameraType.ORTHOGRAPHIC)
         elif camera_node_type == consts.NodeType.NT_CAM_PANORAMIC:
             pan_mode = utility.get_enum_int_value(self, "pan_mode", 0)
             camera_node.set_pin_id(consts.PinID.P_CAMERA_MODE, False, "", pan_mode)
         elif camera_node_type == consts.NodeType.NT_CAM_UNIVERSAL:
+            universal_camera_type = camera_node_type
             if blender_camera.type == BlenderCameraType.PERSPECTIVE:
                 universal_camera_type = 1  # ("Thin lens", "Thin lens", "", 1)
             elif blender_camera.type == BlenderCameraType.ORTHOGRAPHIC:
@@ -1510,14 +1454,14 @@ class OctaneBaseCameraSettings(common.OctanePropertySettings):
                 universal_camera_type = utility.get_enum_int_value(self, "universal_camera_mode", 3)
             camera_node.set_pin_id(consts.PinID.P_MODE, False, "", universal_camera_type)
         # Physical camera parameters
-        # Do not use the Physical camera parameters (Sensor Width & Focal Length)
+        # Do not use the Physical camera parameters(Sensor Width & Focal Length)
         # F-stop
         use_fstop = getattr(self, "use_fstop", False)
         fstop = getattr(self, "fstop", 2.8) if use_fstop else 1000
         if use_fstop:
             camera_node.set_pin_id(consts.PinID.P_FSTOP, False, "", fstop)
         else:
-            camera_node.set_pin_id(consts.PinID.P_FSTOP, True, "", fstop)
+            camera_node.clear_pin_id(consts.PinID.P_FSTOP)
         # Viewing angle
         self.sync_octane_camera_viewing_angle(blender_camera, octane_node, camera_node, width, height, is_viewport)
         # Clipping
@@ -1542,8 +1486,7 @@ class OctaneBaseCameraSettings(common.OctanePropertySettings):
         subnode.set_attribute_id(consts.AttributeID.A_VALUE, (width, 0, 0))
         subnode = octane_node.get_subnode(consts.OCTANE_BLENDER_CAMERA_REGION_HEIGHT, consts.NodeType.NT_INT)
         subnode.set_attribute_id(consts.AttributeID.A_VALUE, (height, 0, 0))
-        if (blender_camera.octane_position is not None
-                and blender_camera.octane_target is not None and blender_camera.octane_up is not None):
+        if blender_camera.octane_position is not None and blender_camera.octane_target is not None and blender_camera.octane_up is not None:
             up = blender_camera.octane_up.normalized()
             z = blender_camera.octane_target - blender_camera.octane_position
             z = z.normalized()
@@ -1553,28 +1496,25 @@ class OctaneBaseCameraSettings(common.OctanePropertySettings):
             y = y.normalized()
             w = math.tan(blender_camera.octane_fov * math.pi / 360.0)
             h = w * height / width
-            matrix = mathutils.Matrix([[x[0] * -w, y[0] * h, z[0], blender_camera.octane_position[0]],
-                                       [x[1] * -w, y[1] * h, z[1], blender_camera.octane_position[1]],
-                                       [x[2], y[2], z[2], blender_camera.octane_position[2]], [0, 0, 0, 1]])
-            subnode = octane_node.get_subnode(consts.OCTANE_BLENDER_STATIC_FRONT_PROJECTION_TRANSFORM,
-                                              consts.NodeType.NT_TRANSFORM_VALUE)
+            matrix = mathutils.Matrix([[x[0] * -w, y[0] * h, z[0], blender_camera.octane_position[0]], [x[1] * -w, y[1] * h, z[1], blender_camera.octane_position[1]], [x[2], y[2], z[2], blender_camera.octane_position[2]], [0, 0, 0, 1]])
+            subnode = octane_node.get_subnode(consts.OCTANE_BLENDER_STATIC_FRONT_PROJECTION_TRANSFORM, consts.NodeType.NT_TRANSFORM_VALUE)
             subnode.set_attribute_id(consts.AttributeID.A_TRANSFORM, matrix)
         octane_node.border = border
 
-    def sync_view(self, octane_node, cur_scene, region, v3d, rv3d):
+    def sync_view(self, octane_node, scene, region, v3d, rv3d):
         view_camera = BlenderCamera()
-        view_camera.init(cur_scene)
-        view_camera.setup_from_view(cur_scene, v3d, rv3d, region.width, region.height, False)
-        view_camera.setup_camera_viewplane(cur_scene, region.width, region.height)
-        view_camera.setup_camera_border(cur_scene, region.width, region.height, True, v3d, rv3d)
+        view_camera.init(scene)
+        view_camera.setup_from_view(scene, v3d, rv3d, region.width, region.height, False)
+        view_camera.setup_camera_viewplane(scene, region.width, region.height)
+        view_camera.setup_camera_border(scene, region.width, region.height, True, v3d, rv3d)
         if view_camera.use_border:
             if rv3d.view_perspective == "CAMERA":
                 view_camera_box = BoundBox2D.scale(view_camera.viewplane, 1.0 / view_camera.aspect_ratio)
-                camera_object = cur_scene.camera
+                camera_object = scene.camera
                 object_camera = BlenderCamera()
-                object_camera.init(cur_scene)
+                object_camera.init(scene)
                 object_camera.setup_from_camera_object(camera_object, True)
-                object_camera.setup_camera_viewplane(cur_scene, object_camera.full_width, object_camera.full_height)
+                object_camera.setup_camera_viewplane(scene, object_camera.full_width, object_camera.full_height)
                 object_camera_box = BoundBox2D.scale(object_camera.viewplane, 1.0 / object_camera.aspect_ratio)
                 object_camera_box = BoundBox2D.make_relative_to(object_camera_box, view_camera_box)
                 border_box = BoundBox2D.subset(object_camera_box, view_camera.border)
@@ -1585,15 +1525,15 @@ class OctaneBaseCameraSettings(common.OctanePropertySettings):
             border_box = None
         self.sync_octane_camera_parameters(view_camera, octane_node, region.width, region.height, border_box, True)
 
-    def sync_camera(self, octane_node, cur_scene, width, height):
+    def sync_camera(self, octane_node, scene, width, height):
         object_camera = BlenderCamera()
-        object_camera.init(cur_scene)
-        object_camera.pixel_aspect[0] = cur_scene.render.pixel_aspect_x
-        object_camera.pixel_aspect[1] = cur_scene.render.pixel_aspect_y
-        camera_object = cur_scene.camera
+        object_camera.init(scene)
+        object_camera.pixel_aspect[0] = scene.render.pixel_aspect_x
+        object_camera.pixel_aspect[1] = scene.render.pixel_aspect_y
+        camera_object = scene.camera
         object_camera.setup_from_camera_object(camera_object, False)
-        object_camera.setup_camera_viewplane(cur_scene, width, height)
-        object_camera.setup_camera_border(cur_scene, width, height, False)
+        object_camera.setup_camera_viewplane(scene, width, height)
+        object_camera.setup_camera_border(scene, width, height, False)
         object_camera.matrix = camera_object.matrix_world
         if object_camera.use_border:
             border_box = object_camera.border
@@ -1602,40 +1542,27 @@ class OctaneBaseCameraSettings(common.OctanePropertySettings):
         self.sync_octane_camera_parameters(object_camera, octane_node, width, height, border_box, False)
 
     def sync_camera_motion_blur(self, camera_node, motion_time_offset, camera_eval):
-        position_vector, target_vector, up_vector = self.calculate_octane_camera_position_parameters(
-            camera_eval.matrix_world, [0, 0, -1], False)
+        position_vector, target_vector, up_vector = self.calculate_octane_camera_position_parameters(camera_eval.matrix_world, [0, 0, -1], False)
         camera_node.positions[motion_time_offset] = position_vector
         camera_node.targets[motion_time_offset] = target_vector
         camera_node.ups[motion_time_offset] = up_vector
 
-    def sync_custom_data(self, octane_node, cur_scene, region, v3d, rv3d, session_type):
+    def sync_custom_data(self, octane_node, scene, region, v3d, rv3d, session_type):
         if session_type == consts.SessionType.VIEWPORT:
-            self.sync_view(octane_node, cur_scene, region, v3d, rv3d)
+            self.sync_view(octane_node, scene, region, v3d, rv3d)
         else:
-            width = utility.render_resolution_x(cur_scene)
-            height = utility.render_resolution_y(cur_scene)
-            self.sync_camera(octane_node, cur_scene, width, height)
-
+            width = utility.render_resolution_x(scene)
+            height = utility.render_resolution_y(scene)
+            self.sync_camera(octane_node, scene, width, height)
 
 class OctaneCameraSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings):
-    octane_camera_types = (
-        ("Lens or Panoramic", "Lens or Panoramic", "Used as Octane lens camera or panoramic camera", 0),
-        ("Universal", "Universal", "Used as Octane Universal camera", 1),
-        ("Baking", "Baking", "Used as Octane Baking camera", 2),
-        ("OSL", "OSL", "Used as Octane OSL camera or OSL baking camera", 3),
-    )
-    octane_camera_type: EnumProperty(
-        name="Camera type",
-        description="Camera node type",
-        items=octane_camera_types,
-        default='Lens or Panoramic',
-    )
+
     universal_camera_modes = (
         ('Thin lens', "Thin lens", '', 1),
         ('Orthographic', "Orthographic", '', 2),
         ('Fisheye', "Fisheye", '', 3),
-        ('Equirectangular', "Equirectangular", '', 4),
-        ('Cubemap', "Cubemap", '', 5),
+        ('Equirectangular', "Equirectangular", '', 4), 
+        ('Cubemap', "Cubemap", '', 5), 
     )
     use_camera_dimension_as_preview_resolution: BoolProperty(
         name="Adapt to Camera View Resolution",
@@ -1649,9 +1576,9 @@ class OctaneCameraSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings):
     )
     universal_pan_camera_modes = (
         ('Fisheye', "Fisheye", '', 3),
-        ('Equirectangular', "Equirectangular", '', 4),
-        ('Cubemap', "Cubemap", '', 5),
-    )
+        ('Equirectangular', "Equirectangular", '', 4), 
+        ('Cubemap', "Cubemap", '', 5), 
+    )    
     universal_camera_mode: EnumProperty(
         name="Camera mode",
         description="Camera mode",
@@ -1662,7 +1589,7 @@ class OctaneCameraSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings):
         name="Perspective correction",
         description="Perspective correction keeps vertical lines parallel if up-vector is vertical",
         default=False,
-    )
+    )    
     fisheye_angle: FloatProperty(
         name="Fisheye angle",
         description="Field of view [deg.]",
@@ -1674,13 +1601,13 @@ class OctaneCameraSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings):
     universal_fisheye_types = (
         ('Circular', "Circular", '', 1),
         ('Full frame', "Full frame", '', 2),
-    )
+    )    
     fisheye_type: EnumProperty(
         name="Fisheye type",
         description="Whether the lens circle is contained in the sensor or covers it fully",
         items=universal_fisheye_types,
         default='Circular',
-    )
+    )   
     hard_vignette: BoolProperty(
         name="Hard vignette",
         description="For circular fisheye, whether the area outside the lens is rendered or not",
@@ -1691,7 +1618,7 @@ class OctaneCameraSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings):
         ('Equidistant', "Equidistant", '', 2),
         ('Equisolid', "Equisolid", '', 3),
         ('Orthographic', "Orthographic", '', 4),
-    )
+    )    
     fisheye_projection_type: EnumProperty(
         name="Fisheye projection",
         description="The projection function used for the fisheye",
@@ -1703,13 +1630,13 @@ class OctaneCameraSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings):
         ('3x2', "3x2", '', 2),
         ('2x3', "2x3", '', 3),
         ('1x6', "1x6", '', 4),
-    )
+    )    
     cubemap_layout_type: EnumProperty(
         name="Cubemap layout",
         description="Cubemap layout",
         items=universal_cubemap_layout_types,
         default='6x1',
-    )
+    )    
     equi_angular_cubemap: BoolProperty(
         name="Equi-angular cubemap",
         description="If enabled the cubemap will use an equi-angular projection",
@@ -1719,13 +1646,13 @@ class OctaneCameraSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings):
         name="Use distortion texture",
         description="Use distortion texture",
         default=False,
-    )
+    )   
     distortion_texture: StringProperty(
         name="Distortion texture",
         description="The distortion texture map",
         default="",
         maxlen=512,
-    )
+    )                
     spherical_distortion: FloatProperty(
         name="Spherical distortion",
         description="The amount of spherical distortion",
@@ -1733,7 +1660,7 @@ class OctaneCameraSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings):
         default=0.0,
         step=10,
         precision=3,
-    )
+    )                                          
     barrel_distortion: FloatProperty(
         name="Barrel distortion",
         description="Straight lines will appear curved. Negative values produce pincushion distortion",
@@ -1744,13 +1671,12 @@ class OctaneCameraSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings):
     )
     barrel_distortion_corners: FloatProperty(
         name="Barrel distortion corners",
-        description="This value mostly affects corners. A different sign from the Barrel value produces moustache "
-                    "distortion",
+        description="This value mostly affects corners. A different sign from the Barrel value produces moustache distortion",
         min=-1.0, soft_min=-0.5, max=1.0, soft_max=0.5,
         default=0.0,
         step=10,
         precision=3,
-    )
+    )   
     spherical_aberration: FloatProperty(
         name="Spherical aberration",
         description="Rays hitting the edge of the lens focus closer to the lensn",
@@ -1758,7 +1684,7 @@ class OctaneCameraSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings):
         default=0.0,
         step=10,
         precision=3,
-    )
+    )                                          
     coma: FloatProperty(
         name="Coma",
         description="Rays hitting the edge of the lens have a wider FOV",
@@ -1774,7 +1700,7 @@ class OctaneCameraSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings):
         default=0.0,
         step=10,
         precision=3,
-    )
+    )    
     field_curvature: FloatProperty(
         name="Field curvature",
         description="Curvature of the plane in focus",
@@ -1788,19 +1714,19 @@ class OctaneCameraSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings):
         ('Polygonal', "Polygonal", '', 2),
         ('Norched', "Norched", '', 3),
         ('Custom', "Custom", '', 4),
-    )
+    )    
     aperture_shape_type: EnumProperty(
         name="Aperture shape",
         description="The shape of the aperture",
         items=universal_aperture_shape_types,
         default='Polygonal',
-    )
+    )      
     aperture_blade_count: IntProperty(
         name="Aperture blade count",
         description="The number of blades forming the iris diaphragm",
         min=3, soft_min=3, max=100, soft_max=12,
         default=6,
-    )
+    )                                   
     aperture_rotation: FloatProperty(
         name="Aperture rotation",
         description="The rotation of the aperture shape [degrees]",
@@ -1816,11 +1742,10 @@ class OctaneCameraSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings):
         default=1.0,
         step=10,
         precision=3,
-    )
+    )  
     central_obstruction: FloatProperty(
         name="Central obstruction",
-        description="Simulates the obstruction from the secondary mirror of a catadioptric system. Only enabled on "
-                    "circular apertures",
+        description="Simulates the obstruction from the secondary mirror of a catadioptric system. Only enabled on circular apertures",
         min=0.0, soft_min=0.0, max=1.0, soft_max=1.0,
         default=0.0,
         step=10,
@@ -1841,13 +1766,13 @@ class OctaneCameraSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings):
         default=0.5,
         step=10,
         precision=3,
-    )
+    )                                                                         
     custom_aperture_texture: StringProperty(
         name="Custom aperture",
         description="The custom aperture opacity map. The projection type must be set to OSL delayed UV",
         default="",
         maxlen=512,
-    )
+    )    
     optical_vignette_distance: FloatProperty(
         name="Optical vignette distance",
         description="The distance between the lens and the opening of the lens barrel [m]",
@@ -1855,7 +1780,7 @@ class OctaneCameraSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings):
         default=0.0,
         step=10,
         precision=3,
-    )
+    )  
     optical_vignette_scale: FloatProperty(
         name="Optical vignette scale",
         description="The scale of the opening of the lens barrel relatively to the aperture",
@@ -1863,12 +1788,12 @@ class OctaneCameraSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings):
         default=1.0,
         step=10,
         precision=3,
-    )
+    )       
     enable_split_focus_diopter: BoolProperty(
         name="Enable split-focus diopter",
         description="Enable the split-focus diopter",
         default=False,
-    )
+    )                                                     
     diopter_focal_depth: FloatProperty(
         name="Diopter focal depth",
         description="The depth of the plane in focus [m]",
@@ -1876,7 +1801,7 @@ class OctaneCameraSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings):
         default=1.110,
         step=10,
         precision=3,
-    )
+    )  
     diopter_rotation: FloatProperty(
         name="Diopter rotation",
         description="Rotation of the split-focus diopter [degrees]",
@@ -1884,14 +1809,14 @@ class OctaneCameraSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings):
         default=0.0,
         step=10,
         precision=3,
-    )
+    ) 
     diopter_translation: FloatVectorProperty(
-        name="Translation",
-        description="Translation of the split-focus diopter",
+        name="Translation",  
+        description="Translation of the split-focus diopter",                              
         default=(0.0, 0.0),
         subtype='TRANSLATION',
         size=2,
-    )
+    )   
     diopter_boundary_width: FloatProperty(
         name="Diopter boundary width",
         description="Width of the boundary between the two fields",
@@ -1899,7 +1824,7 @@ class OctaneCameraSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings):
         default=0.5,
         step=10,
         precision=3,
-    )
+    )  
     diopter_boundary_falloff: FloatProperty(
         name="Diopter boundary falloff",
         description="Controls how quickly the split-focus diopter focal depth blends into the main focal depth",
@@ -1907,12 +1832,12 @@ class OctaneCameraSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings):
         default=1.0,
         step=10,
         precision=3,
-    )
+    ) 
     show_diopter_guide: BoolProperty(
         name="Show diopter guide",
         description="Display guide lines. Toggling this option on or off restarts the render",
         default=False,
-    )
+    ) 
     camera_pan_modes = (
         ('SPHERE', "Spherical", ""),
         ('CYLINDER', "Cylindrical", ""),
@@ -1954,7 +1879,7 @@ class OctaneCameraSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings):
     camera_stereo_modes = (
         ('1', "Off axis", '', 1),
         ('2', "Parallel", '', 2),
-    )
+    )    
     stereo_mode: EnumProperty(
         name="Stereo mode",
         description="The modus operandi for stereo rendering",
@@ -1968,7 +1893,7 @@ class OctaneCameraSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings):
         ('3', "Side by side", ""),
         ('4', "Anaglyphic", ""),
         ('5', "Over-under", ""),
-    )
+    )    
     stereo_out: EnumProperty(
         name="Stereo output",
         description="The output rendered in stereo mode",
@@ -1985,15 +1910,11 @@ class OctaneCameraSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings):
     )
     stereo_dist_falloff: FloatProperty(
         name="Stereo dist. falloff",
-        description="Controls how quickly the eye distance gets reduced towards the poles. This is to reduce eye "
-                    "strain at the poles when the panorama is looked at in an HMD. A value of 1"
-                    "will reduce the eye distance more or less continuously from equator to the poles, which will "
-                    "create a relaxed viewing experience, but this will also cause flat surfaces"
-                    "to appear curved. A value smaller than 1 keeps the eye distance more or less constant for a "
-                    "larger latitude range above and below the horizon, but will then rapidly reduce"
-                    "the eye distance near the poles. This will keep flat surface flat, but cause more eye strain "
-                    "near the poles (which can be reduced again by setting the pano cutoff latitude"
-                    " to something < 90 degrees",
+        description="Controls how quickly the eye distance gets reduced towards the poles. This is to reduce eye strain at the poles when the panorama is looked at in an HMD. A value of 1"
+            " will reduce the eye distance more or less continuously from equator to the poles, which will create a relaxed viewing experience, but this will also cause flat surfaces"
+            " to appear curved. A value smaller than 1 keeps the eye distance more or less constant for a larger latitude range above and below the horizon, but will then rapidly reduce"
+            " the eye distance near the poles. This will keep flat surface flat, but cause more eye strain near the poles (which can be reduced again by setting the pano cutoff latitude"
+            " to something < 90 degrees",
         min=0.001, soft_min=0.001, max=1.0, soft_max=1.0,
         default=1.0,
         step=10,
@@ -2023,18 +1944,16 @@ class OctaneCameraSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings):
         description="Use F-Stop setting instead of aperture",
         default=False,
     )
-
-    def update_aperture(self, _context):
+    def update_aperture(self, context):
         if not self.use_fstop:
             lens = self.id_data.lens / 2
             try:
                 fstop = lens / (20 * self.aperture)
                 fstop = min(max(0.5, fstop), 1000)
-            except ZeroDivisionError:
+            except:
                 fstop = 1000
             if fstop != self.fstop:
-                self["fstop"] = fstop
-
+                self["fstop"] = fstop                
     aperture: FloatProperty(
         name="Aperture",
         description="Aperture (higher numbers give more defocus, lower numbers give a sharper image)",
@@ -2044,17 +1963,15 @@ class OctaneCameraSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings):
         precision=2,
         update=update_aperture,
     )
-
-    def update_fstop(self, _context):
+    def update_fstop(self, context):
         if self.use_fstop:
             lens = self.id_data.lens / 2
             try:
                 aperture = lens / (20 * self.fstop)
-            except ZeroDivisionError:
+            except:
                 aperture = lens / (20 * 0.5)
             if aperture != self.aperture:
-                self["aperture"] = aperture
-
+                self["aperture"] = aperture   
     fstop: FloatProperty(
         name="F-Stop",
         description="Aperture to focal length ratio",
@@ -2079,7 +1996,7 @@ class OctaneCameraSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings):
         default=0.0,
         step=10,
         precision=2,
-    )
+    )    
     autofocus: BoolProperty(
         name="Autofocus",
         description="If enabled, the focus will be kept on the closest visible surface at the center of the image",
@@ -2103,16 +2020,13 @@ class OctaneCameraSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings):
     )
     keep_upright: BoolProperty(
         name="Keep upright",
-        description="If enabled, the panoramic camera is always oriented towards the horizon and the up-vector will "
-                    "stay (0, 1, 0), i.e. vertical",
+        description="If enabled, the panoramic camera is always oriented towards the horizon and the up-vector will stay (0, 1, 0), i.e. vertical",
         default=False,
     )
     blackout_lat: FloatProperty(
         name="Pano blackout lat.",
-        description="The +/- latitude at which the panorama gets cut off, when stereo rendering is enabled. The area "
-                    "with higher latitudes will be blacked out. If set to 90, nothing will be"
-                    "blacked out. If set to 70, an angle of 2x20 degrees will be blacked out at both poles. If set to "
-                    "0, everything will be blacked out",
+        description="The +/- latitude at which the panorama gets cut off, when stereo rendering is enabled. The area with higher latitudes will be blacked out. If set to 90, nothing will be"
+            " blacked out. If set to 70, an angle of 2x20 degrees will be blacked out at both poles. If set to 0, everything will be blacked out",
         min=1.0, soft_min=1.0, max=90.0, soft_max=90.0,
         default=90.0,
         step=10,
@@ -2205,20 +2119,20 @@ class OctaneCameraSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings):
         min=1, max=65535,
         update=scene.sync_baking_transform,
         default=1,
-    )
+    )       
     baking_uvw_translation: FloatVectorProperty(
-        name="Translation",
+        name="Translation",                                
         subtype='TRANSLATION',
-    )
+    )      
     baking_uvw_rotation: FloatVectorProperty(
-        name="Rotation",
+        name="Rotation",                             
         subtype='EULER',
-    )
+    )    
     baking_uvw_scale: FloatVectorProperty(
-        name="Scale",
+        name="Scale",                             
         subtype='XYZ',
         default=(1, 1, 1)
-    )
+    )  
     baking_uvw_rotation_order: EnumProperty(
         name="Rotation order",
         items=scene.rotation_orders,
@@ -2245,7 +2159,7 @@ class OctaneCameraSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings):
         name="Octane Imager",
         description="",
         type=OctaneImagerSettings,
-    )
+    )    
     post_processing: PointerProperty(
         name="Octane Post Processing",
         description="",
@@ -2256,32 +2170,32 @@ class OctaneCameraSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings):
         description="Enable post processing",
         default=False,
     )
-    #############################################
-    # LEGACY CAMERA IMAGER
-    #############################################
+#############################################
+#####      LEGACY CAMERA IMAGER         #####
+#############################################    
     white_balance: FloatVectorProperty(
         name="White balance",
         description="White point color",
         min=0.0, max=1.0,
         default=(1.0, 1.0, 1.0),
         subtype='COLOR',
-    )
+    )   
     camera_imager_order: EnumProperty(
         name="Order",
         description="The order by which camera response curve, gamma and custom LUT are applied",
         items=camera_imager_orders,
         default='0',
-    )
+    )    
     response_type: EnumProperty(
         name="Response curve",
         description="Camera response curve",
         items=response_types,
         default='400',
-    )
+    )           
     int_response_type: IntProperty(
         name="Int Response curve",
         get=get_int_response_type,
-    )
+    )        
     exposure: FloatProperty(
         name="Exposure",
         description="",
@@ -2379,90 +2293,81 @@ class OctaneCameraSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings):
     ocio_view_display_name: StringProperty(
         name="OCIO view display name",
         default='',
-    )
+    ) 
     ocio_view_display_view_name: StringProperty(
         name="OCIO view display view name",
         default='',
-    )
+    )              
     ocio_look: StringProperty(
         name="OCIO look",
         description="OCIO look to apply when displaying in the render viewport, if using an OCIO view",
         default='',
-    )
+    )   
     force_tone_mapping: BoolProperty(
         name="Force tone mapping",
-        description="Whether to apply Octane's built-in tone mapping (before applying any OCIO look(s)) when using an"
-                    "OCIO view. This may produce undesirable results due to an intermediate reduction to the sRGB "
-                    "color space",
+        description="Whether to apply Octane's built-in tone mapping (before applying any OCIO look(s)) when using an OCIO view. This may produce undesirable results due to an intermediate reduction to the sRGB color space",
         default=False,
-    )
+    )                 
     custom_lut: StringProperty(
         name="Custom LUT",
         description="If set the custom LUT is applied in the order as specified in 'Order'",
         default='',
         subtype='FILE_PATH',
-    )
+    )                     
     lut_strength: FloatProperty(
         name="LUT Strength",
         description="",
         min=0, soft_min=0, max=1.0, soft_max=1.0,
         default=1.0,
         step=1,
-        precision=3,
-    )
+        precision=3,  
+    )   
     enable_denoising: BoolProperty(
         name="Enable Denoising",
-        description="Enables the spectral AI denoiser, which will denoise some beauty passes including the main "
-                    "beauty pass and writes the outputs into separate denoiser render passes",
+        description="Enables the spectral AI denoiser, which will denoise some beauty passes including the main beauty pass and writes the outputs into separate denoiser render passes",
         default=False,
     )
     denoise_volumes: BoolProperty(
         name="Denoise volumes",
         description="If enabled the spectral AI denoiser will denoise volumes in the scene otherwise not",
         default=False,
-    )
+    )            
     denoise_on_completion: BoolProperty(
         name="Denoise on completion",
-        description="If enabled, beauty passes will be denoised only once at the end of a render. This option should "
-                    "be disabled while rendering with an interactive region",
+        description="If enabled, beauty passes will be denoised only once at the end of a render. This option should be disabled while rendering with an interactive region",
         default=True,
-    )
+    )        
     min_denoiser_samples: IntProperty(
         name="Min. denoiser samples",
-        description="Minimum number of samples per pixel until denoiser kicks in. Only valid when the denosie once "
-                    "option is false",
+        description="Minimum number of samples per pixel until denoiser kicks in. Only valid when the denosie once option is false",
         min=1, max=100000,
-        default=10,
-    )
+        default=10, 
+    )     
     max_denoiser_interval: IntProperty(
         name="Max. denoiser interval",
-        description="Maximum interval between denoiser runs (in seconds). Only valid when the denosie once option is "
-                    "false",
+        description="Maximum interval between denoiser runs (in seconds). Only valid when the denosie once option is false",
         min=1, max=120,
-        default=20,
-    )
+        default=20, 
+    )      
     denoiser_blend: FloatProperty(
         name="Blend",
-        description="A value between 0.f to 1.f to blend the original image into the denoiser output. Setting 0.f "
-                    "results with fully denoised image and setting 1.f results with the original image. An "
-                    "intermediate value"
-                    "will produce a blend between the denoised image and the original image",
+        description="A value between 0.f to 1.f to blend the original image into the denoiser output. Setting 0.f results with fully denoised image and setting 1.f results with the original image. An intermediate value will produce a blend between the denoised image and the original image",
         min=0, max=1,
         step=0.1,
-        precision=3,
-        default=0.0,
-    )
-    #############################################
-    # LEGACY AI UP SAMPLER
-    #############################################
+        precision=3,                
+        default=0.0, 
+    )    
+#############################################
+#####      LEGACY AI UP SAMPLER         #####
+#############################################    
     ai_up_sampler: PointerProperty(
         name="Octane AI Up-Sampler",
         description="",
-        type=OctaneAIUpSamplerSettings,
+        type=OctaneAIUpSamplertSettings,
     )
-    #############################################
-    # LEGACY POST PROCESSING PROPERTIES
-    #############################################
+#############################################
+##### LEGACY POST PROCESSING PROPERTIES #####
+#############################################
     bloom_power: FloatProperty(
         name="Bloom power",
         description="",
@@ -2473,15 +2378,12 @@ class OctaneCameraSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings):
     )
     cut_off: FloatProperty(
         name="Cutoff",
-        description="The minimum brightness of a pixel to have bloom and glare applied. The brightness measured after "
-                    "the application of the exposure. Increasing this value will decrease the overall brightness of "
-                    "bloom and"
-                    "glare, which can be compensated by increasing the bloom/glare power, but that's scene dependent",
+        description="The minimum brightness of a pixel to have bloom and glare applied. The brightness measured after the application of the exposure. Increasing this value will decrease the overall brightness of bloom and glare, which can be compensated by increasing the bloom/glare power, but that's scene dependent",
         min=0.0, soft_min=0.0, max=1000.0, soft_max=1000.0,
         default=0.0,
         step=1,
         precision=3,
-    )
+    )      
     glare_power: FloatProperty(
         name="Glare power",
         description="",
@@ -2596,9 +2498,9 @@ class OctaneSpaceDataSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings)
         description="Enable post processing",
         default=False,
     )
-    #############################################
-    # LEGACY CAMERA IMAGER
-    #############################################
+#############################################
+#####      LEGACY CAMERA IMAGER         #####
+#############################################     
     white_balance: FloatVectorProperty(
         name="White balance",
         description="White point color",
@@ -2611,7 +2513,7 @@ class OctaneSpaceDataSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings)
         description="The order by which camera response curve, gamma and custom LUT are applied",
         items=camera_imager_orders,
         default='0',
-    )
+    )        
     response_type: EnumProperty(
         name="Response curve",
         description="Camera response curve",
@@ -2715,15 +2617,15 @@ class OctaneSpaceDataSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings)
         description="OCIO view to use when displaying in the render viewport",
         default='',
         update=ocio.update_ocio_view,
-    )
+    ) 
     ocio_view_display_name: StringProperty(
         name="OCIO view display name",
         default='',
-    )
+    ) 
     ocio_view_display_view_name: StringProperty(
         name="OCIO view display view name",
         default='',
-    )
+    )     
     ocio_look: StringProperty(
         name="OCIO look",
         description="OCIO look to apply when displaying in the render viewport, if using an OCIO view",
@@ -2732,85 +2634,76 @@ class OctaneSpaceDataSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings)
     octane_format_ocio_view: StringProperty(
         name="OCIO view(Octane Format)",
         default='',
-    )
+    ) 
     octane_format_ocio_look: StringProperty(
         name="OCIO look(Octane Format)",
         default='',
-    )
+    )        
     force_tone_mapping: BoolProperty(
         name="Force tone mapping",
-        description="Whether to apply Octane's built-in tone mapping (before applying any OCIO look(s)) when using an "
-                    "OCIO view. This may produce undesirable results due to an intermediate reduction to the sRGB "
-                    "color space",
+        description="Whether to apply Octane's built-in tone mapping (before applying any OCIO look(s)) when using an OCIO view. This may produce undesirable results due to an intermediate reduction to the sRGB color space",
         default=False,
-    )
+    )    
     custom_lut: StringProperty(
         name="Custom LUT",
         description="If set the custom LUT is applied in the order as specified in 'Order'",
         default='',
         subtype='FILE_PATH',
-    )
+    )       
     lut_strength: FloatProperty(
         name="LUT Strength",
         description="",
         min=0, soft_min=0, max=1.0, soft_max=1.0,
         default=1.0,
         step=1,
-        precision=3,
-    )
+        precision=3,  
+    )    
     enable_denoising: BoolProperty(
         name="Enable Denoising",
-        description="Enables the spectral AI denoiser, which will denoise some beauty passes including the main "
-                    "beauty pass and writes the outputs into separate denoiser render passes",
+        description="Enables the spectral AI denoiser, which will denoise some beauty passes including the main beauty pass and writes the outputs into separate denoiser render passes",
         default=False,
     )
     denoise_volumes: BoolProperty(
         name="Denoise volumes",
         description="If enabled the spectral AI denoiser will denoise volumes in the scene otherwise not",
         default=False,
-    )
+    )         
     denoise_on_completion: BoolProperty(
         name="Denoise on completion",
-        description="If enabled, beauty passes will be denoised only once at the end of a render. This option should "
-                    "be disabled while rendering with an interactive region",
+        description="If enabled, beauty passes will be denoised only once at the end of a render. This option should be disabled while rendering with an interactive region",
         default=True,
-    )
+    )        
     min_denoiser_samples: IntProperty(
         name="Min. denoiser samples",
-        description="Minimum number of samples per pixel until denoiser kicks in. Only valid when the denosie once "
-                    "option is false",
+        description="Minimum number of samples per pixel until denoiser kicks in. Only valid when the denosie once option is false",
         min=1, max=100000,
-        default=10,
-    )
+        default=10, 
+    )     
     max_denoiser_interval: IntProperty(
         name="Max. denoiser interval",
-        description="Maximum interval between denoiser runs (in seconds). Only valid when the denosie once option is "
-                    "false",
+        description="Maximum interval between denoiser runs (in seconds). Only valid when the denosie once option is false",
         min=1, max=120,
-        default=20,
-    )
+        default=20, 
+    )      
     denoiser_blend: FloatProperty(
         name="Blend",
-        description="A value between 0.f to 1.f to blend the original image into the denoiser output. Setting 0.f "
-                    "results with fully denoised image and setting 1.f results with the original image. An "
-                    "intermediate value"
-                    "will produce a blend between the denoised image and the original image",
+        description="A value between 0.f to 1.f to blend the original image into the denoiser output. Setting 0.f results with fully denoised image and setting 1.f results with the original image. An intermediate value will produce a blend between the denoised image and the original image",
         min=0, max=1,
         step=0.1,
-        precision=3,
-        default=0.0,
-    )
-    #############################################
-    # LEGACY AI UP SAMPLER
-    #############################################
+        precision=3,                
+        default=0.0, 
+    )    
+#############################################
+#####      LEGACY AI UP SAMPLER         #####
+############################################# 
     ai_up_sampler: PointerProperty(
         name="Octane AI Up-Sampler",
         description="",
-        type=OctaneAIUpSamplerSettings,
-    )
-    #############################################
-    # LEGACY POST PROCESSING PROPERTIES
-    #############################################
+        type=OctaneAIUpSamplertSettings,
+    )    
+#############################################
+##### LEGACY POST PROCESSING PROPERTIES #####
+#############################################
     bloom_power: FloatProperty(
         name="Bloom power",
         description="",
@@ -2826,7 +2719,7 @@ class OctaneSpaceDataSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings)
         default=0.0,
         step=1,
         precision=3,
-    )
+    )      
     glare_power: FloatProperty(
         name="Glare power",
         description="",
@@ -2896,8 +2789,7 @@ class AddPresetCameraImager(AddPresetBase, Operator):
     preset_defines = [
         "octane = bpy.context.camera.octane.imager"
     ]
-    preset_values = ["octane." + item for item in
-                     OctaneImagerSettings.PROPERTY_CONFIGS[consts.NodeType.NT_IMAGER_CAMERA]]
+    preset_values = ["octane." + item for item in OctaneImagerSettings.PROPERTY_CONFIGS[consts.NodeType.NT_IMAGER_CAMERA]]
     preset_subdir = "octane/imager_presets"
 
 
@@ -2909,8 +2801,7 @@ class AddPresetViewportImager(AddPresetBase, Operator):
     preset_defines = [
         "octane = bpy.context.scene.oct_view_cam.imager"
     ]
-    preset_values = ["octane." + item for item in
-                     OctaneImagerSettings.PROPERTY_CONFIGS[consts.NodeType.NT_IMAGER_CAMERA]]
+    preset_values = ["octane." + item for item in OctaneImagerSettings.PROPERTY_CONFIGS[consts.NodeType.NT_IMAGER_CAMERA]]
     preset_subdir = "octane/3dimager_presets"
 
 
@@ -2922,9 +2813,7 @@ class AddPresetCameraPostprocess(AddPresetBase, Operator):
     preset_defines = [
         "octane = bpy.context.camera.octane.post_processing"
     ]
-    preset_values = ["octane." + item for item in (
-            OctanePostProcessingSettings.PROPERTY_CONFIGS[consts.NodeType.NT_POSTPROCESSING] +
-            OctanePostProcessingSettings.PROPERTY_CONFIGS[consts.NodeType.NT_POST_VOLUME])]
+    preset_values = ["octane." + item for item in (OctanePostProcessingSettings.PROPERTY_CONFIGS[consts.NodeType.NT_POSTPROCESSING] + OctanePostProcessingSettings.PROPERTY_CONFIGS[consts.NodeType.NT_POST_VOLUME])]
     preset_subdir = "octane/postprocess_presets"
 
 
@@ -2936,9 +2825,7 @@ class AddPresetViewportPostprocess(AddPresetBase, Operator):
     preset_defines = [
         "octane = bpy.context.scene.oct_view_cam.post_processing"
     ]
-    preset_values = ["octane." + item for item in (
-            OctanePostProcessingSettings.PROPERTY_CONFIGS[consts.NodeType.NT_POSTPROCESSING] +
-            OctanePostProcessingSettings.PROPERTY_CONFIGS[consts.NodeType.NT_POST_VOLUME])]
+    preset_values = ["octane." + item for item in (OctanePostProcessingSettings.PROPERTY_CONFIGS[consts.NodeType.NT_POSTPROCESSING] + OctanePostProcessingSettings.PROPERTY_CONFIGS[consts.NodeType.NT_POST_VOLUME])]
     preset_subdir = "octane/3dpostprocess_presets"
 
 
@@ -2947,7 +2834,7 @@ _CLASSES = [
     OctaneOSLCameraNodeCollection,
     OctaneImagerSettings,
     OctanePostProcessingSettings,
-    OctaneAIUpSamplerSettings,
+    OctaneAIUpSamplertSettings,
     OctaneCameraSettings,
     OctaneSpaceDataSettings,
     AddPresetCameraImager,
@@ -2957,10 +2844,9 @@ _CLASSES = [
 ]
 
 
-def register():
+def register(): 
     for cls in _CLASSES:
         register_class(cls)
-
 
 def unregister():
     for cls in _CLASSES:

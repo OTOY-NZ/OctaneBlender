@@ -1,6 +1,6 @@
-# <pep8 compliant>
-
-# BEGIN OCTANE GENERATED CODE BLOCK #
+##### BEGIN OCTANE GENERATED CODE BLOCK #####
+import bpy
+from bpy.utils import register_class, unregister_class
 from . import glossy_material
 from . import diffuse_material
 from . import specular_material
@@ -19,7 +19,6 @@ from . import clipping_material
 from . import standard_surface_material
 from . import material_switch
 from . import toon_ramp_switch
-
 
 def register():
     glossy_material.register()
@@ -41,7 +40,6 @@ def register():
     material_switch.register()
     toon_ramp_switch.register()
 
-
 def unregister():
     glossy_material.unregister()
     diffuse_material.unregister()
@@ -62,4 +60,4 @@ def unregister():
     material_switch.unregister()
     toon_ramp_switch.unregister()
 
-# END OCTANE GENERATED CODE BLOCK #
+##### END OCTANE GENERATED CODE BLOCK #####

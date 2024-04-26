@@ -5,10 +5,10 @@
 #include <vector>
 
 #ifndef OCTANE_SERVER_MAJOR_VERSION
-#  define OCTANE_SERVER_MAJOR_VERSION "28"
+#  define OCTANE_SERVER_MAJOR_VERSION "29"
 #endif
 #ifndef OCTANE_SERVER_MINOR_VERSION
-#  define OCTANE_SERVER_MINOR_VERSION "13"
+#  define OCTANE_SERVER_MINOR_VERSION "0"
 #endif
 
 #ifdef OCTANE_SERVER
@@ -776,6 +776,8 @@ namespace Octane {
     RENDER_PASS_POSTFX_MEDIA         = 84,
     RENDER_PASS_POST_PROC            = 16,
     RENDER_PASS_NOISE_BEAUTY         = 31,
+    RENDER_PASS_DENOISE_ALBEDO       = 123,
+    RENDER_PASS_DENOISE_NORMAL       = 40,
 
     // --- Render layer AOVs ---
 
@@ -1557,6 +1559,8 @@ typedef enum OctaneScenePassType {
 	OCT_SCE_PASS_VOLUME_Z_FRONT = (1 << 22),
 	OCT_SCE_PASS_VOLUME_Z_BACK = (1 << 23),
 	OCT_SCE_PASS_NOISE = (1 << 24),
+	OCT_SCE_PASS_DENOISE_ALBEDO = (1 << 25),
+	OCT_SCE_PASS_DENOISE_NORMAL = (1 << 26),
 	/* Denoise Passes */
 	OCT_SCE_PASS_DENOISER_BEAUTY = (1 << 0),
 	OCT_SCE_PASS_DENOISER_DIFF_DIR = (1 << 1),

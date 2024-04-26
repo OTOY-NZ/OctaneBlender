@@ -12,4 +12,4 @@ def unregister():
     object_layer.unregister()
     object_layer_switch.unregister()
 
-# END OCTANE GENERATED CODE BLOCK #
+##### END OCTANE GENERATED CODE BLOCK #####

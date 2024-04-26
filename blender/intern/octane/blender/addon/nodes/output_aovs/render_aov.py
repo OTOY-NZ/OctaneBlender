@@ -1,50 +1,48 @@
-# <pep8 compliant>
-
-# BEGIN OCTANE GENERATED CODE BLOCK #
-import bpy  # noqa
-from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom # noqa
-from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty  # noqa
-from octane.utils import consts, runtime_globals, utility  # noqa
-from octane.nodes import base_switch_input_socket  # noqa
-from octane.nodes.base_color_ramp import OctaneBaseRampNode  # noqa
-from octane.nodes.base_curve import OctaneBaseCurveNode  # noqa
-from octane.nodes.base_image import OctaneBaseImageNode  # noqa
-from octane.nodes.base_kernel import OctaneBaseKernelNode  # noqa
-from octane.nodes.base_node import OctaneBaseNode  # noqa
-from octane.nodes.base_osl import OctaneScriptNode  # noqa
-from octane.nodes.base_switch import OctaneBaseSwitchNode  # noqa
-from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs  # noqa
+##### BEGIN OCTANE GENERATED CODE BLOCK #####
+import bpy
+from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
+from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
+from octane.utils import consts, runtime_globals, utility
+from octane.nodes import base_switch_input_socket
+from octane.nodes.base_color_ramp import OctaneBaseRampNode
+from octane.nodes.base_curve import OctaneBaseCurveNode
+from octane.nodes.base_lut import OctaneBaseLutNode
+from octane.nodes.base_image import OctaneBaseImageNode
+from octane.nodes.base_kernel import OctaneBaseKernelNode
+from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_osl import OctaneScriptNode
+from octane.nodes.base_switch import OctaneBaseSwitchNode
+from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
 class OctaneOutputAOVsRenderAOVEnabled(OctaneBaseSocket):
-    bl_idname = "OctaneOutputAOVsRenderAOVEnabled"
-    bl_label = "Enabled"
-    color = consts.OctanePinColor.Bool
-    octane_default_node_type = consts.NodeType.NT_BOOL
-    octane_default_node_name = "OctaneBoolValue"
-    octane_pin_id = consts.PinID.P_ENABLED
-    octane_pin_name = "enabled"
-    octane_pin_type = consts.PinType.PT_BOOL
-    octane_pin_index = 0
-    octane_socket_type = consts.SocketType.ST_BOOL
+    bl_idname="OctaneOutputAOVsRenderAOVEnabled"
+    bl_label="Enabled"
+    color=consts.OctanePinColor.Bool
+    octane_default_node_type=consts.NodeType.NT_BOOL
+    octane_default_node_name="OctaneBoolValue"
+    octane_pin_id=consts.PinID.P_ENABLED
+    octane_pin_name="enabled"
+    octane_pin_type=consts.PinType.PT_BOOL
+    octane_pin_index=0
+    octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Whether this layer is applied or skipped")
-    octane_hide_value = False
-    octane_min_version = 0
-    octane_end_version = 4294967295
-    octane_deprecated = False
-
+    octane_hide_value=False
+    octane_min_version=0
+    octane_end_version=4294967295
+    octane_deprecated=False
 
 class OctaneOutputAOVsRenderAOVInput(OctaneBaseSocket):
-    bl_idname = "OctaneOutputAOVsRenderAOVInput"
-    bl_label = "Render AOV"
-    color = consts.OctanePinColor.Enum
-    octane_default_node_type = consts.NodeType.NT_ENUM
-    octane_default_node_name = "OctaneEnumValue"
-    octane_pin_id = consts.PinID.P_INPUT
-    octane_pin_name = "input"
-    octane_pin_type = consts.PinType.PT_ENUM
-    octane_pin_index = 1
-    octane_socket_type = consts.SocketType.ST_ENUM
+    bl_idname="OctaneOutputAOVsRenderAOVInput"
+    bl_label="Render AOV"
+    color=consts.OctanePinColor.Enum
+    octane_default_node_type=consts.NodeType.NT_ENUM
+    octane_default_node_name="OctaneEnumValue"
+    octane_pin_id=consts.PinID.P_INPUT
+    octane_pin_name="input"
+    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_index=1
+    octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("Beauty", "Beauty", "", 0),
         ("Denoised beauty", "Denoised beauty", "", 43),
@@ -54,6 +52,8 @@ class OctaneOutputAOVsRenderAOVInput(OctaneBaseSocket):
         ("Auxiliary|Postfx media", "Auxiliary|Postfx media", "", 84),
         ("Auxiliary|Post processing", "Auxiliary|Post processing", "", 16),
         ("Auxiliary|Shadow", "Auxiliary|Shadow", "", 32),
+        ("Beauty - surfaces|Denoise albedo", "Beauty - surfaces|Denoise albedo", "", 123),
+        ("Beauty - surfaces|Denoise normal", "Beauty - surfaces|Denoise normal", "", 40),
         ("Beauty - surfaces|Diffuse", "Beauty - surfaces|Diffuse", "", 3),
         ("Beauty - surfaces|Diffuse direct", "Beauty - surfaces|Diffuse direct", "", 4),
         ("Beauty - surfaces|Diffuse filter (beauty)", "Beauty - surfaces|Diffuse filter (beauty)", "", 6),
@@ -218,47 +218,45 @@ class OctaneOutputAOVsRenderAOVInput(OctaneBaseSocket):
         ("Render layer|Layer shadows", "Render layer|Layer shadows", "", 17),
     ]
     default_value: EnumProperty(default="Beauty", update=OctaneBaseSocket.update_node_tree, description="The render AOV to blend. This must be enabled as a render AOV", items=items)
-    octane_hide_value = False
-    octane_min_version = 0
-    octane_end_version = 4294967295
-    octane_deprecated = False
-
+    octane_hide_value=False
+    octane_min_version=0
+    octane_end_version=4294967295
+    octane_deprecated=False
 
 class OctaneOutputAOVsRenderAOVBlendingSettings(OctaneBaseSocket):
-    bl_idname = "OctaneOutputAOVsRenderAOVBlendingSettings"
-    bl_label = "Blending settings"
-    color = consts.OctanePinColor.BlendingSettings
-    octane_default_node_type = consts.NodeType.NT_BLENDING_SETTINGS
-    octane_default_node_name = "OctaneBlendingSettings"
-    octane_pin_id = consts.PinID.P_BLENDING_SETTINGS
-    octane_pin_name = "blendingSettings"
-    octane_pin_type = consts.PinType.PT_BLENDING_SETTINGS
-    octane_pin_index = 2
-    octane_socket_type = consts.SocketType.ST_LINK
-    octane_hide_value = True
-    octane_min_version = 0
-    octane_end_version = 4294967295
-    octane_deprecated = False
-
+    bl_idname="OctaneOutputAOVsRenderAOVBlendingSettings"
+    bl_label="Blending settings"
+    color=consts.OctanePinColor.BlendingSettings
+    octane_default_node_type=consts.NodeType.NT_BLENDING_SETTINGS
+    octane_default_node_name="OctaneBlendingSettings"
+    octane_pin_id=consts.PinID.P_BLENDING_SETTINGS
+    octane_pin_name="blendingSettings"
+    octane_pin_type=consts.PinType.PT_BLENDING_SETTINGS
+    octane_pin_index=2
+    octane_socket_type=consts.SocketType.ST_LINK
+    octane_hide_value=True
+    octane_min_version=0
+    octane_end_version=4294967295
+    octane_deprecated=False
 
 class OctaneOutputAOVsRenderAOV(bpy.types.Node, OctaneBaseNode):
-    bl_idname = "OctaneOutputAOVsRenderAOV"
-    bl_label = "Render AOV"
-    bl_width_default = 200
-    octane_render_pass_id = -1
-    octane_render_pass_name = ""
-    octane_render_pass_short_name = ""
-    octane_render_pass_description = ""
-    octane_render_pass_sub_type_name = ""
-    octane_socket_class_list = [OctaneOutputAOVsRenderAOVEnabled, OctaneOutputAOVsRenderAOVInput, OctaneOutputAOVsRenderAOVBlendingSettings, ]
-    octane_min_version = 13000000
-    octane_node_type = consts.NodeType.NT_OUTPUT_AOV_LAYER_BLEND_RENDER_AOV
-    octane_socket_list = ["Enabled", "Render AOV", "Blending settings", ]
-    octane_attribute_list = []
-    octane_attribute_config = {}
-    octane_static_pin_count = 3
+    bl_idname="OctaneOutputAOVsRenderAOV"
+    bl_label="Render AOV"
+    bl_width_default=200
+    octane_render_pass_id=-1
+    octane_render_pass_name=""
+    octane_render_pass_short_name=""
+    octane_render_pass_description=""
+    octane_render_pass_sub_type_name=""
+    octane_socket_class_list=[OctaneOutputAOVsRenderAOVEnabled,OctaneOutputAOVsRenderAOVInput,OctaneOutputAOVsRenderAOVBlendingSettings,]
+    octane_min_version=13000000
+    octane_node_type=consts.NodeType.NT_OUTPUT_AOV_LAYER_BLEND_RENDER_AOV
+    octane_socket_list=["Enabled", "Render AOV", "Blending settings", ]
+    octane_attribute_list=[]
+    octane_attribute_config={}
+    octane_static_pin_count=3
 
-    def init(self, context):  # noqa
+    def init(self, context):
         self.inputs.new("OctaneOutputAOVsRenderAOVEnabled", OctaneOutputAOVsRenderAOVEnabled.bl_label).init()
         self.inputs.new("OctaneOutputAOVsRenderAOVInput", OctaneOutputAOVsRenderAOVInput.bl_label).init()
         self.inputs.new("OctaneOutputAOVsRenderAOVBlendingSettings", OctaneOutputAOVsRenderAOVBlendingSettings.bl_label).init()
@@ -269,31 +267,27 @@ class OctaneOutputAOVsRenderAOV(bpy.types.Node, OctaneBaseNode):
         return OctaneBaseNode.poll(node_tree)
 
 
-_CLASSES = [
+_CLASSES=[
     OctaneOutputAOVsRenderAOVEnabled,
     OctaneOutputAOVsRenderAOVInput,
     OctaneOutputAOVsRenderAOVBlendingSettings,
     OctaneOutputAOVsRenderAOV,
 ]
 
-
 _SOCKET_INTERFACE_CLASSES = []
-
 
 def register():
     utility.octane_register_class(_CLASSES)
     utility.octane_register_interface_class(_CLASSES, _SOCKET_INTERFACE_CLASSES)
 
-
 def unregister():
     utility.octane_unregister_interface_class(_SOCKET_INTERFACE_CLASSES)
     utility.octane_unregister_class(reversed(_CLASSES))
 
-# END OCTANE GENERATED CODE BLOCK #
+##### END OCTANE GENERATED CODE BLOCK #####
 
 
-OctaneOutputAOVsRenderAOVInput_simplified_items = utility.make_blender_style_enum_items(
-    OctaneOutputAOVsRenderAOVInput.items, True, True,
+OctaneOutputAOVsRenderAOVInput_simplified_items = utility.make_blender_style_enum_items(OctaneOutputAOVsRenderAOVInput.items, True, True, 
     [
         {"Beauty, Denoised": ["", "Beauty - surfaces", "Beauty - volumes", "Denoised"]},
         {"Auxiliary, Render layer": ["Auxiliary", "Render layer", ]},
@@ -301,6 +295,12 @@ OctaneOutputAOVsRenderAOVInput_simplified_items = utility.make_blender_style_enu
         {"Light": ["Light", ]},
         {"Custom": ["Custom", ]},
     ])
+    # [
+    #     {"Beauty, Denoised": ["", "Beauty - surfaces", "Beauty - volumes", "Denoised"]},
+    #     {"Auxiliary, Info, Render layer": ["Auxiliary", "Info", "Render layer"]},
+    #     {"Light": ["Light", ]},
+    #     {"Custom": ["Custom", ]},
+    # ])
 OctaneOutputAOVsRenderAOVInput_no_heading_simplified_items = utility.make_blender_style_enum_items(OctaneOutputAOVsRenderAOVInput.items, False, False)
 
 
@@ -315,7 +315,7 @@ class OctaneOutputAOVsRenderAOVInput_OT_search_popup(bpy.types.Operator):
         context.active_node.inputs[OctaneOutputAOVsRenderAOVInput.bl_label].default_value = self.default_value
         return {"FINISHED"}
 
-    def invoke(self, context, _event):
+    def invoke(self, context, event):
         wm = context.window_manager
         wm.invoke_search_popup(self)
         return {"FINISHED"}

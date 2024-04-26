@@ -1,8 +1,23 @@
+#
+# Copyright 2011-2013 Blender Foundation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
 # <pep8 compliant>
 
 import bpy
 from octane import core
-from octane.utils import logger
 if not core.EXCLUSIVE_OCTANE_ADDON_CLIENT_MODE:
     import _octane
 
@@ -12,8 +27,10 @@ def osl_compile(node, identifier, osl_path, osl_code, report):
     # print('osl identifier: ', identifier)
     # print('osl_path: \n', osl_path)
     # print('osl_code: \n', osl_code)
-    import _octane
-    ok, compile_msg = _octane.osl_compile(identifier, node.id_data.as_pointer(), node.as_pointer(), osl_path, osl_code)
+    import _octane    
+    scene = bpy.context.scene
+    oct_scene = scene.octane   
+    ok, compile_msg = _octane.osl_compile(identifier, node.id_data.as_pointer(), node.as_pointer(), osl_path, osl_code)  
 
     if ok:
         report({'INFO'}, "OSL shader compilation succeeded")
@@ -25,10 +42,12 @@ def osl_compile(node, identifier, osl_path, osl_code, report):
 
 def update_script_node(node, report):
     """compile and update shader script node"""
-    def resolve_identifier(cur_identifier):
-        return "[OSL COMPILE NODE]" + cur_identifier
+    def resolve_identifier(identifier):
+        return "[OSL COMPILE NODE]" + identifier
 
     import os
+    import shutil
+    import tempfile
 
     ok = False
     identifier = ''
@@ -61,8 +80,8 @@ def update_script_node(node, report):
                 osl_file.close()          
                 identifier = resolve_identifier(script.name)
                 ok, compile_msg = osl_compile(node, identifier, "", osl_code, report)
-            except Exception as e:
-                logger.exception_and_report(e, report, "No valid osl file, nothing to compile %s" % e)
+            except:
+                report({'ERROR'}, "No valid osl file, nothing to compile")             
     else:
         report({'WARNING'}, "No text or file specified in node, nothing to compile")
         return

@@ -1,10 +1,10 @@
-# <pep8 compliant>
-
-from bpy.types import Panel
-
+import bpy
+import xml.etree.ElementTree as ET
+from bpy.types import Panel, Menu, Operator
 from bpy.utils import register_class, unregister_class
 from octane.uis import common
 from octane.utils import consts, utility
+from octane import core
 
 
 class OCTANE_WORLD_PT_environment(common.OctanePropertyPanel, Panel):
@@ -15,7 +15,7 @@ class OCTANE_WORLD_PT_environment(common.OctanePropertyPanel, Panel):
     def poll(cls, context):
         return super().poll(context) and context.world
 
-    def draw(self, context):
+    def draw(self, context):        
         world = context.world
         if not world:
             return
@@ -43,10 +43,9 @@ _CLASSES = [
 ]
 
 
-def register():
+def register(): 
     for cls in _CLASSES:
         register_class(cls)
-
 
 def unregister():
     for cls in _CLASSES:

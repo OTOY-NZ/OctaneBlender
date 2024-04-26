@@ -888,11 +888,6 @@ static void ntree_shader_weight_tree_invert(bNodeTree *ntree, bNode *output_node
             break;
         }
 
-        if (strcmp(sock->name, "Octane Environment") == 0 ||
-            strcmp(sock->name, "Octane VisibleEnvironment") == 0) {
-          continue;
-        }
-
         if (sock->link) {
           bNodeSocket *fromsock;
           bNode *fromnode = sock->link->fromnode;

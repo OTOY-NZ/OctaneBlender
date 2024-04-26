@@ -1,6 +1,6 @@
-# <pep8 compliant>
-
-# BEGIN OCTANE GENERATED CODE BLOCK #
+##### BEGIN OCTANE GENERATED CODE BLOCK #####
+import bpy
+from bpy.utils import register_class, unregister_class
 from . import float_value
 from . import int_value
 from . import bool_value
@@ -26,13 +26,13 @@ from . import binary_math_operation
 from . import unary_math_operation
 from . import range
 from . import rotate
+from . import frame_index
 from . import bool_switch
 from . import float_switch
 from . import int_switch
 from . import enum_switch
 from . import string_switch
 from . import bitmask_switch
-
 
 def register():
     float_value.register()
@@ -60,13 +60,13 @@ def register():
     unary_math_operation.register()
     range.register()
     rotate.register()
+    frame_index.register()
     bool_switch.register()
     float_switch.register()
     int_switch.register()
     enum_switch.register()
     string_switch.register()
     bitmask_switch.register()
-
 
 def unregister():
     float_value.unregister()
@@ -94,6 +94,7 @@ def unregister():
     unary_math_operation.unregister()
     range.unregister()
     rotate.unregister()
+    frame_index.unregister()
     bool_switch.unregister()
     float_switch.unregister()
     int_switch.unregister()
@@ -101,4 +102,4 @@ def unregister():
     string_switch.unregister()
     bitmask_switch.unregister()
 
-# END OCTANE GENERATED CODE BLOCK #
+##### END OCTANE GENERATED CODE BLOCK #####

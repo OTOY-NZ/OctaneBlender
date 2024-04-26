@@ -1,11 +1,10 @@
-# <pep8 compliant>
-
-from bpy.types import Panel
-
+import bpy
+import xml.etree.ElementTree as ET
+from bpy.types import Panel, Menu, Operator
 from bpy.utils import register_class, unregister_class
-from octane import core
 from octane.uis import common
 from octane.utils import consts, utility
+from octane import core
 
 
 class OCTANE_LIGHT_PT_light(common.OctanePropertyPanel, Panel):
@@ -25,23 +24,23 @@ class OCTANE_LIGHT_PT_light(common.OctanePropertyPanel, Panel):
         if light.type == "SUN":
             if oct_light.octane_directional_light_type == "Toon Directional":
                 layout.label(text="Used as Octane Toon Directional Light")
-            elif oct_light.octane_directional_light_type == "Analytical":
-                layout.label(text="Used as Octane Analytical Light")
             else:
                 layout.label(text="Used as Octane Directional Light")
         if light.type == "POINT":
             if oct_light.octane_point_light_type == "Toon Point":
                 layout.label(text="Used as Octane Toon Point Light")
+            elif oct_light.octane_point_light_type == "Analytical":
+                layout.label(text="Used as Octane Analytical Light")
             elif oct_light.octane_point_light_type == "Sphere":
                 layout.label(text="Used as Octane Sphere Light")
                 col = layout.column()
                 col.prop(light, "shadow_soft_size", text="Radius")
-        if light.type == "SPOT":
+        if light.type == "SPOT":            
             if core.ENABLE_OCTANE_ADDON_CLIENT:
                 layout.label(text="Used as Octane Volumetric Spotlight")
             else:
                 layout.label(text="Not supported")
-        if light.type == "AREA":
+        if light.type == "AREA":            
             col = layout.column()
             col.prop(oct_light, "used_as_octane_mesh_light")
             if oct_light.used_as_octane_mesh_light:
@@ -85,10 +84,9 @@ _CLASSES = [
 ]
 
 
-def register():
+def register(): 
     for cls in _CLASSES:
         register_class(cls)
-
 
 def unregister():
     for cls in _CLASSES:

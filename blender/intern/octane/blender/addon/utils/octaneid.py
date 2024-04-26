@@ -1,6 +1,4 @@
-# <pep8 compliant>
-
-# BEGIN OCTANE GENERATED CODE BLOCK #
+##### BEGIN OCTANE GENERATED CODE BLOCK #####
 
 # Attribute Type
 class AttributeType:
@@ -242,6 +240,7 @@ class NodeType:
     NT_OUTPUT_AOV_COLOR = 177
     NT_MAT_CLIPPING = 178
     NT_RENDER_AOV_GROUP = 179
+    NT_AOV_DENOISE_NORMAL = 182
     NT_AOV_AMBIENT_OCCLUSION = 183
     NT_AOV_BAKING_GROUP_ID = 184
     NT_AOV_CRYPTOMATTE = 185
@@ -447,6 +446,7 @@ class NodeType:
     NT_POST_VOLUME = 404
     NT_OUTPUT_AOV_LAYER_CONVERT_FOR_SDR_DISPLAY_OCIO = 405
     NT_OUTPUT_AOV_LAYER_CONVERT_FOR_SDR_DISPLAY_ACES = 406
+    NT_TEX_LIGHT_FIELD_PLANE = 407
     NT_OUTPUT_AOV_LAYER_APPLY_GAMMA_CURVE = 409
     NT_OUTPUT_AOV_LAYER_ADJUST_HUE = 410
     NT_OUTPUT_AOV_LAYER_INVERT = 411
@@ -472,8 +472,17 @@ class NodeType:
     NT_TEX_COMPOSITE_LAYER_MASK_WITH_LAYERS = 432
     NT_TEX_COMPOSITE_LAYER_APPLY_GRADIENT_MAP = 433
     NT_OUTPUT_AOV_LAYER_CONVERT_FOR_SDR_DISPLAY_AGX = 434
+    NT_TEX_COMPOSITE_LAYER_APPLY_LUT = 435
+    NT_TEX_LIGHT_FIELD_CUBE = 436
+    NT_TEX_LIGHT_FIELD_ARRAY = 437
+    NT_INT_FRAME_INDEX = 438
     NT_METADATA = 439
+    NT_AOV_DENOISE_ALBEDO = 440
+    NT_TEX_COMPOSITE_LAYER_APPLY_CUSTOM_CURVE = 441
+    NT_OUTPUT_AOV_LAYER_OPEN_IMAGE_DENOISE = 442
     NT_OUTPUT_AOV_LAYER_BLEND_LIGHT_MIXER = 445
+    NT_TEX_OUTPUT_AOV_PARAMETER = 446
+    NT_OUTPUT_AOV_LAYER_BLEND_TEXTURE = 447
     NT_OUTPUT_AOV_LAYER_APPLY_CUSTOM_CURVE = 448
     NT_OUTPUT_AOV_LAYER_BLEND_SHARED_SURFACE = 449
     NT_OUTPUT_AOV_SHARED_SURFACE = 450
@@ -1041,6 +1050,7 @@ class PinID:
     P_RENDER_PASS_EMISSION_DENOISER_OUTPUT = 445
     P_DEEP_ENABLE_PASSES = 446
     P_OLD_VOLUME_BEHAVIOR = 448
+    P_DENOISE_PREFILTER = 449
     P_RENDER_PASS_CRYPTOMATTE_COUNT = 456
     P_RENDER_PASS_CRYPTOMATTE_INSTANCE = 457
     P_RENDER_PASS_CRYPTOMATTE_MATERIAL_NODE_NAME = 458
@@ -1538,6 +1548,7 @@ class PinID:
     P_PRESERVE_BRIGHTNESS = 1011
     P_DIR_ANALYTIC_LIGHT_ANGLE = 1012
     P_BLEND_REGION_MASK = 1013
+    P_SHOW_BOUNDS = 1014
     P_REGION_OFFSET_RELATIVE = 1020
     P_REGION_SIZE_RELATIVE = 1021
     P_ATTACH_TO_LAYER = 1022
@@ -1552,15 +1563,28 @@ class PinID:
     P_WEIGHT_BLUE = 1031
     P_WEIGHT_GRAYSCALE = 1032
     P_PUNCHY = 1033
+    P_RAYMARCH_STEP_PERCENT = 1034
+    P_SHADOW_RAY_MARCH_STEP_PERCENT = 1035
+    P_ALPHA_SAMPLE_COUNT = 1037
     P_CUSTOM_CURVE_MAX_VALUE = 1038
     P_CUSTOM_CURVE_MODE = 1039
     P_DESATURATE_HIGHLIGHTS = 1040
     P_HIGHLIGHT_ROLLOFF = 1041
     P_SATURATION_ROLLOFF = 1042
+    P_DIRECT_LIGHT_RAY_COUNT = 1043
+    P_ALPHA_TEXTURE = 1044
+    P_RGB_SAMPLE_COUNT = 1045
+    P_RGB_TEXTURE = 1046
+    P_SOURCE_CHANNELS = 1047
+    P_PARAMETER_INDEX = 1048
+    P_ROUND_EDGES_VISIBILITY = 1049
     P_POSTFX_FOG_BASE_LEVEL = 1051
     P_POSTFX_FOG_EXTINCTION_DISTANCE = 1052
     P_POSTFX_FOG_HALF_DENSITY_HEIGHT = 1053
     P_SCALE_WITH_FILM = 1054
+    P_VOLUME_PADDING = 1055
+    P_PREFILTER = 1057
+    P_DENOISER_TYPE = 1060
     P_CLEAR_AFTER_SAVE = 1061
     P_DISCARD_AFTER_LOAD = 1062
     P_APPLY_BUMP = 2577
@@ -1894,7 +1918,7 @@ class AttributeID:
     A_REST_MATRICES = 349
     A_MONITOR_COLOR_PROFILES = 350
     A_DISPLACEMENT_COUNT = 351
-    A_USE_RTX_BACKEND = 352
+    _A_USE_RTX_BACKEND = 352
     A_KNOWN_DEVICE_UUIDS = 353
     A_SPHERE_FLOAT_ATTRIBUTE_INDICES1 = 354
     A_SPHERE_FLOAT_ATTRIBUTE_INDICES2 = 355
@@ -1974,7 +1998,7 @@ class AttributeID:
     A_LEGACY_PNG_GAMMA = 430
     A_SHOW_VIEWPORT_FRAME_RATE = 431
     A_EXPORT_PASSES_EXR_COMPRESSION_LEVEL = 432
-    A_USE_GPU_COMPOSITOR = 433
+    _A_USE_GPU_COMPOSITOR = 433
     A_INITIAL_COLOR_SPACE_SELECTED = 434
     A_RNDR_GUID = 435
     A_RNDR_ROOT_GUID = 436
@@ -1987,6 +2011,7 @@ class AttributeID:
     A_SAVE_IMAGE_EXR_COMPRESSION_LEVEL = 445
     A_SAVE_IMAGE_JPEG_QUALITY = 446
     A_EXPORT_PASSES_JPEG_QUALITY = 447
+    A_MIN_TIME_SPAN = 448
     A_IMAGE_DEVICE = 449
     A_HARDWARE_RAY_TRACING_ENABLED = 450
     A_GPU_NAMES = 451
@@ -1995,6 +2020,12 @@ class AttributeID:
     A_SYSTEM_RAM = 454
     A_PLUGIN_TYPE = 455
     A_UPDATE = 456
+    A_GRID_OFFSET = 457
+    A_FOV = 458
+    A_GRID_RESOLUTION = 459
+    A_INSIDE_OUT = 460
+    A_USE_APPLE_RT = 461
+    A_PARAMETER_COUNT = 475
     A_CUSTOM_CURVE_POINTS_PRIMARY = 476
     A_CUSTOM_CURVE_POINTS_SECONDARY_RED = 477
     A_CUSTOM_CURVE_POINTS_SECONDARY_GREEN = 478
@@ -2031,6 +2062,8 @@ class RenderPassID:
     PostfxMedia = 84
     PostProcessing = 16
     Noise = 31
+    DenoiseAlbedo = 123
+    DenoiseNormal = 40
     LayerShadows = 17
     BlackLayerShadows = 18
     LayerReflections = 20
@@ -2214,6 +2247,8 @@ OCTANE_PASS_ID_TO_COMPACT_LONG_NAME = {
     RenderPassID.PostfxMedia: "PostfxMedia",
     RenderPassID.PostProcessing: "PostProcessing",
     RenderPassID.Noise: "Noise",
+    RenderPassID.DenoiseAlbedo: "DenoiseAlbedo",
+    RenderPassID.DenoiseNormal: "DenoiseNormal",
     RenderPassID.LayerShadows: "LayerShadows",
     RenderPassID.BlackLayerShadows: "BlackLayerShadows",
     RenderPassID.LayerReflections: "LayerReflections",
@@ -2397,6 +2432,8 @@ OCTANE_COMPACT_LONG_NAME_TO_PASS_ID = {
     "PostfxMedia": RenderPassID.PostfxMedia,
     "PostProcessing": RenderPassID.PostProcessing,
     "Noise": RenderPassID.Noise,
+    "DenoiseAlbedo": RenderPassID.DenoiseAlbedo,
+    "DenoiseNormal": RenderPassID.DenoiseNormal,
     "LayerShadows": RenderPassID.LayerShadows,
     "BlackLayerShadows": RenderPassID.BlackLayerShadows,
     "LayerReflections": RenderPassID.LayerReflections,
@@ -2580,6 +2617,8 @@ OCTANE_PASS_ID_TO_EXR_LAYER_NAME = {
     RenderPassID.PostfxMedia: "Postfx media",
     RenderPassID.PostProcessing: "Post processing",
     RenderPassID.Noise: "Noise",
+    RenderPassID.DenoiseAlbedo: "Denoise albedo",
+    RenderPassID.DenoiseNormal: "Denoise normal",
     RenderPassID.LayerShadows: "Layer shadows",
     RenderPassID.BlackLayerShadows: "Black layer shadows",
     RenderPassID.LayerReflections: "Layer reflections",
@@ -2763,6 +2802,8 @@ OCTANE_EXR_LAYER_NAME_TO_PASS_ID = {
     "Postfx media": RenderPassID.PostfxMedia,
     "Post processing": RenderPassID.PostProcessing,
     "Noise": RenderPassID.Noise,
+    "Denoise albedo": RenderPassID.DenoiseAlbedo,
+    "Denoise normal": RenderPassID.DenoiseNormal,
     "Layer shadows": RenderPassID.LayerShadows,
     "Black layer shadows": RenderPassID.BlackLayerShadows,
     "Layer reflections": RenderPassID.LayerReflections,
@@ -2946,6 +2987,8 @@ OCTANE_PASS_ID_TO_SHORT_NAME = {
     RenderPassID.PostfxMedia: "PostM",
     RenderPassID.PostProcessing: "Post",
     RenderPassID.Noise: "Noise",
+    RenderPassID.DenoiseAlbedo: "DeAlb",
+    RenderPassID.DenoiseNormal: "DeN",
     RenderPassID.LayerShadows: "LSh",
     RenderPassID.BlackLayerShadows: "LBSh",
     RenderPassID.LayerReflections: "LRef",
@@ -3129,6 +3172,8 @@ OCTANE_SHORT_NAME_TO_PASS_ID = {
     "PostM": RenderPassID.PostfxMedia,
     "Post": RenderPassID.PostProcessing,
     "Noise": RenderPassID.Noise,
+    "DeAlb": RenderPassID.DenoiseAlbedo,
+    "DeN": RenderPassID.DenoiseNormal,
     "LSh": RenderPassID.LayerShadows,
     "LBSh": RenderPassID.BlackLayerShadows,
     "LRef": RenderPassID.LayerReflections,
@@ -3312,6 +3357,8 @@ OCTANE_PASS_ID_TO_NODE_PIN_NAME = {
     RenderPassID.PostfxMedia: "renderPassPostFxMedia",
     RenderPassID.PostProcessing: "renderPassPostProcessing",
     RenderPassID.Noise: "renderPassNoise",
+    RenderPassID.DenoiseAlbedo: "",
+    RenderPassID.DenoiseNormal: "",
     RenderPassID.LayerShadows: "renderPassLayerShadows",
     RenderPassID.BlackLayerShadows: "renderPassLayerBlackShadows",
     RenderPassID.LayerReflections: "renderPassLayerReflections",
@@ -3467,14 +3514,14 @@ OCTANE_PASS_ID_TO_NODE_PIN_NAME = {
     RenderPassID.CryptoGeometryNodeName: "",
 }
 
-GrayscaleRenderPassIDs = {RenderPassID.VolumeZDepthFront, RenderPassID.VolumeZDepthBack, RenderPassID.ZDepth, RenderPassID.RenderLayerMask, RenderPassID.AmbientOcclusion, RenderPassID.Opacity, RenderPassID.Roughness, RenderPassID.IndexOfRefraction, }
-DenoiseRenderPassIDs = {RenderPassID.DenoisedBeauty, RenderPassID.DenoisedDiffuseDirect, RenderPassID.DenoisedDiffuseIndirect, RenderPassID.DenoisedReflectionDirect, RenderPassID.DenoisedReflectionIndirect, RenderPassID.DenoisedEmission, RenderPassID.DenoisedRemainder, RenderPassID.DenoisedVolume, RenderPassID.DenoisedVolumeEmission, }
-CryptomatteRenderPassIDs = {RenderPassID.CryptoInstanceID, RenderPassID.CryptoMaterialNodeName, RenderPassID.CryptoMaterialNode, RenderPassID.CryptoMaterialPinName, RenderPassID.CryptoObjectNodeName, RenderPassID.CryptoObjectNode, RenderPassID.CryptoObjectPinName, RenderPassID.CryptoRenderLayer, RenderPassID.CryptoUserInstanceID, RenderPassID.CryptoGeometryNodeName, }
-CustomAovRenderPassIDs = {RenderPassID.CustomAOV1, RenderPassID.CustomAOV2, RenderPassID.CustomAOV3, RenderPassID.CustomAOV4, RenderPassID.CustomAOV5, RenderPassID.CustomAOV6, RenderPassID.CustomAOV7, RenderPassID.CustomAOV8, RenderPassID.CustomAOV9, RenderPassID.CustomAOV10, RenderPassID.CustomAOV11, RenderPassID.CustomAOV12, RenderPassID.CustomAOV13, RenderPassID.CustomAOV14, RenderPassID.CustomAOV15, RenderPassID.CustomAOV16, RenderPassID.CustomAOV17, RenderPassID.CustomAOV18, RenderPassID.CustomAOV19, RenderPassID.CustomAOV20, }
-OutputAOVRenderPassIDs = {}
-GlobalTextureAOVRenderPassIDs = {RenderPassID.GlobalTextureAOV1, RenderPassID.GlobalTextureAOV2, RenderPassID.GlobalTextureAOV3, RenderPassID.GlobalTextureAOV4, RenderPassID.GlobalTextureAOV5, RenderPassID.GlobalTextureAOV6, RenderPassID.GlobalTextureAOV7, RenderPassID.GlobalTextureAOV8, RenderPassID.GlobalTextureAOV9, RenderPassID.GlobalTextureAOV10, RenderPassID.GlobalTextureAOV11, RenderPassID.GlobalTextureAOV12, RenderPassID.GlobalTextureAOV13, RenderPassID.GlobalTextureAOV14, RenderPassID.GlobalTextureAOV15, RenderPassID.GlobalTextureAOV16, RenderPassID.GlobalTextureAOV17, RenderPassID.GlobalTextureAOV18, RenderPassID.GlobalTextureAOV19, RenderPassID.GlobalTextureAOV20, }
+GrayscaleRenderPassIDs = set([RenderPassID.VolumeZDepthFront, RenderPassID.VolumeZDepthBack, RenderPassID.ZDepth, RenderPassID.RenderLayerMask, RenderPassID.AmbientOcclusion, RenderPassID.Opacity, RenderPassID.Roughness, RenderPassID.IndexOfRefraction, ])
+DenoiseRenderPassIDs = set([RenderPassID.DenoisedBeauty, RenderPassID.DenoisedDiffuseDirect, RenderPassID.DenoisedDiffuseIndirect, RenderPassID.DenoisedReflectionDirect, RenderPassID.DenoisedReflectionIndirect, RenderPassID.DenoisedEmission, RenderPassID.DenoisedRemainder, RenderPassID.DenoisedVolume, RenderPassID.DenoisedVolumeEmission, ])
+CryptomatteRenderPassIDs = set([RenderPassID.CryptoInstanceID, RenderPassID.CryptoMaterialNodeName, RenderPassID.CryptoMaterialNode, RenderPassID.CryptoMaterialPinName, RenderPassID.CryptoObjectNodeName, RenderPassID.CryptoObjectNode, RenderPassID.CryptoObjectPinName, RenderPassID.CryptoRenderLayer, RenderPassID.CryptoUserInstanceID, RenderPassID.CryptoGeometryNodeName, ])
+CustomAovRenderPassIDs = set([RenderPassID.CustomAOV1, RenderPassID.CustomAOV2, RenderPassID.CustomAOV3, RenderPassID.CustomAOV4, RenderPassID.CustomAOV5, RenderPassID.CustomAOV6, RenderPassID.CustomAOV7, RenderPassID.CustomAOV8, RenderPassID.CustomAOV9, RenderPassID.CustomAOV10, RenderPassID.CustomAOV11, RenderPassID.CustomAOV12, RenderPassID.CustomAOV13, RenderPassID.CustomAOV14, RenderPassID.CustomAOV15, RenderPassID.CustomAOV16, RenderPassID.CustomAOV17, RenderPassID.CustomAOV18, RenderPassID.CustomAOV19, RenderPassID.CustomAOV20, ])
+OutputAOVRenderPassIDs = set([])
+GlobalTextureAOVRenderPassIDs = set([RenderPassID.GlobalTextureAOV1, RenderPassID.GlobalTextureAOV2, RenderPassID.GlobalTextureAOV3, RenderPassID.GlobalTextureAOV4, RenderPassID.GlobalTextureAOV5, RenderPassID.GlobalTextureAOV6, RenderPassID.GlobalTextureAOV7, RenderPassID.GlobalTextureAOV8, RenderPassID.GlobalTextureAOV9, RenderPassID.GlobalTextureAOV10, RenderPassID.GlobalTextureAOV11, RenderPassID.GlobalTextureAOV12, RenderPassID.GlobalTextureAOV13, RenderPassID.GlobalTextureAOV14, RenderPassID.GlobalTextureAOV15, RenderPassID.GlobalTextureAOV16, RenderPassID.GlobalTextureAOV17, RenderPassID.GlobalTextureAOV18, RenderPassID.GlobalTextureAOV19, RenderPassID.GlobalTextureAOV20, ])
 
-# END OCTANE GENERATED CODE BLOCK #
+##### END OCTANE GENERATED CODE BLOCK #####
 
 RENDER_PASS_OUTPUT_AOV_NAME = "AOVOutput"
 RENDER_PASS_OUTPUT_AOV_IDS_OFFSET = 10000
@@ -3486,6 +3533,8 @@ OCTANE_PASS_PROPERTY_TO_PASS_ID_DATA = {
     "use_pass_beauty": RenderPassID.Beauty,
     "use_pass_emitters": RenderPassID.Emitters,
     "use_pass_env": RenderPassID.Environment,
+    "use_pass_denoise_albedo": RenderPassID.DenoiseAlbedo,
+    "use_pass_denoise_normal": RenderPassID.DenoiseNormal,    
     "use_pass_diff": RenderPassID.Diffuse,
     "use_pass_diff_dir": RenderPassID.DiffuseDirect,
     "use_pass_diff_indir": RenderPassID.DiffuseIndirect,
@@ -3630,3 +3679,23 @@ OCTANE_PASS_PROPERTY_TO_PASS_ID_DATA = {
     "use_pass_mat_refract_filter_info": RenderPassID.RefractionFilterInfo,
     "use_pass_mat_transm_filter_info": RenderPassID.TransmissionFilterInfo,
 }
+
+OCTANE_PASS_ID_TO_NODE_PIN_NAME[RenderPassID.DenoiseAlbedo] = "renderPassDenoiseAlbedo"
+OCTANE_PASS_ID_TO_NODE_PIN_NAME[RenderPassID.DenoiseNormal] = "renderPassDenoiseNormal"
+OCTANE_PASS_ID_TO_NODE_PIN_NAME[RenderPassID.CryptoRenderLayer] = "renderPassCryptomatteRenderLayer"
+OCTANE_PASS_ID_TO_NODE_PIN_NAME[RenderPassID.CryptoUserInstanceID] = "renderPassCryptomatteUserInstance"
+OCTANE_PASS_ID_TO_NODE_PIN_NAME[RenderPassID.CryptoGeometryNodeName] = "renderPassCryptomatteGeometryNodeName"
+for i in range(9, 21):
+    idx_str = str(i)    
+    light_id_str = "LightID" + idx_str
+    light_id_direct_str = "LightID" + idx_str + "Direct"
+    light_id_indirect_str = "LightID" + idx_str + "Indirect"
+    light_id_value = "renderPassLight" + idx_str
+    light_id_direct_value = "renderPassLight" + idx_str + "Direct"
+    light_id_indirect_value = "renderPassLight" + idx_str + "Indirect"
+    light_id = getattr(RenderPassID, light_id_str, 0)
+    light_id_direct = getattr(RenderPassID, light_id_direct_str, 0)
+    light_id_indirect = getattr(RenderPassID, light_id_indirect_str, 0)
+    OCTANE_PASS_ID_TO_NODE_PIN_NAME[light_id] = light_id_value
+    OCTANE_PASS_ID_TO_NODE_PIN_NAME[light_id_direct] = light_id_direct_value
+    OCTANE_PASS_ID_TO_NODE_PIN_NAME[light_id_indirect] = light_id_indirect_value

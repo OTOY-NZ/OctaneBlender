@@ -12,46 +12,46 @@ from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, O
 
 
 class OctaneFractalTransform(OctaneBaseSocket):
-    bl_idname = "OctaneFractalTransform"
-    bl_label = "UV transform"
-    color = consts.OctanePinColor.Transform
-    octane_default_node_type = 67
-    octane_default_node_name = "OctaneTransformValue"
+    bl_idname="OctaneFractalTransform"
+    bl_label="UV transform"
+    color=consts.OctanePinColor.Transform
+    octane_default_node_type=67
+    octane_default_node_name="OctaneTransformValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=243)
     octane_pin_name: StringProperty(name="Octane Pin Name", default="transform")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TRANSFORM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
-    octane_hide_value = True
-    octane_min_version = 0
-    octane_end_version = 4294967295
-    octane_deprecated = False
+    octane_hide_value=True
+    octane_min_version=0
+    octane_end_version=4294967295
+    octane_deprecated=False
 
 class OctaneFractalProjection(OctaneBaseSocket):
-    bl_idname = "OctaneFractalProjection"
-    bl_label = "Projection"
-    color = consts.OctanePinColor.Projection
-    octane_default_node_type = 78
-    octane_default_node_name = "OctaneMeshUVProjection"
+    bl_idname="OctaneFractalProjection"
+    bl_label="Projection"
+    color=consts.OctanePinColor.Projection
+    octane_default_node_type=78
+    octane_default_node_name="OctaneMeshUVProjection"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=141)
     octane_pin_name: StringProperty(name="Octane Pin Name", default="projection")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_PROJECTION)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
-    octane_hide_value = True
-    octane_min_version = 0
-    octane_end_version = 4294967295
-    octane_deprecated = False
+    octane_hide_value=True
+    octane_min_version=0
+    octane_end_version=4294967295
+    octane_deprecated=False
 
 class OctaneFractal(bpy.types.Node, OctaneBaseNode):
-    bl_idname = "OctaneFractal"
-    bl_label = "Fractal"
-    bl_width_default = 200
-    octane_render_pass_id = -1
-    octane_render_pass_name = ""
-    octane_render_pass_short_name = ""
-    octane_render_pass_description = ""
-    octane_render_pass_sub_type_name = ""
+    bl_idname="OctaneFractal"
+    bl_label="Fractal"
+    bl_width_default=200
+    octane_render_pass_id=-1
+    octane_render_pass_name=""
+    octane_render_pass_short_name=""
+    octane_render_pass_description=""
+    octane_render_pass_sub_type_name=""
     octane_socket_class_list=[OctaneFractalTransform,OctaneFractalProjection,]
-    octane_min_version = 0
+    octane_min_version=0
     octane_node_type=268
     octane_socket_list: StringProperty(name="Socket List", default="UV transform;Projection;")
     octane_attribute_list: StringProperty(name="Attribute List", default="")
@@ -81,4 +81,4 @@ def unregister():
     utility.octane_unregister_interface_class(_SOCKET_INTERFACE_CLASSES)
     utility.octane_unregister_class(reversed(_CLASSES))
 
-# END OCTANE GENERATED CODE BLOCK #
+##### END OCTANE GENERATED CODE BLOCK #####

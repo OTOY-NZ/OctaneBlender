@@ -210,7 +210,6 @@ class OctaneClient {
   /// @param [in] iOutOfCoreGPUHeadroom - GPU headroom for "out of core" mode.
   void startRender(bool bInteractive,
                    bool bUseSharedSurface,
-                   bool bEnableRealtime,
                    uint64_t iClientProcessId,
                    uint64_t iDeviceLuid,
                    int32_t iWidth,

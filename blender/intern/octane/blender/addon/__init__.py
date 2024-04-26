@@ -1,10 +1,7 @@
-# <pep8 compliant>
-
-
 bl_info = {
-    "name": "OctaneBlender (v. 28.13)",
+    "name": "OctaneBlender (v. 29.0)",
     "author": "OTOY Inc.",
-    "version": (28, 11, 0),
+    "version": (29, 0, 0),
     "blender": (4, 0, 2),
     "location": "Info header, render engine menu",
     "description": "OctaneBlender",
@@ -15,42 +12,26 @@ bl_info = {
     "category": "Render"
 }
 
+import bpy
+import blf
+import bgl
+import array
+import gpu
 import os
 import time
-import weakref
-
+import traceback
 import numpy as np
 from bpy.app.handlers import persistent
-
-import bpy
-from octane import engine
 from octane import core
 from octane import version_update
-from octane.core.client import OctaneBlender
 from octane.core.frame_buffer import ViewportDrawData, RenderDrawData
-from octane.utils import consts, logger, utility
-
-
-ACTIVE_RENDER_ENGINE = None
-
-
-def set_active_render_engine(active_engine):
-    global ACTIVE_RENDER_ENGINE
-    ACTIVE_RENDER_ENGINE = weakref.ref(active_engine) if active_engine is not None else None
-
-
-def get_active_render_engine():
-    # noinspection PyCallingNonCallable
-    return ACTIVE_RENDER_ENGINE() if ACTIVE_RENDER_ENGINE is not None else None
-
-
-def is_render_engine_active():
-    return get_active_render_engine() is not None
+from octane.core.client import OctaneBlender
+from octane.utils import consts, utility
 
 
 class OctaneRender(bpy.types.RenderEngine):
     bl_idname = 'octane'
-    bl_label = "Octane"
+    bl_label = "Octane"    
     bl_use_shading_nodes = True
     bl_use_shading_nodes_custom = False
     bl_use_preview = False
@@ -61,16 +42,15 @@ class OctaneRender(bpy.types.RenderEngine):
     def __init__(self):
         self.session = None
         self.draw_data = None
-        self.is_active = True
+        self.is_viewport_active = False
         if core.ENABLE_OCTANE_ADDON_CLIENT:
             self.create_session()
-
+      
     def __del__(self):
-        try:
-            self.is_active = False
+        if core.ENABLE_OCTANE_ADDON_CLIENT:
             self.free_session()
-        except ReferenceError:
-            pass
+        else:
+            engine.free(self)
 
     def create_session(self):
         from octane.core.session import RenderSession
@@ -78,27 +58,17 @@ class OctaneRender(bpy.types.RenderEngine):
 
     def free_session(self):
         try:
-            if core.ENABLE_OCTANE_ADDON_CLIENT:
-                self.free_draw_data()
-                if self.session.is_render_started:
-                    if self.session.session_type == consts.SessionType.VIEWPORT:
-                        self.session.stop_render()
-                if self.session is not None:
-                    self.session.clear()
-            else:
-                engine.free(self)
-        except AttributeError:
-            pass
-        except ReferenceError:
+            self.free_draw_data()
+            if self.session.is_render_started:
+                if self.session.session_type == consts.SessionType.VIEWPORT:
+                    self.session.stop_render()
+            if self.session is not None:
+                self.session.clear()
+        except:
             pass
 
     # final render
     def update(self, data, depsgraph):
-        active_engine = get_active_render_engine()
-        if active_engine is not None:
-            active_engine.free_session()
-            active_engine.is_active = False
-            active_engine.tag_update()
         if core.ENABLE_OCTANE_ADDON_CLIENT:
             return
         if not self.session:
@@ -106,17 +76,12 @@ class OctaneRender(bpy.types.RenderEngine):
         engine.reset(self, data, depsgraph)
 
     def render(self, depsgraph):
-        set_active_render_engine(self)
         if core.ENABLE_OCTANE_ADDON_CLIENT:
             self.final_render(depsgraph)
         else:
             engine.render(self, depsgraph)
 
     def final_render(self, depsgraph):
-        if not OctaneBlender().init_server():
-            self.update_stats("Error", "OctaneServer is not connected or activated")
-            self.report({"ERROR"}, "OctaneServer is not connected or activated")
-            return
         self.session.session_type = consts.SessionType.FINAL_RENDER
         scene = depsgraph.scene_eval
         width = utility.render_resolution_x(scene)
@@ -135,42 +100,43 @@ class OctaneRender(bpy.types.RenderEngine):
     def render_layer(self, depsgraph, scene, layer, width, height):
         start_time = time.time()
         # self.session.reset_render()
-        # Init Scene
+        # Init Scene        
         self.session.start_render(scene, is_viewport=False)
         init_time = time.time()
         init_elapsed_time = init_time - start_time
         self.update_stats("Init Time", "%.2f" % init_elapsed_time)
         # Sync Scene
         self.session.render_update(depsgraph, scene, layer)
-        self.session.set_resolution(width, height, True)
+        self.session.set_resolution(width, height, True)        
         OctaneBlender().use_shared_surface(False)
         render_pass_ids = utility.get_view_layer_render_pass_ids(layer)
         self.session.set_render_pass_ids(render_pass_ids)
         sync_time = time.time()
         sync_elapsed_time = sync_time - init_time
         self.update_stats("Scene Synced Time", "%.2f" % sync_elapsed_time)
+        statistics = {}
+        pixel_num = width * height
         result = self.begin_result(0, 0, width, height)
         render_layer = result.layers[0]
         combined = render_layer.passes["Combined"]
         sample_status = ""
-        combined_draw_data = RenderDrawData(consts.RenderPassID.Beauty,
-                                            consts.RenderFrameDataType.RENDER_FRAME_FLOAT_RGBA, width, height, combined)
+        combined_draw_data = RenderDrawData(consts.RenderPassID.Beauty, consts.RenderFrameDataType.RENDER_FRAME_FLOAT_RGBA, width, height, combined)
         while True:
             is_task_completed = False
             if combined_draw_data.update_render_result(False):
                 calculated_samples_per_pixel = combined_draw_data.calculated_samples_per_pixel
                 tonemapped_samples_per_pixel = combined_draw_data.tonemapped_samples_per_pixel
-                _region_samples_per_pixel = combined_draw_data.region_samples_per_pixel
+                region_samples_per_pixel = combined_draw_data.region_samples_per_pixel
                 max_sample = combined_draw_data.max_samples_per_pixel
                 current_sample = max(calculated_samples_per_pixel, tonemapped_samples_per_pixel)
-                sample_status = "Sample: %d/%d" % (current_sample, max_sample)
+                sample_status = "Sample: %d/%d" % (current_sample, max_sample)                
                 is_task_completed = current_sample >= max_sample
                 self.update_result(result)
-            render_time = time.time()
+            render_time = time.time() 
             render_elapsed_time = render_time - sync_time
             time_status = "Render time: %s" % utility.time_human_readable_from_seconds(render_elapsed_time)
             if sample_status == "":
-                self.update_stats("", "%s" % time_status)
+                self.update_stats("", "%s" % (time_status))
             else:
                 self.update_stats("", "%s | %s" % (time_status, sample_status))
             if is_task_completed or self.test_break():
@@ -186,31 +152,24 @@ class OctaneRender(bpy.types.RenderEngine):
             if render_pass_id == consts.RenderPassID.Beauty:
                 combined_np_array = np.empty(shape=(len(combined.rect), 4), dtype=np.float32)
                 combined.rect.foreach_get(combined_np_array)
-                render_pass.rect = combined_np_array
+                render_pass.rect = combined_np_array              
             elif render_pass_id > consts.RenderPassID.Beauty:
                 if render_pass.channels == 4:
                     if utility.is_denoise_render_pass(render_pass_id):
-                        tonemapped_samples_per_pixel = 0
-                        max_sample = 0
                         while True:
                             if render_pass_draw_data.update_render_result(False):
                                 calculated_samples_per_pixel = render_pass_draw_data.calculated_samples_per_pixel
                                 tonemapped_samples_per_pixel = render_pass_draw_data.tonemapped_samples_per_pixel
                                 max_sample = render_pass_draw_data.max_samples_per_pixel
-                                render_time = time.time()
+                                render_time = time.time() 
                                 render_elapsed_time = render_time - sync_time
-                                time_status = "Render time: %s" % utility.time_human_readable_from_seconds(
-                                    render_elapsed_time)
-                                sample_status = "Denoising Sample: %d/%d/%d" % (
-                                    calculated_samples_per_pixel, tonemapped_samples_per_pixel, max_sample)
+                                time_status = "Render time: %s" % utility.time_human_readable_from_seconds(render_elapsed_time)
+                                sample_status = "Denoising Sample: %d/%d/%d" % (calculated_samples_per_pixel, tonemapped_samples_per_pixel, max_sample)
                                 self.update_stats("", "%s | %s" % (time_status, sample_status))
                                 if tonemapped_samples_per_pixel == max_sample:
-                                    break
-                            self.report({'INFO'}, "Wait for the Render Result of Pass %s. Samples: %d/%d" % (
-                                render_pass.name, tonemapped_samples_per_pixel, max_sample))
-                            if self.test_break():
-                                break
-                            time.sleep(0.05)
+                                    break                            
+                            self.report({'INFO'}, "Wait for the Render Result of Pass %s. Samples: %d/%d" % (render_pass.name, tonemapped_samples_per_pixel, max_sample))
+                            time.sleep(0.5)
                     else:
                         if not render_pass_draw_data.update_render_result(False):
                             self.report({'ERROR'}, "Cannot Get the Render Result of Pass %s" % render_pass.name)
@@ -218,8 +177,6 @@ class OctaneRender(bpy.types.RenderEngine):
                     if not render_pass_draw_data.update_render_result(False):
                         self.report({'ERROR'}, "Cannot Get the Render Result of Pass %s" % render_pass.name)
             self.update_result(result)
-            if self.test_break():
-                break
         self.session.export_render_pass(depsgraph, scene, layer, render_layer)
         self.end_result(result)
         self.session.stop_render()
@@ -229,28 +186,18 @@ class OctaneRender(bpy.types.RenderEngine):
 
     # viewport render
     def view_update(self, context, depsgraph):
-        active_engine = get_active_render_engine()
-        if (active_engine is not None and active_engine is not self) or not self.is_active:
-            self.update_stats("", "Final render or other rendered viewport is active! "
-                                  "Please turn off them and try again!")
-            if not self.is_active:
-                utility.set_all_viewport_shading_type("SOLID", True)
+        # Update on data changes for viewport render
+        if utility.is_multiple_viewport_rendering():
+            self.report({'ERROR'}, "Multiple rendered viewports are active! Only one active render task is supported at the same time! Please turn off viewport shading and try again!")
             return
         if core.ENABLE_OCTANE_ADDON_CLIENT:
             self.session.session_type = consts.SessionType.VIEWPORT
             if not self.session.is_render_started:
-                set_active_render_engine(self)
-                result = OctaneBlender().init_server()
-                if result:
-                    self.session.start_render(depsgraph.scene, is_viewport=True,
-                                              resource_cache_type=utility.get_enum_int_value(depsgraph.scene.octane,
-                                                                                             "resource_cache_type", 0))
-                else:
-                    self.update_stats("Error", "OctaneServer is not connected or activated")
+                OctaneBlender().init_server()
+                self.session.start_render(depsgraph.scene, is_viewport=True, resource_cache_type=utility.get_enum_int_value(depsgraph.scene.octane, "resource_cache_type", 0))
             self.session.view_update(self, depsgraph, context)
         else:
             if not self.session:
-                set_active_render_engine(self)
                 engine.create(self, context.blend_data,
                               context.region, context.space_data, context.region_data)
                 self._force_update_all_script_nodes()
@@ -258,8 +205,6 @@ class OctaneRender(bpy.types.RenderEngine):
             engine.sync(self, depsgraph, context.blend_data)
 
     def view_draw(self, context, depsgraph):
-        if not self.is_active:
-            return
         # Draw viewport render
         if core.ENABLE_OCTANE_ADDON_CLIENT:
             self.session.view_draw(self, depsgraph, context)
@@ -274,37 +219,30 @@ class OctaneRender(bpy.types.RenderEngine):
             self.tag_redraw()
 
     def free_draw_data(self):
-        try:
-            if self.draw_data is not None:
-                self.draw_data.free(self)
-        except AttributeError as _e:
-            pass
+        if self.draw_data is not None:
+            self.draw_data.free(self)
 
     def immediate_fetch_draw_data(self):
         if self.draw_data is not None:
             self.draw_data.tag_immediate_fetch(True)
 
     def draw_render_result(self, view_layer, region, scene):
-        if not self.session.is_render_started:
-            return
         is_demo = self.session.is_demo_version()
         render_pass_id = self.session.get_current_preview_render_pass_id(view_layer)
-        is_render_pass_shared_surface_supported = not (utility.is_grayscale_render_pass(render_pass_id)
-                                                       or utility.is_cryptomatte_render_pass(render_pass_id)
-                                                       or utility.is_output_aov_render_pass(render_pass_id))
-        is_shared_surface_supported = (OctaneBlender().is_shared_surface_supported()
-                                       and is_render_pass_shared_surface_supported)
+        is_render_pass_shared_surface_supported = not (utility.is_grayscale_render_pass(render_pass_id) \
+            or utility.is_cryptomatte_render_pass(render_pass_id) \
+            or utility.is_output_aov_render_pass(render_pass_id))
+        is_shared_surface_supported = OctaneBlender().is_shared_surface_supported() and is_render_pass_shared_surface_supported
         use_shared_surface = (self.session.use_shared_surface and is_shared_surface_supported)
         is_draw_data_just_created = False
         if region:
             # Get viewport dimensions
             if not self.draw_data or self.draw_data.needs_replacement(region.width, region.height, use_shared_surface):
                 self.free_draw_data()
-                self.draw_data = ViewportDrawData(is_demo, render_pass_id, region.width, region.height, self, scene,
-                                                  use_shared_surface)
+                self.draw_data = ViewportDrawData(is_demo, render_pass_id, region.width, region.height, self, scene, use_shared_surface)
                 is_draw_data_just_created = True
         if self.draw_data:
-            self.draw_data.update(render_pass_id)
+            self.draw_data.update(render_pass_id, scene)
             if not is_draw_data_just_created:
                 self.draw_data.draw(self, scene)
 
@@ -314,13 +252,12 @@ class OctaneRender(bpy.types.RenderEngine):
         for node in obj.node_tree.nodes.values():
             if node.bl_idname == 'ShaderNodeGroup':
                 self._update_all_script_nodes(node)
-            if node.bl_idname in ('ShaderNodeOctOSLTex', 'ShaderNodeOctOSLCamera', 'ShaderNodeOctOSLBakingCamera',
-                                  'ShaderNodeOctOSLProjection', 'ShaderNodeOctVectron'):
+            if node.bl_idname in ('ShaderNodeOctOSLTex', 'ShaderNodeOctOSLCamera', 'ShaderNodeOctOSLBakingCamera', 'ShaderNodeOctOSLProjection', 'ShaderNodeOctVectron'):
                 self.update_script_node(node)
 
     def _force_update_all_script_nodes(self):
         collections = (bpy.data.materials, bpy.data.textures, bpy.data.worlds)
-        for collection in collections:
+        for collection in collections:        
             for obj in collection.values():
                 self._update_all_script_nodes(obj)
 
@@ -355,14 +292,13 @@ def octane_load_post_handler(arg):
 
 
 @persistent
-def octane_depsgraph_update_post_handler(_scene):
+def octane_depsgraph_update_post_handler(scene):
     pass
 
 
 # Triggers when window's workspace is changed
 workspace_change_owner = object()
 workspace_change_subscribe_to = bpy.types.Window, "workspace"
-
 
 def workspace_change_callback():
     utility.set_all_viewport_shading_type("SOLID")
@@ -380,7 +316,7 @@ def register():
 
     from octane import properties
     from octane import properties_
-    from octane import uis
+    from octane import uis    
     from octane import nodes
     from octane import ui
     from octane import operators
@@ -388,7 +324,7 @@ def register():
     from octane.core import resource_cache
 
     properties.register()
-    properties_.register()
+    properties_.register()    
     uis.register()
     nodes.register()
     ui.register()
@@ -419,7 +355,7 @@ def unregister():
     from octane import preferences
     from octane import properties
     from octane import properties_
-    from octane import uis
+    from octane import uis    
     from octane import nodes
     from octane import ui
     from octane import operators
@@ -436,7 +372,7 @@ def unregister():
     bpy.app.handlers.depsgraph_update_post.remove(operators.update_blender_volume_grid_info)
     bpy.app.handlers.depsgraph_update_post.remove(resource_cache.update_dirty_mesh_names)
     bpy.app.handlers.depsgraph_update_post.remove(octane_depsgraph_update_post_handler)
-
+    
     preferences.unregister()
     properties_.unregister()
     properties.unregister()

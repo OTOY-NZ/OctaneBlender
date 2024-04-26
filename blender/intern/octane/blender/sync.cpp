@@ -207,12 +207,6 @@ void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph)
       mesh_map.set_recalc(b_mesh);
       depgraph_updated_mesh_names.insert(b_mesh.name());
     }
-    /* Curve */
-    else if (b_id.is_a(&RNA_Curve)) {
-      BL::Curve b_curve(b_id);
-      mesh_map.set_recalc(b_curve);
-      depgraph_updated_mesh_names.insert(b_curve.name());
-    }
     /* MetaBall */
     else if (b_id.is_a(&RNA_MetaBall)) {
       BL::MetaBall b_metaball(b_id);
@@ -340,6 +334,8 @@ void BlenderSync::sync_render_passes(BL::Depsgraph &b_depsgraph, BL::ViewLayer &
   SET_OCTANE_PASS(beauty_passes, "use_pass_vol_z_front", OCT_SCE_PASS_VOLUME_Z_FRONT);
   SET_OCTANE_PASS(beauty_passes, "use_pass_vol_z_back", OCT_SCE_PASS_VOLUME_Z_BACK);
   SET_OCTANE_PASS(beauty_passes, "use_pass_noise", OCT_SCE_PASS_NOISE);
+  SET_OCTANE_PASS(beauty_passes, "use_pass_denoise_albedo", OCT_SCE_PASS_DENOISE_ALBEDO);
+  SET_OCTANE_PASS(beauty_passes, "use_pass_denoise_normal", OCT_SCE_PASS_DENOISE_NORMAL);
   passes->oct_node->iBeautyPasses = beauty_passes;
   int32_t denoiser_passes = 0;
   SET_OCTANE_PASS(denoiser_passes, "use_pass_denoise_beauty", OCT_SCE_PASS_DENOISER_BEAUTY);
@@ -601,8 +597,6 @@ SessionParams BlenderSync::get_session_params(
   bool use_render_camera_imager = get_boolean(oct_scene, "use_render_camera_imager");
   params.prefer_image_type = static_cast<PreferImageType>(
       get_enum(oct_scene, "prefer_image_type"));
-  params.enable_realtime = params.interactive ?
-      get_boolean(oct_scene, "enable_realtime") : false;
   params.render_priority = RNA_enum_get(&oct_scene, "priority_mode");
   params.resource_cache_type = RNA_enum_get(&oct_scene, "resource_cache_type");
   bool use_global_imager = false;
@@ -737,7 +731,7 @@ BL::Node BlenderSync::find_input_node_from_switch_node(BL::NodeTree &b_node_tree
   int32_t input_idx = 0;
   BL::Node::inputs_iterator b_input;
   for (node.inputs.begin(b_input); b_input != node.inputs.end(); ++b_input) {
-    if (b_input->identifier() == "Input") {
+    if (b_input->name() == "Input") {
       input_idx = get_int(b_input->ptr, "default_value");
       break;
     }
@@ -751,8 +745,7 @@ BL::Node BlenderSync::find_input_node_from_switch_node(BL::NodeTree &b_node_tree
           BL::Node b_from_node = b_link->from_node();
           BL::Node b_to_node = b_link->to_node();
           BL::NodeSocket b_to_socket = b_link->to_socket();
-          if (node.name() == b_to_node.name() && b_to_socket.identifier() == b_input->identifier())
-          {
+          if (node.name() == b_to_node.name() && b_to_socket.name() == b_input->name()) {
             return b_from_node;
           }
         }
@@ -809,10 +802,10 @@ void BlenderSync::get_samples(PointerRNA oct_scene,
         for (active_kernel_node.inputs.begin(b_input); b_input != active_kernel_node.inputs.end();
              ++b_input)
         {
-          if (b_input->identifier() == "Max. preview samples") {
+          if (b_input->name() == "Max. preview samples") {
             max_preview_sample = get_int(b_input->ptr, "default_value");
           }
-          if (b_input->identifier() == "Max. samples") {
+          if (b_input->name() == "Max. samples") {
             max_sample = get_int(b_input->ptr, "default_value");
           }
         }
@@ -1184,6 +1177,8 @@ std::string BlenderSync::resolve_bl_id_octane_name(BL::ID b_id) {
   MAP_PASS("VolumeZDepthFront", ::Octane::RenderPassId::RENDER_PASS_VOLUME_Z_DEPTH_FRONT);
   MAP_PASS("VolumeZDepthBack", ::Octane::RenderPassId::RENDER_PASS_VOLUME_Z_DEPTH_BACK);
   MAP_PASS("Noise", ::Octane::RenderPassId::RENDER_PASS_NOISE_BEAUTY);
+  MAP_PASS("DenoiseAlbedo", ::Octane::RenderPassId::RENDER_PASS_DENOISE_ALBEDO);
+  MAP_PASS("DenoiseNormal", ::Octane::RenderPassId::RENDER_PASS_DENOISE_NORMAL);
   /* Denoise Passes */
   MAP_PASS("DenoisedBeauty", ::Octane::RenderPassId::RENDER_PASS_BEAUTY_DENOISER_OUTPUT);
   MAP_PASS("DenoisedDiffuseDirect",

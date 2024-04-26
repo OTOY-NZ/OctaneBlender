@@ -2951,6 +2951,8 @@ typedef enum OctaneScenePassType {
   OCT_SCE_PASS_VOLUME_Z_FRONT = (1 << 22),
   OCT_SCE_PASS_VOLUME_Z_BACK = (1 << 23),
   OCT_SCE_PASS_NOISE = (1 << 24),
+  OCT_SCE_PASS_DENOISE_ALBEDO = (1 << 25),
+  OCT_SCE_PASS_DENOISE_NORMAL = (1 << 26),
   /* Denoise Passes */
   OCT_SCE_PASS_DENOISER_BEAUTY = (1 << 0),
   OCT_SCE_PASS_DENOISER_DIFF_DIR = (1 << 1),

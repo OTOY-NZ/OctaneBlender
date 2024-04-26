@@ -1,3 +1,5 @@
+import bpy
+from bpy.utils import register_class, unregister_class
 from . import octane_camera_data
 from . import octane_object_data
 from . import octane_proxy

@@ -56,7 +56,6 @@ class SessionParams {
   bool use_passes;
   bool enable_camera_imager;
   PreferImageType prefer_image_type;
-  bool enable_realtime;
   bool use_viewport_hide;
   MeshType meshes_type;
   float fps;
@@ -87,7 +86,6 @@ class SessionParams {
     fps = 24.0f;
     enable_camera_imager = false;
     prefer_image_type = PreferImageType::OCTANE_DEFAULT;
-    enable_realtime = false;
     render_priority = 0;
     resource_cache_type = ::OctaneDataTransferObject::DISABLE_CACHE_SYSTEM;
     export_type = ::OctaneEngine::SceneExportTypes::NONE;
@@ -117,7 +115,6 @@ class SessionParams {
         out_of_core_gpu_headroom == params.out_of_core_gpu_headroom &&
         enable_camera_imager == params.enable_camera_imager &&
         prefer_image_type == params.prefer_image_type &&
-        enable_realtime == params.enable_realtime &&
         render_priority == params.render_priority &&
         resource_cache_type == params.resource_cache_type && width == width && height == height && use_shared_surface == params.use_shared_surface &&
              process_id == params.process_id && device_luid == params.device_luid);

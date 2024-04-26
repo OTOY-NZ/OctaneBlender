@@ -1,6 +1,6 @@
-# <pep8 compliant>
-
-# BEGIN OCTANE GENERATED CODE BLOCK #
+##### BEGIN OCTANE GENERATED CODE BLOCK #####
+import bpy
+from bpy.utils import register_class, unregister_class
 from . import texture
 from . import adjust_hue
 from . import adjust_contrast
@@ -23,8 +23,9 @@ from . import comparison
 from . import adjust_color_balance
 from . import mask_with_layer_group
 from . import apply_gradient_map
+from . import apply_lut
+from . import apply_custom_curve
 from . import texture_layer_switch
-
 
 def register():
     texture.register()
@@ -49,8 +50,9 @@ def register():
     adjust_color_balance.register()
     mask_with_layer_group.register()
     apply_gradient_map.register()
+    apply_lut.register()
+    apply_custom_curve.register()
     texture_layer_switch.register()
-
 
 def unregister():
     texture.unregister()
@@ -75,6 +77,8 @@ def unregister():
     adjust_color_balance.unregister()
     mask_with_layer_group.unregister()
     apply_gradient_map.unregister()
+    apply_lut.unregister()
+    apply_custom_curve.unregister()
     texture_layer_switch.unregister()
 
-# END OCTANE GENERATED CODE BLOCK #
+##### END OCTANE GENERATED CODE BLOCK #####

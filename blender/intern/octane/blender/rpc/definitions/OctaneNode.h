@@ -986,7 +986,6 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOFloat)	fSensorWidth,
 		(OctaneDTOFloat)	fFocalLength,
 		(OctaneDTOFloat)	fFstop,
-    (OctaneDTOBool)		bUseFstop,
 		//Viewing angle
 		(OctaneDTOFloat)	fFieldOfView,
 		(OctaneDTOFloat)	fScaleOfView,
@@ -1139,12 +1138,11 @@ namespace OctaneDataTransferObject {
 		}
 
 		OCTANE_NODE_PRE_UPDATE_FUNCTIONS
-    OCTANE_NODE_POST_UPDATE_FUNCTIONS
 		OCTANE_NODE_SERIALIZARION_FUNCTIONS
 		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(
 			iCameraMode, 
-			fSensorWidth, fFocalLength, fFstop, bUseFstop,
+			fSensorWidth, fFocalLength, fFstop,
 			fFieldOfView, fScaleOfView, f2LensShift, fPixelAspectRatio, bPerspectiveCorrection,
 			fFisheyeAngle, iFisheyeType, bHardVignette, iFisheyeProjection,
 			fHorizontalFiledOfView, fVerticalFiledOfView, iCubemapLayout, bEquiAngularCubemap, 

@@ -251,7 +251,9 @@ struct Camera {
 
   // Denoiser
   bool bEnableDenoiser;
+  int32_t iDenoiseType;
   bool bDenoiseVolumes;
+  bool bDenoisePrefilter;
   bool bDenoiseOnCompletion;
   int32_t iMinDenoiserSample;
   int32_t iMaxDenoiserInterval;
@@ -348,6 +350,8 @@ struct Camera {
 
         || bEnableDenoiser != otherCam.bEnableDenoiser ||
         bDenoiseVolumes != otherCam.bDenoiseVolumes ||
+        iDenoiseType != otherCam.iDenoiseType ||
+        bDenoisePrefilter != otherCam.bDenoisePrefilter ||
         bDenoiseOnCompletion != otherCam.bDenoiseOnCompletion ||
         iMinDenoiserSample != otherCam.iMinDenoiserSample ||
         iMaxDenoiserInterval != otherCam.iMaxDenoiserInterval ||
@@ -379,7 +383,6 @@ struct Camera {
         universalCamera.fSensorWidth.fVal != otherCam.universalCamera.fSensorWidth.fVal ||
         universalCamera.fFocalLength.fVal != otherCam.universalCamera.fFocalLength.fVal ||
         universalCamera.fFstop.fVal != otherCam.universalCamera.fFstop.fVal ||
-        universalCamera.bUseFstop.bVal != otherCam.universalCamera.bUseFstop.bVal ||
         universalCamera.fFieldOfView.fVal != otherCam.universalCamera.fFieldOfView.fVal ||
         universalCamera.fScaleOfView.fVal != otherCam.universalCamera.fScaleOfView.fVal ||
         universalCamera.f2LensShift.fVal != otherCam.universalCamera.f2LensShift.fVal ||
@@ -524,6 +527,8 @@ struct Camera {
 
         && bEnableDenoiser == otherCam.bEnableDenoiser &&
         bDenoiseVolumes == otherCam.bDenoiseVolumes &&
+        iDenoiseType == otherCam.iDenoiseType &&
+        bDenoisePrefilter == otherCam.bDenoisePrefilter &&
         bDenoiseOnCompletion == otherCam.bDenoiseOnCompletion &&
         iMinDenoiserSample == otherCam.iMinDenoiserSample &&
         iMaxDenoiserInterval == otherCam.iMaxDenoiserInterval &&
@@ -555,7 +560,6 @@ struct Camera {
         universalCamera.fSensorWidth.fVal == otherCam.universalCamera.fSensorWidth.fVal &&
         universalCamera.fFocalLength.fVal == otherCam.universalCamera.fFocalLength.fVal &&
         universalCamera.fFstop.fVal == otherCam.universalCamera.fFstop.fVal &&
-        universalCamera.bUseFstop.bVal == otherCam.universalCamera.bUseFstop.bVal &&
         universalCamera.fFieldOfView.fVal == otherCam.universalCamera.fFieldOfView.fVal &&
         universalCamera.fScaleOfView.fVal == otherCam.universalCamera.fScaleOfView.fVal &&
         universalCamera.f2LensShift.fVal == otherCam.universalCamera.f2LensShift.fVal &&
@@ -812,6 +816,10 @@ struct Camera {
       bEnableDenoiser = otherCam.bEnableDenoiser;
     if (bDenoiseVolumes != otherCam.bDenoiseVolumes)
       bDenoiseVolumes = otherCam.bDenoiseVolumes;
+    if (iDenoiseType != otherCam.iDenoiseType)
+      iDenoiseType = otherCam.iDenoiseType;
+    if (bDenoisePrefilter != otherCam.bDenoisePrefilter)
+      bDenoisePrefilter = otherCam.bDenoisePrefilter;
     if (bDenoiseOnCompletion != otherCam.bDenoiseOnCompletion)
       bDenoiseOnCompletion = otherCam.bDenoiseOnCompletion;
     if (iMinDenoiserSample != otherCam.iMinDenoiserSample)
@@ -885,7 +893,6 @@ struct Camera {
     universalCamera.fSensorWidth.fVal = otherCam.universalCamera.fSensorWidth.fVal;
     universalCamera.fFocalLength.fVal = otherCam.universalCamera.fFocalLength.fVal;
     universalCamera.fFstop.fVal = otherCam.universalCamera.fFstop.fVal;
-    universalCamera.bUseFstop.bVal = otherCam.universalCamera.bUseFstop.bVal;
     universalCamera.fFieldOfView.fVal = otherCam.universalCamera.fFieldOfView.fVal;
     universalCamera.fScaleOfView.fVal = otherCam.universalCamera.fScaleOfView.fVal;
     universalCamera.f2LensShift.fVal = otherCam.universalCamera.f2LensShift.fVal;

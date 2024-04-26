@@ -115,9 +115,8 @@ void LightManager::server_update(::OctaneEngine::OctaneClient *server,
   current_octane_objects.iCurrentFrameIdx = frame_idx;
   current_octane_objects.iTotalFrameIdx = total_frames;
   current_octane_objects.bGlobal = false;
-  if (scene && scene->session && scene->session->params.interactive) {
-    scene->generate_final_octane_objects_data(octane_objects, current_octane_objects);
-  }
+
+  scene->generate_final_octane_objects_data(octane_objects, current_octane_objects);
   server->uploadOctaneObjects(current_octane_objects);
 }
 
