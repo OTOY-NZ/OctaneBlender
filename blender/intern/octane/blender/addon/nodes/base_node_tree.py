@@ -58,7 +58,7 @@ class OctaneBaseNodeTree(object):
 
     def update(self):
         # This is a workaround to solve the link validation issue
-        # https://blender.stackexchange.com/questions/153489/custom-nodes-how-to-validate-a-link        
+        # https://blender.stackexchange.com/questions/153489/custom-nodes-how-to-validate-a-link
         bpy.app.timers.register(self.update_post)
 
     def update_post(self):
@@ -778,14 +778,6 @@ class NodeTreeHandler:
                                                                                      NodeTreeHandler.SURFACE_INPUT_NAME,
                                                                                      NodeTreeHandler.SURFACE_INPUT_NAME,
                                                                                      "OctaneToonPointLight")
-                                elif light_data.octane.octane_point_light_type == "Analytical":
-                                    NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, output, output,
-                                                                                     NodeTreeHandler.SURFACE_INPUT_NAME,
-                                                                                     NodeTreeHandler.SURFACE_INPUT_NAME,
-                                                                                     "OctaneAnalyticLight")
-                                    light_node = node_tree.nodes["Analytic light"]
-                                    emission_node = node_tree.nodes.new("OctaneTextureEmission")
-                                    node_tree.links.new(emission_node.outputs[0], light_node.inputs["Emission"])
                                 else:
                                     NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, output, output,
                                                                                      NodeTreeHandler.SURFACE_INPUT_NAME,
@@ -810,6 +802,14 @@ class NodeTreeHandler:
                                                                                  "OctaneToonDirectionalLight")
                                 light_node = node_tree.nodes["Toon directional light"]
                                 utility.setup_directional_light(node_tree, light_node, active_object)
+                            elif light_data.octane.octane_directional_light_type == "Analytical":
+                                NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, output, output,
+                                                                                 NodeTreeHandler.SURFACE_INPUT_NAME,
+                                                                                 NodeTreeHandler.SURFACE_INPUT_NAME,
+                                                                                 "OctaneAnalyticLight")
+                                light_node = node_tree.nodes["Analytic light"]
+                                emission_node = node_tree.nodes.new("OctaneTextureEmission")
+                                node_tree.links.new(emission_node.outputs[0], light_node.inputs["Emission"])
                             else:
                                 NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, output, output,
                                                                                  NodeTreeHandler.SURFACE_INPUT_NAME,

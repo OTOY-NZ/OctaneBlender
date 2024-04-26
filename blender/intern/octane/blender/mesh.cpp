@@ -1243,6 +1243,9 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
       resource_cache_data.erase(mesh_name);
     }
   }
+  if (b_ob.type() == BL::Object::type_CURVE || b_ob.type() == BL::Object::type_CURVES) {
+    is_mesh_data_updated = true;
+  }
   if (!is_mesh_data_updated) {
     return octane_mesh;
   }
@@ -1908,7 +1911,7 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
           (int32_t)::Octane::HairInterpolationType::HAIR_INTERP_DEFAULT :
           octane_mesh->octane_mesh.iHairInterpolations;
 
-  if (bHideOriginalMesh && octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.bEnable) {
+  if (bHideOriginalMesh) {
     octane_mesh->octane_mesh.oMeshData.bShowVertexData = false;
   }
   else if (octane_mesh->octane_mesh.oMeshData.f3HairPoints.size()) {

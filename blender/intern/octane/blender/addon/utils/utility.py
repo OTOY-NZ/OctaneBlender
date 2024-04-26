@@ -867,7 +867,7 @@ def template_panel_ui_node_view(context, layout, node_tree, output_node):
     is_octane_new_style_node = hasattr(output_node, "octane_node_type")
     if not is_octane_new_style_node:
         layout.column().template_node_view(node_tree, output_node, None)
-        return    
+        return
     column = layout.column()
     column.use_property_split = True
     column.use_property_decorate = True
@@ -967,6 +967,20 @@ def node_input_quick_operator(node_tree, node, socket, node_bl_idname):
     current_link = None
     current_linked_node = None
     current_linked_node_label = ""
+    need_copy_properties = True
+    preferences = get_preferences()
+    if preferences is not None:
+        if node_tree.bl_idname == "ShaderNodeTree":
+            if node_bl_idname.endswith("Environment"):
+                need_copy_properties = preferences.copy_node_value_for_worlds
+            else:
+                need_copy_properties = preferences.copy_node_value_for_materials
+        elif node_tree.bl_idname == "octane_kernel_nodes":
+            need_copy_properties = preferences.copy_node_value_for_kernels
+        elif node_tree.bl_idname == "octane_render_aov_nodes":
+            need_copy_properties = preferences.copy_node_value_for_render_aov
+        elif node_tree.bl_idname == "octane_composite_nodes":
+            need_copy_properties = preferences.copy_node_value_for_compositor
     if socket and len(socket.links):
         current_link = socket.links[0]
         current_linked_node = current_link.from_node
@@ -982,7 +996,8 @@ def node_input_quick_operator(node_tree, node, socket, node_bl_idname):
             new_node = node_tree.nodes.new(node_bl_idname)
             node_tree.links.new(new_node.outputs[0], socket)
             if current_linked_node:
-                new_node.copy_from_node(current_linked_node, False, True)
+                if need_copy_properties:
+                    new_node.copy_from_node(current_linked_node, False, True)
                 new_node.location = current_linked_node.location
                 for _input in current_linked_node.inputs:
                     if len(_input.links) > 0 and _input.name in new_node.inputs:

@@ -106,6 +106,7 @@ set(ADDON_CORE_FILES
 set(ADDON_UI_FILES
   addon/uis/__init__.py
   addon/uis/_object.py
+  addon/uis/asset_browser.py
   addon/uis/camera.py
   addon/uis/color_management.py
   addon/uis/common.py

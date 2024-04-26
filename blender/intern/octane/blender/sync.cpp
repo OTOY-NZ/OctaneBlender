@@ -733,7 +733,7 @@ BL::Node BlenderSync::find_input_node_from_switch_node(BL::NodeTree &b_node_tree
   int32_t input_idx = 0;
   BL::Node::inputs_iterator b_input;
   for (node.inputs.begin(b_input); b_input != node.inputs.end(); ++b_input) {
-    if (b_input->name() == "Input") {
+    if (b_input->identifier() == "Input") {
       input_idx = get_int(b_input->ptr, "default_value");
       break;
     }
@@ -747,7 +747,8 @@ BL::Node BlenderSync::find_input_node_from_switch_node(BL::NodeTree &b_node_tree
           BL::Node b_from_node = b_link->from_node();
           BL::Node b_to_node = b_link->to_node();
           BL::NodeSocket b_to_socket = b_link->to_socket();
-          if (node.name() == b_to_node.name() && b_to_socket.name() == b_input->name()) {
+          if (node.name() == b_to_node.name() && b_to_socket.identifier() == b_input->identifier())
+          {
             return b_from_node;
           }
         }
@@ -804,10 +805,10 @@ void BlenderSync::get_samples(PointerRNA oct_scene,
         for (active_kernel_node.inputs.begin(b_input); b_input != active_kernel_node.inputs.end();
              ++b_input)
         {
-          if (b_input->name() == "Max. preview samples") {
+          if (b_input->identifier() == "Max. preview samples") {
             max_preview_sample = get_int(b_input->ptr, "default_value");
           }
-          if (b_input->name() == "Max. samples") {
+          if (b_input->identifier() == "Max. samples") {
             max_sample = get_int(b_input->ptr, "default_value");
           }
         }

@@ -527,9 +527,20 @@ def check_compatibility_octane_light_27_16(file_version):
                         break
 
 
+def check_compatibility_octane_light_29_3(file_version):
+    if not check_update(file_version, '29.3'):
+        return
+    for light in bpy.data.lights:
+        oct_light = light.octane
+        if light.type == "POINT" and oct_light.octane_point_light_type == "Analytical":
+            light.type = "SUN"
+            oct_light.octane_directional_light_type = "Analytical"
+
+
 # light
 def check_compatibility_octane_light(file_version):
     check_compatibility_octane_light_27_16(file_version)
+    check_compatibility_octane_light_29_3(file_version)
 
 
 # mesh
@@ -943,18 +954,13 @@ def _check_compatibility_octane_node_tree_28_0(node_tree):
         if octane_node_type == consts.NodeType.NT_PROJ_DISTORTED_MESH_UV:
             node.inputs["Translation range"].default_value[0] /= 2
             node.inputs["Translation range"].default_value[1] /= 2
-        # Update of the "Hue"
-        # consts.NodeType.NT_OUTPUT_AOV_COLOR_CORRECTION
-        if octane_node_type == consts.NodeType.NT_TEX_COLORCORRECTION:
-            node.inputs["Hue"].default_value *= 180.0
-        if octane_node_type == consts.NodeType.NT_TEX_JITTERED_COLOR_CORRECTION:
-            node.inputs["Hue range"].default_value[0] *= 180.0
-            node.inputs["Hue range"].default_value[1] *= 180.0
         # Update of the "Percentage" socket
         if octane_node_type == consts.NodeType.NT_TEX_COLORCORRECTION:
-            node.inputs["Saturation"].default_value *= 100.0
+            if 0 <= node.inputs["Saturation"].default_value <= 3:
+                node.inputs["Saturation"].default_value *= 100.0
         if octane_node_type == consts.NodeType.NT_TEX_IMAGE_ADJUSTMENT:
-            node.inputs["Saturation"].default_value *= 100.0
+            if 0 <= node.inputs["Saturation"].default_value <= 3:
+                node.inputs["Saturation"].default_value *= 100.0
 
 
 def check_compatibility_octane_node_tree_28_0(file_version):

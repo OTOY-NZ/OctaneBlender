@@ -1,5 +1,6 @@
 # <pep8 compliant>
 
+from . import asset_browser
 from . import color_management
 from . import common
 from . import scene
@@ -12,6 +13,7 @@ from . import light
 
 
 def register():
+    asset_browser.register()
     color_management.register()
     common.register()
     viewport_header.register()
@@ -24,6 +26,7 @@ def register():
 
 
 def unregister():
+    asset_browser.unregister()
     color_management.unregister()
     common.unregister()
     viewport_header.unregister()

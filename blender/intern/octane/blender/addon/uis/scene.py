@@ -142,6 +142,9 @@ class OCTANE_RENDER_PT_server(common.OctanePropertyPanel, Panel):
         col.active = not is_viewport_rendering
         col.prop(oct_scene, "meshes_type")
         col = layout.column()
+        col.active = not is_viewport_rendering
+        col.prop(oct_scene, "enable_realtime")
+        col = layout.column()
         col.prop(oct_scene, "prefer_image_type")
         col.prop(oct_scene, "maximize_instancing")
         col.prop(oct_scene, "clay_mode")
@@ -346,7 +349,8 @@ class OCTANE_RENDER_PT_passes_beauty(OctaneRenderPassesPanel, Panel):
         split.use_property_split = False
         row = split.row(align=True)
         row.prop(octane_view_layer, "use_pass_denoise_albedo", text="Denoise Albedo", toggle=True)
-        row.prop(octane_view_layer, "use_pass_denoise_normal", text="Denoise Normal", toggle=True)  
+        row.prop(octane_view_layer, "use_pass_denoise_normal", text="Denoise Normal", toggle=True)
+
 
 class OCTANE_RENDER_PT_passes_denoiser(OctaneRenderPassesPanel, Panel):
     bl_label = "Denoiser"

@@ -345,8 +345,8 @@ class OCTANE_OT_add_default_node_helper(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     offset_x = -50
-    offset_y = -20
-    socket_step_y = -20
+    offset_y = -35
+    socket_step_y = -22
 
     # The destination node
     destination_node = None
@@ -417,8 +417,8 @@ class OCTANE_OT_add_default_node_helper(bpy.types.Operator):
             offset_x = -new_node.width + cls.offset_x
             offset_y = cls.offset_y
             step_y = cls.socket_step_y
-            if len(node.inputs) > 0:
-                step_y = -node.dimensions[1] / len(node.inputs)
+            # if len(node.inputs) > 0:
+            #     step_y = -node.dimensions[1] / len(node.inputs)
             for _input in node.inputs:
                 if _input.name == cls.destination_socket_name:
                     break

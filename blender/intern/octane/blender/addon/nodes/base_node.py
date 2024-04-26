@@ -312,6 +312,8 @@ class OctaneBaseNode(object):
                 setattr(self, attribute_name, getattr(other_node, attribute_name, None))
         for socket in self.inputs:
             socket_name = socket.name
+            if not socket.enabled or socket.hide or socket_name.startswith("[Deprecated]"):
+                continue
             src_socket_name = None
             if socket_name in other_node.inputs:
                 src_socket_name = socket_name

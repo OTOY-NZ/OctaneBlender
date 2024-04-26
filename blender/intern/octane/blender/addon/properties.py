@@ -61,11 +61,11 @@ primitive_coordinate_modes = (
 # The various units we support during the geometry import. It's basically the unit used during the export of the
 # geometry
 geometry_import_scale = (
-    ('millmeters', "millimeters", "", 1), # noqa
+    ('millmeters', "millimeters", "", 1),  # noqa
     ('centimeters', "centimeters", "", 2),
     ('decimeters', "decimeters", "", 3),
     ('meters', "meters", "", 4),
-    ('decameters', "decimeters", "", 5), # noqa
+    ('decameters', "decimeters", "", 5),  # noqa
     ('hectometers', "hectometers", "", 6),
     ('kilometers', "kilometers", "", 7),
     ('inches', "inches", "", 8),
@@ -244,27 +244,37 @@ class OctaneGeoNodeCollection(bpy.types.PropertyGroup):
         for obj in bpy.data.objects:
             if obj.type == "MESH":
                 if hasattr(obj, "octane") and hasattr(obj.data, "octane"):
-                    if len(obj.data.octane.octane_geo_node_collections.node_graph_tree) or len(
-                            obj.data.octane.octane_geo_node_collections.osl_geo_node):
+                    if (len(obj.data.octane.octane_geo_node_collections.node_graph_tree) > 0
+                            or len(obj.data.octane.octane_geo_node_collections.osl_geo_node) > 0):
                         obj.octane.node_graph_tree = obj.data.octane.octane_geo_node_collections.node_graph_tree
                         obj.octane.osl_geo_node = obj.data.octane.octane_geo_node_collections.osl_geo_node
+
+    def _add_node_name(self, node_bl_idname, node_name):
+        if (node_bl_idname.startswith("OctaneSDF")
+            or node_bl_idname in ('OctaneProxy', 'OctaneVectron', 'ShaderNodeOctVectron',
+                                  'ShaderNodeOctScatterToolSurface', 'ShaderNodeOctScatterToolVolume',
+                                  'OctaneScatterOnSurface', 'OctaneScatterInVolume',)):
+            self.osl_geo_nodes.add()
+            self.osl_geo_nodes[-1].name = node_name
+
+    def _add_node_tree(self, node_tree, node_name_prefix):
+        for node in node_tree.nodes:
+            if node.bl_idname == "ShaderNodeGroup":
+                new_prefix = (node_name_prefix + "_" + node.name) if len(node_name_prefix) else node.name
+                self._add_node_tree(node.node_tree, new_prefix)
+            else:
+                node_name = (node_name_prefix + "_" + node.name) if len(node_name_prefix) else node.name
+                self._add_node_name(node.bl_idname, node_name)
 
     def update_nodes(self, context):
         print('Update OSL GEO Nodes')
         for i in range(0, len(self.osl_geo_nodes)):
             self.osl_geo_nodes.remove(0)
-        if bpy.data.materials:
-            for mat in bpy.data.materials.values():
-                if not getattr(mat, 'node_tree', None) or not getattr(mat.node_tree, 'nodes', None):
-                    continue
-                if mat.name != self.node_graph_tree:
-                    continue
-                for node in mat.node_tree.nodes.values():
-                    if node.bl_idname.startswith("OctaneSDF") or node.bl_idname in (
-                            'OctaneProxy', 'OctaneVectron', 'ShaderNodeOctVectron', 'ShaderNodeOctScatterToolSurface',
-                            'ShaderNodeOctScatterToolVolume', 'OctaneScatterOnSurface', 'OctaneScatterInVolume',):
-                        self.osl_geo_nodes.add()
-                        self.osl_geo_nodes[-1].name = node.name
+        if self.node_graph_tree in bpy.data.materials:
+            mat = bpy.data.materials[self.node_graph_tree]
+            if getattr(mat, 'node_tree', None) is not None and getattr(mat.node_tree, 'nodes', None) is not None:
+                node_tree = mat.node_tree
+                self._add_node_tree(node_tree, "")
         self.sync_geo_node_info(context)
 
 
@@ -846,8 +856,8 @@ class OctaneMeshSettings(bpy.types.PropertyGroup):
         default=False,
     )
     octane_hide_original_mesh: BoolProperty(
-        name="Hide Original Mesh",
-        description="Hide original mesh when the Octane Sphere Primitive is enabled",
+        name="Hide Mesh",
+        description="Hide mesh when this option is on(e.g. for hiding the mesh when using Octane Sphere Primitive)",
         default=False,
     )
     octane_use_randomized_radius: BoolProperty(
@@ -881,8 +891,8 @@ class OctaneMeshSettings(bpy.types.PropertyGroup):
         default=0.0,
     )
     render_curve_as_octane_hair: BoolProperty(
-        name="Render as the Octane Hair",
-        description="Render this curve as the Octane hair",
+        name="Render as Octane Hair",
+        description="Render this curve as Octane hair",
         default=False,
     )
     use_octane_radius_setting: BoolProperty(
@@ -939,11 +949,11 @@ class OctaneMeshSettings(bpy.types.PropertyGroup):
 
 
 UNIT_CONVERT_MAP = {
-    'millmeters': 0.001, # noqa
+    'millmeters': 0.001,  # noqa
     'centimeters': 0.01,
     'decimeters': 0.1,
     'meters': 1,
-    'decameters': 10, # noqa
+    'decameters': 10,  # noqa
     'hectometers': 100,
     'kilometers': 1000,
     'inches': 1 / 39.3701,

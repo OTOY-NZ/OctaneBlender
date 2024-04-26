@@ -323,6 +323,7 @@ class OctaneLightSettings(bpy.types.PropertyGroup):
     octane_directional_light_types = (
         ("Toon Directional", "Toon Directional", "Toon Directional", 0),
         ("Directional", "Directional", "Directional", 1),
+        ("Analytical", "Analytical", "Analytical", 2),
     )
     octane_analytical_light_types = (
         ("Quad", "Quad", "Quad", 0),

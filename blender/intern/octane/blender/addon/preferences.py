@@ -144,6 +144,31 @@ class OctanePreferences(bpy.types.AddonPreferences):
         description="Use the new addon style image and ramp nodes(reboot blender to take effect)",
         default=True,
     )
+    copy_node_value_for_materials: BoolProperty(
+        name="Material",
+        description="When changing to a new type of node, try to copy the values from the previous node",
+        default=True,
+    )
+    copy_node_value_for_worlds: BoolProperty(
+        name="World",
+        description="When changing to a new type of node, try to copy the values from the previous node",
+        default=True,
+    )
+    copy_node_value_for_kernels: BoolProperty(
+        name="Kernel",
+        description="When changing to a new type of node, try to copy the values from the previous node",
+        default=False,
+    )
+    copy_node_value_for_render_aov: BoolProperty(
+        name="Render AOV",
+        description="When changing to a new type of node, try to copy the values from the previous node",
+        default=True,
+    )
+    copy_node_value_for_compositor: BoolProperty(
+        name="Compositor",
+        description="When changing to a new type of node, try to copy the values from the previous node",
+        default=True,
+    )
     default_object_mesh_type: EnumProperty(
         name="Default Object Mesh Type",
         description="Object mesh type to use for default (Used for rendering speed optimization. See the manual.)("
@@ -335,6 +360,18 @@ class OctanePreferences(bpy.types.AddonPreferences):
         box.row().prop(self, "use_factor_subtype_for_property")
         box.row().prop(self, "imager_panel_mode")
         box.row().prop(self, "postprocess_panel_mode")
+        box = layout.box()
+        box.label(text="Node Graph")
+        row = box.row()
+        split = row.split(factor=0.35)
+        split.use_property_split = False
+        split.label(text="Copy Properties When Changing Node Type")
+        row = split.row(align=True)
+        row.prop(self, "copy_node_value_for_materials", text="Material", toggle=True)
+        row.prop(self, "copy_node_value_for_worlds", text="World", toggle=True)
+        row.prop(self, "copy_node_value_for_kernels", text="Kernel", toggle=True)
+        row.prop(self, "copy_node_value_for_render_aov", text="RenderAOV", toggle=True)
+        row.prop(self, "copy_node_value_for_compositor", text="Compositor", toggle=True)
         box = layout.box()
         box.label(text="Color Management")
         box.row().prop(self, "use_octane_default_color_management")

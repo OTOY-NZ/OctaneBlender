@@ -507,7 +507,8 @@ class OCTANE_CAMERA_PT_imager(common.OctanePropertyPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-        layout.active = not utility.is_viewport_imager_used(context.scene)
+        layout.active = (not utility.is_viewport_imager_used(context.scene) and
+                         context.scene.octane.use_render_camera_imager)
         row = layout.row(align=True)
         row.menu("OCTANE_MT_imager_presets", text=OCTANE_MT_imager_presets.bl_label)
         row.operator("render.octane_imager_preset_add", text="", icon="ADD")
@@ -522,7 +523,8 @@ class OCTANE_CAMERA_PT_imager_OCIO(common.OctanePropertyPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-        layout.active = not utility.is_viewport_imager_used(context.scene)
+        layout.active = (not utility.is_viewport_imager_used(context.scene) and
+                         context.scene.octane.use_render_camera_imager)
         context.camera.octane.imager.draw_ocio(context, layout, True)
 
 
@@ -533,7 +535,8 @@ class OCTANE_CAMERA_PT_imager_Tonemapping(common.OctanePropertyPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-        layout.active = not utility.is_viewport_imager_used(context.scene)
+        layout.active = (not utility.is_viewport_imager_used(context.scene) and
+                         context.scene.octane.use_render_camera_imager)
         context.camera.octane.imager.draw_tonemapping(context, layout, True)
 
 
@@ -548,7 +551,8 @@ class OCTANE_CAMERA_PT_imager_Denoiser(common.OctanePropertyPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-        layout.active = not utility.is_viewport_imager_used(context.scene)
+        layout.active = (not utility.is_viewport_imager_used(context.scene) and
+                         context.scene.octane.use_render_camera_imager)
         context.camera.octane.imager.draw_denoiser(context, layout, True)
 
 
@@ -559,7 +563,8 @@ class OCTANE_CAMERA_PT_imager_Upsampler(common.OctanePropertyPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-        layout.active = not utility.is_viewport_imager_used(context.scene)
+        layout.active = (not utility.is_viewport_imager_used(context.scene) and
+                         context.scene.octane.use_render_camera_imager)
         context.camera.octane.imager.draw_upsampler(context, layout, True)
 
 
@@ -598,7 +603,8 @@ class OCTANE_VIEW3D_PT_imager(common.OctanePropertyPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-        layout.active = utility.is_viewport_imager_used(context.scene, context)
+        layout.active = (utility.is_viewport_imager_used(context.scene, context)
+                         and context.scene.octane.use_preview_camera_imager)
         row = layout.row(align=True)
         row.menu("OCTANE_MT_3dimager_presets", text=OCTANE_MT_3dimager_presets.bl_label)
         row.operator("render.octane_3dimager_preset_add", text="", icon="ADD")
@@ -617,7 +623,8 @@ class OCTANE_VIEW3D_PT_imager_OCIO(common.OctanePropertyPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-        layout.active = utility.is_viewport_imager_used(context.scene, context)
+        layout.active = (utility.is_viewport_imager_used(context.scene, context)
+                         and context.scene.octane.use_preview_camera_imager)
         oct_cam = context.scene.oct_view_cam
         oct_cam.imager.draw_ocio(context, layout, True)
 
@@ -632,7 +639,8 @@ class OCTANE_VIEW3D_PT_imager_Tonemapping(common.OctanePropertyPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-        layout.active = utility.is_viewport_imager_used(context.scene, context)
+        layout.active = (utility.is_viewport_imager_used(context.scene, context)
+                         and context.scene.octane.use_preview_camera_imager)
         oct_cam = context.scene.oct_view_cam
         oct_cam.imager.draw_tonemapping(context, layout, True)
 
@@ -652,7 +660,8 @@ class OCTANE_VIEW3D_PT_imager_Denoiser(common.OctanePropertyPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-        layout.active = utility.is_viewport_imager_used(context.scene, context)
+        layout.active = (utility.is_viewport_imager_used(context.scene, context)
+                         and context.scene.octane.use_preview_camera_imager)
         oct_cam = context.scene.oct_view_cam
         oct_cam.imager.draw_denoiser(context, layout, True)
 
@@ -667,7 +676,8 @@ class OCTANE_VIEW3D_PT_imager_Upsampler(common.OctanePropertyPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-        layout.active = utility.is_viewport_imager_used(context.scene, context)
+        layout.active = (utility.is_viewport_imager_used(context.scene, context)
+                         and context.scene.octane.use_preview_camera_imager)
         oct_cam = context.scene.oct_view_cam
         oct_cam.imager.draw_upsampler(context, layout, True)
 
@@ -685,7 +695,7 @@ class OCTANE_CAMERA_PT_post(common.OctanePropertyPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-        layout.active = not utility.is_viewport_post_process_used(context.scene)
+        layout.active = not utility.is_viewport_post_process_used(context.scene) and context.camera.octane.postprocess
         row = layout.row(align=True)
         row.menu("OCTANE_MT_postprocess_presets", text=OCTANE_MT_postprocess_presets.bl_label)
         row.operator("render.octane_postprocess_preset_add", text="", icon="ADD")
@@ -699,7 +709,7 @@ class OCTANE_CAMERA_PT_post_image_processing(common.OctanePropertyPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-        layout.active = not utility.is_viewport_post_process_used(context.scene)
+        layout.active = not utility.is_viewport_post_process_used(context.scene) and context.camera.octane.postprocess
         context.camera.octane.post_processing.draw_post_image_processing(context, layout, False)
 
 
@@ -710,7 +720,7 @@ class OCTANE_CAMERA_PT_post_lens_effect(common.OctanePropertyPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-        layout.active = not utility.is_viewport_post_process_used(context.scene)
+        layout.active = not utility.is_viewport_post_process_used(context.scene) and context.camera.octane.postprocess
         context.camera.octane.post_processing.draw_post_lens_effect(context, layout, False)
 
 
@@ -721,7 +731,7 @@ class OCTANE_CAMERA_PT_post_volume_effect(common.OctanePropertyPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-        layout.active = not utility.is_viewport_post_process_used(context.scene)
+        layout.active = not utility.is_viewport_post_process_used(context.scene) and context.camera.octane.postprocess
         context.camera.octane.post_processing.draw_post_volume_effects(context, self.layout, False)
 
 
@@ -743,7 +753,8 @@ class OCTANE_VIEW3D_PT_post(common.OctanePropertyPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-        layout.active = utility.is_viewport_post_process_used(context.scene, context)
+        layout.active = (utility.is_viewport_post_process_used(context.scene, context)
+                         and context.scene.oct_view_cam.postprocess)
         row = layout.row(align=True)
         row.menu("OCTANE_MT_3dpostprocess_presets", text=OCTANE_MT_3dpostprocess_presets.bl_label)
         row.operator("render.octane_3dpostprocess_preset_add", text="", icon="ADD")
@@ -761,7 +772,8 @@ class OCTANE_VIEW3D_PT_post_image_processing(common.OctanePropertyPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-        layout.active = utility.is_viewport_post_process_used(context.scene, context)
+        layout.active = (utility.is_viewport_post_process_used(context.scene, context)
+                         and context.scene.oct_view_cam.postprocess)
         oct_cam = context.scene.oct_view_cam
         oct_cam.post_processing.draw_post_image_processing(context, layout, True)
 
@@ -777,7 +789,8 @@ class OCTANE_VIEW3D_PT_post_lens_effect(common.OctanePropertyPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-        layout.active = utility.is_viewport_post_process_used(context.scene, context)
+        layout.active = (utility.is_viewport_post_process_used(context.scene, context)
+                         and context.scene.oct_view_cam.postprocess)
         oct_cam = context.scene.oct_view_cam
         oct_cam.post_processing.draw_post_lens_effect(context, layout, True)
 
@@ -793,7 +806,8 @@ class OCTANE_VIEW3D_PT_post_volume_effects(common.OctanePropertyPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-        layout.active = utility.is_viewport_post_process_used(context.scene, context)
+        layout.active = (utility.is_viewport_post_process_used(context.scene, context)
+                         and context.scene.oct_view_cam.postprocess)
         oct_cam = context.scene.oct_view_cam
         oct_cam.post_processing.draw_post_volume_effects(context, layout, True)
 

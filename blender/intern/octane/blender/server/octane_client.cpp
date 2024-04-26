@@ -918,7 +918,7 @@ void OctaneClient::uploadCamera(Camera *pCamera, uint32_t uiFrameIdx, uint32_t u
 
       RPCSend snd(m_Socket,
                   (sizeof(uint32_t) + (sizeof(float_3) * 3 + sizeof(float)) * motoin_data_num) +
-                      sizeof(float_3) * 7 + sizeof(float) * 41 + sizeof(int32_t) * 33 +
+                      sizeof(float_3) * 7 + sizeof(float) * 41 + sizeof(int32_t) * 35 +
                       sizeof(uint32_t) * 6 + (pCamera->sCustomLut.length() + 2) +
                       (pCamera->sOcioViewDisplay.length() + 2) +
                       (pCamera->sOcioViewDisplayView.length() + 2) +
@@ -992,7 +992,7 @@ void OctaneClient::uploadCamera(Camera *pCamera, uint32_t uiFrameIdx, uint32_t u
     {
       RPCSend snd(
           m_Socket,
-          sizeof(float_3) * 7 + sizeof(float) * 38 + sizeof(int32_t) * 34 +
+          sizeof(float_3) * 7 + sizeof(float) * 38 + sizeof(int32_t) * 36 +
               (pCamera->sCustomLut.length() + 2) + (pCamera->sOcioViewDisplay.length() + 2) +
               (pCamera->sOcioViewDisplayView.length() + 2) + (pCamera->sOcioLook.length() + 2),
           OctaneDataTransferObject::LOAD_PANORAMIC_CAMERA);
@@ -1056,7 +1056,7 @@ void OctaneClient::uploadCamera(Camera *pCamera, uint32_t uiFrameIdx, uint32_t u
     {
       RPCSend snd(
           m_Socket,
-          sizeof(float_3) * 6 + sizeof(float_2) * 2 + sizeof(float) * 27 + sizeof(int32_t) * 34 +
+          sizeof(float_3) * 6 + sizeof(float_2) * 2 + sizeof(float) * 27 + sizeof(int32_t) * 36 +
               (pCamera->sCustomLut.length() + 2) + (pCamera->sOcioViewDisplay.length() + 2) +
               (pCamera->sOcioViewDisplayView.length() + 2) + (pCamera->sOcioLook.length() + 2),
           OctaneDataTransferObject::LOAD_BAKING_CAMERA);
@@ -1130,7 +1130,7 @@ void OctaneClient::uploadCamera(Camera *pCamera, uint32_t uiFrameIdx, uint32_t u
 
       RPCSend snd(m_Socket,
                   (sizeof(uint32_t) + (sizeof(float_3) * 4 + sizeof(float)) * motoin_data_num) +
-                      sizeof(float_3) * 6 + sizeof(float) * 41 + sizeof(int32_t) * 33 +
+                      sizeof(float_3) * 6 + sizeof(float) * 41 + sizeof(int32_t) * 35 +
                       sizeof(uint32_t) * 6 + (pCamera->sCustomLut.length() + 2) +
                       (pCamera->sOcioViewDisplay.length() + 2) +
                       (pCamera->sOcioViewDisplayView.length() + 2) +
