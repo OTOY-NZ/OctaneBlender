@@ -142,7 +142,7 @@ class OCTANE_RENDER_PT_server(common.OctanePropertyPanel, Panel):
         col.active = not is_viewport_rendering
         col.prop(oct_scene, "meshes_type")
         col = layout.column()
-        col.active = not is_viewport_rendering
+        col.active = not is_viewport_rendering and utility.get_preferences().use_shared_surface
         col.prop(oct_scene, "enable_realtime")
         col = layout.column()
         col.prop(oct_scene, "prefer_image_type")

@@ -1180,6 +1180,7 @@ UserDef *BKE_blendfile_userdef_from_defaults()
         "io_scene_gltf2",
         "io_scene_x3d",
         "cycles",
+        "octane",
         "pose_library",
     };
     for (int i = 0; i < ARRAY_SIZE(addons); i++) {

@@ -1329,7 +1329,8 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
           b_image_user, b_image, b_scene.frame_current(), false);
       ::OctaneDataTransferObject::OctaneCustomNode *octane_node =
           (::OctaneDataTransferObject::OctaneCustomNode *)(node->oct_node);
-      octane_node->oStringSockets.emplace_back(::OctaneDataTransferObject::OctaneDTOString("a_filename"));
+      octane_node->oStringSockets.emplace_back(
+          ::OctaneDataTransferObject::OctaneDTOString("a_filename"));
       ::OctaneDataTransferObject::OctaneDTOString *filename_dto_ptr =
           &octane_node->oStringSockets[octane_node->oStringSockets.size() - 1];
       filename_dto_ptr->bUseLinked = false;
@@ -1458,13 +1459,11 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
                       object_data_transform_output_node->oct_node;
               set_octane_matrix(oct_transform_node->oMatrix, octane_tfm);
               oct_transform_node->bUseMatrix = true;
-              bool is_preview = scene && scene->session && scene->session->params.interactive;
-              bool is_modified = BKE_object_is_modified(b_ob, b_scene, is_preview);
-              BL::ID b_ob_data = b_ob.data();
-              std::string geo_name = resolve_octane_name(
-                  b_ob_data, is_modified ? b_ob.name_full() : "", MESH_TAG);
-              if (b_ob.mode() == b_ob.mode_EDIT) {
-                geo_name += "[EDIT_MODE]";
+              std::string geo_name; 
+              std::string name_full = b_ob.name_full();
+              if (scene->object_octane_names.find(name_full) != scene->object_octane_names.end()) {
+                geo_name = scene->object_octane_names[name_full];
+                geo_name += "[ObjLM]";
               }
               OctaneDataTransferObject::OctanePlacement *oct_placement_node =
                   (OctaneDataTransferObject::OctanePlacement *)
@@ -3182,6 +3181,42 @@ void BlenderSync::sync_shaders(BL::Depsgraph &b_depsgraph)
     auto_refresh_update = force_update_all;
   }
 
+  scene->object_octane_names.clear();
+  BL::Depsgraph::object_instances_iterator b_instance_iter;
+  for (b_depsgraph.object_instances.begin(b_instance_iter);
+       b_instance_iter != b_depsgraph.object_instances.end();
+       ++b_instance_iter)
+  {
+    BL::DepsgraphObjectInstance b_instance = *b_instance_iter;
+    BL::Object b_ob = b_instance.object();
+    const bool is_instance = b_instance.is_instance();
+    BL::Object b_parent = is_instance ? b_instance.parent() : b_instance.object();
+    BObjectInfo b_ob_info{b_ob, is_instance ? b_instance.instance_object() : b_ob, b_ob.data()};
+    BL::Object b_ob_instance = is_instance ? b_instance.instance_object() : b_ob;
+    std::string parent_name, instance_tag;
+    if (b_parent.ptr.data) {
+      parent_name = b_parent.name_full() + ".";
+    }
+    instance_tag = is_instance ? "[Instance]" : "";
+    std::string object_name;
+    bool use_geometry_node_modifier = use_geonodes_modifiers(b_ob);
+    if (scene && scene->session && scene->session->params.maximize_instancing &&
+        !use_geometry_node_modifier)
+    {
+      object_name = b_ob.name_full() + OBJECT_TAG;
+    }
+    else {
+      if (use_geometry_node_modifier && is_instance) {
+        object_name = parent_name + b_ob.name_full() + "_" + b_ob.data().name_full() +
+                      instance_tag + OBJECT_TAG;
+      }
+      else {
+        object_name = parent_name + b_ob.name_full() + instance_tag + OBJECT_TAG;
+      }
+    }
+    scene->object_octane_names[b_ob.name_full()] = object_name;
+  }
+
   shader_map.pre_sync();
 
   sync_world(b_depsgraph, auto_refresh_update);
@@ -3217,7 +3252,7 @@ void BlenderSync::find_shader(BL::ID &id,
                               std::vector<Shader *> &used_shaders,
                               Shader *default_shader)
 {
-  Shader *shader = (id) ? shader_map.find(id) : default_shader;  
+  Shader *shader = (id) ? shader_map.find(id) : default_shader;
   if (shader && !shader->is_empty()) {
     used_shaders.push_back(shader);
   }
@@ -3302,20 +3337,27 @@ int BlenderSync::get_render_aov_preview_pass(BL::NodeTree &node_tree)
   return preview_render_pass;
 }
 
+bool BlenderSync::use_geonodes_modifiers(BL::Object &b_ob) {
+  bool use_geometry_node_modifier = false;
+  BL::Object::modifiers_iterator b_mod;
+  for (b_ob.modifiers.begin(b_mod); b_mod != b_ob.modifiers.end(); ++b_mod) {
+    if (b_mod->type() == BL::Modifier::type_NODES) {
+      if ((preview && b_mod->show_viewport()) || (!preview && b_mod->show_render())) {
+        use_geometry_node_modifier = true;
+        break;
+      }
+    }
+  }
+  return use_geometry_node_modifier;
+}
+
 std::string BlenderSync::resolve_octane_object_data_name(BL::Object &b_ob,
                                                          BL::Object &b_ob_instance)
 {
   BL::ID b_ob_data = b_ob.data();
   bool is_instance = (b_ob == b_ob_instance);
   bool is_modified = BKE_object_is_modified(b_ob);
-  bool use_geometry_node_modifier = false;
-  BL::Object::modifiers_iterator b_mod;
-  for (b_ob.modifiers.begin(b_mod); b_mod != b_ob.modifiers.end(); ++b_mod) {
-    if (b_mod->type() == BL::Modifier::type_NODES) {
-      use_geometry_node_modifier = true;
-      break;
-    }
-  }
+  bool use_geometry_node_modifier = use_geonodes_modifiers(b_ob);
   std::string modifier_object_tag = is_modified ? b_ob.name_full() : "";
   if (is_instance && use_geometry_node_modifier) {
     modifier_object_tag += "[Instance]";
@@ -3323,6 +3365,7 @@ std::string BlenderSync::resolve_octane_object_data_name(BL::Object &b_ob,
   std::string post_tag = b_ob.type() == BL::Object::type_CURVE ? "[Curve]" : MESH_TAG;
   std::string mesh_name = resolve_octane_name(b_ob_data, modifier_object_tag, post_tag);
   if (b_ob.mode() == b_ob.mode_EDIT) {
+    mesh_name += ("[" + b_ob.name_full() + "]");
     mesh_name += "[EDIT_MODE]";
   }
   return mesh_name;

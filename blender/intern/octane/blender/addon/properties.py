@@ -892,7 +892,8 @@ class OctaneMeshSettings(bpy.types.PropertyGroup):
     )
     render_curve_as_octane_hair: BoolProperty(
         name="Render as Octane Hair",
-        description="Render this curve as Octane hair",
+        description="Render this curve as Octane hair\n"
+                    "Limitation: need to enter/exit EDIT mode to update the edited curves in the viewport",
         default=False,
     )
     use_octane_radius_setting: BoolProperty(

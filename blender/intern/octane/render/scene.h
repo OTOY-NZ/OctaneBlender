@@ -111,6 +111,7 @@ class Scene {
   vector<Light *> lights;
   vector<ParticleSystem *> particle_systems;
   std::unordered_map<std::string, std::string> image_data_map;
+  std::unordered_map<std::string, std::string> object_octane_names; 
 
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   // Data managers

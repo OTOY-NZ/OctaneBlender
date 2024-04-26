@@ -32,6 +32,9 @@ def create(engine, data, region=None, v3d=None, rv3d=None):
     from octane import core
     from octane.utils import ocio
     ocio.update_ocio_info()
+    # Init node helper
+    from octane.nodes.base_node_tree import NodeTreeHandler
+    NodeTreeHandler.init_node_helper()
 
     import bpy
     data = data.as_pointer()
