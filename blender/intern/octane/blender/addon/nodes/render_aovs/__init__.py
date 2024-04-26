@@ -1,6 +1,6 @@
-##### BEGIN OCTANE GENERATED CODE BLOCK #####
-import bpy
-from bpy.utils import register_class, unregister_class
+# <pep8 compliant>
+
+# BEGIN OCTANE GENERATED CODE BLOCK #
 from . import render_aov_group
 from . import denoise_normal_aov
 from . import ambient_occlusion_aov
@@ -73,6 +73,7 @@ from . import z_depth_aov
 from . import postfx_media_aov
 from . import denoise_albedo_aov
 from . import render_aov_switch
+
 
 def register():
     render_aov_group.register()
@@ -148,6 +149,7 @@ def register():
     denoise_albedo_aov.register()
     render_aov_switch.register()
 
+
 def unregister():
     render_aov_group.unregister()
     denoise_normal_aov.unregister()
@@ -222,4 +224,4 @@ def unregister():
     denoise_albedo_aov.unregister()
     render_aov_switch.unregister()
 
-##### END OCTANE GENERATED CODE BLOCK #####
+# END OCTANE GENERATED CODE BLOCK #

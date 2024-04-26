@@ -1,14 +1,16 @@
-import bpy
-import xml.etree.ElementTree as ET
-from bl_operators.presets import AddPresetBase, ExecutePreset
-from bpy.props import IntProperty, FloatProperty, BoolProperty, StringProperty, EnumProperty, PointerProperty, FloatVectorProperty, IntVectorProperty, BoolVectorProperty, CollectionProperty
+# <pep8 compliant>
+
+from bl_operators.presets import AddPresetBase
+from bpy.props import IntProperty, FloatProperty, BoolProperty, StringProperty, EnumProperty, PointerProperty, \
+    FloatVectorProperty, BoolVectorProperty, CollectionProperty
 from bpy.types import Operator
+
+import bpy
 from bpy.utils import register_class, unregister_class
 from octane.nodes.render_settings.animation_settings import OctaneAnimationSettingsShutterAlignment
 from octane.nodes.render_settings.render_layer import OctaneRenderLayerMode
 from octane.properties_ import common
 from octane.utils import consts, ocio, utility
-from octane import core
 
 rotation_orders = (
     ('0', "XYZ", ""),
@@ -30,19 +32,23 @@ cryptomatte_pass_channel_modes = (
     ('4', "4", "", 4),
     ('6', "6", "", 6),
     ('8', "8", "", 8),
-    ('10', "10", "", 10),        
-)
-  
-octane_export_with_deep_image_modes = (
-    ("SEPARATE_IMAGE_FILES", "Export separate image files", "Export separate image files", consts.ExportRenderPassMode.EXPORT_RENDER_PASS_MODE_SEPARATE),
-    ("MULTILAYER_EXR", "Export multilayer EXR", "Export multilayer EXR", consts.ExportRenderPassMode.EXPORT_RENDER_PASS_MODE_MULTILAYER),
-    ("DEEP_EXR", "Export deep EXR", "Export deep EXR", consts.ExportRenderPassMode.EXPORT_RENDER_PASS_MODE_DEEP_EXR),
-)
-octane_export_without_deep_image_modes = (
-    ("SEPARATE_IMAGE_FILES", "Export separate image files", "Export separate image files", consts.ExportRenderPassMode.EXPORT_RENDER_PASS_MODE_SEPARATE),
-    ("MULTILAYER_EXR", "Export multilayer EXR", "Export multilayer EXR", consts.ExportRenderPassMode.EXPORT_RENDER_PASS_MODE_MULTILAYER),
+    ('10', "10", "", 10),
 )
 
+octane_export_with_deep_image_modes = (
+    ("SEPARATE_IMAGE_FILES", "Export separate image files", "Export separate image files",
+     consts.ExportRenderPassMode.EXPORT_RENDER_PASS_MODE_SEPARATE),
+    ("MULTILAYER_EXR", "Export multilayer EXR", "Export multilayer EXR",
+     consts.ExportRenderPassMode.EXPORT_RENDER_PASS_MODE_MULTILAYER),
+    ("DEEP_EXR", "Export deep EXR", "Export deep EXR",
+     consts.ExportRenderPassMode.EXPORT_RENDER_PASS_MODE_DEEP_EXR),
+)
+octane_export_without_deep_image_modes = (
+    ("SEPARATE_IMAGE_FILES", "Export separate image files", "Export separate image files",
+     consts.ExportRenderPassMode.EXPORT_RENDER_PASS_MODE_SEPARATE),
+    ("MULTILAYER_EXR", "Export multilayer EXR", "Export multilayer EXR",
+     consts.ExportRenderPassMode.EXPORT_RENDER_PASS_MODE_MULTILAYER),
+)
 
 octane_shading_type_modes = (
     ("WIREFRAME", "WIREFRAME", "Toggle wireframe shading", "SHADING_WIRE", 2),
@@ -51,11 +57,11 @@ octane_shading_type_modes = (
 )
 
 
-class OctaneAovOutputGroupNode(bpy.types.PropertyGroup):    
-    name: StringProperty(name="Node Name")   
+class OctaneAovOutputGroupNode(bpy.types.PropertyGroup):
+    name: StringProperty(name="Node Name")
 
 
-class OctaneAovOutputGroupCollection(bpy.types.PropertyGroup):    
+class OctaneAovOutputGroupCollection(bpy.types.PropertyGroup):
     composite_node_trees: CollectionProperty(type=OctaneAovOutputGroupNode)
     aov_output_group_nodes: CollectionProperty(type=OctaneAovOutputGroupNode)
 
@@ -65,7 +71,7 @@ class OctaneAovOutputGroupCollection(bpy.types.PropertyGroup):
         default="",
         update=lambda self, context: self.update_nodes(context),
         maxlen=512,
-    )   
+    )
 
     aov_output_group_node: StringProperty(
         name="Aov Output Group Node",
@@ -73,62 +79,63 @@ class OctaneAovOutputGroupCollection(bpy.types.PropertyGroup):
         default="",
         update=lambda self, context: self.update_nodes(context),
         maxlen=512,
-    )   
+    )
 
-    def update_nodes(cls, context):   
-        for i in range(0, len(cls.composite_node_trees)):
-            cls.composite_node_trees.remove(0)
-        if bpy.data.node_groups:      
+    def update_nodes(self, _context):
+        for i in range(0, len(self.composite_node_trees)):
+            self.composite_node_trees.remove(0)
+        if bpy.data.node_groups:
             for node_tree in bpy.data.node_groups.values():
                 if getattr(node_tree, "bl_idname", "") == consts.OctaneNodeTreeIDName.COMPOSITE:
-                    cls.composite_node_trees.add()
-                    cls.composite_node_trees[-1].name = node_tree.name
-        for i in range(0, len(cls.aov_output_group_nodes)):
-            cls.aov_output_group_nodes.remove(0)  
-        if bpy.data.node_groups:      
+                    self.composite_node_trees.add()
+                    self.composite_node_trees[-1].name = node_tree.name
+        for i in range(0, len(self.aov_output_group_nodes)):
+            self.aov_output_group_nodes.remove(0)
+        if bpy.data.node_groups:
             for node_tree in bpy.data.node_groups.values():
                 if getattr(node_tree, "bl_idname", "") != consts.OctaneNodeTreeIDName.COMPOSITE:
                     continue
-                if node_tree.name != cls.composite_node_tree:
+                if node_tree.name != self.composite_node_tree:
                     continue
                 for node in node_tree.nodes.values():
-                    if node.bl_idname == "ShaderNodeOctAovOutputGroup":                        
-                        cls.aov_output_group_nodes.add()
-                        cls.aov_output_group_nodes[-1].name = node.name
+                    if node.bl_idname == "ShaderNodeOctAovOutputGroup":
+                        self.aov_output_group_nodes.add()
+                        self.aov_output_group_nodes[-1].name = node.name
 
 
 class OctaneBakingLayerTransform(bpy.types.PropertyGroup):
     id: IntProperty(
-            name="Baking Layer ID",
-            min=1, max=65535,
-            default=1,                
-            )   
+        name="Baking Layer ID",
+        min=1, max=65535,
+        default=1,
+    )
     translation: FloatVectorProperty(
-            name="Translation",                                
-            subtype='TRANSLATION',
-            )      
+        name="Translation",
+        subtype='TRANSLATION',
+    )
     rotation: FloatVectorProperty(
-            name="Rotation",                             
-            subtype='EULER',
-            )    
+        name="Rotation",
+        subtype='EULER',
+    )
     scale: FloatVectorProperty(
-            name="Scale",                             
-            subtype='XYZ',
-            default=(1, 1, 1)
-            )  
+        name="Scale",
+        subtype='XYZ',
+        default=(1, 1, 1)
+    )
     rotation_order: EnumProperty(
-            name="Rotation order",
-            items=rotation_orders,
-            default='2',
-            )
+        name="Rotation order",
+        items=rotation_orders,
+        default='2',
+    )
 
-def sync_baking_transform(self, context):
+
+def sync_baking_transform(_self=None, _context=None):
     scene = bpy.context.scene
     oct_scene = scene.octane
-    baking_layer_settings = oct_scene.baking_layer_settings  
-    oct_cam = bpy.data.cameras['Camera'].octane    
-    if baking_layer_settings._get_baking_layer_by_idx(oct_cam.baking_group_id) is None:
-        baking_layer_settings._add_new_baking_layer(oct_cam.baking_group_id)
+    baking_layer_settings = oct_scene.baking_layer_settings
+    oct_cam = bpy.data.cameras['Camera'].octane
+    if baking_layer_settings.get_baking_layer_by_idx(oct_cam.baking_group_id) is None:
+        baking_layer_settings.add_new_baking_layer(oct_cam.baking_group_id)
     for transform in baking_layer_settings.baking_layer_transform_collections.values():
         if transform.id == oct_cam.baking_group_id:
             oct_cam.baking_uvw_translation = transform.translation
@@ -137,17 +144,17 @@ def sync_baking_transform(self, context):
             oct_cam.baking_uvw_rotation_order = transform.rotation_order
 
 
-class OctaneBakingLayerTransformCollection(bpy.types.PropertyGroup):    
+class OctaneBakingLayerTransformCollection(bpy.types.PropertyGroup):
     baking_layer_transform_collections: CollectionProperty(type=OctaneBakingLayerTransform)
 
-    def update_cur_baking_layer_id(self, context):
-        #make sure it is initialized
+    def update_cur_baking_layer_id(self, _context):
+        # make sure it is initialized
         if not self._delay_init():
             return
-        if self._get_baking_layer_by_idx(self.cur_baking_layer_id) is None:
-            self._add_new_baking_layer(self.cur_baking_layer_id)
+        if self.get_baking_layer_by_idx(self.cur_baking_layer_id) is None:
+            self.add_new_baking_layer(self.cur_baking_layer_id)
         # self._debug_show_all_baking_layer_info()
-        cur_baking_transform = self._get_baking_layer_by_idx(self.cur_baking_layer_id)
+        cur_baking_transform = self.get_baking_layer_by_idx(self.cur_baking_layer_id)
         if cur_baking_transform:
             self['cur_baking_layer_id'] = cur_baking_transform.id
             self['cur_baking_layer_translation'] = cur_baking_transform.translation
@@ -156,20 +163,20 @@ class OctaneBakingLayerTransformCollection(bpy.types.PropertyGroup):
             self['cur_baking_layer_rotation_order'] = cur_baking_transform.rotation_order
         sync_baking_transform()
 
-    #init default baking layer
+    # init default baking layer
     cur_baking_layer_id: IntProperty(
-            name="Baking Layer ID",
-            description="ID of the baking layer",
-            update=update_cur_baking_layer_id,
-            min=1, max=65535,
-            default=1,
-            )
+        name="Baking Layer ID",
+        description="ID of the baking layer",
+        update=update_cur_baking_layer_id,
+        min=1, max=65535,
+        default=1,
+    )
 
-    def update_cur_baking_layer_transform(self, context):
-        #make sure it is initialized
+    def update_cur_baking_layer_transform(self, _context):
+        # make sure it is initialized
         if not self._delay_init():
             return
-        cur_baking_transform = self._get_baking_layer_by_idx(self.cur_baking_layer_id)
+        cur_baking_transform = self.get_baking_layer_by_idx(self.cur_baking_layer_id)
         if cur_baking_transform:
             cur_baking_transform.translation = self['cur_baking_layer_translation']
             cur_baking_transform.rotation = self['cur_baking_layer_rotation']
@@ -178,46 +185,50 @@ class OctaneBakingLayerTransformCollection(bpy.types.PropertyGroup):
         sync_baking_transform()
 
     cur_baking_layer_translation: FloatVectorProperty(
-            name="Translation",
-            description="Translation that affects the way the UVs from that object layer are projected into the UV space when rendered using the baking camera",   
-            update = update_cur_baking_layer_transform,                             
-            subtype='TRANSLATION',
-            )      
+        name="Translation",
+        description="Translation that affects the way the UVs from that object layer are projected into the UV space "
+                    "when rendered using the baking camera",
+        update=update_cur_baking_layer_transform,
+        subtype='TRANSLATION',
+    )
     cur_baking_layer_rotation: FloatVectorProperty(
-            name="Rotation",
-            description="Rotation that affects the way the UVs from that object layer are projected into the UV space when rendered using the baking camera",                                
-            update = update_cur_baking_layer_transform,
-            subtype='EULER',
-            )    
+        name="Rotation",
+        description="Rotation that affects the way the UVs from that object layer are projected into the UV space "
+                    "when rendered using the baking camera",
+        update=update_cur_baking_layer_transform,
+        subtype='EULER',
+    )
     cur_baking_layer_scale: FloatVectorProperty(
-            name="Scale",
-            description="Scale that affects the way the UVs from that object layer are projected into the UV space when rendered using the baking camera",                                
-            update = update_cur_baking_layer_transform,
-            subtype='XYZ',
-            default=(1, 1, 1)
-            )        
+        name="Scale",
+        description="Scale that affects the way the UVs from that object layer are projected into the UV space when "
+                    "rendered using the baking camera",
+        update=update_cur_baking_layer_transform,
+        subtype='XYZ',
+        default=(1, 1, 1)
+    )
     cur_baking_layer_rotation_order: EnumProperty(
-            name="Rotation order",
-            description="Rotation order that affects the way the UVs from that object layer are projected into the UV space when rendered using the baking camera",                                
-            update = update_cur_baking_layer_transform,
-            items=rotation_orders,
-            default='2',
-            )       
+        name="Rotation order",
+        description="Rotation order that affects the way the UVs from that object layer are projected into the UV "
+                    "space when rendered using the baking camera",
+        update=update_cur_baking_layer_transform,
+        items=rotation_orders,
+        default='2',
+    )
 
     def init(self):
-        if not len(self.baking_layer_transform_collections):      
+        if not len(self.baking_layer_transform_collections):
             next_new_baking_layer = self.baking_layer_transform_collections.add()
             next_new_baking_layer.id = 1
 
-    def _add_new_baking_layer(self, idx):
+    def add_new_baking_layer(self, idx):
         next_new_baking_layer = self.baking_layer_transform_collections.add()
         next_new_baking_layer.id = idx
 
-    def _get_baking_layer_by_idx(self, idx):
+    def get_baking_layer_by_idx(self, idx):
         for baking_layer_transform in self.baking_layer_transform_collections.values():
             if idx == baking_layer_transform.id:
                 return baking_layer_transform
-        return None        
+        return None
 
     def _debug_show_all_baking_layer_info(self):
         for baking_layer_transform in self.baking_layer_transform_collections.values():
@@ -228,10 +239,13 @@ class OctaneBakingLayerTransformCollection(bpy.types.PropertyGroup):
             print("Rotation Order: ", baking_layer_transform.rotation_order)
 
     def _delay_init(self):
-        if self._get_baking_layer_by_idx(1) is None:
-            self._add_new_baking_layer(1)
-            return False       
-        if not self.__contains__('cur_baking_layer_translation') or not self.__contains__('cur_baking_layer_rotation') or not self.__contains__('cur_baking_layer_scale') or not self.__contains__('cur_baking_layer_rotation_order'):
+        if self.get_baking_layer_by_idx(1) is None:
+            self.add_new_baking_layer(1)
+            return False
+        if (not self.__contains__('cur_baking_layer_translation')
+                or not self.__contains__('cur_baking_layer_rotation')
+                or not self.__contains__('cur_baking_layer_scale')
+                or not self.__contains__('cur_baking_layer_rotation_order')):
             self['cur_baking_layer_translation'] = self.cur_baking_layer_translation
             self['cur_baking_layer_rotation'] = self.cur_baking_layer_rotation
             self['cur_baking_layer_scale'] = self.cur_baking_layer_scale
@@ -250,11 +264,14 @@ class OctaneBakingLayerTransformCollection(bpy.types.PropertyGroup):
 class KernelNodeGraphPropertyGroup(bpy.types.PropertyGroup):
     def poll_kernel_tree(self, node_tree):
         return node_tree.bl_idname == consts.OctaneNodeTreeIDName.KERNEL
+
     def update_scene(self, context):
         context.scene.update_tag()
         bpy.app.timers.register(self.update_post, first_interval=0.05)
+
     def update_post(self):
         bpy.context.scene.update_tag()
+
     node_tree: PointerProperty(
         name="Kernel Node Graph",
         description="Select the kernel node graph(can be created in the 'Kernel Editor'",
@@ -264,9 +281,10 @@ class KernelNodeGraphPropertyGroup(bpy.types.PropertyGroup):
     )
 
 
-class RenderAOVNodeGraphPropertyGroup(bpy.types.PropertyGroup):  
+class RenderAOVNodeGraphPropertyGroup(bpy.types.PropertyGroup):
     def poll_render_aov_node_tree(self, node_tree):
         return node_tree.bl_idname == consts.OctaneNodeTreeIDName.RENDER_AOV
+
     node_tree: PointerProperty(
         name="Render AOV Node Graph",
         description="Select the render AOV node graph(can be created in the 'Octane Render AOV Editor'",
@@ -275,19 +293,20 @@ class RenderAOVNodeGraphPropertyGroup(bpy.types.PropertyGroup):
     )
 
 
-class CompositeNodeGraphPropertyGroup(bpy.types.PropertyGroup):  
+class CompositeNodeGraphPropertyGroup(bpy.types.PropertyGroup):
     def poll_composite_node_tree(self, node_tree):
         return node_tree.bl_idname == consts.OctaneNodeTreeIDName.COMPOSITE
+
     node_tree: PointerProperty(
         name="Composite Node Graph",
-        description="Select the Octane composite node graph(can be created in the 'Octane Composte Editor'",
+        description="Select the Octane composite node graph(can be created in the 'Octane Composite Editor'",
         type=bpy.types.NodeTree,
         poll=poll_composite_node_tree,
     )
 
 
 class OctaneAnimationSettings(bpy.types.PropertyGroup, common.OctanePropertySettings):
-    PROPERTY_CONFIGS = {consts.NodeType.NT_ANIMATION_SETTINGS: ["mb_direction",]}
+    PROPERTY_CONFIGS = {consts.NodeType.NT_ANIMATION_SETTINGS: ["mb_direction", ]}
     PROPERTY_NAME_TO_PIN_SYMBOL_MAP = {
         "mb_direction": "shutterAlignment",
     }
@@ -300,23 +319,23 @@ class OctaneAnimationSettings(bpy.types.PropertyGroup, common.OctanePropertySett
     )
     shutter_time: FloatProperty(
         name="Shutter time",
-        description="The shutter time percentage relative to the duration of a single frame",                
-        default=20.0,                
+        description="The shutter time percentage relative to the duration of a single frame",
+        default=20.0,
         precision=0,
         min=0.0, soft_min=0.0, max=100000.0, soft_max=100.0,
         subtype='PERCENTAGE',
     )
     subframe_start: FloatProperty(
         name="Subframe start",
-        description="Minimum sub-frame % time to sample",                
+        description="Minimum sub-frame % time to sample",
         default=0.0,
         precision=0,
         min=0.0, soft_min=0.0, max=100.0, soft_max=100.0,
         subtype='PERCENTAGE',
-    )  
+    )
     subframe_end: FloatProperty(
         name="Subframe end",
-        description="Maximum sub-frame % time to sample",                
+        description="Maximum sub-frame % time to sample",
         default=100.0,
         precision=0,
         min=0.0, soft_min=0.0, max=100.0, soft_max=100.0,
@@ -327,7 +346,7 @@ class OctaneAnimationSettings(bpy.types.PropertyGroup, common.OctanePropertySett
         description="Emulate the behavior of of Octane Blender motion blur of version 27.8",
         default=False,
     )
-    clamp_motion_blur_data_source : BoolProperty(
+    clamp_motion_blur_data_source: BoolProperty(
         name="Auto Clamp Mode",
         description="Clamp motion blur data source within the start-frame and end-frame",
         default=True,
@@ -347,7 +366,7 @@ class OctaneAnimationSettings(bpy.types.PropertyGroup, common.OctanePropertySett
         row = layout.row()
         row.prop(self, "clamp_motion_blur_data_source")
 
-    def sync_custom_data(self, octane_node, scene, region, v3d, rv3d, session_type):        
+    def sync_custom_data(self, octane_node, scene, region, v3d, rv3d, session_type):
         if session_type == consts.SessionType.EXPORT:
             shutter_time = self.shutter_time / 100.0
         else:
@@ -361,14 +380,16 @@ class OctaneAnimationSettings(bpy.types.PropertyGroup, common.OctanePropertySett
         octane_node.set_pin_id(consts.PinID.P_SUBFRAME_END, False, "", self.subframe_end / 100.0)
 
     def update_legacy_data(self, context, legacy_data, is_viewport=None):
-        utility.cast_legacy_enum_property(self, "mb_direction", OctaneAnimationSettingsShutterAlignment.items, legacy_data, "mb_direction")
+        utility.cast_legacy_enum_property(self, "mb_direction", OctaneAnimationSettingsShutterAlignment.items,
+                                          legacy_data, "mb_direction")
         utility.sync_legacy_property(self, "shutter_time", legacy_data, "shutter_time")
         utility.sync_legacy_property(self, "subframe_start", legacy_data, "subframe_start")
         utility.sync_legacy_property(self, "subframe_end", legacy_data, "subframe_end")
 
 
 class OctaneGlobalRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
-    PROPERTY_CONFIGS = {consts.NodeType.NT_RENDER_LAYER: ["layers_enable", "layers_current", "layers_invert", "layers_mode",]}
+    PROPERTY_CONFIGS = {
+        consts.NodeType.NT_RENDER_LAYER: ["layers_enable", "layers_current", "layers_invert", "layers_mode", ]}
     PROPERTY_NAME_TO_PIN_SYMBOL_MAP = {
         "layers_enable": "enabled",
         "layers_current": "layerId",
@@ -389,31 +410,33 @@ class OctaneGlobalRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySett
     )
     layers_invert: BoolProperty(
         name="Invert",
-        description="All the non-active render layers become the active render layer and the active render layer becomes inactive",
+        description="All the non-active render layers become the active render layer and the active render layer "
+                    "becomes inactive",
         default=False,
     )
     layers_mode: EnumProperty(
         name="Mode",
         description="The render mode that should be used to render layers:\n"
-            "\n"
-            "'Normal':"
-            " The beauty passes contain the active layer only and the render layer passes (shadows,"
-            " reflections...) record the side-effects of the active render layer for those samples/pixels"
-            " that are not obstructed by the active render layer.\n"
-            "\n"
-            "'Hide inactive layers':"
-            " All geometry that is not on an active layer will be made invisible. No side effects"
-            " will be recorded in the render layer passes, i.e. the render layer passes will be empty.\n"
-            "\n"
-            "'Only side effects':"
-            " The active layer will be made invisible and the render layer passes (shadows, reflections...)"
-            " record the side-effects of the active render layer. The beauty passes will be empty.\n"
-            " This is useful to capture all side-effects without having the active layer obstructing those.\n"
-            "\n"
-            "'Hide from camera':"
-            " Similar to 'Hide inactive layers' All geometry that is not on an active layer"
-            " will be made invisible. But side effects(shadows, reflections...)will be recorded in the render layer passes\n"
-            "\n",
+                    "\n"
+                    "'Normal':"
+                    " The beauty passes contain the active layer only and the render layer passes (shadows,"
+                    " reflections...) record the side-effects of the active render layer for those samples/pixels"
+                    " that are not obstructed by the active render layer.\n"
+                    "\n"
+                    "'Hide inactive layers':"
+                    " All geometry that is not on an active layer will be made invisible. No side effects"
+                    " will be recorded in the render layer passes, i.e. the render layer passes will be empty.\n"
+                    "\n"
+                    "'Only side effects':"
+                    " The active layer will be made invisible and the render layer passes (shadows, reflections...)"
+                    " record the side-effects of the active render layer. The beauty passes will be empty.\n"
+                    " This is useful to capture all side-effects without having the active layer obstructing those.\n"
+                    "\n"
+                    "'Hide from camera':"
+                    " Similar to 'Hide inactive layers' All geometry that is not on an active layer"
+                    "will be made invisible. But side effects(shadows, reflections...)will be recorded in the render "
+                    "layer passes\n"
+                    "\n",
         items=OctaneRenderLayerMode.items,
         default="Normal",
     )
@@ -422,19 +445,18 @@ class OctaneGlobalRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySett
         col = layout.column()
         col.prop(self, "layers_mode")
         col.prop(self, "layers_current")
-        col.prop(self, "layers_invert")        
+        col.prop(self, "layers_invert")
 
     def update_legacy_data(self, context, legacy_data, is_viewport=None):
         utility.cast_legacy_enum_property(self, "layers_mode", OctaneRenderLayerMode.items, legacy_data, "layers_mode")
         utility.sync_legacy_property(self, "layers_enable", legacy_data, "layers_enable")
         utility.sync_legacy_property(self, "layers_current", legacy_data, "layers_current")
-        utility.sync_legacy_property(self, "layers_invert", legacy_data, "layers_invert")        
-
+        utility.sync_legacy_property(self, "layers_invert", legacy_data, "layers_invert")
 
 
 class OctaneRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
     PROPERTY_CONFIGS = {
-        consts.NodeType.NT_RENDER_LAYER: ["layers_enable", "layers_current", "layers_invert", "layers_mode",],
+        consts.NodeType.NT_RENDER_LAYER: ["layers_enable", "layers_current", "layers_invert", "layers_mode", ],
         consts.NodeType.NT_RENDER_PASSES: [
             "pass_raw",
             "use_pass_beauty", "use_pass_emitters", "use_pass_env",
@@ -443,9 +465,12 @@ class OctaneRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
             "use_pass_reflect", "use_pass_reflect_dir", "use_pass_reflect_indir", "use_pass_reflect_filter",
             "use_pass_refract", "use_pass_refract_filter",
             "use_pass_transm", "use_pass_transm_filter",
-            "use_pass_sss", "use_pass_shadow", 
-            "use_pass_irradiance", "use_pass_light_dir", "use_pass_volume", "use_pass_vol_mask", "use_pass_vol_emission", "use_pass_vol_z_front", "use_pass_vol_z_back", "use_pass_noise",
-            "use_pass_denoise_beauty", "use_pass_denoise_diff_dir", "use_pass_denoise_diff_indir", "use_pass_denoise_reflect_dir", "use_pass_denoise_reflect_indir", "use_pass_denoise_emission", "use_pass_denoise_remainder", "use_pass_denoise_vol", "use_pass_denoise_vol_emission",
+            "use_pass_sss", "use_pass_shadow",
+            "use_pass_irradiance", "use_pass_light_dir", "use_pass_volume", "use_pass_vol_mask",
+            "use_pass_vol_emission", "use_pass_vol_z_front", "use_pass_vol_z_back", "use_pass_noise",
+            "use_pass_denoise_beauty", "use_pass_denoise_diff_dir", "use_pass_denoise_diff_indir",
+            "use_pass_denoise_reflect_dir", "use_pass_denoise_reflect_indir", "use_pass_denoise_emission",
+            "use_pass_denoise_remainder", "use_pass_denoise_vol", "use_pass_denoise_vol_emission",
             "use_pass_postprocess", "use_pass_postfxmedia", "pass_pp_env",
             "use_pass_layer_shadows", "use_pass_layer_black_shadow", "use_pass_layer_reflections",
             "use_pass_ambient_light", "use_pass_ambient_light_dir", "use_pass_ambient_light_indir",
@@ -471,22 +496,26 @@ class OctaneRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
             "use_pass_light_pass_19", "use_pass_light_dir_pass_19", "use_pass_light_indir_pass_19",
             "use_pass_light_pass_20", "use_pass_light_dir_pass_20", "use_pass_light_indir_pass_20",
             "cryptomatte_pass_channels", "cryptomatte_seed_factor",
-            "use_pass_crypto_instance_id", "use_pass_crypto_mat_node_name", "use_pass_crypto_mat_node", "use_pass_crypto_mat_pin_node", 
-            "use_pass_crypto_obj_node_name", "use_pass_crypto_obj_node", "use_pass_crypto_obj_pin_node", 
+            "use_pass_crypto_instance_id", "use_pass_crypto_mat_node_name", "use_pass_crypto_mat_node",
+            "use_pass_crypto_mat_pin_node",
+            "use_pass_crypto_obj_node_name", "use_pass_crypto_obj_node", "use_pass_crypto_obj_pin_node",
             "use_pass_crypto_render_layer", "use_pass_crypto_geometry_node_name", "use_pass_crypto_user_instance_id",
-            "info_pass_max_samples", "info_pass_sampling_mode", 
-            "info_pass_bump", "info_pass_opacity_threshold", 
-            "use_pass_info_geo_normal", "use_pass_info_smooth_normal", "use_pass_info_shading_normal", "use_pass_info_tangent_normal",
+            "info_pass_max_samples", "info_pass_sampling_mode",
+            "info_pass_bump", "info_pass_opacity_threshold",
+            "use_pass_info_geo_normal", "use_pass_info_smooth_normal", "use_pass_info_shading_normal",
+            "use_pass_info_tangent_normal",
             "use_pass_info_z_depth", "info_pass_z_depth_max",
             "use_pass_info_position",
             "use_pass_info_uv", "info_pass_uv_max", "info_pass_uv_coordinate_selection",
             "use_pass_info_tex_tangent",
             "use_pass_info_motion_vector", "info_pass_max_speed",
-            "use_pass_info_mat_id", "use_pass_info_obj_id", "use_pass_info_obj_layer_color", "use_pass_info_baking_group_id", "use_pass_info_light_pass_id", 
-            "use_pass_info_render_layer_id", "use_pass_info_render_layer_mask", "use_pass_info_wireframe", 
+            "use_pass_info_mat_id", "use_pass_info_obj_id", "use_pass_info_obj_layer_color",
+            "use_pass_info_baking_group_id", "use_pass_info_light_pass_id",
+            "use_pass_info_render_layer_id", "use_pass_info_render_layer_mask", "use_pass_info_wireframe",
             "use_pass_info_ao", "info_pass_ao_distance", "info_pass_alpha_shadows",
-            "use_pass_mat_opacity", "use_pass_mat_roughness", "use_pass_mat_ior", 
-            "use_pass_mat_diff_filter_info", "use_pass_mat_reflect_filter_info", "use_pass_mat_refract_filter_info", "use_pass_mat_transm_filter_info",
+            "use_pass_mat_opacity", "use_pass_mat_roughness", "use_pass_mat_ior",
+            "use_pass_mat_diff_filter_info", "use_pass_mat_reflect_filter_info", "use_pass_mat_refract_filter_info",
+            "use_pass_mat_transm_filter_info",
         ]
     }
     PROPERTY_NAME_TO_PIN_SYMBOL_MAP = {
@@ -525,13 +554,13 @@ class OctaneRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
         "use_pass_vol_z_back": "renderPassVolumeZDepthBack",
         "use_pass_noise": "renderPassNoise",
         "use_pass_denoise_beauty": "",
-        "use_pass_denoise_diff_dir": "renderPassDiffuseDirectDenoiserOutput", 
-        "use_pass_denoise_diff_indir": "renderPassDiffuseIndirectDenoiserOutput", 
-        "use_pass_denoise_reflect_dir": "renderPassReflectionDirectDenoiserOutput", 
-        "use_pass_denoise_reflect_indir": "renderPassReflectionIndirectDenoiserOutput", 
-        "use_pass_denoise_emission": "renderPassEmissionDenoiserOutput", 
-        "use_pass_denoise_remainder": "renderPassRemainderDenoiserOutput", 
-        "use_pass_denoise_vol": "renderPassVolumeDenoiserOutput", 
+        "use_pass_denoise_diff_dir": "renderPassDiffuseDirectDenoiserOutput",
+        "use_pass_denoise_diff_indir": "renderPassDiffuseIndirectDenoiserOutput",
+        "use_pass_denoise_reflect_dir": "renderPassReflectionDirectDenoiserOutput",
+        "use_pass_denoise_reflect_indir": "renderPassReflectionIndirectDenoiserOutput",
+        "use_pass_denoise_emission": "renderPassEmissionDenoiserOutput",
+        "use_pass_denoise_remainder": "renderPassRemainderDenoiserOutput",
+        "use_pass_denoise_vol": "renderPassVolumeDenoiserOutput",
         "use_pass_denoise_vol_emission": "renderPassVolumeEmissionDenoiserOutput",
         "use_pass_postprocess": "renderPassPostProcessing",
         "use_pass_postfxmedia": "renderPassPostFxMedia",
@@ -539,35 +568,35 @@ class OctaneRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
         "use_pass_layer_shadows": "renderPassLayerShadows",
         "use_pass_layer_black_shadow": "renderPassLayerBlackShadows",
         "use_pass_layer_reflections": "renderPassLayerReflections",
-        "use_pass_ambient_light": "renderPassAmbientLight", 
-        "use_pass_ambient_light_dir": "renderPassAmbientLightDirect", 
+        "use_pass_ambient_light": "renderPassAmbientLight",
+        "use_pass_ambient_light_dir": "renderPassAmbientLightDirect",
         "use_pass_ambient_light_indir": "renderPassAmbientLightIndirect",
-        "use_pass_sunlight": "renderPassSunLight", 
-        "use_pass_sunlight_dir": "renderPassSunLightDirect", 
+        "use_pass_sunlight": "renderPassSunLight",
+        "use_pass_sunlight_dir": "renderPassSunLightDirect",
         "use_pass_sunlight_indir": "renderPassSunLightIndirect",
-        "use_pass_light_pass_1": "renderPassLight1", 
-        "use_pass_light_dir_pass_1": "renderPassLight1Direct", 
+        "use_pass_light_pass_1": "renderPassLight1",
+        "use_pass_light_dir_pass_1": "renderPassLight1Direct",
         "use_pass_light_indir_pass_1": "renderPassLight1Indirect",
-        "use_pass_light_pass_2": "renderPassLight2", 
-        "use_pass_light_dir_pass_2": "renderPassLight2Direct", 
+        "use_pass_light_pass_2": "renderPassLight2",
+        "use_pass_light_dir_pass_2": "renderPassLight2Direct",
         "use_pass_light_indir_pass_2": "renderPassLight2Indirect",
-        "use_pass_light_pass_3": "renderPassLight3", 
-        "use_pass_light_dir_pass_3": "renderPassLight3Direct", 
+        "use_pass_light_pass_3": "renderPassLight3",
+        "use_pass_light_dir_pass_3": "renderPassLight3Direct",
         "use_pass_light_indir_pass_3": "renderPassLight3Indirect",
-        "use_pass_light_pass_4": "renderPassLight4", 
-        "use_pass_light_dir_pass_4": "renderPassLight4Direct", 
+        "use_pass_light_pass_4": "renderPassLight4",
+        "use_pass_light_dir_pass_4": "renderPassLight4Direct",
         "use_pass_light_indir_pass_4": "renderPassLight4Indirect",
-        "use_pass_light_pass_5": "renderPassLight5", 
-        "use_pass_light_dir_pass_5": "renderPassLight5Direct", 
+        "use_pass_light_pass_5": "renderPassLight5",
+        "use_pass_light_dir_pass_5": "renderPassLight5Direct",
         "use_pass_light_indir_pass_5": "renderPassLight5Indirect",
-        "use_pass_light_pass_6": "renderPassLight6", 
-        "use_pass_light_dir_pass_6": "renderPassLight6Direct", 
+        "use_pass_light_pass_6": "renderPassLight6",
+        "use_pass_light_dir_pass_6": "renderPassLight6Direct",
         "use_pass_light_indir_pass_6": "renderPassLight6Indirect",
-        "use_pass_light_pass_7": "renderPassLight7", 
-        "use_pass_light_dir_pass_7": "renderPassLight7Direct", 
+        "use_pass_light_pass_7": "renderPassLight7",
+        "use_pass_light_dir_pass_7": "renderPassLight7Direct",
         "use_pass_light_indir_pass_7": "renderPassLight7Indirect",
-        "use_pass_light_pass_8": "renderPassLight8", 
-        "use_pass_light_dir_pass_8": "renderPassLight8Direct", 
+        "use_pass_light_pass_8": "renderPassLight8",
+        "use_pass_light_dir_pass_8": "renderPassLight8Direct",
         "use_pass_light_indir_pass_8": "renderPassLight8Indirect",
         "use_pass_light_pass_9": "renderPassLight9",
         "use_pass_light_dir_pass_9": "renderPassLight9Direct",
@@ -605,14 +634,14 @@ class OctaneRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
         "use_pass_light_pass_20": "renderPassLight20",
         "use_pass_light_dir_pass_20": "renderPassLight20Direct",
         "use_pass_light_indir_pass_20": "renderPassLight20Indirect",
-        "cryptomatte_pass_channels": "renderPassCryptomatteCount", 
+        "cryptomatte_pass_channels": "renderPassCryptomatteCount",
         "cryptomatte_seed_factor": "renderPassCryptomatteSeedFactor",
-        "use_pass_crypto_instance_id": "renderPassCryptomatteInstance", 
-        "use_pass_crypto_mat_node_name": "renderPassCryptomatteMaterialNodeName", 
-        "use_pass_crypto_mat_node": "renderPassCryptomatteMaterialNode", 
-        "use_pass_crypto_mat_pin_node": "renderPassCryptomatteMaterialPinName", 
-        "use_pass_crypto_obj_node_name": "renderPassCryptomatteObjectNodeName", 
-        "use_pass_crypto_obj_node": "renderPassCryptomatteObjectNode", 
+        "use_pass_crypto_instance_id": "renderPassCryptomatteInstance",
+        "use_pass_crypto_mat_node_name": "renderPassCryptomatteMaterialNodeName",
+        "use_pass_crypto_mat_node": "renderPassCryptomatteMaterialNode",
+        "use_pass_crypto_mat_pin_node": "renderPassCryptomatteMaterialPinName",
+        "use_pass_crypto_obj_node_name": "renderPassCryptomatteObjectNodeName",
+        "use_pass_crypto_obj_node": "renderPassCryptomatteObjectNode",
         "use_pass_crypto_obj_pin_node": "renderPassCryptomatteObjectPinName",
         "use_pass_crypto_render_layer": "renderPassCryptomatteRenderLayer",
         "use_pass_crypto_geometry_node_name": "renderPassCryptomatteGeometryNodeName",
@@ -648,12 +677,12 @@ class OctaneRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
         "use_pass_info_ao": "renderPassAmbientOcclusion",
         "info_pass_ao_distance": "aodist",
         "info_pass_alpha_shadows": "aoAlphaShadows",
-        "use_pass_mat_opacity": "renderPassOpacity", 
-        "use_pass_mat_roughness": "renderPassRoughness", 
+        "use_pass_mat_opacity": "renderPassOpacity",
+        "use_pass_mat_roughness": "renderPassRoughness",
         "use_pass_mat_ior": "renderPassIor",
-        "use_pass_mat_diff_filter_info": "renderPassDiffuseFilterInfo", 
-        "use_pass_mat_reflect_filter_info": "renderPassReflectionFilterInfo", 
-        "use_pass_mat_refract_filter_info": "renderPassRefractionFilterInfo", 
+        "use_pass_mat_diff_filter_info": "renderPassDiffuseFilterInfo",
+        "use_pass_mat_reflect_filter_info": "renderPassReflectionFilterInfo",
+        "use_pass_mat_refract_filter_info": "renderPassRefractionFilterInfo",
         "use_pass_mat_transm_filter_info": "renderPassTransmissionFilterInfo",
     }
     LEGACY_LAYER_MODE_CONVERTOR = {
@@ -676,31 +705,33 @@ class OctaneRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
     )
     layers_invert: BoolProperty(
         name="Invert",
-        description="All the non-active render layers become the active render layer and the active render layer becomes inactive",
+        description="All the non-active render layers become the active render layer and the active render layer "
+                    "becomes inactive",
         default=False,
     )
     layers_mode: EnumProperty(
         name="Mode",
         description="The render mode that should be used to render layers:\n"
-            "\n"
-            "'Normal':"
-            " The beauty passes contain the active layer only and the render layer passes (shadows,"
-            " reflections...) record the side-effects of the active render layer for those samples/pixels"
-            " that are not obstructed by the active render layer.\n"
-            "\n"
-            "'Hide inactive layers':"
-            " All geometry that is not on an active layer will be made invisible. No side effects"
-            " will be recorded in the render layer passes, i.e. the render layer passes will be empty.\n"
-            "\n"
-            "'Only side effects':"
-            " The active layer will be made invisible and the render layer passes (shadows, reflections...)"
-            " record the side-effects of the active render layer. The beauty passes will be empty.\n"
-            " This is useful to capture all side-effects without having the active layer obstructing those.\n"
-            "\n"
-            "'Hide from camera':"
-            " Similar to 'Hide inactive layers' All geometry that is not on an active layer"
-            " will be made invisible. But side effects(shadows, reflections...)will be recorded in the render layer passes\n"
-            "\n",
+                    "\n"
+                    "'Normal':"
+                    " The beauty passes contain the active layer only and the render layer passes (shadows,"
+                    " reflections...) record the side-effects of the active render layer for those samples/pixels"
+                    " that are not obstructed by the active render layer.\n"
+                    "\n"
+                    "'Hide inactive layers':"
+                    " All geometry that is not on an active layer will be made invisible. No side effects"
+                    " will be recorded in the render layer passes, i.e. the render layer passes will be empty.\n"
+                    "\n"
+                    "'Only side effects':"
+                    " The active layer will be made invisible and the render layer passes (shadows, reflections...)"
+                    " record the side-effects of the active render layer. The beauty passes will be empty.\n"
+                    " This is useful to capture all side-effects without having the active layer obstructing those.\n"
+                    "\n"
+                    "'Hide from camera':"
+                    " Similar to 'Hide inactive layers' All geometry that is not on an active layer"
+                    "will be made invisible. But side effects(shadows, reflections...)will be recorded in the render "
+                    "layer passes\n"
+                    "\n",
         items=OctaneRenderLayerMode.items,
         default="Normal",
     )
@@ -722,7 +753,8 @@ class OctaneRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
     )
     use_pass_beauty: BoolProperty(
         name="Beauty",
-        description="Make the beauty pass raw render passes by dividing out the color of the BxDF of the surface hit by the camera ray",
+        description="Make the beauty pass raw render passes by dividing out the color of the BxDF of the surface hit "
+                    "by the camera ray",
         default=False,
     )
     use_pass_emitters: BoolProperty(
@@ -737,12 +769,14 @@ class OctaneRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
     )
     use_pass_denoise_albedo: BoolProperty(
         name="DenoiseAlbedo",
-        description="Records the albedo values for the first bounce of the camera path, but also of subsequent bounces if the first bounces are all specular",
+        description="Records the albedo values for the first bounce of the camera path, but also of subsequent "
+                    "bounces if the first bounces are all specular",
         default=False,
     )
     use_pass_denoise_normal: BoolProperty(
         name="DenoiseNormal",
-        description="Records the normal values for the first bounce of the camera path, but also of subsequent bounces if the first bounces are all specular",
+        description="Records the normal values for the first bounce of the camera path, but also of subsequent "
+                    "bounces if the first bounces are all specular",
         default=False,
     )    
     use_pass_diff: BoolProperty(
@@ -787,7 +821,8 @@ class OctaneRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
     )
     use_pass_refract: BoolProperty(
         name="Refract",
-        description="Contains all samples where the camera ray was refracted by a specular material on the first bounce",
+        description="Contains all samples where the camera ray was refracted "
+                    "by a specular material on the first bounce",
         default=False,
     )
     use_pass_refract_filter: BoolProperty(
@@ -797,7 +832,8 @@ class OctaneRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
     )
     use_pass_transm: BoolProperty(
         name="Transm",
-        description="Contains all samples where the camera ray is transmitted by a diffuse material on the first bounce",
+        description="Contains all samples where the camera ray is transmitted by a diffuse material "
+                    "on the first bounce",
         default=False,
     )
     use_pass_transm_filter: BoolProperty(
@@ -813,24 +849,28 @@ class OctaneRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
     use_pass_shadow: BoolProperty(
         name="Shadow",
         description="Contains all direct light shadows that are calculated on the first path bounce. "
-                    "This includes sun light, but excludes sky light or texture environment if importance sampling is disabled or the texture environment doesn't consist of an image",
+                    "This includes sun light, but excludes sky light or texture environment if importance sampling is "
+                    "disabled or the texture environment doesn't consist of an image",
         default=False,
     )
     use_pass_layer_shadows: BoolProperty(
         name="LayerShadows",
-        description="Contains shadows cast by objects in the active render layer on objects in the other render layers. Combines black shadows and colored shadows in a single image",
+        description="Contains shadows cast by objects in the active render layer on objects in the other render "
+                    "layers. Combines black shadows and colored shadows in a single image",
         default=False,
     )
     use_pass_layer_black_shadow: BoolProperty(
         name="LayerBlackShadow",
-        description="Contains shadows cast by opaque objects in the active render layer on objects in the other render layers. NOTE: this render pass doesn't work if the alpha channel is disabled",
+        description="Contains shadows cast by opaque objects in the active render layer on objects in the other "
+                    "render layers. NOTE: this render pass doesn't work if the alpha channel is disabled",
         default=False,
     )
     use_pass_layer_reflections: BoolProperty(
         name="LayerReflections",
-        description="Contains light reflected by the objects in the active layer on the objects in all the other layers",
+        description="Contains light reflected by the objects in the active layer on the objects "
+                    "in all the other layers",
         default=False,
-    )    
+    )
     use_pass_irradiance: BoolProperty(
         name="Irradiance",
         description="Contains the irradiance on the surface",
@@ -878,10 +918,10 @@ class OctaneRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
         name="DenoiserBeauty",
         description="",
         default=False,
-    )                            
+    )
     use_pass_denoise_diff_dir: BoolProperty(
         name="DenoiserDiffDir",
-        description="Contains the denoised result of diffuse direct render passs",
+        description="Contains the denoised result of diffuse direct render passes",
         default=False,
     )
     use_pass_denoise_diff_indir: BoolProperty(
@@ -921,12 +961,14 @@ class OctaneRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
     )
     use_pass_postprocess: BoolProperty(
         name="PostProcess",
-        description="Contains the post-processing applied to the beauty pass. When enabled, no post-processing is applied to the beauty pass itself",
+        description="Contains the post-processing applied to the beauty pass. When enabled, no post-processing is "
+                    "applied to the beauty pass itself",
         default=False,
     )
     use_pass_postfxmedia: BoolProperty(
         name="Postfix media",
-        description="Contains the postfx media rendering applied to the beauty pass. When enabled, no postfx media rendering is added to the beauty pass itself",
+        description="Contains the postfx media rendering applied to the beauty pass. When enabled, no postfx media "
+                    "rendering is added to the beauty pass itself",
         default=False,
     )
     use_pass_ambient_light: BoolProperty(
@@ -1396,7 +1438,8 @@ class OctaneRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
     )
     use_pass_info_ao: BoolProperty(
         name="AO",
-        description="Assigns a colour to the camera ray's hit point proportional to the amount of occlusion by other geometry",
+        description="Assigns a colour to the camera ray's hit point proportional to the amount of occlusion by other "
+                    "geometry",
         default=False,
     )
     use_pass_mat_opacity: BoolProperty(
@@ -1408,7 +1451,7 @@ class OctaneRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
         name="Roughness",
         description="Material roughness at the camera ray's hit point",
         default=False,
-    )    
+    )
     use_pass_mat_ior: BoolProperty(
         name="IOR",
         description="Material index of refraction at the camera ray's hit point",
@@ -1439,9 +1482,11 @@ class OctaneRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
         description="",
         default=False,
     )
+
     def update_info_pass_max_samples(self, context):
         oct_scene = context.scene.octane
         oct_scene.info_pass_max_samples = self.info_pass_max_samples
+
     info_pass_max_samples: IntProperty(
         name="Info pass max samples",
         description="The maximum number of samples for the info passes (excluding AO)",
@@ -1452,13 +1497,13 @@ class OctaneRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
     info_pass_sampling_mode: EnumProperty(
         name="Sampling mode",
         description="Enables motion blur and depth of field, and sets pixel filtering modes.\n\n"
-            "'Distributed rays':"
-            " Enables motion blur and DOF, and also enables pixel filtering.\n"
-            "'Non-distributed with pixel filtering':"
-            " Disables motion blur and DOF, but leaves pixel filtering enabled.\n"
-            "'Non-distributed without pixel filtering':"
-            " Disables motion blur and DOF, and disables pixel filtering for all render passes"
-            " except for render layer mask and ambient occlusion\n",
+                    "'Distributed rays':"
+                    " Enables motion blur and DOF, and also enables pixel filtering.\n"
+                    "'Non-distributed with pixel filtering':"
+                    " Disables motion blur and DOF, but leaves pixel filtering enabled.\n"
+                    "'Non-distributed without pixel filtering':"
+                    " Disables motion blur and DOF, and disables pixel filtering for all render passes"
+                    " except for render layer mask and ambient occlusion\n",
         items=info_pass_sampling_modes,
         default='0',
     )
@@ -1474,7 +1519,8 @@ class OctaneRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
     )
     info_pass_z_depth_max: FloatProperty(
         name="Z-depth max",
-        description="The Z-depth value at which the AOV values become white / 1. LDR exports will clamp at that depth, but HDR exports will write values > 1 for larger depth",
+        description="The Z-depth value at which the AOV values become white / 1. LDR exports will clamp at that "
+                    "depth, but HDR exports will write values > 1 for larger depth",
         min=0.001, soft_min=0.001, max=100000.0, soft_max=100000.0,
         default=5.0,
         step=10,
@@ -1487,7 +1533,7 @@ class OctaneRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
         default=1000.0,
         step=10,
         precision=4,
-    )    
+    )
     info_pass_uv_max: FloatProperty(
         name="UV max",
         description="UV coordinate value mapped to maximum intensity",
@@ -1501,10 +1547,11 @@ class OctaneRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
         description="Determines which set of UV coordinates to use",
         min=1, max=3,
         default=1,
-    )        
+    )
     info_pass_max_speed: FloatProperty(
         name="Max speed",
-        description="Speed mapped to the maximum intensity in the motion vector channel. A value of 1 means a maximum movement of 1 screen width in the shutter interval",
+        description="Speed mapped to the maximum intensity in the motion vector channel. A value of 1 means a maximum "
+                    "movement of 1 screen width in the shutter interval",
         min=0.00001, soft_min=0.00001, max=10000.0, soft_max=10000.0,
         default=1.0,
         step=10,
@@ -1525,12 +1572,14 @@ class OctaneRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
     )
     pass_raw: BoolProperty(
         name="Raw",
-        description="Make the beauty pass raw render passes by dividing out the color of the BxDF of the surface hit by the camera ray",
+        description="Make the beauty pass raw render passes by dividing out the color of the BxDF of the surface hit "
+                    "by the camera ray",
         default=False,
     )
     pass_pp_env: BoolProperty(
         name="Include environment",
-        description="When enabled, the environment render pass is included when doing post-processing. This option only applies when the environment render pass and alpha channel are enabled",
+        description="When enabled, the environment render pass is included when doing post-processing. This option "
+                    "only applies when the environment render pass and alpha channel are enabled",
         default=False,
     )
     info_pass_bump: BoolProperty(
@@ -1554,10 +1603,13 @@ class OctaneRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
     )
     cryptomatte_seed_factor: IntProperty(
         name="Cryptomatte seed factor",
-        description="Amount of samples to use for seeding cryptomatte. This gets multiplied with the amount of bins. Low values result in pitting artefacts at feathered edges, while large values the values can result in artefacts in places with coverage for lots of different IDs",
+        description="Amount of samples to use for seeding cryptomatte. This gets multiplied with the amount of bins. "
+                    "Low values result in pitting artefacts at feathered edges, while large values the values can "
+                    "result in artefacts in places with coverage for lots of different IDs",
         min=4, max=25,
         default=10,
     )
+    # noinspection PyRedundantParentheses
     octane_render_pass_types = (
         ("0", "Combined", "Combined pass", 0),
         ("43", "Denoiser Beauty", "Denoiser Beauty pass", 43),
@@ -1567,7 +1619,7 @@ class OctaneRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
         ("3", "Diffuse", "Diffuse pass", 3),
         ("4", "Diffuse direct", "Diffuse direct pass", 4),
         ("5", "Diffuse indirect", "Diffuse indirect pass", 5),
-        ("6", "Diffuse filter", "Diffuse filter pass", 6),        
+        ("6", "Diffuse filter", "Diffuse filter pass", 6),
         ("1", "Emitters", "Emitters pass", 1),
         ("2", "Environment", "Environment pass", 2),
         ("7", "Reflection", "Reflection pass", 7),
@@ -1597,7 +1649,7 @@ class OctaneRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
         (None),
         ("18", "Black layer shadows", "Layer black shadows pass", 18),
         ("20", "Layer reflections", "Layer reflections pass", 20),
-        ("17", "Layer shadows", "Layer shadows pass", 17),        
+        ("17", "Layer shadows", "Layer shadows pass", 17),
         ("", "Auxiliary", "", 0),
         ("10000", "AOV Output", "AOV Outputs", 10000),
         (None),
@@ -1620,7 +1672,8 @@ class OctaneRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
         ("32", "Shadow", "Shadow pass", 32),
         ("", "Info", "", 0),
         ("1010", "Ambient occlusion", "Ambient occlusion pass", 1010),
-        ("1017", "Baking group ID", "Colours each distinct baking group in the scene with a colour based on it's ID", 1017),
+        ("1017", "Baking group ID", "Colours each distinct baking group in the scene with a colour based on it's ID",
+         1017),
         ("1020", "Diffuse Filter(info)", "The diffuse texture color of the diffuse and glossy material", 1020),
         ("1019", "Index of refraction", "Material index of refraction at the camera ray's hit point", 1019),
         ("1014", "Light pass ID", "Light pass ID pass", 1014),
@@ -1632,11 +1685,13 @@ class OctaneRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
         ("1015", "Normal(tangent)", "Tangent normals pass", 1015),
         ("1009", "Object ID", "Object ID pass", 1009),
         ("1024", "Object layer color", "The color specified in the object layer node", 1024),
-        ("1016", "Opacity", "Assigns a colour to the camera ray's hit point proportional to the opacity of the geometry", 1016),
+        ("1016", "Opacity",
+         "Assigns a colour to the camera ray's hit point proportional to the opacity of the geometry", 1016),
         ("1002", "Position", "Position pass", 1002),
         ("1021", "Reflection Filter(info)", "The reflection texture color of the specular and glossy material", 1021),
         ("1022", "Refraction Filter(info)", "The refraction texture color of the specular material", 1022),
-        ("1012", "Render layer ID", "Colours objects on the same layer with the same color based on the render layer ID", 1012),
+        ("1012", "Render layer ID",
+         "Colours objects on the same layer with the same color based on the render layer ID", 1012),
         ("1013", "Render layer mask", "Mask for geometry on the active render layer", 1013),
         ("1018", "Roughness", "Material roughness at the camera ray's hit point", 1018),
         ("1006", "Texture tangent", "Tangent U pass", 1006),
@@ -1666,7 +1721,7 @@ class OctaneRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
         ("93", "Light pass 17", "Light pass 17", 93),
         ("94", "Light pass 18", "Light pass 18", 94),
         ("95", "Light pass 19", "Light pass 19", 95),
-        ("96", "Light pass 20", "Light pass 20", 96),        
+        ("96", "Light pass 20", "Light pass 20", 96),
         (None),
         ("54", "Ambient light direct", "Ambient light direct pass", 54),
         ("56", "Sunlight direct", "Sunlight direct pass", 56),
@@ -1714,7 +1769,7 @@ class OctaneRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
         ("119", "Light pass 19 indirect", "Light pass 19 indirect", 119),
         ("120", "Light pass 20 indirect", "Light pass 20 indirect", 120),
 
-    )    
+    )
     current_preview_pass_type: EnumProperty(
         name="Preview pass type",
         description="Pass used for preview rendering",
@@ -1722,8 +1777,9 @@ class OctaneRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
         default='0',
     )
     current_aov_output_id: IntProperty(
-        name="Preivew AOV Output ID",
-        description="The ID of the AOV Outputs for preview(beauty pass output will be used if no valid results for the assigned index)",
+        name="Preview AOV Output ID",
+        description="The ID of the AOV Outputs for preview(beauty pass output will be used if no valid results for "
+                    "the assigned index)",
         min=1, max=16,
         default=1,
     )
@@ -1733,9 +1789,10 @@ class OctaneRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
         type=OctaneAovOutputGroupCollection,
     )
     render_passes_style = (
-        ("RENDER_PASSES", "Classic Render Passes", "The classic render passes style but the new render AOVs won't be available there", 0),
+        ("RENDER_PASSES", "Classic Render Passes",
+         "The classic render passes style but the new render AOVs won't be available there", 0),
         ("RENDER_AOV_GRAPH", "Render AOV Node Graph", "The render AOV node graph with the AOV features", 1),
-    )    
+    )
     render_pass_style: EnumProperty(
         name="Render Passes Style",
         description="Use the classic Render Passes or the new Render AOV Graph",
@@ -1753,7 +1810,8 @@ class OctaneRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
     def sync_custom_data(self, octane_node, scene, region, v3d, rv3d, session_type):
         if self.render_pass_style != "RENDER_PASSES":
             return
-        current_preview_pass_type = utility.get_enum_int_value(self, "current_preview_pass_type", consts.RenderPassID.Beauty)
+        current_preview_pass_type = utility.get_enum_int_value(self, "current_preview_pass_type",
+                                                               consts.RenderPassID.Beauty)
         current_preview_pass_pin_name = ""
         if current_preview_pass_type in consts.OCTANE_PASS_ID_TO_NODE_PIN_NAME:
             current_preview_pass_pin_name = consts.OCTANE_PASS_ID_TO_NODE_PIN_NAME[current_preview_pass_type]
@@ -1774,13 +1832,15 @@ class OctaneRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
                 socket_type, _, _ = self.octane_property_type_list[idx]
                 property_value = getattr(self, property_name, None)
                 if socket_type == consts.SocketType.ST_ENUM:
-                    property_value = self.rna_type.properties[property_name].enum_items[property_value].value                
+                    property_value = self.rna_type.properties[property_name].enum_items[property_value].value
                 if pin_symbol == current_preview_pass_pin_name:
                     property_value = True
-                octane_node.node.set_pin(consts.OctaneDataBlockSymbolType.PIN_INDEX, pin_index, pin_symbol, socket_type, pin_type, node_type, False, "", property_value)
+                octane_node.node.set_pin(consts.OctaneDataBlockSymbolType.PIN_INDEX, pin_index, pin_symbol, socket_type,
+                                         pin_type, node_type, False, "", property_value)
 
-    def update_legacy_data(self, context, legacy_data, is_viewport=None): 
-        self.layers_mode = self.LEGACY_LAYER_MODE_CONVERTOR.get(getattr(legacy_data, "octane_render_layers_mode", ""), "Normal")
+    def update_legacy_data(self, context, legacy_data, is_viewport=None):
+        self.layers_mode = self.LEGACY_LAYER_MODE_CONVERTOR.get(getattr(legacy_data, "octane_render_layers_mode", ""),
+                                                                "Normal")
         utility.sync_legacy_property(self, "layers_enable", legacy_data, "use_octane_render_layers")
         utility.sync_legacy_property(self, "layers_current", legacy_data, "octane_render_layer_active_id")
         utility.sync_legacy_property(self, "layers_invert", legacy_data, "octane_render_layers_invert")
@@ -1799,10 +1859,9 @@ class OctaneRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
 
 
 class OctaneRenderSettings(bpy.types.PropertyGroup):
-
-# ################################################################################################
-# OCTANE BLENDER RENDER VERSION
-# ################################################################################################        
+    # ################################################################################################
+    # OCTANE BLENDER RENDER VERSION
+    # ################################################################################################
     octane_blender_version: StringProperty(
         name="",
         description="",
@@ -1813,25 +1872,29 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
         name="",
         default=0,
     )
-# ################################################################################################
-# OCTANE COLOR MANAGEMENT
-# ################################################################################################        
+    # ################################################################################################
+    # OCTANE COLOR MANAGEMENT
+    # ################################################################################################
     show_blender_color_management: BoolProperty(
         name="Show Blender Color Management",
-        description="Show the Blender's built-in Color Management Panel. \nBy default, we recommend reset the Blender Color Management as 'no-op'(do nothing) and use the Octane's Color Management exclusively. In this case, we hide the Blender Color Management so it won't confuse users\n But you can always choose the Blender's Color Management if you like. \nJust do not use both of them at the same time",
+        description="Show the Blender's built-in Color Management Panel. \nBy default, we recommend reset the Blender "
+                    "Color Management as 'no-op'(do nothing) and use the Octane's Color Management exclusively. In "
+                    "this case,"
+        "we hide the Blender Color Management so it won't confuse users\n But you can always choose the Blender's "
+        "Color Management if you like. \nJust do not use both of them at the same time",
         default=True,
     )
-# ################################################################################################
-# OCTANE OPTIMIZATION
-# ################################################################################################        
+    # ################################################################################################
+    # OCTANE OPTIMIZATION
+    # ################################################################################################
     octane_opt_mesh_generation: BoolProperty(
         name="Use Opt. Mesh Generation Mode in Preview",
-        description="[PREVIEW MODE] Do not regenerate & upload meshes(except reshapble ones) which are already cached",
+        description="[PREVIEW MODE] Do not regenerate & upload meshes(except reshapable ones) which are already cached",
         default=False,
     )
-# ################################################################################################
-# OCTANE KERNEL
-# ################################################################################################            
+    # ################################################################################################
+    # OCTANE KERNEL
+    # ################################################################################################
     kernel_node_graph_property: PointerProperty(
         name="Kernel Node Graph",
         description="Select the kernel node graph(can be created in the 'Kernel Editor'",
@@ -1840,7 +1903,7 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
     kernel_data_modes = (
         ("PROPERTY_PANEL", "Classic Property Panel", "The classic property panel", 0),
         ('NODETREE', "Kernel NodeTree", "The kernel node tree", 1),
-    )    
+    )
     kernel_data_mode: EnumProperty(
         name="Kernel Data Mode",
         description="Use the classic Kernel or the new Kernel Nodetree",
@@ -1851,27 +1914,27 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
         name="Kernel Json Node Tree",
         default="",
         maxlen=65535,
-    )    
+    )
 
-# ################################################################################################
-# OCTANE ANIMATION SETTINGS
-# ################################################################################################  
+    # ################################################################################################
+    # OCTANE ANIMATION SETTINGS
+    # ################################################################################################
     animation_settings: PointerProperty(
         name="Octane Animation Settings",
         description="",
         type=OctaneAnimationSettings,
     )
-# ################################################################################################
-# OCTANE RENDER LAYER
-# ################################################################################################  
+    # ################################################################################################
+    # OCTANE RENDER LAYER
+    # ################################################################################################
     render_layer: PointerProperty(
         name="Octane Render Layer",
         description="",
         type=OctaneGlobalRenderLayer,
     )
-# ################################################################################################
-# OCTANE RENDER PASSES
-# ################################################################################################
+    # ################################################################################################
+    # OCTANE RENDER PASSES
+    # ################################################################################################
     use_passes: BoolProperty(
         name="Render passes",
         description="",
@@ -1886,13 +1949,13 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
     info_pass_sampling_mode: EnumProperty(
         name="Sampling mode",
         description="Enables motion blur and depth of field, and sets pixel filtering modes.\n\n"
-            "'Distributed rays':"
-            " Enables motion blur and DOF, and also enables pixel filtering.\n"
-            "'Non-distributed with pixel filtering':"
-            " Disables motion blur and DOF, but leaves pixel filtering enabled.\n"
-            "'Non-distributed without pixel filtering':"
-            " Disables motion blur and DOF, and disables pixel filtering for all render passes"
-            " except for render layer mask and ambient occlusion\n",
+                    "'Distributed rays':"
+                    " Enables motion blur and DOF, and also enables pixel filtering.\n"
+                    "'Non-distributed with pixel filtering':"
+                    " Disables motion blur and DOF, but leaves pixel filtering enabled.\n"
+                    "'Non-distributed without pixel filtering':"
+                    " Disables motion blur and DOF, and disables pixel filtering for all render passes"
+                    " except for render layer mask and ambient occlusion\n",
         items=info_pass_sampling_modes,
         default='0',
     )
@@ -1917,10 +1980,11 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
         description="Determines which set of UV coordinates to use",
         min=1, max=3,
         default=1,
-    )        
+    )
     info_pass_max_speed: FloatProperty(
         name="Max speed",
-        description="Speed mapped to the maximum intensity in the motion vector channel. A value of 1 means a maximum movement of 1 screen width in the shutter interval",
+        description="Speed mapped to the maximum intensity in the motion vector channel. A value of 1 means a maximum "
+                    "movement of 1 screen width in the shutter interval",
         min=0.00001, soft_min=0.00001, max=10000.0, soft_max=10000.0,
         default=1.0,
         step=10,
@@ -1941,12 +2005,14 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
     )
     pass_raw: BoolProperty(
         name="Raw",
-        description="Make the beauty pass raw render passes by dividing out the color of the BxDF of the surface hit by the camera ray",
+        description="Make the beauty pass raw render passes by dividing out the color of the BxDF of the surface hit "
+                    "by the camera ray",
         default=False,
     )
     pass_pp_env: BoolProperty(
         name="Include environment",
-        description="When enabled, the environment render pass is included when doing post-processing. This option only applies when the environment render pass and alpha channel are enabled",
+        description="When enabled, the environment render pass is included when doing post-processing. This option "
+                    "only applies when the environment render pass and alpha channel are enabled",
         default=False,
     )
     info_pass_bump: BoolProperty(
@@ -1970,21 +2036,23 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
     )
     cryptomatte_seed_factor: IntProperty(
         name="Cryptomatte seed factor",
-        description="Amount of samples to use for seeding cryptomatte. This gets multiplied with the amount of bins. Low values result in pitting artefacts at feathered edges, while large values the values can result in artefacts in places with coverage for lots of different IDs",
+        description="Amount of samples to use for seeding cryptomatte. This gets multiplied with the amount of bins. "
+                    "Low values result in pitting artefacts at feathered edges, while large values the values can"
+                    "result in artefacts in places with coverage for lots of different IDs",
         min=4, max=25,
         default=10,
     )
-# ################################################################################################
-# OCTANE BAKING LAYER TRANSFORMS
-# ################################################################################################
+    # ################################################################################################
+    # OCTANE BAKING LAYER TRANSFORMS
+    # ################################################################################################
     baking_layer_settings: PointerProperty(
         name="Octane Baking Layer Transforms",
         description="",
         type=OctaneBakingLayerTransformCollection,
     )
-# ################################################################################################
-# OCTANE LAYERS
-# ################################################################################################
+    # ################################################################################################
+    # OCTANE LAYERS
+    # ################################################################################################
     layers_enable: BoolProperty(
         name="Enable",
         description="Tick to enable Octane render layers",
@@ -1998,7 +2066,8 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
     )
     layers_invert: BoolProperty(
         name="Invert",
-        description="All the non-active render layers become the active render layer and the active render layer becomes inactive",
+        description="All the non-active render layers become the active render layer and the active render layer "
+                    "becomes inactive",
         default=False,
     )
     layer_modes = (
@@ -2010,31 +2079,32 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
     layers_mode: EnumProperty(
         name="Mode",
         description="The render mode that should be used to render layers:\n"
-            "\n"
-            "'Normal':"
-            " The beauty passes contain the active layer only and the render layer passes (shadows,"
-            " reflections...) record the side-effects of the active render layer for those samples/pixels"
-            " that are not obstructed by the active render layer.\n"
-            "\n"
-            "'Hide inactive layers':"
-            " All geometry that is not on an active layer will be made invisible. No side effects"
-            " will be recorded in the render layer passes, i.e. the render layer passes will be empty.\n"
-            "\n"
-            "'Only side effects':"
-            " The active layer will be made invisible and the render layer passes (shadows, reflections...)"
-            " record the side-effects of the active render layer. The beauty passes will be empty.\n"
-            " This is useful to capture all side-effects without having the active layer obstructing those.\n"
-            "\n"
-            "'Hide from camera':"
-            " Similar to 'Hide inactive layers' All geometry that is not on an active layer"
-            " will be made invisible. But side effects(shadows, reflections...)will be recorded in the render layer passes\n"
-            "\n",
+                    "\n"
+                    "'Normal':"
+                    " The beauty passes contain the active layer only and the render layer passes (shadows,"
+                    " reflections...) record the side-effects of the active render layer for those samples/pixels"
+                    " that are not obstructed by the active render layer.\n"
+                    "\n"
+                    "'Hide inactive layers':"
+                    " All geometry that is not on an active layer will be made invisible. No side effects"
+                    " will be recorded in the render layer passes, i.e. the render layer passes will be empty.\n"
+                    "\n"
+                    "'Only side effects':"
+                    " The active layer will be made invisible and the render layer passes (shadows, reflections...)"
+                    " record the side-effects of the active render layer. The beauty passes will be empty.\n"
+                    " This is useful to capture all side-effects without having the active layer obstructing those.\n"
+                    "\n"
+                    "'Hide from camera':"
+                    " Similar to 'Hide inactive layers' All geometry that is not on an active layer"
+                    "will be made invisible. But side effects(shadows, reflections...)will be recorded in the render "
+                    "layer passes\n"
+                    "\n",
         items=layer_modes,
         default='0',
     )
-# ################################################################################################
-# OCTANE OUT OF CORE
-# ################################################################################################
+    # ################################################################################################
+    # OCTANE OUT OF CORE
+    # ################################################################################################
     out_of_core_enable: BoolProperty(
         name="Enable out of core",
         description="Tick to enable Octane out of core",
@@ -2048,17 +2118,21 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
     )
     out_of_core_gpu_headroom: IntProperty(
         name="GPU headroom (MB)",
-        description="To run the render kernels successfully, there needs to be some amount of free GPU memory. This setting determines how much GPU memory the render engine will leave available when uploading the images. The default value should work for most scenes",
+        description="To run the render kernels successfully, there needs to be some amount of free GPU memory. This"
+                    "setting determines how much GPU memory the render engine will leave available when uploading the"
+                    "images. The"
+        "default value should work for most scenes",
         min=1,
         default=300,
     )
-# ################################################################################################
-# OCTANE COMMON
-# ################################################################################################
+    # ################################################################################################
+    # OCTANE COMMON
+    # ################################################################################################
     octane_task_progress: FloatProperty(
         name="Octane Task Progress",
-        description="Octane task is running now, you can use 'ESC' to cancel it. \nThis value is used for displaying the task progress so please do not modify this value manually",
-        default=0.0,                
+        description="Octane task is running now, you can use 'ESC' to cancel it. \nThis value is used for displaying "
+                    "the task progress so please do not modify this value manually",
+        default=0.0,
         precision=0,
         min=0.0, soft_min=0.0, max=100.0, soft_max=100.0,
         subtype='PERCENTAGE',
@@ -2071,7 +2145,7 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
     prefer_image_types = (
         ("DEFAULT", "Octane Default", "Render as Octane default settings", 0),
         ("LDR", "LDR", "Render as LDR(tonemapped) image if applicable", 1),
-        ("HDR", "HDR", "Render as HDR image if applicable", 2),        
+        ("HDR", "HDR", "Render as HDR image if applicable", 2),
     )
     prefer_image_type: EnumProperty(
         name="Prefer Image Type",
@@ -2086,19 +2160,22 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
     )
     export_with_object_layers: BoolProperty(
         name="Export with object layers",
-        description="Export with object layers properties. If disabled, all object layer properties will be removed and the whole scene will be put in a single object layer",
+        description="Export with object layers properties. If disabled, all object layer properties will be removed "
+                    "and the whole scene will be put in a single object layer",
         default=True,
-    ) 
+    )
     maximize_instancing: BoolProperty(
         name="Maximize Instancing",
         description="If enabled, Octane will try to collect and group instances into scatter as much as possible",
         default=True,
     )
+
     def update_octane_shading_type(self, context):
         view = context.space_data
         if view and getattr(view, "shading", False):
             if view.shading.type != self.octane_shading_type:
                 view.shading.type = self.octane_shading_type
+
     octane_shading_type: EnumProperty(
         name="Octane Shading Type",
         description="",
@@ -2123,12 +2200,12 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
         name="Enable Real-time in viewport rendering",
         description="Enable Octane real-time mode in viewport rendering",
         default=False,
-    )    
+    )
     resource_cache_types = (
         ('None', "None", "Disable resource cache system", consts.ResourceCacheType.NONE),
-        ('Texture Only', "Texture Only", "Only cache the textures in RAM", consts.ResourceCacheType.TEXTURE_ONLY),    
+        ('Texture Only', "Texture Only", "Only cache the textures in RAM", consts.ResourceCacheType.TEXTURE_ONLY),
         ('Geometry Only', "Geometry Only", "Only cache the geometries in RAM", consts.ResourceCacheType.GEOMETRY_ONLY),
-        ('All', "All", "Cache the textures and geometries in RAM", consts.ResourceCacheType.ALL),        
+        ('All', "All", "Cache the textures and geometries in RAM", consts.ResourceCacheType.ALL),
     )
     resource_cache_type: EnumProperty(
         name="Resource Cache System",
@@ -2212,7 +2289,7 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
         ('0', "After", ""),
         ('1', "Before", ""),
         ('2', "Symmetric", ""),
-    )    
+    )
     mb_direction: EnumProperty(
         name="Shutter alignment",
         description="Specifies how the shutter interval is aligned to the current time",
@@ -2221,28 +2298,28 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
     )
     shutter_time: FloatProperty(
         name="Shutter time",
-        description="The shutter time percentage relative to the duration of a single frame",                
-        default=20.0,                
+        description="The shutter time percentage relative to the duration of a single frame",
+        default=20.0,
         precision=0,
         min=0.0, soft_min=0.0, max=100000.0, soft_max=100.0,
         subtype='PERCENTAGE',
     )
     subframe_start: FloatProperty(
         name="Subframe start",
-        description="Minimum sub-frame % time to sample",                
+        description="Minimum sub-frame % time to sample",
         default=0.0,
         precision=0,
         min=0.0, soft_min=0.0, max=100.0, soft_max=100.0,
         subtype='PERCENTAGE',
-    )  
+    )
     subframe_end: FloatProperty(
         name="Subframe end",
-        description="Maximum sub-frame % time to sample",                
+        description="Maximum sub-frame % time to sample",
         default=100.0,
         precision=0,
         min=0.0, soft_min=0.0, max=100.0, soft_max=100.0,
         subtype='PERCENTAGE',
-    )    
+    )
     kernel_types = (
         ('0', "Default", ""),
         ('1', "Direct light", ""),
@@ -2271,10 +2348,11 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
     )
     max_subdivision_level: IntProperty(
         name="Max. subdivision level",
-        description="The Maximum subdivision level that should be applied on the geometries in the scene. Setting zero will disable the subdivision",
+        description="The Maximum subdivision level that should be applied on the geometries in the scene. Setting "
+                    "zero will disable the subdivision",
         min=0, max=10,
         default=10,
-    )    
+    )
     filter_size: FloatProperty(
         name="Filter size",
         description="Film splatting width (to reduce aliasing)",
@@ -2298,7 +2376,8 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
     )
     alpha_shadows: BoolProperty(
         name="Alpha shadows",
-        description="Enables direct light through opacity maps. If disabled, ray tracing will be faster but renders incorrect shadows for alpha-mapped geometry or specular materials with \"fake shadows\" enabled",
+        description="Enables direct light through opacity maps. If disabled, ray tracing will be faster but renders "
+                    "incorrect shadows for alpha-mapped geometry or specular materials with \"fake shadows\" enabled",
         default=True,
     )
     keep_environment: BoolProperty(
@@ -2313,19 +2392,20 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
     )
     nested_dielectrics: BoolProperty(
         name="Nested dielectrics",
-        description="Enables nested dielectrics. If disabled, the surface IORs not tracked and surface priorities are ignored",
+        description="Enables nested dielectrics. If disabled, the surface IORs not tracked and surface priorities are "
+                    "ignored",
         default=True,
-    )              
+    )
     ai_light_enable: BoolProperty(
         name="AI light",
         description="Enables AI light",
         default=False,
-    )   
+    )
     ai_light_update: BoolProperty(
         name="AI light update",
         description="Enables dynamic AI light update",
         default=True,
-    )    
+    )
     ai_light_strength: FloatProperty(
         name="AI light strength",
         description="The strength for dynamic AI light update",
@@ -2343,107 +2423,107 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
         description="The action to be taken on selected lights IDs",
         items=light_ids_action_type,
         default='Disable',
-    )    
+    )
     light_id_sunlight: BoolProperty(
         name="Sunlight",
         description="Sunlight",
         default=False,
-    )           
+    )
     light_id_env: BoolProperty(
         name="Environment",
         description="Environment",
         default=False,
-    )    
+    )
     light_id_pass_1: BoolProperty(
         name="Pass 1",
         description="Pass 1",
         default=False,
-    ) 
+    )
     light_id_pass_2: BoolProperty(
         name="Pass 2",
         description="Pass 2",
         default=False,
-    ) 
+    )
     light_id_pass_3: BoolProperty(
         name="Pass 3",
         description="Pass 3",
         default=False,
-    ) 
+    )
     light_id_pass_4: BoolProperty(
         name="Pass 4",
         description="Pass 4",
         default=False,
-    ) 
+    )
     light_id_pass_5: BoolProperty(
         name="Pass 5",
         description="Pass 5",
         default=False,
-    ) 
+    )
     light_id_pass_6: BoolProperty(
         name="Pass 6",
         description="Pass 6",
         default=False,
-    ) 
+    )
     light_id_pass_7: BoolProperty(
         name="Pass 7",
         description="Pass 7",
         default=False,
-    ) 
+    )
     light_id_pass_8: BoolProperty(
         name="Pass 8",
         description="Pass 8",
         default=False,
-    )      
+    )
     light_id_sunlight_invert: BoolProperty(
         name="Sunlight",
         description="Sunlight",
         default=False,
-    )           
+    )
     light_id_env_invert: BoolProperty(
         name="Environment",
         description="Environment",
         default=False,
-    )    
+    )
     light_id_pass_1_invert: BoolProperty(
         name="Pass 1",
         description="Pass 1",
         default=False,
-    ) 
+    )
     light_id_pass_2_invert: BoolProperty(
         name="Pass 2",
         description="Pass 2",
         default=False,
-    ) 
+    )
     light_id_pass_3_invert: BoolProperty(
         name="Pass 3",
         description="Pass 3",
         default=False,
-    ) 
+    )
     light_id_pass_4_invert: BoolProperty(
         name="Pass 4",
         description="Pass 4",
         default=False,
-    ) 
+    )
     light_id_pass_5_invert: BoolProperty(
         name="Pass 5",
         description="Pass 5",
         default=False,
-    ) 
+    )
     light_id_pass_6_invert: BoolProperty(
         name="Pass 6",
         description="Pass 6",
         default=False,
-    ) 
+    )
     light_id_pass_7_invert: BoolProperty(
         name="Pass 7",
         description="Pass 7",
         default=False,
-    ) 
+    )
     light_id_pass_8_invert: BoolProperty(
         name="Pass 8",
         description="Pass 8",
         default=False,
-    ) 
+    )
     caustic_blur: FloatProperty(
         name="Caustic blur",
         description="Caustic blur for noise reduction",
@@ -2459,10 +2539,13 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
         default=0.2,
         step=1,
         precision=3,
-    )       
+    )
     parallelism: IntProperty(
         name="Parallelism",
-        description="Specifies the number of samples that are run in parallel. A small number means less parallel samples, less memory usage and it makes caustics visible faster, but renders probably slower. A large number means more memory usage, slower visible caustics and probably a higher speed",
+        description="Specifies the number of samples that are run in parallel. A small number means less parallel "
+                    "samples, less memory usage and it makes caustics visible faster, but renders probably slower. A "
+                    "large number"
+                    "means more memory usage, slower visible caustics and probably a higher speed",
         min=1, max=4,
         default=4,
     )
@@ -2488,7 +2571,8 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
     )
     ao_texture: StringProperty(
         name="AO ambient texture",
-        description="Ambient occlusion environment texture, which is used for AO rays. If not specified, the environment will be used instead",
+        description="Ambient occlusion environment texture, which is used for AO rays. If not specified, "
+                    "the environment will be used instead",
         default="",
         maxlen=512,
     )
@@ -2519,14 +2603,14 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
     sub_sample_modes = (
         ('No subsampling', "No subsampling", "", 1),
         ('2x2 subsampling', "2x2 subsampling", "", 2),
-        ('4x4 subsampling', "4x4 subsampling", "", 4),    
-    )    
+        ('4x4 subsampling', "4x4 subsampling", "", 4),
+    )
     subsample_mode: EnumProperty(
         name="Subsample Mode",
-        description="The subsampe mode should be used in rendering",
+        description="The subsample mode should be used in rendering",
         items=sub_sample_modes,
         default='2x2 subsampling',
-    )          
+    )
     gi_clamp: FloatProperty(
         name="GI clamp",
         description="GI clamp reducing fireflies",
@@ -2558,10 +2642,12 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
         description="The maximum path depth for which scattering is allowed",
         min=1, max=256,
         default=8,
-    )                
+    )
     parallel_samples: IntProperty(
         name="Parallel samples",
-        description="Specifies the number of samples that are run in parallel. A small number means less parallel samples and less memory usage, but potentially slower speed. A large number means more memory usage and potentially a higher speed",
+        description="Specifies the number of samples that are run in parallel. A small number means less parallel "
+                    "samples and less memory usage, but potentially slower speed. A large number means more memory "
+                    "usage and potentially a higher speed",
         min=1, max=32,
         default=32,
     )
@@ -2573,7 +2659,8 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
     )
     minimize_net_traffic: BoolProperty(
         name="Minimize net traffic",
-        description="If enabled, the work is distributed to the network render slaves in such a way to minimize the amount of data that is sent to the network render master",
+        description="If enabled, the work is distributed to the network render slaves in such a way to minimize the "
+                    "amount of data that is sent to the network render master",
         default=True,
     )
     emulate_old_volume_behavior: BoolProperty(
@@ -2590,7 +2677,7 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
         name="Deep image passes",
         description="Include render passes in deep pixels",
         default=False,
-    )    
+    )
     max_depth_samples: IntProperty(
         name="Max. depth samples",
         description="Maximum number of depth samples per pixels",
@@ -2607,7 +2694,9 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
     )
     work_chunk_size: IntProperty(
         name="Work chunk size",
-        description="The number of work blocks (of 512K samples each) we do per kernel run. Increasing this value increases the memory usage on the system, but doesn't affect memory usage on the system and may increase render speed",
+        description="The number of work blocks (of 512K samples each) we do per kernel run. Increasing this value"
+                    "increases the memory usage on the system, but doesn't affect memory usage on the system and may "
+                    "increase render speed",
         min=1, max=64,
         default=8,
     )
@@ -2617,7 +2706,7 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
         min=0.0, max=1.0,
         default=(0.5, 0.5, 0.5),
         subtype='COLOR',
-    )     
+    )
     ao_alpha_shadows: BoolProperty(
         name="AO alpha shadows",
         description="Take into account alpha maps when calculating ambient occlusion",
@@ -2660,26 +2749,26 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
         ('3', "Z-Depth", "", 3),
         ('4', "Material ID", "", 4),
         ('5', "Textures coordinates", "", 5),
-        ('6',"Texture tangent", "", 6),
+        ('6', "Texture tangent", "", 6),
         ('7', "Wireframe", "", 7),
         ('8', "Smooth normals", "", 8),
         ('9', "Object layer ID", "", 9),
-        ('10',"Ambient occlusion", "", 10),
-        ('11',"Motion vector", "", 11),
-        ('12',"Render layer ID", "", 12),
-        ('13',"Render layer Mask", "", 13),
-        ('14',"Light pass ID", "", 14),
-        ('15',"Tangent normal", "", 15),
-        ('16',"Opacity", "", 16),
-        ('17',"Baking group ID", "", 17),
-        ('18',"Roughness", "", 18),
-        ('19',"Index of reflection", "", 19),
-        ('20',"Diffuse filter color", "", 20),
-        ('21',"Reflection filter color", "", 21),
-        ('22',"Refraction filter color", "", 22),
-        ('23',"Transmission filter color", "", 23),
-        ('24',"Object layer color", "", 24),
-    )    
+        ('10', "Ambient occlusion", "", 10),
+        ('11', "Motion vector", "", 11),
+        ('12', "Render layer ID", "", 12),
+        ('13', "Render layer Mask", "", 13),
+        ('14', "Light pass ID", "", 14),
+        ('15', "Tangent normal", "", 15),
+        ('16', "Opacity", "", 16),
+        ('17', "Baking group ID", "", 17),
+        ('18', "Roughness", "", 18),
+        ('19', "Index of reflection", "", 19),
+        ('20', "Diffuse filter color", "", 20),
+        ('21', "Reflection filter color", "", 21),
+        ('22', "Refraction filter color", "", 22),
+        ('23', "Transmission filter color", "", 23),
+        ('24', "Object layer color", "", 24),
+    )
     info_channel_type: EnumProperty(
         name="Info-channel type",
         description="",
@@ -2705,19 +2794,20 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
     sampling_mode: EnumProperty(
         name="Sampling mode",
         description="Enables motion blur and depth of field, and sets pixel filtering modes.\n\n"
-            "'Distributed rays':"
-            " Enables motion blur and DOF, and also enables pixel filtering.\n"
-            "'Non-distributed with pixel filtering':"
-            " Disables motion blur and DOF, but leaves pixel filtering enabled.\n"
-            "'Non-distributed without pixel filtering':"
-            " Disables motion blur and DOF, and disables pixel filtering for all render passes"
-            " except for render layer mask and ambient occlusion\n",
+                    "'Distributed rays':"
+                    " Enables motion blur and DOF, and also enables pixel filtering.\n"
+                    "'Non-distributed with pixel filtering':"
+                    " Disables motion blur and DOF, but leaves pixel filtering enabled.\n"
+                    "'Non-distributed without pixel filtering':"
+                    " Disables motion blur and DOF, and disables pixel filtering for all render passes"
+                    " except for render layer mask and ambient occlusion\n",
         items=info_pass_sampling_modes,
         default='0',
     )
     max_speed: FloatProperty(
         name="Max speed",
-        description="Speed mapped to the maximum intensity in the motion vector channel. A value of 1 means a maximum movement of 1 screen width in the shutter interval",
+        description="Speed mapped to the maximum intensity in the motion vector channel. A value of 1 means a maximum "
+                    "movement of 1 screen width in the shutter interval",
         min=0.00001, soft_min=0.00001, max=10000.0, soft_max=10000.0,
         default=1.0,
         step=100,
@@ -2743,7 +2833,8 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
     )
     coherent_ratio: FloatProperty(
         name="Coherent ratio",
-        description="Runs the kernel more coherently which makes it usually faster, but may require at least a few hundred samples/pixel to get rid of visible artifacts",
+        description="Runs the kernel more coherently which makes it usually faster, but may require at least a few "
+                    "hundred samples/pixel to get rid of visible artifacts",
         min=0.0, soft_min=0.0, max=1.0, soft_max=1.0,
         default=0.0,
         step=10,
@@ -2771,13 +2862,13 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
         default=False,
     )
     use_preview_camera_imager: BoolProperty(
-        name="Octane Camera Imager(Preview Mode)",
-        description="Tick to enable Octane Camera Imager in interactive preview mode",
+        name="Enable Imager in Interactive Mode",
+        description="Tick to enable Octane Imager in interactive preview mode",
         default=True,
     )
     use_render_camera_imager: BoolProperty(
-        name="Octane Camera Imager(Render Mode)",
-        description="Tick to enable Octane Camera Imager in render mode",
+        name="Enable Imager in Render Mode",
+        description="Tick to enable Octane Imager in render mode",
         default=True,
     )
     hdr_tonemap_preview_enable: BoolProperty(
@@ -2792,22 +2883,28 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
     )
     use_preview_setting_for_camera_imager: BoolProperty(
         name="Use for all cameras (Imager)",
-        description="If enabled, we always use the imager below for all cameras(ignore settings in other cameras). We recommend that you keep it on unless you need multiple different imager configurations in the scene",
+        description="If enabled, we always use the imager below for all cameras(ignore settings in other cameras). We "
+                    "recommend that you keep it on unless you need multiple different imager configurations in the "
+                    "scene",
         default=True,
-    )  
+    )
     use_preview_post_process_setting: BoolProperty(
         name="Use for all cameras (PostProcess)",
-        description="If enabled, we always use the postprocess below for all cameras(ignore settings in other cameras). We recommend that you keep it on unless you need multiple different postprocess configurations in the scene",
+        description="If enabled, we always use the postprocess below for all cameras(ignore settings in other "
+                    "cameras). We recommend that you keep it on unless you need multiple different postprocess "
+                    "configurations in the scene",
         default=True,
     )
     adaptive_sampling: BoolProperty(
         name="Adaptive sampling",
-        description="If enabled, The Adaptive sampling stops rendering clean image parts and focuses on noisy image parts",
+        description="If enabled, The Adaptive sampling stops rendering clean image parts and focuses on noisy image "
+                    "parts",
         default=False,
     )
     adaptive_noise_threshold: FloatProperty(
         name="Noise threshold",
-        description="A pixel treated as noisy pixel if noise level is higher than this threshold. Only valid if the adaptive sampling or the noise render pass is enabled",
+        description="A pixel treated as noisy pixel if noise level is higher than this threshold. Only valid if the "
+                    "adaptive sampling or the noise render pass is enabled",
         min=0.0, soft_min=0.0, max=1.0, soft_max=1.0,
         default=0.03,
         step=3,
@@ -2815,7 +2912,8 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
     )
     adaptive_expected_exposure: FloatProperty(
         name="Expected exposure",
-        description="The expected exposure should be approximately the same value as the exposure in the image or 0 to ignore these settings. Only valid if adaptive sampling is enabled",
+        description="The expected exposure should be approximately the same value as the exposure in the image or 0 "
+                    "to ignore these settings. Only valid if adaptive sampling is enabled",
         min=0.0, soft_min=0.0, max=10000, soft_max=4096.0,
         default=0.0,
         step=0.1,
@@ -2823,7 +2921,9 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
     )
     adaptive_min_samples: IntProperty(
         name="Min. adaptive samples",
-        description="Minimum number of samples per pixel until adaptive sampling kicks inunto estimate initial noise level. Higher the value for high quality, but will increase render time. Only valid if adaptive sampling is enabled",
+        description="Minimum number of samples per pixel until adaptive sampling kicks inunto estimate initial noise "
+                    "level. Higher the value for high quality, but will increase render time. Only valid if adaptive "
+                    "sampling is enabled",
         min=2, soft_min=2, max=1000000, soft_max=1024,
         default=256,
     )
@@ -2834,7 +2934,8 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
     )
     adaptive_group_pixels: EnumProperty(
         name="Group pixels",
-        description="Size of the pixel groups that are evaluated together to decide whether sampling should stop or not",
+        description="Size of the pixel groups that are evaluated together "
+                    "to decide whether sampling should stop or not",
         items=adaptive_group_pixels_mode,
         default='2',
     )
@@ -2845,35 +2946,40 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
     )
     adaptive_group_pixels1: EnumProperty(
         name="Group pixels",
-        description="Size of the pixel groups that are evaluated together to decide whether sampling should stop or not",
+        description="Size of the pixel groups that are evaluated together "
+                    "to decide whether sampling should stop or not",
         items=adaptive_group_pixels1_mode,
         default='2',
-    )    
+    )
     gui_octane_export_ocio_color_space_name: StringProperty(
         name="Color space",
-        description="Choose intermediate color space to allow conversions with OCIO. This should correspond to the same color space as the 'Octane' box",        
+        description="Choose intermediate color space to allow conversions with OCIO. "
+                    "This should correspond to the same color space as the 'Octane' box",
         default="",
         update=ocio.update_octane_export_ocio_params,
-    )  
+    )
     gui_octane_export_ocio_look: StringProperty(
         name="OCIO look",
-        description="OCIO look to apply",        
+        description="OCIO look to apply",
         default="",
         update=ocio.update_octane_export_ocio_params,
-    ) 
+    )
     octane_export_ocio_color_space_name: StringProperty(
         name="Color space",
-        description="Choose intermediate color space to allow conversions with OCIO. This should correspond to the same color space as the 'Octane' box",        
+        description="Choose intermediate color space to allow conversions with OCIO. This should correspond to the "
+                    "same color space as the 'Octane' box",
         default="",
-    )  
+    )
     octane_export_ocio_look: StringProperty(
         name="OCIO look",
-        description="OCIO look to apply",        
+        description="OCIO look to apply",
         default="",
-    )                                                 
+    )
     octane_export_force_use_tone_map: BoolProperty(
         name="Force use tone map",
-        description="Whether to apply Octane's built-in tone mapping (before applying any OCIO look(s)) when using an OCIO view. This may produce undesirable results due to an intermediate reduction to the sRGB color space",
+        description="Whether to apply Octane's built-in tone mapping (before applying any OCIO look(s)) when using an "
+                    "OCIO view. This may produce undesirable results due to an intermediate reduction to the sRGB"
+                    "color space",
         default=False,
     )
     octane_export_premultiplied_alpha: BoolProperty(
@@ -2884,13 +2990,13 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
     octane_export_dwa_compression_level: IntProperty(
         name="DWA compression level",
         description="DWA compression level",
-        min=0, max=2000, 
+        min=0, max=2000,
         default=45,
     )
     octane_export_jpeg_quality: IntProperty(
         name="Quality",
         description="Jpeg quality",
-        min=1, max=100, 
+        min=1, max=100,
         default=75,
     )
     use_octane_export: BoolProperty(
@@ -2900,33 +3006,39 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
     )
     reuse_blender_output_path: BoolProperty(
         name="Reuse Blender's Output Path",
-        description="Whether to use the 'Output Path' in the Blender Output panel. If not, you can use a new output path for Octane Outputs. E.g. put the Octane Outputs in a different folder from Blender default Outputs",
+        description="Whether to use the 'Output Path' in the Blender Output panel. If not, you can use a new output "
+                    "path for Octane Outputs. E.g. put the Octane Outputs in a different folder from Blender default "
+                    "Outputs",
         default=True,
     )
     octane_output_path: StringProperty(
         name="Octane Output Path",
-        description="An independent output path that's used for Octane Outputs only. In this way, you can put Octane outputs and Blender default outputs in two different places",
+        description="An independent output path that's used for Octane Outputs only. In this way, you can put Octane"
+                    "outputs and Blender default outputs in two different places",
         default="",
         subtype="FILE_PATH",
-    )    
+    )
     octane_export_prefix_tag: StringProperty(
         name="Octane Prefix Tag",
-        description="Octane export prefix tag. If given, this name will be concatenated to the file name as prefix(to distinguish the Blender outputs and Octane export outputs)",
+        description="Octane export prefix tag. If given, this name will be concatenated to the file name as prefix(to"
+                    "distinguish the Blender outputs and Octane export outputs)",
         default="",
     )
     octane_export_postfix_tag: StringProperty(
         name="Octane Postfix Tag",
         description="""Octane export postfix. If given, this name will be concatenated to the file name as postfix.\n"""
-            """###   Frame number. e.g. image_##_test.png translates to image_01_test.png\n"""
-            """$OCTANE_PASS$   Octane pass name.\n"""
-            """$VIEW_LAYER$   Blender viewlayer name""",
+                    """###   Frame number. e.g. image_##_test.png translates to image_01_test.png\n"""
+                    """$OCTANE_PASS$   Octane pass name.\n"""
+                    """$VIEW_LAYER$   Blender viewlayer name""",
         default="",
     )
+
     def octane_export_mode_enum_items_callback(self, context):
         if utility.is_deep_image_enabled(getattr(context, "scene", None)):
             return octane_export_with_deep_image_modes
         else:
             return octane_export_without_deep_image_modes
+
     octane_export_mode: EnumProperty(
         name="Octane Export Mode",
         description="Export image as separate files, multilayer EXR, or deep EXR",
@@ -2943,7 +3055,7 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
         description="File type",
         items=octane_export_file_types,
         default="PNG",
-    )    
+    )
     octane_integer_bit_depth_modes = (
         ("8_BIT", "8-bit(integer)", "8-bit(integer)(default)", 0),
         ("16_BIT", "16-bit(integer)", "16-bit(integer)", 1),
@@ -3021,20 +3133,27 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
         name="Exclude Beauty",
         description="Exclude the default-added 'Beauty' pass when exporting files",
         default=False,
-    )    
+    )
     white_light_spectrum_modes = (
         ('D65', "D65", "D65", 1),
         ('Legacy/flat', "Legacy/flat", "Legacy/flat", 0),
     )
     white_light_spectrum: EnumProperty(
         name="White light spectrum",
-        description="Controls the appearance of colors produced by spectral emitters (e.g. daylight environment, black body emitters). This determines the spectrum that will produce white (before white balance) in the final image. Use D65 to adapt to a reasonable daylight 'white' color. Use Legacy/flat to preserve the appearance of old projects (spectral emitters will appear rather blue)",
+        description="Controls the appearance of colors produced by spectral emitters (e.g. daylight environment, "
+                    "black body emitters). This determines the spectrum that will produce white (before white "
+                    "balance) in the"
+        "final image. Use D65 to adapt to a reasonable daylight 'white' color. Use Legacy/flat to preserve the "
+        "appearance of old projects (spectral emitters will appear rather blue)",
         items=white_light_spectrum_modes,
         default='D65',
-    )    
+    )
     use_old_color_pipeline: BoolProperty(
         name="Use old color pipeline",
-        description="Use the old behavior for converting colors to and from spectra and for applying white balance. Use this to preserve the appearance of old projects (textures with colors outside the sRGB gamut will be rendered inaccurately)",
+        description="Use the old behavior for converting colors to and from spectra and for applying white balance."
+                    "Use this to preserve the appearance of old projects (textures with colors outside the sRGB gamut"
+                    "will be"
+                    "rendered inaccurately)",
         default=False,
     )
     need_upgrade_octane_output_tag: BoolProperty(
@@ -3045,7 +3164,7 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
     photon_depth: IntProperty(
         name="Photon depth",
         description="The maximum path depth for photons",
-        min=2, max=16, 
+        min=2, max=16,
         default=8,
     )
     accurate_colors: BoolProperty(
@@ -3068,23 +3187,27 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
         default=4.0,
         step=3,
         precision=2,
-    )        
+    )
     photon_gather_samples: IntProperty(
         name="Photon gather samples",
-        description="Maximal amount of photon gather samples per pixel between photon tracing passes. This is similar to max. tile samples, but it also affects the quality of caustics rendered. Higher values give more samples per second at the expense of caustic quality",
-        min=1, max=64, 
+        description="Maximal amount of photon gather samples per pixel between photon tracing passes. This is similar"
+                    "to max. tile samples, but it also affects the quality of caustics rendered. Higher values give "
+                    "more samples"
+                    "per second at the expense of caustic quality",
+        min=1, max=64,
         default=2,
-    )    
+    )
     exploration_strength: FloatProperty(
         name="Exploration strength",
-        description="The higher this value, the more the photon sampling is influenced by which photons are actually gathered",
+        description="The higher this value, the more the photon sampling is influenced by which photons are actually "
+                    "gathered",
         min=0.0, soft_min=0.0, max=1.0, soft_max=1.0,
         default=0.8,
         step=3,
         precision=3,
     )
 
-    #LEGACY COMPATIBILITY
+    # LEGACY COMPATIBILITY
     hdr_tonemap_enable: BoolProperty(
         name="Tonemapped HDR",
         description="",
@@ -3122,7 +3245,7 @@ class OctaneProgressWidget(object):
             OctaneProgressWidget.hide()
 
     @staticmethod
-    def set_task_text(context, text):
+    def set_task_text(_context, text):
         OctaneProgressWidget.task_text = text
 
     @staticmethod
@@ -3139,14 +3262,14 @@ class OctaneProgressWidget(object):
             return 0
 
     @staticmethod
-    def show(context):    
+    def show(context):
         if not OctaneProgressWidget.visibility:
             bpy.types.STATUSBAR_HT_header.append(OctaneProgressWidget.draw)
             OctaneProgressWidget.visibility = True
             OctaneProgressWidget.set_progress(context, 0)
 
     @staticmethod
-    def hide():    
+    def hide():
         bpy.types.STATUSBAR_HT_header.remove(OctaneProgressWidget.draw)
         OctaneProgressWidget.visibility = False
         OctaneProgressWidget.task_text = ""
@@ -3189,9 +3312,9 @@ _CLASSES = [
     RenderAOVNodeGraphPropertyGroup,
     CompositeNodeGraphPropertyGroup,
     OctaneAovOutputGroupNode,
-    OctaneAovOutputGroupCollection,    
+    OctaneAovOutputGroupCollection,
     OctaneBakingLayerTransform,
-    OctaneBakingLayerTransformCollection,    
+    OctaneBakingLayerTransformCollection,
     OctaneAnimationSettings,
     OctaneGlobalRenderLayer,
     OctaneRenderLayer,
@@ -3201,9 +3324,10 @@ _CLASSES = [
 ]
 
 
-def register(): 
+def register():
     for cls in _CLASSES:
         register_class(cls)
+
 
 def unregister():
     for cls in _CLASSES:

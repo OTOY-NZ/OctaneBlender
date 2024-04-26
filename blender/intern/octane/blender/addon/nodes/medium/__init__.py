@@ -1,6 +1,6 @@
-##### BEGIN OCTANE GENERATED CODE BLOCK #####
-import bpy
-from bpy.utils import register_class, unregister_class
+# <pep8 compliant>
+
+# BEGIN OCTANE GENERATED CODE BLOCK #
 from . import absorption
 from . import scattering
 from . import schlick
@@ -11,6 +11,7 @@ from . import standard_volume_medium
 from . import medium_switch
 from . import phase_function_switch
 from . import volume_ramp_switch
+
 
 def register():
     absorption.register()
@@ -24,6 +25,7 @@ def register():
     phase_function_switch.register()
     volume_ramp_switch.register()
 
+
 def unregister():
     absorption.unregister()
     scattering.unregister()
@@ -36,4 +38,4 @@ def unregister():
     phase_function_switch.unregister()
     volume_ramp_switch.unregister()
 
-##### END OCTANE GENERATED CODE BLOCK #####
+# END OCTANE GENERATED CODE BLOCK #

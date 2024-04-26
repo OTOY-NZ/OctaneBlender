@@ -1,6 +1,6 @@
-##### BEGIN OCTANE GENERATED CODE BLOCK #####
-import bpy
-from bpy.utils import register_class, unregister_class
+# <pep8 compliant>
+
+# BEGIN OCTANE GENERATED CODE BLOCK #
 from . import cylindrical
 from . import xyz_to_uvw
 from . import perspective
@@ -16,6 +16,7 @@ from . import sample_pos_to_uv
 from . import distorted_mesh_uv
 from . import matcap
 from . import projection_switch
+
 
 def register():
     cylindrical.register()
@@ -34,6 +35,7 @@ def register():
     matcap.register()
     projection_switch.register()
 
+
 def unregister():
     cylindrical.unregister()
     xyz_to_uvw.unregister()
@@ -51,4 +53,4 @@ def unregister():
     matcap.unregister()
     projection_switch.unregister()
 
-##### END OCTANE GENERATED CODE BLOCK #####
+# END OCTANE GENERATED CODE BLOCK #

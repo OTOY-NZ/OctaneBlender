@@ -1,6 +1,6 @@
-##### BEGIN OCTANE GENERATED CODE BLOCK #####
-import bpy
-from bpy.utils import register_class, unregister_class
+# <pep8 compliant>
+
+# BEGIN OCTANE GENERATED CODE BLOCK #
 from . import output_aov_group
 from . import legacy_output_aov
 from . import blending_settings
@@ -49,6 +49,7 @@ from . import output_aov_group_switch
 from . import output_aov_switch
 from . import output_aov_layer_switch
 from . import blending_settings_switch
+
 
 def register():
     output_aov_group.register()
@@ -100,6 +101,7 @@ def register():
     output_aov_layer_switch.register()
     blending_settings_switch.register()
 
+
 def unregister():
     output_aov_group.unregister()
     legacy_output_aov.unregister()
@@ -150,4 +152,4 @@ def unregister():
     output_aov_layer_switch.unregister()
     blending_settings_switch.unregister()
 
-##### END OCTANE GENERATED CODE BLOCK #####
+# END OCTANE GENERATED CODE BLOCK #

@@ -1,6 +1,6 @@
-##### BEGIN OCTANE GENERATED CODE BLOCK #####
-import bpy
-from bpy.utils import register_class, unregister_class
+# <pep8 compliant>
+
+# BEGIN OCTANE GENERATED CODE BLOCK #
 from . import turbulence_texture
 from . import greyscale_color
 from . import gaussian_spectrum
@@ -112,6 +112,7 @@ from . import star_field
 from . import digits
 from . import output_aov_parameter
 from . import texture_switch
+
 
 def register():
     turbulence_texture.register()
@@ -226,6 +227,7 @@ def register():
     output_aov_parameter.register()
     texture_switch.register()
 
+
 def unregister():
     turbulence_texture.unregister()
     greyscale_color.unregister()
@@ -339,4 +341,4 @@ def unregister():
     output_aov_parameter.unregister()
     texture_switch.unregister()
 
-##### END OCTANE GENERATED CODE BLOCK #####
+# END OCTANE GENERATED CODE BLOCK #

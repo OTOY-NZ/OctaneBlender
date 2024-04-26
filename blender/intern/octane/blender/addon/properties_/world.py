@@ -1,14 +1,14 @@
+# <pep8 compliant>
+
+from bpy.props import IntProperty, FloatProperty, BoolProperty, StringProperty, EnumProperty, PointerProperty, \
+    FloatVectorProperty
+
 import bpy
-import xml.etree.ElementTree as ET
-from bpy.props import IntProperty, FloatProperty, BoolProperty, StringProperty, EnumProperty, PointerProperty, FloatVectorProperty, IntVectorProperty, BoolVectorProperty, CollectionProperty
 from bpy.utils import register_class, unregister_class
-from octane.properties_ import common
-from octane.utils import consts, ocio, utility
 
 
-##### Legacy Compatibility #####
-
-##### For the legacy versions which are older than 20.x #####
+# Legacy Compatibility
+# For the legacy versions which are older than 20.x
 
 class OctaneWorldSettings(bpy.types.PropertyGroup):
     environment_types = (
@@ -22,17 +22,17 @@ class OctaneWorldSettings(bpy.types.PropertyGroup):
         items=environment_types,
         default='1',
     )
-    #LEGACY COMPATIBILITY
+    # LEGACY COMPATIBILITY
     env_texture: StringProperty(
         name="Texture",
         description="LEGACY COMPATIBILITY",
         default="",
         maxlen=512,
-    )        
+    )
     env_texture_ptr: PointerProperty(
         name="Texture",
         description="Environment texture pointer",
-        type=bpy.types.Texture,                
+        type=bpy.types.Texture,
     )
 
     env_power: FloatProperty(
@@ -51,7 +51,7 @@ class OctaneWorldSettings(bpy.types.PropertyGroup):
     environment_daylight_types = (
         ('0', "Direction", ""),
         ('1', "Daylight system", ""),
-    )    
+    )
     env_daylight_type: EnumProperty(
         name="Daylight type",
         description="",
@@ -84,7 +84,8 @@ class OctaneWorldSettings(bpy.types.PropertyGroup):
     )
     env_turbidity: FloatProperty(
         name="Turbidity",
-        description="Sky turbidity, i.e. the amount of sun light that is scattered. A high value will reduce the contrast between objects in the shadow and in sun light",
+        description="Sky turbidity, i.e. the amount of sun light that is scattered. A high value will reduce the "
+                    "contrast between objects in the shadow and in sun light",
         min=2.0, soft_min=2.0, max=15.0, soft_max=15.0,
         default=2.2,
         step=10,
@@ -102,7 +103,7 @@ class OctaneWorldSettings(bpy.types.PropertyGroup):
         ('0', "Old", ""),
         ('1', "New", ""),
         ('2', "Nishita", ""),
-    )    
+    )
     env_model: EnumProperty(
         name="Model",
         description="The daylight model you want to use. Sky and sunset color apply only to the new daylight model",
@@ -198,24 +199,26 @@ class OctaneWorldSettings(bpy.types.PropertyGroup):
     )
     env_med_radius: FloatProperty(
         name="Medium radius",
-        description="Radius of the environment medium. The environment medium acts as a sphere around the camera position with the specified radius",
+        description="Radius of the environment medium. The environment medium acts as a sphere around the camera "
+                    "position with the specified radius",
         min=0.0001, soft_min=0.0001, max=10000000000, soft_max=10000000000,
         default=1.0,
         step=3,
         precision=4,
     )
-    #LEGACY COMPATIBILITY
+    # LEGACY COMPATIBILITY
     env_medium: StringProperty(
         name="Medium",
         description="LEGACY COMPATIBILITY",
         default="",
         maxlen=512,
-    )        
+    )
     env_medium_ptr: PointerProperty(
         name="Medium",
-        description="The medium in the environment (free space). Ignored when this environment is used as a the visible environment",
-        type=bpy.types.Texture,                
-    )        
+        description="The medium in the environment (free space). Ignored when this environment is used as a the "
+                    "visible environment",
+        type=bpy.types.Texture,
+    )
     env_altitude: FloatProperty(
         name="Altitude",
         description="The camera altitude",
@@ -227,45 +230,45 @@ class OctaneWorldSettings(bpy.types.PropertyGroup):
     env_star_field: PointerProperty(
         name="Star field",
         description="Star fields behind the planet",
-        type=bpy.types.Texture,                
-    )  
+        type=bpy.types.Texture,
+    )
     env_ground_albedo: PointerProperty(
         name="Ground albedo",
         description="Surface texture map on the planet",
         type=bpy.types.Texture,
-    )        
+    )
     env_ground_reflection: PointerProperty(
         name="Ground reflection",
         description="Specular texture map on the planet",
-        type=bpy.types.Texture,                
-    )   
+        type=bpy.types.Texture,
+    )
     env_ground_glossiness: PointerProperty(
         name="Ground glossiness",
         description="The planetary glossiness",
-        type=bpy.types.Texture,                
-    )       
+        type=bpy.types.Texture,
+    )
     env_ground_emission: PointerProperty(
         name="Ground emission",
         description="Surface texture map on the planet at night time",
-        type=bpy.types.Texture,   
-    )     
+        type=bpy.types.Texture,
+    )
     env_ground_normal_map: PointerProperty(
         name="Ground normal map",
         description="Normal map on the planet",
-        type=bpy.types.Texture,                
-    ) 
+        type=bpy.types.Texture,
+    )
     env_ground_elevation: PointerProperty(
         name="Ground elevation",
         description="Elevation map on the planet",
-        type=bpy.types.Texture,                
-    )  
+        type=bpy.types.Texture,
+    )
     env_planetary_axis: FloatVectorProperty(
         name="Planetary axis",
         description="The rotational axis of the planet running through the North and South pole",
         min=-1.0, max=1.0,
         default=(0.0, 0.0, 1.0),
         subtype='XYZ',
-    )   
+    )
     env_planetary_angle: FloatProperty(
         name="Planetary angle",
         description="The rotation around the planetary axis",
@@ -273,7 +276,7 @@ class OctaneWorldSettings(bpy.types.PropertyGroup):
         default=0.0,
         step=4,
         precision=4,
-    )     
+    )
     use_vis_env: BoolProperty(
         name="Use visible environment",
         description="",
@@ -285,18 +288,18 @@ class OctaneWorldSettings(bpy.types.PropertyGroup):
         items=environment_types,
         default='1',
     )
-    #LEGACY COMPATIBILITY
+    # LEGACY COMPATIBILITY
     env_vis_texture: StringProperty(
         name="Texture",
         description="LEGACY COMPATIBILITY",
         default="",
         maxlen=512,
-    )        
+    )
     env_vis_texture_ptr: PointerProperty(
         name="Texture",
         description="Environment texture",
         type=bpy.types.Texture,
-    )             
+    )
     env_vis_power: FloatProperty(
         name="Power",
         description="Scale factor that is applied to the sun and sky",
@@ -342,7 +345,8 @@ class OctaneWorldSettings(bpy.types.PropertyGroup):
     )
     env_vis_turbidity: FloatProperty(
         name="Turbidity",
-        description="Sky turbidity, i.e. the amount of sun light that is scattered. A high value will reduce the contrast between objects in the shadow and in sun light",
+        description="Sky turbidity, i.e. the amount of sun light that is scattered. A high value will reduce the "
+                    "contrast between objects in the shadow and in sun light",
         min=2.0, soft_min=2.0, max=6.0, soft_max=6.0,
         default=2.2,
         step=10,
@@ -451,24 +455,26 @@ class OctaneWorldSettings(bpy.types.PropertyGroup):
     )
     env_vis_med_radius: FloatProperty(
         name="Medium radius",
-        description="Radius of the environment medium. The environment medium acts as a sphere around the camera position with the specified radius",
+        description="Radius of the environment medium. The environment medium acts as a sphere around the camera "
+                    "position with the specified radius",
         min=0.0001, soft_min=0.0001, max=10000000000, soft_max=10000000000,
         default=1.0,
         step=3,
         precision=4,
     )
-    #LEGACY COMPATIBILITY
+    # LEGACY COMPATIBILITY
     env_vis_medium: StringProperty(
         name="Medium",
         description="LEGACY COMPATIBILITY",
         default="",
         maxlen=512,
-    )        
+    )
     env_vis_medium_ptr: PointerProperty(
         name="Medium",
-        description="The medium in the environment (free space). Ignored when this environment is used as a the visible environment",
+        description="The medium in the environment (free space). Ignored when this environment is used as a the "
+                    "visible environment",
         type=bpy.types.Texture,
-    )    
+    )
     env_vis_altitude: FloatProperty(
         name="Altitude",
         description="The camera altitude",
@@ -480,45 +486,45 @@ class OctaneWorldSettings(bpy.types.PropertyGroup):
     env_vis_star_field: PointerProperty(
         name="Star field",
         description="Star fields behind the planet",
-        type=bpy.types.Texture,                
-    )    
+        type=bpy.types.Texture,
+    )
     env_vis_ground_albedo: PointerProperty(
         name="Ground albedo",
         description="Surface texture map on the planet",
-        type=bpy.types.Texture,                
-    )     
+        type=bpy.types.Texture,
+    )
     env_vis_ground_reflection: PointerProperty(
         name="Ground reflection",
         description="Specular texture map on the planet",
-        type=bpy.types.Texture,                
-    )   
+        type=bpy.types.Texture,
+    )
     env_vis_ground_glossiness: PointerProperty(
         name="Ground glossiness",
         description="The planetary glossiness",
-        type=bpy.types.Texture,                
-    )       
+        type=bpy.types.Texture,
+    )
     env_vis_ground_emission: PointerProperty(
         name="Ground emission",
         description="Surface texture map on the planet at night time",
-        type=bpy.types.Texture,   
-    )     
+        type=bpy.types.Texture,
+    )
     env_vis_ground_normal_map: PointerProperty(
         name="Ground normal map",
         description="Normal map on the planet",
-        type=bpy.types.Texture,                
-    ) 
+        type=bpy.types.Texture,
+    )
     env_vis_ground_elevation: PointerProperty(
         name="Ground elevation",
         description="Elevation map on the planet",
-        type=bpy.types.Texture,                
-    )  
+        type=bpy.types.Texture,
+    )
     env_vis_planetary_axis: FloatVectorProperty(
         name="Planetary axis",
         description="The rotational axis of the planet running through the North and South pole",
         min=-1.0, max=1.0,
         default=(0.0, 0.0, 1.0),
         subtype='XYZ',
-    )   
+    )
     env_vis_planetary_angle: FloatProperty(
         name="Planetary angle",
         description="The rotation around the planetary axis",
@@ -526,7 +532,7 @@ class OctaneWorldSettings(bpy.types.PropertyGroup):
         default=0.0,
         step=4,
         precision=4,
-    )  
+    )
     env_vis_backplate: BoolProperty(
         name="Backplate",
         description="When used as a visible environment, this environment will behave as a backplate image",
@@ -534,7 +540,8 @@ class OctaneWorldSettings(bpy.types.PropertyGroup):
     )
     env_vis_reflections: BoolProperty(
         name="Reflections",
-        description="When used as a visible environment, this environment will be visible in reflections (specular and glossy materials)",
+        description="When used as a visible environment, this environment will be visible in reflections (specular "
+                    "and glossy materials)",
         default=False,
     )
     env_vis_refractions: BoolProperty(
@@ -561,9 +568,10 @@ _CLASSES = [
 ]
 
 
-def register(): 
+def register():
     for cls in _CLASSES:
         register_class(cls)
+
 
 def unregister():
     for cls in _CLASSES:

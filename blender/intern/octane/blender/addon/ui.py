@@ -1,11 +1,10 @@
-import bpy
+# <pep8 compliant>
 
-from bpy.types import Panel, Menu, Operator
-from bpy_extras.node_utils import find_node_input
-from . import engine
-from . import converters
-from octane import core
+from bpy.types import Panel
+
+import bpy
 from octane.utils import utility, consts
+from . import converters
 
 
 def osl_node_draw(context, layout, node_tree_name, node_name):
@@ -18,13 +17,13 @@ def osl_node_draw(context, layout, node_tree_name, node_name):
             for node in mat.node_tree.nodes.values():
                 if node.name == node_name:
                     layout.label(text="Octane Geometric Node")
-                    utility._panel_ui_node_view(context, layout, mat.node_tree, node)
+                    utility.template_panel_ui_node_view(context, layout, mat.node_tree, node)
                     return True
     layout.label(text="No Octane Geometric Node")
     return False
 
 
-class OctaneButtonsPanel():
+class OctaneButtonsPanel:
     bl_space_type = "PROPERTIES"
     bl_region_type = "WINDOW"
     bl_context = "render"
@@ -48,7 +47,6 @@ class OCTANE_PT_mesh_properties(OctaneButtonsPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-        scene = context.scene
         ob = context.object
         ob_data = ob.data
         if ob_data is None:
@@ -70,7 +68,6 @@ class OCTANE_PT_mesh_properties_geometric_node(OctaneButtonsPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-        scene = context.scene
         ob = context.object
         ob_data = ob.data
         if ob_data is None:
@@ -81,8 +78,10 @@ class OCTANE_PT_mesh_properties_geometric_node(OctaneButtonsPanel, Panel):
         row.prop_search(ob_data_octane.octane_geo_node_collections, "node_graph_tree", bpy.data, "materials")
         row.operator('update.octane_geo_nodes', icon='FILE_REFRESH')
         row = col.row()
-        row.prop_search(ob_data_octane.octane_geo_node_collections, "osl_geo_node", ob_data_octane.octane_geo_node_collections, "osl_geo_nodes")
-        osl_node_draw(context, col, str(ob_data_octane.octane_geo_node_collections.node_graph_tree), str(ob_data_octane.octane_geo_node_collections.osl_geo_node))
+        row.prop_search(ob_data_octane.octane_geo_node_collections, "osl_geo_node",
+                        ob_data_octane.octane_geo_node_collections, "osl_geo_nodes")
+        osl_node_draw(context, col, str(ob_data_octane.octane_geo_node_collections.node_graph_tree),
+                      str(ob_data_octane.octane_geo_node_collections.osl_geo_node))
 
 
 class OCTANE_PT_mesh_properties_open_subdivision(OctaneButtonsPanel, Panel):
@@ -93,7 +92,6 @@ class OCTANE_PT_mesh_properties_open_subdivision(OctaneButtonsPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-        scene = context.scene
         ob = context.object
         ob_data = ob.data
         if ob_data is None:
@@ -117,7 +115,6 @@ class OCTANE_PT_mesh_properties_sphere_attributes(OctaneButtonsPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-        scene = context.scene
         ob = context.object
         ob_data = ob.data
         if ob_data is None:
@@ -143,7 +140,6 @@ class OCTANE_PT_mesh_properties_orbx_properties(OctaneButtonsPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-        scene = context.scene
         ob = context.object
         ob_data = ob.data
         if ob_data is None:
@@ -172,7 +168,6 @@ class OCTANE_PT_mesh_properties_mesh_volume(OctaneButtonsPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-        scene = context.scene
         ob = context.object
         ob_data = ob.data
         if ob_data is None:
@@ -196,7 +191,6 @@ class OCTANE_PT_mesh_properties_offset_transform(OctaneButtonsPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-        scene = context.scene
         ob = context.object
         ob_data = ob.data
         if ob_data is None:
@@ -221,20 +215,18 @@ class OCTANE_PT_mesh_properties_legacy_settings(OctaneButtonsPanel, Panel):
     @classmethod
     def poll(cls, context):
         if OctaneButtonsPanel.poll(context):
-            scene = context.scene
             ob = context.object
             ob_data = ob.data
             if ob_data is not None:
                 ob_data_octane = ob_data.octane
                 # For the versions after 21.12, we use OpenVDB in Blender volume
-                # This section will be drop so we hide octane volume properites if it's not used
+                # This section will be dropped, so we hide octane volume properties if it's not used
                 if ob_data_octane.is_octane_vdb or len(ob_data_octane.imported_openvdb_file_path) > 0:
                     return True
         return False
 
     def draw(self, context):
         layout = self.layout
-        scene = context.scene
         ob = context.object
         ob_data = ob.data
         if ob_data is None:
@@ -244,7 +236,8 @@ class OCTANE_PT_mesh_properties_legacy_settings(OctaneButtonsPanel, Panel):
         box = layout.box()
         box.label(text="Volume properties:")
         sub = box.column(align=True)
-        sub.label(text="The new OpenVDB feature is supported in the Blender Volume object since Blender 2.83. Please use that one for the new productions", icon='INFO')
+        sub.label(text="The new OpenVDB feature is supported in the Blender Volume object since Blender 2.83. Please "
+                       "use that one for the new productions", icon='INFO')
         sub = box.column(align=True)
         sub.prop(cdata, "is_octane_vdb")
         sub.prop(cdata, "vdb_sdf")
@@ -255,6 +248,7 @@ class OCTANE_PT_mesh_properties_legacy_settings(OctaneButtonsPanel, Panel):
         sub.prop(cdata, "openvdb_frame_end")   
         sub = box.row(align=True)     
         sub.prop(cdata, "openvdb_frame_start_playing_at")
+        # noinspection SpellCheckingInspection
         sub.prop(cdata, "openvdb_frame_speed_mutiplier")
         sub = box.column(align=True)
         sub.prop(cdata, "vdb_iso")
@@ -307,7 +301,8 @@ class OCTANE_PT_volume_properties(OctaneButtonsPanel, Panel):
         sub = box.column(align=True)     
         sub.prop(cdata, "vdb_sdf")
         sub.prop(cdata, "vdb_import_scale")
-        sub = box.column(align=True) 
+        sub = box.column(align=True)
+        # noinspection SpellCheckingInspection
         sub.prop(cdata, "apply_import_scale_to_blender_transfrom")
         sub = box.column(align=True)
         sub.prop(cdata, "vdb_iso")
@@ -349,11 +344,6 @@ class OCTANE_RENDER_PT_SpherePrimitiveSettings(OctaneButtonsPanel, Panel):
     bl_context = "particle"
     bl_options = {'DEFAULT_CLOSED'}
 
-    # @classmethod
-    # def poll(cls, context):
-    #     psys = context.particle_system
-    #     return psys and OctaneButtonsPanel.poll(context) and psys.settings.type == 'EMITTER' and (psys.settings.render_type != 'OBJECT' and psys.settings.render_type != 'COLLECTION')
-
     @classmethod
     def poll(cls, context):
         psys = context.particle_system
@@ -368,7 +358,8 @@ class OCTANE_RENDER_PT_SpherePrimitiveSettings(OctaneButtonsPanel, Panel):
         psys = context.particle_system
         particle_settings = context.particle_settings
         
-        is_active = psys.settings.type != 'HAIR' and (psys.settings.render_type != 'OBJECT' and psys.settings.render_type != 'COLLECTION')        
+        is_active = psys.settings.type != 'HAIR' and (psys.settings.render_type != 'OBJECT'
+                                                      and psys.settings.render_type != 'COLLECTION')
 
         row = layout.row()
         row.active = is_active
@@ -401,7 +392,7 @@ class OCTANE_PT_context_material(OctaneButtonsPanel, Panel):
         if ob:
             is_sortable = len(ob.material_slots) > 1
             rows = 1
-            if (is_sortable):
+            if is_sortable:
                 rows = 4
 
             row = layout.row()
@@ -484,7 +475,7 @@ class OCTANE_MATERIAL_PT_settings(OctaneButtonsPanel, Panel):
     def poll(cls, context):
         return (context.material or context.object) and OctaneButtonsPanel.poll(context)
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
         row = layout.row(align=True)
         row.operator("octane.save_as_octanedb", text="Save As OctaneDB")
@@ -497,9 +488,10 @@ class OCTANE_MATERIAL_PT_converters(OctaneButtonsPanel, Panel):
 
     @classmethod
     def poll(cls, context):
-        return (context.material or context.object) and OctaneButtonsPanel.poll(context) and converters.is_converter_applicable(context.material)
+        return ((context.material or context.object) and OctaneButtonsPanel.poll(context)
+                and converters.is_converter_applicable(context.material))
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
         row = layout.row(align=True)
         row.operator("octane.convert_to_octane_material", text="Convert To Octane Materials")
@@ -517,8 +509,7 @@ class OCTANE_OBJECT_PT_octane_settings(OctaneButtonsPanel, Panel):
                         (ob.instance_type == 'COLLECTION' and ob.instance_collection)))
 
     def draw(self, context):
-        layout = self.layout        
-        scene = context.scene
+        layout = self.layout
         ob = context.object
         octane_object = ob.octane
         
@@ -534,23 +525,15 @@ class OCTANE_OBJECT_PT_octane_settings_object_layer(OctaneButtonsPanel, Panel):
     bl_context = "object"
 
     def draw(self, context):
-        layout = self.layout        
-        scene = context.scene
+        layout = self.layout
         ob = context.object
         octane_object = ob.octane
-
-        is_used_as_obrx_proxy = False
-        try:
-            is_used_as_obrx_proxy = len(ob.data.octane.imported_orbx_file_path) > 0
-        except:
-            pass
-
-        if is_used_as_obrx_proxy:
+        is_used_as_orbx_proxy = len(ob.data.octane.imported_orbx_file_path) > 0
+        if is_used_as_orbx_proxy:
             sub = layout.row(align=True)
             sub.label(text="This object is used as Orbx Proxy.")
             sub = layout.row(align=True)
             sub.label(text="Object Layer Data is only valid for the proxies without Placement or Group Nodes.")
-
         sub = layout.row(align=True)
         sub.active = octane_object.render_layer_id != 0
         sub.prop(octane_object, "render_layer_id")
@@ -608,7 +591,6 @@ class OCTANE_OBJECT_PT_octane_settings_baking_settings(OctaneButtonsPanel, Panel
 
     def draw(self, context):
         layout = self.layout
-        scene = context.scene
         ob = context.object
         octane_object = ob.octane
 
@@ -631,7 +613,6 @@ class OCTANE_OBJECT_PT_octane_settings_scatter_settings(OctaneButtonsPanel, Pane
 
     def draw(self, context):
         layout = self.layout
-        scene = context.scene
         ob = context.object
         octane_object = ob.octane
 
@@ -683,8 +664,11 @@ class OCTANE_RENDER_PT_output(OctaneButtonsPanel, Panel):
         else:
             col.label(text="Exported File type: EXR")
             col.prop(oct_scene, "octane_float_bit_depth")
-        ocio_export_color_space_configs = "ocio_export_png_color_space_configs" if oct_scene.octane_export_file_type in ("PNG", "TIFF", "JPEG") else "ocio_export_exr_color_space_configs"        
-        col.prop_search(oct_scene, "gui_octane_export_ocio_color_space_name", preferences, ocio_export_color_space_configs)
+        ocio_export_color_space_configs = "ocio_export_png_color_space_configs" \
+            if oct_scene.octane_export_file_type in ("PNG", "TIFF", "JPEG") \
+            else "ocio_export_exr_color_space_configs"
+        col.prop_search(oct_scene, "gui_octane_export_ocio_color_space_name",
+                        preferences, ocio_export_color_space_configs)
         if oct_scene.octane_export_file_type in ("PNG", "TIFF", "JPEG"):
             if oct_scene.gui_octane_export_ocio_color_space_name not in (" sRGB(default) ", ""):
                 col.prop_search(oct_scene, "gui_octane_export_ocio_look", preferences, "ocio_export_look_configs")
@@ -697,7 +681,8 @@ class OCTANE_RENDER_PT_output(OctaneButtonsPanel, Panel):
             if oct_scene.octane_export_file_type == "JPEG":
                 col.prop(oct_scene, "octane_export_jpeg_quality")
         else:
-            if oct_scene.gui_octane_export_ocio_color_space_name not in (" Linear sRGB(default) ", " ACES2065-1 ", " ACEScg ", ""):
+            if oct_scene.gui_octane_export_ocio_color_space_name not in (" Linear sRGB(default) ",
+                                                                         " ACES2065-1 ", " ACEScg ", ""):
                 col.prop_search(oct_scene, "gui_octane_export_ocio_look", preferences, "ocio_export_look_configs")
             row = col.row(heading="Force use tone map")
             row.prop(oct_scene, "octane_export_force_use_tone_map", text="")

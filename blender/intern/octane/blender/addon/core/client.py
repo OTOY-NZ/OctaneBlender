@@ -1,9 +1,9 @@
-import bpy
+# <pep8 compliant>
+
 import platform
-import xml.etree.ElementTree as ET
-from octane import utils
-from octane.utils import consts, utility
 from octane import core
+from octane.utils import consts, logger, utility
+
 octane_blender = core.get_octane_blender_binary_module()
 
 
@@ -19,15 +19,15 @@ class OctaneBlender(metaclass=utility.Singleton):
         return self.enabled
 
     def init(self, path, user_path):
-        self.debug_console("OctaneBlender.init")
+        logger.debug("OctaneBlender.init")
         self.enabled = octane_blender.init(path, user_path)
         if not self.enabled:
             self.print_last_error()
 
     def exit(self):
-        self.debug_console("OctaneBlender.exit")
+        logger.debug("OctaneBlender.exit")
         self.enabled = False
-        if not octane_blender.exit():        
+        if not octane_blender.exit():
             self.print_last_error()
 
     def set_blender_version(self, major, minor, patch):
@@ -35,7 +35,7 @@ class OctaneBlender(metaclass=utility.Singleton):
             octane_blender.set_blender_version(major, minor, patch)
 
     def start_render(self, cache_path, is_viewport=False, use_shared_surface=False):
-        self.debug_console("OctaneBlender.start_render")
+        logger.debug("OctaneBlender.start_render")
         if not self.enabled:
             return
         if not octane_blender.start_render(cache_path, is_viewport, use_shared_surface):
@@ -43,7 +43,7 @@ class OctaneBlender(metaclass=utility.Singleton):
             return
 
     def stop_render(self):
-        self.debug_console("OctaneBlender.stop_render")
+        logger.debug("OctaneBlender.stop_render")
         if not self.enabled:
             return
         if not octane_blender.stop_render():
@@ -51,7 +51,7 @@ class OctaneBlender(metaclass=utility.Singleton):
             return
 
     def reset_render(self):
-        self.debug_console("OctaneBlender.reset_render")
+        logger.debug("OctaneBlender.reset_render")
         if not self.enabled:
             return
         if not octane_blender.reset_render():
@@ -59,13 +59,13 @@ class OctaneBlender(metaclass=utility.Singleton):
             return
 
     def start_utils_client(self, client_name):
-        self.debug_console("OctaneBlender.start_utils_client(%s)" % (client_name))
+        logger.debug("OctaneBlender.start_utils_client(%s)" % client_name)
         if not self.enabled:
             return
         return octane_blender.start_utils_client(client_name)
 
     def stop_utils_client(self, client_name):
-        self.debug_console("OctaneBlender.stop_utils_client(%s)" % (client_name))
+        logger.debug("OctaneBlender.stop_utils_client(%s)" % client_name)
         if not self.enabled:
             return
         return octane_blender.stop_utils_client(client_name)
@@ -74,11 +74,11 @@ class OctaneBlender(metaclass=utility.Singleton):
         if client_name is None:
             client_name = self.GENERAL_CLIENT_NAME
             self.start_utils_client(client_name)
-        self.debug_console("OctaneBlender.utils_function(%d, %s, %s)" % (command_type, data, client_name))
+        logger.debug("OctaneBlender.utils_function(%d, %s, %s)" % (command_type, data, client_name))
         if not self.enabled:
             return
         response = octane_blender.utils_function(command_type, data, client_name)
-        self.debug_console("OctaneBlender.utils_function: %s" % response)
+        logger.debug("OctaneBlender.utils_function: %s" % response)
         return response
 
     def init_server(self):
@@ -87,51 +87,57 @@ class OctaneBlender(metaclass=utility.Singleton):
             self.utils_function(consts.UtilsFunctionType.SHOW_VIEWPORT, "InitOnly")
 
     def copy_color_ramp(self, from_addr, to_addr):
-        self.debug_console("OctaneBlender.copy_color_ramp")
+        # logger.debug("OctaneBlender.copy_color_ramp")
         if not self.enabled:
             return
         return octane_blender.copy_color_ramp(from_addr, to_addr)
 
-    def fetch_octanedb(self, localdb_path):
-        self.debug_console("OctaneBlender.fetch_octanedb(%s)" % (localdb_path))
+    def set_resolution(self, width, height, use_region_render, enable_unbound_render,
+                       region_start_x, region_start_y, region_width, region_height, update_now):
+        # logger.debug("OctaneBlender.set_resolution")
         if not self.enabled:
             return
-        response = octane_blender.utils_function(command_type, data)
-        self.debug_console("OctaneBlender.fetch_octanedb: %s" % response)
-        return response
-
-    def set_resolution(self, width, height, use_region_render, enable_unbound_render, region_start_x, region_start_y, region_width, region_height, update_now):
-        self.debug_console("OctaneBlender.set_resolution")
-        if not self.enabled:
-            return
-        return octane_blender.set_resolution(width, height, use_region_render, enable_unbound_render, region_start_x, region_start_y, region_width, region_height, update_now)
+        return octane_blender.set_resolution(width, height, use_region_render, enable_unbound_render,
+                                             region_start_x, region_start_y, region_width, region_height, update_now)
 
     def set_scene_state(self, scene_state, update_now):
-        self.debug_console("OctaneBlender.set_scene_state")
+        # logger.debug("OctaneBlender.set_scene_state: %d, %d", (scene_state, update_now))
         if not self.enabled:
             return
         return octane_blender.set_scene_state(scene_state, update_now)
 
     def get_scene_state(self):
-        self.debug_console("OctaneBlender.get_scene_state")
+        # logger.debug("OctaneBlender.get_scene_state")
         if not self.enabled:
             return
         return octane_blender.get_scene_state()
 
     def set_status_msg(self, status_msg, update_now):
-        self.debug_console("OctaneBlender.set_status_msg")
+        # logger.debug("OctaneBlender.set_status_msg: %s, %d" % (status_msg, update_now))
         if not self.enabled:
             return
         return octane_blender.set_status_msg(status_msg, update_now)
 
     def get_status_msg(self):
-        self.debug_console("OctaneBlender.get_status_msg")
+        # logger.debug("OctaneBlender.get_status_msg")
         if not self.enabled:
             return
         return octane_blender.get_status_msg()
 
+    def set_batch_state(self, batch_state, update_now):
+        logger.debug("OctaneBlender.set_batch_state")
+        if not self.enabled:
+            return
+        return octane_blender.set_batch_state(batch_state, update_now)
+
+    def send_batch_updates(self, update_now):
+        logger.debug("OctaneBlender.send_batch_updates")
+        if not self.enabled:
+            return
+        return octane_blender.send_batch_updates(update_now)
+
     def set_graph_time(self, time):
-        self.debug_console("OctaneBlender.set_graph_time")
+        # logger.debug("OctaneBlender.set_graph_time: %f" % time)
         if not self.enabled:
             return
         return octane_blender.set_graph_time(time)
@@ -147,27 +153,31 @@ class OctaneBlender(metaclass=utility.Singleton):
         return octane_blender.use_shared_surface(enable)
 
     def set_render_pass_ids(self, render_pass_ids, update_now):
-        self.debug_console("OctaneBlender.set_render_pass_ids")
+        # logger.debug("OctaneBlender.set_render_pass_ids: %s, %d" % (render_pass_ids, update_now))
         if not self.enabled:
             return
         return octane_blender.set_render_pass_ids(render_pass_ids, update_now)
-        
+
     def get_render_result(self, render_pass_id, force_fetch, is_viewport, data_type, buffer, statistics):
-        self.debug_console("OctaneBlender.get_render_result", render_pass_id)
+        # logger.debug("OctaneBlender.get_render_result: %d" % render_pass_id)
         if not self.enabled:
             return
         return octane_blender.get_render_result(render_pass_id, force_fetch, is_viewport, data_type, buffer, statistics)
 
     def get_render_result_shared_surface(self, render_pass_id, force_fetch, is_viewport, data_type, statistics):
-        self.debug_console("OctaneBlender.get_render_result_shared_surface", render_pass_id)
+        # logger.debug("OctaneBlender.get_render_result_shared_surface: %d" % render_pass_id)
         if not self.enabled:
             return
-        return octane_blender.get_render_result_shared_surface(render_pass_id, force_fetch, is_viewport, data_type, statistics)
+        return octane_blender.get_render_result_shared_surface(render_pass_id, force_fetch, is_viewport, data_type,
+                                                               statistics)
 
-    def update_server_settings(self, resource_cache_type, update_shared_surface_device_id=False, tonemap_buffer_type=consts.TonemapBufferType.TONEMAP_BUFFER_TYPE_LDR, color_space_type=consts.NamedColorSpace.NAMED_COLOR_SPACE_SRGB):
+    def update_server_settings(self, resource_cache_type, update_shared_surface_device_id=False,
+                               tonemap_buffer_type=consts.TonemapBufferType.TONEMAP_BUFFER_TYPE_LDR,
+                               color_space_type=consts.NamedColorSpace.NAMED_COLOR_SPACE_SRGB):
         if not self.enabled:
             return
-        return octane_blender.update_server_settings(resource_cache_type, update_shared_surface_device_id, tonemap_buffer_type, color_space_type)
+        return octane_blender.update_server_settings(resource_cache_type, update_shared_surface_device_id,
+                                                     tonemap_buffer_type, color_space_type)
 
     def update_change_manager(self, force_update_change_manager, update_change_manager_once):
         if not self.enabled:
@@ -179,11 +189,11 @@ class OctaneBlender(metaclass=utility.Singleton):
             return
         return octane_blender.update_mt_render_fetcher_settings(enable, min_interval)
 
-    def get_cached_node_resource(self, node_resouce_dict):
-        self.debug_console("OctaneBlender.get_cached_node_resource", node_resouce_dict)
+    def get_cached_node_resource(self, node_resource_dict):
+        # logger.debug("OctaneBlender.get_cached_node_resource: %s" % node_resource_dict)
         if not self.enabled:
             return
-        return octane_blender.get_cached_node_resource(node_resouce_dict)
+        return octane_blender.get_cached_node_resource(node_resource_dict)
 
     def try_lock_update_mutex(self):
         if not self.enabled:
@@ -203,17 +213,4 @@ class OctaneBlender(metaclass=utility.Singleton):
 
     def print_last_error(self):
         error_msg = octane_blender.get_last_error()
-        self.console(error_msg, "ERROR", None)
-        
-    def debug_console(self, message, message_type=None, report=None):
-        if core.DEBUG_MODE:
-            if message_type is None:
-                message_type = "DEBUG"
-            self.console(message, message_type, report)
-
-    def console(self, message, message_type=None, report=None):
-        if message_type is None:
-            message_type = "INFO"
-        print("[%s]%s" % (message_type, message))
-        if report:
-            report({message_type}, message)      
+        logger.error(error_msg)

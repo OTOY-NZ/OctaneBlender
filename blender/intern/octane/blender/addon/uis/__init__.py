@@ -1,3 +1,5 @@
+# <pep8 compliant>
+
 from . import color_management
 from . import common
 from . import scene
@@ -19,6 +21,7 @@ def register():
     camera.register()
     world.register()
     light.register()
+
 
 def unregister():
     color_management.unregister()

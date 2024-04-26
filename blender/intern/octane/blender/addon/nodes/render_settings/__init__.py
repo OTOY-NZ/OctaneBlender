@@ -1,6 +1,6 @@
-##### BEGIN OCTANE GENERATED CODE BLOCK #####
-import bpy
-from bpy.utils import register_class, unregister_class
+# <pep8 compliant>
+
+# BEGIN OCTANE GENERATED CODE BLOCK #
 from . import imager
 from . import post_processing
 from . import render_passes
@@ -23,6 +23,7 @@ from . import ocio_view_switch
 from . import ocio_look_switch
 from . import ocio_color_space_switch
 from . import post_volume_switch
+
 
 def register():
     imager.register()
@@ -48,6 +49,7 @@ def register():
     ocio_color_space_switch.register()
     post_volume_switch.register()
 
+
 def unregister():
     imager.unregister()
     post_processing.unregister()
@@ -72,4 +74,4 @@ def unregister():
     ocio_color_space_switch.unregister()
     post_volume_switch.unregister()
 
-##### END OCTANE GENERATED CODE BLOCK #####
+# END OCTANE GENERATED CODE BLOCK #

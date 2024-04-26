@@ -1,17 +1,18 @@
+# <pep8 compliant>
+
+from bpy.types import Panel, Menu
+
 import bpy
-import xml.etree.ElementTree as ET
-from bpy.types import Panel, Menu, Operator
 from bpy.utils import register_class, unregister_class
 from octane.uis import common
-from octane.utils import consts, runtime_globals, utility
-from octane import core
+from octane.utils import runtime_globals, utility
 
 
 class OCTANE_MT_imager_presets(Menu):
     bl_label = "Imager presets"
     preset_subdir = "octane/imager_presets"
     preset_operator = "script.execute_preset"
-    preset_operator_defaults = {"menu_idname" : "OCTANE_MT_imager_presets"}
+    preset_operator_defaults = {"menu_idname": "OCTANE_MT_imager_presets"}
     COMPAT_ENGINES = {"octane"}
     draw = Menu.draw_preset
 
@@ -20,7 +21,7 @@ class OCTANE_MT_3dimager_presets(Menu):
     bl_label = "Imager presets"
     preset_subdir = "octane/3dimager_presets"
     preset_operator = "script.execute_preset"
-    preset_operator_defaults = {"menu_idname" : "OCTANE_MT_3dimager_presets"}
+    preset_operator_defaults = {"menu_idname": "OCTANE_MT_3dimager_presets"}
     COMPAT_ENGINES = {"octane"}
     draw = Menu.draw_preset
 
@@ -29,7 +30,7 @@ class OCTANE_MT_postprocess_presets(Menu):
     bl_label = "Postprocess presets"
     preset_subdir = "octane/postprocess_presets"
     preset_operator = "script.execute_preset"
-    preset_operator_defaults = {"menu_idname" : "OCTANE_MT_postprocess_presets"}
+    preset_operator_defaults = {"menu_idname": "OCTANE_MT_postprocess_presets"}
     COMPAT_ENGINES = {"octane"}
     draw = Menu.draw_preset
 
@@ -38,7 +39,7 @@ class OCTANE_MT_3dpostprocess_presets(Menu):
     bl_label = "Postprocess presets"
     preset_subdir = "octane/3dpostprocess_presets"
     preset_operator = "script.execute_preset"
-    preset_operator_defaults = {"menu_idname" : "OCTANE_MT_3dpostprocess_presets"}
+    preset_operator_defaults = {"menu_idname": "OCTANE_MT_3dpostprocess_presets"}
     COMPAT_ENGINES = {"octane"}
     draw = Menu.draw_preset
 
@@ -70,7 +71,7 @@ class OCTANE_CAMERA_PT_camera_General(common.OctanePropertyPanel, Panel):
     @classmethod
     def poll(cls, context):
         cam = context.camera
-        oct_cam = cam.octane        
+        oct_cam = cam.octane
         return super().poll(context) and cam and oct_cam.octane_camera_type == "Lens or Panoramic"
 
     def draw(self, context):
@@ -166,7 +167,7 @@ class OCTANE_CAMERA_PT_camera_OSL(common.OctanePropertyPanel, Panel):
     @classmethod
     def poll(cls, context):
         cam = context.camera
-        oct_cam = cam.octane        
+        oct_cam = cam.octane
         return super().poll(context) and cam and oct_cam.octane_camera_type == "OSL"
 
     def draw(self, context):
@@ -179,8 +180,9 @@ class OCTANE_CAMERA_PT_camera_OSL(common.OctanePropertyPanel, Panel):
         row = col.row()
         row.prop_search(oct_cam.osl_camera_node_collections, "osl_camera_material_tree", bpy.data, "materials")
         row = col.row()
-        row.prop_search(oct_cam.osl_camera_node_collections, "osl_camera_node", oct_cam.osl_camera_node_collections, "osl_camera_nodes")        
-        row.operator("update.osl_camera_nodes", text = "Update")
+        row.prop_search(oct_cam.osl_camera_node_collections, "osl_camera_node", oct_cam.osl_camera_node_collections,
+                        "osl_camera_nodes")
+        row.operator("update.osl_camera_nodes", text="Update")
 
 
 class OCTANE_CAMERA_PT_camera_Octane_Camera_data_node(common.OctanePropertyPanel, Panel):
@@ -214,7 +216,7 @@ class OCTANE_CAMERA_PT_camera_Baking(common.OctanePropertyPanel, Panel):
     @classmethod
     def poll(cls, context):
         cam = context.camera
-        oct_cam = cam.octane        
+        oct_cam = cam.octane
         return super().poll(context) and cam and oct_cam.octane_camera_type == "Baking"
 
     def draw(self, context):
@@ -260,10 +262,10 @@ class OCTANE_CAMERA_PT_camera_Baking_UV_region(common.OctanePropertyPanel, Panel
         cam = context.camera
         oct_cam = cam.octane
         col = layout.column()
-        row = col.row(heading="Minimum")
+        _row = col.row(heading="Minimum")
         col.prop(oct_cam, "baking_uvbox_min_x")
         col.prop(oct_cam, "baking_uvbox_min_y", text="Y")
-        row = col.row(heading="Size")
+        _row = col.row(heading="Size")
         col.prop(oct_cam, "baking_uvbox_size_x")
         col.prop(oct_cam, "baking_uvbox_size_y", text="Y")
 
@@ -286,7 +288,7 @@ class OCTANE_CAMERA_PT_camera_Baking_Baking_position(common.OctanePropertyPanel,
         row.prop(oct_cam, "baking_bkface_culling", text="")
 
 
-class OCTANE_CAMERA_PT_camera_Univeral(common.OctanePropertyPanel, Panel):
+class OCTANE_CAMERA_PT_camera_Universal(common.OctanePropertyPanel, Panel):
     bl_label = "Used as Universal Camera"
     bl_parent_id = "OCTANE_CAMERA_PT_camera"
     COMPAT_ENGINES = {"octane"}
@@ -294,7 +296,7 @@ class OCTANE_CAMERA_PT_camera_Univeral(common.OctanePropertyPanel, Panel):
     @classmethod
     def poll(cls, context):
         cam = context.camera
-        oct_cam = cam.octane        
+        oct_cam = cam.octane
         return super().poll(context) and cam and oct_cam.octane_camera_type == "Universal"
 
     def draw(self, context):
@@ -314,9 +316,9 @@ class OCTANE_CAMERA_PT_camera_Univeral(common.OctanePropertyPanel, Panel):
         row.prop(oct_cam, "fstop")
 
 
-class OCTANE_CAMERA_PT_camera_Univeral_Viewing_angle(common.OctanePropertyPanel, Panel):
+class OCTANE_CAMERA_PT_camera_Universal_Viewing_angle(common.OctanePropertyPanel, Panel):
     bl_label = "Viewing angle"
-    bl_parent_id = "OCTANE_CAMERA_PT_camera_Univeral"
+    bl_parent_id = "OCTANE_CAMERA_PT_camera_Universal"
     COMPAT_ENGINES = {"octane"}
 
     def draw(self, context):
@@ -330,9 +332,9 @@ class OCTANE_CAMERA_PT_camera_Univeral_Viewing_angle(common.OctanePropertyPanel,
         row.prop(oct_cam, "universal_perspective_correction", text="")
 
 
-class OCTANE_CAMERA_PT_camera_Univeral_Fisheye(common.OctanePropertyPanel, Panel):
+class OCTANE_CAMERA_PT_camera_Universal_Fisheye(common.OctanePropertyPanel, Panel):
     bl_label = "Fisheye"
-    bl_parent_id = "OCTANE_CAMERA_PT_camera_Univeral"
+    bl_parent_id = "OCTANE_CAMERA_PT_camera_Universal"
     COMPAT_ENGINES = {"octane"}
 
     def draw(self, context):
@@ -349,9 +351,9 @@ class OCTANE_CAMERA_PT_camera_Univeral_Fisheye(common.OctanePropertyPanel, Panel
         col.prop(oct_cam, "fisheye_projection_type")
 
 
-class OCTANE_CAMERA_PT_camera_Univeral_Panoramic(common.OctanePropertyPanel, Panel):
+class OCTANE_CAMERA_PT_camera_Universal_Panoramic(common.OctanePropertyPanel, Panel):
     bl_label = "Panoramic"
-    bl_parent_id = "OCTANE_CAMERA_PT_camera_Univeral"
+    bl_parent_id = "OCTANE_CAMERA_PT_camera_Universal"
     COMPAT_ENGINES = {"octane"}
 
     def draw(self, context):
@@ -368,9 +370,9 @@ class OCTANE_CAMERA_PT_camera_Univeral_Panoramic(common.OctanePropertyPanel, Pan
         row.prop(oct_cam, "equi_angular_cubemap", text="")
 
 
-class OCTANE_CAMERA_PT_camera_Univeral_Distortion(common.OctanePropertyPanel, Panel):
+class OCTANE_CAMERA_PT_camera_Universal_Distortion(common.OctanePropertyPanel, Panel):
     bl_label = "Distortion"
-    bl_parent_id = "OCTANE_CAMERA_PT_camera_Univeral"
+    bl_parent_id = "OCTANE_CAMERA_PT_camera_Universal"
     COMPAT_ENGINES = {"octane"}
 
     def draw(self, context):
@@ -389,9 +391,9 @@ class OCTANE_CAMERA_PT_camera_Univeral_Distortion(common.OctanePropertyPanel, Pa
         col.prop(oct_cam, "barrel_distortion_corners")
 
 
-class OCTANE_CAMERA_PT_camera_Univeral_Aberration(common.OctanePropertyPanel, Panel):
+class OCTANE_CAMERA_PT_camera_Universal_Aberration(common.OctanePropertyPanel, Panel):
     bl_label = "Aberration"
-    bl_parent_id = "OCTANE_CAMERA_PT_camera_Univeral"
+    bl_parent_id = "OCTANE_CAMERA_PT_camera_Universal"
     COMPAT_ENGINES = {"octane"}
 
     def draw(self, context):
@@ -401,16 +403,16 @@ class OCTANE_CAMERA_PT_camera_Univeral_Aberration(common.OctanePropertyPanel, Pa
         cam = context.camera
         oct_cam = cam.octane
         col = layout.column()
-        row = col.row()
+        _row = col.row()
         col.prop(oct_cam, "spherical_aberration")
         col.prop(oct_cam, "coma")
         col.prop(oct_cam, "astigmatism")
         col.prop(oct_cam, "field_curvature")
 
 
-class OCTANE_CAMERA_PT_camera_Univeral_Depth_of_field(common.OctanePropertyPanel, Panel):
+class OCTANE_CAMERA_PT_camera_Universal_Depth_of_field(common.OctanePropertyPanel, Panel):
     bl_label = "Depth of field"
-    bl_parent_id = "OCTANE_CAMERA_PT_camera_Univeral"
+    bl_parent_id = "OCTANE_CAMERA_PT_camera_Universal"
     COMPAT_ENGINES = {"octane"}
 
     def draw(self, context):
@@ -444,9 +446,9 @@ class OCTANE_CAMERA_PT_camera_Univeral_Depth_of_field(common.OctanePropertyPanel
         row.prop_search(oct_cam, "custom_aperture_texture", bpy.data, "textures")
 
 
-class OCTANE_CAMERA_PT_camera_Univeral_Optical_vignette(common.OctanePropertyPanel, Panel):
+class OCTANE_CAMERA_PT_camera_Universal_Optical_vignette(common.OctanePropertyPanel, Panel):
     bl_label = "Optical vignette"
-    bl_parent_id = "OCTANE_CAMERA_PT_camera_Univeral"
+    bl_parent_id = "OCTANE_CAMERA_PT_camera_Universal"
     COMPAT_ENGINES = {"octane"}
 
     def draw(self, context):
@@ -460,9 +462,9 @@ class OCTANE_CAMERA_PT_camera_Univeral_Optical_vignette(common.OctanePropertyPan
         col.prop(oct_cam, "optical_vignette_scale")
 
 
-class OCTANE_CAMERA_PT_camera_Univeral_Split_focus_diopter(common.OctanePropertyPanel, Panel):
+class OCTANE_CAMERA_PT_camera_Universal_Split_focus_diopter(common.OctanePropertyPanel, Panel):
     bl_label = "Split-focus diopter"
-    bl_parent_id = "OCTANE_CAMERA_PT_camera_Univeral"
+    bl_parent_id = "OCTANE_CAMERA_PT_camera_Universal"
     COMPAT_ENGINES = {"octane"}
 
     def draw(self, context):
@@ -504,7 +506,7 @@ class OCTANE_CAMERA_PT_imager(common.OctanePropertyPanel, Panel):
         context.camera.octane.imager.draw(context, self.layout, False)
 
 
-class OCTANE_CAMERA_PT_imager_OCIO(common.OctanePropertyPanel, Panel):    
+class OCTANE_CAMERA_PT_imager_OCIO(common.OctanePropertyPanel, Panel):
     bl_label = "OCIO"
     bl_context = "data"
     bl_parent_id = "OCTANE_CAMERA_PT_imager"
@@ -557,7 +559,7 @@ class OCTANE_VIEW3D_PT_override(common.OctanePropertyPanel, Panel):
     bl_region_type = 'UI'
     bl_label = "Octane Imager and Postprocess Settings(Preview Mode) Override"
     bl_options = {"HIDE_HEADER"}
-    bl_category = "Octane"    
+    bl_category = "Octane"
     COMPAT_ENGINES = {'octane'}
 
     @classmethod
@@ -574,7 +576,7 @@ class OCTANE_VIEW3D_PT_imager(common.OctanePropertyPanel, Panel):
     bl_region_type = 'UI'
     bl_label = "Octane Imager" if runtime_globals.use_global_imager() else "Octane Imager(Preview Mode)"
     bl_options = {'DEFAULT_CLOSED'}
-    bl_category = "Octane"    
+    bl_category = "Octane"
     COMPAT_ENGINES = {'octane'}
 
     @classmethod
@@ -598,10 +600,10 @@ class OCTANE_VIEW3D_PT_imager(common.OctanePropertyPanel, Panel):
 
 class OCTANE_VIEW3D_PT_imager_OCIO(common.OctanePropertyPanel, Panel):
     bl_space_type = 'VIEW_3D'
-    bl_region_type = 'UI'    
+    bl_region_type = 'UI'
     bl_label = "OCIO"
     bl_parent_id = "OCTANE_VIEW3D_PT_imager"
-    bl_category = "Octane"    
+    bl_category = "Octane"
     COMPAT_ENGINES = {'octane'}
 
     def draw(self, context):
@@ -613,10 +615,10 @@ class OCTANE_VIEW3D_PT_imager_OCIO(common.OctanePropertyPanel, Panel):
 
 class OCTANE_VIEW3D_PT_imager_Tonemapping(common.OctanePropertyPanel, Panel):
     bl_space_type = 'VIEW_3D'
-    bl_region_type = 'UI'    
+    bl_region_type = 'UI'
     bl_label = "Tone Mapping"
     bl_parent_id = "OCTANE_VIEW3D_PT_imager"
-    bl_category = "Octane"    
+    bl_category = "Octane"
     COMPAT_ENGINES = {'octane'}
 
     def draw(self, context):
@@ -628,10 +630,10 @@ class OCTANE_VIEW3D_PT_imager_Tonemapping(common.OctanePropertyPanel, Panel):
 
 class OCTANE_VIEW3D_PT_imager_Denoiser(common.OctanePropertyPanel, Panel):
     bl_space_type = 'VIEW_3D'
-    bl_region_type = 'UI'    
+    bl_region_type = 'UI'
     bl_label = "Denoiser"
     bl_parent_id = "OCTANE_VIEW3D_PT_imager"
-    bl_category = "Octane"    
+    bl_category = "Octane"
     COMPAT_ENGINES = {'octane'}
 
     def draw_header(self, context):
@@ -648,17 +650,17 @@ class OCTANE_VIEW3D_PT_imager_Denoiser(common.OctanePropertyPanel, Panel):
 
 class OCTANE_VIEW3D_PT_imager_Upsampler(common.OctanePropertyPanel, Panel):
     bl_space_type = 'VIEW_3D'
-    bl_region_type = 'UI'    
+    bl_region_type = 'UI'
     bl_label = "Upsampler"
     bl_parent_id = "OCTANE_VIEW3D_PT_imager"
-    bl_category = "Octane"    
+    bl_category = "Octane"
     COMPAT_ENGINES = {'octane'}
 
     def draw(self, context):
         layout = self.layout
         layout.active = utility.is_viewport_imager_used(context.scene, context)
         oct_cam = context.scene.oct_view_cam
-        oct_cam.imager.draw_upsampler(context, layout, True)                
+        oct_cam.imager.draw_upsampler(context, layout, True)
 
 
 class OCTANE_CAMERA_PT_post(common.OctanePropertyPanel, Panel):
@@ -741,7 +743,7 @@ class OCTANE_VIEW3D_PT_post(common.OctanePropertyPanel, Panel):
 
 class OCTANE_VIEW3D_PT_post_image_processing(common.OctanePropertyPanel, Panel):
     bl_space_type = 'VIEW_3D'
-    bl_region_type = 'UI' 
+    bl_region_type = 'UI'
     bl_label = "Post image processing"
     bl_context = "data"
     bl_parent_id = "OCTANE_VIEW3D_PT_post"
@@ -757,7 +759,7 @@ class OCTANE_VIEW3D_PT_post_image_processing(common.OctanePropertyPanel, Panel):
 
 class OCTANE_VIEW3D_PT_post_lens_effect(common.OctanePropertyPanel, Panel):
     bl_space_type = 'VIEW_3D'
-    bl_region_type = 'UI' 
+    bl_region_type = 'UI'
     bl_label = "Post processing lens effects"
     bl_context = "data"
     bl_parent_id = "OCTANE_VIEW3D_PT_post"
@@ -773,7 +775,7 @@ class OCTANE_VIEW3D_PT_post_lens_effect(common.OctanePropertyPanel, Panel):
 
 class OCTANE_VIEW3D_PT_post_volume_effects(common.OctanePropertyPanel, Panel):
     bl_space_type = 'VIEW_3D'
-    bl_region_type = 'UI' 
+    bl_region_type = 'UI'
     bl_label = "Post processing volume effects"
     bl_context = "data"
     bl_parent_id = "OCTANE_VIEW3D_PT_post"
@@ -802,15 +804,15 @@ _CLASSES = [
     OCTANE_CAMERA_PT_camera_Baking_Padding,
     OCTANE_CAMERA_PT_camera_Baking_UV_region,
     OCTANE_CAMERA_PT_camera_Baking_Baking_position,
-    OCTANE_CAMERA_PT_camera_Univeral,
-    OCTANE_CAMERA_PT_camera_Univeral_Viewing_angle,
-    OCTANE_CAMERA_PT_camera_Univeral_Fisheye,
-    OCTANE_CAMERA_PT_camera_Univeral_Panoramic,
-    OCTANE_CAMERA_PT_camera_Univeral_Distortion,
-    OCTANE_CAMERA_PT_camera_Univeral_Aberration,
-    OCTANE_CAMERA_PT_camera_Univeral_Depth_of_field,
-    OCTANE_CAMERA_PT_camera_Univeral_Optical_vignette,
-    OCTANE_CAMERA_PT_camera_Univeral_Split_focus_diopter,
+    OCTANE_CAMERA_PT_camera_Universal,
+    OCTANE_CAMERA_PT_camera_Universal_Viewing_angle,
+    OCTANE_CAMERA_PT_camera_Universal_Fisheye,
+    OCTANE_CAMERA_PT_camera_Universal_Panoramic,
+    OCTANE_CAMERA_PT_camera_Universal_Distortion,
+    OCTANE_CAMERA_PT_camera_Universal_Aberration,
+    OCTANE_CAMERA_PT_camera_Universal_Depth_of_field,
+    OCTANE_CAMERA_PT_camera_Universal_Optical_vignette,
+    OCTANE_CAMERA_PT_camera_Universal_Split_focus_diopter,
     OCTANE_CAMERA_PT_imager,
     OCTANE_CAMERA_PT_imager_OCIO,
     OCTANE_CAMERA_PT_imager_Tonemapping,
@@ -833,9 +835,10 @@ _CLASSES = [
 ]
 
 
-def register(): 
+def register():
     for cls in _CLASSES:
         register_class(cls)
+
 
 def unregister():
     for cls in _CLASSES:

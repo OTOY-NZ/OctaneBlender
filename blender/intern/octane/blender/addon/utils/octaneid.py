@@ -1,4 +1,6 @@
-##### BEGIN OCTANE GENERATED CODE BLOCK #####
+# <pep8 compliant>
+
+# BEGIN OCTANE GENERATED CODE BLOCK #
 
 # Attribute Type
 class AttributeType:
@@ -3514,14 +3516,14 @@ OCTANE_PASS_ID_TO_NODE_PIN_NAME = {
     RenderPassID.CryptoGeometryNodeName: "",
 }
 
-GrayscaleRenderPassIDs = set([RenderPassID.VolumeZDepthFront, RenderPassID.VolumeZDepthBack, RenderPassID.ZDepth, RenderPassID.RenderLayerMask, RenderPassID.AmbientOcclusion, RenderPassID.Opacity, RenderPassID.Roughness, RenderPassID.IndexOfRefraction, ])
-DenoiseRenderPassIDs = set([RenderPassID.DenoisedBeauty, RenderPassID.DenoisedDiffuseDirect, RenderPassID.DenoisedDiffuseIndirect, RenderPassID.DenoisedReflectionDirect, RenderPassID.DenoisedReflectionIndirect, RenderPassID.DenoisedEmission, RenderPassID.DenoisedRemainder, RenderPassID.DenoisedVolume, RenderPassID.DenoisedVolumeEmission, ])
-CryptomatteRenderPassIDs = set([RenderPassID.CryptoInstanceID, RenderPassID.CryptoMaterialNodeName, RenderPassID.CryptoMaterialNode, RenderPassID.CryptoMaterialPinName, RenderPassID.CryptoObjectNodeName, RenderPassID.CryptoObjectNode, RenderPassID.CryptoObjectPinName, RenderPassID.CryptoRenderLayer, RenderPassID.CryptoUserInstanceID, RenderPassID.CryptoGeometryNodeName, ])
-CustomAovRenderPassIDs = set([RenderPassID.CustomAOV1, RenderPassID.CustomAOV2, RenderPassID.CustomAOV3, RenderPassID.CustomAOV4, RenderPassID.CustomAOV5, RenderPassID.CustomAOV6, RenderPassID.CustomAOV7, RenderPassID.CustomAOV8, RenderPassID.CustomAOV9, RenderPassID.CustomAOV10, RenderPassID.CustomAOV11, RenderPassID.CustomAOV12, RenderPassID.CustomAOV13, RenderPassID.CustomAOV14, RenderPassID.CustomAOV15, RenderPassID.CustomAOV16, RenderPassID.CustomAOV17, RenderPassID.CustomAOV18, RenderPassID.CustomAOV19, RenderPassID.CustomAOV20, ])
-OutputAOVRenderPassIDs = set([])
-GlobalTextureAOVRenderPassIDs = set([RenderPassID.GlobalTextureAOV1, RenderPassID.GlobalTextureAOV2, RenderPassID.GlobalTextureAOV3, RenderPassID.GlobalTextureAOV4, RenderPassID.GlobalTextureAOV5, RenderPassID.GlobalTextureAOV6, RenderPassID.GlobalTextureAOV7, RenderPassID.GlobalTextureAOV8, RenderPassID.GlobalTextureAOV9, RenderPassID.GlobalTextureAOV10, RenderPassID.GlobalTextureAOV11, RenderPassID.GlobalTextureAOV12, RenderPassID.GlobalTextureAOV13, RenderPassID.GlobalTextureAOV14, RenderPassID.GlobalTextureAOV15, RenderPassID.GlobalTextureAOV16, RenderPassID.GlobalTextureAOV17, RenderPassID.GlobalTextureAOV18, RenderPassID.GlobalTextureAOV19, RenderPassID.GlobalTextureAOV20, ])
+GrayscaleRenderPassIDs = {RenderPassID.VolumeZDepthFront, RenderPassID.VolumeZDepthBack, RenderPassID.ZDepth, RenderPassID.RenderLayerMask, RenderPassID.AmbientOcclusion, RenderPassID.Opacity, RenderPassID.Roughness, RenderPassID.IndexOfRefraction, }
+DenoiseRenderPassIDs = {RenderPassID.DenoisedBeauty, RenderPassID.DenoisedDiffuseDirect, RenderPassID.DenoisedDiffuseIndirect, RenderPassID.DenoisedReflectionDirect, RenderPassID.DenoisedReflectionIndirect, RenderPassID.DenoisedEmission, RenderPassID.DenoisedRemainder, RenderPassID.DenoisedVolume, RenderPassID.DenoisedVolumeEmission, }
+CryptomatteRenderPassIDs = {RenderPassID.CryptoInstanceID, RenderPassID.CryptoMaterialNodeName, RenderPassID.CryptoMaterialNode, RenderPassID.CryptoMaterialPinName, RenderPassID.CryptoObjectNodeName, RenderPassID.CryptoObjectNode, RenderPassID.CryptoObjectPinName, RenderPassID.CryptoRenderLayer, RenderPassID.CryptoUserInstanceID, RenderPassID.CryptoGeometryNodeName, }
+CustomAovRenderPassIDs = {RenderPassID.CustomAOV1, RenderPassID.CustomAOV2, RenderPassID.CustomAOV3, RenderPassID.CustomAOV4, RenderPassID.CustomAOV5, RenderPassID.CustomAOV6, RenderPassID.CustomAOV7, RenderPassID.CustomAOV8, RenderPassID.CustomAOV9, RenderPassID.CustomAOV10, RenderPassID.CustomAOV11, RenderPassID.CustomAOV12, RenderPassID.CustomAOV13, RenderPassID.CustomAOV14, RenderPassID.CustomAOV15, RenderPassID.CustomAOV16, RenderPassID.CustomAOV17, RenderPassID.CustomAOV18, RenderPassID.CustomAOV19, RenderPassID.CustomAOV20, }
+OutputAOVRenderPassIDs = {}
+GlobalTextureAOVRenderPassIDs = {RenderPassID.GlobalTextureAOV1, RenderPassID.GlobalTextureAOV2, RenderPassID.GlobalTextureAOV3, RenderPassID.GlobalTextureAOV4, RenderPassID.GlobalTextureAOV5, RenderPassID.GlobalTextureAOV6, RenderPassID.GlobalTextureAOV7, RenderPassID.GlobalTextureAOV8, RenderPassID.GlobalTextureAOV9, RenderPassID.GlobalTextureAOV10, RenderPassID.GlobalTextureAOV11, RenderPassID.GlobalTextureAOV12, RenderPassID.GlobalTextureAOV13, RenderPassID.GlobalTextureAOV14, RenderPassID.GlobalTextureAOV15, RenderPassID.GlobalTextureAOV16, RenderPassID.GlobalTextureAOV17, RenderPassID.GlobalTextureAOV18, RenderPassID.GlobalTextureAOV19, RenderPassID.GlobalTextureAOV20, }
 
-##### END OCTANE GENERATED CODE BLOCK #####
+# END OCTANE GENERATED CODE BLOCK #
 
 RENDER_PASS_OUTPUT_AOV_NAME = "AOVOutput"
 RENDER_PASS_OUTPUT_AOV_IDS_OFFSET = 10000

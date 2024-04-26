@@ -12,49 +12,49 @@ from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, O
 
 
 class OctaneCompositeTextureLayerInput(OctaneBaseSocket):
-    bl_idname="OctaneCompositeTextureLayerInput"
-    bl_label="Input"
-    color=consts.OctanePinColor.Texture
-    octane_default_node_type=consts.NodeType.NT_UNKNOWN
-    octane_default_node_name=""
+    bl_idname = "OctaneCompositeTextureLayerInput"
+    bl_label = "Input"
+    color = consts.OctanePinColor.Texture
+    octane_default_node_type = consts.NodeType.NT_UNKNOWN
+    octane_default_node_name = ""
     octane_pin_id=consts.PinID.P_INPUT
     octane_pin_name="input"
-    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_type = consts.PinType.PT_TEXTURE
     octane_pin_index=0
-    octane_socket_type=consts.SocketType.ST_LINK
-    octane_hide_value=True
-    octane_min_version=0
-    octane_end_version=4294967295
-    octane_deprecated=False
+    octane_socket_type = consts.SocketType.ST_LINK
+    octane_hide_value = True
+    octane_min_version = 0
+    octane_end_version = 4294967295
+    octane_deprecated = False
 
 class OctaneCompositeTextureLayerOpacity(OctaneBaseSocket):
-    bl_idname="OctaneCompositeTextureLayerOpacity"
-    bl_label="Opacity"
-    color=consts.OctanePinColor.Texture
-    octane_default_node_type=consts.NodeType.NT_TEX_FLOAT
-    octane_default_node_name="OctaneGreyscaleColor"
+    bl_idname = "OctaneCompositeTextureLayerOpacity"
+    bl_label = "Opacity"
+    color = consts.OctanePinColor.Texture
+    octane_default_node_type = consts.NodeType.NT_TEX_FLOAT
+    octane_default_node_name = "OctaneGreyscaleColor"
     octane_pin_id=consts.PinID.P_OPACITY
     octane_pin_name="opacity"
-    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_type = consts.PinType.PT_TEXTURE
     octane_pin_index=1
-    octane_socket_type=consts.SocketType.ST_FLOAT
+    octane_socket_type = consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="The opacity channel used to control the transparency of this layer", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
-    octane_hide_value=False
-    octane_min_version=0
-    octane_end_version=4294967295
-    octane_deprecated=False
+    octane_hide_value = False
+    octane_min_version = 0
+    octane_end_version = 4294967295
+    octane_deprecated = False
 
 class OctaneCompositeTextureLayerBlendMode(OctaneBaseSocket):
-    bl_idname="OctaneCompositeTextureLayerBlendMode"
-    bl_label="Blend mode"
-    color=consts.OctanePinColor.Enum
-    octane_default_node_type=consts.NodeType.NT_ENUM
-    octane_default_node_name="OctaneEnumValue"
+    bl_idname = "OctaneCompositeTextureLayerBlendMode"
+    bl_label = "Blend mode"
+    color = consts.OctanePinColor.Enum
+    octane_default_node_type = consts.NodeType.NT_ENUM
+    octane_default_node_name = "OctaneEnumValue"
     octane_pin_id=consts.PinID.P_BLEND_MODE
     octane_pin_name="blendMode"
-    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_type = consts.PinType.PT_ENUM
     octane_pin_index=2
-    octane_socket_type=consts.SocketType.ST_ENUM
+    octane_socket_type = consts.SocketType.ST_ENUM
     items = [
         ("Mix|Normal", "Mix|Normal", "", 16),
         ("Mix|Average", "Mix|Average", "", 1),
@@ -128,22 +128,22 @@ class OctaneCompositeTextureLayerBlendMode(OctaneBaseSocket):
         ("Masking|XOR", "Masking|XOR", "", 1013),
     ]
     default_value: EnumProperty(default="Mix|Normal", update=OctaneBaseSocket.update_node_tree, description="The blend mode used to mix the texture from this layer with the layers below", items=items)
-    octane_hide_value=False
-    octane_min_version=0
-    octane_end_version=4294967295
-    octane_deprecated=False
+    octane_hide_value = False
+    octane_min_version = 0
+    octane_end_version = 4294967295
+    octane_deprecated = False
 
 class OctaneCompositeTextureLayerCompositeOperation(OctaneBaseSocket):
-    bl_idname="OctaneCompositeTextureLayerCompositeOperation"
-    bl_label="Overlay mode"
-    color=consts.OctanePinColor.Enum
-    octane_default_node_type=consts.NodeType.NT_ENUM
-    octane_default_node_name="OctaneEnumValue"
+    bl_idname = "OctaneCompositeTextureLayerCompositeOperation"
+    bl_label = "Overlay mode"
+    color = consts.OctanePinColor.Enum
+    octane_default_node_type = consts.NodeType.NT_ENUM
+    octane_default_node_name = "OctaneEnumValue"
     octane_pin_id=consts.PinID.P_COMPOSITE_OPERATION
     octane_pin_name="compositeOperation"
-    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_type = consts.PinType.PT_ENUM
     octane_pin_index=3
-    octane_socket_type=consts.SocketType.ST_ENUM
+    octane_socket_type = consts.SocketType.ST_ENUM
     items = [
         ("Source", "Source", "", 0),
         ("Source over", "Source over", "", 1),
@@ -164,22 +164,22 @@ class OctaneCompositeTextureLayerCompositeOperation(OctaneBaseSocket):
         ("Matte", "Matte", "", 16),
     ]
     default_value: EnumProperty(default="Source over", update=OctaneBaseSocket.update_node_tree, description="The operation used to composite the blend result with the layers below", items=items)
-    octane_hide_value=False
-    octane_min_version=0
-    octane_end_version=4294967295
-    octane_deprecated=False
+    octane_hide_value = False
+    octane_min_version = 0
+    octane_end_version = 4294967295
+    octane_deprecated = False
 
 class OctaneCompositeTextureLayerAlphaOperation(OctaneBaseSocket):
-    bl_idname="OctaneCompositeTextureLayerAlphaOperation"
-    bl_label="Alpha operation"
-    color=consts.OctanePinColor.Enum
-    octane_default_node_type=consts.NodeType.NT_ENUM
-    octane_default_node_name="OctaneEnumValue"
+    bl_idname = "OctaneCompositeTextureLayerAlphaOperation"
+    bl_label = "Alpha operation"
+    color = consts.OctanePinColor.Enum
+    octane_default_node_type = consts.NodeType.NT_ENUM
+    octane_default_node_name = "OctaneEnumValue"
     octane_pin_id=consts.PinID.P_ALPHA_OPERATION
     octane_pin_name="alphaOperation"
-    octane_pin_type=consts.PinType.PT_ENUM
+    octane_pin_type = consts.PinType.PT_ENUM
     octane_pin_index=4
-    octane_socket_type=consts.SocketType.ST_ENUM
+    octane_socket_type = consts.SocketType.ST_ENUM
     items = [
         ("Blend mode", "Blend mode", "", 0),
         ("Alpha compositing", "Alpha compositing", "", 1),
@@ -189,22 +189,22 @@ class OctaneCompositeTextureLayerAlphaOperation(OctaneBaseSocket):
         ("Zero", "Zero", "", 5),
     ]
     default_value: EnumProperty(default="Alpha compositing", update=OctaneBaseSocket.update_node_tree, description="The layer's alpha operation", items=items)
-    octane_hide_value=False
-    octane_min_version=0
-    octane_end_version=4294967295
-    octane_deprecated=False
+    octane_hide_value = False
+    octane_min_version = 0
+    octane_end_version = 4294967295
+    octane_deprecated = False
 
 class OctaneCompositeTextureLayer(bpy.types.Node, OctaneBaseNode):
-    bl_idname="OctaneCompositeTextureLayer"
-    bl_label="Composite texture layer"
-    bl_width_default=200
-    octane_render_pass_id=-1
-    octane_render_pass_name=""
-    octane_render_pass_short_name=""
-    octane_render_pass_description=""
-    octane_render_pass_sub_type_name=""
+    bl_idname = "OctaneCompositeTextureLayer"
+    bl_label = "Composite texture layer"
+    bl_width_default = 200
+    octane_render_pass_id = -1
+    octane_render_pass_name = ""
+    octane_render_pass_short_name = ""
+    octane_render_pass_description = ""
+    octane_render_pass_sub_type_name = ""
     octane_socket_class_list=[OctaneCompositeTextureLayerInput,OctaneCompositeTextureLayerOpacity,OctaneCompositeTextureLayerBlendMode,OctaneCompositeTextureLayerCompositeOperation,OctaneCompositeTextureLayerAlphaOperation,]
-    octane_min_version=0
+    octane_min_version = 0
     octane_node_type=consts.NodeType.NT_TEX_COMPOSITE_LAYER
     octane_socket_list=["Input", "Opacity", "Blend mode", "Overlay mode", "Alpha operation", ]
     octane_attribute_list=[]
@@ -243,4 +243,4 @@ def unregister():
     utility.octane_unregister_interface_class(_SOCKET_INTERFACE_CLASSES)
     utility.octane_unregister_class(reversed(_CLASSES))
 
-##### END OCTANE GENERATED CODE BLOCK #####
+# END OCTANE GENERATED CODE BLOCK #

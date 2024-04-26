@@ -1,10 +1,9 @@
-import bpy
-import xml.etree.ElementTree as ET
-from bpy.types import Panel, Menu, Operator
+# <pep8 compliant>
+
+from bpy.types import Panel
+
 from bpy.utils import register_class, unregister_class
 from octane.uis import common
-from octane.utils import consts, utility
-from octane import core
 
 
 class OCTANE_OBJECT_PT_motion_blur(common.OctanePropertyPanel, Panel):
@@ -46,9 +45,10 @@ _CLASSES = [
 ]
 
 
-def register(): 
+def register():
     for cls in _CLASSES:
         register_class(cls)
+
 
 def unregister():
     for cls in _CLASSES:

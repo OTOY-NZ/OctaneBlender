@@ -1,17 +1,14 @@
-import bpy
-import re
-import math
-import numpy as np
+# <pep8 compliant>
+
 import json
-import xml.etree.ElementTree as ET
-from collections import defaultdict
-from bpy.props import IntProperty, FloatProperty, BoolProperty, StringProperty, EnumProperty, PointerProperty, FloatVectorProperty, IntVectorProperty
+
+from bpy.props import StringProperty
+
+import bpy
 from bpy.utils import register_class, unregister_class
-from octane.core.client import OctaneBlender
-from octane.core.octane_node import OctaneNode, CArray
-from octane.utils import utility, consts
-from octane.nodes.base_socket import OctaneBaseSocket
+from octane.core.octane_node import CArray
 from octane.nodes.base_node import OctaneBaseNode
+from octane.utils import utility, consts
 
 
 def get_rgb_curve_json_data(mapping):
@@ -31,7 +28,7 @@ def set_rgb_curve_json_data(mapping, json_data):
         # add extra points, if needed
         extra = len(data[idx]) - len(curve.points)
         _ = [curve.points.new(0.5, 0.5) for _ in range(extra)]
-        # set points to correspond with stored collection
+        # set points to correspond with a stored collection
         for pidx, (handle_type, location) in enumerate(data[idx]):
             curve.points[pidx].handle_type = handle_type
             curve.points[pidx].location = location
@@ -51,7 +48,7 @@ def get_points_from_rgb_curve(mapping):
 
 class OCTANE_curve_update_curve_data(bpy.types.Operator):
     """Update Curve"""
-    
+
     bl_idname = "octane.update_curve_data"
     bl_label = "Update Curve"
     bl_description = "Force to update the curve data"
@@ -65,7 +62,7 @@ class OCTANE_curve_update_curve_data(bpy.types.Operator):
 
 
 def helper_curve_watcher_callback(*args):
-    node = args[0]    
+    node = args[0]
     if node:
         # Trigger an update
         node.dumps_curve_data()
@@ -77,7 +74,7 @@ class OctaneBaseCurveNode(OctaneBaseNode):
     curve_data: StringProperty()
     node_data_path: StringProperty()
 
-    # Sometimes the init/copy functions are not called so we have to add this function
+    # Sometimes the init/copy functions are not called, so we have to add this function
     def validate(self, data_owner=None, force_update_data=False):
         # Check if the helper curve node is existing. 
         # For the non-helper node case, create one from the curve_data if possible.
@@ -110,16 +107,18 @@ class OctaneBaseCurveNode(OctaneBaseNode):
             for node_group in bpy.data.node_groups:
                 if node_group is self.id_data:
                     data_owner = node_group
-                    break                    
+                    break
         node_data_path = data_owner.name + "_" + repr(self)
         if self.node_data_path != node_data_path:
             same_curve_count = 0
+
             def count_same_curve(node_tree):
                 count = 0
                 for node in node_tree.nodes:
                     if isinstance(node, OctaneBaseCurveNode) and node.curve_name == self.curve_name:
                         count += 1
                 return count
+
             for material in bpy.data.materials:
                 if material.use_nodes and material.node_tree:
                     same_curve_count += count_same_curve(material.node_tree)
@@ -130,7 +129,7 @@ class OctaneBaseCurveNode(OctaneBaseNode):
                 if light.use_nodes and light.node_tree:
                     same_curve_count += count_same_curve(light.node_tree)
             for node_group in bpy.data.node_groups:
-                same_curve_count += count_same_curve(node_group)            
+                same_curve_count += count_same_curve(node_group)
             if same_curve_count > 1:
                 current_curve = utility.get_octane_helper_node(self.curve_name)
                 if current_curve:
@@ -139,7 +138,7 @@ class OctaneBaseCurveNode(OctaneBaseNode):
 
     @staticmethod
     def clear_unused_curve_helpers(used_curve_names):
-        helper_node_group = utility.octane_helper_node_group()        
+        helper_node_group = utility.octane_helper_node_group()
         all_node_names = set([node.name for node in helper_node_group.nodes if "[Curve]" in node.name])
         unused_curve_names = all_node_names - used_curve_names
         for used_curve_name in unused_curve_names:
@@ -147,10 +146,10 @@ class OctaneBaseCurveNode(OctaneBaseNode):
 
     def copy(self, original):
         self.init_curve_helper_node(original)
-    
+
     def free(self):
-        utility.free_octane_helper_node(self.curve_name)   
-    
+        utility.free_octane_helper_node(self.curve_name)
+
     @classmethod
     def get_value_socket_name(cls, idx):
         if cls.MAX_VALUE_SOCKET == 0:
@@ -175,7 +174,9 @@ class OctaneBaseCurveNode(OctaneBaseNode):
 
     @classmethod
     def update_node_definition(cls):
-        utility.remove_attribute_list(cls, ["a_custom_curve_points_primary", "a_custom_curve_points_secondary_red", "a_custom_curve_points_secondary_green", "a_custom_curve_points_secondary_blue"])
+        utility.remove_attribute_list(cls, ["a_custom_curve_points_primary", "a_custom_curve_points_secondary_red",
+                                            "a_custom_curve_points_secondary_green",
+                                            "a_custom_curve_points_secondary_blue"])
 
     def init_octane_curve(self):
         self.init_curve_helper_node()
@@ -205,7 +206,7 @@ class OctaneBaseCurveNode(OctaneBaseNode):
         bpy.msgbus.subscribe_rna(
             key=curve_node,
             owner=self,
-            args=(self, ),
+            args=(self,),
             notify=helper_curve_watcher_callback,
         )
 
@@ -216,7 +217,7 @@ class OctaneBaseCurveNode(OctaneBaseNode):
         self.id_data.update_tag()
 
     def auto_refresh(self):
-        return consts.AutoRereshStrategy.DISABLE
+        return consts.AutoRefreshStrategy.DISABLE
 
     def update_curve_point_array_data(self, node, identifier, point_num, current_point_index, current_data):
         float_data_num = point_num * 2
@@ -230,7 +231,7 @@ class OctaneBaseCurveNode(OctaneBaseNode):
         array_data[offset + 1] = current_data[1]
 
     def sync_custom_data(self, octane_node, octane_graph_node_data, depsgraph):
-        super().sync_custom_data(octane_node, octane_graph_node_data, depsgraph)        
+        super().sync_custom_data(octane_node, octane_graph_node_data, depsgraph)
         curve_node = utility.get_octane_helper_node(self.curve_name)
         if curve_node is None:
             return
@@ -239,13 +240,13 @@ class OctaneBaseCurveNode(OctaneBaseNode):
             consts.AttributeID.A_CUSTOM_CURVE_POINTS_SECONDARY_RED,
             consts.AttributeID.A_CUSTOM_CURVE_POINTS_SECONDARY_GREEN,
             consts.AttributeID.A_CUSTOM_CURVE_POINTS_SECONDARY_BLUE,
-            consts.AttributeID.A_CUSTOM_CURVE_POINTS_PRIMARY,            
+            consts.AttributeID.A_CUSTOM_CURVE_POINTS_PRIMARY,
         ]
         attribute_names = [
             "a_custom_curve_points_secondary_red",
             "a_custom_curve_points_secondary_green",
             "a_custom_curve_points_secondary_blue",
-            "a_custom_curve_points_primary",            
+            "a_custom_curve_points_primary",
         ]
         for idx, attribute_id in enumerate(attribute_ids):
             attribute_name = attribute_names[idx]
@@ -256,7 +257,8 @@ class OctaneBaseCurveNode(OctaneBaseNode):
             else:
                 curve = mapping.curves[idx]
                 for point_idx, point in enumerate(curve.points):
-                    self.update_curve_point_array_data(octane_node, attribute_name, len(curve.points), point_idx, [point.location[0], point.location[1]])
+                    self.update_curve_point_array_data(octane_node, attribute_name, len(curve.points), point_idx,
+                                                       [point.location[0], point.location[1]])
             octane_node.need_update = True
 
     def load_custom_legacy_node(self, legacy_node, node_tree, context, report=None):
@@ -274,10 +276,8 @@ class OctaneBaseCurveNode(OctaneBaseNode):
             self.curve_data = curve_dumps_data
 
     def loads_curve_data(self):
-        curve_data = ""
         curve_node = utility.get_octane_helper_node(self.curve_name)
         if curve_node is not None:
-            curve = curve_node.mapping
             set_rgb_curve_json_data(curve_node.mapping, self.curve_data)
 
     def draw_buttons(self, context, layout):
@@ -294,9 +294,10 @@ _CLASSES = [
 ]
 
 
-def register(): 
+def register():
     for cls in _CLASSES:
         register_class(cls)
+
 
 def unregister():
     for cls in _CLASSES:
