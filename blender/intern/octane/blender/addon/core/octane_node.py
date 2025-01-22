@@ -19,7 +19,8 @@ class OctaneNode(object):
     def __init__(self, name, node_type=consts.NodeType.NT_UNKNOWN):
         if node_type == consts.NodeType.NT_GEO_SCATTER:
             self.node = octane_blender.ScatterNode(name)
-        elif node_type == consts.NodeType.NT_GEO_MESH:
+        elif node_type in (consts.NodeType.NT_GEO_MESH,
+                           consts.NodeType.NT_GEO_MESH_VOLUME_SDF, consts.NodeType.NT_GEO_MESH_VOLUME):
             self.node = octane_blender.MeshNode(name)
         elif node_type == consts.NodeType.NT_GEO_VOLUME:
             self.node = octane_blender.VolumeNode(name)

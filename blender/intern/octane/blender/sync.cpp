@@ -152,7 +152,9 @@ void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph)
 
       if (can_have_geometry || is_light) {
         const bool updated_geometry = b_update.is_updated_geometry();
-        const bool updated_shading = b_update.is_updated_shading();
+        // In Blender 4.2, we don't need to check updated_shading for material changes.
+        // Otherwise, it will create many redandunt updates.
+        const bool updated_shading = false;
 
         /* Geometry (mesh, hair, volume). */
         if (can_have_geometry) {
@@ -204,8 +206,11 @@ void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph)
     /* Mesh */
     else if (b_id.is_a(&RNA_Mesh)) {
       BL::Mesh b_mesh(b_id);
-      mesh_map.set_recalc(b_mesh);
-      depgraph_updated_mesh_names.insert(b_mesh.name());
+      bool is_geometry_updated = b_update.is_updated_geometry();
+      if (is_geometry_updated) {
+        mesh_map.set_recalc(b_mesh);
+        depgraph_updated_mesh_names.insert(b_mesh.name());
+      }
     }
     /* Curve */
     else if (b_id.is_a(&RNA_Curve)) {

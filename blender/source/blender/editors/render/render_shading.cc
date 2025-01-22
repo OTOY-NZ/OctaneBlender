@@ -51,6 +51,7 @@
 #include "BKE_main.hh"
 #include "BKE_material.h"
 #include "BKE_node.hh"
+#include "BKE_node_runtime.hh"
 #include "BKE_node_tree_update.hh"
 #include "BKE_object.hh"
 #include "BKE_report.hh"
@@ -395,7 +396,8 @@ static int material_slot_de_select(bContext *C, bool select)
       continue;
     }
 
-    short mat_nr_active = BKE_object_material_index_get(ob, mat_active);
+    const short mat_nr_active = BKE_object_material_index_get_with_hint(
+        ob, mat_active, obact ? obact->actcol - 1 : -1);
 
     if (mat_nr_active == -1) {
       continue;
@@ -2599,6 +2601,13 @@ static int copy_material_exec(bContext *C, wmOperator *op)
   char filepath[FILE_MAX];
   Main *bmain = CTX_data_main(C);
 
+  /* Store some status info that may be affected by partial write process. */
+  const bool is_fake_user = (ma->id.flag & LIB_FAKEUSER) != 0;
+  const int usercount = ma->id.us;
+  if (!is_fake_user) {
+    id_fake_user_set(&ma->id);
+  }
+
   /* Mark is the material to use (others may be expanded). */
   BKE_copybuffer_copy_begin(bmain);
 
@@ -2606,6 +2615,12 @@ static int copy_material_exec(bContext *C, wmOperator *op)
 
   material_copybuffer_filepath_get(filepath, sizeof(filepath));
   BKE_copybuffer_copy_end(bmain, filepath, op->reports);
+
+  /* Restore some status info that may be affected by partial write process. */
+  if (!is_fake_user) {
+    id_fake_user_clear(&ma->id);
+  }
+  ma->id.us = usercount;
 
   /* We are all done! */
   BKE_report(op->reports, RPT_INFO, "Copied material to internal clipboard");
@@ -2813,6 +2828,10 @@ static int paste_material_exec(bContext *C, wmOperator *op)
    * This also applies to animation data which is likely to be stored in the depsgraph.
    * Always call instead of checking when it *might* be needed. */
   DEG_relations_tag_update(bmain);
+
+  /* There are some custom updates to the node tree above, better do a full update pass. */
+  BKE_ntree_update_tag_all(ma->nodetree);
+  ED_node_tree_propagate_change(C, bmain, nullptr);
 
   DEG_id_tag_update(&ma->id, ID_RECALC_SYNC_TO_EVAL);
   WM_event_add_notifier(C, NC_MATERIAL | ND_SHADING_LINKS, ma);

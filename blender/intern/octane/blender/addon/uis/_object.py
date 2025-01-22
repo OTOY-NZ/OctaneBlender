@@ -166,12 +166,35 @@ class OCTANE_OBJECT_PT_motion_blur(OctanePropertyPanel, Panel):
         #     row.label(text="Deformation motion blur may not work on objects with Auto Smooth", icon="INFO")
 
 
+class OCTANE_OBJECT_PT_offset_transform(OctanePropertyPanel, Panel):
+    bl_label = "Offset Transform"
+    bl_parent_id = "OCTANE_OBJECT_PT_object_properties"
+    bl_context = "object"
+
+    def draw(self, context):
+        layout = self.layout
+        ob = context.object
+        ob_data = ob.data
+        if ob_data is None:
+            return
+        octane_object = ob.octane
+        col = layout.column(align=True)
+        col.use_property_split = True
+        col.use_property_decorate = False
+        col.prop(octane_object, "enable_octane_offset_transform")
+        col.prop(octane_object, "octane_offset_translation")
+        col.prop(octane_object, "octane_offset_rotation_order")
+        col.prop(octane_object, "octane_offset_rotation")
+        col.prop(octane_object, "octane_offset_scale")
+
+
 _CLASSES = [
     OCTANE_OBJECT_PT_object_properties,
     OCTANE_OBJECT_PT_object_properties_object_layer,
     OCTANE_OBJECT_PT_object_properties_baking,
     OCTANE_OBJECT_PT_object_properties_scattering,
     OCTANE_OBJECT_PT_motion_blur,
+    OCTANE_OBJECT_PT_offset_transform,
 ]
 
 

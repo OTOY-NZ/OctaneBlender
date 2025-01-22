@@ -4,15 +4,17 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
+import platform
 import os
 import shlex
 import sys
 from pathlib import Path
+from modules import render_report
 
 # List of .blend files that are known to be failing and are not ready to be
 # tested, or that only make sense on some devices. Accepts regular expressions.
-BLACKLIST_ALL = [
-    # Blacklisted due overlapping object differences between platforms.
+BLOCKLIST_ALL = [
+    # Blocked due to overlapping object differences between platforms.
     "hair_geom_reflection.blend",
     "hair_geom_transmission.blend",
     "hair_instancer_uv.blend",
@@ -20,24 +22,106 @@ BLACKLIST_ALL = [
     "visibility_particles.blend",
 ]
 
-BLACKLIST_OSL = [
-    # OSL only supported on CPU.
+# Blocklist that disables OSL specific tests for configurations that do not support OSL backend.
+BLOCKLIST_EXPLICIT_OSL = [
     '.*_osl.blend',
     'osl_.*.blend',
 ]
 
-BLACKLIST_OPTIX = [
+# Blocklist for SVM tests that are forced to run with OSL to test consistency between the two backends.
+BLOCKLIST_OSL = [
+    # Block tests that fail with OSL due to differences from SVM.
+    # Note: Most of the tests below are expected to be different between OSL and SVM
+    # As such many of these tests have both a SVM and OSL file. Blocking the SVM
+    # tests here doesn't loose any test permutations.
+    #
+    # AOVs are not supported. See 73266
+    'aov_position.blend',
+    'render_passes_aov.*.blend',
+    # Image sampling is different from SVM. There are OSL variants of these tests
+    'image_byte.*.blend',
+    'image_float.*.blend',
+    'image_half.*.blend',
+    'image_mapping_.*_closest.blend',
+    'image_mapping_.*_cubic.blend',
+    'image_mapping_.*_linear.blend',
+    'image_alpha_blend.blend',
+    'image_alpha_channel_packed.blend',
+    'image_alpha_ignore.blend',
+    'image_log.blend',
+    'image_non_color.blend',
+    # Along with differences in image sampling, UDIM in OSL doesn't respect extrapolation settings
+    # This has been reported in 124847 for further investigation
+    'image_mapping_udim.blend',
+    # OSL handles bump + displacement differently from SVM. There are OSL variants of these tests
+    'both_displacement.blend',
+    'bump_with_displacement.blend',
+    # Ray portal test uses bump + displacement
+    'ray_portal.blend',
+    # TODO: Tests that need investigating into why they're failing, and how to fix that.
+    # Noise differences due to Principled BSDF mixing/layering used in some of these scenes
+    'render_passes_.*.blend',
+    # Noise differences in Principled BSDF mixing/layering
+    'principled_.*.blend',
+    # 4.2 specific Blocklist
+    # Test file is wrong, and it's a hassle to backport the updated test
+    'image_log_osl.blend',
+    # These two require e7ce8d33e30203c61c4cf296f6278af17158f052 to be backported to pass
+    'mesh_light.blend',
+    'T50634_1.blend',
+    # Fixed in 90bcc3b5dc4c576752adb587c4424e4948927b6b, there doesn't appear to be a plan to backport it
+    'T49936.*.blend',
+    # NaN causes an assert on build bot. Fixed in main but changes the render result. No plans to backport
+    'vector_math.blend',
+]
+
+BLOCKLIST_OPTIX = [
     # Ray intersection precision issues
     'T50164.blend',
     'T43865.blend',
 ]
 
-BLACKLIST_METAL = [
-    # MNEE only works on Metal with macOS >= 13
-    "underwater_caustics.blend",
+BLOCKLIST_OPTIX_OSL = [
+    # OPTIX OSL doesn't support trace function needed for AO and bevel
+    'bake_bevel.blend',
+    'ambient_occlusion.*.blend',
+    'bevel.blend',
+    'osl_trace_shader.blend',
+    # The Volumetric noise texture is different for some reason
+    'principled_absorption.blend',
+    # Dicing tests use wireframe node which doesn't appear to be supported in OptiX
+    'dicing_camera.blend',
+    'offscreen_dicing.blend',
+    'panorama_dicing.blend',
+    # Bump evaluation is not implemented yet. See 104276
+    'compare_bump.blend',
+    'both_displacement.blend',
+    'bump_with_displacement.blend',
+    'ray_portal.blend',
+    # TODO: Investigate every other failing case and add them here.
+    # Note: Many tests are failing due to CUDA errors. Some of these are driver issues that NVIDIA is currently looking into.
+    #
+    # Currently failing tests that aren't in this list are:
+    # ray_portal*.blend - CUDA error
+    # image_mapping_udim*.blend - Can't load UDIM from disk? But can load UDIM if it's packed, but doesn't seem to use it properly.
+    # points_volume.blend - CUDA error
+    # principled_emission_alpha.blend - CUDA error related to connected inputs. Probably the same as 122779
+    # point_density_*_object - Object scale doesn't appear to be appplied to texture
+    # All the other tests mentioned in BLOCKLIST_OSL (E.g. Principled BSDF tests having noise differences)
 ]
 
-BLACKLIST_GPU = [
+BLOCKLIST_METAL = []
+
+if platform.system() == "Darwin":
+    version, _, _ = platform.mac_ver()
+    major_version = version.split(".")[0]
+    if int(major_version) < 13:
+        BLOCKLIST_METAL += [
+            # MNEE only works on Metal with macOS >= 13
+            "underwater_caustics.blend",
+        ]
+
+BLOCKLIST_GPU = [
     # Uninvestigated differences with GPU.
     'image_log.blend',
     'T40964.blend',
@@ -62,7 +146,18 @@ BLACKLIST_GPU = [
 ]
 
 
-def get_arguments(filepath, output_filepath):
+class CyclesReport(render_report.Report):
+    def __init__(self, title, output_dir, oiiotool, device=None, blocklist=[], osl=False):
+        super().__init__(title, output_dir, oiiotool, device=device, blocklist=blocklist)
+        self.osl = osl
+        if osl:
+            self.title += " OSL"
+
+    def _get_render_arguments(self, arguments_cb, filepath, base_output_filepath):
+        return arguments_cb(filepath, base_output_filepath, self.osl)
+
+
+def get_arguments(filepath, output_filepath, osl=False):
     dirname = os.path.dirname(filepath)
     basedir = os.path.dirname(dirname)
     subject = os.path.basename(dirname)
@@ -89,6 +184,9 @@ def get_arguments(filepath, output_filepath):
     if spp_multiplier:
         args.extend(["--python-expr", f"import bpy; bpy.context.scene.cycles.samples *= {spp_multiplier}"])
 
+    if osl:
+        args.extend(["--python-expr", "import bpy; bpy.context.scene.cycles.shading_system = True"])
+
     if subject == 'bake':
         args.extend(['--python', os.path.join(basedir, "util", "render_bake.py")])
     elif subject == 'denoise_animation':
@@ -106,7 +204,8 @@ def create_argparse():
     parser.add_argument("-outdir", nargs=1)
     parser.add_argument("-oiiotool", nargs=1)
     parser.add_argument("-device", nargs=1)
-    parser.add_argument("-blacklist", nargs="*")
+    parser.add_argument("-blocklist", nargs="*", default=[])
+    parser.add_argument("-osl", default=False, action='store_true')
     parser.add_argument('--batch', default=False, action='store_true')
     return parser
 
@@ -121,18 +220,21 @@ def main():
     output_dir = args.outdir[0]
     device = args.device[0]
 
-    blacklist = BLACKLIST_ALL
+    blocklist = BLOCKLIST_ALL
     if device != 'CPU':
-        blacklist += BLACKLIST_GPU
-    if device != 'CPU' or 'OSL' in args.blacklist:
-        blacklist += BLACKLIST_OSL
+        blocklist += BLOCKLIST_GPU
+    if device != 'CPU' or 'OSL' in args.blocklist:
+        blocklist += BLOCKLIST_EXPLICIT_OSL
     if device == 'OPTIX':
-        blacklist += BLACKLIST_OPTIX
+        blocklist += BLOCKLIST_OPTIX
+        if args.osl:
+            blocklist += BLOCKLIST_OPTIX_OSL
     if device == 'METAL':
-        blacklist += BLACKLIST_METAL
+        blocklist += BLOCKLIST_METAL
+    if args.osl:
+        blocklist += BLOCKLIST_OSL
 
-    from modules import render_report
-    report = render_report.Report('Cycles', output_dir, oiiotool, device, blacklist)
+    report = CyclesReport('Cycles', output_dir, oiiotool, device, blocklist, args.osl)
     report.set_pixelated(True)
     report.set_reference_dir("cycles_renders")
     if device == 'CPU':
@@ -144,8 +246,13 @@ def main():
     #
     # underwater_caustics.blend gives quite different results on Linux and Intel macOS compared to
     # Windows and Arm macOS.
+    #
+    # OSL tests:
+    # Blackbody is slightly different between SVM and OSL.
+    # Microfacet hair renders slightly differently, and fails on Windows and Linux with OSL
+
     test_dir_name = Path(test_dir).name
-    if test_dir_name in {'motion_blur', 'integrator'}:
+    if (test_dir_name in {'motion_blur', 'integrator'}) or ((args.osl) and (test_dir_name in {'shader', 'hair'})):
         report.set_fail_threshold(0.032)
 
     ok = report.run(test_dir, blender, get_arguments, batch=args.batch)

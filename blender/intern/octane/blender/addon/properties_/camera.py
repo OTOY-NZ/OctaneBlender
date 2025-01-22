@@ -331,8 +331,8 @@ class BlenderCamera(object):
             x_aspect = 1.0
             y_aspect = self.aspect_ratio
         if not horizontal_fit:
-            base_sensor_size = self.sensor_height \
-                if self.sensor_fit == BlenderCameraSensorFitType.HORIZONTAL else self.sensor_width
+            base_sensor_size = self.sensor_width \
+                if self.sensor_fit == BlenderCameraSensorFitType.HORIZONTAL else self.sensor_height
             self.sensor_size = base_sensor_size * x_aspect / y_aspect
         if self.type == BlenderCameraType.PANORAMA:
             self.viewplane = self.pano_viewplane
@@ -1191,6 +1191,8 @@ class OctaneBaseCameraPropertyGroup(OctanePropertyGroup):
                     camera_node.set_pin_id(consts.PinID.P_ORTHOGRAPHIC, False, "", False)
                 elif blender_camera.type == BlenderCameraType.ORTHOGRAPHIC:
                     camera_node.set_pin_id(consts.PinID.P_ORTHOGRAPHIC, False, "", True)
+            elif camera_node_type == consts.NodeType.NT_CAM_UNIVERSAL:
+                camera_node.set_pin_id(consts.PinID.P_FOCAL_LENGTH, False, "", 35.0)
             camera_node.set_pin_id(consts.PinID.P_POSITION, False, "", (0, 0, 0))
             if camera_node_type != consts.NodeType.NT_CAM_BAKING:
                 camera_node.set_pin_id(consts.PinID.P_TARGET, False, "", (0, 0, 0))
@@ -1253,6 +1255,7 @@ class OctaneBaseCameraPropertyGroup(OctanePropertyGroup):
             camera_node.set_pin_id(consts.PinID.P_FOVY, False, "", fov_y)
             camera_node.set_pin_id(consts.PinID.P_KEEP_UPRIGHT, False, "", keep_upright)
         elif camera_node_type == consts.NodeType.NT_CAM_UNIVERSAL:
+            # camera_node.clear_pin_id(consts.PinID.P_FOCAL_LENGTH)
             if blender_camera.type == BlenderCameraType.ORTHOGRAPHIC:
                 camera_node.set_pin_id(consts.PinID.P_SCALE, False, "", scale)
                 camera_node.clear_pin_id(consts.PinID.P_FOV)

@@ -90,6 +90,8 @@ class OCTANE_OT_convert_to_octane_material(Operator):
                     for idx in range(len(_object.material_slots)):
                         cur_material = getattr(_object.material_slots[idx], "material", None)
                         if cur_material:
+                            if cur_material.name in self.processed_material_names:
+                                continue
                             self.processed_material_names.add(cur_material.name)
                             convert_to_octane_material(_object, idx)
                 self.processed_object_names.add(_object.name)

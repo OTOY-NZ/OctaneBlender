@@ -18,6 +18,7 @@ class OctaneOSLEnumSocketNodeVectorMathType(OctaneOSLBaseEnumSocket):
     octane_default_node_name = "OctaneIntValue"
     octane_pin_type = consts.PinType.PT_INT
     octane_socket_type = consts.SocketType.ST_ENUM
+    octane_pin_index = 0
     # noinspection PyRedundantParentheses
     items = [
         ("Add", "Add", "", 0),
@@ -162,6 +163,7 @@ class OctaneOSLEnumSocketNodeVectorMathType(OctaneOSLBaseEnumSocket):
 class OctaneOSLFloat3SocketNodeVectorMathVector1(OctaneOSLBaseFloat3Socket):
     bl_idname = "OctaneOSLFloat3SocketNodeVectorMathVector1"
     bl_label = "Vector1"
+    octane_pin_index = 1
     osl_pin_name: StringProperty(name="OSL Pin Name", default="Vector1")
     default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000),
                                        update=OctaneBaseSocket.update_node_tree,
@@ -176,6 +178,7 @@ class OctaneOSLFloat3SocketNodeVectorMathVector1(OctaneOSLBaseFloat3Socket):
 class OctaneOSLFloat3SocketNodeVectorMathVector2(OctaneOSLBaseFloat3Socket):
     bl_idname = "OctaneOSLFloat3SocketNodeVectorMathVector2"
     bl_label = "Vector2"
+    octane_pin_index = 2
     osl_pin_name: StringProperty(name="OSL Pin Name", default="Vector2")
     default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000),
                                        update=OctaneBaseSocket.update_node_tree,
@@ -190,6 +193,7 @@ class OctaneOSLFloat3SocketNodeVectorMathVector2(OctaneOSLBaseFloat3Socket):
 class OctaneOSLFloat3SocketNodeVectorMathVector3(OctaneOSLBaseFloat3Socket):
     bl_idname = "OctaneOSLFloat3SocketNodeVectorMathVector3"
     bl_label = "Vector3"
+    octane_pin_index = 3
     osl_pin_name: StringProperty(name="OSL Pin Name", default="Vector3")
     default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000),
                                        update=OctaneBaseSocket.update_node_tree,
@@ -204,6 +208,7 @@ class OctaneOSLFloat3SocketNodeVectorMathVector3(OctaneOSLBaseFloat3Socket):
 class OctaneOSLFloatSocketNodeVectorMathScale(OctaneOSLBaseFloatSocket):
     bl_idname = "OctaneOSLFloatSocketNodeVectorMathScale"
     bl_label = "Scale"
+    octane_pin_index = 4
     osl_pin_name: StringProperty(name="OSL Pin Name", default="Scale")
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Scale",
                                  min=-340282346638528859811704183484516925440.000000,

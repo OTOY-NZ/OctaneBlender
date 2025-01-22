@@ -579,7 +579,7 @@ static void create_mesh(Scene *scene,
 
   auto get_material_index = [&](const int poly_index) -> int {
     if (material_indices) {
-      return clamp(material_indices[poly_index], 0, used_shaders.size() - 1);
+      return max(0, clamp(material_indices[poly_index], 0, used_shaders.size() - 1));
     }
     return 0;
   };
@@ -1249,11 +1249,12 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
       }
     }
   }
-  std::string old_mesh_shader_tag = generate_mesh_shader_tag(octane_mesh->used_shaders);
+  bool is_mesh_tag_data_updated = false;
   std::string new_mesh_shader_tag = generate_mesh_shader_tag(used_shaders);
-  if (old_mesh_shader_tag != new_mesh_shader_tag) {
-    is_mesh_data_updated = true;
+  if (octane_mesh->mesh_shader_tag != new_mesh_shader_tag) {
+    is_mesh_data_updated = is_mesh_tag_data_updated = true;
   }
+  octane_mesh->mesh_shader_tag = new_mesh_shader_tag;
   if (depgraph_updated_mesh_names.find(b_ob_data_name) != depgraph_updated_mesh_names.end()) {
     is_mesh_data_updated = true;
   }
@@ -1278,7 +1279,7 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
                                             use_octane_vertex_displacement_subdvision);
   std::string new_octane_prop_tag = "";
   bool bHideOriginalMesh = octane_mesh->octane_geo_properties.hide_original_mesh;
-  bool is_mesh_tag_data_updated = is_geometry_data_update;
+  is_mesh_tag_data_updated |= is_geometry_data_update;
   if (depgraph_updated_mesh_names.find(b_ob_data_name) != depgraph_updated_mesh_names.end()) {
     is_mesh_tag_data_updated = true;
   }
@@ -1415,17 +1416,6 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
       if (octane_mesh->octane_volume.sVelocityGridId.sVal.length() == 0) {
         octane_mesh->octane_volume.sVelocityGridId = selected_grid_name;
       }
-    }
-    octane_mesh->enable_offset_transform = RNA_boolean_get(&oct_mesh,
-                                                           "enable_octane_offset_transform");
-    if (octane_mesh->enable_offset_transform) {
-      float3 translate, euler, scale;
-      int mode = RNA_enum_get(&oct_mesh, "octane_offset_rotation_order");
-      RNA_float_get_array(
-          &oct_mesh, "octane_offset_translation", reinterpret_cast<float *>(&translate));
-      RNA_float_get_array(&oct_mesh, "octane_offset_rotation", reinterpret_cast<float *>(&euler));
-      RNA_float_get_array(&oct_mesh, "octane_offset_scale", reinterpret_cast<float *>(&scale));
-      octane_mesh->offset_transform = make_transform(translate, euler, mode, scale);
     }
 
     if (octane_mesh->is_mesh_to_volume) {
@@ -1613,8 +1603,6 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
   octane_mesh->clear();
   octane_mesh->used_shaders = used_shaders;
 
-  octane_mesh->enable_offset_transform = RNA_boolean_get(&oct_mesh,
-                                                         "enable_octane_offset_transform");
   octane_mesh->use_octane_coordinate = RNA_enum_get(&oct_mesh, "primitive_coordinate_mode") ==
                                        OBJECT_DATA_NODE_TARGET_COORDINATE_OCTANE;
   octane_mesh->octane_mesh.bEnableAnimationTimeTransformation = RNA_boolean_get(
@@ -1623,15 +1611,6 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
       &oct_mesh, "animation_time_transformation_delay");
   octane_mesh->octane_mesh.fAnimationTimeTransformationScale = RNA_float_get(
       &oct_mesh, "animation_time_transformation_scale");
-  if (octane_mesh->enable_offset_transform) {
-    float3 translate, euler, scale;
-    int mode = RNA_enum_get(&oct_mesh, "octane_offset_rotation_order");
-    RNA_float_get_array(
-        &oct_mesh, "octane_offset_translation", reinterpret_cast<float *>(&translate));
-    RNA_float_get_array(&oct_mesh, "octane_offset_rotation", reinterpret_cast<float *>(&euler));
-    RNA_float_get_array(&oct_mesh, "octane_offset_scale", reinterpret_cast<float *>(&scale));
-    octane_mesh->offset_transform = make_transform(translate, euler, mode, scale);
-  }
   octane_mesh->octane_mesh.oObjectLayer = object_layer;
   octane_mesh->octane_mesh.bInfinitePlane = RNA_boolean_get(&oct_mesh, "infinite_plane");
   octane_mesh->octane_mesh.oMeshVolume.bEnable = RNA_boolean_get(&oct_mesh,

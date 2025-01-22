@@ -228,6 +228,7 @@ GPU_SHADER_CREATE_INFO(eevee_surf_world)
     .push_constant(Type::FLOAT, "world_opacity_fade")
     .push_constant(Type::FLOAT, "world_background_blur")
     .push_constant(Type::IVEC4, "world_coord_packed")
+    .early_fragment_test(true)
     .fragment_out(0, Type::VEC4, "out_background")
     .fragment_source("eevee_surf_world_frag.glsl")
     .additional_info("eevee_global_ubo",
@@ -238,6 +239,16 @@ GPU_SHADER_CREATE_INFO(eevee_surf_world)
                      //  "eevee_render_pass_out",
                      //  "eevee_cryptomatte_out",
                      "eevee_utility_texture");
+
+GPU_SHADER_CREATE_INFO(eevee_renderpass_clear)
+    .fragment_out(0, Type::VEC4, "out_background")
+    .fragment_source("eevee_renderpass_clear_frag.glsl")
+    .additional_info("draw_fullscreen",
+                     "eevee_global_ubo",
+                     "eevee_render_pass_out",
+                     "eevee_cryptomatte_out",
+                     "eevee_shared")
+    .do_static_compilation(true);
 
 GPU_SHADER_INTERFACE_INFO(eevee_surf_shadow_atomic_iface, "shadow_iface")
     .flat(Type::INT, "shadow_view_id");
@@ -312,10 +323,15 @@ GPU_SHADER_CREATE_INFO(eevee_surf_volume)
            ImageType::FLOAT_3D,
            "out_emissive_img")
     .image(VOLUME_PROP_PHASE_IMG_SLOT,
-           GPU_RG16F,
+           GPU_R16F,
            Qualifier::READ_WRITE,
            ImageType::FLOAT_3D,
            "out_phase_img")
+    .image(VOLUME_PROP_PHASE_WEIGHT_IMG_SLOT,
+           GPU_R16F,
+           Qualifier::READ_WRITE,
+           ImageType::FLOAT_3D,
+           "out_phase_weight_img")
     .image(VOLUME_OCCUPANCY_SLOT,
            GPU_R32UI,
            Qualifier::READ,

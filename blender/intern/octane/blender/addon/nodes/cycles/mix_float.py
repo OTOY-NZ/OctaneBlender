@@ -12,6 +12,7 @@ from octane.utils import utility, consts, runtime_globals
 class OctaneOSLIntSocketMixFloatClampFactor(OctaneOSLBaseIntSocket):
     bl_idname = "OctaneOSLIntSocketMixFloatClampFactor"
     bl_label = "Clamp Factor(Int)"
+    octane_pin_index = 0
     osl_pin_name: StringProperty(name="OSL Pin Name", default="use_clamp")
     default_value: IntProperty(default=1, update=OctaneBaseSocket.update_node_tree, description="")
 
@@ -19,6 +20,7 @@ class OctaneOSLIntSocketMixFloatClampFactor(OctaneOSLBaseIntSocket):
 class OctaneOSLBoolSocketMixFloatClampFactor(OctaneOSLBaseBoolSocket):
     bl_idname = "OctaneOSLBoolSocketMixFloatClampFactor"
     bl_label = "Clamp Factor"
+    octane_pin_index = 0
     osl_pin_name: StringProperty(name="OSL Pin Name", default="")
 
     def update_clamp_factor(self, _context):
@@ -33,6 +35,7 @@ class OctaneOSLBoolSocketMixFloatClampFactor(OctaneOSLBaseBoolSocket):
 class OctaneOSLFloatSocketMixFloatFactor(OctaneOSLBaseFloatSocket):
     bl_idname = "OctaneOSLFloatSocketMixFloatFactor"
     bl_label = "Factor"
+    octane_pin_index = 1
     osl_pin_name: StringProperty(name="OSL Pin Name", default="Factor")
     default_value: FloatProperty(default=0.500000, update=OctaneBaseSocket.update_node_tree, description="Factor",
                                  min=-340282346638528859811704183484516925440.000000,
@@ -43,6 +46,7 @@ class OctaneOSLFloatSocketMixFloatFactor(OctaneOSLBaseFloatSocket):
 class OctaneOSLFloatSocketMixFloatA(OctaneOSLBaseFloatSocket):
     bl_idname = "OctaneOSLFloatSocketMixFloatA"
     bl_label = "A"
+    octane_pin_index = 2
     osl_pin_name: StringProperty(name="OSL Pin Name", default="A")
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="A",
                                  min=-340282346638528859811704183484516925440.000000,
@@ -53,6 +57,7 @@ class OctaneOSLFloatSocketMixFloatA(OctaneOSLBaseFloatSocket):
 class OctaneOSLFloatSocketMixFloatB(OctaneOSLBaseFloatSocket):
     bl_idname = "OctaneOSLFloatSocketMixFloatB"
     bl_label = "B"
+    octane_pin_index = 3
     osl_pin_name: StringProperty(name="OSL Pin Name", default="B")
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="B",
                                  min=-340282346638528859811704183484516925440.000000,

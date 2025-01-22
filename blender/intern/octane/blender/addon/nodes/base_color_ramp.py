@@ -105,16 +105,16 @@ class OctaneBaseRampNode(OctaneBaseNode):
         # For the non-helper node case, create one from the color_ramp_data if possible.
         current_color_ramp = utility.get_octane_helper_node(self.color_ramp_name)
         current_color_ramp_data_list = getattr(self, "color_ramp_data_list", [])
-        color_ramp_data_list = OctaneBlender().dump_color_ramp_data(current_color_ramp.color_ramp.as_pointer())
-        if current_color_ramp_data_list != color_ramp_data_list:
-            self.color_ramp_data_list = color_ramp_data_list  # noqa
-            self.update_value_sockets()
         if current_color_ramp is None:
             # Rebuild from color_ramp_data
             self.init_color_ramp_helper_node()
             self.loads_color_ramp_data()
             self.update_value_sockets()
         else:
+            color_ramp_data_list = OctaneBlender().dump_color_ramp_data(current_color_ramp.color_ramp.as_pointer())
+            if current_color_ramp_data_list != color_ramp_data_list:
+                self.color_ramp_data_list = color_ramp_data_list  # noqa
+                self.update_value_sockets()
             # Create the color_ramp_data for the legacy cases
             if len(self.color_ramp_data) == 0 or force_update_data:
                 self.dumps_color_ramp_data(color_ramp_data_list)
@@ -432,7 +432,10 @@ class OctaneBaseRampNode(OctaneBaseNode):
                         interpolation_identifier = color_ramp_attributes[0]
                     else:
                         interpolation_identifier = color_ramp_attributes
-                    interpolation_type = OctaneBaseRampNode.COLOR_RAMP_INTERPOLATION_TYPE_MAP[interpolation_identifier]
+                    if type(interpolation_identifier) is int:
+                        interpolation_type = interpolation_identifier
+                    else:
+                        interpolation_type = OctaneBaseRampNode.COLOR_RAMP_INTERPOLATION_TYPE_MAP[interpolation_identifier]
                     OctaneBlender().load_color_ramp_data(interpolation_type, color_ramp_data_list, color_ramp.as_pointer())
         self.update_color_ramp_interpolation(None)
 

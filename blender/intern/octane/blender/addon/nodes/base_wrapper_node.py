@@ -57,7 +57,7 @@ class OctaneScriptNodeWrapper(OctaneScriptNode):
 
     def update_shader_code(self, _force_compile=False):
         self.a_shader_code = ""
-        self.a_filename = self.octane_wrapper_script_path
+        self.a_filename = self.__class__.octane_wrapper_script_path
         self.a_reload = True
         self.a_result = consts.COMPILE_SUCCESS
 

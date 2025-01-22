@@ -20,12 +20,22 @@ class OctaneBlender(metaclass=utility.Singleton):
 
     def init(self, path, user_path):
         logger.debug("OctaneBlender.init")
-        self.enabled = octane_blender.init(path, user_path)
+        preferences = utility.get_preferences()
+        octane_server_address = str(preferences.octane_server_address)
+        if octane_server_address == "" or octane_server_address == "127.0.0.1":
+            octane_server_address = "localhost"
+        self.enabled = octane_blender.init(path, user_path, octane_server_address)
+        OctaneBlender().utils_function(consts.UtilsFunctionType.API_START, "")
         if not self.enabled:
             self.print_last_error()
 
     def exit(self):
         logger.debug("OctaneBlender.exit")
+        preferences = utility.get_preferences()
+        # octane_server_address = str(preferences.octane_server_address)
+        enable_release_octane_license_when_exiting = bool(preferences.enable_relese_octane_license_when_exiting)
+        if enable_release_octane_license_when_exiting:
+            OctaneBlender().utils_function(consts.UtilsFunctionType.API_EXIT, "", 100)
         self.enabled = False
         if not octane_blender.exit():
             self.print_last_error()

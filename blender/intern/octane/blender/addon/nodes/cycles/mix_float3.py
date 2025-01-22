@@ -19,6 +19,7 @@ class OctaneOSLEnumSocketMixFloat3FactorMode(OctaneOSLBaseEnumSocket):
     octane_default_node_name = "OctaneIntValue"
     octane_pin_type = consts.PinType.PT_INT
     octane_socket_type = consts.SocketType.ST_ENUM
+    octane_pin_index = 1
     items = [
         ("Uniform", "Uniform", "", 0),
         ("Non-Uniform", "Non-Uniform", "", 1),
@@ -42,6 +43,7 @@ class OctaneOSLEnumSocketMixFloat3FactorMode(OctaneOSLBaseEnumSocket):
 class OctaneOSLIntSocketMixFloat3ClampFactor(OctaneOSLBaseIntSocket):
     bl_idname = "OctaneOSLIntSocketMixFloat3ClampFactor"
     bl_label = "Clamp Factor(Int)"
+    octane_pin_index = 0
     osl_pin_name: StringProperty(name="OSL Pin Name", default="use_clamp")
     default_value: IntProperty(default=1, update=OctaneBaseSocket.update_node_tree, description="")
 
@@ -49,6 +51,7 @@ class OctaneOSLIntSocketMixFloat3ClampFactor(OctaneOSLBaseIntSocket):
 class OctaneOSLBoolSocketMixFloat3ClampFactor(OctaneOSLBaseBoolSocket):
     bl_idname = "OctaneOSLBoolSocketMixFloat3ClampFactor"
     bl_label = "Clamp Factor"
+    octane_pin_index = 0
     osl_pin_name: StringProperty(name="OSL Pin Name", default="")
 
     def update_clamp_factor(self, _context):
@@ -63,6 +66,7 @@ class OctaneOSLBoolSocketMixFloat3ClampFactor(OctaneOSLBaseBoolSocket):
 class OctaneOSLFloatSocketMixFloat3Factor(OctaneOSLBaseFloatSocket):
     bl_idname = "OctaneOSLFloatSocketMixFloat3Factor"
     bl_label = "Factor"
+    octane_pin_index = 2
     osl_pin_name: StringProperty(name="OSL Pin Name", default="Factor")
     default_value: FloatProperty(default=0.500000, update=OctaneBaseSocket.update_node_tree, description="Factor",
                                  min=-340282346638528859811704183484516925440.000000,
@@ -73,6 +77,7 @@ class OctaneOSLFloatSocketMixFloat3Factor(OctaneOSLBaseFloatSocket):
 class OctaneOSLFloat3SocketMixFloat3Factor3D(OctaneOSLBaseFloat3Socket):
     bl_idname = "OctaneOSLFloat3SocketMixFloat3Factor3D"
     bl_label = "Factor 3D"
+    octane_pin_index = 3
     osl_pin_name: StringProperty(name="OSL Pin Name", default="Factor3D")
     default_value: FloatVectorProperty(default=(0.500000, 0.500000, 0.500000),
                                        update=OctaneBaseSocket.update_node_tree,
@@ -86,6 +91,7 @@ class OctaneOSLFloat3SocketMixFloat3Factor3D(OctaneOSLBaseFloat3Socket):
 class OctaneOSLFloat3SocketMixFloat3A(OctaneOSLBaseFloat3Socket):
     bl_idname = "OctaneOSLFloat3SocketMixFloat3A"
     bl_label = "A"
+    octane_pin_index = 4
     osl_pin_name: StringProperty(name="OSL Pin Name", default="A")
     default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000),
                                        update=OctaneBaseSocket.update_node_tree,
@@ -100,6 +106,7 @@ class OctaneOSLFloat3SocketMixFloat3A(OctaneOSLBaseFloat3Socket):
 class OctaneOSLFloat3SocketMixFloat3B(OctaneOSLBaseFloat3Socket):
     bl_idname = "OctaneOSLFloat3SocketMixFloat3B"
     bl_label = "B"
+    octane_pin_index = 5
     osl_pin_name: StringProperty(name="OSL Pin Name", default="B")
     default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000),
                                        update=OctaneBaseSocket.update_node_tree,

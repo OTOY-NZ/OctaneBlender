@@ -166,7 +166,9 @@ class OCTANE_MESH_PT_mesh_properties_mesh_volume(OctanePropertyPanel, Panel):
         col.use_property_split = True
         col.use_property_decorate = False
         col.prop(ob_data_octane, "enable_mesh_volume")
-        col.prop(ob_data_octane, "enable_mesh_volume_sdf")
+        row = col.row(align=True)
+        row.prop(ob_data_octane, "enable_mesh_volume_sdf")
+        row.active = not ob_data_octane.enable_mesh_volume
         col.prop(ob_data_octane, "mesh_volume_sdf_voxel_size")
         col.prop(ob_data_octane, "mesh_volume_sdf_border_thickness_inside")
         col.prop(ob_data_octane, "mesh_volume_sdf_border_thickness_outside")
@@ -178,21 +180,12 @@ class OCTANE_MESH_PT_mesh_properties_offset_transform(OctanePropertyPanel, Panel
     bl_context = "data"
     bl_options = {"DEFAULT_CLOSED"}
 
+    @classmethod
+    def poll(cls, context):
+        return False
+
     def draw(self, context):
-        layout = self.layout
-        ob = context.object
-        ob_data = ob.data
-        if ob_data is None:
-            return
-        ob_data_octane = ob_data.octane
-        col = layout.column(align=True)
-        col.use_property_split = True
-        col.use_property_decorate = False
-        col.prop(ob_data_octane, "enable_octane_offset_transform")
-        col.prop(ob_data_octane, "octane_offset_translation")
-        col.prop(ob_data_octane, "octane_offset_rotation_order")
-        col.prop(ob_data_octane, "octane_offset_rotation")
-        col.prop(ob_data_octane, "octane_offset_scale")
+        return
 
 
 class OCTANE_MESH_PT_mesh_properties_legacy_properties(OctanePropertyPanel, Panel):
@@ -313,19 +306,6 @@ class OCTANE_VOLUME_PT_volume_properties(OctanePropertyPanel, Panel):
             sub.prop_search(cdata, "vdb_x_components_grid_id", cdata.octane_vdb_info, "vdb_float_grid_id_container")
             sub.prop_search(cdata, "vdb_y_components_grid_id", cdata.octane_vdb_info, "vdb_float_grid_id_container")
             sub.prop_search(cdata, "vdb_z_components_grid_id", cdata.octane_vdb_info, "vdb_float_grid_id_container")
-
-        box = layout.box()
-        box.label(text="Octane Offset Transform:")
-        sub = box.row(align=True)
-        sub.prop(cdata, "enable_octane_offset_transform")
-        sub = box.row(align=True)
-        sub.prop(cdata, "octane_offset_translation")
-        sub = box.row(align=True)
-        sub.prop(cdata, "octane_offset_rotation_order")
-        sub = box.row(align=True)
-        sub.prop(cdata, "octane_offset_rotation")
-        sub = box.row(align=True)
-        sub.prop(cdata, "octane_offset_scale")
 
 
 class OCTANE_CURVE_PT_curve_properties(OctanePropertyPanel, Panel):

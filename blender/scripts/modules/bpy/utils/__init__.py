@@ -25,6 +25,8 @@ __all__ = (
     "unregister_cli_command",
     "register_manual_map",
     "unregister_manual_map",
+    "register_preset_path",
+    "unregister_preset_path",
     "register_classes_factory",
     "register_submodule_factory",
     "register_tool",
@@ -34,6 +36,7 @@ __all__ = (
     "previews",
     "resource_path",
     "script_path_user",
+    "extension_path_user",
     "script_paths",
     "smpte_from_frame",
     "smpte_from_seconds",
@@ -78,6 +81,9 @@ _script_module_dirs = "startup", "modules"
 # NOTE: in virtually all cases this should match `BLENDER_SYSTEM_SCRIPTS` as this script is itself a system script,
 # it must be in the `BLENDER_SYSTEM_SCRIPTS` by definition and there is no need for a look-up from `_bpy_script_paths`.
 _script_base_dir = _os.path.dirname(_os.path.dirname(_os.path.dirname(_os.path.dirname(__file__))))
+
+# Paths managed by `register_preset_path` & `unregister_preset_path`.
+_preset_path_registry = set()
 
 
 def execfile(filepath, *, mod=None):
@@ -527,7 +533,80 @@ def preset_paths(subdir):
         if _os.path.isdir(directory):
             dirs.append(directory)
 
+    for path in _preset_path_registry:
+        directory = _os.path.join(path, "presets", subdir)
+        if _os.path.isdir(directory):
+            dirs.append(directory)
+
     return dirs
+
+
+def register_preset_path(path):
+    """
+    Register a preset search path.
+
+    :arg path: preset directory (must be an absolute path).
+
+       This path must contain a "presets" subdirectory which will typically contain presets for add-ons.
+
+       You may call ``bpy.utils.register_preset_path(os.path.dirname(__file__))`` from an add-ons ``__init__.py`` file.
+       When the ``__init__.py`` is in the same location as a ``presets`` directory.
+       For example an operators preset would be located under: ``presets/operator/{operator.id}/``
+       where ``operator.id`` is the ``bl_idname`` of the operator.
+    :type path: string
+    :return: success
+    :rtype: bool
+    """
+    set_len = len(_preset_path_registry)
+    _preset_path_registry.add(path)
+    if set_len == len(_preset_path_registry):
+        print("Warning: preset path already registered", path)
+        return False
+    return True
+
+
+def unregister_preset_path(path):
+    """
+    Unregister a preset search path.
+
+    :arg path: preset directory (must be an absolute path).
+
+       This must match the registered path exactly.
+    :type path: string
+    :return: success
+    :rtype: bool
+    """
+    set_len = len(_preset_path_registry)
+    _preset_path_registry.discard(path)
+    if set_len == len(_preset_path_registry):
+        print("Warning: preset path not registered", path)
+        return False
+    return True
+
+
+def _is_path_parent_of(parent_path, path):
+    try:
+        if _os.path.samefile(
+                _os.path.commonpath([parent_path]),
+                _os.path.commonpath([parent_path, path])
+        ):
+            return True
+
+    # NOTE: skipping in the case files can't be found isn't ideal because
+    # `/a/b` is logically *inside* `/a/` irrespective of the permissions or existence of either paths.
+    # Nevertheless, skip them as it's impractical to operate on paths that can't be accessed.
+    # In all likelihood the caller is also unable to properly handle the result.
+    except FileNotFoundError:
+        # The path we tried to look up doesn't exist.
+        pass
+    except ValueError:
+        # Happens on Windows when paths don't have the same drive.
+        pass
+    except PermissionError:
+        # When either of the paths don't have permissions to access.
+        pass
+
+    return False
 
 
 def is_path_builtin(path):
@@ -552,18 +631,27 @@ def is_path_builtin(path):
             # This can happen on portable installs.
             continue
 
-        try:
-            if _os.path.samefile(
-                    _os.path.commonpath([parent_path]),
-                    _os.path.commonpath([parent_path, path])
-            ):
-                return True
-        except FileNotFoundError:
-            # The path we tried to look up doesn't exist.
-            pass
-        except ValueError:
-            # Happens on Windows when paths don't have the same drive.
-            pass
+        if _is_path_parent_of(parent_path, path):
+            return True
+
+    return False
+
+
+def is_path_extension(path):
+    """
+    Returns True if the path is from an extensions repository.
+
+    :arg path: Path to check if it is within an extension repository.
+    :type path: str
+    :rtype: bool
+    """
+    for repo in _preferences.extensions.repos:
+        if not repo.enabled:
+            continue
+        # NOTE: since these paths are user defined, they can be anything.
+        # Empty or malformed paths will be skipped.
+        if _is_path_parent_of(repo.directory, path):
+            return True
 
     return False
 

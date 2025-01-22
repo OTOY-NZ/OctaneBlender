@@ -630,7 +630,18 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
                            object_mesh_name,
                            object_layer,
                            mesh_type);
-
+  if (object->mesh) {
+    object->mesh->enable_offset_transform = RNA_boolean_get(&octane_object,
+                                                            "enable_octane_offset_transform");
+    float3 translate, euler, scale;
+    int mode = RNA_enum_get(&octane_object, "octane_offset_rotation_order");
+    RNA_float_get_array(
+        &octane_object, "octane_offset_translation", reinterpret_cast<float *>(&translate));
+    RNA_float_get_array(
+        &octane_object, "octane_offset_rotation", reinterpret_cast<float *>(&euler));
+    RNA_float_get_array(&octane_object, "octane_offset_scale", reinterpret_cast<float *>(&scale));
+    object->mesh->offset_transform = make_transform(translate, euler, mode, scale);
+  }
   if (object->mesh && object->mesh->enable_offset_transform) {
     octane_tfm = OCTANE_MATRIX * (tfm * object->mesh->offset_transform);
     if (object->mesh->is_octane_coordinate_used()) {

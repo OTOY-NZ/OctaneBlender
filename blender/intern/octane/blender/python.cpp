@@ -86,8 +86,8 @@ static const char *PyC_UnicodeAsByte(PyObject *py_str, PyObject **coerce)
 
 static PyObject *py_init_func(PyObject * /*self*/, PyObject *args)
 {
-  PyObject *path, *user_path;
-  if (!PyArg_ParseTuple(args, "OO", &path, &user_path)) {
+  PyObject *path, *user_path, *server_address;
+  if (!PyArg_ParseTuple(args, "OOO", &path, &user_path, &server_address)) {
     Py_RETURN_FALSE;
   }
   PyObject *path_coerce = NULL, *user_path_coerce = NULL;

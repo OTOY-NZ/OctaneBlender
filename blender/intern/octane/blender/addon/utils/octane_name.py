@@ -4,6 +4,8 @@ SEPERATOR = "."
 OBJECT_TAG = "[Object]"
 OBJECT_DATA_TAG = "[ObjData]"
 MESH_TAG = "[Mesh]"
+MESH_VOLUME_TAG = "[MeshVolume]"
+MESH_VOLUME_SDF_TAG = "[MeshVolumeSDF]"
 INFINITE_PLANE_TAG = "[InfPlane]"
 CURVE_TAG = "[Curve]"
 CURVES_TAG = "[Curves]"
@@ -67,6 +69,10 @@ def resolve_object_data_octane_name(_object, scene, is_viewport):
             is_octane_geo = octane_geo_property.is_octane_geo_used() if octane_geo_property is not None else False
             if is_infinite_plane:
                 type_tag = INFINITE_PLANE_TAG
+            elif octane_property.enable_mesh_volume:
+                type_tag = MESH_VOLUME_TAG
+            elif octane_property.enable_mesh_volume_sdf:
+                type_tag = MESH_VOLUME_SDF_TAG
             elif is_octane_geo:
                 object_data_name = octane_geo_property.get_octane_geo_name()
                 type_tag = ""

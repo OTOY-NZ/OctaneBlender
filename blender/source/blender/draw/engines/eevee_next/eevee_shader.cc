@@ -270,6 +270,8 @@ const char *ShaderModule::static_shader_create_info_name_get(eShaderType shader_
       return "eevee_ray_tile_classify";
     case RAY_TILE_COMPACT:
       return "eevee_ray_tile_compact";
+    case RENDERPASS_CLEAR:
+      return "eevee_renderpass_clear";
     case LIGHTPROBE_IRRADIANCE_BOUNDS:
       return "eevee_lightprobe_volume_bounds";
     case LIGHTPROBE_IRRADIANCE_OFFSET:
@@ -405,7 +407,10 @@ class SamplerSlots {
 
     first_reserved_ = MATERIAL_TEXTURE_RESERVED_SLOT_FIRST;
     last_reserved_ = MATERIAL_TEXTURE_RESERVED_SLOT_LAST_NO_EVAL;
-    if (pipeline_type == MAT_PIPE_DEFERRED && has_shader_to_rgba) {
+    if (geometry_type == MAT_GEOM_WORLD) {
+      last_reserved_ = MATERIAL_TEXTURE_RESERVED_SLOT_LAST_WORLD;
+    }
+    else if (pipeline_type == MAT_PIPE_DEFERRED && has_shader_to_rgba) {
       last_reserved_ = MATERIAL_TEXTURE_RESERVED_SLOT_LAST_HYBRID;
     }
     else if (pipeline_type == MAT_PIPE_FORWARD) {

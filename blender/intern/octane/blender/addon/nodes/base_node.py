@@ -295,7 +295,8 @@ class OctaneBaseNode(object):
                                                  socket.octane_pin_type, socket.octane_default_node_type,
                                                  data_socket.is_linked, link_node_name, default_value)
                     elif socket.is_octane_osl_pin():
-                        self.__class__.set_osl_pin(octane_node, socket_idx, socket.osl_pin_name,
+                        octane_pin_index = socket.octane_pin_index if socket.octane_pin_index != -1 else socket_idx
+                        self.__class__.set_osl_pin(octane_node, octane_pin_index, socket.osl_pin_name,
                                                    socket.octane_socket_type, socket.octane_pin_type,
                                                    socket.octane_default_node_type, data_socket.is_linked,
                                                    link_node_name, default_value)

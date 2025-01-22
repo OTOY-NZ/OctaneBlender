@@ -179,6 +179,7 @@ class NodeTreeHandler:
     def init_octane_node_helper():
         from octane.nodes.base_color_ramp import OctaneBaseRampNode
         from octane.nodes.base_curve import OctaneBaseCurveNode
+        from octane.nodes.base_wrapper_node import OctaneScriptNodeWrapper
 
         def nest_init_octane_node_helper(node_tree, current_used_color_ramp_names, current_used_curve_names,
                                          data_owner):
@@ -192,6 +193,8 @@ class NodeTreeHandler:
                     node.init_helper_curve_watcher()
                     node.validate(data_owner, True)
                     current_used_curve_names.add(node.curve_name)
+                elif isinstance(node, OctaneScriptNodeWrapper):
+                    node.update_shader_code()
 
         used_color_ramp_names = set()
         used_curve_names = set()

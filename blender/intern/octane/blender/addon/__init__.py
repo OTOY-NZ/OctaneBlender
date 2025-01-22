@@ -2,10 +2,10 @@
 
 
 bl_info = {
-    "name": "OctaneBlender (v. 29.12)",
+    "name": "OctaneBlender (v. 29.14)",
     "author": "OTOY Inc.",
-    "version": (29, 11, 0),
-    "blender": (4, 2, 0),
+    "version": (29, 13, 0),
+    "blender": (4, 2, 1),
     "location": "Info header, render engine menu",
     "description": "OctaneBlender",
     "warning": "",
@@ -42,6 +42,10 @@ def get_active_render_engine():
 
 def is_render_engine_active():
     return get_active_render_engine() is not None
+
+
+def blender_exit():
+    pass
 
 
 class OctaneRender(bpy.types.RenderEngine):
@@ -344,15 +348,20 @@ def workspace_change_callback():
 
 
 def register():
+    import atexit
+    # Make sure we only registered the callback once.
+    atexit.unregister(blender_exit)
+    atexit.register(blender_exit)
+    runtime_globals.register()
+    from octane import preferences
+    preferences.register()
+
     from bpy.utils import register_class
     path = os.path.dirname(__file__)
     user_path = os.path.dirname(os.path.abspath(bpy.utils.user_resource('CONFIG', path='')))
     OctaneBlender().init(path, user_path)
     major, minor, patch = bpy.app.version
     OctaneBlender().set_blender_version(major, minor, patch)
-    runtime_globals.register()
-    from octane import preferences
-    preferences.register()
 
     from octane import compatibilities
     from octane import utils

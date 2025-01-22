@@ -19,6 +19,7 @@ class OctaneOSLEnumSocketNodeMathType(OctaneOSLBaseEnumSocket):
     octane_default_node_name = "OctaneIntValue"
     octane_pin_type = consts.PinType.PT_INT
     octane_socket_type = consts.SocketType.ST_ENUM
+    octane_pin_index = 0
     # noinspection PyRedundantParentheses
     items = [
         ("Add", "Add", "", 0),
@@ -222,6 +223,7 @@ class OctaneOSLEnumSocketNodeMathType(OctaneOSLBaseEnumSocket):
 class OctaneOSLIntSocketNodeMathClamp(OctaneOSLBaseIntSocket):
     bl_idname = "OctaneOSLIntSocketNodeMathClamp"
     bl_label = "Clamp(Int)"
+    octane_pin_index = 1
     osl_pin_name: StringProperty(name="OSL Pin Name", default="use_clamp")
     default_value: IntProperty(default=1, update=OctaneBaseSocket.update_node_tree, description="")
 
@@ -229,6 +231,7 @@ class OctaneOSLIntSocketNodeMathClamp(OctaneOSLBaseIntSocket):
 class OctaneOSLBoolSocketNodeMathClamp(OctaneOSLBaseBoolSocket):
     bl_idname = "OctaneOSLBoolSocketNodeMathClamp"
     bl_label = "Clamp"
+    octane_pin_index = 1
     osl_pin_name: StringProperty(name="OSL Pin Name", default="")
 
     def update_clamp(self, _context):
@@ -243,6 +246,7 @@ class OctaneOSLBoolSocketNodeMathClamp(OctaneOSLBaseBoolSocket):
 class OctaneOSLFloatSocketNodeMathValue1(OctaneOSLBaseFloatSocket):
     bl_idname = "OctaneOSLFloatSocketNodeMathValue1"
     bl_label = "Value1"
+    octane_pin_index = 2
     osl_pin_name: StringProperty(name="OSL Pin Name", default="Value1")
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Value1",
                                  min=-340282346638528859811704183484516925440.000000,
@@ -253,6 +257,7 @@ class OctaneOSLFloatSocketNodeMathValue1(OctaneOSLBaseFloatSocket):
 class OctaneOSLFloatSocketNodeMathValue2(OctaneOSLBaseFloatSocket):
     bl_idname = "OctaneOSLFloatSocketNodeMathValue2"
     bl_label = "Value2"
+    octane_pin_index = 3
     osl_pin_name: StringProperty(name="OSL Pin Name", default="Value2")
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Value2",
                                  min=-340282346638528859811704183484516925440.000000,
@@ -263,6 +268,7 @@ class OctaneOSLFloatSocketNodeMathValue2(OctaneOSLBaseFloatSocket):
 class OctaneOSLFloatSocketNodeMathValue3(OctaneOSLBaseFloatSocket):
     bl_idname = "OctaneOSLFloatSocketNodeMathValue3"
     bl_label = "Value3"
+    octane_pin_index = 4
     osl_pin_name: StringProperty(name="OSL Pin Name", default="Value3")
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Value3",
                                  min=-340282346638528859811704183484516925440.000000,

@@ -3,9 +3,9 @@ import bpy
 from bpy.app.handlers import persistent
 from octane.utils import logger, utility
 
-OCTANE_BLENDER_VERSION = '29.10'
-OCTANE_VERSION = 14000007
-OCTANE_VERSION_STR = "2024.1 Beta 2"
+OCTANE_BLENDER_VERSION = "29.13.1"
+OCTANE_VERSION = 14000011
+OCTANE_VERSION_STR = "2024.1"
 
 
 def get_current_octane_blender_version():
@@ -76,6 +76,7 @@ def update_current_version():
 @persistent
 def do_versions(_arg):
     from . import legacy
+    from . import version_29_x
     plugin_version = get_current_octane_blender_version()
     sdk_version = get_current_octane_version()
     check_use_persistent_data()
@@ -83,5 +84,6 @@ def do_versions(_arg):
     check_legacy_nodes_in_scene()
     # Check legacy versions
     legacy.do_versions(plugin_version, sdk_version)
+    version_29_x.do_versions(plugin_version, sdk_version)
     # Update version
     update_current_version()

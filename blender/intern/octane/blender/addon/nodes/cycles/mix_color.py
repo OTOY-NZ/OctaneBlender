@@ -18,6 +18,7 @@ class OctaneOSLEnumSocketMixColorBlendType(OctaneOSLBaseEnumSocket):
     octane_default_node_type = consts.NodeType.NT_INT
     octane_default_node_name = "OctaneIntValue"
     octane_pin_type = consts.PinType.PT_INT
+    octane_pin_index = 0
     octane_socket_type = consts.SocketType.ST_ENUM
     items = [
         ("Mix", "Mix", "", 0),
@@ -71,6 +72,7 @@ class OctaneOSLEnumSocketMixColorBlendType(OctaneOSLBaseEnumSocket):
 class OctaneOSLIntSocketMixColorClampFactor(OctaneOSLBaseIntSocket):
     bl_idname = "OctaneOSLIntSocketMixColorClampFactor"
     bl_label = "Clamp Factor(Int)"
+    octane_pin_index = 1
     osl_pin_name: StringProperty(name="OSL Pin Name", default="use_clamp")
     default_value: IntProperty(default=1, update=OctaneBaseSocket.update_node_tree, description="")
 
@@ -78,6 +80,7 @@ class OctaneOSLIntSocketMixColorClampFactor(OctaneOSLBaseIntSocket):
 class OctaneOSLBoolSocketMixColorClampFactor(OctaneOSLBaseBoolSocket):
     bl_idname = "OctaneOSLBoolSocketMixColorClampFactor"
     bl_label = "Clamp Factor"
+    octane_pin_index = 1
     osl_pin_name: StringProperty(name="OSL Pin Name", default="")
 
     def update_clamp_factor(self, _context):
@@ -93,6 +96,7 @@ class OctaneOSLBoolSocketMixColorClampFactor(OctaneOSLBaseBoolSocket):
 class OctaneOSLIntSocketMixColorClampResult(OctaneOSLBaseIntSocket):
     bl_idname = "OctaneOSLIntSocketMixColorClampResult"
     bl_label = "Clamp Result(Int)"
+    octane_pin_index = 2
     osl_pin_name: StringProperty(name="OSL Pin Name", default="use_clamp_result")
     default_value: IntProperty(default=0, update=OctaneBaseSocket.update_node_tree, description="")
 
@@ -100,6 +104,7 @@ class OctaneOSLIntSocketMixColorClampResult(OctaneOSLBaseIntSocket):
 class OctaneOSLBoolSocketMixColorClampResult(OctaneOSLBaseBoolSocket):
     bl_idname = "OctaneOSLBoolSocketMixColorClampResult"
     bl_label = "Clamp Result"
+    octane_pin_index = 2
     osl_pin_name: StringProperty(name="OSL Pin Name", default="")
 
     def update_clamp_result(self, _context):
@@ -115,6 +120,7 @@ class OctaneOSLBoolSocketMixColorClampResult(OctaneOSLBaseBoolSocket):
 class OctaneOSLFloatSocketMixColorFactor(OctaneOSLBaseGreyscaleSocket):
     bl_idname = "OctaneOSLFloatSocketMixColorFactor"
     bl_label = "Factor"
+    octane_pin_index = 3
     osl_pin_name: StringProperty(name="OSL Pin Name", default="Factor")
     default_value: FloatProperty(default=0.500000, update=OctaneBaseSocket.update_node_tree, description="Factor",
                                  min=-340282346638528859811704183484516925440.000000,
@@ -125,6 +131,7 @@ class OctaneOSLFloatSocketMixColorFactor(OctaneOSLBaseGreyscaleSocket):
 class OctaneOSLColorSocketMixColorA(OctaneOSLBaseColorSocket):
     bl_idname = "OctaneOSLColorSocketMixColorA"
     bl_label = "A"
+    octane_pin_index = 4
     osl_pin_name: StringProperty(name="OSL Pin Name", default="A")
     default_value: FloatVectorProperty(default=(0.700000, 0.700000, 0.700000),
                                        update=OctaneBaseSocket.update_node_tree, description="",
@@ -135,6 +142,7 @@ class OctaneOSLColorSocketMixColorA(OctaneOSLBaseColorSocket):
 class OctaneOSLColorSocketMixColorB(OctaneOSLBaseColorSocket):
     bl_idname = "OctaneOSLColorSocketMixColorB"
     bl_label = "B"
+    octane_pin_index = 5
     osl_pin_name: StringProperty(name="OSL Pin Name", default="B")
     default_value: FloatVectorProperty(default=(0.700000, 0.700000, 0.700000),
                                        update=OctaneBaseSocket.update_node_tree, description="",

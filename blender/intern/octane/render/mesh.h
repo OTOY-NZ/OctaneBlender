@@ -133,6 +133,7 @@ class Mesh {
   int32_t scatter_instance_id;
 
   std::vector<Shader *> used_shaders;
+  std::string mesh_shader_tag;
   std::string volume_modifier_tag;
   bool is_volume_to_mesh;
   bool is_mesh_to_volume;

@@ -1008,6 +1008,7 @@ def check_compatibility_octane_node_tree_29_10(file_version):
     for node_group in bpy.data.node_groups:
         _check_compatibility_octane_node_tree_29_10(node_group)
 
+
 def _post_check_compatibility_octane_node_tree_29_0(node_tree):
     nodes = [node for node in node_tree.nodes]
     for node in nodes:
@@ -1151,12 +1152,22 @@ def upgrade_octane_node_tree(octane_version, tree_name, node_tree):
     for node in node_tree.nodes:
         if isinstance(node, OctaneBaseNode):
             current_socket_class = [_input.__class__ for _input in node.inputs]
+            socket_class_to_idx = {socket_class: idx for idx, socket_class in enumerate(node.octane_socket_class_list)}
             new_socket_configs = []
             # Add "[Deprecated]" prefix for the deprecated sockets
             for _input in node.inputs:
+                need_deprecated = False
                 if _input.octane_deprecated:
                     if not _input.name.startswith(consts.DEPRECATED_PREFIX):
-                        _input.name = consts.DEPRECATED_PREFIX + _input.name
+                        need_deprecated = True
+                elif _input.name != _input.__class__.bl_label:
+                    if _input.octane_pin_id not in (consts.PinID.P_UNKNOWN, consts.PinID.P_MAX_SAMPLES, ):
+                        if _input.__class__ in socket_class_to_idx:
+                            _input.name = _input.__class__.bl_label
+                            new_socket_configs.append([_input.__class__, socket_class_to_idx[_input.__class__]])
+                            need_deprecated = True
+                if need_deprecated:
+                    _input.name = consts.DEPRECATED_PREFIX + _input.name
             for idx, socket_class in enumerate(node.octane_socket_class_list):
                 if socket_class in current_socket_class:
                     continue
@@ -1190,6 +1201,16 @@ def upgrade_octane_node_tree(octane_version, tree_name, node_tree):
                             deprecated_socket.hide = True
                             deprecated_socket.enabled = False
                 print("Add Socket: %s, Node[%s], NodeTree[%s]" % (socket_class.bl_label, node.name, tree_name))
+            while True:
+                # Remove the deprecated sockets
+                remove_deprecated = False
+                for _input in node.inputs:
+                    if _input.name.startswith(consts.DEPRECATED_PREFIX):
+                        node.inputs.remove(_input)
+                        remove_deprecated = True
+                        break
+                if not remove_deprecated:
+                    break
             if len(new_socket_configs):
                 # Blender 3.5 doesn't trigger a "redraw" after "node.inputs.move", so we need to make a force update
                 # here

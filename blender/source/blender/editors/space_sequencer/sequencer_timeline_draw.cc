@@ -28,6 +28,7 @@
 #include "BKE_sound.h"
 
 #include "GPU_immediate.hh"
+#include "GPU_matrix.hh"
 #include "GPU_viewport.hh"
 
 #include "ED_anim_api.hh"
@@ -637,7 +638,15 @@ static void drawmeta_contents(TimelineDrawContext *timeline_ctx,
   int chan_min = MAXSEQ;
   int chan_max = 0;
   int chan_range = 0;
-  float draw_range = strip_ctx->strip_content_top - strip_ctx->bottom;
+  /* Some vertical margin to account for rounded corners, so that contents do
+   * not draw outside them. Can be removed when meta contents are drawn with
+   * full rounded corners masking shader. */
+  const float bottom = strip_ctx->bottom + corner_radius * 0.8f * timeline_ctx->pixely;
+  const float top = strip_ctx->strip_content_top - corner_radius * 0.8f * timeline_ctx->pixely;
+  const float draw_range = top - bottom;
+  if (draw_range < timeline_ctx->pixely) {
+    return;
+  }
   float draw_height;
 
   Editing *ed = SEQ_editing_get(scene);
@@ -669,8 +678,8 @@ static void drawmeta_contents(TimelineDrawContext *timeline_ctx,
 
   col[3] = 196; /* Alpha, used for all meta children. */
 
-  const float meta_x1 = strip_ctx->left_handle + corner_radius * 0.8f * timeline_ctx->pixelx;
-  const float meta_x2 = strip_ctx->right_handle - corner_radius * 0.8f * timeline_ctx->pixelx;
+  const float meta_x1 = strip_ctx->left_handle;
+  const float meta_x2 = strip_ctx->right_handle;
 
   /* Draw only immediate children (1 level depth). */
   LISTBASE_FOREACH (Sequence *, seq, meta_seqbase) {
@@ -707,8 +716,8 @@ static void drawmeta_contents(TimelineDrawContext *timeline_ctx,
       x1_chan = max_ff(x1_chan, meta_x1);
       x2_chan = min_ff(x2_chan, meta_x2);
 
-      y1_chan = strip_ctx->bottom + y_chan + (draw_height * SEQ_STRIP_OFSBOTTOM);
-      y2_chan = strip_ctx->bottom + y_chan + (draw_height * SEQ_STRIP_OFSTOP);
+      y1_chan = bottom + y_chan + (draw_height * SEQ_STRIP_OFSBOTTOM);
+      y2_chan = bottom + y_chan + (draw_height * SEQ_STRIP_OFSTOP);
 
       timeline_ctx->quads->add_quad(x1_chan, y1_chan, x2_chan, y2_chan, col);
     }
@@ -1265,6 +1274,9 @@ static void draw_strips_background(TimelineDrawContext *timeline_ctx,
                                    StripsDrawBatch &strips_batch,
                                    const Vector<StripDrawContext> &strips)
 {
+  GPU_matrix_push_projection();
+  wmOrtho2_region_pixelspace(timeline_ctx->region);
+
   GPU_blend(GPU_BLEND_ALPHA_PREMULT);
 
   const bool show_overlay = (timeline_ctx->sseq->flag & SEQ_SHOW_OVERLAY) != 0;
@@ -1334,12 +1346,15 @@ static void draw_strips_background(TimelineDrawContext *timeline_ctx,
   }
   strips_batch.flush_batch();
   GPU_blend(GPU_BLEND_ALPHA);
+  GPU_matrix_pop_projection();
 }
 
 static void draw_strips_foreground(TimelineDrawContext *timeline_ctx,
                                    StripsDrawBatch &strips_batch,
                                    const Vector<StripDrawContext> &strips)
 {
+  GPU_matrix_push_projection();
+  wmOrtho2_region_pixelspace(timeline_ctx->region);
   GPU_blend(GPU_BLEND_ALPHA_PREMULT);
   const Scene *scene = timeline_ctx->scene;
   const Sequence *act_seq = SEQ_select_active_get(scene);
@@ -1452,6 +1467,7 @@ static void draw_strips_foreground(TimelineDrawContext *timeline_ctx,
   }
   strips_batch.flush_batch();
   GPU_blend(GPU_BLEND_ALPHA);
+  GPU_matrix_pop_projection();
 }
 
 static void draw_seq_strips(TimelineDrawContext *timeline_ctx,
@@ -1870,7 +1886,7 @@ void draw_timeline_seq(const bContext *C, ARegion *region)
 {
   SeqQuadsBatch quads_batch;
   TimelineDrawContext ctx = timeline_draw_context_get(C, &quads_batch);
-  StripsDrawBatch strips_batch(ctx.pixelx, ctx.pixely);
+  StripsDrawBatch strips_batch(ctx.v2d);
 
   draw_timeline_pre_view_callbacks(&ctx);
   UI_ThemeClearColor(TH_BACK);

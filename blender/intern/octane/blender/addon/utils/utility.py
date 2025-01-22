@@ -8,7 +8,7 @@ import os
 import time
 from collections import deque, defaultdict
 from xml.etree import ElementTree
-
+import math
 import mathutils
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, \
     IntVectorProperty
@@ -1645,6 +1645,27 @@ def transform_clear_scale(matrix):
     transform_set_column(new_matrix, 1, transform_get_column(matrix, 1).normalized())
     transform_set_column(new_matrix, 2, transform_get_column(matrix, 2).normalized())
     return new_matrix
+
+
+def compose_matrix(location, rotation, scale, rotation_mode):
+    # Convert rotation from degrees to radians
+    rotation_radians = [math.radians(r) for r in rotation]
+
+    # Create a scale matrix
+    scale_matrix = mathutils.Matrix.Scale(scale[0], 4, (1, 0, 0)) @ \
+                   mathutils.Matrix.Scale(scale[1], 4, (0, 1, 0)) @ \
+                   mathutils.Matrix.Scale(scale[2], 4, (0, 0, 1))
+
+    # Create a rotation matrix based on the enum rotation mode
+    rotation_matrix = mathutils.Euler(rotation_radians, rotation_mode).to_matrix().to_4x4()
+
+    # Create a translation matrix
+    translation_matrix = mathutils.Matrix.Translation(location)
+
+    # Compose the final transformation matrix by combining translation, rotation, and scale
+    transformation_matrix = translation_matrix @ rotation_matrix @ scale_matrix
+
+    return transformation_matrix
 
 
 def use_octane_coordinate(_object):

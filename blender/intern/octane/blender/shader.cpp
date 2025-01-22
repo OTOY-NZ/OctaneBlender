@@ -845,7 +845,9 @@ static void generateImageNode(OctaneDataTransferObject::OctaneBaseImageNode *cur
                              true);
     cur_node->oImageData.iHDRDepthType = get_enum(b_node.ptr, "a_channel_format");
     cur_node->oImageData.iIESMode = get_enum(b_node.ptr, "a_ies_photometry_mode");
-    graph->add_dependent_name(b_image.name(), DEPENDENT_ID_IMAGE);
+    if (ptr.data != NULL) {
+      graph->add_dependent_name(b_image.name(), DEPENDENT_ID_IMAGE);
+    }
   }
   else {
     T b_tex_node(b_node);

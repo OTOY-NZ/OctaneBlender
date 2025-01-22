@@ -18,7 +18,7 @@ from . import global_report
 from .colored_print import (print_message, use_message_colors)
 
 
-def blend_list(dirpath, device, blacklist):
+def blend_list(dirpath, device, blocklist):
     import re
 
     for root, dirs, files in os.walk(dirpath):
@@ -27,8 +27,8 @@ def blend_list(dirpath, device, blacklist):
                 continue
 
             skip = False
-            for blacklist_entry in blacklist:
-                if re.match(blacklist_entry, filename):
+            for blocklist_entry in blocklist:
+                if re.match(blocklist_entry, filename):
                     skip = True
                     break
 
@@ -92,10 +92,10 @@ class Report:
         'compare_tests',
         'compare_engine',
         'device',
-        'blacklist',
+        'blocklist',
     )
 
-    def __init__(self, title, output_dir, oiiotool, device=None, blacklist=[]):
+    def __init__(self, title, output_dir, oiiotool, device=None, blocklist=[]):
         self.title = title
         self.output_dir = output_dir
         self.global_dir = os.path.dirname(output_dir)
@@ -107,7 +107,7 @@ class Report:
         self.fail_percent = 1
         self.engine_name = self.title.lower().replace(" ", "_")
         self.device = device
-        self.blacklist = blacklist
+        self.blocklist = [] if os.getenv('BLENDER_TEST_IGNORE_BLOCKLIST') is not None else blocklist
 
         if device:
             self.title = self._engine_title(title, device)
@@ -458,6 +458,12 @@ class Report:
 
         return not failed
 
+    def _get_render_arguments(self, arguments_cb, filepath, base_output_filepath):
+        # Each render test can override this method to provide extra functionality.
+        # See Cycles render tests for an example.
+        # Do not delete.
+        return arguments_cb(filepath, base_output_filepath)
+
     def _run_tests(self, filepaths, blender, arguments_cb, batch):
         # Run multiple tests in a single Blender process since startup can be
         # a significant factor. In case of crashes, re-run the remaining tests.
@@ -482,7 +488,7 @@ class Report:
                 if os.path.exists(output_filepath):
                     os.remove(output_filepath)
 
-                command.extend(arguments_cb(filepath, base_output_filepath))
+                command.extend(self._get_render_arguments(arguments_cb, filepath, base_output_filepath))
 
                 # Only chain multiple commands for batch
                 if not batch:
@@ -542,7 +548,7 @@ class Report:
         passed_tests = []
         failed_tests = []
         silently_failed_tests = []
-        all_files = list(blend_list(dirpath, self.device, self.blacklist))
+        all_files = list(blend_list(dirpath, self.device, self.blocklist))
         all_files.sort()
         print_message("Running {} tests from 1 test case." .
                       format(len(all_files)),

@@ -248,6 +248,7 @@ Mesh::Mesh()
   enable_offset_transform = false;
   need_update = false;
   final_visibility = true;
+  mesh_shader_tag = "";
   volume_modifier_tag = "";
   is_volume_to_mesh = false;
   is_mesh_to_volume = false;

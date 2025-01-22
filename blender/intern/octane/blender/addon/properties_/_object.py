@@ -40,6 +40,15 @@ custom_aov_channel_modes = (
     ('Blue', "Blue", "Blue", 3),
 )
 
+rotation_orders = (
+    ('XYZ', "XYZ", ""),
+    ('XZY', "XZY", ""),
+    ('YXZ', "YXZ", ""),
+    ('YZX', "YZX", ""),
+    ('ZXY', "ZXY", ""),
+    ('ZYX', "ZYX", ""),
+)
+
 
 class OctaneObjectPropertyGroup(OctanePropertyGroup):
     render_layer_id: IntProperty(
@@ -301,6 +310,31 @@ class OctaneObjectPropertyGroup(OctanePropertyGroup):
         name="Instance Attribute Name",
         description="The name of the instance attribute defined in the GeoNodes",
         default="",
+    )
+
+    enable_octane_offset_transform: BoolProperty(
+        name="Octane Offset Transform enabled",
+        description="If TRUE, then an offset transform will be applied(it would be useful in external VDB and Orbx "
+                    "transform adjustment)",
+        default=False,
+    )
+    octane_offset_translation: FloatVectorProperty(
+        name="Translation",
+        subtype='TRANSLATION',
+    )
+    octane_offset_rotation: FloatVectorProperty(
+        name="Rotation",
+        subtype='EULER',
+    )
+    octane_offset_scale: FloatVectorProperty(
+        name="Scale",
+        subtype='XYZ',
+        default=(1, 1, 1)
+    )
+    octane_offset_rotation_order: EnumProperty(
+        name="Rotation order",
+        items=rotation_orders,
+        default='YXZ',
     )
 
     @classmethod

@@ -329,7 +329,13 @@ class OctanePreferences(bpy.types.AddonPreferences):
             layout = self.layout
             box = layout.box()
             box.label(text="General")
+            box.row().prop(self, "octane_server_address", expand=False)
+            # noinspection SpellCheckingInspection
+            box.row().prop(self, "enable_relese_octane_license_when_exiting", expand=False)
+            box.row().prop(self, "octane_localdb_path", expand=False)
             box.row().prop(self, "default_object_mesh_type", expand=False)
+            box.row().prop(self, "octane_texture_cache_path", expand=False)
+            box.row().prop(self, "default_material_id", expand=False)
             box = layout.box()
             box.label(text="Viewport Rendering")
             row = box.row()
