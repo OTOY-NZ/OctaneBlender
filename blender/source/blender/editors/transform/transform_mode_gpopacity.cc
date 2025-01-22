@@ -11,8 +11,8 @@
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
 
-#include "BKE_context.h"
-#include "BKE_unit.h"
+#include "BKE_context.hh"
+#include "BKE_unit.hh"
 
 #include "DNA_gpencil_legacy_types.h"
 
@@ -51,19 +51,25 @@ static void applyGPOpacity(TransInfo *t)
     char c[NUM_STR_REP_LEN];
 
     outputNumInput(&(t->num), c, &t->scene->unit);
-    SNPRINTF(str, TIP_("Opacity: %s"), c);
+    SNPRINTF(str, IFACE_("Opacity: %s"), c);
   }
   else {
-    SNPRINTF(str, TIP_("Opacity: %3f"), ratio);
+    SNPRINTF(str, IFACE_("Opacity: %3f"), ratio);
   }
 
   bool recalc = false;
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
     TransData *td = tc->data;
-    bGPdata *gpd = static_cast<bGPdata *>(td->ob->data);
-    const bool is_curve_edit = bool(GPENCIL_CURVE_EDIT_SESSIONS_ON(gpd));
-    /* Only recalculate data when in curve edit mode. */
-    if (is_curve_edit) {
+
+    if (t->obedit_type == OB_GPENCIL_LEGACY) {
+      bGPdata *gpd = static_cast<bGPdata *>(td->ob->data);
+      const bool is_curve_edit = bool(GPENCIL_CURVE_EDIT_SESSIONS_ON(gpd));
+      /* Only recalculate data when in curve edit mode. */
+      if (is_curve_edit) {
+        recalc = true;
+      }
+    }
+    else if (t->obedit_type == OB_GREASE_PENCIL) {
       recalc = true;
     }
 

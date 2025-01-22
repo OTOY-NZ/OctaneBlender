@@ -14,30 +14,30 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_ghash.h"
-#include "BLI_hash_md5.h"
+#include "BLI_hash_md5.hh"
 #include "BLI_implicit_sharing.hh"
 #include "BLI_listbase.h"
 #include "BLI_path_util.h"
 #include "BLI_rect.h"
 #include "BLI_string.h"
-#include "BLI_string_utils.h"
+#include "BLI_string_utils.hh"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_appdir.h"
+#include "BKE_appdir.hh"
 #include "BKE_camera.h"
 #include "BKE_global.h"
 #include "BKE_image.h"
 #include "BKE_image_format.h"
 #include "BKE_image_save.h"
-#include "BKE_main.h"
+#include "BKE_main.hh"
 #include "BKE_report.h"
 #include "BKE_scene.h"
 
-#include "IMB_colormanagement.h"
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
-#include "IMB_openexr.h"
+#include "IMB_colormanagement.hh"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
+#include "IMB_openexr.hh"
 
 #include "GPU_texture.h"
 
@@ -167,6 +167,31 @@ void render_result_views_shallowdelete(RenderResult *rr)
 /** \name New
  * \{ */
 
+static int get_num_planes_for_pass_ibuf(const RenderPass &render_pass)
+{
+  switch (render_pass.channels) {
+    case 1:
+      return R_IMF_PLANES_BW;
+    case 3:
+      return R_IMF_PLANES_RGB;
+    case 4:
+      return R_IMF_PLANES_RGBA;
+  }
+
+  /* Fallback to a commonly used default value of planes for odd-ball number of channel. */
+  return R_IMF_PLANES_RGBA;
+}
+
+static void assign_render_pass_ibuf_colorspace(RenderPass &render_pass)
+{
+  if (RE_RenderPassIsColor(&render_pass)) {
+    return;
+  }
+
+  const char *data_colorspace = IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_DATA);
+  IMB_colormanagement_assign_float_colorspace(render_pass.ibuf, data_colorspace);
+}
+
 static void render_layer_allocate_pass(RenderResult *rr, RenderPass *rp)
 {
   if (rp->ibuf && rp->ibuf->float_buffer.data) {
@@ -179,9 +204,10 @@ static void render_layer_allocate_pass(RenderResult *rr, RenderPass *rp)
   const size_t rectsize = size_t(rr->rectx) * rr->recty * rp->channels;
   float *buffer_data = MEM_cnew_array<float>(rectsize, rp->name);
 
-  rp->ibuf = IMB_allocImBuf(rr->rectx, rr->recty, 32, 0);
+  rp->ibuf = IMB_allocImBuf(rr->rectx, rr->recty, get_num_planes_for_pass_ibuf(*rp), 0);
   rp->ibuf->channels = rp->channels;
   IMB_assign_float_buffer(rp->ibuf, buffer_data, IB_TAKE_OWNERSHIP);
+  assign_render_pass_ibuf_colorspace(*rp);
 
   if (STREQ(rp->name, RE_PASSNAME_VECTOR)) {
     /* initialize to max speed */
@@ -452,9 +478,9 @@ GPUTexture *RE_pass_ensure_gpu_texture_cache(Render *re, RenderPass *rpass)
     return nullptr;
   }
 
-  const eGPUTextureFormat format = (rpass->channels == 1) ? GPU_R16F :
-                                   (rpass->channels == 3) ? GPU_RGB16F :
-                                                            GPU_RGBA16F;
+  const eGPUTextureFormat format = (rpass->channels == 1) ? GPU_R32F :
+                                   (rpass->channels == 3) ? GPU_RGB32F :
+                                                            GPU_RGBA32F;
 
   /* TODO(sergey): Use utility to assign the texture. */
   ibuf->gpu.texture = GPU_texture_create_2d("RenderBuffer.gpu_texture",
@@ -800,6 +826,7 @@ RenderResult *render_result_new_from_exr(
   RenderResult *rr = MEM_cnew<RenderResult>(__func__);
   const char *to_colorspace = IMB_colormanagement_role_colorspace_name_get(
       COLOR_ROLE_SCENE_LINEAR);
+  const char *data_colorspace = IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_DATA);
 
   rr->rectx = rectx;
   rr->recty = recty;
@@ -816,7 +843,7 @@ RenderResult *render_result_new_from_exr(
       rpass->rectx = rectx;
       rpass->recty = recty;
 
-      if (rpass->channels >= 3) {
+      if (RE_RenderPassIsColor(rpass)) {
         IMB_colormanagement_transform(rpass->ibuf->float_buffer.data,
                                       rpass->rectx,
                                       rpass->recty,
@@ -824,6 +851,9 @@ RenderResult *render_result_new_from_exr(
                                       colorspace,
                                       to_colorspace,
                                       predivide);
+      }
+      else {
+        IMB_colormanagement_assign_float_colorspace(rpass->ibuf, data_colorspace);
       }
     }
   }
@@ -905,7 +935,8 @@ void render_result_merge(RenderResult *rr, RenderResult *rrpart)
           continue;
         }
         if (rpass->ibuf->float_buffer.data == nullptr ||
-            rpassp->ibuf->float_buffer.data == nullptr) {
+            rpassp->ibuf->float_buffer.data == nullptr)
+        {
           continue;
         }
         /* Render-result have all passes, render-part only the active view's passes. */
@@ -1108,7 +1139,10 @@ static void render_result_exr_file_cache_path(Scene *sce,
 
   BLI_path_join(r_path, FILE_CACHE_MAX, root, filename_full);
   if (BLI_path_is_rel(r_path)) {
-    BLI_path_abs(r_path, dirname);
+    char path_temp[FILE_MAX];
+    STRNCPY(path_temp, r_path);
+    BLI_path_abs(path_temp, dirname);
+    BLI_strncpy(r_path, path_temp, FILE_CACHE_MAX);
   }
 }
 
@@ -1175,6 +1209,7 @@ ImBuf *RE_render_result_rect_to_ibuf(RenderResult *rr,
   if (rv->ibuf) {
     IMB_assign_byte_buffer(ibuf, rv->ibuf->byte_buffer.data, IB_DO_NOT_TAKE_OWNERSHIP);
     IMB_assign_float_buffer(ibuf, rv->ibuf->float_buffer.data, IB_DO_NOT_TAKE_OWNERSHIP);
+    ibuf->channels = rv->ibuf->channels;
   }
 
   /* float factor for random dither, imbuf takes care of it */
@@ -1203,7 +1238,9 @@ ImBuf *RE_render_result_rect_to_ibuf(RenderResult *rr,
 
   /* Color -> gray-scale. */
   /* editing directly would alter the render view */
-  if (imf->planes == R_IMF_PLANES_BW && imf->imtype != R_IMF_IMTYPE_MULTILAYER) {
+  if (imf->planes == R_IMF_PLANES_BW && imf->imtype != R_IMF_IMTYPE_MULTILAYER &&
+      !(ibuf->float_buffer.data && !ibuf->byte_buffer.data && ibuf->channels == 1))
+  {
     ImBuf *ibuf_bw = IMB_dupImBuf(ibuf);
     IMB_color_to_bw(ibuf_bw);
     IMB_freeImBuf(ibuf);
@@ -1420,8 +1457,10 @@ RenderResult *RE_DuplicateRenderResult(RenderResult *rr)
 ImBuf *RE_RenderPassEnsureImBuf(RenderPass *render_pass)
 {
   if (!render_pass->ibuf) {
-    render_pass->ibuf = IMB_allocImBuf(render_pass->rectx, render_pass->recty, 32, 0);
+    render_pass->ibuf = IMB_allocImBuf(
+        render_pass->rectx, render_pass->recty, get_num_planes_for_pass_ibuf(*render_pass), 0);
     render_pass->ibuf->channels = render_pass->channels;
+    assign_render_pass_ibuf_colorspace(*render_pass);
   }
 
   return render_pass->ibuf;
@@ -1434,6 +1473,11 @@ ImBuf *RE_RenderViewEnsureImBuf(const RenderResult *render_result, RenderView *r
   }
 
   return render_view->ibuf;
+}
+
+bool RE_RenderPassIsColor(const RenderPass *render_pass)
+{
+  return STR_ELEM(render_pass->chan_id, "RGB", "RGBA", "R", "G", "B", "A");
 }
 
 /** \} */

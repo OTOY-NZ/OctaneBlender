@@ -75,8 +75,8 @@ class OctaneBaseCurveNode(OctaneBaseNode):
     node_data_path: StringProperty()
 
     # Sometimes the init/copy functions are not called, so we have to add this function
-    def validate(self, data_owner=None, force_update_data=False):
-        # Check if the helper curve node is existing. 
+    def validate(self, data_owner, force_update_data=False):
+        # Check if the helper curve node is existing.
         # For the non-helper node case, create one from the curve_data if possible.
         current_curve = utility.get_octane_helper_node(self.curve_name)
         if current_curve is None:
@@ -88,53 +88,13 @@ class OctaneBaseCurveNode(OctaneBaseNode):
             # Create the curve_data for the legacy cases
             if len(self.curve_data) == 0 or force_update_data:
                 self.dumps_curve_data()
-        if data_owner is None:
-            for material in bpy.data.materials:
-                if material.use_nodes and material.node_tree and material.node_tree is self.id_data:
-                    data_owner = material
-                    break
-        if data_owner is None:
-            for world in bpy.data.worlds:
-                if world.use_nodes and world.node_tree and world.node_tree is self.id_data:
-                    data_owner = world
-                    break
-        if data_owner is None:
-            for light in bpy.data.lights:
-                if light.use_nodes and light.node_tree and light.node_tree is self.id_data:
-                    data_owner = light
-                    break
-        if data_owner is None:
-            for node_group in bpy.data.node_groups:
-                if node_group is self.id_data:
-                    data_owner = node_group
-                    break
-        node_data_path = data_owner.name + "_" + repr(self)
-        if self.node_data_path != node_data_path:
-            same_curve_count = 0
-
-            def count_same_curve(node_tree):
-                count = 0
-                for node in node_tree.nodes:
-                    if isinstance(node, OctaneBaseCurveNode) and node.curve_name == self.curve_name:
-                        count += 1
-                return count
-
-            for material in bpy.data.materials:
-                if material.use_nodes and material.node_tree:
-                    same_curve_count += count_same_curve(material.node_tree)
-            for world in bpy.data.worlds:
-                if world.use_nodes and world.node_tree:
-                    same_curve_count += count_same_curve(world.node_tree)
-            for light in bpy.data.lights:
-                if light.use_nodes and light.node_tree:
-                    same_curve_count += count_same_curve(light.node_tree)
-            for node_group in bpy.data.node_groups:
-                same_curve_count += count_same_curve(node_group)
-            if same_curve_count > 1:
+        if data_owner is not None:
+            node_data_path = data_owner.name + "_" + repr(self)
+            if self.node_data_path != node_data_path:
                 current_curve = utility.get_octane_helper_node(self.curve_name)
                 if current_curve:
                     self.init_curve_helper_node(None, current_curve.mapping)
-            self.node_data_path = node_data_path
+                self.node_data_path = node_data_path
 
     @staticmethod
     def clear_unused_curve_helpers(used_curve_names):

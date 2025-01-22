@@ -1,11 +1,11 @@
 # <pep8 compliant>
 
 import bpy
-from bpy.app.handlers import persistent
 from collections import defaultdict
 from octane.utils import consts, utility
 from octane import core
 from octane.core.client import OctaneBlender
+from octane.operators_ import utility_functions
 
 
 class ResourceCache(metaclass=utility.Singleton):
@@ -38,9 +38,7 @@ class ResourceCache(metaclass=utility.Singleton):
         self.dirty_mesh_names.add(mesh_name)
 
 
-@persistent
 def reset_resource_cache(_scene):
-    from octane import operators
     from octane import is_render_engine_active
     if core.ENABLE_OCTANE_ADDON_CLIENT:
         if is_render_engine_active():
@@ -54,10 +52,9 @@ def reset_resource_cache(_scene):
         import _octane
         if not is_render_engine_active():
             print("Clear Octane Resource Cache System")
-            _octane.command_to_octane(operators.COMMAND_TYPES['CLEAR_RESOURCE_CACHE_SYSTEM'])
+            _octane.command_to_octane(utility_functions.COMMAND_TYPES['CLEAR_RESOURCE_CACHE_SYSTEM'])
 
 
-@persistent
 def update_dirty_mesh_names(scene, depsgraph):
     from octane import is_render_engine_active
     if is_render_engine_active():

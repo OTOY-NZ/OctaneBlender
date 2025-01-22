@@ -6,6 +6,7 @@
  * \ingroup modifiers
  */
 
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -29,13 +30,13 @@
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_context.h"
-#include "BKE_deform.h"
+#include "BKE_context.hh"
+#include "BKE_deform.hh"
 #include "BKE_gpencil_geom_legacy.h"
 #include "BKE_gpencil_legacy.h"
 #include "BKE_gpencil_modifier_legacy.h"
-#include "BKE_lib_query.h"
-#include "BKE_modifier.h"
+#include "BKE_lib_query.hh"
+#include "BKE_modifier.hh"
 #include "BKE_screen.hh"
 
 #include "UI_interface.hh"
@@ -358,7 +359,7 @@ static void build_sequential(Object *ob,
           float curgps_delay = fabs(cell->gps->inittime - (cell - 1)->gps->inittime) -
                                last_pointtime;
           if (0 < curgps_delay) {
-            sumtime += MIN2(curgps_delay, GP_BUILD_MAXGAP);
+            sumtime += std::min(curgps_delay, GP_BUILD_MAXGAP);
           }
         }
       }
@@ -537,7 +538,8 @@ static void build_sequential(Object *ob,
     }
     else {
       if (fade_start != fade_end && int(cell->start_idx) < fade_end &&
-          int(cell->end_idx) > fade_start) {
+          int(cell->end_idx) > fade_start)
+      {
         int start_index = fade_start - cell->start_idx;
         int end_index = cell->totpoints + fade_end - cell->end_idx - 1;
         CLAMP(start_index, 0, cell->totpoints - 1);
@@ -634,7 +636,7 @@ static void build_concurrent(BuildGpencilModifierData *mmd,
       case GP_BUILD_TIMEALIGN_START: /* all start on frame 1 */
       {
         /* Scale fac to fit relative_len */
-        const float scaled_fac = use_fac / MAX2(relative_len, PSEUDOINVERSE_EPSILON);
+        const float scaled_fac = use_fac / std::max(relative_len, PSEUDOINVERSE_EPSILON);
 
         if (reverse) {
           points_num = int(roundf((1.0f - scaled_fac) * gps->totpoints));
@@ -651,7 +653,8 @@ static void build_concurrent(BuildGpencilModifierData *mmd,
          */
         const float start_fac = 1.0f - relative_len;
 
-        const float scaled_fac = (use_fac - start_fac) / MAX2(relative_len, PSEUDOINVERSE_EPSILON);
+        const float scaled_fac = (use_fac - start_fac) /
+                                 std::max(relative_len, PSEUDOINVERSE_EPSILON);
 
         if (reverse) {
           points_num = int(roundf((1.0f - scaled_fac) * gps->totpoints));
@@ -806,7 +809,7 @@ static void generate_geometry(GpencilModifierData *md,
 
     if (gpf->next) {
       /* Use the next frame or upper bound as end frame, whichever is lower/closer */
-      end_frame = MIN2(end_frame, gpf->next->framenum);
+      end_frame = std::min(end_frame, float(gpf->next->framenum));
     }
 
     /* Early exit if current frame is outside start/end bounds */

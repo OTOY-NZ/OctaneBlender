@@ -23,7 +23,7 @@
 
 #include "BKE_global.h"
 
-#include "BLF_api.h"
+#include "BLF_api.hh"
 
 #include "BLT_translation.h"
 
@@ -69,6 +69,7 @@ static uiStyle *ui_style_new(ListBase *styles, const char *name, short uifont_id
 
   style->paneltitle.uifont_id = uifont_id;
   style->paneltitle.points = UI_DEFAULT_TITLE_POINTS;
+  style->paneltitle.character_weight = 400;
   style->paneltitle.shadow = 3;
   style->paneltitle.shadx = 0;
   style->paneltitle.shady = -1;
@@ -77,6 +78,7 @@ static uiStyle *ui_style_new(ListBase *styles, const char *name, short uifont_id
 
   style->grouplabel.uifont_id = uifont_id;
   style->grouplabel.points = UI_DEFAULT_TITLE_POINTS;
+  style->grouplabel.character_weight = 400;
   style->grouplabel.shadow = 3;
   style->grouplabel.shadx = 0;
   style->grouplabel.shady = -1;
@@ -85,6 +87,7 @@ static uiStyle *ui_style_new(ListBase *styles, const char *name, short uifont_id
 
   style->widgetlabel.uifont_id = uifont_id;
   style->widgetlabel.points = UI_DEFAULT_TEXT_POINTS;
+  style->widgetlabel.character_weight = 400;
   style->widgetlabel.shadow = 3;
   style->widgetlabel.shadx = 0;
   style->widgetlabel.shady = -1;
@@ -93,6 +96,7 @@ static uiStyle *ui_style_new(ListBase *styles, const char *name, short uifont_id
 
   style->widget.uifont_id = uifont_id;
   style->widget.points = UI_DEFAULT_TEXT_POINTS;
+  style->widget.character_weight = 400;
   style->widget.shadow = 1;
   style->widget.shady = -1;
   style->widget.shadowalpha = 0.5f;
@@ -175,8 +179,8 @@ void UI_fontstyle_draw_ex(const uiFontStyle *fs,
     xofs = BLI_rcti_size_x(rect) - BLF_width(fs->uifont_id, str, str_len);
   }
 
-  yofs = MAX2(0, yofs);
-  xofs = MAX2(0, xofs);
+  yofs = std::max(0, yofs);
+  xofs = std::max(0, xofs);
 
   BLF_clipping(fs->uifont_id, rect->xmin, rect->ymin, rect->xmax, rect->ymax);
   BLF_position(fs->uifont_id, rect->xmin + xofs, rect->ymin + yofs, 0.0f);
@@ -275,14 +279,14 @@ void UI_fontstyle_draw_simple(
 void UI_fontstyle_draw_simple_backdrop(const uiFontStyle *fs,
                                        float x,
                                        float y,
-                                       const char *str,
+                                       const blender::StringRef str,
                                        const float col_fg[4],
                                        const float col_bg[4])
 {
   UI_fontstyle_set(fs);
 
   {
-    const int width = BLF_width(fs->uifont_id, str, BLF_DRAW_STR_DUMMY_MAX);
+    const int width = BLF_width(fs->uifont_id, str.data(), str.size());
     const int height = BLF_height_max(fs->uifont_id);
     const int decent = BLF_descender(fs->uifont_id);
     const float margin = height / 4.0f;
@@ -298,7 +302,7 @@ void UI_fontstyle_draw_simple_backdrop(const uiFontStyle *fs,
 
   BLF_position(fs->uifont_id, x, y, 0.0f);
   BLF_color4fv(fs->uifont_id, col_fg);
-  BLF_draw(fs->uifont_id, str, BLF_DRAW_STR_DUMMY_MAX);
+  BLF_draw(fs->uifont_id, str.data(), str.size());
 }
 
 /* ************** helpers ************************ */
@@ -456,8 +460,10 @@ void uiStyleInit()
     if (U.text_render & USER_TEXT_DISABLE_AA) {
       flag_enable |= BLF_MONOCHROME;
     }
-    if (U.text_render & USER_TEXT_RENDER_SUBPIXELAA) {
-      flag_enable |= BLF_RENDER_SUBPIXELAA;
+    else {
+      if (U.text_render & USER_TEXT_RENDER_SUBPIXELAA) {
+        flag_enable |= BLF_RENDER_SUBPIXELAA;
+      }
     }
 
     LISTBASE_FOREACH (uiFont *, font, &U.uifonts) {
@@ -492,6 +498,7 @@ static void fontstyle_set_ex(const uiFontStyle *fs, const float dpi_fac)
   uiFont *font = uifont_to_blfont(fs->uifont_id);
 
   BLF_size(font->blf_id, fs->points * dpi_fac);
+  BLF_character_weight(fs->uifont_id, fs->character_weight);
 }
 
 void UI_fontstyle_set(const uiFontStyle *fs)

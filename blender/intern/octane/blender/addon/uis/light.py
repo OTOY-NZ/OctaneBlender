@@ -1,14 +1,14 @@
 # <pep8 compliant>
 
 from bpy.types import Panel
-
 from bpy.utils import register_class, unregister_class
+
 from octane import core
-from octane.uis import common
+from octane.uis.common import OctanePropertyPanel
 from octane.utils import consts, utility
 
 
-class OCTANE_LIGHT_PT_light(common.OctanePropertyPanel, Panel):
+class OCTANE_LIGHT_PT_light(OctanePropertyPanel, Panel):
     bl_label = "Light"
     bl_context = "data"
 
@@ -63,7 +63,7 @@ class OCTANE_LIGHT_PT_light(common.OctanePropertyPanel, Panel):
             layout.label(text="Deprecated. Use Add-Light-Octane Sphere Light")
 
 
-class OCTANE_LIGHT_PT_nodes(common.OctanePropertyPanel, Panel):
+class OCTANE_LIGHT_PT_nodes(OctanePropertyPanel, Panel):
     bl_label = "Nodes"
     bl_context = "data"
 

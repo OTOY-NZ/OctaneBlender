@@ -25,17 +25,17 @@
 
 #include "BKE_action.h"
 #include "BKE_animsys.h"
-#include "BKE_appdir.h"
-#include "BKE_armature.h"
-#include "BKE_blender_copybuffer.h"
-#include "BKE_context.h"
-#include "BKE_idtype.h"
-#include "BKE_layer.h"
-#include "BKE_lib_id.h"
+#include "BKE_appdir.hh"
+#include "BKE_armature.hh"
+#include "BKE_blender_copybuffer.hh"
+#include "BKE_context.hh"
+#include "BKE_idtype.hh"
+#include "BKE_layer.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_lib_override.hh"
-#include "BKE_lib_query.h"
-#include "BKE_lib_remap.h"
-#include "BKE_main.h"
+#include "BKE_lib_query.hh"
+#include "BKE_lib_remap.hh"
+#include "BKE_main.hh"
 #include "BKE_object.hh"
 #include "BKE_report.h"
 #include "BKE_workspace.h"
@@ -59,7 +59,7 @@
 #include "RNA_enum_types.hh"
 #include "RNA_path.hh"
 
-#include "GPU_material.h"
+#include "GPU_material.hh"
 
 #include "outliner_intern.hh"
 #include "tree/tree_element_rna.hh"
@@ -288,7 +288,7 @@ void OUTLINER_OT_item_openclose(wmOperatorType *ot)
   ot->invoke = outliner_item_openclose_invoke;
   ot->modal = outliner_item_openclose_modal;
 
-  ot->poll = ED_operator_outliner_active;
+  ot->poll = ED_operator_region_outliner_active;
 
   RNA_def_boolean(ot->srna, "all", false, "All", "Close or open all items");
 }
@@ -413,7 +413,7 @@ static int outliner_item_rename_invoke(bContext *C, wmOperator *op, const wmEven
   TreeElement *te = use_active ? outliner_item_rename_find_active(space_outliner, op->reports) :
                                  outliner_item_rename_find_hovered(space_outliner, region, event);
   if (!te) {
-    return OPERATOR_CANCELLED;
+    return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
   }
 
   /* Force element into view. */
@@ -438,7 +438,7 @@ void OUTLINER_OT_item_rename(wmOperatorType *ot)
 
   ot->invoke = outliner_item_rename_invoke;
 
-  ot->poll = ED_operator_outliner_active;
+  ot->poll = ED_operator_region_outliner_active;
 
   /* Flags. */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -590,7 +590,7 @@ void OUTLINER_OT_id_delete(wmOperatorType *ot)
   ot->description = "Delete the ID under cursor";
 
   ot->invoke = outliner_id_delete_invoke;
-  ot->poll = ED_operator_outliner_active;
+  ot->poll = ED_operator_region_outliner_active;
 
   /* Flags. */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -729,7 +729,7 @@ void OUTLINER_OT_id_remap(wmOperatorType *ot)
   /* callbacks */
   ot->invoke = outliner_id_remap_invoke;
   ot->exec = outliner_id_remap_exec;
-  ot->poll = ED_operator_outliner_active;
+  ot->poll = ED_operator_region_outliner_active;
 
   /* Flags. */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -990,7 +990,7 @@ void OUTLINER_OT_lib_relocate(wmOperatorType *ot)
   ot->description = "Relocate the library under cursor";
 
   ot->invoke = outliner_lib_relocate_invoke;
-  ot->poll = ED_operator_outliner_active;
+  ot->poll = ED_operator_region_outliner_active;
 
   /* Flags. */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -1047,7 +1047,7 @@ void OUTLINER_OT_lib_reload(wmOperatorType *ot)
   ot->description = "Reload the library under cursor";
 
   ot->invoke = outliner_lib_reload_invoke;
-  ot->poll = ED_operator_outliner_active;
+  ot->poll = ED_operator_region_outliner_active;
 
   /* Flags. */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -1177,7 +1177,7 @@ void OUTLINER_OT_expanded_toggle(wmOperatorType *ot)
 
   /* callbacks */
   ot->exec = outliner_toggle_expanded_exec;
-  ot->poll = ED_operator_outliner_active;
+  ot->poll = ED_operator_region_outliner_active;
 
   /* no undo or registry, UI option */
 }
@@ -1379,7 +1379,7 @@ void OUTLINER_OT_show_active(wmOperatorType *ot)
 
   /* callbacks */
   ot->exec = outliner_show_active_exec;
-  ot->poll = ED_operator_outliner_active;
+  ot->poll = ED_operator_region_outliner_active;
 }
 
 /** \} */
@@ -1418,7 +1418,7 @@ void OUTLINER_OT_scroll_page(wmOperatorType *ot)
 
   /* callbacks */
   ot->exec = outliner_scroll_page_exec;
-  ot->poll = ED_operator_outliner_active;
+  ot->poll = ED_operator_region_outliner_active;
 
   /* properties */
   prop = RNA_def_boolean(ot->srna, "up", false, "Up", "Scroll up one page");
@@ -1490,7 +1490,7 @@ void OUTLINER_OT_show_one_level(wmOperatorType *ot)
 
   /* callbacks */
   ot->exec = outliner_one_level_exec;
-  ot->poll = ED_operator_outliner_active;
+  ot->poll = ED_operator_region_outliner_active;
 
   /* no undo or registry, UI option */
 
@@ -1583,7 +1583,8 @@ void OUTLINER_OT_show_hierarchy(wmOperatorType *ot)
 
   /* callbacks */
   ot->exec = outliner_show_hierarchy_exec;
-  ot->poll = ED_operator_outliner_active; /* TODO: shouldn't be allowed in RNA views... */
+  /* TODO: shouldn't be allowed in RNA views... */
+  ot->poll = ED_operator_region_outliner_active;
 
   /* no undo or registry, UI option */
 }
@@ -1793,7 +1794,7 @@ static void do_outliner_drivers_editop(SpaceOutliner *space_outliner,
     PropertyRNA *prop = te_rna ? te_rna->get_property_rna() : nullptr;
 
     /* check if RNA-property described by this selected element is an animatable prop */
-    if (prop && RNA_property_animateable(&ptr, prop)) {
+    if (prop && RNA_property_anim_editable(&ptr, prop)) {
       /* get id + path + index info from the selected element */
       tree_element_to_path(te, tselem, &id, &path, &array_index, &flag, &groupmode);
     }
@@ -1984,7 +1985,7 @@ static void do_outliner_keyingset_editop(SpaceOutliner *space_outliner,
     const TreeElementRNACommon *te_rna = tree_element_cast<TreeElementRNACommon>(te);
     PointerRNA ptr = te_rna->get_pointer_rna();
     if (te_rna && te_rna->get_property_rna() &&
-        RNA_property_animateable(&ptr, te_rna->get_property_rna()))
+        RNA_property_anim_editable(&ptr, te_rna->get_property_rna()))
     {
       /* get id + path + index info from the selected element */
       tree_element_to_path(te, tselem, &id, &path, &array_index, &flag, &groupmode);
@@ -2145,7 +2146,7 @@ static int outliner_orphans_purge_invoke(bContext *C, wmOperator *op, const wmEv
   }
 
   DynStr *dyn_str = BLI_dynstr_new();
-  BLI_dynstr_appendf(dyn_str, TIP_("Purging %d unused data-blocks ("), num_tagged[INDEX_ID_NULL]);
+  BLI_dynstr_appendf(dyn_str, RPT_("Purging %d unused data-blocks ("), num_tagged[INDEX_ID_NULL]);
   bool is_first = true;
   for (int i = 0; i < INDEX_ID_MAX - 2; i++) {
     if (num_tagged[i] != 0) {
@@ -2158,10 +2159,10 @@ static int outliner_orphans_purge_invoke(bContext *C, wmOperator *op, const wmEv
       BLI_dynstr_appendf(dyn_str,
                          "%d %s",
                          num_tagged[i],
-                         TIP_(BKE_idtype_idcode_to_name_plural(BKE_idtype_idcode_from_index(i))));
+                         RPT_(BKE_idtype_idcode_to_name_plural(BKE_idtype_idcode_from_index(i))));
     }
   }
-  BLI_dynstr_append(dyn_str, TIP_("). Click here to proceed..."));
+  BLI_dynstr_append(dyn_str, RPT_("). Click here to proceed..."));
 
   char *message = BLI_dynstr_get_cstring(dyn_str);
   int ret = WM_operator_confirm_message(C, op, message);

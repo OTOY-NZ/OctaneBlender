@@ -16,9 +16,9 @@
 #include "DNA_sequence_types.h"
 #include "DNA_space_types.h" /* for FILE_MAX. */
 
-#include "IMB_colormanagement.h"
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
+#include "IMB_colormanagement.hh"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
 
 #include "BLI_blenlib.h"
 #include "BLI_endian_defines.h"
@@ -31,19 +31,19 @@
 #include "BLI_path_util.h"
 #include "BLI_threads.h"
 
-#include "BKE_main.h"
+#include "BKE_main.hh"
 #include "BKE_scene.h"
 
-#include "SEQ_prefetch.h"
-#include "SEQ_relations.h"
-#include "SEQ_render.h"
-#include "SEQ_sequencer.h"
-#include "SEQ_time.h"
+#include "SEQ_prefetch.hh"
+#include "SEQ_relations.hh"
+#include "SEQ_render.hh"
+#include "SEQ_sequencer.hh"
+#include "SEQ_time.hh"
 
-#include "disk_cache.h"
-#include "image_cache.h"
-#include "prefetch.h"
-#include "strip_time.h"
+#include "disk_cache.hh"
+#include "image_cache.hh"
+#include "prefetch.hh"
+#include "strip_time.hh"
 
 /**
  * Disk Cache Design Notes
@@ -185,7 +185,7 @@ static void seq_disk_cache_get_files(SeqDiskCache *disk_cache, char *dirpath)
     if (is_dir && !FILENAME_IS_CURRPAR(file)) {
       char subpath[FILE_MAX];
       STRNCPY(subpath, fl->path);
-      BLI_path_slash_ensure(subpath, sizeof(sizeof(subpath)));
+      BLI_path_slash_ensure(subpath, sizeof(subpath));
       seq_disk_cache_get_files(disk_cache, subpath);
     }
 

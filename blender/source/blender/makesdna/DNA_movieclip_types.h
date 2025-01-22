@@ -14,10 +14,10 @@
 
 struct AnimData;
 struct ImBuf;
+struct ImBufAnim;
 struct MovieClipProxy;
 struct MovieTrackingMarker;
 struct MovieTrackingTrack;
-struct anim;
 struct bGPdata;
 
 typedef struct MovieClipUser {
@@ -56,6 +56,11 @@ typedef struct MovieClip {
   ID id;
   /** Animation data (must be immediately after id for utilities to use it). */
   struct AnimData *adt;
+  /**
+   * Engines draw data, must be immediately after AnimData. See IdDdtTemplate and
+   * DRW_drawdatalist_from_id to understand this requirement.
+   */
+  DrawDataList drawdata;
 
   /** File path, 1024 = FILE_MAX. */
   char filepath[1024];
@@ -70,7 +75,7 @@ typedef struct MovieClip {
   float aspx, aspy;
 
   /** Movie source data. */
-  struct anim *anim;
+  struct ImBufAnim *anim;
   /** Cache for different stuff, not in file. */
   struct MovieClipCache *cache;
   /** Grease pencil data. */

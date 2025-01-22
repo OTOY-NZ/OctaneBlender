@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-FileCopyrightText: 2015-2023 Blender Foundation
+# SPDX-FileCopyrightText: 2015-2023 Blender Authors
 #
 # SPDX-License-Identifier: Apache-2.0
 
@@ -14,12 +14,6 @@ try:
     inside_blender = True
 except ImportError:
     inside_blender = False
-
-BLACKLIST_UNSUPPORTED_RENDER_TESTS = [
-    'node_cryptomatte.blend',
-    'node_cryptomatte_legacy.blend',
-    'node_keying_screen.blend'
-]
 
 ENABLE_REALTIME_COMPOSITOR_SCRIPT = "import bpy; " \
     "bpy.context.preferences.experimental.use_experimental_compositors = True; " \
@@ -48,7 +42,8 @@ def create_argparse():
     parser.add_argument("-blender", nargs="+")
     parser.add_argument("-testdir", nargs=1)
     parser.add_argument("-outdir", nargs=1)
-    parser.add_argument("-idiff", nargs=1)
+    parser.add_argument("-oiiotool", nargs=1)
+    parser.add_argument('--batch', default=False, action='store_true')
     return parser
 
 
@@ -58,15 +53,14 @@ def main():
 
     blender = args.blender[0]
     test_dir = args.testdir[0]
-    idiff = args.idiff[0]
+    oiiotool = args.oiiotool[0]
     output_dir = args.outdir[0]
 
-    blacklist_all = BLACKLIST_UNSUPPORTED_RENDER_TESTS
     from modules import render_report
-    report = render_report.Report("Compositor Realtime", output_dir, idiff, blacklist=blacklist_all)
+    report = render_report.Report("Compositor Realtime", output_dir, oiiotool)
     report.set_reference_dir("compositor_realtime_renders")
 
-    ok = report.run(test_dir, blender, get_arguments, batch=True)
+    ok = report.run(test_dir, blender, get_arguments, batch=args.batch)
 
     sys.exit(not ok)
 

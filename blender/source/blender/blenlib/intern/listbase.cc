@@ -70,7 +70,7 @@ void BLI_listbase_split_after(ListBase *original_listbase, ListBase *split_listb
 
   if (vlink == nullptr) {
     /* Move everything into `split_listbase`. */
-    SWAP(ListBase, *original_listbase, *split_listbase);
+    std::swap(*original_listbase, *split_listbase);
     return;
   }
 
@@ -560,15 +560,22 @@ void *BLI_rfindlink(const ListBase *listbase, int number)
   return link;
 }
 
-void *BLI_findlinkfrom(Link *start, int number)
+void *BLI_findlinkfrom(Link *start, int steps)
 {
   Link *link = nullptr;
 
-  if (number >= 0) {
+  if (steps >= 0) {
     link = start;
-    while (link != nullptr && number != 0) {
-      number--;
+    while (link != nullptr && steps != 0) {
+      steps--;
       link = link->next;
+    }
+  }
+  else {
+    link = start;
+    while (link != nullptr && steps != 0) {
+      steps++;
+      link = link->prev;
     }
   }
 

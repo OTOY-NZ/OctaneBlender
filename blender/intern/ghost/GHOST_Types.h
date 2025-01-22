@@ -36,12 +36,12 @@ typedef unsigned char uchar;
     typedef struct name##__ { \
       int unused; \
       MEM_CXX_CLASS_ALLOC_FUNCS(#name) \
-    } * name
+    } *name
 #else
 #  define GHOST_DECLARE_HANDLE(name) \
     typedef struct name##__ { \
       int unused; \
-    } * name
+    } *name
 #endif
 
 /**
@@ -119,6 +119,10 @@ typedef enum {
    * Support for sampling a color outside of the Blender windows.
    */
   GHOST_kCapabilityDesktopSample = (1 << 5),
+  /**
+   * Supports IME text input methods (when `WITH_INPUT_IME` is defined).
+   */
+  GHOST_kCapabilityInputIME = (1 << 6),
 } GHOST_TCapabilityFlag;
 
 /**
@@ -128,7 +132,7 @@ typedef enum {
 #define GHOST_CAPABILITY_FLAG_ALL \
   (GHOST_kCapabilityCursorWarp | GHOST_kCapabilityWindowPosition | \
    GHOST_kCapabilityPrimaryClipboard | GHOST_kCapabilityGPUReadFrontBuffer | \
-   GHOST_kCapabilityClipboardImages | GHOST_kCapabilityDesktopSample)
+   GHOST_kCapabilityClipboardImages | GHOST_kCapabilityDesktopSample | GHOST_kCapabilityInputIME)
 
 /* Xtilt and Ytilt represent how much the pen is tilted away from
  * vertically upright in either the X or Y direction, with X and Y the
@@ -304,8 +308,6 @@ typedef enum {
   GHOST_kEventOpenMainFile, /* Needed for Cocoa to open double-clicked .blend file at startup. */
   GHOST_kEventNativeResolutionChange, /* Needed for Cocoa when window moves to other display. */
 
-  GHOST_kEventTimer,
-
   GHOST_kEventImeCompositionStart,
   GHOST_kEventImeComposition,
   GHOST_kEventImeCompositionEnd,
@@ -314,7 +316,7 @@ typedef enum {
 } GHOST_TEventType;
 
 typedef enum {
-  GHOST_kStandardCursorFirstCursor = 0,
+#define GHOST_kStandardCursorFirstCursor int(GHOST_kStandardCursorDefault)
   GHOST_kStandardCursorDefault = 0,
   GHOST_kStandardCursorRightArrow,
   GHOST_kStandardCursorLeftArrow,
@@ -355,7 +357,7 @@ typedef enum {
   GHOST_kStandardCursorCopy,
   GHOST_kStandardCursorCustom,
 
-  GHOST_kStandardCursorNumCursors
+#define GHOST_kStandardCursorNumCursors (int(GHOST_kStandardCursorCustom) + 1)
 } GHOST_TStandardCursor;
 
 typedef enum {
@@ -537,7 +539,7 @@ typedef enum {
   GHOST_kAxisY = (1 << 1),
 } GHOST_TAxisFlag;
 
-typedef void *GHOST_TEventDataPtr;
+typedef const void *GHOST_TEventDataPtr;
 
 typedef struct {
   /** The x-coordinate of the cursor position. */
@@ -591,6 +593,8 @@ typedef enum {
   GHOST_kDragnDropTypeBitmap     /* Bitmap image data. */
 } GHOST_TDragnDropTypes;
 
+typedef void *GHOST_TDragnDropDataPtr;
+
 typedef struct {
   /** The x-coordinate of the cursor position. */
   int32_t x;
@@ -599,10 +603,13 @@ typedef struct {
   /** The dropped item type */
   GHOST_TDragnDropTypes dataType;
   /** The "dropped content" */
-  GHOST_TEventDataPtr data;
+  GHOST_TDragnDropDataPtr data;
 } GHOST_TEventDragnDropData;
 
-/** similar to wmImeData */
+/**
+ * \warning this is a duplicate of #wmImeData.
+ * All members must remain aligned and the struct size match!
+ */
 typedef struct {
   /** size_t */
   GHOST_TUserDataPtr result_len, composite_len;

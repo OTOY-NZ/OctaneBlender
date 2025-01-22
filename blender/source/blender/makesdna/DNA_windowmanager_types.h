@@ -14,6 +14,13 @@
 
 #include "DNA_ID.h"
 
+#ifdef __cplusplus
+#  include <mutex>
+using std_mutex_type = std::mutex;
+#else
+#  define std_mutex_type void
+#endif
+
 /* Defined here: */
 
 struct wmWindow;
@@ -98,6 +105,9 @@ typedef struct ReportList {
   int flag;
   char _pad[4];
   struct wmTimer *reporttimer;
+
+  /** Mutex for thread-safety, runtime only. */
+  std_mutex_type *lock;
 } ReportList;
 
 /* Timer custom-data to control reports display. */
@@ -109,7 +119,7 @@ typedef struct ReportTimerInfo {
   float flash_progress;
 } ReportTimerInfo;
 
-//#ifdef WITH_XR_OPENXR
+// #ifdef WITH_XR_OPENXR
 typedef struct wmXrData {
   /** Runtime information for managing Blender specific behaviors. */
   struct wmXrRuntimeData *runtime;
@@ -117,7 +127,7 @@ typedef struct wmXrData {
    * even before the session runs. */
   XrSessionSettings session_settings;
 } wmXrData;
-//#endif
+// #endif
 
 /* reports need to be before wmWindowManager */
 
@@ -162,6 +172,7 @@ typedef struct wmWindowManager {
    * \note keep in sync with `notifier_queue` adding/removing elements must also update this set.
    */
   struct GSet *notifier_queue_set;
+  void *_pad1;
 
   /** Information and error reports. */
   struct ReportList reports;
@@ -202,9 +213,9 @@ typedef struct wmWindowManager {
 
   struct wmMsgBus *message_bus;
 
-  //#ifdef WITH_XR_OPENXR
+  // #ifdef WITH_XR_OPENXR
   wmXrData xr;
-  //#endif
+  // #endif
 } wmWindowManager;
 
 #define WM_KEYCONFIG_ARRAY_P(wm) &(wm)->defaultconf, &(wm)->addonconf, &(wm)->userconf
@@ -358,7 +369,9 @@ typedef struct wmWindow {
    * Input Method Editor data - complex character input (especially for Asian character input)
    * Currently WIN32 and APPLE, runtime-only data.
    */
-  struct wmIMEData *ime_data;
+  const struct wmIMEData *ime_data;
+  char ime_data_is_composing;
+  char _pad1[7];
 
   /** All events #wmEvent (ghost level events were handled). */
   ListBase event_queue;
@@ -378,6 +391,13 @@ typedef struct wmWindow {
 
   /** Private runtime info to show text in the status bar. */
   void *cursor_keymap_status;
+
+  /**
+   * The time when the key is pressed in milliseconds (see #GHOST_GetEventTime).
+   * Used to detect double-click events.
+   */
+  uint64_t eventstate_prev_press_time_ms;
+
 } wmWindow;
 
 #ifdef ime_data

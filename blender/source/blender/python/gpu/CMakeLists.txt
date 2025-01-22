@@ -11,7 +11,6 @@ set(INC
 )
 
 set(INC_SYS
-  ${Epoxy_INCLUDE_DIRS}
   ${PYTHON_INCLUDE_DIRS}
 )
 
@@ -21,6 +20,7 @@ set(SRC
   gpu_py_batch.cc
   gpu_py_buffer.cc
   gpu_py_capabilities.cc
+  gpu_py_compute.cc
   gpu_py_element.cc
   gpu_py_framebuffer.cc
   gpu_py_matrix.cc
@@ -41,6 +41,7 @@ set(SRC
   gpu_py_batch.h
   gpu_py_buffer.h
   gpu_py_capabilities.h
+  gpu_py_compute.h
   gpu_py_element.h
   gpu_py_framebuffer.h
   gpu_py_matrix.h
@@ -57,12 +58,20 @@ set(SRC
 )
 
 set(LIB
-  ${Epoxy_LIBRARIES}
   ${PYTHON_LINKFLAGS}
   ${PYTHON_LIBRARIES}
   PRIVATE bf::blenlib
   PRIVATE bf::dna
   PRIVATE bf::intern::guardedalloc
 )
+
+if(WITH_OPENGL_BACKEND)
+  list(APPEND INC_SYS
+    ${Epoxy_INCLUDE_DIRS}
+  )
+  list(APPEND LIB
+    ${Epoxy_LIBRARIES}
+  )
+endif()
 
 blender_add_lib(bf_python_gpu "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

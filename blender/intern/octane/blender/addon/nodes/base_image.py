@@ -285,7 +285,10 @@ class OctaneBaseImageNode(OctaneBaseNode):
         self.frame_start = legacy_node.image_user.frame_start
         self.use_auto_refresh = legacy_node.image_user.use_auto_refresh
         self.use_cyclic = legacy_node.image_user.use_cyclic
-        self.a_ies_photometry_mode = legacy_node.octane_ies_mode
+        try:
+            self.a_ies_photometry_mode = legacy_node.octane_ies_mode
+        except TypeError:
+            self.a_ies_photometry_mode = "IES_MAX_1"
         self.update_image_info()
         a_channel_format = "Automatic"
         if legacy_node.hdr_tex_bit_depth == "OCT_HDR_BIT_DEPTH_32":

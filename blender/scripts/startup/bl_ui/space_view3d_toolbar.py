@@ -679,8 +679,9 @@ class VIEW3D_PT_slots_vertex_groups(Panel):
 
     def draw_header(self, context):
         ob = context.object
+        groups = ob.vertex_groups
         self.bl_label = (
-            iface_("%s") % (ob.vertex_groups.active.name) if ob.vertex_groups else
+            iface_("%s") % (groups.active.name) if groups and groups.active else
             iface_("Vertex Groups")
         )
 
@@ -1050,9 +1051,7 @@ class VIEW3D_PT_sculpt_voxel_remesh(Panel, View3DPaintPanel):
 
         col = layout.column(heading="Preserve", align=True)
         col.prop(mesh, "use_remesh_preserve_volume", text="Volume")
-        col.prop(mesh, "use_remesh_preserve_paint_mask", text="Paint Mask")
-        col.prop(mesh, "use_remesh_preserve_sculpt_face_sets", text="Face Sets")
-        col.prop(mesh, "use_remesh_preserve_vertex_colors", text="Color Attributes")
+        col.prop(mesh, "use_remesh_preserve_attributes", text="Attributes")
 
         layout.operator("object.voxel_remesh", text="Remesh")
 

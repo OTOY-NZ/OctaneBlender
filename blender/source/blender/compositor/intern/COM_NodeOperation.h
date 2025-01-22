@@ -9,6 +9,7 @@
 
 #include "BLI_ghash.h"
 #include "BLI_hash.hh"
+#include "BLI_math_base.hh"
 #include "BLI_rect.h"
 #include "BLI_span.hh"
 #include "BLI_threads.h"
@@ -470,7 +471,7 @@ class NodeOperation {
    * \param rect: the rectangle of the chunk (location and size)
    * \param chunk_number: the chunk_number to be calculated
    * \param memory_buffers: all input MemoryBuffer's needed
-   * \param output_buffer: the outputbuffer to write to
+   * \param output_buffer: the output-buffer to write to
    */
   virtual void execute_opencl_region(OpenCLDevice * /*device*/,
                                      rcti * /*rect*/,
@@ -591,6 +592,14 @@ class NodeOperation {
     execute_pixel(result, x, y, chunk_data);
   }
 
+  inline void read_clamped(float result[4], int x, int y, void *chunk_data)
+  {
+    execute_pixel(result,
+                  math::clamp(x, 0, int(this->get_width()) - 1),
+                  math::clamp(y, 0, int(this->get_height()) - 1),
+                  chunk_data);
+  }
+
   virtual void *initialize_tile_data(rcti * /*rect*/)
   {
     return 0;
@@ -672,12 +681,12 @@ class NodeOperation {
 
   template<typename T1, typename T2> void hash_params(T1 param1, T2 param2)
   {
-    combine_hashes(params_hash_, get_default_hash_2(param1, param2));
+    combine_hashes(params_hash_, get_default_hash(param1, param2));
   }
 
   template<typename T1, typename T2, typename T3> void hash_params(T1 param1, T2 param2, T3 param3)
   {
-    combine_hashes(params_hash_, get_default_hash_3(param1, param2, param3));
+    combine_hashes(params_hash_, get_default_hash(param1, param2, param3));
   }
 
   void add_input_socket(DataType datatype, ResizeMode resize_mode = ResizeMode::Center);

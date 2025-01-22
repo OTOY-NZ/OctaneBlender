@@ -45,6 +45,9 @@ from . import save_checkpoint
 from . import load_checkpoint
 from . import discard_checkpoint
 from . import sharpen
+from . import boost_highlights
+from . import dither_for_8_bit_display_sdr_only_
+from . import apply_imager_and_post_processing
 from . import output_aov_group_switch
 from . import output_aov_switch
 from . import output_aov_layer_switch
@@ -96,6 +99,9 @@ def register():
     load_checkpoint.register()
     discard_checkpoint.register()
     sharpen.register()
+    boost_highlights.register()
+    dither_for_8_bit_display_sdr_only_.register()
+    apply_imager_and_post_processing.register()
     output_aov_group_switch.register()
     output_aov_switch.register()
     output_aov_layer_switch.register()
@@ -147,6 +153,9 @@ def unregister():
     load_checkpoint.unregister()
     discard_checkpoint.unregister()
     sharpen.unregister()
+    boost_highlights.unregister()
+    dither_for_8_bit_display_sdr_only_.unregister()
+    apply_imager_and_post_processing.unregister()
     output_aov_group_switch.unregister()
     output_aov_switch.unregister()
     output_aov_layer_switch.unregister()

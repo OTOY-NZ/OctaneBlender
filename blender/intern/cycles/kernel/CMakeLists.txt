@@ -43,7 +43,7 @@ set(SRC_KERNEL_DEVICE_OPTIX
 if(WITH_CYCLES_OSL)
   math(EXPR OSL_LIBRARY_VERSION_CODE "${OSL_LIBRARY_VERSION_MAJOR} * 10000 + ${OSL_LIBRARY_VERSION_MINOR} * 100 + ${OSL_LIBRARY_VERSION_PATCH}")
 
-  if (OSL_LIBRARY_VERSION_CODE GREATER_EQUAL 11300)
+  if(OSL_LIBRARY_VERSION_CODE GREATER_EQUAL 11300)
     set(SRC_KERNEL_DEVICE_OPTIX
       ${SRC_KERNEL_DEVICE_OPTIX}
       osl/services_optix.cu
@@ -178,7 +178,6 @@ set(SRC_KERNEL_SVM_HEADERS
   svm/math.h
   svm/math_util.h
   svm/mix.h
-  svm/musgrave.h
   svm/node_types_template.h
   svm/noise.h
   svm/noisetex.h
@@ -328,6 +327,7 @@ set(SRC_KERNEL_UTIL_HEADERS
   util/color.h
   util/differential.h
   util/lookup_table.h
+  util/nanovdb.h
   util/profiling.h
 )
 
@@ -484,13 +484,17 @@ if(WITH_CYCLES_CUDA_BINARIES)
 
     if(WITH_NANOVDB)
       set(cuda_flags ${cuda_flags}
-        -D WITH_NANOVDB
-        -I "${NANOVDB_INCLUDE_DIR}")
+        -D WITH_NANOVDB)
     endif()
 
     if(WITH_CYCLES_DEBUG)
       set(cuda_flags ${cuda_flags} -D WITH_CYCLES_DEBUG)
       set(cuda_flags ${cuda_flags} --ptxas-options="-v")
+    endif()
+
+    if(${cuda_version} GREATER_EQUAL 110)
+      # Helps with compatibility when using recent clang host compiler.
+      set(cuda_flags ${cuda_flags} -std=c++17)
     endif()
 
     set(_cuda_nvcc_args
@@ -527,9 +531,11 @@ if(WITH_CYCLES_CUDA_BINARIES)
       if(DEFINED CUDA10_NVCC_EXECUTABLE)
         set(cuda_nvcc_executable ${CUDA10_NVCC_EXECUTABLE})
         set(cuda_toolkit_root_dir ${CUDA10_TOOLKIT_ROOT_DIR})
+        set(cuda_version 100)
       elseif("${CUDA_VERSION}" LESS 110) # Support for sm_30 was removed in CUDA 11
         set(cuda_nvcc_executable ${CUDA_NVCC_EXECUTABLE})
         set(cuda_toolkit_root_dir ${CUDA_TOOLKIT_ROOT_DIR})
+        set(cuda_version ${CUDA_VERSION})
       else()
         message(STATUS "CUDA binaries for ${arch} require CUDA 10 or earlier, skipped.")
       endif()
@@ -537,9 +543,11 @@ if(WITH_CYCLES_CUDA_BINARIES)
       if(DEFINED CUDA11_NVCC_EXECUTABLE)
         set(cuda_nvcc_executable ${CUDA11_NVCC_EXECUTABLE})
         set(cuda_toolkit_root_dir ${CUDA11_TOOLKIT_ROOT_DIR})
+        set(cuda_version 110)
       elseif("${CUDA_VERSION}" LESS 120) # Support for sm_35, sm_37 was removed in CUDA 12
         set(cuda_nvcc_executable ${CUDA_NVCC_EXECUTABLE})
         set(cuda_toolkit_root_dir ${CUDA_TOOLKIT_ROOT_DIR})
+        set(cuda_version ${CUDA_VERSION})
       else()
         message(STATUS "CUDA binaries for ${arch} require CUDA 11 or earlier, skipped.")
       endif()
@@ -549,15 +557,18 @@ if(WITH_CYCLES_CUDA_BINARIES)
       if("${CUDA_VERSION}" GREATER_EQUAL 111) # Support for sm_86 was introduced in CUDA 11
         set(cuda_nvcc_executable ${CUDA_NVCC_EXECUTABLE})
         set(cuda_toolkit_root_dir ${CUDA_TOOLKIT_ROOT_DIR})
+        set(cuda_version ${CUDA_VERSION})
       elseif(DEFINED CUDA11_NVCC_EXECUTABLE)
         set(cuda_nvcc_executable ${CUDA11_NVCC_EXECUTABLE})
         set(cuda_toolkit_root_dir ${CUDA11_TOOLKIT_ROOT_DIR})
+        set(cuda_version 110)
       else()
         message(STATUS "CUDA binaries for ${arch} require CUDA 11.1+, skipped.")
       endif()
     else()
       set(cuda_nvcc_executable ${CUDA_NVCC_EXECUTABLE})
       set(cuda_toolkit_root_dir ${CUDA_TOOLKIT_ROOT_DIR})
+      set(cuda_version ${CUDA_VERSION})
     endif()
     if(DEFINED cuda_nvcc_executable AND DEFINED cuda_toolkit_root_dir)
       # Compile regular kernel
@@ -616,7 +627,7 @@ if(WITH_CYCLES_HIP_BINARIES AND WITH_CYCLES_DEVICE_HIP)
 
     set(hip_flags
       ${hip_flags}
-      --amdgpu-target=${arch}
+      --offload-arch=${arch}
       ${HIP_HIPCC_FLAGS}
       --genco
       ${CMAKE_CURRENT_SOURCE_DIR}${hip_kernel_src}
@@ -628,15 +639,13 @@ if(WITH_CYCLES_HIP_BINARIES AND WITH_CYCLES_DEVICE_HIP)
       -I ${CMAKE_CURRENT_SOURCE_DIR}/device/hip
       -Wno-parentheses-equality
       -Wno-unused-value
-      --hipcc-func-supp
       -ffast-math
       ${hip_opt_flags}
       -o ${CMAKE_CURRENT_BINARY_DIR}/${hip_file})
 
     if(WITH_NANOVDB)
       set(hip_flags ${hip_flags}
-        -D WITH_NANOVDB
-        -I "${NANOVDB_INCLUDE_DIR}")
+        -D WITH_NANOVDB)
     endif()
 
     if(WITH_CYCLES_DEBUG)
@@ -705,7 +714,6 @@ if(WITH_CYCLES_DEVICE_HIPRT AND WITH_CYCLES_HIP_BINARIES)
     -I ${HIPRT_INCLUDE_DIR}
     -Wno-parentheses-equality
     -Wno-unused-value
-    --hipcc-func-supp
     -ffast-math
     -o ${bitcode_file})
   if(WITH_CYCLES_DEBUG)
@@ -756,8 +764,7 @@ if(WITH_CYCLES_DEVICE_OPTIX AND WITH_CYCLES_CUDA_BINARIES)
 
     if(WITH_NANOVDB)
       set(cuda_flags ${cuda_flags}
-        -D WITH_NANOVDB
-        -I "${NANOVDB_INCLUDE_DIR}")
+        -D WITH_NANOVDB)
     endif()
     if(WITH_CYCLES_OSL)
       set(cuda_flags ${cuda_flags}
@@ -876,7 +883,7 @@ if(WITH_CYCLES_DEVICE_ONEAPI)
 
   # Set defaults for spir64 and spir64_gen options
   if(NOT DEFINED CYCLES_ONEAPI_SYCL_OPTIONS_spir64)
-    set(CYCLES_ONEAPI_SYCL_OPTIONS_spir64 "-options '-ze-opt-regular-grf-kernel integrator_intersect -ze-opt-large-grf-kernel shade -ze-opt-no-local-to-generic'")
+    set(CYCLES_ONEAPI_SYCL_OPTIONS_spir64 "-options '-ze-opt-large-register-file -ze-opt-regular-grf-kernel integrator_intersect -ze-opt-large-grf-kernel shade -ze-opt-no-local-to-generic'")
   endif()
   if(NOT DEFINED CYCLES_ONEAPI_SYCL_OPTIONS_spir64_gen)
     set(CYCLES_ONEAPI_SYCL_OPTIONS_spir64_gen "${CYCLES_ONEAPI_SYCL_OPTIONS_spir64}" CACHE STRING "Extra build options for spir64_gen target")
@@ -884,7 +891,37 @@ if(WITH_CYCLES_DEVICE_ONEAPI)
   endif()
   # Enable zebin, a graphics binary format with improved compatibility.
   string(PREPEND CYCLES_ONEAPI_SYCL_OPTIONS_spir64_gen "--format zebin ")
-  string(PREPEND CYCLES_ONEAPI_SYCL_OPTIONS_spir64_gen "-device ${CYCLES_ONEAPI_SPIR64_GEN_DEVICES} ")
+
+  # Add the list of Intel devices to build binaries for.
+  foreach(device ${CYCLES_ONEAPI_INTEL_BINARIES_ARCH})
+    # Run ocloc ids to test if the device is supported.
+    if(WIN32)
+      execute_process(
+        COMMAND ${OCLOC_INSTALL_DIR}/ocloc.exe ids ${device}
+        RESULT_VARIABLE oclocids_ret
+        OUTPUT_QUIET
+        ERROR_QUIET
+      )
+    else()
+      execute_process(
+        COMMAND ${CMAKE_COMMAND}
+        -E env "LD_LIBRARY_PATH=${OCLOC_INSTALL_DIR}/lib:${IGC_INSTALL_DIR}/lib"
+        ${OCLOC_INSTALL_DIR}/bin/ocloc ids ${device}
+
+        RESULT_VARIABLE oclocids_ret
+        OUTPUT_QUIET
+        ERROR_QUIET
+      )
+    endif()
+    if(NOT oclocids_ret EQUAL 0)
+      list(REMOVE_ITEM CYCLES_ONEAPI_INTEL_BINARIES_ARCH ${device})
+      message(STATUS "binaries for ${device} not supported by Intel Graphics Compiler/ocloc, skipped.")
+    endif()
+  endforeach()
+  list(JOIN CYCLES_ONEAPI_INTEL_BINARIES_ARCH "," gen_devices_string)
+  if(NOT "${gen_devices_string}" STREQUAL "")
+    string(PREPEND CYCLES_ONEAPI_SYCL_OPTIONS_spir64_gen "-device ${gen_devices_string} ")
+  endif()
 
   # Host execution won't use GPU binaries, no need to compile them.
   if(WITH_CYCLES_ONEAPI_BINARIES AND NOT WITH_CYCLES_ONEAPI_HOST_TASK_EXECUTION)
@@ -893,7 +930,9 @@ if(WITH_CYCLES_DEVICE_ONEAPI)
     list(APPEND sycl_compiler_flags -fsycl-targets=${targets_string})
     foreach(target ${CYCLES_ONEAPI_SYCL_TARGETS})
       if(DEFINED CYCLES_ONEAPI_SYCL_OPTIONS_${target})
-        list(APPEND sycl_compiler_flags "-Xsycl-target-backend=${target} \"${CYCLES_ONEAPI_SYCL_OPTIONS_${target}}\"")
+        list(APPEND sycl_compiler_flags
+          "-Xsycl-target-backend=${target} \"${CYCLES_ONEAPI_SYCL_OPTIONS_${target}}\""
+        )
       endif()
     endforeach()
   else()
@@ -905,8 +944,7 @@ if(WITH_CYCLES_DEVICE_ONEAPI)
 
   if(WITH_NANOVDB)
     list(APPEND sycl_compiler_flags
-      -DWITH_NANOVDB
-      -I"${NANOVDB_INCLUDE_DIR}")
+      -DWITH_NANOVDB)
   endif()
 
   if(WITH_CYCLES_EMBREE AND EMBREE_SYCL_SUPPORT)
@@ -954,12 +992,12 @@ if(WITH_CYCLES_DEVICE_ONEAPI)
         set(next_library_mode "")
       endif()
     endforeach()
-      list(APPEND sycl_compiler_flags
-        "$<$<CONFIG:Release>:${EMBREE_TBB_LIBRARIES_optimized}>"
-        "$<$<CONFIG:RelWithDebInfo>:${EMBREE_TBB_LIBRARIES_optimized}>"
-        "$<$<CONFIG:MinSizeRel>:${EMBREE_TBB_LIBRARIES_optimized}>"
-        "$<$<CONFIG:Debug>:${EMBREE_TBB_LIBRARIES_debug}>"
-      )
+    list(APPEND sycl_compiler_flags
+      "$<$<CONFIG:Release>:${EMBREE_TBB_LIBRARIES_optimized}>"
+      "$<$<CONFIG:RelWithDebInfo>:${EMBREE_TBB_LIBRARIES_optimized}>"
+      "$<$<CONFIG:MinSizeRel>:${EMBREE_TBB_LIBRARIES_optimized}>"
+      "$<$<CONFIG:Debug>:${EMBREE_TBB_LIBRARIES_debug}>"
+    )
   endif()
 
   if(WITH_CYCLES_DEBUG)
@@ -970,16 +1008,17 @@ if(WITH_CYCLES_DEVICE_ONEAPI)
 
   if(WIN32) # Add Windows specific compiler flags.
     list(APPEND sycl_compiler_flags
-    -fuse-ld=link
-    -fms-extensions
-    -fms-compatibility
-    -D_WINDLL
-    -D_MBCS
-    -DWIN32
-    -D_WINDOWS
-    -D_CRT_NONSTDC_NO_DEPRECATE
-    -D_CRT_SECURE_NO_DEPRECATE
-    -DONEAPI_EXPORT)
+      -fuse-ld=link
+      -fms-extensions
+      -fms-compatibility
+      -D_WINDLL
+      -D_MBCS
+      -DWIN32
+      -D_WINDOWS
+      -D_CRT_NONSTDC_NO_DEPRECATE
+      -D_CRT_SECURE_NO_DEPRECATE
+      -DONEAPI_EXPORT
+    )
 
     string(REPLACE /Redist/ /Tools/ MSVC_TOOLS_DIR ${MSVC_REDIST_DIR})
     # Version Folder between Redist and Tools can mismatch sometimes
@@ -995,9 +1034,10 @@ if(WITH_CYCLES_DEVICE_ONEAPI)
       get_filename_component(WINDOWS_KIT_DIR "${WINDOWS_KIT_DIR}/../" ABSOLUTE)
     endif()
     list(APPEND sycl_compiler_flags
-                -L"${MSVC_TOOLS_DIR}/lib/x64"
-                -L"${WINDOWS_KIT_DIR}/um/x64"
-                -L"${WINDOWS_KIT_DIR}/ucrt/x64")
+      -L"${MSVC_TOOLS_DIR}/lib/x64"
+      -L"${WINDOWS_KIT_DIR}/um/x64"
+      -L"${WINDOWS_KIT_DIR}/ucrt/x64"
+    )
   else() # Add Linux specific compiler flags.
     list(APPEND sycl_compiler_flags -fPIC)
     list(APPEND sycl_compiler_flags -fvisibility=hidden)
@@ -1017,22 +1057,22 @@ if(WITH_CYCLES_DEVICE_ONEAPI)
   set(sycl_compiler_flags_RelWithDebInfo ${sycl_compiler_flags})
 
   list(APPEND sycl_compiler_flags_Release
-              -DNDEBUG
-              )
+    -DNDEBUG
+  )
   list(APPEND sycl_compiler_flags_RelWithDebInfo
-              -DNDEBUG
-              -g
-              )
+    -DNDEBUG
+    -g
+  )
   list(APPEND sycl_compiler_flags_Debug
-              -g
-              )
+    -g
+  )
 
   if(WIN32)
     list(APPEND sycl_compiler_flags_Debug
-                -D_DEBUG
-                -nostdlib
-                -Xclang --dependent-lib=msvcrtd
-                )
+      -D_DEBUG
+      -nostdlib
+      -Xclang --dependent-lib=msvcrtd
+    )
     add_custom_command(
       OUTPUT ${cycles_kernel_oneapi_lib} ${cycles_kernel_oneapi_linker_lib}
       COMMAND ${CMAKE_COMMAND} -E env
@@ -1223,16 +1263,3 @@ delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${SRC_KERNEL_SVM_HEADERS}" ${CYCLES
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${SRC_KERNEL_TYPES_HEADERS}" ${CYCLES_INSTALL_PATH}/source/kernel)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${SRC_KERNEL_UTIL_HEADERS}" ${CYCLES_INSTALL_PATH}/source/kernel/util)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${SRC_UTIL_HEADERS}" ${CYCLES_INSTALL_PATH}/source/util)
-
-if(WITH_NANOVDB)
-  set(SRC_NANOVDB_HEADERS
-    nanovdb/NanoVDB.h
-    nanovdb/CNanoVDB.h
-  )
-  set(SRC_NANOVDB_UTIL_HEADERS
-    nanovdb/util/CSampleFromVoxels.h
-    nanovdb/util/SampleFromVoxels.h
-  )
-  delayed_install(${NANOVDB_INCLUDE_DIR} "${SRC_NANOVDB_HEADERS}" ${CYCLES_INSTALL_PATH}/source/nanovdb)
-  delayed_install(${NANOVDB_INCLUDE_DIR} "${SRC_NANOVDB_UTIL_HEADERS}" ${CYCLES_INSTALL_PATH}/source/nanovdb/util)
-endif()

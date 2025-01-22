@@ -420,7 +420,7 @@ static void blender_camera_sync(Camera *cam,
   if (cam->oct_node.bOrtho) {
     cam->oct_node.fFOV = calculate_ortho_scale(bcam, xratio, yratio) * zoom;
     // Lens shift to the right/top as a proportion of the image width/height.
-    float x_aspect_ratio = 1.f, y_aspect_ratio = 1.f; 
+    float x_aspect_ratio = 1.f, y_aspect_ratio = 1.f;
     if (bcam->sensor_fit == BlenderCamera::HORIZONTAL ||
         (bcam->sensor_fit == BlenderCamera::AUTO && xratio > yratio))
     {
@@ -582,7 +582,7 @@ void BlenderSync::sync_camera(BL::RenderSettings &b_render,
     }
   }
 
-  update_octane_camera_properties(scene->camera, oct_camera, oct_view_camera, false);
+  update_octane_camera_properties(&bcam, scene->camera, oct_camera, oct_view_camera, false);
   blender_camera_sync(
       cam, &prevcam, &bcam, width, height, viewname, &octane_scene, camera_from_object);
   update_octane_universal_camera_properties(scene->camera, oct_camera);
@@ -840,7 +840,7 @@ void BlenderSync::sync_view(BL::SpaceView3D &b_v3d,
   }
   /* copy camera to compare later */
   Camera prevcam = *scene->camera;
-  update_octane_camera_properties(scene->camera, oct_camera, oct_view_camera, view);
+  update_octane_camera_properties(&bcam, scene->camera, oct_camera, oct_view_camera, view);
   blender_camera_sync(
       scene->camera, &prevcam, &bcam, width, height, "", &octane_scene, camera_from_object);
   update_octane_universal_camera_properties(scene->camera, oct_camera);
@@ -849,10 +849,8 @@ void BlenderSync::sync_view(BL::SpaceView3D &b_v3d,
     scene->camera->tag_update();
 }
 
-void BlenderSync::update_octane_camera_properties(Camera *cam,
-                                                  PointerRNA oct_camera,
-                                                  PointerRNA oct_view_camera,
-                                                  bool view)
+void BlenderSync::update_octane_camera_properties(
+    BlenderCamera *bcam, Camera *cam, PointerRNA oct_camera, PointerRNA oct_view_camera, bool view)
 {
   bool use_global_imager = false, use_global_postprocess = false;
   PointerRNA octane_preferences;
@@ -877,10 +875,16 @@ void BlenderSync::update_octane_camera_properties(Camera *cam,
     cam->oct_node.fFOVy = RNA_float_get(&oct_camera, "fov_y");
 
     cam->oct_node.bUseFstopValue = RNA_boolean_get(&oct_camera, "use_fstop");
-    if (cam->oct_node.bUseFstopValue)
+    if (cam->oct_node.bUseFstopValue) {
       cam->oct_node.fAperture = RNA_float_get(&oct_camera, "fstop");
-    else
+      if (RNA_enum_get(&oct_camera, "fstop_mode") == 0) {
+        cam->oct_node.bUseFstopValue = false;
+        cam->oct_node.fAperture = RNA_float_get(&oct_camera, "aperture");
+      }
+    }
+    else {
       cam->oct_node.fAperture = RNA_float_get(&oct_camera, "aperture");
+    }
     cam->oct_node.fApertureEdge = RNA_float_get(&oct_camera, "aperture_edge");
     cam->oct_node.fDistortion = RNA_float_get(&oct_camera, "distortion");
     cam->oct_node.bAutofocus = RNA_boolean_get(&oct_camera, "autofocus");
@@ -1265,68 +1269,66 @@ void BlenderSync::sync_camera_motion(
     return;
 
   Camera *cam = scene->camera;
-  if (!cam || cam->oct_node.type != ::OctaneEngine::Camera::CAMERA_PERSPECTIVE)
+  if (!cam)
     return;
 
   Transform octane_matrix = OCTANE_MATRIX * get_transform(b_ob.matrix_world());
 
-  if (cam->type == CAMERA_PERSPECTIVE) {
-    BlenderCamera bcam;
-    float aspectratio, sensor_size;
-    blender_camera_init(&bcam, b_render);
+  BlenderCamera bcam;
+  float aspectratio, sensor_size;
+  blender_camera_init(&bcam, b_render);
 
-    /* TODO(sergey): Consider making it a part of blender_camera_init(). */
-    bcam.pixelaspect.x = b_render.pixel_aspect_x();
-    bcam.pixelaspect.y = b_render.pixel_aspect_y();
+  /* TODO(sergey): Consider making it a part of blender_camera_init(). */
+  bcam.pixelaspect.x = b_render.pixel_aspect_x();
+  bcam.pixelaspect.y = b_render.pixel_aspect_y();
 
-    blender_camera_from_object(&bcam, b_engine, b_ob);
-    blender_camera_viewplane(&bcam, width, height, NULL, &aspectratio, &sensor_size);
+  blender_camera_from_object(&bcam, b_engine, b_ob);
+  blender_camera_viewplane(&bcam, width, height, NULL, &aspectratio, &sensor_size);
 
-    float3 f3LookAt, f3EyePoint, f3UpVector;
-    float fFOV;
+  float3 f3LookAt, f3EyePoint, f3UpVector;
+  float fFOV;
 
-    f3LookAt.x = f3EyePoint.x = octane_matrix.x.w;
-    f3LookAt.y = f3EyePoint.y = octane_matrix.y.w;
-    f3LookAt.z = f3EyePoint.z = octane_matrix.z.w;
-    float3 dir = transform_direction(&octane_matrix, bcam.dir);
+  f3LookAt.x = f3EyePoint.x = octane_matrix.x.w;
+  f3LookAt.y = f3EyePoint.y = octane_matrix.y.w;
+  f3LookAt.z = f3EyePoint.z = octane_matrix.z.w;
+  float3 dir = transform_direction(&octane_matrix, bcam.dir);
 
-    float zoom = bcam.zoom;
-    if (cam->oct_node.bUseCameraDimensionAsPreviewResolution) {
-      zoom = 1.f;
-    }
+  float zoom = bcam.zoom;
+  if (cam->oct_node.bUseCameraDimensionAsPreviewResolution) {
+    zoom = 1.f;
+  }
 
-    if (cam->oct_node.bOrtho) {
-      fFOV = bcam.ortho_scale * zoom;
-      f3EyePoint.x = f3EyePoint.x + dir.x;
-      f3EyePoint.y = f3EyePoint.y + dir.y;
-      f3EyePoint.z = f3EyePoint.z + dir.z;
-    }
-    else {
-      fFOV = 2.0f * atanf((0.5f * sensor_size * zoom) / bcam.lens) * 180.0f / M_PI_F;
-      f3LookAt.x = f3LookAt.x + dir.x;
-      f3LookAt.y = f3LookAt.y + dir.y;
-      f3LookAt.z = f3LookAt.z + dir.z;
-    }
+  if (cam->oct_node.bOrtho) {
+    fFOV = bcam.ortho_scale * zoom;
+    f3EyePoint.x = f3EyePoint.x + dir.x;
+    f3EyePoint.y = f3EyePoint.y + dir.y;
+    f3EyePoint.z = f3EyePoint.z + dir.z;
+  }
+  else {
+    fFOV = 2.0f * atanf((0.5f * sensor_size * zoom) / bcam.lens) * 180.0f / M_PI_F;
+    f3LookAt.x = f3LookAt.x + dir.x;
+    f3LookAt.y = f3LookAt.y + dir.y;
+    f3LookAt.z = f3LookAt.z + dir.z;
+  }
 
-    float3 up = normalize(transform_direction(&octane_matrix, make_float3(0.0f, 1.0f, 0.0f)));
-    f3UpVector.x = up.x;
-    f3UpVector.y = up.y;
-    f3UpVector.z = up.z;
+  float3 up = normalize(transform_direction(&octane_matrix, make_float3(0.0f, 1.0f, 0.0f)));
+  f3UpVector.x = up.x;
+  f3UpVector.y = up.y;
+  f3UpVector.z = up.z;
 
-    if (cam->motion_blur_times.find(motion_time) != cam->motion_blur_times.end()) {
-      ::OctaneEngine::CameraMotionParam &motionParam =
-          cam->oct_node.oMotionParams.motions[motion_time];
-      motionParam.f3EyePoint.x = f3EyePoint.x;
-      motionParam.f3EyePoint.y = f3EyePoint.y;
-      motionParam.f3EyePoint.z = f3EyePoint.z;
-      motionParam.f3LookAt.x = f3LookAt.x;
-      motionParam.f3LookAt.y = f3LookAt.y;
-      motionParam.f3LookAt.z = f3LookAt.z;
-      motionParam.f3UpVector.x = f3UpVector.x;
-      motionParam.f3UpVector.y = f3UpVector.y;
-      motionParam.f3UpVector.z = f3UpVector.z;
-      motionParam.fFOV = fFOV;
-    }
+  if (cam->motion_blur_times.find(motion_time) != cam->motion_blur_times.end()) {
+    ::OctaneEngine::CameraMotionParam &motionParam =
+        cam->oct_node.oMotionParams.motions[motion_time];
+    motionParam.f3EyePoint.x = f3EyePoint.x;
+    motionParam.f3EyePoint.y = f3EyePoint.y;
+    motionParam.f3EyePoint.z = f3EyePoint.z;
+    motionParam.f3LookAt.x = f3LookAt.x;
+    motionParam.f3LookAt.y = f3LookAt.y;
+    motionParam.f3LookAt.z = f3LookAt.z;
+    motionParam.f3UpVector.x = f3UpVector.x;
+    motionParam.f3UpVector.y = f3UpVector.y;
+    motionParam.f3UpVector.z = f3UpVector.z;
+    motionParam.fFOV = fFOV;
   }
 }
 

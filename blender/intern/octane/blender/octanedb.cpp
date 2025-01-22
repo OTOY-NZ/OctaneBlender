@@ -1,13 +1,13 @@
 #include <stdio.h>
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_global.h"
-#include "BKE_main.h"
+#include "BKE_main.hh"
 #include "BKE_material.h"
 #include "BKE_node.h"
 #include "BKE_scene.h"
 #include "BKE_text.h"
-#include "BKE_node_tree_update.h"
+#include "BKE_node_tree_update.hh"
 
 #include "DNA_material_types.h"
 #include "DNA_text_types.h"

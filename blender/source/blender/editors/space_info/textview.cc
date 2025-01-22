@@ -6,9 +6,11 @@
  * \ingroup spinfo
  */
 
+#include <algorithm>
+
 #include "MEM_guardedalloc.h"
 
-#include "BLF_api.h"
+#include "BLF_api.hh"
 
 #include "BLI_math_color.h"
 #include "BLI_string_utf8.h"
@@ -99,14 +101,14 @@ static int textview_wrap_offsets(
   int i, end; /* Offset as unicode code-point. */
   int j;      /* Offset as bytes. */
   const int tab_columns = TVC_TAB_COLUMNS;
-  const int column_width_max = MAX2(tab_columns, BLI_UTF8_WIDTH_MAX);
+  const int column_width_max = std::max(tab_columns, BLI_UTF8_WIDTH_MAX);
 
   *r_lines = 1;
 
-  *r_offsets = static_cast<int *>(
-      MEM_callocN(sizeof(**r_offsets) *
-                      (str_len * column_width_max / MAX2(1, width - (column_width_max - 1)) + 1),
-                  __func__));
+  *r_offsets = static_cast<int *>(MEM_callocN(
+      sizeof(**r_offsets) *
+          (str_len * column_width_max / std::max(1, width - (column_width_max - 1)) + 1),
+      __func__));
   (*r_offsets)[0] = 0;
 
   for (i = 0, end = width, j = 0; j < str_len && str[j]; j += BLI_str_utf8_size_safe(str + j)) {
@@ -158,7 +160,7 @@ static bool textview_draw_string(TextViewDrawState *tds,
         /* Wrap. */
         if (tot_lines > 1) {
           int iofs = int(float(y_next - tds->mval[1]) / tds->lheight);
-          ofs += offsets[MIN2(iofs, tot_lines - 1)];
+          ofs += offsets[std::min(iofs, tot_lines - 1)];
         }
 
         /* Last part. */
@@ -325,10 +327,10 @@ int textview_draw(TextViewContext *tvc,
   const int mval[2] = {
       (mval_init[0] == INT_MAX) ?
           INT_MAX :
-          CLAMPIS(mval_init[0], tvc->draw_rect.xmin, tvc->draw_rect.xmax) - tvc->draw_rect.xmin,
+          std::clamp(mval_init[0], tvc->draw_rect.xmin, tvc->draw_rect.xmax) - tvc->draw_rect.xmin,
       (mval_init[1] == INT_MAX) ?
           INT_MAX :
-          CLAMPIS(mval_init[1], tvc->draw_rect.ymin, tvc->draw_rect.ymax) + tvc->scroll_ymin,
+          std::clamp(mval_init[1], tvc->draw_rect.ymin, tvc->draw_rect.ymax) + tvc->scroll_ymin,
   };
 
   if (r_mval_pick_offset != nullptr) {

@@ -6,7 +6,7 @@
  * \ingroup edanimation
  */
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_scene.h"
 
 #include "GPU_immediate.h"
@@ -84,7 +84,7 @@ static void draw_current_frame(const Scene *scene,
   char frame_str[64];
   get_current_time_str(scene, display_seconds, current_frame, frame_str, sizeof(frame_str));
   float text_width = UI_fontstyle_string_width(fstyle, frame_str);
-  float box_width = MAX2(text_width + 8 * UI_SCALE_FAC, 24 * UI_SCALE_FAC);
+  float box_width = std::max(text_width + 8 * UI_SCALE_FAC, 24 * UI_SCALE_FAC);
   float box_padding = 3 * UI_SCALE_FAC;
   const int line_outline = max_ii(1, round_fl_to_int(1 * UI_SCALE_FAC));
 
@@ -181,6 +181,13 @@ void ED_time_scrub_draw(const ARegion *region,
   }
 
   GPU_matrix_pop_projection();
+}
+
+rcti ED_time_scrub_clamp_scroller_mask(const rcti &scroller_mask)
+{
+  rcti clamped_mask = scroller_mask;
+  clamped_mask.ymax -= UI_TIME_SCRUB_MARGIN_Y;
+  return clamped_mask;
 }
 
 bool ED_time_scrub_event_in_region(const ARegion *region, const wmEvent *event)

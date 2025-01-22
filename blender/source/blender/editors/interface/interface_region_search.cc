@@ -23,7 +23,7 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_screen.hh"
 
 #include "WM_api.hh"
@@ -564,7 +564,7 @@ static void ui_searchbox_region_draw_fn(const bContext *C, ARegion *region)
     if (data->preview) {
       /* draw items */
       for (int a = 0; a < data->items.totitem; a++) {
-        const int but_flag = ((a == data->active) ? UI_ACTIVE : 0) | data->items.but_flags[a];
+        const int but_flag = ((a == data->active) ? UI_HOVER : 0) | data->items.but_flags[a];
 
         /* ensure icon is up-to-date */
         ui_icon_ensure_deferred(C, data->items.icons[a], data->preview);
@@ -598,7 +598,7 @@ static void ui_searchbox_region_draw_fn(const bContext *C, ARegion *region)
       const int search_sep_len = data->sep_string ? strlen(data->sep_string) : 0;
       /* draw items */
       for (int a = 0; a < data->items.totitem; a++) {
-        const int but_flag = ((a == data->active) ? UI_ACTIVE : 0) | data->items.but_flags[a];
+        const int but_flag = ((a == data->active) ? UI_HOVER : 0) | data->items.but_flags[a];
         char *name = data->items.names[a];
         int icon = data->items.icons[a];
         char *name_sep_test = nullptr;
@@ -616,7 +616,8 @@ static void ui_searchbox_region_draw_fn(const bContext *C, ARegion *region)
 
         /* widget itself */
         if ((search_sep_len == 0) ||
-            !(name_sep_test = strstr(data->items.names[a], data->sep_string))) {
+            !(name_sep_test = strstr(data->items.names[a], data->sep_string)))
+        {
           if (!icon && data->items.has_icon) {
             /* If there is any icon item, make sure all items line up. */
             icon = ICON_BLANK1;
@@ -672,6 +673,17 @@ static void ui_searchbox_region_draw_fn(const bContext *C, ARegion *region)
         GPU_blend(GPU_BLEND_NONE);
       }
     }
+  }
+  else {
+    rcti rect;
+    ui_searchbox_butrect(&rect, data, 0);
+    ui_draw_menu_item(&data->fstyle,
+                      &rect,
+                      IFACE_("No results found"),
+                      0,
+                      0,
+                      UI_MENU_ITEM_SEPARATOR_NONE,
+                      nullptr);
   }
 }
 
@@ -975,7 +987,7 @@ static void ui_searchbox_region_draw_cb__operator(const bContext * /*C*/, ARegio
       /* widget itself */
       /* NOTE: i18n messages extracting tool does the same, please keep it in sync. */
       {
-        const int but_flag = ((a == data->active) ? UI_ACTIVE : 0) | data->items.but_flags[a];
+        const int but_flag = ((a == data->active) ? UI_HOVER : 0) | data->items.but_flags[a];
 
         wmOperatorType *ot = static_cast<wmOperatorType *>(data->items.pointers[a]);
         char text_pre[128];
@@ -1024,6 +1036,17 @@ static void ui_searchbox_region_draw_cb__operator(const bContext * /*C*/, ARegio
       UI_icon_draw(BLI_rcti_size_x(&rect) / 2, rect.ymax - 7, ICON_TRIA_UP);
       GPU_blend(GPU_BLEND_NONE);
     }
+  }
+  else {
+    rcti rect;
+    ui_searchbox_butrect(&rect, data, 0);
+    ui_draw_menu_item(&data->fstyle,
+                      &rect,
+                      IFACE_("No results found"),
+                      0,
+                      0,
+                      UI_MENU_ITEM_SEPARATOR_NONE,
+                      nullptr);
   }
 }
 
@@ -1075,7 +1098,7 @@ void ui_but_search_refresh(uiButSearch *but)
     items->names[i] = (char *)MEM_callocN(but->hardmax + 1, __func__);
   }
 
-  ui_searchbox_update_fn((bContext *)but->block->evil_C, but, but->drawstr, items);
+  ui_searchbox_update_fn((bContext *)but->block->evil_C, but, but->drawstr.c_str(), items);
 
   if (!but->results_are_suggestions) {
     /* Only red-alert when we are sure of it, this can miss cases when >10 matches. */
@@ -1083,7 +1106,7 @@ void ui_but_search_refresh(uiButSearch *but)
       UI_but_flag_enable(but, UI_BUT_REDALERT);
     }
     else if (items->more == 0) {
-      if (UI_search_items_find_index(items, but->drawstr) == -1) {
+      if (UI_search_items_find_index(items, but->drawstr.c_str()) == -1) {
         UI_but_flag_enable(but, UI_BUT_REDALERT);
       }
     }

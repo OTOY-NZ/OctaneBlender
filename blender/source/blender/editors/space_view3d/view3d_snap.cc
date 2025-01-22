@@ -11,18 +11,22 @@
 #include "DNA_armature_types.h"
 #include "DNA_object_types.h"
 
-#include "BLI_array.h"
+#include "BLI_bounds.hh"
 #include "BLI_math_matrix.h"
+#include "BLI_math_matrix.hh"
 #include "BLI_math_vector.h"
+#include "BLI_math_vector.hh"
 #include "BLI_utildefines.h"
+#include "BLI_vector.hh"
 
 #include "BKE_action.h"
-#include "BKE_armature.h"
-#include "BKE_context.h"
-#include "BKE_editmesh.h"
-#include "BKE_layer.h"
-#include "BKE_main.h"
-#include "BKE_mball.h"
+#include "BKE_armature.hh"
+#include "BKE_context.hh"
+#include "BKE_crazyspace.hh"
+#include "BKE_editmesh.hh"
+#include "BKE_layer.hh"
+#include "BKE_main.hh"
+#include "BKE_mball.hh"
 #include "BKE_object.hh"
 #include "BKE_report.h"
 #include "BKE_scene.h"
@@ -37,14 +41,18 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
+#include "ED_curves.hh"
 #include "ED_keyframing.hh"
 #include "ED_object.hh"
 #include "ED_screen.hh"
 #include "ED_transverts.hh"
 
-#include "ANIM_bone_collections.h"
+#include "ANIM_bone_collections.hh"
+#include "ANIM_keyframing.hh"
 
 #include "view3d_intern.h"
+
+using blender::Vector;
 
 static bool snap_curs_to_sel_ex(bContext *C, const int pivot_point, float r_cursor[3]);
 static bool snap_calc_active_center(bContext *C, const bool select_only, float r_center[3]);
@@ -54,7 +62,7 @@ static bool snap_calc_active_center(bContext *C, const bool select_only, float r
  * \{ */
 
 /** Snaps every individual object center to its nearest point on the grid. */
-static int snap_sel_to_grid_exec(bContext *C, wmOperator * /*op*/)
+static int snap_sel_to_grid_exec(bContext *C, wmOperator *op)
 {
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   ViewLayer *view_layer_eval = DEG_get_evaluated_view_layer(depsgraph);
@@ -71,18 +79,19 @@ static int snap_sel_to_grid_exec(bContext *C, wmOperator * /*op*/)
 
   if (OBEDIT_FROM_OBACT(obact)) {
     ViewLayer *view_layer = CTX_data_view_layer(C);
-    uint objects_len = 0;
-    Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-        scene, view_layer, CTX_wm_view3d(C), &objects_len);
-    for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
-      Object *obedit = objects[ob_index];
-
+    Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
+        scene, view_layer, CTX_wm_view3d(C));
+    for (Object *obedit : objects) {
       if (obedit->type == OB_MESH) {
         BMEditMesh *em = BKE_editmesh_from_object(obedit);
 
         if (em->bm->totvertsel == 0) {
           continue;
         }
+      }
+
+      if (ED_object_edit_report_if_shape_key_is_locked(obedit, op->reports)) {
+        continue;
       }
 
       if (ED_transverts_check_obedit(obedit)) {
@@ -110,14 +119,11 @@ static int snap_sel_to_grid_exec(bContext *C, wmOperator * /*op*/)
       }
       ED_transverts_free(&tvs);
     }
-    MEM_freeN(objects);
   }
   else if (OBPOSE_FROM_OBACT(obact)) {
     KeyingSet *ks = ANIM_get_keyingset_for_autokeying(scene, ANIM_KS_LOCATION_ID);
-    uint objects_len = 0;
-    Object **objects_eval = BKE_object_pose_array_get(scene, view_layer_eval, v3d, &objects_len);
-    for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
-      Object *ob_eval = objects_eval[ob_index];
+    Vector<Object *> objects_eval = BKE_object_pose_array_get(scene, view_layer_eval, v3d);
+    for (Object *ob_eval : objects_eval) {
       Object *ob = DEG_get_original_object(ob_eval);
       bArmature *arm_eval = static_cast<bArmature *>(ob_eval->data);
 
@@ -155,7 +161,7 @@ static int snap_sel_to_grid_exec(bContext *C, wmOperator * /*op*/)
               }
 
               /* auto-keyframing */
-              ED_autokeyframe_pchan(C, scene, ob, pchan, ks);
+              blender::animrig::autokeyframe_pchan(C, scene, ob, pchan, ks);
             }
             /* if the bone has a parent and is connected to the parent,
              * don't do anything - will break chain unless we do auto-ik.
@@ -167,7 +173,6 @@ static int snap_sel_to_grid_exec(bContext *C, wmOperator * /*op*/)
 
       DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
     }
-    MEM_freeN(objects_eval);
   }
   else {
     /* Object mode. */
@@ -183,40 +188,32 @@ static int snap_sel_to_grid_exec(bContext *C, wmOperator * /*op*/)
     XFormObjectData_Container *xds = nullptr;
 
     /* Build object array. */
-    Object **objects_eval = nullptr;
-    uint objects_eval_len;
+    Vector<Object *> objects_eval;
     {
-      BLI_array_declare(objects_eval);
       FOREACH_SELECTED_EDITABLE_OBJECT_BEGIN (view_layer_eval, v3d, ob_eval) {
-        BLI_array_append(objects_eval, ob_eval);
+        objects_eval.append(ob_eval);
       }
       FOREACH_SELECTED_EDITABLE_OBJECT_END;
-      objects_eval_len = BLI_array_len(objects_eval);
     }
 
     if (use_transform_skip_children) {
       ViewLayer *view_layer = CTX_data_view_layer(C);
 
-      Object **objects = static_cast<Object **>(
-          MEM_malloc_arrayN(objects_eval_len, sizeof(*objects), __func__));
-
-      for (int ob_index = 0; ob_index < objects_eval_len; ob_index++) {
-        Object *ob_eval = objects_eval[ob_index];
-        objects[ob_index] = DEG_get_original_object(ob_eval);
+      Vector<Object *> objects(objects_eval.size());
+      for (Object *ob_eval : objects_eval) {
+        objects.append_unchecked(DEG_get_original_object(ob_eval));
       }
       BKE_scene_graph_evaluated_ensure(depsgraph, bmain);
       xcs = ED_object_xform_skip_child_container_create();
       ED_object_xform_skip_child_container_item_ensure_from_array(
-          xcs, scene, view_layer, objects, objects_eval_len);
-      MEM_freeN(objects);
+          xcs, scene, view_layer, objects.data(), objects.size());
     }
     if (use_transform_data_origin) {
       BKE_scene_graph_evaluated_ensure(depsgraph, bmain);
       xds = ED_object_data_xform_container_create();
     }
 
-    for (int ob_index = 0; ob_index < objects_eval_len; ob_index++) {
-      Object *ob_eval = objects_eval[ob_index];
+    for (Object *ob_eval : objects_eval) {
       Object *ob = DEG_get_original_object(ob_eval);
       vec[0] = -ob_eval->object_to_world[3][0] +
                gridf * floorf(0.5f + ob_eval->object_to_world[3][0] / gridf);
@@ -243,17 +240,13 @@ static int snap_sel_to_grid_exec(bContext *C, wmOperator * /*op*/)
       }
 
       /* auto-keyframing */
-      ED_autokeyframe_object(C, scene, ob, ks);
+      blender::animrig::autokeyframe_object(C, scene, ob, ks);
 
       if (use_transform_data_origin) {
         ED_object_data_xform_container_item_ensure(xds, ob);
       }
 
       DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
-    }
-
-    if (objects_eval) {
-      MEM_freeN(objects_eval);
     }
 
     if (use_transform_skip_children) {
@@ -302,6 +295,7 @@ void VIEW3D_OT_snap_selected_to_grid(wmOperatorType *ot)
  * or if every object origin should be snapped to the given location.
  */
 static bool snap_selected_to_location(bContext *C,
+                                      wmOperator *op,
                                       const float snap_target_global[3],
                                       const bool use_offset,
                                       const int pivot_point,
@@ -331,10 +325,9 @@ static bool snap_selected_to_location(bContext *C,
   if (obedit) {
     float snap_target_local[3];
     ViewLayer *view_layer = CTX_data_view_layer(C);
-    uint objects_len = 0;
-    Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-        scene, view_layer, v3d, &objects_len);
-    for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+    Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
+        scene, view_layer, v3d);
+    for (const int ob_index : objects.index_range()) {
       obedit = objects[ob_index];
 
       if (obedit->type == OB_MESH) {
@@ -343,6 +336,10 @@ static bool snap_selected_to_location(bContext *C,
         if (em->bm->totvertsel == 0) {
           continue;
         }
+      }
+
+      if (ED_object_edit_report_if_shape_key_is_locked(obedit, op->reports)) {
+        continue;
       }
 
       if (ED_transverts_check_obedit(obedit)) {
@@ -377,16 +374,13 @@ static bool snap_selected_to_location(bContext *C,
       }
       ED_transverts_free(&tvs);
     }
-    MEM_freeN(objects);
   }
   else if (OBPOSE_FROM_OBACT(obact)) {
     KeyingSet *ks = ANIM_get_keyingset_for_autokeying(scene, ANIM_KS_LOCATION_ID);
     ViewLayer *view_layer = CTX_data_view_layer(C);
-    uint objects_len = 0;
-    Object **objects = BKE_object_pose_array_get(scene, view_layer, v3d, &objects_len);
+    Vector<Object *> objects = BKE_object_pose_array_get(scene, view_layer, v3d);
 
-    for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
-      Object *ob = objects[ob_index];
+    for (Object *ob : objects) {
       bArmature *arm = static_cast<bArmature *>(ob->data);
       float snap_target_local[3];
 
@@ -440,7 +434,7 @@ static bool snap_selected_to_location(bContext *C,
             }
 
             /* auto-keyframing */
-            ED_autokeyframe_pchan(C, scene, ob, pchan, ks);
+            blender::animrig::autokeyframe_pchan(C, scene, ob, pchan, ks);
           }
           else {
             copy_v3_v3(pchan->loc, cursor_pose);
@@ -456,7 +450,6 @@ static bool snap_selected_to_location(bContext *C,
 
       DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
     }
-    MEM_freeN(objects);
   }
   else {
     KeyingSet *ks = ANIM_get_keyingset_for_autokeying(scene, ANIM_KS_LOCATION_ID);
@@ -472,16 +465,13 @@ static bool snap_selected_to_location(bContext *C,
 
     /* Build object array, tag objects we're transforming. */
     ViewLayer *view_layer = CTX_data_view_layer(C);
-    Object **objects = nullptr;
-    uint objects_len;
+    Vector<Object *> objects;
     {
-      BLI_array_declare(objects);
       FOREACH_SELECTED_EDITABLE_OBJECT_BEGIN (view_layer, v3d, ob) {
-        BLI_array_append(objects, ob);
+        objects.append(ob);
         ob->flag |= OB_DONE;
       }
       FOREACH_SELECTED_EDITABLE_OBJECT_END;
-      objects_len = BLI_array_len(objects);
     }
 
     const bool use_transform_skip_children = use_toolsettings &&
@@ -497,7 +487,7 @@ static bool snap_selected_to_location(bContext *C,
       BKE_scene_graph_evaluated_ensure(depsgraph, bmain);
       xcs = ED_object_xform_skip_child_container_create();
       ED_object_xform_skip_child_container_item_ensure_from_array(
-          xcs, scene, view_layer, objects, objects_len);
+          xcs, scene, view_layer, objects.data(), objects.size());
     }
     if (use_transform_data_origin) {
       BKE_scene_graph_evaluated_ensure(depsgraph, bmain);
@@ -505,14 +495,12 @@ static bool snap_selected_to_location(bContext *C,
 
       /* Initialize the transform data in a separate loop because the depsgraph
        * may be evaluated while setting the locations. */
-      for (int ob_index = 0; ob_index < objects_len; ob_index++) {
-        Object *ob = objects[ob_index];
+      for (Object *ob : objects) {
         ED_object_data_xform_container_item_ensure(xds, ob);
       }
     }
 
-    for (int ob_index = 0; ob_index < objects_len; ob_index++) {
-      Object *ob = objects[ob_index];
+    for (Object *ob : objects) {
       if (ob->parent && BKE_object_flag_test_recursive(ob->parent, OB_DONE)) {
         continue;
       }
@@ -531,7 +519,7 @@ static bool snap_selected_to_location(bContext *C,
       if (ob->parent) {
         float originmat[3][3], parentmat[4][4];
         /* Use the evaluated object here because sometimes
-         * `ob->parent->runtime.curve_cache` is required. */
+         * `ob->parent->runtime->curve_cache` is required. */
         BKE_scene_graph_evaluated_ensure(depsgraph, bmain);
         Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
 
@@ -552,17 +540,13 @@ static bool snap_selected_to_location(bContext *C,
         }
 
         /* auto-keyframing */
-        ED_autokeyframe_object(C, scene, ob, ks);
+        blender::animrig::autokeyframe_object(C, scene, ob, ks);
       }
       else {
         add_v3_v3(ob->loc, cursor_parent);
       }
 
       DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
-    }
-
-    if (objects) {
-      MEM_freeN(objects);
     }
 
     if (use_transform_skip_children) {
@@ -581,6 +565,7 @@ static bool snap_selected_to_location(bContext *C,
 }
 
 bool ED_view3d_snap_selected_to_location(bContext *C,
+                                         wmOperator *op,
                                          const float snap_target_global[3],
                                          const int pivot_point)
 {
@@ -591,7 +576,7 @@ bool ED_view3d_snap_selected_to_location(bContext *C,
    * so this can be used as a low level function. */
   const bool use_toolsettings = false;
   return snap_selected_to_location(
-      C, snap_target_global, use_offset, pivot_point, use_toolsettings);
+      C, op, snap_target_global, use_offset, pivot_point, use_toolsettings);
 }
 
 /** \} */
@@ -609,7 +594,7 @@ static int snap_selected_to_cursor_exec(bContext *C, wmOperator *op)
   const float *snap_target_global = scene->cursor.location;
   const int pivot_point = scene->toolsettings->transform_pivot_point;
 
-  if (snap_selected_to_location(C, snap_target_global, use_offset, pivot_point, true)) {
+  if (snap_selected_to_location(C, op, snap_target_global, use_offset, pivot_point, true)) {
     return OPERATOR_FINISHED;
   }
   return OPERATOR_CANCELLED;
@@ -653,7 +638,7 @@ static int snap_selected_to_active_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  if (!snap_selected_to_location(C, snap_target_global, false, -1, true)) {
+  if (!snap_selected_to_location(C, op, snap_target_global, false, -1, true)) {
     return OPERATOR_CANCELLED;
   }
   return OPERATOR_FINISHED;
@@ -792,10 +777,9 @@ static bool snap_curs_to_sel_ex(bContext *C, const int pivot_point, float r_curs
 
   if (obedit) {
     ViewLayer *view_layer = CTX_data_view_layer(C);
-    uint objects_len = 0;
-    Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-        scene, view_layer, CTX_wm_view3d(C), &objects_len);
-    for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+    Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
+        scene, view_layer, CTX_wm_view3d(C));
+    for (const int ob_index : objects.index_range()) {
       obedit = objects[ob_index];
 
       /* We can do that quick check for meshes only... */
@@ -827,7 +811,6 @@ static bool snap_curs_to_sel_ex(bContext *C, const int pivot_point, float r_curs
       }
       ED_transverts_free(&tvs);
     }
-    MEM_freeN(objects);
   }
   else {
     Object *obact = CTX_data_active_object(C);
@@ -1001,8 +984,32 @@ void VIEW3D_OT_snap_cursor_to_center(wmOperatorType *ot)
 /** \name Min/Max Object Vertices Utility
  * \{ */
 
+static std::optional<blender::Bounds<blender::float3>> bounds_min_max_with_transform(
+    const blender::float4x4 &transform,
+    const blender::Span<blender::float3> positions,
+    const blender::IndexMask &mask)
+{
+  using namespace blender;
+  if (mask.is_empty()) {
+    return std::nullopt;
+  }
+  return threading::parallel_reduce(
+      mask.index_range(),
+      1024,
+      Bounds<float3>(math::transform_point(transform, positions.first())),
+      [&](const IndexRange range, Bounds<float3> init) {
+        mask.slice(range).foreach_index([&](const int i) {
+          math::min_max(math::transform_point(transform, positions[i]), init.min, init.max);
+        });
+        return init;
+      },
+      [](const Bounds<float3> &a, const Bounds<float3> &b) { return bounds::merge(a, b); });
+}
+
 bool ED_view3d_minmax_verts(Object *obedit, float r_min[3], float r_max[3])
 {
+  using namespace blender;
+  using namespace blender::ed;
   TransVertStore tvs = {nullptr};
   TransVert *tv;
   float centroid[3], vec[3], bmat[3][3];
@@ -1022,6 +1029,27 @@ bool ED_view3d_minmax_verts(Object *obedit, float r_min[3], float r_max[3])
       minmax_v3v3_v3(r_min, r_max, ob_max);
     }
     return changed;
+  }
+  if (obedit->type == OB_CURVES) {
+    const Object &ob_orig = *DEG_get_original_object(obedit);
+    const Curves &curves_id = *static_cast<const Curves *>(ob_orig.data);
+    const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
+
+    IndexMaskMemory memory;
+    const IndexMask mask = curves::retrieve_selected_points(curves, memory);
+
+    const bke::crazyspace::GeometryDeformation deformation =
+        bke::crazyspace::get_evaluated_curves_deformation(obedit, ob_orig);
+
+    const std::optional<Bounds<float3>> curves_bounds = bounds_min_max_with_transform(
+        float4x4(obedit->object_to_world), deformation.positions, mask);
+
+    if (curves_bounds) {
+      minmax_v3v3_v3(r_min, r_max, curves_bounds->min);
+      minmax_v3v3_v3(r_min, r_max, curves_bounds->max);
+      return true;
+    }
+    return false;
   }
 
   if (ED_transverts_check_obedit(obedit)) {

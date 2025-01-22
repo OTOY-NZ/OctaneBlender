@@ -16,13 +16,13 @@ else()
     set(LIBDIR_NATIVE_ABI ${CMAKE_SOURCE_DIR}/../lib/${LIBDIR_NAME})
 
     # Path to precompiled libraries with known glibc 2.28 ABI.
-    set(LIBDIR_GLIBC228_ABI ${CMAKE_SOURCE_DIR}/../lib/linux_x86_64_glibc_228)
+    set(LIBDIR_GLIBC228_ABI ${CMAKE_SOURCE_DIR}/lib/linux_x64)
 
     # Choose the best suitable libraries.
     if(EXISTS ${LIBDIR_NATIVE_ABI})
       set(LIBDIR ${LIBDIR_NATIVE_ABI})
       set(WITH_LIBC_MALLOC_HOOK_WORKAROUND TRUE)
-    elseif(EXISTS ${LIBDIR_GLIBC228_ABI})
+    elseif(EXISTS "${LIBDIR_GLIBC228_ABI}/.git")
       set(LIBDIR ${LIBDIR_GLIBC228_ABI})
       if(WITH_MEM_JEMALLOC)
         # jemalloc provides malloc hooks.
@@ -37,21 +37,25 @@ else()
     unset(LIBDIR_GLIBC228_ABI)
   endif()
 
-  if(NOT (EXISTS ${LIBDIR}))
+  if(NOT DEFINED LIBDIR)
+    set(LIBDIR "")  # Suppress undefined warnings, allow printing even if empty.
+  endif()
+  if((LIBDIR STREQUAL "") OR (NOT (EXISTS "${LIBDIR}")))
     message(STATUS
-      "Unable to find LIBDIR: ${LIBDIR}, system libraries may be used "
+      "Unable to find LIBDIR: \"${LIBDIR}\", system libraries may be used "
       "(disable WITH_LIBS_PRECOMPILED to suppress this message)."
     )
     unset(LIBDIR)
   endif()
 endif()
 
-
 # Support restoring this value once pre-compiled libraries have been handled.
 set(WITH_STATIC_LIBS_INIT ${WITH_STATIC_LIBS})
 
 if(DEFINED LIBDIR)
-  message(STATUS "Using pre-compiled LIBDIR: ${LIBDIR}")
+  if(FIRST_RUN)
+    message(STATUS "Using pre-compiled LIBDIR: ${LIBDIR}")
+  endif()
 
   file(GLOB LIB_SUBDIRS ${LIBDIR}/*)
 
@@ -113,27 +117,61 @@ find_package_wrapper(Epoxy REQUIRED)
 # XXX Linking errors with debian static tiff :/
 # find_package_wrapper(TIFF REQUIRED)
 find_package(TIFF)
-
-if(WITH_VULKAN_BACKEND)
-  find_package_wrapper(Vulkan REQUIRED)
-  find_package_wrapper(ShaderC REQUIRED)
+# CMake 3.28.1 defines this, it doesn't seem to be used, hide by default in the UI.
+if(DEFINED tiff_DIR)
+  mark_as_advanced(tiff_DIR)
 endif()
 
-function(check_freetype_for_brotli)
-  include(CheckSymbolExists)
-  set(CMAKE_REQUIRED_INCLUDES ${FREETYPE_INCLUDE_DIRS})
-  check_symbol_exists(FT_CONFIG_OPTION_USE_BROTLI "freetype/config/ftconfig.h" HAVE_BROTLI)
-  unset(CMAKE_REQUIRED_INCLUDES)
-  if(NOT HAVE_BROTLI)
-    unset(HAVE_BROTLI CACHE)
-    message(FATAL_ERROR "Freetype needs to be compiled with brotli support!")
+if(WITH_VULKAN_BACKEND)
+  if(DEFINED LIBDIR)
+    # If these are missing, something went wrong (outdated LIBDIR?).
+    if(NOT ((EXISTS "${LIBDIR}/vulkan") AND (EXISTS "${LIBDIR}/shaderc")))
+      message(FATAL_ERROR "${LIBDIR}/vulkan & ${LIBDIR}/shaderc are missing!")
+    endif()
+    if(NOT DEFINED VULKAN_ROOT_DIR)
+      set(VULKAN_ROOT_DIR ${LIBDIR}/vulkan)
+    endif()
+    if(NOT DEFINED SHADERC_ROOT_DIR)
+      set(SHADERC_ROOT_DIR ${LIBDIR}/shaderc)
+    endif()
+
+    find_package_wrapper(Vulkan REQUIRED)
+    find_package_wrapper(ShaderC REQUIRED)
+  else()
+    # Use system libs
+    find_package(PkgConfig)
+    pkg_check_modules(VULKAN REQUIRED vulkan)
+    pkg_check_modules(SHADERC REQUIRED shaderc)
   endif()
-  unset(HAVE_BROTLI CACHE)
+endif()
+add_bundled_libraries(vulkan/lib)
+
+function(check_freetype_for_brotli)
+  if((DEFINED HAVE_BROTLI AND HAVE_BROTLI) AND
+     (DEFINED HAVE_BROTLI_INC AND ("${HAVE_BROTLI_INC}" STREQUAL "${FREETYPE_INCLUDE_DIRS}")))
+    # Pass, the includes didn't change, use the cached value.
+  else()
+    unset(HAVE_BROTLI CACHE)
+    include(CheckSymbolExists)
+    set(CMAKE_REQUIRED_INCLUDES ${FREETYPE_INCLUDE_DIRS})
+    check_symbol_exists(FT_CONFIG_OPTION_USE_BROTLI "freetype/config/ftconfig.h" HAVE_BROTLI)
+    unset(CMAKE_REQUIRED_INCLUDES)
+    if(NOT HAVE_BROTLI)
+      unset(HAVE_BROTLI CACHE)
+      message(FATAL_ERROR "Freetype needs to be compiled with brotli support!")
+    endif()
+    set(HAVE_BROTLI_INC "${FREETYPE_INCLUDE_DIRS}" CACHE INTERNAL "")
+  endif()
 endfunction()
 
 if(NOT WITH_SYSTEM_FREETYPE)
   # FreeType compiled with Brotli compression for woff2.
   find_package_wrapper(Freetype REQUIRED)
+  # CMake 3.28.1 defines this, it doesn't seem to be used, hide by default in the UI.
+  if(DEFINED freetype_DIR)
+    mark_as_advanced(freetype_DIR)
+  endif()
+
   if(DEFINED LIBDIR)
     find_package_wrapper(Brotli REQUIRED)
 
@@ -149,6 +187,14 @@ if(NOT WITH_SYSTEM_FREETYPE)
     set(BROTLI_LIBRARIES "")
   endif()
   check_freetype_for_brotli()
+endif()
+
+if(WITH_HARFBUZZ)
+  find_package(Harfbuzz)
+endif()
+
+if(WITH_FRIBIDI)
+  find_package(Fribidi)
 endif()
 
 if(WITH_PYTHON)
@@ -306,9 +352,11 @@ if(WITH_INPUT_NDOF)
 endif()
 
 if(WITH_CYCLES AND WITH_CYCLES_OSL)
-  set(CYCLES_OSL ${LIBDIR}/osl CACHE PATH "Path to OpenShadingLanguage installation")
-  if(EXISTS ${CYCLES_OSL} AND NOT OSL_ROOT)
-    set(OSL_ROOT ${CYCLES_OSL})
+  if(DEFINED LIBDIR)
+    set(CYCLES_OSL ${LIBDIR}/osl CACHE PATH "Path to OpenShadingLanguage installation")
+    if(EXISTS ${CYCLES_OSL} AND NOT OSL_ROOT)
+      set(OSL_ROOT ${CYCLES_OSL})
+    endif()
   endif()
   find_package_wrapper(OSL)
   set_and_warn_library_found("OSL" OSL_FOUND WITH_CYCLES_OSL)
@@ -325,8 +373,9 @@ if(WITH_CYCLES AND WITH_CYCLES_OSL)
     endif()
   endif()
 endif()
+add_bundled_libraries(osl/lib)
 
-if(WITH_CYCLES AND WITH_CYCLES_DEVICE_ONEAPI)
+if(WITH_CYCLES AND WITH_CYCLES_DEVICE_ONEAPI AND DEFINED LIBDIR)
   set(CYCLES_LEVEL_ZERO ${LIBDIR}/level-zero CACHE PATH "Path to Level Zero installation")
   mark_as_advanced(CYCLES_LEVEL_ZERO)
   if(EXISTS ${CYCLES_LEVEL_ZERO} AND NOT LEVEL_ZERO_ROOT_DIR)
@@ -453,7 +502,9 @@ if(WITH_PUGIXML)
 endif()
 
 if(WITH_IMAGE_WEBP)
-  set(WEBP_ROOT_DIR ${LIBDIR}/webp)
+  if(DEFINED LIBDIR)
+    set(WEBP_ROOT_DIR ${LIBDIR}/webp)
+  endif()
   find_package_wrapper(WebP)
   set_and_warn_library_found("WebP" WEBP_FOUND WITH_IMAGE_WEBP)
 endif()
@@ -477,6 +528,7 @@ add_bundled_libraries(embree/lib)
 if(WITH_OPENIMAGEDENOISE)
   find_package_wrapper(OpenImageDenoise)
   set_and_warn_library_found("OpenImageDenoise" OPENIMAGEDENOISE_FOUND WITH_OPENIMAGEDENOISE)
+  add_bundled_libraries(openimagedenoise/lib)
 endif()
 
 if(WITH_LLVM)
@@ -540,10 +592,13 @@ endif()
 
 if(WITH_CYCLES AND WITH_CYCLES_PATH_GUIDING)
   find_package_wrapper(openpgl)
+  mark_as_advanced(openpgl_DIR)
   if(openpgl_FOUND)
     get_target_property(OPENPGL_LIBRARIES openpgl::openpgl LOCATION)
     get_target_property(OPENPGL_INCLUDE_DIR openpgl::openpgl INTERFACE_INCLUDE_DIRECTORIES)
-    message(STATUS "Found OpenPGL: ${OPENPGL_LIBRARIES}")
+    if(FIRST_RUN)
+      message(STATUS "Found OpenPGL: ${OPENPGL_LIBRARIES}")
+    endif()
   else()
     set(WITH_CYCLES_PATH_GUIDING OFF)
     message(STATUS "OpenPGL not found, disabling WITH_CYCLES_PATH_GUIDING")
@@ -652,10 +707,11 @@ if(WITH_GHOST_WAYLAND)
   # When dynamically linked WAYLAND is used and `${LIBDIR}/wayland` is present,
   # there is no need to search for the libraries as they are not needed for building.
   # Only the headers are needed which can reference the known paths.
-  if((DEFINED LIBDIR) AND (EXISTS "${LIBDIR}/wayland" AND WITH_GHOST_WAYLAND_DYNLOAD))
-    set(_use_system_wayland OFF)
-  else()
-    set(_use_system_wayland ON)
+  set(_use_system_wayland ON)
+  if(DEFINED LIBDIR)
+    if(EXISTS "${LIBDIR}/wayland" AND WITH_GHOST_WAYLAND_DYNLOAD)
+      set(_use_system_wayland OFF)
+    endif()
   endif()
 
   if(_use_system_wayland)
@@ -710,10 +766,6 @@ if(WITH_GHOST_WAYLAND)
   set_and_warn_library_found("xkbcommon" xkbcommon_FOUND WITH_GHOST_WAYLAND)
 
   if(WITH_GHOST_WAYLAND)
-    if(WITH_GHOST_WAYLAND_DBUS)
-      pkg_check_modules(dbus REQUIRED dbus-1)
-    endif()
-
     if(WITH_GHOST_WAYLAND_LIBDECOR)
       if(_use_system_wayland)
         pkg_check_modules(libdecor libdecor-0>=0.1)
@@ -724,16 +776,15 @@ if(WITH_GHOST_WAYLAND)
       set_and_warn_library_found("libdecor" libdecor_FOUND WITH_GHOST_WAYLAND_LIBDECOR)
     endif()
 
-    if(WITH_GHOST_WAYLAND_DBUS)
-      add_definitions(-DWITH_GHOST_WAYLAND_DBUS)
-    endif()
-
     if(WITH_GHOST_WAYLAND_LIBDECOR)
       add_definitions(-DWITH_GHOST_WAYLAND_LIBDECOR)
     endif()
 
-    if((DEFINED LIBDIR) AND (EXISTS "${LIBDIR}/wayland/bin/wayland-scanner"))
+    if(DEFINED LIBDIR)
       set(WAYLAND_SCANNER "${LIBDIR}/wayland/bin/wayland-scanner")
+      if(NOT (EXISTS "${WAYLAND_SCANNER}"))
+        message(FATAL_ERROR "${WAYLAND_SCANNER} is missing!")
+      endif()
     else()
       pkg_get_variable(WAYLAND_SCANNER wayland-scanner wayland_scanner)
     endif()
@@ -778,6 +829,8 @@ endif()
 
 if(WITH_GHOST_X11)
   find_package(X11 REQUIRED)
+  # For some reason the finder doesn't mark this.
+  mark_as_advanced(X11_xcb_xkb_INCLUDE_PATH)
 
   find_path(X11_XF86keysym_INCLUDE_PATH X11/XF86keysym.h ${X11_INC_SEARCH_PATH})
   mark_as_advanced(X11_XF86keysym_INCLUDE_PATH)
@@ -1070,4 +1123,8 @@ if(PLATFORM_BUNDLED_LIBRARIES)
   set(PLATFORM_ENV_BUILD "LD_LIBRARY_PATH=\"${_library_paths}:$LD_LIBRARY_PATH\"")
   set(PLATFORM_ENV_INSTALL "LD_LIBRARY_PATH=${CMAKE_INSTALL_PREFIX_WITH_CONFIG}/lib/;$LD_LIBRARY_PATH")
   unset(_library_paths)
+else()
+  # Quiet unused variable warnings, unfortunately this can't be empty.
+  set(PLATFORM_ENV_BUILD "_DUMMY_ENV_VAR_=1")
+  set(PLATFORM_ENV_INSTALL "_DUMMY_ENV_VAR_=1")
 endif()

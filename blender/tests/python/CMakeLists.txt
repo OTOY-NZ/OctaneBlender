@@ -8,7 +8,7 @@
 # and don't give deterministic results
 set(USE_EXPERIMENTAL_TESTS FALSE)
 
-set(TEST_SRC_DIR ${CMAKE_SOURCE_DIR}/../lib/tests)
+set(TEST_SRC_DIR ${CMAKE_SOURCE_DIR}/tests/data)
 set(TEST_PYTHON_DIR ${CMAKE_SOURCE_DIR}/tests/python)
 set(TEST_OUT_DIR ${CMAKE_BINARY_DIR}/tests)
 
@@ -22,24 +22,76 @@ file(MAKE_DIRECTORY ${TEST_OUT_DIR}/blendfile_io)
 # endif()
 
 # Run Blender command with parameters.
-function(add_blender_test testname)
+function(add_blender_test_impl testname envvars_list exe)
   add_test(
     NAME ${testname}
-    COMMAND "${TEST_BLENDER_EXE}" ${TEST_BLENDER_EXE_PARAMS} ${ARGN}
+    COMMAND ${exe} ${ARGN}
   )
-
-  # Don't fail tests on leaks since these often happen in external libraries that we can't fix.
-  set(_lsan_options "exitcode=0")
-  if(DEFINED ENV{LSAN_OPTIONS})
-    set(_lsan_options "${_lsan_options}:$ENV{LSAN_OPTIONS}")
-  endif()
-  set_tests_properties(${testname} PROPERTIES ENVIRONMENT "LSAN_OPTIONS=${_lsan_options}")
-  unset(_lsan_options)
-
-  if(PLATFORM_ENV_INSTALL)
-    set_tests_properties(${testname} PROPERTIES ENVIRONMENT "${PLATFORM_ENV_INSTALL}")
-  endif()
+  blender_test_set_envvars("${testname}" "${envvars_list}")
 endfunction()
+
+function(add_blender_test testname)
+  add_blender_test_impl(
+    "${testname}"
+    ""
+    "${TEST_BLENDER_EXE}"
+    ${TEST_BLENDER_EXE_PARAMS}
+    ${ARGN}
+  )
+endfunction()
+
+if(WITH_UI_TESTS)
+  set(_blender_headless_env_vars "BLENDER_BIN=${TEST_BLENDER_EXE}")
+
+  # Currently only WAYLAND is supported, support for others may be added later.
+  # In this case none of the WESTON environment variables will be used.
+  if(WITH_GHOST_WAYLAND)
+    set(_weston_bin_in_libdir OFF)
+    if(DEFINED LIBDIR)
+      set(_weston_bin_default "${LIBDIR}/wayland_weston/bin/weston")
+    else()
+      set(_weston_bin_default "weston")
+    endif()
+    set(WESTON_BIN "${_weston_bin_default}" CACHE STRING "\
+The location of weston, leave blank for the default location."
+    )
+    mark_as_advanced(WESTON_BIN)
+    if((DEFINED LIBDIR) AND ("${WESTON_BIN}" STREQUAL "${_weston_bin_default}"))
+      set(_weston_bin_in_libdir ON)
+    endif()
+
+    list(APPEND _blender_headless_env_vars
+      "WESTON_BIN=${WESTON_BIN}"
+    )
+
+    if(_weston_bin_in_libdir)
+      list(APPEND _blender_headless_env_vars
+        "WAYLAND_ROOT_DIR=${LIBDIR}/wayland"
+        "WESTON_ROOT_DIR=${LIBDIR}/wayland_weston"
+      )
+    endif()
+  endif()
+
+  function(add_blender_test_headless testname)
+    # Remove `--background` so headless execution uses a GUI
+    # (within a headless graphical environment).
+    set(EXE_PARAMS ${TEST_BLENDER_EXE_PARAMS})
+    list(REMOVE_ITEM EXE_PARAMS --background)
+    add_blender_test_impl(
+      "${testname}"
+      "${_blender_headless_env_vars}"
+      "${TEST_PYTHON_EXE}"
+      "${CMAKE_SOURCE_DIR}/tests/utils/blender_headless.py"
+      # NOTE: attempting to maximize the window causes problems with a headless `weston`,
+      # while this could be investigated, use windowed mode instead.
+      # Use a window size that balances software GPU rendering with enough room to use the UI.
+      --factory-startup
+      -p 0 0 800 600
+      "${EXE_PARAMS}"
+      "${ARGN}"
+    )
+  endfunction()
+endif()
 
 # Run Python script outside Blender.
 function(add_python_test testname testscript)
@@ -52,17 +104,16 @@ function(add_python_test testname testscript)
     COMMAND ${TEST_PYTHON_EXE} ${TEST_PYTHON_EXE_EXTRA_ARGS} ${testscript} ${ARGN}
     WORKING_DIRECTORY $<TARGET_FILE_DIR:blender>
   )
+  blender_test_set_envvars("${testname}" "")
+endfunction()
 
-  set(_lsan_options "exitcode=0")
-  if(DEFINED ENV{LSAN_OPTIONS})
-    set(_lsan_options "${_lsan_options}:$ENV{LSAN_OPTIONS}")
+# Run Python render test.
+function(add_render_test testname testscript)
+  set(_args ${ARGN} -blender "${TEST_BLENDER_EXE}" -oiiotool "${OPENIMAGEIO_TOOL}")
+  if(WITH_TESTS_BATCHED)
+    list(APPEND _args --batch)
   endif()
-  set_tests_properties(${testname} PROPERTIES ENVIRONMENT "LSAN_OPTIONS=${_lsan_options}")
-  unset(_lsan_options)
-
-  if(PLATFORM_ENV_INSTALL)
-    set_tests_properties(${testname} PROPERTIES ENVIRONMENT "${PLATFORM_ENV_INSTALL}")
-  endif()
+  add_python_test(${testname} ${testscript} ${_args})
 endfunction()
 
 # ------------------------------------------------------------------------------
@@ -214,6 +265,14 @@ add_blender_test(
   --run-all-tests
 )
 
+add_blender_test(
+  curves_extrude
+  ${TEST_SRC_DIR}/modeling/curves_extrude.blend
+  --python ${TEST_PYTHON_DIR}/curves_extrude.py
+  --
+  --run-all-tests
+)
+
 # ------------------------------------------------------------------------------
 # MODIFIERS TESTS
 add_blender_test(
@@ -309,10 +368,34 @@ add_blender_test(
 # ------------------------------------------------------------------------------
 # ANIMATION TESTS
 add_blender_test(
+  bl_animation_armature
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_animation_armature.py
+)
+
+add_blender_test(
+  bl_animation_drivers
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_animation_drivers.py
+  --
+  --testdir "${TEST_SRC_DIR}/animation"
+)
+
+add_blender_test(
   bl_animation_fcurves
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_animation_fcurves.py
   --
   --testdir "${TEST_SRC_DIR}/animation"
+)
+
+add_blender_test(
+  bl_animation_keyframing
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_animation_keyframing.py
+  --
+  --testdir "${TEST_SRC_DIR}/animation"
+)
+
+add_blender_test(
+  bl_animation_nla_strip
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_animation_nla_strip.py
 )
 
 add_blender_test(
@@ -324,6 +407,13 @@ add_blender_test(
 
 # ------------------------------------------------------------------------------
 # NODE GROUP TESTS
+add_blender_test(
+  bl_node_field_type_inference
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_node_field_type_inference.py
+  --
+  --testdir "${TEST_SRC_DIR}/node_group"
+)
+
 add_blender_test(
   bl_node_group_compat
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_node_group_compat.py
@@ -340,66 +430,6 @@ add_blender_test(
 
 # ------------------------------------------------------------------------------
 # IO TESTS
-
-# STL Import tests
-# disabled until updated & working
-if(FALSE)
-add_blender_test(
-  import_stl_cube
-  --python ${CMAKE_CURRENT_LIST_DIR}/bl_test.py --
-  --run={'FINISHED'}&bpy.ops.import_mesh.stl\(filepath='${TEST_SRC_DIR}/io_tests/stl/cube.stl'\)
-  --md5=8ceb5bb7e1cb5f4342fa1669988c66b4 --md5_method=SCENE
-  --write-blend=${TEST_OUT_DIR}/io_tests/import_stl_cube.blend
-)
-
-add_blender_test(
-  import_stl_conrod
-  --python ${CMAKE_CURRENT_LIST_DIR}/bl_test.py --
-  --run={'FINISHED'}&bpy.ops.import_mesh.stl\(filepath='${TEST_SRC_DIR}/io_tests/stl/conrod.stl'\)
-  --md5=690a4b8eb9002dcd8631c5a575ea7348 --md5_method=SCENE
-  --write-blend=${TEST_OUT_DIR}/io_tests/import_stl_conrod.blend
-)
-
-add_blender_test(
-  import_stl_knot_max_simplified
-  --python ${CMAKE_CURRENT_LIST_DIR}/bl_test.py --
-  --run={'FINISHED'}&bpy.ops.import_mesh.stl\(filepath='${TEST_SRC_DIR}/io_tests/stl/knot_max_simplified.stl'\)
-  --md5=baf82803f45a84ec4ddbad9cef57dd3e --md5_method=SCENE
-  --write-blend=${TEST_OUT_DIR}/io_tests/import_stl_knot_max_simplified.blend
-)
-endif()
-
-# STL Export
-# disabled until updated & working
-if(FALSE)
-add_blender_test(
-  export_stl_cube_all_data
-  ${TEST_SRC_DIR}/io_tests/blend_geometry/cube_all_data.blend
-  --python ${CMAKE_CURRENT_LIST_DIR}/bl_test.py --
-  --run={'FINISHED'}&bpy.ops.export_mesh.stl\(filepath='${TEST_OUT_DIR}/io_tests/export_stl_cube_all_data.stl'\)
-  --md5_source=${TEST_OUT_DIR}/io_tests/export_stl_cube_all_data.stl
-  --md5=64cb97c0cabb015e1c3f76369835075a --md5_method=FILE
-)
-
-add_blender_test(
-  export_stl_suzanne_all_data
-  ${TEST_SRC_DIR}/io_tests/blend_geometry/suzanne_all_data.blend
-  --python ${CMAKE_CURRENT_LIST_DIR}/bl_test.py --
-  --run={'FINISHED'}&bpy.ops.export_mesh.stl\(filepath='${TEST_OUT_DIR}/io_tests/export_stl_suzanne_all_data.stl'\)
-  --md5_source=${TEST_OUT_DIR}/io_tests/export_stl_suzanne_all_data.stl
-  --md5=e9b23c97c139ad64961c635105bb9192 --md5_method=FILE
-)
-
-add_blender_test(
-  export_stl_vertices # lame, add a better one
-  ${TEST_SRC_DIR}/io_tests/blend_geometry/vertices.blend
-  --python ${CMAKE_CURRENT_LIST_DIR}/bl_test.py --
-  --run={'FINISHED'}&bpy.ops.export_mesh.stl\(filepath='${TEST_OUT_DIR}/io_tests/export_stl_vertices.stl'\)
-  --md5_source=${TEST_OUT_DIR}/io_tests/export_stl_vertices.stl
-  --md5=3fd3c877e573beeebc782532cc005820 --md5_method=FILE
-)
-endif()
-
 
 # X3D Import
 # disabled until updated & working
@@ -554,18 +584,16 @@ endif()
 
 # SVG Import
 if(TRUE)
-  if(NOT OPENIMAGEIO_IDIFF)
-    message(WARNING "Disabling SVG tests because OIIO idiff does not exist")
+  if(NOT OPENIMAGEIO_TOOL)
+    message(WARNING "Disabling SVG tests because OIIO oiiotool does not exist")
   else()
     set(_svg_render_tests complex path)
 
     foreach(render_test ${_svg_render_tests})
-      add_python_test(
+      add_render_test(
         io_curve_svg_${render_test}
         ${CMAKE_CURRENT_LIST_DIR}/bl_io_curve_svg_test.py
-        -blender "${TEST_BLENDER_EXE}"
         -testdir "${TEST_SRC_DIR}/io_tests/svg/${render_test}"
-        -idiff "${OPENIMAGEIO_IDIFF}"
         -outdir "${TEST_OUT_DIR}/io_curve_svg"
       )
     endforeach()
@@ -574,9 +602,9 @@ if(TRUE)
   endif()
 endif()
 
-if(WITH_CYCLES OR WITH_OPENGL_RENDER_TESTS)
-  if(NOT OPENIMAGEIO_IDIFF)
-    message(WARNING "Disabling render tests because OIIO idiff does not exist")
+if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
+  if(NOT OPENIMAGEIO_TOOL)
+    message(WARNING "Disabling render tests because OIIO oiiotool does not exist")
   elseif(NOT EXISTS "${TEST_SRC_DIR}/render/shader")
     message(WARNING "Disabling render tests because tests folder does not exist at ${TEST_SRC_DIR}")
   elseif(NOT WITH_COMPOSITOR_CPU)
@@ -629,7 +657,7 @@ if(WITH_CYCLES OR WITH_OPENGL_RENDER_TESTS)
     #  list(APPEND render_tests guiding)
     #endif()
 
-    if(WITH_OPENGL_RENDER_TESTS)
+    if(WITH_GPU_RENDER_TESTS)
       list(APPEND render_tests grease_pencil)
     endif()
 
@@ -647,12 +675,10 @@ if(WITH_CYCLES OR WITH_OPENGL_RENDER_TESTS)
 
         foreach(render_test ${_cycles_render_tests})
           set(_cycles_test_name "cycles_${render_test}_${_cycles_device_lower}")
-          add_python_test(
+          add_render_test(
             ${_cycles_test_name}
             ${CMAKE_CURRENT_LIST_DIR}/cycles_render_tests.py
-            -blender "${TEST_BLENDER_EXE}"
             -testdir "${TEST_SRC_DIR}/render/${render_test}"
-            -idiff "${OPENIMAGEIO_IDIFF}"
             -outdir "${TEST_OUT_DIR}/cycles"
             -device ${_cycles_device}
             -blacklist ${_cycles_blacklist}
@@ -667,64 +693,80 @@ if(WITH_CYCLES OR WITH_OPENGL_RENDER_TESTS)
       unset(_cycles_blacklist)
     endif()
 
-    if(WITH_OPENGL_RENDER_TESTS)
+    if(WITH_GPU_RENDER_TESTS)
+      list(APPEND gpu_render_tests ${render_tests})
+      list(FILTER gpu_render_tests EXCLUDE REGEX light_group|light_linking|shadow_catcher|denoise|guiding|reports)
+
+      set(_gpu_render_tests_arguments)
+      if(WITH_GPU_RENDER_TESTS_SILENT)
+        list(APPEND _gpu_render_tests_arguments --fail-silently)
+      endif()
+
       # Eevee
-      foreach(render_test ${render_tests})
-        add_python_test(
-          eevee_${render_test}_test
+      foreach(render_test ${gpu_render_tests})
+        add_render_test(
+          eevee_${render_test}
           ${CMAKE_CURRENT_LIST_DIR}/eevee_render_tests.py
-          -blender "${TEST_BLENDER_EXE}"
           -testdir "${TEST_SRC_DIR}/render/${render_test}"
-          -idiff "${OPENIMAGEIO_IDIFF}"
           -outdir "${TEST_OUT_DIR}/eevee"
+          ${_gpu_render_tests_arguments}
         )
       endforeach()
 
-      foreach(render_test ${render_tests})
-        # Workbench
-        add_python_test(
-          workbench_${render_test}_test
-          ${CMAKE_CURRENT_LIST_DIR}/workbench_render_tests.py
-          -blender "${TEST_BLENDER_EXE}"
+      # Eevee Next
+      foreach(render_test ${gpu_render_tests})
+        add_render_test(
+          eevee_next_${render_test}
+          ${CMAKE_CURRENT_LIST_DIR}/eevee_next_render_tests.py
           -testdir "${TEST_SRC_DIR}/render/${render_test}"
-          -idiff "${OPENIMAGEIO_IDIFF}"
+          -outdir "${TEST_OUT_DIR}/eevee_next"
+          ${_gpu_render_tests_arguments}
+        )
+      endforeach()
+
+      foreach(render_test ${gpu_render_tests})
+        # Workbench
+        add_render_test(
+          workbench_${render_test}
+          ${CMAKE_CURRENT_LIST_DIR}/workbench_render_tests.py
+          -testdir "${TEST_SRC_DIR}/render/${render_test}"
           -outdir "${TEST_OUT_DIR}/workbench"
+          ${_gpu_render_tests_arguments}
         )
       endforeach()
 
       if(WITH_HYDRA)
         # Hydra Storm
-        foreach(render_test ${render_tests})
-          add_python_test(
-            storm_hydra_${render_test}_test
+        foreach(render_test ${gpu_render_tests})
+          add_render_test(
+            storm_hydra_${render_test}
             ${CMAKE_CURRENT_LIST_DIR}/storm_render_tests.py
-            -blender "${TEST_BLENDER_EXE}"
             -testdir "${TEST_SRC_DIR}/render/${render_test}"
-            -idiff "${OPENIMAGEIO_IDIFF}"
             -outdir "${TEST_OUT_DIR}/storm_hydra"
             -export_method "HYDRA"
+            ${_gpu_render_tests_arguments}
           )
         endforeach()
 
-        foreach(render_test ${render_tests})
-          add_python_test(
-            storm_usd_${render_test}_test
+        foreach(render_test ${gpu_render_tests})
+          add_render_test(
+            storm_usd_${render_test}
             ${CMAKE_CURRENT_LIST_DIR}/storm_render_tests.py
-            -blender "${TEST_BLENDER_EXE}"
             -testdir "${TEST_SRC_DIR}/render/${render_test}"
-            -idiff "${OPENIMAGEIO_IDIFF}"
             -outdir "${TEST_OUT_DIR}/storm_usd"
             -export_method "USD"
+            ${_gpu_render_tests_arguments}
           )
         endforeach()
       endif()
+    unset(_gpu_render_tests_arguments)
     endif()
   endif()
 endif()
 
 if(WITH_COMPOSITOR_CPU)
-  if(NOT OPENIMAGEIO_IDIFF)
-    message(WARNING "Disabling Compositor CPU tests because OIIO idiff does not exist")
+  if(NOT OPENIMAGEIO_TOOL)
+    message(WARNING "Disabling Compositor CPU tests because OIIO oiiotool does not exist")
   else()
     set(compositor_tests
       color
@@ -742,12 +784,10 @@ if(WITH_COMPOSITOR_CPU)
     endif()
 
     foreach(comp_test ${compositor_tests})
-      add_python_test(
-        compositor_${comp_test}_cpu_test
+      add_render_test(
+        compositor_${comp_test}_cpu
         ${CMAKE_CURRENT_LIST_DIR}/compositor_cpu_render_tests.py
-        -blender "${TEST_BLENDER_EXE}"
         -testdir "${TEST_SRC_DIR}/compositor/${comp_test}"
-        -idiff "${OPENIMAGEIO_IDIFF}"
         -outdir "${TEST_OUT_DIR}/compositor_cpu"
       )
     endforeach()
@@ -757,34 +797,32 @@ endif()
 
 # NOTE: WITH_COMPOSITOR_CPU is needed for rendering.
 if(WITH_COMPOSITOR_REALTIME_TESTS AND WITH_COMPOSITOR_CPU)
-  if(NOT OPENIMAGEIO_IDIFF)
-      message(WARNING "Disabling realtime compositor tests because OIIO idiff does not exist")
-    else()
-      set(compositor_tests
-          color
-          converter
-          filter
-          input
-          output
-          vector
+  if(NOT OPENIMAGEIO_TOOL)
+    message(WARNING "Disabling realtime compositor tests because OIIO oiiotool does not exist")
+  else()
+    set(compositor_tests
+        color
+        converter
+        filter
+        input
+        output
+        vector
 
-          multiple_node_setups
-        )
+        multiple_node_setups
+      )
 
-      if(WITH_LIBMV)
-        list(APPEND compositor_tests distort matte)
-      endif()
+    if(WITH_LIBMV)
+      list(APPEND compositor_tests distort matte)
+    endif()
 
-      foreach(comp_test ${compositor_tests})
-        add_python_test(
-          compositor_${comp_test}_realtime_test
-          ${CMAKE_CURRENT_LIST_DIR}/compositor_realtime_render_tests.py
-          -blender "${TEST_BLENDER_EXE}"
-          -testdir "${TEST_SRC_DIR}/compositor/${comp_test}"
-          -idiff "${OPENIMAGEIO_IDIFF}"
-          -outdir "${TEST_OUT_DIR}/compositor_realtime"
-        )
-      endforeach()
+    foreach(comp_test ${compositor_tests})
+      add_render_test(
+        compositor_${comp_test}_realtime
+        ${CMAKE_CURRENT_LIST_DIR}/compositor_realtime_render_tests.py
+        -testdir "${TEST_SRC_DIR}/compositor/${comp_test}"
+        -outdir "${TEST_OUT_DIR}/compositor_realtime"
+      )
+    endforeach()
   endif()
 endif()
 
@@ -800,6 +838,7 @@ set(geo_node_tests
   mesh
   mesh/extrude
   mesh/split_edges
+  mesh/triangulate
   points
   texture
   utilities
@@ -824,7 +863,7 @@ foreach(geo_node_test ${geo_node_tests})
     foreach(file ${files})
       get_filename_component(filename ${file} NAME_WE)
       add_blender_test(
-        geo_node_${geo_node_test}_test_${filename}
+        geo_node_${geo_node_test}_${filename}
         ${file}
         --python ${TEST_PYTHON_DIR}/geo_node_test.py
       )
@@ -843,16 +882,16 @@ if(EXISTS "${TEST_SRC_DIR}/modeling/geometry_nodes/simulation/")
       geo_node_simulation_test_${filename}
       ${file}
       --python ${TEST_PYTHON_DIR}/geo_node_sim_test.py
-      )
+    )
   endforeach()
 else()
   message(STATUS "Directory named ${TEST_SRC_DIR}/modeling/geometry_nodes/simulation/ not found, disabling tests")
 endif()
 
 
-if(WITH_OPENGL_DRAW_TESTS)
-  if(NOT OPENIMAGEIO_IDIFF)
-    message(STATUS "Disabling OpenGL draw tests because OIIO idiff does not exist")
+if(WITH_GPU_DRAW_TESTS)
+  if(NOT OPENIMAGEIO_TOOL)
+    message(STATUS "Disabling OpenGL draw tests because OIIO oiiotool does not exist")
   elseif(NOT EXISTS "${TEST_SRC_DIR}/opengl")
     message(STATUS "Disabling OpenGL draw tests because tests folder does not exist at ${TEST_SRC_DIR}")
   else()
@@ -864,12 +903,10 @@ if(WITH_OPENGL_DRAW_TESTS)
       if(IS_DIRECTORY ${child_path})
         file(GLOB_RECURSE blends "${child_path}/*.blend")
         if(blends)
-          add_python_test(
+          add_render_test(
             opengl_draw_${child}
             ${CMAKE_CURRENT_LIST_DIR}/opengl_draw_tests.py
-            -blender "${TEST_BLENDER_EXE}"
             -testdir "${child_path}"
-            -idiff "${OPENIMAGEIO_IDIFF}"
             -outdir "${TEST_OUT_DIR}/opengl_draw"
           )
         endif()
@@ -888,7 +925,7 @@ if(WITH_ALEMBIC)
   get_filename_component(ALEMBIC_ROOT_DIR ${real_include_dir} DIRECTORY)
 
   add_python_test(
-    bf_io_alembic_export_tests
+    io_alembic_export_tests
     ${CMAKE_CURRENT_LIST_DIR}/alembic_export_tests.py
     --blender "${TEST_BLENDER_EXE}"
     --testdir "${TEST_SRC_DIR}/alembic"
@@ -905,13 +942,13 @@ endif()
 
 if(WITH_USD)
   add_blender_test(
-          bf_io_usd_export_test
-          --python ${CMAKE_CURRENT_LIST_DIR}/bl_usd_export_test.py
-          --
-          --testdir "${TEST_SRC_DIR}/usd"
+    io_usd_export
+    --python ${CMAKE_CURRENT_LIST_DIR}/bl_usd_export_test.py
+    --
+    --testdir "${TEST_SRC_DIR}/usd"
   )
   add_blender_test(
-    bf_io_usd_import_test
+    io_usd_import
     --python ${CMAKE_CURRENT_LIST_DIR}/bl_usd_import_test.py
     --
     --testdir "${TEST_SRC_DIR}/usd"
@@ -927,8 +964,8 @@ if(WITH_CODEC_FFMPEG)
   )
 endif()
 
-if(NOT OPENIMAGEIO_IDIFF)
-  message(STATUS "Disabling ImBuf image format tests because OIIO idiff does not exist")
+if(NOT OPENIMAGEIO_TOOL)
+  message(STATUS "Disabling ImBuf image format tests because OIIO oiiotool does not exist")
 else()
   set(OPTIONAL_FORMATS "")
   if(WITH_IMAGE_CINEON)
@@ -945,22 +982,22 @@ else()
   endif()
 
   add_blender_test(
-    bf_imbuf_save
+    imbuf_save
     --python ${CMAKE_CURRENT_LIST_DIR}/bl_imbuf_save.py
     --
     -test_dir "${TEST_SRC_DIR}/imbuf_io"
     -output_dir "${TEST_OUT_DIR}/imbuf_io/save"
-    -idiff "${OPENIMAGEIO_IDIFF}"
+    -oiiotool "${OPENIMAGEIO_TOOL}"
     -optional_formats "${OPTIONAL_FORMATS}"
   )
 
   add_blender_test(
-    bf_imbuf_load
+    imbuf_load
     --python ${CMAKE_CURRENT_LIST_DIR}/bl_imbuf_load.py
     --
     -test_dir "${TEST_SRC_DIR}/imbuf_io"
     -output_dir "${TEST_OUT_DIR}/imbuf_io/load"
-    -idiff "${OPENIMAGEIO_IDIFF}"
+    -oiiotool "${OPENIMAGEIO_TOOL}"
     -optional_formats "${OPTIONAL_FORMATS}"
   )
 endif()
@@ -968,23 +1005,58 @@ endif()
 # ------------------------------------------------------------------------------
 # SEQUENCER RENDER TESTS
 
-if(NOT OPENIMAGEIO_IDIFF)
-  message(STATUS "Disabling sequencer render tests because OIIO idiff does not exist")
+if(NOT OPENIMAGEIO_TOOL)
+  message(STATUS "Disabling sequencer render tests because OIIO oiiotool does not exist")
 else()
   set(render_tests
     transform
+    filter
   )
 
   foreach(render_test ${render_tests})
-    add_python_test(
+    add_render_test(
       sequencer_render_${render_test}
       ${CMAKE_CURRENT_LIST_DIR}/sequencer_render_tests.py
-      -blender "${TEST_BLENDER_EXE}"
       -testdir "${TEST_SRC_DIR}/sequence_editing/${render_test}"
-      -idiff "${OPENIMAGEIO_IDIFF}"
       -outdir "${TEST_OUT_DIR}/sequence_editing"
     )
   endforeach()
+endif()
+
+
+# ------------------------------------------------------------------------------
+# Headless GUI Tests
+
+if(WITH_UI_TESTS)
+  # This could be generated with:
+  # `"${TEST_PYTHON_EXE}" "${CMAKE_CURRENT_LIST_DIR}/ui_simulate/run.py" --list-tests`
+  # list explicitly so changes bisecting/updated are sure to re-run CMake.
+  set(_undo_tests
+    test_undo.text_editor_edit_mode_mix
+    test_undo.text_editor_simple
+    test_undo.view3d_edit_mode_multi_window
+    test_undo.view3d_font_edit_mode_simple
+    test_undo.view3d_mesh_edit_separate
+    test_undo.view3d_mesh_particle_edit_mode_simple
+    test_undo.view3d_multi_mode_multi_window
+    test_undo.view3d_multi_mode_select
+    test_undo.view3d_sculpt_dyntopo_and_edit
+    test_undo.view3d_sculpt_dyntopo_simple
+    test_undo.view3d_sculpt_with_memfile_step
+    test_undo.view3d_simple
+    test_undo.view3d_texture_paint_complex
+    test_undo.view3d_texture_paint_simple
+  )
+  foreach(ui_test ${_undo_tests})
+    add_blender_test_headless(
+      "ui_${ui_test}"
+      --enable-event-simulate
+      --python "${CMAKE_CURRENT_LIST_DIR}/ui_simulate/run_blender_setup.py"
+      --
+      --tests "${ui_test}"
+    )
+  endforeach()
+  unset(_undo_tests)
 endif()
 
 

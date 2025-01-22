@@ -10,10 +10,10 @@ from bl_ui.properties_render import (
 import bpy
 from bpy.utils import register_class, unregister_class
 
-Blender_RENDER_PT_color_management_draw = None
+BLENDER_RENDER_PT_color_management_draw = None
 
 
-def Octane_RENDER_PT_color_management_draw(self, context):
+def OCTANE_RENDER_PT_color_management_draw(self, context):
     layout = self.layout
     layout.use_property_split = True
     layout.use_property_decorate = False  # No animation.
@@ -22,14 +22,14 @@ def Octane_RENDER_PT_color_management_draw(self, context):
     row.operator("octane.reset_blender_color_management", icon="INFO", text="Always use Raw View Transform for Octane")
     _row = layout.row(heading="Blender Color Management")
     # noinspection PyCallingNonCallable
-    Blender_RENDER_PT_color_management_draw(self, context)
+    BLENDER_RENDER_PT_color_management_draw(self, context)
 
 
-class OCTANE_ResetBlenderColorManagement(bpy.types.Operator):
+class OCTANE_OT_reset_blender_color_management(bpy.types.Operator):
     """Reset the Blender's built-in color management to no-op (don't do anything, by resetting 'Display Device' to
     'sRGB' and 'View Transform' to 'Raw')"""
     bl_idname = "octane.reset_blender_color_management"
-    bl_label = "Always use Raw View Transform for Octane"
+    bl_label = "Always Use Raw View Transform for Octane"
 
     def execute(self, context):
         scene = context.scene
@@ -41,19 +41,19 @@ class OCTANE_ResetBlenderColorManagement(bpy.types.Operator):
 
 
 _CLASSES = [
-    OCTANE_ResetBlenderColorManagement,
+    OCTANE_OT_reset_blender_color_management,
 ]
 
 
 def register():
     for cls in _CLASSES:
         register_class(cls)
-    global Blender_RENDER_PT_color_management_draw
-    Blender_RENDER_PT_color_management_draw = RENDER_PT_color_management.draw
-    RENDER_PT_color_management.draw = Octane_RENDER_PT_color_management_draw
+    global BLENDER_RENDER_PT_color_management_draw
+    BLENDER_RENDER_PT_color_management_draw = RENDER_PT_color_management.draw
+    RENDER_PT_color_management.draw = OCTANE_RENDER_PT_color_management_draw
 
 
 def unregister():
     for cls in _CLASSES:
         unregister_class(cls)
-    RENDER_PT_color_management.draw = Blender_RENDER_PT_color_management_draw
+    RENDER_PT_color_management.draw = BLENDER_RENDER_PT_color_management_draw

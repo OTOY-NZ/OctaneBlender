@@ -27,6 +27,7 @@ from . import unary_math_operation
 from . import range
 from . import rotate
 from . import frame_index
+from . import time
 from . import bool_switch
 from . import float_switch
 from . import int_switch
@@ -62,6 +63,7 @@ def register():
     range.register()
     rotate.register()
     frame_index.register()
+    time.register()
     bool_switch.register()
     float_switch.register()
     int_switch.register()
@@ -97,6 +99,7 @@ def unregister():
     range.unregister()
     rotate.unregister()
     frame_index.unregister()
+    time.unregister()
     bool_switch.unregister()
     float_switch.unregister()
     int_switch.unregister()

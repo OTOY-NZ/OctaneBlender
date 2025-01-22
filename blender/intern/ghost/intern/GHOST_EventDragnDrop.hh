@@ -9,8 +9,8 @@
 #pragma once
 
 #include "GHOST_Event.hh"
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
 
 /**
  * Drag & drop event
@@ -61,7 +61,7 @@ class GHOST_EventDragnDrop : public GHOST_Event {
                        GHOST_IWindow *window,
                        int x,
                        int y,
-                       GHOST_TEventDataPtr data)
+                       GHOST_TDragnDropDataPtr data)
       : GHOST_Event(time, type, window)
   {
     m_dragnDropEventData.x = x;

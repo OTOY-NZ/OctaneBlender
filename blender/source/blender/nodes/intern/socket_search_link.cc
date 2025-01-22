@@ -2,9 +2,11 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <fmt/format.h>
+
 #include "BLI_set.hh"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_node.hh"
 
 #include "UI_interface.hh"
@@ -21,8 +23,10 @@ void GatherLinkSearchOpParams::add_item(std::string socket_name,
                                         const int weight)
 {
 
-  std::string name = std::string(IFACE_(node_type_.ui_name)) + " " + UI_MENU_ARROW_SEP +
-                     socket_name;
+  std::string name = fmt::format("{}{} " UI_MENU_ARROW_SEP " {}",
+                                 IFACE_(node_type_.ui_name),
+                                 node_type_.deprecation_notice ? IFACE_(" (Deprecated)") : "",
+                                 socket_name);
 
   items_.append({std::move(name), std::move(fn), weight});
 }
@@ -141,18 +145,10 @@ void search_link_ops_for_declarations(GatherLinkSearchOpParams &params,
 void search_link_ops_for_basic_node(GatherLinkSearchOpParams &params)
 {
   const bNodeType &node_type = params.node_type();
-  if (!node_type.declare) {
+  if (!node_type.static_declaration) {
     return;
   }
-
-  if (node_type.declare_dynamic) {
-    /* Dynamic declarations aren't supported here, but avoid crashing in release builds. */
-    BLI_assert_unreachable();
-    return;
-  }
-
-  const NodeDeclaration &declaration = *node_type.fixed_declaration;
-
+  const NodeDeclaration &declaration = *node_type.static_declaration;
   search_link_ops_for_declarations(params, declaration.sockets(params.in_out()));
 }
 

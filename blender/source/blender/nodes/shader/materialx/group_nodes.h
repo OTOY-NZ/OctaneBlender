@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+/* SPDX-FileCopyrightText: 2011-2022 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,7 +8,7 @@
 
 /* TODO: #pxr::UsdMtlxRead() doesn't perform node-graphs.
  * Uncomment USE_MATERIALX_NODEGRAPH after fixing it. */
-//#define USE_MATERIALX_NODEGRAPH
+// #define USE_MATERIALX_NODEGRAPH
 
 namespace blender::nodes::materialx {
 

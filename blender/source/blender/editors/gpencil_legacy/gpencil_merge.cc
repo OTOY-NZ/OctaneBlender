@@ -19,10 +19,10 @@
 #include "DNA_material_types.h"
 
 #include "BKE_brush.hh"
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_gpencil_geom_legacy.h"
 #include "BKE_gpencil_legacy.h"
-#include "BKE_main.h"
+#include "BKE_main.hh"
 #include "BKE_material.h"
 #include "BKE_report.h"
 
@@ -119,7 +119,7 @@ static bGPDstroke *gpencil_prepare_stroke(bContext *C, wmOperator *op, int totpo
       gpl, scene->r.cfra, eGP_GetFrame_Mode(add_frame_mode));
 
   /* stroke */
-  bGPDstroke *gps = BKE_gpencil_stroke_new(MAX2(ob->actcol - 1, 0), totpoints, brush->size);
+  bGPDstroke *gps = BKE_gpencil_stroke_new(std::max(ob->actcol - 1, 0), totpoints, brush->size);
   gps->flag |= GP_STROKE_SELECT;
   BKE_gpencil_stroke_select_index_set(gpd, gps);
 

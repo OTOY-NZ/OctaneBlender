@@ -98,8 +98,10 @@ enum class Type : uint8_t {
   DrawIndirect,
   FramebufferBind,
   PushConstant,
+  SpecializeConstant,
   ResourceBind,
   ShaderBind,
+  SubPassTransition,
   StateSet,
   StencilSet,
 
@@ -129,6 +131,16 @@ struct ShaderBind {
 
 struct FramebufferBind {
   GPUFrameBuffer **framebuffer;
+
+  void execute() const;
+  std::string serialize() const;
+};
+
+struct SubPassTransition {
+  /** \note uint8_t storing `GPUAttachmentState` for compactness. */
+  uint8_t depth_state;
+  /** \note 8 is GPU_FB_MAX_COLOR_ATTACHMENT. */
+  uint8_t color_states[8];
 
   void execute() const;
   std::string serialize() const;
@@ -285,6 +297,53 @@ struct PushConstant {
   std::string serialize() const;
 };
 
+struct SpecializeConstant {
+  /* Shader to set the constant in. */
+  GPUShader *shader;
+  /* Value of the constant or a reference to it. */
+  union {
+    int int_value;
+    int uint_value;
+    float float_value;
+    bool bool_value;
+    const int *int_ref;
+    const int *uint_ref;
+    const float *float_ref;
+    const bool *bool_ref;
+  };
+
+  int location;
+
+  enum class Type : uint8_t {
+    IntValue = 0,
+    UintValue,
+    FloatValue,
+    BoolValue,
+    IntReference,
+    UintReference,
+    FloatReference,
+    BoolReference,
+  } type;
+
+  SpecializeConstant() = default;
+
+  SpecializeConstant(GPUShader *sh, int loc, const float &val)
+      : shader(sh), float_value(val), location(loc), type(Type::FloatValue){};
+  SpecializeConstant(GPUShader *sh, int loc, const int &val)
+      : shader(sh), int_value(val), location(loc), type(Type::IntValue){};
+  SpecializeConstant(GPUShader *sh, int loc, const bool &val)
+      : shader(sh), bool_value(val), location(loc), type(Type::BoolValue){};
+  SpecializeConstant(GPUShader *sh, int loc, const float *val)
+      : shader(sh), float_ref(val), location(loc), type(Type::FloatReference){};
+  SpecializeConstant(GPUShader *sh, int loc, const int *val)
+      : shader(sh), int_ref(val), location(loc), type(Type::IntReference){};
+  SpecializeConstant(GPUShader *sh, int loc, const bool *val)
+      : shader(sh), bool_ref(val), location(loc), type(Type::BoolReference){};
+
+  void execute() const;
+  std::string serialize() const;
+};
+
 struct Draw {
   GPUBatch *batch;
   uint instance_len;
@@ -390,7 +449,9 @@ union Undetermined {
   ShaderBind shader_bind;
   ResourceBind resource_bind;
   FramebufferBind framebuffer_bind;
+  SubPassTransition subpass_transition;
   PushConstant push_constant;
+  SpecializeConstant specialize_constant;
   Draw draw;
   DrawMulti draw_multi;
   DrawIndirect draw_indirect;

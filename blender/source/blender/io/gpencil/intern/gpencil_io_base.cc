@@ -18,11 +18,11 @@
 #include "DNA_screen_types.h"
 
 #include "BKE_camera.h"
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_gpencil_geom_legacy.h"
 #include "BKE_gpencil_legacy.h"
-#include "BKE_layer.h"
-#include "BKE_main.h"
+#include "BKE_layer.hh"
+#include "BKE_main.hh"
 #include "BKE_material.h"
 #include "BKE_scene.h"
 
@@ -189,7 +189,8 @@ bool GpencilIO::gpencil_3D_point_to_screen_space(const float3 co, float2 &r_co)
   float2 screen_co;
   eV3DProjTest test = (eV3DProjTest)(V3D_PROJ_RET_OK);
   if (ED_view3d_project_float_global(params_.region, parent_co, screen_co, test) ==
-      V3D_PROJ_RET_OK) {
+      V3D_PROJ_RET_OK)
+  {
     if (!ELEM(V2D_IS_CLIPPED, screen_co[0], screen_co[1])) {
       r_co = screen_co;
       /* Invert X axis. */
@@ -268,7 +269,7 @@ float GpencilIO::stroke_point_radius_get(bGPDlayer *gpl, bGPDstroke *gps)
   float radius = math::length(v1);
   BKE_gpencil_free_stroke(gps_perimeter);
 
-  return MAX2(radius, 1.0f);
+  return std::max(radius, 1.0f);
 }
 
 void GpencilIO::prepare_layer_export_matrix(Object *ob, bGPDlayer *gpl)

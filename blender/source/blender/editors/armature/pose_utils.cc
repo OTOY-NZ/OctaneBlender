@@ -20,10 +20,10 @@
 #include "BKE_action.h"
 #include "BKE_anim_data.h"
 #include "BKE_idprop.h"
-#include "BKE_layer.h"
+#include "BKE_layer.hh"
 #include "BKE_object.hh"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 
 #include "DEG_depsgraph.hh"
 
@@ -37,7 +37,9 @@
 #include "ED_armature.hh"
 #include "ED_keyframing.hh"
 
-#include "armature_intern.h"
+#include "ANIM_keyframing.hh"
+
+#include "armature_intern.hh"
 
 /* *********************************************** */
 /* Contents of this File:
@@ -74,7 +76,7 @@ static void fcurves_to_pchan_links_get(ListBase *pfLinks,
 
     /* get the RNA path to this pchan - this needs to be freed! */
     PointerRNA ptr = RNA_pointer_create((ID *)ob, &RNA_PoseBone, pchan);
-    pfl->pchan_path = RNA_path_from_ID_to_struct(&ptr);
+    pfl->pchan_path = BLI_strdup(RNA_path_from_ID_to_struct(&ptr).value_or("").c_str());
 
     /* add linkage data to operator data */
     BLI_addtail(pfLinks, pfl);
@@ -261,7 +263,7 @@ void poseAnim_mapping_autoKeyframe(bContext *C, Scene *scene, ListBase *pfLinks,
       continue;
     }
 
-    if (autokeyframe_cfra_can_key(scene, &ob->id)) {
+    if (blender::animrig::autokeyframe_cfra_can_key(scene, &ob->id)) {
       ob->id.tag |= LIB_TAG_DOIT;
       skip = false;
     }
@@ -274,7 +276,7 @@ void poseAnim_mapping_autoKeyframe(bContext *C, Scene *scene, ListBase *pfLinks,
 
   /* Insert keyframes as necessary if auto-key-framing. */
   KeyingSet *ks = ANIM_get_keyingset_for_autokeying(scene, ANIM_KS_WHOLE_CHARACTER_ID);
-  ListBase dsources = {nullptr, nullptr};
+  blender::Vector<PointerRNA> sources;
 
   /* iterate over each pose-channel affected, tagging bones to be keyed */
   /* XXX: here we already have the information about what transforms exist, though
@@ -288,12 +290,11 @@ void poseAnim_mapping_autoKeyframe(bContext *C, Scene *scene, ListBase *pfLinks,
     }
 
     /* Add data-source override for the PoseChannel, to be used later. */
-    ANIM_relative_keyingset_add_source(&dsources, &pfl->ob->id, &RNA_PoseBone, pchan);
+    ANIM_relative_keyingset_add_source(sources, &pfl->ob->id, &RNA_PoseBone, pchan);
   }
 
   /* insert keyframes for all relevant bones in one go */
-  ANIM_apply_keyingset(C, &dsources, nullptr, ks, MODIFYKEY_MODE_INSERT, cframe);
-  BLI_freelistN(&dsources);
+  ANIM_apply_keyingset(C, &sources, ks, MODIFYKEY_MODE_INSERT, cframe);
 
   /* do the bone paths
    * - only do this if keyframes should have been added

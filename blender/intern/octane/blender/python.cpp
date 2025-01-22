@@ -877,6 +877,20 @@ static PyObject *py_add_node_name(PyObject *self, PyObject *args)
   Py_RETURN_TRUE;
 }
 
+static PyObject *py_add_legacy_node_name(PyObject *self, PyObject *args)
+{
+  int32_t node_type;
+  PyObject *py_node_name;
+  if (!PyArg_ParseTuple(args, "iO", &node_type, &py_node_name)) {
+    Py_RETURN_FALSE;
+  }
+  PyObject *py_coerce = NULL;
+  std::string node_name = PyC_UnicodeAsByte(py_node_name, &py_coerce);
+  Py_XDECREF(py_coerce);
+  OctaneInfo::instance().add_legacy_node_name(node_type, node_name);
+  Py_RETURN_TRUE;
+}
+
 static PyObject *py_set_static_pin_count(PyObject *self, PyObject *args)
 {
   int32_t nodeType, pinCount;
@@ -1046,6 +1060,71 @@ static PyObject *py_copy_color_ramp(PyObject *self, PyObject *args)
   Py_RETURN_TRUE;
 }
 
+static PyObject *py_load_color_ramp_data(PyObject *self, PyObject *args)
+{
+  int32_t interpolation_type;
+  PyObject *py_color_ramp_data_list = NULL;
+  size_t color_ramp_data_addr;
+  if (!PyArg_ParseTuple(
+          args, "iOL", &interpolation_type, & py_color_ramp_data_list, &color_ramp_data_addr))
+  {
+    Py_RETURN_FALSE;
+  }
+  if (py_color_ramp_data_list) {
+    int32_t active_position = 0;
+    ColorBand *to_color_band = reinterpret_cast<ColorBand *>(color_ramp_data_addr);
+    PyObject *color_ramp_attributes = PyList_GetItem(py_color_ramp_data_list, 0);
+    if (PyList_Check(color_ramp_attributes)) {
+      PyObject *active_position_object = PyList_GetItem(color_ramp_attributes, 1);
+      active_position = (int32_t)PyLong_AsLong(active_position_object);
+    }
+    int32_t color_ramp_data_size = PyList_Size(py_color_ramp_data_list) - 1;
+    for (int32_t i = 1, j = 0; i <= color_ramp_data_size; ++i, ++j) {
+      PyObject *color_ramp_data = PyList_GetItem(py_color_ramp_data_list, i);
+      float position = (float)PyFloat_AsDouble(PyList_GetItem(color_ramp_data, 0));
+      PyObject *color_data = PyList_GetItem(color_ramp_data, 1);
+      float r = (float)PyFloat_AsDouble(PyList_GetItem(color_data, 0));
+      float g = (float)PyFloat_AsDouble(PyList_GetItem(color_data, 1));
+      float b = (float)PyFloat_AsDouble(PyList_GetItem(color_data, 2));
+      float a = (float)PyFloat_AsDouble(PyList_GetItem(color_data, 3));
+      to_color_band->data[j].r = r;
+      to_color_band->data[j].g = g;
+      to_color_band->data[j].b = b;
+      to_color_band->data[j].a = a;
+      to_color_band->data[j].pos = position;
+      to_color_band->data[j].cur = 0;
+    }
+    to_color_band->tot = color_ramp_data_size;
+    to_color_band->cur = active_position;
+    to_color_band->ipotype = interpolation_type;
+  }
+  Py_RETURN_TRUE;
+}
+
+static PyObject *py_dump_color_ramp_data(PyObject *self, PyObject *args)
+{
+  PyObject *py_color_ramp_data_list = NULL;
+  size_t color_ramp_data_addr;
+  if (!PyArg_ParseTuple(args, "L", &color_ramp_data_addr)) {
+    Py_RETURN_NONE;
+  }
+  ColorBand *from_color_band = reinterpret_cast<ColorBand *>(color_ramp_data_addr);
+  PyObject *rets = PyList_New(from_color_band->tot + 1);
+  PyList_SET_ITEM(rets, 0, PyLong_FromLong(from_color_band->cur));
+  for (int32_t i = 0; i < from_color_band->tot; ++i) {
+    PyObject *data = PyList_New(2);
+    PyList_SET_ITEM(data, 0, PyFloat_FromDouble(from_color_band->data[i].pos));
+    PyObject *color = PyList_New(4);
+    PyList_SET_ITEM(data, 1, color);
+    PyList_SET_ITEM(color, 0, PyFloat_FromDouble(from_color_band->data[i].r));
+    PyList_SET_ITEM(color, 1, PyFloat_FromDouble(from_color_band->data[i].g));
+    PyList_SET_ITEM(color, 2, PyFloat_FromDouble(from_color_band->data[i].b));
+    PyList_SET_ITEM(color, 3, PyFloat_FromDouble(from_color_band->data[i].a));
+    PyList_SET_ITEM(rets, i + 1, data);
+  }
+  return rets;
+}
+
 static PyMethodDef methods[] = {
     {"init", py_init_func, METH_VARARGS, ""},
     {"exit", py_exit_func, METH_VARARGS, ""},
@@ -1074,6 +1153,7 @@ static PyMethodDef methods[] = {
     {"update_ocio_info", update_ocio_info_func, METH_VARARGS, ""},
     {"update_octane_custom_node", update_octane_custom_node, METH_VARARGS, ""},
     {"add_node_name", py_add_node_name, METH_VARARGS, ""},
+    {"add_legacy_node_name", py_add_legacy_node_name, METH_VARARGS, ""},
     {"set_static_pin_count", py_set_static_pin_count, METH_VARARGS, ""},
     {"add_attribute_info", py_add_attribute_info, METH_VARARGS, ""},
     {"add_pin_info", py_add_pin_info, METH_VARARGS, ""},
@@ -1082,6 +1162,8 @@ static PyMethodDef methods[] = {
     {"stop_utils_client", py_stop_utils_client, METH_VARARGS, ""},
     {"utils_function", py_utils_function, METH_VARARGS, ""},
     {"copy_color_ramp", py_copy_color_ramp, METH_VARARGS, ""},
+    {"load_color_ramp_data", py_load_color_ramp_data, METH_VARARGS, ""},
+    {"dump_color_ramp_data", py_dump_color_ramp_data, METH_VARARGS, ""},
     {NULL, NULL, 0, NULL},
 };
 

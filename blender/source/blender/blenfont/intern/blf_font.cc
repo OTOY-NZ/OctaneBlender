@@ -38,13 +38,13 @@
 #include "BLI_string_utf8.h"
 #include "BLI_threads.h"
 
-#include "BLF_api.h"
+#include "BLF_api.hh"
 
 #include "GPU_batch.h"
 #include "GPU_matrix.h"
 
-#include "blf_internal.h"
-#include "blf_internal_types.h"
+#include "blf_internal.hh"
+#include "blf_internal_types.hh"
 
 #include "BLI_strict_flags.h"
 
@@ -56,7 +56,7 @@
 
 BatchBLF g_batch;
 
-/* freetype2 handle ONLY for this file! */
+/* `freetype2` handle ONLY for this file! */
 static FT_Library ft_lib = nullptr;
 static FTC_Manager ftc_manager = nullptr;
 static FTC_CMapCache ftc_charmap_cache = nullptr;
@@ -65,7 +65,7 @@ static FTC_CMapCache ftc_charmap_cache = nullptr;
 static ThreadMutex ft_lib_mutex;
 
 /* May be set to #UI_widgetbase_draw_cache_flush. */
-static void (*blf_draw_cache_flush)(void) = nullptr;
+static void (*blf_draw_cache_flush)() = nullptr;
 
 static ft_pix blf_font_height_max_ft_pix(FontBLF *font);
 static ft_pix blf_font_width_max_ft_pix(FontBLF *font);
@@ -74,6 +74,8 @@ static ft_pix blf_font_width_max_ft_pix(FontBLF *font);
 
 /** \name FreeType Caching
  * \{ */
+
+static bool blf_setup_face(FontBLF *font);
 
 /**
  * Called when a face is removed by the cache. FreeType will call #FT_Done_Face.
@@ -112,6 +114,11 @@ static FT_Error blf_cache_face_requester(FTC_FaceID faceID,
     font->face = *face;
     font->face->generic.data = font;
     font->face->generic.finalizer = blf_face_finalizer;
+
+    /* More FontBLF setup now that we have a face. */
+    if (!blf_setup_face(font)) {
+      err = FT_Err_Cannot_Open_Resource;
+    }
   }
   else {
     /* Clear this on error to avoid exception in FTC_Manager_LookupFace. */
@@ -156,8 +163,8 @@ static ft_pix blf_unscaled_F26Dot6_to_pixels(FontBLF *font, FT_Pos value)
   /* Scale value by font size using integer-optimized multiplication. */
   FT_Long scaled = FT_MulFix(value, font->ft_size->metrics.x_scale);
 
-  /* Copied from FreeType's FT_Get_Kerning (with FT_KERNING_DEFAULT), scaling down */
-  /* kerning distances at small PPEM values so that they don't become too big. */
+  /* Copied from FreeType's FT_Get_Kerning (with FT_KERNING_DEFAULT), scaling down. */
+  /* Kerning distances at small PPEM values so that they don't become too big. */
   if (font->ft_size->metrics.x_ppem < 25) {
     scaled = FT_MulDiv(scaled, font->ft_size->metrics.x_ppem, 25);
   }
@@ -186,6 +193,10 @@ static void blf_batch_draw_init()
   g_batch.offset_loc = GPU_vertformat_attr_add(&format, "offset", GPU_COMP_I32, 1, GPU_FETCH_INT);
   g_batch.glyph_size_loc = GPU_vertformat_attr_add(
       &format, "glyph_size", GPU_COMP_I32, 2, GPU_FETCH_INT);
+  g_batch.glyph_comp_len_loc = GPU_vertformat_attr_add(
+      &format, "comp_len", GPU_COMP_I32, 1, GPU_FETCH_INT);
+  g_batch.glyph_mode_loc = GPU_vertformat_attr_add(
+      &format, "mode", GPU_COMP_I32, 1, GPU_FETCH_INT);
 
   g_batch.verts = GPU_vertbuf_create_with_format_ex(&format, GPU_USAGE_STREAM);
   GPU_vertbuf_data_alloc(g_batch.verts, BLF_BATCH_DRAW_LEN_MAX);
@@ -194,6 +205,9 @@ static void blf_batch_draw_init()
   GPU_vertbuf_attr_get_raw_data(g_batch.verts, g_batch.col_loc, &g_batch.col_step);
   GPU_vertbuf_attr_get_raw_data(g_batch.verts, g_batch.offset_loc, &g_batch.offset_step);
   GPU_vertbuf_attr_get_raw_data(g_batch.verts, g_batch.glyph_size_loc, &g_batch.glyph_size_step);
+  GPU_vertbuf_attr_get_raw_data(
+      g_batch.verts, g_batch.glyph_comp_len_loc, &g_batch.glyph_comp_len_step);
+  GPU_vertbuf_attr_get_raw_data(g_batch.verts, g_batch.glyph_mode_loc, &g_batch.glyph_mode_step);
   g_batch.glyph_len = 0;
 
   /* A dummy VBO containing 4 points, attributes are not used. */
@@ -263,7 +277,7 @@ void blf_batch_draw_begin(FontBLF *font)
     }
   }
   else {
-    /* flush cache */
+    /* Flush cache. */
     blf_batch_draw();
     g_batch.font = font;
     g_batch.simple_shader = simple_shader;
@@ -325,7 +339,7 @@ void blf_batch_draw()
 
   GPUTexture *texture = blf_batch_cache_texture_load();
   GPU_vertbuf_data_len_set(g_batch.verts, g_batch.glyph_len);
-  GPU_vertbuf_use(g_batch.verts); /* send data */
+  GPU_vertbuf_use(g_batch.verts); /* Send data. */
 
   GPU_batch_program_set_builtin(g_batch.batch, GPU_SHADER_TEXT);
   GPU_batch_texture_bind(g_batch.batch, "glyph", texture);
@@ -335,11 +349,14 @@ void blf_batch_draw()
 
   GPU_texture_unbind(texture);
 
-  /* restart to 1st vertex data pointers */
+  /* Restart to 1st vertex data pointers. */
   GPU_vertbuf_attr_get_raw_data(g_batch.verts, g_batch.pos_loc, &g_batch.pos_step);
   GPU_vertbuf_attr_get_raw_data(g_batch.verts, g_batch.col_loc, &g_batch.col_step);
   GPU_vertbuf_attr_get_raw_data(g_batch.verts, g_batch.offset_loc, &g_batch.offset_step);
   GPU_vertbuf_attr_get_raw_data(g_batch.verts, g_batch.glyph_size_loc, &g_batch.glyph_size_step);
+  GPU_vertbuf_attr_get_raw_data(
+      g_batch.verts, g_batch.glyph_comp_len_loc, &g_batch.glyph_comp_len_step);
+  GPU_vertbuf_attr_get_raw_data(g_batch.verts, g_batch.glyph_mode_loc, &g_batch.glyph_mode_step);
   g_batch.glyph_len = 0;
 }
 
@@ -435,14 +452,14 @@ static void blf_font_draw_ex(FontBLF *font,
                              ResultBLF *r_info,
                              const ft_pix pen_y)
 {
+  if (str_len == 0) {
+    /* Early exit, don't do any immediate-mode GPU operations. */
+    return;
+  }
+
   GlyphBLF *g = nullptr;
   ft_pix pen_x = 0;
   size_t i = 0;
-
-  if (str_len == 0) {
-    /* early output, don't do any IMM OpenGL. */
-    return;
-  }
 
   blf_batch_draw_begin(font);
 
@@ -451,7 +468,7 @@ static void blf_font_draw_ex(FontBLF *font,
     if (UNLIKELY(g == nullptr)) {
       continue;
     }
-    /* do not return this loop if clipped, we want every character tested */
+    /* Do not return this loop if clipped, we want every character tested. */
     blf_glyph_draw(font, gc, g, ft_pix_to_int_floor(pen_x), ft_pix_to_int_floor(pen_y));
     pen_x += g->advance_x;
   }
@@ -490,7 +507,7 @@ int blf_font_draw_mono(
     if (UNLIKELY(g == nullptr)) {
       continue;
     }
-    /* do not return this loop if clipped, we want every character tested */
+    /* Do not return this loop if clipped, we want every character tested. */
     blf_glyph_draw(font, gc, g, ft_pix_to_int_floor(pen_x), ft_pix_to_int_floor(pen_y));
 
     const int col = UNLIKELY(g->c == '\t') ? (tab_columns - (columns % tab_columns)) :
@@ -634,10 +651,10 @@ static void blf_font_draw_buffer_ex(FontBLF *font,
   ft_pix pen_y_basis = ft_pix_from_int(font->pos[1]) + pen_y;
   size_t i = 0;
 
-  /* buffer specific vars */
+  /* Buffer specific variables. */
   FontBufInfoBLF *buf_info = &font->buf_info;
 
-  /* another buffer specific call for color conversion */
+  /* Another buffer specific call for color conversion. */
 
   while ((i < str_len) && str[i]) {
     g = blf_glyph_from_utf8_and_step(font, gc, g, str, str_len, &i, &pen_x);
@@ -680,7 +697,8 @@ static bool blf_font_width_to_strlen_glyph_process(FontBLF *font,
                                                    const int width_i)
 {
   if (UNLIKELY(g == nullptr)) {
-    return false; /* continue the calling loop. */
+    /* Continue the calling loop. */
+    return false;
   }
 
   if (g && pen_x && !(font->flags & BLF_MONOSPACED)) {
@@ -751,7 +769,7 @@ size_t blf_font_width_to_rstrlen(
 
   i_tmp = i;
   g = blf_glyph_from_utf8_and_step(font, gc, nullptr, str, str_len, &i_tmp, nullptr);
-  for (width_new = pen_x = 0; (s != nullptr);
+  for (width_new = pen_x = 0; (s != nullptr && i > 0);
        i = i_prev, s = s_prev, g = g_prev, g_prev = nullptr, width_new = pen_x)
   {
     s_prev = BLI_str_find_prev_char_utf8(s, str);
@@ -939,19 +957,19 @@ void blf_font_boundbox_foreach_glyph(FontBLF *font,
                                      BLF_GlyphBoundsFn user_fn,
                                      void *user_data)
 {
-  GlyphBLF *g = nullptr;
-  ft_pix pen_x = 0;
-  size_t i = 0, i_curr;
-
   if (str_len == 0 || str[0] == 0) {
-    /* early output. */
+    /* Early exit. */
     return;
   }
+
+  GlyphBLF *g = nullptr;
+  ft_pix pen_x = 0;
+  size_t i = 0;
 
   GlyphCacheBLF *gc = blf_glyph_cache_acquire(font);
 
   while ((i < str_len) && str[i]) {
-    i_curr = i;
+    const size_t i_curr = i;
     g = blf_glyph_from_utf8_and_step(font, gc, g, str, str_len, &i, &pen_x);
 
     if (UNLIKELY(g == nullptr)) {
@@ -1096,8 +1114,8 @@ static void blf_font_wrap_apply(FontBLF *font,
   // printf("%s wrapping (%d, %d) `%s`:\n", __func__, str_len, strlen(str), str);
   while ((i < str_len) && str[i]) {
 
-    /* wrap vars */
-    size_t i_curr = i;
+    /* Wrap variables. */
+    const size_t i_curr = i;
     bool do_draw = false;
 
     g = blf_glyph_from_utf8_and_step(font, gc, g_prev, str, str_len, &i, &pen_x);
@@ -1119,7 +1137,7 @@ static void blf_font_wrap_apply(FontBLF *font,
       do_draw = true;
     }
     else if (UNLIKELY(((i < str_len) && str[i]) == 0)) {
-      /* need check here for trailing newline, else we draw it */
+      /* Need check here for trailing newline, else we draw it. */
       wrap.last[0] = i + ((g->c != '\n') ? 1 : 0);
       wrap.last[1] = i;
       do_draw = true;
@@ -1135,8 +1153,13 @@ static void blf_font_wrap_apply(FontBLF *font,
     }
 
     if (UNLIKELY(do_draw)) {
-      // printf("(%03d..%03d)  `%.*s`\n",
-      //        wrap.start, wrap.last[0], (wrap.last[0] - wrap.start) - 1, &str[wrap.start]);
+#if 0
+      printf("(%03d..%03d)  `%.*s`\n",
+             wrap.start,
+             wrap.last[0],
+             (wrap.last[0] - wrap.start) - 1,
+             &str[wrap.start]);
+#endif
 
       callback(font, gc, &str[wrap.start], (wrap.last[0] - wrap.start) - 1, pen_y, userdata);
       wrap.start = wrap.last[0];
@@ -1156,14 +1179,14 @@ static void blf_font_wrap_apply(FontBLF *font,
 
   if (r_info) {
     r_info->lines = lines;
-    /* width of last line only (with wrapped lines) */
+    /* Width of last line only (with wrapped lines). */
     r_info->width = ft_pix_to_int(pen_x_next);
   }
 
   blf_glyph_cache_release(font);
 }
 
-/* blf_font_draw__wrap */
+/** Utility for #blf_font_draw__wrap. */
 static void blf_font_draw__wrap_cb(FontBLF *font,
                                    GlyphCacheBLF *gc,
                                    const char *str,
@@ -1178,7 +1201,7 @@ void blf_font_draw__wrap(FontBLF *font, const char *str, const size_t str_len, R
   blf_font_wrap_apply(font, str, str_len, r_info, blf_font_draw__wrap_cb, nullptr);
 }
 
-/* blf_font_boundbox__wrap */
+/** Utility for #blf_font_boundbox__wrap. */
 static void blf_font_boundbox_wrap_cb(FontBLF *font,
                                       GlyphCacheBLF *gc,
                                       const char *str,
@@ -1203,7 +1226,7 @@ void blf_font_boundbox__wrap(
   blf_font_wrap_apply(font, str, str_len, r_info, blf_font_boundbox_wrap_cb, box);
 }
 
-/* blf_font_draw_buffer__wrap */
+/** Utility for  #blf_font_draw_buffer__wrap. */
 static void blf_font_draw_buffer__wrap_cb(FontBLF *font,
                                           GlyphCacheBLF *gc,
                                           const char *str,
@@ -1230,8 +1253,8 @@ void blf_font_draw_buffer__wrap(FontBLF *font,
 static ft_pix blf_font_height_max_ft_pix(FontBLF *font)
 {
   blf_ensure_size(font);
-  /* Metrics.height is rounded to pixel. Force minimum of one pixel. */
-  return MAX2((ft_pix)font->ft_size->metrics.height, ft_pix_from_int(1));
+  /* #Metrics::height is rounded to pixel. Force minimum of one pixel. */
+  return std::max((ft_pix)font->ft_size->metrics.height, ft_pix_from_int(1));
 }
 
 int blf_font_height_max(FontBLF *font)
@@ -1242,8 +1265,8 @@ int blf_font_height_max(FontBLF *font)
 static ft_pix blf_font_width_max_ft_pix(FontBLF *font)
 {
   blf_ensure_size(font);
-  /* Metrics.max_advance is rounded to pixel. Force minimum of one pixel. */
-  return MAX2((ft_pix)font->ft_size->metrics.max_advance, ft_pix_from_int(1));
+  /* #Metrics::max_advance is rounded to pixel. Force minimum of one pixel. */
+  return std::max((ft_pix)font->ft_size->metrics.max_advance, ft_pix_from_int(1));
 }
 
 int blf_font_width_max(FontBLF *font)
@@ -1292,7 +1315,7 @@ int blf_font_init()
                           nullptr,
                           &ftc_manager);
     if (err == FT_Err_Ok) {
-      /* Create a charmap cache to speed up glyph index lookups. */
+      /* Create a character-map cache to speed up glyph index lookups. */
       err = FTC_CMapCache_New(ftc_manager, &ftc_charmap_cache);
     }
   }
@@ -1311,7 +1334,7 @@ void blf_font_exit()
   blf_batch_draw_exit();
 }
 
-void BLF_cache_flush_set_fn(void (*cache_flush_fn)(void))
+void BLF_cache_flush_set_fn(void (*cache_flush_fn)())
 {
   blf_draw_cache_flush = cache_flush_fn;
 }
@@ -1335,7 +1358,8 @@ static void blf_font_fill(FontBLF *font)
     font->m[i] = 0;
   }
 
-  /* annoying bright color so we can see where to add BLF_color calls */
+  /* Use an easily identifiable bright color (yellow)
+   * so its clear when #BLF_color calls are missing. */
   font->color[0] = 255;
   font->color[1] = 255;
   font->color[2] = 0;
@@ -1347,6 +1371,11 @@ static void blf_font_fill(FontBLF *font)
   font->clip_rec.ymax = 0;
   font->flags = 0;
   font->size = 0;
+  font->char_weight = 400;
+  font->char_slant = 0.0f;
+  font->char_width = 1.0f;
+  font->char_spacing = 0.0f;
+
   BLI_listbase_clear(&font->cache);
   font->kerning_cache = nullptr;
 #if BLF_BLUR_ENABLE
@@ -1363,6 +1392,213 @@ static void blf_font_fill(FontBLF *font)
   font->buf_info.col_init[1] = 0;
   font->buf_info.col_init[2] = 0;
   font->buf_info.col_init[3] = 0;
+}
+
+/**
+ * NOTE(@Harley): that the data the following function creates is not yet used.
+ * But do not remove it as it will be used in the near future.
+ */
+static void blf_font_metrics(FT_Face face, FontMetrics *metrics)
+{
+  /* Members with non-zero defaults. */
+  metrics->weight = 400;
+  metrics->width = 1.0f;
+
+  TT_OS2 *os2_table = (TT_OS2 *)FT_Get_Sfnt_Table(face, FT_SFNT_OS2);
+  if (os2_table) {
+    /* The default (resting) font weight. */
+    if (os2_table->usWeightClass >= 1 && os2_table->usWeightClass <= 1000) {
+      metrics->weight = short(os2_table->usWeightClass);
+    }
+
+    /* Width value is one of integers 1-9 with known values. */
+    if (os2_table->usWidthClass >= 1 && os2_table->usWidthClass <= 9) {
+      switch (os2_table->usWidthClass) {
+        case 1:
+          metrics->width = 0.5f;
+          break;
+        case 2:
+          metrics->width = 0.625f;
+          break;
+        case 3:
+          metrics->width = 0.75f;
+          break;
+        case 4:
+          metrics->width = 0.875f;
+          break;
+        case 5:
+          metrics->width = 1.0f;
+          break;
+        case 6:
+          metrics->width = 1.125f;
+          break;
+        case 7:
+          metrics->width = 1.25f;
+          break;
+        case 8:
+          metrics->width = 1.5f;
+          break;
+        case 9:
+          metrics->width = 2.0f;
+          break;
+      }
+    }
+
+    metrics->strikeout_position = short(os2_table->yStrikeoutPosition);
+    metrics->strikeout_thickness = short(os2_table->yStrikeoutSize);
+    metrics->subscript_size = short(os2_table->ySubscriptYSize);
+    metrics->subscript_xoffset = short(os2_table->ySubscriptXOffset);
+    metrics->subscript_yoffset = short(os2_table->ySubscriptYOffset);
+    metrics->superscript_size = short(os2_table->ySuperscriptYSize);
+    metrics->superscript_xoffset = short(os2_table->ySuperscriptXOffset);
+    metrics->superscript_yoffset = short(os2_table->ySuperscriptYOffset);
+    metrics->family_class = short(os2_table->sFamilyClass);
+    metrics->selection_flags = short(os2_table->fsSelection);
+    metrics->first_charindex = short(os2_table->usFirstCharIndex);
+    metrics->last_charindex = short(os2_table->usLastCharIndex);
+    if (os2_table->version > 1) {
+      metrics->cap_height = short(os2_table->sCapHeight);
+      metrics->x_height = short(os2_table->sxHeight);
+    }
+  }
+
+  /* The Post table usually contains a slant value, but in counter-clockwise degrees. */
+  TT_Postscript *post_table = (TT_Postscript *)FT_Get_Sfnt_Table(face, FT_SFNT_POST);
+  if (post_table) {
+    if (post_table->italicAngle != 0) {
+      metrics->slant = float(post_table->italicAngle) / -65536.0f;
+    }
+  }
+
+  /* Metrics copied from those gathered by FreeType. */
+  metrics->units_per_EM = short(face->units_per_EM);
+  metrics->ascender = short(face->ascender);
+  metrics->descender = short(face->descender);
+  metrics->line_height = short(face->height);
+  metrics->max_advance_width = short(face->max_advance_width);
+  metrics->max_advance_height = short(face->max_advance_height);
+  metrics->underline_position = short(face->underline_position);
+  metrics->underline_thickness = short(face->underline_thickness);
+  metrics->num_glyphs = int(face->num_glyphs);
+
+  if (metrics->cap_height == 0) {
+    /* Calculate or guess cap height if it is not set in the font. */
+    FT_UInt gi = FT_Get_Char_Index(face, uint('H'));
+    if (gi && FT_Load_Glyph(face, gi, FT_LOAD_NO_SCALE | FT_LOAD_NO_BITMAP) == FT_Err_Ok) {
+      metrics->cap_height = short(face->glyph->metrics.height);
+    }
+    else {
+      metrics->cap_height = short(float(metrics->units_per_EM) * 0.7f);
+    }
+  }
+
+  if (metrics->x_height == 0) {
+    /* Calculate or guess x-height if it is not set in the font. */
+    FT_UInt gi = FT_Get_Char_Index(face, uint('x'));
+    if (gi && FT_Load_Glyph(face, gi, FT_LOAD_NO_SCALE | FT_LOAD_NO_BITMAP) == FT_Err_Ok) {
+      metrics->x_height = short(face->glyph->metrics.height);
+    }
+    else {
+      metrics->x_height = short(float(metrics->units_per_EM) * 0.5f);
+    }
+  }
+
+  FT_UInt gi = FT_Get_Char_Index(face, uint('o'));
+  if (gi && FT_Load_Glyph(face, gi, FT_LOAD_NO_SCALE | FT_LOAD_NO_BITMAP) == FT_Err_Ok) {
+    metrics->o_proportion = float(face->glyph->metrics.width) / float(face->glyph->metrics.height);
+  }
+
+  if (metrics->ascender == 0) {
+    /* Set a sane value for ascender if not set in the font. */
+    metrics->ascender = short(float(metrics->units_per_EM) * 0.8f);
+  }
+
+  if (metrics->descender == 0) {
+    /* Set a sane value for descender if not set in the font. */
+    metrics->descender = metrics->ascender - metrics->units_per_EM;
+  }
+
+  if (metrics->weight == 400 && face->style_flags & FT_STYLE_FLAG_BOLD) {
+    /* Normal weight yet this is an bold font, so set a sane weight value. */
+    metrics->weight = 700;
+  }
+
+  if (metrics->slant == 0.0f && face->style_flags & FT_STYLE_FLAG_ITALIC) {
+    /* No slant yet this is an italic font, so set a sane slant value. */
+    metrics->slant = 8.0f;
+  }
+
+  if (metrics->underline_position == 0) {
+    metrics->underline_position = short(float(metrics->units_per_EM) * -0.2f);
+  }
+
+  if (metrics->underline_thickness == 0) {
+    metrics->underline_thickness = short(float(metrics->units_per_EM) * 0.07f);
+  }
+
+  if (metrics->strikeout_position == 0) {
+    metrics->strikeout_position = short(float(metrics->x_height) * 0.6f);
+  }
+
+  if (metrics->strikeout_thickness == 0) {
+    metrics->strikeout_thickness = metrics->underline_thickness;
+  }
+
+  if (metrics->subscript_size == 0) {
+    metrics->subscript_size = short(float(metrics->units_per_EM) * 0.6f);
+  }
+
+  if (metrics->subscript_yoffset == 0) {
+    metrics->subscript_yoffset = short(float(metrics->units_per_EM) * 0.075f);
+  }
+
+  if (metrics->superscript_size == 0) {
+    metrics->superscript_size = short(float(metrics->units_per_EM) * 0.6f);
+  }
+
+  if (metrics->superscript_yoffset == 0) {
+    metrics->superscript_yoffset = short(float(metrics->units_per_EM) * 0.35f);
+  }
+
+  metrics->valid = true;
+}
+
+/**
+ * Extra FontBLF setup needed after it gets a Face. Called from
+ * both blf_ensure_face and from the blf_cache_face_requester callback.
+ */
+static bool blf_setup_face(FontBLF *font)
+{
+  font->face_flags = font->face->face_flags;
+
+  if (FT_HAS_MULTIPLE_MASTERS(font) && !font->variations) {
+    FT_Get_MM_Var(font->face, &(font->variations));
+  }
+
+  if (!font->metrics.valid) {
+    blf_font_metrics(font->face, &font->metrics);
+    font->char_weight = font->metrics.weight;
+    font->char_slant = font->metrics.slant;
+    font->char_width = font->metrics.width;
+    font->char_spacing = font->metrics.spacing;
+  }
+
+  if (FT_IS_FIXED_WIDTH(font)) {
+    font->flags |= BLF_MONOSPACED;
+  }
+
+  if (FT_HAS_KERNING(font) && !font->kerning_cache) {
+    /* Create kerning cache table and fill with value indicating "unset". */
+    font->kerning_cache = static_cast<KerningCacheBLF *>(
+        MEM_mallocN(sizeof(KerningCacheBLF), __func__));
+    for (uint i = 0; i < KERNING_CACHE_TABLE_SIZE; i++) {
+      for (uint j = 0; j < KERNING_CACHE_TABLE_SIZE; j++) {
+        font->kerning_cache->ascii_table[i][j] = KERNING_ENTRY_UNSET;
+      }
+    }
+  }
+
+  return true;
 }
 
 bool blf_ensure_face(FontBLF *font)
@@ -1446,37 +1682,8 @@ bool blf_ensure_face(FontBLF *font)
     font->ft_size = font->face->size;
   }
 
-  font->face_flags = font->face->face_flags;
-
-  if (FT_HAS_MULTIPLE_MASTERS(font)) {
-    FT_Get_MM_Var(font->face, &(font->variations));
-  }
-
-  /* Save TrueType table with bits to quickly test most unicode block coverage. */
-  TT_OS2 *os2_table = (TT_OS2 *)FT_Get_Sfnt_Table(font->face, FT_SFNT_OS2);
-  if (os2_table) {
-    font->unicode_ranges[0] = uint(os2_table->ulUnicodeRange1);
-    font->unicode_ranges[1] = uint(os2_table->ulUnicodeRange2);
-    font->unicode_ranges[2] = uint(os2_table->ulUnicodeRange3);
-    font->unicode_ranges[3] = uint(os2_table->ulUnicodeRange4);
-  }
-
-  if (FT_IS_FIXED_WIDTH(font)) {
-    font->flags |= BLF_MONOSPACED;
-  }
-
-  if (FT_HAS_KERNING(font) && !font->kerning_cache) {
-    /* Create kerning cache table and fill with value indicating "unset". */
-    font->kerning_cache = static_cast<KerningCacheBLF *>(
-        MEM_mallocN(sizeof(KerningCacheBLF), __func__));
-    for (uint i = 0; i < KERNING_CACHE_TABLE_SIZE; i++) {
-      for (uint j = 0; j < KERNING_CACHE_TABLE_SIZE; j++) {
-        font->kerning_cache->ascii_table[i][j] = KERNING_ENTRY_UNSET;
-      }
-    }
-  }
-
-  return true;
+  /* Setup Font details that require having a Face. */
+  return blf_setup_face(font);
 }
 
 struct FaceDetails {
@@ -1507,6 +1714,7 @@ static const FaceDetails static_face_details[] = {
     {"NotoSansHebrew-Regular.woff2", TT_UCR_HEBREW, 0, 0, 0},
     {"NotoSansJavanese-Regular.woff2", 0x80000003L, 0x2000L, 0, 0},
     {"NotoSansKannada-VariableFont_wdth,wght.woff2", TT_UCR_KANNADA, 0, 0, 0},
+    {"NotoSansKhmer-VariableFont_wdth,wght.woff2", 0, 0, TT_UCR_KHMER, 0},
     {"NotoSansMalayalam-VariableFont_wdth,wght.woff2", TT_UCR_MALAYALAM, 0, 0, 0},
     {"NotoSansMath-Regular.woff2", 0, TT_UCR_MATHEMATICAL_OPERATORS, 0, 0},
     {"NotoSansMyanmar-Regular.woff2", 0, 0, TT_UCR_MYANMAR, 0},
@@ -1572,6 +1780,15 @@ static FontBLF *blf_font_new_impl(const char *filepath,
     if (!blf_ensure_face(font)) {
       blf_font_free(font);
       return nullptr;
+    }
+
+    /* Save TrueType table with bits to quickly test most unicode block coverage. */
+    TT_OS2 *os2_table = (TT_OS2 *)FT_Get_Sfnt_Table(font->face, FT_SFNT_OS2);
+    if (os2_table) {
+      font->unicode_ranges[0] = uint(os2_table->ulUnicodeRange1);
+      font->unicode_ranges[1] = uint(os2_table->ulUnicodeRange2);
+      font->unicode_ranges[2] = uint(os2_table->ulUnicodeRange3);
+      font->unicode_ranges[3] = uint(os2_table->ulUnicodeRange4);
     }
   }
 

@@ -9,7 +9,7 @@ import bpy
 from bpy.utils import register_class, unregister_class
 from octane.nodes.render_settings.animation_settings import OctaneAnimationSettingsShutterAlignment
 from octane.nodes.render_settings.render_layer import OctaneRenderLayerMode
-from octane.properties_ import common
+from octane.properties_.common import OctanePropertyGroup
 from octane.utils import consts, ocio, utility
 
 rotation_orders = (
@@ -305,7 +305,7 @@ class CompositeNodeGraphPropertyGroup(bpy.types.PropertyGroup):
     )
 
 
-class OctaneAnimationSettings(bpy.types.PropertyGroup, common.OctanePropertySettings):
+class OctaneAnimationSettingsPropertyGroup(OctanePropertyGroup):
     PROPERTY_CONFIGS = {consts.NodeType.NT_ANIMATION_SETTINGS: ["mb_direction", ]}
     PROPERTY_NAME_TO_PIN_SYMBOL_MAP = {
         "mb_direction": "shutterAlignment",
@@ -387,7 +387,7 @@ class OctaneAnimationSettings(bpy.types.PropertyGroup, common.OctanePropertySett
         utility.sync_legacy_property(self, "subframe_end", legacy_data, "subframe_end")
 
 
-class OctaneGlobalRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
+class OctaneGlobalRenderLayerPropertyGroup(OctanePropertyGroup):
     PROPERTY_CONFIGS = {
         consts.NodeType.NT_RENDER_LAYER: ["layers_enable", "layers_current", "layers_invert", "layers_mode", ]}
     PROPERTY_NAME_TO_PIN_SYMBOL_MAP = {
@@ -454,7 +454,7 @@ class OctaneGlobalRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySett
         utility.sync_legacy_property(self, "layers_invert", legacy_data, "layers_invert")
 
 
-class OctaneRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
+class OctaneRenderLayerPropertyGroup(OctanePropertyGroup):
     PROPERTY_CONFIGS = {
         consts.NodeType.NT_RENDER_LAYER: ["layers_enable", "layers_current", "layers_invert", "layers_mode", ],
         consts.NodeType.NT_RENDER_PASSES: [
@@ -530,7 +530,7 @@ class OctaneRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
         "use_pass_emitters": "renderPassEmit",
         "use_pass_env": "renderPassEnvironment",
         "use_pass_denoise_albedo": "renderPassDenoiseAlbedo",
-        "use_pass_denoise_normal": "renderPassDenoiseNormal",        
+        "use_pass_denoise_normal": "renderPassDenoiseNormal",
         "use_pass_diff": "renderPassDiffuse",
         "use_pass_diff_dir": "renderPassDiffuseDirect",
         "use_pass_diff_indir": "renderPassDiffuseIndirect",
@@ -778,7 +778,7 @@ class OctaneRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
         description="Records the normal values for the first bounce of the camera path, but also of subsequent "
                     "bounces if the first bounces are all specular",
         default=False,
-    )    
+    )
     use_pass_diff: BoolProperty(
         name="Diff",
         description="Contains all samples where a diffuse material is lit either directly or indirectly",
@@ -1615,7 +1615,7 @@ class OctaneRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
         ("43", "Denoiser Beauty", "Denoiser Beauty pass", 43),
         (None),
         ("123", "Denoise albedo", "Denoise albedo pass", 123),
-        ("40", "Denoise normal", "Denoise normal pass", 40),        
+        ("40", "Denoise normal", "Denoise normal pass", 40),
         ("3", "Diffuse", "Diffuse pass", 3),
         ("4", "Diffuse direct", "Diffuse direct pass", 4),
         ("5", "Diffuse indirect", "Diffuse indirect pass", 5),
@@ -1653,16 +1653,16 @@ class OctaneRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
         ("", "Auxiliary", "", 0),
         ("10000", "AOV Output", "AOV Outputs", 10000),
         (None),
-        ("2001", "Cryptomatte MaterialName", "Cryptomatte channels for material node names", 2001), 
+        ("2001", "Cryptomatte MaterialName", "Cryptomatte channels for material node names", 2001),
         ("2006", "Cryptomatte MaterialNode", "Cryptomatte channels using distinct material nodes", 2006),
-        ("2002", "Cryptomatte MaterialPinName", "Cryptomatte channels for material pin names", 2002), 
-        ("2003", "Cryptomatte ObjectName", "Cryptomatte channels for object layer node names", 2003), 
+        ("2002", "Cryptomatte MaterialPinName", "Cryptomatte channels for material pin names", 2002),
+        ("2003", "Cryptomatte ObjectName", "Cryptomatte channels for object layer node names", 2003),
         ("2004", "Cryptomatte ObjectNode", "Cryptomatte channels using distinct object layer nodes", 2004),
         ("2007", "Cryptomatte ObjectPinName", "Cryptomatte channels for object layer pin names", 2007),
         ("2005", "Cryptomatte InstanceID", "Cryptomatte channels for instance IDs", 2005),
         ("2009", "Cryptomatte RenderLayer", "Cryptomatte channels for render layers", 2009),
         ("2010", "Cryptomatte UserInstanceID", "Cryptomatte channels for user instance IDs", 2010),
-        ("2008", "Cryptomatte GeometryNodeName", "Cryptomatte channels for geometry node names", 2008),        
+        ("2008", "Cryptomatte GeometryNodeName", "Cryptomatte channels for geometry node names", 2008),
         (None),
         ("33", "Irradiance", "Irradiance pass", 33),
         ("34", "Light Direction", "Light Direction pass", 34),
@@ -1858,7 +1858,7 @@ class OctaneRenderLayer(bpy.types.PropertyGroup, common.OctanePropertySettings):
         del bpy.types.ViewLayer.octane
 
 
-class OctaneRenderSettings(bpy.types.PropertyGroup):
+class OctaneRenderPropertyGroup(bpy.types.PropertyGroup):
     # ################################################################################################
     # OCTANE BLENDER RENDER VERSION
     # ################################################################################################
@@ -1922,7 +1922,7 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
     animation_settings: PointerProperty(
         name="Octane Animation Settings",
         description="",
-        type=OctaneAnimationSettings,
+        type=OctaneAnimationSettingsPropertyGroup,
     )
     # ################################################################################################
     # OCTANE RENDER LAYER
@@ -1930,7 +1930,7 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
     render_layer: PointerProperty(
         name="Octane Render Layer",
         description="",
-        type=OctaneGlobalRenderLayer,
+        type=OctaneGlobalRenderLayerPropertyGroup,
     )
     # ################################################################################################
     # OCTANE RENDER PASSES
@@ -3227,54 +3227,6 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
         pass
 
 
-class OctaneProgressWidget(object):
-    visibility = False
-    task_text = ""
-
-    @staticmethod
-    def update(context):
-        # Trick to update the statusbar 
-        statusbar_info = context.screen.statusbar_info()
-        context.workspace.status_text_set_internal(statusbar_info)
-
-    @staticmethod
-    def draw(self, context):
-        if OctaneProgressWidget.get_progress(context) < 100:
-            self.layout.prop(context.scene.octane, "octane_task_progress", text=OctaneProgressWidget.task_text)
-        else:
-            OctaneProgressWidget.hide()
-
-    @staticmethod
-    def set_task_text(_context, text):
-        OctaneProgressWidget.task_text = text
-
-    @staticmethod
-    def set_progress(context, value):
-        if OctaneProgressWidget.visibility:
-            value = float("{:.2f}".format(value))
-            context.scene.octane.octane_task_progress = value
-
-    @staticmethod
-    def get_progress(context):
-        if OctaneProgressWidget.visibility:
-            return context.scene.octane.octane_task_progress
-        else:
-            return 0
-
-    @staticmethod
-    def show(context):
-        if not OctaneProgressWidget.visibility:
-            bpy.types.STATUSBAR_HT_header.append(OctaneProgressWidget.draw)
-            OctaneProgressWidget.visibility = True
-            OctaneProgressWidget.set_progress(context, 0)
-
-    @staticmethod
-    def hide():
-        bpy.types.STATUSBAR_HT_header.remove(OctaneProgressWidget.draw)
-        OctaneProgressWidget.visibility = False
-        OctaneProgressWidget.task_text = ""
-
-
 class AddPresetRenderPasses(AddPresetBase, Operator):
     """Add Octane Render Passes preset"""
     bl_idname = "render.octane_renderpasses_preset_add"
@@ -3283,7 +3235,8 @@ class AddPresetRenderPasses(AddPresetBase, Operator):
     preset_defines = [
         "octane = bpy.context.view_layer.octane"
     ]
-    preset_values = ["octane." + item for item in OctaneRenderLayer.PROPERTY_CONFIGS[consts.NodeType.NT_RENDER_PASSES]]
+    preset_values = ["octane." + item
+                     for item in OctaneRenderLayerPropertyGroup.PROPERTY_CONFIGS[consts.NodeType.NT_RENDER_PASSES]]
     preset_subdir = "octane/renderpasses_presets"
 
 
@@ -3315,10 +3268,10 @@ _CLASSES = [
     OctaneAovOutputGroupCollection,
     OctaneBakingLayerTransform,
     OctaneBakingLayerTransformCollection,
-    OctaneAnimationSettings,
-    OctaneGlobalRenderLayer,
-    OctaneRenderLayer,
-    OctaneRenderSettings,
+    OctaneAnimationSettingsPropertyGroup,
+    OctaneGlobalRenderLayerPropertyGroup,
+    OctaneRenderLayerPropertyGroup,
+    OctaneRenderPropertyGroup,
     AddPresetRenderPasses,
     AddPresetKernel,
 ]

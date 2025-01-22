@@ -6,10 +6,10 @@
  * \ingroup bke
  */
 
-#include "BKE_idtype.h"
-#include "BKE_lib_id.h"
-#include "BKE_main.h"
-#include "BKE_main_namemap.h"
+#include "BKE_idtype.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_main.hh"
+#include "BKE_main_namemap.hh"
 
 #include "BLI_assert.h"
 #include "BLI_bitmap.h"
@@ -20,7 +20,7 @@
 #include "BLI_set.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
-#include "BLI_string_utils.h"
+#include "BLI_string_utils.hh"
 
 #include "DNA_ID.h"
 
@@ -30,7 +30,7 @@
 
 static CLG_LogRef LOG = {"bke.main_namemap"};
 
-//#define DEBUG_PRINT_MEMORY_USAGE
+// #define DEBUG_PRINT_MEMORY_USAGE
 
 using namespace blender;
 

@@ -26,6 +26,8 @@ class AssetLibrary;
 class AssetRepresentation;
 }  // namespace blender::asset_system
 
+namespace blender::ed::asset {
+
 /**
  * Compare \a asset against the settings of \a filter.
  *
@@ -38,10 +40,8 @@ class AssetRepresentation;
  * \returns True if the asset should be visible with these filter settings (parameters match).
  * Otherwise returns false (mismatch).
  */
-bool ED_asset_filter_matches_asset(const AssetFilterSettings *filter,
-                                   const blender::asset_system::AssetRepresentation &asset);
-
-namespace blender::ed::asset {
+bool filter_matches_asset(const AssetFilterSettings *filter,
+                          const blender::asset_system::AssetRepresentation &asset);
 
 struct AssetItemTree {
   asset_system::AssetCatalogTree catalogs;
@@ -49,6 +49,8 @@ struct AssetItemTree {
       assets_per_path;
   /** Assets not added to a catalog, not part of #assets_per_path. */
   Vector<asset_system::AssetRepresentation *> unassigned_assets;
+  /** True if the tree is out of date compared to asset libraries and must be rebuilt. */
+  bool dirty = true;
 };
 
 asset_system::AssetCatalogTree build_filtered_catalog_tree(

@@ -1,13 +1,13 @@
 # <pep8 compliant>
 
 from bpy.types import Panel
-
 from bpy.utils import register_class, unregister_class
-from octane.uis import common
+
+from octane.uis.common import OctanePropertyPanel
 from octane.utils import consts, utility
 
 
-class OCTANE_WORLD_PT_environment(common.OctanePropertyPanel, Panel):
+class OCTANE_WORLD_PT_environment(OctanePropertyPanel, Panel):
     bl_label = "Environment"
     bl_context = "world"
 
@@ -22,7 +22,7 @@ class OCTANE_WORLD_PT_environment(common.OctanePropertyPanel, Panel):
         utility.panel_ui_node_view(context, self.layout, world, consts.OctaneOutputNodeSocketNames.ENVIRONMENT)
 
 
-class OCTANE_WORLD_PT_visible_environment(common.OctanePropertyPanel, Panel):
+class OCTANE_WORLD_PT_visible_environment(OctanePropertyPanel, Panel):
     bl_label = "Visible Environment"
     bl_context = "world"
 

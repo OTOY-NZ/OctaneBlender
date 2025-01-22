@@ -23,12 +23,12 @@
 #include "BLI_quadric.h"
 #include "BLI_utildefines_stack.h"
 
-#include "BKE_customdata.h"
+#include "BKE_customdata.hh"
 
-#include "bmesh.h"
-#include "bmesh_decimate.h" /* own include */
+#include "bmesh.hh"
+#include "bmesh_decimate.hh" /* own include */
 
-#include "../intern/bmesh_structure.h"
+#include "../intern/bmesh_structure.hh"
 
 #define USE_SYMMETRY
 #ifdef USE_SYMMETRY
@@ -242,29 +242,29 @@ static void bm_decim_build_edge_cost_single(BMEdge *e,
     goto clear;
   }
 
-  /* check we can collapse, some edges we better not touch */
+  /* Check we can collapse, some edges we better not touch. */
   if (BM_edge_is_boundary(e)) {
     if (e->l->f->len == 3) {
-      /* pass */
+      /* Pass. */
     }
     else {
-      /* only collapse tri's */
+      /* Only collapse triangles. */
       goto clear;
     }
   }
   else if (BM_edge_is_manifold(e)) {
     if ((e->l->f->len == 3) && (e->l->radial_next->f->len == 3)) {
-      /* pass */
+      /* Pass. */
     }
     else {
-      /* only collapse tri's */
+      /* Only collapse triangles. */
       goto clear;
     }
   }
   else {
     goto clear;
   }
-  /* end sanity check */
+  /* End sanity check. */
 
   {
     double optimize_co[3];
@@ -608,10 +608,10 @@ static void bm_decim_triangulate_end(BMesh *bm, const int edges_tri_tot)
 
   /* we need to collect before merging for ngons since the loops indices will be lost */
   BMEdge **edges_tri = static_cast<BMEdge **>(
-      MEM_mallocN(MIN2(edges_tri_tot, bm->totedge) * sizeof(*edges_tri), __func__));
+      MEM_mallocN(std::min(edges_tri_tot, bm->totedge) * sizeof(*edges_tri), __func__));
   STACK_DECLARE(edges_tri);
 
-  STACK_INIT(edges_tri, MIN2(edges_tri_tot, bm->totedge));
+  STACK_INIT(edges_tri, std::min(edges_tri_tot, bm->totedge));
 
   /* boundary edges */
   BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
@@ -687,7 +687,7 @@ static void bm_edge_collapse_loop_customdata(
 {
   /* Disable seam check - the seam check would have to be done per layer,
    * its not really that important. */
-  //#define USE_SEAM
+  // #define USE_SEAM
   /* these don't need to be updated, since they will get removed when the edge collapses */
   BMLoop *l_clear, *l_other;
   const bool is_manifold = BM_edge_is_manifold(l->e);
@@ -789,7 +789,7 @@ static void bm_edge_collapse_loop_customdata(
     }
   }
 
-  //#undef USE_SEAM
+  // #undef USE_SEAM
 }
 #endif /* USE_CUSTOMDATA */
 
@@ -1380,8 +1380,7 @@ void BM_mesh_decimate_collapse(BMesh *bm,
     while ((bm->totface > face_tot_target) && (BLI_heap_is_empty(eheap) == false) &&
            (BLI_heap_top_value(eheap) != COST_INVALID))
     {
-      /**
-       * \note
+      /* NOTE:
        * - `eheap_table[e_index_mirr]` is only removed from the heap at the last moment
        *   since its possible (in theory) for collapsing `e` to remove `e_mirr`.
        * - edges sharing a vertex are ignored, so the pivot vertex isn't moved to one side.

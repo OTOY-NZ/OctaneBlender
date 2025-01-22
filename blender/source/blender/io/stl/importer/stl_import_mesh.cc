@@ -6,9 +6,11 @@
  * \ingroup stl
  */
 
-#include "BKE_customdata.h"
-#include "BKE_lib_id.h"
-#include "BKE_main.h"
+#include <iostream>
+
+#include "BKE_customdata.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_main.hh"
 #include "BKE_mesh.hh"
 
 #include "BLI_array.hh"
@@ -16,9 +18,6 @@
 #include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
 #include "BLI_task.hh"
-
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
 
 #include "stl_import_mesh.hh"
 
@@ -75,24 +74,15 @@ Mesh *STLMeshHelper::to_mesh()
   }
 
   Mesh *mesh = BKE_mesh_new_nomain(verts_.size(), 0, tris_.size(), tris_.size() * 3);
-
   mesh->vert_positions_for_write().copy_from(verts_);
-
-  MutableSpan<int> face_offsets = mesh->face_offsets_for_write();
-  threading::parallel_for(face_offsets.index_range(), 4096, [&](const IndexRange range) {
-    for (const int i : range) {
-      face_offsets[i] = i * 3;
-    }
-  });
-
+  offset_indices::fill_constant_group_size(3, 0, mesh->face_offsets_for_write());
   array_utils::copy(tris_.as_span().cast<int>(), mesh->corner_verts_for_write());
 
   /* NOTE: edges must be calculated first before setting custom normals. */
-  BKE_mesh_calc_edges(mesh, false, false);
+  bke::mesh_calc_edges(*mesh, false, false);
 
-  if (use_custom_normals_ && loop_normals_.size() == mesh->totloop) {
+  if (use_custom_normals_ && loop_normals_.size() == mesh->corners_num) {
     BKE_mesh_set_custom_normals(mesh, reinterpret_cast<float(*)[3]>(loop_normals_.data()));
-    mesh->flag |= ME_AUTOSMOOTH;
   }
 
   return mesh;

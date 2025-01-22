@@ -13,7 +13,7 @@
 
 #include "draw_command.hh"
 #include "draw_pass.hh"
-#include "draw_shader.h"
+#include "draw_shader.hh"
 #include "draw_view.hh"
 
 #include <bitset>
@@ -35,6 +35,26 @@ void ShaderBind::execute(RecordingState &state) const
 void FramebufferBind::execute() const
 {
   GPU_framebuffer_bind(*framebuffer);
+}
+
+void SubPassTransition::execute() const
+{
+  /* TODO(fclem): Require framebuffer bind to always be part of the pass so that we can track it
+   * inside RecordingState. */
+  GPUFrameBuffer *framebuffer = GPU_framebuffer_active_get();
+  /* Unpack to the real enum type. */
+  const GPUAttachmentState states[9] = {
+      GPUAttachmentState(depth_state),
+      GPUAttachmentState(color_states[0]),
+      GPUAttachmentState(color_states[1]),
+      GPUAttachmentState(color_states[2]),
+      GPUAttachmentState(color_states[3]),
+      GPUAttachmentState(color_states[4]),
+      GPUAttachmentState(color_states[5]),
+      GPUAttachmentState(color_states[6]),
+      GPUAttachmentState(color_states[7]),
+  };
+  GPU_framebuffer_subpass_transition_array(framebuffer, states, ARRAY_SIZE(states));
 }
 
 void ResourceBind::execute() const
@@ -87,6 +107,39 @@ void PushConstant::execute(RecordingState &state) const
       break;
     case PushConstant::Type::FloatReference:
       GPU_shader_uniform_float_ex(state.shader, location, comp_len, array_len, float_ref);
+      break;
+  }
+}
+
+void SpecializeConstant::execute() const
+{
+  /* All specialization constants should exist as they are not optimized out like uniforms. */
+  BLI_assert(location != -1);
+
+  switch (type) {
+    case SpecializeConstant::Type::IntValue:
+      GPU_shader_constant_int_ex(shader, location, int_value);
+      break;
+    case SpecializeConstant::Type::IntReference:
+      GPU_shader_constant_int_ex(shader, location, *int_ref);
+      break;
+    case SpecializeConstant::Type::UintValue:
+      GPU_shader_constant_uint_ex(shader, location, uint_value);
+      break;
+    case SpecializeConstant::Type::UintReference:
+      GPU_shader_constant_uint_ex(shader, location, *uint_ref);
+      break;
+    case SpecializeConstant::Type::FloatValue:
+      GPU_shader_constant_float_ex(shader, location, float_value);
+      break;
+    case SpecializeConstant::Type::FloatReference:
+      GPU_shader_constant_float_ex(shader, location, *float_ref);
+      break;
+    case SpecializeConstant::Type::BoolValue:
+      GPU_shader_constant_bool_ex(shader, location, bool_value);
+      break;
+    case SpecializeConstant::Type::BoolReference:
+      GPU_shader_constant_bool_ex(shader, location, *bool_ref);
       break;
   }
 }
@@ -258,6 +311,26 @@ std::string FramebufferBind::serialize() const
          (*framebuffer == nullptr ? "nullptr" : GPU_framebuffer_get_name(*framebuffer)) + ")";
 }
 
+std::string SubPassTransition::serialize() const
+{
+  auto to_str = [](GPUAttachmentState state) {
+    return (state != GPU_ATTACHEMENT_IGNORE) ?
+               ((state == GPU_ATTACHEMENT_WRITE) ? "write" : "read") :
+               "ignore";
+  };
+
+  return std::string(".subpass_transition(\n") +
+         "depth=" + to_str(GPUAttachmentState(depth_state)) + ",\n" +
+         "color0=" + to_str(GPUAttachmentState(color_states[0])) + ",\n" +
+         "color1=" + to_str(GPUAttachmentState(color_states[1])) + ",\n" +
+         "color2=" + to_str(GPUAttachmentState(color_states[2])) + ",\n" +
+         "color3=" + to_str(GPUAttachmentState(color_states[3])) + ",\n" +
+         "color4=" + to_str(GPUAttachmentState(color_states[4])) + ",\n" +
+         "color5=" + to_str(GPUAttachmentState(color_states[5])) + ",\n" +
+         "color6=" + to_str(GPUAttachmentState(color_states[6])) + ",\n" +
+         "color7=" + to_str(GPUAttachmentState(color_states[7])) + "\n)";
+}
+
 std::string ResourceBind::serialize() const
 {
   switch (type) {
@@ -382,6 +455,39 @@ std::string PushConstant::serialize() const
   }
 
   return std::string(".push_constant(") + std::to_string(location) + ", data=" + ss.str() + ")";
+}
+
+std::string SpecializeConstant::serialize() const
+{
+  std::stringstream ss;
+  switch (type) {
+    case Type::IntValue:
+      ss << int_value;
+      break;
+    case Type::UintValue:
+      ss << uint_value;
+      break;
+    case Type::FloatValue:
+      ss << float_value;
+      break;
+    case Type::BoolValue:
+      ss << bool_value;
+      break;
+    case Type::IntReference:
+      ss << *int_ref;
+      break;
+    case Type::UintReference:
+      ss << *uint_ref;
+      break;
+    case Type::FloatReference:
+      ss << *float_ref;
+      break;
+    case Type::BoolReference:
+      ss << *bool_ref;
+      break;
+  }
+  return std::string(".specialize_constant(") + std::to_string(location) + ", data=" + ss.str() +
+         ")";
 }
 
 std::string Draw::serialize() const
@@ -642,7 +748,7 @@ void DrawMultiBuf::bind(RecordingState &state,
       group.vertex_len = num_input_primitives *
                          GPU_shader_get_ssbo_vertex_fetch_num_verts_per_prim(group.gpu_shader);
       /* Override base index to -1, as all SSBO calls are submitted as non-indexed, with the
-       * index buffer indirection handled within the implemnetation. This is to ensure
+       * index buffer indirection handled within the implementation. This is to ensure
        * command generation can correctly assigns baseInstance in the non-indexed formatting. */
       group.base_index = -1;
     }
@@ -684,6 +790,7 @@ void DrawMultiBuf::bind(RecordingState &state,
     else {
       GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
     }
+    GPU_storagebuf_sync_as_indirect_buffer(command_buf_);
   }
 
   GPU_debug_group_end();

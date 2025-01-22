@@ -1,38 +1,50 @@
 # <pep8 compliant>
 
+from . import _object
 from . import asset_browser
+from . import camera
 from . import color_management
 from . import common
-from . import scene
-from . import mesh
-from . import viewport_header
-from . import _object
-from . import camera
-from . import world
+from . import geometry
 from . import light
+from . import material
+from . import node_tree
+from . import node_tree_header
+from . import particle_system
+from . import scene
+from . import viewport_header
+from . import world
 
 
 def register():
-    asset_browser.register()
-    color_management.register()
     common.register()
-    viewport_header.register()
-    mesh.register()
     _object.register()
-    scene.register()
+    asset_browser.register()
     camera.register()
-    world.register()
+    color_management.register()
+    geometry.register()
     light.register()
+    material.register()
+    node_tree.register()
+    node_tree_header.register()
+    particle_system.register()
+    scene.register()
+    viewport_header.register()
+    world.register()
 
 
 def unregister():
-    asset_browser.unregister()
-    color_management.unregister()
-    common.unregister()
-    viewport_header.unregister()
-    mesh.unregister()
     _object.unregister()
-    scene.unregister()
+    asset_browser.unregister()
     camera.unregister()
-    world.unregister()
+    color_management.unregister()
+    geometry.unregister()
     light.unregister()
+    material.unregister()
+    node_tree.unregister()
+    node_tree_header.unregister()
+    particle_system.unregister()
+    scene.unregister()
+    viewport_header.unregister()
+    world.unregister()
+    common.unregister()

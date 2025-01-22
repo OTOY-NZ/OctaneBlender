@@ -9,13 +9,14 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_string.h"
+#include "BLI_time.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_global.h"
-#include "BKE_main.h"
+#include "BKE_main.hh"
 #include "BKE_movieclip.h"
 #include "BKE_tracking.h"
 
@@ -27,8 +28,6 @@
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
-
-#include "PIL_time.h"
 
 #include "DEG_depsgraph.hh"
 
@@ -153,10 +152,10 @@ static bool track_markers_initjob(bContext *C, TrackMarkersJob *tmj, bool backwa
   /* Limit frames to be tracked by user setting. */
   if (frames_limit) {
     if (backwards) {
-      tmj->efra = MAX2(tmj->efra, tmj->sfra - frames_limit);
+      tmj->efra = std::max(tmj->efra, tmj->sfra - frames_limit);
     }
     else {
-      tmj->efra = MIN2(tmj->efra, tmj->sfra + frames_limit);
+      tmj->efra = std::min(tmj->efra, tmj->sfra + frames_limit);
     }
   }
 
@@ -203,13 +202,7 @@ static bool track_markers_initjob(bContext *C, TrackMarkersJob *tmj, bool backwa
   return true;
 }
 
-static void track_markers_startjob(
-    void *tmv,
-    /* Cannot be const, this function implements wm_jobs_start_callback.
-     * NOLINTNEXTLINE: readability-non-const-parameter. */
-    bool *stop,
-    bool *do_update,
-    float *progress)
+static void track_markers_startjob(void *tmv, wmJobWorkerStatus *worker_status)
 {
   TrackMarkersJob *tmj = (TrackMarkersJob *)tmv;
   int framenr = tmj->sfra;
@@ -225,23 +218,23 @@ static void track_markers_startjob(
        * exec_time for "Fastest" tracking
        */
 
-      double start_time = PIL_check_seconds_timer(), exec_time;
+      double start_time = BLI_check_seconds_timer(), exec_time;
 
       if (!BKE_autotrack_context_step(tmj->context)) {
         break;
       }
 
-      exec_time = PIL_check_seconds_timer() - start_time;
+      exec_time = BLI_check_seconds_timer() - start_time;
       if (tmj->delay > float(exec_time)) {
-        PIL_sleep_ms(tmj->delay - float(exec_time));
+        BLI_sleep_ms(tmj->delay - float(exec_time));
       }
     }
     else if (!BKE_autotrack_context_step(tmj->context)) {
       break;
     }
 
-    *do_update = true;
-    *progress = float(framenr - tmj->sfra) / (tmj->efra - tmj->sfra);
+    worker_status->do_update = true;
+    worker_status->progress = float(framenr - tmj->sfra) / (tmj->efra - tmj->sfra);
 
     if (tmj->backwards) {
       framenr--;
@@ -252,7 +245,7 @@ static void track_markers_startjob(
 
     tmj->lastfra = framenr;
 
-    if (*stop || track_markers_testbreak()) {
+    if (worker_status->stop || track_markers_testbreak()) {
       break;
     }
   }
@@ -356,9 +349,8 @@ static int track_markers(bContext *C, wmOperator *op, bool use_job)
     return OPERATOR_RUNNING_MODAL;
   }
 
-  bool stop = false, do_update = false;
-  float progress = 0.0f;
-  track_markers_startjob(tmj, &stop, &do_update, &progress);
+  wmJobWorkerStatus worker_status = {};
+  track_markers_startjob(tmj, &worker_status);
   track_markers_endjob(tmj);
   track_markers_freejob(tmj);
   return OPERATOR_FINISHED;

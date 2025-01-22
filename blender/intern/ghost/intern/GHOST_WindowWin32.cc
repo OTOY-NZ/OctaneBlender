@@ -12,8 +12,8 @@
 #include "GHOST_DropTargetWin32.hh"
 #include "GHOST_SystemWin32.hh"
 #include "GHOST_WindowManager.hh"
-#include "utf_winfunc.h"
-#include "utfconv.h"
+#include "utf_winfunc.hh"
+#include "utfconv.hh"
 
 #ifdef WITH_OPENGL_BACKEND
 #  include "GHOST_ContextWGL.hh"
@@ -541,7 +541,8 @@ GHOST_TSuccess GHOST_WindowWin32::setState(GHOST_TWindowState state)
     case GHOST_kWindowStateNormal:
     default:
       if (curstate == GHOST_kWindowStateFullScreen &&
-          m_normal_state == GHOST_kWindowStateMaximized) {
+          m_normal_state == GHOST_kWindowStateMaximized)
+      {
         wp.showCmd = SW_SHOWMAXIMIZED;
         m_normal_state = GHOST_kWindowStateNormal;
       }

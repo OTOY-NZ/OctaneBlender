@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 
 #include "BLI_path_util.h"
 #include "DNA_windowmanager_types.h"
@@ -43,7 +43,10 @@ struct PLYExportParams {
   bool export_uv;
   bool export_normals;
   ePLYVertexColorMode vertex_colors;
+  bool export_attributes;
   bool export_triangulated_mesh;
+
+  ReportList *reports = nullptr;
 };
 
 struct PLYImportParams {
@@ -54,7 +57,10 @@ struct PLYImportParams {
   bool use_scene_unit;
   float global_scale;
   ePLYVertexColorMode vertex_colors;
+  bool import_attributes;
   bool merge_verts;
+
+  ReportList *reports = nullptr;
 };
 
 /**
@@ -62,4 +68,4 @@ struct PLYImportParams {
  */
 void PLY_export(bContext *C, const PLYExportParams *export_params);
 
-void PLY_import(bContext *C, const PLYImportParams *import_params, wmOperator *op);
+void PLY_import(bContext *C, const PLYImportParams *import_params);

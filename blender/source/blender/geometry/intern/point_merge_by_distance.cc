@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_array_utils.hh"
 #include "BLI_kdtree.h"
 #include "BLI_offset_indices.hh"
 #include "BLI_task.hh"
@@ -10,7 +11,7 @@
 
 #include "BKE_attribute_math.hh"
 #include "BKE_geometry_set.hh"
-#include "BKE_pointcloud.h"
+#include "BKE_pointcloud.hh"
 
 #include "GEO_point_merge_by_distance.hh"
 #include "GEO_randomize.hh"
@@ -50,7 +51,7 @@ PointCloud *point_merge_by_distance(const PointCloud &src_points,
    * finding, converting from indices into the selection to indices into the full input point
    * cloud. */
   Array<int> merge_indices(src_size);
-  std::iota(merge_indices.begin(), merge_indices.end(), 0);
+  array_utils::fill_index_range<int>(merge_indices);
 
   selection.foreach_index([&](const int src_index, const int pos) {
     const int merge_index = selection_merge_indices[pos];
@@ -107,9 +108,9 @@ PointCloud *point_merge_by_distance(const PointCloud &src_points,
 
   /* Transfer the ID attribute if it exists, using the ID of the first merged point. */
   if (attribute_ids.contains("id")) {
-    VArraySpan<int> src = *src_attributes.lookup_or_default<int>("id", ATTR_DOMAIN_POINT, 0);
+    VArraySpan<int> src = *src_attributes.lookup_or_default<int>("id", bke::AttrDomain::Point, 0);
     bke::SpanAttributeWriter<int> dst = dst_attributes.lookup_or_add_for_write_only_span<int>(
-        "id", ATTR_DOMAIN_POINT);
+        "id", bke::AttrDomain::Point);
 
     threading::parallel_for(IndexRange(dst_size), 1024, [&](IndexRange range) {
       for (const int i_dst : range) {
@@ -132,7 +133,7 @@ PointCloud *point_merge_by_distance(const PointCloud &src_points,
       using T = decltype(dummy);
       if constexpr (!std::is_void_v<bke::attribute_math::DefaultMixer<T>>) {
         bke::SpanAttributeWriter<T> dst_attribute =
-            dst_attributes.lookup_or_add_for_write_only_span<T>(id, ATTR_DOMAIN_POINT);
+            dst_attributes.lookup_or_add_for_write_only_span<T>(id, bke::AttrDomain::Point);
         VArraySpan<T> src = src_attribute.varray.typed<T>();
 
         threading::parallel_for(IndexRange(dst_size), 1024, [&](IndexRange range) {

@@ -7,11 +7,12 @@ from bpy.types import Panel, Menu
 import bpy
 from bpy.utils import register_class, unregister_class
 from octane.uis import common
+from octane.uis.common import OctanePropertyPanel
 from octane.utils import consts, utility
 
 
 class OCTANE_MT_kernel_presets(Menu):
-    bl_label = "Kernel presets"
+    bl_label = "Kernel Presets"
     preset_subdir = "octane/kernel_presets"
     preset_operator = "script.execute_preset"
     preset_operator_defaults = {"menu_idname": "OCTANE_MT_kernel_presets"}
@@ -30,7 +31,7 @@ class OCTANE_MT_kernel_presets(Menu):
 
 
 class OCTANE_MT_legacy_kernel_presets(Menu):
-    bl_label = "Legacy Kernel presets"
+    bl_label = "Legacy Kernel Presets"
     preset_subdir = "octane/kernel"
     preset_operator = "script.execute_preset"
     preset_operator_defaults = {"menu_idname": "OCTANE_MT_legacy_kernel_presets"}
@@ -46,7 +47,7 @@ class OCTANE_MT_legacy_kernel_presets(Menu):
 
 
 class OCTANE_MT_renderpasses_presets(Menu):
-    bl_label = "Render Passes presets"
+    bl_label = "Render Passes Presets"
     preset_subdir = "octane/renderpasses_presets"
     preset_operator = "script.execute_preset"
     preset_operator_defaults = {"menu_idname": "OCTANE_MT_renderpasses_presets"}
@@ -54,15 +55,15 @@ class OCTANE_MT_renderpasses_presets(Menu):
     draw = Menu.draw_preset
 
 
-class OCTANE_RENDER_PT_kernel(common.OctanePropertyPanel, Panel):
-    bl_label = "Octane kernel"
+class OCTANE_RENDER_PT_kernel(OctanePropertyPanel, Panel):
+    bl_label = "Octane Kernel"
     bl_context = "render"
 
     def draw(self, context):
         pass
 
 
-class OCTANE_RENDER_PT_kernel_preset(common.OctanePropertyPanel, Panel):
+class OCTANE_RENDER_PT_kernel_preset(OctanePropertyPanel, Panel):
     bl_label = "Kernel Presets"
     bl_context = "render"
     bl_parent_id = "OCTANE_RENDER_PT_kernel"
@@ -75,7 +76,7 @@ class OCTANE_RENDER_PT_kernel_preset(common.OctanePropertyPanel, Panel):
         row.operator("render.octane_kernel_preset_add", text="", icon="REMOVE").remove_active = True
 
 
-class OCTANE_RENDER_PT_kernel_legacy_preset(common.OctanePropertyPanel, Panel):
+class OCTANE_RENDER_PT_kernel_legacy_preset(OctanePropertyPanel, Panel):
     bl_label = "Legacy Presets"
     bl_context = "render"
     bl_parent_id = "OCTANE_RENDER_PT_kernel_preset"
@@ -87,7 +88,7 @@ class OCTANE_RENDER_PT_kernel_legacy_preset(common.OctanePropertyPanel, Panel):
         row.menu("OCTANE_MT_legacy_kernel_presets", text="Load the legacy panel kernel presets")
 
 
-class OCTANE_RENDER_PT_kernel_nodetree(common.OctanePropertyPanel, Panel):
+class OCTANE_RENDER_PT_kernel_nodetree(OctanePropertyPanel, Panel):
     bl_label = "Kernel NodeTree"
     bl_context = "render"
     bl_parent_id = "OCTANE_RENDER_PT_kernel"
@@ -106,7 +107,7 @@ class OCTANE_RENDER_PT_kernel_nodetree(common.OctanePropertyPanel, Panel):
                                         consts.OctaneOutputNodeSocketNames.KERNEL)
 
 
-class OCTANE_RENDER_PT_motion_blur(common.OctanePropertyPanel, Panel):
+class OCTANE_RENDER_PT_motion_blur(OctanePropertyPanel, Panel):
     bl_label = "Motion Blur"
     bl_context = "render"
     bl_options = {'DEFAULT_CLOSED'}
@@ -122,7 +123,7 @@ class OCTANE_RENDER_PT_motion_blur(common.OctanePropertyPanel, Panel):
         context.scene.octane.animation_settings.draw(context, layout)
 
 
-class OCTANE_RENDER_PT_server(common.OctanePropertyPanel, Panel):
+class OCTANE_RENDER_PT_server(OctanePropertyPanel, Panel):
     bl_label = "Octane Server"
     bl_context = "render"
 
@@ -159,12 +160,9 @@ class OCTANE_RENDER_PT_server(common.OctanePropertyPanel, Panel):
         col.operator("octane.show_octane_device_setting", text="Device Preferences")
         col.operator("octane.show_octane_network_preference", text="Network Preferences")
         col.operator("octane.activate", text="Activation state")
-        # if True:
-        #    col.operator("octane.toggle_record", text="Debug: Toggle Record")
-        #    col.operator("octane.play_record", text="Debug: Play Record")
 
 
-class OCTANE_RENDER_PT_out_of_core(common.OctanePropertyPanel, Panel):
+class OCTANE_RENDER_PT_out_of_core(OctanePropertyPanel, Panel):
     bl_label = "Octane Out Of Core"
     bl_context = "render"
     bl_options = {'DEFAULT_CLOSED'}
@@ -181,8 +179,8 @@ class OCTANE_RENDER_PT_out_of_core(common.OctanePropertyPanel, Panel):
         col.prop(octane, "out_of_core_gpu_headroom")
 
 
-class OCTANE_RENDER_PT_octane_view_layer(common.OctanePropertyPanel, Panel):
-    bl_label = "Octane render layers(View Layer)"
+class OCTANE_RENDER_PT_octane_view_layer(OctanePropertyPanel, Panel):
+    bl_label = "Octane Render Layers(View Layer)"
     bl_context = "view_layer"
     bl_options = {'DEFAULT_CLOSED'}
 
@@ -198,8 +196,8 @@ class OCTANE_RENDER_PT_octane_view_layer(common.OctanePropertyPanel, Panel):
         context.view_layer.octane.draw(context, layout)
 
 
-class OCTANE_RENDER_PT_octane_global_view_layers(common.OctanePropertyPanel, Panel):
-    bl_label = "Octane render layers(Global)"
+class OCTANE_RENDER_PT_octane_global_view_layers(OctanePropertyPanel, Panel):
+    bl_label = "Octane Render Layers(Global)"
     bl_context = "view_layer"
     bl_options = {'DEFAULT_CLOSED'}
 
@@ -211,7 +209,7 @@ class OCTANE_RENDER_PT_octane_global_view_layers(common.OctanePropertyPanel, Pan
         context.scene.octane.render_layer.draw(context, layout)
 
 
-class OctaneRenderAOVNodeGraphPanel(common.OctanePropertyPanel):
+class OctaneRenderAOVNodeGraphPanel(OctanePropertyPanel):
     @classmethod
     def poll(cls, context):
         if not common.OctanePropertyPanel.poll(context):
@@ -239,7 +237,7 @@ class OCTANE_RENDER_PT_AOV_node_graph(OctaneRenderAOVNodeGraphPanel, Panel):
                                          consts.OctaneNodeTreeIDName.RENDER_AOV)
 
 
-class OctaneRenderPassesPanel(common.OctanePropertyPanel):
+class OctaneRenderPassesPanel(OctanePropertyPanel):
     @classmethod
     def poll(cls, context):
         if not common.OctanePropertyPanel.poll(context):
@@ -376,7 +374,7 @@ class OCTANE_RENDER_PT_passes_denoiser(OctaneRenderPassesPanel, Panel):
 
 
 class OCTANE_RENDER_PT_passes_postprocessing(OctaneRenderPassesPanel, Panel):
-    bl_label = "Post processing"
+    bl_label = "Post Processing"
     bl_context = "view_layer"
     bl_parent_id = "OCTANE_RENDER_PT_passes"
     bl_options = {'DEFAULT_CLOSED'}
@@ -393,7 +391,7 @@ class OCTANE_RENDER_PT_passes_postprocessing(OctaneRenderPassesPanel, Panel):
 
 
 class OCTANE_RENDER_PT_passes_render_layer(OctaneRenderPassesPanel, Panel):
-    bl_label = "Render layer"
+    bl_label = "Render Layer"
     bl_context = "view_layer"
     bl_parent_id = "OCTANE_RENDER_PT_passes"
     bl_options = {'DEFAULT_CLOSED'}
@@ -602,7 +600,7 @@ class OCTANE_RENDER_PT_passes_material(OctaneRenderPassesPanel, Panel):
         row.prop(octane_view_layer, "use_pass_mat_transm_filter_info", text="Transmission", toggle=True)
 
 
-class OCTANE_RENDER_PT_AOV_Output_node_graph(common.OctanePropertyPanel, Panel):
+class OCTANE_RENDER_PT_AOV_Output_node_graph(OctanePropertyPanel, Panel):
     bl_label = "Octane AOV Output Group"
     bl_context = "view_layer"
     bl_options = {'DEFAULT_CLOSED'}
@@ -618,7 +616,7 @@ class OCTANE_RENDER_PT_AOV_Output_node_graph(common.OctanePropertyPanel, Panel):
                                          consts.OctaneNodeTreeIDName.COMPOSITE)
 
 
-class OCTANE_RENDER_PT_override(common.OctanePropertyPanel, Panel):
+class OCTANE_RENDER_PT_override(OctanePropertyPanel, Panel):
     bl_label = "Override"
     bl_options = {'DEFAULT_CLOSED'}
     bl_context = "view_layer"
@@ -629,6 +627,81 @@ class OCTANE_RENDER_PT_override(common.OctanePropertyPanel, Panel):
         layout.use_property_decorate = False
         view_layer = context.view_layer
         layout.prop(view_layer, "material_override")
+
+
+class OCTANE_RENDER_PT_output(OctanePropertyPanel, Panel):
+    bl_label = "Octane Output"
+    bl_context = "output"
+
+    def draw_header(self, context):
+        layout = self.layout
+        oct_scene = context.scene.octane
+        layout.active = oct_scene.use_octane_export
+        layout.prop(oct_scene, "use_octane_export", text="")
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        oct_scene = scene.octane
+        preferences = utility.get_preferences()
+        row = layout.row(align=True)
+        row.prop(oct_scene, "reuse_blender_output_path")
+        if oct_scene.reuse_blender_output_path:
+            row = layout.row(align=True)
+            row.prop(scene.render, "filepath", text="")
+        else:
+            row = layout.row(align=True)
+            row.prop(oct_scene, "octane_output_path", text="Octane Specific Output Path")
+        row = layout.row(align=True)
+        row.prop(oct_scene, "octane_export_prefix_tag")
+        row = layout.row(align=True)
+        row.prop(oct_scene, "octane_export_postfix_tag")
+        row = layout.row(align=True)
+        row.prop(oct_scene, "octane_export_mode")
+        col = layout.column(align=True)
+        col.use_property_split = True
+        col.use_property_decorate = False
+        if oct_scene.octane_export_mode == "SEPARATE_IMAGE_FILES":
+            col.prop(oct_scene, "octane_export_file_type")
+            if oct_scene.octane_export_file_type in ("PNG", "TIFF"):
+                col.prop(oct_scene, "octane_integer_bit_depth")
+            elif oct_scene.octane_export_file_type == "EXR":
+                col.prop(oct_scene, "octane_float_bit_depth")
+        else:
+            col.label(text="Exported File type: EXR")
+            col.prop(oct_scene, "octane_float_bit_depth")
+        ocio_export_color_space_configs = "ocio_export_png_color_space_configs" \
+            if oct_scene.octane_export_file_type in ("PNG", "TIFF", "JPEG") \
+            else "ocio_export_exr_color_space_configs"
+        col.prop_search(oct_scene, "gui_octane_export_ocio_color_space_name",
+                        preferences, ocio_export_color_space_configs)
+        if oct_scene.octane_export_file_type in ("PNG", "TIFF", "JPEG"):
+            if oct_scene.gui_octane_export_ocio_color_space_name not in (" sRGB(default) ", ""):
+                col.prop_search(oct_scene, "gui_octane_export_ocio_look", preferences, "ocio_export_look_configs")
+                row = col.row(heading="Force use tone map")
+                row.prop(oct_scene, "octane_export_force_use_tone_map", text="")
+            if oct_scene.octane_export_file_type == "TIFF":
+                row = col.row(heading="Premultiplied Alpha")
+                row.prop(oct_scene, "octane_export_premultiplied_alpha", text="")
+                col.prop(oct_scene, "octane_tiff_compression_mode")
+            if oct_scene.octane_export_file_type == "JPEG":
+                col.prop(oct_scene, "octane_export_jpeg_quality")
+        else:
+            if oct_scene.gui_octane_export_ocio_color_space_name not in (" Linear sRGB(default) ",
+                                                                         " ACES2065-1 ", " ACEScg ", ""):
+                col.prop_search(oct_scene, "gui_octane_export_ocio_look", preferences, "ocio_export_look_configs")
+            row = col.row(heading="Force use tone map")
+            row.prop(oct_scene, "octane_export_force_use_tone_map", text="")
+            row = col.row(heading="Premultiplied Alpha")
+            row.prop(oct_scene, "octane_export_premultiplied_alpha", text="")
+            if oct_scene.octane_export_mode == "DEEP_EXR":
+                col.prop(oct_scene, "octane_deep_exr_compression_mode")
+            else:
+                col.prop(oct_scene, "octane_exr_compression_mode")
+                if oct_scene.octane_exr_compression_mode in ("DWAA_LOSSY", "DWAB_LOSSY"):
+                    col.prop(oct_scene, "octane_export_dwa_compression_level")
+        row = col.row(heading="Exclude Beauty")
+        row.prop(oct_scene, "exclude_default_beauty_passes", text="")
 
 
 class OCTANE_VIEW3D_MT_presets_object_menu(bpy.types.Menu):
@@ -702,6 +775,7 @@ _CLASSES = [
     OCTANE_RENDER_PT_passes_material,
     OCTANE_RENDER_PT_AOV_Output_node_graph,
     OCTANE_RENDER_PT_override,
+    OCTANE_RENDER_PT_output,
     OCTANE_VIEW3D_MT_presets_object_menu,
 ]
 

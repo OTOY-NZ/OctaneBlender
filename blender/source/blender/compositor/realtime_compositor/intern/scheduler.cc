@@ -22,19 +22,11 @@ namespace blender::realtime_compositor {
 using namespace nodes::derived_node_tree_types;
 
 /* Add the viewer node which is marked as NODE_DO_OUTPUT in the given context to the given stack.
- * If multiple types of viewer nodes are marked, then the preference will be CMP_NODE_VIEWER >
- * CMP_NODE_SPLITVIEWER. If no viewer nodes were found, composite nodes can be added as a fallback
+ * If no viewer nodes were found, composite nodes can be added as a fallback
  * viewer node. */
 static bool add_viewer_nodes_in_context(const DTreeContext *context, Stack<DNode> &node_stack)
 {
   for (const bNode *node : context->btree().nodes_by_type("CompositorNodeViewer")) {
-    if (node->flag & NODE_DO_OUTPUT && !(node->flag & NODE_MUTED)) {
-      node_stack.push(DNode(context, node));
-      return true;
-    }
-  }
-
-  for (const bNode *node : context->btree().nodes_by_type("CompositorNodeSplitViewer")) {
     if (node->flag & NODE_DO_OUTPUT && !(node->flag & NODE_MUTED)) {
       node_stack.push(DNode(context, node));
       return true;
@@ -263,8 +255,8 @@ static NeededBuffers compute_number_of_needed_buffers(Stack<DNode> &output_nodes
     /* Compute the heuristic estimation of the number of needed intermediate buffers to compute
      * this node and all of its dependencies. This is computing the aforementioned equation
      * "max(n + m, d)". */
-    const int total_buffers = MAX2(number_of_input_buffers + number_of_output_buffers,
-                                   buffers_needed_by_dependencies);
+    const int total_buffers = std::max(number_of_input_buffers + number_of_output_buffers,
+                                       buffers_needed_by_dependencies);
     needed_buffers.add(node, total_buffers);
   }
 
@@ -345,7 +337,8 @@ Schedule compute_schedule(const Context &context, const DerivedNodeTree &tree)
       int insertion_position = 0;
       for (int i = 0; i < sorted_dependency_nodes.size(); i++) {
         if (needed_buffers.lookup(doutput.node()) >
-            needed_buffers.lookup(sorted_dependency_nodes[i])) {
+            needed_buffers.lookup(sorted_dependency_nodes[i]))
+        {
           insertion_position++;
         }
         else {

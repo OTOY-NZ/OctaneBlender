@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "DNA_camera_types.h"
-#include "DRW_render.h"
+#include "DRW_render.hh"
 #include "draw_manager.hh"
 #include "draw_pass.hh"
 
@@ -391,6 +391,8 @@ class ShadowPass {
             GPUTexture &depth_stencil_tx,
             /* Needed when there are opaque "In Front" objects in the scene */
             bool force_fail_method);
+
+  bool is_debug();
 };
 
 class VolumePass {

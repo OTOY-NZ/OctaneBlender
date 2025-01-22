@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BKE_attribute.hh"
 #include "BKE_subdiv_modifier.hh"
 
 #include "MEM_guardedalloc.h"
@@ -12,14 +13,15 @@
 #include "DNA_scene_types.h"
 #include "DNA_userdef_types.h"
 
+#include "BKE_customdata.hh"
 #include "BKE_mesh.hh"
-#include "BKE_modifier.h"
+#include "BKE_modifier.hh"
 #include "BKE_subdiv.hh"
 
 #include "GPU_capabilities.h"
 #include "GPU_context.h"
 
-#include "opensubdiv_capi.h"
+#include "opensubdiv_capi.hh"
 
 SubdivSettings BKE_subsurf_modifier_settings_init(const SubsurfModifierData *smd,
                                                   const bool use_render_params)
@@ -85,14 +87,8 @@ static ModifierData *modifier_get_last_enabled_for_mode(const Scene *scene,
 
 bool BKE_subsurf_modifier_use_custom_loop_normals(const SubsurfModifierData *smd, const Mesh *mesh)
 {
-  return (smd->flags & eSubsurfModifierFlag_UseCustomNormals) && (mesh->flag & ME_AUTOSMOOTH) &&
-         CustomData_has_layer(&mesh->loop_data, CD_CUSTOMLOOPNORMAL);
-}
-
-static bool subsurf_modifier_use_autosmooth_or_split_normals(const SubsurfModifierData *smd,
-                                                             const Mesh *mesh)
-{
-  return (mesh->flag & ME_AUTOSMOOTH) || BKE_subsurf_modifier_use_custom_loop_normals(smd, mesh);
+  return smd->flags & eSubsurfModifierFlag_UseCustomNormals &&
+         CustomData_has_layer(&mesh->corner_data, CD_CUSTOMLOOPNORMAL);
 }
 
 static bool is_subdivision_evaluation_possible_on_gpu()
@@ -102,7 +98,7 @@ static bool is_subdivision_evaluation_possible_on_gpu()
     return false;
   }
 
-  if (!(GPU_compute_shader_support())) {
+  if (!GPU_compute_shader_support()) {
     return false;
   }
 
@@ -126,7 +122,7 @@ bool BKE_subsurf_modifier_force_disable_gpu_evaluation_for_mesh(const SubsurfMod
     return false;
   }
 
-  return subsurf_modifier_use_autosmooth_or_split_normals(smd, mesh);
+  return BKE_subsurf_modifier_use_custom_loop_normals(smd, mesh);
 }
 
 bool BKE_subsurf_modifier_can_do_gpu_subdiv(const Scene *scene,
@@ -139,9 +135,9 @@ bool BKE_subsurf_modifier_can_do_gpu_subdiv(const Scene *scene,
     return false;
   }
 
-  /* Deactivate GPU subdivision if autosmooth or custom split normals are used as those are
+  /* Deactivate GPU subdivision if auto-smooth or custom split normals are used as those are
    * complicated to support on GPU, and should really be separate workflows. */
-  if (subsurf_modifier_use_autosmooth_or_split_normals(smd, mesh)) {
+  if (BKE_subsurf_modifier_use_custom_loop_normals(smd, mesh)) {
     return false;
   }
 

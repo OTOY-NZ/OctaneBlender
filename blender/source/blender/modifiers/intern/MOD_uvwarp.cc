@@ -23,11 +23,12 @@
 #include "DNA_screen_types.h"
 
 #include "BKE_action.h" /* BKE_pose_channel_find_name */
-#include "BKE_context.h"
-#include "BKE_deform.h"
-#include "BKE_lib_query.h"
+#include "BKE_context.hh"
+#include "BKE_customdata.hh"
+#include "BKE_deform.hh"
+#include "BKE_lib_query.hh"
 #include "BKE_mesh.hh"
-#include "BKE_modifier.h"
+#include "BKE_modifier.hh"
 #include "BKE_screen.hh"
 
 #include "UI_interface.hh"
@@ -142,7 +143,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
   const bool invert_vgroup = (umd->flag & MOD_UVWARP_INVERT_VGROUP) != 0;
 
   /* make sure there are UV Maps available */
-  if (!CustomData_has_layer(&mesh->loop_data, CD_PROP_FLOAT2)) {
+  if (!CustomData_has_layer(&mesh->corner_data, CD_PROP_FLOAT2)) {
     return mesh;
   }
 
@@ -193,13 +194,13 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
   translate_m4(warp_mat, -umd->center[0], -umd->center[1], 0.0f);
 
   /* make sure we're using an existing layer */
-  CustomData_validate_layer_name(&mesh->loop_data, CD_PROP_FLOAT2, umd->uvlayer_name, uvname);
+  CustomData_validate_layer_name(&mesh->corner_data, CD_PROP_FLOAT2, umd->uvlayer_name, uvname);
 
   const blender::OffsetIndices faces = mesh->faces();
   const blender::Span<int> corner_verts = mesh->corner_verts();
 
   float(*mloopuv)[2] = static_cast<float(*)[2]>(CustomData_get_layer_named_for_write(
-      &mesh->loop_data, CD_PROP_FLOAT2, uvname, corner_verts.size()));
+      &mesh->corner_data, CD_PROP_FLOAT2, uvname, corner_verts.size()));
   MOD_get_vgroup(ctx->object, mesh, umd->vgroup_name, &dvert, &defgrp_index);
 
   UVWarpData data{};
@@ -254,7 +255,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  uiItemPointerR(layout, ptr, "uv_layer", &obj_data_ptr, "uv_layers", nullptr, ICON_NONE);
+  uiItemPointerR(layout, ptr, "uv_layer", &obj_data_ptr, "uv_layers", nullptr, ICON_GROUP_UVS);
 
   col = uiLayoutColumn(layout, false);
   uiItemR(col, ptr, "center", UI_ITEM_NONE, nullptr, ICON_NONE);
@@ -268,14 +269,14 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   warp_obj_ptr = RNA_pointer_get(ptr, "object_from");
   if (!RNA_pointer_is_null(&warp_obj_ptr) && RNA_enum_get(&warp_obj_ptr, "type") == OB_ARMATURE) {
     PointerRNA warp_obj_data_ptr = RNA_pointer_get(&warp_obj_ptr, "data");
-    uiItemPointerR(col, ptr, "bone_from", &warp_obj_data_ptr, "bones", nullptr, ICON_NONE);
+    uiItemPointerR(col, ptr, "bone_from", &warp_obj_data_ptr, "bones", nullptr, ICON_BONE_DATA);
   }
 
   uiItemR(col, ptr, "object_to", UI_ITEM_NONE, IFACE_("To"), ICON_NONE);
   warp_obj_ptr = RNA_pointer_get(ptr, "object_to");
   if (!RNA_pointer_is_null(&warp_obj_ptr) && RNA_enum_get(&warp_obj_ptr, "type") == OB_ARMATURE) {
     PointerRNA warp_obj_data_ptr = RNA_pointer_get(&warp_obj_ptr, "data");
-    uiItemPointerR(col, ptr, "bone_to", &warp_obj_data_ptr, "bones", nullptr, ICON_NONE);
+    uiItemPointerR(col, ptr, "bone_to", &warp_obj_data_ptr, "bones", nullptr, ICON_BONE_DATA);
   }
 
   modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", nullptr);
@@ -309,7 +310,7 @@ ModifierTypeInfo modifierType_UVWarp = {
     /*struct_name*/ "UVWarpModifierData",
     /*struct_size*/ sizeof(UVWarpModifierData),
     /*srna*/ &RNA_UVWarpModifier,
-    /*type*/ eModifierTypeType_NonGeometrical,
+    /*type*/ ModifierTypeType::NonGeometrical,
     /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsEditmode |
         eModifierTypeFlag_EnableInEditmode,
     /*icon*/ ICON_MOD_UVPROJECT, /* TODO: Use correct icon. */
@@ -336,4 +337,5 @@ ModifierTypeInfo modifierType_UVWarp = {
     /*panel_register*/ panel_register,
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
+    /*foreach_cache*/ nullptr,
 };

@@ -6,6 +6,7 @@
  * \ingroup bke
  */
 
+#include <algorithm> /* For `min/max`. */
 #include <cfloat>
 #include <cmath>
 #include <cstddef>
@@ -1327,7 +1328,7 @@ uint evaluate_fmodifiers_storage_size_per_modifier(ListBase *modifiers)
       continue;
     }
 
-    max_size = MAX2(max_size, fmi->storage_size);
+    max_size = std::max(max_size, fmi->storage_size);
   }
 
   return max_size;
@@ -1362,14 +1363,16 @@ static float eval_fmodifier_influence(FModifier *fcm, float evaltime)
       return 0.0f;
     }
     if ((fcm->blendin != 0.0f) && (evaltime >= fcm->sfra) &&
-        (evaltime <= fcm->sfra + fcm->blendin)) {
+        (evaltime <= fcm->sfra + fcm->blendin))
+    {
       /* blend in range */
       float a = fcm->sfra;
       float b = fcm->sfra + fcm->blendin;
       return influence * (evaltime - a) / (b - a);
     }
     if ((fcm->blendout != 0.0f) && (evaltime <= fcm->efra) &&
-        (evaltime >= fcm->efra - fcm->blendout)) {
+        (evaltime >= fcm->efra - fcm->blendout))
+    {
       /* blend out range */
       float a = fcm->efra;
       float b = fcm->efra - fcm->blendout;
@@ -1408,7 +1411,8 @@ float evaluate_time_fmodifiers(FModifiersStackStorage *storage,
    */
   uint fcm_index = storage->modifier_count - 1;
   for (FModifier *fcm = static_cast<FModifier *>(modifiers->last); fcm;
-       fcm = fcm->prev, fcm_index--) {
+       fcm = fcm->prev, fcm_index--)
+  {
     const FModifierTypeInfo *fmi = fmodifier_get_typeinfo(fcm);
 
     if (fmi == nullptr) {

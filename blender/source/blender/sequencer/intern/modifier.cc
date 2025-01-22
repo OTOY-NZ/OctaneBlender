@@ -13,7 +13,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_string.h"
-#include "BLI_string_utils.h"
+#include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.h"
@@ -22,19 +22,19 @@
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 
-#include "BKE_colortools.h"
+#include "BKE_colortools.hh"
 
-#include "IMB_colormanagement.h"
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
+#include "IMB_colormanagement.hh"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
 
-#include "SEQ_modifier.h"
-#include "SEQ_render.h"
-#include "SEQ_sound.h"
+#include "SEQ_modifier.hh"
+#include "SEQ_render.hh"
+#include "SEQ_sound.hh"
 
 #include "BLO_read_write.hh"
 
-#include "render.h"
+#include "render.hh"
 
 static SequenceModifierTypeInfo *modifiersTypes[NUM_SEQUENCE_MODIFIER_TYPES];
 static bool modifierTypesInit = false;
@@ -86,7 +86,6 @@ static ImBuf *modifier_render_mask_input(const SeqRenderData *context,
   if (mask_input_type == SEQUENCE_MASK_INPUT_STRIP) {
     if (mask_sequence) {
       SeqRenderState state;
-      seq_render_state_init(&state);
 
       mask_input = seq_render_strip(context, &state, mask_sequence, timeline_frame);
 

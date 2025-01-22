@@ -13,10 +13,10 @@ from bpy.app.translations import (
 import bpy
 from octane import core
 
-_VIEW3D_HT_header_draw = None
+BLENDER_VIEW3D_HT_header_draw = None
 
 
-def Octane_VIEW3D_HT_header_draw(self, context):
+def OCTANE_VIEW3D_HT_header_draw(self, context):
     layout = self.layout
 
     tool_settings = context.tool_settings
@@ -270,9 +270,9 @@ def register():
         register_class(cls)
     if not core.ENABLE_OCTANE_ADDON_CLIENT:
         return
-    global _VIEW3D_HT_header_draw
-    _VIEW3D_HT_header_draw = bpy.types.VIEW3D_HT_header.draw
-    bpy.types.VIEW3D_HT_header.draw = Octane_VIEW3D_HT_header_draw
+    global BLENDER_VIEW3D_HT_header_draw
+    BLENDER_VIEW3D_HT_header_draw = bpy.types.VIEW3D_HT_header.draw
+    bpy.types.VIEW3D_HT_header.draw = OCTANE_VIEW3D_HT_header_draw
 
 
 def unregister():
@@ -280,4 +280,4 @@ def unregister():
         unregister_class(cls)
     if not core.ENABLE_OCTANE_ADDON_CLIENT:
         return
-    bpy.types.VIEW3D_HT_header.draw = _VIEW3D_HT_header_draw
+    bpy.types.VIEW3D_HT_header.draw = BLENDER_VIEW3D_HT_header_draw

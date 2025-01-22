@@ -19,16 +19,16 @@
 #include "BLI_utildefines.h"
 #include <cstdlib>
 
-#include "IMB_allocimbuf.h"
-#include "IMB_filetype.h"
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
-#include "IMB_metadata.h"
-#include "IMB_thumbs.h"
-#include "imbuf.h"
+#include "IMB_allocimbuf.hh"
+#include "IMB_filetype.hh"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
+#include "IMB_metadata.hh"
+#include "IMB_thumbs.hh"
+#include "imbuf.hh"
 
-#include "IMB_colormanagement.h"
-#include "IMB_colormanagement_intern.h"
+#include "IMB_colormanagement.hh"
+#include "IMB_colormanagement_intern.hh"
 
 static void imb_handle_alpha(ImBuf *ibuf,
                              int flags,
@@ -124,11 +124,6 @@ ImBuf *IMB_loadifffile(int file, int flags, char colorspace[IM_MAX_SPACE], const
     return nullptr;
   }
 
-  const size_t size = BLI_file_descriptor_size(file);
-  if (size == size_t(-1)) {
-    return nullptr;
-  }
-
   imb_mmap_lock();
   BLI_mmap_file *mmap_file = BLI_mmap_open(file);
   imb_mmap_unlock();
@@ -138,6 +133,7 @@ ImBuf *IMB_loadifffile(int file, int flags, char colorspace[IM_MAX_SPACE], const
   }
 
   mem = static_cast<uchar *>(BLI_mmap_get_pointer(mmap_file));
+  const size_t size = BLI_mmap_get_length(mmap_file);
 
   ibuf = IMB_ibImageFromMemory(mem, size, flags, colorspace, descr);
 

@@ -38,3 +38,32 @@ vec4 colorspace_scene_linear_from_YCoCg(vec4 ycocg_color)
 }
 
 /** \} */
+
+/**
+ * Clamp components to avoid black square artifacts if a pixel goes NaN or negative.
+ * Threshold is arbitrary.
+ */
+vec4 colorspace_safe_color(vec4 c)
+{
+  return clamp(c, vec4(0.0), vec4(1e20));
+}
+vec3 colorspace_safe_color(vec3 c)
+{
+  return clamp(c, vec3(0.0), vec3(1e20));
+}
+
+/**
+ * Clamp all components to the specified maximum and avoid color shifting.
+ */
+vec3 colorspace_brightness_clamp_max(vec3 color, float max_value)
+{
+  float luma = max(1e-8, max(max(color.r, color.g), color.b));
+  if (luma < 1e-8) {
+    return color;
+  }
+  return color * (1.0 - max(0.0, luma - max_value) / luma);
+}
+vec4 colorspace_brightness_clamp_max(vec4 color, float max_value)
+{
+  return vec4(colorspace_brightness_clamp_max(color.rgb, max_value), color.a);
+}

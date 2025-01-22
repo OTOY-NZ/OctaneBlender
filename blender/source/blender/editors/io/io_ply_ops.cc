@@ -8,9 +8,12 @@
 
 #ifdef WITH_IO_PLY
 
-#  include "BKE_context.h"
-#  include "BKE_main.h"
+#  include "BKE_context.hh"
+#  include "BKE_file_handler.hh"
+#  include "BKE_main.hh"
 #  include "BKE_report.h"
+
+#  include "BLI_string.h"
 
 #  include "WM_api.hh"
 #  include "WM_types.hh"
@@ -37,6 +40,7 @@
 
 #  include "IO_ply.hh"
 #  include "io_ply_ops.hh"
+#  include "io_utils.hh"
 
 static const EnumPropertyItem ply_vertex_colors_mode[] = {
     {PLY_VERTEX_COLOR_NONE, "NONE", 0, "None", "Do not import/export color attributes"},
@@ -66,7 +70,7 @@ static int wm_ply_export_exec(bContext *C, wmOperator *op)
     BKE_report(op->reports, RPT_ERROR, "No filepath given");
     return OPERATOR_CANCELLED;
   }
-  PLYExportParams export_params = {"\0"};
+  PLYExportParams export_params{};
   export_params.file_base_for_tests[0] = '\0';
   RNA_string_get(op->ptr, "filepath", export_params.filepath);
   export_params.blen_filepath = CTX_data_main(C)->filepath;
@@ -80,8 +84,11 @@ static int wm_ply_export_exec(bContext *C, wmOperator *op)
   export_params.export_uv = RNA_boolean_get(op->ptr, "export_uv");
   export_params.export_normals = RNA_boolean_get(op->ptr, "export_normals");
   export_params.vertex_colors = ePLYVertexColorMode(RNA_enum_get(op->ptr, "export_colors"));
+  export_params.export_attributes = RNA_boolean_get(op->ptr, "export_attributes");
   export_params.export_triangulated_mesh = RNA_boolean_get(op->ptr, "export_triangulated_mesh");
   export_params.ascii_format = RNA_boolean_get(op->ptr, "ascii_format");
+
+  export_params.reports = op->reports;
 
   PLY_export(C, &export_params);
 
@@ -120,6 +127,7 @@ static void ui_ply_export_settings(uiLayout *layout, PointerRNA *imfptr)
   uiItemR(sub, imfptr, "export_uv", UI_ITEM_NONE, IFACE_("UV Coordinates"), ICON_NONE);
   uiItemR(sub, imfptr, "export_normals", UI_ITEM_NONE, IFACE_("Vertex Normals"), ICON_NONE);
   uiItemR(sub, imfptr, "export_colors", UI_ITEM_NONE, IFACE_("Vertex Colors"), ICON_NONE);
+  uiItemR(sub, imfptr, "export_attributes", UI_ITEM_NONE, IFACE_("Vertex Attributes"), ICON_NONE);
   uiItemR(sub,
           imfptr,
           "export_triangulated_mesh",
@@ -211,7 +219,11 @@ void WM_OT_ply_export(wmOperatorType *ot)
                PLY_VERTEX_COLOR_SRGB,
                "Export Vertex Colors",
                "Export vertex color attributes");
-
+  RNA_def_boolean(ot->srna,
+                  "export_attributes",
+                  true,
+                  "Export Vertex Attributes",
+                  "Export custom vertex attributes");
   RNA_def_boolean(ot->srna,
                   "export_triangulated_mesh",
                   false,
@@ -230,11 +242,6 @@ void WM_OT_ply_export(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_HIDDEN);
 }
 
-static int wm_ply_import_invoke(bContext *C, wmOperator *op, const wmEvent *event)
-{
-  return WM_operator_filesel(C, op, event);
-}
-
 static int wm_ply_import_exec(bContext *C, wmOperator *op)
 {
   PLYImportParams params{};
@@ -243,32 +250,21 @@ static int wm_ply_import_exec(bContext *C, wmOperator *op)
   params.use_scene_unit = RNA_boolean_get(op->ptr, "use_scene_unit");
   params.global_scale = RNA_float_get(op->ptr, "global_scale");
   params.merge_verts = RNA_boolean_get(op->ptr, "merge_verts");
+  params.import_attributes = RNA_boolean_get(op->ptr, "import_attributes");
   params.vertex_colors = ePLYVertexColorMode(RNA_enum_get(op->ptr, "import_colors"));
 
-  int files_len = RNA_collection_length(op->ptr, "files");
+  params.reports = op->reports;
 
-  if (files_len) {
-    PointerRNA fileptr;
-    PropertyRNA *prop;
-    char dir_only[FILE_MAX], file_only[FILE_MAX];
+  const auto paths = blender::ed::io::paths_from_operator_properties(op->ptr);
 
-    RNA_string_get(op->ptr, "directory", dir_only);
-    prop = RNA_struct_find_property(op->ptr, "files");
-    for (int i = 0; i < files_len; i++) {
-      RNA_property_collection_lookup_int(op->ptr, prop, i, &fileptr);
-      RNA_string_get(&fileptr, "name", file_only);
-      BLI_path_join(params.filepath, sizeof(params.filepath), dir_only, file_only);
-      PLY_import(C, &params, op);
-    }
-  }
-  else if (RNA_struct_property_is_set_ex(op->ptr, "filepath", false)) {
-    RNA_string_get(op->ptr, "filepath", params.filepath);
-    PLY_import(C, &params, op);
-  }
-  else {
+  if (paths.is_empty()) {
     BKE_report(op->reports, RPT_ERROR, "No filepath given");
     return OPERATOR_CANCELLED;
   }
+  for (const auto &path : paths) {
+    STRNCPY(params.filepath, path.c_str());
+    PLY_import(C, &params);
+  };
 
   Scene *scene = CTX_data_scene(C);
   WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
@@ -279,6 +275,26 @@ static int wm_ply_import_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
+static void ui_ply_import_settings(uiLayout *layout, PointerRNA *ptr)
+{
+  uiLayoutSetPropSep(layout, true);
+  uiLayoutSetPropDecorate(layout, false);
+
+  uiLayout *box = uiLayoutBox(layout);
+  uiLayout *col = uiLayoutColumn(box, false);
+  uiItemR(col, ptr, "global_scale", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(col, ptr, "use_scene_unit", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(col, ptr, "forward_axis", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(col, ptr, "up_axis", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(col, ptr, "merge_verts", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(col, ptr, "import_colors", UI_ITEM_NONE, nullptr, ICON_NONE);
+}
+
+static void wm_ply_import_draw(bContext * /*C*/, wmOperator *op)
+{
+  ui_ply_import_settings(op->layout, op->ptr);
+}
+
 void WM_OT_ply_import(wmOperatorType *ot)
 {
   PropertyRNA *prop;
@@ -287,10 +303,11 @@ void WM_OT_ply_import(wmOperatorType *ot)
   ot->description = "Import an PLY file as an object";
   ot->idname = "WM_OT_ply_import";
 
-  ot->invoke = wm_ply_import_invoke;
+  ot->invoke = blender::ed::io::filesel_drop_import_invoke;
   ot->exec = wm_ply_import_exec;
+  ot->ui = wm_ply_import_draw;
   ot->poll = WM_operator_winactive;
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_PRESET;
+  ot->flag = OPTYPE_UNDO | OPTYPE_PRESET;
 
   WM_operator_properties_filesel(ot,
                                  FILE_TYPE_FOLDER,
@@ -316,12 +333,27 @@ void WM_OT_ply_import(wmOperatorType *ot)
                "import_colors",
                ply_vertex_colors_mode,
                PLY_VERTEX_COLOR_SRGB,
-               "Import Vertex Colors",
+               "Vertex Colors",
                "Import vertex color attributes");
+  RNA_def_boolean(
+      ot->srna, "import_attributes", true, "Vertex Attributes", "Import custom vertex attributes");
 
   /* Only show .ply files by default. */
   prop = RNA_def_string(ot->srna, "filter_glob", "*.ply", 0, "Extension Filter", "");
   RNA_def_property_flag(prop, PROP_HIDDEN);
 }
+
+namespace blender::ed::io {
+void ply_file_handler_add()
+{
+  auto fh = std::make_unique<blender::bke::FileHandlerType>();
+  STRNCPY(fh->idname, "IO_FH_ply");
+  STRNCPY(fh->import_operator, "WM_OT_ply_import");
+  STRNCPY(fh->label, "Stanford PLY");
+  STRNCPY(fh->file_extensions_str, ".ply");
+  fh->poll_drop = poll_file_object_drop;
+  bke::file_handler_add(std::move(fh));
+}
+}  // namespace blender::ed::io
 
 #endif /* WITH_IO_PLY */

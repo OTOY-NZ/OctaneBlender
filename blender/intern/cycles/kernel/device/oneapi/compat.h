@@ -40,7 +40,8 @@
 #define ccl_device_inline inline
 #define ccl_noinline __attribute__((noinline))
 #define ccl_inline_constant const constexpr
-#define ccl_static_constant const
+#define ccl_device_constant static constexpr
+#define ccl_static_constexpr static constexpr
 #define ccl_device_forceinline __attribute__((always_inline))
 #define ccl_device_noinline ccl_device ccl_noinline
 #define ccl_device_noinline_cpu ccl_device
@@ -223,9 +224,7 @@ ccl_device_forceinline int __float_as_int(float x)
 #define fmodf(x, y) sycl::fmod((x), (y))
 #define lgammaf(x) sycl::lgamma((x))
 
-/* sycl::native::cos precision is not sufficient when using Nishita Sky node
- * with a small sun size. */
-#define cosf(x) sycl::cos(((float)(x)))
+#define cosf(x) sycl::native::cos(((float)(x)))
 #define sinf(x) sycl::native::sin(((float)(x)))
 #define powf(x, y) sycl::native::powr(((float)(x)), ((float)(y)))
 #define tanf(x) sycl::native::tan(((float)(x)))

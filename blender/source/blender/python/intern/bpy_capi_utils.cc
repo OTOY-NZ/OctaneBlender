@@ -19,7 +19,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_report.h"
 
 #include "BLT_translation.h"
@@ -33,7 +33,7 @@ short BPy_reports_to_error(ReportList *reports, PyObject *exception, const bool 
   report_str = BKE_reports_string(reports, RPT_ERROR);
 
   if (clear == true) {
-    BKE_reports_clear(reports);
+    BKE_reports_free(reports);
   }
 
   if (report_str) {
@@ -90,7 +90,7 @@ bool BPy_errors_to_report_ex(ReportList *reports,
   /* Create a temporary report list so none of the reports are printed (only stored).
    * In practically all cases printing should be handled by #PyErr_Print since this invokes
    * `sys.excepthook` as expected. */
-  ReportList _reports_buf = {{0}};
+  ReportList _reports_buf = {{nullptr}};
   ReportList *reports_orig = reports;
   if ((reports->flag & RPT_PRINT_HANDLED_BY_OWNER) == 0) {
     reports = &_reports_buf;
@@ -115,7 +115,8 @@ bool BPy_errors_to_report_ex(ReportList *reports,
   }
 
   if (reports != reports_orig) {
-    BLI_movelisttolist(&reports_orig->list, &reports->list);
+    BKE_reports_move_to_reports(reports_orig, reports);
+    BKE_reports_free(reports);
   }
 
   /* Ensure this is _always_ printed to the output so developers don't miss exceptions. */

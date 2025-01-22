@@ -8,6 +8,7 @@
  * \ingroup bke
  */
 
+#include <algorithm>
 #include <cmath>
 #include <cstring>
 
@@ -23,8 +24,8 @@
 
 #include "BLO_read_write.hh"
 
-#include "BKE_colortools.h"
-#include "BKE_main.h"
+#include "BKE_colortools.hh"
+#include "BKE_main.hh"
 #include "BKE_scene.h"
 #include "BKE_sound.h"
 
@@ -32,11 +33,11 @@
 #  include "AUD_Sound.h"
 #endif
 
-#include "SEQ_sound.h"
-#include "SEQ_time.h"
+#include "SEQ_sound.hh"
+#include "SEQ_time.hh"
 
-#include "sequencer.h"
-#include "strip_time.h"
+#include "sequencer.hh"
+#include "strip_time.hh"
 
 /* Unlike _update_sound_ functions,
  * these ones take info from audaspace to update sequence length! */
@@ -63,7 +64,7 @@ static bool sequencer_refresh_sound_length_recursive(Main *bmain, Scene *scene, 
       int old = seq->len;
       float fac;
 
-      seq->len = MAX2(1, round((info.length - seq->sound->offset_time) * FPS));
+      seq->len = std::max(1, int(round((info.length - seq->sound->offset_time) * FPS)));
       fac = float(seq->len) / float(old);
       old = seq->startofs;
       seq->startofs *= fac;

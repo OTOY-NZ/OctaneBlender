@@ -8,6 +8,7 @@
  * Functions for evaluating the mask beziers into points for the outline and feather.
  */
 
+#include <algorithm> /* For `min/max`. */
 #include <cstddef>
 #include <cstring>
 
@@ -22,16 +23,16 @@
 #include "DNA_mask_types.h"
 #include "DNA_object_types.h"
 
-#include "BKE_curve.h"
+#include "BKE_curve.hh"
 #include "BKE_mask.h"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
 
-uint BKE_mask_spline_resolution(MaskSpline *spline, int width, int height)
+int BKE_mask_spline_resolution(MaskSpline *spline, int width, int height)
 {
   float max_segment = 0.01f;
-  uint i, resol = 1;
+  int i, resol = 1;
 
   if (width != 0 && height != 0) {
     max_segment = 1.0f / float(max_ii(width, height));
@@ -41,7 +42,7 @@ uint BKE_mask_spline_resolution(MaskSpline *spline, int width, int height)
     MaskSplinePoint *point = &spline->points[i];
     BezTriple *bezt_curr, *bezt_next;
     float a, b, c, len;
-    uint cur_resol;
+    int cur_resol;
 
     bezt_curr = &point->bezt;
     bezt_next = BKE_mask_spline_point_next_bezt(spline, spline->points, point);
@@ -57,20 +58,20 @@ uint BKE_mask_spline_resolution(MaskSpline *spline, int width, int height)
     len = a + b + c;
     cur_resol = len / max_segment;
 
-    resol = MAX2(resol, cur_resol);
+    resol = std::max(resol, cur_resol);
 
     if (resol >= MASK_RESOL_MAX) {
       break;
     }
   }
 
-  return CLAMPIS(resol, 1, MASK_RESOL_MAX);
+  return std::clamp(resol, 1, MASK_RESOL_MAX);
 }
 
 uint BKE_mask_spline_feather_resolution(MaskSpline *spline, int width, int height)
 {
   const float max_segment = 0.005;
-  uint resol = BKE_mask_spline_resolution(spline, width, height);
+  int resol = BKE_mask_spline_resolution(spline, width, height);
   float max_jump = 0.0f;
 
   /* Avoid checking the feather if we already hit the maximum value. */
@@ -103,7 +104,7 @@ uint BKE_mask_spline_feather_resolution(MaskSpline *spline, int width, int heigh
 
   resol += max_jump / max_segment;
 
-  return CLAMPIS(resol, 1, MASK_RESOL_MAX);
+  return std::clamp(resol, 1, MASK_RESOL_MAX);
 }
 
 int BKE_mask_spline_differentiate_calc_total(const MaskSpline *spline, const uint resol)
@@ -182,7 +183,7 @@ float (*BKE_mask_spline_differentiate_with_resolution(MaskSpline *spline,
 float (*BKE_mask_spline_differentiate(
     MaskSpline *spline, int width, int height, uint *r_tot_diff_point))[2]
 {
-  uint resol = BKE_mask_spline_resolution(spline, width, height);
+  int resol = BKE_mask_spline_resolution(spline, width, height);
 
   return BKE_mask_spline_differentiate_with_resolution(spline, resol, r_tot_diff_point);
 }
@@ -387,7 +388,7 @@ void BKE_mask_spline_feather_collapse_inner_loops(MaskSpline *spline,
   max_delta_x /= max[0] - min[0];
   max_delta_y /= max[1] - min[1];
 
-  max_delta = MAX2(max_delta_x, max_delta_y);
+  max_delta = std::max(max_delta_x, max_delta_y);
 
   buckets_per_side = min_ii(512, 0.9f / max_delta);
 

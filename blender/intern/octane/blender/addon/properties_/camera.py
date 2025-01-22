@@ -11,7 +11,8 @@ from bpy.types import Operator
 import bpy
 from bpy.utils import register_class, unregister_class
 from octane.nodes.render_settings.imager import OctaneImagerOrder, OctaneImagerResponse, OctaneImagerDenoiserType
-from octane.properties_ import common, scene
+from octane.properties_ import legacy, scene
+from octane.properties_.common import OctanePropertyGroup
 from octane.utils import consts, ocio, utility
 
 camera_imager_orders = (
@@ -431,7 +432,7 @@ class OctaneOSLCameraNodeCollection(bpy.types.PropertyGroup):
     )
 
 
-class OctaneImagerSettings(bpy.types.PropertyGroup, common.OctanePropertySettings):
+class OctaneImagerPropertyGroup(OctanePropertyGroup):
     PROPERTY_CONFIGS = {consts.NodeType.NT_IMAGER_CAMERA: [
         "exposure", "hotpixel_removal", "vignetting", "white_balance", "saturation", "premultiplied_alpha",
         "disable_partial_alpha", "dithering", "min_display_samples", "max_tonemap_interval",
@@ -881,7 +882,7 @@ class OctaneImagerSettings(bpy.types.PropertyGroup, common.OctanePropertySetting
         col.prop(self, "min_up_sampler_samples")
 
 
-class OctanePostProcessingSettings(bpy.types.PropertyGroup, common.OctanePropertySettings):
+class OctanePostProcessingPropertyGroup(OctanePropertyGroup):
     PROPERTY_CONFIGS = {
         consts.NodeType.NT_POSTPROCESSING: [
             "cutoff", "bloom_power", "glare_power",
@@ -1149,50 +1150,7 @@ class OctanePostProcessingSettings(bpy.types.PropertyGroup, common.OctanePropert
         col.prop(self, "medium_radius")
 
 
-#############################################
-# LEGACY OctaneAIUpSamplerSettings
-#############################################
-
-class OctaneAIUpSamplerSettings(bpy.types.PropertyGroup):
-    up_sample_modes = (
-        ('No upsampling', "No upsampling", "", 1),
-        ('2x2 upsampling', "2x2 upsampling", "", 2),
-        ('4x4 upsampling', "4x4 upsampling", "", 4),
-    )
-    sample_mode: EnumProperty(
-        name="Upsampling mode",
-        description="The up-sample mode that should be used for rendering",
-        items=up_sample_modes,
-        default='No upsampling',
-    )
-    enable_ai_up_sampling: BoolProperty(
-        name="Enable AI up-sampling",
-        description="Enables the AI up-sampling when the sampling mode is one of the up-samples, and this toggle is "
-                    "on. Otherwise we just trivially scale up the frame",
-        default=True,
-    )
-    up_sampling_on_completion: BoolProperty(
-        name="Up-sampling on completion",
-        description="If enabled, beauty passes will be up-sampled only once at the end of a render",
-        default=True,
-    )
-    min_up_sampler_samples: IntProperty(
-        name="Min. up-sampler samples",
-        description="Minimum number of samples per pixel until up-sampler kicks in. Only valid when the the sampling "
-                    "mode is any of up-sampling",
-        min=1, max=100000,
-        default=10,
-    )
-    max_up_sampler_interval: IntProperty(
-        name="Max. up-sampler interval",
-        description="Maximum interval between up-sampler runs (in seconds). Only valid when the the sampling mode is "
-                    "any of up-sampling",
-        min=1, max=120,
-        default=10,
-    )
-
-
-class OctaneBaseCameraSettings(common.OctanePropertySettings):
+class OctaneBaseCameraPropertyGroup(OctanePropertyGroup):
     PROPERTY_CONFIGS = {}
     PROPERTY_NAME_TO_PIN_SYMBOL_MAP = {}
 
@@ -1635,7 +1593,7 @@ class OctaneBaseCameraSettings(common.OctanePropertySettings):
             self.sync_camera(octane_node, cur_scene, width, height)
 
 
-class OctaneCameraSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings):
+class OctaneCameraPropertyGroup(OctaneBaseCameraPropertyGroup):
     octane_camera_types = (
         ("Lens or Panoramic", "Lens or Panoramic", "Used as Octane lens camera or panoramic camera", 0),
         ("Universal", "Universal", "Used as Octane Universal camera", 1),
@@ -2036,6 +1994,19 @@ class OctaneCameraSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings):
         default=(0.0, 1.0, 0.188),
         subtype='COLOR',
     )
+    fstop_modes = (
+        ("Auto", "Auto", "Convert f-stop value to aperture. \n"
+                         "To ensure the consistency between preview and final render. ", 0),
+        ("Legacy", "Legacy", "Compatible to versions before 28.13 and 29.6. \n"
+                             "Force to use the f-stop value. "
+                             "This might lead to aperture effect differences between preview and final render", 1),
+    )
+    fstop_mode: EnumProperty(
+        name="F-Stop mode",
+        description="The F-Stop mode",
+        items=fstop_modes,
+        default="Auto",
+    )
     use_fstop: BoolProperty(
         name="Use F-Stop",
         description="Use F-Stop setting instead of aperture",
@@ -2044,9 +2015,12 @@ class OctaneCameraSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings):
 
     def update_aperture(self, _context):
         if not self.use_fstop:
-            lens = self.id_data.lens / 2
+            lens = self.id_data.lens
             try:
-                fstop = lens / (20 * self.aperture)
+                if self.id_data.type == "ORTHO":
+                    fstop = 0.1 / (2 * self.aperture)
+                else:
+                    fstop = lens * 0.1 / (2 * self.aperture)
                 fstop = min(max(0.5, fstop), 1000)
             except ZeroDivisionError:
                 fstop = 1000
@@ -2065,11 +2039,16 @@ class OctaneCameraSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings):
 
     def update_fstop(self, _context):
         if self.use_fstop:
-            lens = self.id_data.lens / 2
+            lens = self.id_data.lens
             try:
-                aperture = lens / (20 * self.fstop)
+                if self.id_data.type == "ORTHO":
+                    # convert the lens from mm to cm, then calculate the aperture
+                    aperture = 0.1 / (2 * self.fstop)
+                else:
+                    # convert the lens from mm to cm, then calculate the aperture
+                    aperture = lens * 0.1 / (2 * self.fstop)
             except ZeroDivisionError:
-                aperture = lens / (20 * 0.5)
+                aperture = lens * 0.1 / (2 * 0.5)
             if aperture != self.aperture:
                 self["aperture"] = aperture
 
@@ -2262,12 +2241,12 @@ class OctaneCameraSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings):
     imager: PointerProperty(
         name="Octane Imager",
         description="",
-        type=OctaneImagerSettings,
+        type=OctaneImagerPropertyGroup,
     )
     post_processing: PointerProperty(
         name="Octane Post Processing",
         description="",
-        type=OctanePostProcessingSettings,
+        type=OctanePostProcessingPropertyGroup,
     )
     postprocess: BoolProperty(
         name="Postprocess",
@@ -2476,7 +2455,7 @@ class OctaneCameraSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings):
     ai_up_sampler: PointerProperty(
         name="Octane AI Up-Sampler",
         description="",
-        type=OctaneAIUpSamplerSettings,
+        type=legacy.OctaneLegacyAIUpSamplerPropertyGroup,
     )
     #############################################
     # LEGACY POST PROCESSING PROPERTIES
@@ -2561,7 +2540,7 @@ class OctaneCameraSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings):
         del bpy.types.Camera.octane
 
 
-class OctaneSpaceDataSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings):
+class OctaneSpaceDataPropertyGroup(OctaneBaseCameraPropertyGroup):
     use_fstop: BoolProperty(
         name="Use F-Stop",
         description="Use F-Stop setting instead of aperture",
@@ -2602,12 +2581,12 @@ class OctaneSpaceDataSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings)
     imager: PointerProperty(
         name="Octane Imager",
         description="",
-        type=OctaneImagerSettings,
+        type=OctaneImagerPropertyGroup,
     )
     post_processing: PointerProperty(
         name="Octane Post Processing",
         description="",
-        type=OctanePostProcessingSettings,
+        type=OctanePostProcessingPropertyGroup,
     )
     postprocess: BoolProperty(
         name="Postprocess",
@@ -2824,7 +2803,7 @@ class OctaneSpaceDataSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings)
     ai_up_sampler: PointerProperty(
         name="Octane AI Up-Sampler",
         description="",
-        type=OctaneAIUpSamplerSettings,
+        type=legacy.OctaneLegacyAIUpSamplerPropertyGroup,
     )
     #############################################
     # LEGACY POST PROCESSING PROPERTIES
@@ -2915,7 +2894,7 @@ class AddPresetCameraImager(AddPresetBase, Operator):
         "octane = bpy.context.camera.octane.imager"
     ]
     preset_values = ["octane." + item for item in
-                     OctaneImagerSettings.PROPERTY_CONFIGS[consts.NodeType.NT_IMAGER_CAMERA]]
+                     OctaneImagerPropertyGroup.PROPERTY_CONFIGS[consts.NodeType.NT_IMAGER_CAMERA]]
     preset_subdir = "octane/imager_presets"
 
 
@@ -2928,7 +2907,7 @@ class AddPresetViewportImager(AddPresetBase, Operator):
         "octane = bpy.context.scene.oct_view_cam.imager"
     ]
     preset_values = ["octane." + item for item in
-                     OctaneImagerSettings.PROPERTY_CONFIGS[consts.NodeType.NT_IMAGER_CAMERA]]
+                     OctaneImagerPropertyGroup.PROPERTY_CONFIGS[consts.NodeType.NT_IMAGER_CAMERA]]
     preset_subdir = "octane/3dimager_presets"
 
 
@@ -2941,8 +2920,8 @@ class AddPresetCameraPostprocess(AddPresetBase, Operator):
         "octane = bpy.context.camera.octane.post_processing"
     ]
     preset_values = ["octane." + item for item in (
-            OctanePostProcessingSettings.PROPERTY_CONFIGS[consts.NodeType.NT_POSTPROCESSING] +
-            OctanePostProcessingSettings.PROPERTY_CONFIGS[consts.NodeType.NT_POST_VOLUME])]
+        OctanePostProcessingPropertyGroup.PROPERTY_CONFIGS[consts.NodeType.NT_POSTPROCESSING] +
+        OctanePostProcessingPropertyGroup.PROPERTY_CONFIGS[consts.NodeType.NT_POST_VOLUME])]
     preset_subdir = "octane/postprocess_presets"
 
 
@@ -2955,19 +2934,18 @@ class AddPresetViewportPostprocess(AddPresetBase, Operator):
         "octane = bpy.context.scene.oct_view_cam.post_processing"
     ]
     preset_values = ["octane." + item for item in (
-            OctanePostProcessingSettings.PROPERTY_CONFIGS[consts.NodeType.NT_POSTPROCESSING] +
-            OctanePostProcessingSettings.PROPERTY_CONFIGS[consts.NodeType.NT_POST_VOLUME])]
+        OctanePostProcessingPropertyGroup.PROPERTY_CONFIGS[consts.NodeType.NT_POSTPROCESSING] +
+        OctanePostProcessingPropertyGroup.PROPERTY_CONFIGS[consts.NodeType.NT_POST_VOLUME])]
     preset_subdir = "octane/3dpostprocess_presets"
 
 
 _CLASSES = [
     OctaneOSLCameraNode,
     OctaneOSLCameraNodeCollection,
-    OctaneImagerSettings,
-    OctanePostProcessingSettings,
-    OctaneAIUpSamplerSettings,
-    OctaneCameraSettings,
-    OctaneSpaceDataSettings,
+    OctaneImagerPropertyGroup,
+    OctanePostProcessingPropertyGroup,
+    OctaneCameraPropertyGroup,
+    OctaneSpaceDataPropertyGroup,
     AddPresetCameraImager,
     AddPresetViewportImager,
     AddPresetCameraPostprocess,

@@ -25,11 +25,11 @@
 
 #include "BKE_action.h"
 #include "BKE_anim_data.h"
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_fcurve.h"
 #include "BKE_gpencil_legacy.h"
 #include "BKE_grease_pencil.hh"
-#include "BKE_main.h"
+#include "BKE_main.hh"
 #include "BKE_node.h"
 
 #include "DEG_depsgraph.hh"
@@ -37,8 +37,8 @@
 #include "RNA_access.hh"
 #include "RNA_path.hh"
 
-#include "SEQ_sequencer.h"
-#include "SEQ_utils.h"
+#include "SEQ_sequencer.hh"
+#include "SEQ_utils.hh"
 
 #include "ED_anim_api.hh"
 

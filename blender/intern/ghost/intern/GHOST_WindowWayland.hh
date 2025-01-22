@@ -51,6 +51,9 @@
  *
  * - Lock #GWL_Window.frame_pending_mutex before changing window size & frame settings,
  *   this is flushed in #GHOST_WindowWayland::pending_actions_handle.
+ *
+ * \note Keep this define as it can be useful to disable threading when troubleshooting
+ * issues with events.
  */
 #define USE_EVENT_BACKGROUND_THREAD
 
@@ -74,7 +77,8 @@ class GHOST_WindowWayland : public GHOST_Window {
                       GHOST_TDrawingContextType type,
                       const bool is_dialog,
                       const bool stereoVisual,
-                      const bool exclusive);
+                      const bool exclusive,
+                      const bool is_debug);
 
   ~GHOST_WindowWayland() override;
 
@@ -135,9 +139,10 @@ class GHOST_WindowWayland : public GHOST_Window {
 
   bool isDialog() const override;
 
-#ifdef GHOST_OPENGL_ALPHA
-  void setOpaque() const;
-#endif
+#ifdef WITH_INPUT_IME
+  void beginIME(int32_t x, int32_t y, int32_t w, int32_t h, bool completed) override;
+  void endIME() override;
+#endif /* WITH_INPUT_IME */
 
   /* WAYLAND direct-data access. */
 
@@ -189,6 +194,7 @@ class GHOST_WindowWayland : public GHOST_Window {
  private:
   GHOST_SystemWayland *system_;
   struct GWL_Window *window_;
+  bool is_debug_context_;
 
   /**
    * \param type: The type of rendering context create.

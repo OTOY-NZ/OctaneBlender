@@ -1016,6 +1016,162 @@ class OctaneUniversalCameraKeepUpright(OctaneBaseSocket):
     octane_deprecated = False
 
 
+class OctaneUniversalCameraStereoOutput(OctaneBaseSocket):
+    bl_idname = "OctaneUniversalCameraStereoOutput"
+    bl_label = "Stereo output"
+    color = consts.OctanePinColor.Enum
+    octane_default_node_type = consts.NodeType.NT_ENUM
+    octane_default_node_name = "OctaneEnumValue"
+    octane_pin_id = consts.PinID.P_STEREO_OUTPUT
+    octane_pin_name = "stereoOutput"
+    octane_pin_type = consts.PinType.PT_ENUM
+    octane_pin_index = 54
+    octane_socket_type = consts.SocketType.ST_ENUM
+    items = [
+        ("Disabled", "Disabled", "", 0),
+        ("Left", "Left", "", 1),
+        ("Right", "Right", "", 2),
+        ("Side-by-side", "Side-by-side", "", 3),
+        ("Anaglyphic", "Anaglyphic", "", 4),
+        ("Over-under", "Over-under", "", 5),
+    ]
+    default_value: EnumProperty(default="Disabled", update=OctaneBaseSocket.update_node_tree, description="The output rendered in stereo mode", items=items)
+    octane_hide_value = False
+    octane_min_version = 0
+    octane_end_version = 4294967295
+    octane_deprecated = False
+
+
+class OctaneUniversalCameraStereoMode(OctaneBaseSocket):
+    bl_idname = "OctaneUniversalCameraStereoMode"
+    bl_label = "Stereo mode"
+    color = consts.OctanePinColor.Enum
+    octane_default_node_type = consts.NodeType.NT_ENUM
+    octane_default_node_name = "OctaneEnumValue"
+    octane_pin_id = consts.PinID.P_STEREO_MODE
+    octane_pin_name = "stereoMode"
+    octane_pin_type = consts.PinType.PT_ENUM
+    octane_pin_index = 55
+    octane_socket_type = consts.SocketType.ST_ENUM
+    items = [
+        ("Off-axis", "Off-axis", "", 1),
+        ("Parallel", "Parallel", "", 2),
+    ]
+    default_value: EnumProperty(default="Off-axis", update=OctaneBaseSocket.update_node_tree, description="The modus operandi for stereo rendering", items=items)
+    octane_hide_value = False
+    octane_min_version = 0
+    octane_end_version = 4294967295
+    octane_deprecated = False
+
+
+class OctaneUniversalCameraStereodist(OctaneBaseSocket):
+    bl_idname = "OctaneUniversalCameraStereodist"
+    bl_label = "Eye distance"
+    color = consts.OctanePinColor.Float
+    octane_default_node_type = consts.NodeType.NT_FLOAT
+    octane_default_node_name = "OctaneFloatValue"
+    octane_pin_id = consts.PinID.P_STEREO_DIST
+    octane_pin_name = "stereodist"
+    octane_pin_type = consts.PinType.PT_FLOAT
+    octane_pin_index = 56
+    octane_socket_type = consts.SocketType.ST_FLOAT
+    default_value: FloatProperty(default=0.065000, update=OctaneBaseSocket.update_node_tree, description="Distance between the left and right eye in stereo mode [m]", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-1.000000, soft_max=1.000000, step=1.000000, precision=3, subtype=runtime_globals.FACTOR_PROPERTY_SUBTYPE)
+    octane_hide_value = False
+    octane_min_version = 0
+    octane_end_version = 4294967295
+    octane_deprecated = False
+
+
+class OctaneUniversalCameraStereoDistFalloff(OctaneBaseSocket):
+    bl_idname = "OctaneUniversalCameraStereoDistFalloff"
+    bl_label = "Eye distance falloff"
+    color = consts.OctanePinColor.Float
+    octane_default_node_type = consts.NodeType.NT_FLOAT
+    octane_default_node_name = "OctaneFloatValue"
+    octane_pin_id = consts.PinID.P_STEREO_DIST_FALLOFF
+    octane_pin_name = "stereoDistFalloff"
+    octane_pin_type = consts.PinType.PT_FLOAT
+    octane_pin_index = 57
+    octane_socket_type = consts.SocketType.ST_FLOAT
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Controls how quickly the eye distance gets reduced towards the poles. This is to reduce eye strain at the poles when the panorama is looked at in an HMD. A value of 1 will reduce the eye distance more or less continuously from equator to the poles, which will create a relaxed viewing experience, but this will also cause flat surfaces to appear curved. A value smaller than 1 keeps the eye distance more or less constant for a larger latitude range above and below the horizon, but will then rapidly reduce the eye distance near the poles. This will keep flat surface flat, but cause more eye strain near the poles (which can be reduced again by setting the pano cutoff latitude to something < 90 degrees)", min=0.001000, max=1.000000, soft_min=0.001000, soft_max=1.000000, step=1.000000, precision=3, subtype="NONE")
+    octane_hide_value = False
+    octane_min_version = 0
+    octane_end_version = 4294967295
+    octane_deprecated = False
+
+
+class OctaneUniversalCameraStereoCutoffLatitude(OctaneBaseSocket):
+    bl_idname = "OctaneUniversalCameraStereoCutoffLatitude"
+    bl_label = "Pano blackout latitude"
+    color = consts.OctanePinColor.Float
+    octane_default_node_type = consts.NodeType.NT_FLOAT
+    octane_default_node_name = "OctaneFloatValue"
+    octane_pin_id = consts.PinID.P_STEREO_CUTOFF_LATITUDE
+    octane_pin_name = "stereoCutoffLatitude"
+    octane_pin_type = consts.PinType.PT_FLOAT
+    octane_pin_index = 58
+    octane_socket_type = consts.SocketType.ST_FLOAT
+    default_value: FloatProperty(default=90.000000, update=OctaneBaseSocket.update_node_tree, description="The +/- latitude at which the panorama gets cut off, when stereo rendering is enabled. The area with higher latitudes will be blacked out. If set to 90, nothing will be blacked out. If set to 70, an angle of 2x20 degrees will be blacked out at both poles. If set to 0, everything will be blacked out", min=1.000000, max=90.000000, soft_min=1.000000, soft_max=90.000000, step=1.000000, precision=2, subtype=runtime_globals.FACTOR_PROPERTY_SUBTYPE)
+    octane_hide_value = False
+    octane_min_version = 0
+    octane_end_version = 4294967295
+    octane_deprecated = False
+
+
+class OctaneUniversalCameraStereoSwitchEyes(OctaneBaseSocket):
+    bl_idname = "OctaneUniversalCameraStereoSwitchEyes"
+    bl_label = "Swap eyes"
+    color = consts.OctanePinColor.Bool
+    octane_default_node_type = consts.NodeType.NT_BOOL
+    octane_default_node_name = "OctaneBoolValue"
+    octane_pin_id = consts.PinID.P_STEREO_SWAP_EYES
+    octane_pin_name = "stereoSwitchEyes"
+    octane_pin_type = consts.PinType.PT_BOOL
+    octane_pin_index = 59
+    octane_socket_type = consts.SocketType.ST_BOOL
+    default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Swaps left and right eye positions when stereo mode is showing both")
+    octane_hide_value = False
+    octane_min_version = 0
+    octane_end_version = 4294967295
+    octane_deprecated = False
+
+
+class OctaneUniversalCameraLeftFilter(OctaneBaseSocket):
+    bl_idname = "OctaneUniversalCameraLeftFilter"
+    bl_label = "Left stereo filter"
+    color = consts.OctanePinColor.Texture
+    octane_default_node_type = consts.NodeType.NT_TEX_RGB
+    octane_default_node_name = "OctaneRGBColor"
+    octane_pin_id = consts.PinID.P_LEFT_FILTER
+    octane_pin_name = "leftFilter"
+    octane_pin_type = consts.PinType.PT_TEXTURE
+    octane_pin_index = 60
+    octane_socket_type = consts.SocketType.ST_RGBA
+    default_value: FloatVectorProperty(default=(1.000000, 0.000000, 0.812000), update=OctaneBaseSocket.update_node_tree, description="Left eye filter color which is used if the stereo mode is anaglyphic stereo", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
+    octane_hide_value = False
+    octane_min_version = 0
+    octane_end_version = 4294967295
+    octane_deprecated = False
+
+
+class OctaneUniversalCameraRightFilter(OctaneBaseSocket):
+    bl_idname = "OctaneUniversalCameraRightFilter"
+    bl_label = "Right stereo filter"
+    color = consts.OctanePinColor.Texture
+    octane_default_node_type = consts.NodeType.NT_TEX_RGB
+    octane_default_node_name = "OctaneRGBColor"
+    octane_pin_id = consts.PinID.P_RIGHT_FILTER
+    octane_pin_name = "rightFilter"
+    octane_pin_type = consts.PinType.PT_TEXTURE
+    octane_pin_index = 61
+    octane_socket_type = consts.SocketType.ST_RGBA
+    default_value: FloatVectorProperty(default=(0.000000, 1.000000, 0.188000), update=OctaneBaseSocket.update_node_tree, description="Right eye filter color which is used if the stereo mode is anaglyphic stereo", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
+    octane_hide_value = False
+    octane_min_version = 0
+    octane_end_version = 4294967295
+    octane_deprecated = False
+
+
 class OctaneUniversalCameraGroupPhysicalCameraParameters(OctaneGroupTitleSocket):
     bl_idname = "OctaneUniversalCameraGroupPhysicalCameraParameters"
     bl_label = "[OctaneGroupTitle]Physical camera parameters"
@@ -1082,6 +1238,12 @@ class OctaneUniversalCameraGroupPosition(OctaneGroupTitleSocket):
     octane_group_sockets: StringProperty(name="Group Sockets", default="Position;Target;Up-vector;Keep upright;")
 
 
+class OctaneUniversalCameraGroupStereo(OctaneGroupTitleSocket):
+    bl_idname = "OctaneUniversalCameraGroupStereo"
+    bl_label = "[OctaneGroupTitle]Stereo"
+    octane_group_sockets: StringProperty(name="Group Sockets", default="Stereo output;Stereo mode;Eye distance;Eye distance falloff;Pano blackout latitude;Swap eyes;Left stereo filter;Right stereo filter;")
+
+
 class OctaneUniversalCamera(bpy.types.Node, OctaneBaseNode):
     bl_idname = "OctaneUniversalCamera"
     bl_label = "Universal camera"
@@ -1091,13 +1253,13 @@ class OctaneUniversalCamera(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name = ""
     octane_render_pass_description = ""
     octane_render_pass_sub_type_name = ""
-    octane_socket_class_list = [OctaneUniversalCameraMode, OctaneUniversalCameraGroupPhysicalCameraParameters, OctaneUniversalCameraSensorWidth, OctaneUniversalCameraFocalLength, OctaneUniversalCameraFstop, OctaneUniversalCameraGroupViewingAngle, OctaneUniversalCameraFov, OctaneUniversalCameraScale, OctaneUniversalCameraLensShift, OctaneUniversalCameraPerspectiveCorrection, OctaneUniversalCameraPixelAspectRatio, OctaneUniversalCameraGroupFisheye, OctaneUniversalCameraFisheyeAngle, OctaneUniversalCameraFisheyeType, OctaneUniversalCameraHardVignette, OctaneUniversalCameraFisheyeProjection, OctaneUniversalCameraGroupPanoramic, OctaneUniversalCameraFovx, OctaneUniversalCameraFovy, OctaneUniversalCameraCubemapLayout, OctaneUniversalCameraEquiAngularCubemap, OctaneUniversalCameraGroupDistortion, OctaneUniversalCameraUseDistortionTexture, OctaneUniversalCameraDistortionTexture, OctaneUniversalCameraSphericalDistortion, OctaneUniversalCameraBarrelDistortion, OctaneUniversalCameraBarrelDistortionCorners, OctaneUniversalCameraGroupAberration, OctaneUniversalCameraSphericalAberration, OctaneUniversalCameraComa, OctaneUniversalCameraAstigmatism, OctaneUniversalCameraFieldCurvature, OctaneUniversalCameraGroupClipping, OctaneUniversalCameraNearClipDepth, OctaneUniversalCameraFarClipDepth, OctaneUniversalCameraGroupDepthOfField, OctaneUniversalCameraAutofocus, OctaneUniversalCameraFocalDepth, OctaneUniversalCameraAperture, OctaneUniversalCameraApertureAspectRatio, OctaneUniversalCameraApertureShape, OctaneUniversalCameraApertureEdge, OctaneUniversalCameraBokehSidecount, OctaneUniversalCameraBokehRotation, OctaneUniversalCameraBokehRoundedness, OctaneUniversalCameraCentralObstruction, OctaneUniversalCameraNotchPosition, OctaneUniversalCameraNotchScale, OctaneUniversalCameraCustomAperture, OctaneUniversalCameraGroupOpticalVignetting, OctaneUniversalCameraOpticalVignetteDistance, OctaneUniversalCameraOpticalVignetteScale, OctaneUniversalCameraGroupSplitFocusDiopter, OctaneUniversalCameraDiopterEnable, OctaneUniversalCameraDiopterFocalDepth, OctaneUniversalCameraDiopterRotation, OctaneUniversalCameraDiopterTranslation, OctaneUniversalCameraDiopterBoundaryWidth, OctaneUniversalCameraDiopterBoundaryFalloff, OctaneUniversalCameraDiopterShowGuide, OctaneUniversalCameraGroupPosition, OctaneUniversalCameraPos, OctaneUniversalCameraTarget, OctaneUniversalCameraUp, OctaneUniversalCameraKeepUpright, ]
+    octane_socket_class_list = [OctaneUniversalCameraMode, OctaneUniversalCameraGroupPhysicalCameraParameters, OctaneUniversalCameraSensorWidth, OctaneUniversalCameraFocalLength, OctaneUniversalCameraFstop, OctaneUniversalCameraGroupViewingAngle, OctaneUniversalCameraFov, OctaneUniversalCameraScale, OctaneUniversalCameraLensShift, OctaneUniversalCameraPerspectiveCorrection, OctaneUniversalCameraPixelAspectRatio, OctaneUniversalCameraGroupFisheye, OctaneUniversalCameraFisheyeAngle, OctaneUniversalCameraFisheyeType, OctaneUniversalCameraHardVignette, OctaneUniversalCameraFisheyeProjection, OctaneUniversalCameraGroupPanoramic, OctaneUniversalCameraFovx, OctaneUniversalCameraFovy, OctaneUniversalCameraCubemapLayout, OctaneUniversalCameraEquiAngularCubemap, OctaneUniversalCameraGroupDistortion, OctaneUniversalCameraUseDistortionTexture, OctaneUniversalCameraDistortionTexture, OctaneUniversalCameraSphericalDistortion, OctaneUniversalCameraBarrelDistortion, OctaneUniversalCameraBarrelDistortionCorners, OctaneUniversalCameraGroupAberration, OctaneUniversalCameraSphericalAberration, OctaneUniversalCameraComa, OctaneUniversalCameraAstigmatism, OctaneUniversalCameraFieldCurvature, OctaneUniversalCameraGroupClipping, OctaneUniversalCameraNearClipDepth, OctaneUniversalCameraFarClipDepth, OctaneUniversalCameraGroupDepthOfField, OctaneUniversalCameraAutofocus, OctaneUniversalCameraFocalDepth, OctaneUniversalCameraAperture, OctaneUniversalCameraApertureAspectRatio, OctaneUniversalCameraApertureShape, OctaneUniversalCameraApertureEdge, OctaneUniversalCameraBokehSidecount, OctaneUniversalCameraBokehRotation, OctaneUniversalCameraBokehRoundedness, OctaneUniversalCameraCentralObstruction, OctaneUniversalCameraNotchPosition, OctaneUniversalCameraNotchScale, OctaneUniversalCameraCustomAperture, OctaneUniversalCameraGroupOpticalVignetting, OctaneUniversalCameraOpticalVignetteDistance, OctaneUniversalCameraOpticalVignetteScale, OctaneUniversalCameraGroupSplitFocusDiopter, OctaneUniversalCameraDiopterEnable, OctaneUniversalCameraDiopterFocalDepth, OctaneUniversalCameraDiopterRotation, OctaneUniversalCameraDiopterTranslation, OctaneUniversalCameraDiopterBoundaryWidth, OctaneUniversalCameraDiopterBoundaryFalloff, OctaneUniversalCameraDiopterShowGuide, OctaneUniversalCameraGroupPosition, OctaneUniversalCameraPos, OctaneUniversalCameraTarget, OctaneUniversalCameraUp, OctaneUniversalCameraKeepUpright, OctaneUniversalCameraGroupStereo, OctaneUniversalCameraStereoOutput, OctaneUniversalCameraStereoMode, OctaneUniversalCameraStereodist, OctaneUniversalCameraStereoDistFalloff, OctaneUniversalCameraStereoCutoffLatitude, OctaneUniversalCameraStereoSwitchEyes, OctaneUniversalCameraLeftFilter, OctaneUniversalCameraRightFilter, ]
     octane_min_version = 0
     octane_node_type = consts.NodeType.NT_CAM_UNIVERSAL
-    octane_socket_list = ["Camera mode", "Sensor width", "Focal length", "F-stop", "Field of view", "Scale of view", "Lens shift", "Perspective correction", "Pixel aspect ratio", "Fisheye angle", "Fisheye type", "Hard vignette", "Fisheye projection", "Horizontal field of view", "Vertical field of view", "Cubemap layout", "Equi-angular cubemap", "Use distortion texture", "Distortion texture", "Spherical distortion", "Barrel distortion", "Barrel distortion corners", "Spherical aberration", "Coma", "Astigmatism", "Field curvature", "Near clip depth", "Far clip depth", "Auto-focus", "Focal depth", "Aperture", "Aperture aspect ratio", "Aperture shape", "Aperture edge", "Aperture blade count", "Aperture rotation", "Aperture roundedness", "Central obstruction", "Notch position", "Notch scale", "Custom aperture", "Optical vignette distance", "Optical vignette scale", "Enable split-focus diopter", "Diopter focal depth", "Diopter rotation", "Diopter translation", "Diopter boundary width", "Diopter boundary falloff", "Show diopter guide", "Position", "Target", "Up-vector", "Keep upright", ]
+    octane_socket_list = ["Camera mode", "Sensor width", "Focal length", "F-stop", "Field of view", "Scale of view", "Lens shift", "Perspective correction", "Pixel aspect ratio", "Fisheye angle", "Fisheye type", "Hard vignette", "Fisheye projection", "Horizontal field of view", "Vertical field of view", "Cubemap layout", "Equi-angular cubemap", "Use distortion texture", "Distortion texture", "Spherical distortion", "Barrel distortion", "Barrel distortion corners", "Spherical aberration", "Coma", "Astigmatism", "Field curvature", "Near clip depth", "Far clip depth", "Auto-focus", "Focal depth", "Aperture", "Aperture aspect ratio", "Aperture shape", "Aperture edge", "Aperture blade count", "Aperture rotation", "Aperture roundedness", "Central obstruction", "Notch position", "Notch scale", "Custom aperture", "Optical vignette distance", "Optical vignette scale", "Enable split-focus diopter", "Diopter focal depth", "Diopter rotation", "Diopter translation", "Diopter boundary width", "Diopter boundary falloff", "Show diopter guide", "Position", "Target", "Up-vector", "Keep upright", "Stereo output", "Stereo mode", "Eye distance", "Eye distance falloff", "Pano blackout latitude", "Swap eyes", "Left stereo filter", "Right stereo filter", ]
     octane_attribute_list = ["a_load_initial_state", "a_save_initial_state", ]
     octane_attribute_config = {"a_load_initial_state": [consts.AttributeID.A_LOAD_INITIAL_STATE, "loadInitialState", consts.AttributeType.AT_BOOL], "a_save_initial_state": [consts.AttributeID.A_SAVE_INITIAL_STATE, "saveInitialState", consts.AttributeType.AT_BOOL], }
-    octane_static_pin_count = 54
+    octane_static_pin_count = 62
 
     a_load_initial_state: BoolProperty(name="Load initial state", default=False, update=OctaneBaseNode.update_node_tree, description="If enabled and the node gets evaluated, the camera is reset to the previously saved position and orientation")
     a_save_initial_state: BoolProperty(name="Save initial state", default=True, update=OctaneBaseNode.update_node_tree, description="If enabled and the node gets evaluated, the current camera position and orientation will be saved")
@@ -1168,6 +1330,15 @@ class OctaneUniversalCamera(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneUniversalCameraTarget", OctaneUniversalCameraTarget.bl_label).init()
         self.inputs.new("OctaneUniversalCameraUp", OctaneUniversalCameraUp.bl_label).init()
         self.inputs.new("OctaneUniversalCameraKeepUpright", OctaneUniversalCameraKeepUpright.bl_label).init()
+        self.inputs.new("OctaneUniversalCameraGroupStereo", OctaneUniversalCameraGroupStereo.bl_label).init()
+        self.inputs.new("OctaneUniversalCameraStereoOutput", OctaneUniversalCameraStereoOutput.bl_label).init()
+        self.inputs.new("OctaneUniversalCameraStereoMode", OctaneUniversalCameraStereoMode.bl_label).init()
+        self.inputs.new("OctaneUniversalCameraStereodist", OctaneUniversalCameraStereodist.bl_label).init()
+        self.inputs.new("OctaneUniversalCameraStereoDistFalloff", OctaneUniversalCameraStereoDistFalloff.bl_label).init()
+        self.inputs.new("OctaneUniversalCameraStereoCutoffLatitude", OctaneUniversalCameraStereoCutoffLatitude.bl_label).init()
+        self.inputs.new("OctaneUniversalCameraStereoSwitchEyes", OctaneUniversalCameraStereoSwitchEyes.bl_label).init()
+        self.inputs.new("OctaneUniversalCameraLeftFilter", OctaneUniversalCameraLeftFilter.bl_label).init()
+        self.inputs.new("OctaneUniversalCameraRightFilter", OctaneUniversalCameraRightFilter.bl_label).init()
         self.outputs.new("OctaneCameraOutSocket", "Camera out").init()
 
     @classmethod
@@ -1230,6 +1401,14 @@ _CLASSES = [
     OctaneUniversalCameraTarget,
     OctaneUniversalCameraUp,
     OctaneUniversalCameraKeepUpright,
+    OctaneUniversalCameraStereoOutput,
+    OctaneUniversalCameraStereoMode,
+    OctaneUniversalCameraStereodist,
+    OctaneUniversalCameraStereoDistFalloff,
+    OctaneUniversalCameraStereoCutoffLatitude,
+    OctaneUniversalCameraStereoSwitchEyes,
+    OctaneUniversalCameraLeftFilter,
+    OctaneUniversalCameraRightFilter,
     OctaneUniversalCameraGroupPhysicalCameraParameters,
     OctaneUniversalCameraGroupViewingAngle,
     OctaneUniversalCameraGroupFisheye,
@@ -1241,6 +1420,7 @@ _CLASSES = [
     OctaneUniversalCameraGroupOpticalVignetting,
     OctaneUniversalCameraGroupSplitFocusDiopter,
     OctaneUniversalCameraGroupPosition,
+    OctaneUniversalCameraGroupStereo,
     OctaneUniversalCamera,
 ]
 

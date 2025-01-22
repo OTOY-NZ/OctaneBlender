@@ -26,10 +26,10 @@
 #include "BLI_math_vector_types.hh"
 #include "BLI_utildefines.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_global.h"
 #include "BKE_image.h"
-#include "BKE_main.h"
+#include "BKE_main.hh"
 #include "BKE_scene.h"
 #include "BKE_screen.hh"
 
@@ -53,11 +53,11 @@
 #include "RE_engine.h"
 
 #include "WM_api.hh"
-#include "WM_toolsystem.h"
+#include "WM_toolsystem.hh"
 #include "WM_types.hh"
 #include "wm.hh"
 #include "wm_draw.hh"
-#include "wm_event_system.h"
+#include "wm_event_system.hh"
 #include "wm_surface.hh"
 #include "wm_window.hh"
 
@@ -1166,7 +1166,7 @@ static void wm_draw_window(bContext *C, wmWindow *win)
   bScreen *screen = WM_window_get_active_screen(win);
   bool stereo = WM_stereo3d_enabled(win, false);
 
-  /* Avoid any BGL call issued before this to alter the window drawin. */
+  /* Avoid any BGL call issued before this to alter the window drawing. */
   GPU_bgl_end();
 
   /* Draw area regions into their own frame-buffer. This way we can redraw
@@ -1544,6 +1544,13 @@ void wm_draw_update(bContext *C)
 
   BKE_image_free_unused_gpu_textures();
 
+#ifdef WITH_METAL_BACKEND
+  /* Reset drawable to ensure GPU context activation happens at least once per frame if only a
+   * single context exists. This is required to ensure the default framebuffer is updated
+   * to be the latest backbuffer. */
+  wm_window_clear_drawable(wm);
+#endif
+
   LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
 #ifdef WIN32
     GHOST_TWindowState state = GHOST_GetWindowState(
@@ -1591,12 +1598,9 @@ void wm_draw_region_clear(wmWindow *win, ARegion * /*region*/)
   screen->do_draw = true;
 }
 
-void WM_draw_region_free(ARegion *region, bool hide)
+void WM_draw_region_free(ARegion *region)
 {
   wm_draw_region_buffer_free(region);
-  if (hide) {
-    region->visible = 0;
-  }
 }
 
 void wm_draw_region_test(bContext *C, ScrArea *area, ARegion *region)

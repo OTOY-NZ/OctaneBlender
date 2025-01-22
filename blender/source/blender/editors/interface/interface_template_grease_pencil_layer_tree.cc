@@ -6,10 +6,12 @@
  * \ingroup edinterface
  */
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_grease_pencil.hh"
 
 #include "BLT_translation.h"
+
+#include "DEG_depsgraph.hh"
 
 #include "UI_interface.hh"
 #include "UI_tree_view.hh"
@@ -42,8 +44,8 @@ class LayerNodeDropTarget : public TreeViewItemDropTarget {
   TreeNode &drop_tree_node_;
 
  public:
-  LayerNodeDropTarget(AbstractTreeView &view, TreeNode &drop_tree_node, DropBehavior behavior)
-      : TreeViewItemDropTarget(view, behavior), drop_tree_node_(drop_tree_node)
+  LayerNodeDropTarget(AbstractTreeViewItem &item, TreeNode &drop_tree_node, DropBehavior behavior)
+      : TreeViewItemDropTarget(item, behavior), drop_tree_node_(drop_tree_node)
   {
   }
 
@@ -58,8 +60,8 @@ class LayerNodeDropTarget : public TreeViewItemDropTarget {
         static_cast<const wmDragGreasePencilLayer *>(drag_info.drag_data.poin);
     Layer &drag_layer = drag_grease_pencil->layer->wrap();
 
-    std::string_view drag_name = drag_layer.name();
-    std::string_view drop_name = drop_tree_node_.name();
+    const StringRef drag_name = drag_layer.name();
+    const StringRef drop_name = drop_tree_node_.name();
 
     switch (drag_info.drop_location) {
       case DropLocation::Into:
@@ -118,8 +120,9 @@ class LayerNodeDropTarget : public TreeViewItemDropTarget {
         return false;
       }
     }
-    WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
 
+    DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
+    WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
     return true;
   }
 };
@@ -205,9 +208,15 @@ class LayerViewItem : public AbstractTreeViewItem {
     return true;
   }
 
-  bool rename(const bContext & /*C*/, StringRefNull new_name) override
+  bool rename(const bContext &C, StringRefNull new_name) override
   {
-    grease_pencil_.rename_node(layer_.as_node(), new_name);
+    PointerRNA layer_ptr = RNA_pointer_create(&grease_pencil_.id, &RNA_GreasePencilLayer, &layer_);
+    PropertyRNA *prop = RNA_struct_find_property(&layer_ptr, "name");
+
+    RNA_property_string_set(&layer_ptr, prop, new_name.c_str());
+    RNA_property_update(&const_cast<bContext &>(C), &layer_ptr, prop);
+
+    ED_undo_push(&const_cast<bContext &>(C), "Rename Grease Pencil Layer");
     return true;
   }
 
@@ -224,8 +233,7 @@ class LayerViewItem : public AbstractTreeViewItem {
 
   std::unique_ptr<TreeViewItemDropTarget> create_drop_target() override
   {
-    return std::make_unique<LayerNodeDropTarget>(
-        get_tree_view(), layer_.as_node(), DropBehavior::Reorder);
+    return std::make_unique<LayerNodeDropTarget>(*this, layer_.as_node(), DropBehavior::Reorder);
   }
 
  private:
@@ -260,8 +268,6 @@ class LayerViewItem : public AbstractTreeViewItem {
                         0,
                         0.0f,
                         0.0f,
-                        0.0f,
-                        0.0f,
                         nullptr);
     if (!layer_.parent_group().is_visible()) {
       UI_but_flag_enable(but, UI_BUT_INACTIVE);
@@ -278,8 +284,6 @@ class LayerViewItem : public AbstractTreeViewItem {
                         &layer_ptr,
                         "lock",
                         0,
-                        0.0f,
-                        0.0f,
                         0.0f,
                         0.0f,
                         nullptr);
@@ -313,9 +317,16 @@ class LayerGroupViewItem : public AbstractTreeViewItem {
     return true;
   }
 
-  bool rename(const bContext & /*C*/, StringRefNull new_name) override
+  bool rename(const bContext &C, StringRefNull new_name) override
   {
-    grease_pencil_.rename_node(group_.as_node(), new_name);
+    PointerRNA group_ptr = RNA_pointer_create(
+        &grease_pencil_.id, &RNA_GreasePencilLayerGroup, &group_);
+    PropertyRNA *prop = RNA_struct_find_property(&group_ptr, "name");
+
+    RNA_property_string_set(&group_ptr, prop, new_name.c_str());
+    RNA_property_update(&const_cast<bContext &>(C), &group_ptr, prop);
+
+    ED_undo_push(&const_cast<bContext &>(C), "Rename Grease Pencil Layer Group");
     return true;
   }
 
@@ -327,7 +338,7 @@ class LayerGroupViewItem : public AbstractTreeViewItem {
   std::unique_ptr<TreeViewItemDropTarget> create_drop_target() override
   {
     return std::make_unique<LayerNodeDropTarget>(
-        get_tree_view(), group_.as_node(), DropBehavior::ReorderAndInsert);
+        *this, group_.as_node(), DropBehavior::ReorderAndInsert);
   }
 
  private:
@@ -359,12 +370,12 @@ void LayerTreeView::build_tree_node_recursive(TreeViewOrItem &parent, TreeNode &
   if (node.is_layer()) {
     LayerViewItem &item = parent.add_tree_item<LayerViewItem>(this->grease_pencil_,
                                                               node.as_layer());
-    item.set_collapsed(false);
+    item.uncollapse_by_default();
   }
   else if (node.is_group()) {
     LayerGroupViewItem &group_item = parent.add_tree_item<LayerGroupViewItem>(this->grease_pencil_,
                                                                               node.as_group());
-    group_item.set_collapsed(false);
+    group_item.uncollapse_by_default();
     LISTBASE_FOREACH_BACKWARD (GreasePencilLayerTreeNode *, node_, &node.as_group().children) {
       build_tree_node_recursive(group_item, node_->wrap());
     }

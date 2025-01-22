@@ -7,6 +7,7 @@
  */
 
 /* This little block needed for linking to Blender... */
+#include <algorithm>
 #include <csetjmp>
 #include <cstdio>
 
@@ -21,18 +22,16 @@
 
 #include "DNA_ID.h" /* ID property definitions. */
 
-#include "IMB_filetype.h"
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
-#include "IMB_metadata.h"
-#include "imbuf.h"
+#include "IMB_colormanagement.hh"
+#include "IMB_filetype.hh"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
+#include "IMB_metadata.hh"
+#include "imbuf.hh"
 
 #include <cstring>
 #include <jerror.h>
 #include <jpeglib.h>
-
-#include "IMB_colormanagement.h"
-#include "IMB_colormanagement_intern.h"
 
 /* the types are from the jpeg lib */
 static void jpeg_error(j_common_ptr cinfo) ATTR_NORETURN;
@@ -278,7 +277,7 @@ static ImBuf *ibJpegImageFromCinfo(
     if (max_size > 0) {
       /* `libjpeg` can more quickly decompress while scaling down to 1/2, 1/4, 1/8,
        * while `libjpeg-turbo` can also do 3/8, 5/8, etc. But max is 1/8. */
-      float scale = float(max_size) / MAX2(cinfo->image_width, cinfo->image_height);
+      float scale = float(max_size) / std::max(cinfo->image_width, cinfo->image_height);
       cinfo->scale_denom = 8;
       cinfo->scale_num = max_uu(1, min_uu(8, ceill(scale * float(cinfo->scale_denom))));
       cinfo->dct_method = JDCT_FASTEST;
@@ -304,7 +303,7 @@ static ImBuf *ibJpegImageFromCinfo(
 
       for (y = ibuf->y - 1; y >= 0; y--) {
         jpeg_read_scanlines(cinfo, row_pointer, 1);
-        rect = ibuf->byte_buffer.data + 4 * y * ibuf->x;
+        rect = ibuf->byte_buffer.data + 4 * y * size_t(ibuf->x);
         buffer = row_pointer[0];
 
         switch (depth) {
@@ -430,7 +429,7 @@ static ImBuf *ibJpegImageFromCinfo(
       }
 
       ibuf->ftype = IMB_FTYPE_JPG;
-      ibuf->foptions.quality = MIN2(ibuf_quality, 100);
+      ibuf->foptions.quality = std::min<char>(ibuf_quality, 100);
     }
     jpeg_destroy((j_common_ptr)cinfo);
   }
@@ -620,7 +619,7 @@ static void write_jpeg(jpeg_compress_struct *cinfo, ImBuf *ibuf)
       sizeof(JSAMPLE) * cinfo->input_components * cinfo->image_width, "jpeg row_pointer"));
 
   for (y = ibuf->y - 1; y >= 0; y--) {
-    rect = ibuf->byte_buffer.data + 4 * y * ibuf->x;
+    rect = ibuf->byte_buffer.data + 4 * y * size_t(ibuf->x);
     buffer = row_pointer[0];
 
     switch (cinfo->in_color_space) {

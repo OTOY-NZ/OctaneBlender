@@ -22,11 +22,11 @@
 #include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_fcurve.h"
 #include "BKE_global.h"
-#include "BKE_lib_id.h"
-#include "BKE_main.h"
+#include "BKE_lib_id.hh"
+#include "BKE_main.hh"
 #include "BKE_packedFile.h"
 #include "BKE_report.h"
 #include "BKE_scene.h"
@@ -37,8 +37,8 @@
 #include "RNA_enum_types.hh"
 #include "RNA_prototypes.h"
 
-#include "SEQ_iterator.h"
-#include "SEQ_utils.h"
+#include "SEQ_iterator.hh"
+#include "SEQ_utils.hh"
 
 #include "UI_interface.hh"
 
@@ -357,7 +357,7 @@ static int sound_mixdown_exec(bContext *C, wmOperator *op)
 
   BLI_path_abs(filepath, BKE_main_blendfile_path(bmain));
 
-  const double fps = (double(scene_eval->r.frs_sec) / double(scene_eval->r.frs_sec_base));
+  const double fps = double(scene_eval->r.frs_sec) / double(scene_eval->r.frs_sec_base);
   const int start_frame = scene_eval->r.sfra;
   const int end_frame = scene_eval->r.efra;
 
@@ -731,7 +731,7 @@ static void SOUND_OT_mixdown(wmOperatorType *ot)
   RNA_def_int(ot->srna, "bitrate", 192, 32, 512, "Bitrate", "Bitrate in kbit/s", 32, 512);
   RNA_def_boolean(ot->srna,
                   "split_channels",
-                  0,
+                  false,
                   "Split channels",
                   "Each channel will be rendered into a mono file");
 #endif /* WITH_AUDASPACE */

@@ -36,16 +36,16 @@
 #include "DNA_view3d_types.h"
 
 #include "BKE_brush.hh"
-#include "BKE_context.h"
-#include "BKE_deform.h"
+#include "BKE_context.hh"
+#include "BKE_deform.hh"
 #include "BKE_global.h"
 #include "BKE_gpencil_curve_legacy.h"
 #include "BKE_gpencil_geom_legacy.h"
 #include "BKE_gpencil_legacy.h"
-#include "BKE_layer.h"
-#include "BKE_lib_id.h"
-#include "BKE_library.h"
-#include "BKE_main.h"
+#include "BKE_layer.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_library.hh"
+#include "BKE_main.hh"
 #include "BKE_material.h"
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
@@ -58,7 +58,7 @@
 
 #include "WM_api.hh"
 #include "WM_message.hh"
-#include "WM_toolsystem.h"
+#include "WM_toolsystem.hh"
 #include "WM_types.hh"
 
 #include "RNA_access.hh"
@@ -69,7 +69,6 @@
 
 #include "ED_armature.hh"
 #include "ED_gpencil_legacy.hh"
-#include "ED_keyframing.hh"
 #include "ED_object.hh"
 #include "ED_outliner.hh"
 #include "ED_screen.hh"
@@ -77,6 +76,8 @@
 #include "ED_space_api.hh"
 #include "ED_transform_snap_object_context.hh"
 #include "ED_view3d.hh"
+
+#include "ANIM_keyframing.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
@@ -1575,7 +1576,8 @@ static int gpencil_strokes_copy_exec(bContext *C, wmOperator *op)
 
         char **ma_name_val;
         if (!BLI_ghash_ensure_p(
-                gpencil_strokes_copypastebuf_colors, &gps->mat_nr, (void ***)&ma_name_val)) {
+                gpencil_strokes_copypastebuf_colors, &gps->mat_nr, (void ***)&ma_name_val))
+        {
           char *ma_name = static_cast<char *>(BLI_ghash_lookup(ma_to_name, ma));
           *ma_name_val = static_cast<char *>(MEM_dupallocN(ma_name));
         }
@@ -1664,7 +1666,7 @@ static int gpencil_strokes_paste_exec(bContext *C, wmOperator *op)
   }
   else if ((BKE_gpencil_layer_is_editable(gpl) == false) && (type == GP_COPY_TO_ACTIVE)) {
     BKE_report(
-        op->reports, RPT_ERROR, "Can not paste strokes when active layer is hidden or locked");
+        op->reports, RPT_ERROR, "Cannot paste strokes when active layer is hidden or locked");
     return OPERATOR_CANCELLED;
   }
   else {
@@ -1761,7 +1763,7 @@ static int gpencil_strokes_paste_exec(bContext *C, wmOperator *op)
         }
 
         bGPDframe *gpf;
-        if (IS_AUTOKEY_ON(scene) || (gpl->actframe == nullptr)) {
+        if (blender::animrig::is_autokey_on(scene) || (gpl->actframe == nullptr)) {
           gpf = BKE_gpencil_layer_frame_get(gpl, scene->r.cfra, GP_GETFRAME_ADD_NEW);
         }
         else {
@@ -3302,7 +3304,8 @@ static int gpencil_stroke_cyclical_set_exec(bContext *C, wmOperator *op)
           }
           /* skip hidden or locked colors */
           if (!gp_style || (gp_style->flag & GP_MATERIAL_HIDE) ||
-              (gp_style->flag & GP_MATERIAL_LOCKED)) {
+              (gp_style->flag & GP_MATERIAL_LOCKED))
+          {
             continue;
           }
 
@@ -3448,12 +3451,14 @@ static int gpencil_stroke_caps_set_exec(bContext *C, wmOperator *op)
 
           /* skip strokes that are not selected or invalid for current view */
           if (((gps->flag & GP_STROKE_SELECT) == 0) ||
-              (ED_gpencil_stroke_can_use(C, gps) == false)) {
+              (ED_gpencil_stroke_can_use(C, gps) == false))
+          {
             continue;
           }
           /* skip hidden or locked colors */
           if (!gp_style || (gp_style->flag & GP_MATERIAL_HIDE) ||
-              (gp_style->flag & GP_MATERIAL_LOCKED)) {
+              (gp_style->flag & GP_MATERIAL_LOCKED))
+          {
             continue;
           }
 

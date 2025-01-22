@@ -8,6 +8,7 @@
 
 /* global includes */
 
+#include <algorithm>
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
@@ -23,9 +24,8 @@
 #include "BLI_blenlib.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
+#include "BLI_time.h"
 #include "BLI_utildefines.h"
-
-#include "PIL_time.h"
 
 #include "BLO_readfile.h"
 
@@ -43,19 +43,19 @@
 #include "DNA_world_types.h"
 
 #include "BKE_animsys.h"
-#include "BKE_appdir.h"
-#include "BKE_armature.h"
+#include "BKE_appdir.hh"
+#include "BKE_armature.hh"
 #include "BKE_brush.hh"
-#include "BKE_colortools.h"
-#include "BKE_context.h"
+#include "BKE_colortools.hh"
+#include "BKE_context.hh"
 #include "BKE_global.h"
 #include "BKE_icons.h"
 #include "BKE_idprop.h"
 #include "BKE_image.h"
-#include "BKE_layer.h"
-#include "BKE_lib_id.h"
+#include "BKE_layer.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_light.h"
-#include "BKE_main.h"
+#include "BKE_main.hh"
 #include "BKE_material.h"
 #include "BKE_node.hh"
 #include "BKE_object.hh"
@@ -72,9 +72,9 @@
 #include "DEG_depsgraph_build.hh"
 #include "DEG_depsgraph_query.hh"
 
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
-#include "IMB_thumbs.h"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
+#include "IMB_thumbs.hh"
 
 #include "BIF_glutil.hh"
 
@@ -194,8 +194,16 @@ void ED_preview_ensure_dbase(const bool with_gpencil)
     base_initialized = true;
   }
   if (!base_initialized_gpencil && with_gpencil) {
-    G_pr_main_grease_pencil = load_main_from_memory(datatoc_preview_grease_pencil_blend,
-                                                    datatoc_preview_grease_pencil_blend_size);
+
+    if (U.experimental.use_grease_pencil_version3) {
+      G_pr_main_grease_pencil = load_main_from_memory(datatoc_preview_grease_pencil_blend,
+                                                      datatoc_preview_grease_pencil_blend_size);
+    }
+    else {
+      G_pr_main_grease_pencil = load_main_from_memory(
+          datatoc_preview_grease_pencil_legacy_blend,
+          datatoc_preview_grease_pencil_legacy_blend_size);
+    }
     base_initialized_gpencil = true;
   }
 #else
@@ -296,11 +304,11 @@ static const char *preview_floor_material_name(const Scene *scene,
 }
 
 static void switch_preview_floor_material(Main *pr_main,
-                                          Mesh *me,
+                                          Mesh *mesh,
                                           const Scene *scene,
                                           const ePreviewRenderMethod pr_method)
 {
-  if (me->totcol == 0) {
+  if (mesh->totcol == 0) {
     return;
   }
 
@@ -308,7 +316,7 @@ static void switch_preview_floor_material(Main *pr_main,
   Material *mat = static_cast<Material *>(
       BLI_findstring(&pr_main->materials, material_name, offsetof(ID, name) + 2));
   if (mat) {
-    me->mat[0] = mat;
+    mesh->mat[0] = mat;
   }
 }
 
@@ -419,7 +427,8 @@ static const char *preview_world_name(const Scene *sce,
    * this approximation.
    */
   if (id_type == ID_MA && pr_method == PR_ICON_RENDER &&
-      !render_engine_supports_ray_visibility(sce)) {
+      !render_engine_supports_ray_visibility(sce))
+  {
     return "WorldFloor";
   }
   return "World";
@@ -530,16 +539,20 @@ static Scene *preview_prepare_scene(
           /* Use a default world color. Using the current
            * scene world can be slow if it has big textures. */
           sce->world->use_nodes = false;
-          sce->world->horr = 0.05f;
-          sce->world->horg = 0.05f;
-          sce->world->horb = 0.05f;
+          /* Use brighter world color for grease pencil. */
+          if (sp->pr_main == G_pr_main_grease_pencil) {
+            sce->world->horr = 1.0f;
+            sce->world->horg = 1.0f;
+            sce->world->horb = 1.0f;
+          }
+          else {
+            sce->world->horr = 0.05f;
+            sce->world->horg = 0.05f;
+            sce->world->horb = 0.05f;
+          }
         }
 
-        /* For grease pencil, always use sphere for icon renders. */
-        const ePreviewType preview_type = static_cast<ePreviewType>(
-            (sp->pr_method == PR_ICON_RENDER && sp->pr_main == G_pr_main_grease_pencil) ?
-                MA_SPHERE_A :
-                (ePreviewType)mat->pr_type);
+        const ePreviewType preview_type = static_cast<ePreviewType>(mat->pr_type);
         ED_preview_set_visibility(pr_main, sce, view_layer, preview_type, sp->pr_method);
       }
       else {
@@ -878,6 +891,7 @@ static void object_preview_render(IconPreview *preview, IconPreviewSize *preview
       R_ALPHAPREMUL,
       nullptr,
       nullptr,
+      nullptr,
       err_out);
   /* TODO: color-management? */
 
@@ -1011,6 +1025,7 @@ static void action_preview_render(IconPreview *preview, IconPreviewSize *preview
                                                       IB_rect,
                                                       V3D_OFSDRAW_NONE,
                                                       R_ADDSKY,
+                                                      nullptr,
                                                       nullptr,
                                                       nullptr,
                                                       err_out);
@@ -1317,10 +1332,11 @@ static ImBuf *icon_preview_imbuf_from_brush(Brush *brush)
 
     /* Otherwise lets try to find it in other directories. */
     if (!(brush->icon_imbuf)) {
-      const char *brushicons_dir = BKE_appdir_folder_id(BLENDER_DATAFILES, "brushicons");
+      const std::optional<std::string> brushicons_dir = BKE_appdir_folder_id(BLENDER_DATAFILES,
+                                                                             "brushicons");
       /* Expected to be found, but don't crash if it's not. */
-      if (brushicons_dir) {
-        BLI_path_join(filepath, sizeof(filepath), brushicons_dir, brush->icon_filepath);
+      if (brushicons_dir.has_value()) {
+        BLI_path_join(filepath, sizeof(filepath), brushicons_dir->c_str(), brush->icon_filepath);
 
         /* Use default color spaces. */
         brush->icon_imbuf = IMB_loadiffname(filepath, flags, nullptr);
@@ -1369,8 +1385,8 @@ static void icon_copy_rect(ImBuf *ibuf, uint w, uint h, uint *rect)
   }
 
   /* Scaling down must never assign zero width/height, see: #89868. */
-  ex = MAX2(1, short(scaledx));
-  ey = MAX2(1, short(scaledy));
+  ex = std::max(short(1), short(scaledx));
+  ey = std::max(short(1), short(scaledy));
 
   dx = (w - ex) / 2;
   dy = (h - ey) / 2;
@@ -1437,7 +1453,8 @@ static void icon_preview_startjob(void *customdata, bool *stop, bool *do_update)
      * only get existing `ibuf`. */
     ibuf = BKE_image_acquire_ibuf(ima, &iuser, nullptr);
     if (ibuf == nullptr ||
-        (ibuf->byte_buffer.data == nullptr && ibuf->float_buffer.data == nullptr)) {
+        (ibuf->byte_buffer.data == nullptr && ibuf->float_buffer.data == nullptr))
+    {
       BKE_image_release_ibuf(ima, ibuf, nullptr);
       return;
     }
@@ -1478,18 +1495,15 @@ static void icon_preview_startjob(void *customdata, bool *stop, bool *do_update)
 /* use same function for icon & shader, so the job manager
  * does not run two of them at the same time. */
 
-static void common_preview_startjob(void *customdata,
-                                    bool *stop,
-                                    bool *do_update,
-                                    float * /*progress*/)
+static void common_preview_startjob(void *customdata, wmJobWorkerStatus *worker_status)
 {
   ShaderPreview *sp = static_cast<ShaderPreview *>(customdata);
 
   if (ELEM(sp->pr_method, PR_ICON_RENDER, PR_ICON_DEFERRED)) {
-    icon_preview_startjob(customdata, stop, do_update);
+    icon_preview_startjob(customdata, &worker_status->stop, &worker_status->do_update);
   }
   else {
-    shader_preview_startjob(customdata, stop, do_update);
+    shader_preview_startjob(customdata, &worker_status->stop, &worker_status->do_update);
   }
 }
 
@@ -1500,9 +1514,7 @@ static void common_preview_startjob(void *customdata,
 static void other_id_types_preview_render(IconPreview *ip,
                                           IconPreviewSize *cur_size,
                                           const ePreviewRenderMethod pr_method,
-                                          bool *stop,
-                                          bool *do_update,
-                                          float *progress)
+                                          wmJobWorkerStatus *worker_status)
 {
   ShaderPreview *sp = MEM_cnew<ShaderPreview>("Icon ShaderPreview");
 
@@ -1538,7 +1550,7 @@ static void other_id_types_preview_render(IconPreview *ip,
     }
   }
 
-  common_preview_startjob(sp, stop, do_update, progress);
+  common_preview_startjob(sp, worker_status);
   shader_preview_free(sp);
 }
 
@@ -1560,10 +1572,7 @@ static int icon_previewimg_size_index_get(const IconPreviewSize *icon_size,
   return -1;
 }
 
-static void icon_preview_startjob_all_sizes(void *customdata,
-                                            bool *stop,
-                                            bool *do_update,
-                                            float *progress)
+static void icon_preview_startjob_all_sizes(void *customdata, wmJobWorkerStatus *worker_status)
 {
   IconPreview *ip = (IconPreview *)customdata;
 
@@ -1573,7 +1582,7 @@ static void icon_preview_startjob_all_sizes(void *customdata,
     const ePreviewRenderMethod pr_method = (prv->tag & PRV_TAG_DEFFERED) ? PR_ICON_DEFERRED :
                                                                            PR_ICON_RENDER;
 
-    if (*stop) {
+    if (worker_status->stop) {
       break;
     }
 
@@ -1633,7 +1642,7 @@ static void icon_preview_startjob_all_sizes(void *customdata,
           break;
       }
     }
-    other_id_types_preview_render(ip, cur_size, pr_method, stop, do_update, progress);
+    other_id_types_preview_render(ip, cur_size, pr_method, worker_status);
   }
 }
 
@@ -1733,7 +1742,7 @@ class PreviewLoadJob {
   void push_load_request(PreviewImage *preview, eIconSizes icon_size);
 
  private:
-  static void run_fn(void *customdata, bool *stop, bool *do_update, float *progress);
+  static void run_fn(void *customdata, wmJobWorkerStatus *worker_status);
   static void update_fn(void *customdata);
   static void end_fn(void *customdata);
   static void free_fn(void *customdata);
@@ -1773,9 +1782,8 @@ void PreviewLoadJob::load_jobless(PreviewImage *preview, const eIconSizes icon_s
 
   job_data.push_load_request(preview, icon_size);
 
-  bool stop = false, do_update = false;
-  float progress = 0;
-  run_fn(&job_data, &stop, &do_update, &progress);
+  wmJobWorkerStatus worker_status = {};
+  run_fn(&job_data, &worker_status);
   update_fn(&job_data);
   end_fn(&job_data);
 }
@@ -1795,7 +1803,7 @@ void PreviewLoadJob::push_load_request(PreviewImage *preview, const eIconSizes i
   BLI_thread_queue_push(todo_queue_, &requested_previews_.back());
 }
 
-void PreviewLoadJob::run_fn(void *customdata, bool *stop, bool *do_update, float * /*progress*/)
+void PreviewLoadJob::run_fn(void *customdata, wmJobWorkerStatus *worker_status)
 {
   PreviewLoadJob *job_data = static_cast<PreviewLoadJob *>(customdata);
 
@@ -1804,7 +1812,7 @@ void PreviewLoadJob::run_fn(void *customdata, bool *stop, bool *do_update, float
   while (RequestedPreview *request = static_cast<RequestedPreview *>(
              BLI_thread_queue_pop_timeout(job_data->todo_queue_, 100)))
   {
-    if (*stop) {
+    if (worker_status->stop) {
       break;
     }
 
@@ -1834,7 +1842,7 @@ void PreviewLoadJob::run_fn(void *customdata, bool *stop, bool *do_update, float
       IMB_freeImBuf(thumb);
     }
 
-    *do_update = true;
+    worker_status->do_update = true;
   }
 
   IMB_thumb_locks_release();
@@ -1938,8 +1946,6 @@ void ED_preview_icon_render(
   }
 
   IconPreview ip = {nullptr};
-  bool stop = false, update = false;
-  float progress = 0.0f;
 
   ED_preview_ensure_dbase(true);
 
@@ -1958,7 +1964,8 @@ void ED_preview_icon_render(
   icon_preview_add_size(
       &ip, prv_img->rect[icon_size], prv_img->w[icon_size], prv_img->h[icon_size]);
 
-  icon_preview_startjob_all_sizes(&ip, &stop, &update, &progress);
+  wmJobWorkerStatus worker_status = {};
+  icon_preview_startjob_all_sizes(&ip, &worker_status);
 
   icon_preview_endjob(&ip);
 

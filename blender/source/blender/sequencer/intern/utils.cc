@@ -8,6 +8,7 @@
  * \ingroup bke
  */
 
+#include <algorithm>
 #include <cstdlib>
 #include <cstring>
 
@@ -18,32 +19,33 @@
 #include "DNA_sequence_types.h"
 
 #include "BLI_blenlib.h"
+#include "BLI_vector_set.hh"
 
 #include "BLT_translation.h"
 
 #include "BKE_animsys.h"
 #include "BKE_image.h"
-#include "BKE_main.h"
+#include "BKE_main.hh"
 #include "BKE_scene.h"
 
-#include "SEQ_animation.h"
-#include "SEQ_channels.h"
-#include "SEQ_edit.h"
-#include "SEQ_iterator.h"
-#include "SEQ_relations.h"
-#include "SEQ_render.h"
-#include "SEQ_select.h"
-#include "SEQ_sequencer.h"
-#include "SEQ_time.h"
-#include "SEQ_utils.h"
+#include "SEQ_animation.hh"
+#include "SEQ_channels.hh"
+#include "SEQ_edit.hh"
+#include "SEQ_iterator.hh"
+#include "SEQ_relations.hh"
+#include "SEQ_render.hh"
+#include "SEQ_select.hh"
+#include "SEQ_sequencer.hh"
+#include "SEQ_time.hh"
+#include "SEQ_utils.hh"
 
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
 
-#include "multiview.h"
-#include "proxy.h"
-#include "sequencer.h"
-#include "utils.h"
+#include "multiview.hh"
+#include "proxy.hh"
+#include "sequencer.hh"
+#include "utils.hh"
 
 struct SeqUniqueInfo {
   Sequence *seq;
@@ -386,17 +388,15 @@ ListBase *SEQ_get_seqbase_by_seq(const Scene *scene, Sequence *seq)
 
 Sequence *SEQ_get_meta_by_seqbase(ListBase *seqbase_main, ListBase *meta_seqbase)
 {
-  SeqCollection *strips = SEQ_query_all_strips_recursive(seqbase_main);
+  blender::VectorSet strips = SEQ_query_all_meta_strips_recursive(seqbase_main);
 
-  Sequence *seq = nullptr;
-  SEQ_ITERATOR_FOREACH (seq, strips) {
-    if (seq->type == SEQ_TYPE_META && &seq->seqbase == meta_seqbase) {
-      break;
+  for (Sequence *seq : strips) {
+    if (&seq->seqbase == meta_seqbase) {
+      return seq;
     }
   }
 
-  SEQ_collection_free(strips);
-  return seq;
+  return nullptr;
 }
 
 Sequence *SEQ_sequence_from_strip_elem(ListBase *seqbase, StripElem *se)
@@ -499,14 +499,14 @@ void SEQ_set_scale_to_fit(const Sequence *seq,
 
   switch (fit_method) {
     case SEQ_SCALE_TO_FIT:
-      transform->scale_x = transform->scale_y = MIN2(float(preview_width) / float(image_width),
-                                                     float(preview_height) / float(image_height));
+      transform->scale_x = transform->scale_y = std::min(
+          float(preview_width) / float(image_width), float(preview_height) / float(image_height));
 
       break;
     case SEQ_SCALE_TO_FILL:
 
-      transform->scale_x = transform->scale_y = MAX2(float(preview_width) / float(image_width),
-                                                     float(preview_height) / float(image_height));
+      transform->scale_x = transform->scale_y = std::max(
+          float(preview_width) / float(image_width), float(preview_height) / float(image_height));
       break;
     case SEQ_STRETCH_TO_FILL:
       transform->scale_x = float(preview_width) / float(image_width);

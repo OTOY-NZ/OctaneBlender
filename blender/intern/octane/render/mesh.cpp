@@ -24,11 +24,214 @@
 #include "session.h"
 #include "shader.h"
 
+#include "blender/util.h"
 #include "util/progress.h"
 
 #include <algorithm>
 
 OCT_NAMESPACE_BEGIN
+
+OctaneGeoProperties::OctaneGeoProperties()
+{
+  hide_original_mesh = false;
+  infinite_plane = false;
+  coordinate_mode = 0;
+  // Open subdivision
+  open_subd_enable = false;
+  open_subd_scheme = 0;
+  open_subd_level = 0;
+  open_subd_sharpness = 0.f;
+  open_subd_bound_interp = 0;
+  // Sphere attributes
+  sphere_attribute_enable = false;
+  sphere_attribute_radius = 0.f;
+  sphere_attribute_random_seed = -1;
+  sphere_attribute_random_min_radius = 0.f;
+  sphere_attribute_random_max_radius = 0.f;
+  // Volume
+  enable_volume = false;
+  enable_sdf_volume = false;
+  voxel_size = 0.f;
+  border_thickness_inside = 0.f;
+  border_thickness_outside = 0.f;
+  vdb_sdf = false;
+  vdb_iso = 0.f;
+  // Hair
+  use_octane_radius_setting = false;
+  hair_root_width = 0.f;
+  hair_tip_width = 0.f;
+}
+
+void OctaneGeoProperties::update(int mesh_type,
+                                 PointerRNA &oct_mesh,
+                                 bool &is_octane_property_update,
+                                 bool &is_geometry_data_update,
+                                 bool use_octane_vertex_displacement_subdvision)
+{
+  bool new_hide_original_mesh = false;
+  bool new_infinite_plane = false;
+  int new_coordinate_mode = 0;
+  // Open subdivision
+  bool new_open_subd_enable = false;
+  int new_open_subd_scheme = 0;
+  int new_open_subd_level = 0;
+  float new_open_subd_sharpness = 0.f;
+  int new_open_subd_bound_interp = 0;
+  // Sphere attributes
+  bool new_sphere_attribute_enable = false;
+  float new_sphere_attribute_radius = 0.f;
+  int new_sphere_attribute_random_seed = -1;
+  float new_sphere_attribute_random_min_radius = 0.f;
+  float new_sphere_attribute_random_max_radius = 0.f;
+  // Volume
+  bool new_enable_volume = false;
+  bool new_enable_sdf_volume = false;
+  float new_voxel_size = 0.f;
+  float new_border_thickness_inside = 0.f;
+  float new_border_thickness_outside = 0.f;
+  bool new_vdb_sdf = false;
+  float new_vdb_iso = 0.f;
+  // Hair
+  bool new_use_octane_radius_setting = false;
+  float new_hair_root_width = 0.f;
+  float new_hair_tip_width = 0.f;
+  if (mesh_type == BL::Object::type_MESH) {
+    // clang-format off
+    new_hide_original_mesh = get_boolean(oct_mesh, "octane_hide_original_mesh");
+    new_infinite_plane = get_boolean(oct_mesh, "infinite_plane");
+    new_coordinate_mode = get_enum(oct_mesh, "primitive_coordinate_mode");
+    // Open subdivision
+    new_open_subd_enable = get_boolean(oct_mesh, "open_subd_enable") || use_octane_vertex_displacement_subdvision;
+    new_open_subd_scheme = get_enum(oct_mesh, "open_subd_scheme");
+    new_open_subd_level = get_int(oct_mesh, "open_subd_level");
+    new_open_subd_sharpness = get_float(oct_mesh, "open_subd_sharpness");
+    new_open_subd_bound_interp = get_enum(oct_mesh, "open_subd_bound_interp");
+    // Sphere attributes
+    new_sphere_attribute_enable = get_boolean(oct_mesh, "octane_enable_sphere_attribute");
+    new_sphere_attribute_radius = get_float(oct_mesh, "octane_sphere_radius");
+    new_sphere_attribute_random_seed = get_boolean(oct_mesh, "octane_use_randomized_radius") ? get_int(oct_mesh, "octane_sphere_randomized_radius_seed") : -1;
+    new_sphere_attribute_random_min_radius = get_float(oct_mesh, "octane_sphere_randomized_radius_min");
+    new_sphere_attribute_random_max_radius = get_float(oct_mesh, "octane_sphere_randomized_radius_max");
+    // Volume
+    new_enable_volume = get_boolean(oct_mesh, "enable_mesh_volume") || get_boolean(oct_mesh, "enable_mesh_volume_sdf");
+    new_enable_sdf_volume = get_boolean(oct_mesh, "enable_mesh_volume_sdf");
+    new_voxel_size = get_float(oct_mesh, "mesh_volume_sdf_voxel_size");
+    new_border_thickness_inside = get_float(oct_mesh, "mesh_volume_sdf_border_thickness_inside");
+    new_border_thickness_outside = get_float(oct_mesh, "mesh_volume_sdf_border_thickness_outside");
+    // clang-format on
+  }
+  else if (mesh_type == BL::Object::type_VOLUME) {
+    new_vdb_sdf = get_boolean(oct_mesh, "vdb_sdf");
+    new_vdb_iso = get_float(oct_mesh, "vdb_iso");
+    new_border_thickness_inside = get_float(oct_mesh, "mesh_volume_sdf_border_thickness_inside");
+    new_border_thickness_outside = get_float(oct_mesh, "mesh_volume_sdf_border_thickness_outside");
+  }
+  else if (mesh_type == BL::Object::type_CURVE || mesh_type == BL::Object::type_CURVES) {
+    new_use_octane_radius_setting = get_boolean(oct_mesh, "use_octane_radius_setting");
+    new_hair_root_width = get_float(oct_mesh, "hair_root_width");
+    new_hair_tip_width = get_float(oct_mesh, "hair_tip_width");
+  }
+  if (hide_original_mesh != new_hide_original_mesh) {
+    hide_original_mesh = new_hide_original_mesh;
+    is_geometry_data_update = true;
+    is_octane_property_update = true;
+  }
+  if (infinite_plane != new_infinite_plane) {
+    infinite_plane = new_infinite_plane;
+    is_geometry_data_update = true;
+    is_octane_property_update = true;
+  }
+  if (coordinate_mode != new_coordinate_mode) {
+    coordinate_mode = new_coordinate_mode;
+    is_geometry_data_update = true;
+    is_octane_property_update = true;
+  }
+  // Open subdivision
+  if (open_subd_enable != new_open_subd_enable) {
+    open_subd_enable = new_open_subd_enable;
+    is_geometry_data_update = true;
+    is_octane_property_update = true;
+  }
+  if (open_subd_scheme != new_open_subd_scheme) {
+    open_subd_scheme = new_open_subd_scheme;
+    is_octane_property_update = true;
+  }
+  if (open_subd_level != new_open_subd_level) {
+    open_subd_level = new_open_subd_level;
+    is_octane_property_update = true;
+  }
+  if (open_subd_sharpness != new_open_subd_sharpness) {
+    open_subd_sharpness = new_open_subd_sharpness;
+    is_octane_property_update = true;
+  }
+  if (open_subd_bound_interp != new_open_subd_bound_interp) {
+    open_subd_bound_interp = new_open_subd_bound_interp;
+    is_octane_property_update = true;
+  }
+  // Sphere attributes
+  if (sphere_attribute_enable != new_sphere_attribute_enable) {
+    sphere_attribute_enable = new_sphere_attribute_enable;
+    is_octane_property_update = true;
+  }
+  if (sphere_attribute_radius != new_sphere_attribute_radius) {
+    sphere_attribute_radius = new_sphere_attribute_radius;
+    is_octane_property_update = true;
+  }
+  if (sphere_attribute_random_seed != new_sphere_attribute_random_seed) {
+    sphere_attribute_random_seed = new_sphere_attribute_random_seed;
+    is_octane_property_update = true;
+  }
+  if (sphere_attribute_random_min_radius != new_sphere_attribute_random_min_radius) {
+    sphere_attribute_random_min_radius = new_sphere_attribute_random_min_radius;
+    is_octane_property_update = true;
+  }
+  if (sphere_attribute_random_max_radius != new_sphere_attribute_random_max_radius) {
+    sphere_attribute_random_max_radius = new_sphere_attribute_random_max_radius;
+    is_octane_property_update = true;
+  }
+  // Volume
+  if (enable_volume != new_enable_volume) {
+    enable_volume = new_enable_volume;
+    is_octane_property_update = true;
+  }
+  if (enable_sdf_volume != new_enable_sdf_volume) {
+    enable_sdf_volume = new_enable_sdf_volume;
+    is_octane_property_update = true;
+  }
+  if (voxel_size != new_voxel_size) {
+    voxel_size = new_voxel_size;
+    is_octane_property_update = true;
+  }
+  if (border_thickness_inside != new_border_thickness_inside) {
+    border_thickness_inside = new_border_thickness_inside;
+    is_octane_property_update = true;
+  }
+  if (border_thickness_outside != new_border_thickness_outside) {
+    border_thickness_outside = new_border_thickness_outside;
+    is_octane_property_update = true;
+  }
+  if (vdb_sdf != new_vdb_sdf) {
+    vdb_sdf = new_vdb_sdf;
+    is_octane_property_update = true;
+  }
+  if (vdb_iso != new_vdb_iso) {
+    vdb_iso = new_vdb_iso;
+    is_octane_property_update = true;
+  }
+  // Hair
+  if (use_octane_radius_setting != new_use_octane_radius_setting) {
+    use_octane_radius_setting = new_use_octane_radius_setting;
+    is_octane_property_update = true;
+  }
+  if (hair_root_width != new_hair_root_width) {
+    hair_root_width = new_hair_root_width;
+    is_octane_property_update = true;
+  }
+  if (hair_tip_width != new_hair_tip_width) {
+    hair_tip_width = new_hair_tip_width;
+    is_octane_property_update = true;
+  }
+}
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // CONSTRUCTOR
@@ -45,8 +248,6 @@ Mesh::Mesh()
   enable_offset_transform = false;
   need_update = false;
   final_visibility = true;
-  mesh_tag = "";
-  octane_property_tag = "";
   volume_modifier_tag = "";
   is_volume_to_mesh = false;
   is_mesh_to_volume = false;
@@ -88,6 +289,43 @@ bool Mesh::is_global_mesh_type(Scene *scene)
 bool Mesh::is_octane_coordinate_used()
 {
   return use_octane_coordinate;
+}
+
+void Mesh::update_octane_geo_properties(int mesh_type,
+                                        PointerRNA &oct_mesh,
+                                        bool &is_octane_property_update,
+                                        bool &is_geometry_data_update,
+                                        bool use_octane_vertex_displacement_subdvision)
+{
+  octane_geo_properties.update(mesh_type,
+                               oct_mesh,
+                               is_octane_property_update,
+                               is_geometry_data_update,
+                               use_octane_vertex_displacement_subdvision);
+  // Open subdivision
+  octane_mesh.oMeshOpenSubdivision.bOpenSubdEnable = octane_geo_properties.open_subd_enable;
+  octane_mesh.oMeshOpenSubdivision.iOpenSubdScheme = octane_geo_properties.open_subd_scheme;
+  octane_mesh.oMeshOpenSubdivision.iOpenSubdLevel = octane_geo_properties.open_subd_level;
+  octane_mesh.oMeshOpenSubdivision.fOpenSubdSharpness = octane_geo_properties.open_subd_sharpness;
+  octane_mesh.oMeshOpenSubdivision.iOpenSubdBoundInterp =
+      octane_geo_properties.open_subd_bound_interp;
+  // Sphere attributes
+  octane_mesh.oMeshData.oMeshSphereAttribute.bEnable =
+      octane_geo_properties.sphere_attribute_enable;
+  octane_mesh.oMeshData.oMeshSphereAttribute.fRadius =
+      octane_geo_properties.sphere_attribute_radius;
+  octane_mesh.oMeshData.oMeshSphereAttribute.iRandomSeed =
+      octane_geo_properties.sphere_attribute_random_seed;
+  octane_mesh.oMeshData.oMeshSphereAttribute.fMinRandomizedRadius =
+      octane_geo_properties.sphere_attribute_random_min_radius;
+  octane_mesh.oMeshData.oMeshSphereAttribute.fMaxRandomizedRadius =
+      octane_geo_properties.sphere_attribute_random_max_radius;
+  // Volume
+  octane_mesh.oMeshVolume.bEnable = octane_geo_properties.enable_volume;
+  octane_mesh.oMeshVolume.bSDF = octane_geo_properties.enable_sdf_volume;
+  octane_mesh.oMeshVolume.fVoxelSize = octane_geo_properties.voxel_size;
+  octane_mesh.oMeshVolume.fBorderThicknessInside = octane_geo_properties.border_thickness_inside;
+  octane_mesh.oMeshVolume.fBorderThicknessOutside = octane_geo_properties.border_thickness_outside;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -269,17 +507,15 @@ void MeshManager::server_update_mesh(::OctaneEngine::OctaneClient *server,
       octaneMeshes.iTotalFrameIdx = total_frames;
       server->uploadOctaneMesh(octaneMeshes);
     }
-    for (size_t mesh_idx = 0; mesh_idx < octaneLocalMeshesList.size(); ++mesh_idx)
-    {
+    for (size_t mesh_idx = 0; mesh_idx < octaneLocalMeshesList.size(); ++mesh_idx) {
       auto &meshes = octaneLocalMeshesList[mesh_idx];
       if (meshes.oMeshes.size() && !progress.get_cancel()) {
         // Only force to update the render when the last mesh is updated(to filter out the
         // unnecessary updates)
-        meshes.bUpdateRender = (mesh_idx + 1 == octaneLocalMeshesList.size());        
+        meshes.bUpdateRender = (mesh_idx + 1 == octaneLocalMeshesList.size());
         if (meshes.bUpdateRender) {
           std::string status_msg = "Total transferred mesh count: " +
-                                   std::to_string(octaneLocalMeshesList.size()) +
-                                   "...";
+                                   std::to_string(octaneLocalMeshesList.size()) + "...";
           progress.set_status("Evaluating uploaded meshes on render-server", status_msg);
         }
         else {
@@ -397,9 +633,9 @@ void MeshManager::server_update_mesh(::OctaneEngine::OctaneClient *server,
         globalMesh.fMaxSmoothAngle = -1.f;
       }
       size_t f3PointsSize = 0, f3NormalSize = 0, f3UVSize = 0, iPointIndicesSize = 0,
-             iNormalIndicesSize = 0, iUVIndicesSize = 0, iSmoothGroupPerPolySize = 0, iVertexPerPolySize = 0,
-             iPolyMaterialSize = 0, iPolyObjectIndexSize = 0, sShaderNamesSize = 0,
-             sObjectNamesSize = 0, fOpenSubdCreasesSharpnessesSize = 0,
+             iNormalIndicesSize = 0, iUVIndicesSize = 0, iSmoothGroupPerPolySize = 0,
+             iVertexPerPolySize = 0, iPolyMaterialSize = 0, iPolyObjectIndexSize = 0,
+             sShaderNamesSize = 0, sObjectNamesSize = 0, fOpenSubdCreasesSharpnessesSize = 0,
              iOpenSubdCreasesIndicesSize = 0;
       for (auto &mesh : octaneMeshes.oMeshes) {
         f3PointsSize += mesh.oMeshData.f3Points.size();

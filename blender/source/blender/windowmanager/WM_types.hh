@@ -99,6 +99,7 @@ struct bContext;
 struct bContextStore;
 struct GreasePencil;
 struct GreasePencilLayer;
+struct ReportList;
 struct wmDrag;
 struct wmDropBox;
 struct wmEvent;
@@ -110,6 +111,7 @@ struct wmWindowManager;
 
 #include "BLI_compiler_attrs.h"
 #include "BLI_utildefines.h"
+#include "BLI_vector.hh"
 #include "DNA_listBase.h"
 #include "DNA_uuid_types.h"
 #include "DNA_vec_types.h"
@@ -117,19 +119,19 @@ struct wmWindowManager;
 #include "RNA_types.hh"
 
 /* exported types for WM */
-#include "gizmo/WM_gizmo_types.h"
+#include "gizmo/WM_gizmo_types.hh"
 #include "wm_cursors.hh"
 #include "wm_event_types.hh"
 
 /* Include external gizmo API's */
-#include "gizmo/WM_gizmo_api.h"
+#include "gizmo/WM_gizmo_api.hh"
 
 namespace blender::asset_system {
 class AssetRepresentation;
 }
 using AssetRepresentationHandle = blender::asset_system::AssetRepresentation;
 
-typedef void (*wmGenericUserDataFreeFn)(void *data);
+using wmGenericUserDataFreeFn = void (*)(void *data);
 
 struct wmGenericUserData {
   void *data;
@@ -630,11 +632,11 @@ enum eWM_EventFlag {
    */
   WM_EVENT_IS_REPEAT = (1 << 1),
   /**
-   * Generated for consecutive track-pad or NDOF-motion events,
+   * Generated for consecutive trackpad or NDOF-motion events,
    * the repeat chain is broken by key/button events,
    * or cursor motion exceeding #WM_EVENT_CURSOR_MOTION_THRESHOLD.
    *
-   * Changing the type of track-pad or gesture event also breaks the chain.
+   * Changing the type of trackpad or gesture event also breaks the chain.
    */
   WM_EVENT_IS_CONSECUTIVE = (1 << 2),
   /**
@@ -672,7 +674,7 @@ struct wmTabletData {
  *   See: #ISKEYBOARD_OR_BUTTON.
  *
  * - Previous x/y are exceptions: #wmEvent.prev
- *   these are set on mouse motion, see #MOUSEMOVE & track-pad events.
+ *   these are set on mouse motion, see #MOUSEMOVE & trackpad events.
  *
  * - Modal key-map handling sets `prev_val` & `prev_type` to `val` & `type`,
  *   this allows modal keys-maps to check the original values (needed in some cases).
@@ -778,11 +780,6 @@ struct wmEvent {
   uint8_t prev_press_modifier;
   /** The `keymodifier` at the point of the press action. */
   short prev_press_keymodifier;
-  /**
-   * The time when the key is pressed, see #PIL_check_seconds_timer.
-   * Used to detect double-click events.
-   */
-  double prev_press_time;
 };
 
 /**
@@ -922,6 +919,55 @@ struct wmTimer {
   bool sleep;
 };
 
+enum wmPopupSize {
+  WM_POPUP_SIZE_SMALL = 0,
+  WM_POPUP_SIZE_LARGE,
+};
+
+enum wmPopupPosition {
+  WM_POPUP_POSITION_MOUSE = 0,
+  WM_POPUP_POSITION_CENTER,
+};
+
+/**
+ * Communication/status data owned by the wmJob, and passed to the worker code when calling
+ * `startjob` callback.
+ *
+ * 'OUTPUT' members mean that they are defined by the worker thread, and read/used by the wmJob
+ * management code from the main thread. And vice-versa for `INPUT' members.
+ *
+ * \warning There is currently no thread-safety or synchronization when accessing these values.
+ * This is fine as long as:
+ *   - All members are independent of each other, value-wise.
+ *   - Each member is 'simple enough' that accessing it or setting it can be considered as atomic.
+ *   - There is no requirement of immediate synchronization of these values between the main
+ *     controlling thread (i.e. wmJob management code) and the worker thread.
+ */
+struct wmJobWorkerStatus {
+  /**
+   * OUTPUT - Set to true by the worker to request update processing from the main thread (as part
+   * of the wmJob 'event loop', see #wm_jobs_timer).
+   */
+  bool do_update;
+
+  /**
+   * INPUT - Set by the wmJob management code to request a worker to stop/abort its processing.
+   *
+   * \note Some job types (rendering or baking ones e.g.) also use the #Global.is_break flag to
+   * cancel their processing.
+   */
+  bool stop;
+
+  /** OUTPUT - Progress as reported by the worker, from `0.0f` to `1.0f`. */
+  float progress;
+
+  /**
+   * OUTPUT - Storage of reports generated during this job's run. Contains its own locking for
+   * thread-safety.
+   */
+  ReportList *reports;
+};
+
 struct wmOperatorType {
   /** Text for UI, undo (should not exceed #OP_MAX_TYPENAME). */
   const char *name;
@@ -940,7 +986,7 @@ struct wmOperatorType {
    * any interface code or input device state.
    * See defines below for return values.
    */
-  int (*exec)(bContext *, wmOperator *) ATTR_WARN_UNUSED_RESULT;
+  int (*exec)(bContext *C, wmOperator *op) ATTR_WARN_UNUSED_RESULT;
 
   /**
    * This callback executes on a running operator whenever as property
@@ -948,7 +994,7 @@ struct wmOperatorType {
    * invalid settings in exceptional cases.
    * Boolean return value, True denotes a change has been made and to redraw.
    */
-  bool (*check)(bContext *, wmOperator *);
+  bool (*check)(bContext *C, wmOperator *op);
 
   /**
    * For modal temporary operators, initially invoke is called, then
@@ -956,13 +1002,13 @@ struct wmOperatorType {
    * canceled due to some external reason, cancel is called
    * See defines below for return values.
    */
-  int (*invoke)(bContext *, wmOperator *, const wmEvent *) ATTR_WARN_UNUSED_RESULT;
+  int (*invoke)(bContext *C, wmOperator *op, const wmEvent *event) ATTR_WARN_UNUSED_RESULT;
 
   /**
    * Called when a modal operator is canceled (not used often).
    * Internal cleanup can be done here if needed.
    */
-  void (*cancel)(bContext *, wmOperator *);
+  void (*cancel)(bContext *C, wmOperator *op);
 
   /**
    * Modal is used for operators which continuously run. Fly mode, knife tool, circle select are
@@ -970,13 +1016,13 @@ struct wmOperatorType {
    * or execute other operators. They keep running until they don't return
    * `OPERATOR_RUNNING_MODAL`.
    */
-  int (*modal)(bContext *, wmOperator *, const wmEvent *) ATTR_WARN_UNUSED_RESULT;
+  int (*modal)(bContext *C, wmOperator *op, const wmEvent *event) ATTR_WARN_UNUSED_RESULT;
 
   /**
    * Verify if the operator can be executed in the current context. Note
    * that the operator may still fail to execute even if this returns true.
    */
-  bool (*poll)(bContext *) ATTR_WARN_UNUSED_RESULT;
+  bool (*poll)(bContext *C) ATTR_WARN_UNUSED_RESULT;
 
   /**
    * Used to check if properties should be displayed in auto-generated UI.
@@ -987,12 +1033,12 @@ struct wmOperatorType {
                         const PropertyRNA *prop) ATTR_WARN_UNUSED_RESULT;
 
   /** Optional panel for redo and repeat, auto-generated if not set. */
-  void (*ui)(bContext *, wmOperator *);
+  void (*ui)(bContext *C, wmOperator *op);
   /**
    * Optional check for whether the #ui callback should be called (usually to create the redo
    * panel interface).
    */
-  bool (*ui_poll)(wmOperatorType *, PointerRNA *);
+  bool (*ui_poll)(wmOperatorType *ot, PointerRNA *ptr);
 
   /**
    * Return a different name to use in the user interface, based on property values.
@@ -1002,13 +1048,13 @@ struct wmOperatorType {
    * any definition of an operator button through the layout API will fail to execute it). See
    * #112253 for details.
    */
-  std::string (*get_name)(wmOperatorType *, PointerRNA *);
+  std::string (*get_name)(wmOperatorType *ot, PointerRNA *ptr);
 
   /**
    * Return a different description to use in the user interface, based on property values.
    * The returned string is expected to be translated if needed.
    */
-  std::string (*get_description)(bContext *C, wmOperatorType *, PointerRNA *);
+  std::string (*get_description)(bContext *C, wmOperatorType *ot, PointerRNA *ptr);
 
   /** RNA for properties */
   StructRNA *srna;
@@ -1032,7 +1078,7 @@ struct wmOperatorType {
   wmKeyMap *modalkeymap;
 
   /** Python needs the operator type as well. */
-  bool (*pyop_poll)(bContext *, wmOperatorType *ot) ATTR_WARN_UNUSED_RESULT;
+  bool (*pyop_poll)(bContext *C, wmOperatorType *ot) ATTR_WARN_UNUSED_RESULT;
 
   /** RNA integration */
   ExtensionRNA rna_ext;
@@ -1057,7 +1103,8 @@ struct wmOperatorCallParams {
 #ifdef WITH_INPUT_IME
 /* *********** Input Method Editor (IME) *********** */
 /**
- * \note similar to #GHOST_TEventImeData.
+ * \warning this is a duplicate of #GHOST_TEventImeData.
+ * All members must remain aligned and the struct size match!
  */
 struct wmIMEData {
   size_t result_len, composite_len;
@@ -1073,8 +1120,6 @@ struct wmIMEData {
   int sel_start;
   /** End of the selection. */
   int sel_end;
-
-  bool is_ime_composing;
 };
 #endif
 
@@ -1100,6 +1145,7 @@ enum eWM_DragDataType {
   WM_DRAG_ASSET_CATALOG,
   WM_DRAG_GREASE_PENCIL_LAYER,
   WM_DRAG_NODE_TREE_INTERFACE,
+  WM_DRAG_BONE_COLLECTION,
 };
 
 enum eWM_DragFlags {
@@ -1145,10 +1191,12 @@ struct wmDragAssetListItem {
 };
 
 struct wmDragPath {
-  char *path;
-  /* Note that even though the enum type uses bit-flags, this should never have multiple type-bits
-   * set, so `ELEM()` like comparison is possible. */
-  int file_type; /* eFileSel_File_Types */
+  blender::Vector<std::string> paths;
+  /* File type of each path in #paths. */
+  blender::Vector<int> file_types; /* eFileSel_File_Types */
+  /* Bit flag of file types in #paths. */
+  int file_types_bit_flag; /* eFileSel_File_Types */
+  std::string tooltip;
 };
 
 struct wmDragGreasePencilLayer {
@@ -1156,13 +1204,18 @@ struct wmDragGreasePencilLayer {
   GreasePencilLayer *layer;
 };
 
-using WMDropboxTooltipFunc = char *(*)(bContext *, wmDrag *, const int xy[2], wmDropBox *drop);
+using WMDropboxTooltipFunc = std::string (*)(bContext *C,
+                                             wmDrag *drag,
+                                             const int xy[2],
+                                             wmDropBox *drop);
 
 struct wmDragActiveDropState {
+  wmDragActiveDropState();
+  ~wmDragActiveDropState();
+
   /**
    * Informs which dropbox is activated with the drag item.
-   * When this value changes, the #draw_activate and #draw_deactivate dropbox callbacks are
-   * triggered.
+   * When this value changes, the #on_enter() and #on_exit() dropbox callbacks are triggered.
    */
   wmDropBox *active_dropbox;
 
@@ -1233,6 +1286,13 @@ struct wmDropBox {
    * So this callback is called on every dropbox that is registered in the current screen. */
   void (*on_drag_start)(bContext *C, wmDrag *drag);
 
+  /** Called when poll returns true the first time. Typically used to setup some drawing data. */
+  void (*on_enter)(wmDropBox *drop, wmDrag *drag);
+
+  /** Called when poll returns false the first time or when the drag event ends (successful drop or
+   * canceled). Typically used to cleanup resources or end drawing. */
+  void (*on_exit)(wmDropBox *drop, wmDrag *drag);
+
   /** Before exec, this copies drag info to #wmDrop properties. */
   void (*copy)(bContext *C, wmDrag *drag, wmDropBox *drop);
 
@@ -1257,12 +1317,6 @@ struct wmDropBox {
    */
   void (*draw_in_view)(bContext *C, wmWindow *win, wmDrag *drag, const int xy[2]);
 
-  /** Called when poll returns true the first time. */
-  void (*draw_activate)(wmDropBox *drop, wmDrag *drag);
-
-  /** Called when poll returns false the first time or when the drag event ends. */
-  void (*draw_deactivate)(wmDropBox *drop, wmDrag *drag);
-
   /** Custom data for drawing. */
   void *draw_data;
 
@@ -1272,8 +1326,12 @@ struct wmDropBox {
   /**
    * If poll succeeds, operator is called.
    * Not saved in file, so can be pointer.
+   * This may be null when the operator has been unregistered,
+   * where `opname` can be used to re-initialize it.
    */
   wmOperatorType *ot;
+  /** #wmOperatorType::idname, needed for re-registration. */
+  char opname[64];
 
   /** Operator properties, assigned to ptr->data and can be written to a file. */
   IDProperty *properties;

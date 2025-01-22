@@ -13,6 +13,7 @@ import numpy as np
 from octane.core.caches import OctaneNodeCache
 from octane.core.octane_info import OctaneInfoManger
 from octane.core.resource_cache import ResourceCache
+from octane.properties_._object import OctaneObjectPropertyGroup
 from octane.utils import consts, utility, octane_name
 from octane.utils import curve as curve_utils
 from octane.utils.utility import BlenderID
@@ -819,7 +820,7 @@ class ObjectCache(OctaneNodeCache):
         return linked_name
 
     def update_object_layer(self, node, octane_data):
-        if octane_data.__class__.__name__ != "OctaneObjectSettings":
+        if not isinstance(octane_data, OctaneObjectPropertyGroup):
             return
         node.set_pin_id(consts.PinID.P_LAYER_ID, False, "", octane_data.render_layer_id)
         node.set_pin_id(consts.PinID.P_GENERAL_VISIBILITY, False, "", octane_data.general_visibility)
@@ -827,7 +828,7 @@ class ObjectCache(OctaneNodeCache):
         node.set_pin_id(consts.PinID.P_SHADOW_VISIBILITY, False, "", octane_data.shadow_visibility)
         node.set_pin_id(consts.PinID.P_DIRT_VISIBILITY, False, "", octane_data.dirt_visibility)
         node.set_pin_id(consts.PinID.P_CURVATURE_VISIBILITY, False, "", octane_data.curvature_visibility)
-        node.set_pin_id(consts.PinID.P_ROUND_EDGES_VISIBILITY, False, "", octane_data.round_edge_visibility)        
+        node.set_pin_id(consts.PinID.P_ROUND_EDGES_VISIBILITY, False, "", octane_data.round_edge_visibility)
         node.set_pin_id(consts.PinID.P_RANDOM_SEED, False, "", octane_data.random_color_seed)
         node.set_pin_id(consts.PinID.P_OBJECT_COLOR, False, "", [int(c * 255.0) for c in octane_data.color])
         node.set_pin_id(consts.PinID.P_CUSTOM_AOV, False, "",
@@ -998,7 +999,7 @@ class ObjectCache(OctaneNodeCache):
                 need_sync |= eval_object_blender_id in self.changed_data_ids
                 # Is this object's data a depgraph update?
                 need_sync |= eval_object_data_name in self.dg_updated_object_data_names
-                # Is this object newly-created? 
+                # Is this object newly-created?
                 need_sync |= eval_object_name not in self.depsgraph_object_instance_names
                 if not need_sync:
                     continue

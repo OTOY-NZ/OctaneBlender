@@ -10,7 +10,7 @@
 
 #include "BKE_grease_pencil.hh"
 #include "DRW_gpu_wrapper.hh"
-#include "DRW_render.h"
+#include "DRW_render.hh"
 
 #include "draw_manager.hh"
 #include "draw_pass.hh"
@@ -36,7 +36,7 @@ class LayerModule {
   {
     /* TODO(fclem): All of this is placeholder. */
     gpLayer gp_layer;
-    gp_layer.vertex_color_opacity = 0.0f;
+    // gp_layer.vertex_color_opacity = 0.0f; unused
     gp_layer.thickness_offset = 0.0f;
     gp_layer.tint = float4(1.0f, 1.0f, 1.0f, 0.0f);
     gp_layer.stroke_index_offset = 0.0f;

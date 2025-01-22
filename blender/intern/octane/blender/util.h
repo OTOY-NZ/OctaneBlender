@@ -26,7 +26,6 @@
 #include "render/mesh.h"
 #include "render/osl.h"
 
-#include "BKE_mesh.h"
 #include "util/algorithm.h"
 #include "util/array.h"
 #include "util/map.h"
@@ -36,6 +35,8 @@
 #include "util/transform.h"
 #include "util/types.h"
 #include "util/vector.h"
+
+#include "BKE_mesh.hh"
 
 /* Hacks to hook into Blender API
  * todo: clean this up ... */
@@ -104,6 +105,9 @@ static inline BL::Mesh object_to_mesh(BL::BlendData & /*data*/,
 #endif
 
   BL::Mesh mesh(PointerRNA_NULL);
+  const bool split_faces = (mesh) && (!enable_subdivision) &&
+                           (static_cast<const ::Mesh *>(mesh.ptr.data)->normals_domain(true) ==
+                            blender::bke::MeshNormalDomain::Corner);
   if (object.type() == BL::Object::type_MESH) {
     /* TODO: calc_undeformed is not used. */
     mesh = BL::Mesh(object.data());
@@ -111,7 +115,7 @@ static inline BL::Mesh object_to_mesh(BL::BlendData & /*data*/,
     /* Make a copy to split faces if we use autosmooth, otherwise not needed.
      * Also in edit mode do we need to make a copy, to ensure data layers like
      * UV are not empty. */
-    if (mesh.is_editmode() || (mesh.use_auto_smooth() && !enable_subdivision)) {
+    if (mesh.is_editmode() || split_faces) {
       BL::Depsgraph depsgraph(PointerRNA_NULL);
       mesh = object.to_mesh(false, depsgraph);
     }
@@ -130,13 +134,14 @@ static inline BL::Mesh object_to_mesh(BL::BlendData & /*data*/,
   }
 #endif
 
-  if ((bool)mesh && !enable_subdivision) {
-    if (mesh.use_auto_smooth()) {
-      mesh.calc_normals_split();
+  if ((bool)mesh) {
+    if (split_faces) {
       mesh.split_faces();
     }
 
-    mesh.calc_loop_triangles();
+    if (!enable_subdivision) {
+      mesh.calc_loop_triangles();
+    }
   }
 
   return mesh;
@@ -170,9 +175,6 @@ static std::string generate_mesh_tag(BL::Depsgraph &b_depsgraph,
     }
     ::Mesh *me = (::Mesh *)(b_mesh.ptr.data);
     std::stringstream ss;
-    if (b_mesh.use_auto_smooth()) {
-      ss << b_mesh.auto_smooth_angle() << "|";
-    }
     ss << b_mesh.vertices.length() << "|" << b_mesh.polygons.length() << "|"
        << b_mesh.edges.length() << "|" << b_mesh.loops.length() << "|"
        << b_mesh.loop_triangles.length() << "|";

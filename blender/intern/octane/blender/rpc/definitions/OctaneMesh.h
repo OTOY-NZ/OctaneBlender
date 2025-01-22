@@ -99,7 +99,9 @@ namespace OctaneDataTransferObject {
 		std::vector<std::vector<float_3>>	f3SphereVertexColors;
 		std::vector<int32_t>		iSphereMaterialIndices;
 		std::map<std::string, std::pair<uint32_t, uint32_t>>	oArrayInfo;
-		OctaneMeshData() : OctaneNodeBase(Octane::ENT_MESH_DATA, "OctaneMeshData") {}
+		OctaneMeshData() : OctaneNodeBase(Octane::ENT_MESH_DATA, "OctaneMeshData") {
+      bShowVertexData = true;
+    }
 		void Clear() 
 		{ 
 			bUpdate = false;

@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+/* SPDX-FileCopyrightText: 2011-2022 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -67,7 +67,7 @@ std::string NodeParser::node_name(bool with_out_socket) const
   auto valid_name = [](const std::string &name) {
 #ifdef WITH_USD
     /* Node name should suite to MatX and USD valid names.
-     * It shouldn't start from '_', due to error occured in Storm delegate. */
+     * It shouldn't start from '_', due to error occurred in Storm delegate. */
     std::string res = MaterialX::createValidName(pxr::TfMakeValidIdentifier(name));
 #else
     std::string res = MaterialX::createValidName(name);

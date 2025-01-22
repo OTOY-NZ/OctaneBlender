@@ -43,19 +43,15 @@ class GLContext : public Context {
   static GLint max_cubemap_size;
   static GLint max_ubo_size;
   static GLint max_ubo_binds;
-  static GLint max_ssbo_size;
   static GLint max_ssbo_binds;
 
   /** Extensions. */
 
-  static bool base_instance_support;
   static bool clear_texture_support;
-  static bool copy_image_support;
   static bool debug_layer_support;
   static bool direct_state_access_support;
   static bool explicit_location_support;
-  static bool geometry_shader_invocations;
-  static bool fixed_restart_index_support;
+  static bool framebuffer_fetch_support;
   static bool layered_rendering_support;
   static bool native_barycentric_support;
   static bool multi_bind_support;
@@ -63,11 +59,8 @@ class GLContext : public Context {
   static bool multi_draw_indirect_support;
   static bool shader_draw_parameters_support;
   static bool stencil_texturing_support;
-  static bool texture_cube_map_array_support;
+  static bool texture_barrier_support;
   static bool texture_filter_anisotropic_support;
-  static bool texture_gather_support;
-  static bool texture_storage_support;
-  static bool vertex_attrib_binding_support;
 
   /** Workarounds. */
 
@@ -76,7 +69,7 @@ class GLContext : public Context {
   static bool generate_mipmap_workaround;
   static float derivative_signs[2];
 
-  /** VBO for missing vertex attrib binding. Avoid undefined behavior on some implementation. */
+  /** VBO for missing vertex attribute binding. Avoid undefined behavior on some implementation. */
   GLuint default_attr_vbo_;
 
   /** Used for debugging purpose. Bitflags of all bound slots. */
@@ -111,7 +104,7 @@ class GLContext : public Context {
   void flush() override;
   void finish() override;
 
-  void memory_statistics_get(int *total_mem, int *free_mem) override;
+  void memory_statistics_get(int *r_total_mem, int *r_free_mem) override;
 
   static GLContext *get()
   {

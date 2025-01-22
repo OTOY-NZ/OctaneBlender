@@ -89,6 +89,54 @@ class OctaneOutputAOVsAddBloomSpreadEnd(OctaneBaseSocket):
     octane_deprecated = False
 
 
+class OctaneOutputAOVsAddBloomSpectralIntensity(OctaneBaseSocket):
+    bl_idname = "OctaneOutputAOVsAddBloomSpectralIntensity"
+    bl_label = "Colorize strength"
+    color = consts.OctanePinColor.Float
+    octane_default_node_type = consts.NodeType.NT_FLOAT
+    octane_default_node_name = "OctaneFloatValue"
+    octane_pin_id = consts.PinID.P_SPECTRAL_INTENSITY
+    octane_pin_name = "spectral_intensity"
+    octane_pin_type = consts.PinType.PT_FLOAT
+    octane_pin_index = 4
+    octane_socket_type = consts.SocketType.ST_FLOAT
+    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="The strength with which to apply a rainbow-style color effect to the bloom", min=0.000000, max=100.000000, soft_min=0.000000, soft_max=100.000000, step=1.000000, precision=2, subtype="PERCENTAGE")
+    octane_hide_value = False
+    octane_min_version = 13000300
+    octane_end_version = 4294967295
+    octane_deprecated = False
+
+
+class OctaneOutputAOVsAddBloomSpectralShift(OctaneBaseSocket):
+    bl_idname = "OctaneOutputAOVsAddBloomSpectralShift"
+    bl_label = "Colorize phase"
+    color = consts.OctanePinColor.Float
+    octane_default_node_type = consts.NodeType.NT_FLOAT
+    octane_default_node_name = "OctaneFloatValue"
+    octane_pin_id = consts.PinID.P_SPECTRAL_SHIFT
+    octane_pin_name = "spectral_shift"
+    octane_pin_type = consts.PinType.PT_FLOAT
+    octane_pin_index = 5
+    octane_socket_type = consts.SocketType.ST_FLOAT
+    default_value: FloatProperty(default=0.500000, update=OctaneBaseSocket.update_node_tree, description="Affects the hue of the colorize effect", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, step=1.000000, precision=2, subtype=runtime_globals.FACTOR_PROPERTY_SUBTYPE)
+    octane_hide_value = False
+    octane_min_version = 13000300
+    octane_end_version = 4294967295
+    octane_deprecated = False
+
+
+class OctaneOutputAOVsAddBloomGroupSpread(OctaneGroupTitleSocket):
+    bl_idname = "OctaneOutputAOVsAddBloomGroupSpread"
+    bl_label = "[OctaneGroupTitle]Spread"
+    octane_group_sockets: StringProperty(name="Group Sockets", default="Spread start;Spread end;")
+
+
+class OctaneOutputAOVsAddBloomGroupColorize(OctaneGroupTitleSocket):
+    bl_idname = "OctaneOutputAOVsAddBloomGroupColorize"
+    bl_label = "[OctaneGroupTitle]Colorize"
+    octane_group_sockets: StringProperty(name="Group Sockets", default="Colorize strength;Colorize phase;")
+
+
 class OctaneOutputAOVsAddBloom(bpy.types.Node, OctaneBaseNode):
     bl_idname = "OctaneOutputAOVsAddBloom"
     bl_label = "Add bloom"
@@ -98,19 +146,23 @@ class OctaneOutputAOVsAddBloom(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name = ""
     octane_render_pass_description = ""
     octane_render_pass_sub_type_name = ""
-    octane_socket_class_list = [OctaneOutputAOVsAddBloomEnabled, OctaneOutputAOVsAddBloomBloomPower, OctaneOutputAOVsAddBloomSpreadStart, OctaneOutputAOVsAddBloomSpreadEnd, ]
+    octane_socket_class_list = [OctaneOutputAOVsAddBloomEnabled, OctaneOutputAOVsAddBloomBloomPower, OctaneOutputAOVsAddBloomGroupSpread, OctaneOutputAOVsAddBloomSpreadStart, OctaneOutputAOVsAddBloomSpreadEnd, OctaneOutputAOVsAddBloomGroupColorize, OctaneOutputAOVsAddBloomSpectralIntensity, OctaneOutputAOVsAddBloomSpectralShift, ]
     octane_min_version = 13000002
     octane_node_type = consts.NodeType.NT_OUTPUT_AOV_LAYER_ADD_BLOOM
-    octane_socket_list = ["Enabled", "Strength", "Spread start", "Spread end", ]
+    octane_socket_list = ["Enabled", "Strength", "Spread start", "Spread end", "Colorize strength", "Colorize phase", ]
     octane_attribute_list = []
     octane_attribute_config = {}
-    octane_static_pin_count = 4
+    octane_static_pin_count = 6
 
     def init(self, context):  # noqa
         self.inputs.new("OctaneOutputAOVsAddBloomEnabled", OctaneOutputAOVsAddBloomEnabled.bl_label).init()
         self.inputs.new("OctaneOutputAOVsAddBloomBloomPower", OctaneOutputAOVsAddBloomBloomPower.bl_label).init()
+        self.inputs.new("OctaneOutputAOVsAddBloomGroupSpread", OctaneOutputAOVsAddBloomGroupSpread.bl_label).init()
         self.inputs.new("OctaneOutputAOVsAddBloomSpreadStart", OctaneOutputAOVsAddBloomSpreadStart.bl_label).init()
         self.inputs.new("OctaneOutputAOVsAddBloomSpreadEnd", OctaneOutputAOVsAddBloomSpreadEnd.bl_label).init()
+        self.inputs.new("OctaneOutputAOVsAddBloomGroupColorize", OctaneOutputAOVsAddBloomGroupColorize.bl_label).init()
+        self.inputs.new("OctaneOutputAOVsAddBloomSpectralIntensity", OctaneOutputAOVsAddBloomSpectralIntensity.bl_label).init()
+        self.inputs.new("OctaneOutputAOVsAddBloomSpectralShift", OctaneOutputAOVsAddBloomSpectralShift.bl_label).init()
         self.outputs.new("OctaneOutputAOVLayerOutSocket", "Output AOV layer out").init()
 
     @classmethod
@@ -123,6 +175,10 @@ _CLASSES = [
     OctaneOutputAOVsAddBloomBloomPower,
     OctaneOutputAOVsAddBloomSpreadStart,
     OctaneOutputAOVsAddBloomSpreadEnd,
+    OctaneOutputAOVsAddBloomSpectralIntensity,
+    OctaneOutputAOVsAddBloomSpectralShift,
+    OctaneOutputAOVsAddBloomGroupSpread,
+    OctaneOutputAOVsAddBloomGroupColorize,
     OctaneOutputAOVsAddBloom,
 ]
 

@@ -12,17 +12,17 @@
 #include "DNA_sound_types.h"
 
 #include "BLI_blenlib.h"
-#include "BLI_string_utils.h"
+#include "BLI_string_utils.hh"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_global.h"
 #include "BKE_image.h"
-#include "BKE_main.h"
+#include "BKE_main.hh"
 
-#include "SEQ_channels.h"
-#include "SEQ_iterator.h"
-#include "SEQ_sequencer.h"
-#include "SEQ_transform.h"
+#include "SEQ_channels.hh"
+#include "SEQ_iterator.hh"
+#include "SEQ_sequencer.hh"
+#include "SEQ_transform.hh"
 
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
@@ -33,8 +33,8 @@
 #include "ED_screen.hh"
 #include "ED_transform.hh"
 
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -80,7 +80,7 @@ static bool image_drop_poll(bContext * /*C*/, wmDrag *drag, const wmEvent *event
 {
   if (drag->type == WM_DRAG_PATH) {
     const eFileSel_File_Types file_type = eFileSel_File_Types(WM_drag_get_path_file_type(drag));
-    if (ELEM(file_type, 0, FILE_TYPE_IMAGE)) {
+    if (file_type == FILE_TYPE_IMAGE) {
       generic_poll_operations(event, TH_SEQ_IMAGE);
       return true;
     }
@@ -98,7 +98,7 @@ static bool is_movie(wmDrag *drag)
 {
   if (drag->type == WM_DRAG_PATH) {
     const eFileSel_File_Types file_type = eFileSel_File_Types(WM_drag_get_path_file_type(drag));
-    if (ELEM(file_type, 0, FILE_TYPE_MOVIE)) {
+    if (file_type == FILE_TYPE_MOVIE) {
       return true;
     }
   }
@@ -122,7 +122,7 @@ static bool is_sound(wmDrag *drag)
 {
   if (drag->type == WM_DRAG_PATH) {
     const eFileSel_File_Types file_type = eFileSel_File_Types(WM_drag_get_path_file_type(drag));
-    if (ELEM(file_type, 0, FILE_TYPE_SOUND)) {
+    if (file_type == FILE_TYPE_SOUND) {
       return true;
     }
   }
@@ -196,7 +196,7 @@ static float update_overlay_strip_position_data(bContext *C, const int mval[2])
 
   if (strip_len < 1) {
     /* Only check if there is a strip already under the mouse cursor. */
-    coords->is_intersecting = find_nearest_seq(scene, &region->v2d, &hand, mval);
+    coords->is_intersecting = find_nearest_seq(scene, &region->v2d, mval, &hand);
   }
   else {
     /* Check if there is a strip that would intersect with the new strip(s). */
@@ -221,54 +221,6 @@ static float update_overlay_strip_position_data(bContext *C, const int mval[2])
 
 static void sequencer_drop_copy(bContext *C, wmDrag *drag, wmDropBox *drop)
 {
-  ID *id = WM_drag_get_local_ID_or_import_from_asset(C, drag, 0);
-  /* ID dropped. */
-  if (id != nullptr) {
-    const ID_Type id_type = GS(id->name);
-    if (id_type == ID_IM) {
-      Image *ima = (Image *)id;
-      PointerRNA itemptr;
-      char dir[FILE_MAX], file[FILE_MAX];
-      BLI_path_split_dir_file(ima->filepath, dir, sizeof(dir), file, sizeof(file));
-      RNA_string_set(drop->ptr, "directory", dir);
-      RNA_collection_clear(drop->ptr, "files");
-      RNA_collection_add(drop->ptr, "files", &itemptr);
-      RNA_string_set(&itemptr, "name", file);
-    }
-    else if (id_type == ID_MC) {
-      MovieClip *clip = (MovieClip *)id;
-      RNA_string_set(drop->ptr, "filepath", clip->filepath);
-      RNA_struct_property_unset(drop->ptr, "name");
-    }
-    else if (id_type == ID_SO) {
-      bSound *sound = (bSound *)id;
-      RNA_string_set(drop->ptr, "filepath", sound->filepath);
-      RNA_struct_property_unset(drop->ptr, "name");
-    }
-
-    return;
-  }
-
-  const char *path = WM_drag_get_path(drag);
-  /* Path dropped. */
-  if (path) {
-    if (RNA_struct_find_property(drop->ptr, "filepath")) {
-      RNA_string_set(drop->ptr, "filepath", path);
-    }
-    if (RNA_struct_find_property(drop->ptr, "directory")) {
-      PointerRNA itemptr;
-      char dir[FILE_MAX], file[FILE_MAX];
-
-      BLI_path_split_dir_file(path, dir, sizeof(dir), file, sizeof(file));
-
-      RNA_string_set(drop->ptr, "directory", dir);
-
-      RNA_collection_clear(drop->ptr, "files");
-      RNA_collection_add(drop->ptr, "files", &itemptr);
-      RNA_string_set(&itemptr, "name", file);
-    }
-  }
-
   if (g_drop_coords.in_use) {
     if (!g_drop_coords.has_read_mouse_pos) {
       /* We didn't read the mouse position, so we need to do it manually here. */
@@ -299,20 +251,66 @@ static void sequencer_drop_copy(bContext *C, wmDrag *drag, wmDropBox *drop)
     ListBase *channels = SEQ_channels_displayed_get(ed);
     SpaceSeq *sseq = CTX_wm_space_seq(C);
 
-    SeqCollection *strips = SEQ_query_rendered_strips(
+    blender::VectorSet strips = SEQ_query_rendered_strips(
         scene, channels, seqbase, scene->r.cfra, sseq->chanshown);
 
     /* Get the top most strip channel that is in view. */
-    Sequence *seq;
     int max_channel = -1;
-    SEQ_ITERATOR_FOREACH (seq, strips) {
+    for (Sequence *seq : strips) {
       max_channel = max_ii(seq->machine, max_channel);
     }
 
     if (max_channel != -1) {
       RNA_int_set(drop->ptr, "channel", max_channel);
     }
-    SEQ_collection_free(strips);
+  }
+
+  ID *id = WM_drag_get_local_ID_or_import_from_asset(C, drag, 0);
+  /* ID dropped. */
+  if (id != nullptr) {
+    const ID_Type id_type = GS(id->name);
+    if (id_type == ID_IM) {
+      Image *ima = (Image *)id;
+      PointerRNA itemptr;
+      char dir[FILE_MAX], file[FILE_MAX];
+      BLI_path_split_dir_file(ima->filepath, dir, sizeof(dir), file, sizeof(file));
+      RNA_string_set(drop->ptr, "directory", dir);
+      RNA_collection_clear(drop->ptr, "files");
+      RNA_collection_add(drop->ptr, "files", &itemptr);
+      RNA_string_set(&itemptr, "name", file);
+    }
+    else if (id_type == ID_MC) {
+      MovieClip *clip = (MovieClip *)id;
+      RNA_string_set(drop->ptr, "filepath", clip->filepath);
+      RNA_struct_property_unset(drop->ptr, "name");
+    }
+    else if (id_type == ID_SO) {
+      bSound *sound = (bSound *)id;
+      RNA_string_set(drop->ptr, "filepath", sound->filepath);
+      RNA_struct_property_unset(drop->ptr, "name");
+    }
+
+    return;
+  }
+
+  const char *path = WM_drag_get_single_path(drag);
+  /* Path dropped. */
+  if (path) {
+    if (RNA_struct_find_property(drop->ptr, "filepath")) {
+      RNA_string_set(drop->ptr, "filepath", path);
+    }
+    if (RNA_struct_find_property(drop->ptr, "directory")) {
+      PointerRNA itemptr;
+      char dir[FILE_MAX], file[FILE_MAX];
+
+      BLI_path_split_dir_file(path, dir, sizeof(dir), file, sizeof(file));
+
+      RNA_string_set(drop->ptr, "directory", dir);
+
+      RNA_collection_clear(drop->ptr, "files");
+      RNA_collection_add(drop->ptr, "files", &itemptr);
+      RNA_string_set(&itemptr, "name", file);
+    }
   }
 }
 
@@ -337,7 +335,7 @@ static void get_drag_path(const bContext *C, wmDrag *drag, char r_path[FILE_MAX]
     BLI_path_abs(r_path, BKE_main_blendfile_path_from_global());
   }
   else {
-    BLI_strncpy(r_path, WM_drag_get_path(drag), FILE_MAX);
+    BLI_strncpy(r_path, WM_drag_get_single_path(drag), FILE_MAX);
   }
 }
 
@@ -518,10 +516,7 @@ struct DropJobData {
   float scene_fps;
 };
 
-static void prefetch_data_fn(void *custom_data,
-                             bool * /*stop*/,
-                             bool * /*do_update*/,
-                             float * /*progress*/)
+static void prefetch_data_fn(void *custom_data, wmJobWorkerStatus * /*worker_status*/)
 {
   DropJobData *job_data = (DropJobData *)custom_data;
 
@@ -542,13 +537,13 @@ static void prefetch_data_fn(void *custom_data,
   }
 
   char colorspace[64] = "\0"; /* 64 == MAX_COLORSPACE_NAME length. */
-  anim *anim = openanim(job_data->path, IB_rect, 0, colorspace);
+  ImBufAnim *anim = openanim(job_data->path, IB_rect, 0, colorspace);
 
   if (anim != nullptr) {
     g_drop_coords.strip_len = IMB_anim_get_duration(anim, IMB_TC_NONE);
     short frs_sec;
     float frs_sec_base;
-    if (IMB_anim_get_fps(anim, &frs_sec, &frs_sec_base, true)) {
+    if (IMB_anim_get_fps(anim, true, &frs_sec, &frs_sec_base)) {
       g_drop_coords.playback_rate = float(frs_sec) / frs_sec_base;
     }
     else {
@@ -616,21 +611,21 @@ static void audio_prefetch(bContext *C, wmDrag *drag)
   }
 }
 
-static void movie_drop_draw_activate(wmDropBox *drop, wmDrag * /*drag*/)
+static void movie_drop_on_enter(wmDropBox *drop, wmDrag * /*drag*/)
 {
   if (generic_drop_draw_handling(drop)) {
     return;
   }
 }
 
-static void sound_drop_draw_activate(wmDropBox *drop, wmDrag * /*drag*/)
+static void sound_drop_on_enter(wmDropBox *drop, wmDrag * /*drag*/)
 {
   if (generic_drop_draw_handling(drop)) {
     return;
   }
 }
 
-static void image_drop_draw_activate(wmDropBox *drop, wmDrag * /*drag*/)
+static void image_drop_on_enter(wmDropBox *drop, wmDrag * /*drag*/)
 {
   if (generic_drop_draw_handling(drop)) {
     return;
@@ -641,7 +636,7 @@ static void image_drop_draw_activate(wmDropBox *drop, wmDrag * /*drag*/)
   coords->channel_len = 1;
 }
 
-static void sequencer_drop_draw_deactivate(wmDropBox *drop, wmDrag * /*drag*/)
+static void sequencer_drop_on_exit(wmDropBox *drop, wmDrag * /*drag*/)
 {
   SeqDropCoords *coords = static_cast<SeqDropCoords *>(drop->draw_data);
   if (coords) {
@@ -669,8 +664,8 @@ static void sequencer_dropboxes_add_to_lb(ListBase *lb)
       lb, "SEQUENCER_OT_image_strip_add", image_drop_poll, sequencer_drop_copy, nullptr, nullptr);
   drop->draw_droptip = nop_draw_droptip_fn;
   drop->draw_in_view = draw_seq_in_view;
-  drop->draw_activate = image_drop_draw_activate;
-  drop->draw_deactivate = sequencer_drop_draw_deactivate;
+  drop->on_enter = image_drop_on_enter;
+  drop->on_exit = sequencer_drop_on_exit;
 
   drop->on_drag_start = audio_prefetch;
 
@@ -678,8 +673,8 @@ static void sequencer_dropboxes_add_to_lb(ListBase *lb)
       lb, "SEQUENCER_OT_movie_strip_add", movie_drop_poll, sequencer_drop_copy, nullptr, nullptr);
   drop->draw_droptip = nop_draw_droptip_fn;
   drop->draw_in_view = draw_seq_in_view;
-  drop->draw_activate = movie_drop_draw_activate;
-  drop->draw_deactivate = sequencer_drop_draw_deactivate;
+  drop->on_enter = movie_drop_on_enter;
+  drop->on_exit = sequencer_drop_on_exit;
 
   drop->on_drag_start = video_prefetch;
 
@@ -687,15 +682,15 @@ static void sequencer_dropboxes_add_to_lb(ListBase *lb)
       lb, "SEQUENCER_OT_sound_strip_add", sound_drop_poll, sequencer_drop_copy, nullptr, nullptr);
   drop->draw_droptip = nop_draw_droptip_fn;
   drop->draw_in_view = draw_seq_in_view;
-  drop->draw_activate = sound_drop_draw_activate;
-  drop->draw_deactivate = sequencer_drop_draw_deactivate;
+  drop->on_enter = sound_drop_on_enter;
+  drop->on_exit = sequencer_drop_on_exit;
 }
 
 static bool image_drop_preview_poll(bContext * /*C*/, wmDrag *drag, const wmEvent * /*event*/)
 {
   if (drag->type == WM_DRAG_PATH) {
     const eFileSel_File_Types file_type = eFileSel_File_Types(WM_drag_get_path_file_type(drag));
-    if (ELEM(file_type, 0, FILE_TYPE_IMAGE)) {
+    if (file_type == FILE_TYPE_IMAGE) {
       return true;
     }
   }
@@ -707,7 +702,7 @@ static bool movie_drop_preview_poll(bContext * /*C*/, wmDrag *drag, const wmEven
 {
   if (drag->type == WM_DRAG_PATH) {
     const eFileSel_File_Types file_type = eFileSel_File_Types(WM_drag_get_path_file_type(drag));
-    if (ELEM(file_type, 0, FILE_TYPE_MOVIE)) {
+    if (file_type == FILE_TYPE_MOVIE) {
       return true;
     }
   }
@@ -719,7 +714,7 @@ static bool sound_drop_preview_poll(bContext * /*C*/, wmDrag *drag, const wmEven
 {
   if (drag->type == WM_DRAG_PATH) {
     const eFileSel_File_Types file_type = eFileSel_File_Types(WM_drag_get_path_file_type(drag));
-    if (ELEM(file_type, 0, FILE_TYPE_SOUND)) {
+    if (file_type == FILE_TYPE_SOUND) {
       return true;
     }
   }

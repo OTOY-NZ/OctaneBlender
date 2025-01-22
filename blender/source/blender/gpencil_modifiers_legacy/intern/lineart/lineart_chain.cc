@@ -14,6 +14,7 @@
 
 #include "lineart_intern.h"
 
+#include <algorithm> /* For `min/max`. */
 #include <cmath>
 
 #define LRT_OTHER_VERT(e, vt) ((vt) == (e)->v1 ? (e)->v2 : ((vt) == (e)->v2 ? (e)->v1 : nullptr))
@@ -833,7 +834,8 @@ static LineartChainRegisterEntry *lineart_chain_get_closest_cre(LineartData *ld,
         if (ld->conf.fuzzy_intersections) {
           /* If none of those are intersection lines... */
           if (!(cre->ec->type & LRT_EDGE_FLAG_INTERSECTION) &&
-              !(ec->type & LRT_EDGE_FLAG_INTERSECTION)) {
+              !(ec->type & LRT_EDGE_FLAG_INTERSECTION))
+          {
             continue; /* We don't want to chain along different objects at the moment. */
           }
         }
@@ -855,7 +857,8 @@ static LineartChainRegisterEntry *lineart_chain_get_closest_cre(LineartData *ld,
       if (cre->ec->type != ec->type) {
         if (ld->conf.fuzzy_intersections) {
           if (!(cre->ec->type == LRT_EDGE_FLAG_INTERSECTION ||
-                ec->type == LRT_EDGE_FLAG_INTERSECTION)) {
+                ec->type == LRT_EDGE_FLAG_INTERSECTION))
+          {
             continue; /* Fuzzy intersections but no intersection line found. */
           }
         }
@@ -1156,7 +1159,8 @@ void MOD_lineart_smooth_chains(LineartData *ld, float tolerance)
           if (ratio < len2 && ratio > -len2 * 10) {
             /* We only remove p3 if p4 is on the extension of p1->p2. */
             if ((eci4 = eci3->next) &&
-                (dist_to_line_v2(eci4->pos, eci->pos, eci2->pos) < tolerance)) {
+                (dist_to_line_v2(eci4->pos, eci->pos, eci2->pos) < tolerance))
+            {
               BLI_remlink(&ec->chain, eci3);
               next_eci = eci;
               continue;
@@ -1368,7 +1372,7 @@ void MOD_lineart_chain_offset_towards_camera(LineartData *ld, float dist, bool u
         sub_v3_v3v3(dir, cam, eci->gpos);
         float orig_len = len_v3(dir);
         normalize_v3(dir);
-        mul_v3_fl(dir, MIN2(dist, orig_len - ld->conf.near_clip));
+        mul_v3_fl(dir, std::min<float>(dist, orig_len - ld->conf.near_clip));
         add_v3_v3(eci->gpos, dir);
       }
     }
@@ -1380,7 +1384,7 @@ void MOD_lineart_chain_offset_towards_camera(LineartData *ld, float dist, bool u
         sub_v3_v3v3(dir, cam, eci->gpos);
         float len_lim = dot_v3v3(view, dir) - ld->conf.near_clip;
         normalize_v3_v3(view_clamp, view);
-        mul_v3_fl(view_clamp, MIN2(dist, len_lim));
+        mul_v3_fl(view_clamp, std::min(dist, len_lim));
         add_v3_v3(eci->gpos, view_clamp);
       }
     }
@@ -1391,7 +1395,8 @@ void MOD_lineart_chain_find_silhouette_backdrop_objects(LineartData *ld)
 {
   LISTBASE_FOREACH (LineartEdgeChain *, ec, &ld->chains) {
     if (ec->type == LRT_EDGE_FLAG_CONTOUR &&
-        ec->shadow_mask_bits & LRT_SHADOW_SILHOUETTE_ERASED_GROUP) {
+        ec->shadow_mask_bits & LRT_SHADOW_SILHOUETTE_ERASED_GROUP)
+    {
       uint32_t target = ec->shadow_mask_bits & LRT_OBINDEX_HIGHER;
       LineartElementLinkNode *eln = lineart_find_matching_eln(&ld->geom.line_buffer_pointers,
                                                               target);

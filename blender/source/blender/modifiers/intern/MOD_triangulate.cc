@@ -15,14 +15,12 @@
 #include "BLT_translation.h"
 
 #include "DNA_defaults.h"
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_mesh.hh"
-#include "BKE_modifier.h"
+#include "BKE_modifier.hh"
 #include "BKE_screen.hh"
 
 #include "UI_interface.hh"
@@ -31,8 +29,8 @@
 #include "RNA_access.hh"
 #include "RNA_prototypes.h"
 
-#include "bmesh.h"
-#include "bmesh_tools.h"
+#include "bmesh.hh"
+#include "bmesh_tools.hh"
 
 #include "MOD_modifiertypes.hh"
 #include "MOD_ui_common.hh"
@@ -53,9 +51,9 @@ static Mesh *triangulate_mesh(Mesh *mesh,
   bool keep_clnors = (flag & MOD_TRIANGULATE_KEEP_CUSTOMLOOP_NORMALS) != 0;
 
   if (keep_clnors) {
-    BKE_mesh_calc_normals_split(mesh);
-    /* We need that one to 'survive' to/from BMesh conversions. */
-    CustomData_clear_layer_flag(&mesh->loop_data, CD_NORMAL, CD_FLAG_TEMPORARY);
+    void *data = CustomData_add_layer(
+        &mesh->corner_data, CD_NORMAL, CD_CONSTRUCT, mesh->corners_num);
+    memcpy(data, mesh->corner_normals().data(), mesh->corner_normals().size_in_bytes());
     cd_mask_extra.lmask |= CD_MASK_NORMAL;
   }
 
@@ -74,15 +72,10 @@ static Mesh *triangulate_mesh(Mesh *mesh,
   BM_mesh_free(bm);
 
   if (keep_clnors) {
-    float(*lnors)[3] = static_cast<float(*)[3]>(
-        CustomData_get_layer_for_write(&result->loop_data, CD_NORMAL, result->totloop));
-    BLI_assert(lnors != nullptr);
-
-    BKE_mesh_set_custom_normals(result, lnors);
-
-    /* Do some cleanup, we do not want those temp data to stay around. */
-    CustomData_set_layer_flag(&mesh->loop_data, CD_NORMAL, CD_FLAG_TEMPORARY);
-    CustomData_set_layer_flag(&result->loop_data, CD_NORMAL, CD_FLAG_TEMPORARY);
+    float(*corner_normals)[3] = static_cast<float(*)[3]>(
+        CustomData_get_layer_for_write(&result->corner_data, CD_NORMAL, result->corners_num));
+    BKE_mesh_set_custom_normals(result, corner_normals);
+    CustomData_free_layers(&result->corner_data, CD_NORMAL, result->corners_num);
   }
 
   return result;
@@ -141,7 +134,7 @@ ModifierTypeInfo modifierType_Triangulate = {
     /*struct_name*/ "TriangulateModifierData",
     /*struct_size*/ sizeof(TriangulateModifierData),
     /*srna*/ &RNA_TriangulateModifier,
-    /*type*/ eModifierTypeType_Constructive,
+    /*type*/ ModifierTypeType::Constructive,
     /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsEditmode |
         eModifierTypeFlag_SupportsMapping | eModifierTypeFlag_EnableInEditmode |
         eModifierTypeFlag_AcceptsCVs,
@@ -169,4 +162,5 @@ ModifierTypeInfo modifierType_Triangulate = {
     /*panel_register*/ panel_register,
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
+    /*foreach_cache*/ nullptr,
 };

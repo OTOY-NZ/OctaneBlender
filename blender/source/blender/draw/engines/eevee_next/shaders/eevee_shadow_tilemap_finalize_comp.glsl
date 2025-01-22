@@ -12,7 +12,6 @@
 
 #pragma BLENDER_REQUIRE(gpu_shader_utildefines_lib.glsl)
 #pragma BLENDER_REQUIRE(gpu_shader_math_matrix_lib.glsl)
-#pragma BLENDER_REQUIRE(common_math_lib.glsl)
 #pragma BLENDER_REQUIRE(eevee_shadow_tilemap_lib.glsl)
 
 shared int rect_min_x;
@@ -69,7 +68,7 @@ void main()
     ShadowTileData tile = shadow_tile_unpack(tiles_buf[tile_index]);
 
     /* Compute update area. */
-    if (all(equal(gl_LocalInvocationID, uvec3(0)))) {
+    if (gl_LocalInvocationIndex == 0u) {
       rect_min_x = SHADOW_TILEMAP_RES;
       rect_min_y = SHADOW_TILEMAP_RES;
       rect_max_x = 0;
@@ -97,7 +96,7 @@ void main()
     ivec2 viewport_size = viewport_size_get(viewport_index);
 
     /* Issue one view if there is an update in the LOD. */
-    if (all(equal(gl_LocalInvocationID, uvec3(0)))) {
+    if (gl_LocalInvocationIndex == 0u) {
       bool lod_has_update = rect_min.x < rect_max.x;
       if (lod_has_update) {
         view_index = atomicAdd(statistics_buf.view_needed_count, 1);
@@ -160,9 +159,14 @@ void main()
         if (do_page_render) {
           /* Tag tile as rendered. There is a barrier after the read. So it is safe. */
           tiles_buf[tile_index] |= SHADOW_IS_RENDERED;
-          /* Add page to clear list. */
-          uint clear_page_index = atomicAdd(clear_dispatch_buf.num_groups_z, 1u);
-          clear_list_buf[clear_page_index] = page_packed;
+          /* Add page to clear dispatch. */
+          uint page_index = atomicAdd(clear_dispatch_buf.num_groups_z, 1u);
+          /* Add page to tile processing. */
+          atomicAdd(tile_draw_buf.vertex_len, 6u);
+          /* Add page mapping for indexing the page position in atlas and in the frame-buffer. */
+          dst_coord_buf[page_index] = page_packed;
+          src_coord_buf[page_index] = packUvec4x8(
+              uvec4(relative_tile_co.x, relative_tile_co.y, view_index, 0));
           /* Statistics. */
           atomicAdd(statistics_buf.page_rendered_count, 1);
         }

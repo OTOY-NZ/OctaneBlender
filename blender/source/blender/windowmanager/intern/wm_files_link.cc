@@ -36,30 +36,30 @@
 
 #include "BLO_readfile.h"
 
-#include "BKE_armature.h"
-#include "BKE_blendfile.h"
-#include "BKE_blendfile_link_append.h"
-#include "BKE_context.h"
+#include "BKE_armature.hh"
+#include "BKE_blendfile.hh"
+#include "BKE_blendfile_link_append.hh"
+#include "BKE_context.hh"
 #include "BKE_global.h"
-#include "BKE_key.h"
-#include "BKE_layer.h"
-#include "BKE_lib_id.h"
+#include "BKE_key.hh"
+#include "BKE_layer.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_lib_override.hh"
-#include "BKE_lib_query.h"
-#include "BKE_lib_remap.h"
-#include "BKE_main.h"
+#include "BKE_lib_query.hh"
+#include "BKE_lib_remap.hh"
+#include "BKE_main.hh"
 #include "BKE_material.h"
 #include "BKE_object.hh"
 #include "BKE_report.h"
 #include "BKE_rigidbody.h"
 #include "BKE_scene.h"
 
-#include "BKE_idtype.h"
+#include "BKE_idtype.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
 
-#include "IMB_colormanagement.h"
+#include "IMB_colormanagement.hh"
 
 #include "ED_datafiles.h"
 #include "ED_screen.hh"
@@ -99,8 +99,8 @@ static int wm_link_append_invoke(bContext *C, wmOperator *op, const wmEvent * /*
 {
   if (!RNA_struct_property_is_set(op->ptr, "filepath")) {
     const char *blendfile_path = BKE_main_blendfile_path_from_global();
-    if (G.lib[0] != '\0') {
-      RNA_string_set(op->ptr, "filepath", G.lib);
+    if (G.filepath_last_library[0] != '\0') {
+      RNA_string_set(op->ptr, "filepath", G.filepath_last_library);
     }
     else if (blendfile_path[0] != '\0') {
       char dirpath[FILE_MAX];
@@ -258,6 +258,12 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
   int flag = wm_link_append_flag(op);
   const bool do_append = (flag & FILE_LINK) == 0;
 
+  /* from here down, no error returns */
+
+  if (view_layer && RNA_boolean_get(op->ptr, "autoselect")) {
+    BKE_view_layer_base_deselect_all(scene, view_layer);
+  }
+
   /* sanity checks for flag */
   if (scene && scene->id.lib) {
     BKE_reportf(op->reports,
@@ -266,12 +272,6 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
                 scene->id.name + 2);
     flag &= ~(BLO_LIBLINK_COLLECTION_INSTANCE | BLO_LIBLINK_OBDATA_INSTANCE);
     scene = nullptr;
-  }
-
-  /* from here down, no error returns */
-
-  if (view_layer && RNA_boolean_get(op->ptr, "autoselect")) {
-    BKE_view_layer_base_deselect_all(scene, view_layer);
   }
 
   /* tag everything, all untagged data can be made local
@@ -383,13 +383,16 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
    * to all objects and limit update to the particular object only.
    * But afraid first we need to change collection evaluation in DEG
    * according to depsgraph manifesto. */
-  DEG_id_tag_update(&scene->id, 0);
+  if (scene) {
+    DEG_id_tag_update(&scene->id, 0);
+  }
 
   /* recreate dependency graph to include new objects */
   DEG_relations_tag_update(bmain);
 
-  /* XXX TODO: align G.lib with other directory storage (like last opened image etc...) */
-  STRNCPY(G.lib, root);
+  /* TODO: align `G.filepath_last_library` with other directory storage
+   * (like last opened image, etc). */
+  STRNCPY(G.filepath_last_library, root);
 
   WM_event_add_notifier(C, NC_WINDOW, nullptr);
 
@@ -762,7 +765,8 @@ static int wm_lib_relocate_exec_do(bContext *C, wmOperator *op, bool do_reload)
         BLI_path_join(filepath, sizeof(filepath), root, relname);
 
         if (BLI_path_cmp(filepath, lib->filepath_abs) == 0 ||
-            !BKE_blendfile_extension_check(relname)) {
+            !BKE_blendfile_extension_check(relname))
+        {
           continue;
         }
 
@@ -786,8 +790,9 @@ static int wm_lib_relocate_exec_do(bContext *C, wmOperator *op, bool do_reload)
 
   BKE_blendfile_link_append_context_free(lapp_context);
 
-  /* XXX TODO: align G.lib with other directory storage (like last opened image etc...) */
-  STRNCPY(G.lib, root);
+  /* TODO: align `G.filepath_last_library` with other directory storage
+   * (like last opened image, etc). */
+  STRNCPY(G.filepath_last_library, root);
 
   BKE_main_lib_objects_recalc_all(bmain);
   IMB_colormanagement_check_file_config(bmain);

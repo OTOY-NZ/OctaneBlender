@@ -6,9 +6,9 @@
  * Select the visible items inside the active view and put them inside the sorting buffer.
  */
 
-#pragma BLENDER_REQUIRE(common_view_lib.glsl)
-#pragma BLENDER_REQUIRE(common_math_geom_lib.glsl)
-#pragma BLENDER_REQUIRE(common_intersect_lib.glsl)
+#pragma BLENDER_REQUIRE(draw_view_lib.glsl)
+#pragma BLENDER_REQUIRE(draw_math_geom_lib.glsl)
+#pragma BLENDER_REQUIRE(draw_intersect_lib.glsl)
 
 void main()
 {
@@ -33,7 +33,8 @@ void main()
 
   Sphere sphere;
   switch (light.type) {
-    case LIGHT_SPOT:
+    case LIGHT_SPOT_SPHERE:
+    case LIGHT_SPOT_DISK:
       /* Only for < ~170 degree Cone due to plane extraction precision. */
       if (light.spot_tan < 10.0) {
         Pyramid pyramid = shape_pyramid_non_oblique(
@@ -47,7 +48,8 @@ void main()
       }
     case LIGHT_RECT:
     case LIGHT_ELLIPSE:
-    case LIGHT_POINT:
+    case LIGHT_OMNI_SPHERE:
+    case LIGHT_OMNI_DISK:
       sphere.center = light._position;
       sphere.radius = light.influence_radius_max;
       break;
@@ -62,7 +64,9 @@ void main()
   if (intersect_view(sphere)) {
     uint index = atomicAdd(light_cull_buf.visible_count, 1u);
 
-    out_zdist_buf[index] = dot(cameraForward, light._position) - dot(cameraForward, cameraPos);
+    float z_dist = dot(drw_view_forward(), light._position) -
+                   dot(drw_view_forward(), drw_view_position());
+    out_zdist_buf[index] = z_dist;
     out_key_buf[index] = l_idx;
   }
 }

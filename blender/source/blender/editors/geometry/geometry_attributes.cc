@@ -12,15 +12,22 @@
 #include "DNA_meshdata_types.h"
 #include "DNA_scene_types.h"
 
-#include "BKE_attribute.h"
-#include "BKE_context.h"
-#include "BKE_deform.h"
+#include "BLI_color.hh"
+
+#include "BKE_attribute.hh"
+#include "BKE_context.hh"
+#include "BKE_customdata.hh"
+#include "BKE_deform.hh"
 #include "BKE_geometry_set.hh"
-#include "BKE_lib_id.h"
+#include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
 #include "BKE_object_deform.h"
 #include "BKE_paint.hh"
 #include "BKE_report.h"
+
+#include "BLI_string.h"
+
+#include "BLT_translation.h"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -41,6 +48,137 @@
 #include "geometry_intern.hh"
 
 namespace blender::ed::geometry {
+
+StringRefNull rna_property_name_for_type(const eCustomDataType type)
+{
+  switch (type) {
+    case CD_PROP_FLOAT:
+      return "value_float";
+    case CD_PROP_FLOAT2:
+      return "value_float_vector_2d";
+    case CD_PROP_FLOAT3:
+      return "value_float_vector_3d";
+    case CD_PROP_COLOR:
+    case CD_PROP_BYTE_COLOR:
+      return "value_color";
+    case CD_PROP_BOOL:
+      return "value_bool";
+    case CD_PROP_INT8:
+    case CD_PROP_INT32:
+      return "value_int";
+    default:
+      BLI_assert_unreachable();
+      return "";
+  }
+}
+
+PropertyRNA *rna_property_for_type(PointerRNA &ptr, const eCustomDataType type)
+{
+  return RNA_struct_find_property(&ptr, rna_property_name_for_type(type).c_str());
+}
+
+void register_rna_properties_for_attribute_types(StructRNA &srna)
+{
+  static blender::float4 color_default(1);
+
+  RNA_def_float(&srna, "value_float", 0.0f, -FLT_MAX, FLT_MAX, "Value", "", -FLT_MAX, FLT_MAX);
+  RNA_def_float_array(&srna,
+                      "value_float_vector_2d",
+                      2,
+                      nullptr,
+                      -FLT_MAX,
+                      FLT_MAX,
+                      "Value",
+                      "",
+                      -FLT_MAX,
+                      FLT_MAX);
+  RNA_def_float_array(&srna,
+                      "value_float_vector_3d",
+                      3,
+                      nullptr,
+                      -FLT_MAX,
+                      FLT_MAX,
+                      "Value",
+                      "",
+                      -FLT_MAX,
+                      FLT_MAX);
+  RNA_def_int(&srna, "value_int", 0, INT_MIN, INT_MAX, "Value", "", INT_MIN, INT_MAX);
+  RNA_def_float_color(
+      &srna, "value_color", 4, color_default, -FLT_MAX, FLT_MAX, "Value", "", 0.0f, 1.0f);
+  RNA_def_boolean(&srna, "value_bool", false, "Value", "");
+}
+
+GPointer rna_property_for_attribute_type_retrieve_value(PointerRNA &ptr,
+                                                        const eCustomDataType type,
+                                                        void *buffer)
+{
+  const StringRefNull prop_name = rna_property_name_for_type(type);
+  switch (type) {
+    case CD_PROP_FLOAT:
+      *static_cast<float *>(buffer) = RNA_float_get(&ptr, prop_name.c_str());
+      break;
+    case CD_PROP_FLOAT2:
+      RNA_float_get_array(&ptr, prop_name.c_str(), static_cast<float *>(buffer));
+      break;
+    case CD_PROP_FLOAT3:
+      RNA_float_get_array(&ptr, prop_name.c_str(), static_cast<float *>(buffer));
+      break;
+    case CD_PROP_COLOR:
+      RNA_float_get_array(&ptr, prop_name.c_str(), static_cast<float *>(buffer));
+      break;
+    case CD_PROP_BYTE_COLOR:
+      ColorGeometry4f value;
+      RNA_float_get_array(&ptr, prop_name.c_str(), value);
+      *static_cast<ColorGeometry4b *>(buffer) = value.encode();
+      break;
+    case CD_PROP_BOOL:
+      *static_cast<bool *>(buffer) = RNA_boolean_get(&ptr, prop_name.c_str());
+      break;
+    case CD_PROP_INT8:
+      *static_cast<int8_t *>(buffer) = RNA_int_get(&ptr, prop_name.c_str());
+      break;
+    case CD_PROP_INT32:
+      *static_cast<int32_t *>(buffer) = RNA_int_get(&ptr, prop_name.c_str());
+      break;
+    default:
+      BLI_assert_unreachable();
+  }
+  return GPointer(bke::custom_data_type_to_cpp_type(type), buffer);
+}
+
+void rna_property_for_attribute_type_set_value(PointerRNA &ptr,
+                                               PropertyRNA &prop,
+                                               const GPointer value)
+{
+  switch (bke::cpp_type_to_custom_data_type(*value.type())) {
+    case CD_PROP_FLOAT:
+      RNA_property_float_set(&ptr, &prop, *value.get<float>());
+      break;
+    case CD_PROP_FLOAT2:
+      RNA_property_float_set_array(&ptr, &prop, *value.get<float2>());
+      break;
+    case CD_PROP_FLOAT3:
+      RNA_property_float_set_array(&ptr, &prop, *value.get<float3>());
+      break;
+    case CD_PROP_BYTE_COLOR:
+      RNA_property_float_set_array(&ptr, &prop, value.get<ColorGeometry4b>()->decode());
+      break;
+    case CD_PROP_COLOR:
+      RNA_property_float_set_array(&ptr, &prop, *value.get<ColorGeometry4f>());
+      break;
+    case CD_PROP_BOOL:
+      RNA_property_boolean_set(&ptr, &prop, *value.get<bool>());
+      break;
+    case CD_PROP_INT8:
+      RNA_property_int_set(&ptr, &prop, *value.get<int8_t>());
+      break;
+    case CD_PROP_INT32:
+      RNA_property_int_set(&ptr, &prop, *value.get<int32_t>());
+      break;
+    default:
+      BLI_assert_unreachable();
+  }
+}
 
 /*********************** Attribute Operators ************************/
 
@@ -93,7 +231,7 @@ static int geometry_attribute_add_exec(bContext *C, wmOperator *op)
   char name[MAX_NAME];
   RNA_string_get(op->ptr, "name", name);
   eCustomDataType type = (eCustomDataType)RNA_enum_get(op->ptr, "data_type");
-  eAttrDomain domain = (eAttrDomain)RNA_enum_get(op->ptr, "domain");
+  bke::AttrDomain domain = bke::AttrDomain(RNA_enum_get(op->ptr, "domain"));
   CustomDataLayer *layer = BKE_id_attribute_new(id, name, type, domain, op->reports);
 
   if (layer == nullptr) {
@@ -108,6 +246,16 @@ static int geometry_attribute_add_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
+static int geometry_attribute_add_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  PropertyRNA *prop;
+  prop = RNA_struct_find_property(op->ptr, "name");
+  if (!RNA_property_is_set(op->ptr, prop)) {
+    RNA_property_string_set(op->ptr, prop, DATA_("Attribute"));
+  }
+  return WM_operator_props_popup_confirm(C, op, event);
+}
+
 void GEOMETRY_OT_attribute_add(wmOperatorType *ot)
 {
   /* identifiers */
@@ -118,7 +266,7 @@ void GEOMETRY_OT_attribute_add(wmOperatorType *ot)
   /* api callbacks */
   ot->poll = geometry_attributes_poll;
   ot->exec = geometry_attribute_add_exec;
-  ot->invoke = WM_operator_props_popup_confirm;
+  ot->invoke = geometry_attribute_add_invoke;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -126,13 +274,16 @@ void GEOMETRY_OT_attribute_add(wmOperatorType *ot)
   /* properties */
   PropertyRNA *prop;
 
-  prop = RNA_def_string(ot->srna, "name", "Attribute", MAX_NAME, "Name", "Name of new attribute");
+  /* The default name of the new attribute can be translated if new data translation is enabled,
+   * but since the user can choose it at invoke time, the translation happens in the invoke
+   * callback instead of here. */
+  prop = RNA_def_string(ot->srna, "name", nullptr, MAX_NAME, "Name", "Name of new attribute");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 
   prop = RNA_def_enum(ot->srna,
                       "domain",
                       rna_enum_attribute_domain_items,
-                      ATTR_DOMAIN_POINT,
+                      int(bke::AttrDomain::Point),
                       "Domain",
                       "Type of element that attribute is stored on");
   RNA_def_enum_funcs(prop, geometry_attribute_domain_itemf);
@@ -191,7 +342,7 @@ static int geometry_color_attribute_add_exec(bContext *C, wmOperator *op)
   char name[MAX_NAME];
   RNA_string_get(op->ptr, "name", name);
   eCustomDataType type = (eCustomDataType)RNA_enum_get(op->ptr, "data_type");
-  eAttrDomain domain = (eAttrDomain)RNA_enum_get(op->ptr, "domain");
+  bke::AttrDomain domain = bke::AttrDomain(RNA_enum_get(op->ptr, "domain"));
   CustomDataLayer *layer = BKE_id_attribute_new(id, name, type, domain, op->reports);
 
   float color[4];
@@ -215,9 +366,19 @@ static int geometry_color_attribute_add_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
+static int geometry_color_attribute_add_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  PropertyRNA *prop;
+  prop = RNA_struct_find_property(op->ptr, "name");
+  if (!RNA_property_is_set(op->ptr, prop)) {
+    RNA_property_string_set(op->ptr, prop, DATA_("Color"));
+  }
+  return WM_operator_props_popup_confirm(C, op, event);
+}
+
 enum class ConvertAttributeMode {
-  Generic,
-  VertexGroup,
+  Generic = 0,
+  VertexGroup = 1,
 };
 
 static bool geometry_attribute_convert_poll(bContext *C)
@@ -263,7 +424,7 @@ static int geometry_attribute_convert_exec(bContext *C, wmOperator *op)
       if (!ED_geometry_attribute_convert(mesh,
                                          name.c_str(),
                                          eCustomDataType(RNA_enum_get(op->ptr, "data_type")),
-                                         eAttrDomain(RNA_enum_get(op->ptr, "domain")),
+                                         bke::AttrDomain(RNA_enum_get(op->ptr, "domain")),
                                          op->reports))
       {
         return OPERATOR_CANCELLED;
@@ -271,16 +432,16 @@ static int geometry_attribute_convert_exec(bContext *C, wmOperator *op)
       break;
     }
     case ConvertAttributeMode::VertexGroup: {
-      Array<float> src_weights(mesh->totvert);
+      Array<float> src_weights(mesh->verts_num);
       VArray<float> src_varray = *attributes.lookup_or_default<float>(
-          name, ATTR_DOMAIN_POINT, 0.0f);
+          name, bke::AttrDomain::Point, 0.0f);
       src_varray.materialize(src_weights);
       attributes.remove(name);
 
       bDeformGroup *defgroup = BKE_object_defgroup_new(ob, name.c_str());
       const int defgroup_index = BLI_findindex(BKE_id_defgroup_list_get(&mesh->id), defgroup);
       MDeformVert *dverts = BKE_object_defgroup_data_create(&mesh->id);
-      for (const int i : IndexRange(mesh->totvert)) {
+      for (const int i : IndexRange(mesh->verts_num)) {
         const float weight = src_weights[i];
         if (weight > 0.0f) {
           BKE_defvert_add_index_notest(dverts + i, defgroup_index, weight);
@@ -321,7 +482,7 @@ void GEOMETRY_OT_color_attribute_add(wmOperatorType *ot)
   /* api callbacks */
   ot->poll = geometry_attributes_poll;
   ot->exec = geometry_color_attribute_add_exec;
-  ot->invoke = WM_operator_props_popup_confirm;
+  ot->invoke = geometry_color_attribute_add_invoke;
   ot->ui = geometry_color_attribute_add_ui;
 
   /* flags */
@@ -330,14 +491,17 @@ void GEOMETRY_OT_color_attribute_add(wmOperatorType *ot)
   /* properties */
   PropertyRNA *prop;
 
+  /* The default name of the new attribute can be translated if new data translation is enabled,
+   * but since the user can choose it at invoke time, the translation happens in the invoke
+   * callback instead of here. */
   prop = RNA_def_string(
-      ot->srna, "name", "Color", MAX_NAME, "Name", "Name of new color attribute");
+      ot->srna, "name", nullptr, MAX_NAME, "Name", "Name of new color attribute");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 
   prop = RNA_def_enum(ot->srna,
                       "domain",
                       rna_enum_color_attribute_domain_items,
-                      ATTR_DOMAIN_POINT,
+                      int(bke::AttrDomain::Point),
                       "Domain",
                       "Type of element that attribute is stored on");
 
@@ -516,7 +680,7 @@ static int geometry_attribute_convert_invoke(bContext *C,
 
   PropertyRNA *prop = RNA_struct_find_property(op->ptr, "domain");
   if (!RNA_property_is_set(op->ptr, prop)) {
-    RNA_property_enum_set(op->ptr, prop, meta_data.domain);
+    RNA_property_enum_set(op->ptr, prop, int(meta_data.domain));
   }
   prop = RNA_struct_find_property(op->ptr, "data_type");
   if (!RNA_property_is_set(op->ptr, prop)) {
@@ -583,7 +747,7 @@ static int geometry_color_attribute_convert_exec(bContext *C, wmOperator *op)
   ED_geometry_attribute_convert(mesh,
                                 name,
                                 eCustomDataType(RNA_enum_get(op->ptr, "data_type")),
-                                eAttrDomain(RNA_enum_get(op->ptr, "domain")),
+                                bke::AttrDomain(RNA_enum_get(op->ptr, "domain")),
                                 op->reports);
   return OPERATOR_FINISHED;
 }
@@ -599,7 +763,7 @@ static int geometry_color_attribute_convert_invoke(bContext *C,
 
   PropertyRNA *prop = RNA_struct_find_property(op->ptr, "domain");
   if (!RNA_property_is_set(op->ptr, prop)) {
-    RNA_property_enum_set(op->ptr, prop, meta_data.domain);
+    RNA_property_enum_set(op->ptr, prop, int(meta_data.domain));
   }
   prop = RNA_struct_find_property(op->ptr, "data_type");
   if (!RNA_property_is_set(op->ptr, prop)) {
@@ -637,7 +801,7 @@ void GEOMETRY_OT_color_attribute_convert(wmOperatorType *ot)
   prop = RNA_def_enum(ot->srna,
                       "domain",
                       rna_enum_color_attribute_domain_items,
-                      ATTR_DOMAIN_POINT,
+                      int(bke::AttrDomain::Point),
                       "Domain",
                       "Type of element that attribute is stored on");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
@@ -677,7 +841,7 @@ void GEOMETRY_OT_attribute_convert(wmOperatorType *ot)
   prop = RNA_def_enum(ot->srna,
                       "domain",
                       rna_enum_attribute_domain_items,
-                      ATTR_DOMAIN_POINT,
+                      int(bke::AttrDomain::Point),
                       "Domain",
                       "Which geometry element to move the attribute to");
   RNA_def_enum_funcs(prop, geometry_attribute_domain_itemf);
@@ -691,7 +855,7 @@ void GEOMETRY_OT_attribute_convert(wmOperatorType *ot)
 bool ED_geometry_attribute_convert(Mesh *mesh,
                                    const char *name,
                                    const eCustomDataType dst_type,
-                                   const eAttrDomain dst_domain,
+                                   const blender::bke::AttrDomain dst_domain,
                                    ReportList *reports)
 {
   using namespace blender;

@@ -48,6 +48,43 @@ class OctaneClient;
 //
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+class OctaneGeoProperties {
+ public:
+  OctaneGeoProperties();
+  void update(int mesh_type,
+              PointerRNA &oct_mesh,
+              bool &is_octane_property_update,
+              bool &is_geometry_data_update,
+              bool use_octane_vertex_displacement_subdvision);
+  bool hide_original_mesh;
+  bool infinite_plane;
+  int coordinate_mode;
+  // Open subdivision
+  bool open_subd_enable;
+  int open_subd_scheme;
+  int open_subd_level;
+  float open_subd_sharpness;
+  int open_subd_bound_interp;
+  // Sphere attributes
+  bool sphere_attribute_enable;
+  float sphere_attribute_radius;
+  int sphere_attribute_random_seed;
+  float sphere_attribute_random_min_radius;
+  float sphere_attribute_random_max_radius;
+  // Volume
+  bool enable_volume;
+  bool enable_sdf_volume;
+  float voxel_size;
+  float border_thickness_inside;
+  float border_thickness_outside;
+  bool vdb_sdf;
+  float vdb_iso;
+  // Hair
+  bool use_octane_radius_setting;
+  float hair_root_width;
+  float hair_tip_width;
+};
+
 class Mesh {
  public:
   enum WindingOrder { CLOCKWISE, COUNTERCLOCKWISE };
@@ -69,6 +106,11 @@ class Mesh {
   bool is_global_mesh_type(Scene *scene);
   bool is_octane_coordinate_used();
   void tag_update(Scene *scene);
+  void update_octane_geo_properties(int mesh_type,
+                                    PointerRNA &oct_mesh,
+                                    bool &is_octane_property_update,
+                                    bool &is_geometry_data_update,
+                                    bool use_octane_vertex_displacement_subdvision);
 
   std::string name;
   std::string nice_name;
@@ -76,6 +118,7 @@ class Mesh {
 
   OctaneDataTransferObject::OctaneMesh octane_mesh;
   OctaneDataTransferObject::OctaneVolume octane_volume;
+  OctaneGeoProperties octane_geo_properties;
 
   bool use_geo_nodes;
   bool empty;
@@ -91,8 +134,6 @@ class Mesh {
 
   std::vector<Shader *> used_shaders;
   std::string volume_modifier_tag;
-  std::string mesh_tag;
-  std::string octane_property_tag;
   bool is_volume_to_mesh;
   bool is_mesh_to_volume;
   bool enable_offset_transform;

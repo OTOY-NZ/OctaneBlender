@@ -7,22 +7,9 @@
  */
 
 #include "BKE_curves_utils.hh"
+#include "BKE_customdata.hh"
 
 namespace blender::bke::curves {
-
-void copy_point_data(const OffsetIndices<int> src_points_by_curve,
-                     const OffsetIndices<int> dst_points_by_curve,
-                     const IndexMask &src_curve_selection,
-                     const GSpan src,
-                     GMutableSpan dst)
-{
-  src_curve_selection.foreach_index(GrainSize(512), [&](const int i) {
-    const IndexRange src_points = src_points_by_curve[i];
-    const IndexRange dst_points = dst_points_by_curve[i];
-    /* The arrays might be large, so a threaded copy might make sense here too. */
-    dst.slice(dst_points).copy_from(src.slice(src_points));
-  });
-}
 
 void fill_points(const OffsetIndices<int> points_by_curve,
                  const IndexMask &curve_selection,
@@ -37,9 +24,9 @@ void fill_points(const OffsetIndices<int> points_by_curve,
   });
 }
 
-bke::CurvesGeometry copy_only_curve_domain(const bke::CurvesGeometry &src_curves)
+CurvesGeometry copy_only_curve_domain(const CurvesGeometry &src_curves)
 {
-  bke::CurvesGeometry dst_curves(0, src_curves.curves_num());
+  CurvesGeometry dst_curves(0, src_curves.curves_num());
   CustomData_copy(
       &src_curves.curve_data, &dst_curves.curve_data, CD_MASK_ALL, src_curves.curves_num());
   dst_curves.runtime->type_counts = src_curves.runtime->type_counts;

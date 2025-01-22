@@ -8,36 +8,35 @@
 
 #include "BLI_index_mask.hh"
 
-#include "BKE_attribute.h"
-
 struct Mesh;
 namespace blender {
 namespace fn {
 template<typename T> class Field;
 }
 namespace bke {
+enum class AttrDomain : int8_t;
 class AnonymousAttributePropagationInfo;
-}
+}  // namespace bke
 }  // namespace blender
 
 namespace blender::geometry {
 
 std::optional<Mesh *> mesh_copy_selection(
     const Mesh &src_mesh,
-    const fn::Field<bool> &selection,
-    eAttrDomain selection_domain,
+    const VArray<bool> &selection,
+    bke::AttrDomain selection_domain,
     const bke::AnonymousAttributePropagationInfo &propagation_info);
 
 std::optional<Mesh *> mesh_copy_selection_keep_verts(
     const Mesh &src_mesh,
-    const fn::Field<bool> &selection,
-    eAttrDomain selection_domain,
+    const VArray<bool> &selection,
+    bke::AttrDomain selection_domain,
     const bke::AnonymousAttributePropagationInfo &propagation_info);
 
 std::optional<Mesh *> mesh_copy_selection_keep_edges(
     const Mesh &mesh,
-    const fn::Field<bool> &selection,
-    eAttrDomain selection_domain,
+    const VArray<bool> &selection,
+    bke::AttrDomain selection_domain,
     const bke::AnonymousAttributePropagationInfo &propagation_info);
 
 }  // namespace blender::geometry

@@ -17,8 +17,8 @@
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_context.h"
-#include "BKE_deform.h"
+#include "BKE_context.hh"
+#include "BKE_deform.hh"
 #include "BKE_mesh.hh"
 #include "BKE_screen.hh"
 
@@ -31,8 +31,8 @@
 #include "MOD_modifiertypes.hh"
 #include "MOD_ui_common.hh"
 
-#include "bmesh.h"
-#include "tools/bmesh_wireframe.h"
+#include "bmesh.hh"
+#include "tools/bmesh_wireframe.hh"
 
 static void init_data(ModifierData *md)
 {
@@ -91,7 +91,7 @@ static Mesh *WireframeModifier_do(WireframeModifierData *wmd, Object *ob, Mesh *
                     defgrp_index,
                     (wmd->flag & MOD_WIREFRAME_INVERT_VGROUP) != 0,
                     wmd->mat_ofs,
-                    MAX2(ob->totcol - 1, 0),
+                    std::max(ob->totcol - 1, 0),
                     false);
 
   result = BKE_mesh_from_bmesh_for_eval_nomain(bm, nullptr, mesh);
@@ -170,7 +170,7 @@ ModifierTypeInfo modifierType_Wireframe = {
     /*struct_name*/ "WireframeModifierData",
     /*struct_size*/ sizeof(WireframeModifierData),
     /*srna*/ &RNA_WireframeModifier,
-    /*type*/ eModifierTypeType_Constructive,
+    /*type*/ ModifierTypeType::Constructive,
     /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsEditmode,
     /*icon*/ ICON_MOD_WIREFRAME,
 
@@ -196,4 +196,5 @@ ModifierTypeInfo modifierType_Wireframe = {
     /*panel_register*/ panel_register,
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
+    /*foreach_cache*/ nullptr,
 };

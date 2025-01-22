@@ -96,7 +96,7 @@ struct SpaceNode_Runtime {
   bool recalc_auto_compositing;
 
   /**
-   * Indicates that the compositing int the space  tree needs to be re-evaluated using
+   * Indicates that the compositing int the space tree needs to be re-evaluated using
    * regular compositing pipeline.
    */
   bool recalc_regular_compositing;
@@ -178,12 +178,16 @@ void node_draw_space(const bContext &C, ARegion &region);
 void node_socket_add_tooltip(const bNodeTree &ntree, const bNodeSocket &sock, uiLayout &layout);
 
 /**
- * Sort nodes by selection: unselected nodes first, then selected,
+ * Update node draw order nodes based on selection: unselected nodes first, then selected,
  * then the active node at the very end. Relative order is kept intact.
  */
-void node_sort(bNodeTree &ntree);
+void tree_draw_order_update(bNodeTree &ntree);
+/** Return the nodes in draw order, with the top nodes at the end. */
+Array<bNode *> tree_draw_order_calc_nodes(bNodeTree &ntree);
+/** Return the nodes in reverse draw order, with the top nodes at the start. */
+Array<bNode *> tree_draw_order_calc_nodes_reversed(bNodeTree &ntree);
 
-void node_set_cursor(wmWindow &win, SpaceNode &snode, const float2 &cursor);
+void node_set_cursor(wmWindow &win, ARegion &region, SpaceNode &snode, const float2 &cursor);
 /* DPI scaled coords */
 float2 node_to_view(const bNode &node, const float2 &co);
 void node_to_updated_rect(const bNode &node, rctf &r_rect);
@@ -346,6 +350,7 @@ void node_set_hidden_sockets(bNode *node, int set);
 bool node_is_previewable(const SpaceNode &snode, const bNodeTree &ntree, const bNode &node);
 int node_render_changed_exec(bContext *, wmOperator *);
 bNodeSocket *node_find_indicated_socket(SpaceNode &snode,
+                                        ARegion &region,
                                         const float2 &cursor,
                                         eNodeSocketInOut in_out);
 float node_link_dim_factor(const View2D &v2d, const bNodeLink &link);

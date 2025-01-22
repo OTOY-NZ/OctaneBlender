@@ -8,6 +8,7 @@
 
 #include "BLI_string.h"
 
+#include "GPU_capabilities.h"
 #include "gpu_backend.hh"
 #include "gpu_context_private.hh"
 
@@ -27,7 +28,7 @@ GLStorageBuf::GLStorageBuf(size_t size, GPUUsageType usage, const char *name)
 {
   usage_ = usage;
   /* Do not create UBO GL buffer here to allow allocation from any thread. */
-  BLI_assert(size <= GLContext::max_ssbo_size);
+  BLI_assert(size <= GPU_max_storage_buffer_size());
 }
 
 GLStorageBuf::~GLStorageBuf()
@@ -92,7 +93,7 @@ void GLStorageBuf::bind(int slot)
   slot_ = slot;
   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, slot_, ssbo_id_);
 
-#ifdef DEBUG
+#ifndef NDEBUG
   BLI_assert(slot < 16);
   /* TODO */
   // GLContext::get()->bound_ssbo_slots |= 1 << slot;
@@ -108,7 +109,7 @@ void GLStorageBuf::bind_as(GLenum target)
 
 void GLStorageBuf::unbind()
 {
-#ifdef DEBUG
+#ifndef NDEBUG
   /* NOTE: This only unbinds the last bound slot. */
   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, slot_, 0);
   /* Hope that the context did not change. */
@@ -160,6 +161,11 @@ void GLStorageBuf::copy_sub(VertBuf *src_, uint dst_offset, uint src_offset, uin
   }
 }
 
+void GLStorageBuf::async_flush_to_host()
+{
+  GPU_memory_barrier(GPU_BARRIER_BUFFER_UPDATE);
+}
+
 void GLStorageBuf::read(void *data)
 {
   if (ssbo_id_ == 0) {
@@ -175,6 +181,13 @@ void GLStorageBuf::read(void *data)
     glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, size_in_bytes_, data);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
   }
+}
+
+void GLStorageBuf::sync_as_indirect_buffer()
+{
+  bind_as(GL_DRAW_INDIRECT_BUFFER);
+  glMemoryBarrier(GL_COMMAND_BARRIER_BIT);
+  glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
 }
 
 /** \} */

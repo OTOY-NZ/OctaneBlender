@@ -2,35 +2,64 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#pragma BLENDER_REQUIRE(common_view_lib.glsl)
-#pragma BLENDER_REQUIRE(common_math_lib.glsl)
+#pragma BLENDER_REQUIRE(draw_view_lib.glsl)
+#pragma BLENDER_REQUIRE(gpu_shader_utildefines_lib.glsl)
+#pragma BLENDER_REQUIRE(gpu_shader_math_base_lib.glsl)
 #pragma BLENDER_REQUIRE(gpu_shader_codegen_lib.glsl)
+#pragma BLENDER_REQUIRE(eevee_renderpass_lib.glsl)
 
 vec3 g_emission;
 vec3 g_transmittance;
 float g_holdout;
+
+vec3 g_volume_scattering;
+float g_volume_anisotropy;
+vec3 g_volume_absorption;
 
 /* The Closure type is never used. Use float as dummy type. */
 #define Closure float
 #define CLOSURE_DEFAULT 0.0
 
 /* Sampled closure parameters. */
-ClosureDiffuse g_diffuse_data;
-ClosureReflection g_reflection_data;
-ClosureRefraction g_refraction_data;
-ClosureVolumeScatter g_volume_scatter_data;
-ClosureVolumeAbsorption g_volume_absorption_data;
+ClosureUndetermined g_diffuse_data;
+ClosureUndetermined g_translucent_data;
+ClosureUndetermined g_reflection_data;
+ClosureUndetermined g_refraction_data;
 /* Random number per sampled closure type. */
 float g_diffuse_rand;
+float g_translucent_rand;
 float g_reflection_rand;
 float g_refraction_rand;
-float g_volume_scatter_rand;
-float g_volume_absorption_rand;
+
+ClosureType closure_type_get(ClosureDiffuse cl)
+{
+  return CLOSURE_BSDF_DIFFUSE_ID;
+}
+
+ClosureType closure_type_get(ClosureTranslucent cl)
+{
+  return CLOSURE_BSDF_TRANSLUCENT_ID;
+}
+
+ClosureType closure_type_get(ClosureReflection cl)
+{
+  return CLOSURE_BSDF_MICROFACET_GGX_REFLECTION_ID;
+}
+
+ClosureType closure_type_get(ClosureRefraction cl)
+{
+  return CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID;
+}
+
+ClosureType closure_type_get(ClosureSubsurface cl)
+{
+  return CLOSURE_BSSRDF_BURLEY_ID;
+}
 
 /**
  * Returns true if the closure is to be selected based on the input weight.
  */
-bool closure_select(float weight, inout float total_weight, inout float r)
+bool closure_select_check(float weight, inout float total_weight, inout float r)
 {
   if (weight < 1e-5) {
     return false;
@@ -44,79 +73,97 @@ bool closure_select(float weight, inout float total_weight, inout float r)
   return chosen;
 }
 
-#define SELECT_CLOSURE(destination, random, candidate) \
-  if (closure_select(candidate.weight, destination.weight, random)) { \
-    float tmp = destination.weight; \
-    destination = candidate; \
-    destination.weight = tmp; \
+/**
+ * Assign `candidate` to `destination` based on a random value and the respective weights.
+ */
+void closure_select(inout ClosureUndetermined destination,
+                    float random,
+                    ClosureUndetermined candidate)
+{
+  if (closure_select_check(candidate.weight, destination.weight, random)) {
+    float tmp = destination.weight;
+    destination = candidate;
+    destination.weight = tmp;
   }
+}
 
 float g_closure_rand;
 
 void closure_weights_reset()
 {
   g_diffuse_data.weight = 0.0;
-  g_diffuse_data.color = vec3(0.0);
-  g_diffuse_data.N = vec3(0.0);
-  g_diffuse_data.sss_radius = vec3(0.0);
-  g_diffuse_data.sss_id = uint(0);
-
+  g_translucent_data.weight = 0.0;
   g_reflection_data.weight = 0.0;
-  g_reflection_data.color = vec3(0.0);
-  g_reflection_data.N = vec3(0.0);
-  g_reflection_data.roughness = 0.0;
-
   g_refraction_data.weight = 0.0;
-  g_refraction_data.color = vec3(0.0);
-  g_refraction_data.N = vec3(0.0);
-  g_refraction_data.roughness = 0.0;
-  g_refraction_data.ior = 0.0;
 
-  g_volume_scatter_data.weight = 0.0;
-  g_volume_scatter_data.scattering = vec3(0.0);
-  g_volume_scatter_data.anisotropy = 0.0;
-
-  g_volume_absorption_data.weight = 0.0;
-  g_volume_absorption_data.absorption = vec3(0.0);
+  g_volume_scattering = vec3(0.0);
+  g_volume_anisotropy = 0.0;
+  g_volume_absorption = vec3(0.0);
 
 #if defined(GPU_FRAGMENT_SHADER)
-  g_diffuse_rand = g_reflection_rand = g_refraction_rand = g_closure_rand;
-  g_volume_scatter_rand = g_volume_absorption_rand = g_closure_rand;
+  g_diffuse_rand = g_translucent_rand = g_reflection_rand = g_refraction_rand = g_closure_rand;
 #else
   g_diffuse_rand = 0.0;
+  g_translucent_rand = 0.0;
   g_reflection_rand = 0.0;
   g_refraction_rand = 0.0;
-  g_volume_scatter_rand = 0.0;
-  g_volume_absorption_rand = 0.0;
 #endif
 
   g_emission = vec3(0.0);
   g_transmittance = vec3(0.0);
+  g_volume_scattering = vec3(0.0);
+  g_volume_absorption = vec3(0.0);
   g_holdout = 0.0;
 }
+
+#define closure_base_copy(cl, in_cl) \
+  cl.weight = in_cl.weight; \
+  cl.color = in_cl.color; \
+  cl.N = in_cl.N; \
+  cl.type = closure_type_get(in_cl);
 
 /* Single BSDFs. */
 Closure closure_eval(ClosureDiffuse diffuse)
 {
-  SELECT_CLOSURE(g_diffuse_data, g_diffuse_rand, diffuse);
+  ClosureUndetermined cl;
+  closure_base_copy(cl, diffuse);
+  closure_select(g_diffuse_data, g_diffuse_rand, cl);
+  return Closure(0);
+}
+
+Closure closure_eval(ClosureSubsurface diffuse)
+{
+  ClosureUndetermined cl;
+  closure_base_copy(cl, diffuse);
+  cl.data.rgb = diffuse.sss_radius;
+  closure_select(g_diffuse_data, g_diffuse_rand, cl);
   return Closure(0);
 }
 
 Closure closure_eval(ClosureTranslucent translucent)
 {
-  /* TODO */
+  ClosureUndetermined cl;
+  closure_base_copy(cl, translucent);
+  closure_select(g_translucent_data, g_translucent_rand, cl);
   return Closure(0);
 }
 
 Closure closure_eval(ClosureReflection reflection)
 {
-  SELECT_CLOSURE(g_reflection_data, g_reflection_rand, reflection);
+  ClosureUndetermined cl;
+  closure_base_copy(cl, reflection);
+  cl.data.r = reflection.roughness;
+  closure_select(g_reflection_data, g_reflection_rand, cl);
   return Closure(0);
 }
 
 Closure closure_eval(ClosureRefraction refraction)
 {
-  SELECT_CLOSURE(g_refraction_data, g_refraction_rand, refraction);
+  ClosureUndetermined cl;
+  closure_base_copy(cl, refraction);
+  cl.data.r = refraction.roughness;
+  cl.data.g = refraction.ior;
+  closure_select(g_refraction_data, g_refraction_rand, cl);
   return Closure(0);
 }
 
@@ -135,15 +182,14 @@ Closure closure_eval(ClosureTransparency transparency)
 
 Closure closure_eval(ClosureVolumeScatter volume_scatter)
 {
-  /* TODO: Combine instead of selecting. */
-  SELECT_CLOSURE(g_volume_scatter_data, g_volume_scatter_rand, volume_scatter);
+  g_volume_scattering += volume_scatter.scattering * volume_scatter.weight;
+  g_volume_anisotropy += volume_scatter.anisotropy * volume_scatter.weight;
   return Closure(0);
 }
 
 Closure closure_eval(ClosureVolumeAbsorption volume_absorption)
 {
-  /* TODO: Combine instead of selecting. */
-  SELECT_CLOSURE(g_volume_absorption_data, g_volume_absorption_rand, volume_absorption);
+  g_volume_absorption += volume_absorption.absorption * volume_absorption.weight;
   return Closure(0);
 }
 
@@ -156,24 +202,24 @@ Closure closure_eval(ClosureHair hair)
 /* Glass BSDF. */
 Closure closure_eval(ClosureReflection reflection, ClosureRefraction refraction)
 {
-  SELECT_CLOSURE(g_reflection_data, g_reflection_rand, reflection);
-  SELECT_CLOSURE(g_refraction_data, g_refraction_rand, refraction);
+  closure_eval(reflection);
+  closure_eval(refraction);
   return Closure(0);
 }
 
 /* Dielectric BSDF. */
 Closure closure_eval(ClosureDiffuse diffuse, ClosureReflection reflection)
 {
-  SELECT_CLOSURE(g_diffuse_data, g_diffuse_rand, diffuse);
-  SELECT_CLOSURE(g_reflection_data, g_reflection_rand, reflection);
+  closure_eval(diffuse);
+  closure_eval(reflection);
   return Closure(0);
 }
 
 /* Coat BSDF. */
 Closure closure_eval(ClosureReflection reflection, ClosureReflection coat)
 {
-  SELECT_CLOSURE(g_reflection_data, g_reflection_rand, reflection);
-  SELECT_CLOSURE(g_reflection_data, g_reflection_rand, coat);
+  closure_eval(reflection);
+  closure_eval(coat);
   return Closure(0);
 }
 
@@ -191,9 +237,9 @@ Closure closure_eval(ClosureVolumeScatter volume_scatter,
 /* Specular BSDF. */
 Closure closure_eval(ClosureDiffuse diffuse, ClosureReflection reflection, ClosureReflection coat)
 {
-  SELECT_CLOSURE(g_diffuse_data, g_diffuse_rand, diffuse);
-  SELECT_CLOSURE(g_reflection_data, g_reflection_rand, reflection);
-  SELECT_CLOSURE(g_reflection_data, g_reflection_rand, coat);
+  closure_eval(diffuse);
+  closure_eval(reflection);
+  closure_eval(coat);
   return Closure(0);
 }
 
@@ -203,10 +249,10 @@ Closure closure_eval(ClosureDiffuse diffuse,
                      ClosureReflection coat,
                      ClosureRefraction refraction)
 {
-  SELECT_CLOSURE(g_diffuse_data, g_diffuse_rand, diffuse);
-  SELECT_CLOSURE(g_reflection_data, g_reflection_rand, reflection);
-  SELECT_CLOSURE(g_reflection_data, g_reflection_rand, coat);
-  SELECT_CLOSURE(g_refraction_data, g_refraction_rand, refraction);
+  closure_eval(diffuse);
+  closure_eval(reflection);
+  closure_eval(coat);
+  closure_eval(refraction);
   return Closure(0);
 }
 
@@ -230,19 +276,50 @@ float ambient_occlusion_eval(vec3 normal,
   // clang-format off
 #if defined(GPU_FRAGMENT_SHADER) && defined(MAT_AMBIENT_OCCLUSION) && !defined(MAT_DEPTH) && !defined(MAT_SHADOW)
   // clang-format on
-  vec3 vP = transform_point(ViewMatrix, g_data.P);
+#  if 0 /* TODO(fclem): Finish inverted horizon scan. */
+  /* TODO(fclem): Replace eevee_ambient_occlusion_lib by eevee_horizon_scan_eval_lib when this is
+   * finished. */
+  vec3 vP = drw_point_world_to_view(g_data.P);
+  vec3 vN = drw_normal_world_to_view(normal);
+
+  ivec2 texel = ivec2(gl_FragCoord.xy);
+  vec2 noise;
+  noise.x = interlieved_gradient_noise(vec2(texel), 3.0, 0.0);
+  noise.y = utility_tx_fetch(utility_tx, vec2(texel), UTIL_BLUE_NOISE_LAYER).r;
+  noise = fract(noise + sampling_rng_2D_get(SAMPLING_AO_U));
+
+  ClosureOcclusion occlusion;
+  occlusion.N = (inverted != 0.0) ? -vN : vN;
+
+  HorizonScanContext ctx;
+  ctx.occlusion = occlusion;
+
+  horizon_scan_eval(vP,
+                    ctx,
+                    noise,
+                    uniform_buf.ao.pixel_size,
+                    max_distance,
+                    uniform_buf.ao.thickness,
+                    uniform_buf.ao.angle_bias,
+                    10,
+                    inverted != 0.0);
+
+  return saturate(ctx.occlusion_result.r);
+#  else
+  vec3 vP = drw_point_world_to_view(g_data.P);
   ivec2 texel = ivec2(gl_FragCoord.xy);
   OcclusionData data = ambient_occlusion_search(
       vP, hiz_tx, texel, max_distance, inverted, sample_count);
 
-  vec3 V = cameraVec(g_data.P);
-  vec3 N = g_data.N;
+  vec3 V = drw_world_incident_vector(g_data.P);
+  vec3 N = normal;
   vec3 Ng = g_data.Ng;
 
   float unused_error, visibility;
   vec3 unused;
   ambient_occlusion_eval(data, texel, V, N, Ng, inverted, visibility, unused_error, unused);
   return visibility;
+#  endif
 #else
   return 1.0;
 #endif
@@ -282,7 +359,7 @@ vec3 F_brdf_multi_scatter(vec3 f0, vec3 f90, vec2 lut)
   vec3 Favg = f0 + (f90 - f0) / 21.0;
 
   /* The original paper uses `FssEss * radiance + Fms*Ems * irradiance`, but
-   * "A Journey Through Implementing Multiscattering BRDFs and Area Lights" by Steve McAuley
+   * "A Journey Through Implementing Multi-scattering BRDFs and Area Lights" by Steve McAuley
    * suggests to use `FssEss * radiance + Fms*Ems * radiance` which results in comparable quality.
    * We handle `radiance` outside of this function, so the result simplifies to:
    * `FssEss + Fms*Ems = FssEss * (1 + Ems*Favg / (1 - Ems*Favg)) = FssEss / (1 - Ems*Favg)`.
@@ -310,7 +387,7 @@ void brdf_f82_tint_lut(vec3 F0,
 #ifdef EEVEE_UTILITY_TX
   vec3 split_sum = utility_tx_sample_lut(utility_tx, cos_theta, roughness, UTIL_BSDF_LAYER).rgb;
 #else
-  vec3 split_sum = vec2(1.0, 0.0, 0.0);
+  vec3 split_sum = vec3(1.0, 0.0, 0.0);
 #endif
 
   reflectance = do_multiscatter ? F_brdf_multi_scatter(F0, vec3(1.0), split_sum.xy) :
@@ -338,7 +415,7 @@ vec3 lut_coords_bsdf(float cos_theta, float roughness, float ior)
   float critical_cos = sqrt(1.0 - ior * ior);
 
   vec3 coords;
-  coords.x = sqr(ior);
+  coords.x = square(ior);
   coords.y = cos_theta;
   coords.y -= critical_cos;
   coords.y /= (coords.y > 0.0) ? (1.0 - critical_cos) : critical_cos;
@@ -505,10 +582,10 @@ vec3 coordinate_camera(vec3 P)
     vP = P;
   }
   else {
-#ifdef MAT_WORLD
-    vP = transform_direction(ViewMatrix, P);
+#ifdef MAT_GEOM_WORLD
+    vP = drw_normal_world_to_view(P);
 #else
-    vP = transform_point(ViewMatrix, P);
+    vP = drw_point_world_to_view(P);
 #endif
   }
   vP.z = -vP.z;
@@ -523,8 +600,12 @@ vec3 coordinate_screen(vec3 P)
     window.xy = vec2(0.5);
   }
   else {
+#ifdef MAT_GEOM_WORLD
+    window.xy = drw_point_view_to_screen(interp.P).xy;
+#else
     /* TODO(fclem): Actual camera transform. */
-    window.xy = project_point(ProjectionMatrix, transform_point(ViewMatrix, P)).xy * 0.5 + 0.5;
+    window.xy = drw_point_world_to_screen(P).xy;
+#endif
     window.xy = window.xy * uniform_buf.camera.uv_scale + uniform_buf.camera.uv_bias;
   }
   return window;
@@ -532,19 +613,19 @@ vec3 coordinate_screen(vec3 P)
 
 vec3 coordinate_reflect(vec3 P, vec3 N)
 {
-#ifdef MAT_WORLD
+#ifdef MAT_GEOM_WORLD
   return N;
 #else
-  return -reflect(cameraVec(P), N);
+  return -reflect(drw_world_incident_vector(P), N);
 #endif
 }
 
 vec3 coordinate_incoming(vec3 P)
 {
-#ifdef MAT_WORLD
+#ifdef MAT_GEOM_WORLD
   return -P;
 #else
-  return cameraVec(P);
+  return drw_world_incident_vector(P);
 #endif
 }
 

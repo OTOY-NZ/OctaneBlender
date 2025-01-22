@@ -6,11 +6,11 @@
  * \ingroup select
  */
 
-#include "DRW_render.h"
+#include "DRW_render.hh"
 
 #include "GPU_capabilities.h"
 
-#include "select_engine.h"
+#include "select_engine.hh"
 
 #include "../overlay/overlay_next_instance.hh"
 #include "select_instance.hh"

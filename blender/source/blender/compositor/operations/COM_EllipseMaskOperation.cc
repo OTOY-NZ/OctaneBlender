@@ -34,8 +34,8 @@ void EllipseMaskOperation::execute_pixel_sampled(float output[4],
   float input_mask[4];
   float input_value[4];
 
-  float rx = x / MAX2(this->get_width() - 1.0f, FLT_EPSILON);
-  float ry = y / MAX2(this->get_height() - 1.0f, FLT_EPSILON);
+  float rx = x / std::max(this->get_width() - 1.0f, FLT_EPSILON);
+  float ry = y / std::max(this->get_height() - 1.0f, FLT_EPSILON);
 
   const float dy = (ry - data_->y) / aspect_ratio_;
   const float dx = rx - data_->x;
@@ -59,7 +59,7 @@ void EllipseMaskOperation::execute_pixel_sampled(float output[4],
   switch (mask_type_) {
     case CMP_NODE_MASKTYPE_ADD:
       if (inside) {
-        output[0] = MAX2(input_mask[0], input_value[0]);
+        output[0] = std::max(input_mask[0], input_value[0]);
       }
       else {
         output[0] = input_mask[0];
@@ -106,12 +106,12 @@ void EllipseMaskOperation::update_memory_buffer_partial(MemoryBuffer *output,
   switch (mask_type_) {
     case CMP_NODE_MASKTYPE_ADD:
       mask_func = [](const bool is_inside, const float *mask, const float *value) {
-        return is_inside ? MAX2(mask[0], value[0]) : mask[0];
+        return is_inside ? std::max(mask[0], value[0]) : mask[0];
       };
       break;
     case CMP_NODE_MASKTYPE_SUBTRACT:
       mask_func = [](const bool is_inside, const float *mask, const float *value) {
-        return is_inside ? CLAMPIS(mask[0] - value[0], 0, 1) : mask[0];
+        return is_inside ? std::clamp(mask[0] - value[0], 0.0f, 1.0f) : mask[0];
       };
       break;
     case CMP_NODE_MASKTYPE_MULTIPLY:
@@ -138,8 +138,8 @@ void EllipseMaskOperation::apply_mask(MemoryBuffer *output,
 {
   const MemoryBuffer *input_mask = inputs[0];
   const MemoryBuffer *input_value = inputs[1];
-  const float op_last_x = MAX2(this->get_width() - 1.0f, FLT_EPSILON);
-  const float op_last_y = MAX2(this->get_height() - 1.0f, FLT_EPSILON);
+  const float op_last_x = std::max(this->get_width() - 1.0f, FLT_EPSILON);
+  const float op_last_y = std::max(this->get_height() - 1.0f, FLT_EPSILON);
   const float half_w = data_->width / 2.0f;
   const float half_h = data_->height / 2.0f;
   const float tx = half_w * half_w;

@@ -71,7 +71,7 @@ static void extract_fdots_nor_finish(const MeshRenderData &mr,
         nor[f].w = NOR_AND_FLAG_HIDDEN;
       }
       else {
-        nor[f] = GPU_normal_convert_i10_v3(bm_face_no_get(mr, efa));
+        nor[f] = GPU_normal_convert_i10_v3(mr.face_normals[f]);
         /* Select / Active Flag. */
         nor[f].w = (BM_elem_flag_test(efa, BM_ELEM_SELECT) ?
                         ((efa == mr.efa_act) ? NOR_AND_FLAG_ACTIVE : NOR_AND_FLAG_SELECT) :
@@ -175,7 +175,7 @@ constexpr MeshExtract create_extractor_fdots_nor_hq()
 
 /** \} */
 
-}  // namespace blender::draw
+const MeshExtract extract_fdots_nor = create_extractor_fdots_nor();
+const MeshExtract extract_fdots_nor_hq = create_extractor_fdots_nor_hq();
 
-const MeshExtract extract_fdots_nor = blender::draw::create_extractor_fdots_nor();
-const MeshExtract extract_fdots_nor_hq = blender::draw::create_extractor_fdots_nor_hq();
+}  // namespace blender::draw

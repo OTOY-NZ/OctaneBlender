@@ -8,6 +8,7 @@
 
 #include "BKE_attribute.hh"
 #include "BKE_attribute_math.hh"
+#include "BKE_customdata.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_mapping.hh"
 
@@ -19,15 +20,16 @@ namespace blender::geometry {
 static void propagate_vert_attributes(Mesh &mesh, const Span<int> new_to_old_verts_map)
 {
   /* These types aren't supported for interpolation below. */
-  CustomData_free_layers(&mesh.vert_data, CD_SHAPEKEY, mesh.totvert);
-  CustomData_free_layers(&mesh.vert_data, CD_CLOTH_ORCO, mesh.totvert);
-  CustomData_free_layers(&mesh.vert_data, CD_MVERT_SKIN, mesh.totvert);
-  CustomData_realloc(&mesh.vert_data, mesh.totvert, mesh.totvert + new_to_old_verts_map.size());
-  mesh.totvert += new_to_old_verts_map.size();
+  CustomData_free_layers(&mesh.vert_data, CD_SHAPEKEY, mesh.verts_num);
+  CustomData_free_layers(&mesh.vert_data, CD_CLOTH_ORCO, mesh.verts_num);
+  CustomData_free_layers(&mesh.vert_data, CD_MVERT_SKIN, mesh.verts_num);
+  CustomData_realloc(
+      &mesh.vert_data, mesh.verts_num, mesh.verts_num + new_to_old_verts_map.size());
+  mesh.verts_num += new_to_old_verts_map.size();
 
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
   for (const bke::AttributeIDRef &id : attributes.all_ids()) {
-    if (attributes.lookup_meta_data(id)->domain != ATTR_DOMAIN_POINT) {
+    if (attributes.lookup_meta_data(id)->domain != bke::AttrDomain::Point) {
       continue;
     }
     bke::GSpanAttributeWriter attribute = attributes.lookup_for_write_span(id);
@@ -42,31 +44,31 @@ static void propagate_vert_attributes(Mesh &mesh, const Span<int> new_to_old_ver
     attribute.finish();
   }
   if (float3 *orco = static_cast<float3 *>(
-          CustomData_get_layer_for_write(&mesh.vert_data, CD_ORCO, mesh.totvert)))
+          CustomData_get_layer_for_write(&mesh.vert_data, CD_ORCO, mesh.verts_num)))
   {
-    array_utils::gather(Span(orco, mesh.totvert),
+    array_utils::gather(Span(orco, mesh.verts_num),
                         new_to_old_verts_map,
-                        MutableSpan(orco, mesh.totvert).take_back(new_to_old_verts_map.size()));
+                        MutableSpan(orco, mesh.verts_num).take_back(new_to_old_verts_map.size()));
   }
   if (int *orig_indices = static_cast<int *>(
-          CustomData_get_layer_for_write(&mesh.vert_data, CD_ORIGINDEX, mesh.totvert)))
+          CustomData_get_layer_for_write(&mesh.vert_data, CD_ORIGINDEX, mesh.verts_num)))
   {
     array_utils::gather(
-        Span(orig_indices, mesh.totvert),
+        Span(orig_indices, mesh.verts_num),
         new_to_old_verts_map,
-        MutableSpan(orig_indices, mesh.totvert).take_back(new_to_old_verts_map.size()));
+        MutableSpan(orig_indices, mesh.verts_num).take_back(new_to_old_verts_map.size()));
   }
 }
 
 static void propagate_edge_attributes(Mesh &mesh, const Span<int> new_to_old_edge_map)
 {
-  CustomData_free_layers(&mesh.edge_data, CD_FREESTYLE_EDGE, mesh.totedge);
-  CustomData_realloc(&mesh.edge_data, mesh.totedge, mesh.totedge + new_to_old_edge_map.size());
-  mesh.totedge += new_to_old_edge_map.size();
+  CustomData_free_layers(&mesh.edge_data, CD_FREESTYLE_EDGE, mesh.edges_num);
+  CustomData_realloc(&mesh.edge_data, mesh.edges_num, mesh.edges_num + new_to_old_edge_map.size());
+  mesh.edges_num += new_to_old_edge_map.size();
 
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
   for (const bke::AttributeIDRef &id : attributes.all_ids()) {
-    if (attributes.lookup_meta_data(id)->domain != ATTR_DOMAIN_EDGE) {
+    if (attributes.lookup_meta_data(id)->domain != bke::AttrDomain::Edge) {
       continue;
     }
     if (id.name() == ".edge_verts") {
@@ -83,12 +85,12 @@ static void propagate_edge_attributes(Mesh &mesh, const Span<int> new_to_old_edg
   }
 
   if (int *orig_indices = static_cast<int *>(
-          CustomData_get_layer_for_write(&mesh.edge_data, CD_ORIGINDEX, mesh.totedge)))
+          CustomData_get_layer_for_write(&mesh.edge_data, CD_ORIGINDEX, mesh.edges_num)))
   {
     array_utils::gather(
-        Span(orig_indices, mesh.totedge),
+        Span(orig_indices, mesh.edges_num),
         new_to_old_edge_map,
-        MutableSpan(orig_indices, mesh.totedge).take_back(new_to_old_edge_map.size()));
+        MutableSpan(orig_indices, mesh.edges_num).take_back(new_to_old_edge_map.size()));
   }
 }
 
@@ -193,15 +195,19 @@ static Vector<CornerGroup> calc_corner_groups_for_vertex(const OffsetIndices<int
   return groups;
 }
 
-/* Calculate groups of corners that are contiguously connected to each input vertex. */
-static Array<Vector<CornerGroup>> calc_all_corner_groups(const OffsetIndices<int> faces,
-                                                         const Span<int> corner_verts,
-                                                         const Span<int> corner_edges,
-                                                         const GroupedSpan<int> vert_to_corner_map,
-                                                         const GroupedSpan<int> edge_to_corner_map,
-                                                         const Span<int> corner_to_face_map,
-                                                         const BitSpan split_edges,
-                                                         const IndexMask &affected_verts)
+/* Calculate groups of corners that are contiguously connected to each input vertex.
+ * BLI_NOINLINE because MSVC 17.7 has a codegen bug here, given there is only a single call to this
+ * function, not inlining it for all platforms won't affect performance. See
+ * https://developercommunity.visualstudio.com/t/10448291 for details. */
+BLI_NOINLINE static Array<Vector<CornerGroup>> calc_all_corner_groups(
+    const OffsetIndices<int> faces,
+    const Span<int> corner_verts,
+    const Span<int> corner_edges,
+    const GroupedSpan<int> vert_to_corner_map,
+    const GroupedSpan<int> edge_to_corner_map,
+    const Span<int> corner_to_face_map,
+    const BitSpan split_edges,
+    const IndexMask &affected_verts)
 {
   Array<Vector<CornerGroup>> corner_groups(affected_verts.size(), NoInitialization());
   affected_verts.foreach_index(GrainSize(512), [&](const int vert, const int mask) {
@@ -508,7 +514,7 @@ void split_edges(Mesh &mesh,
                  const IndexMask &selected_edges,
                  const bke::AnonymousAttributePropagationInfo & /*propagation_info*/)
 {
-  const int orig_verts_num = mesh.totvert;
+  const int orig_verts_num = mesh.verts_num;
   const Span<int2> orig_edges = mesh.edges();
   const OffsetIndices faces = mesh.faces();
 
@@ -522,7 +528,7 @@ void split_edges(Mesh &mesh,
 
   Array<int> edge_to_corner_offsets;
   Array<int> edge_to_corner_indices;
-  const GroupedSpan<int> edge_to_corner_map = bke::mesh::build_edge_to_loop_map(
+  const GroupedSpan<int> edge_to_corner_map = bke::mesh::build_edge_to_corner_map(
       mesh.corner_edges(), orig_edges.size(), edge_to_corner_offsets, edge_to_corner_indices);
 
   Array<int> vert_to_edge_offsets;
@@ -591,9 +597,10 @@ void split_edges(Mesh &mesh,
   const Array<int> vert_map = offsets_to_map(affected_verts, new_verts_by_affected_vert);
   propagate_vert_attributes(mesh, vert_map);
 
-  BKE_mesh_tag_edges_split(&mesh);
+  mesh.tag_edges_split();
 
-  debug_randomize_mesh_order(&mesh);
+  debug_randomize_vert_order(&mesh);
+  debug_randomize_edge_order(&mesh);
 }
 
 }  // namespace blender::geometry

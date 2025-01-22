@@ -6,6 +6,7 @@
  * BxDF evaluation functions.
  */
 
+#pragma BLENDER_REQUIRE(gpu_shader_utildefines_lib.glsl)
 #pragma BLENDER_REQUIRE(gpu_shader_math_base_lib.glsl)
 
 /* -------------------------------------------------------------------- */
@@ -40,7 +41,7 @@ float bxdf_ggx_smith_G1_opti(float NX, float a2)
 }
 
 /* Compute the GGX BRDF without the Fresnel term, multiplied by the cosine foreshortening term. */
-float bsdf_ggx(vec3 N, vec3 L, vec3 V, float roughness)
+float bsdf_ggx_reflect(vec3 N, vec3 L, vec3 V, float roughness)
 {
   float a2 = square(roughness);
 
@@ -58,7 +59,7 @@ float bsdf_ggx(vec3 N, vec3 L, vec3 V, float roughness)
 }
 
 /* Compute the GGX BTDF without the Fresnel term, multiplied by the cosine foreshortening term. */
-float btdf_ggx(vec3 N, vec3 L, vec3 V, float roughness, float eta)
+float bsdf_ggx_refract(vec3 N, vec3 L, vec3 V, float roughness, float eta)
 {
   float LV = dot(L, V);
   if (is_equal(eta, 1.0, 1e-4)) {

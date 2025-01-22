@@ -34,6 +34,7 @@
 
 OCT_NAMESPACE_BEGIN
 
+class BlenderCamera;
 class Camera;
 class Light;
 class Mesh;
@@ -92,7 +93,8 @@ class BlenderSync {
   void sync_camera_motion(
       BL::RenderSettings &b_render, BL::Object &b_ob, int width, int height, float motion_time);
   void sync_render_passes(BL::Depsgraph &b_depsgraph, BL::ViewLayer &b_view_layer);
-  void update_octane_camera_properties(Camera *cam,
+  void update_octane_camera_properties(BlenderCamera *bcam,
+                                       Camera *cam,
                                        PointerRNA oct_camera,
                                        PointerRNA oct_view_camera,
                                        bool view);
@@ -169,7 +171,7 @@ class BlenderSync {
                           int &max_sample,
                           int &max_preview_sample,
                           int &max_info_sample);
-  static int get_current_preview_render_pass(BL::ViewLayer &b_view_layer);  
+  static int get_current_preview_render_pass(BL::ViewLayer &b_view_layer);
 
   void set_resource_cache(std::map<std::string, int> &resource_cache_data,
                           std::unordered_set<std::string> &dirty_resources);

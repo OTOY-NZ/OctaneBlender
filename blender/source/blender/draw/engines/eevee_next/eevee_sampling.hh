@@ -10,11 +10,10 @@
 
 #pragma once
 
-#include "BKE_colortools.h"
 #include "BLI_system.h"
 #include "BLI_vector.hh"
 #include "DNA_scene_types.h"
-#include "DRW_render.h"
+#include "DRW_render.hh"
 
 #include "eevee_shader_shared.hh"
 
@@ -86,9 +85,9 @@ class Sampling {
     return reset_;
   }
 
-  template<typename T> void bind_resources(draw::detail::PassBase<T> *pass)
+  template<typename PassType> void bind_resources(PassType &pass)
   {
-    pass->bind_ssbo(SAMPLING_BUF_SLOT, &data_);
+    pass.bind_ssbo(SAMPLING_BUF_SLOT, &data_);
   }
 
   /* Returns a pseudo random number in [0..1] range. Each dimension are de-correlated.

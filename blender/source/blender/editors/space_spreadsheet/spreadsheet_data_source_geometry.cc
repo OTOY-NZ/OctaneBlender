@@ -7,22 +7,24 @@
 
 #include "BKE_attribute.hh"
 #include "BKE_compute_contexts.hh"
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_curves.hh"
-#include "BKE_editmesh.h"
+#include "BKE_editmesh.hh"
 #include "BKE_geometry_fields.hh"
+#include "BKE_geometry_set.hh"
 #include "BKE_global.h"
+#include "BKE_grease_pencil.hh"
 #include "BKE_instances.hh"
-#include "BKE_lib_id.h"
+#include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_wrapper.hh"
-#include "BKE_modifier.h"
-#include "BKE_volume.h"
-#include "BKE_volume_openvdb.hh"
+#include "BKE_modifier.hh"
+#include "BKE_node_socket_value.hh"
+#include "BKE_object_types.hh"
+#include "BKE_volume.hh"
+#include "BKE_volume_grid.hh"
 
 #include "DNA_ID.h"
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_pointcloud_types.h"
 #include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
@@ -40,9 +42,7 @@
 #include "RNA_access.hh"
 #include "RNA_enum_types.hh"
 
-#include "FN_field_cpp_type.hh"
-
-#include "bmesh.h"
+#include "bmesh.hh"
 
 #include "spreadsheet_data_source_geometry.hh"
 #include "spreadsheet_intern.hh"
@@ -73,29 +73,29 @@ std::unique_ptr<ColumnValues> ExtraColumns::get_column_values(
 
 static void add_mesh_debug_column_names(
     const Mesh &mesh,
-    const eAttrDomain domain,
+    const bke::AttrDomain domain,
     FunctionRef<void(const SpreadsheetColumnID &, bool is_extra)> fn)
 {
   switch (domain) {
-    case ATTR_DOMAIN_POINT:
+    case bke::AttrDomain::Point:
       if (CustomData_has_layer(&mesh.vert_data, CD_ORIGINDEX)) {
         fn({(char *)"Original Index"}, false);
       }
       break;
-    case ATTR_DOMAIN_EDGE:
+    case bke::AttrDomain::Edge:
       if (CustomData_has_layer(&mesh.edge_data, CD_ORIGINDEX)) {
         fn({(char *)"Original Index"}, false);
       }
       fn({(char *)"Vertices"}, false);
       break;
-    case ATTR_DOMAIN_FACE:
+    case bke::AttrDomain::Face:
       if (CustomData_has_layer(&mesh.face_data, CD_ORIGINDEX)) {
         fn({(char *)"Original Index"}, false);
       }
       fn({(char *)"Corner Start"}, false);
       fn({(char *)"Corner Size"}, false);
       break;
-    case ATTR_DOMAIN_CORNER:
+    case bke::AttrDomain::Corner:
       fn({(char *)"Vertex"}, false);
       fn({(char *)"Edge"}, false);
       break;
@@ -106,26 +106,28 @@ static void add_mesh_debug_column_names(
 }
 
 static std::unique_ptr<ColumnValues> build_mesh_debug_columns(const Mesh &mesh,
-                                                              const eAttrDomain domain,
+                                                              const bke::AttrDomain domain,
                                                               const StringRef name)
 {
   switch (domain) {
-    case ATTR_DOMAIN_POINT: {
+    case bke::AttrDomain::Point: {
       if (name == "Original Index") {
         const int *data = static_cast<const int *>(
             CustomData_get_layer(&mesh.vert_data, CD_ORIGINDEX));
         if (data) {
-          return std::make_unique<ColumnValues>(name, VArray<int>::ForSpan({data, mesh.totvert}));
+          return std::make_unique<ColumnValues>(name,
+                                                VArray<int>::ForSpan({data, mesh.verts_num}));
         }
       }
       return {};
     }
-    case ATTR_DOMAIN_EDGE: {
+    case bke::AttrDomain::Edge: {
       if (name == "Original Index") {
         const int *data = static_cast<const int *>(
             CustomData_get_layer(&mesh.edge_data, CD_ORIGINDEX));
         if (data) {
-          return std::make_unique<ColumnValues>(name, VArray<int>::ForSpan({data, mesh.totedge}));
+          return std::make_unique<ColumnValues>(name,
+                                                VArray<int>::ForSpan({data, mesh.edges_num}));
         }
       }
       if (name == "Vertices") {
@@ -133,7 +135,7 @@ static std::unique_ptr<ColumnValues> build_mesh_debug_columns(const Mesh &mesh,
       }
       return {};
     }
-    case ATTR_DOMAIN_FACE: {
+    case bke::AttrDomain::Face: {
       if (name == "Original Index") {
         const int *data = static_cast<const int *>(
             CustomData_get_layer(&mesh.face_data, CD_ORIGINDEX));
@@ -155,7 +157,7 @@ static std::unique_ptr<ColumnValues> build_mesh_debug_columns(const Mesh &mesh,
       }
       return {};
     }
-    case ATTR_DOMAIN_CORNER: {
+    case bke::AttrDomain::Corner: {
       if (name == "Vertex") {
         return std::make_unique<ColumnValues>(name, VArray<int>::ForSpan(mesh.corner_verts()));
       }
@@ -173,12 +175,11 @@ static std::unique_ptr<ColumnValues> build_mesh_debug_columns(const Mesh &mesh,
 void GeometryDataSource::foreach_default_column_ids(
     FunctionRef<void(const SpreadsheetColumnID &, bool is_extra)> fn) const
 {
-  if (!component_->attributes().has_value()) {
+  std::optional<const bke::AttributeAccessor> attributes = this->get_component_attributes();
+  if (!attributes.has_value()) {
     return;
   }
-  const bke::AttributeAccessor attributes = *component_->attributes();
-
-  if (attributes.domain_size(domain_) == 0) {
+  if (attributes->domain_size(domain_) == 0) {
     return;
   }
 
@@ -186,9 +187,13 @@ void GeometryDataSource::foreach_default_column_ids(
     fn({(char *)"Name"}, false);
   }
 
+  if (component_->type() == bke::GeometryComponent::Type::GreasePencil) {
+    fn({(char *)"Name"}, false);
+  }
+
   extra_columns_.foreach_default_column_ids(fn);
 
-  attributes.for_all(
+  attributes->for_all(
       [&](const bke::AttributeIDRef &attribute_id, const bke::AttributeMetaData &meta_data) {
         if (meta_data.domain != domain_) {
           return true;
@@ -221,11 +226,11 @@ void GeometryDataSource::foreach_default_column_ids(
 std::unique_ptr<ColumnValues> GeometryDataSource::get_column_values(
     const SpreadsheetColumnID &column_id) const
 {
-  if (!component_->attributes().has_value()) {
+  std::optional<const bke::AttributeAccessor> attributes = this->get_component_attributes();
+  if (!attributes.has_value()) {
     return {};
   }
-  const bke::AttributeAccessor attributes = *component_->attributes();
-  const int domain_num = attributes.domain_size(domain_);
+  const int domain_num = attributes->domain_size(domain_);
   if (domain_num == 0) {
     return {};
   }
@@ -261,7 +266,20 @@ std::unique_ptr<ColumnValues> GeometryDataSource::get_column_values(
       if (STREQ(column_id.name, "Scale")) {
         return std::make_unique<ColumnValues>(
             column_id.name, VArray<float3>::ForFunc(domain_num, [transforms](int64_t index) {
-              return math::to_scale(transforms[index]);
+              return math::to_scale<true>(transforms[index]);
+            }));
+      }
+    }
+  }
+  else if (component_->type() == bke::GeometryComponent::Type::GreasePencil) {
+    if (const GreasePencil *grease_pencil =
+            static_cast<const bke::GreasePencilComponent &>(*component_).get())
+    {
+      if (domain_ == bke::AttrDomain::Layer && STREQ(column_id.name, "Name")) {
+        const Span<const bke::greasepencil::Layer *> layers = grease_pencil->layers();
+        return std::make_unique<ColumnValues>(
+            column_id.name, VArray<std::string>::ForFunc(domain_num, [layers](int64_t index) {
+              return std::string(layers[index]->name());
             }));
       }
     }
@@ -277,7 +295,7 @@ std::unique_ptr<ColumnValues> GeometryDataSource::get_column_values(
     }
   }
 
-  bke::GAttributeReader attribute = attributes.lookup(column_id.name);
+  bke::GAttributeReader attribute = attributes->lookup(column_id.name);
   if (!attribute) {
     return {};
   }
@@ -296,11 +314,11 @@ std::unique_ptr<ColumnValues> GeometryDataSource::get_column_values(
 
 int GeometryDataSource::tot_rows() const
 {
-  if (!component_->attributes().has_value()) {
+  std::optional<const bke::AttributeAccessor> attributes = this->get_component_attributes();
+  if (!attributes.has_value()) {
     return {};
   }
-  const bke::AttributeAccessor attributes = *component_->attributes();
-  return attributes.domain_size(domain_);
+  return attributes->domain_size(domain_);
 }
 
 bool GeometryDataSource::has_selection_filter() const
@@ -363,7 +381,7 @@ IndexMask GeometryDataSource::apply_selection_filter(IndexMaskMemory &memory) co
       if (orig_indices != nullptr) {
         /* Use CD_ORIGINDEX layer if it exists. */
         VArray<bool> selection = attributes_eval.adapt_domain<bool>(
-            VArray<bool>::ForFunc(mesh_eval->totvert,
+            VArray<bool>::ForFunc(mesh_eval->verts_num,
                                   [bm, orig_indices](int vertex_index) -> bool {
                                     const int i_orig = orig_indices[vertex_index];
                                     if (i_orig < 0) {
@@ -375,20 +393,20 @@ IndexMask GeometryDataSource::apply_selection_filter(IndexMaskMemory &memory) co
                                     const BMVert *vert = BM_vert_at_index(bm, i_orig);
                                     return BM_elem_flag_test(vert, BM_ELEM_SELECT);
                                   }),
-            ATTR_DOMAIN_POINT,
+            bke::AttrDomain::Point,
             domain_);
         return IndexMask::from_bools(selection, memory);
       }
 
-      if (mesh_eval->totvert == bm->totvert) {
+      if (mesh_eval->verts_num == bm->totvert) {
         /* Use a simple heuristic to match original vertices to evaluated ones. */
         VArray<bool> selection = attributes_eval.adapt_domain<bool>(
-            VArray<bool>::ForFunc(mesh_eval->totvert,
+            VArray<bool>::ForFunc(mesh_eval->verts_num,
                                   [bm](int vertex_index) -> bool {
                                     const BMVert *vert = BM_vert_at_index(bm, vertex_index);
                                     return BM_elem_flag_test(vert, BM_ELEM_SELECT);
                                   }),
-            ATTR_DOMAIN_POINT,
+            bke::AttrDomain::Point,
             domain_);
         return IndexMask::from_bools(selection, memory);
       }
@@ -400,9 +418,9 @@ IndexMask GeometryDataSource::apply_selection_filter(IndexMaskMemory &memory) co
       const bke::CurveComponent &component = static_cast<const bke::CurveComponent &>(*component_);
       const Curves &curves_id = *component.get();
       switch (domain_) {
-        case ATTR_DOMAIN_POINT:
+        case bke::AttrDomain::Point:
           return curves::retrieve_selected_points(curves_id, memory);
-        case ATTR_DOMAIN_CURVE:
+        case bke::AttrDomain::Curve:
           return curves::retrieve_selected_curves(curves_id, memory);
         default:
           BLI_assert_unreachable();
@@ -413,12 +431,34 @@ IndexMask GeometryDataSource::apply_selection_filter(IndexMaskMemory &memory) co
       BLI_assert(object_eval_->type == OB_POINTCLOUD);
       const bke::AttributeAccessor attributes = *component_->attributes();
       const VArray<bool> &selection = *attributes.lookup_or_default(
-          ".selection", ATTR_DOMAIN_POINT, false);
+          ".selection", bke::AttrDomain::Point, false);
       return IndexMask::from_bools(selection, memory);
     }
     default:
       return full_range;
   }
+}
+
+std::optional<const bke::AttributeAccessor> GeometryDataSource::get_component_attributes() const
+{
+  if (component_->type() != bke::GeometryComponent::Type::GreasePencil) {
+    return component_->attributes();
+  }
+  const GreasePencil *grease_pencil = geometry_set_.get_grease_pencil();
+  if (!grease_pencil) {
+    return {};
+  }
+  if (domain_ == bke::AttrDomain::Layer) {
+    return grease_pencil->attributes();
+  }
+  if (layer_index_ >= 0 && layer_index_ < grease_pencil->layers().size()) {
+    if (const bke::greasepencil::Drawing *drawing =
+            bke::greasepencil::get_eval_grease_pencil_layer_drawing(*grease_pencil, layer_index_))
+    {
+      return drawing->strokes().attributes();
+    }
+  }
+  return {};
 }
 
 void VolumeDataSource::foreach_default_column_ids(
@@ -447,15 +487,15 @@ std::unique_ptr<ColumnValues> VolumeDataSource::get_column_values(
   if (STREQ(column_id.name, "Grid Name")) {
     return std::make_unique<ColumnValues>(
         IFACE_("Grid Name"), VArray<std::string>::ForFunc(size, [volume](int64_t index) {
-          const VolumeGrid *volume_grid = BKE_volume_grid_get_for_read(volume, index);
-          return BKE_volume_grid_name(volume_grid);
+          const bke::VolumeGridData *volume_grid = BKE_volume_grid_get(volume, index);
+          return volume_grid->name();
         }));
   }
   if (STREQ(column_id.name, "Data Type")) {
     return std::make_unique<ColumnValues>(
         IFACE_("Data Type"), VArray<std::string>::ForFunc(size, [volume](int64_t index) {
-          const VolumeGrid *volume_grid = BKE_volume_grid_get_for_read(volume, index);
-          const VolumeGridType type = BKE_volume_grid_type(volume_grid);
+          const bke::VolumeGridData *volume_grid = BKE_volume_grid_get(volume, index);
+          const VolumeGridType type = volume_grid->grid_type();
           const char *name = nullptr;
           RNA_enum_name_from_value(rna_enum_volume_grid_data_type_items, type, &name);
           return IFACE_(name);
@@ -464,9 +504,8 @@ std::unique_ptr<ColumnValues> VolumeDataSource::get_column_values(
   if (STREQ(column_id.name, "Class")) {
     return std::make_unique<ColumnValues>(
         IFACE_("Class"), VArray<std::string>::ForFunc(size, [volume](int64_t index) {
-          const VolumeGrid *volume_grid = BKE_volume_grid_get_for_read(volume, index);
-          openvdb::GridBase::ConstPtr grid = BKE_volume_grid_openvdb_for_read(volume, volume_grid);
-          openvdb::GridClass grid_class = grid->getGridClass();
+          const bke::VolumeGridData *volume_grid = BKE_volume_grid_get(volume, index);
+          openvdb::GridClass grid_class = volume_grid->grid_class();
           if (grid_class == openvdb::GridClass::GRID_FOG_VOLUME) {
             return IFACE_("Fog Volume");
           }
@@ -506,7 +545,7 @@ bke::GeometrySet spreadsheet_get_display_geometry_set(const SpaceSpreadsheet *ss
           /* This is a potentially heavy operation to do on every redraw. The best solution here is
            * to display the data directly from the bmesh without a conversion, which can be
            * implemented a bit later. */
-          BM_mesh_bm_to_me_for_eval(em->bm, new_mesh, nullptr);
+          BM_mesh_bm_to_me_for_eval(*em->bm, *new_mesh, nullptr);
           geometry_set.replace_mesh(new_mesh, bke::GeometryOwnershipType::Owned);
         }
       }
@@ -524,10 +563,15 @@ bke::GeometrySet spreadsheet_get_display_geometry_set(const SpaceSpreadsheet *ss
       geometry_set.replace_curves(&const_cast<Curves &>(curves_id),
                                   bke::GeometryOwnershipType::ReadOnly);
     }
+    else if (object_orig->type == OB_GREASE_PENCIL) {
+      const GreasePencil &grease_pencil = *static_cast<const GreasePencil *>(object_orig->data);
+      geometry_set.replace_grease_pencil(&const_cast<GreasePencil &>(grease_pencil),
+                                         bke::GeometryOwnershipType::ReadOnly);
+    }
   }
   else {
     if (BLI_listbase_is_single(&sspreadsheet->viewer_path.path)) {
-      if (const bke::GeometrySet *geometry_eval = object_eval->runtime.geometry_set_eval) {
+      if (const bke::GeometrySet *geometry_eval = object_eval->runtime->geometry_set_eval) {
         geometry_set = *geometry_eval;
       }
 
@@ -553,8 +597,9 @@ bke::GeometrySet spreadsheet_get_display_geometry_set(const SpaceSpreadsheet *ss
 std::unique_ptr<DataSource> data_source_from_geometry(const bContext *C, Object *object_eval)
 {
   SpaceSpreadsheet *sspreadsheet = CTX_wm_space_spreadsheet(C);
-  const eAttrDomain domain = (eAttrDomain)sspreadsheet->attribute_domain;
+  const bke::AttrDomain domain = (bke::AttrDomain)sspreadsheet->attribute_domain;
   const auto component_type = bke::GeometryComponent::Type(sspreadsheet->geometry_component_type);
+  const int active_layer_index = sspreadsheet->active_layer_index;
   bke::GeometrySet geometry_set = spreadsheet_get_display_geometry_set(sspreadsheet, object_eval);
   if (!geometry_set.has(component_type)) {
     return {};
@@ -564,7 +609,7 @@ std::unique_ptr<DataSource> data_source_from_geometry(const bContext *C, Object 
     return std::make_unique<VolumeDataSource>(std::move(geometry_set));
   }
   return std::make_unique<GeometryDataSource>(
-      object_eval, std::move(geometry_set), component_type, domain);
+      object_eval, std::move(geometry_set), component_type, domain, active_layer_index);
 }
 
 }  // namespace blender::ed::spreadsheet

@@ -390,6 +390,7 @@ _octane_node_items = {
                 OctaneNodeItem("OctaneFrameIndex", octane_pin_type=consts.PinType.PT_INT),
                 OctaneNodeItem("OctaneIntSwitch", octane_pin_type=consts.PinType.PT_INT),
                 OctaneNodeItem("OctaneStringSwitch", octane_pin_type=consts.PinType.PT_STRING),
+                OctaneNodeItem("OctaneTime", octane_pin_type=consts.PinType.PT_FLOAT),
                 OctaneNodeItem("OctaneUtilityFloatComponentPicker",
                                octane_pin_type=consts.PinType.PT_FLOAT),
                 OctaneNodeItem("OctaneUtilityFloatIf", octane_pin_type=consts.PinType.PT_FLOAT),
@@ -450,6 +451,7 @@ _octane_node_items = {
                 OctaneNodeItem("OctaneRotation"),
                 OctaneNodeItem("OctaneScale"),
                 OctaneNodeItem("OctaneTransformValue"),
+                OctaneNodeItem("OctaneUVTilingAndOffset"),
                 OctaneNodeItemSeperator("Utility"),
                 OctaneNodeItem("OctaneTransformSwitch"),
             ]
@@ -515,6 +517,7 @@ _octane_node_items = {
                         OctaneNodeItem("OctaneOutputAOVsApplyGammaCurveSDROnly"),
                         OctaneNodeItem("OctaneOutputAOVsApplyLUT"),
                         OctaneNodeItem("OctaneOutputAOVsApplyOCIOLook"),
+                        OctaneNodeItem("OctaneOutputAOVsBoostHighlights"),
                         OctaneNodeItem("OctaneOutputAOVsChannelClamp"),
                         OctaneNodeItem("OctaneOutputAOVsChannelInvertSDROnly"),
                         OctaneNodeItem("OctaneOutputAOVsChannelMapRange"),
@@ -530,6 +533,7 @@ _octane_node_items = {
                         OctaneNodeItem("OctaneOutputAOVsConvertForSDRDisplayBasic"),
                         OctaneNodeItem("OctaneOutputAOVsConvertForSDRDisplayOCIO"),
                         OctaneNodeItem("OctaneOutputAOVsConvertForSDRDisplaySmooth"),
+                        OctaneNodeItem("OctaneOutputAOVsDitherFor8BitDisplaySDROnly"),
                     ]
                 ),
                 OctaneCompositeNodeCategory(
@@ -564,6 +568,7 @@ _octane_node_items = {
                     items=[
                         OctaneNodeItem("OctaneLegacyOutputAOV",
                                        octane_pin_type=consts.PinType.PT_OUTPUT_AOV),
+                        OctaneNodeItem("OctaneOutputAOVsApplyImagerAndPostProcessing"),
                     ]
                 ),
                 OctaneCompositeNodeCategory(
@@ -606,7 +611,7 @@ _octane_node_items = {
                     octane_pin_type=consts.PinType.PT_RENDER_PASSES,
                     items=[
                         OctaneNodeItem("OctaneDenoiseAlbedoAOV"),
-                        OctaneNodeItem("OctaneDenoiseNormalAOV"),                    
+                        OctaneNodeItem("OctaneDenoiseNormalAOV"),
                         OctaneNodeItem("OctaneDiffuseAOV"),
                         OctaneNodeItem("OctaneDiffuseDirectAOV"),
                         OctaneNodeItem("OctaneDiffuseFilterBeautyAOV"),

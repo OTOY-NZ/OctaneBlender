@@ -6,18 +6,18 @@
  * \ingroup draw_engine
  */
 
-#include "DRW_render.h"
+#include "DRW_render.hh"
 
 #include "ED_view3d.hh"
 
 #include "DNA_mesh_types.h"
 
-#include "BKE_customdata.h"
-#include "BKE_editmesh.h"
+#include "BKE_customdata.hh"
+#include "BKE_editmesh.hh"
 #include "BKE_object.hh"
 
 #include "draw_cache_impl.hh"
-#include "draw_manager_text.h"
+#include "draw_manager_text.hh"
 
 #include "overlay_private.hh"
 
@@ -42,6 +42,7 @@ void OVERLAY_edit_mesh_init(OVERLAY_Data *vedata)
 
 void OVERLAY_edit_mesh_cache_init(OVERLAY_Data *vedata)
 {
+  using namespace blender::draw;
   OVERLAY_TextureList *txl = vedata->txl;
   OVERLAY_PassList *psl = vedata->psl;
   OVERLAY_PrivateData *pd = vedata->stl->pd;
@@ -53,6 +54,7 @@ void OVERLAY_edit_mesh_cache_init(OVERLAY_Data *vedata)
   DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
 
   const DRWContextState *draw_ctx = DRW_context_state_get();
+  const View3DShading *shading = &draw_ctx->v3d->shading;
   ToolSettings *tsettings = draw_ctx->scene->toolsettings;
   View3D *v3d = draw_ctx->v3d;
   bool select_vert = pd->edit_mesh.select_vert = (tsettings->selectmode & SCE_SELECT_VERTEX) != 0;
@@ -66,7 +68,6 @@ void OVERLAY_edit_mesh_cache_init(OVERLAY_Data *vedata)
   float retopology_offset = RETOPOLOGY_OFFSET(v3d);
 
   pd->edit_mesh.do_faces = true;
-  pd->edit_mesh.do_edges = true;
 
   int *mask = shdata->data_mask;
   mask[0] = 0xFF; /* Face Flag */
@@ -85,18 +86,10 @@ void OVERLAY_edit_mesh_cache_init(OVERLAY_Data *vedata)
   if ((flag & V3D_OVERLAY_EDIT_FACES) == 0) {
     pd->edit_mesh.do_faces = false;
   }
-  if ((flag & V3D_OVERLAY_EDIT_EDGES) == 0) {
-    if ((tsettings->selectmode & SCE_SELECT_EDGE) == 0) {
-      if ((v3d->shading.type < OB_SOLID) || (v3d->shading.flag & V3D_SHADING_XRAY)) {
-        /* Special case, when drawing wire, draw edges, see: #67637. */
-      }
-      else {
-        pd->edit_mesh.do_edges = false;
-      }
-    }
-  }
 
-  float backwire_opacity = (pd->edit_mesh.do_zbufclip) ? v3d->overlay.backwire_opacity : 1.0f;
+  const bool is_wire_shmode = (shading->type == OB_WIRE);
+
+  float backwire_opacity = (pd->edit_mesh.do_zbufclip) ? 0.5f : 1.0f;
   float face_alpha = (!pd->edit_mesh.do_faces) ? 0.0f : 1.0f;
   GPUTexture **depth_tex = (pd->edit_mesh.do_zbufclip) ? &dtxl->depth : &txl->dummy_depth_tx;
 
@@ -172,7 +165,8 @@ void OVERLAY_edit_mesh_cache_init(OVERLAY_Data *vedata)
       DRW_shgroup_uniform_block(grp, "globalsBlock", G_draw.block_ubo);
       DRW_shgroup_uniform_ivec4(grp, "dataMask", mask, 1);
       DRW_shgroup_uniform_float_copy(grp, "alpha", face_alpha);
-      DRW_shgroup_uniform_bool_copy(grp, "selectFaces", select_face);
+      DRW_shgroup_uniform_bool_copy(grp, "selectFace", select_face);
+      DRW_shgroup_uniform_bool_copy(grp, "wireShading", is_wire_shmode);
       DRW_shgroup_uniform_float_copy(grp, "retopologyOffset", retopology_offset);
     }
 
@@ -191,7 +185,7 @@ void OVERLAY_edit_mesh_cache_init(OVERLAY_Data *vedata)
     DRW_shgroup_uniform_ivec4(grp, "dataMask", mask, 1);
     DRW_shgroup_uniform_float_copy(grp, "alpha", backwire_opacity);
     DRW_shgroup_uniform_texture_ref(grp, "depthTex", depth_tex);
-    DRW_shgroup_uniform_bool_copy(grp, "selectEdges", pd->edit_mesh.do_edges || select_edge);
+    DRW_shgroup_uniform_bool_copy(grp, "selectEdge", select_edge);
     DRW_shgroup_uniform_bool_copy(grp, "do_smooth_wire", do_smooth_wire);
     DRW_shgroup_uniform_float_copy(grp, "retopologyOffset", retopology_offset);
 
@@ -233,14 +227,15 @@ void OVERLAY_edit_mesh_cache_init(OVERLAY_Data *vedata)
 
 static void overlay_edit_mesh_add_ob_to_pass(OVERLAY_PrivateData *pd, Object *ob, bool in_front)
 {
+  using namespace blender::draw;
   GPUBatch *geom_tris, *geom_verts, *geom_edges, *geom_fcenter, *skin_roots, *circle;
   DRWShadingGroup *vert_shgrp, *edge_shgrp, *fdot_shgrp, *face_shgrp, *skin_roots_shgrp;
 
   bool has_edit_mesh_cage = false;
   bool has_skin_roots = false;
   /* TODO: Should be its own function. */
-  Mesh *me = (Mesh *)ob->data;
-  BMEditMesh *embm = me->edit_mesh;
+  Mesh *mesh = (Mesh *)ob->data;
+  BMEditMesh *embm = mesh->edit_mesh;
   if (embm) {
     Mesh *editmesh_eval_final = BKE_object_get_editmesh_eval_final(ob);
     Mesh *editmesh_eval_cage = BKE_object_get_editmesh_eval_cage(ob);
@@ -256,30 +251,31 @@ static void overlay_edit_mesh_add_ob_to_pass(OVERLAY_PrivateData *pd, Object *ob
                                       pd->edit_mesh_faces_grp[in_front];
   skin_roots_shgrp = pd->edit_mesh_skin_roots_grp[in_front];
 
-  geom_edges = DRW_mesh_batch_cache_get_edit_edges(me);
-  geom_tris = DRW_mesh_batch_cache_get_edit_triangles(me);
+  geom_edges = DRW_mesh_batch_cache_get_edit_edges(mesh);
+  geom_tris = DRW_mesh_batch_cache_get_edit_triangles(mesh);
   DRW_shgroup_call_no_cull(edge_shgrp, geom_edges, ob);
   DRW_shgroup_call_no_cull(face_shgrp, geom_tris, ob);
 
   if (pd->edit_mesh.select_vert) {
-    geom_verts = DRW_mesh_batch_cache_get_edit_vertices(me);
+    geom_verts = DRW_mesh_batch_cache_get_edit_vertices(mesh);
     DRW_shgroup_call_no_cull(vert_shgrp, geom_verts, ob);
 
     if (has_skin_roots) {
       circle = DRW_cache_circle_get();
-      skin_roots = DRW_mesh_batch_cache_get_edit_skin_roots(me);
+      skin_roots = DRW_mesh_batch_cache_get_edit_skin_roots(mesh);
       DRW_shgroup_call_instances_with_attrs(skin_roots_shgrp, ob, circle, skin_roots);
     }
   }
 
   if (fdot_shgrp) {
-    geom_fcenter = DRW_mesh_batch_cache_get_edit_facedots(me);
+    geom_fcenter = DRW_mesh_batch_cache_get_edit_facedots(mesh);
     DRW_shgroup_call_no_cull(fdot_shgrp, geom_fcenter, ob);
   }
 }
 
 void OVERLAY_edit_mesh_cache_populate(OVERLAY_Data *vedata, Object *ob)
 {
+  using namespace blender::draw;
   OVERLAY_PrivateData *pd = vedata->stl->pd;
   GPUBatch *geom = nullptr;
 
@@ -299,8 +295,8 @@ void OVERLAY_edit_mesh_cache_populate(OVERLAY_Data *vedata, Object *ob)
   }
 
   if (show_retopology) {
-    Mesh *me = (Mesh *)ob->data;
-    geom = DRW_mesh_batch_cache_get_edit_triangles(me);
+    Mesh *mesh = (Mesh *)ob->data;
+    geom = DRW_mesh_batch_cache_get_edit_triangles(mesh);
     DRW_shgroup_call_no_cull(pd->edit_mesh_depth_grp[do_in_front], geom, ob);
   }
   else if (do_in_front && draw_as_solid) {
@@ -310,17 +306,17 @@ void OVERLAY_edit_mesh_cache_populate(OVERLAY_Data *vedata, Object *ob)
 
   if (vnormals_do || lnormals_do || fnormals_do) {
     GPUBatch *normal_geom = DRW_cache_normal_arrow_get();
-    Mesh *me = static_cast<Mesh *>(ob->data);
+    Mesh *mesh = static_cast<Mesh *>(ob->data);
     if (vnormals_do) {
-      geom = DRW_mesh_batch_cache_get_edit_vert_normals(me);
+      geom = DRW_mesh_batch_cache_get_edit_vert_normals(mesh);
       DRW_shgroup_call_instances_with_attrs(pd->edit_mesh_normals_grp, ob, normal_geom, geom);
     }
     if (lnormals_do) {
-      geom = DRW_mesh_batch_cache_get_edit_loop_normals(me);
+      geom = DRW_mesh_batch_cache_get_edit_loop_normals(mesh);
       DRW_shgroup_call_instances_with_attrs(pd->edit_mesh_normals_grp, ob, normal_geom, geom);
     }
     if (fnormals_do) {
-      geom = DRW_mesh_batch_cache_get_edit_facedots(me);
+      geom = DRW_mesh_batch_cache_get_edit_facedots(mesh);
       DRW_shgroup_call_instances_with_attrs(pd->edit_mesh_normals_grp, ob, normal_geom, geom);
     }
   }

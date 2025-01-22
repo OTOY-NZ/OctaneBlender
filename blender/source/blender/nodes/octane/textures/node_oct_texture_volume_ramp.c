@@ -29,7 +29,7 @@
 #include "node_util.hh"
 
 #include "BKE_image.h"
-#include "BKE_colorband.h"
+#include "BKE_colorband.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_texture.h"
 

@@ -20,7 +20,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
-#include "BLI_string_utils.h"
+#include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.h"
@@ -38,12 +38,12 @@
 #include "BKE_action.h"
 #include "BKE_anim_data.h"
 #include "BKE_animsys.h"
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_fcurve.h"
 #include "BKE_global.h"
-#include "BKE_lib_id.h"
-#include "BKE_lib_query.h"
-#include "BKE_main.h"
+#include "BKE_lib_id.hh"
+#include "BKE_lib_query.hh"
+#include "BKE_main.hh"
 #include "BKE_material.h"
 #include "BKE_nla.h"
 #include "BKE_node.h"
@@ -255,7 +255,7 @@ void BKE_keyingsets_foreach_id(LibraryForeachIDData *data, const ListBase *keyin
 
 /* Freeing Tools --------------------------- */
 
-void BKE_keyingset_free(KeyingSet *ks)
+void BKE_keyingset_free_paths(KeyingSet *ks)
 {
   KS_Path *ksp, *kspn;
 
@@ -281,11 +281,11 @@ void BKE_keyingsets_free(ListBase *list)
   }
 
   /* loop over KeyingSets freeing them
-   * - BKE_keyingset_free() doesn't free the set itself, but it frees its sub-data
+   * - BKE_keyingset_free_paths() doesn't free the set itself, but it frees its sub-data
    */
   for (ks = static_cast<KeyingSet *>(list->first); ks; ks = ksn) {
     ksn = ks->next;
-    BKE_keyingset_free(ks);
+    BKE_keyingset_free_paths(ks);
     BLI_freelinkN(list, ks);
   }
 }
@@ -604,7 +604,8 @@ static int animsys_quaternion_evaluate_fcurves(PathResolvedRNA quat_rna,
 
   int fcurve_offset = 0;
   for (; fcurve_offset < 4 && quat_curve_fcu;
-       ++fcurve_offset, quat_curve_fcu = quat_curve_fcu->next) {
+       ++fcurve_offset, quat_curve_fcu = quat_curve_fcu->next)
+  {
     if (!STREQ(quat_curve_fcu->rna_path, first_fcurve->rna_path)) {
       /* This should never happen when the quaternion is fully keyed. Some
        * people do use half-keyed quaternions, though, so better to check. */
@@ -1197,7 +1198,7 @@ static void nlaeval_snapshot_init(NlaEvalSnapshot *snapshot,
                                   NlaEvalSnapshot *base)
 {
   snapshot->base = base;
-  snapshot->size = MAX2(16, nlaeval->num_channels);
+  snapshot->size = std::max(16, nlaeval->num_channels);
   snapshot->channels = static_cast<NlaEvalChannelSnapshot **>(
       MEM_callocN(sizeof(*snapshot->channels) * snapshot->size, "NlaEvalSnapshot::channels"));
 }
@@ -3234,7 +3235,7 @@ static void animsys_create_action_track_strip(const AnimData *adt,
   /* Must set NLASTRIP_FLAG_USR_INFLUENCE, or else the default setting overrides, and influence
    * doesn't work.
    */
-  r_action_strip->flag |= NLASTRIP_FLAG_USR_INFLUENCE;
+  r_action_strip->flag |= NLASTRIP_FLAG_USR_INFLUENCE | NLASTRIP_FLAG_NO_TIME_MAP;
 
   const bool tweaking = (adt->flag & ADT_NLA_EDIT_ON) != 0;
   const bool soloing = (adt->flag & ADT_NLA_SOLO_TRACK) != 0;
@@ -3671,6 +3672,11 @@ void nlasnapshot_blend_get_inverted_lower_snapshot(NlaEvalData *eval_data,
 NlaKeyframingContext *BKE_animsys_get_nla_keyframing_context(
     ListBase *cache, PointerRNA *ptr, AnimData *adt, const AnimationEvalContext *anim_eval_context)
 {
+  /* The PointerRNA needs to point to an ID because animsys_evaluate_nla_for_keyframing uses
+   * F-Curve paths to resolve properties. Since F-Curve paths are always relative to the ID this
+   * would fail if the PointerRNA was e.g. a bone. */
+  BLI_assert(RNA_struct_is_ID(ptr->type));
+
   /* No remapping needed if NLA is off or no action. */
   if ((adt == nullptr) || (adt->action == nullptr) || (adt->nla_tracks.first == nullptr) ||
       (adt->flag & ADT_NLA_EVAL_OFF))
@@ -3709,13 +3715,13 @@ NlaKeyframingContext *BKE_animsys_get_nla_keyframing_context(
 void BKE_animsys_nla_remap_keyframe_values(NlaKeyframingContext *context,
                                            PointerRNA *prop_ptr,
                                            PropertyRNA *prop,
-                                           float *values,
-                                           int count,
+                                           const blender::MutableSpan<float> values,
                                            int index,
                                            const AnimationEvalContext *anim_eval_context,
                                            bool *r_force_all,
                                            BLI_bitmap *r_successful_remaps)
 {
+  const int count = values.size();
   BLI_bitmap_set_all(r_successful_remaps, false, count);
 
   if (r_force_all != nullptr) {
@@ -3782,7 +3788,7 @@ void BKE_animsys_nla_remap_keyframe_values(NlaKeyframingContext *context,
   }
 
   NlaEvalChannelSnapshot *blended_necs = nlaeval_snapshot_ensure_channel(&blended_snapshot, nec);
-  memcpy(blended_necs->values, values, sizeof(float) * count);
+  std::copy(values.begin(), values.end(), blended_necs->values);
 
   /* Force all channels to be remapped for quaternions in a Combine or Replace strip, otherwise it
    * will always fail. See nlaevalchan_combine_quaternion_handle_undefined_blend_values().

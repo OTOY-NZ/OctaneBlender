@@ -10,13 +10,15 @@
 
 #include "DNA_object_types.h"
 
-#include "BLI_array.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_vector.h"
+#include "BLI_math_vector.hh"
+#include "BLI_span.hh"
+#include "BLI_vector.hh"
 
-#include "BKE_context.h"
-#include "BKE_editmesh.h"
-#include "BKE_layer.h"
+#include "BKE_context.hh"
+#include "BKE_editmesh.hh"
+#include "BKE_layer.hh"
 #include "BKE_report.h"
 
 #include "BLT_translation.h"
@@ -31,10 +33,15 @@
 #include "ED_transform.hh"
 #include "ED_view3d.hh"
 
-#include "bmesh.h"
-#include "bmesh_tools.h"
+#include "bmesh.hh"
+#include "bmesh_tools.hh"
 
-#include "mesh_intern.h" /* own include */
+#include "mesh_intern.hh" /* own include */
+
+using blender::float2;
+using blender::float3;
+using blender::Span;
+using blender::Vector;
 
 /* -------------------------------------------------------------------- */
 /** \name Local Utilities
@@ -49,16 +56,15 @@
  */
 #define INSET_DEFAULT 0.00001f
 static float edbm_rip_edgedist_squared(ARegion *region,
-                                       float mat[4][4],
+                                       const blender::float4x4 &mat,
                                        const float co1[3],
                                        const float co2[3],
                                        const float mvalf[2],
                                        const float inset)
 {
-  float vec1[2], vec2[2], dist_sq;
 
-  ED_view3d_project_float_v2_m4(region, co1, vec1, mat);
-  ED_view3d_project_float_v2_m4(region, co2, vec2, mat);
+  float2 vec1 = ED_view3d_project_float_v2_m4(region, co1, mat);
+  float2 vec2 = ED_view3d_project_float_v2_m4(region, co2, mat);
 
   if (inset != 0.0f) {
     const float dist_2d = len_v2v2(vec1, vec2);
@@ -70,7 +76,7 @@ static float edbm_rip_edgedist_squared(ARegion *region,
     }
   }
 
-  dist_sq = dist_squared_to_line_segment_v2(mvalf, vec1, vec2);
+  const float dist_sq = dist_squared_to_line_segment_v2(mvalf, vec1, vec2);
   BLI_assert(isfinite(dist_sq));
 
   return dist_sq;
@@ -103,14 +109,14 @@ static void edbm_calc_loop_co(BMLoop *l, float l_mid_co[3])
   add_v3_v3(l_mid_co, l->v->co);
 }
 
-static float edbm_rip_edge_side_measure(
-    BMEdge *e, BMLoop *e_l, ARegion *region, float projectMat[4][4], const float fmval[2])
+static float edbm_rip_edge_side_measure(BMEdge *e,
+                                        BMLoop *e_l,
+                                        ARegion *region,
+                                        const blender::float4x4 &projectMat,
+                                        const float fmval[2])
 {
-  float cent[3] = {0, 0, 0}, mid[3];
-
   float vec[2];
   float fmval_tweak[2];
-  float e_v1_co[2], e_v2_co[2];
   float score;
 
   BMVert *v1_other;
@@ -128,14 +134,14 @@ static float edbm_rip_edge_side_measure(
    * both edge verts connected to this one */
   v1_other = BM_face_other_vert_loop(e_l->f, e->v2, e->v1)->v;
   v2_other = BM_face_other_vert_loop(e_l->f, e->v1, e->v2)->v;
-  mid_v3_v3v3(cent, v1_other->co, v2_other->co);
-  mid_v3_v3v3(mid, e->v1->co, e->v2->co);
 
-  ED_view3d_project_float_v2_m4(region, cent, cent, projectMat);
-  ED_view3d_project_float_v2_m4(region, mid, mid, projectMat);
+  float2 cent = ED_view3d_project_float_v2_m4(
+      region, blender::math::midpoint(float3(v1_other->co), float3(v2_other->co)), projectMat);
+  float2 mid = ED_view3d_project_float_v2_m4(
+      region, blender::math::midpoint(float3(e->v1->co), float3(e->v2->co)), projectMat);
 
-  ED_view3d_project_float_v2_m4(region, e->v1->co, e_v1_co, projectMat);
-  ED_view3d_project_float_v2_m4(region, e->v2->co, e_v2_co, projectMat);
+  float2 e_v1_co = ED_view3d_project_float_v2_m4(region, e->v1->co, projectMat);
+  float2 e_v2_co = ED_view3d_project_float_v2_m4(region, e->v2->co, projectMat);
 
   sub_v2_v2v2(vec, cent, mid);
   normalize_v2_length(vec, 0.01f);
@@ -221,7 +227,7 @@ struct EdgeLoopPair {
   BMLoop *l_b;
 };
 
-static EdgeLoopPair *edbm_ripsel_looptag_helper(BMesh *bm)
+static Vector<EdgeLoopPair> edbm_ripsel_looptag_helper(BMesh *bm)
 {
   BMIter fiter;
   BMIter liter;
@@ -233,10 +239,6 @@ static EdgeLoopPair *edbm_ripsel_looptag_helper(BMesh *bm)
   int uid_end;
   int uid = bm->totedge; /* can start anywhere */
 
-  EdgeLoopPair *eloop_pairs = nullptr;
-  BLI_array_declare(eloop_pairs);
-  EdgeLoopPair *lp;
-
   /* initialize loops with dummy invalid index values */
   BM_ITER_MESH (f, &fiter, bm, BM_FACES_OF_MESH) {
     BM_ITER_ELEM (l, &liter, f, BM_LOOPS_OF_FACE) {
@@ -244,6 +246,8 @@ static EdgeLoopPair *edbm_ripsel_looptag_helper(BMesh *bm)
     }
   }
   bm->elem_index_dirty |= BM_LOOP;
+
+  Vector<EdgeLoopPair> eloop_pairs;
 
   /* set contiguous loops ordered 'uid' values for walking after split */
   while (true) {
@@ -299,9 +303,10 @@ static EdgeLoopPair *edbm_ripsel_looptag_helper(BMesh *bm)
     uid_start = uid;
     uid = uid_end + bm->totedge;
 
-    lp = BLI_array_append_ret(eloop_pairs);
     /* no need to check, we know this will be true */
-    BM_edge_loop_pair(e_last, &lp->l_a, &lp->l_b);
+    EdgeLoopPair lp;
+    BM_edge_loop_pair(e_last, &lp.l_a, &lp.l_b);
+    eloop_pairs.append(lp);
 
     BLI_assert(tot == uid_end - uid_start);
     UNUSED_VARS_NDEBUG(tot);
@@ -310,10 +315,6 @@ static EdgeLoopPair *edbm_ripsel_looptag_helper(BMesh *bm)
     printf("%s: found contiguous edge loop of (%d)\n", __func__, uid_end - uid_start);
 #endif
   }
-
-  /* null terminate */
-  lp = BLI_array_append_ret(eloop_pairs);
-  lp->l_a = lp->l_b = nullptr;
 
   return eloop_pairs;
 }
@@ -348,32 +349,30 @@ static BMVert *edbm_ripsel_edloop_pair_start_vert(BMEdge *e)
 }
 
 static void edbm_ripsel_deselect_helper(BMesh *bm,
-                                        EdgeLoopPair *eloop_pairs,
+                                        const Span<EdgeLoopPair> eloop_pairs,
                                         ARegion *region,
-                                        float projectMat[4][4],
+                                        const blender::float4x4 &projectMat,
                                         const float fmval[2])
 {
-  EdgeLoopPair *lp;
-
-  for (lp = eloop_pairs; lp->l_a; lp++) {
+  for (const EdgeLoopPair &lp : eloop_pairs) {
     BMEdge *e;
     BMVert *v_prev;
 
     float score_a = 0.0f;
     float score_b = 0.0f;
 
-    e = lp->l_a->e;
+    e = lp.l_a->e;
     v_prev = edbm_ripsel_edloop_pair_start_vert(e);
     for (; e; e = edbm_ripsel_edge_uid_step(e, &v_prev)) {
       score_a += edbm_rip_edge_side_measure(e, e->l, region, projectMat, fmval);
     }
-    e = lp->l_b->e;
+    e = lp.l_b->e;
     v_prev = edbm_ripsel_edloop_pair_start_vert(e);
     for (; e; e = edbm_ripsel_edge_uid_step(e, &v_prev)) {
       score_b += edbm_rip_edge_side_measure(e, e->l, region, projectMat, fmval);
     }
 
-    e = (score_a > score_b) ? lp->l_a->e : lp->l_b->e;
+    e = (score_a > score_b) ? lp.l_a->e : lp.l_b->e;
     v_prev = edbm_ripsel_edloop_pair_start_vert(e);
     for (; e; e = edbm_ripsel_edge_uid_step(e, &v_prev)) {
       BM_edge_select_set(bm, e, false);
@@ -468,10 +467,10 @@ static void edbm_tagged_loop_pairs_do_fill_faces(BMesh *bm, UnorderedLoopPair *u
         f_verts[3] = ulp->l_pair[0]->e->v2;
 
         if (ulp->flag & ULP_FLIP_0) {
-          SWAP(BMVert *, f_verts[0], f_verts[3]);
+          std::swap(f_verts[0], f_verts[3]);
         }
         if (ulp->flag & ULP_FLIP_1) {
-          SWAP(BMVert *, f_verts[1], f_verts[2]);
+          std::swap(f_verts[1], f_verts[2]);
         }
       }
       else {
@@ -483,7 +482,7 @@ static void edbm_tagged_loop_pairs_do_fill_faces(BMesh *bm, UnorderedLoopPair *u
 
         /* don't use the flip flags */
         if (v_shared == ulp->l_pair[0]->v) {
-          SWAP(BMVert *, f_verts[0], f_verts[1]);
+          std::swap(f_verts[0], f_verts[1]);
         }
       }
 
@@ -495,20 +494,20 @@ static void edbm_tagged_loop_pairs_do_fill_faces(BMesh *bm, UnorderedLoopPair *u
       l_iter = BM_FACE_FIRST_LOOP(f);
 
       if (f_verts[3]) {
-        BM_elem_attrs_copy(bm, bm, BM_edge_other_loop(ulp->l_pair[0]->e, l_iter), l_iter);
+        BM_elem_attrs_copy(bm, BM_edge_other_loop(ulp->l_pair[0]->e, l_iter), l_iter);
         l_iter = l_iter->next;
-        BM_elem_attrs_copy(bm, bm, BM_edge_other_loop(ulp->l_pair[1]->e, l_iter), l_iter);
+        BM_elem_attrs_copy(bm, BM_edge_other_loop(ulp->l_pair[1]->e, l_iter), l_iter);
         l_iter = l_iter->next;
-        BM_elem_attrs_copy(bm, bm, BM_edge_other_loop(ulp->l_pair[1]->e, l_iter), l_iter);
+        BM_elem_attrs_copy(bm, BM_edge_other_loop(ulp->l_pair[1]->e, l_iter), l_iter);
         l_iter = l_iter->next;
-        BM_elem_attrs_copy(bm, bm, BM_edge_other_loop(ulp->l_pair[0]->e, l_iter), l_iter);
+        BM_elem_attrs_copy(bm, BM_edge_other_loop(ulp->l_pair[0]->e, l_iter), l_iter);
       }
       else {
-        BM_elem_attrs_copy(bm, bm, BM_edge_other_loop(ulp->l_pair[0]->e, l_iter), l_iter);
+        BM_elem_attrs_copy(bm, BM_edge_other_loop(ulp->l_pair[0]->e, l_iter), l_iter);
         l_iter = l_iter->next;
-        BM_elem_attrs_copy(bm, bm, BM_edge_other_loop(ulp->l_pair[0]->e, l_iter), l_iter);
+        BM_elem_attrs_copy(bm, BM_edge_other_loop(ulp->l_pair[0]->e, l_iter), l_iter);
         l_iter = l_iter->next;
-        BM_elem_attrs_copy(bm, bm, BM_edge_other_loop(ulp->l_pair[1]->e, l_iter), l_iter);
+        BM_elem_attrs_copy(bm, BM_edge_other_loop(ulp->l_pair[1]->e, l_iter), l_iter);
       }
     }
   }
@@ -536,7 +535,7 @@ static int edbm_rip_invoke__vert(bContext *C, const wmEvent *event, Object *obed
   BMVert *v;
   const int totvert_orig = bm->totvert;
   int i;
-  float projectMat[4][4], fmval[3] = {float(event->mval[0]), float(event->mval[1])};
+  float fmval[3] = {float(event->mval[0]), float(event->mval[1])};
   float dist_sq = FLT_MAX;
   float d;
   bool is_wire, is_manifold_region;
@@ -544,7 +543,7 @@ static int edbm_rip_invoke__vert(bContext *C, const wmEvent *event, Object *obed
   BMEditSelection ese;
   int totboundary_edge = 0;
 
-  ED_view3d_ob_project_mat_get(rv3d, obedit, projectMat);
+  const blender::float4x4 projectMat = ED_view3d_ob_project_mat_get(rv3d, obedit);
 
   /* find selected vert - same some time and check history first */
   if (BM_select_history_active_get(bm, &ese) && ese.htype == BM_VERT) {
@@ -725,7 +724,7 @@ static int edbm_rip_invoke__vert(bContext *C, const wmEvent *event, Object *obed
      * vout[2+] == splice with glue (when vout_len > 2)
      */
     if (vi_best != 0) {
-      SWAP(BMVert *, vout[0], vout[vi_best]);
+      std::swap(vout[0], vout[vi_best]);
       vi_best = 0;
     }
 
@@ -806,7 +805,8 @@ static int edbm_rip_invoke__vert(bContext *C, const wmEvent *event, Object *obed
         } while ((l_iter = l_iter->radial_next) != l_first);
       }
       else {
-        /* looks like there are no split edges, we could just return/report-error? - Campbell */
+        /* NOTE(@ideasman42): It looks like there are no split edges,
+         * we could just return/report-error? */
       }
     }
 
@@ -901,14 +901,12 @@ static int edbm_rip_invoke__edge(bContext *C, const wmEvent *event, Object *obed
   BMVert *v;
   const int totvert_orig = bm->totvert;
   const int totedge_orig = bm->totedge;
-  float projectMat[4][4], fmval[3] = {float(event->mval[0]), float(event->mval[1])};
+  float fmval[3] = {float(event->mval[0]), float(event->mval[1])};
 
-  EdgeLoopPair *eloop_pairs;
-
-  ED_view3d_ob_project_mat_get(rv3d, obedit, projectMat);
+  const blender::float4x4 projectMat = ED_view3d_ob_project_mat_get(rv3d, obedit);
 
   /* important this runs on the original selection, before tampering with tagging */
-  eloop_pairs = edbm_ripsel_looptag_helper(bm);
+  Vector<EdgeLoopPair> eloop_pairs = edbm_ripsel_looptag_helper(bm);
 
   /* expand edge selection */
   BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
@@ -998,7 +996,6 @@ static int edbm_rip_invoke__edge(bContext *C, const wmEvent *event, Object *obed
    * as expected (but not crash), however there are checks to ensure
    * tagged edges will split. So far its not been an issue. */
   edbm_ripsel_deselect_helper(bm, eloop_pairs, region, projectMat, fmval);
-  MEM_freeN(eloop_pairs);
 
   /* deselect loose verts */
   BM_mesh_select_mode_clean_ex(bm, SCE_SELECT_EDGE);
@@ -1028,9 +1025,8 @@ static int edbm_rip_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  uint objects_len = 0;
-  Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C), &objects_len);
+  const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
+      scene, view_layer, CTX_wm_view3d(C));
   const bool do_fill = RNA_boolean_get(op->ptr, "use_fill");
 
   bool no_vertex_selected = true;
@@ -1038,8 +1034,7 @@ static int edbm_rip_invoke(bContext *C, wmOperator *op, const wmEvent *event)
   bool error_disconnected_vertices = true;
   bool error_rip_failed = true;
 
-  for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
-    Object *obedit = objects[ob_index];
+  for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
 
     BMesh *bm = em->bm;
@@ -1107,13 +1102,11 @@ static int edbm_rip_invoke(bContext *C, wmOperator *op, const wmEvent *event)
     error_rip_failed = false;
 
     EDBMUpdate_Params params{};
-    params.calc_looptri = true;
+    params.calc_looptris = true;
     params.calc_normals = true;
     params.is_destructive = true;
     EDBM_update(static_cast<Mesh *>(obedit->data), &params);
   }
-
-  MEM_freeN(objects);
 
   if (no_vertex_selected) {
     /* Ignore it. */

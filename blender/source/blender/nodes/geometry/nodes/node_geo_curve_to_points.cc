@@ -9,7 +9,10 @@
 
 #include "DNA_pointcloud_types.h"
 
-#include "BKE_pointcloud.h"
+#include "BKE_customdata.hh"
+#include "BKE_grease_pencil.hh"
+#include "BKE_instances.hh"
+#include "BKE_pointcloud.hh"
 
 #include "GEO_resample_curves.hh"
 
@@ -26,12 +29,13 @@ NODE_STORAGE_FUNCS(NodeGeometryCurveToPoints)
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>("Curve").supported_type(GeometryComponent::Type::Curve);
+  b.add_input<decl::Geometry>("Curve").supported_type(
+      {GeometryComponent::Type::Curve, GeometryComponent::Type::GreasePencil});
   b.add_input<decl::Int>("Count")
       .default_value(10)
       .min(2)
-      .field_on_all()
       .max(100000)
+      .field_on_all()
       .make_available(
           [](bNode &node) { node_storage(node).mode = GEO_NODE_CURVE_RESAMPLE_COUNT; });
   b.add_input<decl::Float>("Length")
@@ -91,14 +95,14 @@ static void copy_curve_domain_attributes(const AttributeAccessor curve_attribute
         if (curve_attributes.is_builtin(id)) {
           return true;
         }
-        if (meta_data.domain != ATTR_DOMAIN_CURVE) {
+        if (meta_data.domain != AttrDomain::Curve) {
           return true;
         }
         point_attributes.add(
             id,
-            ATTR_DOMAIN_POINT,
+            AttrDomain::Point,
             meta_data.data_type,
-            bke::AttributeInitVArray(*curve_attributes.lookup(id, ATTR_DOMAIN_POINT)));
+            bke::AttributeInitVArray(*curve_attributes.lookup(id, AttrDomain::Point)));
         return true;
       });
 }
@@ -113,10 +117,10 @@ static PointCloud *pointcloud_from_curves(bke::CurvesGeometry curves,
 
   if (rotation_id) {
     MutableAttributeAccessor attributes = curves.attributes_for_write();
-    const VArraySpan tangents = *attributes.lookup<float3>(tangent_id, ATTR_DOMAIN_POINT);
-    const VArraySpan normals = *attributes.lookup<float3>(normal_id, ATTR_DOMAIN_POINT);
+    const VArraySpan tangents = *attributes.lookup<float3>(tangent_id, AttrDomain::Point);
+    const VArraySpan normals = *attributes.lookup<float3>(normal_id, AttrDomain::Point);
     SpanAttributeWriter<float3> rotations = attributes.lookup_or_add_for_write_only_span<float3>(
-        rotation_id, ATTR_DOMAIN_POINT);
+        rotation_id, AttrDomain::Point);
     fill_rotation_attribute(tangents, normals, rotations.span);
     rotations.finish();
   }
@@ -131,34 +135,25 @@ static PointCloud *pointcloud_from_curves(bke::CurvesGeometry curves,
   return pointcloud;
 }
 
-static void node_geo_exec(GeoNodeExecParams params)
+static void curve_to_points(GeometrySet &geometry_set,
+                            GeoNodeExecParams params,
+                            const GeometryNodeCurveResampleMode mode,
+                            geometry::ResampleCurvesOutputAttributeIDs resample_attributes,
+                            AnonymousAttributeIDPtr rotation_anonymous_id)
 {
-  const NodeGeometryCurveToPoints &storage = node_storage(params.node());
-  const GeometryNodeCurveResampleMode mode = (GeometryNodeCurveResampleMode)storage.mode;
-  GeometrySet geometry_set = params.extract_input<GeometrySet>("Curve");
-
-  GeometryComponentEditData::remember_deformed_curve_positions_if_necessary(geometry_set);
-
-  AnonymousAttributeIDPtr rotation_anonymous_id =
-      params.get_output_anonymous_attribute_id_if_needed("Rotation");
-  const bool need_tangent_and_normal = bool(rotation_anonymous_id);
-  AnonymousAttributeIDPtr tangent_anonymous_id =
-      params.get_output_anonymous_attribute_id_if_needed("Tangent", need_tangent_and_normal);
-  AnonymousAttributeIDPtr normal_anonymous_id = params.get_output_anonymous_attribute_id_if_needed(
-      "Normal", need_tangent_and_normal);
-
-  geometry::ResampleCurvesOutputAttributeIDs resample_attributes;
-  resample_attributes.tangent_id = tangent_anonymous_id.get();
-  resample_attributes.normal_id = normal_anonymous_id.get();
-
   switch (mode) {
     case GEO_NODE_CURVE_RESAMPLE_COUNT: {
       Field<int> count = params.extract_input<Field<int>>("Count");
       geometry_set.modify_geometry_sets([&](GeometrySet &geometry) {
         if (const Curves *src_curves_id = geometry.get_curves()) {
           const bke::CurvesGeometry &src_curves = src_curves_id->geometry.wrap();
+          const bke::CurvesFieldContext field_context{src_curves, AttrDomain::Curve};
           bke::CurvesGeometry dst_curves = geometry::resample_to_count(
-              src_curves, fn::make_constant_field<bool>(true), count, resample_attributes);
+              src_curves,
+              field_context,
+              fn::make_constant_field<bool>(true),
+              count,
+              resample_attributes);
           PointCloud *pointcloud = pointcloud_from_curves(std::move(dst_curves),
                                                           resample_attributes.tangent_id,
                                                           resample_attributes.normal_id,
@@ -174,8 +169,13 @@ static void node_geo_exec(GeoNodeExecParams params)
       geometry_set.modify_geometry_sets([&](GeometrySet &geometry) {
         if (const Curves *src_curves_id = geometry.get_curves()) {
           const bke::CurvesGeometry &src_curves = src_curves_id->geometry.wrap();
+          const bke::CurvesFieldContext field_context{src_curves, AttrDomain::Curve};
           bke::CurvesGeometry dst_curves = geometry::resample_to_length(
-              src_curves, fn::make_constant_field<bool>(true), length, resample_attributes);
+              src_curves,
+              field_context,
+              fn::make_constant_field<bool>(true),
+              length,
+              resample_attributes);
           PointCloud *pointcloud = pointcloud_from_curves(std::move(dst_curves),
                                                           resample_attributes.tangent_id,
                                                           resample_attributes.normal_id,
@@ -186,12 +186,13 @@ static void node_geo_exec(GeoNodeExecParams params)
       });
       break;
     }
-    case GEO_NODE_CURVE_RESAMPLE_EVALUATED:
+    case GEO_NODE_CURVE_RESAMPLE_EVALUATED: {
       geometry_set.modify_geometry_sets([&](GeometrySet &geometry) {
         if (const Curves *src_curves_id = geometry.get_curves()) {
           const bke::CurvesGeometry &src_curves = src_curves_id->geometry.wrap();
+          const bke::CurvesFieldContext field_context{src_curves, AttrDomain::Curve};
           bke::CurvesGeometry dst_curves = geometry::resample_to_evaluated(
-              src_curves, fn::make_constant_field<bool>(true), resample_attributes);
+              src_curves, field_context, fn::make_constant_field<bool>(true), resample_attributes);
           PointCloud *pointcloud = pointcloud_from_curves(std::move(dst_curves),
                                                           resample_attributes.tangent_id,
                                                           resample_attributes.normal_id,
@@ -201,6 +202,135 @@ static void node_geo_exec(GeoNodeExecParams params)
         }
       });
       break;
+    }
+  }
+}
+
+static void grease_pencil_to_points(GeometrySet &geometry_set,
+                                    GeoNodeExecParams params,
+                                    const GeometryNodeCurveResampleMode mode,
+                                    geometry::ResampleCurvesOutputAttributeIDs resample_attributes,
+                                    AnonymousAttributeIDPtr rotation_anonymous_id,
+                                    const AnonymousAttributePropagationInfo &propagation_info)
+{
+  Field<int> count;
+  Field<float> length;
+
+  switch (mode) {
+    case GEO_NODE_CURVE_RESAMPLE_COUNT:
+      count = params.extract_input<Field<int>>("Count");
+      break;
+    case GEO_NODE_CURVE_RESAMPLE_LENGTH:
+      length = params.extract_input<Field<float>>("Length");
+      break;
+    case GEO_NODE_CURVE_RESAMPLE_EVALUATED:
+      break;
+  }
+
+  geometry_set.modify_geometry_sets([&](GeometrySet &geometry) {
+    using namespace blender::bke::greasepencil;
+    if (geometry.has_grease_pencil()) {
+      const GreasePencil &grease_pencil = *geometry.get_grease_pencil();
+      Vector<PointCloud *> pointcloud_by_layer(grease_pencil.layers().size(), nullptr);
+      for (const int layer_index : grease_pencil.layers().index_range()) {
+        const Drawing *drawing = get_eval_grease_pencil_layer_drawing(grease_pencil, layer_index);
+        if (drawing == nullptr) {
+          continue;
+        }
+        const bke::CurvesGeometry &src_curves = drawing->strokes();
+        bke::GreasePencilLayerFieldContext field_context(
+            grease_pencil, AttrDomain::Curve, layer_index);
+
+        bke::CurvesGeometry dst_curves;
+        switch (mode) {
+          case GEO_NODE_CURVE_RESAMPLE_COUNT: {
+            dst_curves = geometry::resample_to_count(src_curves,
+                                                     field_context,
+                                                     fn::make_constant_field<bool>(true),
+                                                     count,
+                                                     resample_attributes);
+            break;
+          }
+          case GEO_NODE_CURVE_RESAMPLE_LENGTH: {
+            dst_curves = geometry::resample_to_length(src_curves,
+                                                      field_context,
+                                                      fn::make_constant_field<bool>(true),
+                                                      length,
+                                                      resample_attributes);
+            break;
+          }
+          case GEO_NODE_CURVE_RESAMPLE_EVALUATED: {
+            dst_curves = geometry::resample_to_evaluated(src_curves,
+                                                         field_context,
+                                                         fn::make_constant_field<bool>(true),
+                                                         resample_attributes);
+            break;
+          }
+        }
+        pointcloud_by_layer[layer_index] = pointcloud_from_curves(std::move(dst_curves),
+                                                                  resample_attributes.tangent_id,
+                                                                  resample_attributes.normal_id,
+                                                                  rotation_anonymous_id.get());
+      }
+      if (!pointcloud_by_layer.is_empty()) {
+        InstancesComponent &instances_component =
+            geometry_set.get_component_for_write<InstancesComponent>();
+        bke::Instances *instances = instances_component.get_for_write();
+        if (instances == nullptr) {
+          instances = new bke::Instances();
+          instances_component.replace(instances);
+        }
+        for (PointCloud *pointcloud : pointcloud_by_layer) {
+          if (!pointcloud) {
+            /* Add an empty reference so the number of layers and instances match.
+             * This makes it easy to reconstruct the layers afterwards and keep their
+             * attributes. */
+            const int handle = instances->add_reference(bke::InstanceReference());
+            instances->add_instance(handle, float4x4::identity());
+            continue;
+          }
+          GeometrySet temp_set = GeometrySet::from_pointcloud(pointcloud);
+          const int handle = instances->add_reference(bke::InstanceReference{temp_set});
+          instances->add_instance(handle, float4x4::identity());
+        }
+        GeometrySet::propagate_attributes_from_layer_to_instances(
+            geometry.get_grease_pencil()->attributes(),
+            geometry.get_instances_for_write()->attributes_for_write(),
+            propagation_info);
+      }
+    }
+  });
+  geometry_set.replace_grease_pencil(nullptr);
+}
+
+static void node_geo_exec(GeoNodeExecParams params)
+{
+  const NodeGeometryCurveToPoints &storage = node_storage(params.node());
+  const GeometryNodeCurveResampleMode mode = (GeometryNodeCurveResampleMode)storage.mode;
+  GeometrySet geometry_set = params.extract_input<GeometrySet>("Curve");
+
+  GeometryComponentEditData::remember_deformed_positions_if_necessary(geometry_set);
+
+  AnonymousAttributeIDPtr rotation_anonymous_id =
+      params.get_output_anonymous_attribute_id_if_needed("Rotation");
+  const bool need_tangent_and_normal = bool(rotation_anonymous_id);
+  AnonymousAttributeIDPtr tangent_anonymous_id =
+      params.get_output_anonymous_attribute_id_if_needed("Tangent", need_tangent_and_normal);
+  AnonymousAttributeIDPtr normal_anonymous_id = params.get_output_anonymous_attribute_id_if_needed(
+      "Normal", need_tangent_and_normal);
+
+  geometry::ResampleCurvesOutputAttributeIDs resample_attributes;
+  resample_attributes.tangent_id = tangent_anonymous_id.get();
+  resample_attributes.normal_id = normal_anonymous_id.get();
+  const AnonymousAttributePropagationInfo &propagation_info = params.get_output_propagation_info(
+      "Points");
+
+  if (geometry_set.has_curves()) {
+    curve_to_points(geometry_set, params, mode, resample_attributes, rotation_anonymous_id);
+  }
+  if (geometry_set.has_grease_pencil()) {
+    grease_pencil_to_points(
+        geometry_set, params, mode, resample_attributes, rotation_anonymous_id, propagation_info);
   }
 
   params.set_output("Points", std::move(geometry_set));
@@ -214,7 +344,7 @@ static void node_rna(StructRNA *srna)
        0,
        "Evaluated",
        "Create points from the curve's evaluated points, based on the resolution attribute for "
-       "NURBS and Bezier splines"},
+       "NURBS and Bézier splines"},
       {GEO_NODE_CURVE_RESAMPLE_COUNT,
        "COUNT",
        0,

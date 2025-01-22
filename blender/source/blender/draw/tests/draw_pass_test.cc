@@ -8,7 +8,7 @@
 
 #include "draw_manager.hh"
 #include "draw_pass.hh"
-#include "draw_shader.h"
+#include "draw_shader.hh"
 #include "draw_testing.hh"
 
 #include <bitset>
@@ -29,6 +29,7 @@ static void test_draw_pass_all_commands()
   /* Won't be dereferenced. */
   GPUVertBuf *vbo = (GPUVertBuf *)1;
   GPUIndexBuf *ibo = (GPUIndexBuf *)1;
+  GPUFrameBuffer *fb = nullptr;
 
   float4 color(1.0f, 1.0f, 1.0f, 0.0f);
   int3 dispatch_size(1);
@@ -42,6 +43,8 @@ static void test_draw_pass_all_commands()
   const int color_location = GPU_shader_get_uniform(sh, "color");
   const int mvp_location = GPU_shader_get_uniform(sh, "ModelViewProjectionMatrix");
   pass.shader_set(sh);
+  pass.framebuffer_set(&fb);
+  pass.subpass_transition(GPU_ATTACHEMENT_IGNORE, {GPU_ATTACHEMENT_WRITE, GPU_ATTACHEMENT_READ});
   pass.bind_texture("image", tex);
   pass.bind_texture("image", &tex);
   pass.bind_image("missing_image", tex);       /* Should not crash. */
@@ -80,6 +83,18 @@ static void test_draw_pass_all_commands()
       << "  .stencil_set(write_mask=0b10000000, reference=0b00001111, compare_mask=0b10001111)"
       << std::endl;
   expected << "  .shader_bind(gpu_shader_3D_image_color)" << std::endl;
+  expected << "  .framebuffer_bind(nullptr)" << std::endl;
+  expected << "  .subpass_transition(" << std::endl;
+  expected << "depth=ignore," << std::endl;
+  expected << "color0=write," << std::endl;
+  expected << "color1=read," << std::endl;
+  expected << "color2=ignore," << std::endl;
+  expected << "color3=ignore," << std::endl;
+  expected << "color4=ignore," << std::endl;
+  expected << "color5=ignore," << std::endl;
+  expected << "color6=ignore," << std::endl;
+  expected << "color7=ignore" << std::endl;
+  expected << ")" << std::endl;
   expected << "  .bind_texture(0, sampler=internal)" << std::endl;
   expected << "  .bind_texture_ref(0, sampler=internal)" << std::endl;
   expected << "  .bind_image(-1)" << std::endl;
@@ -289,13 +304,12 @@ static void test_draw_resource_id_gen()
   drw.resource_handle(obmat_2, float3(2), float3(1));
   drw.end_sync();
 
-  StringRefNull expected = "2 1 1 1 1 3 3 1 1 1 1 1 3 2 2 2 2 2 2 1 1 1 ";
-
   {
     /* Computed on CPU. */
     PassSimple pass = {"test.resource_id"};
     pass.init();
-    pass.shader_set(GPU_shader_get_builtin_shader(GPU_SHADER_3D_IMAGE_COLOR));
+    pass.shader_set(
+        GPU_shader_get_builtin_shader(GPU_SHADER_3D_POINT_UNIFORM_SIZE_UNIFORM_COLOR_AA));
     pass.draw_procedural(GPU_PRIM_TRIS, 1, -1, -1, handle2);
     pass.draw_procedural(GPU_PRIM_POINTS, 4, -1, -1, handle1);
     pass.draw_procedural(GPU_PRIM_TRIS, 2, -1, -1, handle3);
@@ -311,13 +325,16 @@ static void test_draw_resource_id_gen()
       result << val << " ";
     }
 
-    EXPECT_EQ(result.str(), expected);
+    StringRefNull expected_simple = "2 1 1 1 1 3 3 1 1 1 1 1 3 2 2 2 2 2 2 1 1 1 ";
+    EXPECT_EQ(result.str(), expected_simple);
   }
+
   {
     /* Same thing with PassMain (computed on GPU) */
-    PassSimple pass = {"test.resource_id"};
+    PassMain pass = {"test.resource_id"};
     pass.init();
-    pass.shader_set(GPU_shader_get_builtin_shader(GPU_SHADER_3D_IMAGE_COLOR));
+    pass.shader_set(
+        GPU_shader_get_builtin_shader(GPU_SHADER_3D_POINT_UNIFORM_SIZE_UNIFORM_COLOR_AA));
     pass.draw_procedural(GPU_PRIM_TRIS, 1, -1, -1, handle2);
     pass.draw_procedural(GPU_PRIM_POINTS, 4, -1, -1, handle1);
     pass.draw_procedural(GPU_PRIM_TRIS, 2, -1, -1, handle3);
@@ -333,7 +350,11 @@ static void test_draw_resource_id_gen()
       result << val << " ";
     }
 
-    EXPECT_EQ(result.str(), expected);
+    /* When using PassMain the handles are sorted based on their handles and GPUBatches. Different
+     * primitives use different batches.
+     */
+    StringRefNull expected_main = "2 3 3 1 1 1 1 1 1 1 1 1 1 1 1 2 2 2 2 2 2 3 ";
+    EXPECT_EQ(result.str(), expected_main);
   }
 
   GPU_render_end();

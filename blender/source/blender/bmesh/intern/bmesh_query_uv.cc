@@ -16,12 +16,10 @@
 #include "BLI_utildefines_stack.h"
 
 #include "BKE_attribute.hh"
-#include "BKE_customdata.h"
+#include "BKE_customdata.hh"
 
-#include "DNA_meshdata_types.h"
-
-#include "bmesh.h"
-#include "intern/bmesh_private.h"
+#include "bmesh.hh"
+#include "intern/bmesh_private.hh"
 
 BMUVOffsets BM_uv_map_get_offsets_from_layer(const BMesh *bm, const int layer)
 {
@@ -208,6 +206,5 @@ bool BM_face_uv_point_inside_test(const BMFace *f, const float co[2], const int 
     projverts[i] = BM_ELEM_CD_GET_FLOAT2_P(l_iter, cd_loop_uv_offset);
   }
 
-  return isect_point_poly_v2(
-      co, reinterpret_cast<const float(*)[2]>(projverts.data()), f->len, false);
+  return isect_point_poly_v2(co, reinterpret_cast<const float(*)[2]>(projverts.data()), f->len);
 }

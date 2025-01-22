@@ -22,18 +22,21 @@
 #include "BLI_easing.h"
 #include "BLI_ghash.h"
 #include "BLI_math_vector.h"
+#include "BLI_math_vector_types.hh"
 #include "BLI_sort_utils.h"
-#include "BLI_string_utils.h"
+#include "BLI_string_utils.hh"
+
+#include "BLT_translation.h"
 
 #include "BKE_anim_data.h"
 #include "BKE_animsys.h"
-#include "BKE_context.h"
-#include "BKE_curve.h"
+#include "BKE_context.hh"
+#include "BKE_curve.hh"
 #include "BKE_fcurve.h"
 #include "BKE_fcurve_driver.h"
 #include "BKE_global.h"
 #include "BKE_idprop.h"
-#include "BKE_lib_query.h"
+#include "BKE_lib_query.hh"
 #include "BKE_nla.h"
 
 #include "BLO_read_write.hh"
@@ -168,7 +171,7 @@ void BKE_fmodifier_name_set(FModifier *fcm, const char *name)
    * Ensure the name is unique. */
   const FModifierTypeInfo *fmi = get_fmodifier_typeinfo(fcm->type);
   ListBase list = BLI_listbase_from_link((Link *)fcm);
-  BLI_uniquename(&list, fcm, fmi->name, '.', offsetof(FModifier, name), sizeof(fcm->name));
+  BLI_uniquename(&list, fcm, DATA_(fmi->name), '.', offsetof(FModifier, name), sizeof(fcm->name));
 }
 
 void BKE_fmodifiers_foreach_id(ListBase *fmodifiers, LibraryForeachIDData *data)
@@ -237,23 +240,22 @@ FCurve *id_data_find_fcurve(
     return nullptr;
   }
 
-  char *path = RNA_path_from_ID_to_property(&ptr, prop);
-  if (path == nullptr) {
+  const std::optional<std::string> path = RNA_path_from_ID_to_property(&ptr, prop);
+  if (!path) {
     return nullptr;
   }
 
   /* FIXME: The way drivers are handled here (always nullptr-ifying `fcu`) is very weird, this
    * needs to be re-checked I think?. */
   bool is_driven = false;
-  FCurve *fcu = BKE_animadata_fcurve_find_by_rna_path(adt, path, index, nullptr, &is_driven);
+  FCurve *fcu = BKE_animadata_fcurve_find_by_rna_path(
+      adt, path->c_str(), index, nullptr, &is_driven);
   if (is_driven) {
     if (r_driven != nullptr) {
       *r_driven = is_driven;
     }
     fcu = nullptr;
   }
-
-  MEM_freeN(path);
 
   return fcu;
 }
@@ -453,19 +455,19 @@ FCurve *BKE_fcurve_find_by_rna_context_ui(bContext * /*C*/,
   }
 
   /* XXX This function call can become a performance bottleneck. */
-  char *rna_path = RNA_path_from_ID_to_property(ptr, prop);
-  if (rna_path == nullptr) {
+  const std::optional<std::string> rna_path = RNA_path_from_ID_to_property(ptr, prop);
+  if (!rna_path) {
     return nullptr;
   }
 
   /* Standard F-Curve from animdata - Animation (Action) or Drivers. */
-  FCurve *fcu = BKE_animadata_fcurve_find_by_rna_path(adt, rna_path, rnaindex, r_action, r_driven);
+  FCurve *fcu = BKE_animadata_fcurve_find_by_rna_path(
+      adt, rna_path->c_str(), rnaindex, r_action, r_driven);
 
   if (fcu != nullptr && r_animdata != nullptr) {
     *r_animdata = adt;
   }
 
-  MEM_freeN(rna_path);
   return fcu;
 }
 
@@ -1343,7 +1345,7 @@ void sort_time_fcurve(FCurve *fcu)
       if (a < (fcu->totvert - 1)) {
         /* Swap if one is after the other (and indicate that order has changed). */
         if (bezt->vec[1][0] > (bezt + 1)->vec[1][0]) {
-          SWAP(BezTriple, *bezt, *(bezt + 1));
+          std::swap(*bezt, *(bezt + 1));
           ok = true;
         }
       }
@@ -1705,6 +1707,81 @@ void BKE_fcurve_delete_key(FCurve *fcu, int index)
   }
 }
 
+void BKE_fcurve_delete_keys(FCurve *fcu, blender::uint2 index_range)
+{
+  BLI_assert(fcu != nullptr);
+  BLI_assert(fcu->bezt != nullptr);
+  BLI_assert(index_range[1] > index_range[0]);
+  BLI_assert(index_range[1] <= fcu->totvert);
+
+  const int removed_index_count = index_range[1] - index_range[0];
+  memmove(&fcu->bezt[index_range[0]],
+          &fcu->bezt[index_range[1]],
+          sizeof(BezTriple) * (fcu->totvert - index_range[1]));
+  fcu->totvert -= removed_index_count;
+
+  if (fcu->totvert == 0) {
+    fcurve_bezt_free(fcu);
+  }
+}
+
+BezTriple *BKE_bezier_array_merge(
+    const BezTriple *a, const int size_a, const BezTriple *b, const int size_b, int *r_merged_size)
+{
+  BezTriple *large_array = static_cast<BezTriple *>(
+      MEM_callocN((size_a + size_b) * sizeof(BezTriple), "beztriple"));
+
+  int iterator_a = 0;
+  int iterator_b = 0;
+  *r_merged_size = 0;
+
+  /* For comparing if keyframes are at the same x-value. */
+  const int max_ulps = 32;
+
+  while (iterator_a < size_a || iterator_b < size_b) {
+    if (iterator_a >= size_a) {
+      const int remaining_keys = size_b - iterator_b;
+      memcpy(&large_array[*r_merged_size], &b[iterator_b], sizeof(BezTriple) * remaining_keys);
+      (*r_merged_size) += remaining_keys;
+      break;
+    }
+    if (iterator_b >= size_b) {
+      const int remaining_keys = size_a - iterator_a;
+      memcpy(&large_array[*r_merged_size], &a[iterator_a], sizeof(BezTriple) * remaining_keys);
+      (*r_merged_size) += remaining_keys;
+      break;
+    }
+
+    if (compare_ff_relative(
+            a[iterator_a].vec[1][0], b[iterator_b].vec[1][0], BEZT_BINARYSEARCH_THRESH, max_ulps))
+    {
+      memcpy(&large_array[*r_merged_size], &a[iterator_a], sizeof(BezTriple));
+      iterator_a++;
+      iterator_b++;
+    }
+    else if (a[iterator_a].vec[1][0] < b[iterator_b].vec[1][0]) {
+      memcpy(&large_array[*r_merged_size], &a[iterator_a], sizeof(BezTriple));
+      iterator_a++;
+    }
+    else {
+      memcpy(&large_array[*r_merged_size], &b[iterator_b], sizeof(BezTriple));
+      iterator_b++;
+    }
+    (*r_merged_size)++;
+  }
+
+  BezTriple *minimal_array;
+  if (*r_merged_size < size_a + size_b) {
+    minimal_array = static_cast<BezTriple *>(
+        MEM_reallocN(large_array, sizeof(BezTriple) * (*r_merged_size)));
+  }
+  else {
+    minimal_array = large_array;
+  }
+
+  return minimal_array;
+}
+
 bool BKE_fcurve_delete_keys_selected(FCurve *fcu)
 {
   if (fcu->bezt == nullptr) { /* ignore baked curves */
@@ -1975,7 +2052,7 @@ static float fcurve_eval_keyframes_interpolate(const FCurve *fcu,
   const float eps = 1.e-8f;
   uint a;
 
-  /* Evaltime occurs somewhere in the middle of the curve. */
+  /* Evaluation-time occurs somewhere in the middle of the curve. */
   bool exact = false;
 
   /* Use binary search to find appropriate keyframes...
@@ -2020,7 +2097,7 @@ static float fcurve_eval_keyframes_interpolate(const FCurve *fcu,
     return 0.0f;
   }
 
-  /* Evaltime occurs within the interval defined by these two keyframes. */
+  /* Evaluation-time occurs within the interval defined by these two keyframes. */
   const float begin = prevbezt->vec[1][1];
   const float change = bezt->vec[1][1] - prevbezt->vec[1][1];
   const float duration = bezt->vec[1][0] - prevbezt->vec[1][0];
@@ -2351,10 +2428,10 @@ float evaluate_fcurve_driver(PathResolvedRNA *anim_rna,
   float evaltime = anim_eval_context->eval_time;
 
   /* If there is a driver (only if this F-Curve is acting as 'driver'),
-   * evaluate it to find value to use as "evaltime" since drivers essentially act as alternative
+   * evaluate it to find value to use as `evaltime` since drivers essentially act as alternative
    * input (i.e. in place of 'time') for F-Curves. */
   if (fcu->driver) {
-    /* Evaltime now serves as input for the curve. */
+    /* Evaluation-time now serves as input for the curve. */
     evaltime = evaluate_driver(anim_rna, fcu->driver, driver_orig, anim_eval_context);
 
     /* Only do a default 1-1 mapping if it's unlikely that anything else will set a value... */

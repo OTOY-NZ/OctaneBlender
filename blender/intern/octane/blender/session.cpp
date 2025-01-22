@@ -17,9 +17,9 @@
  */
 #include <stdio.h>
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_global.h"
-#include "BKE_main.h"
+#include "BKE_main.hh"
 #include "BKE_node.h"
 #include "BKE_scene.h"
 /* SpaceType struct has a member called 'new' which obviously conflicts with C++
@@ -990,7 +990,7 @@ bool BlenderSession::connect_to_server(std::string server_address,
           ret = false;
         }
         else {
-          fprintf(stderr, "Octane: can't connect to Octane server.\n");
+          fprintf(stderr, "Octane: unknown reason, can't connect to Octane server.\n");
           ret = false;
         }
       }
@@ -1234,13 +1234,13 @@ bool BlenderSession::update_octane_custom_node(const std::string server_address,
   return ret;
 }
 
-static void export_startjob(void *customdata, bool *stop, bool *do_update, float *progress)
+static void export_startjob(void *customdata, wmJobWorkerStatus *worker_status)
 {
   OctaneExportJobData *data = static_cast<OctaneExportJobData *>(customdata);
 
-  data->stop = stop;
-  data->do_update = do_update;
-  data->progress = progress;
+  data->stop = &worker_status->stop;
+  data->do_update = &worker_status->do_update;
+  data->progress = &worker_status->progress;
 
   data->b_engine.update_progress(0.01f);
 
@@ -1507,14 +1507,14 @@ bool BlenderSession::heart_beat(std::string server_address)
   return ret;
 }
 
-static void get_octanedb_startjob(void *customdata, bool *stop, bool *do_update, float *progress)
+static void get_octanedb_startjob(void *customdata, wmJobWorkerStatus *worker_status)
 {
   GetOctaneDBJobData *data = static_cast<GetOctaneDBJobData *>(customdata);
-  data->stop = stop;
-  data->do_update = do_update;
-  data->progress = progress;
+  data->stop = &worker_status->stop;
+  data->do_update = &worker_status->do_update;
+  data->progress = &worker_status->progress;
 
-  *progress = 0.0f;
+  worker_status->progress = 0.0f;
   ::OctaneEngine::OctaneClient *server = new ::OctaneEngine::OctaneClient;
   bool ret = BlenderSession::connect_to_server(data->server_address, OCTANEDB_SERVER_PORT, server);
   if (!ret) {
@@ -1522,7 +1522,7 @@ static void get_octanedb_startjob(void *customdata, bool *stop, bool *do_update,
     return;
   }
 
-  *progress = 0.5f;
+  worker_status->progress = 0.5f;
   WM_report(RPT_INFO, "Connect to OctaneDB successfully! Click import to start download!");
 
   bool is_close = false;
@@ -1548,9 +1548,9 @@ static void get_octanedb_startjob(void *customdata, bool *stop, bool *do_update,
 
   server->disconnectFromServer();
   delete server;
-  *do_update = 1;
-  *stop = 0;
-  *progress = 1.0f;
+  worker_status->do_update = 1;
+  worker_status->stop = 0;
+  worker_status->progress = 1.0f;
   return;
 }
 

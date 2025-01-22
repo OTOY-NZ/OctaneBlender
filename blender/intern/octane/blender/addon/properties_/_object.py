@@ -6,6 +6,8 @@ from bpy.props import IntProperty, FloatProperty, BoolProperty, StringProperty, 
 import bpy
 from bpy.utils import register_class, unregister_class
 from octane.preferences import object_mesh_types
+from octane.properties_.common import OctanePropertyGroup
+
 
 custom_aov_modes = (
     ('None', "None", "None", 4096),
@@ -39,7 +41,7 @@ custom_aov_channel_modes = (
 )
 
 
-class OctaneObjectSettings(bpy.types.PropertyGroup):
+class OctaneObjectPropertyGroup(OctanePropertyGroup):
     render_layer_id: IntProperty(
         name="Render layer ID",
         description="Render layer number for current object. Will use the layer number from blender built-in render "
@@ -252,13 +254,13 @@ class OctaneObjectSettings(bpy.types.PropertyGroup):
     use_motion_blur: BoolProperty(
         name="Use Motion Blur",
         description="Use motion blur for this object",
-        default=False,
+        default=True,
     )
     use_deform_motion: BoolProperty(
         name="Use Deformation Motion",
         description="Use deformation motion blur for this object\nWarning: \nAutosmooth or an object modifier that "
                     "changes mesh topology over time may not render deformation motion blur correctly",
-        default=False,
+        default=True,
     )
     motion_steps: IntProperty(
         name="Motion Steps",
@@ -314,7 +316,7 @@ class OctaneObjectSettings(bpy.types.PropertyGroup):
         del bpy.types.Object.octane
 
 
-class OctaneLightSettings(bpy.types.PropertyGroup):
+class OctaneLightPropertyGroup(bpy.types.PropertyGroup):
     octane_point_light_types = (
         ("Toon Point", "Toon Point", "Toon Point", 0),
         ("Sphere", "Sphere", "Sphere", 1),
@@ -393,8 +395,8 @@ class OctaneLightSettings(bpy.types.PropertyGroup):
 
 
 _CLASSES = [
-    OctaneObjectSettings,
-    OctaneLightSettings,
+    OctaneObjectPropertyGroup,
+    OctaneLightPropertyGroup,
 ]
 
 

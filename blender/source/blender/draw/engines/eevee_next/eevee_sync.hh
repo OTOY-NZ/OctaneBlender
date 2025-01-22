@@ -14,9 +14,10 @@
 #include "BKE_duplilist.h"
 #include "BLI_ghash.h"
 #include "BLI_map.hh"
+#include "DEG_depsgraph_query.hh"
 #include "DNA_object_types.h"
-#include "DRW_render.h"
-#include "GPU_material.h"
+#include "DRW_render.hh"
+#include "GPU_material.hh"
 
 #include "eevee_shader_shared.hh"
 
@@ -31,87 +32,101 @@ class Instance;
  * Note that we get a unique key for each object component.
  * \{ */
 
-struct ObjectKey {
+class ObjectKey {
   /** Hash value of the key. */
-  uint64_t hash_value;
+  uint64_t hash_value_ = 0;
   /** Original Object or source object for duplis. */
-  Object *ob;
+  Object *ob_ = nullptr;
   /** Original Parent object for duplis. */
-  Object *parent;
+  Object *parent_ = nullptr;
   /** Dupli objects recursive unique identifier */
-  int id[MAX_DUPLI_RECUR];
+  int id_[MAX_DUPLI_RECUR];
   /** Used for particle system hair. */
-  int sub_key_;
-#ifdef DEBUG
-  char name[64];
-#endif
-  ObjectKey() : ob(nullptr), parent(nullptr){};
+  int sub_key_ = 0;
 
-  ObjectKey(Object *ob_, Object *parent_, int id_[MAX_DUPLI_RECUR], int sub_key_ = 0)
-      : ob(ob_), parent(parent_), sub_key_(sub_key_)
+ public:
+  ObjectKey() = default;
+
+  ObjectKey(Object *ob, int sub_key = 0)
   {
-    if (id_) {
-      memcpy(id, id_, sizeof(id));
-    }
-    else {
-      memset(id, 0, sizeof(id));
-    }
-    /* Compute hash on creation so we avoid the cost of it for every sync. */
-    hash_value = BLI_ghashutil_ptrhash(ob);
-    hash_value = BLI_ghashutil_combine_hash(hash_value, BLI_ghashutil_ptrhash(parent));
-    for (int i = 0; i < MAX_DUPLI_RECUR; i++) {
-      if (id[i] != 0) {
-        hash_value = BLI_ghashutil_combine_hash(hash_value, BLI_ghashutil_inthash(id[i]));
-      }
-      else {
-        break;
+    ob_ = DEG_get_original_object(ob);
+    hash_value_ = BLI_ghashutil_ptrhash(ob_);
+
+    if (DupliObject *dupli = DRW_object_get_dupli(ob)) {
+      parent_ = DRW_object_get_dupli_parent(ob);
+      hash_value_ = BLI_ghashutil_combine_hash(hash_value_, BLI_ghashutil_ptrhash(parent_));
+      for (int i : IndexRange(MAX_DUPLI_RECUR)) {
+        id_[i] = dupli->persistent_id[i];
+        if (id_[i] == INT_MAX) {
+          break;
+        }
+        hash_value_ = BLI_ghashutil_combine_hash(hash_value_, BLI_ghashutil_inthash(id_[i]));
       }
     }
-    if (sub_key_ != 0) {
-      hash_value = BLI_ghashutil_combine_hash(hash_value, sub_key_);
+
+    if (sub_key != 0) {
+      sub_key_ = sub_key;
+      hash_value_ = BLI_ghashutil_combine_hash(hash_value_, BLI_ghashutil_inthash(sub_key_));
     }
-#ifdef DEBUG
-    STRNCPY(name, ob->id.name);
-#endif
   }
-
-  ObjectKey(Object *ob, DupliObject *dupli, Object *parent, int sub_key_ = 0)
-      : ObjectKey(ob, parent, dupli ? dupli->persistent_id : nullptr, sub_key_){};
-
-  ObjectKey(Object *ob, int sub_key_ = 0)
-      : ObjectKey(ob, DRW_object_get_dupli(ob), DRW_object_get_dupli_parent(ob), sub_key_){};
 
   uint64_t hash() const
   {
-    return hash_value;
+    return hash_value_;
   }
 
   bool operator<(const ObjectKey &k) const
   {
-    if (ob != k.ob) {
-      return (ob < k.ob);
+    if (hash_value_ != k.hash_value_) {
+      return hash_value_ < k.hash_value_;
     }
-    if (parent != k.parent) {
-      return (parent < k.parent);
+    if (ob_ != k.ob_) {
+      return (ob_ < k.ob_);
+    }
+    if (parent_ != k.parent_) {
+      return (parent_ < k.parent_);
     }
     if (sub_key_ != k.sub_key_) {
       return (sub_key_ < k.sub_key_);
     }
-    return memcmp(id, k.id, sizeof(id)) < 0;
+    if (parent_) {
+      for (int i : IndexRange(MAX_DUPLI_RECUR)) {
+        if (id_[i] < k.id_[i]) {
+          return true;
+        }
+        if (id_[i] == INT_MAX) {
+          break;
+        }
+      }
+    }
+    return false;
   }
 
   bool operator==(const ObjectKey &k) const
   {
-    if (ob != k.ob) {
+    if (hash_value_ != k.hash_value_) {
       return false;
     }
-    if (parent != k.parent) {
+    if (ob_ != k.ob_) {
+      return false;
+    }
+    if (parent_ != k.parent_) {
       return false;
     }
     if (sub_key_ != k.sub_key_) {
       return false;
     }
-    return memcmp(id, k.id, sizeof(id)) == 0;
+    if (parent_) {
+      for (int i : IndexRange(MAX_DUPLI_RECUR)) {
+        if (id_[i] != k.id_[i]) {
+          return false;
+        }
+        if (id_[i] == INT_MAX) {
+          break;
+        }
+      }
+    }
+    return true;
   }
 };
 
@@ -122,46 +137,34 @@ struct ObjectKey {
  *
  * \{ */
 
-struct ObjectHandle : public DrawData {
+struct BaseHandle {
+  unsigned int recalc;
+};
+
+struct ObjectHandle : BaseHandle {
   ObjectKey object_key;
-
-  void reset_recalc_flag()
-  {
-    if (recalc != 0) {
-      recalc = 0;
-    }
-  }
 };
 
-struct WorldHandle : public DrawData {
-  void reset_recalc_flag()
-  {
-    if (recalc != 0) {
-      recalc = 0;
-    }
-  }
-};
+struct WorldHandle : public BaseHandle {};
 
-struct SceneHandle : public DrawData {
-  void reset_recalc_flag()
-  {
-    if (recalc != 0) {
-      recalc = 0;
-    }
-  }
-};
+struct SceneHandle : public BaseHandle {};
 
 class SyncModule {
  private:
   Instance &inst_;
 
+  Map<ObjectKey, ObjectHandle> ob_handles = {};
+
+  bool world_updated_;
+
  public:
   SyncModule(Instance &inst) : inst_(inst){};
   ~SyncModule(){};
 
-  ObjectHandle &sync_object(Object *ob);
-  WorldHandle &sync_world(::World *world);
-  SceneHandle &sync_scene(::Scene *scene);
+  void view_update();
+
+  ObjectHandle &sync_object(const ObjectRef &ob_ref);
+  WorldHandle sync_world();
 
   void sync_mesh(Object *ob,
                  ObjectHandle &ob_handle,
@@ -175,10 +178,12 @@ class SyncModule {
                         ObjectHandle &ob_handle,
                         ResourceHandle res_handle,
                         const ObjectRef &ob_ref);
+  void sync_volume(Object *ob, ObjectHandle &ob_handle, ResourceHandle res_handle);
   void sync_gpencil(Object *ob, ObjectHandle &ob_handle, ResourceHandle res_handle);
   void sync_curves(Object *ob,
                    ObjectHandle &ob_handle,
                    ResourceHandle res_handle,
+                   const ObjectRef &ob_ref,
                    ModifierData *modifier_data = nullptr,
                    ParticleSystem *particle_sys = nullptr);
   void sync_light_probe(Object *ob, ObjectHandle &ob_handle);

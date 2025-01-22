@@ -32,17 +32,20 @@
 
 #include "BKE_action.h"
 #include "BKE_animsys.h"
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_fcurve.h"
 #include "BKE_global.h"
 #include "BKE_gpencil_legacy.h"
 #include "BKE_grease_pencil.hh"
-#include "BKE_key.h"
+#include "BKE_key.hh"
 #include "BKE_nla.h"
 #include "BKE_report.h"
 
 #include "UI_view2d.hh"
 
+#include "ANIM_animdata.hh"
+#include "ANIM_fcurve.hh"
+#include "ANIM_keyframing.hh"
 #include "ED_anim_api.hh"
 #include "ED_gpencil_legacy.hh"
 #include "ED_grease_pencil.hh"
@@ -792,8 +795,9 @@ static void insert_grease_pencil_key(bAnimContext *ac,
 
   bool changed = false;
   if (hold_previous) {
-    const FramesMapKey active_frame_number = layer->frame_key_at(current_frame_number);
-    if ((active_frame_number == -1) || (layer->frames().lookup(active_frame_number).is_null())) {
+    const std::optional<FramesMapKey> active_frame_number = layer->frame_key_at(
+        current_frame_number);
+    if (!active_frame_number || layer->frames().lookup(*active_frame_number).is_null()) {
       /* There is no active frame to hold to, or it's a null frame. Therefore just insert a blank
        * frame. */
       changed = grease_pencil->insert_blank_frame(
@@ -802,7 +806,7 @@ static void insert_grease_pencil_key(bAnimContext *ac,
     else {
       /* Duplicate the active frame. */
       changed = grease_pencil->insert_duplicate_frame(
-          *layer, active_frame_number, current_frame_number, false);
+          *layer, *active_frame_number, current_frame_number, false);
     }
   }
   else {
@@ -819,9 +823,9 @@ static void insert_grease_pencil_key(bAnimContext *ac,
 static void insert_fcurve_key(bAnimContext *ac,
                               bAnimListElem *ale,
                               const AnimationEvalContext anim_eval_context,
-                              eInsertKeyFlags flag,
-                              ListBase *nla_cache)
+                              eInsertKeyFlags flag)
 {
+  using namespace blender::animrig;
   FCurve *fcu = (FCurve *)ale->key_data;
 
   ReportList *reports = ac->reports;
@@ -847,7 +851,6 @@ static void insert_fcurve_key(bAnimContext *ac,
                     fcu->array_index,
                     &anim_eval_context,
                     eBezTriple_KeyframeType(ts->keyframe_type),
-                    nla_cache,
                     flag);
   }
   else {
@@ -860,8 +863,9 @@ static void insert_fcurve_key(bAnimContext *ac,
     }
 
     const float curval = evaluate_fcurve(fcu, cfra);
-    insert_vert_fcurve(
-        fcu, cfra, curval, eBezTriple_KeyframeType(ts->keyframe_type), eInsertKeyFlags(0));
+    KeyframeSettings settings = get_keyframe_settings(true);
+    settings.keyframe_type = eBezTriple_KeyframeType(ts->keyframe_type);
+    insert_vert_fcurve(fcu, {cfra, curval}, settings, eInsertKeyFlags(0));
   }
 
   ale->update |= ANIM_UPDATE_DEFAULT;
@@ -871,7 +875,6 @@ static void insert_fcurve_key(bAnimContext *ac,
 static void insert_action_keys(bAnimContext *ac, short mode)
 {
   ListBase anim_data = {nullptr, nullptr};
-  ListBase nla_cache = {nullptr, nullptr};
   eAnimFilter_Flags filter;
 
   Scene *scene = ac->scene;
@@ -894,7 +897,7 @@ static void insert_action_keys(bAnimContext *ac, short mode)
   ANIM_animdata_filter(ac, &anim_data, filter, ac->data, eAnimCont_Types(ac->datatype));
 
   /* Init keyframing flag. */
-  flag = ANIM_get_keyframing_flags(scene, true);
+  flag = ANIM_get_keyframing_flags(scene);
 
   /* GPLayers specific flags */
   if (ts->gpencil_flags & GP_TOOL_FLAG_RETAIN_LAST) {
@@ -919,15 +922,13 @@ static void insert_action_keys(bAnimContext *ac, short mode)
         break;
 
       case ANIMTYPE_FCURVE:
-        insert_fcurve_key(ac, ale, anim_eval_context, flag, &nla_cache);
+        insert_fcurve_key(ac, ale, anim_eval_context, flag);
         break;
 
       default:
         BLI_assert_msg(false, "Keys cannot be inserted into this animation type.");
     }
   }
-
-  BKE_animsys_free_nla_keyframing_context_cache(&nla_cache);
 
   ANIM_animdata_update(ac, &anim_data);
   ANIM_animdata_freelist(&anim_data);
@@ -1113,7 +1114,7 @@ static bool delete_action_keys(bAnimContext *ac)
 
       /* Only delete curve too if it won't be doing anything anymore */
       if (BKE_fcurve_is_empty(fcu)) {
-        ANIM_fcurve_delete_from_animdata(ac, adt, fcu);
+        blender::animrig::animdata_fcurve_delete(ac, adt, fcu);
         ale->key_data = nullptr;
       }
     }

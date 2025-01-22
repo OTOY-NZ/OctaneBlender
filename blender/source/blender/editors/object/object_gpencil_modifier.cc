@@ -22,14 +22,14 @@
 #include "BLI_listbase.h"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
-#include "BLI_string_utils.h"
+#include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_gpencil_legacy.h"
 #include "BKE_gpencil_modifier_legacy.h"
-#include "BKE_lib_id.h"
-#include "BKE_main.h"
+#include "BKE_lib_id.hh"
+#include "BKE_main.hh"
 #include "BKE_object.hh"
 #include "BKE_report.h"
 
@@ -1056,7 +1056,7 @@ static int time_segment_remove_exec(bContext *C, wmOperator *op)
 
     MEM_freeN(gpmd->segments);
     gpmd->segments = new_segments;
-    gpmd->segment_active_index = MAX2(gpmd->segment_active_index - 1, 0);
+    gpmd->segment_active_index = std::max(gpmd->segment_active_index - 1, 0);
   }
 
   gpmd->segments_len--;
@@ -1120,9 +1120,8 @@ static int time_segment_move_exec(bContext *C, wmOperator *op)
       return OPERATOR_CANCELLED;
     }
 
-    SWAP(TimeGpencilModifierSegment,
-         gpmd->segments[gpmd->segment_active_index],
-         gpmd->segments[gpmd->segment_active_index - 1]);
+    std::swap(gpmd->segments[gpmd->segment_active_index],
+              gpmd->segments[gpmd->segment_active_index - 1]);
 
     gpmd->segment_active_index--;
   }
@@ -1131,9 +1130,8 @@ static int time_segment_move_exec(bContext *C, wmOperator *op)
       return OPERATOR_CANCELLED;
     }
 
-    SWAP(TimeGpencilModifierSegment,
-         gpmd->segments[gpmd->segment_active_index],
-         gpmd->segments[gpmd->segment_active_index + 1]);
+    std::swap(gpmd->segments[gpmd->segment_active_index],
+              gpmd->segments[gpmd->segment_active_index + 1]);
 
     gpmd->segment_active_index++;
   }
@@ -1300,7 +1298,7 @@ static int dash_segment_remove_exec(bContext *C, wmOperator *op)
 
     MEM_freeN(dmd->segments);
     dmd->segments = new_segments;
-    dmd->segment_active_index = MAX2(dmd->segment_active_index - 1, 0);
+    dmd->segment_active_index = std::max(dmd->segment_active_index - 1, 0);
   }
 
   dmd->segments_len--;
@@ -1365,9 +1363,8 @@ static int dash_segment_move_exec(bContext *C, wmOperator *op)
       return OPERATOR_CANCELLED;
     }
 
-    SWAP(DashGpencilModifierSegment,
-         dmd->segments[dmd->segment_active_index],
-         dmd->segments[dmd->segment_active_index - 1]);
+    std::swap(dmd->segments[dmd->segment_active_index],
+              dmd->segments[dmd->segment_active_index - 1]);
 
     dmd->segment_active_index--;
   }
@@ -1376,9 +1373,8 @@ static int dash_segment_move_exec(bContext *C, wmOperator *op)
       return OPERATOR_CANCELLED;
     }
 
-    SWAP(DashGpencilModifierSegment,
-         dmd->segments[dmd->segment_active_index],
-         dmd->segments[dmd->segment_active_index + 1]);
+    std::swap(dmd->segments[dmd->segment_active_index],
+              dmd->segments[dmd->segment_active_index + 1]);
 
     dmd->segment_active_index++;
   }

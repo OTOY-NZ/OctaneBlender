@@ -83,7 +83,7 @@ void ChannelMatteOperation::execute_pixel_sampled(float output[4],
   input_image_program_->read_sampled(in_color, x, y, sampler);
 
   /* matte operation */
-  alpha = in_color[ids_[0]] - MAX2(in_color[ids_[1]], in_color[ids_[2]]);
+  alpha = in_color[ids_[0]] - std::max(in_color[ids_[1]], in_color[ids_[2]]);
 
   /* flip because 0.0 is transparent, not 1.0 */
   alpha = 1.0f - alpha;
@@ -104,7 +104,7 @@ void ChannelMatteOperation::execute_pixel_sampled(float output[4],
    */
 
   /* Don't make something that was more transparent less transparent. */
-  output[0] = MIN2(alpha, in_color[3]);
+  output[0] = std::min(alpha, in_color[3]);
 }
 
 void ChannelMatteOperation::update_memory_buffer_partial(MemoryBuffer *output,
@@ -115,7 +115,7 @@ void ChannelMatteOperation::update_memory_buffer_partial(MemoryBuffer *output,
     const float *color = it.in(0);
 
     /* Matte operation. */
-    float alpha = color[ids_[0]] - MAX2(color[ids_[1]], color[ids_[2]]);
+    float alpha = color[ids_[0]] - std::max(color[ids_[1]], color[ids_[2]]);
 
     /* Flip because 0.0 is transparent, not 1.0. */
     alpha = 1.0f - alpha;
@@ -136,7 +136,7 @@ void ChannelMatteOperation::update_memory_buffer_partial(MemoryBuffer *output,
      */
 
     /* Don't make something that was more transparent less transparent. */
-    *it.out = MIN2(alpha, color[3]);
+    *it.out = std::min(alpha, color[3]);
   }
 }
 

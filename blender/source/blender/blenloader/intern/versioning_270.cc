@@ -12,6 +12,8 @@
 /* for MinGW32 definition of NULL, could use BLI_blenlib.h instead too */
 #include <cstddef>
 
+#include <string>
+
 /* allow readfile to use deprecated functionality */
 #define DNA_DEPRECATED_ALLOW
 
@@ -48,33 +50,34 @@
 
 #include "BKE_anim_data.h"
 #include "BKE_animsys.h"
-#include "BKE_colortools.h"
+#include "BKE_colortools.hh"
+#include "BKE_customdata.hh"
 #include "BKE_fcurve_driver.h"
-#include "BKE_main.h"
+#include "BKE_main.hh"
 #include "BKE_mask.h"
-#include "BKE_modifier.h"
+#include "BKE_modifier.hh"
 #include "BKE_node.h"
 #include "BKE_scene.h"
 #include "BKE_screen.hh"
 #include "BKE_tracking.h"
 #include "DNA_material_types.h"
 
-#include "SEQ_effects.h"
-#include "SEQ_iterator.h"
+#include "SEQ_effects.hh"
+#include "SEQ_iterator.hh"
 
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
-#include "BLI_string_utils.h"
+#include "BLI_string_utils.hh"
 
 #include "BLT_translation.h"
 
 #include "BLO_readfile.h"
 
 #include "NOD_common.h"
-#include "NOD_composite.h"
+#include "NOD_composite.hh"
 #include "NOD_socket.hh"
 
 #include "readfile.hh"
@@ -505,7 +508,8 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
     }
 
     if (!DNA_struct_member_exists(
-            fd->filesdna, "MovieTrackingSettings", "float", "default_weight")) {
+            fd->filesdna, "MovieTrackingSettings", "float", "default_weight"))
+    {
       LISTBASE_FOREACH (MovieClip *, clip, &bmain->movieclips) {
         clip->tracking.settings.default_weight = 1.0f;
       }
@@ -527,9 +531,9 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 270, 2)) {
-    /* Mesh smoothresh deg->rad. */
+    /* Mesh smoothresh_legacy deg->rad. */
     LISTBASE_FOREACH (Mesh *, me, &bmain->meshes) {
-      me->smoothresh = DEG2RADF(me->smoothresh);
+      me->smoothresh_legacy = DEG2RADF(me->smoothresh_legacy);
     }
   }
 
@@ -805,7 +809,9 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 273, 8)) {
     LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
       LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
-        if (BKE_modifier_unique_name(&ob->modifiers, md)) {
+        const std::string old_name = md->name;
+        BKE_modifier_unique_name(&ob->modifiers, md);
+        if (old_name != md->name) {
           printf(
               "Warning: Object '%s' had several modifiers with the "
               "same name, renamed one of them to '%s'.\n",
@@ -1005,7 +1011,8 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 276, 3)) {
     if (!DNA_struct_member_exists(
-            fd->filesdna, "RenderData", "CurveMapping", "mblur_shutter_curve")) {
+            fd->filesdna, "RenderData", "CurveMapping", "mblur_shutter_curve"))
+    {
       LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
         CurveMapping *curve_mapping = &scene->r.mblur_shutter_curve;
         BKE_curvemapping_set_defaults(curve_mapping, 1, 0.0f, 0.0f, 1.0f, 1.0f, HD_AUTO);
@@ -1055,6 +1062,16 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
     while (a--) {
       LISTBASE_FOREACH (ID *, id, lbarray[a]) {
         id->flag &= LIB_FAKEUSER;
+
+        /* NOTE: This is added in 4.1 code.
+         *
+         * Original commit (3fcf535d2e) forgot to handle embedded IDs. Fortunately, back then, the
+         * only embedded IDs that existed were the NodeTree ones, and the current API to access
+         * them should still be valid on code from 9 years ago. */
+        bNodeTree *node_tree = ntreeFromID(id);
+        if (node_tree) {
+          node_tree->id.flag &= LIB_FAKEUSER;
+        }
       }
     }
   }
@@ -1174,7 +1191,8 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
 
     LISTBASE_FOREACH (Camera *, camera, &bmain->cameras) {
       if (camera->stereo.pole_merge_angle_from == 0.0f &&
-          camera->stereo.pole_merge_angle_to == 0.0f) {
+          camera->stereo.pole_merge_angle_to == 0.0f)
+      {
         camera->stereo.pole_merge_angle_from = DEG2RADF(60.0f);
         camera->stereo.pole_merge_angle_to = DEG2RADF(75.0f);
       }
@@ -1192,7 +1210,8 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
     }
 
     if (!DNA_struct_member_exists(
-            fd->filesdna, "BooleanModifierData", "float", "double_threshold")) {
+            fd->filesdna, "BooleanModifierData", "float", "double_threshold"))
+    {
       LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
         LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
           if (md->type == eModifierType_Boolean) {
@@ -1301,7 +1320,8 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
     }
 
     if (!DNA_struct_member_exists(
-            fd->filesdna, "MovieTrackingStabilization", "int", "tot_rot_track")) {
+            fd->filesdna, "MovieTrackingStabilization", "int", "tot_rot_track"))
+    {
       LISTBASE_FOREACH (MovieClip *, clip, &bmain->movieclips) {
         if (clip->tracking.stabilization.rot_track_legacy) {
           migrate_single_rot_stabilization_track_settings(&clip->tracking.stabilization);

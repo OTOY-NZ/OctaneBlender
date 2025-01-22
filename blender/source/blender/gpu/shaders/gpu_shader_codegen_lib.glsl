@@ -101,11 +101,11 @@ vec4 tangent_get(vec4 attr, mat3 normalmat)
 
 /* Assumes GPU_VEC4 is color data. So converting to luminance like cycles. */
 #define float_from_vec4(v) dot(v.rgb, vec3(0.2126, 0.7152, 0.0722))
-#define float_from_vec3(v) avg(v.rgb)
+#define float_from_vec3(v) ((v.r + v.g + v.b) * (1.0 / 3.0))
 #define float_from_vec2(v) v.r
 
-#define vec2_from_vec4(v) vec2(avg(v.rgb), v.a)
-#define vec2_from_vec3(v) vec2(avg(v.rgb), 1.0)
+#define vec2_from_vec4(v) vec2(((v.r + v.g + v.b) * (1.0 / 3.0)), v.a)
+#define vec2_from_vec3(v) vec2(((v.r + v.g + v.b) * (1.0 / 3.0)), 1.0)
 #define vec2_from_float(v) vec2(v)
 
 #define vec3_from_vec4(v) v.rgb
@@ -128,12 +128,59 @@ vec4 tangent_get(vec4 attr, mat3 normalmat)
 #  define FrontFacing true
 #endif
 
+/* Can't use enum here because not a header file. But would be great to do. */
+#define ClosureType uint
+#define CLOSURE_NONE_ID 0u
+/* Diffuse */
+#define CLOSURE_BSDF_DIFFUSE_ID 1u
+#define CLOSURE_BSDF_OREN_NAYAR_ID 2u   /* TODO */
+#define CLOSURE_BSDF_SHEEN_ID 4u        /* TODO */
+#define CLOSURE_BSDF_DIFFUSE_TOON_ID 5u /* TODO */
+#define CLOSURE_BSDF_TRANSLUCENT_ID 6u
+/* Glossy */
+#define CLOSURE_BSDF_MICROFACET_GGX_REFLECTION_ID 7u
+#define CLOSURE_BSDF_ASHIKHMIN_SHIRLEY_ID 8u /* TODO */
+#define CLOSURE_BSDF_ASHIKHMIN_VELVET_ID 9u  /* TODO */
+#define CLOSURE_BSDF_GLOSSY_TOON_ID 10u      /* TODO */
+#define CLOSURE_BSDF_HAIR_REFLECTION_ID 11u  /* TODO */
+/* Transmission */
+#define CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID 12u
+/* Glass */
+#define CLOSURE_BSDF_HAIR_HUANG_ID 13u /* TODO */
+/* BSSRDF */
+#define CLOSURE_BSSRDF_BURLEY_ID 14u
+
+struct ClosureUndetermined {
+  vec3 color;
+  float weight;
+  vec3 N;
+  ClosureType type;
+  /* Additional data different for each closure type. */
+  vec4 data;
+};
+
+ClosureUndetermined closure_new(ClosureType type)
+{
+  ClosureUndetermined cl;
+  cl.type = type;
+  return cl;
+}
+
+struct ClosureOcclusion {
+  vec3 N;
+};
+
 struct ClosureDiffuse {
   float weight;
   vec3 color;
   vec3 N;
+};
+
+struct ClosureSubsurface {
+  float weight;
+  vec3 color;
+  vec3 N;
   vec3 sss_radius;
-  uint sss_id;
 };
 
 struct ClosureTranslucent {
@@ -187,6 +234,50 @@ struct ClosureTransparency {
   float holdout;
 };
 
+ClosureDiffuse to_closure_diffuse(ClosureUndetermined cl)
+{
+  ClosureDiffuse closure;
+  closure.N = cl.N;
+  closure.color = cl.color;
+  return closure;
+}
+
+ClosureSubsurface to_closure_subsurface(ClosureUndetermined cl)
+{
+  ClosureSubsurface closure;
+  closure.N = cl.N;
+  closure.color = cl.color;
+  closure.sss_radius = cl.data.xyz;
+  return closure;
+}
+
+ClosureTranslucent to_closure_translucent(ClosureUndetermined cl)
+{
+  ClosureTranslucent closure;
+  closure.N = cl.N;
+  closure.color = cl.color;
+  return closure;
+}
+
+ClosureReflection to_closure_reflection(ClosureUndetermined cl)
+{
+  ClosureReflection closure;
+  closure.N = cl.N;
+  closure.color = cl.color;
+  closure.roughness = cl.data.x;
+  return closure;
+}
+
+ClosureRefraction to_closure_refraction(ClosureUndetermined cl)
+{
+  ClosureRefraction closure;
+  closure.N = cl.N;
+  closure.color = cl.color;
+  closure.roughness = cl.data.x;
+  closure.ior = cl.data.y;
+  return closure;
+}
+
 struct GlobalData {
   /** World position. */
   vec3 P;
@@ -236,7 +327,7 @@ void dF_branch_incomplete(float fn, out vec2 result)
   result = vec2(0.0);
 }
 
-#elif 0 /* TODO(@fclem): User Option? */
+#elif defined(GPU_FAST_DERIVATIVE) /* TODO(@fclem): User Option? */
 /* Fast derivatives */
 vec3 dF_impl(vec3 v)
 {

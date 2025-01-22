@@ -4,7 +4,7 @@
 
 #include "node_shader_util.hh"
 
-#include "BKE_main.h"
+#include "BKE_main.hh"
 #include "BKE_scene.h"
 #include "BKE_global.h"
 
@@ -15,7 +15,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Shader>("Surface");
   b.add_input<decl::Shader>("Volume").translation_context(BLT_I18NCONTEXT_ID_ID);
   b.add_input<decl::Vector>("Displacement").hide_value();
-  b.add_input<decl::Float>("Thickness").hide_value().unavailable(); /* Not used for now. */
+  b.add_input<decl::Float>("Thickness")
+      .hide_value()
+      .unavailable() /* EEVEE-Next only. Does nothing in 4.1. */;
   b.add_input<decl::Shader>(N_("Octane Geometry"));
 }
 

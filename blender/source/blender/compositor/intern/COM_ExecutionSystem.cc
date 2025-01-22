@@ -24,9 +24,11 @@ ExecutionSystem::ExecutionSystem(RenderData *rd,
                                  bNodeTree *editingtree,
                                  bool rendering,
                                  bool fastcalculation,
-                                 const char *view_name)
+                                 const char *view_name,
+                                 realtime_compositor::RenderContext *render_context)
 {
   num_work_threads_ = WorkScheduler::get_num_cpu_threads();
+  context_.set_render_context(render_context);
   context_.set_view_name(view_name);
   context_.set_scene(scene);
   context_.set_bnodetree(editingtree);
@@ -109,7 +111,7 @@ void ExecutionSystem::execute_work(const rcti &work_rect,
 
   /* Split work vertically to maximize continuous memory. */
   const int work_height = BLI_rcti_size_y(&work_rect);
-  const int num_sub_works = MIN2(num_work_threads_, work_height);
+  const int num_sub_works = std::min(num_work_threads_, work_height);
   const int split_height = num_sub_works == 0 ? 0 : work_height / num_sub_works;
   int remaining_height = work_height - split_height * num_sub_works;
 

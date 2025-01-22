@@ -307,6 +307,24 @@ class OctaneHairMaterialHairRandomRoughness(OctaneBaseSocket):
     octane_deprecated = False
 
 
+class OctaneHairMaterialPriority(OctaneBaseSocket):
+    bl_idname = "OctaneHairMaterialPriority"
+    bl_label = "Priority"
+    color = consts.OctanePinColor.Int
+    octane_default_node_type = consts.NodeType.NT_INT
+    octane_default_node_name = "OctaneIntValue"
+    octane_pin_id = consts.PinID.P_PRIORITY
+    octane_pin_name = "priority"
+    octane_pin_type = consts.PinType.PT_INT
+    octane_pin_index = 16
+    octane_socket_type = consts.SocketType.ST_INT
+    default_value: IntProperty(default=0, update=OctaneBaseSocket.update_node_tree, description="The material priority for this hair material", min=-100, max=100, soft_min=-100, soft_max=100, step=1, subtype=runtime_globals.FACTOR_PROPERTY_SUBTYPE)
+    octane_hide_value = False
+    octane_min_version = 13000300
+    octane_end_version = 4294967295
+    octane_deprecated = False
+
+
 class OctaneHairMaterialOpacity(OctaneBaseSocket):
     bl_idname = "OctaneHairMaterialOpacity"
     bl_label = "Opacity"
@@ -316,7 +334,7 @@ class OctaneHairMaterialOpacity(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_OPACITY
     octane_pin_name = "opacity"
     octane_pin_type = consts.PinType.PT_TEXTURE
-    octane_pin_index = 16
+    octane_pin_index = 17
     octane_socket_type = consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Opacity channel controlling the transparency of the material via grayscale texture", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype=runtime_globals.FACTOR_PROPERTY_SUBTYPE)
     octane_hide_value = False
@@ -334,7 +352,7 @@ class OctaneHairMaterialEmission(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_EMISSION
     octane_pin_name = "emission"
     octane_pin_type = consts.PinType.PT_EMISSION
-    octane_pin_index = 17
+    octane_pin_index = 18
     octane_socket_type = consts.SocketType.ST_LINK
     octane_hide_value = True
     octane_min_version = 0
@@ -351,7 +369,7 @@ class OctaneHairMaterialCustomAov(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_CUSTOM_AOV
     octane_pin_name = "customAov"
     octane_pin_type = consts.PinType.PT_ENUM
-    octane_pin_index = 18
+    octane_pin_index = 19
     octane_socket_type = consts.SocketType.ST_ENUM
     items = [
         ("None", "None", "", 4096),
@@ -392,7 +410,7 @@ class OctaneHairMaterialCustomAovChannel(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_CUSTOM_AOV_CHANNEL
     octane_pin_name = "customAovChannel"
     octane_pin_type = consts.PinType.PT_ENUM
-    octane_pin_index = 19
+    octane_pin_index = 20
     octane_socket_type = consts.SocketType.ST_ENUM
     items = [
         ("All", "All", "", 0),
@@ -416,7 +434,7 @@ class OctaneHairMaterialLayer(OctaneBaseSocket):
     octane_pin_id = consts.PinID.P_LAYER
     octane_pin_name = "layer"
     octane_pin_type = consts.PinType.PT_MATERIAL_LAYER
-    octane_pin_index = 20
+    octane_pin_index = 21
     octane_socket_type = consts.SocketType.ST_LINK
     octane_hide_value = True
     octane_min_version = 5100002
@@ -466,6 +484,12 @@ class OctaneHairMaterialGroupRandomness(OctaneGroupTitleSocket):
     octane_group_sockets: StringProperty(name="Group Sockets", default="Randomness frequency;Randomness offset;Randomness intensity;Random albedo;Random roughness;")
 
 
+class OctaneHairMaterialGroupGeometryProperties(OctaneGroupTitleSocket):
+    bl_idname = "OctaneHairMaterialGroupGeometryProperties"
+    bl_label = "[OctaneGroupTitle]Geometry Properties"
+    octane_group_sockets: StringProperty(name="Group Sockets", default="Priority;")
+
+
 class OctaneHairMaterial(bpy.types.Node, OctaneBaseNode):
     bl_idname = "OctaneHairMaterial"
     bl_label = "Hair material"
@@ -475,13 +499,13 @@ class OctaneHairMaterial(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name = ""
     octane_render_pass_description = ""
     octane_render_pass_sub_type_name = ""
-    octane_socket_class_list = [OctaneHairMaterialGroupDiffuse, OctaneHairMaterialDiffuseAmount, OctaneHairMaterialDiffuse, OctaneHairMaterialGroupAlbedoSpecular, OctaneHairMaterialAlbedo, OctaneHairMaterialSpecular, OctaneHairMaterialGroupMelaninPheomelanin, OctaneHairMaterialHairMelanin, OctaneHairMaterialHairPheomelanin, OctaneHairMaterialGroupSpecularColorMode, OctaneHairMaterialHairMode, OctaneHairMaterialGroupIOR, OctaneHairMaterialIndex, OctaneHairMaterialGroupRoughness, OctaneHairMaterialRoughness, OctaneHairMaterialRoughnessV, OctaneHairMaterialOffset, OctaneHairMaterialGroupRandomness, OctaneHairMaterialHairRandomFrequency, OctaneHairMaterialHairRandomOffset, OctaneHairMaterialHairRandomnessIntensity, OctaneHairMaterialHairAlbedoRandomnColor, OctaneHairMaterialHairRandomRoughness, OctaneHairMaterialOpacity, OctaneHairMaterialEmission, OctaneHairMaterialCustomAov, OctaneHairMaterialCustomAovChannel, OctaneHairMaterialLayer, ]
+    octane_socket_class_list = [OctaneHairMaterialGroupDiffuse, OctaneHairMaterialDiffuseAmount, OctaneHairMaterialDiffuse, OctaneHairMaterialGroupAlbedoSpecular, OctaneHairMaterialAlbedo, OctaneHairMaterialSpecular, OctaneHairMaterialGroupMelaninPheomelanin, OctaneHairMaterialHairMelanin, OctaneHairMaterialHairPheomelanin, OctaneHairMaterialGroupSpecularColorMode, OctaneHairMaterialHairMode, OctaneHairMaterialGroupIOR, OctaneHairMaterialIndex, OctaneHairMaterialGroupRoughness, OctaneHairMaterialRoughness, OctaneHairMaterialRoughnessV, OctaneHairMaterialOffset, OctaneHairMaterialGroupRandomness, OctaneHairMaterialHairRandomFrequency, OctaneHairMaterialHairRandomOffset, OctaneHairMaterialHairRandomnessIntensity, OctaneHairMaterialHairAlbedoRandomnColor, OctaneHairMaterialHairRandomRoughness, OctaneHairMaterialGroupGeometryProperties, OctaneHairMaterialPriority, OctaneHairMaterialOpacity, OctaneHairMaterialEmission, OctaneHairMaterialCustomAov, OctaneHairMaterialCustomAovChannel, OctaneHairMaterialLayer, ]
     octane_min_version = 0
     octane_node_type = consts.NodeType.NT_MAT_HAIR
-    octane_socket_list = ["Diffuse", "Diffuse color", "Albedo", "Specular", "Melanin", "Pheomelanin", "Mode", "Index of refraction", "Longitudinal roughness", "Azimuthal roughness", "Offset", "Randomness frequency", "Randomness offset", "Randomness intensity", "Random albedo", "Random roughness", "Opacity", "Emission", "Custom AOV", "Custom AOV channel", "Material layer", ]
+    octane_socket_list = ["Diffuse", "Diffuse color", "Albedo", "Specular", "Melanin", "Pheomelanin", "Mode", "Index of refraction", "Longitudinal roughness", "Azimuthal roughness", "Offset", "Randomness frequency", "Randomness offset", "Randomness intensity", "Random albedo", "Random roughness", "Priority", "Opacity", "Emission", "Custom AOV", "Custom AOV channel", "Material layer", ]
     octane_attribute_list = []
     octane_attribute_config = {}
-    octane_static_pin_count = 21
+    octane_static_pin_count = 22
 
     def init(self, context):  # noqa
         self.inputs.new("OctaneHairMaterialGroupDiffuse", OctaneHairMaterialGroupDiffuse.bl_label).init()
@@ -507,6 +531,8 @@ class OctaneHairMaterial(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneHairMaterialHairRandomnessIntensity", OctaneHairMaterialHairRandomnessIntensity.bl_label).init()
         self.inputs.new("OctaneHairMaterialHairAlbedoRandomnColor", OctaneHairMaterialHairAlbedoRandomnColor.bl_label).init()
         self.inputs.new("OctaneHairMaterialHairRandomRoughness", OctaneHairMaterialHairRandomRoughness.bl_label).init()
+        self.inputs.new("OctaneHairMaterialGroupGeometryProperties", OctaneHairMaterialGroupGeometryProperties.bl_label).init()
+        self.inputs.new("OctaneHairMaterialPriority", OctaneHairMaterialPriority.bl_label).init()
         self.inputs.new("OctaneHairMaterialOpacity", OctaneHairMaterialOpacity.bl_label).init()
         self.inputs.new("OctaneHairMaterialEmission", OctaneHairMaterialEmission.bl_label).init()
         self.inputs.new("OctaneHairMaterialCustomAov", OctaneHairMaterialCustomAov.bl_label).init()
@@ -536,6 +562,7 @@ _CLASSES = [
     OctaneHairMaterialHairRandomnessIntensity,
     OctaneHairMaterialHairAlbedoRandomnColor,
     OctaneHairMaterialHairRandomRoughness,
+    OctaneHairMaterialPriority,
     OctaneHairMaterialOpacity,
     OctaneHairMaterialEmission,
     OctaneHairMaterialCustomAov,
@@ -548,6 +575,7 @@ _CLASSES = [
     OctaneHairMaterialGroupIOR,
     OctaneHairMaterialGroupRoughness,
     OctaneHairMaterialGroupRandomness,
+    OctaneHairMaterialGroupGeometryProperties,
     OctaneHairMaterial,
 ]
 

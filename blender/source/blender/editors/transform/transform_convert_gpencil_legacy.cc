@@ -15,16 +15,17 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 
-#include "BKE_colortools.h"
-#include "BKE_context.h"
-#include "BKE_curve.h"
+#include "BKE_colortools.hh"
+#include "BKE_context.hh"
+#include "BKE_curve.hh"
 #include "BKE_gpencil_curve_legacy.h"
 #include "BKE_gpencil_geom_legacy.h"
 #include "BKE_gpencil_legacy.h"
-#include "BKE_layer.h"
+#include "BKE_layer.hh"
 
 #include "ED_gpencil_legacy.hh"
-#include "ED_keyframing.hh"
+
+#include "ANIM_keyframing.hh"
 
 #include "transform.hh"
 #include "transform_convert.hh"
@@ -221,7 +222,7 @@ static void createTransGPencil_curves(bContext *C,
       }
 
       if ((gpf->framenum != cfra) && (!is_multiedit)) {
-        if (IS_AUTOKEY_ON(scene)) {
+        if (blender::animrig::is_autokey_on(scene)) {
           gpf = BKE_gpencil_frame_addcopy(gpl, cfra);
         }
         /* In some weird situations (frame-lock enabled) return nullptr. */
@@ -521,7 +522,7 @@ static void createTransGPencil_strokes(bContext *C,
        *   spent too much time editing the wrong frame...
        */
       if ((gpf->framenum != cfra) && (!is_multiedit)) {
-        if (IS_AUTOKEY_ON(scene)) {
+        if (blender::animrig::is_autokey_on(scene)) {
           gpf = BKE_gpencil_frame_addcopy(gpl, cfra);
         }
         /* In some weird situations (frame-lock enabled) return nullptr. */
@@ -608,7 +609,8 @@ static void createTransGPencil_strokes(bContext *C,
                    * This allows get interesting effects also when move
                    * using proportional editing. */
                   if ((gps->flag & GP_STROKE_SELECT) &&
-                      (ts->transform_pivot_point == V3D_AROUND_LOCAL_ORIGINS)) {
+                      (ts->transform_pivot_point == V3D_AROUND_LOCAL_ORIGINS))
+                  {
                     copy_v3_v3(td->center, center);
                   }
                   else {
@@ -641,7 +643,8 @@ static void createTransGPencil_strokes(bContext *C,
 
                   /* Screen-space needs special matrices. */
                   if ((gps->flag & (GP_STROKE_3DSPACE | GP_STROKE_2DSPACE | GP_STROKE_2DIMAGE)) ==
-                      0) {
+                      0)
+                  {
                     /* Screen-space. */
                     td->protectflag = OB_LOCK_LOCZ | OB_LOCK_ROTZ | OB_LOCK_SCALEZ;
                   }

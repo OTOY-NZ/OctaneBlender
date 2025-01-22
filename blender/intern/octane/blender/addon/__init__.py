@@ -2,10 +2,10 @@
 
 
 bl_info = {
-    "name": "OctaneBlender (v. 29.5)",
+    "name": "OctaneBlender (v. 29.7)",
     "author": "OTOY Inc.",
-    "version": (29, 3, 0),
-    "blender": (4, 0, 2),
+    "version": (29, 7, 0),
+    "blender": (4, 1, 1),
     "location": "Info header, render engine menu",
     "description": "OctaneBlender",
     "warning": "",
@@ -18,19 +18,15 @@ bl_info = {
 import os
 import time
 import weakref
-
 import numpy as np
-from bpy.app.handlers import persistent
-
 import bpy
 from octane import engine
 from octane import core
-from octane import version_update
 from octane.core.client import OctaneBlender
 from octane.core.frame_buffer import ViewportDrawData, RenderDrawData
 from octane.utils import consts, logger, utility
 
-
+# Activate the OctaneRender engine
 ACTIVE_RENDER_ENGINE = None
 
 
@@ -325,7 +321,7 @@ class OctaneRender(bpy.types.RenderEngine):
                 self._update_all_script_nodes(obj)
 
     def update_script_node(self, node):
-        from . import osl
+        from octane.utils import osl
         osl.update_script_node(node, self.report)
 
     def update_render_passes(self, scene=None, view_layer=None):
@@ -335,28 +331,6 @@ class OctaneRender(bpy.types.RenderEngine):
 classes = (
     OctaneRender,
 )
-
-
-@persistent
-def octane_load_post_handler(arg):
-    from octane.core import resource_cache
-    from octane.nodes.base_node_tree import NodeTreeHandler
-    from octane.utils import ocio
-    if arg is None or type(arg) is str:
-        # Blender version >= 3.6
-        scene = bpy.context.scene
-    else:
-        # Blender version <= 3.5
-        scene = arg
-    ocio.update_ocio_info()
-    resource_cache.reset_resource_cache(scene)
-    NodeTreeHandler.on_file_load(scene)
-    utility.set_all_viewport_shading_type("SOLID")
-
-
-@persistent
-def octane_depsgraph_update_post_handler(_scene):
-    pass
 
 
 # Triggers when window's workspace is changed
@@ -378,32 +352,26 @@ def register():
     from octane import preferences
     preferences.register()
 
-    from octane import properties
+    from octane import compatibilities
     from octane import properties_
     from octane import uis
     from octane import nodes
-    from octane import ui
-    from octane import operators
+    from octane import operators_
     from octane import engine
     from octane.core import resource_cache
 
-    properties.register()
     properties_.register()
     uis.register()
     nodes.register()
-    ui.register()
-    operators.register()
+    operators_.register()
 
     for cls in classes:
         register_class(cls)
 
-    bpy.app.handlers.version_update.append(version_update.do_versions)
-    bpy.app.handlers.load_post.append(octane_load_post_handler)
-    bpy.app.handlers.depsgraph_update_post.append(operators.sync_octane_aov_output_number)
-    bpy.app.handlers.depsgraph_update_post.append(operators.update_resource_cache_tag)
-    bpy.app.handlers.depsgraph_update_post.append(operators.update_blender_volume_grid_info)
-    bpy.app.handlers.depsgraph_update_post.append(resource_cache.update_dirty_mesh_names)
-    bpy.app.handlers.depsgraph_update_post.append(octane_depsgraph_update_post_handler)
+    from . import handlers
+    bpy.app.handlers.version_update.append(compatibilities.do_versions)
+    bpy.app.handlers.load_post.append(handlers.octane_load_post_handler)
+    bpy.app.handlers.depsgraph_update_post.append(handlers.octane_depsgraph_update_post_handler)
 
     bpy.msgbus.subscribe_rna(
         key=workspace_change_subscribe_to,
@@ -416,34 +384,28 @@ def register():
 
 def unregister():
     from bpy.utils import unregister_class
+    from octane import compatibilities
     from octane import preferences
-    from octane import properties
     from octane import properties_
     from octane import uis
     from octane import nodes
-    from octane import ui
-    from octane import operators
+    from octane import operators_
     from octane import engine
     from octane.core import resource_cache
 
     resource_cache.reset_resource_cache(None)
     OctaneBlender().exit()
 
-    bpy.app.handlers.version_update.remove(version_update.do_versions)
-    bpy.app.handlers.load_post.remove(octane_load_post_handler)
-    bpy.app.handlers.depsgraph_update_post.remove(operators.sync_octane_aov_output_number)
-    bpy.app.handlers.depsgraph_update_post.remove(operators.update_resource_cache_tag)
-    bpy.app.handlers.depsgraph_update_post.remove(operators.update_blender_volume_grid_info)
-    bpy.app.handlers.depsgraph_update_post.remove(resource_cache.update_dirty_mesh_names)
-    bpy.app.handlers.depsgraph_update_post.remove(octane_depsgraph_update_post_handler)
+    from . import handlers
+    bpy.app.handlers.version_update.remove(compatibilities.do_versions)
+    bpy.app.handlers.load_post.remove(handlers.octane_load_post_handler)
+    bpy.app.handlers.depsgraph_update_post.remove(handlers.octane_depsgraph_update_post_handler)
 
     preferences.unregister()
     properties_.unregister()
-    properties.unregister()
     uis.unregister()
     nodes.unregister()
-    ui.unregister()
-    operators.unregister()
+    operators_.unregister()
 
     for cls in classes:
         unregister_class(cls)

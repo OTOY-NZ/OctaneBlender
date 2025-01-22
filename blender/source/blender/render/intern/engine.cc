@@ -24,9 +24,8 @@
 #include "DNA_object_types.h"
 
 #include "BKE_camera.h"
-#include "BKE_colortools.h"
 #include "BKE_global.h"
-#include "BKE_layer.h"
+#include "BKE_layer.hh"
 #include "BKE_node.hh"
 #include "BKE_report.h"
 #include "BKE_scene.h"
@@ -43,13 +42,13 @@
 #  include "BPY_extern.h"
 #endif
 
-#include "IMB_imbuf_types.h"
+#include "IMB_imbuf_types.hh"
 
 #include "RE_bake.h"
 #include "RE_engine.h"
 #include "RE_pipeline.h"
 
-#include "DRW_engine.h"
+#include "DRW_engine.hh"
 
 #include "WM_api.hh"
 
@@ -64,11 +63,6 @@ ListBase R_engines = {nullptr, nullptr};
 void RE_engines_init()
 {
   DRW_engines_register();
-}
-
-void RE_engines_init_experimental()
-{
-  DRW_engines_register_experimental();
 }
 
 void RE_engines_exit()
@@ -655,7 +649,8 @@ static void engine_depsgraph_init(RenderEngine *engine, ViewLayer *view_layer)
   /* Reuse depsgraph from persistent data if possible. */
   if (engine->depsgraph) {
     if (DEG_get_bmain(engine->depsgraph) != bmain ||
-        DEG_get_input_scene(engine->depsgraph) != scene) {
+        DEG_get_input_scene(engine->depsgraph) != scene)
+    {
       /* If bmain or scene changes, we need a completely new graph. */
       engine_depsgraph_free(engine);
     }
@@ -859,6 +854,28 @@ static void engine_render_view_layer(Render *re,
     if (use_gpu_context) {
       DRW_render_context_enable(engine->re);
     }
+    else if (engine->has_grease_pencil && use_grease_pencil && G.background) {
+      /* Workaround for specific NVidia drivers which crash on Linux when OptiX context is
+       * initialized prior to OpenGL context. This affects driver versions 545.29.06, 550.54.14,
+       * and 550.67 running on kernel 6.8.
+       *
+       * The idea here is to initialize GPU context before giving control to the render engine in
+       * cases when we know that the GPU context will definitely be needed later on.
+       *
+       * Only do it for background renders to avoid possible extra global locking during the
+       * context initialization. For the non-background renders the GPU context is already
+       * initialized for the Blender interface and no workaround is needed.
+       *
+       * Technically it is enough to only call WM_init_gpu() here, but it expects to only be called
+       * once, and from here it is not possible to know whether GPU sub-system is initialized or
+       * not. So instead temporarily enable the render context, which will take care of the GPU
+       * context initialization.
+       *
+       * For demo file and tracking progress of possible fixes on driver side refer to #120007. */
+      DRW_render_context_enable(engine->re);
+      DRW_render_context_disable(engine->re);
+    }
+
     if (engine->type->update) {
       engine->type->update(engine, re->main, engine->depsgraph);
     }
@@ -965,7 +982,7 @@ bool RE_engine_render(Render *re, bool do_all)
   if ((type->flag & RE_USE_GPU_CONTEXT) && !GPU_backend_supported()) {
     /* Clear UI drawing locks. */
     re->draw_unlock();
-    BKE_report(re->reports, RPT_ERROR, "Can not initialize the GPU");
+    BKE_report(re->reports, RPT_ERROR, "Cannot initialize the GPU");
     G.is_break = true;
     return true;
   }

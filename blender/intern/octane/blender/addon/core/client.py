@@ -99,6 +99,18 @@ class OctaneBlender(metaclass=utility.Singleton):
             return
         return octane_blender.copy_color_ramp(from_addr, to_addr)
 
+    def dump_color_ramp_data(self, color_ramp_addr):
+        # logger.debug("OctaneBlender.copy_color_ramp")
+        if not self.enabled:
+            return
+        return octane_blender.dump_color_ramp_data(color_ramp_addr)
+
+    def load_color_ramp_data(self, interpolation_type, color_ramp_data, color_ramp_addr):
+        # logger.debug("OctaneBlender.load_color_ramp_data")
+        if not self.enabled:
+            return
+        return octane_blender.load_color_ramp_data(interpolation_type, color_ramp_data, color_ramp_addr)
+
     def set_resolution(self, width, height, use_region_render, enable_unbound_render,
                        region_start_x, region_start_y, region_width, region_height, update_now):
         # logger.debug("OctaneBlender.set_resolution")

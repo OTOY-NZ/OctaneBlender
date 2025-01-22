@@ -41,8 +41,8 @@ def create(engine, data, region=None, v3d=None, rv3d=None):
     prefs = bpy.context.preferences.as_pointer()
     screen = 0
 
-    from . import operators
-    dirty_resources = operators.get_dirty_resources()
+    from octane.operators_ import utility_functions
+    dirty_resources = utility_functions.get_dirty_resources()
 
     if region:
         screen = region.id_data.as_pointer()
@@ -70,8 +70,8 @@ def free(engine):
                 _octane.free(engine.session)
         del engine.session
 
-    from . import operators
-    operators.set_all_mesh_resource_cache_tags(False)
+    from octane.operators_ import utility_functions
+    utility_functions.set_all_mesh_resource_cache_tags(False)
 
 
 def render(engine, depsgraph):

@@ -8,19 +8,23 @@
 
 #include "DNA_gpencil_legacy_types.h"
 
-#include "BKE_armature.h"
-#include "BKE_context.h"
+#include "BKE_armature.hh"
+#include "BKE_context.hh"
+#include "BKE_crazyspace.hh"
 #include "BKE_gpencil_geom_legacy.h"
-#include "BKE_layer.h"
+#include "BKE_layer.hh"
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
 #include "BKE_scene.h"
 
+#include "BLI_bounds.hh"
+#include "BLI_bounds_types.hh"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 
 #include "DEG_depsgraph_query.hh"
 
+#include "ED_curves.hh"
 #include "ED_mesh.hh"
 #include "ED_particle.hh"
 #include "ED_screen.hh"
@@ -76,7 +80,7 @@ static void view3d_object_calc_minmax(Depsgraph *depsgraph,
       minmax_v3v3_v3(min, max, ob_eval->object_to_world[3]);
     }
     else {
-      BKE_object_minmax(ob_eval, min, max, false);
+      BKE_object_minmax(ob_eval, min, max);
     }
   }
 }
@@ -299,6 +303,7 @@ void VIEW3D_OT_view_all(wmOperatorType *ot)
 
 static int viewselected_exec(bContext *C, wmOperator *op)
 {
+  using namespace blender;
   ScrArea *area = CTX_wm_area(C);
   ARegion *region = CTX_wm_region(C);
   View3D *v3d = CTX_wm_view3d(C);
@@ -316,7 +321,7 @@ static int viewselected_exec(bContext *C, wmOperator *op)
   const bool is_gp_edit = gpd_eval ? GPENCIL_ANY_MODE(gpd_eval) : false;
   const bool is_face_map = ((is_gp_edit == false) && region->gizmo_map &&
                             WM_gizmomap_is_any_selected(region->gizmo_map));
-  float min[3], max[3];
+  float3 min, max;
   bool ok = false, ok_dist = true;
   const bool use_all_regions = RNA_boolean_get(op->ptr, "use_all_regions");
   const bool skip_camera = (ED_view3d_camera_lock_check(v3d, rv3d) ||
@@ -406,6 +411,14 @@ static int viewselected_exec(bContext *C, wmOperator *op)
   }
   else if (ob_eval && (ob_eval->mode & OB_MODE_PARTICLE_EDIT)) {
     ok = PE_minmax(depsgraph, scene, CTX_data_view_layer(C), min, max);
+  }
+  else if (ob_eval && (ob_eval->mode & OB_MODE_SCULPT_CURVES)) {
+    FOREACH_OBJECT_IN_MODE_BEGIN (
+        scene_eval, view_layer_eval, v3d, ob_eval->type, ob_eval->mode, ob_eval_iter)
+    {
+      ok |= ED_view3d_minmax_verts(ob_eval_iter, min, max);
+    }
+    FOREACH_OBJECT_IN_MODE_END;
   }
   else if (ob_eval && (ob_eval->mode & (OB_MODE_SCULPT | OB_MODE_VERTEX_PAINT |
                                         OB_MODE_WEIGHT_PAINT | OB_MODE_TEXTURE_PAINT)))

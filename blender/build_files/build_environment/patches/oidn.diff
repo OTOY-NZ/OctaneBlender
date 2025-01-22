@@ -1,40 +1,75 @@
-diff -Naur oidn-1.3.0/cmake/FindTBB.cmake external_openimagedenoise/cmake/FindTBB.cmake
---- oidn-1.3.0/cmake/FindTBB.cmake	2021-02-04 16:20:26 -0700
-+++ external_openimagedenoise/cmake/FindTBB.cmake	2021-02-12 09:35:53 -0700
-@@ -332,20 +332,22 @@
-       ${TBB_ROOT}/lib/${TBB_ARCH}/${TBB_VCVER}
-       ${TBB_ROOT}/lib
-     )
+diff -Naur oidn-2.2.0/core/CMakeLists.txt external_openimagedenoise/core/CMakeLists.txt
+--- oidn-2.2.0/core/CMakeLists.txt	2024-02-01 17:52:16 -0700
++++ external_openimagedenoise/core/CMakeLists.txt	2024-02-03 12:41:34 -0700
+@@ -87,7 +87,7 @@
+ 
+ add_library(OpenImageDenoise_core ${OIDN_CORE_LIB_TYPE} ${OIDN_CORE_SOURCES} ${OIDN_RESOURCE_FILE})
+ set_property(TARGET OpenImageDenoise_core PROPERTY VERSION ${PROJECT_VERSION})
 -
-     # On Windows, also search the DLL so that the client may install it.
-     file(GLOB DLL_NAMES
-       ${TBB_ROOT}/bin/${TBB_ARCH}/${TBB_VCVER}/${LIB_NAME}.dll
-       ${TBB_ROOT}/bin/${LIB_NAME}.dll
-+      ${TBB_ROOT}/lib/${LIB_NAME}.dll
-       ${TBB_ROOT}/redist/${TBB_ARCH}/${TBB_VCVER}/${LIB_NAME}.dll
-       ${TBB_ROOT}/redist/${TBB_ARCH}/${TBB_VCVER}/${LIB_NAME_GLOB1}.dll
-       ${TBB_ROOT}/redist/${TBB_ARCH}/${TBB_VCVER}/${LIB_NAME_GLOB2}.dll
-       ${TBB_ROOT}/../redist/${TBB_ARCH}/tbb/${TBB_VCVER}/${LIB_NAME}.dll
-       ${TBB_ROOT}/../redist/${TBB_ARCH}_win/tbb/${TBB_VCVER}/${LIB_NAME}.dll
-     )
--    list(GET DLL_NAMES 0 DLL_NAME)
--    get_filename_component(${BIN_DIR_VAR} "${DLL_NAME}" DIRECTORY)
--    set(${DLL_VAR} "${DLL_NAME}" CACHE PATH "${COMPONENT_NAME} ${BUILD_CONFIG} dll path")
-+    if (DLL_NAMES) 
-+        list(GET DLL_NAMES 0 DLL_NAME)
-+        get_filename_component(${BIN_DIR_VAR} "${DLL_NAME}" DIRECTORY)
-+        set(${DLL_VAR} "${DLL_NAME}" CACHE PATH "${COMPONENT_NAME} ${BUILD_CONFIG} dll path")
-+    endif()
-   elseif(APPLE)
-     set(LIB_PATHS ${TBB_ROOT}/lib)
-   else()
---- external_openimagedenoise/cmake/oidn_ispc.cmake	2021-02-15 17:29:34.000000000 +0100
-+++ external_openimagedenoise/cmake/oidn_ispc.cmake2	2021-02-15 17:29:28.000000000 +0100
-@@ -98,7 +98,7 @@
-   elseif(OIDN_ARCH STREQUAL "ARM64")
-     set(ISPC_ARCHITECTURE "aarch64")
-     if(APPLE)
--      set(ISPC_TARGET_OS "--target-os=ios")
-+      set(ISPC_TARGET_OS "--target-os=macos")
-     endif()
-   endif()
++target_compile_definitions(OpenImageDenoise_core PRIVATE SHARED_POSTFIX=\"$<$<CONFIG:Debug>:$<TARGET_PROPERTY:OpenImageDenoise_core,DEBUG_POSTFIX>>\")
+ target_link_libraries(OpenImageDenoise_core
+   PUBLIC
+     OpenImageDenoise_common
+diff -Naur oidn-2.2.0/core/module.cpp external_openimagedenoise/core/module.cpp
+--- oidn-2.2.0/core/module.cpp	2024-02-01 17:52:16 -0700
++++ external_openimagedenoise/core/module.cpp	2024-02-03 12:41:34 -0700
+@@ -29,7 +29,7 @@
+       return true; // module already loaded
+ 
+     // Get the path of the module to load
+-    std::string filename = "OpenImageDenoise_" + name;
++    std::string filename = "OpenImageDenoise_" + name + SHARED_POSTFIX;
+   #if defined(_WIN32)
+     filename += ".dll";
+   #else
+@@ -37,7 +37,8 @@
+                                    "." + toString(OIDN_VERSION_MINOR) +
+                                    "." + toString(OIDN_VERSION_PATCH);
+   #if defined(__APPLE__)
+-    filename = "lib" + filename + versionStr + ".dylib";
++    // BLENDER: version string is stripped on macOS.
++    filename = "lib" + filename + ".dylib";
+   #else
+     filename = "lib" + filename + ".so" + versionStr;
+   #endif
+diff -Naur oidn-2.2.0/devices/CMakeLists.txt external_openimagedenoise/devices/CMakeLists.txt
+--- oidn-2.2.0/devices/CMakeLists.txt	2024-02-01 17:52:16 -0700
++++ external_openimagedenoise/devices/CMakeLists.txt	2024-02-03 13:10:31 -0700
+@@ -65,6 +65,7 @@
+       -DOIDN_WARN_AS_ERRORS:BOOL=${OIDN_WARN_AS_ERRORS}
+       -DOIDN_SANITIZER:STRING=${OIDN_SANITIZER}
+       -DOIDN_DEVICE_CUDA_API:STRING=${OIDN_DEVICE_CUDA_API}
++      -DPython_EXECUTABLE:STRING=${Python_EXECUTABLE}
+     BUILD_ALWAYS TRUE
+     DEPENDS
+       OpenImageDenoise_core
+@@ -155,6 +156,8 @@
+       -DOIDN_API_NAMESPACE:STRING=${OIDN_API_NAMESPACE}
+       -DOIDN_WARN_AS_ERRORS:BOOL=${OIDN_WARN_AS_ERRORS}
+       -DOIDN_SANITIZER:STRING=${OIDN_SANITIZER}
++      -DPython_EXECUTABLE:STRING=${Python_EXECUTABLE}
++      -DCMAKE_DEBUG_POSTFIX:STRING=${CMAKE_DEBUG_POSTFIX}
+     BUILD_ALWAYS TRUE
+     DEPENDS
+       OpenImageDenoise_core
+diff --git a/devices/hip/hip_device.cpp b/devices/hip/hip_device.cpp
+index ae14ced..a49e131 100644
+--- a/devices/hip/hip_device.cpp
++++ b/devices/hip/hip_device.cpp
+@@ -93,10 +93,16 @@ OIDN_NAMESPACE_BEGIN
+   {
+     const std::string name = getArchName(prop);
+ 
++    // BLENDER: this comment is meant to generate a merge conflict if the code
++    // here changes, so we know that hipSupportsDeviceOIDN should be updated.
+     if (name == "gfx1030")
+       return HIPArch::DL;
++    // BLENDER: this comment is meant to generate a merge conflict if the code
++    // here changes, so we know that hipSupportsDeviceOIDN should be updated.
+     if (name == "gfx1100" || name == "gfx1101" || name == "gfx1102")
+       return HIPArch::WMMA;
++    // BLENDER: this comment is meant to generate a merge conflict if the code
++    // here changes, so we know that hipSupportsDeviceOIDN should be updated.
+     else
+       return HIPArch::Unknown;
+   }

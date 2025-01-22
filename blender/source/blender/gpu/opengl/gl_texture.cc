@@ -40,7 +40,7 @@ GLTexture::GLTexture(const char *name) : Texture(name)
 GLTexture::~GLTexture()
 {
   if (framebuffer_) {
-    GPU_framebuffer_free(framebuffer_);
+    GPU_framebuffer_free(wrap(framebuffer_));
   }
   GLContext *ctx = GLContext::get();
   if (ctx != nullptr && is_bound_) {
@@ -59,12 +59,6 @@ bool GLTexture::init_internal()
     format_ = GPU_DEPTH32F_STENCIL8;
   }
 
-  if ((type_ == GPU_TEXTURE_CUBE_ARRAY) && (GLContext::texture_cube_map_array_support == false)) {
-    /* Silently fail and let the caller handle the error. */
-    // debug::raise_gl_error("Attempt to create a cubemap array without hardware support!");
-    return false;
-  }
-
   target_ = to_gl_target(type_);
 
   /* We need to bind once to define the texture type. */
@@ -76,72 +70,18 @@ bool GLTexture::init_internal()
 
   GLenum internal_format = to_gl_internal_format(format_);
   const bool is_cubemap = bool(type_ == GPU_TEXTURE_CUBE);
-  const bool is_layered = bool(type_ & GPU_TEXTURE_ARRAY);
-  const bool is_compressed = bool(format_flag_ & GPU_FORMAT_COMPRESSED);
   const int dimensions = (is_cubemap) ? 2 : this->dimensions_count();
-  GLenum gl_format = to_gl_data_format(format_);
-  GLenum gl_type = to_gl(to_data_format(format_));
 
-  auto mip_size = [&](int h, int w = 1, int d = 1) -> size_t {
-    return divide_ceil_u(w, 4) * divide_ceil_u(h, 4) * divide_ceil_u(d, 4) *
-           to_block_size(format_);
-  };
   switch (dimensions) {
     default:
     case 1:
-      if (GLContext::texture_storage_support) {
-        glTexStorage1D(target_, mipmaps_, internal_format, w_);
-      }
-      else {
-        for (int i = 0, w = w_; i < mipmaps_; i++) {
-          if (is_compressed) {
-            glCompressedTexImage1D(target_, i, internal_format, w, 0, mip_size(w), nullptr);
-          }
-          else {
-            glTexImage1D(target_, i, internal_format, w, 0, gl_format, gl_type, nullptr);
-          }
-          w = max_ii(1, (w / 2));
-        }
-      }
+      glTexStorage1D(target_, mipmaps_, internal_format, w_);
       break;
     case 2:
-      if (GLContext::texture_storage_support) {
-        glTexStorage2D(target_, mipmaps_, internal_format, w_, h_);
-      }
-      else {
-        for (int i = 0, w = w_, h = h_; i < mipmaps_; i++) {
-          for (int f = 0; f < (is_cubemap ? 6 : 1); f++) {
-            GLenum target = (is_cubemap) ? GL_TEXTURE_CUBE_MAP_POSITIVE_X + f : target_;
-            if (is_compressed) {
-              glCompressedTexImage2D(target, i, internal_format, w, h, 0, mip_size(w, h), nullptr);
-            }
-            else {
-              glTexImage2D(target, i, internal_format, w, h, 0, gl_format, gl_type, nullptr);
-            }
-          }
-          w = max_ii(1, (w / 2));
-          h = is_layered ? h_ : max_ii(1, (h / 2));
-        }
-      }
+      glTexStorage2D(target_, mipmaps_, internal_format, w_, h_);
       break;
     case 3:
-      if (GLContext::texture_storage_support) {
-        glTexStorage3D(target_, mipmaps_, internal_format, w_, h_, d_);
-      }
-      else {
-        for (int i = 0, w = w_, h = h_, d = d_; i < mipmaps_; i++) {
-          if (is_compressed) {
-            glCompressedTexImage3D(
-                target_, i, internal_format, w, h, d, 0, mip_size(w, h, d), nullptr);
-          }
-          else {
-            glTexImage3D(target_, i, internal_format, w, h, d, 0, gl_format, gl_type, nullptr);
-          }
-          w = max_ii(1, (w / 2));
-          h = max_ii(1, (h / 2));
-          d = is_layered ? d_ : max_ii(1, (d / 2));
-        }
-      }
+      glTexStorage3D(target_, mipmaps_, internal_format, w_, h_, d_);
       break;
   }
   this->mip_range_set(0, mipmaps_ - 1);
@@ -182,8 +122,6 @@ bool GLTexture::init_internal(GPUVertBuf *vbo)
 
 bool GLTexture::init_internal(GPUTexture *src, int mip_offset, int layer_offset, bool use_stencil)
 {
-  BLI_assert(GLContext::texture_storage_support);
-
   const GLTexture *gl_src = static_cast<const GLTexture *>(unwrap(src));
   GLenum internal_format = to_gl_internal_format(format_);
   target_ = to_gl_target(type_);
@@ -400,7 +338,7 @@ void GLTexture::clear(eGPUDataFormat data_format, const void *data)
     /* Fallback for older GL. */
     GPUFrameBuffer *prev_fb = GPU_framebuffer_active_get();
 
-    FrameBuffer *fb = reinterpret_cast<FrameBuffer *>(this->framebuffer_get());
+    FrameBuffer *fb = this->framebuffer_get();
     fb->bind(true);
     fb->clear_attachment(this->attachment_type(0), data_format, data);
 
@@ -418,22 +356,13 @@ void GLTexture::copy_to(Texture *dst_)
   BLI_assert((dst->w_ == src->w_) && (dst->h_ == src->h_) && (dst->d_ == src->d_));
   BLI_assert(dst->format_ == src->format_);
   BLI_assert(dst->type_ == src->type_);
-  /* TODO: support array / 3D textures. */
-  BLI_assert(dst->d_ == 0);
 
-  if (GLContext::copy_image_support) {
-    int mip = 0;
-    /* NOTE: mip_size_get() won't override any dimension that is equal to 0. */
-    int extent[3] = {1, 1, 1};
-    this->mip_size_get(mip, extent);
-    glCopyImageSubData(
-        src->tex_id_, target_, mip, 0, 0, 0, dst->tex_id_, target_, mip, 0, 0, 0, UNPACK3(extent));
-  }
-  else {
-    /* Fallback for older GL. */
-    GPU_framebuffer_blit(
-        src->framebuffer_get(), 0, dst->framebuffer_get(), 0, to_framebuffer_bits(format_));
-  }
+  int mip = 0;
+  /* NOTE: mip_size_get() won't override any dimension that is equal to 0. */
+  int extent[3] = {1, 1, 1};
+  this->mip_size_get(mip, extent);
+  glCopyImageSubData(
+      src->tex_id_, target_, mip, 0, 0, 0, dst->tex_id_, target_, mip, 0, 0, 0, UNPACK3(extent));
 
   has_pixels_ = true;
 }
@@ -528,16 +457,14 @@ void GLTexture::mip_range_set(int min, int max)
   }
 }
 
-GPUFrameBuffer *GLTexture::framebuffer_get()
+FrameBuffer *GLTexture::framebuffer_get()
 {
   if (framebuffer_) {
     return framebuffer_;
   }
-  BLI_assert(!(type_ & (GPU_TEXTURE_ARRAY | GPU_TEXTURE_CUBE | GPU_TEXTURE_1D | GPU_TEXTURE_3D)));
-  /* TODO(fclem): cleanup this. Don't use GPU object but blender::gpu ones. */
-  GPUTexture *gputex = reinterpret_cast<GPUTexture *>(static_cast<Texture *>(this));
-  framebuffer_ = GPU_framebuffer_create(name_);
-  GPU_framebuffer_texture_attach(framebuffer_, gputex, 0, 0);
+  BLI_assert(!(type_ & GPU_TEXTURE_1D));
+  framebuffer_ = unwrap(GPU_framebuffer_create(name_));
+  framebuffer_->attachment_set(this->attachment_type(0), GPU_ATTACHMENT_TEXTURE(wrap(this)));
   has_pixels_ = true;
   return framebuffer_;
 }
@@ -659,7 +586,8 @@ void GLTexture::samplers_update()
         const GPUSamplerFiltering filtering = GPUSamplerFiltering(filtering_i);
 
         if ((filtering & GPU_SAMPLER_FILTERING_ANISOTROPIC) &&
-            (filtering & GPU_SAMPLER_FILTERING_MIPMAP)) {
+            (filtering & GPU_SAMPLER_FILTERING_MIPMAP))
+        {
           glSamplerParameterf(samplers_state_cache_[extend_yz_i][extend_x_i][filtering_i],
                               GL_TEXTURE_MAX_ANISOTROPY_EXT,
                               anisotropic_filter);
@@ -735,7 +663,6 @@ bool GLTexture::proxy_check(int mip)
   }
 
   if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_WIN, GPU_DRIVER_ANY) ||
-      GPU_type_matches(GPU_DEVICE_NVIDIA, GPU_OS_MAC, GPU_DRIVER_OFFICIAL) ||
       GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_UNIX, GPU_DRIVER_OFFICIAL))
   {
     /* Some AMD drivers have a faulty `GL_PROXY_TEXTURE_..` check.
@@ -744,13 +671,6 @@ bool GLTexture::proxy_check(int mip)
      * it just states that the OGL implementation can support the texture.
      * So we already manually check the maximum size and maximum number of layers.
      * Same thing happens on Nvidia/macOS 10.15 (#78175). */
-    return true;
-  }
-
-  if ((type_ == GPU_TEXTURE_CUBE_ARRAY) &&
-      GPU_type_matches(GPU_DEVICE_ANY, GPU_OS_MAC, GPU_DRIVER_ANY))
-  {
-    /* Special fix for #79703. */
     return true;
   }
 
@@ -817,7 +737,11 @@ void GLTexture::check_feedback_loop()
     if (fb_[i] == fb) {
       GPUAttachmentType type = fb_attachment_[i];
       GPUAttachment attachment = fb->attachments_[type];
-      if (attachment.mip <= mip_max_ && attachment.mip >= mip_min_) {
+      /* Check for when texture is used with texture barrier. */
+      GPUAttachment attachment_read = fb->tmp_detached_[type];
+      if (attachment.mip <= mip_max_ && attachment.mip >= mip_min_ &&
+          attachment_read.tex == nullptr)
+      {
         char msg[256];
         SNPRINTF(msg,
                  "Feedback loop: Trying to bind a texture (%s) with mip range %d-%d but mip %d is "

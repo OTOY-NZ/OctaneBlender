@@ -42,20 +42,26 @@ struct TextureUpdateRoutineSpecialisation {
   /* Number of channels the destination texture has (min=1, max=4). */
   int component_count_output;
 
+  /* Whether the update routine is a clear, and only the first texel of the input data buffer will
+   * be read. */
+  bool is_clear;
+
   bool operator==(const TextureUpdateRoutineSpecialisation &other) const
   {
     return ((input_data_type == other.input_data_type) &&
             (output_data_type == other.output_data_type) &&
             (component_count_input == other.component_count_input) &&
-            (component_count_output == other.component_count_output));
+            (component_count_output == other.component_count_output) &&
+            (is_clear == other.is_clear));
   }
 
   uint64_t hash() const
   {
     blender::DefaultHash<std::string> string_hasher;
-    return (uint64_t)string_hasher(
-        this->input_data_type + this->output_data_type +
-        std::to_string((this->component_count_input << 8) + this->component_count_output));
+    return (uint64_t)string_hasher(this->input_data_type + this->output_data_type +
+                                   std::to_string((this->component_count_input << 9) |
+                                                  (this->component_count_output << 5) |
+                                                  (this->is_clear ? 1 : 0)));
   }
 };
 
@@ -121,6 +127,8 @@ namespace blender::gpu {
 
 class MTLContext;
 class MTLVertBuf;
+class MTLStorageBuf;
+class MTLBuffer;
 
 /* Metal Texture internal implementation. */
 static const int MTL_MAX_MIPMAP_COUNT = 15; /* Max: 16384x16384 */
@@ -161,12 +169,13 @@ struct MTLSamplerState {
   }
 };
 
-const MTLSamplerState DEFAULT_SAMPLER_STATE = {GPUSamplerState::default_sampler() /*, 0, 9999*/};
+const MTLSamplerState DEFAULT_SAMPLER_STATE = {GPUSamplerState::default_sampler() /*, 0, 9999 */};
 
 class MTLTexture : public Texture {
   friend class MTLContext;
   friend class MTLStateManager;
   friend class MTLFrameBuffer;
+  friend class MTLStorageBuf;
 
  private:
   /* Where the textures data comes from. */
@@ -185,8 +194,18 @@ class MTLTexture : public Texture {
   id<MTLTexture> texture_ = nil;
 
   /* Texture Storage. */
-  id<MTLBuffer> texture_buffer_ = nil;
   size_t aligned_w_ = 0;
+
+  /* Storage buffer view.
+   * Buffer backed textures can be wrapped with a storage buffer instance for direct data
+   * reading/writing. Required for atomic operations on texture data when texture atomics are
+   * unsupported.
+   *
+   * tex_buffer_metadata_ packs 4 parameters required by the shader to perform texture space
+   * remapping: (x, y, z) = (width, height, depth/layers) (w) = aligned width. */
+  MTLBuffer *backing_buffer_ = nullptr;
+  MTLStorageBuf *storage_buffer_ = nullptr;
+  int tex_buffer_metadata_[4];
 
   /* Blit Frame-buffer. */
   GPUFrameBuffer *blit_fb_ = nullptr;
@@ -280,6 +299,13 @@ class MTLTexture : public Texture {
     return nil;
   }
 
+  MTLStorageBuf *get_storagebuf();
+
+  const int *get_texture_metdata_ptr() const
+  {
+    return tex_buffer_metadata_;
+  }
+
  protected:
   bool init_internal() override;
   bool init_internal(GPUVertBuf *vbo) override;
@@ -348,8 +374,7 @@ class MTLTexture : public Texture {
             uint dst_slice,
             int width,
             int height);
-  GPUFrameBuffer *get_blit_framebuffer(uint dst_slice, uint dst_mip);
-
+  GPUFrameBuffer *get_blit_framebuffer(int dst_slice, uint dst_mip);
   /* Texture Update function Utilities. */
   /* Metal texture updating does not provide the same range of functionality for type conversion
    * and format compatibility as are available in OpenGL. To achieve the same level of
@@ -615,13 +640,12 @@ inline MTLTextureUsage mtl_usage_from_gpu(eGPUTextureUsage usage)
   if (usage & GPU_TEXTURE_USAGE_ATTACHMENT) {
     mtl_usage = mtl_usage | MTLTextureUsageRenderTarget;
   }
-  if (usage & GPU_TEXTURE_USAGE_MIP_SWIZZLE_VIEW) {
+  if (usage & GPU_TEXTURE_USAGE_FORMAT_VIEW) {
     mtl_usage = mtl_usage | MTLTextureUsagePixelFormatView;
   }
 #if defined(MAC_OS_VERSION_14_0)
   if (@available(macOS 14.0, *)) {
     if (usage & GPU_TEXTURE_USAGE_ATOMIC) {
-
       mtl_usage = mtl_usage | MTLTextureUsageShaderAtomic;
     }
   }
@@ -645,7 +669,7 @@ inline eGPUTextureUsage gpu_usage_from_mtl(MTLTextureUsage mtl_usage)
     usage = usage | GPU_TEXTURE_USAGE_ATTACHMENT;
   }
   if (mtl_usage & MTLTextureUsagePixelFormatView) {
-    usage = usage | GPU_TEXTURE_USAGE_MIP_SWIZZLE_VIEW;
+    usage = usage | GPU_TEXTURE_USAGE_FORMAT_VIEW;
   }
   return usage;
 }

@@ -12,7 +12,7 @@
 #include "DNA_object_types.h"
 #include "DNA_space_types.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 
 #include "RNA_access.hh"
 
@@ -45,6 +45,7 @@ void ED_operatortypes_object()
   WM_operatortype_append(OBJECT_OT_editmode_toggle);
   WM_operatortype_append(OBJECT_OT_posemode_toggle);
   WM_operatortype_append(OBJECT_OT_shade_smooth);
+  WM_operatortype_append(OBJECT_OT_shade_smooth_by_angle);
   WM_operatortype_append(OBJECT_OT_shade_flat);
   WM_operatortype_append(OBJECT_OT_paths_calculate);
   WM_operatortype_append(OBJECT_OT_paths_update);
@@ -239,6 +240,7 @@ void ED_operatortypes_object()
   WM_operatortype_append(OBJECT_OT_shape_key_retime);
   WM_operatortype_append(OBJECT_OT_shape_key_mirror);
   WM_operatortype_append(OBJECT_OT_shape_key_move);
+  WM_operatortype_append(OBJECT_OT_shape_key_lock);
 
   WM_operatortype_append(OBJECT_OT_collection_add);
   WM_operatortype_append(OBJECT_OT_collection_link);
@@ -259,8 +261,8 @@ void ED_operatortypes_object()
   WM_operatortype_append(OBJECT_OT_simulation_nodes_cache_calculate_to_frame);
   WM_operatortype_append(OBJECT_OT_simulation_nodes_cache_bake);
   WM_operatortype_append(OBJECT_OT_simulation_nodes_cache_delete);
-  WM_operatortype_append(OBJECT_OT_simulation_nodes_cache_bake_single);
-  WM_operatortype_append(OBJECT_OT_simulation_nodes_cache_delete_single);
+  WM_operatortype_append(OBJECT_OT_geometry_node_bake_single);
+  WM_operatortype_append(OBJECT_OT_geometry_node_bake_delete_single);
   WM_operatortype_append(OBJECT_OT_drop_named_material);
   WM_operatortype_append(OBJECT_OT_drop_geometry_nodes);
   WM_operatortype_append(OBJECT_OT_unlink_data);

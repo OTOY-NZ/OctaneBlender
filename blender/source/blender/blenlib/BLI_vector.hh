@@ -25,9 +25,6 @@
  */
 
 #include <algorithm>
-#include <cstdlib>
-#include <cstring>
-#include <memory>
 
 #include "BLI_allocator.hh"
 #include "BLI_index_range.hh"
@@ -35,13 +32,11 @@
 #include "BLI_span.hh"
 #include "BLI_utildefines.h"
 
-#include "MEM_guardedalloc.h"
-
 namespace blender {
 
 namespace internal {
 void vector_print_stats(const char *name,
-                        void *address,
+                        const void *address,
                         int64_t size,
                         int64_t capacity,
                         int64_t inlineCapacity,
@@ -816,6 +811,7 @@ class Vector {
   {
     const T *prev_end = this->end();
     end_ = std::remove_if(this->begin(), this->end(), predicate);
+    destruct_n(end_, prev_end - end_);
     UPDATE_VECTOR_SIZE(this);
     return int64_t(prev_end - end_);
   }

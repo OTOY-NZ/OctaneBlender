@@ -14,15 +14,16 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_global.h"
 #include "BKE_image.h"
-#include "BKE_lib_id.h"
-#include "BKE_main.h"
+#include "BKE_lib_id.hh"
+#include "BKE_main.hh"
 #include "BKE_scene.h"
 
 #include "DEG_depsgraph_query.hh"
 
+#include "DNA_image_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_vec_types.h"
 
@@ -40,7 +41,7 @@
 #include "COM_node_operation.hh"
 #include "COM_utilities.hh"
 
-/* **************** IMAGE (and RenderResult, multilayer image) ******************** */
+/* **************** IMAGE (and RenderResult, multi-layer image) ******************** */
 
 static bNodeSocketTemplate cmp_node_rlayers_out[] = {
     {SOCK_RGBA, N_("Image"), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
@@ -335,7 +336,7 @@ static void cmp_node_rlayer_create_outputs(bNodeTree *ntree,
 }
 
 /* XXX make this into a generic socket verification function for dynamic socket replacement
- * (multilayer, groups, static templates) */
+ * (multi-layer, groups, static templates). */
 static void cmp_node_image_verify_outputs(bNodeTree *ntree, bNode *node, bool rlayer)
 {
   bNodeSocket *sock, *sock_next;
@@ -444,59 +445,9 @@ class ImageOperation : public NodeOperation {
 
   void execute() override
   {
-    if (!is_valid()) {
-      allocate_invalid();
-      return;
-    }
-
-    update_image_frame_number();
-
     for (const bNodeSocket *output : this->node()->output_sockets()) {
       compute_output(output->identifier);
     }
-  }
-
-  /* Returns true if the node results can be computed, otherwise, returns false. */
-  bool is_valid()
-  {
-    Image *image = get_image();
-    ImageUser *image_user = get_image_user();
-    if (!image || !image_user) {
-      return false;
-    }
-
-    if (BKE_image_is_multilayer(image)) {
-      if (!image->rr) {
-        return false;
-      }
-
-      RenderLayer *render_layer = get_render_layer();
-      if (!render_layer) {
-        return false;
-      }
-    }
-
-    return true;
-  }
-
-  /* Allocate all needed outputs as invalid. This should be called when is_valid returns false. */
-  void allocate_invalid()
-  {
-    for (const bNodeSocket *output : this->node()->output_sockets()) {
-      if (!should_compute_output(output->identifier)) {
-        continue;
-      }
-
-      Result &result = get_result(output->identifier);
-      result.allocate_invalid();
-    }
-  }
-
-  /* Compute the effective frame number of the image if it was animated and invalidate the cached
-   * GPU texture if the computed frame number is different. */
-  void update_image_frame_number()
-  {
-    BKE_image_user_frame_calc(get_image(), get_image_user(), context().get_frame_number());
   }
 
   void compute_output(StringRef identifier)
@@ -505,19 +456,33 @@ class ImageOperation : public NodeOperation {
       return;
     }
 
-    ImageUser image_user = compute_image_user_for_output(identifier);
-    BKE_image_ensure_gpu_texture(get_image(), &image_user);
-    GPUTexture *image_texture = BKE_image_get_gpu_texture(get_image(), &image_user, nullptr);
+    GPUTexture *image_texture = context().cache_manager().cached_images.get(
+        context(), get_image(), get_image_user(), get_pass_name(identifier));
 
-    const int2 size = int2(GPU_texture_width(image_texture), GPU_texture_height(image_texture));
     Result &result = get_result(identifier);
-    result.allocate_texture(Domain(size));
+    if (!image_texture) {
+      result.allocate_invalid();
+      return;
+    }
 
-    GPUShader *shader = shader_manager().get(get_shader_name(identifier));
+    const ResultPrecision precision = Result::precision(GPU_texture_format(image_texture));
+
+    /* Alpha is mot an actual pass, but one that is extracted from the combined pass. So we need to
+     * extract it using a shader. */
+    if (identifier != "Alpha") {
+      result.set_precision(precision);
+      result.wrap_external(image_texture);
+      return;
+    }
+
+    GPUShader *shader = context().get_shader("compositor_convert_color_to_alpha", precision);
     GPU_shader_bind(shader);
 
     const int input_unit = GPU_shader_get_sampler_binding(shader, "input_tx");
     GPU_texture_bind(image_texture, input_unit);
+
+    const int2 size = int2(GPU_texture_width(image_texture), GPU_texture_height(image_texture));
+    result.allocate_texture(Domain(size));
 
     result.bind_as_image(shader, "output_img");
 
@@ -528,116 +493,21 @@ class ImageOperation : public NodeOperation {
     result.unbind_as_image();
   }
 
-  /* Get a copy of the image user that is appropriate to retrieve the image buffer for the output
-   * with the given identifier. This essentially sets the appropriate pass and view indices that
-   * corresponds to the output. */
-  ImageUser compute_image_user_for_output(StringRef identifier)
-  {
-    ImageUser image_user = *get_image_user();
-
-    /* Set the needed view. */
-    image_user.view = get_view_index();
-
-    /* Set the needed pass. */
-    if (BKE_image_is_multilayer(get_image())) {
-      image_user.pass = get_pass_index(get_pass_name(identifier));
-      BKE_image_multilayer_index(get_image()->rr, &image_user);
-    }
-    else {
-      BKE_image_multiview_index(get_image(), &image_user);
-    }
-
-    return image_user;
-  }
-
-  /* Get the shader that should be used to compute the output with the given identifier. The
-   * shaders just copy the retrieved image textures into the results except for the alpha output,
-   * which extracts the alpha and writes it to the result instead. Note that a call to a host
-   * texture copy doesn't work because results are stored in a different half float formats. */
-  const char *get_shader_name(StringRef identifier)
-  {
-    if (identifier == "Alpha") {
-      return "compositor_extract_alpha_from_color";
-    }
-    else if (get_result(identifier).type() == ResultType::Color) {
-      return "compositor_convert_color_to_half_color";
-    }
-    else {
-      return "compositor_convert_float_to_half_float";
-    }
-  }
-
-  Image *get_image()
-  {
-    return (Image *)bnode().id;
-  }
-
-  ImageUser *get_image_user()
-  {
-    return static_cast<ImageUser *>(bnode().storage);
-  }
-
-  /* Get the render layer selected in the node assuming the image is a multilayer image. */
-  RenderLayer *get_render_layer()
-  {
-    const ListBase *layers = &get_image()->rr->layers;
-    return static_cast<RenderLayer *>(BLI_findlink(layers, get_image_user()->layer));
-  }
-
-  /* Get the name of the pass corresponding to the output with the given identifier assuming the
-   * image is a multilayer image. */
+  /* Get the name of the pass corresponding to the output with the given identifier. */
   const char *get_pass_name(StringRef identifier)
   {
     DOutputSocket output = node().output_by_identifier(identifier);
     return static_cast<NodeImageLayer *>(output->storage)->pass_name;
   }
 
-  /* Get the index of the pass with the given name in the selected render layer's passes list
-   * assuming the image is a multilayer image. */
-  int get_pass_index(const char *name)
+  Image *get_image()
   {
-    return BLI_findstringindex(&get_render_layer()->passes, name, offsetof(RenderPass, name));
+    return reinterpret_cast<Image *>(bnode().id);
   }
 
-  /* Get the index of the view selected in the node. If the image is not a multi-view image or only
-   * has a single view, then zero is returned. Otherwise, if the image is a multi-view image, the
-   * index of the selected view is returned. However, note that the value of the view member of the
-   * image user is not the actual index of the view. More specifically, the index 0 is reserved to
-   * denote the special mode of operation "All", which dynamically selects the view whose name
-   * matches the view currently being rendered. It follows that the views are then indexed starting
-   * from 1. So for non zero view values, the actual index of the view is the value of the view
-   * member of the image user minus 1. */
-  int get_view_index()
+  ImageUser *get_image_user()
   {
-    /* The image is not a multi-view image, so just return zero. */
-    if (!BKE_image_is_multiview(get_image())) {
-      return 0;
-    }
-
-    const ListBase *views = &get_image()->rr->views;
-    /* There is only one view and its index is 0. */
-    if (BLI_listbase_count_at_most(views, 2) < 2) {
-      return 0;
-    }
-
-    const int view = get_image_user()->view;
-    /* The view is not zero, which means it is manually specified and the actual index is then the
-     * view value minus 1. */
-    if (view != 0) {
-      return view - 1;
-    }
-
-    /* Otherwise, the view value is zero, denoting the special mode of operation "All", which finds
-     * the index of the view whose name matches the view currently being rendered. */
-    const char *view_name = context().get_view_name().data();
-    const int matched_view = BLI_findstringindex(views, view_name, offsetof(RenderView, name));
-
-    /* No view matches the view currently being rendered, so fallback to the first view. */
-    if (matched_view == -1) {
-      return 0;
-    }
-
-    return matched_view;
+    return static_cast<ImageUser *>(bnode().storage);
   }
 };
 
@@ -695,7 +565,8 @@ static void node_composit_init_rlayers(const bContext *C, PointerRNA *ptr)
   id_us_plus(node->id);
 
   for (bNodeSocket *sock = (bNodeSocket *)node->outputs.first; sock;
-       sock = sock->next, sock_index++) {
+       sock = sock->next, sock_index++)
+  {
     NodeImageLayer *sockdata = MEM_cnew<NodeImageLayer>(__func__);
     sock->storage = sockdata;
 
@@ -708,7 +579,7 @@ static bool node_composit_poll_rlayers(const bNodeType * /*ntype*/,
                                        const char **r_disabled_hint)
 {
   if (!STREQ(ntree->idname, "CompositorNodeTree")) {
-    *r_disabled_hint = TIP_("Not a compositor node tree");
+    *r_disabled_hint = RPT_("Not a compositor node tree");
     return false;
   }
 
@@ -725,7 +596,7 @@ static bool node_composit_poll_rlayers(const bNodeType * /*ntype*/,
   }
 
   if (scene == nullptr) {
-    *r_disabled_hint = TIP_(
+    *r_disabled_hint = RPT_(
         "The node tree must be the compositing node tree of any scene in the file");
     return false;
   }
@@ -830,10 +701,10 @@ class RenderLayerOperation : public NodeOperation {
       GPUTexture *combined_texture = context().get_input_texture(
           scene, view_layer, RE_PASSNAME_COMBINED);
       if (image_result.should_compute()) {
-        execute_pass(image_result, combined_texture, "compositor_read_pass_color");
+        execute_pass(image_result, combined_texture, "compositor_read_input_color");
       }
       if (alpha_result.should_compute()) {
-        execute_pass(alpha_result, combined_texture, "compositor_read_pass_alpha");
+        execute_pass(alpha_result, combined_texture, "compositor_read_input_alpha");
       }
     }
 
@@ -851,13 +722,13 @@ class RenderLayerOperation : public NodeOperation {
       GPUTexture *pass_texture = context().get_input_texture(
           scene, view_layer, output->identifier);
       if (output->type == SOCK_FLOAT) {
-        execute_pass(result, pass_texture, "compositor_read_pass_float");
+        execute_pass(result, pass_texture, "compositor_read_input_float");
       }
       else if (output->type == SOCK_VECTOR) {
-        execute_pass(result, pass_texture, "compositor_read_pass_vector");
+        execute_pass(result, pass_texture, "compositor_read_input_vector");
       }
       else if (output->type == SOCK_RGBA) {
-        execute_pass(result, pass_texture, "compositor_read_pass_color");
+        execute_pass(result, pass_texture, "compositor_read_input_color");
       }
       else {
         BLI_assert_unreachable();
@@ -874,17 +745,27 @@ class RenderLayerOperation : public NodeOperation {
       return;
     }
 
-    GPUShader *shader = shader_manager().get(shader_name);
+    if (!context().is_valid_compositing_region()) {
+      result.allocate_invalid();
+      return;
+    }
+
+    GPUShader *shader = context().get_shader(shader_name);
     GPU_shader_bind(shader);
 
     /* The compositing space might be limited to a subset of the pass texture, so only read that
      * compositing region into an appropriately sized texture. */
     const rcti compositing_region = context().get_compositing_region();
     const int2 lower_bound = int2(compositing_region.xmin, compositing_region.ymin);
-    GPU_shader_uniform_2iv(shader, "compositing_region_lower_bound", lower_bound);
+    GPU_shader_uniform_2iv(shader, "lower_bound", lower_bound);
 
     const int input_unit = GPU_shader_get_sampler_binding(shader, "input_tx");
     GPU_texture_bind(pass_texture, input_unit);
+
+    /* Depth passes always need to be stored in full precision. */
+    if (GPU_texture_has_depth_format(pass_texture)) {
+      result.set_precision(ResultPrecision::Full);
+    }
 
     const int2 compositing_region_size = context().get_compositing_region_size();
     result.allocate_texture(Domain(compositing_region_size));

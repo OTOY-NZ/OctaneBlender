@@ -18,9 +18,9 @@
 #include <stdio.h>
 
 #include "BKE_animsys.h"
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_global.h"
-#include "BKE_main.h"
+#include "BKE_main.hh"
 #include "BKE_node.h"
 #include "BKE_scene.h"
 

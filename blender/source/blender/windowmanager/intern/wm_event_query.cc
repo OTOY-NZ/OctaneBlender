@@ -22,14 +22,14 @@
 #include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 
 #include "RNA_access.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "wm_event_system.h"
+#include "wm_event_system.hh"
 #include "wm_event_types.hh"
 
 #include "RNA_enum_types.hh"
@@ -560,15 +560,15 @@ float wm_pressure_curve(float pressure)
   return pressure;
 }
 
-float WM_event_tablet_data(const wmEvent *event, int *pen_flip, float tilt[2])
+float WM_event_tablet_data(const wmEvent *event, bool *r_pen_flip, float r_tilt[2])
 {
-  if (tilt) {
-    tilt[0] = event->tablet.x_tilt;
-    tilt[1] = event->tablet.y_tilt;
+  if (r_tilt) {
+    r_tilt[0] = event->tablet.x_tilt;
+    r_tilt[1] = event->tablet.y_tilt;
   }
 
-  if (pen_flip) {
-    (*pen_flip) = (event->tablet.active == EVT_TABLET_ERASER);
+  if (r_pen_flip) {
+    (*r_pen_flip) = (event->tablet.active == EVT_TABLET_ERASER);
   }
 
   return event->tablet.pressure;
@@ -624,7 +624,7 @@ int WM_event_absolute_delta_y(const wmEvent *event)
  *
  * \note Shift is excluded from this check since it prevented typing `Shift+Space`, see: #85517.
  */
-bool WM_event_is_ime_switch(const struct wmEvent *event)
+bool WM_event_is_ime_switch(const wmEvent *event)
 {
   return (event->val == KM_PRESS) && (event->type == EVT_SPACEKEY) &&
          (event->modifier & (KM_CTRL | KM_OSKEY | KM_ALT));

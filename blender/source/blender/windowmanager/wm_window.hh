@@ -28,6 +28,8 @@ void wm_ghost_init(bContext *C);
 void wm_ghost_init_background();
 void wm_ghost_exit();
 
+void wm_clipboard_free();
+
 /**
  * This one should correctly check for apple top header...
  * done for Cocoa: returns window contents (and not frame) max size.
@@ -102,7 +104,7 @@ void wm_window_get_position(wmWindow *win, int *r_pos_x, int *r_pos_y);
  */
 void wm_window_swap_buffers(wmWindow *win);
 void wm_window_set_swap_interval(wmWindow *win, int interval);
-bool wm_window_get_swap_interval(wmWindow *win, int *intervalOut);
+bool wm_window_get_swap_interval(wmWindow *win, int *r_interval);
 
 bool wm_cursor_position_get(wmWindow *win, int *r_x, int *r_y) ATTR_WARN_UNUSED_RESULT;
 void wm_cursor_position_from_ghost_screen_coords(wmWindow *win, int *r_x, int *r_y);

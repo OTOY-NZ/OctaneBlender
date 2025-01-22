@@ -8,17 +8,25 @@
 
 #pragma once
 
-#if PY_VERSION_HEX < 0x03090000
-#  error "Python 3.9 or greater is required, you'll need to update your Python."
+#include <Python.h>
+
+#if PY_VERSION_HEX < 0x030b0000
+#  error "Python 3.11 or greater is required, you'll need to update your Python."
 #endif
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+struct bContext;
 struct ReportList;
 
-/* error reporting */
+/**
+ * Error reporting: convert BKE_report (#ReportList) reports into python errors.
+ *
+ * \param clear: When `true`, #BKE_reports_free is called on the given `reports`, which should
+ * then be considered as 'freed' data and not used anymore.
+ */
 short BPy_reports_to_error(struct ReportList *reports, PyObject *exception, bool clear);
 /**
  * A version of #BKE_report_write_file_fp that uses Python's stdout.

@@ -7,14 +7,12 @@ set(INC
   ../../blenkernel
   ../../blenloader
   ../../blentranslation
-  ../../depsgraph
   ../../editors/include
   ../../gpu
   ../../imbuf
   ../../imbuf/intern/oiio
   ../../makesrna
   ../../windowmanager
-  ../../../../intern/clog
   ../../../../intern/mantaflow/extern
   ../../../../intern/opencolorio
   # RNA_prototypes.h
@@ -121,11 +119,14 @@ set(SRC
 
 set(LIB
   PRIVATE bf::blenlib
+  PRIVATE bf::depsgraph
   PRIVATE bf::dna
   bf_editor_animation
   bf_editor_interface
   bf_editor_space_api
+  PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::animrig
   bf_python_gpu
 
   ${PYTHON_LINKFLAGS}
@@ -152,7 +153,6 @@ if(WITH_PYTHON AND WITH_PYTHON_INSTALL AND (APPLE OR WITH_INSTALL_PORTABLE) AND 
   find_python_module_file("certifi/cacert.pem" PYTHON_SSL_CERT_FILE _python_ssl_cert_file_relative)
   mark_as_advanced(PYTHON_SSL_CERT_FILE)
   if (PYTHON_SSL_CERT_FILE)
-    # This always moves up one level (even if there is a trailing slash).
     add_definitions(-DPYTHON_SSL_CERT_FILE="${_python_ssl_cert_file_relative}")
   else()
     message(WARNING

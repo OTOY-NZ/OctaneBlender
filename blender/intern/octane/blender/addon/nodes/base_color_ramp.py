@@ -86,14 +86,21 @@ class OctaneBaseRampNode(OctaneBaseNode):
     RAMP_VALUE_INPUT_SOCKET_TYPE = consts.SocketType.ST_RGBA
     RAMP_VALUE_INPUT_PIN_TYPE = consts.PinType.PT_TEXTURE
     RAMP_VALUE_INPUT_DEFAULT_NODE_TYPE = consts.NodeType.NT_TEX_RGB
+    COLOR_RAMP_INTERPOLATION_TYPE_MAP = {
+        "LINEAR": 0,
+        "EASE": 1,
+        "CARDINAL": 2,
+        "B_SPLINE": 3,
+        "CONSTANT": 4,
+    }
 
     color_ramp_name: StringProperty()
     color_ramp_data: StringProperty()
     node_data_path: StringProperty()
 
     # Sometimes the init/copy functions are not called, so we have to add this function
-    def validate_color_ramp(self, data_owner=None, force_update_data=False):
-        # Check if the helper color ramp node is existing. 
+    def validate_color_ramp(self, data_owner, force_update_data=False):
+        # Check if the helper color ramp node is existing.
         # For the non-helper node case, create one from the color_ramp_data if possible.
         current_color_ramp = utility.get_octane_helper_node(self.color_ramp_name)
         if current_color_ramp is None:
@@ -105,53 +112,13 @@ class OctaneBaseRampNode(OctaneBaseNode):
             # Create the color_ramp_data for the legacy cases
             if len(self.color_ramp_data) == 0 or force_update_data:
                 self.dumps_color_ramp_data()
-        if data_owner is None:
-            for material in bpy.data.materials:
-                if material.use_nodes and material.node_tree and material.node_tree is self.id_data:
-                    data_owner = material
-                    break
-        if data_owner is None:
-            for world in bpy.data.worlds:
-                if world.use_nodes and world.node_tree and world.node_tree is self.id_data:
-                    data_owner = world
-                    break
-        if data_owner is None:
-            for light in bpy.data.lights:
-                if light.use_nodes and light.node_tree and light.node_tree is self.id_data:
-                    data_owner = light
-                    break
-        if data_owner is None:
-            for node_group in bpy.data.node_groups:
-                if node_group is self.id_data:
-                    data_owner = node_group
-                    break
-        node_data_path = data_owner.name + "_" + repr(self)
-        if self.node_data_path != node_data_path:
-            same_color_ramp_count = 0
-
-            def count_same_color_ramp(node_tree):
-                count = 0
-                for node in node_tree.nodes:
-                    if isinstance(node, OctaneBaseRampNode) and node.color_ramp_name == self.color_ramp_name:
-                        count += 1
-                return count
-
-            for material in bpy.data.materials:
-                if material.use_nodes and material.node_tree:
-                    same_color_ramp_count += count_same_color_ramp(material.node_tree)
-            for world in bpy.data.worlds:
-                if world.use_nodes and world.node_tree:
-                    same_color_ramp_count += count_same_color_ramp(world.node_tree)
-            for light in bpy.data.lights:
-                if light.use_nodes and light.node_tree:
-                    same_color_ramp_count += count_same_color_ramp(light.node_tree)
-            for node_group in bpy.data.node_groups:
-                same_color_ramp_count += count_same_color_ramp(node_group)
-            if same_color_ramp_count > 1:
+        if data_owner is not None:
+            node_data_path = data_owner.name + "_" + repr(self)
+            if self.node_data_path != node_data_path:
                 current_color_ramp = utility.get_octane_helper_node(self.color_ramp_name)
                 if current_color_ramp:
                     self.init_color_ramp_helper_node(None, current_color_ramp.color_ramp)
-            self.node_data_path = node_data_path
+                self.node_data_path = node_data_path
 
     @staticmethod
     def clear_unused_color_ramp_helpers(used_color_ramp_names):
@@ -204,6 +171,9 @@ class OctaneBaseRampNode(OctaneBaseNode):
         utility.add_socket_list(cls, value_socket_names)
         utility.add_socket_list(cls, value_socket_positions)
 
+    def generate_color_ramp_name(self):
+        return "[ColorRamp]" + utility.hash_node_id(self)
+
     def init_octane_color_ramp(self):
         self.init_color_ramp_helper_node()
         utility.remove_socket_inputs(self, ["Start value", "End value"])
@@ -239,7 +209,7 @@ class OctaneBaseRampNode(OctaneBaseNode):
                 value_position.hide = True
 
     def init_color_ramp_helper_node(self, original=None, original_color_ramp=None):
-        self.color_ramp_name = "[ColorRamp]" + utility.hash_node_id(self)
+        self.color_ramp_name = self.generate_color_ramp_name()
         if utility.get_octane_helper_node(self.color_ramp_name) is None:
             utility.create_octane_helper_node(self.color_ramp_name, "ShaderNodeValToRGB")
         self.init_helper_color_ramp_watcher()
@@ -422,9 +392,9 @@ class OctaneBaseRampNode(OctaneBaseNode):
         color_ramp_node = utility.get_octane_helper_node(self.color_ramp_name)
         if color_ramp_node is not None:
             color_ramp = color_ramp_node.color_ramp
-            color_ramp_data_list = [color_ramp.interpolation]
-            for idx, element in enumerate(color_ramp.elements):
-                color_ramp_data_list.append([element.position, list(element.color)])
+            color_ramp_data_list = OctaneBlender().dump_color_ramp_data(color_ramp.as_pointer())
+            active_color_ramp_position = color_ramp_data_list[0]
+            color_ramp_data_list = [[color_ramp.interpolation, active_color_ramp_position], *color_ramp_data_list[1:]]
             color_ramp_dumps_data = json.dumps(color_ramp_data_list)
         if color_ramp_dumps_data != self.color_ramp_data:
             self.color_ramp_data = color_ramp_dumps_data
@@ -436,13 +406,14 @@ class OctaneBaseRampNode(OctaneBaseNode):
             if len(self.color_ramp_data) > 0:
                 color_ramp_data_list = json.loads(self.color_ramp_data)
                 if len(color_ramp_data_list) > 0:
-                    color_ramp.interpolation = color_ramp_data_list[0]
-                    element_count = len(color_ramp_data_list) - 1
-                    while len(color_ramp.elements) < element_count:
-                        color_ramp.elements.new(1)
-                    for idx in range(element_count):
-                        color_ramp.elements[idx].position = color_ramp_data_list[idx + 1][0]
-                        color_ramp.elements[idx].color = color_ramp_data_list[idx + 1][1]
+                    color_ramp_attributes = color_ramp_data_list[0]
+                    # Backward compatibility
+                    if type(color_ramp_attributes) is list:
+                        interpolation_identifier = color_ramp_attributes[0]
+                    else:
+                        interpolation_identifier = color_ramp_attributes
+                    interpolation_type = OctaneBaseRampNode.COLOR_RAMP_INTERPOLATION_TYPE_MAP[interpolation_identifier]
+                    OctaneBlender().load_color_ramp_data(interpolation_type, color_ramp_data_list, color_ramp.as_pointer())
         self.update_color_ramp_interpolation(None)
 
     def draw_buttons(self, context, layout):

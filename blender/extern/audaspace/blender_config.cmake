@@ -7,7 +7,7 @@ set(SHARED_LIBRARY FALSE)  # "Build Shared Library"
 set(WITH_C TRUE)  # "Build C Module"
 set(WITH_DOCS FALSE)  # "Build C++ HTML Documentation with Doxygen"
 set(WITH_FFMPEG ${WITH_CODEC_FFMPEG})  # "Build With FFMPEG"
-if(DEFINED WITH_FFTW3) # "Build With FFTW"
+if(DEFINED WITH_FFTW3 AND WITH_FFTW3) # "Build With FFTW"
   set(FFTW_FOUND TRUE)
   set(WITH_FFTW ${WITH_FFTW3})
   set(FFTW_INCLUDE_DIR ${FFTW3_INCLUDE_DIRS})
@@ -36,4 +36,15 @@ set(LIBPULSE_FOUND ${WITH_PULSEAUDIO})
 set(PYTHONLIBS_FOUND TRUE)
 set(NUMPY_FOUND ${WITH_PYTHON_NUMPY})
 set(NUMPY_INCLUDE_DIRS ${PYTHON_NUMPY_INCLUDE_DIRS})
+
 set(SDL_FOUND ${WITH_SDL})
+if(SDL_FOUND)
+  set(USE_SDL2 TRUE)
+  if(WITH_SDL_DYNLOAD)
+    set(SDL2_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/extern/sdlew/include/SDL2")
+    # Not needed, Blender's `sdlew` defines symbols.
+    set(SDL2_LIBRARY "")
+  endif()
+  # This probably shouldn't be used, but it is.
+  set(SDL_LIBRARY "${SDL2_LIBRARY}")
+endif()

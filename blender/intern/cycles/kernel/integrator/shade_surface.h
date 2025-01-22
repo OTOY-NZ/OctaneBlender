@@ -238,10 +238,17 @@ integrate_direct_light_shadow_init_common(KernelGlobals kg,
 /* Path tracing: sample point on light and evaluate light shader, then
  * queue shadow ray to be traced. */
 template<uint node_feature_mask>
-ccl_device_forceinline void integrate_surface_direct_light(KernelGlobals kg,
-                                                           IntegratorState state,
-                                                           ccl_private ShaderData *sd,
-                                                           ccl_private const RNGState *rng_state)
+#if defined(__KERNEL_GPU__)
+ccl_device_forceinline
+#else
+/* MSVC has very long compilation time (x20) if we force inline this function */
+ccl_device
+#endif
+    void
+    integrate_surface_direct_light(KernelGlobals kg,
+                                   IntegratorState state,
+                                   ccl_private ShaderData *sd,
+                                   ccl_private const RNGState *rng_state)
 {
   /* Test if there is a light or BSDF that needs direct light. */
   if (!(kernel_data.integrator.use_direct_light && (sd->flag & SD_BSDF_HAS_EVAL))) {
@@ -273,6 +280,16 @@ ccl_device_forceinline void integrate_surface_direct_light(KernelGlobals kg,
 
   kernel_assert(ls.pdf != 0.0f);
 
+  const bool is_transmission = dot(ls.D, sd->N) < 0.0f;
+
+  if (ls.prim != PRIM_NONE && ls.prim == sd->prim && ls.object == sd->object) {
+    /* Skip self intersection if light direction lies in the same hemisphere as the geometric
+     * normal. */
+    if (dot(ls.D, is_transmission ? -sd->Ng : sd->Ng) > 0.0f) {
+      return;
+    }
+  }
+
   /* Evaluate light shader.
    *
    * TODO: can we reuse sd memory? In theory we can move this after
@@ -284,8 +301,6 @@ ccl_device_forceinline void integrate_surface_direct_light(KernelGlobals kg,
 
   Ray ray ccl_optional_struct_init;
   BsdfEval bsdf_eval ccl_optional_struct_init;
-
-  const bool is_transmission = dot(ls.D, sd->N) < 0.0f;
 
   int mnee_vertex_count = 0;
 #ifdef __MNEE__
@@ -495,12 +510,13 @@ ccl_device_forceinline int integrate_surface_bsdf_bssrdf_bounce(
     INTEGRATOR_STATE_WRITE(state, path, mis_origin_n) = sd->N;
     INTEGRATOR_STATE_WRITE(state, path, min_ray_pdf) = fminf(
         unguided_bsdf_pdf, INTEGRATOR_STATE(state, path, min_ray_pdf));
-  }
+
 #ifdef __LIGHT_LINKING__
-  if (kernel_data.kernel_features & KERNEL_FEATURE_LIGHT_LINKING) {
-    INTEGRATOR_STATE_WRITE(state, path, mis_ray_object) = sd->object;
-  }
+    if (kernel_data.kernel_features & KERNEL_FEATURE_LIGHT_LINKING) {
+      INTEGRATOR_STATE_WRITE(state, path, mis_ray_object) = sd->object;
+    }
 #endif
+  }
 
   path_state_next(kg, state, label, sd->flag);
 
@@ -560,7 +576,8 @@ ccl_device_forceinline void integrate_surface_ao(KernelGlobals kg,
   const uint32_t path_flag = INTEGRATOR_STATE(state, path, flag);
 
   if (!(kernel_data.kernel_features & KERNEL_FEATURE_AO_ADDITIVE) &&
-      !(path_flag & PATH_RAY_CAMERA)) {
+      !(path_flag & PATH_RAY_CAMERA))
+  {
     return;
   }
 

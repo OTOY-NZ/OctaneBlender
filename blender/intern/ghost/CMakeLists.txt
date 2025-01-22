@@ -4,12 +4,10 @@
 
 set(INC
   PUBLIC .
-  ../clog
   ../../source/blender/imbuf
 )
 
 set(INC_SYS
-  ${Epoxy_INCLUDE_DIRS}
 )
 
 set(SRC
@@ -72,16 +70,37 @@ set(SRC
 )
 
 set(LIB
-  ${Epoxy_LIBRARIES}
   PRIVATE bf::blenlib
   PRIVATE bf::dna
+  PRIVATE bf::intern::clog
 )
 
+if(WITH_INPUT_IME)
+  add_definitions(-DWITH_INPUT_IME)
+endif()
+
 if(WITH_OPENGL_BACKEND)
+  list(APPEND INC_SYS
+    ${Epoxy_INCLUDE_DIRS}
+  )
+  list(APPEND LIB
+    ${Epoxy_LIBRARIES}
+  )
   add_definitions(-DWITH_OPENGL_BACKEND)
 endif()
 
 if(WITH_VULKAN_BACKEND)
+
+  if(APPLE)
+    list(APPEND INC_SYS
+      PUBLIC ${MOLTENVK_INCLUDE_DIRS}
+    )
+
+    list(APPEND LIB
+      ${MOLTENVK_LIBRARIES}
+    )
+  endif()
+
   list(APPEND SRC
     intern/GHOST_ContextVK.cc
 
@@ -90,12 +109,10 @@ if(WITH_VULKAN_BACKEND)
 
   list(APPEND INC_SYS
     PUBLIC ${VULKAN_INCLUDE_DIRS}
-    PUBLIC ${MOLTENVK_INCLUDE_DIRS}
   )
 
   list(APPEND LIB
     ${VULKAN_LIBRARIES}
-    ${MOLTENVK_LIBRARIES}
   )
 
   add_definitions(-DWITH_VULKAN_BACKEND)
@@ -164,9 +181,6 @@ elseif(WITH_GHOST_SDL)
   endif()
 
 elseif(APPLE AND NOT WITH_GHOST_X11)
-  if(WITH_INPUT_IME)
-    add_definitions(-DWITH_INPUT_IME)
-  endif()
   list(APPEND SRC
     intern/GHOST_DisplayManagerCocoa.mm
     intern/GHOST_SystemCocoa.mm
@@ -216,11 +230,13 @@ elseif(WITH_GHOST_X11 OR WITH_GHOST_WAYLAND)
       intern/GHOST_WindowX11.hh
     )
 
-    list(APPEND SRC
-      intern/GHOST_ContextGLX.cc
+    if(WITH_OPENGL_BACKEND)
+      list(APPEND SRC
+        intern/GHOST_ContextGLX.cc
 
-      intern/GHOST_ContextGLX.hh
-    )
+        intern/GHOST_ContextGLX.hh
+      )
+    endif()
 
     if(WITH_GHOST_XDND)
       add_definitions(-DWITH_XDND)
@@ -307,15 +323,6 @@ elseif(WITH_GHOST_X11 OR WITH_GHOST_WAYLAND)
       )
     endif()
 
-    if(WITH_GHOST_WAYLAND_DBUS)
-      list(APPEND INC_SYS
-        ${dbus_INCLUDE_DIRS}
-      )
-      list(APPEND LIB
-        ${dbus_LINK_LIBRARIES}
-      )
-    endif()
-
     if(WITH_GHOST_WAYLAND_LIBDECOR)
       list(APPEND INC_SYS
         ${libdecor_INCLUDE_DIRS}
@@ -340,12 +347,19 @@ elseif(WITH_GHOST_X11 OR WITH_GHOST_WAYLAND)
       add_definitions(-DHAVE_POLL)
     endif()
 
+    if(WITH_GHOST_WAYLAND_LIBDECOR)
+      # See code-comment for `USE_LIBDECOR_CONFIG_COPY_WORKAROUND`.
+      check_symbol_exists(malloc_usable_size "malloc.h" HAVE_MALLOC_USABLE_SIZE)
+      if(HAVE_MALLOC_USABLE_SIZE)
+        add_definitions(-DHAVE_MALLOC_USABLE_SIZE)
+      endif()
+    endif()
+
     list(APPEND SRC
       intern/GHOST_SystemWayland.cc
       intern/GHOST_WindowWayland.cc
 
       intern/GHOST_SystemWayland.hh
-      intern/GHOST_WaylandCursorSettings.hh
       intern/GHOST_WaylandUtils.hh
       intern/GHOST_WindowWayland.hh
     )
@@ -434,6 +448,11 @@ elseif(WITH_GHOST_X11 OR WITH_GHOST_WAYLAND)
     generate_protocol_bindings(
       "${WAYLAND_PROTOCOLS_DIR}/unstable/primary-selection/primary-selection-unstable-v1.xml"
     )
+    if(WITH_INPUT_IME)
+      generate_protocol_bindings(
+        "${WAYLAND_PROTOCOLS_DIR}/unstable/text-input/text-input-unstable-v3.xml"
+      )
+    endif()
 
     unset(INC_DST)
 
@@ -493,8 +512,6 @@ elseif(WIN32)
   )
 
   if(WITH_INPUT_IME)
-    add_definitions(-DWITH_INPUT_IME)
-
     list(APPEND SRC
       intern/GHOST_ImeWin32.cc
 
@@ -512,11 +529,13 @@ elseif(WIN32)
 endif()
 
 if(UNIX AND NOT APPLE)
-  list(APPEND SRC
-    intern/GHOST_ContextEGL.cc
+  if(WITH_OPENGL_BACKEND)
+    list(APPEND SRC
+      intern/GHOST_ContextEGL.cc
 
-    intern/GHOST_ContextEGL.hh
-  )
+      intern/GHOST_ContextEGL.hh
+    )
+  endif()
 endif()
 
 if(APPLE)

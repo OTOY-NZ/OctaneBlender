@@ -15,10 +15,10 @@
 #include "BLI_math_color.h"
 
 #include "BKE_brush.hh"
-#include "BKE_context.h"
-#include "BKE_layer.h"
+#include "BKE_context.hh"
+#include "BKE_layer.hh"
 #include "BKE_paint.hh"
-#include "BKE_undo_system.h"
+#include "BKE_undo_system.hh"
 
 #include "ED_paint.hh"
 #include "ED_view3d.hh"
@@ -283,7 +283,7 @@ static PaintOperation *texture_paint_init(bContext *C, wmOperator *op, const flo
   PaintOperation *pop = MEM_new<PaintOperation>("PaintOperation"); /* caller frees */
   Brush *brush = BKE_paint_brush(&settings->imapaint.paint);
   int mode = RNA_enum_get(op->ptr, "mode");
-  ED_view3d_viewcontext_init(C, &pop->vc, depsgraph);
+  pop->vc = ED_view3d_viewcontext_init(C, depsgraph);
 
   copy_v2_v2(pop->prevmouse, mouse);
   copy_v2_v2(pop->startmouse, mouse);
@@ -319,7 +319,7 @@ static PaintOperation *texture_paint_init(bContext *C, wmOperator *op, const flo
   }
 
   settings->imapaint.flag |= IMAGEPAINT_DRAWING;
-  ED_image_undo_push_begin(op->type->name, PAINT_MODE_TEXTURE_2D);
+  ED_image_undo_push_begin(op->type->name, PaintMode::Texture2D);
 
   return pop;
 }

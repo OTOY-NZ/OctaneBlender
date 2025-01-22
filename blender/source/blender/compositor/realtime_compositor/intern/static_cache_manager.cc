@@ -16,6 +16,10 @@ void StaticCacheManager::reset()
   smaa_precomputed_textures.reset();
   ocio_color_space_conversion_shaders.reset();
   distortion_grids.reset();
+  keying_screens.reset();
+  cached_shaders.reset();
+  bokeh_kernels.reset();
+  cached_images.reset();
 }
 
 }  // namespace blender::realtime_compositor

@@ -509,6 +509,42 @@ def quick_add_octane_kernel_node_tree(assign_to_kernel_node_graph=False, generat
     return node_tree
 
 
+def find_node_tree_owner(node_tree):
+    data_owner = None
+    if data_owner is None:
+        for material in bpy.data.materials:
+            if material.use_nodes and material.node_tree and material.node_tree is node_tree:
+                data_owner = material
+                break
+    if data_owner is None:
+        for world in bpy.data.worlds:
+            if world.use_nodes and world.node_tree and world.node_tree is node_tree:
+                data_owner = world
+                break
+    if data_owner is None:
+        for light in bpy.data.lights:
+            if light.use_nodes and light.node_tree and light.node_tree is node_tree:
+                data_owner = light
+                break
+    if data_owner is None:
+        for node_group in bpy.data.node_groups:
+            if node_group is node_tree:
+                data_owner = node_group
+                break
+    return data_owner
+
+
+# Find the currently active node tree(from node wrangler)
+def get_active_tree(context):
+    tree = context.space_data.node_tree
+    path = []
+    if tree.nodes.active:
+        while tree.nodes.active != context.active_node:
+            tree = tree.nodes.active.node_tree
+            path.append(tree)
+    return tree, path
+
+
 def octane_helper_node_group():
     helper_node_group = bpy.data.node_groups.get(consts.OCTANE_HELPER_NODE_GROUP, None)
     if helper_node_group is None:
@@ -1258,6 +1294,65 @@ def object_motion_time_offsets(_object, start_frame_offset, end_frame_offset):
     return motion_time_offsets
 
 
+def is_legacy_node(node):
+    return node.bl_idname.startswith("ShaderNodeOct")
+
+
+def find_legacy_node_in_node_tree(node_tree, node_name_list):
+    for node in node_tree.nodes:
+        if is_legacy_node(node):
+            node_name_list.append(node.name)
+    return len(node_name_list) > 0
+
+
+def find_legacy_node_in_scene():
+    found = False
+    from collections import defaultdict
+    legacy_node_dict = defaultdict(lambda: defaultdict(list))
+    for node_tree in bpy.data.node_groups:
+        if find_legacy_node_in_node_tree(node_tree, legacy_node_dict["NodeGroup"][node_tree]):
+            found = True
+        if node_tree.library is not None or not found:
+            del legacy_node_dict["NodeGroup"][node_tree]
+    for material in bpy.data.materials:
+        if material.node_tree and material.use_nodes:
+            if find_legacy_node_in_node_tree(material.node_tree, legacy_node_dict["Material"][material]):
+                found = True
+            if material.library is not None or not found:
+                del legacy_node_dict["Material"][material]
+    for world in bpy.data.worlds:
+        if world.node_tree and world.use_nodes:
+            if find_legacy_node_in_node_tree(world.node_tree, legacy_node_dict["World"][world]):
+                found = True
+            if world.library is not None or not found:
+                del legacy_node_dict["World"][world]
+    for light in bpy.data.lights:
+        if light.node_tree and light.use_nodes:
+            if find_legacy_node_in_node_tree(light.node_tree, legacy_node_dict["Light"][light]):
+                found = True
+        if light.library is not None or not found:
+            del legacy_node_dict["Light"][light]
+    results = []
+    if found:
+        for node_tree, node_name_list in legacy_node_dict["NodeGroup"].items():
+            if len(node_name_list) == 0:
+                continue
+            results.append("NodeGroup[%s]: %s" % (node_tree.name, '.'.join(node_name_list)))
+        for material, node_name_list in legacy_node_dict["Material"].items():
+            if len(node_name_list) == 0:
+                continue
+            results.append("Material[%s]: %s" % (material.name, '.'.join(node_name_list)))
+        for world, node_name_list in legacy_node_dict["World"].items():
+            if len(node_name_list) == 0:
+                continue
+            results.append("World[%s]: %s" % (world.name, '.'.join(node_name_list)))
+        for light, node_name_list in legacy_node_dict["Light"].items():
+            if len(node_name_list) == 0:
+                continue
+            results.append("Light[%s]: %s" % (light.name, '.'.join(node_name_list)))
+    return found, results
+
+
 def convert_to_addon_node(owner, node_tree, original_node, context, report):
     from octane.nodes.base_node import OctaneBaseNode
     from octane.core.octane_info import OctaneInfoManger
@@ -1303,6 +1398,22 @@ def convert_to_addon_node_tree(owner, node_tree, context, report):
             node_tree.nodes.remove(original_node)
             addon_node.name = node_name
             addon_node.location = (node_location_x, node_location_y)
+
+
+def convert_legacy_nodes_to_addon_nodes(context, report):
+    for node_tree in bpy.data.node_groups:
+        if node_tree.library is not None:
+            continue
+        convert_to_addon_node_tree(node_tree, node_tree, context, report)
+    for material in bpy.data.materials:
+        if material.library is None and material.node_tree and material.use_nodes:
+            convert_to_addon_node_tree(material, material.node_tree, context, report)
+    for world in bpy.data.worlds:
+        if world.library is None and world.node_tree and world.use_nodes:
+            convert_to_addon_node_tree(world, world.node_tree, context, report)
+    for light in bpy.data.lights:
+        if light.library is None and light.node_tree and light.use_nodes:
+            convert_to_addon_node_tree(light, light.node_tree, context, report)
 
 
 # Render passes

@@ -11,9 +11,9 @@
  * specific to loading vector graphics (such as resolution control), see #109567 for details.
  */
 
-#include "IMB_colormanagement.h"
-#include "IMB_filetype.h"
-#include "IMB_imbuf_types.h"
+#include "IMB_colormanagement.hh"
+#include "IMB_filetype.hh"
+#include "IMB_imbuf_types.hh"
 #include "nanosvg.h"
 #include "nanosvgrast.h"
 
@@ -50,9 +50,9 @@ ImBuf *imb_load_filepath_thumbnail_svg(const char *filepath,
 
   colorspace_set_default_role(colorspace, IM_MAX_SPACE, COLOR_ROLE_DEFAULT_BYTE);
 
-  const float scale = float(max_thumb_size) / MAX2(w, h);
-  const int dest_w = MAX2(int(w * scale), 1);
-  const int dest_h = MAX2(int(h * scale), 1);
+  const float scale = float(max_thumb_size) / std::max(w, h);
+  const int dest_w = std::max(int(w * scale), 1);
+  const int dest_h = std::max(int(h * scale), 1);
 
   ImBuf *ibuf = IMB_allocImBuf(dest_w, dest_h, 32, IB_rect);
   if (ibuf != nullptr) {

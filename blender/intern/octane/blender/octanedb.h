@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <mutex>
 extern "C" {
-#include "BKE_context.h"
+#include "BKE_context.hh"
 }
 
 #include "blender/rpc/definitions/OctaneNode.h"

@@ -57,12 +57,14 @@
  *   Simple wrapper to #GPUFramebuffer that can be moved.
  */
 
-#include "DRW_render.h"
+#include "DRW_render.hh"
 
 #include "MEM_guardedalloc.h"
 
 #include "draw_manager.h"
 #include "draw_texture_pool.h"
+
+#include "BKE_global.h"
 
 #include "BLI_math_vector_types.hh"
 #include "BLI_span.hh"
@@ -170,7 +172,7 @@ class UniformCommon : public DataBuffer<T, len, false>, NonMovable, NonCopyable 
  protected:
   GPUUniformBuf *ubo_;
 
-#ifdef DEBUG
+#ifndef NDEBUG
   const char *name_ = typeid(T).name();
 #else
   const char *name_ = "UniformBuffer";
@@ -213,7 +215,7 @@ class StorageCommon : public DataBuffer<T, len, false>, NonMovable, NonCopyable 
  protected:
   GPUStorageBuf *ssbo_;
 
-#ifdef DEBUG
+#ifndef NDEBUG
   const char *name_ = typeid(T).name();
 #else
   const char *name_ = "StorageBuffer";
@@ -244,6 +246,11 @@ class StorageCommon : public DataBuffer<T, len, false>, NonMovable, NonCopyable 
   void clear_to_zero()
   {
     GPU_storagebuf_clear_to_zero(ssbo_);
+  }
+
+  void async_flush_to_host()
+  {
+    GPU_storagebuf_sync_to_host(ssbo_);
   }
 
   void read()
@@ -392,10 +399,10 @@ class StorageArrayBuffer : public detail::StorageCommon<T, len, device_only> {
 
   static void swap(StorageArrayBuffer &a, StorageArrayBuffer &b)
   {
-    SWAP(T *, a.data_, b.data_);
-    SWAP(GPUStorageBuf *, a.ssbo_, b.ssbo_);
-    SWAP(int64_t, a.len_, b.len_);
-    SWAP(const char *, a.name_, b.name_);
+    std::swap(a.data_, b.data_);
+    std::swap(a.ssbo_, b.ssbo_);
+    std::swap(a.len_, b.len_);
+    std::swap(a.name_, b.name_);
   }
 };
 
@@ -479,7 +486,7 @@ class StorageVectorBuffer : public StorageArrayBuffer<T, len, false> {
   static void swap(StorageVectorBuffer &a, StorageVectorBuffer &b)
   {
     StorageArrayBuffer<T, len, false>::swap(a, b);
-    SWAP(int64_t, a.item_len_, b.item_len_);
+    std::swap(a.item_len_, b.item_len_);
   }
 };
 
@@ -522,6 +529,7 @@ class Texture : NonCopyable {
   GPUTexture *stencil_view_ = nullptr;
   Vector<GPUTexture *, 0> mip_views_;
   Vector<GPUTexture *, 0> layer_views_;
+  GPUTexture *layer_range_view_ = nullptr;
   const char *name_;
 
  public:
@@ -586,6 +594,7 @@ class Texture : NonCopyable {
     tx_ = create(UNPACK3(extent), mip_len, format, usage, data, false, false);
   }
 
+  Texture(Texture &&other) = default;
   ~Texture()
   {
     free();
@@ -618,12 +627,14 @@ class Texture : NonCopyable {
       this->tx_ = a.tx_;
       this->name_ = a.name_;
       this->stencil_view_ = a.stencil_view_;
+      this->layer_range_view_ = a.layer_range_view_;
       this->mip_views_ = std::move(a.mip_views_);
       this->layer_views_ = std::move(a.layer_views_);
 
       a.tx_ = nullptr;
       a.name_ = nullptr;
       a.stencil_view_ = nullptr;
+      a.layer_range_view_ = nullptr;
       a.mip_views_.clear();
       a.layer_views_.clear();
     }
@@ -761,7 +772,7 @@ class Texture : NonCopyable {
   }
 
   /**
-   * Ensure the availability of mipmap views.
+   * Ensure the availability of layer views.
    * Layer views covers all layers of array textures.
    * Returns true if the views were (re)created.
    */
@@ -795,6 +806,33 @@ class Texture : NonCopyable {
           name_, tx_, format, 0, 9999, 0, 9999, cube_as_array, true);
     }
     return stencil_view_;
+  }
+
+  /**
+   * Layer range view cover only the given range.
+   * This can only called to create one range.
+   * View is recreated if:
+   * - The source texture is recreated.
+   * - The layer_len is different from the last call the this function.
+   * IMPORTANT: It is not recreated if the layer_start is different from the last call.
+   * IMPORTANT: If this view is recreated any reference to it should be updated.
+   */
+  GPUTexture *layer_range_view(int layer_start, int layer_len, bool cube_as_array = false)
+  {
+    BLI_assert(this->is_valid());
+    /* Make sure the range is valid as the GPU_texture_layer_count only returns the effective
+     * (clipped) range and not the requested range. */
+    BLI_assert_msg((layer_start + layer_len) <= GPU_texture_layer_count(tx_),
+                   "Layer range needs to be valid");
+
+    int view_layer_len = (layer_range_view_) ? GPU_texture_layer_count(layer_range_view_) : -1;
+    if (layer_len != view_layer_len) {
+      GPU_TEXTURE_FREE_SAFE(layer_range_view_);
+      eGPUTextureFormat format = GPU_texture_format(tx_);
+      layer_range_view_ = GPU_texture_create_view(
+          name_, tx_, format, 0, 9999, layer_start, layer_len, cube_as_array, false);
+    }
+    return layer_range_view_;
   }
 
   /**
@@ -882,6 +920,25 @@ class Texture : NonCopyable {
   }
 
   /**
+   * Clear the texture to NaN for floats, or a to debug value for integers.
+   * (For debugging uninitialized data issues)
+   */
+  void debug_clear()
+  {
+    if (GPU_texture_has_float_format(this->tx_) || GPU_texture_has_normalized_format(this->tx_)) {
+      this->clear(float4(NAN_FLT));
+    }
+    else if (GPU_texture_has_integer_format(this->tx_)) {
+      if (GPU_texture_has_signed_format(this->tx_)) {
+        this->clear(int4(0xF0F0F0F0));
+      }
+      else {
+        this->clear(uint4(0xF0F0F0F0));
+      }
+    }
+  }
+
+  /**
    * Returns a buffer containing the texture data for the specified miplvl.
    * The memory block needs to be manually freed by MEM_freeN().
    */
@@ -908,6 +965,7 @@ class Texture : NonCopyable {
       GPU_TEXTURE_FREE_SAFE(view);
     }
     GPU_TEXTURE_FREE_SAFE(stencil_view_);
+    GPU_TEXTURE_FREE_SAFE(layer_range_view_);
     mip_views_.clear();
     layer_views_.clear();
   }
@@ -917,8 +975,12 @@ class Texture : NonCopyable {
    */
   static void swap(Texture &a, Texture &b)
   {
-    SWAP(GPUTexture *, a.tx_, b.tx_);
-    SWAP(const char *, a.name_, b.name_);
+    std::swap(a.tx_, b.tx_);
+    std::swap(a.name_, b.name_);
+    std::swap(a.stencil_view_, b.stencil_view_);
+    std::swap(a.layer_range_view_, b.layer_range_view_);
+    std::swap(a.mip_views_, b.mip_views_);
+    std::swap(a.layer_views_, b.layer_views_);
   }
 
  private:
@@ -946,6 +1008,9 @@ class Texture : NonCopyable {
     }
     if (tx_ == nullptr) {
       tx_ = create(w, h, d, mip_len, format, usage, data, layered, cubemap);
+      if (data == nullptr && (G.debug & G_DEBUG_GPU)) {
+        debug_clear();
+      }
       return true;
     }
     return false;
@@ -1004,6 +1069,10 @@ class TextureFromPool : public Texture, NonMovable {
 
     this->tx_ = DRW_texture_pool_texture_acquire(
         DST.vmempool->texture_pool, UNPACK2(extent), format, usage);
+
+    if (G.debug & G_DEBUG_GPU) {
+      debug_clear();
+    }
   }
 
   void release()
@@ -1089,8 +1158,7 @@ class TextureRef : public Texture {
  * Dummy type to bind texture as image.
  * It is just a GPUTexture in disguise.
  */
-class Image {
-};
+class Image {};
 
 static inline Image *as_image(GPUTexture *tex)
 {
@@ -1196,8 +1264,8 @@ class Framebuffer : NonCopyable {
    */
   static void swap(Framebuffer &a, Framebuffer &b)
   {
-    SWAP(GPUFrameBuffer *, a.fb_, b.fb_);
-    SWAP(const char *, a.name_, b.name_);
+    std::swap(a.fb_, b.fb_);
+    std::swap(a.name_, b.name_);
   }
 };
 
@@ -1220,7 +1288,7 @@ template<typename T, int64_t len> class SwapChain {
     for (auto i : IndexRange(len - 1)) {
       auto i_next = (i + 1) % len;
       if constexpr (std::is_trivial_v<T>) {
-        SWAP(T, chain_[i], chain_[i_next]);
+        std::swap(chain_[i], chain_[i_next]);
       }
       else {
         T::swap(chain_[i], chain_[i_next]);

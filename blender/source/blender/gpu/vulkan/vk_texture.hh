@@ -19,6 +19,14 @@ namespace blender::gpu {
 class VKSampler;
 
 class VKTexture : public Texture, public VKBindableResource {
+  /**
+   * Texture format how the texture is stored on the device.
+   *
+   * This can be a different format then #Texture.format_ in case the texture format isn't natively
+   * supported by the device.
+   */
+  eGPUTextureFormat device_format_ = (eGPUTextureFormat)-1;
+
   /** When set the instance is considered to be a texture view from `source_texture_` */
   VKTexture *source_texture_ = nullptr;
   VkImage vk_image_ = VK_NULL_HANDLE;
@@ -56,6 +64,7 @@ class VKTexture : public Texture, public VKBindableResource {
 
   void generate_mipmap() override;
   void copy_to(Texture *tex) override;
+  void copy_to(VKTexture &dst_texture, VkImageAspectFlags vk_image_aspect);
   void clear(eGPUDataFormat format, const void *data) override;
   void clear_depth_stencil(const eGPUFrameBufferBits buffer,
                            float clear_depth,
@@ -63,7 +72,8 @@ class VKTexture : public Texture, public VKBindableResource {
   void swizzle_set(const char swizzle_mask[4]) override;
   void mip_range_set(int min, int max) override;
   void *read(int mip, eGPUDataFormat format) override;
-  void read_sub(int mip, eGPUDataFormat format, const int area[4], void *r_data);
+  void read_sub(
+      int mip, eGPUDataFormat format, const int area[6], IndexRange layers, void *r_data);
   void update_sub(
       int mip, int offset[3], int extent[3], eGPUDataFormat format, const void *data) override;
   void update_sub(int offset[3],
@@ -74,7 +84,9 @@ class VKTexture : public Texture, public VKBindableResource {
   /* TODO(fclem): Legacy. Should be removed at some point. */
   uint gl_bindcode_get() const override;
 
-  void bind(int location, shader::ShaderCreateInfo::Resource::BindType bind_type) override;
+  void bind(int location,
+            shader::ShaderCreateInfo::Resource::BindType bind_type,
+            const GPUSamplerState sampler_state) override;
 
   VkImage vk_image_handle() const
   {
@@ -85,7 +97,13 @@ class VKTexture : public Texture, public VKBindableResource {
     return vk_image_;
   }
 
-  void ensure_allocated();
+  /**
+   * Get the texture format how the texture is stored on the device.
+   */
+  eGPUTextureFormat device_format_get() const
+  {
+    return device_format_;
+  }
 
  protected:
   bool init_internal() override;
@@ -95,9 +113,6 @@ class VKTexture : public Texture, public VKBindableResource {
  private:
   /** Is this texture a view of another texture. */
   bool is_texture_view() const;
-
-  /** Is this texture already allocated on device. */
-  bool is_allocated() const;
 
   /**
    * Allocate the texture of the device. Result is `true` when texture is successfully allocated
@@ -144,7 +159,12 @@ class VKTexture : public Texture, public VKBindableResource {
    *
    * When texture is already in the requested layout, nothing will be done.
    */
-  void layout_ensure(VKContext &context, VkImageLayout requested_layout);
+  void layout_ensure(VKContext &context,
+                     VkImageLayout requested_layout,
+                     VkPipelineStageFlags src_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                     VkAccessFlags src_access = VK_ACCESS_MEMORY_WRITE_BIT,
+                     VkPipelineStageFlags dst_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                     VkAccessFlags dst_access = VK_ACCESS_MEMORY_READ_BIT);
 
  private:
   /**
@@ -155,7 +175,11 @@ class VKTexture : public Texture, public VKBindableResource {
   void layout_ensure(VKContext &context,
                      IndexRange mipmap_range,
                      VkImageLayout current_layout,
-                     VkImageLayout requested_layout);
+                     VkImageLayout requested_layout,
+                     VkPipelineStageFlags src_stage,
+                     VkAccessFlags src_access,
+                     VkPipelineStageFlags dst_stage,
+                     VkAccessFlags dst_access);
 
   /** \} */
 

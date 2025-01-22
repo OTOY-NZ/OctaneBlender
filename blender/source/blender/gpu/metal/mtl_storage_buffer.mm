@@ -7,7 +7,9 @@
  */
 
 #include "BLI_string.h"
+#include "BLI_time.h"
 
+#include "GPU_state.h"
 #include "gpu_backend.hh"
 #include "gpu_context_private.hh"
 
@@ -61,6 +63,15 @@ MTLStorageBuf::MTLStorageBuf(MTLIndexBuf *index_buf, size_t size)
   BLI_assert(index_buffer_ != nullptr);
 }
 
+MTLStorageBuf::MTLStorageBuf(MTLTexture *texture, size_t size)
+    : StorageBuf(size, "Texture_as_SSBO")
+{
+  usage_ = GPU_USAGE_DYNAMIC;
+  storage_source_ = MTL_STORAGE_BUF_TYPE_TEXTURE;
+  texture_ = texture;
+  BLI_assert(texture_ != nullptr);
+}
+
 MTLStorageBuf::~MTLStorageBuf()
 {
   if (storage_source_ == MTL_STORAGE_BUF_TYPE_DEFAULT) {
@@ -69,6 +80,11 @@ MTLStorageBuf::~MTLStorageBuf()
       metal_buffer_ = nullptr;
     }
     has_data_ = false;
+  }
+
+  if (gpu_write_fence_ != nil) {
+    [gpu_write_fence_ release];
+    gpu_write_fence_ = nil;
   }
 
   /* Ensure SSBO is not bound to active CTX.
@@ -172,6 +188,7 @@ void MTLStorageBuf::update(const void *data)
                           toBuffer:dst_buf
                  destinationOffset:0
                               size:size_in_bytes_];
+      staging_buf->free();
     }
     else {
       /* Upload data. */
@@ -298,6 +315,9 @@ void MTLStorageBuf::copy_sub(VertBuf *src_, uint dst_offset, uint src_offset, ui
   if (dst->metal_buffer_ == nullptr) {
     dst->init();
   }
+  if (copy_size == 0) {
+    return;
+  }
   if (src->vbo_ == nullptr) {
     src->bind();
   }
@@ -320,6 +340,40 @@ void MTLStorageBuf::copy_sub(VertBuf *src_, uint dst_offset, uint src_offset, ui
                           size:copy_size];
 }
 
+void MTLStorageBuf::async_flush_to_host()
+{
+  bool device_only = (usage_ == GPU_USAGE_DEVICE_ONLY);
+  BLI_assert_msg(!device_only,
+                 "Storage buffers with usage GPU_USAGE_DEVICE_ONLY cannot have their data "
+                 "synchronized to the host.");
+  if (device_only) {
+    return;
+  }
+
+  MTLContext *ctx = MTLContext::get();
+  BLI_assert(ctx);
+
+  if (gpu_write_fence_ == nil) {
+    gpu_write_fence_ = [ctx->device newSharedEvent];
+  }
+
+  if (metal_buffer_ == nullptr) {
+    this->init();
+  }
+
+  /* For discrete memory systems, explicitly flush GPU-resident memory back to host. */
+  id<MTLBuffer> storage_buf_mtl = this->metal_buffer_->get_metal_buffer();
+  if (storage_buf_mtl.storageMode == MTLStorageModeManaged) {
+    id<MTLBlitCommandEncoder> blit_encoder = ctx->main_command_buffer.ensure_begin_blit_encoder();
+    [blit_encoder synchronizeResource:storage_buf_mtl];
+  }
+
+  /* Encode event signal and flush command buffer to ensure GPU work is in the pipeline for future
+   * reads. */
+  ctx->main_command_buffer.encode_signal_event(gpu_write_fence_, ++host_read_signal_value_);
+  GPU_flush();
+}
+
 void MTLStorageBuf::read(void *data)
 {
   if (data == nullptr) {
@@ -330,19 +384,71 @@ void MTLStorageBuf::read(void *data)
     this->init();
   }
 
-  /* Managed buffers need to be explicitly flushed back to host. */
-  if (metal_buffer_->get_resource_options() & MTLResourceStorageModeManaged) {
+  /* Device-only storage buffers cannot be read directly and require staging.
+   * This path should only be used for unit testing. */
+  bool device_only = (usage_ == GPU_USAGE_DEVICE_ONLY);
+  if (device_only) {
+    /** Read storage buffer contents via staging buffer. */
     /* Fetch active context. */
     MTLContext *ctx = static_cast<MTLContext *>(unwrap(GPU_context_active_get()));
     BLI_assert(ctx);
 
-    /* Ensure GPU updates are flushed back to CPU. */
-    id<MTLBlitCommandEncoder> blit_encoder = ctx->main_command_buffer.ensure_begin_blit_encoder();
-    [blit_encoder synchronizeResource:metal_buffer_->get_metal_buffer()];
-  }
+    /* Prepare staging buffer. */
+    gpu::MTLBuffer *staging_buf = MTLContext::get_global_memory_manager()->allocate(size_in_bytes_,
+                                                                                    true);
+    id<MTLBuffer> staging_buf_mtl = staging_buf->get_metal_buffer();
+    BLI_assert(staging_buf_mtl != nil);
 
-  /* Read data. NOTE: Unless explicitly synchronized with GPU work, results may not be ready. */
-  memcpy(data, metal_buffer_->get_host_ptr(), size_in_bytes_);
+    /* Ensure destination buffer. */
+    id<MTLBuffer> storage_buf_mtl = this->metal_buffer_->get_metal_buffer();
+    BLI_assert(storage_buf_mtl != nil);
+
+    id<MTLBlitCommandEncoder> blit_encoder = ctx->main_command_buffer.ensure_begin_blit_encoder();
+    [blit_encoder copyFromBuffer:storage_buf_mtl
+                    sourceOffset:0
+                        toBuffer:staging_buf_mtl
+               destinationOffset:0
+                            size:size_in_bytes_];
+    if (staging_buf_mtl.storageMode == MTLStorageModeManaged) {
+      [blit_encoder synchronizeResource:staging_buf_mtl];
+    }
+
+    /* Device-only reads will always stall the GPU pipe. */
+    GPU_finish();
+    MTL_LOG_WARNING(
+        "Device-only storage buffer being read. This will stall the GPU pipeline. Ensure this "
+        "path is only used in testing.");
+
+    /* Read contents back to data. */
+    memcpy(data, staging_buf->get_host_ptr(), size_in_bytes_);
+    staging_buf->free();
+  }
+  else {
+    /** Direct storage buffer read. */
+    /* If we have a synchronization event from a prior memory sync, ensure memory is fully synced.
+     * Otherwise, assume read is asynchronous. */
+    if (gpu_write_fence_ != nil) {
+      /* Ensure the GPU updates are visible to the host before reading. */
+      while (gpu_write_fence_.signaledValue < host_read_signal_value_) {
+        BLI_sleep_ms(1);
+      }
+    }
+
+    /* Managed buffers need to be explicitly flushed back to host. */
+    if (metal_buffer_->get_resource_options() & MTLResourceStorageModeManaged) {
+      /* Fetch active context. */
+      MTLContext *ctx = static_cast<MTLContext *>(unwrap(GPU_context_active_get()));
+      BLI_assert(ctx);
+
+      /* Ensure GPU updates are flushed back to CPU. */
+      id<MTLBlitCommandEncoder> blit_encoder =
+          ctx->main_command_buffer.ensure_begin_blit_encoder();
+      [blit_encoder synchronizeResource:metal_buffer_->get_metal_buffer()];
+    }
+
+    /* Read data. NOTE: Unless explicitly synchronized with GPU work, results may not be ready. */
+    memcpy(data, metal_buffer_->get_host_ptr(), size_in_bytes_);
+  }
 }
 
 id<MTLBuffer> MTLStorageBuf::get_metal_buffer()
@@ -377,6 +483,15 @@ id<MTLBuffer> MTLStorageBuf::get_metal_buffer()
     case MTL_STORAGE_BUF_TYPE_INDEXBUF: {
       source_buffer = index_buffer_->ibo_;
     } break;
+    /* SSBO buffer comes from Texture. */
+    case MTL_STORAGE_BUF_TYPE_TEXTURE: {
+      BLI_assert(texture_);
+      /* Fetch metal texture to ensure it has been initialized. */
+      id<MTLTexture> tex = texture_->get_metal_handle_base();
+      BLI_assert(tex != nil);
+      UNUSED_VARS_NDEBUG(tex);
+      source_buffer = texture_->backing_buffer_;
+    }
   }
 
   /* Return Metal allocation handle and flag as used. */

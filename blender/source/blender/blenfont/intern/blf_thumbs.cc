@@ -10,6 +10,7 @@
  * Isolate since this needs to be called by #ImBuf code (bad level call).
  */
 
+#include <algorithm>
 #include <cstdlib>
 
 #include <ft2build.h>
@@ -27,10 +28,10 @@
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
-#include "blf_internal.h"
-#include "blf_internal_types.h"
+#include "blf_internal.hh"
+#include "blf_internal_types.hh"
 
-#include "BLF_api.h"
+#include "BLF_api.hh"
 
 #include "BLI_strict_flags.h"
 
@@ -365,12 +366,12 @@ bool BLF_thumb_preview(const char *filename, uchar *buf, int w, int h, int /*cha
 
   int height = ft_pix_to_int((ft_pix)face->size->metrics.ascender -
                              (ft_pix)face->size->metrics.descender);
-  width = MAX2(width, height);
+  width = std::max(width, height);
 
   /* Fill up to 96% horizontally or vertically. */
-  float font_size = MIN3(float(w),
-                         (float(w) * 0.96f / float(width) * float(w)),
-                         float(h) * 0.96f / float(height) * float(h));
+  float font_size = std::min({float(w),
+                              (float(w) * 0.96f / float(width) * float(w)),
+                              float(h) * 0.96f / float(height) * float(h)});
 
   if (font_size < 1 || FT_Set_Char_Size(face, int(font_size * 64.0f), 0, 72, 72) != FT_Err_Ok) {
     /* Sizing can fail, but very rarely. */
@@ -410,7 +411,7 @@ bool BLF_thumb_preview(const char *filename, uchar *buf, int w, int h, int /*cha
           if (dest_col >= 0 && dest_col < w) {
             uchar *source = &face->glyph->bitmap.buffer[y * int(face->glyph->bitmap.width) + x];
             uchar *dest = &buf[dest_row * w * 4 + (dest_col * 4 + 3)];
-            *dest = uchar(MIN2((uint(*dest) + uint(*source)), 255u));
+            *dest = uchar(std::min((uint(*dest) + uint(*source)), 255u));
           }
         }
       }

@@ -16,6 +16,7 @@ struct PinInfo {
   int32_t socket_type_;
   int32_t default_node_type_;
   std::string default_node_name_;
+  bool use_as_legacy_attribute_;
 };
 
 struct AttributeInfo {
@@ -57,6 +58,7 @@ class OctaneInfo {
   static const int32_t INVALID_NODE_TYPE = 0;
 
   void add_node_name(int32_t node_type, std::string node_name);
+  void add_legacy_node_name(int32_t node_type, std::string node_name);
   void add_attribute_info(int32_t node_type,
                           std::string blender_name,
                           int32_t attribute_id,
@@ -81,6 +83,9 @@ class OctaneInfo {
                             bool is_internal_data_pin,
                             int32_t internal_data_octane_type);
   void set_static_pin_count(int32_t node_type, int32_t pin_count);
+  bool need_to_use_new_custom_node(std::string node_bl_idname);
+  const LegacyDataInfoPtr get_legacy_data_info(int32_t node_type, int32_t octane_id, bool is_pin);
+
 
   const PinIdInfoMap &get_pin_id_info_map(int32_t node_type)
   {
@@ -120,6 +125,14 @@ class OctaneInfo {
     return INVALID_NODE_TYPE;
   }
 
+  int32_t get_legacy_node_type(std::string name)
+  {
+    if (legacy_node_name_to_type_.find(name) != legacy_node_name_to_type_.end()) {
+      return legacy_node_name_to_type_[name];
+    }
+    return INVALID_NODE_TYPE;
+  }
+
   std::string get_node_name(int32_t type)
   {
     if (node_type_to_name_.find(type) != node_type_to_name_.end()) {
@@ -142,14 +155,17 @@ class OctaneInfo {
 
  private:
   std::unordered_map<int32_t, std::string> node_type_to_name_;
+  std::unordered_map<int32_t, std::string> legacy_node_type_to_name_;
   std::unordered_map<int32_t, int32_t> node_type_to_static_pin_count_;
   std::unordered_map<std::string, int32_t> node_name_to_type_;
+  std::unordered_map<std::string, int32_t> legacy_node_name_to_type_;
   std::unordered_map<int32_t, PinIdInfoMap> pin_id_to_pin_info_;
   std::unordered_map<int32_t, PinNameInfoMap> pin_name_to_pin_info_;
   std::unordered_map<int32_t, AttributeIdInfoMap> attribute_id_to_attribute_info_;
   std::unordered_map<int32_t, AttributeNameInfoMap> attribute_name_to_attribute_info_;
   std::unordered_map<int32_t, LegacyDataInfoIdMap> octane_id_to_legacy_data_info_;
   std::unordered_map<int32_t, LegacyDataInfoBlenderNameMap> blender_name_to_legacy_data_info_;
+  std::unordered_set<std::string> need_new_custom_node_legacy_names_;
 };
 
 class OctaneManager {

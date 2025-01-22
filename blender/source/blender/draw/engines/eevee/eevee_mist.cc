@@ -9,12 +9,12 @@
  * IMPORTANT: This is a "post process" of the Z depth so it will lack any transparent objects.
  */
 
-#include "DRW_engine.h"
-#include "DRW_render.h"
+#include "DRW_engine.hh"
+#include "DRW_render.hh"
 
 #include "DNA_world_types.h"
 
-#include "BLI_string_utils.h"
+#include "BLI_string_utils.hh"
 
 #include "eevee_private.h"
 

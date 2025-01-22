@@ -24,8 +24,9 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Geometry>("Mesh 1").only_realized_data().supported_type(
       GeometryComponent::Type::Mesh);
-  b.add_input<decl::Geometry>("Mesh 2").multi_input().supported_type(
-      GeometryComponent::Type::Mesh);
+  b.add_input<decl::Geometry>("Mesh 2")
+      .supported_type(GeometryComponent::Type::Mesh)
+      .multi_input();
   b.add_input<decl::Bool>("Self Intersection");
   b.add_input<decl::Bool>("Hole Tolerant");
   b.add_output<decl::Geometry>("Mesh").propagate_all();
@@ -66,6 +67,7 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
   node->custom1 = GEO_NODE_BOOLEAN_DIFFERENCE;
 }
 
+#ifdef WITH_GMP
 static Array<short> calc_mesh_material_map(const Mesh &mesh, VectorSet<Material *> &all_materials)
 {
   Array<short> map(mesh.totcol);
@@ -75,6 +77,7 @@ static Array<short> calc_mesh_material_map(const Mesh &mesh, VectorSet<Material 
   }
   return map;
 }
+#endif /* WITH_GMP */
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
@@ -178,7 +181,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   if (attribute_outputs.intersecting_edges_id) {
     MutableAttributeAccessor attributes = result->attributes_for_write();
     SpanAttributeWriter<bool> selection = attributes.lookup_or_add_for_write_only_span<bool>(
-        attribute_outputs.intersecting_edges_id.get(), ATTR_DOMAIN_EDGE);
+        attribute_outputs.intersecting_edges_id.get(), AttrDomain::Edge);
 
     selection.span.fill(false);
     for (const int i : intersecting_edges) {

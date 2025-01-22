@@ -8,10 +8,10 @@ from bl_ui.space_filebrowser import (
     ASSETBROWSER_MT_context_menu,
 )
 
-Blender_ASSETBROWSER_MT_context_menu_draw = None
+BLENDER_ASSETBROWSER_MT_context_menu_draw = None
 
 
-def Octane_ASSETBROWSER_MT_context_menu_draw(self, context):
+def OCTANE_ASSETBROWSER_MT_context_menu_draw(self, context):
     layout = self.layout
     st = context.space_data
     params = st.params
@@ -150,14 +150,14 @@ def register():
     from bpy.utils import register_class
     for cls in classes:
         register_class(cls)
-    global Blender_ASSETBROWSER_MT_context_menu_draw
-    Blender_ASSETBROWSER_MT_context_menu_draw = ASSETBROWSER_MT_context_menu.draw
-    ASSETBROWSER_MT_context_menu.draw = Octane_ASSETBROWSER_MT_context_menu_draw
+    global BLENDER_ASSETBROWSER_MT_context_menu_draw
+    BLENDER_ASSETBROWSER_MT_context_menu_draw = ASSETBROWSER_MT_context_menu.draw
+    ASSETBROWSER_MT_context_menu.draw = OCTANE_ASSETBROWSER_MT_context_menu_draw
 
 
 def unregister():
     from bpy.utils import unregister_class
     for cls in classes:
         unregister_class(cls)
-    global Blender_ASSETBROWSER_MT_context_menu_draw
-    ASSETBROWSER_MT_context_menu.draw = Blender_ASSETBROWSER_MT_context_menu_draw
+    global BLENDER_ASSETBROWSER_MT_context_menu_draw
+    ASSETBROWSER_MT_context_menu.draw = BLENDER_ASSETBROWSER_MT_context_menu_draw

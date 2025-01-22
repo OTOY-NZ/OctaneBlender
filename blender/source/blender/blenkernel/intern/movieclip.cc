@@ -46,25 +46,27 @@
 
 #include "BKE_anim_data.h"
 #include "BKE_bpath.h"
-#include "BKE_colortools.h"
+#include "BKE_colortools.hh"
 #include "BKE_global.h"
-#include "BKE_idtype.h"
+#include "BKE_idtype.hh"
 #include "BKE_image.h" /* openanim */
-#include "BKE_lib_id.h"
-#include "BKE_lib_query.h"
-#include "BKE_main.h"
+#include "BKE_lib_id.hh"
+#include "BKE_lib_query.hh"
+#include "BKE_main.hh"
 #include "BKE_movieclip.h"
 #include "BKE_node.h"
-#include "BKE_node_tree_update.h"
+#include "BKE_node_tree_update.hh"
 #include "BKE_tracking.h"
 
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
-#include "IMB_moviecache.h"
-#include "IMB_openexr.h"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
+#include "IMB_moviecache.hh"
+#include "IMB_openexr.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
+
+#include "DRW_engine.hh"
 
 #include "GPU_texture.h"
 
@@ -99,6 +101,8 @@ static void movie_clip_copy_data(Main * /*bmain*/, ID *id_dst, const ID *id_src,
   BKE_tracking_copy(&movie_clip_dst->tracking, &movie_clip_src->tracking, flag_subdata);
   movie_clip_dst->tracking_context = nullptr;
 
+  BLI_listbase_clear((ListBase *)&movie_clip_dst->drawdata);
+
   BKE_color_managed_colorspace_settings_copy(&movie_clip_dst->colorspace_settings,
                                              &movie_clip_src->colorspace_settings);
 }
@@ -111,6 +115,7 @@ static void movie_clip_free_data(ID *id)
   free_buffers(movie_clip);
 
   BKE_tracking_free(&movie_clip->tracking);
+  DRW_drawdata_free(id);
 }
 
 static void movie_clip_foreach_id(ID *id, LibraryForeachIDData *data)
@@ -136,11 +141,11 @@ static void movie_clip_foreach_cache(ID *id,
 {
   MovieClip *movie_clip = (MovieClip *)id;
   IDCacheKey key{};
-  key.id_session_uuid = id->session_uuid;
-  key.offset_in_ID = offsetof(MovieClip, cache);
+  key.id_session_uid = id->session_uid;
+  key.identifier = offsetof(MovieClip, cache);
   function_callback(id, &key, (void **)&movie_clip->cache, 0, user_data);
 
-  key.offset_in_ID = offsetof(MovieClip, tracking.camera.intrinsics);
+  key.identifier = offsetof(MovieClip, tracking.camera.intrinsics);
   function_callback(id, &key, (void **)&movie_clip->tracking.camera.intrinsics, 0, user_data);
 }
 
@@ -1422,10 +1427,10 @@ static ImBuf *put_stabilized_frame_to_cache(MovieClip *clip,
 
 ImBuf *BKE_movieclip_get_stable_ibuf(MovieClip *clip,
                                      const MovieClipUser *user,
-                                     float loc[2],
-                                     float *scale,
-                                     float *angle,
-                                     const int postprocess_flag)
+                                     const int postprocess_flag,
+                                     float r_loc[2],
+                                     float *r_scale,
+                                     float *r_angle)
 {
   ImBuf *ibuf, *stableibuf = nullptr;
   int framenr = user->framenr;
@@ -1445,29 +1450,29 @@ ImBuf *BKE_movieclip_get_stable_ibuf(MovieClip *clip,
       stableibuf = put_stabilized_frame_to_cache(clip, user, ibuf, framenr, postprocess_flag);
     }
 
-    if (loc) {
-      copy_v2_v2(loc, cache->stabilized.loc);
+    if (r_loc) {
+      copy_v2_v2(r_loc, cache->stabilized.loc);
     }
 
-    if (scale) {
-      *scale = cache->stabilized.scale;
+    if (r_scale) {
+      *r_scale = cache->stabilized.scale;
     }
 
-    if (angle) {
-      *angle = cache->stabilized.angle;
+    if (r_angle) {
+      *r_angle = cache->stabilized.angle;
     }
   }
   else {
-    if (loc) {
-      zero_v2(loc);
+    if (r_loc) {
+      zero_v2(r_loc);
     }
 
-    if (scale) {
-      *scale = 1.0f;
+    if (r_scale) {
+      *r_scale = 1.0f;
     }
 
-    if (angle) {
-      *angle = 0.0f;
+    if (r_angle) {
+      *r_angle = 0.0f;
     }
 
     stableibuf = ibuf;
@@ -1493,22 +1498,25 @@ bool BKE_movieclip_has_frame(MovieClip *clip, const MovieClipUser *user)
   return false;
 }
 
-void BKE_movieclip_get_size(MovieClip *clip, const MovieClipUser *user, int *width, int *height)
+void BKE_movieclip_get_size(MovieClip *clip,
+                            const MovieClipUser *user,
+                            int *r_width,
+                            int *r_height)
 {
   /* TODO(sergey): Support reading sequences of different resolution. */
   if (clip->lastsize[0] != 0 && clip->lastsize[1] != 0) {
-    *width = clip->lastsize[0];
-    *height = clip->lastsize[1];
+    *r_width = clip->lastsize[0];
+    *r_height = clip->lastsize[1];
   }
   else {
     ImBuf *ibuf = BKE_movieclip_get_ibuf(clip, user);
 
     if (ibuf && ibuf->x && ibuf->y) {
-      real_ibuf_size(clip, user, ibuf, width, height);
+      real_ibuf_size(clip, user, ibuf, r_width, r_height);
     }
     else {
-      *width = clip->lastsize[0];
-      *height = clip->lastsize[1];
+      *r_width = clip->lastsize[0];
+      *r_height = clip->lastsize[1];
     }
 
     if (ibuf) {
@@ -1516,13 +1524,13 @@ void BKE_movieclip_get_size(MovieClip *clip, const MovieClipUser *user, int *wid
     }
   }
 }
-void BKE_movieclip_get_size_fl(MovieClip *clip, const MovieClipUser *user, float size[2])
+void BKE_movieclip_get_size_fl(MovieClip *clip, const MovieClipUser *user, float r_size[2])
 {
   int width, height;
   BKE_movieclip_get_size(clip, user, &width, &height);
 
-  size[0] = float(width);
-  size[1] = float(height);
+  r_size[0] = float(width);
+  r_size[1] = float(height);
 }
 
 int BKE_movieclip_get_duration(MovieClip *clip)
@@ -1545,7 +1553,7 @@ float BKE_movieclip_get_fps(MovieClip *clip)
   }
   short frs_sec;
   float frs_sec_base;
-  if (IMB_anim_get_fps(clip->anim, &frs_sec, &frs_sec_base, true)) {
+  if (IMB_anim_get_fps(clip->anim, true, &frs_sec, &frs_sec_base)) {
     return float(frs_sec) / frs_sec_base;
   }
   return 0.0f;

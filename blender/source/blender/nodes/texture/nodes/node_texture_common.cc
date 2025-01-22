@@ -70,7 +70,8 @@ static void group_copy_inputs(bNode *gnode, bNodeStack **in, bNodeStack *gstack)
   LISTBASE_FOREACH (bNode *, node, &ngroup->nodes) {
     if (node->type == NODE_GROUP_INPUT) {
       for (sock = static_cast<bNodeSocket *>(node->outputs.first), a = 0; sock;
-           sock = sock->next, a++) {
+           sock = sock->next, a++)
+      {
         if (in[a]) { /* shouldn't need to check this #36694. */
           ns = node_get_socket_stack(gstack, sock);
           if (ns) {
@@ -156,7 +157,7 @@ void register_node_type_tex_group()
 
   blender::bke::node_type_size(&ntype, 140, 60, 400);
   ntype.labelfunc = node_group_label;
-  ntype.declare_dynamic = blender::nodes::node_group_declare_dynamic;
+  ntype.declare = blender::nodes::node_group_declare;
   ntype.init_exec_fn = group_initexec;
   ntype.free_exec_fn = group_freeexec;
   ntype.exec_fn = group_execute;

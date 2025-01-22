@@ -66,37 +66,33 @@ PassMain::Sub &MeshPass::get_subpass(
   is_empty_ = false;
 
   if (image) {
-    GPUTexture *texture = nullptr;
-    GPUTexture *tilemap = nullptr;
-    if (image->source == IMA_SRC_TILED) {
-      texture = BKE_image_get_gpu_tiles(image, iuser, nullptr);
-      tilemap = BKE_image_get_gpu_tilemap(image, iuser, nullptr);
-    }
-    else {
-      texture = BKE_image_get_gpu_texture(image, iuser, nullptr);
-    }
-    if (texture) {
+    ImageGPUTextures gputex = BKE_image_get_gpu_material_texture(image, iuser, true);
+    if (gputex.texture) {
       auto add_cb = [&] {
         PassMain::Sub *sub_pass = passes_[int(geometry_type)][int(eShaderType::TEXTURE)];
         sub_pass = &sub_pass->sub(image->id.name);
-        if (tilemap) {
-          sub_pass->bind_texture(WB_TILE_ARRAY_SLOT, texture, sampler_state);
-          sub_pass->bind_texture(WB_TILE_DATA_SLOT, tilemap);
+        if (gputex.tile_mapping) {
+          sub_pass->bind_texture(WB_TILE_ARRAY_SLOT, gputex.texture, sampler_state);
+          sub_pass->bind_texture(WB_TILE_DATA_SLOT, gputex.tile_mapping);
         }
         else {
-          sub_pass->bind_texture(WB_TEXTURE_SLOT, texture, sampler_state);
+          sub_pass->bind_texture(WB_TEXTURE_SLOT, gputex.texture, sampler_state);
         }
-        sub_pass->push_constant("isImageTile", tilemap != nullptr);
+        sub_pass->push_constant("isImageTile", gputex.tile_mapping != nullptr);
         sub_pass->push_constant("imagePremult", image && image->alpha_mode == IMA_ALPHA_PREMUL);
         /* TODO(@pragma37): This setting should be exposed on the user side,
          * either as a global parameter (and set it here)
          * or by reading the Material Clipping Threshold (and set it per material) */
-        sub_pass->push_constant("imageTransparencyCutoff", 0.1f);
+        float alpha_cutoff = 0.1f;
+        if (ELEM(image->alpha_mode, IMA_ALPHA_IGNORE, IMA_ALPHA_CHANNEL_PACKED)) {
+          alpha_cutoff = -FLT_MAX;
+        }
+        sub_pass->push_constant("imageTransparencyCutoff", alpha_cutoff);
         return sub_pass;
       };
 
-      return *texture_subpass_map_.lookup_or_add_cb(TextureSubPassKey(texture, geometry_type),
-                                                    add_cb);
+      return *texture_subpass_map_.lookup_or_add_cb(
+          TextureSubPassKey(gputex.texture, geometry_type), add_cb);
     }
   }
 
@@ -195,7 +191,7 @@ void OpaquePass::draw(Manager &manager,
                                       resolution,
                                       GPU_TEXTURE_USAGE_SHADER_READ |
                                           GPU_TEXTURE_USAGE_ATTACHMENT |
-                                          GPU_TEXTURE_USAGE_MIP_SWIZZLE_VIEW);
+                                          GPU_TEXTURE_USAGE_FORMAT_VIEW);
 
     GPU_texture_copy(shadow_depth_stencil_tx, resources.depth_tx);
     clear_fb.ensure(GPU_ATTACHMENT_TEXTURE(shadow_depth_stencil_tx));
@@ -211,9 +207,12 @@ void OpaquePass::draw(Manager &manager,
     deferred_ps_stencil_tx = nullptr;
   }
 
-  deferred_fb.ensure(GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(resources.color_tx));
-  deferred_fb.bind();
-  manager.submit(deferred_ps_, view);
+  if (!shadow_pass || !shadow_pass->is_debug()) {
+    /** Don't override the shadow debug output. */
+    deferred_fb.ensure(GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(resources.color_tx));
+    deferred_fb.bind();
+    manager.submit(deferred_ps_, view);
+  }
 
   gbuffer_normal_tx.release();
   gbuffer_material_tx.release();

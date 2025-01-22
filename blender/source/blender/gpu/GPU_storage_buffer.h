@@ -49,9 +49,23 @@ void GPU_storagebuf_clear_to_zero(GPUStorageBuf *ssbo);
 void GPU_storagebuf_clear(GPUStorageBuf *ssbo, uint32_t clear_value);
 
 /**
+ * Explicitly sync updated storage buffer contents back to host within the GPU command stream. This
+ * ensures any changes made by the GPU are visible to the host.
+ * NOTE: This command is only valid for host-visible storage buffers.
+ */
+void GPU_storagebuf_sync_to_host(GPUStorageBuf *ssbo);
+
+/**
  * Read back content of the buffer to CPU for inspection.
  * Slow! Only use for inspection / debugging.
- * NOTE: Not synchronized. Use appropriate barrier before reading.
+ *
+ * NOTE: If GPU_storagebuf_sync_to_host is called, this command is synchronized against that call.
+ * If pending GPU updates to the storage buffer are not yet visible to the host, the command will
+ * stall until dependent GPU work has completed.
+ *
+ * Otherwise, this command is unsynchronized and will return current visible storage buffer
+ * contents immediately.
+ * Alternatively, use appropriate barrier or GPU_finish before reading.
  */
 void GPU_storagebuf_read(GPUStorageBuf *ssbo, void *data);
 
@@ -66,6 +80,12 @@ void GPU_storagebuf_read(GPUStorageBuf *ssbo, void *data);
  */
 void GPU_storagebuf_copy_sub_from_vertbuf(
     GPUStorageBuf *ssbo, GPUVertBuf *src, uint dst_offset, uint src_offset, uint copy_size);
+
+/**
+ * Ensure the ssbo is ready to be used as an indirect buffer in `GPU_batch_draw_indirect`.
+ * NOTE: Internally, this is only required for the OpenGL backend.
+ */
+void GPU_storagebuf_sync_as_indirect_buffer(GPUStorageBuf *ssbo);
 
 #ifdef __cplusplus
 }

@@ -12,7 +12,9 @@
 
 namespace blender::gpu {
 
-const char *GLLogParser::parse_line(const char *log_line, GPULogItem &log_item)
+const char *GLLogParser::parse_line(const char * /*source_combined*/,
+                                    const char *log_line,
+                                    GPULogItem &log_item)
 {
   /* Skip ERROR: or WARNING:. */
   log_line = skip_severity_prefix(log_line, log_item);
@@ -39,10 +41,7 @@ const char *GLLogParser::parse_line(const char *log_line, GPULogItem &log_item)
   }
 
   if ((log_item.cursor.row != -1) && (log_item.cursor.column != -1)) {
-    if (GPU_type_matches(GPU_DEVICE_NVIDIA, GPU_OS_ANY, GPU_DRIVER_OFFICIAL) ||
-        GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_MAC, GPU_DRIVER_OFFICIAL) ||
-        GPU_type_matches(GPU_DEVICE_APPLE, GPU_OS_MAC, GPU_DRIVER_OFFICIAL))
-    {
+    if (GPU_type_matches(GPU_DEVICE_NVIDIA, GPU_OS_ANY, GPU_DRIVER_OFFICIAL)) {
       /* 0:line */
       log_item.cursor.row = log_item.cursor.column;
       log_item.cursor.column = -1;

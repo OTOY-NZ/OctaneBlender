@@ -20,6 +20,7 @@
 
 #include "BKE_attribute.hh"
 #include "BKE_attribute_math.hh"
+#include "BKE_customdata.hh"
 #include "BKE_curve_legacy_convert.hh"
 #include "BKE_curves.hh"
 #include "BKE_mesh.hh"
@@ -42,10 +43,9 @@
 #include <fstream>
 #include <iostream>
 
-openvdb::GridBase::ConstPtr BKE_volume_grid_openvdb_for_read(const struct Volume *volume,
-                                                             const struct VolumeGrid *grid);
-
 #include "RNA_blender_cpp.h"
+#include "BKE_volume.hh"
+#include "BKE_volume_grid.hh"
 
 OCT_NAMESPACE_BEGIN
 
@@ -494,6 +494,7 @@ static void create_mesh(Scene *scene,
                         bool subdivision = false,
                         bool subdivide_uvs = true)
 {
+  const ::Mesh &dna_mesh = *static_cast<const ::Mesh *>(b_mesh.ptr.data);
   bool use_octane_coordinate = mesh->is_octane_coordinate_used();
   mesh->octane_mesh.oMeshData.bUpdate = true;
   /* count vertices and faces */
@@ -503,8 +504,9 @@ static void create_mesh(Scene *scene,
   int numfaces = (!subdivision) ? numtris : numpolys;
   int numcorners = 0;
   int numngons = 0;
-  bool use_loop_normals = b_mesh.use_auto_smooth() &&
-                          (mesh->subdivision_type != Mesh::SUBDIVISION_CATMULL_CLARK);
+  const blender::bke::MeshNormalDomain normals_domain = dna_mesh.normals_domain(true);
+  bool use_loop_normals = normals_domain == blender::bke::MeshNormalDomain::Corner &&
+                            (mesh->subdivision_type != Mesh::SUBDIVISION_CATMULL_CLARK);
   bool use_uv = numfaces != 0 && b_mesh.uv_layers.length() != 0;
 
   if (mesh->octane_mesh.sOrbxPath.length() > 0) {
@@ -529,10 +531,14 @@ static void create_mesh(Scene *scene,
     return;
   }
 
-  const float(*corner_normals)[3] = nullptr;
   const int *poly_offsets = nullptr;
+
+  const blender::bke::AttributeAccessor b_attributes = dna_mesh.attributes();
+  const blender::VArraySpan dna_sharp_faces = *b_attributes.lookup<bool>(
+      "sharp_face", blender::bke::AttrDomain::Face);
+  blender::Span<blender::float3> corner_normals;
   if (use_loop_normals) {
-    corner_normals = static_cast<const float(*)[3]>(b_mesh.corner_normals[0].ptr.data);
+    corner_normals = dna_mesh.corner_normals();
   }
   const int *corner_verts = find_corner_vert_attribute(b_mesh);
   const int *material_indices = find_material_index_attribute(b_mesh);
@@ -596,7 +602,10 @@ static void create_mesh(Scene *scene,
         vi3[i] = vi[i];
       }
       int shader = get_material_index(poly_index);
-      bool smooth = !get_sharp_face(poly_index);
+      bool smooth = normals_domain != blender::bke::MeshNormalDomain::Face;
+      if ((!dna_sharp_faces.is_empty() && !(use_loop_normals && !corner_normals.is_empty()))) {
+        smooth = !get_sharp_face(poly_index);
+      }
       int32_t smooth_group = 0;
       if (use_loop_normals) {
         BL::Array<float, 9> loop_normals = t.split_normals();
@@ -868,7 +877,7 @@ static void create_subd_mesh(Scene *scene,
 
   const ::Mesh &dna_mesh = *static_cast<const ::Mesh *>(b_mesh.ptr.data);
   const blender::VArraySpan<float> creases = *dna_mesh.attributes().lookup<float>(
-      "crease_edge", ATTR_DOMAIN_EDGE);
+      "crease_edge", blender::bke::AttrDomain::Edge);
   const blender::Span<blender::int2> edges = dna_mesh.edges();
 
   /* export creases */
@@ -1249,145 +1258,30 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
     is_mesh_data_updated = true;
   }
   if (edited_mesh_names.find(mesh_name) != edited_mesh_names.end()) {
-    // is_mesh_data_updated = true;
     unsync_resource_to_octane_manager(mesh_name, OctaneResourceType::GEOMETRY);
     edited_mesh_names.erase(mesh_name);
     if (resource_cache_data.find(mesh_name) != resource_cache_data.end()) {
       resource_cache_data.erase(mesh_name);
     }
   }
-  //if (b_ob.type() == BL::Object::type_CURVE || b_ob.type() == BL::Object::type_CURVES) {
-  //  is_mesh_data_updated = true;
-  //}
   if (!is_mesh_data_updated) {
     return octane_mesh;
   }
+  bool is_octane_property_update = false;
+  bool is_geometry_data_update = false;
   std::string new_mesh_tag = generate_mesh_shader_tag(
-      used_shaders);  // generate_mesh_tag(b_depsgraph, b_ob, used_shaders);
-  if (b_ob.type() == BL::Object::type_MESH) {
-    std::string coordinate_mode = std::to_string(
-        RNA_enum_get(&oct_mesh, "primitive_coordinate_mode"));
-    std::string infinite_plane = std::to_string(RNA_boolean_get(&oct_mesh, "infinite_plane"));
-    new_mesh_tag += ("|" + coordinate_mode + infinite_plane);
-  }
-
+      used_shaders);
+  octane_mesh->update_octane_geo_properties(b_ob.type(),
+                                            oct_mesh,
+                                            is_octane_property_update,
+                                            is_geometry_data_update,
+                                            use_octane_vertex_displacement_subdvision);
   std::string new_octane_prop_tag = "";
-
-  bool bHideOriginalMesh = false;
-  if (b_ob.type() == BL::Object::type_MESH) {
-    octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.bEnable = get_boolean(
-        oct_mesh, "octane_enable_sphere_attribute");
-    bHideOriginalMesh = get_boolean(oct_mesh, "octane_hide_original_mesh");
-    octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.fRadius = get_float(
-        oct_mesh, "octane_sphere_radius");
-    bool use_randomized_radius = get_boolean(oct_mesh, "octane_use_randomized_radius");
-    octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.iRandomSeed =
-        use_randomized_radius ? get_int(oct_mesh, "octane_sphere_randomized_radius_seed") : -1;
-    octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.fMinRandomizedRadius = get_float(
-        oct_mesh, "octane_sphere_randomized_radius_min");
-    octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.fMaxRandomizedRadius = get_float(
-        oct_mesh, "octane_sphere_randomized_radius_max");
-    octane_mesh->octane_mesh.oMeshVolume.bEnable = RNA_boolean_get(&oct_mesh,
-                                                                   "enable_mesh_volume") ||
-                                                   RNA_boolean_get(&oct_mesh,
-                                                                   "enable_mesh_volume_sdf");
-    octane_mesh->octane_mesh.oMeshVolume.bSDF = RNA_boolean_get(&oct_mesh,
-                                                                "enable_mesh_volume_sdf");
-    octane_mesh->octane_mesh.oMeshVolume.fVoxelSize = RNA_float_get(&oct_mesh,
-                                                                    "mesh_volume_sdf_voxel_size");
-    octane_mesh->octane_mesh.oMeshVolume.fBorderThicknessInside = RNA_float_get(
-        &oct_mesh, "mesh_volume_sdf_border_thickness_inside");
-    octane_mesh->octane_mesh.oMeshVolume.fBorderThicknessOutside = RNA_float_get(
-        &oct_mesh, "mesh_volume_sdf_border_thickness_outside");
-  }
-  else {
-    octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.bEnable = false;
-    octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.fRadius = 0.f;
-    octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.iRandomSeed = -1;
-    octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.fMinRandomizedRadius = 0.f;
-    octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.fMaxRandomizedRadius = 0.f;
-    octane_mesh->octane_mesh.oMeshVolume.bEnable = false;
-    octane_mesh->octane_mesh.oMeshVolume.bSDF = false;
-    octane_mesh->octane_mesh.oMeshVolume.fVoxelSize = 0;
-    octane_mesh->octane_mesh.oMeshVolume.fBorderThicknessInside = 0;
-    octane_mesh->octane_mesh.oMeshVolume.fBorderThicknessOutside = 0;
-  }
-  octane_mesh->octane_mesh.oMeshOpenSubdivision.bOpenSubdEnable =
-      get_boolean(oct_mesh, "open_subd_enable") || use_octane_vertex_displacement_subdvision;
-  octane_mesh->octane_mesh.oMeshOpenSubdivision.iOpenSubdScheme = get_enum(oct_mesh,
-                                                                           "open_subd_scheme");
-  octane_mesh->octane_mesh.oMeshOpenSubdivision.iOpenSubdLevel = get_int(oct_mesh,
-                                                                         "open_subd_level");
-  octane_mesh->octane_mesh.oMeshOpenSubdivision.fOpenSubdSharpness = get_float(
-      oct_mesh, "open_subd_sharpness");
-  octane_mesh->octane_mesh.oMeshOpenSubdivision.iOpenSubdBoundInterp = get_enum(
-      oct_mesh, "open_subd_bound_interp");
-
-  if (b_ob.type() == BL::Object::type_MESH) {
-    BL::Mesh b_mesh = BL::Mesh(b_ob.data());
-    const auto &oMeshSphereAttribute = octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute;
-    const auto &oMeshOpenSubdivision = octane_mesh->octane_mesh.oMeshOpenSubdivision;
-    std::string octane_mesh_setting_tag =
-        std::to_string(oMeshSphereAttribute.bEnable) + std::to_string(bHideOriginalMesh) +
-        std::to_string(oMeshSphereAttribute.fRadius) +
-        std::to_string(oMeshSphereAttribute.iRandomSeed) +
-        std::to_string(oMeshSphereAttribute.fMinRandomizedRadius) +
-        std::to_string(oMeshSphereAttribute.fMaxRandomizedRadius) +
-        std::to_string(oMeshOpenSubdivision.bOpenSubdEnable) +
-        std::to_string(oMeshOpenSubdivision.iOpenSubdLevel) +
-        std::to_string(oMeshOpenSubdivision.fOpenSubdSharpness) +
-        std::to_string(oMeshOpenSubdivision.iOpenSubdBoundInterp);
-    std::string octane_mesh_volume_setting_tag =
-        std::to_string(octane_mesh->octane_mesh.oMeshVolume.bEnable) +
-        std::to_string(octane_mesh->octane_mesh.oMeshVolume.bSDF) +
-        std::to_string(octane_mesh->octane_mesh.oMeshVolume.fVoxelSize) +
-        std::to_string(octane_mesh->octane_mesh.oMeshVolume.fBorderThicknessInside) +
-        std::to_string(octane_mesh->octane_mesh.oMeshVolume.fBorderThicknessOutside);
-    new_mesh_tag += ("|" + octane_mesh_setting_tag);
-    new_octane_prop_tag += ("|" + octane_mesh_setting_tag);
-    new_octane_prop_tag += ("|" + octane_mesh_volume_setting_tag);
-  }
-  else if (b_ob.type() == BL::Object::type_CURVE) {
-    new_octane_prop_tag += ("|" + std::to_string(get_float(oct_mesh, "hair_root_width")) + "|" +
-                            std::to_string(get_float(oct_mesh, "hair_tip_width")));
-    BL::Curve b_curve = BL::Curve(b_ob.data());
-    BL::Curve::splines_iterator s;
-    for (b_curve.splines.begin(s); s != b_curve.splines.end(); ++s) {
-      size_t step_num = s->points.length();
-      size_t delta = std::max(static_cast<size_t>(step_num / 3), static_cast<size_t>(1));
-      for (size_t step = 0; step < step_num; step += delta) {
-        const BL::Array<float, 4> array = s->points[step].co();
-        float sum = array[0] + array[1] + array[2];
-        new_octane_prop_tag += ("|" + std::to_string(sum));
-      }
-      step_num = s->bezier_points.length();
-      delta = std::max(static_cast<size_t>(step_num / 3), static_cast<size_t>(1));
-      for (size_t step = 0; step < step_num; step += delta) {
-        const BL::Array<float, 3> array = s->bezier_points[step].co();
-        float sum = array[0] + array[1] + array[2];
-        new_octane_prop_tag += ("|" + std::to_string(sum));
-      }
-    }
-  }
-  else if (b_ob.type() == BL::Object::type_CURVES) {
-    new_octane_prop_tag += ("|" +
-                            std::to_string(get_boolean(oct_mesh, "use_octane_radius_setting")) +
-                            std::to_string(get_float(oct_mesh, "hair_root_width")) + "|" +
-                            std::to_string(get_float(oct_mesh, "hair_tip_width")));
-  }
-  else if (b_ob.type() == BL::Object::type_VOLUME) {
-    new_octane_prop_tag += ("|" + std::to_string(get_boolean(oct_mesh, "vdb_sdf")) +
-                            std::to_string(get_float(oct_mesh, "vdb_iso")) +
-                            std::to_string(get_float(oct_mesh, "border_thickness_inside")) +
-                            std::to_string(get_float(oct_mesh, "border_thickness_outside")));
-  }
-
-  bool is_mesh_tag_data_updated = octane_mesh->mesh_tag != new_mesh_tag;
+  bool bHideOriginalMesh = octane_mesh->octane_geo_properties.hide_original_mesh;
+  bool is_mesh_tag_data_updated = is_geometry_data_update;
   if (depgraph_updated_mesh_names.find(b_ob_data_name) != depgraph_updated_mesh_names.end()) {
     is_mesh_tag_data_updated = true;
   }
-  bool is_octane_property_update = octane_mesh->octane_property_tag != new_octane_prop_tag;
-
   if (b_ob.mode() == b_ob.mode_EDIT || b_ob.mode() == b_ob.mode_VERTEX_PAINT ||
       b_ob.mode() == b_ob.mode_WEIGHT_PAINT)
   {
@@ -1483,8 +1377,6 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
                                octane_mesh->last_vdb_frame != b_scene.frame_current();
     octane_mesh->last_vdb_frame = current_frame;
     octane_mesh->used_shaders = used_shaders;
-    octane_mesh->mesh_tag = new_mesh_tag;
-    octane_mesh->octane_property_tag = new_octane_prop_tag;
     octane_mesh->octane_mesh.bInfinitePlane = false;
     octane_mesh->octane_mesh.oMeshVolume.Clear();
     std::string selected_grid_name;
@@ -1537,14 +1429,15 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
     }
 
     if (octane_mesh->is_mesh_to_volume) {
+      blender::bke::VolumeTreeAccessToken tree_access_token;
       BL::Volume::grids_iterator b_grid_iter;
       for (b_volume.grids.begin(b_grid_iter); b_grid_iter != b_volume.grids.end(); ++b_grid_iter) {
         BL::VolumeGrid b_volume_grid(*b_grid_iter);
         if (b_volume_grid.name() == "density") {
           ::Volume *volume = (::Volume *)b_volume.ptr.data;
-          VolumeGrid *volume_grid = (VolumeGrid *)b_volume_grid.ptr.data;
-          openvdb::GridBase::ConstPtr const_grid = BKE_volume_grid_openvdb_for_read(volume,
-                                                                                    volume_grid);
+          const auto *volume_grid = static_cast<const blender::bke::VolumeGridData *>(
+              b_volume_grid.ptr.data);
+          openvdb::GridBase::ConstPtr const_grid = volume_grid->grid_ptr(tree_access_token);
           if (const_grid->isType<openvdb::FloatGrid>()) {
             openvdb::FloatGrid::Ptr density_grid = openvdb::gridPtrCast<openvdb::FloatGrid>(
                 const_grid->deepCopyGrid());
@@ -1719,8 +1612,6 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
 
   octane_mesh->clear();
   octane_mesh->used_shaders = used_shaders;
-  octane_mesh->mesh_tag = new_mesh_tag;
-  octane_mesh->octane_property_tag = new_octane_prop_tag;
 
   octane_mesh->enable_offset_transform = RNA_boolean_get(&oct_mesh,
                                                          "enable_octane_offset_transform");
@@ -1757,17 +1648,12 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
   octane_mesh->is_scatter_group_source = RNA_boolean_get(&oct_mesh, "is_scatter_group_source");
   octane_mesh->scatter_group_id = RNA_int_get(&oct_mesh, "scatter_group_id");
   octane_mesh->scatter_instance_id = RNA_int_get(&oct_mesh, "scatter_instance_id");
-  if (b_ob.type() == BL::Object::type_MESH) {
-    BL::Mesh b_mesh = BL::Mesh(b_ob.data());
-    if (b_mesh.use_auto_smooth() || RNA_boolean_get(&oct_mesh, "force_load_vertex_normals")) {
-      octane_mesh->octane_mesh.fMaxSmoothAngle = b_mesh.auto_smooth_angle() / M_PI * 180;
+  octane_mesh->octane_mesh.fMaxSmoothAngle = -1.0f;
+  for (b_ob.modifiers.begin(b_mod); b_mod != b_ob.modifiers.end(); ++b_mod) {
+    std::string mod_name = b_mod->name();
+    if (b_mod->type() == BL::Modifier::type_NODES && string_startswith(mod_name, "Auto Smooth")) {
+      octane_mesh->octane_mesh.fMaxSmoothAngle = 180.0f;
     }
-    else {
-      octane_mesh->octane_mesh.fMaxSmoothAngle = -1.0f;
-    }
-  }
-  else {
-    octane_mesh->octane_mesh.fMaxSmoothAngle = -1.0f;
   }
   octane_mesh->octane_mesh.iHairInterpolations = RNA_enum_get(&oct_mesh, "hair_interpolation");
   octane_mesh->final_visibility = !(preview ? b_ob.hide_viewport() : b_ob.hide_render());

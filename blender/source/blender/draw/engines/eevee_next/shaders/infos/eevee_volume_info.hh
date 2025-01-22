@@ -60,6 +60,23 @@ GPU_SHADER_CREATE_INFO(eevee_volume_scatter_with_lights)
     .sampler(0, ImageType::FLOAT_3D, "extinction_tx")
     .do_static_compilation(true);
 
+GPU_SHADER_CREATE_INFO(eevee_volume_occupancy_convert)
+    .additional_info("eevee_shared", "eevee_global_ubo", "draw_fullscreen")
+    .builtins(BuiltinBits::TEXTURE_ATOMIC)
+    .image(VOLUME_HIT_DEPTH_SLOT, GPU_R32F, Qualifier::READ, ImageType::FLOAT_3D, "hit_depth_img")
+    .image(VOLUME_HIT_COUNT_SLOT,
+           GPU_R32UI,
+           Qualifier::READ_WRITE,
+           ImageType::UINT_2D,
+           "hit_count_img")
+    .image(VOLUME_OCCUPANCY_SLOT,
+           GPU_R32UI,
+           Qualifier::READ_WRITE,
+           ImageType::UINT_3D_ATOMIC,
+           "occupancy_img")
+    .fragment_source("eevee_occupancy_convert_frag.glsl")
+    .do_static_compilation(true);
+
 GPU_SHADER_CREATE_INFO(eevee_volume_integration)
     .additional_info("eevee_shared", "eevee_global_ubo", "draw_view")
     .compute_source("eevee_volume_integration_comp.glsl")
@@ -77,8 +94,8 @@ GPU_SHADER_CREATE_INFO(eevee_volume_resolve)
     .additional_info("eevee_volume_lib")
     .additional_info("draw_fullscreen")
     .additional_info("eevee_render_pass_out")
+    .additional_info("eevee_hiz_data")
     .fragment_source("eevee_volume_resolve_frag.glsl")
-    .sampler(0, ImageType::DEPTH_2D, "depth_tx")
     .fragment_out(0, Type::VEC4, "out_radiance", DualBlend::SRC_0)
     .fragment_out(0, Type::VEC4, "out_transmittance", DualBlend::SRC_1)
     /** TODO(Miguel Pozo): Volume RenderPasses. */

@@ -16,6 +16,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 #include "render/shader.h"
+#include "BKE_node.h"
 #include "render/camera.h"
 #include "render/environment.h"
 #include "render/graph.h"
@@ -89,6 +90,39 @@ enum class OctaneSocketType {
   ST_LINK = 11,
   ST_OUTPUT = 100
 };
+
+static OctaneSocketType legacy_dto_type_to_socekt_type(
+    ::OctaneDataTransferObject::OctaneDTOType dto_type)
+{
+  switch (dto_type) {
+    case OctaneDataTransferObject::DTO_NONE:
+      return OctaneSocketType::ST_UNKNOWN;
+    case OctaneDataTransferObject::DTO_BOOL:
+      return OctaneSocketType::ST_BOOL;
+    case OctaneDataTransferObject::DTO_FLOAT:
+      return OctaneSocketType::ST_FLOAT;
+    case OctaneDataTransferObject::DTO_FLOAT_2:
+      return OctaneSocketType::ST_FLOAT2;
+    case OctaneDataTransferObject::DTO_FLOAT_3:
+      return OctaneSocketType::ST_FLOAT3;
+    case OctaneDataTransferObject::DTO_RGB:
+      return OctaneSocketType::ST_RGBA;
+    case OctaneDataTransferObject::DTO_ENUM:
+      return OctaneSocketType::ST_ENUM;
+    case OctaneDataTransferObject::DTO_INT:
+      return OctaneSocketType::ST_INT;
+    case OctaneDataTransferObject::DTO_INT_2:
+      return OctaneSocketType::ST_INT2;
+    case OctaneDataTransferObject::DTO_INT_3:
+      return OctaneSocketType::ST_INT3;
+    case OctaneDataTransferObject::DTO_STR:
+      return OctaneSocketType::ST_STRING;
+    case OctaneDataTransferObject::DTO_SHADER:
+      return OctaneSocketType::ST_LINK;
+    default:
+      return OctaneSocketType::ST_UNKNOWN;
+  }
+}
 
 static std::string OCTANE_TEXTURE_HELPER_NAME = "OCTANE_TEXTURE_HELPER[ShaderNodeTexImage]";
 
@@ -956,7 +990,16 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
                                    LinkResolver &link_resolver)
 {
   std::string node_type_name = b_node.bl_idname();
+  bool is_legacy_node = string_startswith(node_type_name, "ShaderNodeOct");
   int octane_node_type = OctaneInfo::instance().get_node_type(node_type_name);
+  if (is_legacy_node) {
+    bool need_to_use_custom_node = OctaneInfo::instance().need_to_use_new_custom_node(
+        node_type_name);
+    if (need_to_use_custom_node) {
+      octane_node_type = OctaneInfo::instance().get_legacy_node_type(node_type_name);
+      node_type_name = "OctaneCustomNode";
+    }
+  }
   if (octane_node_type != OctaneInfo::INVALID_NODE_TYPE) {
     if (node_type_name == "OctaneCameraData") {
       node_type_name = "ShaderNodeCameraData";
@@ -1012,13 +1055,37 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
     return NULL;
   }
   std::string bl_idname = b_node.bl_idname();
+
   if (node_type_name == "OctaneCustomNode") {
-    int octane_node_type = OctaneInfo::instance().get_node_type(bl_idname);
     if (octane_node_type > 0 || bl_idname == "OctaneProxy" || bl_idname == "OctaneScriptGraph") {
+      const LegacyDataInfoBlenderNameMap &legacy_data_map =
+          OctaneInfo::instance().get_legacy_data_info_blender_name_map(octane_node_type);
       const AttributeNameInfoMap &attributeInfoMap =
           OctaneInfo::instance().get_attribute_name_info_map(octane_node_type);
-      const PinNameInfoMap &pinInfoMap = OctaneInfo::instance().get_pin_name_info_map(
+      const PinNameInfoMap &pin_name_info_map = OctaneInfo::instance().get_pin_name_info_map(
           octane_node_type);
+      PinNameInfoMap legacy_node_pin_map;
+      if (is_legacy_node) {
+        for (auto new_it : pin_name_info_map) {
+          for (auto legacy_it : legacy_data_map) {
+            PinInfoPtr new_info_ptr = new_it.second;
+            LegacyDataInfoPtr legacy_info_ptr = legacy_it.second;
+            int32_t new_octane_id = new_it.second->id_;
+            int32_t legacy_octane_id = legacy_info_ptr->is_pin_ ? legacy_it.second->octane_type_ :
+                                                                  -legacy_it.second->octane_type_;
+            if (new_octane_id == legacy_octane_id) {
+              PinInfoPtr ptr = std::make_shared<PinInfo>();
+              *ptr.get() = *new_info_ptr.get();
+              ptr->socket_type_ = (int32_t)legacy_dto_type_to_socekt_type(
+                  (::OctaneDataTransferObject::OctaneDTOType)legacy_info_ptr->data_type_);
+              ptr->use_as_legacy_attribute_ = !legacy_info_ptr->is_socket_;
+              legacy_node_pin_map[legacy_it.first] = ptr;
+            }
+          }
+        }
+      }
+      const PinNameInfoMap &final_pin_name_info_map = is_legacy_node ? legacy_node_pin_map :
+                                                                       pin_name_info_map;
       ::OctaneDataTransferObject::OctaneCustomNode *octane_node =
           (::OctaneDataTransferObject::OctaneCustomNode *)(node->oct_node);
       static const int NT_BLENDER_NODE_OCTANE_PROXY = -100001;
@@ -1107,27 +1174,47 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
           dynamic_pin_count++;
         }
       }
+      if (is_legacy_node) {
+        for (const auto &it : final_pin_name_info_map) {
+          std::string attr_name = it.first;
+          PinInfoPtr pin_info_ptr = it.second;
+          if (pin_info_ptr->use_as_legacy_attribute_) {
+            octane_node->oEnumSockets.emplace_back(
+                ::OctaneDataTransferObject::OctaneDTOEnum(attr_name, false));
+            ::OctaneDataTransferObject::OctaneDTOEnum* base_dto_ptr =
+                &octane_node->oEnumSockets[octane_node->oEnumSockets.size() - 1];
+            visitor.handle("", base_dto_ptr);
+            base_dto_ptr->sName = pin_info_ptr->blender_name_;
+          }
+        }
+      }
       for (b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
         std::string socket_name = b_input->identifier();
         std::string octane_name = socket_name;
         bool is_static_pin = false;
-        PinInfoPtr pinInfoPtr = NULL;
-        for (const auto &it : pinInfoMap) {
+        PinInfoPtr pin_info_ptr = NULL;
+        for (const auto &it : final_pin_name_info_map) {
           if (it.second->blender_name_ == socket_name) {
             is_static_pin = true;
-            pinInfoPtr = it.second;
+            pin_info_ptr = it.second;
             break;
           }
           if (boost::to_lower_copy(it.second->blender_name_) == boost::to_lower_copy(socket_name))
           {
             is_static_pin = true;
-            pinInfoPtr = it.second;
+            pin_info_ptr = it.second;
+            break;
+          }
+          if (is_legacy_node && it.first == socket_name) {
+            is_static_pin = true;
+            pin_info_ptr = it.second;
+            octane_name = it.second->blender_name_;
             break;
           }
         }
-        OctaneSocketType property_type = pinInfoPtr ? static_cast<OctaneSocketType>(
-                                                          pinInfoPtr->socket_type_) :
-                                                      OctaneSocketType::ST_UNKNOWN;
+        OctaneSocketType property_type = pin_info_ptr ? static_cast<OctaneSocketType>(
+                                                            pin_info_ptr->socket_type_) :
+                                                        OctaneSocketType::ST_UNKNOWN;
         bool is_dynamic_pin = false;
         PropertyRNA *dynamicProp = RNA_struct_find_property(&b_input->ptr,
                                                             "octane_dynamic_pin_index");
@@ -1280,9 +1367,7 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
         }
       }
     }
-    if (bl_idname == "OctaneTexLayerApplyLUT" ||
-        bl_idname == "OctaneOutputAOVsApplyLUT")
-    {
+    if (bl_idname == "OctaneTexLayerApplyLUT" || bl_idname == "OctaneOutputAOVsApplyLUT") {
     }
     if (bl_idname == "OctaneTexLayerApplyCustomCurve" ||
         bl_idname == "OctaneOutputAOVsApplyCustomCurve")
@@ -1459,7 +1544,7 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
                       object_data_transform_output_node->oct_node;
               set_octane_matrix(oct_transform_node->oMatrix, octane_tfm);
               oct_transform_node->bUseMatrix = true;
-              std::string geo_name; 
+              std::string geo_name;
               std::string name_full = b_ob.name_full();
               if (scene->object_octane_names.find(name_full) != scene->object_octane_names.end()) {
                 geo_name = scene->object_octane_names[name_full];
@@ -2379,6 +2464,19 @@ static void generate_sockets_map(std::string prefix_name,
   }
 }
 
+static bool is_cycles_node(int32_t node_type)
+{
+  switch (node_type) {
+    case SH_NODE_OUTPUT_MATERIAL:
+    case SH_NODE_OUTPUT_WORLD:
+    case SH_NODE_OUTPUT_LIGHT:
+    case TEX_NODE_OUTPUT:
+      return false;
+    default:
+      return (node_type >= SH_NODE_RGB && node_type < SH_NODE_OCT_DIFFUSE_MAT);
+  }
+}
+
 static void add_graph_nodes(std::string prefix_name,
                             Scene *scene,
                             BL::RenderEngine &b_engine,
@@ -2441,8 +2539,14 @@ static void add_graph_nodes(std::string prefix_name,
       for (b_ntree.links.begin(b_link); b_link != b_ntree.links.end(); ++b_link) {
         BL::Node b_from_node = b_link->from_node();
         BL::Node b_to_node = b_link->to_node();
-        if (b_to_node && b_from_node && b_to_node.name() == current_name) {
-          currents_nodes_name_list.emplace(b_from_node.name());
+        std::string to_node_name = b_to_node.name();
+        std::string from_node_name = b_from_node.name();
+        int32_t node_type = b_from_node.type();
+        if (is_cycles_node(node_type)) {
+          continue;
+        }
+        if (to_node_name == current_name) {
+          currents_nodes_name_list.emplace(from_node_name);
         }
       }
     }
@@ -3339,15 +3443,15 @@ int BlenderSync::get_render_aov_preview_pass(BL::NodeTree &node_tree)
 
 bool BlenderSync::use_geonodes_modifiers(BL::Object &b_ob) {
   bool use_geometry_node_modifier = false;
-  BL::Object::modifiers_iterator b_mod;
-  for (b_ob.modifiers.begin(b_mod); b_mod != b_ob.modifiers.end(); ++b_mod) {
-    if (b_mod->type() == BL::Modifier::type_NODES) {
-      if ((preview && b_mod->show_viewport()) || (!preview && b_mod->show_render())) {
-        use_geometry_node_modifier = true;
-        break;
-      }
-    }
-  }
+  //BL::Object::modifiers_iterator b_mod;
+  //for (b_ob.modifiers.begin(b_mod); b_mod != b_ob.modifiers.end(); ++b_mod) {
+  //  if (b_mod->type() == BL::Modifier::type_NODES) {
+  //    if ((preview && b_mod->show_viewport()) || (!preview && b_mod->show_render())) {
+  //      use_geometry_node_modifier = true;
+  //      break;
+  //    }
+  //  }
+  //}
   return use_geometry_node_modifier;
 }
 

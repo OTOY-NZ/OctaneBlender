@@ -42,7 +42,9 @@ class GeometryDataSource : public DataSource {
   Object *object_eval_;
   const bke::GeometrySet geometry_set_;
   const bke::GeometryComponent *component_;
-  eAttrDomain domain_;
+  bke::AttrDomain domain_;
+  /* Layer index for grease pencil component. */
+  int layer_index_;
   ExtraColumns extra_columns_;
 
   /* Some data is computed on the fly only when it is requested. Computing it does not change the
@@ -55,12 +57,14 @@ class GeometryDataSource : public DataSource {
   GeometryDataSource(Object *object_eval,
                      bke::GeometrySet geometry_set,
                      const bke::GeometryComponent::Type component_type,
-                     const eAttrDomain domain,
+                     const bke::AttrDomain domain,
+                     const int layer_index = -1,
                      ExtraColumns extra_columns = {})
       : object_eval_(object_eval),
         geometry_set_(std::move(geometry_set)),
         component_(geometry_set_.get_component(component_type)),
         domain_(domain),
+        layer_index_(layer_index),
         extra_columns_(std::move(extra_columns))
   {
   }
@@ -80,6 +84,9 @@ class GeometryDataSource : public DataSource {
       const SpreadsheetColumnID &column_id) const override;
 
   int tot_rows() const override;
+
+ private:
+  std::optional<const bke::AttributeAccessor> get_component_attributes() const;
 };
 
 class VolumeDataSource : public DataSource {

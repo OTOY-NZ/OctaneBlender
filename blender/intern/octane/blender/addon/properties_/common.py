@@ -1,13 +1,50 @@
 # <pep8 compliant>
-
+import bpy
+from bpy.props import IntProperty, StringProperty, PointerProperty
 from bpy.utils import register_class, unregister_class
-from octane.utils import consts
+
+from octane.utils import consts, logger
 
 
-class OctanePropertySettings(object):
+class OctaneVersion(bpy.types.PropertyGroup):
+    plugin: StringProperty(
+        name="",
+        description="",
+        default="",
+        maxlen=128,
+    )
+    sdk: IntProperty(
+        name="",
+        default=0,
+    )
+
+    def is_update_plugin_version_newer(self, update_plugin_version):
+        try:
+            current_version_list = [(int(s) if s != '' else 0) for s in self.plugin.split('.')]
+        except Exception as e:
+            current_version_list = []
+            logger.exception(e)
+        try:
+            update_version_list = [(int(s) if s != '' else 0) for s in update_plugin_version.split('.')]
+        except Exception as e:
+            update_version_list = []
+            logger.exception(e)
+        return current_version_list < update_version_list
+
+    def is_update_sdk_version_newer(self, update_sdk_version):
+        return self.sdk < update_sdk_version
+
+
+class OctanePropertyGroup(bpy.types.PropertyGroup):
     BLENDER_ATTRIBUTE_PROPERTY_ENABLED = "PROPERTY_ENABLED"
     PROPERTY_CONFIGS = {}
     PROPERTY_NAME_TO_PIN_SYMBOL_MAP = {}
+
+    version: PointerProperty(
+        name="Octane Version Information",
+        description="",
+        type=OctaneVersion,
+    )
 
     # noinspection PyUnresolvedReferences
     def sync_data(self, octane_node, scene=None, region=None, v3d=None, rv3d=None,
@@ -107,6 +144,8 @@ class OctanePropertySettings(object):
 
 
 _CLASSES = [
+    OctaneVersion,
+    OctanePropertyGroup,
 ]
 
 

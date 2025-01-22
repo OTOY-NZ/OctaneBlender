@@ -73,9 +73,11 @@ GPU_SHADER_CREATE_INFO(eevee_surfel_common)
 
 GPU_SHADER_CREATE_INFO(eevee_surfel_light)
     .define("SURFEL_LIGHT")
+    .define("LIGHT_ITER_FORCE_NO_CULLING")
     .local_group_size(SURFEL_GROUP_SIZE)
     .additional_info("eevee_shared",
                      "draw_view",
+                     "eevee_global_ubo",
                      "eevee_utility_texture",
                      "eevee_surfel_common",
                      "eevee_light_data",
@@ -85,8 +87,9 @@ GPU_SHADER_CREATE_INFO(eevee_surfel_light)
 
 GPU_SHADER_CREATE_INFO(eevee_surfel_cluster_build)
     .local_group_size(SURFEL_GROUP_SIZE)
+    .builtins(BuiltinBits::TEXTURE_ATOMIC)
     .additional_info("eevee_shared", "eevee_surfel_common", "draw_view")
-    .image(0, GPU_R32I, Qualifier::READ_WRITE, ImageType::INT_3D, "cluster_list_img")
+    .image(0, GPU_R32I, Qualifier::READ_WRITE, ImageType::INT_3D_ATOMIC, "cluster_list_img")
     .compute_source("eevee_surfel_cluster_build_comp.glsl")
     .do_static_compilation(true);
 
@@ -155,7 +158,7 @@ GPU_SHADER_CREATE_INFO(eevee_lightprobe_irradiance_offset)
     .additional_info("eevee_shared", "eevee_surfel_common", "draw_view")
     .storage_buf(0, Qualifier::READ, "int", "list_start_buf[]")
     .storage_buf(6, Qualifier::READ, "SurfelListInfoData", "list_info_buf")
-    .image(0, GPU_R32I, Qualifier::READ, ImageType::INT_3D, "cluster_list_img")
+    .image(0, GPU_R32I, Qualifier::READ, ImageType::INT_3D_ATOMIC, "cluster_list_img")
     .image(1, GPU_RGBA16F, Qualifier::READ_WRITE, ImageType::FLOAT_3D, "virtual_offset_img")
     .compute_source("eevee_lightprobe_irradiance_offset_comp.glsl")
     .do_static_compilation(true);
@@ -195,13 +198,23 @@ GPU_SHADER_CREATE_INFO(eevee_lightprobe_irradiance_load)
     .compute_source("eevee_lightprobe_irradiance_load_comp.glsl")
     .do_static_compilation(true);
 
-GPU_SHADER_CREATE_INFO(eevee_lightprobe_data)
+GPU_SHADER_CREATE_INFO(eevee_volume_probe_data)
     .uniform_buf(IRRADIANCE_GRID_BUF_SLOT,
                  "IrradianceGridData",
                  "grids_infos_buf[IRRADIANCE_GRID_MAX]")
     /* NOTE: Use uint instead of IrradianceBrickPacked because Metal needs to know the exact type.
      */
     .storage_buf(IRRADIANCE_BRICK_BUF_SLOT, Qualifier::READ, "uint", "bricks_infos_buf[]")
-    .sampler(IRRADIANCE_ATLAS_TEX_SLOT, ImageType::FLOAT_3D, "irradiance_atlas_tx");
+    .sampler(IRRADIANCE_ATLAS_TEX_SLOT, ImageType::FLOAT_3D, "irradiance_atlas_tx")
+    .define("IRRADIANCE_GRID_SAMPLING");
+
+GPU_SHADER_CREATE_INFO(eevee_lightprobe_data)
+    .additional_info("eevee_reflection_probe_data", "eevee_volume_probe_data");
+
+GPU_SHADER_CREATE_INFO(eevee_lightprobe_planar_data)
+    .define("REFLECTION_PROBE")
+    .uniform_buf(PLANAR_PROBE_BUF_SLOT, "ProbePlanarData", "probe_planar_buf[PLANAR_PROBES_MAX]")
+    .sampler(PLANAR_PROBE_RADIANCE_TEX_SLOT, ImageType::FLOAT_2D_ARRAY, "planar_radiance_tx")
+    .sampler(PLANAR_PROBE_DEPTH_TEX_SLOT, ImageType::DEPTH_2D_ARRAY, "planar_depth_tx");
 
 /** \} */

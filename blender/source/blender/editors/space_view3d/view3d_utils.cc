@@ -31,7 +31,7 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_camera.h"
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_object.hh"
 #include "BKE_scene.h"
 #include "BKE_screen.hh"
@@ -50,6 +50,8 @@
 #include "ED_screen.hh"
 #include "ED_undo.hh"
 #include "ED_view3d.hh"
+
+#include "ANIM_keyframing.hh"
 
 #include "UI_resources.hh"
 
@@ -638,12 +640,11 @@ bool ED_view3d_camera_lock_sync(const Depsgraph *depsgraph, View3D *v3d, RegionV
 bool ED_view3d_camera_autokey(
     const Scene *scene, ID *id_key, bContext *C, const bool do_rotate, const bool do_translate)
 {
-  if (autokeyframe_cfra_can_key(scene, id_key)) {
+  if (blender::animrig::autokeyframe_cfra_can_key(scene, id_key)) {
     const float cfra = float(scene->r.cfra);
-    ListBase dsources = {nullptr, nullptr};
-
+    blender::Vector<PointerRNA> sources;
     /* add data-source override for the camera object */
-    ANIM_relative_keyingset_add_source(&dsources, id_key, nullptr, nullptr);
+    ANIM_relative_keyingset_add_source(sources, id_key);
 
     /* insert keyframes
      * 1) on the first frame
@@ -652,15 +653,12 @@ bool ED_view3d_camera_autokey(
      */
     if (do_rotate) {
       KeyingSet *ks = ANIM_get_keyingset_for_autokeying(scene, ANIM_KS_ROTATION_ID);
-      ANIM_apply_keyingset(C, &dsources, nullptr, ks, MODIFYKEY_MODE_INSERT, cfra);
+      ANIM_apply_keyingset(C, &sources, ks, MODIFYKEY_MODE_INSERT, cfra);
     }
     if (do_translate) {
       KeyingSet *ks = ANIM_get_keyingset_for_autokeying(scene, ANIM_KS_LOCATION_ID);
-      ANIM_apply_keyingset(C, &dsources, nullptr, ks, MODIFYKEY_MODE_INSERT, cfra);
+      ANIM_apply_keyingset(C, &sources, ks, MODIFYKEY_MODE_INSERT, cfra);
     }
-
-    /* free temp data */
-    BLI_freelistN(&dsources);
 
     return true;
   }
@@ -705,7 +703,7 @@ bool ED_view3d_camera_lock_undo_test(const View3D *v3d, const RegionView3D *rv3d
 /**
  * Create a MEMFILE undo-step for locked camera movement when transforming the view.
  * Edit and texture paint mode don't use MEMFILE undo so undo push is skipped for them.
- * NDOF and track-pad navigation would create an undo step on every gesture and we may end up with
+ * NDOF and trackpad navigation would create an undo step on every gesture and we may end up with
  * unnecessary undo steps so undo push for them is not supported for now.
  * Operators that use smooth view for navigation are supported via an optional parameter field,
  * see: #V3D_SmoothParams.undo_str.
@@ -1012,8 +1010,8 @@ void ED_view3d_quadview_update(ScrArea *area, ARegion *region, bool do_clip)
 /* -------------------------------------------------------------------- */
 /** \name View Auto-Depth Last State Access
  *
- * Calling consecutive track-pad gestures reuses the previous offset to prevent
- * each track-pad event using a different offset, see: #103263.
+ * Calling consecutive trackpad gestures reuses the previous offset to prevent
+ * each trackpad event using a different offset, see: #103263.
  * \{ */
 
 static const char *view3d_autodepth_last_id = "view3d_autodist_last";
@@ -1627,7 +1625,8 @@ static bool view3d_camera_to_view_selected_impl(Main *bmain,
     bool is_ortho_camera = false;
 
     if ((camera_ob_eval->type == OB_CAMERA) &&
-        (((Camera *)camera_ob_eval->data)->type == CAM_ORTHO)) {
+        (((Camera *)camera_ob_eval->data)->type == CAM_ORTHO))
+    {
       ((Camera *)camera_ob->data)->ortho_scale = scale;
       is_ortho_camera = true;
     }

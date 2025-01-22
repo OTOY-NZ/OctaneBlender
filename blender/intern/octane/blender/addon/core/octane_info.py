@@ -88,6 +88,8 @@ class OctaneInfoManger(metaclass=utility.Singleton):
     def add_legacy_node_name(self, node_type, node_name):
         self.node_type_to_legacy_node_name[node_type] = node_name
         self.legacy_node_name_to_node_type[node_name] = node_type
+        if not core.ENABLE_OCTANE_ADDON_CLIENT:
+            _octane.add_legacy_node_name(node_type, node_name)
 
     def add_attribute_info(self, node_type, blender_name, attribute_id, attribute_name, attribute_type):
         attribute_info = AttributeInfo(blender_name, attribute_id, attribute_name, attribute_type)

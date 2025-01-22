@@ -17,17 +17,18 @@
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
+#include "BLI_math_vector.hh"
 
 #include "BKE_action.h"
 #include "BKE_anim_data.h"
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_fcurve.h"
 #include "BKE_global.h"
 #include "BKE_image.h"
-#include "BKE_layer.h"
-#include "BKE_lib_id.h"
-#include "BKE_main.h"
-#include "BKE_modifier.h"
+#include "BKE_layer.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_main.hh"
+#include "BKE_modifier.hh"
 #include "BKE_nla.h"
 #include "BKE_scene.h"
 
@@ -37,6 +38,8 @@
 #include "ED_screen.hh"
 #include "ED_screen_types.hh"
 #include "ED_sequencer.hh"
+
+#include "ANIM_keyframing.hh"
 
 #include "UI_view2d.hh"
 
@@ -49,6 +52,8 @@
 
 /* Own include. */
 #include "transform_convert.hh"
+
+using namespace blender;
 
 bool transform_mode_use_local_origins(const TransInfo *t)
 {
@@ -171,6 +176,39 @@ static void sort_trans_data_selected_first(TransInfo *t)
   }
 }
 
+static float3 prop_dist_loc_get(const TransDataContainer *tc,
+                                const TransData *td,
+                                const bool use_island,
+                                const float proj_vec[3])
+{
+  float3 r_vec;
+
+  if (use_island) {
+    if (tc->use_local_mat) {
+      mul_v3_m4v3(r_vec, tc->mat, td->iloc);
+    }
+    else {
+      mul_v3_m3v3(r_vec, td->mtx, td->iloc);
+    }
+  }
+  else {
+    if (tc->use_local_mat) {
+      mul_v3_m4v3(r_vec, tc->mat, td->center);
+    }
+    else {
+      mul_v3_m3v3(r_vec, td->mtx, td->center);
+    }
+  }
+
+  if (proj_vec) {
+    float vec_p[3];
+    project_v3_v3v3(vec_p, r_vec, proj_vec);
+    sub_v3_v3(r_vec, vec_p);
+  }
+
+  return r_vec;
+}
+
 /**
  * Distance calculated from not-selected vertex to nearest selected vertex.
  */
@@ -221,31 +259,9 @@ static void set_prop_dist(TransInfo *t, const bool with_dist)
     for (a = 0; a < tc->data_len; a++, td++) {
       if (td->flag & TD_SELECTED) {
         /* Initialize, it was malloced. */
-        float vec[3];
         td->rdist = 0.0f;
 
-        if (use_island) {
-          if (tc->use_local_mat) {
-            mul_v3_m4v3(vec, tc->mat, td->iloc);
-          }
-          else {
-            mul_v3_m3v3(vec, td->mtx, td->iloc);
-          }
-        }
-        else {
-          if (tc->use_local_mat) {
-            mul_v3_m4v3(vec, tc->mat, td->center);
-          }
-          else {
-            mul_v3_m3v3(vec, td->mtx, td->center);
-          }
-        }
-
-        if (proj_vec) {
-          float vec_p[3];
-          project_v3_v3v3(vec_p, vec, proj_vec);
-          sub_v3_v3(vec, vec_p);
-        }
+        const float3 vec = prop_dist_loc_get(tc, td, use_island, proj_vec);
 
         BLI_kdtree_3d_insert(td_tree, td_table_index, vec);
         td_table[td_table_index++] = td;
@@ -265,30 +281,7 @@ static void set_prop_dist(TransInfo *t, const bool with_dist)
     TransData *td = tc->data;
     for (a = 0; a < tc->data_len; a++, td++) {
       if ((td->flag & TD_SELECTED) == 0) {
-        float vec[3];
-
-        if (use_island) {
-          if (tc->use_local_mat) {
-            mul_v3_m4v3(vec, tc->mat, td->iloc);
-          }
-          else {
-            mul_v3_m3v3(vec, td->mtx, td->iloc);
-          }
-        }
-        else {
-          if (tc->use_local_mat) {
-            mul_v3_m4v3(vec, tc->mat, td->center);
-          }
-          else {
-            mul_v3_m3v3(vec, td->mtx, td->center);
-          }
-        }
-
-        if (proj_vec) {
-          float vec_p[3];
-          project_v3_v3v3(vec_p, vec, proj_vec);
-          sub_v3_v3(vec, vec_p);
-        }
+        const float3 vec = prop_dist_loc_get(tc, td, use_island, proj_vec);
 
         KDTreeNearest_3d nearest;
         const int td_index = BLI_kdtree_3d_find_nearest(td_tree, vec, &nearest);
@@ -582,7 +575,8 @@ bool constraints_list_needinv(TransInfo *t, ListBase *list)
           bChildOfConstraint *data = (bChildOfConstraint *)con->data;
 
           if ((data->flag & CHILDOF_LOCX) && (data->flag & CHILDOF_LOCY) &&
-              (data->flag & CHILDOF_LOCZ)) {
+              (data->flag & CHILDOF_LOCZ))
+          {
             return true;
           }
         }
@@ -591,7 +585,8 @@ bool constraints_list_needinv(TransInfo *t, ListBase *list)
           bRotateLikeConstraint *data = (bRotateLikeConstraint *)con->data;
 
           if (ELEM(data->mix_mode, ROTLIKE_MIX_OFFSET, ROTLIKE_MIX_BEFORE) &&
-              ELEM(t->mode, TFM_ROTATION)) {
+              ELEM(t->mode, TFM_ROTATION))
+          {
             return true;
           }
         }
@@ -705,9 +700,7 @@ static int countAndCleanTransDataContainer(TransInfo *t)
     if (tc->data_len == 0) {
       uint index = tc - t->data_container;
       if (index + 1 != t->data_container_len) {
-        SWAP(TransDataContainer,
-             t->data_container[index],
-             t->data_container[t->data_container_len - 1]);
+        std::swap(t->data_container[index], t->data_container[t->data_container_len - 1]);
       }
       t->data_container_len -= 1;
     }
@@ -725,23 +718,25 @@ static int countAndCleanTransDataContainer(TransInfo *t)
 static void init_proportional_edit(TransInfo *t)
 {
   /* NOTE: Proportional editing is not usable in pose mode yet #32444. */
-  if (!ELEM(t->data_type,
-            &TransConvertType_Action,
-            &TransConvertType_Curve,
-            &TransConvertType_Curves,
-            &TransConvertType_Graph,
-            &TransConvertType_GPencil,
-            &TransConvertType_Lattice,
-            &TransConvertType_Mask,
-            &TransConvertType_MBall,
-            &TransConvertType_Mesh,
-            &TransConvertType_MeshEdge,
-            &TransConvertType_MeshSkin,
-            &TransConvertType_MeshUV,
-            &TransConvertType_MeshVertCData,
-            &TransConvertType_Node,
-            &TransConvertType_Object,
-            &TransConvertType_Particle))
+  /* NOTE: This `ELEM` uses more than 16 elements and so has been split. */
+  if (!(ELEM(t->data_type,
+             &TransConvertType_Action,
+             &TransConvertType_Curve,
+             &TransConvertType_Curves,
+             &TransConvertType_Graph,
+             &TransConvertType_GPencil,
+             &TransConvertType_GreasePencil,
+             &TransConvertType_Lattice,
+             &TransConvertType_Mask,
+             &TransConvertType_MBall,
+             &TransConvertType_Mesh,
+             &TransConvertType_MeshEdge,
+             &TransConvertType_MeshSkin,
+             &TransConvertType_MeshUV,
+             &TransConvertType_MeshVertCData,
+             &TransConvertType_Node,
+             &TransConvertType_Object) ||
+        ELEM(t->data_type, &TransConvertType_Particle)))
   {
     /* Disable proportional editing */
     t->options |= CTX_NO_PET;
@@ -793,10 +788,7 @@ static void init_proportional_edit(TransInfo *t)
 }
 
 /* For multi object editing. */
-static void init_TransDataContainers(TransInfo *t,
-                                     Object *obact,
-                                     Object **objects,
-                                     uint objects_len)
+static void init_TransDataContainers(TransInfo *t, Object *obact, Span<Object *> objects)
 {
   if (!ELEM(t->data_type,
             &TransConvertType_Pose,
@@ -804,6 +796,7 @@ static void init_TransDataContainers(TransInfo *t,
             &TransConvertType_Curve,
             &TransConvertType_Curves,
             &TransConvertType_GPencil,
+            &TransConvertType_GreasePencil,
             &TransConvertType_Lattice,
             &TransConvertType_MBall,
             &TransConvertType_Mesh,
@@ -820,32 +813,32 @@ static void init_TransDataContainers(TransInfo *t,
   const short object_type = obact ? obact->type : -1;
 
   if ((object_mode & OB_MODE_EDIT) || (t->data_type == &TransConvertType_GPencil) ||
+      (t->data_type == &TransConvertType_GreasePencil) ||
       ((object_mode & OB_MODE_POSE) && (object_type == OB_ARMATURE)))
   {
     if (t->data_container) {
       MEM_freeN(t->data_container);
     }
 
-    bool free_objects = false;
-    if (objects == nullptr) {
+    Vector<Object *> local_objects;
+    if (objects.is_empty()) {
       ObjectsInModeParams params = {0};
       params.object_mode = object_mode;
       /* Pose transform operates on `ob->pose` so don't skip duplicate object-data. */
       params.no_dup_data = (object_mode & OB_MODE_POSE) == 0;
-      objects = BKE_view_layer_array_from_objects_in_mode_params(
+      local_objects = BKE_view_layer_array_from_objects_in_mode_params(
           t->scene,
           t->view_layer,
           static_cast<const View3D *>((t->spacetype == SPACE_VIEW3D) ? t->view : nullptr),
-          &objects_len,
           &params);
-      free_objects = true;
+      objects = local_objects;
     }
 
     t->data_container = static_cast<TransDataContainer *>(
-        MEM_callocN(sizeof(*t->data_container) * objects_len, __func__));
-    t->data_container_len = objects_len;
+        MEM_callocN(sizeof(*t->data_container) * objects.size(), __func__));
+    t->data_container_len = objects.size();
 
-    for (int i = 0; i < objects_len; i++) {
+    for (int i = 0; i < objects.size(); i++) {
       TransDataContainer *tc = &t->data_container[i];
       if (!(t->flag & T_NO_MIRROR) && (objects[i]->type == OB_MESH)) {
         tc->use_mirror_axis_x = (((Mesh *)objects[i]->data)->symmetry & ME_SYMMETRY_X) != 0;
@@ -867,6 +860,9 @@ static void init_TransDataContainers(TransInfo *t,
       else if (t->data_type == &TransConvertType_GPencil) {
         tc->use_local_mat = true;
       }
+      else if (t->data_type == &TransConvertType_GreasePencil) {
+        tc->use_local_mat = true;
+      }
 
       if (tc->use_local_mat) {
         BLI_assert((t->flag & T_2D_EDIT) == 0);
@@ -879,10 +875,6 @@ static void init_TransDataContainers(TransInfo *t,
         normalize_m3_m3(tc->mat3_unit, tc->mat3);
       }
       /* Otherwise leave as zero. */
-    }
-
-    if (free_objects) {
-      MEM_freeN(objects);
     }
   }
 }
@@ -916,8 +908,14 @@ static TransConvertTypeInfo *convert_type_get(const TransInfo *t, Object **r_obj
   if (t->options & CTX_EDGE_DATA) {
     return &TransConvertType_MeshEdge;
   }
-  if (t->options & CTX_GPENCIL_STROKES) {
-    return &TransConvertType_GPencil;
+  if ((t->options & CTX_GPENCIL_STROKES) && (t->spacetype == SPACE_VIEW3D)) {
+    if (t->obedit_type == OB_GREASE_PENCIL) {
+      return &TransConvertType_GreasePencil;
+    }
+    else if (t->obedit_type == OB_GPENCIL_LEGACY) {
+      return &TransConvertType_GPencil;
+    }
+    return nullptr;
   }
   if (t->spacetype == SPACE_IMAGE) {
     if (t->options & CTX_MASK) {
@@ -1038,12 +1036,12 @@ void create_trans_data(bContext *C, TransInfo *t)
   t->flag |= eTFlag(t->data_type->flags);
 
   if (ob_armature) {
-    init_TransDataContainers(t, ob_armature, &ob_armature, 1);
+    init_TransDataContainers(t, ob_armature, {ob_armature});
   }
   else {
     BKE_view_layer_synced_ensure(t->scene, t->view_layer);
     Object *ob = BKE_view_layer_active_object_get(t->view_layer);
-    init_TransDataContainers(t, ob, nullptr, 0);
+    init_TransDataContainers(t, ob, {});
   }
 
   if (t->data_type == &TransConvertType_Object) {
@@ -1195,8 +1193,8 @@ void animrecord_check_state(TransInfo *t, ID *id)
    * - we're not only keying for available channels
    * - the option to add new actions for each round is not enabled
    */
-  if (IS_AUTOKEY_FLAG(scene, INSERTAVAIL) == 0 &&
-      (scene->toolsettings->autokey_flag & ANIMRECORD_FLAG_WITHNLA))
+  if (blender::animrig::is_keying_flag(scene, AUTOKEY_FLAG_INSERTAVAILABLE) == 0 &&
+      (scene->toolsettings->keying_flag & AUTOKEY_FLAG_LAYERED_RECORD))
   {
     /* if playback has just looped around,
      * we need to add a new NLA track+strip to allow a clean pass to occur */

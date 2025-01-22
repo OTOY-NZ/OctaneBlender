@@ -9,6 +9,7 @@
  */
 
 #include "BLI_bitmap.h"
+#include "BLI_span.hh"
 #include "BLI_sys_types.h" /* for bool */
 
 #ifdef __cplusplus
@@ -47,9 +48,9 @@ typedef struct AnimationEvalContext {
 } AnimationEvalContext;
 
 AnimationEvalContext BKE_animsys_eval_context_construct(struct Depsgraph *depsgraph,
-                                                        float eval_time);
+                                                        float eval_time) ATTR_WARN_UNUSED_RESULT;
 AnimationEvalContext BKE_animsys_eval_context_construct_at(
-    const AnimationEvalContext *anim_eval_context, float eval_time);
+    const AnimationEvalContext *anim_eval_context, float eval_time) ATTR_WARN_UNUSED_RESULT;
 
 /* ************************************* */
 /* KeyingSets API */
@@ -87,7 +88,7 @@ struct KS_Path *BKE_keyingset_find_path(struct KeyingSet *ks,
 /* Copy all KeyingSets in the given list */
 void BKE_keyingsets_copy(struct ListBase *newlist, const struct ListBase *list);
 
-/** Process the ID pointers inside a scene's keyingsets, in see `BKE_lib_query.h` for details. */
+/** Process the ID pointers inside a scene's keyingsets, in see `BKE_lib_query.hh` for details. */
 void BKE_keyingsets_foreach_id(struct LibraryForeachIDData *data,
                                const struct ListBase *keyingsets);
 
@@ -95,7 +96,7 @@ void BKE_keyingsets_foreach_id(struct LibraryForeachIDData *data,
 void BKE_keyingset_free_path(struct KeyingSet *ks, struct KS_Path *ksp);
 
 /* Free data for KeyingSet but not set itself */
-void BKE_keyingset_free(struct KeyingSet *ks);
+void BKE_keyingset_free_paths(struct KeyingSet *ks);
 
 /* Free all the KeyingSets in the given list */
 void BKE_keyingsets_free(struct ListBase *list);
@@ -237,7 +238,7 @@ typedef struct NlaKeyframingContext NlaKeyframingContext;
  *
  * \param cache: List used to cache contexts for reuse when keying
  * multiple channels in one operation.
- * \param ptr: RNA pointer to the Object with the animation.
+ * \param ptr: RNA pointer to the ID with the animation.
  * \return Keyframing context, or NULL if not necessary.
  */
 struct NlaKeyframingContext *BKE_animsys_get_nla_keyframing_context(
@@ -250,8 +251,7 @@ struct NlaKeyframingContext *BKE_animsys_get_nla_keyframing_context(
  *
  * \param context: Context to use (may be NULL).
  * \param prop_ptr: Property about to be keyframed.
- * \param[in,out] values: Array of property values to adjust.
- * \param count: Number of values in the array.
+ * \param[in,out] values: Span of property values to adjust.
  * \param index: Index of the element about to be updated, or -1.
  * \param[out] r_force_all: Set to true if all channels must be inserted. May be NULL.
  * \param[out] r_successful_remaps: Bits will be enabled for indices that are both intended to be
@@ -261,8 +261,7 @@ struct NlaKeyframingContext *BKE_animsys_get_nla_keyframing_context(
 void BKE_animsys_nla_remap_keyframe_values(struct NlaKeyframingContext *context,
                                            struct PointerRNA *prop_ptr,
                                            struct PropertyRNA *prop,
-                                           float *values,
-                                           int count,
+                                           const blender::MutableSpan<float> values,
                                            int index,
                                            const struct AnimationEvalContext *anim_eval_context,
                                            bool *r_force_all,

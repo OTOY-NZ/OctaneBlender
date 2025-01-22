@@ -41,6 +41,31 @@ using OctaneDataTransferObject::uint64_4;
 
 using OctaneDataTransferObject::ComplexValue;
 
+void wsa_startup()
+{
+#ifdef WIN32
+  WORD wVersionRequested;
+  WSADATA wsaData;
+  int err;
+  /* Use the MAKEWORD(lowbyte, highbyte) macro declared in Windef.h */
+  wVersionRequested = MAKEWORD(2, 2);
+  err = WSAStartup(wVersionRequested, &wsaData);
+  if (err != 0) {
+    /* Tell the user that we could not find a usable */
+    /* Winsock DLL.                                  */
+    fprintf(stderr, "WSAStartup failed with error: %d\n", err);
+    return;
+  }
+#endif
+}
+
+void wsa_clean()
+{
+#ifdef WIN32
+  WSACleanup();
+#endif
+}
+
 OctaneClient::OctaneClient()
     : m_bRenderStarted(false),
       m_bLastUseUniversalCamera(false),
@@ -122,7 +147,7 @@ void OctaneClient::setExportType(const SceneExportTypes::SceneExportTypesEnum ex
 bool OctaneClient::connectToServer(const char *szAddr, int port)
 {
   LOCK_MUTEX(m_SocketMutex);
-
+  wsa_startup();
   struct hostent *host;
   struct sockaddr_in sa;
 
@@ -132,7 +157,12 @@ bool OctaneClient::connectToServer(const char *szAddr, int port)
   host = gethostbyname(szAddr);
   if (!host || host->h_length != sizeof(struct in_addr)) {
     m_FailReason = FailReasons::UNKNOWN;
-
+#ifdef WIN32
+    DWORD dw_error;
+    dw_error = WSAGetLastError();
+    fprintf(stderr, "OctaneClient::connectToServer: gethostbyname failed with error: %ld\n", dw_error);
+#endif
+    wsa_clean();
     UNLOCK_MUTEX(m_SocketMutex);
     return false;
   }
@@ -148,7 +178,8 @@ bool OctaneClient::connectToServer(const char *szAddr, int port)
 #endif
     if (m_Socket < 0) {
       m_FailReason = FailReasons::UNKNOWN;
-
+      fprintf(stderr, "OctaneClient::connectToServer: socket create error\n");
+      wsa_clean();
       UNLOCK_MUTEX(m_SocketMutex);
       return false;
     }
@@ -161,6 +192,7 @@ bool OctaneClient::connectToServer(const char *szAddr, int port)
     sa.sin_port = htons(0);
     sa.sin_addr.s_addr = htonl(INADDR_ANY);
     if (::bind(m_Socket, (struct sockaddr *)&sa, sizeof(sa)) < 0) {
+      fprintf(stderr, "OctaneClient::connectToServer: socket bind error\n");
 #ifndef WIN32
       close(m_Socket);
 #else
@@ -168,7 +200,7 @@ bool OctaneClient::connectToServer(const char *szAddr, int port)
 #endif
       m_FailReason = FailReasons::UNKNOWN;
       m_Socket = -1;
-
+      wsa_clean();
       UNLOCK_MUTEX(m_SocketMutex);
       return false;
     }
@@ -177,6 +209,7 @@ bool OctaneClient::connectToServer(const char *szAddr, int port)
   sa.sin_port = htons(port);
   sa.sin_addr = *(struct in_addr *)host->h_addr;
   if (::connect(m_Socket, (struct sockaddr *)&sa, sizeof(sa)) < 0) {
+    fprintf(stderr, "OctaneClient::connectToServer: socket connect error\n");
 #ifndef WIN32
     close(m_Socket);
 #else
@@ -184,7 +217,7 @@ bool OctaneClient::connectToServer(const char *szAddr, int port)
 #endif
     m_FailReason = FailReasons::NO_CONNECTION;
     m_Socket = -1;
-
+    wsa_clean();
     UNLOCK_MUTEX(m_SocketMutex);
     return false;
   }
@@ -221,6 +254,7 @@ bool OctaneClient::disconnectFromServer()
     closesocket(m_Socket);
 #endif
     m_Socket = -1;
+    wsa_clean();
   }
 
   m_ServerInfo.sNetAddress = "";
@@ -274,6 +308,7 @@ bool OctaneClient::checkServerConnection()
       closesocket(m_Socket);
 #endif
       m_Socket = -1;
+      wsa_clean();
     }
 
     // m_ServerInfo.sNetAddress  = "";
@@ -443,6 +478,7 @@ bool OctaneClient::checkServerVersion()
         closesocket(m_Socket);
 #endif
       m_Socket = -1;
+      wsa_clean();
       UNLOCK_MUTEX(m_SocketMutex);
       return false;
     }
@@ -675,9 +711,9 @@ void OctaneClient::startRender(bool bInteractive,
                   (m_sOutPath.size() + 2) + m_sCachePath.size() + 2,
               OctaneDataTransferObject::START);
   snd << bInteractive << bUseSharedSurface << bEnableRealtime << iClientProcessId << iDeviceLuid
-      << bOutOfCoreEnabled
-      << iOutOfCoreMemLimit << iOutOfCoreGPUHeadroom << iRenderPriority << iResourceCacheType
-      << iWidth << iHeigth << imgType << m_sOutPath.c_str() << m_sCachePath.c_str();
+      << bOutOfCoreEnabled << iOutOfCoreMemLimit << iOutOfCoreGPUHeadroom << iRenderPriority
+      << iResourceCacheType << iWidth << iHeigth << imgType << m_sOutPath.c_str()
+      << m_sCachePath.c_str();
   snd.write();
 
   RPCReceive rcv(m_Socket);
@@ -989,13 +1025,32 @@ void OctaneClient::uploadCamera(Camera *pCamera, uint32_t uiFrameIdx, uint32_t u
     }
   }
   else if (pCamera->type == Camera::CAMERA_PANORAMA) {
+    uint32_t motoin_data_num = pCamera->oMotionParams.motions.size();
+    std::vector<float_3> motion_eye_point_data;
+    std::vector<float_3> motion_look_at_data;
+    std::vector<float_3> motion_up_vector_data;
+    std::vector<float> motion_fov_data;
+    for (auto it : pCamera->oMotionParams.motions) {
+      motion_eye_point_data.push_back(it.second.f3EyePoint);
+      motion_look_at_data.push_back(it.second.f3LookAt);
+      motion_up_vector_data.push_back(it.second.f3UpVector);
+      motion_fov_data.push_back(it.second.fFOV);
+    }
+
     {
       RPCSend snd(
           m_Socket,
+          (sizeof(uint32_t) +
+           (sizeof(float_3) * 3 + sizeof(float)) * motoin_data_num) +
           sizeof(float_3) * 7 + sizeof(float) * 38 + sizeof(int32_t) * 36 +
               (pCamera->sCustomLut.length() + 2) + (pCamera->sOcioViewDisplay.length() + 2) +
               (pCamera->sOcioViewDisplayView.length() + 2) + (pCamera->sOcioLook.length() + 2),
           OctaneDataTransferObject::LOAD_PANORAMIC_CAMERA);
+      snd << motoin_data_num;
+      snd.writeBuffer(&motion_eye_point_data[0], sizeof(float) * 3 * motoin_data_num);
+      snd.writeBuffer(&motion_look_at_data[0], sizeof(float) * 3 * motoin_data_num);
+      snd.writeBuffer(&motion_up_vector_data[0], sizeof(float) * 3 * motoin_data_num);
+      snd.writeBuffer(&motion_fov_data[0], sizeof(float) * motoin_data_num);
       snd << pCamera->f3EyePoint << pCamera->f3LookAt << pCamera->f3UpVector
           << pCamera->f3LeftFilter << pCamera->f3RightFilter << pCamera->f3WhiteBalance
 
@@ -1129,8 +1184,8 @@ void OctaneClient::uploadCamera(Camera *pCamera, uint32_t uiFrameIdx, uint32_t u
       }
 
       RPCSend snd(m_Socket,
-                  (sizeof(uint32_t) + (sizeof(float_3) * 4 + sizeof(float)) * motoin_data_num) +
-                      sizeof(float_3) * 6 + sizeof(float) * 41 + sizeof(int32_t) * 35 +
+                  (sizeof(uint32_t) + (sizeof(float_3) * 3 + sizeof(float)) * motoin_data_num) +
+                      sizeof(float_3) * 7 + sizeof(float) * 41 + sizeof(int32_t) * 35 +
                       sizeof(uint32_t) * 6 + (pCamera->sCustomLut.length() + 2) +
                       (pCamera->sOcioViewDisplay.length() + 2) +
                       (pCamera->sOcioViewDisplayView.length() + 2) +
@@ -1371,12 +1426,11 @@ void OctaneClient::uploadKernel(Kernel *pKernel)
                         sizeof(float_3) + 2,
                     OctaneDataTransferObject::LOAD_KERNEL);
         snd << pKernel->bUseNodeTree << pKernel->bEmulateOldMotionBlurBehavior
-            << pKernel->fFrameCount << pKernel->type
-            << pKernel->iMaxSamples << pKernel->fCurrentTime << pKernel->fShutterTime
-            << pKernel->fSubframeStart << pKernel->fSubframeEnd
-            << pKernel->fFilterSize
-            << pKernel->fRayEpsilon << pKernel->fPathTermPower << pKernel->fCoherentRatio
-            << pKernel->fAODist << pKernel->fDepthTolerance << pKernel->fAdaptiveNoiseThreshold
+            << pKernel->fFrameCount << pKernel->type << pKernel->iMaxSamples
+            << pKernel->fCurrentTime << pKernel->fShutterTime << pKernel->fSubframeStart
+            << pKernel->fSubframeEnd << pKernel->fFilterSize << pKernel->fRayEpsilon
+            << pKernel->fPathTermPower << pKernel->fCoherentRatio << pKernel->fAODist
+            << pKernel->fDepthTolerance << pKernel->fAdaptiveNoiseThreshold
             << pKernel->fAdaptiveExpectedExposure << pKernel->fAILightStrength
             << pKernel->bAlphaChannel << pKernel->bAlphaShadows << pKernel->bStaticNoise
             << pKernel->bKeepEnvironment << pKernel->bIrradianceMode << pKernel->bNestDielectrics
@@ -1399,91 +1453,12 @@ void OctaneClient::uploadKernel(Kernel *pKernel)
                     sizeof(float) * 16 + sizeof(int32_t) * 38 + sizeof(float_3),
                     OctaneDataTransferObject::LOAD_KERNEL);
         snd << pKernel->bUseNodeTree << pKernel->bEmulateOldMotionBlurBehavior
-            << pKernel->fFrameCount << pKernel->type
-            << pKernel->iMaxSamples << pKernel->fCurrentTime << pKernel->fShutterTime
-            << pKernel->fSubframeStart << pKernel->fSubframeEnd
-            << pKernel->fFilterSize
-            << pKernel->fRayEpsilon << pKernel->fPathTermPower << pKernel->fCoherentRatio
-            << pKernel->fCausticBlur << pKernel->fGIClamp << pKernel->fDepthTolerance
-            << pKernel->fAdaptiveNoiseThreshold << pKernel->fAdaptiveExpectedExposure
-            << pKernel->fAILightStrength << pKernel->bAlphaChannel << pKernel->bAlphaShadows
-            << pKernel->bStaticNoise << pKernel->bKeepEnvironment << pKernel->bIrradianceMode
-            << pKernel->bNestDielectrics << pKernel->bEmulateOldVolumeBehavior
-            << pKernel->fAffectRoughness << pKernel->bAILightEnable << pKernel->bAILightUpdate
-            << pKernel->iLightIDsAction << pKernel->iLightIDsMask
-            << pKernel->iLightLinkingInvertMask << pKernel->bMinimizeNetTraffic
-            << pKernel->bDeepImageEnable << pKernel->bDeepRenderPasses
-            << pKernel->bAdaptiveSampling << pKernel->iMaxDiffuseDepth << pKernel->iMaxGlossyDepth
-            << pKernel->iMaxScatterDepth << pKernel->iParallelSamples << pKernel->iMaxTileSamples
-            << pKernel->iMaxDepthSamples << pKernel->iAdaptiveMinSamples
-            << pKernel->adaptiveGroupPixels << pKernel->mbAlignment << pKernel->bLayersEnable
-            << pKernel->iLayersCurrent << pKernel->bLayersInvert << pKernel->layersMode
-            << pKernel->iClayMode << pKernel->iSubsampleMode << pKernel->iMaxSubdivisionLevel
-            << pKernel->iWhiteLightSpectrum << pKernel->bUseOldPipeline
-            << pKernel->f3ToonShadowAmbient;
-        snd.write();
-      } break;
-      case Kernel::PMC: {
-        RPCSend snd(m_Socket,
-                    sizeof(float) * 13 + sizeof(int32_t) * 31 + sizeof(float_3),
-                    OctaneDataTransferObject::LOAD_KERNEL);
-        snd << pKernel->bUseNodeTree << pKernel->bEmulateOldMotionBlurBehavior
-            << pKernel->fFrameCount << pKernel->type
-            << pKernel->iMaxSamples << pKernel->fCurrentTime << pKernel->fShutterTime
-            << pKernel->fSubframeStart << pKernel->fSubframeEnd
-            << pKernel->fFilterSize
-            << pKernel->fRayEpsilon << pKernel->fPathTermPower << pKernel->fExploration
-            << pKernel->fDLImportance << pKernel->fCausticBlur << pKernel->fGIClamp
-            << pKernel->bAlphaChannel << pKernel->bAlphaShadows << pKernel->bKeepEnvironment
-            << pKernel->bIrradianceMode << pKernel->bNestDielectrics
-            << pKernel->bEmulateOldVolumeBehavior << pKernel->fAffectRoughness
-            << pKernel->bAILightEnable << pKernel->bAILightUpdate << pKernel->iLightIDsAction
-            << pKernel->iLightIDsMask << pKernel->iLightLinkingInvertMask
-            << pKernel->iMaxDiffuseDepth << pKernel->iMaxGlossyDepth << pKernel->iMaxScatterDepth
-            << pKernel->iMaxRejects << pKernel->iParallelism << pKernel->iWorkChunkSize
-            << pKernel->mbAlignment << pKernel->bLayersEnable << pKernel->iLayersCurrent
-            << pKernel->bLayersInvert << pKernel->layersMode << pKernel->iClayMode
-            << pKernel->iSubsampleMode << pKernel->iMaxSubdivisionLevel
-            << pKernel->iWhiteLightSpectrum << pKernel->bUseOldPipeline
-            << pKernel->f3ToonShadowAmbient;
-        snd.write();
-      } break;
-      case Kernel::INFO_CHANNEL: {
-        RPCSend snd(m_Socket,
-                    sizeof(float) * 12 + sizeof(int32_t) * 24 + sizeof(float_3),
-                    OctaneDataTransferObject::LOAD_KERNEL);
-        snd << pKernel->bUseNodeTree << pKernel->bEmulateOldMotionBlurBehavior
-            << pKernel->fFrameCount << pKernel->type
-            << pKernel->infoChannelType << pKernel->fCurrentTime << pKernel->fShutterTime
-            << pKernel->fSubframeStart << pKernel->fSubframeEnd
-            << pKernel->fFilterSize
-            << pKernel->fZdepthMax << pKernel->fUVMax << pKernel->fRayEpsilon << pKernel->fAODist
-            << pKernel->fMaxSpeed << pKernel->fOpacityThreshold << pKernel->bAlphaChannel
-            << pKernel->bBumpNormalMapping << pKernel->bBkFaceHighlight << pKernel->bAoAlphaShadows
-            << pKernel->bMinimizeNetTraffic << pKernel->iSamplingMode << pKernel->iMaxSamples
-            << pKernel->bStaticNoise << pKernel->iParallelSamples << pKernel->iMaxTileSamples
-            << pKernel->mbAlignment << pKernel->bLayersEnable << pKernel->iLayersCurrent
-            << pKernel->bLayersInvert << pKernel->layersMode << pKernel->iClayMode
-            << pKernel->iSubsampleMode << pKernel->iMaxSubdivisionLevel
-            << pKernel->iWhiteLightSpectrum << pKernel->bUseOldPipeline
-            << pKernel->f3ToonShadowAmbient;
-        snd.write();
-      } break;
-      case Kernel::PHOTON_TRACING: {
-        RPCSend snd(m_Socket,
-                    sizeof(float) * 19 + sizeof(int32_t) * 41 + sizeof(float_3),
-                    OctaneDataTransferObject::LOAD_KERNEL);
-        snd << pKernel->bUseNodeTree << pKernel->bEmulateOldMotionBlurBehavior
-            << pKernel->fFrameCount << pKernel->type
-            << pKernel->iMaxSamples << pKernel->fCurrentTime << pKernel->fShutterTime
-            << pKernel->fSubframeStart << pKernel->fSubframeEnd
-            << pKernel->fFilterSize
-            << pKernel->fRayEpsilon << pKernel->fPathTermPower << pKernel->fCoherentRatio
-            << pKernel->fCausticBlur << pKernel->fGIClamp << pKernel->fDepthTolerance
-            << pKernel->fAdaptiveNoiseThreshold << pKernel->fAdaptiveExpectedExposure
-            << pKernel->fAILightStrength << pKernel->iPhotonDepth << pKernel->bAccurateColors
-            << pKernel->fPhotonGatherRadius << pKernel->fPhotonGatherMultiplier
-            << pKernel->iPhotonGatherSamples << pKernel->fExplorationStrength
+            << pKernel->fFrameCount << pKernel->type << pKernel->iMaxSamples
+            << pKernel->fCurrentTime << pKernel->fShutterTime << pKernel->fSubframeStart
+            << pKernel->fSubframeEnd << pKernel->fFilterSize << pKernel->fRayEpsilon
+            << pKernel->fPathTermPower << pKernel->fCoherentRatio << pKernel->fCausticBlur
+            << pKernel->fGIClamp << pKernel->fDepthTolerance << pKernel->fAdaptiveNoiseThreshold
+            << pKernel->fAdaptiveExpectedExposure << pKernel->fAILightStrength
             << pKernel->bAlphaChannel << pKernel->bAlphaShadows << pKernel->bStaticNoise
             << pKernel->bKeepEnvironment << pKernel->bIrradianceMode << pKernel->bNestDielectrics
             << pKernel->bEmulateOldVolumeBehavior << pKernel->fAffectRoughness
@@ -1500,20 +1475,91 @@ void OctaneClient::uploadKernel(Kernel *pKernel)
             << pKernel->bUseOldPipeline << pKernel->f3ToonShadowAmbient;
         snd.write();
       } break;
+      case Kernel::PMC: {
+        RPCSend snd(m_Socket,
+                    sizeof(float) * 13 + sizeof(int32_t) * 31 + sizeof(float_3),
+                    OctaneDataTransferObject::LOAD_KERNEL);
+        snd << pKernel->bUseNodeTree << pKernel->bEmulateOldMotionBlurBehavior
+            << pKernel->fFrameCount << pKernel->type << pKernel->iMaxSamples
+            << pKernel->fCurrentTime << pKernel->fShutterTime << pKernel->fSubframeStart
+            << pKernel->fSubframeEnd << pKernel->fFilterSize << pKernel->fRayEpsilon
+            << pKernel->fPathTermPower << pKernel->fExploration << pKernel->fDLImportance
+            << pKernel->fCausticBlur << pKernel->fGIClamp << pKernel->bAlphaChannel
+            << pKernel->bAlphaShadows << pKernel->bKeepEnvironment << pKernel->bIrradianceMode
+            << pKernel->bNestDielectrics << pKernel->bEmulateOldVolumeBehavior
+            << pKernel->fAffectRoughness << pKernel->bAILightEnable << pKernel->bAILightUpdate
+            << pKernel->iLightIDsAction << pKernel->iLightIDsMask
+            << pKernel->iLightLinkingInvertMask << pKernel->iMaxDiffuseDepth
+            << pKernel->iMaxGlossyDepth << pKernel->iMaxScatterDepth << pKernel->iMaxRejects
+            << pKernel->iParallelism << pKernel->iWorkChunkSize << pKernel->mbAlignment
+            << pKernel->bLayersEnable << pKernel->iLayersCurrent << pKernel->bLayersInvert
+            << pKernel->layersMode << pKernel->iClayMode << pKernel->iSubsampleMode
+            << pKernel->iMaxSubdivisionLevel << pKernel->iWhiteLightSpectrum
+            << pKernel->bUseOldPipeline << pKernel->f3ToonShadowAmbient;
+        snd.write();
+      } break;
+      case Kernel::INFO_CHANNEL: {
+        RPCSend snd(m_Socket,
+                    sizeof(float) * 12 + sizeof(int32_t) * 24 + sizeof(float_3),
+                    OctaneDataTransferObject::LOAD_KERNEL);
+        snd << pKernel->bUseNodeTree << pKernel->bEmulateOldMotionBlurBehavior
+            << pKernel->fFrameCount << pKernel->type << pKernel->infoChannelType
+            << pKernel->fCurrentTime << pKernel->fShutterTime << pKernel->fSubframeStart
+            << pKernel->fSubframeEnd << pKernel->fFilterSize << pKernel->fZdepthMax
+            << pKernel->fUVMax << pKernel->fRayEpsilon << pKernel->fAODist << pKernel->fMaxSpeed
+            << pKernel->fOpacityThreshold << pKernel->bAlphaChannel << pKernel->bBumpNormalMapping
+            << pKernel->bBkFaceHighlight << pKernel->bAoAlphaShadows
+            << pKernel->bMinimizeNetTraffic << pKernel->iSamplingMode << pKernel->iMaxSamples
+            << pKernel->bStaticNoise << pKernel->iParallelSamples << pKernel->iMaxTileSamples
+            << pKernel->mbAlignment << pKernel->bLayersEnable << pKernel->iLayersCurrent
+            << pKernel->bLayersInvert << pKernel->layersMode << pKernel->iClayMode
+            << pKernel->iSubsampleMode << pKernel->iMaxSubdivisionLevel
+            << pKernel->iWhiteLightSpectrum << pKernel->bUseOldPipeline
+            << pKernel->f3ToonShadowAmbient;
+        snd.write();
+      } break;
+      case Kernel::PHOTON_TRACING: {
+        RPCSend snd(m_Socket,
+                    sizeof(float) * 19 + sizeof(int32_t) * 41 + sizeof(float_3),
+                    OctaneDataTransferObject::LOAD_KERNEL);
+        snd << pKernel->bUseNodeTree << pKernel->bEmulateOldMotionBlurBehavior
+            << pKernel->fFrameCount << pKernel->type << pKernel->iMaxSamples
+            << pKernel->fCurrentTime << pKernel->fShutterTime << pKernel->fSubframeStart
+            << pKernel->fSubframeEnd << pKernel->fFilterSize << pKernel->fRayEpsilon
+            << pKernel->fPathTermPower << pKernel->fCoherentRatio << pKernel->fCausticBlur
+            << pKernel->fGIClamp << pKernel->fDepthTolerance << pKernel->fAdaptiveNoiseThreshold
+            << pKernel->fAdaptiveExpectedExposure << pKernel->fAILightStrength
+            << pKernel->iPhotonDepth << pKernel->bAccurateColors << pKernel->fPhotonGatherRadius
+            << pKernel->fPhotonGatherMultiplier << pKernel->iPhotonGatherSamples
+            << pKernel->fExplorationStrength << pKernel->bAlphaChannel << pKernel->bAlphaShadows
+            << pKernel->bStaticNoise << pKernel->bKeepEnvironment << pKernel->bIrradianceMode
+            << pKernel->bNestDielectrics << pKernel->bEmulateOldVolumeBehavior
+            << pKernel->fAffectRoughness << pKernel->bAILightEnable << pKernel->bAILightUpdate
+            << pKernel->iLightIDsAction << pKernel->iLightIDsMask
+            << pKernel->iLightLinkingInvertMask << pKernel->bMinimizeNetTraffic
+            << pKernel->bDeepImageEnable << pKernel->bDeepRenderPasses
+            << pKernel->bAdaptiveSampling << pKernel->iMaxDiffuseDepth << pKernel->iMaxGlossyDepth
+            << pKernel->iMaxScatterDepth << pKernel->iParallelSamples << pKernel->iMaxTileSamples
+            << pKernel->iMaxDepthSamples << pKernel->iAdaptiveMinSamples
+            << pKernel->adaptiveGroupPixels << pKernel->mbAlignment << pKernel->bLayersEnable
+            << pKernel->iLayersCurrent << pKernel->bLayersInvert << pKernel->layersMode
+            << pKernel->iClayMode << pKernel->iSubsampleMode << pKernel->iMaxSubdivisionLevel
+            << pKernel->iWhiteLightSpectrum << pKernel->bUseOldPipeline
+            << pKernel->f3ToonShadowAmbient;
+        snd.write();
+      } break;
       default: {
         RPCSend snd(m_Socket,
                     sizeof(int32_t) * 13 + sizeof(float) * 5 + sizeof(float_3),
                     OctaneDataTransferObject::LOAD_KERNEL);
         OctaneEngine::Kernel::KernelType defType = OctaneEngine::Kernel::DEFAULT;
         snd << pKernel->bUseNodeTree << pKernel->bEmulateOldMotionBlurBehavior
-            << pKernel->fFrameCount << defType
-            << pKernel->mbAlignment << pKernel->fCurrentTime << pKernel->fShutterTime
-            << pKernel->fSubframeStart << pKernel->fSubframeEnd
-            << pKernel->bLayersEnable
-            << pKernel->iLayersCurrent << pKernel->bLayersInvert << pKernel->layersMode
-            << pKernel->iClayMode << pKernel->iSubsampleMode << pKernel->iMaxSubdivisionLevel
-            << pKernel->iWhiteLightSpectrum << pKernel->bUseOldPipeline
-            << pKernel->f3ToonShadowAmbient;
+            << pKernel->fFrameCount << defType << pKernel->mbAlignment << pKernel->fCurrentTime
+            << pKernel->fShutterTime << pKernel->fSubframeStart << pKernel->fSubframeEnd
+            << pKernel->bLayersEnable << pKernel->iLayersCurrent << pKernel->bLayersInvert
+            << pKernel->layersMode << pKernel->iClayMode << pKernel->iSubsampleMode
+            << pKernel->iMaxSubdivisionLevel << pKernel->iWhiteLightSpectrum
+            << pKernel->bUseOldPipeline << pKernel->f3ToonShadowAmbient;
         snd.write();
       } break;
     }
@@ -2773,7 +2819,8 @@ bool OctaneClient::checkImgBuffer8bit(uint8_4 *&puc4Buf,
 } //getImgBuffer8bit()
 */
 
-bool OctaneClient::isSharedSurfaceImage() {
+bool OctaneClient::isSharedSurfaceImage()
+{
   return m_bServerUseSharedSurface;
 }
 

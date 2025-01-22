@@ -51,10 +51,12 @@ struct IrradianceGrid : public LightProbe, IrradianceGridData {
   float dilation_threshold;
   float dilation_radius;
   float intensity;
+  /** Display irradiance samples in the viewport. */
+  bool viewport_display;
+  float viewport_display_size;
 };
 
-struct ReflectionCube : public LightProbe {
-};
+struct ReflectionCube : public LightProbe {};
 
 class LightProbeModule {
   friend class IrradianceCache;

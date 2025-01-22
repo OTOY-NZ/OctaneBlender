@@ -6,7 +6,7 @@
  * \ingroup EEVEE
  */
 
-#include "BLI_string_utils.h"
+#include "BLI_string_utils.hh"
 #include "BLI_sys_types.h" /* bool */
 
 #include "BKE_object.hh"
@@ -52,9 +52,7 @@ void EEVEE_shadows_init(EEVEE_ViewLayerData *sldata)
   }
 
   /* Flip buffers */
-  SWAP(EEVEE_ShadowCasterBuffer *,
-       sldata->lights->shcaster_frontbuffer,
-       sldata->lights->shcaster_backbuffer);
+  std::swap(sldata->lights->shcaster_frontbuffer, sldata->lights->shcaster_backbuffer);
 
   int sh_cube_size = scene_eval->eevee.shadow_cube_size;
   int sh_cascade_size = scene_eval->eevee.shadow_cascade_size;
@@ -63,7 +61,8 @@ void EEVEE_shadows_init(EEVEE_ViewLayerData *sldata)
 
   EEVEE_LightsInfo *linfo = sldata->lights;
   if ((linfo->shadow_cube_size != sh_cube_size) ||
-      (linfo->shadow_high_bitdepth != sh_high_bitdepth)) {
+      (linfo->shadow_high_bitdepth != sh_high_bitdepth))
+  {
     BLI_assert((sh_cube_size > 0) && (sh_cube_size <= 4096));
     DRW_TEXTURE_FREE_SAFE(sldata->shadow_cube_pool);
     CLAMP(sh_cube_size, 1, 4096);
@@ -114,6 +113,7 @@ void EEVEE_shadows_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
 
 void EEVEE_shadows_caster_register(EEVEE_ViewLayerData *sldata, Object *ob)
 {
+  using namespace blender;
   EEVEE_LightsInfo *linfo = sldata->lights;
   EEVEE_ShadowCasterBuffer *backbuffer = linfo->shcaster_backbuffer;
   EEVEE_ShadowCasterBuffer *frontbuffer = linfo->shcaster_frontbuffer;
@@ -155,12 +155,14 @@ void EEVEE_shadows_caster_register(EEVEE_ViewLayerData *sldata, Object *ob)
   }
 
   /* Update World AABB in frontbuffer. */
-  const BoundBox *bb = BKE_object_boundbox_get(ob);
+  const Bounds<float3> bounds = BKE_object_boundbox_get(ob).value_or(Bounds(float3(0)));
+  BoundBox bb;
+  BKE_boundbox_init_from_minmax(&bb, bounds.min, bounds.max);
   float min[3], max[3];
   INIT_MINMAX(min, max);
   for (int i = 0; i < 8; i++) {
     float vec[3];
-    copy_v3_v3(vec, bb->vec[i]);
+    copy_v3_v3(vec, bb.vec[i]);
     mul_m4_v3(ob->object_to_world, vec);
     minmax_v3v3_v3(min, max, vec);
   }

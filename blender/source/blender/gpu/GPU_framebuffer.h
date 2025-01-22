@@ -159,6 +159,13 @@ typedef struct GPULoadStore {
  *  - State can be customized at bind-time rather than applying to the frame-buffer object as a
  * whole.
  *
+ * NOTE: Using GPU_framebuffer_clear_* functions in conjunction with a custom load-store
+ * configuration is invalid. Instead, utilize GPU_LOADACTION_CLEAR and provide a clear color as
+ * the third parameter in `GPULoadStore action`.
+ *
+ * For Color attachments: `{GPU_LOADACTION_CLEAR, GPU_STOREACTION_STORE, {Rf, Gf, Bf, Af}}`
+ * For Depth attachments: `{GPU_LOADACTION_CLEAR, GPU_STOREACTION_STORE, {Df}}`
+ *
  * Example:
  * \code{.c}
  * GPU_framebuffer_bind_loadstore(&fb, {
@@ -176,6 +183,38 @@ void GPU_framebuffer_bind_loadstore(GPUFrameBuffer *framebuffer,
   { \
     GPULoadStore actions[] = __VA_ARGS__; \
     GPU_framebuffer_bind_loadstore(_fb, actions, (sizeof(actions) / sizeof(GPULoadStore))); \
+  }
+
+/**
+ * Sub-pass config array matches attachment structure of `GPU_framebuffer_config_array`.
+ * This allows to explicitly specify attachment state within the next sub-pass.
+ * This enables a number of bandwidth optimizations specially on Tile Based Deferred Renderers
+ * where the attachments can be kept into tile memory and used in place for later sub-passes.
+ *
+ * IMPORTANT: When using this, the framebuffer initial state is undefined. A sub-pass transition
+ * need to be issued before any draw-call.
+ *
+ * Example:
+ * \code{.c}
+ * GPU_framebuffer_bind_loadstore(&fb, {
+ *         GPU_ATTACHEMENT_WRITE,  // must be depth buffer
+ *         GPU_ATTACHEMENT_READ,   // Color attachment 0
+ *         GPU_ATTACHEMENT_IGNORE, // Color attachment 1
+ *         GPU_ATTACHEMENT_WRITE}  // Color attachment 2
+ * })
+ * \endcode
+ *
+ * \note Excess attachments will have no effect as long as they are GPU_ATTACHEMENT_IGNORE.
+ */
+void GPU_framebuffer_subpass_transition_array(GPUFrameBuffer *framebuffer,
+                                              const GPUAttachmentState *attachment_states,
+                                              uint attachment_len);
+
+#define GPU_framebuffer_subpass_transition(_fb, ...) \
+  { \
+    GPUAttachmentState actions[] = __VA_ARGS__; \
+    GPU_framebuffer_subpass_transition_array( \
+        _fb, actions, (sizeof(actions) / sizeof(GPUAttachmentState))); \
   }
 
 /** \} */

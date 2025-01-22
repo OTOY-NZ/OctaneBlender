@@ -11,7 +11,7 @@
 #include "BKE_global.h"
 
 #include "DRW_gpu_wrapper.hh"
-#include "DRW_render.h"
+#include "DRW_render.hh"
 
 #include "UI_resources.hh"
 
@@ -251,6 +251,7 @@ struct OVERLAY_PrivateData {
   DRWShadingGroup *edit_lattice_wires_grp;
   DRWShadingGroup *edit_gpencil_points_grp;
   DRWShadingGroup *edit_gpencil_wires_grp;
+  DRWShadingGroup *edit_grease_pencil_wires_grp;
   DRWShadingGroup *edit_grease_pencil_points_grp;
   DRWShadingGroup *edit_gpencil_curve_handle_grp;
   DRWShadingGroup *edit_gpencil_curve_points_grp;
@@ -366,7 +367,6 @@ struct OVERLAY_PrivateData {
   struct {
     bool do_zbufclip;
     bool do_faces;
-    bool do_edges;
     bool select_vert;
     bool select_face;
     bool select_edge;
@@ -408,11 +408,6 @@ struct OVERLAY_PrivateData {
     eSpaceImage_UVDT_Stretch draw_type;
     ListBase totals;
     float total_area_ratio;
-
-    /* stencil overlay */
-    Image *stencil_image;
-    ImBuf *stencil_ibuf;
-    void *stencil_lock;
 
     /* mask overlay */
     Mask *mask;
@@ -708,6 +703,8 @@ void OVERLAY_sculpt_curves_draw_wires(OVERLAY_Data *vedata);
 void OVERLAY_viewer_attribute_cache_init(OVERLAY_Data *vedata);
 void OVERLAY_viewer_attribute_cache_populate(OVERLAY_Data *vedata, Object *object);
 void OVERLAY_viewer_attribute_draw(OVERLAY_Data *vedata);
+
+void OVERLAY_viewer_attribute_text(const Object &object);
 
 void OVERLAY_wireframe_init(OVERLAY_Data *vedata);
 void OVERLAY_wireframe_cache_init(OVERLAY_Data *vedata);

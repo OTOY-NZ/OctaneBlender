@@ -103,7 +103,7 @@ void BCAnimationCurve::create_bezt(float frame, float output)
   bez.ipo = U.ipo_new; /* use default interpolation mode here... */
   bez.f1 = bez.f2 = bez.f3 = SELECT;
   bez.h1 = bez.h2 = HD_AUTO;
-  insert_bezt_fcurve(fcu, &bez, INSERTKEY_NOFLAGS);
+  blender::animrig::insert_bezt_fcurve(fcu, &bez, INSERTKEY_NOFLAGS);
   BKE_fcurve_handles_recalc(fcu);
 }
 
@@ -301,9 +301,12 @@ FCurve *BCAnimationCurve::get_edit_fcurve()
 
 void BCAnimationCurve::clean_handles()
 {
+  using namespace blender::animrig;
   if (fcurve == nullptr) {
     fcurve = get_edit_fcurve();
   }
+
+  const KeyframeSettings settings = get_keyframe_settings(true);
 
   /* Keep old bezt data for copy). */
   BezTriple *old_bezts = fcurve->bezt;
@@ -315,7 +318,7 @@ void BCAnimationCurve::clean_handles()
     BezTriple *bezt = &old_bezts[i];
     float x = bezt->vec[1][0];
     float y = bezt->vec[1][1];
-    insert_vert_fcurve(fcurve, x, y, (eBezTriple_KeyframeType)BEZKEYTYPE(bezt), INSERTKEY_NOFLAGS);
+    insert_vert_fcurve(fcurve, {x, y}, settings, INSERTKEY_NOFLAGS);
     BezTriple *lastb = fcurve->bezt + (fcurve->totvert - 1);
     lastb->f1 = lastb->f2 = lastb->f3 = 0;
   }
@@ -378,9 +381,11 @@ void BCAnimationCurve::adjust_range(const int frame_index)
 
 void BCAnimationCurve::add_value(const float val, const int frame_index)
 {
+  using namespace blender::animrig;
+  const KeyframeSettings settings = get_keyframe_settings(true);
   FCurve *fcu = get_edit_fcurve();
   fcu->auto_smoothing = U.auto_smoothing_new;
-  insert_vert_fcurve(fcu, frame_index, val, BEZT_KEYTYPE_KEYFRAME, INSERTKEY_NOFLAGS);
+  insert_vert_fcurve(fcu, {float(frame_index), val}, settings, INSERTKEY_NOFLAGS);
 
   if (fcu->totvert == 1) {
     init_range(val);

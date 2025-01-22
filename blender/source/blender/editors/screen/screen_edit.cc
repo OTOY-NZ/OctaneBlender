@@ -19,13 +19,13 @@
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_global.h"
 #include "BKE_icons.h"
 #include "BKE_image.h"
-#include "BKE_layer.h"
-#include "BKE_lib_id.h"
-#include "BKE_main.h"
+#include "BKE_layer.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_main.hh"
 #include "BKE_scene.h"
 #include "BKE_screen.hh"
 #include "BKE_sound.h"
@@ -42,7 +42,7 @@
 #include "UI_interface.hh"
 
 #include "WM_message.hh"
-#include "WM_toolsystem.h"
+#include "WM_toolsystem.hh"
 
 #include "DEG_depsgraph_query.hh"
 
@@ -224,7 +224,8 @@ void screen_data_copy(bScreen *to, bScreen *from)
 
   ScrVert *s2 = static_cast<ScrVert *>(to->vertbase.first);
   for (ScrVert *s1 = static_cast<ScrVert *>(from->vertbase.first); s1;
-       s1 = s1->next, s2 = s2->next) {
+       s1 = s1->next, s2 = s2->next)
+  {
     s1->newv = s2;
   }
 
@@ -281,12 +282,12 @@ eScreenDir area_getorientation(ScrArea *sa_a, ScrArea *sa_b)
   short bottom_b = sa_b->v1->vec.y;
 
   /* How much these areas share a common edge. */
-  short overlapx = MIN2(right_a, right_b) - MAX2(left_a, left_b);
-  short overlapy = MIN2(top_a, top_b) - MAX2(bottom_a, bottom_b);
+  short overlapx = std::min(right_a, right_b) - std::max(left_a, left_b);
+  short overlapy = std::min(top_a, top_b) - std::max(bottom_a, bottom_b);
 
   /* Minimum overlap required. */
-  const short minx = MIN3(AREAJOINTOLERANCEX, right_a - left_a, right_b - left_b);
-  const short miny = MIN3(AREAJOINTOLERANCEY, top_a - bottom_a, top_b - bottom_b);
+  const short minx = std::min({int(AREAJOINTOLERANCEX), right_a - left_a, right_b - left_b});
+  const short miny = std::min({int(AREAJOINTOLERANCEY), top_a - bottom_a, top_b - bottom_b});
 
   if (top_a == bottom_b && overlapx >= minx) {
     return eScreenDir(1); /* sa_a to bottom of sa_b = N */
@@ -381,8 +382,8 @@ static bool screen_areas_can_align(bScreen *screen, ScrArea *sa1, ScrArea *sa2, 
 
   /* Areas that are _smaller_ than minimum sizes, sharing an edge to be moved. See #100772. */
   if (SCREEN_DIR_IS_VERTICAL(dir)) {
-    const short xmin = MIN2(sa1->v1->vec.x, sa2->v1->vec.x);
-    const short xmax = MAX2(sa1->v3->vec.x, sa2->v3->vec.x);
+    const short xmin = std::min(sa1->v1->vec.x, sa2->v1->vec.x);
+    const short xmax = std::max(sa1->v3->vec.x, sa2->v3->vec.x);
     LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
       if (ELEM(area, sa1, sa2)) {
         continue;
@@ -396,8 +397,8 @@ static bool screen_areas_can_align(bScreen *screen, ScrArea *sa1, ScrArea *sa2, 
     }
   }
   else {
-    const short ymin = MIN2(sa1->v1->vec.y, sa2->v1->vec.y);
-    const short ymax = MAX2(sa1->v3->vec.y, sa2->v3->vec.y);
+    const short ymin = std::min(sa1->v1->vec.y, sa2->v1->vec.y);
+    const short ymax = std::max(sa1->v3->vec.y, sa2->v3->vec.y);
     LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
       if (ELEM(area, sa1, sa2)) {
         continue;
@@ -581,7 +582,7 @@ bool screen_area_close(bContext *C, bScreen *screen, ScrArea *area)
       const int ar_length = vertical ? (neighbor->v3->vec.x - neighbor->v1->vec.x) :
                                        (neighbor->v3->vec.y - neighbor->v1->vec.y);
       /* Calculate the ratio of the lengths of the shared edges. */
-      float alignment = MIN2(area_length, ar_length) / float(MAX2(area_length, ar_length));
+      float alignment = std::min(area_length, ar_length) / float(std::max(area_length, ar_length));
       if (alignment > best_alignment) {
         best_alignment = alignment;
         sa2 = neighbor;
@@ -805,7 +806,9 @@ void ED_region_exit(bContext *C, ARegion *region)
 
   WM_event_remove_handlers(C, &region->handlers);
   WM_event_modal_handler_region_replace(win, region, nullptr);
-  WM_draw_region_free(region, true);
+  WM_draw_region_free(region);
+  /* The region is not in a state that it can be visible in anymore. Reinitializing is needed. */
+  region->visible = false;
 
   MEM_SAFE_FREE(region->headerstr);
 
@@ -1836,7 +1839,8 @@ bool ED_screen_stereo3d_required(const bScreen *screen, const Scene *scene)
          * the file doesn't have views enabled */
         sima = static_cast<SpaceImage *>(area->spacedata.first);
         if (sima->image && BKE_image_is_stereo(sima->image) &&
-            (sima->iuser.flag & IMA_SHOW_STEREO)) {
+            (sima->iuser.flag & IMA_SHOW_STEREO))
+        {
           return true;
         }
         break;

@@ -6,7 +6,7 @@
 
 #include "BKE_node.hh"
 
-#include "NOD_composite.h"
+#include "NOD_composite.hh"
 
 #include "COM_ConvertOperation.h"
 #include "COM_CryptomatteNode.h"
@@ -104,6 +104,9 @@ void CryptomatteNode::input_operations_from_render_source(
   RenderResult *render_result = render ? RE_AcquireResultRead(render) : nullptr;
 
   if (!render_result) {
+    if (render) {
+      RE_ReleaseResult(render);
+    }
     return;
   }
 
@@ -118,7 +121,7 @@ void CryptomatteNode::input_operations_from_render_source(
         }
 
         const std::string combined_name = combined_layer_pass_name(render_layer, render_pass);
-        if (blender::StringRef(combined_name).startswith(prefix)) {
+        if (combined_name != prefix && blender::StringRef(combined_name).startswith(prefix)) {
           RenderLayersProg *op = new RenderLayersProg(
               render_pass->name, DataType::Color, render_pass->channels);
           op->set_scene(scene);
@@ -180,7 +183,7 @@ void CryptomatteNode::input_operations_from_image_source(
       }
       LISTBASE_FOREACH (RenderPass *, render_pass, &render_layer->passes) {
         const std::string combined_name = combined_layer_pass_name(render_layer, render_pass);
-        if (blender::StringRef(combined_name).startswith(prefix)) {
+        if (combined_name != prefix && blender::StringRef(combined_name).startswith(prefix)) {
           MultilayerColorOperation *op = new MultilayerColorOperation(
               render_layer, render_pass, view);
           op->set_image(image);
@@ -201,10 +204,10 @@ Vector<NodeOperation *> CryptomatteNode::create_input_operations(const Composito
 {
   Vector<NodeOperation *> input_operations;
   switch (node.custom1) {
-    case CMP_CRYPTOMATTE_SRC_RENDER:
+    case CMP_NODE_CRYPTOMATTE_SOURCE_RENDER:
       input_operations_from_render_source(context, node, input_operations);
       break;
-    case CMP_CRYPTOMATTE_SRC_IMAGE:
+    case CMP_NODE_CRYPTOMATTE_SOURCE_IMAGE:
       input_operations_from_image_source(context, node, input_operations);
       break;
   }

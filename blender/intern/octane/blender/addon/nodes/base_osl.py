@@ -330,7 +330,12 @@ class OctaneScriptNode(base_node.OctaneBaseNode):
             default_value = [int(v) for v in value.split(" ")]
             use_scope_limitation = True
         elif socket_pin_type == consts.SocketType.ST_FLOAT:
-            if pin_et.findtext("use_texture") is not None:
+            # noinspection PyBroadException
+            try:
+                use_texture = int(pin_et.get("use_texture"))
+            except Exception:
+                use_texture = 0
+            if use_texture:
                 socket_type_blname = "OctaneOSLGreyscaleSocket"
             else:
                 socket_type_blname = "OctaneOSLFloatSocket"

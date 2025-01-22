@@ -300,7 +300,7 @@ bke::CurvesGeometry subdivide_curves(
    * Storing the leading zero is unnecessary but makes the array a bit simpler to use by avoiding
    * a check for the first segment, and because some existing utilities also use leading zeros. */
   Array<int> all_point_offset_data(src_curves.points_num() + src_curves.curves_num());
-#ifdef DEBUG
+#ifndef NDEBUG
   all_point_offset_data.fill(-1);
 #endif
   calculate_result_offsets(src_curves,
@@ -410,15 +410,14 @@ bke::CurvesGeometry subdivide_curves(
                                      subdivide_bezier,
                                      subdivide_nurbs);
 
-  if (!unselected.is_empty()) {
-    for (auto &attribute : bke::retrieve_attributes_for_transfer(
-             src_attributes, dst_attributes, ATTR_DOMAIN_MASK_POINT, propagation_info))
-    {
-      bke::curves::copy_point_data(
-          src_points_by_curve, dst_points_by_curve, unselected, attribute.src, attribute.dst.span);
-      attribute.dst.finish();
-    }
-  }
+  bke::copy_attributes_group_to_group(src_attributes,
+                                      bke::AttrDomain::Point,
+                                      propagation_info,
+                                      {},
+                                      src_points_by_curve,
+                                      dst_points_by_curve,
+                                      unselected,
+                                      dst_attributes);
 
   return dst_curves;
 }

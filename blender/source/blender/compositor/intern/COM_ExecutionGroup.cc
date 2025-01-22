@@ -13,10 +13,9 @@
 
 #include "BLI_rand.hh"
 #include "BLI_string.h"
+#include "BLI_time.h"
 
 #include "BLT_translation.h"
-
-#include "PIL_time.h"
 
 namespace blender::compositor {
 
@@ -146,7 +145,7 @@ void ExecutionGroup::init_read_buffer_operations()
     if (operation->get_flags().is_read_buffer_operation) {
       ReadBufferOperation *read_operation = static_cast<ReadBufferOperation *>(operation);
       read_operations_.append(read_operation);
-      max_offset = MAX2(max_offset, read_operation->get_offset());
+      max_offset = std::max(max_offset, read_operation->get_offset());
     }
   }
   max_offset++;
@@ -254,7 +253,7 @@ blender::Array<uint> ExecutionGroup::get_execution_order() const
       uint by = my + 2 * ty;
       float addition = chunks_len_ / COM_RULE_OF_THIRDS_DIVIDER;
 
-      ChunkOrderHotspot hotspots[9]{
+      ChunkOrderHotspot hotspots[9] = {
           ChunkOrderHotspot(mx, my, addition * 0),
           ChunkOrderHotspot(tx, my, addition * 1),
           ChunkOrderHotspot(bx, my, addition * 2),
@@ -305,7 +304,7 @@ void ExecutionGroup::execute(ExecutionSystem *graph)
   } /** \note Early break out. */
   uint chunk_index;
 
-  execution_start_time_ = PIL_check_seconds_timer();
+  execution_start_time_ = BLI_check_seconds_timer();
 
   chunks_finished_ = 0;
   bTree_ = bTree;
@@ -421,7 +420,7 @@ void ExecutionGroup::finalize_chunk_execution(int chunk_number, MemoryBuffer **m
     bTree_->runtime->progress(bTree_->runtime->prh, progress);
 
     char buf[128];
-    SNPRINTF(buf, TIP_("Compositing | Tile %u-%u"), chunks_finished_, chunks_len_);
+    SNPRINTF(buf, RPT_("Compositing | Tile %u-%u"), chunks_finished_, chunks_len_);
     bTree_->runtime->stats_draw(bTree_->runtime->sdh, buf);
   }
 }
@@ -439,13 +438,13 @@ inline void ExecutionGroup::determine_chunk_rect(rcti *r_rect,
   else {
     const uint minx = x_chunk * chunk_size_ + viewer_border_.xmin;
     const uint miny = y_chunk * chunk_size_ + viewer_border_.ymin;
-    const uint width = MIN2(uint(viewer_border_.xmax), width_);
-    const uint height = MIN2(uint(viewer_border_.ymax), height_);
+    const uint width = std::min(uint(viewer_border_.xmax), width_);
+    const uint height = std::min(uint(viewer_border_.ymax), height_);
     BLI_rcti_init(r_rect,
-                  MIN2(minx, width_),
-                  MIN2(minx + chunk_size_, width),
-                  MIN2(miny, height_),
-                  MIN2(miny + chunk_size_, height));
+                  std::min(minx, width_),
+                  std::min(minx + chunk_size_, width),
+                  std::min(miny, height_),
+                  std::min(miny + chunk_size_, height));
   }
 }
 

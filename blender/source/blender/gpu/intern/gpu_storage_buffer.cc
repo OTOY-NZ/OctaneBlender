@@ -14,7 +14,7 @@
 
 #include "gpu_backend.hh"
 
-#include "GPU_material.h"
+#include "GPU_material.hh"
 #include "GPU_vertex_buffer.h" /* For GPUUsageType. */
 
 #include "GPU_storage_buffer.h"
@@ -106,9 +106,19 @@ void GPU_storagebuf_copy_sub_from_vertbuf(
   unwrap(ssbo)->copy_sub(unwrap(src), dst_offset, src_offset, copy_size);
 }
 
+void GPU_storagebuf_sync_to_host(GPUStorageBuf *ssbo)
+{
+  unwrap(ssbo)->async_flush_to_host();
+}
+
 void GPU_storagebuf_read(GPUStorageBuf *ssbo, void *data)
 {
   unwrap(ssbo)->read(data);
+}
+
+void GPU_storagebuf_sync_as_indirect_buffer(GPUStorageBuf *ssbo)
+{
+  unwrap(ssbo)->sync_as_indirect_buffer();
 }
 
 /** \} */

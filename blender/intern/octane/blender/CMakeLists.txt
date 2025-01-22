@@ -3,6 +3,7 @@ set(INC
   ..
   ../../guardedalloc
   ../../mikktspace
+  ../../openvdb
   ../../../source/blender/makesdna
   ../../../source/blender/makesrna
   ../../../source/blender/blenlib
@@ -67,6 +68,14 @@ set(LIB
   octane_util  
 )
 
+add_definitions(-DWITH_OPENVDB ${OPENVDB_DEFINITIONS})
+list(APPEND INC_SYS
+  ${OPENVDB_INCLUDE_DIRS}
+)
+list(APPEND LIB
+  ${OPENVDB_LIBRARIES}
+)
+
 if(WITH_OCTANE_LOGGING)
   list(APPEND LIB
     extern_glog
@@ -76,13 +85,8 @@ endif()
 set(ADDON_FILES
   addon/__init__.py
   addon/engine.py
-  addon/operators.py
-  addon/properties.py
-  addon/ui.py
+  addon/handlers.py
   addon/preferences.py
-  addon/osl.py
-  addon/version_update.py
-  addon/converters.py
 )
 
 set(ADDON_BIN_FILES
@@ -110,10 +114,15 @@ set(ADDON_UI_FILES
   addon/uis/camera.py
   addon/uis/color_management.py
   addon/uis/common.py
+  addon/uis/geometry.py
   addon/uis/light.py
-  addon/uis/mesh.py
+  addon/uis/material.py
+  addon/uis/node_tree.py
+  addon/uis/node_tree_header.py
+  addon/uis/particle_system.py
   addon/uis/scene.py
   addon/uis/viewport_header.py
+  addon/uis/widget.py
   addon/uis/world.py
 )
 
@@ -122,9 +131,33 @@ set(ADDON_PROPERTY_FILES
   addon/properties_/_object.py
   addon/properties_/camera.py
   addon/properties_/common.py
-  addon/properties_/mesh.py
+  addon/properties_/geometry.py
+  addon/properties_/legacy.py
+  addon/properties_/material.py
+  addon/properties_/node_tree.py
+  addon/properties_/particle_system.py
   addon/properties_/scene.py
   addon/properties_/world.py
+)
+
+set(ADDON_OPERATOR_FILES
+  addon/operators_/__init__.py
+  addon/operators_/converter.py
+  addon/operators_/exporters.py
+  addon/operators_/geometry.py
+  addon/operators_/legacy_node_updater.py
+  addon/operators_/node_tree.py
+  addon/operators_/node_tree_header.py
+  addon/operators_/scene.py
+  addon/operators_/shaders.py
+  addon/operators_/utility_functions.py
+)
+
+set(ADDON_COMPATIBILITIES_FILES
+  addon/compatibilities/__init__.py
+  addon/compatibilities/legacy.py
+  addon/compatibilities/version_28_x.py
+  addon/compatibilities/version_29_x.py
 )
 
 set(ADDON_NODES_FILES
@@ -365,6 +398,9 @@ set(ADDON_NODES_OUTPUT_AOVS_FILES
     addon/nodes/output_aovs/load_checkpoint.py
     addon/nodes/output_aovs/discard_checkpoint.py
     addon/nodes/output_aovs/sharpen.py
+    addon/nodes/output_aovs/boost_highlights.py
+    addon/nodes/output_aovs/dither_for_8_bit_display_sdr_only_.py
+    addon/nodes/output_aovs/apply_imager_and_post_processing.py
     addon/nodes/output_aovs/output_aov_group_switch.py
     addon/nodes/output_aovs/output_aov_switch.py
     addon/nodes/output_aovs/output_aov_layer_switch.py
@@ -656,6 +692,7 @@ set(ADDON_NODES_TRANSFORMS_FILES
     addon/nodes/transforms/_2d_transformation.py
     addon/nodes/transforms/transform_value.py
     addon/nodes/transforms/look_at_transform.py
+    addon/nodes/transforms/uv_tiling_and_offset.py
     addon/nodes/transforms/transform_switch.py
 )
 
@@ -687,6 +724,7 @@ set(ADDON_NODES_VALUES_FILES
     addon/nodes/values/range.py
     addon/nodes/values/rotate.py
     addon/nodes/values/frame_index.py
+    addon/nodes/values/time.py
     addon/nodes/values/bool_switch.py
     addon/nodes/values/float_switch.py
     addon/nodes/values/int_switch.py
@@ -722,6 +760,11 @@ set(ADDON_NODES_UTIL_FILES
   addon/utils/octaneid.py
   addon/utils/octane_name.py
   addon/utils/legacy_octane_node.py
+)
+
+set(ADDON_NODES_UTIL_CONVERTER_FILES
+    addon/utils/converters/__init__.py
+    addon/utils/converters/material.py
 )
 
 set(STARTUP_FILES
@@ -764,8 +807,11 @@ delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_NODES_FILES}" ${OCTANE_INST
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_NODES_RENDER_SETTINGS_FILES}" ${OCTANE_INSTALL_PATH}/nodes/render_settings)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_NODES_NODE_TREES_FILES}" ${OCTANE_INSTALL_PATH}/nodes/node_trees)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_NODES_UTIL_FILES}" ${OCTANE_INSTALL_PATH}/utils)
+delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_NODES_UTIL_CONVERTER_FILES}" ${OCTANE_INSTALL_PATH}/utils/converters)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_UI_FILES}" ${OCTANE_INSTALL_PATH}/uis)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_PROPERTY_FILES}" ${OCTANE_INSTALL_PATH}/properties_)
+delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_OPERATOR_FILES}" ${OCTANE_INSTALL_PATH}/operators_)
+delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_COMPATIBILITIES_FILES}" ${OCTANE_INSTALL_PATH}/compatibilities)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${OBJECT_LIBRARY}" ${OCTANE_INSTALL_PATH}/libraries/objects)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ORBX_LIBRARY}" ${OCTANE_INSTALL_PATH}/libraries/orbx)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ASSETS}" ${OCTANE_INSTALL_PATH}/assets)

@@ -160,8 +160,7 @@ void ShaderManager::add_default(Scene *scene)
 {
   // Add default surface material
   ShaderGraph *graph = new ShaderGraph();
-  graph->add(new ShaderNode(new ::OctaneDataTransferObject::OctaneDiffuseMaterial()));
-
+ 
   Shader *shader = new Shader();
   shader->name = "default_surface";
   shader->graph = graph;
@@ -170,7 +169,6 @@ void ShaderManager::add_default(Scene *scene)
 
   // Add default emission
   ShaderGraph *light_graph = new ShaderGraph();
-  light_graph->add(new ShaderNode(new ::OctaneDataTransferObject::OctaneBlackBodyEmission()));
 
   Shader *light_shader = new Shader();
   light_shader->name = "default_light";
