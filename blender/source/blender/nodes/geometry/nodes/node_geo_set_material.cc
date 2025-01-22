@@ -4,7 +4,6 @@
 
 #include "node_geometry_util.hh"
 
-#include "UI_interface.hh"
 #include "UI_resources.hh"
 
 #include "DNA_curves_types.h"
@@ -117,8 +116,7 @@ static void node_geo_exec(GeoNodeExecParams params)
       using namespace blender::bke::greasepencil;
       Vector<Mesh *> mesh_by_layer(grease_pencil->layers().size(), nullptr);
       for (const int layer_index : grease_pencil->layers().index_range()) {
-        Drawing *drawing = get_eval_grease_pencil_layer_drawing_for_write(*grease_pencil,
-                                                                          layer_index);
+        Drawing *drawing = grease_pencil->get_eval_drawing(*grease_pencil->layer(layer_index));
         if (drawing == nullptr) {
           continue;
         }
@@ -165,12 +163,12 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, GEO_NODE_SET_MATERIAL, "Set Material", NODE_CLASS_GEOMETRY);
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

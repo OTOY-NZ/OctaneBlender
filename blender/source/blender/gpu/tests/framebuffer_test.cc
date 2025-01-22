@@ -4,9 +4,9 @@
 
 #include "testing/testing.h"
 
-#include "GPU_context.h"
-#include "GPU_framebuffer.h"
-#include "GPU_shader.h"
+#include "GPU_context.hh"
+#include "GPU_framebuffer.hh"
+#include "GPU_shader.hh"
 #include "gpu_testing.hh"
 
 #include "BLI_math_vector.hh"
@@ -33,7 +33,7 @@ static void test_framebuffer_clear_color_single_attachment()
 
   float4 *read_data = static_cast<float4 *>(GPU_texture_read(texture, GPU_DATA_FLOAT, 0));
   for (float4 pixel_color : Span<float4>(read_data, size.x * size.y)) {
-    EXPECT_EQ(pixel_color, clear_color);
+    EXPECT_EQ(clear_color, pixel_color);
   }
   MEM_freeN(read_data);
 
@@ -63,14 +63,14 @@ static void test_framebuffer_clear_color_multiple_attachments()
 
   float4 *read_data1 = static_cast<float4 *>(GPU_texture_read(texture1, GPU_DATA_FLOAT, 0));
   for (float4 pixel_color : Span<float4>(read_data1, size.x * size.y)) {
-    EXPECT_EQ(pixel_color, clear_color);
+    EXPECT_EQ(clear_color, pixel_color);
   }
   MEM_freeN(read_data1);
 
   uint4 *read_data2 = static_cast<uint4 *>(GPU_texture_read(texture2, GPU_DATA_UINT, 0));
   uint4 clear_color_uint(1036831949, 1045220557, 1056964608, 1065353216);
   for (uint4 pixel_color : Span<uint4>(read_data2, size.x * size.y)) {
-    EXPECT_EQ(pixel_color, clear_color_uint);
+    EXPECT_EQ(clear_color_uint, pixel_color);
   }
   MEM_freeN(read_data2);
 
@@ -102,13 +102,13 @@ static void test_framebuffer_clear_multiple_color_multiple_attachments()
 
   float4 *read_data1 = static_cast<float4 *>(GPU_texture_read(texture1, GPU_DATA_FLOAT, 0));
   for (float4 pixel_color : Span<float4>(read_data1, size.x * size.y)) {
-    EXPECT_EQ(pixel_color, clear_color[0]);
+    EXPECT_EQ(clear_color[0], pixel_color);
   }
   MEM_freeN(read_data1);
 
   float4 *read_data2 = static_cast<float4 *>(GPU_texture_read(texture2, GPU_DATA_FLOAT, 0));
-  for (float4 pixel_color : Span<float4>(read_data1, size.x * size.y)) {
-    EXPECT_EQ(pixel_color, clear_color[1]);
+  for (float4 pixel_color : Span<float4>(read_data2, size.x * size.y)) {
+    EXPECT_EQ(clear_color[1], pixel_color);
   }
   MEM_freeN(read_data2);
 
@@ -135,7 +135,7 @@ static void test_framebuffer_clear_depth()
 
   float *read_data = static_cast<float *>(GPU_texture_read(texture, GPU_DATA_FLOAT, 0));
   for (float pixel_depth : Span<float>(read_data, size.x * size.y)) {
-    EXPECT_EQ(pixel_depth, clear_depth);
+    EXPECT_EQ(clear_depth, pixel_depth);
   }
   MEM_freeN(read_data);
 
@@ -187,10 +187,10 @@ static void test_framebuffer_scissor_test()
     }
     else {
       if (bar_x % 2 == 0) {
-        EXPECT_EQ(pixel_color, color2);
+        EXPECT_EQ(color2, pixel_color);
       }
       else {
-        EXPECT_EQ(pixel_color, color1);
+        EXPECT_EQ(color1, pixel_color);
       }
     }
 
@@ -293,9 +293,9 @@ static void test_framebuffer_multi_viewport()
   /* TODO(fclem): remove this boilerplate. */
   GPUVertFormat format{};
   GPU_vertformat_attr_add(&format, "dummy", GPU_COMP_U32, 1, GPU_FETCH_INT);
-  GPUVertBuf *verts = GPU_vertbuf_create_with_format(&format);
+  VertBuf *verts = GPU_vertbuf_create_with_format(&format);
   GPU_vertbuf_data_alloc(verts, 3);
-  GPUBatch *batch = GPU_batch_create_ex(GPU_PRIM_TRIS, verts, nullptr, GPU_BATCH_OWNS_VBO);
+  Batch *batch = GPU_batch_create_ex(GPU_PRIM_TRIS, verts, nullptr, GPU_BATCH_OWNS_VBO);
 
   GPU_batch_set_shader(batch, shader);
 
@@ -372,9 +372,9 @@ static void test_framebuffer_subpass_input()
   /* TODO(fclem): remove this boilerplate. */
   GPUVertFormat format{};
   GPU_vertformat_attr_add(&format, "dummy", GPU_COMP_U32, 1, GPU_FETCH_INT);
-  GPUVertBuf *verts = GPU_vertbuf_create_with_format(&format);
+  VertBuf *verts = GPU_vertbuf_create_with_format(&format);
   GPU_vertbuf_data_alloc(verts, 3);
-  GPUBatch *batch = GPU_batch_create_ex(GPU_PRIM_TRIS, verts, nullptr, GPU_BATCH_OWNS_VBO);
+  Batch *batch = GPU_batch_create_ex(GPU_PRIM_TRIS, verts, nullptr, GPU_BATCH_OWNS_VBO);
 
   /* Metal Raster Order Group does not need that. */
   GPU_framebuffer_subpass_transition(

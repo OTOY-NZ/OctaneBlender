@@ -8,11 +8,14 @@
 
 #pragma once
 
-#include "BKE_context.hh"
-
 #include "BLI_path_util.h"
-#include "DNA_windowmanager_types.h"
+
+#include "DNA_ID.h"
+
 #include "IO_orientation.hh"
+
+struct bContext;
+struct ReportList;
 
 enum ePLYVertexColorMode {
   PLY_VERTEX_COLOR_NONE = 0,
@@ -21,7 +24,7 @@ enum ePLYVertexColorMode {
 };
 
 struct PLYExportParams {
-  /** Full path to the destination .PLY file. */
+  /** Full path to the destination `.PLY` file. */
   char filepath[FILE_MAX];
   /** Pretend that destination file folder is this, if non-empty. Used only for tests. */
   char file_base_for_tests[FILE_MAX];
@@ -45,6 +48,7 @@ struct PLYExportParams {
   ePLYVertexColorMode vertex_colors;
   bool export_attributes;
   bool export_triangulated_mesh;
+  char collection[MAX_IDPROP_NAME] = "";
 
   ReportList *reports = nullptr;
 };

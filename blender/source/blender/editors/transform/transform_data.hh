@@ -42,10 +42,10 @@ struct TransDataMirror {
 struct TransDataExtension {
   /** Initial object drot. */
   float drot[3];
-#if 0 /* TODO: not yet implemented */
-  /* Initial object drotAngle */
+#if 0 /* TODO: not yet implemented. */
+  /* Initial object `drotAngle`. */
   float drotAngle;
-  /* Initial object drotAxis */
+  /* Initial object `drotAxis`. */
   float drotAxis[3];
 #endif
   /** Initial object delta quat. */
@@ -134,7 +134,7 @@ struct TransData {
   bConstraint *con;
   /** For objects, poses. 1 single allocation per #TransInfo! */
   TransDataExtension *ext;
-  /** for curves, stores handle flags for modification/cancel. */
+  /** For curves, stores handle flags for modification/cancel. */
   TransDataCurveHandleFlags *hdata;
   /** If set, copy of Object or #bPoseChannel protection. */
   short protectflag;
@@ -147,7 +147,7 @@ enum {
   TD_SELECTED = 1 << 0,
   TD_USEQUAT = 1 << 1,
   /* TD_NOTCONNECTED = 1 << 2, */
-  /** Used for scaling of #MetaElem.rad */
+  /** Used for scaling of #MetaElem.rad. */
   TD_SINGLESIZE = 1 << 3,
   /** Scale relative to individual element center. */
   TD_INDIVIDUAL_SCALE = 1 << 4,
@@ -161,7 +161,7 @@ enum {
    * if this is set #TransData.hdata needs freeing.
    */
   TD_BEZTRIPLE = 1 << 8,
-  /** when this is set, don't apply translation changes to this element */
+  /** When this is set, don't apply translation changes to this element. */
   TD_NO_LOC = 1 << 9,
   /** For Graph Editor auto-snap, indicates that point should not undergo auto-snapping. */
   TD_NOTIMESNAP = 1 << 10,
@@ -187,7 +187,7 @@ enum {
    * option enabled and rotating also transforms it.
    */
   TD_PBONE_LOCAL_MTX_P = 1 << 17,
-  /** Same as above but for a child bone. */
+  /** Same as #TD_PBONE_LOCAL_MTX_P but for a child bone. */
   TD_PBONE_LOCAL_MTX_C = 1 << 18,
   /* Grease pencil layer frames. */
   TD_GREASE_PENCIL_FRAME = 1 << 19,

@@ -5,7 +5,7 @@
 /** \file
  * \ingroup DNA
  *
- * Use API in BKE_workspace.h to edit these.
+ * Use API in BKE_workspace.hh to edit these.
  */
 
 #pragma once
@@ -13,6 +13,15 @@
 #include "DNA_ID.h"
 #include "DNA_asset_types.h"
 #include "DNA_viewer_path_types.h"
+
+#ifdef __cplusplus
+namespace blender::bke {
+struct WorkSpaceRuntime;
+}
+using WorkSpaceRuntimeHandle = blender::bke::WorkSpaceRuntime;
+#else
+typedef struct WorkSpaceRuntimeHandle WorkSpaceRuntimeHandle;
+#endif
 
 /** #bToolRef_Runtime.flag */
 enum {
@@ -61,7 +70,7 @@ typedef struct bToolRef {
   /** #bToolKey (space-type, mode), used in 'WM_api.hh' */
   short space_type;
   /**
-   * Value depends on the 'space_type', object mode for 3D view, image editor has own mode too.
+   * Value depends on the 'space_type', object mode for 3D view, image editor has its own mode too.
    * RNA needs to handle using item function.
    */
   int mode;
@@ -137,7 +146,7 @@ typedef struct WorkSpace {
   int order;
 
   /** Info text from modal operators (runtime). */
-  char *status_text;
+  WorkSpaceRuntimeHandle *runtime;
 
   /** Workspace-wide active asset library, for asset UIs to use (e.g. asset view UI template). The
    * Asset Browser has its own and doesn't use this. */

@@ -8,7 +8,7 @@ This script dices up PNG into small files to store in version control.
 Example:
 
 ./blender.bin \
-    --background -noaudio \
+    --background \
     --python ./release/datafiles/icon_dice.py -- \
     --image=./release/datafiles/blender_icons16.png \
     --output=./release/datafiles/blender_icons16
@@ -197,7 +197,7 @@ def dice(
             id_str = dice_icon_name(
                 x, y,
                 parts_x, parts_y,
-                name_style=name_style, prefix=output_prefix
+                name_style=name_style, prefix=output_prefix,
             )
             if not id_str:
                 continue

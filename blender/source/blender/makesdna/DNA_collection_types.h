@@ -62,6 +62,23 @@ typedef struct CollectionChild {
   int _pad;
 } CollectionChild;
 
+/* Collection IO property storage and access. */
+typedef struct CollectionExport {
+  struct CollectionExport *next, *prev;
+
+  /** Identifier that matches the #FileHandlerType.idname. */
+  char fh_idname[64];
+
+  IDProperty *export_properties;
+  uint32_t flag;
+
+  uint32_t _pad0;
+} CollectionExport;
+
+typedef enum IOHandlerPanelFlag {
+  IO_HANDLER_PANEL_OPEN = 1 << 0,
+} IOHandlerPanelFlag;
+
 /* Light linking state of object or collection: defines how they react to the emitters in the
  * scene. See the comment for the link_state in the CollectionLightLinking for the details. */
 typedef enum eCollectionLightLinkingState {
@@ -116,6 +133,11 @@ typedef struct Collection {
   /** CollectionChild. */
   ListBase children;
 
+  char _pad0[4];
+
+  int active_exporter_index;
+  ListBase exporters;
+
   struct PreviewImage *preview;
 
   unsigned int layer DNA_DEPRECATED;
@@ -124,7 +146,7 @@ typedef struct Collection {
   uint8_t flag;
   int8_t color_tag;
 
-  char _pad0[2];
+  char _pad1[2];
 
   uint8_t lineart_usage; /* #eCollectionLineArt_Usage */
   uint8_t lineart_flags; /* #eCollectionLineArt_Flags */

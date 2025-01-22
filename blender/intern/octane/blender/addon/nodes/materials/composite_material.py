@@ -179,15 +179,15 @@ class OctaneCompositeMaterialMaterialEnabledMovableInput(OctaneMovableInput):
     bl_idname = "OctaneCompositeMaterialMaterialEnabledMovableInput"
     bl_label = "Material Enabled"
     octane_movable_input_count_attribute_name = "a_material_count"
-    octane_input_pattern = r"Mat (\d+) enabled"
-    octane_input_format_pattern = "Mat {} enabled"
+    octane_input_pattern = r"Material (\d+) enabled"
+    octane_input_format_pattern = "Material {} enabled"
     octane_sub_movable_inputs = [OctaneCompositeMaterialMaterialMovableInput, OctaneCompositeMaterialMaterialMaskMovableInput, ]
     color = consts.OctanePinColor.Bool
     octane_default_node_type = consts.NodeType.NT_BOOL
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Whether this material is applied or skipped")
-    octane_dynamic_pin_socket_type: IntProperty(default=consts.SocketType.ST_BOOL) 
+    octane_dynamic_pin_socket_type: IntProperty(default=consts.SocketType.ST_BOOL)
     octane_hide_value = False
 
 

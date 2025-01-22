@@ -1553,7 +1553,7 @@ OSL_NOISE_IMPL(osl_snoise, snoise)
 
 /* Texturing */
 
-#include "kernel/svm/ies.h"
+#include "kernel/util/ies.h"
 
 ccl_device_extern ccl_private OSLTextureOptions *osl_get_texture_options(
     ccl_private ShaderGlobals *sg)
@@ -2223,6 +2223,10 @@ OSL_OP_IMPL_XX(osl_abs, fabsf)
 OSL_OP_IMPL_II(osl_fabs, abs)
 OSL_OP_IMPL_XX(osl_fabs, fabsf)
 OSL_OP_IMPL_XXX(osl_fmod, safe_modulo)
+OSL_OP_IMPL_VVF_(osl_fmod, safe_modulo)
+OSL_OP_IMPL_DVVDF_(osl_fmod, safe_modulo)
+OSL_OP_IMPL_DVDVF_(osl_fmod, safe_modulo)
+OSL_OP_IMPL_DVDVDF_(osl_fmod, safe_modulo)
 
 OSL_OP_IMPL_FFFF(osl_smoothstep, smoothstep)
 OSL_OP_IMPL_DFFFDF(osl_smoothstep, smoothstep)

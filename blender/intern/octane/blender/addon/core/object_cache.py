@@ -2,17 +2,18 @@
 
 import array
 import copy
-import math
 import os
-from xml.etree import ElementTree
 from collections import defaultdict
+from xml.etree import ElementTree
 
-import bpy
 import mathutils
 import numpy as np
+
+import bpy
 from octane.core.caches import OctaneNodeCache
 from octane.core.octane_info import OctaneInfoManger
 from octane.core.resource_cache import ResourceCache
+# noinspection PyProtectedMember
 from octane.properties_._object import OctaneObjectPropertyGroup
 from octane.utils import consts, utility, octane_name
 from octane.utils import curve as curve_utils
@@ -92,10 +93,14 @@ class ObjectCache(OctaneNodeCache):
         self.persistent_id_to_octane_scatter_id_map = defaultdict(dict)
         # Octane scatter node names
         self.synced_octane_scatter_node_names = set()
+        # Blender object name => Octane scatter node name
+        self.object_name_to_scatter_node_name_map = {}
         # Motion blur
         self.motion_blur_node_names = {}
 
     def custom_add_all(self, depsgraph):
+        is_viewport = depsgraph.mode == "VIEWPORT"
+        scene = depsgraph.scene
         for _id in [item for item in depsgraph.ids if (isinstance(item, bpy.types.Mesh)
                                                        or isinstance(item, bpy.types.Volume)
                                                        or isinstance(item, bpy.types.Light)
@@ -103,6 +108,11 @@ class ObjectCache(OctaneNodeCache):
                                                        or isinstance(item, bpy.types.Curves))]:
             self.dg_updated_object_data_names.add(_id.name)
             self.need_update = True
+        self.object_name_to_scatter_node_name_map.clear()
+        for instance_object in depsgraph.object_instances:
+            eval_object = instance_object.object
+            scatter_name = octane_name.resolve_scatter_octane_name(instance_object, scene, is_viewport)
+            self.object_name_to_scatter_node_name_map[eval_object.name] = scatter_name
 
     def depsgraph_update_diff(self, depsgraph, scene, view_layer, context=None):
         # Sometimes Blender's id_type_updated cannot return the correct result even if the corresponding data block
@@ -117,6 +127,7 @@ class ObjectCache(OctaneNodeCache):
                     self.dg_updated_object_data_names.add(object_data_name)
 
     def custom_diff(self, depsgraph, scene, view_layer, context=None):
+        is_viewport = depsgraph.mode == "VIEWPORT"
         # Look for changes of particle systems
         if depsgraph.id_type_updated("PARTICLE"):
             updated_particle_settings_names = set()
@@ -134,8 +145,11 @@ class ObjectCache(OctaneNodeCache):
                         self.dg_updated_object_data_names.add(depsgraph.objects[object_name].data.name)
         # Detection for changes of numbers of instances
         depsgraph_object_instances_num = 0
+        self.object_name_to_scatter_node_name_map.clear()
         for instance_object in depsgraph.object_instances:
             eval_object = instance_object.object
+            scatter_name = octane_name.resolve_scatter_octane_name(instance_object, scene, is_viewport)
+            self.object_name_to_scatter_node_name_map[eval_object.name] = scatter_name
             if context and context.space_data:
                 show_in_viewport = eval_object.visible_in_viewport_get(context.space_data)
             else:
@@ -166,7 +180,10 @@ class ObjectCache(OctaneNodeCache):
     def cast_light_mask(data):
         property_to_bits = ["light_id_sunlight", "light_id_env", "light_id_pass_1", "light_id_pass_2",
                             "light_id_pass_3", "light_id_pass_4", "light_id_pass_5", "light_id_pass_6",
-                            "light_id_pass_7", "light_id_pass_8"]
+                            "light_id_pass_7", "light_id_pass_8", "light_id_pass_9", "light_id_pass_10",
+                            "light_id_pass_11", "light_id_pass_12", "light_id_pass_13", "light_id_pass_14",
+                            "light_id_pass_15", "light_id_pass_16", "light_id_pass_17", "light_id_pass_18",
+                            "light_id_pass_19", "light_id_pass_20"]
         value = 0
         for idx, property_name in enumerate(property_to_bits):
             value += (int(getattr(data, property_name)) << idx)
@@ -296,10 +313,13 @@ class ObjectCache(OctaneNodeCache):
             color_attribute_data_list = []
             available_color_vertex_sets_num = self.MAX_OCTANE_COLOR_VERTEX_SETS
             # Always sync the active color attribute if there is one
-            if mesh.color_attributes.active_color_index != -1:
-                available_color_vertex_sets_num -= 1
             for idx, color_attribute in enumerate(mesh.color_attributes):
-                if mesh.color_attributes.active_color_index == idx or available_color_vertex_sets_num > 0:
+                if mesh.color_attributes.active_color_index == idx:
+                    color_attribute_data_list.append(
+                        [color_attribute.data[0].as_pointer(), color_attribute.name, color_attribute.data_type])
+                    available_color_vertex_sets_num -= 1
+            for idx, color_attribute in enumerate(mesh.color_attributes):
+                if mesh.color_attributes.active_color_index != idx and available_color_vertex_sets_num > 0:
                     color_attribute_data_list.append(
                         [color_attribute.data[0].as_pointer(), color_attribute.name, color_attribute.data_type])
                     available_color_vertex_sets_num -= 1
@@ -312,8 +332,7 @@ class ObjectCache(OctaneNodeCache):
                 max(0.00001, octane_property.octane_sphere_randomized_radius_min),
                 octane_property.octane_sphere_randomized_radius_max
             ]
-            show_mesh_data = (
-                    not octane_property.octane_enable_sphere_attribute or not octane_property.octane_hide_original_mesh)
+            show_mesh_data = not octane_property.octane_hide_original_mesh
             octane_node.node.set_mesh_attribute(vertices_addr, vertices_num,
                                                 normals_addr, normals_num,
                                                 loop_triangles_addr, loop_triangles_num,
@@ -868,7 +887,8 @@ class ObjectCache(OctaneNodeCache):
         objectlayer_name = octane_name.resolve_objectlayer_octane_name(octane_scatter_node.name)
         objectlayer_map_name = octane_name.resolve_objectlayer_map_octane_name(octane_scatter_node.name)
         objectlayer_map_linked_mesh_name = object_data_name
-        use_objectlayer = True
+        create_objectlayer_map = True
+        use_objectlayer_map = True
         octane_objectlayer_node = self.get_octane_node(objectlayer_name, consts.NodeType.NT_OBJECTLAYER)
         octane_objectlayer_map_node = self.get_octane_node(objectlayer_map_name, consts.NodeType.NT_OBJECTLAYER_MAP)
         use_multiple_objectlayers = False
@@ -901,6 +921,8 @@ class ObjectCache(OctaneNodeCache):
             is_infinite_plane = getattr(object_data_octane_property, "infinite_plane", "")
             imported_orbx_file_path = getattr(object_data_octane_property, "imported_orbx_file_path", "")
             geometry_node_data = object_data_octane_property.octane_geo_node_collections
+            is_octane_geo_used = geometry_node_data.is_octane_geo_used()
+            is_octane_scatter_tool_used = geometry_node_data.is_octane_scatter_tool_used()
             domain_modifier = utility.find_smoke_domain_modifier(eval_object)
             if is_infinite_plane:
                 # Infinite plane
@@ -913,14 +935,23 @@ class ObjectCache(OctaneNodeCache):
                                                 False)
                 time_transform_delay = getattr(object_data_octane_property, "animation_time_transformation_delay", 0.0)
                 time_transform_scale = getattr(object_data_octane_property, "animation_time_transformation_scale", 0.0)
-                use_objectlayer = self.update_octane_orbx_proxy(object_data_name, imported_orbx_file_path,
-                                                                enable_time_transform, time_transform_delay,
-                                                                time_transform_scale, need_full_update_object_data)
+                use_objectlayer_map = self.update_octane_orbx_proxy(object_data_name, imported_orbx_file_path,
+                                                                    enable_time_transform, time_transform_delay,
+                                                                    time_transform_scale, need_full_update_object_data)
                 objectlayer_map_linked_mesh_name = object_data_name
                 use_multiple_objectlayers = True
-            elif geometry_node_data.is_octane_geo_used():
+            elif is_octane_geo_used:
                 # OSL Geometry or Surface/Volume Scatter
-                objectlayer_map_linked_mesh_name = object_data_name
+                if is_octane_scatter_tool_used:
+                    object_mesh_data_name = octane_name.resolve_object_mesh_data_octane_name(eval_object,
+                                                                                             scene, is_viewport)
+                    self.update_mesh(object_mesh_data_name, depsgraph, eval_object, object_data_octane_property,
+                                     octane_material_tag, need_full_update_object_data, 0, update_now)
+                    use_objectlayer_map = False
+                    create_objectlayer_map = True
+                    objectlayer_map_linked_mesh_name = object_mesh_data_name
+                else:
+                    objectlayer_map_linked_mesh_name = object_data_name
             elif domain_modifier is not None and not domain_modifier.domain_settings.use_mesh:
                 # Octane Volume
                 self.update_volume(object_data_name, depsgraph, eval_object, object_data_octane_property,
@@ -947,9 +978,10 @@ class ObjectCache(OctaneNodeCache):
                                                                  need_full_update_object_data, update_now)
         elif eval_object.type == "EMPTY":
             object_data_name = ""
-            use_objectlayer = False
+            use_objectlayer_map = False
         # Update Object Layers
-        if use_objectlayer:
+        create_objectlayer_map |= use_objectlayer_map
+        if create_objectlayer_map:
             octane_objectlayer_map_node.set_pin_id(consts.PinID.P_GEOMETRY, True, objectlayer_map_linked_mesh_name, "")
             # Update the nodes to the engine
             if octane_objectlayer_map_node.need_update:
@@ -963,7 +995,7 @@ class ObjectCache(OctaneNodeCache):
                     objectlayer_map_node_object_layer_num = objectlayer_map_node_info["dynPinCount"]
             for idx in range(objectlayer_map_node_object_layer_num):
                 octane_objectlayer_node.link_to(objectlayer_map_name, idx + 1, update_now)
-        linked_geometry_name = objectlayer_map_name if use_objectlayer else object_data_name
+        linked_geometry_name = objectlayer_map_name if use_objectlayer_map else object_data_name
         octane_scatter_node.linked_geometry_name = linked_geometry_name
         self.oct_synced_object_data_octane_names.add(object_data_name)
         return linked_geometry_name

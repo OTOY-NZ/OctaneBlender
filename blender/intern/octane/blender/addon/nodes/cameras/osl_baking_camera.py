@@ -140,9 +140,9 @@ class OctaneOSLBakingCamera(bpy.types.Node, OctaneScriptNode):
         ("latest", "latest", """(null)""", 14000005),
         ("2023.1 compatibility mode", "2023.1 compatibility mode", """Disable single pin creation for vector structs""", 0),
     ]
-    a_compatibility_version_enum: EnumProperty(name="Compatibility version", default="latest", update=OctaneBaseNode.update_compatibility_mode, description="The Octane version that the behavior of this node should match", items=compatibility_mode_infos)
+    a_compatibility_version_enum: EnumProperty(name="Compatibility version", default="latest", update=OctaneBaseNode.update_compatibility_mode_to_int, description="The Octane version that the behavior of this node should match", items=compatibility_mode_infos)
 
-    a_compatibility_version: IntProperty(name="Compatibility version", default=14000005, update=OctaneBaseNode.update_node_tree, description="The Octane version that the behavior of this node should match")
+    a_compatibility_version: IntProperty(name="Compatibility version", default=14000007, update=OctaneBaseNode.update_compatibility_mode_to_enum, description="The Octane version that the behavior of this node should match")
     a_filename: StringProperty(name="Filename", default="", update=OctaneBaseNode.update_node_tree, description="The file where the OSL shader is stored. If set, A_SHADER_CODE will be replaced with the content of the file", subtype="FILE_PATH")
     a_reload: BoolProperty(name="Reload", default=False, update=OctaneBaseNode.update_node_tree, description="Set it to TRUE if the file needs a reload. After the node was evaluated the attribute will be false again")
     a_shader_code: StringProperty(name="Shader code", default="#include <octane-oslintrin.h>\nshader OslBakingCamera(\n    output point pos = 0,\n    output vector dir = 0,\n    output float tMax = 1.0 / 0.0)\n{\n    if (!_findBakingPrimitive(u, v))\n    {\n        tMax = 0;\n        return;\n    }\n\n    float offset;\n    getmessage(\"baking\", \"N\", dir);\n    getmessage(\"baking\", \"P\", pos);\n    getmessage(\"baking\", \"offset\", offset);\n    pos += offset * dir;\n    dir = -dir;\n}\n", update=OctaneBaseNode.update_node_tree, description="The OSL code for this node")

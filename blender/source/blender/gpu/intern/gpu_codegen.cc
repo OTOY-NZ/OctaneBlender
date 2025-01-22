@@ -26,20 +26,20 @@
 #include "BKE_cryptomatte.hh"
 #include "BKE_material.h"
 
-#include "GPU_capabilities.h"
-#include "GPU_context.h"
+#include "GPU_capabilities.hh"
+#include "GPU_context.hh"
 #include "GPU_material.hh"
-#include "GPU_shader.h"
-#include "GPU_uniform_buffer.h"
-#include "GPU_vertex_format.h"
+#include "GPU_shader.hh"
+#include "GPU_uniform_buffer.hh"
+#include "GPU_vertex_format.hh"
 
 #include "BLI_sys_types.h" /* for intptr_t support */
 #include "BLI_vector.hh"
 
-#include "gpu_codegen.h"
-#include "gpu_node_graph.h"
+#include "gpu_codegen.hh"
+#include "gpu_node_graph.hh"
 #include "gpu_shader_create_info.hh"
-#include "gpu_shader_dependency_private.h"
+#include "gpu_shader_dependency_private.hh"
 
 #include <cstdarg>
 #include <cstring>
@@ -102,6 +102,8 @@ struct GPUPass {
   uint32_t hash;
   /** Did we already tried to compile the attached GPUShader. */
   bool compiled;
+  /** If this pass is already being_compiled (A GPUPass can be shared by multiple GPUMaterials). */
+  bool compilation_requested;
   /** Hint that an optimized variant of this pass should be created based on a complexity heuristic
    * during pass code generation. */
   bool should_optimize;
@@ -280,21 +282,10 @@ class GPUCodegen {
     create_info = new GPUCodegenCreateInfo("codegen");
     output.create_info = reinterpret_cast<GPUShaderCreateInfo *>(
         static_cast<ShaderCreateInfo *>(create_info));
-
-    if (GPU_material_flag_get(mat_, GPU_MATFLAG_OBJECT_INFO)) {
-      create_info->additional_info("draw_object_infos");
-    }
   }
 
   ~GPUCodegen()
   {
-    MEM_SAFE_FREE(output.attr_load);
-    MEM_SAFE_FREE(output.surface);
-    MEM_SAFE_FREE(output.volume);
-    MEM_SAFE_FREE(output.thickness);
-    MEM_SAFE_FREE(output.displacement);
-    MEM_SAFE_FREE(output.composite);
-    MEM_SAFE_FREE(output.material_functions);
     MEM_SAFE_FREE(cryptomatte_input_);
     delete create_info;
     BLI_freelistN(&ubo_inputs_);
@@ -327,22 +318,16 @@ class GPUCodegen {
   void set_unique_ids();
 
   void node_serialize(std::stringstream &eval_ss, const GPUNode *node);
-  char *graph_serialize(eGPUNodeTag tree_tag,
-                        GPUNodeLink *output_link,
-                        const char *output_default = nullptr);
-  char *graph_serialize(eGPUNodeTag tree_tag);
-
-  static char *extract_c_str(std::stringstream &stream)
-  {
-    auto string = stream.str();
-    return BLI_strdup(string.c_str());
-  }
+  std::string graph_serialize(eGPUNodeTag tree_tag,
+                              GPUNodeLink *output_link,
+                              const char *output_default = nullptr);
+  std::string graph_serialize(eGPUNodeTag tree_tag);
 };
 
 void GPUCodegen::generate_attribs()
 {
   if (BLI_listbase_is_empty(&graph.attributes)) {
-    output.attr_load = nullptr;
+    output.attr_load.clear();
     return;
   }
 
@@ -397,7 +382,7 @@ void GPUCodegen::generate_attribs()
     iface.smooth(to_type(iface_type), var_name);
   }
 
-  output.attr_load = extract_c_str(load_ss);
+  output.attr_load = load_ss.str();
 }
 
 void GPUCodegen::generate_resources()
@@ -584,12 +569,12 @@ void GPUCodegen::node_serialize(std::stringstream &eval_ss, const GPUNode *node)
   nodes_total_++;
 }
 
-char *GPUCodegen::graph_serialize(eGPUNodeTag tree_tag,
-                                  GPUNodeLink *output_link,
-                                  const char *output_default)
+std::string GPUCodegen::graph_serialize(eGPUNodeTag tree_tag,
+                                        GPUNodeLink *output_link,
+                                        const char *output_default)
 {
   if (output_link == nullptr && output_default == nullptr) {
-    return nullptr;
+    return "";
   }
 
   std::stringstream eval_ss;
@@ -605,7 +590,7 @@ char *GPUCodegen::graph_serialize(eGPUNodeTag tree_tag,
   }
 
   if (!has_nodes) {
-    return nullptr;
+    return "";
   }
 
   if (output_link) {
@@ -616,12 +601,12 @@ char *GPUCodegen::graph_serialize(eGPUNodeTag tree_tag,
     eval_ss << "return " << output_default << ";\n";
   }
 
-  char *eval_c_str = extract_c_str(eval_ss);
-  BLI_hash_mm2a_add(&hm2a_, (uchar *)eval_c_str, eval_ss.str().size());
-  return eval_c_str;
+  std::string str = eval_ss.str();
+  BLI_hash_mm2a_add(&hm2a_, reinterpret_cast<const uchar *>(str.c_str()), str.size());
+  return str;
 }
 
-char *GPUCodegen::graph_serialize(eGPUNodeTag tree_tag)
+std::string GPUCodegen::graph_serialize(eGPUNodeTag tree_tag)
 {
   std::stringstream eval_ss;
   LISTBASE_FOREACH (GPUNode *, node, &graph.nodes) {
@@ -629,9 +614,9 @@ char *GPUCodegen::graph_serialize(eGPUNodeTag tree_tag)
       node_serialize(eval_ss, node);
     }
   }
-  char *eval_c_str = extract_c_str(eval_ss);
-  BLI_hash_mm2a_add(&hm2a_, (uchar *)eval_c_str, eval_ss.str().size());
-  return eval_c_str;
+  std::string str = eval_ss.str();
+  BLI_hash_mm2a_add(&hm2a_, reinterpret_cast<const uchar *>(str.c_str()), str.size());
+  return str;
 }
 
 void GPUCodegen::generate_cryptomatte()
@@ -708,11 +693,10 @@ void GPUCodegen::generate_graphs()
       }
       /* Tag only the nodes needed for the current function */
       gpu_nodes_tag(func_link->outlink, GPU_NODE_TAG_FUNCTION);
-      char *fn = graph_serialize(GPU_NODE_TAG_FUNCTION, func_link->outlink);
+      const std::string fn = graph_serialize(GPU_NODE_TAG_FUNCTION, func_link->outlink);
       eval_ss << "float " << func_link->name << "() {\n" << fn << "}\n\n";
-      MEM_SAFE_FREE(fn);
     }
-    output.material_functions = extract_c_str(eval_ss);
+    output.material_functions = eval_ss.str();
     /* Leave the function tags as they were before serialization */
     LISTBASE_FOREACH (GPUNodeGraphFunctionLink *, funclink, &graph.material_functions) {
       gpu_nodes_tag(funclink->outlink, GPU_NODE_TAG_FUNCTION);
@@ -819,6 +803,7 @@ GPUPass *GPU_generate_pass(GPUMaterial *material,
     pass->engine = engine;
     pass->hash = codegen.hash_get();
     pass->compiled = false;
+    pass->compilation_requested = false;
     pass->cached = false;
     /* Only flag pass optimization hint if this is the first generated pass for a material.
      * Optimized passes cannot be optimized further, even if the heuristic is still not
@@ -895,17 +880,22 @@ static bool gpu_pass_shader_validate(GPUPass *pass, GPUShader *shader)
   return (active_samplers_len * 3 <= GPU_max_textures());
 }
 
-bool GPU_pass_compile(GPUPass *pass, const char *shname)
+GPUShaderCreateInfo *GPU_pass_begin_compilation(GPUPass *pass, const char *shname)
+{
+  if (!pass->compilation_requested) {
+    pass->compilation_requested = true;
+    pass->create_info->name_ = shname;
+    GPUShaderCreateInfo *info = reinterpret_cast<GPUShaderCreateInfo *>(
+        static_cast<ShaderCreateInfo *>(pass->create_info));
+    return info;
+  }
+  return nullptr;
+}
+
+bool GPU_pass_finalize_compilation(GPUPass *pass, GPUShader *shader)
 {
   bool success = true;
   if (!pass->compiled) {
-    GPUShaderCreateInfo *info = reinterpret_cast<GPUShaderCreateInfo *>(
-        static_cast<ShaderCreateInfo *>(pass->create_info));
-
-    pass->create_info->name_ = shname;
-
-    GPUShader *shader = GPU_shader_create_from_info(info);
-
     /* NOTE: Some drivers / gpu allows more active samplers than the opengl limit.
      * We need to make sure to count active samplers to avoid undefined behavior. */
     if (!gpu_pass_shader_validate(pass, shader)) {
@@ -918,6 +908,16 @@ bool GPU_pass_compile(GPUPass *pass, const char *shname)
     }
     pass->shader = shader;
     pass->compiled = true;
+  }
+  return success;
+}
+
+bool GPU_pass_compile(GPUPass *pass, const char *shname)
+{
+  bool success = true;
+  if (GPUShaderCreateInfo *info = GPU_pass_begin_compilation(pass, shname)) {
+    GPUShader *shader = GPU_shader_create_from_info(info);
+    success = GPU_pass_finalize_compilation(pass, shader);
   }
   return success;
 }
@@ -937,6 +937,14 @@ static void gpu_pass_free(GPUPass *pass)
   MEM_freeN(pass);
 }
 
+void GPU_pass_acquire(GPUPass *pass)
+{
+  BLI_spin_lock(&pass_cache_spin);
+  BLI_assert(pass->refcount > 0);
+  pass->refcount++;
+  BLI_spin_unlock(&pass_cache_spin);
+}
+
 void GPU_pass_release(GPUPass *pass)
 {
   BLI_spin_lock(&pass_cache_spin);
@@ -952,7 +960,7 @@ void GPU_pass_release(GPUPass *pass)
 void GPU_pass_cache_garbage_collect()
 {
   const int shadercollectrate = 60; /* hardcoded for now. */
-  int ctime = int(BLI_check_seconds_timer());
+  int ctime = int(BLI_time_now_seconds());
 
   BLI_spin_lock(&pass_cache_spin);
   GPUPass *next, **prev_pass = &pass_cache;

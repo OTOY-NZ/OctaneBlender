@@ -2,7 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BLI_math_matrix.h"
 #include "BLI_string.h"
 
 #include "DNA_collection_types.h"
@@ -12,8 +11,10 @@
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
-#include "BKE_collection.h"
+#include "BKE_collection.hh"
 #include "BKE_instances.hh"
+
+#include "DEG_depsgraph_query.hh"
 
 #include "node_geometry_util.hh"
 
@@ -63,10 +64,18 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
   const Object *self_object = params.self_object();
-  const bool is_recursive = BKE_collection_has_object_recursive_instanced(
+  /* Compare by `orig_id` because objects may be copied into separate depsgraphs. */
+  const bool is_recursive = BKE_collection_has_object_recursive_instanced_orig_id(
       collection, const_cast<Object *>(self_object));
   if (is_recursive) {
     params.error_message_add(NodeWarningType::Error, TIP_("Collection contains current object"));
+    params.set_default_remaining_outputs();
+    return;
+  }
+  if (!DEG_collection_geometry_is_evaluated(*collection)) {
+    params.error_message_add(NodeWarningType::Error,
+                             TIP_("Can't access collections geometry because it's not evaluated "
+                                  "yet. This can happen when there is a dependency cycle"));
     params.set_default_remaining_outputs();
     return;
   }
@@ -97,7 +106,7 @@ static void node_geo_exec(GeoNodeExecParams params)
       if (!reset_children) {
         transform.location() += float3(child_collection->instance_offset);
         if (use_relative_transform) {
-          transform = float4x4(self_object->world_to_object) * transform;
+          transform = self_object->world_to_object() * transform;
         }
         else {
           transform.location() -= float3(collection->instance_offset);
@@ -111,12 +120,12 @@ static void node_geo_exec(GeoNodeExecParams params)
       float4x4 transform = float4x4::identity();
       if (!reset_children) {
         if (use_relative_transform) {
-          transform = float4x4(self_object->world_to_object);
+          transform = self_object->world_to_object();
         }
         else {
           transform.location() -= float3(collection->instance_offset);
         }
-        transform *= float4x4(child_object->object_to_world);
+        transform *= child_object->object_to_world();
       }
       entries.append({handle, &(child_object->id.name[2]), transform});
     }
@@ -134,7 +143,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     float4x4 transform = float4x4::identity();
     if (use_relative_transform) {
       transform.location() = collection->instance_offset;
-      transform = float4x4_view(self_object->world_to_object) * transform;
+      transform = self_object->world_to_object() * transform;
     }
 
     const int handle = instances->add_reference(*collection);
@@ -174,18 +183,18 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, GEO_NODE_COLLECTION_INFO, "Collection Info", NODE_CLASS_INPUT);
   ntype.declare = node_declare;
   ntype.initfunc = node_node_init;
-  node_type_storage(&ntype,
-                    "NodeGeometryCollectionInfo",
-                    node_free_standard_storage,
-                    node_copy_standard_storage);
+  blender::bke::node_type_storage(&ntype,
+                                  "NodeGeometryCollectionInfo",
+                                  node_free_standard_storage,
+                                  node_copy_standard_storage);
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

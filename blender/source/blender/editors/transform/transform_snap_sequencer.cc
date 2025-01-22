@@ -10,10 +10,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
-
-#include "BKE_context.hh"
-
 #include "DNA_sequence_types.h"
 
 #include "ED_screen.hh"
@@ -69,10 +65,10 @@ static bool seq_snap_source_points_build(const Scene *scene,
   int i = 0;
   for (Sequence *seq : snap_sources) {
     int left = 0, right = 0;
-    if (seq->flag & SEQ_LEFTSEL) {
+    if (seq->flag & SEQ_LEFTSEL && !(seq->flag & SEQ_RIGHTSEL)) {
       left = right = SEQ_time_left_handle_frame_get(scene, seq);
     }
-    else if (seq->flag & SEQ_RIGHTSEL) {
+    else if (seq->flag & SEQ_RIGHTSEL && !(seq->flag & SEQ_LEFTSEL)) {
       left = right = SEQ_time_right_handle_frame_get(scene, seq);
     }
     else {
@@ -156,7 +152,8 @@ static blender::VectorSet<Sequence *> query_snap_targets(Scene *scene,
   return snap_targets;
 }
 
-static int seq_get_snap_target_points_count(short snap_mode,
+static int seq_get_snap_target_points_count(const Scene *scene,
+                                            short snap_mode,
                                             blender::Span<Sequence *> snap_targets)
 {
   int count = 2; /* Strip start and end are always used. */
@@ -171,6 +168,10 @@ static int seq_get_snap_target_points_count(short snap_mode,
     count++;
   }
 
+  if (snap_mode & SEQ_SNAP_TO_MARKERS) {
+    count += BLI_listbase_count(&scene->markers);
+  }
+
   return count;
 }
 
@@ -179,7 +180,8 @@ static bool seq_snap_target_points_build(Scene *scene,
                                          TransSeqSnapData *snap_data,
                                          blender::Span<Sequence *> snap_targets)
 {
-  const size_t point_count_target = seq_get_snap_target_points_count(snap_mode, snap_targets);
+  const size_t point_count_target = seq_get_snap_target_points_count(
+      scene, snap_mode, snap_targets);
   if (point_count_target == 0) {
     return false;
   }
@@ -192,16 +194,22 @@ static bool seq_snap_target_points_build(Scene *scene,
     i++;
   }
 
+  if (snap_mode & SEQ_SNAP_TO_MARKERS) {
+    LISTBASE_FOREACH (TimeMarker *, marker, &scene->markers) {
+      snap_data->target_snap_points[i] = marker->frame;
+      i++;
+    }
+  }
+
   for (Sequence *seq : snap_targets) {
     snap_data->target_snap_points[i] = SEQ_time_left_handle_frame_get(scene, seq);
     snap_data->target_snap_points[i + 1] = SEQ_time_right_handle_frame_get(scene, seq);
     i += 2;
 
     if (snap_mode & SEQ_SNAP_TO_STRIP_HOLD) {
-      int content_start = min_ii(SEQ_time_left_handle_frame_get(scene, seq),
-                                 SEQ_time_start_frame_get(seq));
-      int content_end = max_ii(SEQ_time_right_handle_frame_get(scene, seq),
-                               SEQ_time_content_end_frame_get(scene, seq));
+      int content_start = SEQ_time_start_frame_get(seq);
+      int content_end = SEQ_time_content_end_frame_get(scene, seq);
+
       /* Effects and single image strips produce incorrect content length. Skip these strips. */
       if ((seq->type & SEQ_TYPE_EFFECT) != 0 || seq->len == 1) {
         content_start = SEQ_time_left_handle_frame_get(scene, seq);
@@ -289,10 +297,9 @@ bool transform_snap_sequencer_calc(TransInfo *t)
 
   int best_dist = MAXFRAME, best_target_frame = 0, best_source_frame = 0;
 
-  for (int frame_src : snap_data->source_snap_points) {
-    int snap_source_frame = frame_src + round_fl_to_int(t->values[0]);
+  for (int snap_source_frame : snap_data->source_snap_points) {
     for (int snap_target_frame : snap_data->target_snap_points) {
-      int dist = abs(snap_target_frame - snap_source_frame);
+      int dist = abs(snap_target_frame - (snap_source_frame + round_fl_to_int(t->values[0])));
       if (dist > best_dist) {
         continue;
       }
@@ -314,7 +321,7 @@ bool transform_snap_sequencer_calc(TransInfo *t)
 
 void transform_snap_sequencer_apply_translate(TransInfo *t, float *vec)
 {
-  *vec += t->tsnap.snap_target[0] - t->tsnap.snap_source[0];
+  *vec = t->tsnap.snap_target[0] - t->tsnap.snap_source[0];
 }
 
 static int transform_snap_sequencer_to_closest_strip_ex(TransInfo *t, int frame_1, int frame_2)

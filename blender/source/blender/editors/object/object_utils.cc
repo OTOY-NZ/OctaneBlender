@@ -11,10 +11,8 @@
 
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
-#include "DNA_collection_types.h"
 #include "DNA_meta_types.h"
 #include "DNA_object_types.h"
-#include "DNA_scene_types.h"
 
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
@@ -27,24 +25,22 @@
 #include "BKE_lattice.hh"
 #include "BKE_layer.hh"
 #include "BKE_object.hh"
-#include "BKE_scene.h"
+#include "BKE_scene.hh"
 
 #include "DEG_depsgraph_query.hh"
-
-#include "WM_types.hh"
 
 #include "ED_curve.hh"
 #include "ED_object.hh" /* own include */
 
 #include "MEM_guardedalloc.h"
 
+namespace blender::ed::object {
+
 /* -------------------------------------------------------------------- */
 /** \name Active Element Center
  * \{ */
 
-bool ED_object_calc_active_center_for_editmode(Object *obedit,
-                                               const bool select_only,
-                                               float r_center[3])
+bool calc_active_center_for_editmode(Object *obedit, const bool select_only, float r_center[3])
 {
   switch (obedit->type) {
     case OB_MESH: {
@@ -101,9 +97,7 @@ bool ED_object_calc_active_center_for_editmode(Object *obedit,
   return false;
 }
 
-bool ED_object_calc_active_center_for_posemode(Object *ob,
-                                               const bool select_only,
-                                               float r_center[3])
+bool calc_active_center_for_posemode(Object *ob, const bool select_only, float r_center[3])
 {
   bPoseChannel *pchan = BKE_pose_channel_active_if_bonecoll_visible(ob);
   if (pchan && (!select_only || (pchan->bone->flag & BONE_SELECTED))) {
@@ -113,24 +107,24 @@ bool ED_object_calc_active_center_for_posemode(Object *ob,
   return false;
 }
 
-bool ED_object_calc_active_center(Object *ob, const bool select_only, float r_center[3])
+bool calc_active_center(Object *ob, const bool select_only, float r_center[3])
 {
   if (ob->mode & OB_MODE_EDIT) {
-    if (ED_object_calc_active_center_for_editmode(ob, select_only, r_center)) {
-      mul_m4_v3(ob->object_to_world, r_center);
+    if (calc_active_center_for_editmode(ob, select_only, r_center)) {
+      mul_m4_v3(ob->object_to_world().ptr(), r_center);
       return true;
     }
     return false;
   }
   if (ob->mode & OB_MODE_POSE) {
-    if (ED_object_calc_active_center_for_posemode(ob, select_only, r_center)) {
-      mul_m4_v3(ob->object_to_world, r_center);
+    if (calc_active_center_for_posemode(ob, select_only, r_center)) {
+      mul_m4_v3(ob->object_to_world().ptr(), r_center);
       return true;
     }
     return false;
   }
   if (!select_only || (ob->base_flag & BASE_SELECTED)) {
-    copy_v3_v3(r_center, ob->object_to_world[3]);
+    copy_v3_v3(r_center, ob->object_to_world().location());
     return true;
   }
   return false;
@@ -162,7 +156,7 @@ struct XFormObjectSkipChild {
   int mode;
 };
 
-XFormObjectSkipChild_Container *ED_object_xform_skip_child_container_create()
+XFormObjectSkipChild_Container *xform_skip_child_container_create()
 {
   XFormObjectSkipChild_Container *xcs = static_cast<XFormObjectSkipChild_Container *>(
       MEM_callocN(sizeof(*xcs), __func__));
@@ -172,12 +166,11 @@ XFormObjectSkipChild_Container *ED_object_xform_skip_child_container_create()
   return xcs;
 }
 
-void ED_object_xform_skip_child_container_item_ensure_from_array(
-    XFormObjectSkipChild_Container *xcs,
-    const Scene *scene,
-    ViewLayer *view_layer,
-    Object **objects,
-    uint objects_len)
+void xform_skip_child_container_item_ensure_from_array(XFormObjectSkipChild_Container *xcs,
+                                                       const Scene *scene,
+                                                       ViewLayer *view_layer,
+                                                       Object **objects,
+                                                       uint objects_len)
 {
   GSet *objects_in_transdata = BLI_gset_ptr_new_ex(__func__, objects_len);
   for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
@@ -191,7 +184,7 @@ void ED_object_xform_skip_child_container_item_ensure_from_array(
     if (ob->parent != nullptr) {
       if (!BLI_gset_haskey(objects_in_transdata, ob)) {
         if (BLI_gset_haskey(objects_in_transdata, ob->parent)) {
-          ED_object_xform_skip_child_container_item_ensure(
+          object_xform_skip_child_container_item_ensure(
               xcs, ob, nullptr, XFORM_OB_SKIP_CHILD_PARENT_IS_XFORM);
         }
       }
@@ -207,7 +200,7 @@ void ED_object_xform_skip_child_container_item_ensure_from_array(
             }
 
             if (ob_parent_recurse) {
-              ED_object_xform_skip_child_container_item_ensure(
+              object_xform_skip_child_container_item_ensure(
                   xcs, ob, ob_parent_recurse, XFORM_OB_SKIP_CHILD_PARENT_APPLY);
             }
           }
@@ -225,7 +218,7 @@ void ED_object_xform_skip_child_container_item_ensure_from_array(
     else if (ob->parent != nullptr) {
       if (BLI_gset_haskey(objects_in_transdata, ob->parent)) {
         if (!BLI_gset_haskey(objects_in_transdata, ob)) {
-          ED_object_xform_skip_child_container_item_ensure(
+          object_xform_skip_child_container_item_ensure(
               xcs, ob, nullptr, XFORM_OB_SKIP_CHILD_PARENT_IS_XFORM);
         }
       }
@@ -234,27 +227,27 @@ void ED_object_xform_skip_child_container_item_ensure_from_array(
   BLI_gset_free(objects_in_transdata, nullptr);
 }
 
-void ED_object_xform_skip_child_container_destroy(XFormObjectSkipChild_Container *xcs)
+void object_xform_skip_child_container_destroy(XFormObjectSkipChild_Container *xcs)
 {
   BLI_ghash_free(xcs->obchild_in_obmode_map, nullptr, MEM_freeN);
   MEM_freeN(xcs);
 }
 
-void ED_object_xform_skip_child_container_item_ensure(XFormObjectSkipChild_Container *xcs,
-                                                      Object *ob,
-                                                      Object *ob_parent_recurse,
-                                                      int mode)
+void object_xform_skip_child_container_item_ensure(XFormObjectSkipChild_Container *xcs,
+                                                   Object *ob,
+                                                   Object *ob_parent_recurse,
+                                                   int mode)
 {
   void **xf_p;
   if (!BLI_ghash_ensure_p(xcs->obchild_in_obmode_map, ob, &xf_p)) {
     XFormObjectSkipChild *xf = static_cast<XFormObjectSkipChild *>(
         MEM_mallocN(sizeof(*xf), __func__));
     copy_m4_m4(xf->parentinv_orig, ob->parentinv);
-    copy_m4_m4(xf->obmat_orig, ob->object_to_world);
-    copy_m4_m4(xf->parent_obmat_orig, ob->parent->object_to_world);
-    invert_m4_m4(xf->parent_obmat_inv_orig, ob->parent->object_to_world);
+    copy_m4_m4(xf->obmat_orig, ob->object_to_world().ptr());
+    copy_m4_m4(xf->parent_obmat_orig, ob->parent->object_to_world().ptr());
+    invert_m4_m4(xf->parent_obmat_inv_orig, ob->parent->object_to_world().ptr());
     if (ob_parent_recurse) {
-      copy_m4_m4(xf->parent_recurse_obmat_orig, ob_parent_recurse->object_to_world);
+      copy_m4_m4(xf->parent_recurse_obmat_orig, ob_parent_recurse->object_to_world().ptr());
     }
     xf->mode = mode;
     xf->ob_parent_recurse = ob_parent_recurse;
@@ -262,9 +255,9 @@ void ED_object_xform_skip_child_container_item_ensure(XFormObjectSkipChild_Conta
   }
 }
 
-void ED_object_xform_skip_child_container_update_all(XFormObjectSkipChild_Container *xcs,
-                                                     Main *bmain,
-                                                     Depsgraph *depsgraph)
+void object_xform_skip_child_container_update_all(XFormObjectSkipChild_Container *xcs,
+                                                  Main *bmain,
+                                                  Depsgraph *depsgraph)
 {
   BKE_scene_graph_evaluated_ensure(depsgraph, bmain);
 
@@ -280,14 +273,14 @@ void ED_object_xform_skip_child_container_update_all(XFormObjectSkipChild_Contai
     if (xf->mode == XFORM_OB_SKIP_CHILD_PARENT_IS_XFORM) {
       /* Parent is transformed, this isn't so compensate. */
       Object *ob_parent_eval = DEG_get_evaluated_object(depsgraph, ob->parent);
-      mul_m4_m4m4(dmat, xf->parent_obmat_inv_orig, ob_parent_eval->object_to_world);
+      mul_m4_m4m4(dmat, xf->parent_obmat_inv_orig, ob_parent_eval->object_to_world().ptr());
       invert_m4(dmat);
     }
     else if (xf->mode == XFORM_OB_SKIP_CHILD_PARENT_IS_XFORM_INDIRECT) {
       /* Calculate parent matrix (from the root transform). */
       Object *ob_parent_recurse_eval = DEG_get_evaluated_object(depsgraph, xf->ob_parent_recurse);
       float parent_recurse_obmat_inv[4][4];
-      invert_m4_m4(parent_recurse_obmat_inv, ob_parent_recurse_eval->object_to_world);
+      invert_m4_m4(parent_recurse_obmat_inv, ob_parent_recurse_eval->object_to_world().ptr());
       mul_m4_m4m4(dmat, xf->parent_recurse_obmat_orig, parent_recurse_obmat_inv);
       invert_m4(dmat);
       float parent_obmat_calc[4][4];
@@ -302,7 +295,7 @@ void ED_object_xform_skip_child_container_update_all(XFormObjectSkipChild_Contai
       /* Transform this - without transform data. */
       Object *ob_parent_recurse_eval = DEG_get_evaluated_object(depsgraph, xf->ob_parent_recurse);
       float parent_recurse_obmat_inv[4][4];
-      invert_m4_m4(parent_recurse_obmat_inv, ob_parent_recurse_eval->object_to_world);
+      invert_m4_m4(parent_recurse_obmat_inv, ob_parent_recurse_eval->object_to_world().ptr());
       mul_m4_m4m4(dmat, xf->parent_recurse_obmat_orig, parent_recurse_obmat_inv);
       invert_m4(dmat);
       float obmat_calc[4][4];
@@ -347,7 +340,7 @@ struct XFormObjectData_Extra {
   XFormObjectData *xod;
 };
 
-void ED_object_data_xform_container_item_ensure(XFormObjectData_Container *xds, Object *ob)
+void data_xform_container_item_ensure(XFormObjectData_Container *xds, Object *ob)
 {
   if (xds->obdata_in_obmode_map == nullptr) {
     xds->obdata_in_obmode_map = BLI_ghash_ptr_new(__func__);
@@ -357,17 +350,17 @@ void ED_object_data_xform_container_item_ensure(XFormObjectData_Container *xds, 
   if (!BLI_ghash_ensure_p(xds->obdata_in_obmode_map, ob->data, &xf_p)) {
     XFormObjectData_Extra *xf = static_cast<XFormObjectData_Extra *>(
         MEM_mallocN(sizeof(*xf), __func__));
-    copy_m4_m4(xf->obmat_orig, ob->object_to_world);
+    copy_m4_m4(xf->obmat_orig, ob->object_to_world().ptr());
     xf->ob = ob;
     /* Result may be nullptr, that's OK. */
-    xf->xod = ED_object_data_xform_create(static_cast<ID *>(ob->data));
+    xf->xod = data_xform_create(static_cast<ID *>(ob->data));
     *xf_p = xf;
   }
 }
 
-void ED_object_data_xform_container_update_all(XFormObjectData_Container *xds,
-                                               Main *bmain,
-                                               Depsgraph *depsgraph)
+void data_xform_container_update_all(XFormObjectData_Container *xds,
+                                     Main *bmain,
+                                     Depsgraph *depsgraph)
 {
   if (xds->obdata_in_obmode_map == nullptr) {
     return;
@@ -386,10 +379,10 @@ void ED_object_data_xform_container_update_all(XFormObjectData_Container *xds,
     Object *ob_eval = DEG_get_evaluated_object(depsgraph, xf->ob);
     float imat[4][4], dmat[4][4];
     invert_m4_m4(imat, xf->obmat_orig);
-    mul_m4_m4m4(dmat, imat, ob_eval->object_to_world);
+    mul_m4_m4m4(dmat, imat, ob_eval->object_to_world().ptr());
     invert_m4(dmat);
 
-    ED_object_data_xform_by_mat4(xf->xod, dmat);
+    data_xform_by_mat4(xf->xod, dmat);
     if (xf->ob->type == OB_ARMATURE) {
       /* TODO: none of the current flags properly update armatures, needs investigation. */
       DEG_id_tag_update(id, 0);
@@ -405,12 +398,12 @@ static void trans_obdata_in_obmode_free_elem(void *xf_p)
 {
   XFormObjectData_Extra *xf = static_cast<XFormObjectData_Extra *>(xf_p);
   if (xf->xod) {
-    ED_object_data_xform_destroy(xf->xod);
+    data_xform_destroy(xf->xod);
   }
   MEM_freeN(xf);
 }
 
-XFormObjectData_Container *ED_object_data_xform_container_create()
+XFormObjectData_Container *data_xform_container_create()
 {
   XFormObjectData_Container *xds = static_cast<XFormObjectData_Container *>(
       MEM_callocN(sizeof(*xds), __func__));
@@ -418,7 +411,7 @@ XFormObjectData_Container *ED_object_data_xform_container_create()
   return xds;
 }
 
-void ED_object_data_xform_container_destroy(XFormObjectData_Container *xds)
+void data_xform_container_destroy(XFormObjectData_Container *xds)
 {
   BLI_ghash_free(xds->obdata_in_obmode_map, nullptr, trans_obdata_in_obmode_free_elem);
   MEM_freeN(xds);
@@ -443,7 +436,7 @@ static bool object_parent_in_set(GSet *objects_set, Object *ob)
   return false;
 }
 
-void ED_object_xform_array_m4(Object **objects, uint objects_len, const float matrix[4][4])
+void object_xform_array_m4(Object **objects, uint objects_len, const float matrix[4][4])
 {
   /* Filter out objects that have parents in `objects_set`. */
   {
@@ -492,3 +485,5 @@ void ED_object_xform_array_m4(Object **objects, uint objects_len, const float ma
 }
 
 /** \} */
+
+}  // namespace blender::ed::object

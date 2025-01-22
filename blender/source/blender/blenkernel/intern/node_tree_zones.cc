@@ -12,8 +12,6 @@
 #include "BLI_bit_span_ops.hh"
 #include "BLI_set.hh"
 #include "BLI_struct_equality_utils.hh"
-#include "BLI_task.hh"
-#include "BLI_timeit.hh"
 
 namespace blender::bke {
 
@@ -191,6 +189,7 @@ static bool update_zone_per_node(const Span<const bNode *> all_nodes,
 
 static void update_zone_border_links(const bNodeTree &tree, bNodeTreeZones &tree_zones)
 {
+  tree.ensure_topology_cache();
   for (const bNodeLink *link : tree.all_links()) {
     if (!link->is_available()) {
       continue;
@@ -198,7 +197,7 @@ static void update_zone_border_links(const bNodeTree &tree, bNodeTreeZones &tree
     if (link->is_muted()) {
       continue;
     }
-    if (bke::nodeIsDanglingReroute(&tree, link->fromnode)) {
+    if (link->fromnode->is_dangling_reroute()) {
       continue;
     }
     bNodeTreeZone *from_zone = const_cast<bNodeTreeZone *>(

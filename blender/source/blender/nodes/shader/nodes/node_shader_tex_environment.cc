@@ -142,10 +142,10 @@ NODE_SHADER_MATERIALX_BEGIN
   NodeTexEnvironment *tex_env = static_cast<NodeTexEnvironment *>(node_->storage);
 
   std::string image_path = image->id.name;
-  if (export_image_fn_) {
+  if (export_params_.image_fn) {
     Scene *scene = DEG_get_input_scene(depsgraph_);
     Main *bmain = DEG_get_bmain(depsgraph_);
-    image_path = export_image_fn_(bmain, scene, image, &tex_env->iuser);
+    image_path = export_params_.image_fn(bmain, scene, image, &tex_env->iuser);
   }
 
   NodeItem vector = get_input_link("Vector", NodeItem::Type::Vector2);
@@ -187,17 +187,17 @@ void register_node_type_sh_tex_environment()
 {
   namespace file_ns = blender::nodes::node_shader_tex_environment_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   sh_node_type_base(&ntype, SH_NODE_TEX_ENVIRONMENT, "Environment Texture", NODE_CLASS_TEXTURE);
   ntype.declare = file_ns::node_declare;
   ntype.initfunc = file_ns::node_shader_init_tex_environment;
-  node_type_storage(
+  blender::bke::node_type_storage(
       &ntype, "NodeTexEnvironment", node_free_standard_storage, node_copy_standard_storage);
   ntype.gpu_fn = file_ns::node_shader_gpu_tex_environment;
   ntype.labelfunc = node_image_label;
-  blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::LARGE);
+  blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Large);
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 }

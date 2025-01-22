@@ -13,25 +13,21 @@
 #include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_defaults.h"
 #include "DNA_gpencil_legacy_types.h"
 #include "DNA_gpencil_modifier_types.h"
-#include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_context.hh"
 #include "BKE_deform.hh"
 #include "BKE_gpencil_geom_legacy.h"
 #include "BKE_gpencil_modifier_legacy.h"
 #include "BKE_lib_query.hh"
-#include "BKE_main.hh"
 #include "BKE_modifier.hh"
-#include "BKE_scene.h"
-#include "BKE_screen.hh"
+#include "BKE_scene.hh"
 #include "BKE_shrinkwrap.hh"
 
 #include "MEM_guardedalloc.h"
@@ -41,7 +37,6 @@
 
 #include "RNA_access.hh"
 
-#include "MOD_gpencil_legacy_modifiertypes.h"
 #include "MOD_gpencil_legacy_ui_common.h"
 #include "MOD_gpencil_legacy_util.h"
 
@@ -144,12 +139,12 @@ static void bake_modifier(Main * /*bmain*/,
       /* Recalculate shrinkwrap data. */
       if (mmd->cache_data) {
         BKE_shrinkwrap_free_tree(mmd->cache_data);
-        MEM_SAFE_FREE(mmd->cache_data);
+        MEM_delete(mmd->cache_data);
+        mmd->cache_data = nullptr;
       }
       Object *ob_target = DEG_get_evaluated_object(depsgraph, mmd->target);
       Mesh *target = BKE_modifier_get_evaluated_mesh_from_evaluated_object(ob_target);
-      mmd->cache_data = static_cast<ShrinkwrapTreeData *>(
-          MEM_callocN(sizeof(ShrinkwrapTreeData), __func__));
+      mmd->cache_data = MEM_new<ShrinkwrapTreeData>(__func__);
       if (BKE_shrinkwrap_init_tree(
               mmd->cache_data, target, mmd->shrink_type, mmd->shrink_mode, false))
       {
@@ -162,7 +157,8 @@ static void bake_modifier(Main * /*bmain*/,
       /* Free data. */
       if (mmd->cache_data) {
         BKE_shrinkwrap_free_tree(mmd->cache_data);
-        MEM_SAFE_FREE(mmd->cache_data);
+        MEM_delete(mmd->cache_data);
+        mmd->cache_data = nullptr;
       }
     }
   }
@@ -177,7 +173,7 @@ static void free_data(GpencilModifierData *md)
   ShrinkwrapGpencilModifierData *mmd = (ShrinkwrapGpencilModifierData *)md;
   if (mmd->cache_data) {
     BKE_shrinkwrap_free_tree(mmd->cache_data);
-    MEM_SAFE_FREE(mmd->cache_data);
+    MEM_delete(mmd->cache_data);
   }
 }
 

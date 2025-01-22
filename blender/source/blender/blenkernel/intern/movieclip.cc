@@ -9,6 +9,7 @@
 #include <cstdio>
 #include <cstring>
 #include <fcntl.h>
+#include <optional>
 
 #ifndef WIN32
 #  include <unistd.h>
@@ -25,7 +26,6 @@
 
 #include "DNA_defaults.h"
 
-#include "DNA_constraint_types.h"
 #include "DNA_gpencil_legacy_types.h"
 #include "DNA_movieclip_types.h"
 #include "DNA_node_types.h"
@@ -42,19 +42,16 @@
 #include "BLI_math_vector.h"
 #include "BLI_threads.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "BKE_anim_data.h"
-#include "BKE_bpath.h"
+#include "BKE_bpath.hh"
 #include "BKE_colortools.hh"
-#include "BKE_global.h"
 #include "BKE_idtype.hh"
 #include "BKE_image.h" /* openanim */
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_main.hh"
 #include "BKE_movieclip.h"
-#include "BKE_node.h"
 #include "BKE_node_tree_update.hh"
 #include "BKE_tracking.h"
 
@@ -68,11 +65,9 @@
 
 #include "DRW_engine.hh"
 
-#include "GPU_texture.h"
+#include "GPU_texture.hh"
 
 #include "BLO_read_write.hh"
-
-#include "tracking_private.h"
 
 static void free_buffers(MovieClip *clip);
 
@@ -87,12 +82,16 @@ static void movie_clip_init_data(ID *id)
   BKE_color_managed_colorspace_settings_init(&movie_clip->colorspace_settings);
 }
 
-static void movie_clip_copy_data(Main * /*bmain*/, ID *id_dst, const ID *id_src, const int flag)
+static void movie_clip_copy_data(Main * /*bmain*/,
+                                 std::optional<Library *> /*owner_library*/,
+                                 ID *id_dst,
+                                 const ID *id_src,
+                                 const int flag)
 {
   MovieClip *movie_clip_dst = (MovieClip *)id_dst;
   const MovieClip *movie_clip_src = (const MovieClip *)id_src;
 
-  /* We never handle user-count here for own data. */
+  /* We never handle user-count here for owned data. */
   const int flag_subdata = flag | LIB_ID_CREATE_NO_USER_REFCOUNT;
 
   movie_clip_dst->anim = nullptr;
@@ -217,29 +216,31 @@ static void movieclip_blend_write(BlendWriter *writer, ID *id, const void *id_ad
 static void direct_link_movieReconstruction(BlendDataReader *reader,
                                             MovieTrackingReconstruction *reconstruction)
 {
-  BLO_read_data_address(reader, &reconstruction->cameras);
+  BLO_read_struct_array(
+      reader, MovieReconstructedCamera, reconstruction->camnr, &reconstruction->cameras);
 }
 
 static void direct_link_movieTracks(BlendDataReader *reader, ListBase *tracksbase)
 {
-  BLO_read_list(reader, tracksbase);
+  BLO_read_struct_list(reader, MovieTrackingTrack, tracksbase);
 
   LISTBASE_FOREACH (MovieTrackingTrack *, track, tracksbase) {
-    BLO_read_data_address(reader, &track->markers);
+    BLO_read_struct_array(reader, MovieTrackingMarker, track->markersnr, &track->markers);
   }
 }
 
 static void direct_link_moviePlaneTracks(BlendDataReader *reader, ListBase *plane_tracks_base)
 {
-  BLO_read_list(reader, plane_tracks_base);
+  BLO_read_struct_list(reader, MovieTrackingPlaneTrack, plane_tracks_base);
 
   LISTBASE_FOREACH (MovieTrackingPlaneTrack *, plane_track, plane_tracks_base) {
     BLO_read_pointer_array(reader, (void **)&plane_track->point_tracks);
     for (int i = 0; i < plane_track->point_tracksnr; i++) {
-      BLO_read_data_address(reader, &plane_track->point_tracks[i]);
+      BLO_read_struct(reader, MovieTrackingTrack, &plane_track->point_tracks[i]);
     }
 
-    BLO_read_data_address(reader, &plane_track->markers);
+    BLO_read_struct_array(
+        reader, MovieTrackingPlaneMarker, plane_track->markersnr, &plane_track->markers);
   }
 }
 
@@ -252,8 +253,8 @@ static void movieclip_blend_read_data(BlendDataReader *reader, ID *id)
   direct_link_moviePlaneTracks(reader, &tracking->plane_tracks_legacy);
   direct_link_movieReconstruction(reader, &tracking->reconstruction_legacy);
 
-  BLO_read_data_address(reader, &clip->tracking.act_track_legacy);
-  BLO_read_data_address(reader, &clip->tracking.act_plane_track_legacy);
+  BLO_read_struct(reader, MovieTrackingTrack, &clip->tracking.act_track_legacy);
+  BLO_read_struct(reader, MovieTrackingPlaneTrack, &clip->tracking.act_plane_track_legacy);
 
   clip->anim = nullptr;
   clip->tracking_context = nullptr;
@@ -264,27 +265,28 @@ static void movieclip_blend_read_data(BlendDataReader *reader, ID *id)
   BLI_listbase_clear(&clip->runtime.gputextures);
 
   /* Needed for proper versioning, will be nullptr for all newer files anyway. */
-  BLO_read_data_address(reader, &clip->tracking.stabilization.rot_track_legacy);
+  BLO_read_struct(reader, MovieTrackingTrack, &clip->tracking.stabilization.rot_track_legacy);
 
   clip->tracking.dopesheet.ok = 0;
   BLI_listbase_clear(&clip->tracking.dopesheet.channels);
   BLI_listbase_clear(&clip->tracking.dopesheet.coverage_segments);
 
-  BLO_read_list(reader, &tracking->objects);
+  BLO_read_struct_list(reader, MovieTrackingObject, &tracking->objects);
 
   LISTBASE_FOREACH (MovieTrackingObject *, object, &tracking->objects) {
     direct_link_movieTracks(reader, &object->tracks);
     direct_link_moviePlaneTracks(reader, &object->plane_tracks);
     direct_link_movieReconstruction(reader, &object->reconstruction);
 
-    BLO_read_data_address(reader, &object->active_track);
-    BLO_read_data_address(reader, &object->active_plane_track);
+    BLO_read_struct(reader, MovieTrackingTrack, &object->active_track);
+    BLO_read_struct(reader, MovieTrackingPlaneTrack, &object->active_plane_track);
   }
 }
 
 IDTypeInfo IDType_ID_MC = {
     /*id_code*/ ID_MC,
     /*id_filter*/ FILTER_ID_MC,
+    /*dependencies_id_types*/ FILTER_ID_GD_LEGACY | FILTER_ID_IM,
     /*main_listbase_index*/ INDEX_ID_MC,
     /*struct_size*/ sizeof(MovieClip),
     /*name*/ "MovieClip",
@@ -1804,7 +1806,7 @@ void BKE_movieclip_build_proxy_frame(MovieClip *clip,
                                      int clip_flag,
                                      MovieDistortion *distortion,
                                      int cfra,
-                                     int *build_sizes,
+                                     const int *build_sizes,
                                      int build_count,
                                      bool undistorted)
 {
@@ -1845,7 +1847,7 @@ void BKE_movieclip_build_proxy_frame_for_ibuf(MovieClip *clip,
                                               ImBuf *ibuf,
                                               MovieDistortion *distortion,
                                               int cfra,
-                                              int *build_sizes,
+                                              const int *build_sizes,
                                               int build_count,
                                               bool undistorted)
 {

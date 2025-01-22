@@ -32,7 +32,7 @@
 #include "BKE_node_runtime.hh"
 #include "BKE_texture.h"
 
-static bNodeSocketTemplate sh_node_in[] = {
+static blender::bke::bNodeSocketTemplate  sh_node_in[] = {
     {SOCK_SHADER,
      N_("Texture"),
      0.0f,
@@ -116,7 +116,7 @@ static bNodeSocketTemplate sh_node_in[] = {
      SOCK_HIDDEN | SOCK_UNAVAIL | SOCK_AUTO_HIDDEN__DEPRECATED},
     {-1, ""}};
 
-static bNodeSocketTemplate sh_node_out[] = {
+static blender::bke::bNodeSocketTemplate  sh_node_out[] = {
     {SOCK_SHADER, N_("OutDisplacement")},
     {SOCK_RGBA,
      N_("OutTex"),
@@ -140,7 +140,7 @@ static void node_type_tex_oct_displacement_init(bNodeTree *ntree, bNode *node)
 
 void register_node_type_tex_oct_displacement(void)
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   if (ntype.type != SH_NODE_OCT_DISPLACEMENT_TEX)
     sh_node_type_base(&ntype,
@@ -148,7 +148,7 @@ void register_node_type_tex_oct_displacement(void)
                    "Texture Displacement",
                    NODE_CLASS_OCT_TEXTURE);
   blender::bke::node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
-  node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::DEFAULT);
+  node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Default);
   ntype.initfunc = (node_type_tex_oct_displacement_init);
   // node_type_exec(&ntype, 0, 0, 0);
   ntype.updatefunc = node_octane_displacement_tex_conversion_update;

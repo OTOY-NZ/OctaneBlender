@@ -27,7 +27,7 @@
 
 #include "node_shader_util.hh"
 
-static bNodeSocketTemplate sh_node_in[] = {{SOCK_VECTOR,
+static blender::bke::bNodeSocketTemplate  sh_node_in[] = {{SOCK_VECTOR,
                                             N_("Value"),
                                             0.0f,
                                             0.0f,
@@ -39,7 +39,7 @@ static bNodeSocketTemplate sh_node_in[] = {{SOCK_VECTOR,
                                             SOCK_NO_INTERNAL_LINK},
                                            {-1, ""}};
 
-static bNodeSocketTemplate sh_node_out[] = {
+static blender::bke::bNodeSocketTemplate  sh_node_out[] = {
     {SOCK_VECTOR, N_("OutValue")},
     {SOCK_VECTOR,
      N_("OutTex"),
@@ -55,13 +55,13 @@ static bNodeSocketTemplate sh_node_out[] = {
 
 void register_node_type_val_oct_float(void)
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   if (ntype.type != SH_NODE_OCT_VALUE_FLOAT)
     sh_node_type_base(
         &ntype, SH_NODE_OCT_VALUE_FLOAT, "Float Value", NODE_CLASS_OCT_VALUE);
   blender::bke::node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
-  node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::DEFAULT);
+  node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Default);
   ntype.initfunc = (0);
   // node_type_exec(&ntype, 0, 0, 0);
   

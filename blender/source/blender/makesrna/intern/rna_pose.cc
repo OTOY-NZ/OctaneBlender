@@ -24,7 +24,7 @@
 #include "BLI_math_vector.h"
 #include "BLI_string_utf8_symbols.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "UI_resources.hh"
 
@@ -74,8 +74,8 @@ const EnumPropertyItem rna_enum_color_sets_items[] = {
 
 #  include "BKE_constraint.h"
 #  include "BKE_context.hh"
-#  include "BKE_global.h"
-#  include "BKE_idprop.h"
+#  include "BKE_global.hh"
+#  include "BKE_idprop.hh"
 
 #  include "DEG_depsgraph.hh"
 #  include "DEG_depsgraph_build.hh"
@@ -197,7 +197,7 @@ static void rna_Pose_ik_solver_update(Main *bmain, Scene * /*scene*/, PointerRNA
 
   BKE_pose_update_constraint_flags(pose);
 
-  object_test_constraints(bmain, ob);
+  blender::ed::object::object_test_constraints(bmain, ob);
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY | ID_RECALC_TRANSFORM);
 }
@@ -383,7 +383,7 @@ static bConstraint *rna_PoseChannel_constraints_new(ID *id,
   Object *ob = (Object *)id;
   bConstraint *new_con = BKE_constraint_add_for_pose(ob, pchan, nullptr, type);
 
-  ED_object_constraint_dependency_tag_update(main, ob, new_con);
+  blender::ed::object::constraint_dependency_tag_update(main, ob, new_con);
   WM_main_add_notifier(NC_OBJECT | ND_CONSTRAINT | NA_ADDED, id);
 
   return new_con;
@@ -405,7 +405,7 @@ static void rna_PoseChannel_constraints_remove(
   BKE_constraint_remove(&pchan->constraints, con);
   RNA_POINTER_INVALIDATE(con_ptr);
 
-  ED_object_constraint_update(bmain, ob);
+  blender::ed::object::constraint_update(bmain, ob);
 
   /* XXX(@ideasman42): is this really needed? */
   BKE_constraints_active_set(&pchan->constraints, nullptr);
@@ -431,7 +431,7 @@ static void rna_PoseChannel_constraints_move(
     return;
   }
 
-  ED_object_constraint_tag_update(bmain, ob, nullptr);
+  blender::ed::object::constraint_tag_update(bmain, ob, nullptr);
   WM_main_add_notifier(NC_OBJECT | ND_CONSTRAINT, ob);
 }
 
@@ -445,7 +445,7 @@ static bConstraint *rna_PoseChannel_constraints_copy(ID *id,
   bConstraint *new_con = BKE_constraint_copy_for_pose(ob, pchan, con);
   new_con->flag |= CONSTRAINT_OVERRIDE_LIBRARY_LOCAL;
 
-  ED_object_constraint_dependency_tag_update(bmain, ob, new_con);
+  blender::ed::object::constraint_dependency_tag_update(bmain, ob, new_con);
   WM_main_add_notifier(NC_OBJECT | ND_CONSTRAINT | NA_ADDED, id);
 
   return new_con;
@@ -459,8 +459,8 @@ bool rna_PoseChannel_constraints_override_apply(Main *bmain,
   PropertyRNA *prop_dst = rnaapply_ctx.prop_dst;
   IDOverrideLibraryPropertyOperation *opop = rnaapply_ctx.liboverride_operation;
 
-  BLI_assert(opop->operation == LIBOVERRIDE_OP_INSERT_AFTER &&
-             "Unsupported RNA override operation on constraints collection");
+  BLI_assert_msg(opop->operation == LIBOVERRIDE_OP_INSERT_AFTER,
+                 "Unsupported RNA override operation on constraints collection");
 
   bPoseChannel *pchan_dst = (bPoseChannel *)ptr_dst->data;
   bPoseChannel *pchan_src = (bPoseChannel *)ptr_src->data;
@@ -597,7 +597,7 @@ static int rna_PoseChannel_rotation_4d_editable(const PointerRNA *ptr, int index
 }
 
 /* not essential, but much faster than the default lookup function */
-static int rna_PoseBones_lookup_string(PointerRNA *ptr, const char *key, PointerRNA *r_ptr)
+static bool rna_PoseBones_lookup_string(PointerRNA *ptr, const char *key, PointerRNA *r_ptr)
 {
   bPose *pose = (bPose *)ptr->data;
   bPoseChannel *pchan = BKE_pose_channel_find_name(pose, key);
@@ -1160,6 +1160,15 @@ static void rna_def_pose_channel(BlenderRNA *brna)
   RNA_def_property_editable_func(prop, "rna_PoseChannel_proxy_editable");
   RNA_def_property_pointer_funcs(
       prop, nullptr, "rna_PoseChannel_custom_shape_transform_set", nullptr, nullptr);
+  RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
+
+  prop = RNA_def_property(srna, "custom_shape_wire_width", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "custom_shape_wire_width");
+  RNA_def_property_ui_text(prop, "Wire Width", "Adjust the line thickness of custom shapes");
+  /* When changing the upper limit of the range, also adjust the WIRE_WIDTH_COMPRESSION in
+   * overlay_shader_shared.h */
+  RNA_def_property_range(prop, 1.0f, 16.0f);
+  RNA_def_property_ui_range(prop, 1.0f, 10.0f, 1, 1);
   RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
 
   prop = RNA_def_property(srna, "color", PROP_POINTER, PROP_NONE);

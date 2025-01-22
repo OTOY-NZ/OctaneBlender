@@ -11,7 +11,7 @@
 
 #include "DNA_userdef_types.h" /* For `U.glreslimit`. */
 
-#include "GPU_capabilities.h"
+#include "GPU_capabilities.hh"
 
 #include "gpu_context_private.hh"
 
@@ -71,6 +71,11 @@ int GPU_max_textures()
   return GCaps.max_textures;
 }
 
+int GPU_max_images()
+{
+  return GCaps.max_images;
+}
+
 int GPU_max_work_group_count(int index)
 {
   return GCaps.max_work_group_count[index];
@@ -126,6 +131,11 @@ int GPU_max_samplers()
   return GCaps.max_samplers;
 }
 
+bool GPU_use_parallel_compilation()
+{
+  return GCaps.max_parallel_compilations > 0;
+}
+
 bool GPU_mip_render_workaround()
 {
   return GCaps.mip_render_workaround;
@@ -155,11 +165,6 @@ bool GPU_use_hq_normals_workaround()
 bool GPU_clear_viewport_workaround()
 {
   return GCaps.clear_viewport_workaround;
-}
-
-bool GPU_compute_shader_support()
-{
-  return GCaps.compute_shader_support;
 }
 
 bool GPU_geometry_shader_support()
@@ -231,6 +236,18 @@ void GPU_mem_stats_get(int *r_totalmem, int *r_freemem)
 bool GPU_stereo_quadbuffer_support()
 {
   return Context::get()->front_right != nullptr;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Creator arguments overrides
+ * \{ */
+
+void GPU_compilation_subprocess_override_set(int count)
+{
+  BLI_assert(GCaps.max_parallel_compilations == -1);
+  GCaps.max_parallel_compilations = count;
 }
 
 /** \} */

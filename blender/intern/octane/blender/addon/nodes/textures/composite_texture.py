@@ -56,10 +56,10 @@ class OctaneCompositeTexture(bpy.types.Node, OctaneBaseNode):
         ("Latest (2023.1)", "Latest (2023.1)", """(null)""", 13000001),
         ("2022.1 compatibility mode", "2022.1 compatibility mode", """The background color is gray (0.7) instead of black if the bottom layer is disconnected. The "Texture" layer inputs are clamped in addition to the blend results if "Clamp" is enabled.""", 0),
     ]
-    a_compatibility_version_enum: EnumProperty(name="Compatibility version", default="Latest (2023.1)", update=OctaneBaseNode.update_compatibility_mode, description="The Octane version that the behavior of this node should match", items=compatibility_mode_infos)
+    a_compatibility_version_enum: EnumProperty(name="Compatibility version", default="Latest (2023.1)", update=OctaneBaseNode.update_compatibility_mode_to_int, description="The Octane version that the behavior of this node should match", items=compatibility_mode_infos)
 
     a_layer_count: IntProperty(name="Layer count", default=0, update=OctaneBaseNode.update_node_tree, description="The number of layer pins. Changing this value and evaluating the node will update the number of layer pins. New pins will be added to the front of the dynamic pin list")
-    a_compatibility_version: IntProperty(name="Compatibility version", default=14000005, update=OctaneBaseNode.update_node_tree, description="The Octane version that the behavior of this node should match")
+    a_compatibility_version: IntProperty(name="Compatibility version", default=14000007, update=OctaneBaseNode.update_compatibility_mode_to_enum, description="The Octane version that the behavior of this node should match")
 
     def init(self, context):  # noqa
         self.inputs.new("OctaneCompositeTextureClamp", OctaneCompositeTextureClamp.bl_label).init()

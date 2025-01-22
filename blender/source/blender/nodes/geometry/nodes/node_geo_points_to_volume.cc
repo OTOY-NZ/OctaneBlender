@@ -69,27 +69,13 @@ static float compute_voxel_size_from_amount(const float voxel_amount,
   return voxel_size;
 }
 
-static void convert_to_grid_index_space(const float voxel_size,
-                                        MutableSpan<float3> positions,
-                                        MutableSpan<float> radii)
-{
-  const float voxel_size_inv = 1.0f / voxel_size;
-  for (const int i : positions.index_range()) {
-    positions[i] *= voxel_size_inv;
-    /* Better align generated grid with source points. */
-    positions[i] -= float3(0.5f);
-    radii[i] *= voxel_size_inv;
-  }
-}
-
 /**
  * Initializes the VolumeComponent of a GeometrySet with a new Volume from points.
  * The grid class should be either openvdb::GRID_FOG_VOLUME or openvdb::GRID_LEVEL_SET.
  */
 static void initialize_volume_component_from_points(GeoNodeExecParams &params,
                                                     const NodeGeometryPointsToVolume &storage,
-                                                    GeometrySet &r_geometry_set,
-                                                    openvdb::GridClass gridClass)
+                                                    GeometrySet &r_geometry_set)
 {
   Vector<float3> positions;
   Vector<float> radii;
@@ -129,17 +115,10 @@ static void initialize_volume_component_from_points(GeoNodeExecParams &params,
 
   Volume *volume = reinterpret_cast<Volume *>(BKE_id_new_nomain(ID_VO, nullptr));
 
-  convert_to_grid_index_space(voxel_size, positions, radii);
+  const float density = params.get_input<float>("Density");
+  blender::geometry::fog_volume_grid_add_from_points(
+      volume, "density", positions, radii, voxel_size, density);
 
-  if (gridClass == openvdb::GRID_FOG_VOLUME) {
-    const float density = params.get_input<float>("Density");
-    blender::geometry::fog_volume_grid_add_from_points(
-        volume, "density", positions, radii, voxel_size, density);
-  }
-  else if (gridClass == openvdb::GRID_LEVEL_SET) {
-    blender::geometry::sdf_volume_grid_add_from_points(
-        volume, "distance", positions, radii, voxel_size);
-  }
   r_geometry_set.keep_only_during_modify({GeometryComponent::Type::Volume});
   r_geometry_set.replace_volume(volume);
 }
@@ -190,8 +169,8 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 static void node_update(bNodeTree *ntree, bNode *node)
 {
   const NodeGeometryPointsToVolume &storage = node_storage(*node);
-  bNodeSocket *voxel_size_socket = nodeFindSocket(node, SOCK_IN, "Voxel Size");
-  bNodeSocket *voxel_amount_socket = nodeFindSocket(node, SOCK_IN, "Voxel Amount");
+  bNodeSocket *voxel_size_socket = bke::nodeFindSocket(node, SOCK_IN, "Voxel Size");
+  bNodeSocket *voxel_amount_socket = bke::nodeFindSocket(node, SOCK_IN, "Voxel Amount");
   bke::nodeSetSocketAvailability(ntree,
                                  voxel_amount_socket,
                                  storage.resolution_mode ==
@@ -208,8 +187,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Points");
   const NodeGeometryPointsToVolume &storage = node_storage(params.node());
   geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
-    initialize_volume_component_from_points(
-        params, storage, geometry_set, openvdb::GRID_FOG_VOLUME);
+    initialize_volume_component_from_points(params, storage, geometry_set);
   });
   params.set_output("Volume", std::move(geometry_set));
 #else
@@ -244,20 +222,20 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, GEO_NODE_POINTS_TO_VOLUME, "Points to Volume", NODE_CLASS_GEOMETRY);
-  node_type_storage(&ntype,
-                    "NodeGeometryPointsToVolume",
-                    node_free_standard_storage,
-                    node_copy_standard_storage);
+  blender::bke::node_type_storage(&ntype,
+                                  "NodeGeometryPointsToVolume",
+                                  node_free_standard_storage,
+                                  node_copy_standard_storage);
   bke::node_type_size(&ntype, 170, 120, 700);
   ntype.initfunc = node_init;
   ntype.updatefunc = node_update;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

@@ -72,17 +72,17 @@ class HandlePositionFieldInput final : public bke::CurvesFieldInput {
         VArray<float3>::ForContainer(std::move(output)), AttrDomain::Point, domain);
   }
 
-  void for_each_field_input_recursive(FunctionRef<void(const FieldInput &)> fn) const override
+  void for_each_field_input_recursive(FunctionRef<void(const FieldInput &)> fn) const final
   {
     relative_.node().for_each_field_input_recursive(fn);
   }
 
-  uint64_t hash() const override
+  uint64_t hash() const final
   {
     return get_default_hash(relative_, left_);
   }
 
-  bool is_equal_to(const fn::FieldNode &other) const override
+  bool is_equal_to(const fn::FieldNode &other) const final
   {
     if (const HandlePositionFieldInput *other_handle =
             dynamic_cast<const HandlePositionFieldInput *>(&other))
@@ -92,7 +92,7 @@ class HandlePositionFieldInput final : public bke::CurvesFieldInput {
     return false;
   }
 
-  std::optional<AttrDomain> preferred_domain(const CurvesGeometry & /*curves*/) const
+  std::optional<AttrDomain> preferred_domain(const bke::CurvesGeometry & /*curves*/) const final
   {
     return AttrDomain::Point;
   }
@@ -110,13 +110,13 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
   geo_node_type_base(
       &ntype, GEO_NODE_INPUT_CURVE_HANDLES, "Curve Handle Positions", NODE_CLASS_INPUT);
-  blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::MIDDLE);
+  blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Middle);
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

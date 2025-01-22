@@ -5,11 +5,9 @@
 #include "COM_BlurNode.h"
 #include "COM_FastGaussianBlurOperation.h"
 #include "COM_GammaCorrectOperation.h"
-#include "COM_GaussianAlphaXBlurOperation.h"
-#include "COM_GaussianAlphaYBlurOperation.h"
+#include "COM_GaussianAlphaBlurBaseOperation.h"
+#include "COM_GaussianBlurBaseOperation.h"
 #include "COM_GaussianBokehBlurOperation.h"
-#include "COM_GaussianXBlurOperation.h"
-#include "COM_GaussianYBlurOperation.h"
 #include "COM_MathBaseOperation.h"
 #include "COM_SetValueOperation.h"
 
@@ -21,7 +19,7 @@ BlurNode::BlurNode(bNode *editor_node) : Node(editor_node)
 }
 
 void BlurNode::convert_to_operations(NodeConverter &converter,
-                                     const CompositorContext &context) const
+                                     const CompositorContext & /*context*/) const
 {
   const bNode *editor_node = this->get_bnode();
   const NodeBlurData *data = (const NodeBlurData *)editor_node->storage;
@@ -31,7 +29,6 @@ void BlurNode::convert_to_operations(NodeConverter &converter,
   const float size = this->get_input_socket(1)->get_editor_value_float();
   const bool extend_bounds = (editor_node->custom1 & CMP_NODEFLAG_BLUR_EXTEND_BOUNDS) != 0;
 
-  eCompositorQuality quality = context.get_quality();
   NodeOperation *input_operation = nullptr, *output_operation = nullptr;
 
   if (data->filtertype == R_FILTER_FAST_GAUSS) {
@@ -45,7 +42,7 @@ void BlurNode::convert_to_operations(NodeConverter &converter,
     input_operation = operationfgb;
     output_operation = operationfgb;
   }
-  else if (editor_node->custom1 & CMP_NODEFLAG_BLUR_VARIABLE_SIZE) {
+  else if ((editor_node->custom1 & CMP_NODEFLAG_BLUR_VARIABLE_SIZE) && connected_size_socket) {
     MathAddOperation *clamp = new MathAddOperation();
     SetValueOperation *zero = new SetValueOperation();
     zero->set_value(0.0f);
@@ -56,35 +53,12 @@ void BlurNode::convert_to_operations(NodeConverter &converter,
     converter.map_input_socket(get_input_socket(1), clamp->get_input_socket(0));
     converter.add_link(zero->get_output_socket(), clamp->get_input_socket(1));
 
-    GaussianAlphaXBlurOperation *operationx = new GaussianAlphaXBlurOperation();
-    operationx->set_data(data);
-    operationx->set_quality(quality);
-    operationx->set_size(1.0f);
-    operationx->set_falloff(PROP_SMOOTH);
-    operationx->set_subtract(false);
-    operationx->set_extend_bounds(extend_bounds);
-
-    converter.add_operation(operationx);
-    converter.add_link(clamp->get_output_socket(), operationx->get_input_socket(0));
-
-    GaussianAlphaYBlurOperation *operationy = new GaussianAlphaYBlurOperation();
-    operationy->set_data(data);
-    operationy->set_quality(quality);
-    operationy->set_size(1.0f);
-    operationy->set_falloff(PROP_SMOOTH);
-    operationy->set_subtract(false);
-    operationy->set_extend_bounds(extend_bounds);
-
-    converter.add_operation(operationy);
-    converter.add_link(operationx->get_output_socket(), operationy->get_input_socket(0));
-
     GaussianBlurReferenceOperation *operation = new GaussianBlurReferenceOperation();
     operation->set_data(data);
-    operation->set_quality(quality);
     operation->set_extend_bounds(extend_bounds);
 
     converter.add_operation(operation);
-    converter.add_link(operationy->get_output_socket(), operation->get_input_socket(1));
+    converter.add_link(clamp->get_output_socket(), operation->get_input_socket(1));
 
     output_operation = operation;
     input_operation = operation;
@@ -92,8 +66,6 @@ void BlurNode::convert_to_operations(NodeConverter &converter,
   else if (!data->bokeh) {
     GaussianXBlurOperation *operationx = new GaussianXBlurOperation();
     operationx->set_data(data);
-    operationx->set_quality(quality);
-    operationx->check_opencl();
     operationx->set_extend_bounds(extend_bounds);
 
     converter.add_operation(operationx);
@@ -101,8 +73,6 @@ void BlurNode::convert_to_operations(NodeConverter &converter,
 
     GaussianYBlurOperation *operationy = new GaussianYBlurOperation();
     operationy->set_data(data);
-    operationy->set_quality(quality);
-    operationy->check_opencl();
     operationy->set_extend_bounds(extend_bounds);
 
     converter.add_operation(operationy);
@@ -120,7 +90,6 @@ void BlurNode::convert_to_operations(NodeConverter &converter,
   else {
     GaussianBokehBlurOperation *operation = new GaussianBokehBlurOperation();
     operation->set_data(data);
-    operation->set_quality(quality);
     operation->set_extend_bounds(extend_bounds);
 
     converter.add_operation(operation);

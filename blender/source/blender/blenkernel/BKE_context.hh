@@ -8,6 +8,8 @@
  * \ingroup bke
  */
 
+#include <variant>
+
 /* XXX temporary, until AssetHandle is designed properly and queries can return a pointer to it. */
 #include "DNA_asset_types.h"
 
@@ -102,7 +104,7 @@ using bContextDataCallback = int /*eContextResult*/ (*)(const bContext *C,
 
 struct bContextStoreEntry {
   std::string name;
-  PointerRNA ptr;
+  std::variant<PointerRNA, std::string> value;
 };
 
 struct bContextStore {
@@ -141,8 +143,10 @@ enum eContextObjectMode {
   CTX_MODE_VERTEX_GPENCIL_LEGACY,
   CTX_MODE_SCULPT_CURVES,
   CTX_MODE_PAINT_GREASE_PENCIL,
+  CTX_MODE_SCULPT_GREASE_PENCIL,
+  CTX_MODE_WEIGHT_GREASE_PENCIL,
 };
-#define CTX_MODE_NUM (CTX_MODE_PAINT_GREASE_PENCIL + 1)
+#define CTX_MODE_NUM (CTX_MODE_WEIGHT_GREASE_PENCIL + 1)
 
 /* Context */
 
@@ -156,6 +160,9 @@ bContext *CTX_copy(const bContext *C);
 bContextStore *CTX_store_add(blender::Vector<std::unique_ptr<bContextStore>> &contexts,
                              blender::StringRefNull name,
                              const PointerRNA *ptr);
+bContextStore *CTX_store_add(blender::Vector<std::unique_ptr<bContextStore>> &contexts,
+                             blender::StringRefNull name,
+                             blender::StringRef str);
 bContextStore *CTX_store_add_all(blender::Vector<std::unique_ptr<bContextStore>> &contexts,
                                  const bContextStore *context);
 const bContextStore *CTX_store_get(const bContext *C);
@@ -163,6 +170,8 @@ void CTX_store_set(bContext *C, const bContextStore *store);
 const PointerRNA *CTX_store_ptr_lookup(const bContextStore *store,
                                        blender::StringRefNull name,
                                        const StructRNA *type = nullptr);
+std::optional<blender::StringRefNull> CTX_store_string_lookup(const bContextStore *store,
+                                                              blender::StringRefNull name);
 
 /* need to store if python is initialized or not */
 bool CTX_py_init_get(bContext *C);
@@ -188,7 +197,7 @@ ScrArea *CTX_wm_area(const bContext *C);
 SpaceLink *CTX_wm_space_data(const bContext *C);
 ARegion *CTX_wm_region(const bContext *C);
 void *CTX_wm_region_data(const bContext *C);
-ARegion *CTX_wm_menu(const bContext *C);
+ARegion *CTX_wm_region_popup(const bContext *C);
 wmGizmoGroup *CTX_wm_gizmo_group(const bContext *C);
 wmMsgBus *CTX_wm_message_bus(const bContext *C);
 ReportList *CTX_wm_reports(const bContext *C);
@@ -217,7 +226,7 @@ void CTX_wm_window_set(bContext *C, wmWindow *win);
 void CTX_wm_screen_set(bContext *C, bScreen *screen); /* to be removed */
 void CTX_wm_area_set(bContext *C, ScrArea *area);
 void CTX_wm_region_set(bContext *C, ARegion *region);
-void CTX_wm_menu_set(bContext *C, ARegion *menu);
+void CTX_wm_region_popup_set(bContext *C, ARegion *region_popup);
 void CTX_wm_gizmo_group_set(bContext *C, wmGizmoGroup *gzgroup);
 
 /**
@@ -252,8 +261,6 @@ void CTX_wm_operator_poll_msg_clear(bContext *C);
 
 /* Data Context
  *
- * - #ListBase consists of #CollectionPointerLink items and must be
- *   freed with #BLI_freelistN!
  * - The dir #ListBase consists of #LinkData items.
  */
 
@@ -262,6 +269,7 @@ enum {
   CTX_DATA_TYPE_POINTER = 0,
   CTX_DATA_TYPE_COLLECTION,
   CTX_DATA_TYPE_PROPERTY,
+  CTX_DATA_TYPE_STRING,
 };
 
 PointerRNA CTX_data_pointer_get(const bContext *C, const char *member);
@@ -269,7 +277,7 @@ PointerRNA CTX_data_pointer_get_type(const bContext *C, const char *member, Stru
 PointerRNA CTX_data_pointer_get_type_silent(const bContext *C,
                                             const char *member,
                                             StructRNA *type);
-ListBase CTX_data_collection_get(const bContext *C, const char *member);
+blender::Vector<PointerRNA> CTX_data_collection_get(const bContext *C, const char *member);
 
 /**
  * For each pointer in collection_pointers, remap it to point to `ptr->propname`.
@@ -278,12 +286,11 @@ ListBase CTX_data_collection_get(const bContext *C, const char *member);
  *
  *   lb = CTX_data_collection_get(C, "selected_pose_bones"); // lb contains pose bones.
  *   CTX_data_collection_remap_property(lb, "color");        // lb now contains bone colors.
- *
- * NOTE: this alters the items contained in the given listbase.
- * It does not change the listbase itself.
  */
-void CTX_data_collection_remap_property(ListBase /*CollectionPointerLink*/ collection_pointers,
+void CTX_data_collection_remap_property(blender::MutableSpan<PointerRNA> collection_pointers,
                                         const char *propname);
+
+std::optional<blender::StringRefNull> CTX_data_string_get(const bContext *C, const char *member);
 
 /**
  * \param C: Context.
@@ -296,9 +303,10 @@ ListBase CTX_data_dir_get(const bContext *C);
 int /*eContextResult*/ CTX_data_get(const bContext *C,
                                     const char *member,
                                     PointerRNA *r_ptr,
-                                    ListBase *r_lb,
+                                    blender::Vector<PointerRNA> *r_lb,
                                     PropertyRNA **r_prop,
                                     int *r_index,
+                                    blender::StringRef *r_str,
                                     short *r_type);
 
 void CTX_data_id_pointer_set(bContextDataResult *result, ID *id);
@@ -328,25 +336,22 @@ bool CTX_data_dir(const char *member);
 
 #define CTX_DATA_BEGIN(C, Type, instance, member) \
   { \
-    ListBase ctx_data_list; \
-    CollectionPointerLink *ctx_link; \
+    blender::Vector<PointerRNA> ctx_data_list; \
     CTX_data_##member(C, &ctx_data_list); \
-    for (ctx_link = (CollectionPointerLink *)ctx_data_list.first; ctx_link; \
-         ctx_link = ctx_link->next) \
-    { \
-      Type instance = (Type)ctx_link->ptr.data;
+    for (PointerRNA & ctx_link : ctx_data_list) { \
+      Type instance = (Type)ctx_link.data;
 
 #define CTX_DATA_END \
   } \
-  BLI_freelistN(&ctx_data_list); \
   } \
   (void)0
 
 #define CTX_DATA_BEGIN_WITH_ID(C, Type, instance, member, Type_id, instance_id) \
   CTX_DATA_BEGIN (C, Type, instance, member) \
-    Type_id instance_id = (Type_id)ctx_link->ptr.owner_id;
+    Type_id instance_id = (Type_id)ctx_link.owner_id;
 
-int ctx_data_list_count(const bContext *C, bool (*func)(const bContext *, ListBase *));
+int ctx_data_list_count(const bContext *C,
+                        bool (*func)(const bContext *, blender::Vector<PointerRNA> *));
 
 #define CTX_DATA_COUNT(C, member) ctx_data_list_count(C, CTX_data_##member)
 
@@ -377,22 +382,22 @@ void CTX_data_main_set(bContext *C, Main *bmain);
 void CTX_data_scene_set(bContext *C, Scene *scene);
 
 /* Only Outliner currently! */
-bool CTX_data_selected_ids(const bContext *C, ListBase *list);
+bool CTX_data_selected_ids(const bContext *C, blender::Vector<PointerRNA> *list);
 
-bool CTX_data_selected_editable_objects(const bContext *C, ListBase *list);
-bool CTX_data_selected_editable_bases(const bContext *C, ListBase *list);
+bool CTX_data_selected_editable_objects(const bContext *C, blender::Vector<PointerRNA> *list);
+bool CTX_data_selected_editable_bases(const bContext *C, blender::Vector<PointerRNA> *list);
 
-bool CTX_data_editable_objects(const bContext *C, ListBase *list);
-bool CTX_data_editable_bases(const bContext *C, ListBase *list);
+bool CTX_data_editable_objects(const bContext *C, blender::Vector<PointerRNA> *list);
+bool CTX_data_editable_bases(const bContext *C, blender::Vector<PointerRNA> *list);
 
-bool CTX_data_selected_objects(const bContext *C, ListBase *list);
-bool CTX_data_selected_bases(const bContext *C, ListBase *list);
+bool CTX_data_selected_objects(const bContext *C, blender::Vector<PointerRNA> *list);
+bool CTX_data_selected_bases(const bContext *C, blender::Vector<PointerRNA> *list);
 
-bool CTX_data_visible_objects(const bContext *C, ListBase *list);
-bool CTX_data_visible_bases(const bContext *C, ListBase *list);
+bool CTX_data_visible_objects(const bContext *C, blender::Vector<PointerRNA> *list);
+bool CTX_data_visible_bases(const bContext *C, blender::Vector<PointerRNA> *list);
 
-bool CTX_data_selectable_objects(const bContext *C, ListBase *list);
-bool CTX_data_selectable_bases(const bContext *C, ListBase *list);
+bool CTX_data_selectable_objects(const bContext *C, blender::Vector<PointerRNA> *list);
+bool CTX_data_selectable_bases(const bContext *C, blender::Vector<PointerRNA> *list);
 
 Object *CTX_data_active_object(const bContext *C);
 Base *CTX_data_active_base(const bContext *C);
@@ -406,25 +411,26 @@ Mask *CTX_data_edit_mask(const bContext *C);
 
 CacheFile *CTX_data_edit_cachefile(const bContext *C);
 
-bool CTX_data_selected_nodes(const bContext *C, ListBase *list);
+bool CTX_data_selected_nodes(const bContext *C, blender::Vector<PointerRNA> *list);
 
 EditBone *CTX_data_active_bone(const bContext *C);
-bool CTX_data_selected_bones(const bContext *C, ListBase *list);
-bool CTX_data_selected_editable_bones(const bContext *C, ListBase *list);
-bool CTX_data_visible_bones(const bContext *C, ListBase *list);
-bool CTX_data_editable_bones(const bContext *C, ListBase *list);
+bool CTX_data_selected_bones(const bContext *C, blender::Vector<PointerRNA> *list);
+bool CTX_data_selected_editable_bones(const bContext *C, blender::Vector<PointerRNA> *list);
+bool CTX_data_visible_bones(const bContext *C, blender::Vector<PointerRNA> *list);
+bool CTX_data_editable_bones(const bContext *C, blender::Vector<PointerRNA> *list);
 
 bPoseChannel *CTX_data_active_pose_bone(const bContext *C);
-bool CTX_data_selected_pose_bones(const bContext *C, ListBase *list);
-bool CTX_data_selected_pose_bones_from_active_object(const bContext *C, ListBase *list);
-bool CTX_data_visible_pose_bones(const bContext *C, ListBase *list);
+bool CTX_data_selected_pose_bones(const bContext *C, blender::Vector<PointerRNA> *list);
+bool CTX_data_selected_pose_bones_from_active_object(const bContext *C,
+                                                     blender::Vector<PointerRNA> *list);
+bool CTX_data_visible_pose_bones(const bContext *C, blender::Vector<PointerRNA> *list);
 
 bGPdata *CTX_data_gpencil_data(const bContext *C);
 bGPDlayer *CTX_data_active_gpencil_layer(const bContext *C);
 bGPDframe *CTX_data_active_gpencil_frame(const bContext *C);
-bool CTX_data_visible_gpencil_layers(const bContext *C, ListBase *list);
-bool CTX_data_editable_gpencil_layers(const bContext *C, ListBase *list);
-bool CTX_data_editable_gpencil_strokes(const bContext *C, ListBase *list);
+bool CTX_data_visible_gpencil_layers(const bContext *C, blender::Vector<PointerRNA> *list);
+bool CTX_data_editable_gpencil_layers(const bContext *C, blender::Vector<PointerRNA> *list);
+bool CTX_data_editable_gpencil_strokes(const bContext *C, blender::Vector<PointerRNA> *list);
 
 const AssetLibraryReference *CTX_wm_asset_library_ref(const bContext *C);
 class blender::asset_system::AssetRepresentation *CTX_wm_asset(const bContext *C);

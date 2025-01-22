@@ -15,10 +15,9 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_armature_types.h"
-#include "DNA_brush_types.h"
 #include "DNA_collection_types.h"
 #include "DNA_linestyle_types.h"
 #include "DNA_material_types.h"
@@ -28,7 +27,6 @@
 #include "DNA_world_types.h"
 
 #include "BKE_action.h"
-#include "BKE_armature.hh"
 #include "BKE_context.hh"
 #include "BKE_layer.hh"
 #include "BKE_linestyle.h"
@@ -51,7 +49,7 @@
 
 #include "WM_api.hh"
 
-#include "buttons_intern.h" /* own include */
+#include "buttons_intern.hh" /* own include */
 
 static int set_pointer_type(ButsContextPath *path, bContextDataResult *result, StructRNA *type)
 {
@@ -329,7 +327,7 @@ static bool buttons_context_path_shaderfx(ButsContextPath *path)
   if (buttons_context_path_object(path)) {
     Object *ob = static_cast<Object *>(path->ptr[path->len - 1].data);
 
-    if (ob && ELEM(ob->type, OB_GPENCIL_LEGACY)) {
+    if (ob && ELEM(ob->type, OB_GPENCIL_LEGACY, OB_GREASE_PENCIL)) {
       return true;
     }
   }

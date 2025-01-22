@@ -8,16 +8,14 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_action_types.h"
-#include "DNA_anim_types.h"
 #include "DNA_object_types.h"
-#include "DNA_scene_types.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "BKE_anim_visualization.h"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 
-#include "GPU_batch.h"
+#include "GPU_batch.hh"
 
 #include "BLO_read_write.hh"
 
@@ -196,6 +194,10 @@ bMotionPath *animviz_verify_motionpaths(ReportList *reports,
   mpath->color[1] = 0.0;
   mpath->color[2] = 0.0;
 
+  mpath->color_post[0] = 0.1;
+  mpath->color_post[1] = 1.0;
+  mpath->color_post[2] = 0.1;
+
   mpath->line_thickness = 2;
   mpath->flag |= MOTIONPATH_FLAG_LINES;
 
@@ -231,7 +233,7 @@ void animviz_motionpath_blend_read_data(BlendDataReader *reader, bMotionPath *mp
   }
 
   /* relink points cache */
-  BLO_read_data_address(reader, &mpath->points);
+  BLO_read_struct_array(reader, bMotionPathVert, mpath->length, &mpath->points);
 
   mpath->points_vbo = nullptr;
   mpath->batch_line = nullptr;

@@ -97,6 +97,7 @@ class OctaneBaseRampNode(OctaneBaseNode):
     color_ramp_name: StringProperty()
     color_ramp_data: StringProperty()
     node_data_path: StringProperty()
+    color_ramp_element_count: IntProperty()
 
     # Sometimes the init/copy functions are not called, so we have to add this function
     def validate_color_ramp(self, data_owner, force_update_data=False):
@@ -230,12 +231,20 @@ class OctaneBaseRampNode(OctaneBaseNode):
         color_ramp_node = utility.get_octane_helper_node(self.color_ramp_name)
         if color_ramp_node is None:
             return
+        self.color_ramp_element_count = len(color_ramp_node.color_ramp.elements)
         bpy.msgbus.subscribe_rna(
             key=color_ramp_node,
             owner=self,
             args=(self,),
-            notify=helper_color_ramp_watcher_callback,
+            notify=helper_color_ramp_watcher_callback
         )
+        for idx in range(len(color_ramp_node.color_ramp.elements)):
+            bpy.msgbus.subscribe_rna(
+                key=color_ramp_node.color_ramp.elements[idx],
+                owner=self,
+                args=(self,),
+                notify=helper_color_ramp_watcher_callback
+            )
 
     def unregister_helper_color_ramp_watcher(self):
         bpy.msgbus.clear_by_owner(self)
@@ -266,6 +275,8 @@ class OctaneBaseRampNode(OctaneBaseNode):
                     position_socket.hide = False
                 else:
                     position_socket.hide = idx > number
+        if number != self.color_ramp_element_count:
+            self.init_helper_color_ramp_watcher()
 
     def get_interpolation_socket_name(self):
         for _input in self.inputs:

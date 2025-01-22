@@ -75,6 +75,10 @@ void BKE_stamp_info_callback(void *data,
                              struct StampData *stamp_data,
                              StampCallback callback,
                              bool noskip);
+void BKE_image_multilayer_stamp_info_callback(void *data,
+                                              const Image &image,
+                                              StampCallback callback,
+                                              bool noskip);
 void BKE_render_result_stamp_data(struct RenderResult *rr, const char *key, const char *value);
 struct StampData *BKE_stamp_data_copy(const struct StampData *stamp_data);
 void BKE_stamp_data_free(struct StampData *stamp_data);
@@ -84,8 +88,7 @@ void BKE_image_stamp_buf(struct Scene *scene,
                          unsigned char *rect,
                          float *rectf,
                          int width,
-                         int height,
-                         int channels);
+                         int height);
 bool BKE_imbuf_alpha_test(struct ImBuf *ibuf);
 int BKE_imbuf_write_stamp(const struct Scene *scene,
                           const struct RenderResult *rr,
@@ -151,6 +154,25 @@ bool BKE_image_has_ibuf(struct Image *ima, struct ImageUser *iuser);
  * References the result, #BKE_image_release_ibuf should be used to de-reference.
  */
 struct ImBuf *BKE_image_acquire_ibuf(struct Image *ima, struct ImageUser *iuser, void **r_lock);
+
+/**
+ * Return image buffer for given image, user, pass, and view.
+ * Is thread-safe, so another thread can be changing image while this function is executed.
+ *
+ * If the image is single-layer then the pass name is completely ignored.
+ *
+ * If the image is multi-layer then this function does all needed internal configurations to read
+ * the pass. There is no need to acquire a temporary ImBuf prior to this call (which is what some
+ * legacy code had to do to ensure proper type and RenderResult).
+ *
+ * References the result, #BKE_image_release_ibuf should be used to de-reference.
+ */
+ImBuf *BKE_image_acquire_multilayer_view_ibuf(const RenderData &render_data,
+                                              Image &image,
+                                              const ImageUser &image_user,
+                                              const char *pass_name,
+                                              const char *view_name);
+
 void BKE_image_release_ibuf(struct Image *ima, struct ImBuf *ibuf, void *lock);
 
 struct ImagePool *BKE_image_pool_new(void);
@@ -276,8 +298,20 @@ void BKE_image_multiview_index(const struct Image *ima, struct ImageUser *iuser)
 bool BKE_image_is_multilayer(const struct Image *ima);
 bool BKE_image_is_multiview(const struct Image *ima);
 bool BKE_image_is_stereo(const struct Image *ima);
-struct RenderResult *BKE_image_acquire_renderresult(struct Scene *scene, struct Image *ima);
-void BKE_image_release_renderresult(struct Scene *scene, struct Image *ima);
+
+/**
+ * Acquire render result associated with the give image.
+ *
+ * The returned render result is user-counted It is then required to call *
+ * #BKE_image_release_renderresult with the non-null render result returned by this function.
+ *
+ * It is possible to use ibuf acquire/release API while a render result is held.
+ *
+ * It is allowed to call #BKE_image_release_renderresult with render_result of nullptr, but it is
+ * not required.
+ */
+RenderResult *BKE_image_acquire_renderresult(Scene *scene, Image *ima);
+void BKE_image_release_renderresult(Scene *scene, Image *ima, RenderResult *render_result);
 
 /**
  * For multi-layer images as well as for single-layer.
@@ -307,7 +341,7 @@ void BKE_image_all_free_anim_ibufs(struct Main *bmain, int cfra);
 
 void BKE_image_free_all_gputextures(struct Main *bmain);
 /**
- * Same as above but only free animated images.
+ * Same as #BKE_image_free_all_gputextures but only free animated images.
  */
 void BKE_image_free_anim_gputextures(struct Main *bmain);
 void BKE_image_free_old_gputextures(struct Main *bmain);

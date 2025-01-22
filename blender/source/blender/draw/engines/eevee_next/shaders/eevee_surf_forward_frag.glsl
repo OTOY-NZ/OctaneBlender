@@ -26,7 +26,9 @@ vec4 closure_to_rgba(Closure cl_unused)
   forward_lighting_eval(g_thickness, radiance, transmittance);
 
   /* Reset for the next closure tree. */
-  closure_weights_reset();
+  float noise = utility_tx_fetch(utility_tx, gl_FragCoord.xy, UTIL_BLUE_NOISE_LAYER).r;
+  float closure_rand = fract(noise + sampling_rng_1D_get(SAMPLING_CLOSURE));
+  closure_weights_reset(closure_rand);
 
   return vec4(radiance, saturate(1.0 - average(transmittance)));
 }
@@ -39,19 +41,26 @@ void main()
   init_globals();
 
   float noise = utility_tx_fetch(utility_tx, gl_FragCoord.xy, UTIL_BLUE_NOISE_LAYER).r;
-  g_closure_rand = fract(noise + sampling_rng_1D_get(SAMPLING_CLOSURE));
+  float closure_rand = fract(noise + sampling_rng_1D_get(SAMPLING_CLOSURE));
 
   fragment_displacement();
 
-  g_thickness = max(0.0, nodetree_thickness());
+  g_thickness = nodetree_thickness() * thickness_mode;
 
-  nodetree_surface();
+  nodetree_surface(closure_rand);
+
+  eObjectInfoFlag ob_flag = eObjectInfoFlag(floatBitsToUint(drw_infos[resource_id].infos.w));
+  if (flag_test(ob_flag, OBJECT_HOLDOUT)) {
+    g_holdout = 1.0;
+  }
+
+  g_holdout = saturate(g_holdout);
 
   vec3 radiance, transmittance;
   forward_lighting_eval(g_thickness, radiance, transmittance);
 
   /* Volumetric resolve and compositing. */
-  vec2 uvs = gl_FragCoord.xy * uniform_buf.volumes.viewport_size_inv;
+  vec2 uvs = gl_FragCoord.xy * uniform_buf.volumes.main_view_extent_inv;
   VolumeResolveSample vol = volume_resolve(
       vec3(uvs, gl_FragCoord.z), volume_transmittance_tx, volume_scattering_tx);
   /* Removes the part of the volume scattering that has
@@ -62,6 +71,6 @@ void main()
 
   radiance *= 1.0 - saturate(g_holdout);
 
-  out_radiance = vec4(radiance, 0.0);
+  out_radiance = vec4(radiance, g_holdout);
   out_transmittance = vec4(transmittance, saturate(average(transmittance)));
 }

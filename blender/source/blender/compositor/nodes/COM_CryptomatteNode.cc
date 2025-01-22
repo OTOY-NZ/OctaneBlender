@@ -13,7 +13,6 @@
 #include "COM_MultilayerImageOperation.h"
 #include "COM_RenderLayersProg.h"
 #include "COM_SetAlphaMultiplyOperation.h"
-#include "COM_SetAlphaReplaceOperation.h"
 #include "COM_SetColorOperation.h"
 
 namespace blender::compositor {
@@ -52,7 +51,7 @@ void CryptomatteBaseNode::convert_to_operations(NodeConverter &converter,
   converter.map_output_socket(output_image_socket, apply_mask_operation->get_output_socket(0));
 
   NodeOutput *output_pick_socket = this->get_output_socket(2);
-  SetAlphaReplaceOperation *extract_pick_operation = new SetAlphaReplaceOperation();
+  CryptomattePickOperation *extract_pick_operation = new CryptomattePickOperation();
   converter.add_operation(extract_pick_operation);
   converter.add_input_value(extract_pick_operation->get_input_socket(1), 1.0f);
   converter.add_link(cryptomatte_operation->get_output_socket(0),
@@ -157,22 +156,6 @@ void CryptomatteNode::input_operations_from_image_source(
   ImBuf *ibuf = BKE_image_acquire_ibuf(image, iuser, nullptr);
 
   if (image->rr) {
-    int view = 0;
-    if (BLI_listbase_count_at_most(&image->rr->views, 2) > 1) {
-      if (iuser->view == 0) {
-        /* Heuristic to match image name with scene names, check if the view name exists in the
-         * image. */
-        view = BLI_findstringindex(
-            &image->rr->views, context.get_view_name(), offsetof(RenderView, name));
-        if (view == -1) {
-          view = 0;
-        }
-      }
-      else {
-        view = iuser->view - 1;
-      }
-    }
-
     const std::string prefix = prefix_from_node(context, node);
     int layer_index;
     LISTBASE_FOREACH_INDEX (RenderLayer *, render_layer, &image->rr->layers, layer_index) {
@@ -184,12 +167,15 @@ void CryptomatteNode::input_operations_from_image_source(
       LISTBASE_FOREACH (RenderPass *, render_pass, &render_layer->passes) {
         const std::string combined_name = combined_layer_pass_name(render_layer, render_pass);
         if (combined_name != prefix && blender::StringRef(combined_name).startswith(prefix)) {
-          MultilayerColorOperation *op = new MultilayerColorOperation(
-              render_layer, render_pass, view);
-          op->set_image(image);
-          op->set_image_user(iuser);
+          MultilayerColorOperation *op = new MultilayerColorOperation();
           iuser->layer = layer_index;
+          op->set_image(image);
+          op->set_image_user(*iuser);
           op->set_framenumber(context.get_framenumber());
+          op->set_render_data(context.get_render_data());
+          op->set_view_name(context.get_view_name());
+          op->set_layer_name(render_layer->name);
+          op->set_pass_name(render_pass->name);
           r_input_operations.append(op);
         }
       }

@@ -6,11 +6,12 @@
  * \ingroup obj
  */
 
-#include "BKE_report.h"
+#include "BKE_report.hh"
 
+#include "BLI_fileops.hh"
 #include "BLI_map.hh"
-#include "BLI_math_color.h"
 #include "BLI_math_vector.h"
+#include "BLI_math_vector_types.hh"
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
@@ -98,6 +99,7 @@ static void geom_add_vertex(const char *p, const char *end, GlobalVertices &r_gl
       blocks.last().colors.append(linear);
     }
   }
+  UNUSED_VARS(p);
 }
 
 static void geom_add_mrgb_colors(const char *p, const char *end, GlobalVertices &r_global_vertices)
@@ -356,9 +358,8 @@ static void geom_add_curve_vertex_indices(Geometry *geom,
                                           const char *end,
                                           const GlobalVertices &global_vertices)
 {
-  /* Curve lines always have "0.0" and "1.0", skip over them. */
-  float dummy[2];
-  p = parse_floats(p, end, 0, dummy, 2);
+  /* Parse curve parameter range. */
+  p = parse_floats(p, end, 0, geom->nurbs_element_.range, 2);
   /* Parse indices. */
   while (p < end) {
     int index;
@@ -486,7 +487,7 @@ static bool parse_keyword(const char *&p, const char *end, StringRef keyword)
 /* Special case: if there were no faces/edges in any geometries,
  * treat all the vertices as a point cloud. */
 static void use_all_vertices_if_no_faces(Geometry *geom,
-                                         const Vector<std::unique_ptr<Geometry>> &all_geometries,
+                                         const Span<std::unique_ptr<Geometry>> all_geometries,
                                          const GlobalVertices &global_vertices)
 {
   if (!global_vertices.vertices.is_empty() && geom && geom->geom_type_ == GEOM_MESH) {
@@ -847,8 +848,8 @@ void OBJParser::add_mtl_library(StringRef path)
 
 void OBJParser::add_default_mtl_library()
 {
-  /* Add any existing .mtl file that's with the same base name as the .obj file
-   * into candidate .mtl files to search through. This is not technically following the
+  /* Add any existing `.mtl` file that's with the same base name as the `.obj` file
+   * into candidate `.mtl` files to search through. This is not technically following the
    * spec, but the old python importer was doing it, and there are user files out there
    * that contain "mtllib bar.mtl" for a foo.obj, and depend on finding materials
    * from foo.mtl (see #97757). */

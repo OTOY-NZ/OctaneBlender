@@ -202,7 +202,7 @@ void GpencilExporterSVG::export_gpencil_layers()
         /* Apply layer thickness change. */
         gps_duplicate->thickness += gpl->line_change;
         /* Apply object scale to thickness. */
-        const float scalef = mat4_to_scale(ob->object_to_world);
+        const float scalef = mat4_to_scale(ob->object_to_world().ptr());
         gps_duplicate->thickness = ceilf(float(gps_duplicate->thickness) * scalef);
         CLAMP_MIN(gps_duplicate->thickness, 1.0f);
 
@@ -213,17 +213,17 @@ void GpencilExporterSVG::export_gpencil_layers()
         if ((is_fill) && (params_.flag & GP_EXPORT_FILL)) {
           /* Fill is always exported as polygon because the stroke of the fill is done
            * in a different SVG command. */
-          export_stroke_to_polyline(gpl, gps_duplicate, node_gpl, is_stroke, true);
+          export_stroke_to_polyline(gpd_eval, gpl, gps_duplicate, node_gpl, is_stroke, true);
         }
 
         /* Stroke. */
         if (is_stroke) {
           if (is_normalized) {
-            export_stroke_to_polyline(gpl, gps_duplicate, node_gpl, is_stroke, false);
+            export_stroke_to_polyline(gpd_eval, gpl, gps_duplicate, node_gpl, is_stroke, false);
           }
           else {
             bGPDstroke *gps_perimeter = BKE_gpencil_stroke_perimeter_from_view(
-                rv3d_->viewmat, gpd_, gpl, gps_duplicate, 3, diff_mat_.ptr(), 0.0f);
+                rv3d_->viewmat, gpd_eval, gpl, gps_duplicate, 3, diff_mat_.ptr(), 0.0f);
 
             /* Sample stroke. */
             if (params_.stroke_sample > 0.0f) {
@@ -286,7 +286,8 @@ void GpencilExporterSVG::export_stroke_to_path(bGPDlayer *gpl,
   node_gps.append_attribute("d").set_value(txt.c_str());
 }
 
-void GpencilExporterSVG::export_stroke_to_polyline(bGPDlayer *gpl,
+void GpencilExporterSVG::export_stroke_to_polyline(bGPdata *gpd,
+                                                   bGPDlayer *gpl,
                                                    bGPDstroke *gps,
                                                    pugi::xml_node node_gpl,
                                                    const bool is_stroke,
@@ -304,7 +305,7 @@ void GpencilExporterSVG::export_stroke_to_polyline(bGPDlayer *gpl,
   copy_v3_v3(&pt_dst->x, &pt_src->x);
   pt_dst->pressure = avg_pressure;
 
-  const float radius = stroke_point_radius_get(gpl, gps_temp);
+  const float radius = stroke_point_radius_get(gpd, gpl, gps_temp);
 
   BKE_gpencil_free_stroke(gps_temp);
 
@@ -375,7 +376,7 @@ void GpencilExporterSVG::add_rect(pugi::xml_node node,
                                   float width,
                                   float height,
                                   float thickness,
-                                  std::string hexcolor)
+                                  const std::string &hexcolor)
 {
   pugi::xml_node rect_node = node.append_child("rect");
   rect_node.append_attribute("x").set_value(x);
@@ -392,9 +393,9 @@ void GpencilExporterSVG::add_rect(pugi::xml_node node,
 void GpencilExporterSVG::add_text(pugi::xml_node node,
                                   float x,
                                   float y,
-                                  std::string text,
+                                  const std::string &text,
                                   const float size,
-                                  std::string hexcolor)
+                                  const std::string &hexcolor)
 {
   pugi::xml_node nodetxt = node.append_child("text");
 

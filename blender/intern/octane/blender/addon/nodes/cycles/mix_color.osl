@@ -1,4 +1,9 @@
-// #include "node_color.h"
+/*
+    Shader: Mix Color
+    Author: Lino Grandi
+    Description: This shader performs various blending modes between two colors
+                 based on a specified factor and blending mode.
+*/
 
 float color_srgb_to_scene_linear(float c)
 {

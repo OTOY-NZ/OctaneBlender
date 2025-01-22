@@ -68,9 +68,19 @@ class LookdevWorld {
     return &world;
   }
 
-  float background_opacity_get()
+  float background_opacity_get() const
   {
     return parameters_.background_opacity;
+  }
+
+  float background_blur_get() const
+  {
+    return parameters_.blur;
+  }
+
+  float intensity_get() const
+  {
+    return parameters_.intensity;
   }
 };
 
@@ -88,13 +98,10 @@ class LookdevModule {
   bool enabled_;
 
   static constexpr int num_spheres = 2;
-  /**
-   * The scale of the lookdev spheres.
-   *
-   * The lookdev spheres are resized to a small scale. This would reduce shadow artifacts as they
-   * would most likely be inside or outside shadow.
-   */
-  static constexpr float sphere_scale = 0.01f;
+
+  /* Size and position of the look-dev spheres in world space. */
+  float sphere_radius_;
+  float3 sphere_position_;
 
   rcti visible_rect_;
 
@@ -102,8 +109,6 @@ class LookdevModule {
   Texture dummy_cryptomatte_tx_;
   Texture dummy_aov_color_tx_;
   Texture dummy_aov_value_tx_;
-
-  Texture depth_tx_ = {"Lookdev.Depth"};
 
   struct Sphere {
     Framebuffer framebuffer = {"Lookdev.Framebuffer"};
@@ -126,7 +131,7 @@ class LookdevModule {
   void display();
 
  private:
-  void sync_pass(PassSimple &pass, GPUBatch *geom, ::Material *mat, ResourceHandle res_handle);
+  void sync_pass(PassSimple &pass, gpu::Batch *geom, ::Material *mat, ResourceHandle res_handle);
   void sync_display();
 
   float calc_viewport_scale();

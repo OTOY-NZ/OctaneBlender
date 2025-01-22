@@ -26,10 +26,11 @@
 #ifdef RNA_RUNTIME
 
 #  include "BKE_action.h"
+#  include "BKE_action.hh"
 #  include "BKE_armature.hh"
 #  include "BKE_brush.hh"
 #  include "BKE_camera.h"
-#  include "BKE_collection.h"
+#  include "BKE_collection.hh"
 #  include "BKE_curve.hh"
 #  include "BKE_curves.h"
 #  include "BKE_displist.h"
@@ -47,24 +48,25 @@
 #  include "BKE_mball.hh"
 #  include "BKE_mesh.hh"
 #  include "BKE_movieclip.h"
-#  include "BKE_node.h"
+#  include "BKE_node.hh"
 #  include "BKE_object.hh"
 #  include "BKE_paint.hh"
 #  include "BKE_particle.h"
 #  include "BKE_pointcloud.hh"
-#  include "BKE_scene.h"
+#  include "BKE_scene.hh"
 #  include "BKE_sound.h"
 #  include "BKE_speaker.h"
 #  include "BKE_text.h"
 #  include "BKE_texture.h"
 #  include "BKE_vfont.hh"
 #  include "BKE_volume.hh"
-#  include "BKE_workspace.h"
+#  include "BKE_workspace.hh"
 #  include "BKE_world.h"
 
 #  include "DEG_depsgraph_build.hh"
 #  include "DEG_depsgraph_query.hh"
 
+#  include "DNA_anim_types.h"
 #  include "DNA_armature_types.h"
 #  include "DNA_brush_types.h"
 #  include "DNA_camera_types.h"
@@ -94,7 +96,7 @@
 #  include "ED_node.hh"
 #  include "ED_screen.hh"
 
-#  include "BLT_translation.h"
+#  include "BLT_translation.hh"
 
 #  ifdef WITH_PYTHON
 #    include "BPY_extern.h"
@@ -288,9 +290,9 @@ static bNodeTree *rna_Main_nodetree_new(Main *bmain, const char *name, int type)
   char safe_name[MAX_ID_NAME - 2];
   rna_idname_validate(name, safe_name);
 
-  bNodeTreeType *typeinfo = rna_node_tree_type_from_enum(type);
+  blender::bke::bNodeTreeType *typeinfo = rna_node_tree_type_from_enum(type);
   if (typeinfo) {
-    bNodeTree *ntree = ntreeAddTree(bmain, safe_name, typeinfo->idname);
+    bNodeTree *ntree = blender::bke::ntreeAddTree(bmain, safe_name, typeinfo->idname);
     ED_node_tree_propagate_change(nullptr, bmain, ntree);
 
     id_us_min(&ntree->id);
@@ -1881,6 +1883,7 @@ void RNA_def_main_actions(BlenderRNA *brna, PropertyRNA *cprop)
   parm = RNA_def_boolean(func, "value", false, "Value", "");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 }
+
 void RNA_def_main_particles(BlenderRNA *brna, PropertyRNA *cprop)
 {
   StructRNA *srna;

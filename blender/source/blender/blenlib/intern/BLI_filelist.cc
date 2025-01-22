@@ -42,8 +42,6 @@
 #include "BLI_string.h"
 #include "BLI_string_utils.hh"
 
-#include "../imbuf/IMB_imbuf.hh"
-
 /*
  * Ordering function for sorting lists of files/directories. Returns -1 if
  * entry1 belongs before entry2, 0 if they are equal, 1 if they should be swapped.
@@ -331,7 +329,7 @@ void BLI_filelist_entry_owner_to_string(const struct stat *st,
   UNUSED_VARS(st);
   BLI_strncpy(r_owner, "unknown", FILELIST_DIRENTRY_OWNER_LEN);
 #else
-  passwd *pwuser = getpwuid(st->st_uid);
+  const passwd *pwuser = getpwuid(st->st_uid);
 
   if (pwuser) {
     BLI_strncpy(r_owner, pwuser->pw_name, sizeof(*r_owner) * FILELIST_DIRENTRY_OWNER_LEN);
@@ -424,7 +422,7 @@ void BLI_filelist_duplicate(direntry **dest_filelist,
   *dest_filelist = static_cast<direntry *>(
       MEM_mallocN(sizeof(**dest_filelist) * size_t(nrentries), __func__));
   for (i = 0; i < nrentries; i++) {
-    direntry *const src = &src_filelist[i];
+    const direntry *src = &src_filelist[i];
     direntry *dst = &(*dest_filelist)[i];
     BLI_filelist_entry_duplicate(dst, src);
   }

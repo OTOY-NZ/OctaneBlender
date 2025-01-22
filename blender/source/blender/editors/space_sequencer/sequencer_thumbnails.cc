@@ -8,10 +8,12 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_ghash.h"
+#include "BLI_math_vector.hh"
+#include "BLI_math_vector_types.hh"
 
 #include "BKE_context.hh"
-#include "BKE_global.h"
-#include "BKE_scene.h"
+#include "BKE_global.hh"
+#include "BKE_scene.hh"
 
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
@@ -20,6 +22,7 @@
 
 #include "BIF_glutil.hh"
 
+#include "SEQ_channels.hh"
 #include "SEQ_relations.hh"
 #include "SEQ_render.hh"
 #include "SEQ_sequencer.hh"
@@ -33,11 +36,13 @@
 /* Own include. */
 #include "sequencer_intern.hh"
 
+using namespace blender;
+
 struct ThumbnailDrawJob {
   SeqRenderData context;
   GHash *sequences_ghash;
   Scene *scene;
-  rctf *view_area;
+  const rctf *view_area;
   float pixelx;
   float pixely;
   float thumb_height;
@@ -59,7 +64,7 @@ static void thumbnail_freejob(void *data)
 {
   ThumbnailDrawJob *tj = static_cast<ThumbnailDrawJob *>(data);
   BLI_ghash_free(tj->sequences_ghash, nullptr, thumbnail_hash_data_free);
-  MEM_freeN(tj->view_area);
+  MEM_freeN((void *)tj->view_area);
   MEM_freeN(tj);
 }
 
@@ -69,7 +74,7 @@ static void thumbnail_endjob(void *data)
   WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, tj->scene);
 }
 
-static bool check_seq_need_thumbnails(const Scene *scene, Sequence *seq, rctf *view_area)
+static bool check_seq_need_thumbnails(const Scene *scene, Sequence *seq, const rctf *view_area)
 {
   if (!ELEM(seq->type, SEQ_TYPE_MOVIE, SEQ_TYPE_IMAGE)) {
     return false;
@@ -143,7 +148,7 @@ static void thumbnail_start_job(void *data, wmJobWorkerStatus *worker_status)
 
   /* First pass: render visible images. */
   BLI_ghashIterator_init(&gh_iter, tj->sequences_ghash);
-  while (!BLI_ghashIterator_done(&gh_iter) & !worker_status->stop) {
+  while (!BLI_ghashIterator_done(&gh_iter) && !worker_status->stop) {
     Sequence *seq_orig = static_cast<Sequence *>(BLI_ghashIterator_getKey(&gh_iter));
     ThumbDataItem *val = static_cast<ThumbDataItem *>(
         BLI_ghash_lookup(tj->sequences_ghash, seq_orig));
@@ -160,7 +165,7 @@ static void thumbnail_start_job(void *data, wmJobWorkerStatus *worker_status)
 
   /* Second pass: render "guaranteed" set of images. */
   BLI_ghashIterator_init(&gh_iter, tj->sequences_ghash);
-  while (!BLI_ghashIterator_done(&gh_iter) & !worker_status->stop) {
+  while (!BLI_ghashIterator_done(&gh_iter) && !worker_status->stop) {
     Sequence *seq_orig = static_cast<Sequence *>(BLI_ghashIterator_getKey(&gh_iter));
     ThumbDataItem *val = static_cast<ThumbDataItem *>(
         BLI_ghash_lookup(tj->sequences_ghash, seq_orig));
@@ -189,6 +194,7 @@ static SeqRenderData sequencer_thumbnail_context_init(const bContext *C)
   SEQ_render_new_render_data(bmain, depsgraph, scene, 0, 0, sseq->render_size, false, &context);
   context.view_id = BKE_scene_multiview_view_id_get(&scene->r, STEREO_LEFT_NAME);
   context.use_proxies = false;
+  context.ignore_missing_media = true;
   context.scene = scene;
 
   return context;
@@ -427,14 +433,79 @@ static ImBuf *sequencer_thumbnail_closest_from_memory(const SeqRenderData *conte
   return closest_in_memory;
 }
 
+static void make_ibuf_semitransparent(ImBuf *ibuf)
+{
+  const uchar alpha = 120;
+  if (ibuf->byte_buffer.data) {
+    uchar *buf = ibuf->byte_buffer.data;
+    for (int pixel = ibuf->x * ibuf->y; pixel--; buf += 4) {
+      buf[3] = alpha;
+    }
+  }
+  if (ibuf->float_buffer.data) {
+    float *buf = ibuf->float_buffer.data;
+    for (int pixel = ibuf->x * ibuf->y; pixel--; buf += ibuf->channels) {
+      buf[3] = (alpha / 255.0f);
+    }
+  }
+}
+
+/* Signed distance to rounded box, centered at origin.
+ * Reference: https://iquilezles.org/articles/distfunctions2d/ */
+static float sdf_rounded_box(float2 pos, float2 size, float radius)
+{
+  float2 q = math::abs(pos) - size + radius;
+  return math::min(math::max(q.x, q.y), 0.0f) + math::length(math::max(q, float2(0.0f))) - radius;
+}
+
+static void eval_round_corners_pixel(
+    ImBuf *ibuf, float radius, float2 bmin, float2 bmax, float2 pos)
+{
+  int ix = int(pos.x);
+  int iy = int(pos.y);
+  if (ix < 0 || ix >= ibuf->x || iy < 0 || iy >= ibuf->y) {
+    return;
+  }
+  float2 center = (bmin + bmax) * 0.5f;
+  float2 size = (bmax - bmin) * 0.5f;
+  float d = sdf_rounded_box(pos - center, size, radius);
+  if (d <= 0.0f) {
+    return;
+  }
+  /* Outside of rounded rectangle, set pixel alpha to zero. */
+  if (ibuf->byte_buffer.data != nullptr) {
+    int64_t ofs = (int64_t(iy) * ibuf->x + ix) * 4;
+    ibuf->byte_buffer.data[ofs + 3] = 0;
+  }
+  if (ibuf->float_buffer.data != nullptr) {
+    int64_t ofs = (int64_t(iy) * ibuf->x + ix) * ibuf->channels;
+    ibuf->float_buffer.data[ofs + 3] = 0.0f;
+  }
+}
+
+static void make_ibuf_round_corners(ImBuf *ibuf, float radius, float2 bmin, float2 bmax)
+{
+  /* Evaluate radius*radius squares at corners. */
+  for (int by = 0; by < radius; by++) {
+    for (int bx = 0; bx < radius; bx++) {
+      eval_round_corners_pixel(ibuf, radius, bmin, bmax, float2(bmin.x + bx, bmin.y + by));
+      eval_round_corners_pixel(ibuf, radius, bmin, bmax, float2(bmax.x - bx, bmin.y + by));
+      eval_round_corners_pixel(ibuf, radius, bmin, bmax, float2(bmin.x + bx, bmax.y - by));
+      eval_round_corners_pixel(ibuf, radius, bmin, bmax, float2(bmax.x - bx, bmax.y - by));
+    }
+  }
+}
+
 void draw_seq_strip_thumbnail(View2D *v2d,
                               const bContext *C,
                               Scene *scene,
                               Sequence *seq,
                               float y1,
                               float y2,
+                              float y_top,
                               float pixelx,
-                              float pixely)
+                              float pixely,
+                              float round_radius)
 {
   SpaceSeq *sseq = CTX_wm_space_seq(C);
   if ((sseq->flag & SEQ_SHOW_OVERLAY) == 0 ||
@@ -443,10 +514,6 @@ void draw_seq_strip_thumbnail(View2D *v2d,
   {
     return;
   }
-
-  bool clipped = false;
-  float image_height, image_width, thumb_width;
-  rcti crop;
 
   StripElem *se = seq->strip->stripdata;
   if (se->orig_height == 0 || se->orig_width == 0) {
@@ -464,22 +531,30 @@ void draw_seq_strip_thumbnail(View2D *v2d,
     return;
   }
 
+  Editing *ed = SEQ_editing_get(scene);
+  ListBase *channels = ed ? SEQ_channels_displayed_get(ed) : nullptr;
+
+  float thumb_width, image_width, image_height;
   const float thumb_height = y2 - y1;
   seq_get_thumb_image_dimensions(
       seq, pixelx, pixely, &thumb_width, thumb_height, &image_width, &image_height);
 
+  const float zoom_y = thumb_height / image_height;
+  const float crop_x_multiplier = 1.0f / pixelx / (zoom_y / pixely);
+
   float thumb_y_end = y1 + thumb_height;
 
-  float cut_off = 0;
+  const float seq_left_handle = SEQ_time_left_handle_frame_get(scene, seq);
+  const float seq_right_handle = SEQ_time_right_handle_frame_get(scene, seq);
+
   float upper_thumb_bound = SEQ_time_has_right_still_frames(scene, seq) ?
-                                (seq->start + seq->len) :
-                                SEQ_time_right_handle_frame_get(scene, seq);
+                                SEQ_time_content_end_frame_get(scene, seq) :
+                                seq_right_handle;
   if (seq->type == SEQ_TYPE_IMAGE) {
-    upper_thumb_bound = SEQ_time_right_handle_frame_get(scene, seq);
+    upper_thumb_bound = seq_right_handle;
   }
 
   float timeline_frame = SEQ_render_thumbnail_first_frame_get(scene, seq, thumb_width, &v2d->cur);
-  float thumb_x_end;
 
   GSet *last_displayed_thumbnails = last_displayed_thumbnails_list_ensure(C, seq);
   /* Cleanup thumbnail list outside of rendered range, which is cleaned up one by one to prevent
@@ -490,8 +565,8 @@ void draw_seq_strip_thumbnail(View2D *v2d,
 
   /* Start drawing. */
   while (timeline_frame < upper_thumb_bound) {
-    thumb_x_end = timeline_frame + thumb_width;
-    clipped = false;
+    float thumb_x_end = timeline_frame + thumb_width;
+    bool clipped = false;
 
     /* Checks to make sure that thumbs are loaded only when in view and within the confines of the
      * strip. Some may not be required but better to have conditions for safety as x1 here is
@@ -501,29 +576,25 @@ void draw_seq_strip_thumbnail(View2D *v2d,
     }
 
     /* Set the clipping bound to show the left handle moving over thumbs and not shift thumbs. */
-    if (IN_RANGE_INCL(SEQ_time_left_handle_frame_get(scene, seq), timeline_frame, thumb_x_end)) {
-      cut_off = SEQ_time_left_handle_frame_get(scene, seq) - timeline_frame;
+    float cut_off = 0.0f;
+    if (seq_left_handle > timeline_frame && seq_left_handle < thumb_x_end) {
+      cut_off = seq_left_handle - timeline_frame;
       clipped = true;
     }
 
     /* Clip if full thumbnail cannot be displayed. */
-    if (thumb_x_end > (upper_thumb_bound)) {
+    if (thumb_x_end > upper_thumb_bound) {
       thumb_x_end = upper_thumb_bound;
       clipped = true;
-      if (thumb_x_end - timeline_frame < 1) {
-        break;
-      }
     }
 
-    float zoom_x = thumb_width / image_width;
-    float zoom_y = thumb_height / image_height;
-
-    float cropx_min = (cut_off / pixelx) / (zoom_y / pixely);
-    float cropx_max = ((thumb_x_end - timeline_frame) / pixelx) / (zoom_y / pixely);
-    if (cropx_max == (thumb_x_end - timeline_frame)) {
-      cropx_max = cropx_max + 1;
+    int cropx_min = int(cut_off * crop_x_multiplier);
+    int cropx_max = int((thumb_x_end - timeline_frame) * crop_x_multiplier);
+    if (cropx_max < 1) {
+      break;
     }
-    BLI_rcti_init(&crop, int(cropx_min), int(cropx_max), 0, int(image_height) - 1);
+    rcti crop;
+    BLI_rcti_init(&crop, cropx_min, cropx_max - 1, 0, int(image_height) - 1);
 
     /* Get the image. */
     ImBuf *ibuf = SEQ_get_thumbnail(&context, seq, timeline_frame, &crop, clipped);
@@ -548,37 +619,48 @@ void draw_seq_strip_thumbnail(View2D *v2d,
       break;
     }
 
-    /* Transparency on overlap. */
-    if (seq->flag & SEQ_OVERLAP) {
-      GPU_blend(GPU_BLEND_ALPHA);
-      if (ibuf->byte_buffer.data) {
-        uchar *buf = ibuf->byte_buffer.data;
-        for (int pixel = ibuf->x * ibuf->y; pixel--; buf += 4) {
-          buf[3] = OVERLAP_ALPHA;
-        }
-      }
-      else if (ibuf->float_buffer.data) {
-        float *buf = ibuf->float_buffer.data;
-        for (int pixel = ibuf->x * ibuf->y; pixel--; buf += ibuf->channels) {
-          buf[3] = (OVERLAP_ALPHA / 255.0f);
-        }
+    /* Transparency on mute. */
+    bool muted = channels ? SEQ_render_is_muted(channels, seq) : false;
+    if (muted) {
+      /* Work on a copy of the thumbnail image, so that transparency
+       * is not stored into the thumbnail cache. */
+      ImBuf *copy = IMB_dupImBuf(ibuf);
+      IMB_freeImBuf(ibuf);
+      ibuf = copy;
+      make_ibuf_semitransparent(ibuf);
+    }
+
+    /* If thumbnail start or end falls within strip corner rounding area,
+     * we need to manually set thumbnail pixels that are outside of rounded
+     * rectangle to be transparent. Ideally this would be done on the GPU
+     * while drawing, but since rendering is done through OCIO shaders that
+     * is hard to do. */
+    const float xpos = timeline_frame + cut_off;
+
+    const float zoom_x = (thumb_x_end - xpos) / ibuf->x;
+
+    const float radius = ibuf->y * round_radius * pixely / (y2 - y1);
+    if (radius > 0.9f) {
+      if (xpos < seq_left_handle + round_radius * pixelx ||
+          thumb_x_end > seq_right_handle - round_radius * pixelx)
+      {
+        /* Work on a copy of the thumbnail image, so that corner rounding
+         * is not stored into thumbnail cache. */
+        ImBuf *copy = IMB_dupImBuf(ibuf);
+        IMB_freeImBuf(ibuf);
+        ibuf = copy;
+
+        float round_y_top = ibuf->y * (y_top - y1) / (y2 - y1);
+        make_ibuf_round_corners(ibuf,
+                                radius,
+                                float2((seq_left_handle - xpos) / zoom_x, 0),
+                                float2((seq_right_handle - xpos) / zoom_x, round_y_top));
       }
     }
 
-    ED_draw_imbuf_ctx_clipping(C,
-                               ibuf,
-                               timeline_frame + cut_off,
-                               y1,
-                               true,
-                               timeline_frame + cut_off,
-                               y1,
-                               thumb_x_end,
-                               thumb_y_end,
-                               zoom_x,
-                               zoom_y);
+    ED_draw_imbuf_ctx_clipping(
+        C, ibuf, xpos, y1, true, xpos, y1, thumb_x_end, thumb_y_end, zoom_x, zoom_y);
     IMB_freeImBuf(ibuf);
-    GPU_blend(GPU_BLEND_NONE);
-    cut_off = 0;
     timeline_frame = SEQ_render_thumbnail_next_frame_get(scene, seq, timeline_frame, thumb_width);
   }
   last_displayed_thumbnails_list_cleanup(last_displayed_thumbnails, timeline_frame, FLT_MAX);

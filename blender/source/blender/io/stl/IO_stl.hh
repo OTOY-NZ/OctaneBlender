@@ -8,9 +8,14 @@
 
 #pragma once
 
-#include "BKE_context.hh"
 #include "BLI_path_util.h"
+
+#include "DNA_ID.h"
+
 #include "IO_orientation.hh"
+
+struct bContext;
+struct ReportList;
 
 struct STLImportParams {
   /** Full path to the source STL file to import. */
@@ -36,6 +41,7 @@ struct STLExportParams {
   bool apply_modifiers;
   bool ascii_format;
   bool use_batch;
+  char collection[MAX_IDPROP_NAME] = "";
 
   ReportList *reports = nullptr;
 };

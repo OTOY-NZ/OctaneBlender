@@ -16,10 +16,11 @@
 #include "DNA_node_types.h"
 #include "DNA_texture_types.h"
 
+#include "BLI_easing.h"
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "BKE_context.hh"
 #include "BKE_image.h"
@@ -28,8 +29,8 @@
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_node_tree_update.hh"
-#include "BKE_report.h"
-#include "BKE_scene.h"
+#include "BKE_report.hh"
+#include "BKE_scene.hh"
 #include "BKE_texture.h"
 
 #include "DEG_depsgraph_build.hh"
@@ -49,6 +50,9 @@
 #include "WM_types.hh"
 
 #include "UI_view2d.hh"
+
+#include "io_utils.hh"
+#include <fmt/format.h>
 
 #include "node_intern.hh" /* own include */
 
@@ -74,12 +78,12 @@ bNode *add_node(const bContext &C, const StringRef idname, const float2 &locatio
 
   const std::string idname_str = idname;
 
-  bNode *node = nodeAddNode(&C, &node_tree, idname_str.c_str());
+  bNode *node = bke::nodeAddNode(&C, &node_tree, idname_str.c_str());
   BLI_assert(node && node->typeinfo);
 
   position_node_based_on_mouse(*node, location);
 
-  nodeSetSelected(node, true);
+  bke::nodeSetSelected(node, true);
   ED_node_set_active(&bmain, &snode, &node_tree, node, nullptr);
 
   ED_node_tree_propagate_change(&C, &bmain, &node_tree);
@@ -94,12 +98,12 @@ bNode *add_static_node(const bContext &C, int type, const float2 &location)
 
   node_deselect_all(node_tree);
 
-  bNode *node = nodeAddStaticNode(&C, &node_tree, type);
+  bNode *node = bke::nodeAddStaticNode(&C, &node_tree, type);
   BLI_assert(node && node->typeinfo);
 
   position_node_based_on_mouse(*node, location);
 
-  nodeSetSelected(node, true);
+  bke::nodeSetSelected(node, true);
   ED_node_set_active(&bmain, &snode, &node_tree, node, nullptr);
 
   ED_node_tree_propagate_change(&C, &bmain, &node_tree);
@@ -187,13 +191,13 @@ static int add_reroute_exec(bContext *C, wmOperator *op)
   for (const auto item : cuts_per_socket.items()) {
     const Map<bNodeLink *, float2> &cuts = item.value.links;
 
-    bNode *reroute = nodeAddStaticNode(C, &ntree, NODE_REROUTE);
+    bNode *reroute = bke::nodeAddStaticNode(C, &ntree, NODE_REROUTE);
 
-    nodeAddLink(&ntree,
-                item.value.from_node,
-                item.key,
-                reroute,
-                static_cast<bNodeSocket *>(reroute->inputs.first));
+    bke::nodeAddLink(&ntree,
+                     item.value.from_node,
+                     item.key,
+                     reroute,
+                     static_cast<bNodeSocket *>(reroute->inputs.first));
 
     /* Reconnect links from the original output socket to the new reroute. */
     for (bNodeLink *link : cuts.keys()) {
@@ -213,7 +217,7 @@ static int add_reroute_exec(bContext *C, wmOperator *op)
     for (const int i : frame_nodes.index_range()) {
       bNode *frame_node = frame_nodes.last(i);
       if (BLI_rctf_isect_pt_v(&frame_node->runtime->totr, insert_point)) {
-        nodeAttachNode(&ntree, reroute, frame_node);
+        bke::nodeAttachNode(&ntree, reroute, frame_node);
         break;
       }
     }
@@ -262,7 +266,7 @@ static bool node_group_add_poll(const bNodeTree &node_tree,
   }
 
   const char *disabled_hint = nullptr;
-  if (!nodeGroupPoll(&node_tree, &node_group, &disabled_hint)) {
+  if (!bke::nodeGroupPoll(&node_tree, &node_group, &disabled_hint)) {
     if (disabled_hint) {
       BKE_reportf(&reports,
                   RPT_ERROR,
@@ -323,7 +327,7 @@ static int node_add_group_exec(bContext *C, wmOperator *op)
   id_us_plus(group_node->id);
   BKE_ntree_update_tag_node_property(snode->edittree, group_node);
 
-  nodeSetActive(ntree, group_node);
+  bke::nodeSetActive(ntree, group_node);
   ED_node_tree_propagate_change(C, bmain, nullptr);
   WM_event_add_notifier(C, NC_NODE | NA_ADDED, nullptr);
   DEG_relations_tag_update(bmain);
@@ -413,7 +417,7 @@ static bool add_node_group_asset(const bContext &C,
   ED_preview_kill_jobs(CTX_wm_manager(&C), CTX_data_main(&C));
 
   bNode *group_node = add_node(
-      C, ntreeTypeFind(node_group->idname)->group_idname, snode.runtime->cursor);
+      C, bke::ntreeTypeFind(node_group->idname)->group_idname, snode.runtime->cursor);
   if (!group_node) {
     BKE_report(&reports, RPT_WARNING, "Could not add node group");
     return false;
@@ -425,7 +429,7 @@ static bool add_node_group_asset(const bContext &C,
   id_us_plus(group_node->id);
   BKE_ntree_update_tag_node_property(&edit_tree, group_node);
 
-  nodeSetActive(&edit_tree, group_node);
+  bke::nodeSetActive(&edit_tree, group_node);
   ED_node_tree_propagate_change(&C, &bmain, nullptr);
   WM_event_add_notifier(&C, NC_NODE | NA_ADDED, nullptr);
   DEG_relations_tag_update(&bmain);
@@ -469,10 +473,10 @@ static int node_add_group_asset_invoke(bContext *C, wmOperator *op, const wmEven
 
 static std::string node_add_group_asset_get_description(bContext *C,
                                                         wmOperatorType * /*ot*/,
-                                                        PointerRNA *values)
+                                                        PointerRNA *ptr)
 {
   const asset_system::AssetRepresentation *asset =
-      asset::operator_asset_reference_props_get_asset_from_all_library(*C, *values, nullptr);
+      asset::operator_asset_reference_props_get_asset_from_all_library(*C, *ptr, nullptr);
   if (!asset) {
     return "";
   }
@@ -525,7 +529,7 @@ static int node_add_object_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  bNodeSocket *sock = nodeFindSocket(object_node, SOCK_IN, "Object");
+  bNodeSocket *sock = bke::nodeFindSocket(object_node, SOCK_IN, "Object");
   if (!sock) {
     BLI_assert_unreachable();
     return OPERATOR_CANCELLED;
@@ -535,7 +539,7 @@ static int node_add_object_exec(bContext *C, wmOperator *op)
   socket_data->value = object;
   id_us_plus(&object->id);
 
-  nodeSetActive(ntree, object_node);
+  bke::nodeSetActive(ntree, object_node);
   ED_node_tree_propagate_change(C, bmain, ntree);
   DEG_relations_tag_update(bmain);
 
@@ -611,7 +615,7 @@ static int node_add_collection_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  bNodeSocket *sock = nodeFindSocket(collection_node, SOCK_IN, "Collection");
+  bNodeSocket *sock = bke::nodeFindSocket(collection_node, SOCK_IN, "Collection");
   if (!sock) {
     BKE_report(op->reports, RPT_WARNING, "Could not find node collection socket");
     return OPERATOR_CANCELLED;
@@ -621,7 +625,7 @@ static int node_add_collection_exec(bContext *C, wmOperator *op)
   socket_data->value = collection;
   id_us_plus(&collection->id);
 
-  nodeSetActive(&ntree, collection_node);
+  bke::nodeSetActive(&ntree, collection_node);
   ED_node_tree_propagate_change(C, bmain, &ntree);
   DEG_relations_tag_update(bmain);
 
@@ -683,18 +687,59 @@ static bool node_add_file_poll(bContext *C)
          ELEM(snode->nodetree->type, NTREE_SHADER, NTREE_TEXTURE, NTREE_COMPOSIT, NTREE_GEOMETRY);
 }
 
+/** Node stack animation data, sorts nodes so each node is placed on top of each other. */
+struct NodeStackAnimationData {
+  Vector<bNode *> nodes;
+  wmTimer *anim_timer;
+};
+
+static int node_add_file_modal(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  NodeStackAnimationData *data = static_cast<NodeStackAnimationData *>(op->customdata);
+
+  if (event->type != TIMER || data == nullptr || data->anim_timer != event->customdata) {
+    return OPERATOR_PASS_THROUGH;
+  }
+
+  const float node_stack_anim_duration = 0.25f;
+  const float duration = float(data->anim_timer->time_duration);
+  const float prev_duration = duration - float(data->anim_timer->time_delta);
+  const float clamped_duration = math::min(duration, node_stack_anim_duration);
+  const float delta_factor =
+      BLI_easing_cubic_ease_in_out(clamped_duration, 0.0f, 1.0f, node_stack_anim_duration) -
+      BLI_easing_cubic_ease_in_out(prev_duration, 0.0f, 1.0f, node_stack_anim_duration);
+
+  bool redraw = false;
+  /* Each node is pushed by all previous nodes in the stack. */
+  float stack_offset = 0.0f;
+
+  for (bNode *node : data->nodes) {
+    node->locy -= stack_offset;
+    stack_offset += (node->runtime->totr.ymax - node->runtime->totr.ymin) * delta_factor;
+    redraw = true;
+  }
+
+  if (redraw) {
+    ED_region_tag_redraw(CTX_wm_region(C));
+  }
+
+  /* End stack animation. */
+  if (duration > node_stack_anim_duration) {
+    WM_event_timer_remove(CTX_wm_manager(C), nullptr, data->anim_timer);
+    MEM_delete(data);
+    op->customdata = nullptr;
+    return (OPERATOR_FINISHED | OPERATOR_PASS_THROUGH);
+  }
+
+  return OPERATOR_RUNNING_MODAL;
+}
+
 static int node_add_file_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   SpaceNode &snode = *CTX_wm_space_node(C);
   Scene *scene = CTX_data_scene(C);
   const char *engine_id = scene->r.engine;  int type = 0;
-
-  Image *ima = (Image *)WM_operator_drop_load_path(C, op, ID_IM);
-  if (!ima) {
-    return OPERATOR_CANCELLED;
-  }
-
   switch (snode.nodetree->type) {
     case NTREE_SHADER:
       // type = STREQ(engine_id, RE_engine_id_OCTANE) ? SH_NODE_OCT_IMAGE_TEX : SH_NODE_TEX_IMAGE;
@@ -713,36 +758,82 @@ static int node_add_file_exec(bContext *C, wmOperator *op)
     default:
       return OPERATOR_CANCELLED;
   }
+  Vector<Image *> images;
+  /* Load all paths as ID Images. */
+  const Vector<std::string> paths = ed::io::paths_from_operator_properties(op->ptr);
+  for (const std::string &path : paths) {
+    RNA_string_set(op->ptr, "filepath", path.c_str());
+    Image *image = (Image *)WM_operator_drop_load_path(C, op, ID_IM);
+    if (!image) {
+      BKE_report(op->reports, RPT_WARNING, fmt::format("Could not load {}", path).c_str());
+      continue;
+    }
+    images.append(image);
+    /* When adding new image file via drag-drop we need to load #ImBuf in order
+     * to get proper image source. */
+    BKE_image_signal(bmain, image, nullptr, IMA_SIGNAL_RELOAD);
+    WM_event_add_notifier(C, NC_IMAGE | NA_EDITED, image);
+  }
 
-  ED_preview_kill_jobs(CTX_wm_manager(C), CTX_data_main(C));
+  /* If not path is provided, try to get a ID Image from operator. */
+  if (paths.is_empty()) {
+    Image *image = (Image *)WM_operator_drop_load_path(C, op, ID_IM);
+    if (image) {
+      images.append(image);
+    }
+  }
 
-  bNode *node = add_static_node(*C, type, snode.runtime->cursor);
+  float2 position = snode.runtime->cursor;
+  Vector<bNode *> nodes;
+  /* Add a node for each image. */
+  for (Image *image : images) {
+    bNode *node = add_static_node(*C, type, position);
+    if (!node) {
+      BKE_report(op->reports, RPT_WARNING, "Could not add an image node");
+      continue;
+    }
+    if (type == GEO_NODE_IMAGE_TEXTURE) {
+      bNodeSocket *image_socket = (bNodeSocket *)node->inputs.first;
+      bNodeSocketValueImage *socket_value = (bNodeSocketValueImage *)image_socket->default_value;
+      socket_value->value = image;
+    }
+    else {
+      node->id = (ID *)image;
+    }
+    nodes.append(node);
+    /* Initial offset between nodes. */
+    position[1] -= 20.0f;
+  }
 
-  if (!node) {
-    BKE_report(op->reports, RPT_WARNING, "Could not add an image node");
+  if (nodes.is_empty()) {
     return OPERATOR_CANCELLED;
   }
 
-  if (type == GEO_NODE_IMAGE_TEXTURE) {
-    bNodeSocket *image_socket = (bNodeSocket *)node->inputs.first;
-    bNodeSocketValueImage *socket_value = (bNodeSocketValueImage *)image_socket->default_value;
-    socket_value->value = ima;
+  /* Set new nodes as selected. */
+  bNodeTree &node_tree = *snode.edittree;
+  node_deselect_all(node_tree);
+  for (bNode *node : nodes) {
+    bke::nodeSetSelected(node, true);
   }
-  else {
-    node->id = (ID *)ima;
-  }
+  ED_node_set_active(bmain, &snode, &node_tree, nodes[0], nullptr);
 
-  /* When adding new image file via drag-drop we need to load imbuf in order
-   * to get proper image source. */
-  if (RNA_struct_property_is_set(op->ptr, "filepath")) {
-    BKE_image_signal(bmain, ima, nullptr, IMA_SIGNAL_RELOAD);
-    WM_event_add_notifier(C, NC_IMAGE | NA_EDITED, ima);
-  }
+  ED_preview_kill_jobs(CTX_wm_manager(C), CTX_data_main(C));
 
   ED_node_tree_propagate_change(C, bmain, snode.edittree);
   DEG_relations_tag_update(bmain);
 
-  return OPERATOR_FINISHED;
+  if (nodes.size() == 1) {
+    return OPERATOR_FINISHED;
+  }
+
+  /* Start the stack animation, so each node is placed on top of each other. */
+  NodeStackAnimationData *data = MEM_new<NodeStackAnimationData>(__func__);
+  data->nodes = std::move(nodes);
+  data->anim_timer = WM_event_timer_add(CTX_wm_manager(C), CTX_wm_window(C), TIMER, 0.02);
+  op->customdata = data;
+  WM_event_add_modal_handler(C, op);
+
+  return OPERATOR_RUNNING_MODAL;
 }
 
 static int node_add_file_invoke(bContext *C, wmOperator *op, const wmEvent *event)
@@ -777,6 +868,7 @@ void NODE_OT_add_file(wmOperatorType *ot)
 
   /* callbacks */
   ot->exec = node_add_file_exec;
+  ot->modal = node_add_file_modal;
   ot->invoke = node_add_file_invoke;
   ot->poll = node_add_file_poll;
 
@@ -787,7 +879,8 @@ void NODE_OT_add_file(wmOperatorType *ot)
                                  FILE_TYPE_FOLDER | FILE_TYPE_IMAGE | FILE_TYPE_MOVIE,
                                  FILE_SPECIAL,
                                  FILE_OPENFILE,
-                                 WM_FILESEL_FILEPATH | WM_FILESEL_RELPATH,
+                                 WM_FILESEL_FILEPATH | WM_FILESEL_RELPATH | WM_FILESEL_DIRECTORY |
+                                     WM_FILESEL_FILES,
                                  FILE_DEFAULTDISPLAY,
                                  FILE_SORT_DEFAULT);
   WM_operator_properties_id_lookup(ot, true);
@@ -957,7 +1050,7 @@ static int new_node_tree_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  if (!ntreeTypeFind(idname)) {
+  if (!bke::ntreeTypeFind(idname)) {
     BKE_reportf(op->reports, RPT_ERROR, "Node tree type %s undefined", idname);
     return OPERATOR_CANCELLED;
   }
@@ -967,11 +1060,11 @@ static int new_node_tree_exec(bContext *C, wmOperator *op)
     treename = treename_buf;
   }
   else {
-    const bNodeTreeType *type = ntreeTypeFind(idname);
+    const bke::bNodeTreeType *type = bke::ntreeTypeFind(idname);
     treename = type->ui_name;
   }
 
-  ntree = ntreeAddTree(bmain, treename, idname);
+  ntree = bke::ntreeAddTree(bmain, treename, idname);
 
   /* Hook into UI. */
   UI_context_active_but_prop_get_templateID(C, &ptr, &prop);
@@ -980,6 +1073,10 @@ static int new_node_tree_exec(bContext *C, wmOperator *op)
     /* #RNA_property_pointer_set increases the user count, fixed here as the editor is the initial
      * user. */
     id_us_min(&ntree->id);
+
+    if (ptr.owner_id) {
+      BKE_id_move_to_same_lib(*bmain, ntree->id, *ptr.owner_id);
+    }
 
     PointerRNA idptr = RNA_id_pointer_create(&ntree->id);
     RNA_property_pointer_set(&ptr, prop, idptr, nullptr);

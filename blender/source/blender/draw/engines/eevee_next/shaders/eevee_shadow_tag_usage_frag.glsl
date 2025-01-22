@@ -41,7 +41,7 @@ float ray_aabb(vec3 ray_origin, vec3 ray_direction, vec3 aabb_min, vec3 aabb_max
 
 float pixel_size_at(float linear_depth)
 {
-  float pixel_size = pixel_world_radius;
+  float pixel_size = uniform_buf.shadow.film_pixel_radius;
   bool is_persp = (ProjectionMatrix[3][3] == 0.0);
   if (is_persp) {
     pixel_size *= max(0.01, linear_depth);
@@ -98,6 +98,12 @@ void main()
    * The inflated bounds can cause unnecessary extra steps. */
   float ls_near_box_t = ray_aabb(
       ls_near_plane, ls_view_direction, interp_flat.ls_aabb_min, interp_flat.ls_aabb_max);
+
+  if (ls_near_box_t < 0.0) {
+    /* The ray cast can fail in ortho mode due to numerical precision. (See #121629) */
+    return;
+  }
+
   vec3 ls_near_box = ls_near_plane + ls_view_direction * ls_near_box_t;
   vec3 ws_near_box = drw_point_object_to_world(ls_near_box);
 
@@ -119,6 +125,6 @@ void main()
     vec3 vP = drw_point_world_to_view(P);
 
     shadow_tag_usage(
-        vP, P, ws_view_direction, step_radius, t, gl_FragCoord.xy * exp2(float(fb_lod)), 0);
+        vP, P, ws_view_direction, step_radius, gl_FragCoord.xy * exp2(float(fb_lod)), 0);
   }
 }

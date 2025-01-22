@@ -33,11 +33,17 @@ static void node_shader_buts_uvmap(uiLayout *layout, bContext *C, PointerRNA *pt
     if (obptr.data && RNA_enum_get(&obptr, "type") == OB_MESH) {
       PointerRNA eval_obptr;
 
-      Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-      DEG_get_evaluated_rna_pointer(depsgraph, &obptr, &eval_obptr);
-      PointerRNA dataptr = RNA_pointer_get(&eval_obptr, "data");
-      uiItemPointerR(layout, ptr, "uv_map", &dataptr, "uv_layers", "", ICON_GROUP_UVS);
+      Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+
+      if (depsgraph) {
+        DEG_get_evaluated_rna_pointer(depsgraph, &obptr, &eval_obptr);
+        PointerRNA dataptr = RNA_pointer_get(&eval_obptr, "data");
+        uiItemPointerR(layout, ptr, "uv_map", &dataptr, "uv_layers", "", ICON_GROUP_UVS);
+        return;
+      }
     }
+
+    uiItemR(layout, ptr, "uv_map", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_GROUP_UVS);
   }
 }
 
@@ -70,10 +76,9 @@ static int node_shader_gpu_uvmap(GPUMaterial *mat,
 NODE_SHADER_MATERIALX_BEGIN
 #ifdef WITH_MATERIALX
 {
-  /* NODE: "From Instances" not implemented
-   * UV selection not implemented
-   */
-  NodeItem res = texcoord_node();
+  /* NODE: "From Instances" not implemented */
+  NodeShaderUVMap *attr = static_cast<NodeShaderUVMap *>(node_->storage);
+  NodeItem res = texcoord_node(NodeItem::Type::Vector2, attr->uv_map);
   return res;
 }
 #endif
@@ -86,17 +91,17 @@ void register_node_type_sh_uvmap()
 {
   namespace file_ns = blender::nodes::node_shader_uvmap_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   sh_node_type_base(&ntype, SH_NODE_UVMAP, "UV Map", NODE_CLASS_INPUT);
   ntype.declare = file_ns::node_declare;
   ntype.draw_buttons = file_ns::node_shader_buts_uvmap;
-  blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::MIDDLE);
+  blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Middle);
   ntype.initfunc = file_ns::node_shader_init_uvmap;
-  node_type_storage(
+  blender::bke::node_type_storage(
       &ntype, "NodeShaderUVMap", node_free_standard_storage, node_copy_standard_storage);
   ntype.gpu_fn = file_ns::node_shader_gpu_uvmap;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 }

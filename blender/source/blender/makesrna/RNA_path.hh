@@ -23,6 +23,70 @@
 struct ListBase;
 struct IDProperty;
 
+/**
+ * An RNA path to a property, including an optional key/index for array and
+ * collection properties.
+ *
+ * The semantics around the key and index fields are specific:
+ * - If a key is specified, that indicates an element of a key-based array
+ *   property. If an index is *also* specified alongside the key then the index
+ *   is just a fallback.
+ * - If an index is specified but *not* a key, that indicates an element of an
+ *   index-based array property.
+ * - If neither the key nor index are specified, that indicates a property as a
+ *   whole.
+ *
+ * This type is intended to be convenient to construct with initializer lists:
+ *
+ * ```
+ * RNAPath path_only =               {"dof.focus_distance"};
+ * RNAPath path_with_index =         {"location", {}, 2};
+ * RNAPath path_with_key =           {"modifiers", "SimpleDeform"};
+ * RNAPath path_with_key_and_index = {"modifiers", "SimpleDeform", 5};
+ * ```
+ *
+ * NOTE: some older parts of Blender's code base use negative array indices as a
+ * magic value to mean things like "all array elements". However, magic values
+ * should specifically NOT be used in this type. Instead, simply leave the index
+ * unspecified. Unspecified indices can then be converted to a negative magic
+ * value at the API boundaries that need it, like so:
+ *
+ * ```
+ * some_older_function(rna_path.index.value_or(-1));
+ * ```
+ */
+struct RNAPath {
+  std::string path;
+  /**
+   * Key/index for array and collection properties. Any combination of index and
+   * key can be specified (including neither). In the case that both are
+   * specified, they should be redundant ways to access the same element.
+   */
+  std::optional<std::string> key = std::nullopt;
+  std::optional<int> index = std::nullopt;
+
+  /**
+   * NOTE: equality is defined in a specific way here to reflect the semantic
+   * meaning of `RNAPath`. Since the key existing indicates a key-based array
+   * element, with the index then only serving as a fallback, the index only
+   * affects the equality result if *neither* `RNAPath` has a key specified.
+   * (See the main `RNAPath` documentation above for the specific semantics of
+   * key and index.)
+   */
+  bool operator==(const RNAPath &other) const
+  {
+    if (this->path != other.path) {
+      return false;
+    }
+
+    if (this->key.has_value() || other.key.has_value()) {
+      return this->key == other.key;
+    }
+
+    return this->index == other.index;
+  }
+};
+
 char *RNA_path_append(
     const char *path, const PointerRNA *ptr, PropertyRNA *prop, int intkey, const char *strkey);
 #if 0 /* UNUSED. */

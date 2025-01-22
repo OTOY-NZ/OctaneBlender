@@ -16,21 +16,15 @@
 #include "BLI_listbase.h"
 #include "BLI_math_base.h"
 
-#include "BKE_fcurve.h"
 #include "BKE_movieclip.h"
-#include "BKE_scene.h"
 #include "BKE_sound.h"
 
-#include "DNA_anim_types.h"
 #include "DNA_sound_types.h"
 
 #include "IMB_imbuf.hh"
 
-#include "RNA_prototypes.h"
-
 #include "SEQ_channels.hh"
 #include "SEQ_iterator.hh"
-#include "SEQ_relations.hh"
 #include "SEQ_render.hh"
 #include "SEQ_retiming.hh"
 #include "SEQ_sequencer.hh"
@@ -68,10 +62,11 @@ float SEQ_give_frame_index(const Scene *scene, Sequence *seq, float timeline_fra
   float frame_index;
   float sta = SEQ_time_start_frame_get(seq);
   float end = SEQ_time_content_end_frame_get(scene, seq) - 1;
-  const float frame_index_max = seq->len - 1;
+  float frame_index_max = seq->len - 1;
 
   if (seq->type & SEQ_TYPE_EFFECT) {
     end = SEQ_time_right_handle_frame_get(scene, seq);
+    frame_index_max = end - sta;
   }
 
   if (end < sta) {
@@ -236,7 +231,8 @@ void seq_time_effect_range_set(const Scene *scene, Sequence *seq)
   seq->len = seq->enddisp - seq->startdisp;
 }
 
-void seq_time_update_effects_strip_range(const Scene *scene, blender::Span<Sequence *> &effects)
+void seq_time_update_effects_strip_range(const Scene *scene,
+                                         const blender::Span<Sequence *> effects)
 {
   /* First pass: Update length of immediate effects. */
   for (Sequence *seq : effects) {
@@ -246,8 +242,8 @@ void seq_time_update_effects_strip_range(const Scene *scene, blender::Span<Seque
   /* Second pass: Recursive call to update effects in chain and in order, so they inherit length
    * correctly. */
   for (Sequence *seq : effects) {
-    blender::Span effects = seq_sequence_lookup_effects_by_seq(scene, seq);
-    seq_time_update_effects_strip_range(scene, effects);
+    blender::Span effects_recurse = seq_sequence_lookup_effects_by_seq(scene, seq);
+    seq_time_update_effects_strip_range(scene, effects_recurse);
   }
 }
 
@@ -365,7 +361,7 @@ void SEQ_timeline_init_boundbox(const Scene *scene, rctf *rect)
 {
   rect->xmin = scene->r.sfra;
   rect->xmax = scene->r.efra + 1;
-  rect->ymin = 0.0f;
+  rect->ymin = 1.0f; /* The first strip is drawn at y == 1.0f */
   rect->ymax = 8.0f;
 }
 
@@ -382,8 +378,9 @@ void SEQ_timeline_expand_boundbox(const Scene *scene, const ListBase *seqbase, r
     if (rect->xmax < SEQ_time_right_handle_frame_get(scene, seq) + 1) {
       rect->xmax = SEQ_time_right_handle_frame_get(scene, seq) + 1;
     }
-    if (rect->ymax < seq->machine) {
-      rect->ymax = seq->machine;
+    if (rect->ymax < seq->machine + 1.0f) {
+      /* We do +1 here to account for the channel thickness. Channel n has range of <n, n+1>. */
+      rect->ymax = seq->machine + 1.0f;
     }
   }
 }

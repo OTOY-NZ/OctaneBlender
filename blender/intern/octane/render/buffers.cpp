@@ -29,10 +29,10 @@
 #  endif
 #endif  // NOPNG
 
-#include "GPU_context.h"
-#include "GPU_immediate.h"
-#include "GPU_shader.h"
-#include "GPU_state.h"
+#include "GPU_context.hh"
+#include "GPU_immediate.hh"
+#include "GPU_shader.hh"
+#include "GPU_state.hh"
 
 #include "util/opengl.h"
 #include "util/path.h"

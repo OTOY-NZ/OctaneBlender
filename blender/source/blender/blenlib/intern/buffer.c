@@ -36,7 +36,7 @@
 #include "BLI_buffer.h"
 #include "BLI_utildefines.h"
 
-#include "BLI_strict_flags.h"
+#include "BLI_strict_flags.h" /* Keep last. */
 
 static void *buffer_alloc(BLI_Buffer *buffer, const size_t len)
 {
@@ -52,7 +52,7 @@ void BLI_buffer_resize(BLI_Buffer *buffer, const size_t new_count)
 {
   if (UNLIKELY(new_count > buffer->alloc_count)) {
     if (buffer->flag & BLI_BUFFER_USE_STATIC) {
-      void *orig = buffer->data;
+      const void *orig = buffer->data;
 
       buffer->data = buffer_alloc(buffer, new_count);
       memcpy(buffer->data, orig, buffer->elem_size * buffer->count);

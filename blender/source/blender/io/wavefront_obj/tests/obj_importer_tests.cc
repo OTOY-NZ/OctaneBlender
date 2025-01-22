@@ -13,14 +13,14 @@
 #include "BKE_material.h"
 #include "BKE_mesh.hh"
 #include "BKE_object.hh"
-#include "BKE_scene.h"
+#include "BKE_scene.hh"
 
 #include "BLI_listbase.h"
 #include "BLI_math_base.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_string.h"
 
-#include "BLO_readfile.h"
+#include "BLO_readfile.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
@@ -316,6 +316,38 @@ TEST_F(OBJImportTest, import_nurbs_cyclic)
   import_and_check("nurbs_cyclic.obj", expect, std::size(expect), 0);
 }
 
+TEST_F(OBJImportTest, import_nurbs_endpoint)
+{
+  Expectation expect[] = {
+      {"OBCube", OB_MESH, 8, 12, 6, 24, float3(1, 1, -1), float3(-1, 1, 1)},
+      {"OBCurveEndpointRange01",
+       OB_CURVES_LEGACY,
+       15,
+       1,
+       4,
+       0,
+       float3(0.29f, 0, -0.11f),
+       float3(22.17f, 0, -5.31f)},
+      {"OBCurveEndpointRangeNon01",
+       OB_CURVES_LEGACY,
+       15,
+       1,
+       4,
+       0,
+       float3(0.29f, 0, -0.11f),
+       float3(22.17f, 0, -5.31f)},
+      {"OBCurveNoEndpointRange01",
+       OB_CURVES_LEGACY,
+       15,
+       0,
+       4,
+       0,
+       float3(0.29f, 0, -0.11f),
+       float3(22.17f, 0, -5.31f)},
+  };
+  import_and_check("nurbs_endpoint.obj", expect, std::size(expect), 0);
+}
+
 TEST_F(OBJImportTest, import_nurbs_manual)
 {
   Expectation expect[] = {
@@ -542,7 +574,7 @@ TEST_F(OBJImportTest, import_all_objects)
 {
   Expectation expect[] = {
       {"OBCube", OB_MESH, 8, 12, 6, 24, float3(1, 1, -1), float3(-1, 1, 1)},
-      /* .obj file has empty EmptyText and EmptyMesh objects; these are ignored and skipped */
+      /* `.obj` file has empty EmptyText and EmptyMesh objects; these are ignored and skipped. */
       {"OBBezierCurve", OB_MESH, 13, 12, 0, 0, float3(-1, -2, 0), float3(1, -2, 0)},
       {"OBBlankCube", OB_MESH, 8, 13, 7, 26, float3(1, 1, -1), float3(-1, 1, 1), float3(0, 0, 1)},
       {"OBMaterialCube",

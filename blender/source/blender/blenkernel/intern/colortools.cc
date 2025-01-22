@@ -18,13 +18,15 @@
 #include "DNA_curve_types.h"
 
 #include "BLI_blenlib.h"
+#include "BLI_math_base.hh"
+#include "BLI_math_vector.hh"
 #include "BLI_task.h"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_colortools.hh"
 #include "BKE_curve.hh"
-#include "BKE_fcurve.h"
+#include "BKE_fcurve.hh"
 
 #include "IMB_colormanagement.hh"
 #include "IMB_imbuf_types.hh"
@@ -294,8 +296,8 @@ void BKE_curvemap_reset(CurveMap *cuma, const rctf *clipr, int preset, int slope
     case CURVE_PRESET_MAX:
       cuma->totpoint = 2;
       break;
-    case CURVE_PRESET_MID9:
-      cuma->totpoint = 9;
+    case CURVE_PRESET_MID8:
+      cuma->totpoint = 8;
       break;
     case CURVE_PRESET_ROUND:
       cuma->totpoint = 4;
@@ -363,9 +365,9 @@ void BKE_curvemap_reset(CurveMap *cuma, const rctf *clipr, int preset, int slope
       cuma->curve[1].x = 1;
       cuma->curve[1].y = 1;
       break;
-    case CURVE_PRESET_MID9: {
+    case CURVE_PRESET_MID8: {
       for (int i = 0; i < cuma->totpoint; i++) {
-        cuma->curve[i].x = i / (float(cuma->totpoint) - 1);
+        cuma->curve[i].x = i / float(cuma->totpoint);
         cuma->curve[i].y = 0.5;
       }
       break;
@@ -637,12 +639,28 @@ static float curvemap_calc_extend(const CurveMapping *cumap,
   return 0.0f;
 }
 
+/* Evaluates CM_RESOL number of points on the Bezier segment defined by the given start and end
+ * Bezier triples, writing the output to the points array. */
+static void curve_eval_bezier_point(float start[3][3], float end[3][3], float *point)
+{
+  BKE_curve_correct_bezpart(start[1], start[2], end[0], end[1]);
+  BKE_curve_forward_diff_bezier(
+      start[1][0], start[2][0], end[0][0], end[1][0], point, CM_RESOL - 1, sizeof(float[2]));
+  BKE_curve_forward_diff_bezier(
+      start[1][1], start[2][1], end[0][1], end[1][1], point + 1, CM_RESOL - 1, sizeof(float[2]));
+}
+
 /* only creates a table for a single channel in CurveMapping */
 static void curvemap_make_table(const CurveMapping *cumap, CurveMap *cuma)
 {
   const rctf *clipr = &cumap->clipr;
-  CurveMapPoint *cmp = cuma->curve;
-  BezTriple *bezt;
+
+  /* Wrapping ensures that the heights of the first and last points are the same. It adds two
+   * virtual points, which are copies of the first and last points, and moves them to the opposite
+   * side of the curve offset by the table range. The handles of these points are calculated, as if
+   * they were between the last and first real points. */
+
+  const bool use_wrapping = cumap->flag & CUMA_USE_WRAPPING;
 
   if (cuma->curve == nullptr) {
     return;
@@ -651,36 +669,93 @@ static void curvemap_make_table(const CurveMapping *cumap, CurveMap *cuma)
   /* default rect also is table range */
   cuma->mintable = clipr->xmin;
   cuma->maxtable = clipr->xmax;
+  float table_range = cuma->maxtable - cuma->mintable;
+  const int bezt_totpoint = max_ii(cuma->totpoint, 2);
 
   /* Rely on Blender interpolation for bezier curves, support extra functionality here as well. */
-  bezt = static_cast<BezTriple *>(MEM_callocN(cuma->totpoint * sizeof(BezTriple), "beztarr"));
+  BezTriple *bezt = static_cast<BezTriple *>(
+      MEM_callocN(bezt_totpoint * sizeof(BezTriple), "beztarr"));
 
-  for (int a = 0; a < cuma->totpoint; a++) {
-    cuma->mintable = min_ff(cuma->mintable, cmp[a].x);
-    cuma->maxtable = max_ff(cuma->maxtable, cmp[a].x);
-    bezt[a].vec[1][0] = cmp[a].x;
-    bezt[a].vec[1][1] = cmp[a].y;
-    if (cmp[a].flag & CUMA_HANDLE_VECTOR) {
-      bezt[a].h1 = bezt[a].h2 = HD_VECT;
-    }
-    else if (cmp[a].flag & CUMA_HANDLE_AUTO_ANIM) {
-      bezt[a].h1 = bezt[a].h2 = HD_AUTO_ANIM;
-    }
-    else {
-      bezt[a].h1 = bezt[a].h2 = HD_AUTO;
+  /* Valid curve has at least 2 points. */
+  if (cuma->totpoint >= 2) {
+    CurveMapPoint *cmp = cuma->curve;
+
+    for (int a = 0; a < bezt_totpoint; a++) {
+      cuma->mintable = min_ff(cuma->mintable, cmp[a].x);
+      cuma->maxtable = max_ff(cuma->maxtable, cmp[a].x);
+      bezt[a].vec[1][0] = cmp[a].x;
+      bezt[a].vec[1][1] = cmp[a].y;
+      if (cmp[a].flag & CUMA_HANDLE_VECTOR) {
+        bezt[a].h1 = bezt[a].h2 = HD_VECT;
+      }
+      else if (cmp[a].flag & CUMA_HANDLE_AUTO_ANIM) {
+        bezt[a].h1 = bezt[a].h2 = HD_AUTO_ANIM;
+      }
+      else {
+        bezt[a].h1 = bezt[a].h2 = HD_AUTO;
+      }
     }
   }
+  else {
+    /* Fallback when points are missing. */
+    cuma->mintable = 0.0f;
+    cuma->maxtable = 0.0f;
+    zero_v2(bezt[0].vec[1]);
+    zero_v2(bezt[1].vec[1]);
+    bezt[0].h1 = HD_AUTO;
+    bezt[0].h2 = HD_AUTO;
+    bezt[1].h1 = HD_AUTO;
+    bezt[1].h2 = HD_AUTO;
+  }
 
+  const BezTriple *bezt_next = nullptr;
   const BezTriple *bezt_prev = nullptr;
-  for (int a = 0; a < cuma->totpoint; a++) {
-    const BezTriple *bezt_next = (a != cuma->totpoint - 1) ? &bezt[a + 1] : nullptr;
+
+  /* Create two extra points for wrapping curves. */
+  BezTriple bezt_pre = bezt[bezt_totpoint - 1];
+  BezTriple bezt_post = bezt[0];
+
+  BezTriple *bezt_post_ptr;
+
+  if (use_wrapping) {
+    /* Handle location of pre and post points for wrapping curves. */
+    bezt_pre.h1 = bezt_pre.h2 = bezt[bezt_totpoint - 1].h2;
+    bezt_pre.vec[1][0] = bezt[bezt_totpoint - 1].vec[1][0] - table_range;
+    bezt_pre.vec[1][1] = bezt[bezt_totpoint - 1].vec[1][1];
+
+    bezt_post.h1 = bezt_post.h2 = bezt[0].h1;
+    bezt_post.vec[1][0] = bezt[0].vec[1][0] + table_range;
+    bezt_post.vec[1][1] = bezt[0].vec[1][1];
+
+    bezt_prev = &bezt_pre;
+    bezt_post_ptr = &bezt_post;
+  }
+  else {
+    bezt_prev = nullptr;
+    bezt_post_ptr = nullptr;
+  }
+
+  /* Process middle elements */
+  for (int a = 0; a < bezt_totpoint; a++) {
+    bezt_next = (a != bezt_totpoint - 1) ? &bezt[a + 1] : bezt_post_ptr;
     calchandle_curvemap(&bezt[a], bezt_prev, bezt_next);
     bezt_prev = &bezt[a];
   }
 
+  /* Correct handles of pre and post points for wrapping curves. */
+  bezt_pre.vec[0][0] = bezt[bezt_totpoint - 1].vec[0][0] - table_range;
+  bezt_pre.vec[0][1] = bezt[bezt_totpoint - 1].vec[0][1];
+  bezt_pre.vec[2][0] = bezt[bezt_totpoint - 1].vec[2][0] - table_range;
+  bezt_pre.vec[2][1] = bezt[bezt_totpoint - 1].vec[2][1];
+
+  bezt_post.vec[0][0] = bezt[0].vec[0][0] + table_range;
+  bezt_post.vec[0][1] = bezt[0].vec[0][1];
+  bezt_post.vec[2][0] = bezt[0].vec[2][0] + table_range;
+  bezt_post.vec[2][1] = bezt[0].vec[2][1];
+
   /* first and last handle need correction, instead of pointing to center of next/prev,
    * we let it point to the closest handle */
-  if (cuma->totpoint > 2) {
+  if (bezt_totpoint > 2 && !use_wrapping) {
     float hlen, nlen, vec[3];
 
     if (bezt[0].h2 == HD_AUTO) {
@@ -700,7 +775,7 @@ static void curvemap_make_table(const CurveMapping *cumap, CurveMap *cuma)
         sub_v3_v3v3(bezt[0].vec[0], bezt[0].vec[1], vec);
       }
     }
-    int a = cuma->totpoint - 1;
+    int a = bezt_totpoint - 1;
     if (bezt[a].h2 == HD_AUTO) {
 
       hlen = len_v3v3(bezt[a].vec[1], bezt[a].vec[0]); /* original handle length */
@@ -719,35 +794,35 @@ static void curvemap_make_table(const CurveMapping *cumap, CurveMap *cuma)
       }
     }
   }
+
   /* make the bezier curve */
   if (cuma->table) {
     MEM_freeN(cuma->table);
   }
 
-  int totpoint = (cuma->totpoint - 1) * CM_RESOL;
+  const int totpoint = use_wrapping ? (bezt_totpoint + 1) * CM_RESOL :
+                                      (bezt_totpoint - 1) * CM_RESOL;
   float *allpoints = static_cast<float *>(MEM_callocN(totpoint * 2 * sizeof(float), "table"));
   float *point = allpoints;
 
-  for (int a = 0; a < cuma->totpoint - 1; a++, point += 2 * CM_RESOL) {
-    BKE_curve_correct_bezpart(
-        bezt[a].vec[1], bezt[a].vec[2], bezt[a + 1].vec[0], bezt[a + 1].vec[1]);
-    BKE_curve_forward_diff_bezier(bezt[a].vec[1][0],
-                                  bezt[a].vec[2][0],
-                                  bezt[a + 1].vec[0][0],
-                                  bezt[a + 1].vec[1][0],
-                                  point,
-                                  CM_RESOL - 1,
-                                  sizeof(float[2]));
-    BKE_curve_forward_diff_bezier(bezt[a].vec[1][1],
-                                  bezt[a].vec[2][1],
-                                  bezt[a + 1].vec[0][1],
-                                  bezt[a + 1].vec[1][1],
-                                  point + 1,
-                                  CM_RESOL - 1,
-                                  sizeof(float[2]));
+  /* Handle pre point for wrapping */
+  if (use_wrapping) {
+    curve_eval_bezier_point(bezt_pre.vec, bezt[0].vec, point);
+    point += 2 * CM_RESOL;
   }
 
-  /* store first and last handle for extrapolation, unit length */
+  /* Process middle elements */
+  for (int a = 0; a < bezt_totpoint - 1; a++, point += 2 * CM_RESOL) {
+    int b = a + 1;
+    curve_eval_bezier_point(bezt[a].vec, bezt[b].vec, point);
+  }
+
+  if (use_wrapping) {
+    /* Handle post point for wrapping */
+    curve_eval_bezier_point(bezt[bezt_totpoint - 1].vec, bezt_post.vec, point);
+  }
+  /* Store first and last handle for extrapolation, unit length. (Only relevant when not using
+   * wrapping.) */
   cuma->ext_in[0] = bezt[0].vec[0][0] - bezt[0].vec[1][0];
   cuma->ext_in[1] = bezt[0].vec[0][1] - bezt[0].vec[1][1];
   float ext_in_range = sqrtf(cuma->ext_in[0] * cuma->ext_in[0] +
@@ -755,7 +830,7 @@ static void curvemap_make_table(const CurveMapping *cumap, CurveMap *cuma)
   cuma->ext_in[0] /= ext_in_range;
   cuma->ext_in[1] /= ext_in_range;
 
-  int out_a = cuma->totpoint - 1;
+  int out_a = bezt_totpoint - 1;
   cuma->ext_out[0] = bezt[out_a].vec[1][0] - bezt[out_a].vec[2][0];
   cuma->ext_out[1] = bezt[out_a].vec[1][1] - bezt[out_a].vec[2][1];
   float ext_out_range = sqrtf(cuma->ext_out[0] * cuma->ext_out[0] +
@@ -766,7 +841,7 @@ static void curvemap_make_table(const CurveMapping *cumap, CurveMap *cuma)
   /* cleanup */
   MEM_freeN(bezt);
 
-  float range = CM_TABLEDIV * (cuma->maxtable - cuma->mintable);
+  float range = CM_TABLEDIV * table_range;
   cuma->range = 1.0f / range;
 
   /* now make a table with CM_TABLE equal x distances */
@@ -774,7 +849,7 @@ static void curvemap_make_table(const CurveMapping *cumap, CurveMap *cuma)
   float *lastpoint = allpoints + 2 * (totpoint - 1);
   point = allpoints;
 
-  cmp = static_cast<CurveMapPoint *>(
+  CurveMapPoint *cmp = static_cast<CurveMapPoint *>(
       MEM_callocN((CM_TABLE + 1) * sizeof(CurveMapPoint), "dist table"));
 
   for (int a = 0; a <= CM_TABLE; a++) {
@@ -785,9 +860,8 @@ static void curvemap_make_table(const CurveMapping *cumap, CurveMap *cuma)
     while (cur_x >= point[0] && point != lastpoint) {
       point += 2;
     }
-
     /* Check if we are on or outside the start or end point. */
-    if (point == firstpoint || (point == lastpoint && cur_x >= point[0])) {
+    if ((point == firstpoint || (point == lastpoint && cur_x >= point[0])) && !use_wrapping) {
       if (compare_ff(cur_x, point[0], 1e-6f)) {
         /* When on the point exactly, use the value directly to avoid precision
          * issues with extrapolation of extreme slopes. */
@@ -1033,22 +1107,63 @@ void BKE_curvemapping_evaluateRGBF(const CurveMapping *cumap,
       cumap, &cumap->cm[2], BKE_curvemap_evaluateF(cumap, &cumap->cm[3], vecin[2]));
 }
 
-static void curvemapping_evaluateRGBF_filmlike(const CurveMapping *cumap,
-                                               float vecout[3],
-                                               const float vecin[3],
-                                               const int channel_offset[3])
+/* Contrary to standard tone curve implementations, the film-like implementation tries to preserve
+ * the hue of the colors as much as possible. To understand why this might be a problem, consider
+ * the violet color (0.5, 0.0, 1.0). If this color was to be evaluated at a power curve x^4, the
+ * color will be blue (0.0625, 0.0, 1.0). So the color changes and not just its luminosity, which
+ * is what film-like tone curves tries to avoid.
+ *
+ * First, the channels with the lowest and highest values are identified and evaluated at the
+ * curve. Then, the third channel---the median---is computed while maintaining the original hue of
+ * the color. To do that, we look at the equation for deriving the hue from RGB values. Assuming
+ * the maximum, minimum, and median channels are known, and ignoring the 1/3 period offset of the
+ * hue, the equation is:
+ *
+ *   hue = (median - min) / (max - min)                                  [1]
+ *
+ * Since we have the new values for the minimum and maximum after evaluating at the curve, we also
+ * have:
+ *
+ *   hue = (new_median - new_min) / (new_max - new_min)                  [2]
+ *
+ * Since we want the hue to be equivalent, by equating [1] and [2] and rearranging:
+ *
+ *   (new_median - new_min) / (new_max - new_min) = (median - min) / (max - min)
+ *   new_median - new_min = (new_max - new_min) * (median - min) / (max - min)
+ *   new_median = new_min + (new_max - new_min) * (median - min) / (max - min)
+ *   new_median = new_min + (median - min) * ((new_max - new_min) / (max - min))  [QED]
+ *
+ * Which gives us the median color that preserves the hue. More intuitively, the median is computed
+ * such that the change in the distance from the median to the minimum is proportional to the
+ * change in the distance from the minimum to the maximum. Finally, each of the new minimum,
+ * maximum, and median values are written to the color channel that they were originally extracted
+ * from. */
+static blender::float3 evaluate_film_like(const CurveMapping *curve_mapping, blender::float3 input)
 {
-  const float v0in = vecin[channel_offset[0]];
-  const float v1in = vecin[channel_offset[1]];
-  const float v2in = vecin[channel_offset[2]];
+  /* Film-like curves are only evaluated on the combined curve, which is the fourth curve map. */
+  const CurveMap *curve_map = curve_mapping->cm + 3;
 
-  const float v0 = BKE_curvemap_evaluateF(cumap, &cumap->cm[channel_offset[0]], v0in);
-  const float v2 = BKE_curvemap_evaluateF(cumap, &cumap->cm[channel_offset[2]], v2in);
-  const float v1 = v2 + ((v0 - v2) * (v1in - v2in) / (v0in - v2in));
+  /* Find the maximum, minimum, and median of the color channels. */
+  const float minimum = blender::math::reduce_min(input);
+  const float maximum = blender::math::reduce_max(input);
+  const float median = blender::math::max(
+      blender::math::min(input.x, input.y),
+      blender::math::min(input.z, blender::math::max(input.x, input.y)));
 
-  vecout[channel_offset[0]] = v0;
-  vecout[channel_offset[1]] = v1;
-  vecout[channel_offset[2]] = v2;
+  const float new_min = BKE_curvemap_evaluateF(curve_mapping, curve_map, minimum);
+  const float new_max = BKE_curvemap_evaluateF(curve_mapping, curve_map, maximum);
+
+  /* Compute the new median using the ratio between the new and the original range. */
+  const float scaling_ratio = (new_max - new_min) / (maximum - minimum);
+  const float new_median = new_min + (median - minimum) * scaling_ratio;
+
+  /* Write each value to its original channel. */
+  const blender::float3 median_or_min = blender::float3(input.x == minimum ? new_min : new_median,
+                                                        input.y == minimum ? new_min : new_median,
+                                                        input.z == minimum ? new_min : new_median);
+  return blender::float3(input.x == maximum ? new_max : median_or_min.x,
+                         input.y == maximum ? new_max : median_or_min.y,
+                         input.z == maximum ? new_max : median_or_min.z);
 }
 
 void BKE_curvemapping_evaluate_premulRGBF_ex(const CurveMapping *cumap,
@@ -1060,6 +1175,7 @@ void BKE_curvemapping_evaluate_premulRGBF_ex(const CurveMapping *cumap,
   const float r = (vecin[0] - black[0]) * bwmul[0];
   const float g = (vecin[1] - black[1]) * bwmul[1];
   const float b = (vecin[2] - black[2]) * bwmul[2];
+  const float balanced_color[3] = {r, g, b};
 
   switch (cumap->tone) {
     default:
@@ -1070,47 +1186,8 @@ void BKE_curvemapping_evaluate_premulRGBF_ex(const CurveMapping *cumap,
       break;
     }
     case CURVE_TONE_FILMLIKE: {
-      if (r >= g) {
-        if (g > b) {
-          /* Case 1: r >= g >  b */
-          const int shuffeled_channels[] = {0, 1, 2};
-          curvemapping_evaluateRGBF_filmlike(cumap, vecout, vecin, shuffeled_channels);
-        }
-        else if (b > r) {
-          /* Case 2: b >  r >= g */
-          const int shuffeled_channels[] = {2, 0, 1};
-          curvemapping_evaluateRGBF_filmlike(cumap, vecout, vecin, shuffeled_channels);
-        }
-        else if (b > g) {
-          /* Case 3: r >= b >  g */
-          const int shuffeled_channels[] = {0, 2, 1};
-          curvemapping_evaluateRGBF_filmlike(cumap, vecout, vecin, shuffeled_channels);
-        }
-        else {
-          /* Case 4: r >= g == b */
-          copy_v2_fl2(vecout,
-                      BKE_curvemap_evaluateF(cumap, &cumap->cm[0], r),
-                      BKE_curvemap_evaluateF(cumap, &cumap->cm[1], g));
-          vecout[2] = vecout[1];
-        }
-      }
-      else {
-        if (r >= b) {
-          /* Case 5: g >  r >= b */
-          const int shuffeled_channels[] = {1, 0, 2};
-          curvemapping_evaluateRGBF_filmlike(cumap, vecout, vecin, shuffeled_channels);
-        }
-        else if (b > g) {
-          /* Case 6: b >  g >  r */
-          const int shuffeled_channels[] = {2, 1, 0};
-          curvemapping_evaluateRGBF_filmlike(cumap, vecout, vecin, shuffeled_channels);
-        }
-        else {
-          /* Case 7: g >= b >  r */
-          const int shuffeled_channels[] = {1, 2, 0};
-          curvemapping_evaluateRGBF_filmlike(cumap, vecout, vecin, shuffeled_channels);
-        }
-      }
+      const blender::float3 output = evaluate_film_like(cumap, balanced_color);
+      copy_v3_v3(vecout, output);
       break;
     }
   }
@@ -1329,7 +1406,7 @@ void BKE_curvemapping_blend_read(BlendDataReader *reader, CurveMapping *cumap)
   cumap->flag &= ~CUMA_PREMULLED;
 
   for (int a = 0; a < CM_TOT; a++) {
-    BLO_read_data_address(reader, &cumap->cm[a].curve);
+    BLO_read_struct_array(reader, CurveMapPoint, cumap->cm[a].totpoint, &cumap->cm[a].curve);
     cumap->cm[a].table = nullptr;
     cumap->cm[a].premultable = nullptr;
   }
@@ -1359,11 +1436,10 @@ static void save_sample_line(
   scopes->vecscope[idx + 0] = yuv[1];
   scopes->vecscope[idx + 1] = yuv[2];
 
-  int color_idx = (idx / 2) * 4;
+  int color_idx = (idx / 2) * 3;
   scopes->vecscope_rgb[color_idx + 0] = rgb[0];
   scopes->vecscope_rgb[color_idx + 1] = rgb[1];
   scopes->vecscope_rgb[color_idx + 2] = rgb[2];
-  scopes->vecscope_rgb[color_idx + 3] = scopes->vecscope_alpha;
 
   /* Waveform. */
   switch (scopes->wavefrm_mode) {
@@ -1727,7 +1803,7 @@ void BKE_scopes_update(Scopes *scopes,
   scopes->vecscope = static_cast<float *>(
       MEM_callocN(scopes->waveform_tot * 2 * sizeof(float), "vectorscope point channel"));
   scopes->vecscope_rgb = static_cast<float *>(
-      MEM_callocN(scopes->waveform_tot * 4 * sizeof(float), "vectorscope color channel"));
+      MEM_callocN(scopes->waveform_tot * 3 * sizeof(float), "vectorscope color channel"));
 
   if (ibuf->float_buffer.data) {
     cm_processor = IMB_colormanagement_display_processor_new(view_settings, display_settings);
@@ -1906,7 +1982,7 @@ void BKE_color_managed_view_settings_blend_write(BlendWriter *writer,
 void BKE_color_managed_view_settings_blend_read_data(BlendDataReader *reader,
                                                      ColorManagedViewSettings *settings)
 {
-  BLO_read_data_address(reader, &settings->curve_mapping);
+  BLO_read_struct(reader, CurveMapping, &settings->curve_mapping);
 
   if (settings->curve_mapping) {
     BKE_curvemapping_blend_read(reader, settings->curve_mapping);

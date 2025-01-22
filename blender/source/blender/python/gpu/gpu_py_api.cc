@@ -16,16 +16,15 @@
 
 #include "BLI_utildefines.h"
 
-#include "gpu_py_capabilities.h"
-#include "gpu_py_compute.h"
-#include "gpu_py_matrix.h"
-#include "gpu_py_platform.h"
-#include "gpu_py_select.h"
-#include "gpu_py_state.h"
-#include "gpu_py_types.h"
+#include "gpu_py_capabilities.hh"
+#include "gpu_py_compute.hh"
+#include "gpu_py_matrix.hh"
+#include "gpu_py_platform.hh"
+#include "gpu_py_select.hh"
+#include "gpu_py_state.hh"
+#include "gpu_py_types.hh"
 
-#include "gpu_py.h"
-#include "gpu_py_api.h" /* Own include. */
+#include "gpu_py_api.hh" /* Own include. */
 
 /* -------------------------------------------------------------------- */
 /** \name GPU Module
@@ -54,7 +53,7 @@ PyObject *BPyInit_gpu()
   PyObject *submodule;
   PyObject *mod;
 
-  mod = bpygpu_create_module(&pygpu_module_def);
+  mod = PyModule_Create(&pygpu_module_def);
 
   PyModule_AddObject(mod, "types", (submodule = bpygpu_types_init()));
   PyDict_SetItem(sys_modules, PyModule_GetNameObject(submodule), submodule);

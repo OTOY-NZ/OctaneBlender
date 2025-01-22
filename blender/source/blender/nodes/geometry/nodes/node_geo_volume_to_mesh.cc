@@ -2,7 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "DEG_depsgraph_query.hh"
 #ifdef WITH_OPENVDB
 #  include <openvdb/tools/GridTransformer.h>
 #  include <openvdb/tools/VolumeToMesh.h>
@@ -10,10 +9,8 @@
 
 #include "node_geometry_util.hh"
 
-#include "BKE_lib_id.hh"
 #include "BKE_material.h"
 #include "BKE_mesh.hh"
-#include "BKE_mesh_runtime.hh"
 #include "BKE_volume.hh"
 #include "BKE_volume_grid.hh"
 #include "BKE_volume_to_mesh.hh"
@@ -72,8 +69,8 @@ static void node_update(bNodeTree *ntree, bNode *node)
 {
   const NodeGeometryVolumeToMesh &storage = node_storage(*node);
 
-  bNodeSocket *voxel_size_socket = nodeFindSocket(node, SOCK_IN, "Voxel Size");
-  bNodeSocket *voxel_amount_socket = nodeFindSocket(node, SOCK_IN, "Voxel Amount");
+  bNodeSocket *voxel_size_socket = bke::nodeFindSocket(node, SOCK_IN, "Voxel Size");
+  bNodeSocket *voxel_amount_socket = bke::nodeFindSocket(node, SOCK_IN, "Voxel Amount");
   bke::nodeSetSocketAvailability(ntree,
                                  voxel_amount_socket,
                                  storage.resolution_mode ==
@@ -177,8 +174,7 @@ static Mesh *create_mesh_from_volume(GeometrySet &geometry_set, GeoNodeExecParam
     return nullptr;
   }
 
-  const Main *bmain = DEG_get_bmain(params.depsgraph());
-  BKE_volume_load(volume, bmain);
+  BKE_volume_load(volume, params.bmain());
 
   Vector<bke::VolumeTreeAccessToken> tree_tokens;
   Vector<const openvdb::GridBase *> grids;
@@ -246,18 +242,18 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, GEO_NODE_VOLUME_TO_MESH, "Volume to Mesh", NODE_CLASS_GEOMETRY);
   ntype.declare = node_declare;
-  node_type_storage(
+  blender::bke::node_type_storage(
       &ntype, "NodeGeometryVolumeToMesh", node_free_standard_storage, node_copy_standard_storage);
   blender::bke::node_type_size(&ntype, 170, 120, 700);
   ntype.initfunc = node_init;
   ntype.updatefunc = node_update;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

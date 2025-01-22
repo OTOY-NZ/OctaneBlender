@@ -6,8 +6,11 @@
 
 #include <memory>
 
+#include "../common/IO_orientation.hh"
+
 #include "DEG_depsgraph.hh"
 
+#include "DNA_modifier_types.h"
 #include "RNA_types.hh"
 
 struct bContext;
@@ -19,6 +22,10 @@ struct Object;
 struct ReportList;
 struct wmJobWorkerStatus;
 
+namespace blender::bke {
+struct GeometrySet;
+}
+
 namespace blender::io::usd {
 
 /**
@@ -29,6 +36,17 @@ enum eUSDMtlNameCollisionMode {
   USD_MTL_NAME_COLLISION_MAKE_UNIQUE = 0,
   USD_MTL_NAME_COLLISION_REFERENCE_EXISTING = 1,
 };
+
+/**
+ *  Behavior for importing of custom
+ *  attributes / properties outside
+ *  a prim's regular schema.
+ */
+typedef enum eUSDAttrImportMode {
+  USD_ATTR_IMPORT_NONE = 0,
+  USD_ATTR_IMPORT_USER = 1,
+  USD_ATTR_IMPORT_ALL = 2,
+} eUSDAttrImportMode;
 
 /**
  *  Behavior when importing textures from a package
@@ -61,10 +79,27 @@ enum eSubdivExportMode {
   USD_SUBDIV_BEST_MATCH = 2,
 };
 
+typedef enum eUSDXformOpMode {
+  USD_XFORM_OP_TRS = 0,
+  USD_XFORM_OP_TOS = 1,
+  USD_XFORM_OP_MAT = 2,
+} eUSDXformOpMode;
+
+typedef enum eUSDZTextureDownscaleSize {
+  USD_TEXTURE_SIZE_CUSTOM = -1,
+  USD_TEXTURE_SIZE_KEEP = 0,
+  USD_TEXTURE_SIZE_256 = 256,
+  USD_TEXTURE_SIZE_512 = 512,
+  USD_TEXTURE_SIZE_1024 = 1024,
+  USD_TEXTURE_SIZE_2048 = 2048,
+  USD_TEXTURE_SIZE_4096 = 4096
+} eUSDZTextureDownscaleSize;
+
 struct USDExportParams {
   bool export_animation = false;
   bool export_hair = true;
   bool export_uvmaps = true;
+  bool rename_uvmaps = true;
   bool export_normals = true;
   bool export_mesh_colors = true;
   bool export_materials = true;
@@ -77,14 +112,37 @@ struct USDExportParams {
   bool use_instancing = false;
   enum eEvaluationMode evaluation_mode = DAG_EVAL_VIEWPORT;
   bool generate_preview_surface = true;
+  bool generate_materialx_network = true;
   bool export_textures = true;
   bool overwrite_textures = true;
   bool relative_paths = true;
+  bool export_custom_properties = true;
+  bool author_blender_name = true;
+  bool triangulate_meshes = false;
+  int quad_method = MOD_TRIANGULATE_QUAD_SHORTEDGE;
+  int ngon_method = MOD_TRIANGULATE_NGON_BEAUTY;
+  bool convert_orientation = false;
+  enum eIOAxis forward_axis = eIOAxis::IO_AXIS_NEGATIVE_Z;
+  enum eIOAxis up_axis = eIOAxis::IO_AXIS_Y;
+  bool convert_world_material = true;
+  eUSDXformOpMode xform_op_mode = eUSDXformOpMode::USD_XFORM_OP_TRS;
+  bool export_meshes = true;
+  bool export_lights = true;
+  bool export_cameras = true;
+  bool export_curves = true;
+  bool export_volumes = true;
+  eUSDZTextureDownscaleSize usdz_downscale_size = eUSDZTextureDownscaleSize::USD_TEXTURE_SIZE_KEEP;
+  int usdz_downscale_custom_size = 128;
+
+  bool allow_unicode = false;
+
   char root_prim_path[1024] = ""; /* FILE_MAX */
+  char collection[MAX_IDPROP_NAME] = "";
+  char custom_properties_namespace[MAX_IDPROP_NAME] = "";
 
   /** Communication structure between the wmJob management code and the worker code. Currently used
    * to generate safely reports from the worker thread. */
-  wmJobWorkerStatus *worker_status;
+  wmJobWorkerStatus *worker_status = nullptr;
 };
 
 struct USDImportParams {
@@ -104,6 +162,7 @@ struct USDImportParams {
   bool import_shapes;
   bool import_skeletons;
   bool import_blendshapes;
+  bool import_points;
   char *prim_path_mask;
   bool import_subdiv;
   bool support_scene_instancing;
@@ -118,9 +177,12 @@ struct USDImportParams {
   float light_intensity_scale;
   eUSDMtlNameCollisionMode mtl_name_collision_mode;
   eUSDTexImportMode import_textures_mode;
+  bool import_defined_only;
   char import_textures_dir[768]; /* FILE_MAXDIR */
   eUSDTexNameCollisionMode tex_name_collision_mode;
   bool import_all_materials;
+  eUSDAttrImportMode attr_import_mode;
+  bool create_world_material;
 
   /**
    * Communication structure between the wmJob management code and the worker code. Currently used
@@ -161,7 +223,7 @@ bool USD_import(bContext *C,
                 bool as_background_job,
                 ReportList *reports);
 
-int USD_get_version(void);
+int USD_get_version();
 
 /* USD Import and Mesh Cache interface. */
 
@@ -172,11 +234,11 @@ void USD_free_handle(CacheArchiveHandle *handle);
 void USD_get_transform(CacheReader *reader, float r_mat[4][4], float time, float scale);
 
 /** Either modifies current_mesh in-place or constructs a new mesh. */
-Mesh *USD_read_mesh(CacheReader *reader,
-                    Object *ob,
-                    Mesh *existing_mesh,
-                    USDMeshReadParams params,
-                    const char **err_str);
+void USD_read_geometry(CacheReader *reader,
+                       Object *ob,
+                       blender::bke::GeometrySet &geometry_set,
+                       USDMeshReadParams params,
+                       const char **err_str);
 
 bool USD_mesh_topology_changed(CacheReader *reader,
                                const Object *ob,

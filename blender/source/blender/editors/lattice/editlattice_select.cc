@@ -29,7 +29,7 @@
 #include "BKE_context.hh"
 #include "BKE_lattice.hh"
 #include "BKE_layer.hh"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 
 #include "ED_lattice.hh"
 #include "ED_object.hh"
@@ -42,7 +42,7 @@
 
 #include "DEG_depsgraph.hh"
 
-#include "lattice_intern.h"
+#include "lattice_intern.hh"
 
 using blender::Span;
 using blender::Vector;
@@ -252,7 +252,7 @@ void LATTICE_OT_select_mirror(wmOperatorType *ot)
  * \{ */
 
 static bool lattice_test_bitmap_uvw(
-    Lattice *lt, const BLI_bitmap *selpoints, int u, int v, int w, const bool selected)
+    const Lattice *lt, const BLI_bitmap *selpoints, int u, int v, int w, const bool selected)
 {
   if ((u < 0 || u >= lt->pntsu) || (v < 0 || v >= lt->pntsv) || (w < 0 || w >= lt->pntsw)) {
     return false;
@@ -665,7 +665,7 @@ bool ED_lattice_select_pick(bContext *C, const int mval[2], const SelectPick_Par
 
     BKE_view_layer_synced_ensure(vc.scene, vc.view_layer);
     if (BKE_view_layer_active_base_get(vc.view_layer) != basact) {
-      ED_object_base_activate(C, basact);
+      blender::ed::object::base_activate(C, basact);
     }
 
     DEG_id_tag_update(static_cast<ID *>(vc.obedit->data), ID_RECALC_SELECT);

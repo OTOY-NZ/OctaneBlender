@@ -1,4 +1,4 @@
-set(OCTANE_INSTALL_PATH "scripts/addons/octane")
+set(OCTANE_INSTALL_PATH "scripts/addons_core/octane")
 set(STARTUP_INSTALL_PATH "scripts/startup")
 
 # External Libraries

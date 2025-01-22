@@ -18,7 +18,7 @@
 #include "DNA_object_types.h"
 
 #include "BKE_customdata.hh"
-#include "BKE_global.h"
+#include "BKE_global.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_runtime.hh"
@@ -1211,7 +1211,7 @@ static PyObject *bpy_bmesh_to_mesh(BPy_BMesh *self, PyObject *args)
   }
 
   /* we could allow this but its almost certainly _not_ what script authors want */
-  if (mesh->edit_mesh) {
+  if (mesh->runtime->edit_mesh) {
     PyErr_Format(PyExc_ValueError, "to_mesh(): Mesh '%s' is in editmode", mesh->id.name + 2);
     return nullptr;
   }
@@ -1233,8 +1233,8 @@ static PyObject *bpy_bmesh_to_mesh(BPy_BMesh *self, PyObject *args)
 
   BM_mesh_bm_to_me(bmain, bm, mesh, &params);
 
-  /* we could have the user do this but if they forget blender can easy crash
-   * since the references arrays for the objects derived meshes are now invalid */
+  /* We could have the user do this but if they forget blender can easy crash
+   * since the references arrays for the objects evaluated meshes are now invalid. */
   DEG_id_tag_update(&mesh->id, ID_RECALC_GEOMETRY_ALL_MODES);
 
   Py_RETURN_NONE;
@@ -1251,6 +1251,7 @@ PyDoc_STRVAR(
     "\n"
     "   :arg object: The object data to load.\n"
     "   :type object: :class:`Object`\n"
+    "   :type depsgraph: :class:`Depsgraph`\n"
     "   :arg cage: Get the mesh as a deformed cage.\n"
     "   :type cage: boolean\n"
     "   :arg face_normals: Calculate face normals.\n"
@@ -1266,7 +1267,7 @@ static PyObject *bpy_bmesh_from_object(BPy_BMesh *self, PyObject *args, PyObject
   Object *ob, *ob_eval;
   Depsgraph *depsgraph;
   Scene *scene_eval;
-  const Mesh *me_eval;
+  const Mesh *mesh_eval;
   BMesh *bm;
   bool use_cage = false;
   bool use_fnorm = true;
@@ -1313,19 +1314,19 @@ static PyObject *bpy_bmesh_from_object(BPy_BMesh *self, PyObject *args, PyObject
       return nullptr;
     }
 
-    me_eval = BKE_mesh_new_from_object(depsgraph, ob_eval, true, false);
+    mesh_eval = BKE_mesh_new_from_object(depsgraph, ob_eval, true, false);
     need_free = true;
   }
   else {
     if (use_cage) {
-      me_eval = mesh_get_eval_deform(depsgraph, scene_eval, ob_eval, &data_masks);
+      mesh_eval = blender::bke::mesh_get_eval_deform(depsgraph, scene_eval, ob_eval, &data_masks);
     }
     else {
-      me_eval = BKE_object_get_evaluated_mesh(ob_eval);
+      mesh_eval = BKE_object_get_evaluated_mesh(ob_eval);
     }
   }
 
-  if (me_eval == nullptr) {
+  if (mesh_eval == nullptr) {
     PyErr_Format(PyExc_ValueError,
                  "from_object(...): Object '%s' has no usable mesh data",
                  ob->id.name + 2);
@@ -1337,10 +1338,10 @@ static PyObject *bpy_bmesh_from_object(BPy_BMesh *self, PyObject *args, PyObject
   BMeshFromMeshParams params{};
   params.calc_face_normal = use_fnorm;
   params.calc_vert_normal = use_vert_normal;
-  BM_mesh_bm_from_me(bm, me_eval, &params);
+  BM_mesh_bm_from_me(bm, mesh_eval, &params);
 
   if (need_free) {
-    BKE_id_free(nullptr, (Mesh *)me_eval);
+    BKE_id_free(nullptr, (Mesh *)mesh_eval);
   }
 
   Py_RETURN_NONE;
@@ -1356,6 +1357,8 @@ PyDoc_STRVAR(
     "\n"
     "   :arg mesh: The mesh data to load.\n"
     "   :type mesh: :class:`Mesh`\n"
+    "   :type face_normals: boolean\n"
+    "   :type vertex_normals: boolean\n"
     "   :arg use_shape_key: Use the locations from a shape key.\n"
     "   :type use_shape_key: boolean\n"
     "   :arg shape_key_index: The shape key index to use.\n"
@@ -1581,7 +1584,6 @@ static PyObject *bpy_bmesh_calc_loop_triangles(BPy_BMElem *self)
   BMesh *bm;
 
   int corner_tris_tot;
-  BMLoop *(*corner_tris)[3];
 
   PyObject *ret;
   int i;
@@ -1591,16 +1593,13 @@ static PyObject *bpy_bmesh_calc_loop_triangles(BPy_BMElem *self)
   bm = self->bm;
 
   corner_tris_tot = poly_to_tri_count(bm->totface, bm->totloop);
-  corner_tris = static_cast<BMLoop *(*)[3]>(PyMem_MALLOC(sizeof(*corner_tris) * corner_tris_tot));
-
+  blender::Array<std::array<BMLoop *, 3>> corner_tris(corner_tris_tot);
   BM_mesh_calc_tessellation(bm, corner_tris);
 
   ret = PyList_New(corner_tris_tot);
   for (i = 0; i < corner_tris_tot; i++) {
-    PyList_SET_ITEM(ret, i, BPy_BMLoop_Array_As_Tuple(bm, corner_tris[i], 3));
+    PyList_SET_ITEM(ret, i, BPy_BMLoop_Array_As_Tuple(bm, corner_tris[i].data(), 3));
   }
-
-  PyMem_FREE(corner_tris);
 
   return ret;
 }
@@ -1739,8 +1738,9 @@ PyDoc_STRVAR(
     "\n"
     "   Interpolate the customdata from a vert between 2 other verts.\n"
     "\n"
-    "   :arg vert_pair: The vert to interpolate data from.\n"
-    "   :type vert_pair: :class:`BMVert`\n");
+    "   :arg vert_pair: The verts between which to interpolate data from.\n"
+    "   :type vert_pair: pair of :class:`BMVert`\n"
+    "   :type fac: float\n");
 static PyObject *bpy_bmvert_copy_from_vert_interp(BPy_BMVert *self, PyObject *args)
 {
   PyObject *vert_seq;
@@ -2660,7 +2660,9 @@ PyDoc_STRVAR(
     bpy_bmvertseq_remove_doc,
     ".. method:: remove(vert)\n"
     "\n"
-    "   Remove a vert.\n");
+    "   Remove a vert.\n"
+    "\n"
+    "   :type vert: :class:`BMVert`\n");
 static PyObject *bpy_bmvertseq_remove(BPy_BMElemSeq *self, BPy_BMVert *value)
 {
   BPY_BM_CHECK_OBJ(self);
@@ -2684,7 +2686,9 @@ PyDoc_STRVAR(
     bpy_bmedgeseq_remove_doc,
     ".. method:: remove(edge)\n"
     "\n"
-    "   Remove an edge.\n");
+    "   Remove an edge.\n"
+    "\n"
+    "   :type edge: :class:`BMEdge`\n");
 static PyObject *bpy_bmedgeseq_remove(BPy_BMElemSeq *self, BPy_BMEdge *value)
 {
   BPY_BM_CHECK_OBJ(self);
@@ -2708,7 +2712,9 @@ PyDoc_STRVAR(
     bpy_bmfaceseq_remove_doc,
     ".. method:: remove(face)\n"
     "\n"
-    "   Remove a face.\n");
+    "   Remove a face.\n"
+    "\n"
+    "   :type face: :class:`BMFace`\n");
 static PyObject *bpy_bmfaceseq_remove(BPy_BMElemSeq *self, BPy_BMFace *value)
 {
   BPY_BM_CHECK_OBJ(self);
@@ -2735,7 +2741,7 @@ PyDoc_STRVAR(
     "   Return an edge which uses the **verts** passed.\n"
     "\n"
     "   :arg verts: Sequence of verts.\n"
-    "   :type verts: :class:`BMVert`\n"
+    "   :type verts: sequence of :class:`BMVert`\n"
     "   :arg fallback: Return this value if nothing is found.\n"
     "   :return: The edge found or None\n"
     "   :rtype: :class:`BMEdge`\n");
@@ -2783,7 +2789,7 @@ PyDoc_STRVAR(
     "   Return a face which uses the **verts** passed.\n"
     "\n"
     "   :arg verts: Sequence of verts.\n"
-    "   :type verts: :class:`BMVert`\n"
+    "   :type verts: sequence of :class:`BMVert`\n"
     "   :arg fallback: Return this value if nothing is found.\n"
     "   :return: The face found or None\n"
     "   :rtype: :class:`BMFace`\n");
@@ -2906,7 +2912,8 @@ PyDoc_STRVAR(
     ".. method:: sort(key=None, reverse=False)\n"
     "\n"
     "   Sort the elements of this sequence, using an optional custom sort key.\n"
-    "   Indices of elements are not changed, BMElemeSeq.index_update() can be used for that.\n"
+    "   Indices of elements are not changed, :class:`BMElemSeq.index_update` can be used for "
+    "that.\n"
     "\n"
     "   :arg key: The key that sets the ordering of the elements.\n"
     "   :type key: :function: returning a number\n"
@@ -4590,7 +4597,7 @@ PyObject *BPy_BMFace_Array_As_Tuple(BMesh *bm, BMFace **elem, Py_ssize_t elem_le
 
   return ret;
 }
-PyObject *BPy_BMLoop_Array_As_Tuple(BMesh *bm, BMLoop **elem, Py_ssize_t elem_len)
+PyObject *BPy_BMLoop_Array_As_Tuple(BMesh *bm, BMLoop *const *elem, Py_ssize_t elem_len)
 {
   Py_ssize_t i;
   PyObject *ret = PyTuple_New(elem_len);

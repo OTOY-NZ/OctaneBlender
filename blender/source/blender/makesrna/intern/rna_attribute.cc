@@ -25,7 +25,7 @@
 #include "BKE_attribute.hh"
 #include "BKE_customdata.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "WM_types.hh"
 
@@ -47,6 +47,7 @@ const EnumPropertyItem rna_enum_attribute_type_items[] = {
     {CD_PROP_INT8, "INT8", 0, "8-Bit Integer", "Smaller integer with a range from -128 to 127"},
     {CD_PROP_INT32_2D, "INT32_2D", 0, "2D Integer Vector", "32-bit signed integer vector"},
     {CD_PROP_QUATERNION, "QUATERNION", 0, "Quaternion", "Floating point quaternion rotation"},
+    {CD_PROP_FLOAT4X4, "FLOAT4X4", 0, "4x4 Matrix", "Floating point matrix"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -76,6 +77,7 @@ const EnumPropertyItem rna_enum_attribute_type_with_auto_items[] = {
     {CD_PROP_FLOAT2, "FLOAT2", 0, "2D Vector", "2D vector with floating-point values"},
     {CD_PROP_INT32_2D, "INT32_2D", 0, "2D Integer Vector", "32-bit signed integer vector"},
     {CD_PROP_QUATERNION, "QUATERNION", 0, "Quaternion", "Floating point quaternion rotation"},
+    {CD_PROP_FLOAT4X4, "FLOAT4X4", 0, "4x4 Matrix", "Floating point matrix"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -106,6 +108,13 @@ const EnumPropertyItem rna_enum_attribute_domain_only_mesh_no_edge_items[] = {
     {int(AttrDomain::Point), "POINT", 0, "Point", "Attribute on point"},
     {int(AttrDomain::Face), "FACE", 0, "Face", "Attribute on mesh faces"},
     {int(AttrDomain::Corner), "CORNER", 0, "Face Corner", "Attribute on mesh face corner"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
+const EnumPropertyItem rna_enum_attribute_domain_only_mesh_no_corner_items[] = {
+    {int(AttrDomain::Point), "POINT", 0, "Point", "Attribute on point"},
+    {int(AttrDomain::Edge), "EDGE", 0, "Edge", "Attribute on mesh edge"},
+    {int(AttrDomain::Face), "FACE", 0, "Face", "Attribute on mesh faces"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -168,7 +177,7 @@ const EnumPropertyItem rna_enum_attribute_curves_domain_items[] = {
 
 #  include "DEG_depsgraph.hh"
 
-#  include "BLT_translation.h"
+#  include "BLT_translation.hh"
 
 #  include "WM_api.hh"
 
@@ -207,6 +216,8 @@ static StructRNA *srna_by_custom_data_layer_type(const eCustomDataType type)
       return &RNA_Int2Attribute;
     case CD_PROP_QUATERNION:
       return &RNA_QuaternionAttribute;
+    case CD_PROP_FLOAT4X4:
+      return &RNA_Float4x4Attribute;
     default:
       return nullptr;
   }
@@ -391,6 +402,34 @@ static void rna_FloatColorAttributeValue_color_srgb_set(PointerRNA *ptr, const f
   srgb_to_linearrgb_v4(col->color, values);
 }
 
+/* String Attribute */
+
+static void rna_StringAttributeValue_s_get(PointerRNA *ptr, char *value)
+{
+  const MStringProperty *mstring = static_cast<const MStringProperty *>(ptr->data);
+  const int len = std::min<int>(mstring->s_len, sizeof(mstring->s) - 1);
+  memcpy(value, mstring->s, len);
+  /* RNA accessors require this. */
+  value[len] = '\0';
+}
+
+static int rna_StringAttributeValue_s_length(PointerRNA *ptr)
+{
+  const MStringProperty *mstring = static_cast<const MStringProperty *>(ptr->data);
+  const int len = std::min<int>(mstring->s_len, sizeof(mstring->s) - 1);
+  return len;
+}
+
+static void rna_StringAttributeValue_s_set(PointerRNA *ptr, const char *value)
+{
+  /* NOTE: RNA does not support byte-strings which contain null bytes.
+   * If `PROP_BYTESTRING` supported this then a value & length could be passed in
+   * and `MStringProperty` could be set with values to include null bytes. */
+  MStringProperty *mstring = static_cast<MStringProperty *>(ptr->data);
+  mstring->s_len = BLI_strnlen(value, sizeof(MStringProperty::s));
+  memcpy(mstring->s, value, mstring->s_len);
+}
+
 /* Attribute Group */
 
 static PointerRNA rna_AttributeGroup_new(
@@ -430,13 +469,13 @@ static void rna_AttributeGroup_remove(ID *id, ReportList *reports, PointerRNA *a
   WM_main_add_notifier(NC_GEOM | ND_DATA, id);
 }
 
-static int rna_Attributes_layer_skip(CollectionPropertyIterator * /*iter*/, void *data)
+static bool rna_Attributes_layer_skip(CollectionPropertyIterator * /*iter*/, void *data)
 {
   CustomDataLayer *layer = (CustomDataLayer *)data;
   return !(CD_TYPE_AS_MASK(layer->type) & CD_MASK_PROP_ALL);
 }
 
-static int rna_Attributes_noncolor_layer_skip(CollectionPropertyIterator *iter, void *data)
+static bool rna_Attributes_noncolor_layer_skip(CollectionPropertyIterator *iter, void *data)
 {
   CustomDataLayer *layer = (CustomDataLayer *)data;
 
@@ -444,7 +483,7 @@ static int rna_Attributes_noncolor_layer_skip(CollectionPropertyIterator *iter, 
   ID *id = iter->parent.owner_id;
   const AttrDomain domain = BKE_id_attribute_domain(id, layer);
   if (!(ATTR_DOMAIN_AS_MASK(domain) & ATTR_DOMAIN_MASK_COLOR)) {
-    return 1;
+    return true;
   }
 
   return !(CD_TYPE_AS_MASK(layer->type) & CD_MASK_COLOR_ALL) || (layer->flag & CD_FLAG_TEMPORARY);
@@ -454,7 +493,8 @@ static int rna_Attributes_noncolor_layer_skip(CollectionPropertyIterator *iter, 
  * array iterators to loop over all. */
 static void rna_AttributeGroup_next_domain(ID *id,
                                            CollectionPropertyIterator *iter,
-                                           int(skip)(CollectionPropertyIterator *iter, void *data))
+                                           bool(skip)(CollectionPropertyIterator *iter,
+                                                      void *data))
 {
   do {
     CustomDataLayer *prev_layers = (iter->internal.array.endptr == nullptr) ?
@@ -966,8 +1006,12 @@ static void rna_def_attribute_string(BlenderRNA *brna)
   srna = RNA_def_struct(brna, "StringAttributeValue", nullptr);
   RNA_def_struct_sdna(srna, "MStringProperty");
   RNA_def_struct_ui_text(srna, "String Attribute Value", "String value in geometry attribute");
-  prop = RNA_def_property(srna, "value", PROP_STRING, PROP_NONE);
+  prop = RNA_def_property(srna, "value", PROP_STRING, PROP_BYTESTRING);
   RNA_def_property_string_sdna(prop, nullptr, "s");
+  RNA_def_property_string_funcs(prop,
+                                "rna_StringAttributeValue_s_get",
+                                "rna_StringAttributeValue_s_length",
+                                "rna_StringAttributeValue_s_set");
   RNA_def_property_update(prop, 0, "rna_Attribute_update_data");
 }
 
@@ -1100,6 +1144,40 @@ static void rna_def_attribute_quaternion(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_Attribute_update_data");
 }
 
+static void rna_def_attribute_float4x4(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  PropertyRNA *prop;
+
+  srna = RNA_def_struct(brna, "Float4x4Attribute", "Attribute");
+  RNA_def_struct_sdna(srna, "CustomDataLayer");
+  RNA_def_struct_ui_text(
+      srna, "4x4 Matrix Attribute", "Geometry attribute that stores a 4 by 4 float matrix");
+
+  prop = RNA_def_property(srna, "data", PROP_COLLECTION, PROP_NONE);
+  RNA_def_property_struct_type(prop, "Float4x4AttributeValue");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_IGNORE);
+  RNA_def_property_collection_funcs(prop,
+                                    "rna_Attribute_data_begin",
+                                    "rna_iterator_array_next",
+                                    "rna_iterator_array_end",
+                                    "rna_iterator_array_get",
+                                    "rna_Attribute_data_length",
+                                    nullptr,
+                                    nullptr,
+                                    nullptr);
+
+  srna = RNA_def_struct(brna, "Float4x4AttributeValue", nullptr);
+  RNA_def_struct_sdna(srna, "mat4x4f");
+  RNA_def_struct_ui_text(srna, "Matrix Attribute Value", "Matrix value in geometry attribute");
+
+  prop = RNA_def_property(srna, "value", PROP_FLOAT, PROP_MATRIX);
+  RNA_def_property_ui_text(prop, "Value", "Matrix");
+  RNA_def_property_float_sdna(prop, nullptr, "value");
+  RNA_def_property_multi_array(prop, 2, rna_matrix_dimsize_4x4);
+  RNA_def_property_update(prop, 0, "rna_Attribute_update_data");
+}
+
 static void rna_def_attribute_float2(BlenderRNA *brna)
 {
   StructRNA *srna;
@@ -1186,6 +1264,7 @@ static void rna_def_attribute(BlenderRNA *brna)
   rna_def_attribute_int(brna);
   rna_def_attribute_int2(brna);
   rna_def_attribute_quaternion(brna);
+  rna_def_attribute_float4x4(brna);
   rna_def_attribute_string(brna);
   rna_def_attribute_bool(brna);
   rna_def_attribute_float2(brna);

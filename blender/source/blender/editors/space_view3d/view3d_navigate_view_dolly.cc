@@ -7,11 +7,9 @@
  */
 
 #include "BKE_context.hh"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 
 #include "BLI_math_vector.h"
-
-#include "DEG_depsgraph.hh"
 
 #include "WM_api.hh"
 
@@ -19,7 +17,7 @@
 
 #include "ED_screen.hh"
 
-#include "view3d_intern.h"
+#include "view3d_intern.hh"
 #include "view3d_navigate.hh" /* own include */
 
 /* -------------------------------------------------------------------- */

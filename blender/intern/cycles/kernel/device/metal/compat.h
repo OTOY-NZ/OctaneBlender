@@ -66,6 +66,8 @@ using namespace metal::raytracing;
 
 #define kernel_assert(cond)
 
+#define offsetof(t, d) __builtin_offsetof(t, d)
+
 #define ccl_gpu_global_id_x() metal_global_id
 #define ccl_gpu_warp_size simdgroup_size
 #define ccl_gpu_thread_idx_x simd_group_index
@@ -252,6 +254,21 @@ ccl_device_forceinline int4 make_int4(const int x, const int y, const int z, con
   return int4(x, y, z, w);
 }
 
+ccl_device_forceinline uint2 make_uint2(const uint x, const uint y)
+{
+  return uint2(x, y);
+}
+
+ccl_device_forceinline uint3 make_uint3(const uint x, const uint y, const uint z)
+{
+  return uint3(x, y, z);
+}
+
+ccl_device_forceinline uint4 make_uint4(const uint x, const uint y, const uint z, const uint w)
+{
+  return uint4(x, y, z, w);
+}
+
 ccl_device_forceinline uchar4 make_uchar4(const uchar x,
                                           const uchar y,
                                           const uchar z,
@@ -359,9 +376,12 @@ struct MetalAncillaries {
   metalrt_as_type accel_struct;
   metalrt_ift_type ift_default;
   metalrt_ift_type ift_shadow;
+  metalrt_ift_type ift_shadow_all;
   metalrt_ift_type ift_volume;
-  metalrt_ift_type ift_local;
-  metalrt_blas_ift_type ift_local_prim;
+  metalrt_blas_ift_type ift_local;
+  metalrt_ift_type ift_local_mblur;
+  metalrt_blas_ift_type ift_local_single_hit;
+  metalrt_ift_type ift_local_single_hit_mblur;
   constant MetalRTBlasWrapper *blas_accel_structs;
 #endif
 };

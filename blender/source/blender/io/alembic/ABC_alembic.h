@@ -6,12 +6,11 @@
 /** \file
  * \ingroup balembic
  */
+#include <string>
+
+#include "BLI_vector.hh"
 
 #include "DEG_depsgraph.hh"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 struct CacheArchiveHandle;
 struct CacheFileLayer;
@@ -60,6 +59,8 @@ struct AlembicExportParams {
   int ngon_method;
 
   float global_scale;
+
+  char collection[MAX_IDPROP_NAME] = "";
 };
 
 struct AlembicImportParams {
@@ -67,10 +68,13 @@ struct AlembicImportParams {
    * as what Blender expects (e.g. centimeters instead of meters). */
   float global_scale;
 
-  /* Number of consecutive files to expect if the cached animation is split in a sequence. */
-  int sequence_len;
+  blender::Vector<std::string> paths;
+
+  /* Last frame number of consecutive files to expect if the cached animation is split in a
+   * sequence. */
+  int sequence_max_frame;
   /* Start frame of the sequence, offset from 0. */
-  int sequence_offset;
+  int sequence_min_frame;
   /* True if the cache is split in multiple files. */
   bool is_sequence;
 
@@ -101,7 +105,6 @@ bool ABC_export(struct Scene *scene,
                 bool as_background_job);
 
 bool ABC_import(struct bContext *C,
-                const char *filepath,
                 const struct AlembicImportParams *params,
                 bool as_background_job);
 
@@ -124,12 +127,18 @@ typedef struct ABCReadParams {
   float velocity_scale;
 } ABCReadParams;
 
-/* Either modifies existing_mesh in-place or constructs a new mesh. */
-struct Mesh *ABC_read_mesh(struct CacheReader *reader,
-                           struct Object *ob,
-                           struct Mesh *existing_mesh,
-                           const ABCReadParams *params,
-                           const char **err_str);
+#ifdef __cplusplus
+namespace blender::bke {
+struct GeometrySet;
+}
+
+/* Either modifies the existing geometry component, or create a new one. */
+void ABC_read_geometry(CacheReader *reader,
+                       Object *ob,
+                       blender::bke::GeometrySet &geometry_set,
+                       const ABCReadParams *params,
+                       const char **err_str);
+#endif
 
 bool ABC_mesh_topology_changed(struct CacheReader *reader,
                                struct Object *ob,
@@ -145,7 +154,3 @@ struct CacheReader *CacheReader_open_alembic_object(struct CacheArchiveHandle *h
                                                     struct Object *object,
                                                     const char *object_path,
                                                     bool is_sequence);
-
-#ifdef __cplusplus
-}
-#endif

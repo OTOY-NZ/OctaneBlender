@@ -8,7 +8,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_bitmap.h"
 #include "BLI_boxpack_2d.h"
 #include "BLI_linklist.h"
 #include "BLI_listbase.h"
@@ -22,14 +21,14 @@
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 
-#include "BKE_global.h"
+#include "BKE_global.hh"
 #include "BKE_image.h"
 #include "BKE_image_partial_update.hh"
 #include "BKE_main.hh"
 
-#include "GPU_capabilities.h"
-#include "GPU_state.h"
-#include "GPU_texture.h"
+#include "GPU_capabilities.hh"
+#include "GPU_state.hh"
+#include "GPU_texture.hh"
 
 using namespace blender::bke::image::partial_update;
 
@@ -458,9 +457,7 @@ static ImageGPUTextures image_get_gpu_texture(Image *ima,
 
       if (GPU_mipmap_enabled()) {
         GPU_texture_update_mipmap_chain(*tex);
-        if (ima) {
-          ima->gpuflag |= IMA_GPU_MIPMAP_COMPLETE;
-        }
+        ima->gpuflag |= IMA_GPU_MIPMAP_COMPLETE;
         GPU_texture_mipmap_mode(*tex, true, true);
       }
       else {
@@ -586,7 +583,7 @@ void BKE_image_free_anim_gputextures(Main *bmain)
 void BKE_image_free_old_gputextures(Main *bmain)
 {
   static int lasttime = 0;
-  int ctime = int(BLI_check_seconds_timer());
+  int ctime = int(BLI_time_now_seconds());
 
   /*
    * Run garbage collector once for every collecting period of time
@@ -625,8 +622,8 @@ void BKE_image_free_old_gputextures(Main *bmain)
 /** \name Paint Update
  * \{ */
 
-static ImBuf *update_do_scale(uchar *rect,
-                              float *rect_float,
+static ImBuf *update_do_scale(const uchar *rect,
+                              const float *rect_float,
                               int *x,
                               int *y,
                               int *w,
@@ -665,8 +662,8 @@ static ImBuf *update_do_scale(uchar *rect,
 }
 
 static void gpu_texture_update_scaled(GPUTexture *tex,
-                                      uchar *rect,
-                                      float *rect_float,
+                                      const uchar *rect,
+                                      const float *rect_float,
                                       int full_w,
                                       int full_h,
                                       int x,
@@ -790,7 +787,7 @@ static void gpu_texture_update_from_ibuf(
              IMB_colormanagement_space_is_scene_linear(ibuf->byte_buffer.colorspace) ||
              IMB_colormanagement_space_is_data(ibuf->byte_buffer.colorspace))
     {
-      /* sRGB or scene linear or scaled down non-color data , store as byte texture that the GPU
+      /* sRGB or scene linear or scaled down non-color data, store as byte texture that the GPU
        * can decode directly. */
       rect = (uchar *)MEM_mallocN(sizeof(uchar[4]) * w * h, __func__);
       if (rect == nullptr) {

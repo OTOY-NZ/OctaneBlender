@@ -22,11 +22,7 @@
 #include "BLI_listbase.h"
 #include "BLI_utildefines.h"
 
-#include "BLO_read_write.hh"
-
 #include "BKE_colortools.hh"
-#include "BKE_main.hh"
-#include "BKE_scene.h"
 #include "BKE_sound.h"
 
 #ifdef WITH_CONVOLUTION
@@ -168,7 +164,7 @@ EQCurveMappingData *SEQ_sound_equalizer_add(SoundEqualizerModifierData *semd,
   if (minX < 0) {
     minX = 0.0;
   }
-  /* It's the same as BKE_curvemapping_add , but changing the name */
+  /* It's the same as #BKE_curvemapping_add, but changing the name. */
   eqcmd = MEM_cnew<EQCurveMappingData>("Equalizer");
   BKE_curvemapping_set_defaults(&eqcmd->curve_mapping,
                                 1, /* Total. */
@@ -276,7 +272,7 @@ void *SEQ_sound_equalizermodifier_recreator(Sequence *seq, SequenceModifierData 
 
   SoundEqualizerModifierData *semd = (SoundEqualizerModifierData *)smd;
 
-  // No Equalizer definition
+  /* No equalizer definition. */
   if (BLI_listbase_is_empty(&semd->graphics)) {
     return sound;
   }
@@ -290,7 +286,7 @@ void *SEQ_sound_equalizermodifier_recreator(Sequence *seq, SequenceModifierData 
   float maxX;
   float interval = SOUND_EQUALIZER_DEFAULT_MAX_FREQ / float(SOUND_EQUALIZER_SIZE_DEFINITION);
 
-  // Visit all equalizer definitions
+  /* Visit all equalizer definitions. */
   LISTBASE_FOREACH (EQCurveMappingData *, mapping, &semd->graphics) {
     eq_mapping = &mapping->curve_mapping;
     BKE_curvemapping_init(eq_mapping);

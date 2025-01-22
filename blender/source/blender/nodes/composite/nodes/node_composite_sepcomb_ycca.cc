@@ -23,10 +23,10 @@ static void cmp_node_sepycca_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Color>("Image")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
       .compositor_domain_priority(0);
-  b.add_output<decl::Float>("Y");
+  b.add_output<decl::Float>("Y").translation_context(BLT_I18NCONTEXT_COLOR);
   b.add_output<decl::Float>("Cb");
   b.add_output<decl::Float>("Cr");
-  b.add_output<decl::Float>("A");
+  b.add_output<decl::Float>("A").translation_context(BLT_I18NCONTEXT_COLOR);
 }
 
 static void node_composit_init_mode_sepycca(bNodeTree * /*ntree*/, bNode *node)
@@ -80,7 +80,7 @@ void register_node_type_cmp_sepycca()
 {
   namespace file_ns = blender::nodes::node_composite_separate_ycca_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   cmp_node_type_base(
       &ntype, CMP_NODE_SEPYCCA_LEGACY, "Separate YCbCrA (Legacy)", NODE_CLASS_CONVERTER);
@@ -89,7 +89,7 @@ void register_node_type_cmp_sepycca()
   ntype.gather_link_search_ops = nullptr;
   ntype.get_compositor_shader_node = file_ns::get_compositor_shader_node;
 
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 }
 
 /* **************** COMBINE YCCA ******************** */
@@ -98,7 +98,11 @@ namespace blender::nodes::node_composite_combine_ycca_cc {
 
 static void cmp_node_combycca_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Float>("Y").min(0.0f).max(1.0f).compositor_domain_priority(0);
+  b.add_input<decl::Float>("Y")
+      .min(0.0f)
+      .max(1.0f)
+      .compositor_domain_priority(0)
+      .translation_context(BLT_I18NCONTEXT_COLOR);
   b.add_input<decl::Float>("Cb")
       .default_value(0.5f)
       .min(0.0f)
@@ -109,8 +113,12 @@ static void cmp_node_combycca_declare(NodeDeclarationBuilder &b)
       .min(0.0f)
       .max(1.0f)
       .compositor_domain_priority(2);
-  b.add_input<decl::Float>("A").default_value(1.0f).min(0.0f).max(1.0f).compositor_domain_priority(
-      3);
+  b.add_input<decl::Float>("A")
+      .default_value(1.0f)
+      .min(0.0f)
+      .max(1.0f)
+      .compositor_domain_priority(3)
+      .translation_context(BLT_I18NCONTEXT_COLOR);
   b.add_output<decl::Color>("Image");
 }
 
@@ -165,7 +173,7 @@ void register_node_type_cmp_combycca()
 {
   namespace file_ns = blender::nodes::node_composite_combine_ycca_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   cmp_node_type_base(
       &ntype, CMP_NODE_COMBYCCA_LEGACY, "Combine YCbCrA (Legacy)", NODE_CLASS_CONVERTER);
@@ -174,5 +182,5 @@ void register_node_type_cmp_combycca()
   ntype.gather_link_search_ops = nullptr;
   ntype.get_compositor_shader_node = file_ns::get_compositor_shader_node;
 
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 }

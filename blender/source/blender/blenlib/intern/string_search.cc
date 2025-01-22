@@ -12,7 +12,6 @@
 #include "BLI_string_utf8.h"
 #include "BLI_string_utf8_symbols.h"
 #include "BLI_task.hh"
-#include "BLI_timeit.hh"
 
 /* Right arrow, keep in sync with #UI_MENU_ARROW_SEP in `UI_interface.hh`. */
 #define UI_MENU_ARROW_SEP BLI_STR_UTF8_BLACK_RIGHT_POINTING_SMALL_TRIANGLE
@@ -480,7 +479,7 @@ void extract_normalized_words(StringRef str,
   }
 }
 
-void StringSearchBase::add_impl(const StringRef str, void *user_data, const int weight)
+void StringSearchBase::add_impl(const StringRef str, void *user_data, const float weight)
 {
   Vector<StringRef, 64> words;
   Vector<int, 64> word_group_ids;

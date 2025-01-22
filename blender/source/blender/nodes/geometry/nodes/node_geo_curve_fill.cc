@@ -132,26 +132,16 @@ static Array<meshintersect::CDT_result<double>> do_group_aware_cdt(
     return {do_cdt(curves, output_type)};
   }
 
-  const VArraySpan<int> group_ids_span(curve_group_ids);
-  const int domain_size = group_ids_span.size();
-
-  VectorSet<int> group_indexing(group_ids_span);
-  const int groups_num = group_indexing.size();
-
+  VectorSet<int> group_indexing;
   IndexMaskMemory mask_memory;
-  Array<IndexMask> group_masks(groups_num);
-  IndexMask::from_groups<int>(
-      IndexMask(domain_size),
-      mask_memory,
-      [&](const int i) {
-        const int group_id = group_ids_span[i];
-        return group_indexing.index_of(group_id);
-      },
-      group_masks);
+  const Vector<IndexMask> group_masks = IndexMask::from_group_ids(
+      curve_group_ids, mask_memory, group_indexing);
+  const int groups_num = group_masks.size();
 
   Array<meshintersect::CDT_result<double>> cdt_results(groups_num);
 
   /* The grain size should be larger as each group gets smaller. */
+  const int domain_size = curve_group_ids.size();
   const int avg_group_size = domain_size / groups_num;
   const int grain_size = std::max(8192 / avg_group_size, 1);
   threading::parallel_for(IndexRange(groups_num), grain_size, [&](const IndexRange range) {
@@ -276,7 +266,7 @@ static void curve_fill_calculate(GeometrySet &geometry_set,
     const GreasePencil &grease_pencil = *geometry_set.get_grease_pencil();
     Vector<Mesh *> mesh_by_layer(grease_pencil.layers().size(), nullptr);
     for (const int layer_index : grease_pencil.layers().index_range()) {
-      const Drawing *drawing = get_eval_grease_pencil_layer_drawing(grease_pencil, layer_index);
+      const Drawing *drawing = grease_pencil.get_eval_drawing(*grease_pencil.layer(layer_index));
       if (drawing == nullptr) {
         continue;
       }
@@ -347,17 +337,17 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, GEO_NODE_FILL_CURVE, "Fill Curve", NODE_CLASS_GEOMETRY);
 
   ntype.initfunc = node_init;
-  node_type_storage(
+  blender::bke::node_type_storage(
       &ntype, "NodeGeometryCurveFill", node_free_standard_storage, node_copy_standard_storage);
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

@@ -9,6 +9,7 @@
 #include <cstdlib> /* abort */
 #include <cstring> /* strstr */
 #include <cwctype>
+#include <optional>
 #include <sys/stat.h>
 #include <sys/types.h>
 
@@ -22,23 +23,16 @@
 #include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "DNA_constraint_types.h"
-#include "DNA_material_types.h"
-#include "DNA_node_types.h"
-#include "DNA_object_types.h"
-#include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
-#include "DNA_space_types.h"
 #include "DNA_text_types.h"
 #include "DNA_userdef_types.h"
 
-#include "BKE_bpath.h"
+#include "BKE_bpath.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
-#include "BKE_node.h"
 #include "BKE_text.h"
 
 #include "BLO_read_write.hh"
@@ -108,7 +102,11 @@ static void text_init_data(ID *id)
  *
  * \param flag: Copying options (see BKE_lib_id.hh's LIB_ID_COPY_... flags for more).
  */
-static void text_copy_data(Main * /*bmain*/, ID *id_dst, const ID *id_src, const int /*flag*/)
+static void text_copy_data(Main * /*bmain*/,
+                           std::optional<Library *> /*owner_library*/,
+                           ID *id_dst,
+                           const ID *id_src,
+                           const int /*flag*/)
 {
   Text *text_dst = (Text *)id_dst;
   const Text *text_src = (Text *)id_src;
@@ -197,7 +195,7 @@ static void text_blend_write(BlendWriter *writer, ID *id, const void *id_address
 static void text_blend_read_data(BlendDataReader *reader, ID *id)
 {
   Text *text = (Text *)id;
-  BLO_read_data_address(reader, &text->filepath);
+  BLO_read_string(reader, &text->filepath);
 
   text->compiled = nullptr;
 
@@ -208,13 +206,13 @@ static void text_blend_read_data(BlendDataReader *reader, ID *id)
 /* else { */
 #endif
 
-  BLO_read_list(reader, &text->lines);
+  BLO_read_struct_list(reader, TextLine, &text->lines);
 
-  BLO_read_data_address(reader, &text->curl);
-  BLO_read_data_address(reader, &text->sell);
+  BLO_read_struct(reader, TextLine, &text->curl);
+  BLO_read_struct(reader, TextLine, &text->sell);
 
   LISTBASE_FOREACH (TextLine *, ln, &text->lines) {
-    BLO_read_data_address(reader, &ln->line);
+    BLO_read_string(reader, &ln->line);
     ln->format = nullptr;
 
     if (ln->len != int(strlen(ln->line))) {
@@ -229,6 +227,7 @@ static void text_blend_read_data(BlendDataReader *reader, ID *id)
 IDTypeInfo IDType_ID_TXT = {
     /*id_code*/ ID_TXT,
     /*id_filter*/ FILTER_ID_TXT,
+    /*dependencies_id_types*/ 0,
     /*main_listbase_index*/ INDEX_ID_TXT,
     /*struct_size*/ sizeof(Text),
     /*name*/ "Text",
@@ -674,10 +673,10 @@ void txt_clean_text(Text *text)
   }
 }
 
-int txt_get_span(TextLine *from, TextLine *to)
+int txt_get_span(const TextLine *from, const TextLine *to)
 {
   int ret = 0;
-  TextLine *tmp = from;
+  const TextLine *tmp = from;
 
   if (!to || !from) {
     return 0;
@@ -826,7 +825,7 @@ void txt_move_down(Text *text, const bool sel)
   }
 }
 
-int txt_calc_tab_left(TextLine *tl, int ch)
+int txt_calc_tab_left(const TextLine *tl, int ch)
 {
   /* do nice left only if there are only spaces */
 
@@ -846,7 +845,7 @@ int txt_calc_tab_left(TextLine *tl, int ch)
   return tabsize;
 }
 
-int txt_calc_tab_right(TextLine *tl, int ch)
+int txt_calc_tab_right(const TextLine *tl, int ch)
 {
   if (tl->line[ch] == ' ') {
     int i;
@@ -2271,8 +2270,8 @@ int txt_setcurr_tab_spaces(Text *text, int space)
 int text_check_bracket(const char ch)
 {
   int a;
-  char opens[] = "([{";
-  char close[] = ")]}";
+  const char opens[] = "([{";
+  const char close[] = ")]}";
 
   for (a = 0; a < (sizeof(opens) - 1); a++) {
     if (ch == opens[a]) {

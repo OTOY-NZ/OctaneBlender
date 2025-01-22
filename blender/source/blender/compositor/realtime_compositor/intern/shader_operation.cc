@@ -13,11 +13,11 @@
 
 #include "DNA_customdata_types.h"
 
-#include "GPU_context.h"
+#include "GPU_context.hh"
 #include "GPU_material.hh"
-#include "GPU_shader.h"
-#include "GPU_texture.h"
-#include "GPU_uniform_buffer.h"
+#include "GPU_shader.hh"
+#include "GPU_texture.hh"
+#include "GPU_uniform_buffer.hh"
 
 #include "gpu_shader_create_info.hh"
 
@@ -73,7 +73,7 @@ void ShaderOperation::execute()
 
   GPU_texture_unbind_all();
   GPU_texture_image_unbind_all();
-  GPU_uniformbuf_unbind_all();
+  GPU_uniformbuf_debug_unbind_all();
   GPU_shader_unbind();
 }
 

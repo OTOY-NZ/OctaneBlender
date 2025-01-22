@@ -73,7 +73,7 @@ extern const CustomData_MeshMasks CD_MASK_EVERYTHING;
  * CD_NUMTYPES elements, that indicate if a layer can be copied. */
 
 /** Add/copy/merge allocation types. */
-typedef enum eCDAllocType {
+enum eCDAllocType {
   /** Allocate and set to default, which is usually just zeroed memory. */
   CD_SET_DEFAULT = 2,
   /**
@@ -81,18 +81,18 @@ typedef enum eCDAllocType {
    * if all layer values will be set by the caller after creating the layer.
    */
   CD_CONSTRUCT = 5,
-} eCDAllocType;
+};
 
 #define CD_TYPE_AS_MASK(_type) (eCustomDataMask)((eCustomDataMask)1 << (eCustomDataMask)(_type))
 
 void customData_mask_layers__print(const CustomData_MeshMasks *mask);
 
-typedef void (*cd_interp)(
+using cd_interp = void (*)(
     const void **sources, const float *weights, const float *sub_weights, int count, void *dest);
-typedef void (*cd_copy)(const void *source, void *dest, int count);
-typedef void (*cd_set_default_value)(void *data, int count);
-typedef void (*cd_free)(void *data, int count);
-typedef bool (*cd_validate)(void *item, uint totitems, bool do_fixes);
+using cd_copy = void (*)(const void *source, void *dest, int count);
+using cd_set_default_value = void (*)(void *data, int count);
+using cd_free = void (*)(void *data, int count);
+using cd_validate = bool (*)(void *item, uint totitems, bool do_fixes);
 
 /**
  * Update mask_dst with layers defined in mask_src (equivalent to a bit-wise OR).
@@ -233,7 +233,7 @@ void CustomData_reset(CustomData *data);
 void CustomData_free(CustomData *data, int totelem);
 
 /**
- * Same as above, but only frees layers which matches the given mask.
+ * Same as #CustomData_free, but only frees layers which matches the given mask.
  */
 void CustomData_free_typemask(CustomData *data, int totelem, eCustomDataMask mask);
 
@@ -249,27 +249,29 @@ void *CustomData_add_layer(CustomData *data,
 
 /**
  * Adds a layer of the given type to the #CustomData object. The new layer takes ownership of the
- * passed in `layer_data`. If a #ImplicitSharingInfoHandle is passed in, its user count is
- * increased.
+ * passed in `layer_data`. If a #ImplicitSharingInfo is passed in, its user count is increased.
  */
 const void *CustomData_add_layer_with_data(CustomData *data,
                                            eCustomDataType type,
                                            void *layer_data,
                                            int totelem,
-                                           const ImplicitSharingInfoHandle *sharing_info);
+                                           const blender::ImplicitSharingInfo *sharing_info);
 
 /**
- * Same as above but accepts a name.
+ * Same as #CustomData_add_layer but accepts a name.
  */
-void *CustomData_add_layer_named(
-    CustomData *data, eCustomDataType type, eCDAllocType alloctype, int totelem, const char *name);
+void *CustomData_add_layer_named(CustomData *data,
+                                 eCustomDataType type,
+                                 eCDAllocType alloctype,
+                                 int totelem,
+                                 blender::StringRef name);
 
 const void *CustomData_add_layer_named_with_data(CustomData *data,
                                                  eCustomDataType type,
                                                  void *layer_data,
                                                  int totelem,
-                                                 const char *name,
-                                                 const ImplicitSharingInfoHandle *sharing_info);
+                                                 blender::StringRef name,
+                                                 const blender::ImplicitSharingInfo *sharing_info);
 
 void *CustomData_add_layer_anonymous(CustomData *data,
                                      eCustomDataType type,
@@ -282,7 +284,7 @@ const void *CustomData_add_layer_anonymous_with_data(
     const AnonymousAttributeIDHandle *anonymous_id,
     int totelem,
     void *layer_data,
-    const ImplicitSharingInfoHandle *sharing_info);
+    const blender::ImplicitSharingInfo *sharing_info);
 
 /**
  * Frees the active or first data layer with the give type.
@@ -291,7 +293,7 @@ const void *CustomData_add_layer_anonymous_with_data(
  * In edit-mode, use #EDBM_data_layer_free instead of this function.
  */
 bool CustomData_free_layer(CustomData *data, eCustomDataType type, int totelem, int index);
-bool CustomData_free_layer_named(CustomData *data, const char *name, const int totelem);
+bool CustomData_free_layer_named(CustomData *data, blender::StringRef name, const int totelem);
 
 /**
  * Frees the layer index with the give type.
@@ -302,7 +304,7 @@ bool CustomData_free_layer_named(CustomData *data, const char *name, const int t
 bool CustomData_free_layer_active(CustomData *data, eCustomDataType type, int totelem);
 
 /**
- * Same as above, but free all layers with type.
+ * Same as #CustomData_free_layer_active, but free all layers with type.
  */
 void CustomData_free_layers(CustomData *data, eCustomDataType type, int totelem);
 
@@ -310,7 +312,9 @@ void CustomData_free_layers(CustomData *data, eCustomDataType type, int totelem)
  * Returns true if a layer with the specified type exists.
  */
 bool CustomData_has_layer(const CustomData *data, eCustomDataType type);
-bool CustomData_has_layer_named(const CustomData *data, eCustomDataType type, const char *name);
+bool CustomData_has_layer_named(const CustomData *data,
+                                eCustomDataType type,
+                                blender::StringRef name);
 
 /**
  * Returns the number of layers with this type.
@@ -490,7 +494,10 @@ void *CustomData_bmesh_get_n(const CustomData *data, void *block, eCustomDataTyp
  */
 void *CustomData_bmesh_get_layer_n(const CustomData *data, void *block, int n);
 
-bool CustomData_set_layer_name(CustomData *data, eCustomDataType type, int n, const char *name);
+bool CustomData_set_layer_name(CustomData *data,
+                               eCustomDataType type,
+                               int n,
+                               blender::StringRef name);
 const char *CustomData_get_layer_name(const CustomData *data, eCustomDataType type, int n);
 
 /**
@@ -513,27 +520,31 @@ void *CustomData_get_layer_n_for_write(CustomData *data, eCustomDataType type, i
  */
 const void *CustomData_get_layer_named(const CustomData *data,
                                        eCustomDataType type,
-                                       const char *name);
+                                       blender::StringRef name);
 void *CustomData_get_layer_named_for_write(CustomData *data,
                                            eCustomDataType type,
-                                           const char *name,
+                                           blender::StringRef name,
                                            int totelem);
 
 int CustomData_get_offset(const CustomData *data, eCustomDataType type);
-int CustomData_get_offset_named(const CustomData *data, eCustomDataType type, const char *name);
+int CustomData_get_offset_named(const CustomData *data,
+                                eCustomDataType type,
+                                blender::StringRef name);
 int CustomData_get_n_offset(const CustomData *data, eCustomDataType type, int n);
 
 int CustomData_get_layer_index(const CustomData *data, eCustomDataType type);
 int CustomData_get_layer_index_n(const CustomData *data, eCustomDataType type, int n);
 int CustomData_get_named_layer_index(const CustomData *data,
                                      eCustomDataType type,
-                                     const char *name);
-int CustomData_get_named_layer_index_notype(const CustomData *data, const char *name);
+                                     blender::StringRef name);
+int CustomData_get_named_layer_index_notype(const CustomData *data, blender::StringRef name);
 int CustomData_get_active_layer_index(const CustomData *data, eCustomDataType type);
 int CustomData_get_render_layer_index(const CustomData *data, eCustomDataType type);
 int CustomData_get_clone_layer_index(const CustomData *data, eCustomDataType type);
 int CustomData_get_stencil_layer_index(const CustomData *data, eCustomDataType type);
-int CustomData_get_named_layer(const CustomData *data, eCustomDataType type, const char *name);
+int CustomData_get_named_layer(const CustomData *data,
+                               eCustomDataType type,
+                               blender::StringRef name);
 int CustomData_get_active_layer(const CustomData *data, eCustomDataType type);
 int CustomData_get_render_layer(const CustomData *data, eCustomDataType type);
 int CustomData_get_clone_layer(const CustomData *data, eCustomDataType type);
@@ -631,7 +642,7 @@ void CustomData_set_layer_unique_name(CustomData *data, int index);
 
 void CustomData_validate_layer_name(const CustomData *data,
                                     eCustomDataType type,
-                                    const char *name,
+                                    blender::StringRef name,
                                     char *outname);
 
 /**
@@ -800,4 +811,5 @@ void CustomData_debug_info_from_layers(const CustomData *data, const char *inden
 
 namespace blender::bke {
 std::optional<VolumeGridType> custom_data_type_to_volume_grid_type(eCustomDataType type);
+std::optional<eCustomDataType> volume_grid_type_to_custom_data_type(VolumeGridType type);
 }  // namespace blender::bke

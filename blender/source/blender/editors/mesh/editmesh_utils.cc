@@ -13,23 +13,19 @@
 #include "DNA_object_types.h"
 
 #include "BLI_array.hh"
-#include "BLI_buffer.h"
 #include "BLI_kdtree.h"
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 
-#include "BKE_DerivedMesh.hh"
 #include "BKE_context.hh"
 #include "BKE_customdata.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_editmesh_bvh.h"
-#include "BKE_global.h"
 #include "BKE_layer.hh"
-#include "BKE_main.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_mapping.hh"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 
 #include "DEG_depsgraph.hh"
 
@@ -280,27 +276,28 @@ void EDBM_mesh_make_from_mesh(Object *ob,
   create_params.use_toolflags = true;
   BMesh *bm = BKE_mesh_to_bmesh(src_mesh, ob, add_key_index, &create_params);
 
-  if (mesh->edit_mesh) {
+  if (mesh->runtime->edit_mesh) {
     /* this happens when switching shape keys */
-    EDBM_mesh_free_data(mesh->edit_mesh);
-    MEM_freeN(mesh->edit_mesh);
+    EDBM_mesh_free_data(mesh->runtime->edit_mesh.get());
+    mesh->runtime->edit_mesh.reset();
   }
 
   /* Executing operators re-tessellates,
    * so we can avoid doing here but at some point it may need to be added back. */
-  mesh->edit_mesh = BKE_editmesh_create(bm);
+  mesh->runtime->edit_mesh = std::make_shared<BMEditMesh>();
+  mesh->runtime->edit_mesh->bm = bm;
 
-  mesh->edit_mesh->selectmode = mesh->edit_mesh->bm->selectmode = select_mode;
-  mesh->edit_mesh->mat_nr = (ob->actcol > 0) ? ob->actcol - 1 : 0;
+  mesh->runtime->edit_mesh->selectmode = mesh->runtime->edit_mesh->bm->selectmode = select_mode;
+  mesh->runtime->edit_mesh->mat_nr = (ob->actcol > 0) ? ob->actcol - 1 : 0;
 
   /* we need to flush selection because the mode may have changed from when last in editmode */
-  EDBM_selectmode_flush(mesh->edit_mesh);
+  EDBM_selectmode_flush(mesh->runtime->edit_mesh.get());
 }
 
 void EDBM_mesh_load_ex(Main *bmain, Object *ob, bool free_data)
 {
   Mesh *mesh = static_cast<Mesh *>(ob->data);
-  BMesh *bm = mesh->edit_mesh->bm;
+  BMesh *bm = mesh->runtime->edit_mesh->bm;
 
   /* Workaround for #42360, 'ob->shapenr' should be 1 in this case.
    * however this isn't synchronized between objects at the moment. */
@@ -312,16 +309,6 @@ void EDBM_mesh_load_ex(Main *bmain, Object *ob, bool free_data)
   params.calc_object_remap = true;
   params.update_shapekey_indices = !free_data;
   BM_mesh_bm_to_me(bmain, bm, mesh, &params);
-}
-
-void EDBM_mesh_clear(BMEditMesh *em)
-{
-  /* clear bmesh */
-  BM_mesh_clear(em->bm);
-
-  /* free tessellation data */
-  em->tottri = 0;
-  MEM_SAFE_FREE(em->looptris);
 }
 
 void EDBM_mesh_load(Main *bmain, Object *ob)
@@ -1667,7 +1654,7 @@ void EDBM_stats_update(BMEditMesh *em)
 
 void EDBM_update(Mesh *mesh, const EDBMUpdate_Params *params)
 {
-  BMEditMesh *em = mesh->edit_mesh;
+  BMEditMesh *em = mesh->runtime->edit_mesh.get();
   /* Order of calling isn't important. */
   DEG_id_tag_update(&mesh->id, ID_RECALC_GEOMETRY);
   WM_main_add_notifier(NC_GEOM | ND_DATA, &mesh->id);
@@ -1871,7 +1858,7 @@ bool BMBVH_EdgeVisible(
 
   ED_view3d_win_to_segment_clipped(depsgraph, region, v3d, mval_f, origin, end, false);
 
-  invert_m4_m4(invmat, obedit->object_to_world);
+  invert_m4_m4(invmat, obedit->object_to_world().ptr());
   mul_m4_v3(invmat, origin);
 
   copy_v3_v3(co1, e->v1->co);
@@ -1966,7 +1953,7 @@ void EDBM_project_snap_verts(
                                                     co_proj,
                                                     nullptr))
         {
-          mul_v3_m4v3(eve->co, obedit->world_to_object, co_proj);
+          mul_v3_m4v3(eve->co, obedit->world_to_object().ptr(), co_proj);
         }
       }
     }

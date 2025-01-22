@@ -720,9 +720,9 @@ class OctanePMCKernel(bpy.types.Node, OctaneBaseKernelNode):
         ("2018.1 compatibility mode", "2018.1 compatibility mode", """Volume tracing behavior from versions 2018.1 to 2021.1 is used. Original pipeline for converting colors to and from spectra and for applying white balance is used (textures with colors outside the sRGB gamut will be rendered inaccurately). This applies in addition to 2022.1 compatibility mode behavior.""", 5000000),
         ("4.0 compatibility mode", "4.0 compatibility mode", """Volume tracing behavior from version 4.0 and earlier is used. Original pipeline for converting colors to and from spectra and for applying white balance is used (textures with colors outside the sRGB gamut will be rendered inaccurately). This applies in addition to 2022.1 compatibility mode behavior.""", 0),
     ]
-    a_compatibility_version_enum: EnumProperty(name="Compatibility version", default="Latest (2023.1.1)", update=OctaneBaseNode.update_compatibility_mode, description="The Octane version that the behavior of this node should match", items=compatibility_mode_infos)
+    a_compatibility_version_enum: EnumProperty(name="Compatibility version", default="Latest (2023.1.1)", update=OctaneBaseNode.update_compatibility_mode_to_int, description="The Octane version that the behavior of this node should match", items=compatibility_mode_infos)
 
-    a_compatibility_version: IntProperty(name="Compatibility version", default=14000005, update=OctaneBaseNode.update_node_tree, description="The Octane version that the behavior of this node should match")
+    a_compatibility_version: IntProperty(name="Compatibility version", default=14000007, update=OctaneBaseNode.update_compatibility_mode_to_enum, description="The Octane version that the behavior of this node should match")
 
     def init(self, context):  # noqa
         self.inputs.new("OctanePMCKernelGroupQuality", OctanePMCKernelGroupQuality.bl_label).init()

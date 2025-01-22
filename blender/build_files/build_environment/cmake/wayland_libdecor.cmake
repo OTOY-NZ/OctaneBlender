@@ -12,6 +12,12 @@ ExternalProject_Add(external_wayland_libdecor
   PREFIX ${BUILD_DIR}/wayland_libdecor
   BUILD_COMMAND echo .
   CONFIGURE_COMMAND echo .
-  INSTALL_COMMAND cp ../external_wayland_libdecor/src/libdecor.h ${LIBDIR}/wayland_libdecor/include/libdecor-0/libdecor.h
+
+  INSTALL_COMMAND cp
+    ../external_wayland_libdecor/src/libdecor.h
+    ${LIBDIR}/wayland_libdecor/include/libdecor-0/libdecor.h
+
   INSTALL_DIR ${LIBDIR}/wayland_libdecor/include/libdecor-0
 )
+
+harvest(external_wayland_libdecor wayland_libdecor/include wayland_libdecor/include "*.h")

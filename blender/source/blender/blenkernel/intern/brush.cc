@@ -5,27 +5,26 @@
 /** \file
  * \ingroup bke
  */
+#include <optional>
 
 #include "MEM_guardedalloc.h"
 
 #include "DNA_brush_types.h"
 #include "DNA_defaults.h"
-#include "DNA_gpencil_legacy_types.h"
 #include "DNA_material_types.h"
-#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
 #include "BLI_listbase.h"
 #include "BLI_math_rotation.h"
 #include "BLI_rand.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "BKE_bpath.h"
+#include "BKE_bpath.hh"
 #include "BKE_brush.hh"
 #include "BKE_colortools.hh"
-#include "BKE_context.hh"
 #include "BKE_gpencil_legacy.h"
+#include "BKE_grease_pencil.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
@@ -58,7 +57,11 @@ static void brush_init_data(ID *id)
   BKE_brush_curve_preset(brush, CURVE_PRESET_SMOOTH);
 }
 
-static void brush_copy_data(Main * /*bmain*/, ID *id_dst, const ID *id_src, const int flag)
+static void brush_copy_data(Main * /*bmain*/,
+                            std::optional<Library *> /*owner_library*/,
+                            ID *id_dst,
+                            const ID *id_src,
+                            const int flag)
 {
   Brush *brush_dst = (Brush *)id_dst;
   const Brush *brush_src = (const Brush *)id_src;
@@ -163,7 +166,7 @@ static void brush_make_local(Main *bmain, ID *id, const int flags)
      * does not deal properly with it. */
     /* NOTE: assert below ensures that the comment above is valid, and that exception is
      * acceptable for the time being. */
-    BKE_lib_id_make_local(bmain, &brush->clone.image->id, 0);
+    BKE_lib_id_make_local(bmain, &brush->clone.image->id, LIB_ID_MAKELOCAL_ASSET_DATA_CLEAR);
     BLI_assert(!ID_IS_LINKED(brush->clone.image) && brush->clone.image->id.newid == nullptr);
   }
 
@@ -275,9 +278,9 @@ static void brush_blend_read_data(BlendDataReader *reader, ID *id)
   Brush *brush = (Brush *)id;
 
   /* Falloff curve. */
-  BLO_read_data_address(reader, &brush->curve);
+  BLO_read_struct(reader, CurveMapping, &brush->curve);
 
-  BLO_read_data_address(reader, &brush->gradient);
+  BLO_read_struct(reader, ColorBand, &brush->gradient);
 
   if (brush->curve) {
     BKE_curvemapping_blend_read(reader, brush->curve);
@@ -286,7 +289,7 @@ static void brush_blend_read_data(BlendDataReader *reader, ID *id)
     BKE_brush_curve_preset(brush, CURVE_PRESET_SHARP);
   }
 
-  BLO_read_data_address(reader, &brush->automasking_cavity_curve);
+  BLO_read_struct(reader, CurveMapping, &brush->automasking_cavity_curve);
   if (brush->automasking_cavity_curve) {
     BKE_curvemapping_blend_read(reader, brush->automasking_cavity_curve);
   }
@@ -295,18 +298,18 @@ static void brush_blend_read_data(BlendDataReader *reader, ID *id)
   }
 
   /* grease pencil */
-  BLO_read_data_address(reader, &brush->gpencil_settings);
+  BLO_read_struct(reader, BrushGpencilSettings, &brush->gpencil_settings);
   if (brush->gpencil_settings != nullptr) {
-    BLO_read_data_address(reader, &brush->gpencil_settings->curve_sensitivity);
-    BLO_read_data_address(reader, &brush->gpencil_settings->curve_strength);
-    BLO_read_data_address(reader, &brush->gpencil_settings->curve_jitter);
+    BLO_read_struct(reader, CurveMapping, &brush->gpencil_settings->curve_sensitivity);
+    BLO_read_struct(reader, CurveMapping, &brush->gpencil_settings->curve_strength);
+    BLO_read_struct(reader, CurveMapping, &brush->gpencil_settings->curve_jitter);
 
-    BLO_read_data_address(reader, &brush->gpencil_settings->curve_rand_pressure);
-    BLO_read_data_address(reader, &brush->gpencil_settings->curve_rand_strength);
-    BLO_read_data_address(reader, &brush->gpencil_settings->curve_rand_uv);
-    BLO_read_data_address(reader, &brush->gpencil_settings->curve_rand_hue);
-    BLO_read_data_address(reader, &brush->gpencil_settings->curve_rand_saturation);
-    BLO_read_data_address(reader, &brush->gpencil_settings->curve_rand_value);
+    BLO_read_struct(reader, CurveMapping, &brush->gpencil_settings->curve_rand_pressure);
+    BLO_read_struct(reader, CurveMapping, &brush->gpencil_settings->curve_rand_strength);
+    BLO_read_struct(reader, CurveMapping, &brush->gpencil_settings->curve_rand_uv);
+    BLO_read_struct(reader, CurveMapping, &brush->gpencil_settings->curve_rand_hue);
+    BLO_read_struct(reader, CurveMapping, &brush->gpencil_settings->curve_rand_saturation);
+    BLO_read_struct(reader, CurveMapping, &brush->gpencil_settings->curve_rand_value);
 
     if (brush->gpencil_settings->curve_sensitivity) {
       BKE_curvemapping_blend_read(reader, brush->gpencil_settings->curve_sensitivity);
@@ -345,15 +348,15 @@ static void brush_blend_read_data(BlendDataReader *reader, ID *id)
     }
   }
 
-  BLO_read_data_address(reader, &brush->curves_sculpt_settings);
+  BLO_read_struct(reader, BrushCurvesSculptSettings, &brush->curves_sculpt_settings);
   if (brush->curves_sculpt_settings) {
-    BLO_read_data_address(reader, &brush->curves_sculpt_settings->curve_parameter_falloff);
+    BLO_read_struct(reader, CurveMapping, &brush->curves_sculpt_settings->curve_parameter_falloff);
     if (brush->curves_sculpt_settings->curve_parameter_falloff) {
       BKE_curvemapping_blend_read(reader, brush->curves_sculpt_settings->curve_parameter_falloff);
     }
   }
 
-  BLO_read_data_address(reader, &brush->preview);
+  BLO_read_struct(reader, PreviewImage, &brush->preview);
   BKE_previewimg_blend_read(reader, brush->preview);
 
   brush->icon_imbuf = nullptr;
@@ -412,6 +415,8 @@ static void brush_undo_preserve(BlendLibReader *reader, ID *id_new, ID *id_old)
 IDTypeInfo IDType_ID_BR = {
     /*id_code*/ ID_BR,
     /*id_filter*/ FILTER_ID_BR,
+    /*dependencies_id_types*/
+    (FILTER_ID_BR | FILTER_ID_IM | FILTER_ID_PC | FILTER_ID_TE | FILTER_ID_MA),
     /*main_listbase_index*/ INDEX_ID_BR,
     /*struct_size*/ sizeof(Brush),
     /*name*/ "Brush",
@@ -688,6 +693,7 @@ static void brush_gpencil_curvemap_reset(CurveMap *cuma, int tot, eGPCurveMappin
 
 void BKE_gpencil_brush_preset_set(Main *bmain, Brush *brush, const short type)
 {
+  using namespace blender;
 #define SMOOTH_STROKE_RADIUS 40
 #define SMOOTH_STROKE_FACTOR 0.9f
 #define ACTIVE_SMOOTH 0.35f
@@ -703,6 +709,11 @@ void BKE_gpencil_brush_preset_set(Main *bmain, Brush *brush, const short type)
   /* Set general defaults at brush level. */
   brush->smooth_stroke_radius = SMOOTH_STROKE_RADIUS;
   brush->smooth_stroke_factor = SMOOTH_STROKE_FACTOR;
+
+  /* GPv3 uses the `Scene` size aka BRUSH_LOCK_SIZE by default. */
+  if (U.experimental.use_grease_pencil_version3) {
+    brush->flag |= BRUSH_LOCK_SIZE;
+  }
 
   brush->rgb[0] = 0.498f;
   brush->rgb[1] = 1.0f;
@@ -729,6 +740,10 @@ void BKE_gpencil_brush_preset_set(Main *bmain, Brush *brush, const short type)
   switch (type) {
     case GP_BRUSH_PRESET_AIRBRUSH: {
       brush->size = 300.0f;
+      if (U.experimental.use_grease_pencil_version3) {
+        brush->unprojected_radius = brush->size *
+                                    bke::greasepencil::LEGACY_RADIUS_CONVERSION_FACTOR;
+      }
       brush->gpencil_settings->flag |= GP_BRUSH_USE_PRESSURE;
 
       brush->gpencil_settings->draw_strength = 0.4f;
@@ -751,8 +766,11 @@ void BKE_gpencil_brush_preset_set(Main *bmain, Brush *brush, const short type)
       break;
     }
     case GP_BRUSH_PRESET_INK_PEN: {
-
       brush->size = 60.0f;
+      if (U.experimental.use_grease_pencil_version3) {
+        brush->unprojected_radius = brush->size *
+                                    bke::greasepencil::LEGACY_RADIUS_CONVERSION_FACTOR;
+      }
       brush->gpencil_settings->flag |= GP_BRUSH_USE_PRESSURE;
 
       brush->gpencil_settings->draw_strength = 1.0f;
@@ -788,6 +806,10 @@ void BKE_gpencil_brush_preset_set(Main *bmain, Brush *brush, const short type)
     }
     case GP_BRUSH_PRESET_INK_PEN_ROUGH: {
       brush->size = 60.0f;
+      if (U.experimental.use_grease_pencil_version3) {
+        brush->unprojected_radius = brush->size *
+                                    bke::greasepencil::LEGACY_RADIUS_CONVERSION_FACTOR;
+      }
       brush->gpencil_settings->flag |= GP_BRUSH_USE_PRESSURE;
 
       brush->gpencil_settings->draw_strength = 1.0f;
@@ -825,6 +847,10 @@ void BKE_gpencil_brush_preset_set(Main *bmain, Brush *brush, const short type)
     }
     case GP_BRUSH_PRESET_MARKER_BOLD: {
       brush->size = 150.0f;
+      if (U.experimental.use_grease_pencil_version3) {
+        brush->unprojected_radius = brush->size *
+                                    bke::greasepencil::LEGACY_RADIUS_CONVERSION_FACTOR;
+      }
       brush->gpencil_settings->flag &= ~GP_BRUSH_USE_PRESSURE;
 
       brush->gpencil_settings->draw_strength = 0.3f;
@@ -862,6 +888,10 @@ void BKE_gpencil_brush_preset_set(Main *bmain, Brush *brush, const short type)
     }
     case GP_BRUSH_PRESET_MARKER_CHISEL: {
       brush->size = 150.0f;
+      if (U.experimental.use_grease_pencil_version3) {
+        brush->unprojected_radius = brush->size *
+                                    bke::greasepencil::LEGACY_RADIUS_CONVERSION_FACTOR;
+      }
       brush->gpencil_settings->flag |= GP_BRUSH_USE_PRESSURE;
 
       brush->gpencil_settings->draw_strength = 1.0f;
@@ -903,6 +933,10 @@ void BKE_gpencil_brush_preset_set(Main *bmain, Brush *brush, const short type)
     }
     case GP_BRUSH_PRESET_PEN: {
       brush->size = 25.0f;
+      if (U.experimental.use_grease_pencil_version3) {
+        brush->unprojected_radius = brush->size *
+                                    bke::greasepencil::LEGACY_RADIUS_CONVERSION_FACTOR;
+      }
       brush->gpencil_settings->flag &= ~GP_BRUSH_USE_PRESSURE;
 
       brush->gpencil_settings->draw_strength = 1.0f;
@@ -934,6 +968,10 @@ void BKE_gpencil_brush_preset_set(Main *bmain, Brush *brush, const short type)
     }
     case GP_BRUSH_PRESET_PENCIL_SOFT: {
       brush->size = 80.0f;
+      if (U.experimental.use_grease_pencil_version3) {
+        brush->unprojected_radius = brush->size *
+                                    bke::greasepencil::LEGACY_RADIUS_CONVERSION_FACTOR;
+      }
       brush->gpencil_settings->flag |= GP_BRUSH_USE_PRESSURE;
 
       brush->gpencil_settings->draw_strength = 0.4f;
@@ -968,6 +1006,10 @@ void BKE_gpencil_brush_preset_set(Main *bmain, Brush *brush, const short type)
     }
     case GP_BRUSH_PRESET_PENCIL: {
       brush->size = 20.0f;
+      if (U.experimental.use_grease_pencil_version3) {
+        brush->unprojected_radius = brush->size *
+                                    bke::greasepencil::LEGACY_RADIUS_CONVERSION_FACTOR;
+      }
       brush->gpencil_settings->flag |= GP_BRUSH_USE_PRESSURE;
 
       brush->gpencil_settings->draw_strength = 0.6f;
@@ -1372,7 +1414,7 @@ void BKE_brush_gpencil_paint_presets(Main *bmain, ToolSettings *ts, const bool r
   bool is_new = false;
 
   Paint *paint = &ts->gp_paint->paint;
-  Brush *brush_prev = paint->brush;
+  Brush *brush_prev = BKE_paint_brush(paint);
   Brush *brush, *deft_draw;
   /* Airbrush brush. */
   brush = gpencil_brush_ensure(bmain, ts, "Airbrush", OB_MODE_PAINT_GPENCIL_LEGACY, &is_new);
@@ -1473,7 +1515,7 @@ void BKE_brush_gpencil_vertex_presets(Main *bmain, ToolSettings *ts, const bool 
   bool is_new = false;
 
   Paint *vertexpaint = &ts->gp_vertexpaint->paint;
-  Brush *brush_prev = vertexpaint->brush;
+  Brush *brush_prev = BKE_paint_brush(vertexpaint);
   Brush *brush, *deft_vertex;
   /* Vertex Draw brush. */
   brush = gpencil_brush_ensure(bmain, ts, "Vertex Draw", OB_MODE_VERTEX_GPENCIL_LEGACY, &is_new);
@@ -1506,13 +1548,11 @@ void BKE_brush_gpencil_vertex_presets(Main *bmain, ToolSettings *ts, const bool 
   }
 
   /* Set default Vertex brush. */
-  if (reset || brush_prev == nullptr) {
-    BKE_paint_brush_set(vertexpaint, deft_vertex);
+  if ((reset == false) && (brush_prev != nullptr)) {
+    BKE_paint_brush_set(vertexpaint, brush_prev);
   }
   else {
-    if (brush_prev != nullptr) {
-      BKE_paint_brush_set(vertexpaint, brush_prev);
-    }
+    BKE_paint_brush_set(vertexpaint, deft_vertex);
   }
 }
 
@@ -1521,7 +1561,7 @@ void BKE_brush_gpencil_sculpt_presets(Main *bmain, ToolSettings *ts, const bool 
   bool is_new = false;
 
   Paint *sculptpaint = &ts->gp_sculptpaint->paint;
-  Brush *brush_prev = sculptpaint->brush;
+  Brush *brush_prev = BKE_paint_brush(sculptpaint);
   Brush *brush, *deft_sculpt;
 
   /* Smooth brush. */
@@ -1583,13 +1623,11 @@ void BKE_brush_gpencil_sculpt_presets(Main *bmain, ToolSettings *ts, const bool 
   }
 
   /* Set default brush. */
-  if (reset || brush_prev == nullptr) {
-    BKE_paint_brush_set(sculptpaint, deft_sculpt);
+  if ((reset == false) && (brush_prev != nullptr)) {
+    BKE_paint_brush_set(sculptpaint, brush_prev);
   }
   else {
-    if (brush_prev != nullptr) {
-      BKE_paint_brush_set(sculptpaint, brush_prev);
-    }
+    BKE_paint_brush_set(sculptpaint, deft_sculpt);
   }
 }
 
@@ -1598,7 +1636,7 @@ void BKE_brush_gpencil_weight_presets(Main *bmain, ToolSettings *ts, const bool 
   bool is_new = false;
 
   Paint *weightpaint = &ts->gp_weightpaint->paint;
-  Brush *brush_prev = weightpaint->brush;
+  Brush *brush_prev = BKE_paint_brush(weightpaint);
   Brush *brush, *deft_weight;
 
   /* Weight Draw brush. */
@@ -1628,13 +1666,11 @@ void BKE_brush_gpencil_weight_presets(Main *bmain, ToolSettings *ts, const bool 
   }
 
   /* Set default brush. */
-  if (reset || brush_prev == nullptr) {
-    BKE_paint_brush_set(weightpaint, deft_weight);
+  if ((reset == false) && (brush_prev != nullptr)) {
+    BKE_paint_brush_set(weightpaint, brush_prev);
   }
   else {
-    if (brush_prev != nullptr) {
-      BKE_paint_brush_set(weightpaint, brush_prev);
-    }
+    BKE_paint_brush_set(weightpaint, deft_weight);
   }
 }
 
@@ -1644,10 +1680,12 @@ void BKE_brush_init_curves_sculpt_settings(Brush *brush)
     brush->curves_sculpt_settings = MEM_cnew<BrushCurvesSculptSettings>(__func__);
   }
   BrushCurvesSculptSettings *settings = brush->curves_sculpt_settings;
+  settings->flag = BRUSH_CURVES_SCULPT_FLAG_INTERPOLATE_RADIUS;
   settings->add_amount = 1;
   settings->points_per_curve = 8;
   settings->minimum_length = 0.01f;
   settings->curve_length = 0.3f;
+  settings->curve_radius = 0.01f;
   settings->density_add_attempts = 100;
   settings->curve_parameter_falloff = BKE_curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
 }
@@ -2493,7 +2531,10 @@ void BKE_brush_scale_size(int *r_brush_size,
   (*r_brush_size) = int(float(*r_brush_size) * scale);
 }
 
-void BKE_brush_jitter_pos(const Scene *scene, Brush *brush, const float pos[2], float jitterpos[2])
+void BKE_brush_jitter_pos(const Scene &scene,
+                          const Brush &brush,
+                          const float pos[2],
+                          float jitterpos[2])
 {
   float rand_pos[2];
   float spread;
@@ -2504,13 +2545,13 @@ void BKE_brush_jitter_pos(const Scene *scene, Brush *brush, const float pos[2], 
     rand_pos[1] = BLI_rng_get_float(brush_rng) - 0.5f;
   } while (len_squared_v2(rand_pos) > square_f(0.5f));
 
-  if (brush->flag & BRUSH_ABSOLUTE_JITTER) {
-    diameter = 2 * brush->jitter_absolute;
+  if (brush.flag & BRUSH_ABSOLUTE_JITTER) {
+    diameter = 2 * brush.jitter_absolute;
     spread = 1.0;
   }
   else {
-    diameter = 2 * BKE_brush_size_get(scene, brush);
-    spread = brush->jitter;
+    diameter = 2 * BKE_brush_size_get(&scene, &brush);
+    spread = brush.jitter;
   }
   /* find random position within a circle of diameter 1 */
   jitterpos[0] = pos[0] + 2 * rand_pos[0] * diameter * spread;
@@ -2531,20 +2572,24 @@ void BKE_brush_randomize_texture_coords(UnifiedPaintSettings *ups, bool mask)
   }
 }
 
-float BKE_brush_curve_strength(const Brush *br, float p, const float len)
+float BKE_brush_curve_strength(const eBrushCurvePreset preset,
+                               const CurveMapping *cumap,
+                               const float distance,
+                               const float brush_radius)
 {
+  float p = distance;
   float strength = 1.0f;
 
-  if (p >= len) {
+  if (p >= brush_radius) {
     return 0;
   }
 
-  p = p / len;
+  p = p / brush_radius;
   p = 1.0f - p;
 
-  switch (br->curve_preset) {
+  switch (preset) {
     case BRUSH_CURVE_CUSTOM:
-      strength = BKE_curvemapping_evaluateF(br->curve, 0, 1.0f - p);
+      strength = BKE_curvemapping_evaluateF(cumap, 0, 1.0f - p);
       break;
     case BRUSH_CURVE_SHARP:
       strength = p * p;
@@ -2576,6 +2621,11 @@ float BKE_brush_curve_strength(const Brush *br, float p, const float len)
   }
 
   return strength;
+}
+
+float BKE_brush_curve_strength(const Brush *br, float p, const float len)
+{
+  return BKE_brush_curve_strength(eBrushCurvePreset(br->curve_preset), br->curve, p, len);
 }
 
 float BKE_brush_curve_strength_clamped(const Brush *br, float p, const float len)

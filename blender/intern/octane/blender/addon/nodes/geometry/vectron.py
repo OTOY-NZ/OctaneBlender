@@ -73,9 +73,9 @@ class OctaneVectron(bpy.types.Node, OctaneScriptNode):
         ("latest", "latest", """(null)""", 14000005),
         ("2023.1 compatibility mode", "2023.1 compatibility mode", """Disable single pin creation for vector structs""", 0),
     ]
-    a_compatibility_version_enum: EnumProperty(name="Compatibility version", default="latest", update=OctaneBaseNode.update_compatibility_mode, description="The Octane version that the behavior of this node should match", items=compatibility_mode_infos)
+    a_compatibility_version_enum: EnumProperty(name="Compatibility version", default="latest", update=OctaneBaseNode.update_compatibility_mode_to_int, description="The Octane version that the behavior of this node should match", items=compatibility_mode_infos)
 
-    a_compatibility_version: IntProperty(name="Compatibility version", default=14000005, update=OctaneBaseNode.update_node_tree, description="The Octane version that the behavior of this node should match")
+    a_compatibility_version: IntProperty(name="Compatibility version", default=14000007, update=OctaneBaseNode.update_compatibility_mode_to_enum, description="The Octane version that the behavior of this node should match")
     a_filename: StringProperty(name="Filename", default="", update=OctaneBaseNode.update_node_tree, description="The file where the OSL shader is stored. If set, A_SHADER_CODE will be replaced with the content of the file", subtype="FILE_PATH")
     a_reload: BoolProperty(name="Reload", default=False, update=OctaneBaseNode.update_node_tree, description="Set it to TRUE if the file needs a reload. After the node was evaluated the attribute will be false again")
     a_shader_code: StringProperty(name="Shader code", default="#include <octane-oslintrin.h>\n\nshader Vectron(\n    float radius = 1 [[float min = 0, float slidermax = 1e4, float sliderexponent = 4]],\n    vector translate = 0,\n    output _sdf out = _SDFDEF)\n{\n    out.dist = distance(P, translate) - radius;\n}\n", update=OctaneBaseNode.update_node_tree, description="The OSL code for this node")

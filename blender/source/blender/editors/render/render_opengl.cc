@@ -19,7 +19,6 @@
 #include "BLI_task.hh"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
-#include "DNA_camera_types.h"
 
 #include "DNA_action_types.h"
 #include "DNA_anim_types.h"
@@ -28,20 +27,20 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BKE_anim_data.h"
+#include "BKE_anim_data.hh"
 #include "BKE_camera.h"
 #include "BKE_context.hh"
 #include "BKE_customdata.hh"
-#include "BKE_fcurve.h"
-#include "BKE_global.h"
+#include "BKE_fcurve.hh"
+#include "BKE_global.hh"
 #include "BKE_image.h"
 #include "BKE_image_format.h"
 #include "BKE_image_save.h"
 #include "BKE_lib_query.hh"
 #include "BKE_main.hh"
-#include "BKE_report.h"
-#include "BKE_scene.h"
-#include "BKE_writeavi.h"
+#include "BKE_report.hh"
+#include "BKE_scene.hh"
+#include "BKE_writemovie.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
@@ -61,16 +60,16 @@
 
 #include "RE_pipeline.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
 #include "SEQ_render.hh"
 
-#include "GPU_framebuffer.h"
-#include "GPU_matrix.h"
-#include "GPU_viewport.h"
+#include "GPU_framebuffer.hh"
+#include "GPU_matrix.hh"
+#include "GPU_viewport.hh"
 
 #include "render_intern.hh"
 
@@ -394,7 +393,7 @@ static void screen_opengl_render_doit(const bContext *C, OGLRender *oglrender, R
       else {
         rect = ibuf_result->byte_buffer.data;
       }
-      BKE_image_stamp_buf(scene, camera, nullptr, rect, rectf, rr->rectx, rr->recty, 4);
+      BKE_image_stamp_buf(scene, camera, nullptr, rect, rectf, rr->rectx, rr->recty);
     }
     RE_render_result_rect_from_ibuf(rr, ibuf_result, oglrender->view_id);
     IMB_freeImBuf(ibuf_result);
@@ -863,7 +862,7 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
   BLI_condition_init(&oglrender->task_condition);
 
 #ifdef DEBUG_TIME
-  oglrender->time_start = BLI_check_seconds_timer();
+  oglrender->time_start = BLI_time_now_seconds();
 #endif
 
   return true;
@@ -899,7 +898,7 @@ static void screen_opengl_render_end(bContext *C, OGLRender *oglrender)
   BLI_condition_end(&oglrender->task_condition);
 
 #ifdef DEBUG_TIME
-  printf("Total render time: %f\n", BLI_check_seconds_timer() - oglrender->time_start);
+  printf("Total render time: %f\n", BLI_time_now_seconds() - oglrender->time_start);
 #endif
 
   MEM_SAFE_FREE(oglrender->render_frames);
@@ -1316,9 +1315,9 @@ static int screen_opengl_render_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static std::string screen_opengl_render_description(bContext * /*C*/,
-                                                    wmOperatorType * /*ot*/,
-                                                    PointerRNA *ptr)
+static std::string screen_opengl_render_get_description(bContext * /*C*/,
+                                                        wmOperatorType * /*ot*/,
+                                                        PointerRNA *ptr)
 {
   if (!RNA_boolean_get(ptr, "animation")) {
     return "";
@@ -1343,7 +1342,7 @@ void RENDER_OT_opengl(wmOperatorType *ot)
   ot->idname = "RENDER_OT_opengl";
 
   /* api callbacks */
-  ot->get_description = screen_opengl_render_description;
+  ot->get_description = screen_opengl_render_get_description;
   ot->invoke = screen_opengl_render_invoke;
   ot->exec = screen_opengl_render_exec; /* blocking */
   ot->modal = screen_opengl_render_modal;

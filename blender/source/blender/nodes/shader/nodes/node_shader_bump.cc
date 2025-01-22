@@ -21,8 +21,16 @@ static void node_declare(NodeDeclarationBuilder &b)
       .default_value(1.0f)
       .min(0.0f)
       .max(1.0f)
-      .subtype(PROP_FACTOR);
-  b.add_input<decl::Float>("Distance").default_value(1.0f).min(0.0f).max(1000.0f);
+      .subtype(PROP_FACTOR)
+      .description(
+          "Strength of the bump mapping effect, interpolating between "
+          "no bump mapping and full bump mapping");
+  b.add_input<decl::Float>("Distance")
+      .default_value(1.0f)
+      .min(0.0f)
+      .max(1000.0f)
+      .description(
+          "Multiplier for the height value to control the overall distance for bump mapping");
   b.add_input<decl::Float>("Height").default_value(1.0f).min(-1000.0f).max(1000.0f).hide_value();
   b.add_input<decl::Vector>("Normal").min(-1.0f).max(1.0f).hide_value();
   b.add_output<decl::Vector>("Normal");
@@ -106,7 +114,7 @@ void register_node_type_sh_bump()
 {
   namespace file_ns = blender::nodes::node_shader_bump_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   sh_node_type_base(&ntype, SH_NODE_BUMP, "Bump", NODE_CLASS_OP_VECTOR);
   ntype.declare = file_ns::node_declare;
@@ -114,5 +122,5 @@ void register_node_type_sh_bump()
   ntype.gpu_fn = file_ns::gpu_shader_bump;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 }

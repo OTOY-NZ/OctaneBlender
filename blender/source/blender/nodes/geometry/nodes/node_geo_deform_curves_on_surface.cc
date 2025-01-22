@@ -7,18 +7,11 @@
 #include "BKE_editmesh.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
-#include "BKE_mesh_runtime.hh"
 #include "BKE_mesh_wrapper.hh"
 #include "BKE_modifier.hh"
-#include "BKE_type_conversions.hh"
 
 #include "BLI_math_matrix.hh"
 #include "BLI_task.hh"
-
-#include "UI_interface.hh"
-#include "UI_resources.hh"
-
-#include "NOD_socket_search_link.hh"
 
 #include "GEO_reverse_uv_sampler.hh"
 
@@ -249,7 +242,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   Object *surface_ob_orig = DEG_get_original_object(surface_ob_eval);
   Mesh &surface_object_data = *static_cast<Mesh *>(surface_ob_orig->data);
 
-  if (BMEditMesh *em = surface_object_data.edit_mesh) {
+  if (BMEditMesh *em = surface_object_data.runtime->edit_mesh.get()) {
     surface_mesh_orig = BKE_mesh_from_bmesh_for_eval_nomain(em->bm, nullptr, &surface_object_data);
     free_suface_mesh_orig = true;
   }
@@ -325,8 +318,8 @@ static void node_geo_exec(GeoNodeExecParams params)
   MutableSpan<float3> edit_hint_positions;
   MutableSpan<float3x3> edit_hint_rotations;
   if (edit_hints != nullptr) {
-    if (edit_hints->positions.has_value()) {
-      edit_hint_positions = *edit_hints->positions;
+    if (const std::optional<MutableSpan<float3>> positions = edit_hints->positions_for_write()) {
+      edit_hint_positions = *positions;
     }
     if (!edit_hints->deform_mats.has_value()) {
       edit_hints->deform_mats.emplace(edit_hints->curves_id_orig.geometry.point_num,
@@ -400,13 +393,13 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
   geo_node_type_base(
       &ntype, GEO_NODE_DEFORM_CURVES_ON_SURFACE, "Deform Curves on Surface", NODE_CLASS_GEOMETRY);
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
   blender::bke::node_type_size(&ntype, 170, 120, 700);
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

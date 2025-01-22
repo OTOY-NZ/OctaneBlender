@@ -18,12 +18,12 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "BKE_appdir.hh"
 #include "BKE_context.hh"
 #include "BKE_main.hh"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 #include "BKE_screen.hh"
 
 #include "WM_api.hh"
@@ -38,7 +38,7 @@
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
-#include "buttons_intern.h" /* own include */
+#include "buttons_intern.hh" /* own include */
 
 /* -------------------------------------------------------------------- */
 /** \name Start / Clear Search Filter Operators
@@ -301,6 +301,20 @@ static int file_browse_invoke(bContext *C, wmOperator *op, const wmEvent *event)
     return OPERATOR_CANCELLED;
   }
 
+  {
+    const char *info;
+    if (!RNA_property_editable_info(&ptr, prop, &info)) {
+      if (info[0]) {
+        BKE_reportf(op->reports, RPT_ERROR, "Property is not editable: %s", info);
+      }
+      else {
+        BKE_report(op->reports, RPT_ERROR, "Property is not editable");
+      }
+      MEM_freeN(path);
+      return OPERATOR_CANCELLED;
+    }
+  }
+
   PropertyRNA *prop_relpath;
   const char *path_prop = RNA_struct_find_property(op->ptr, "directory") ? "directory" :
                                                                            "filepath";
@@ -357,6 +371,7 @@ static int file_browse_invoke(bContext *C, wmOperator *op, const wmEvent *event)
     else {
       MEM_freeN(path);
       path = BLI_strdup(BKE_appdir_folder_default_or_root());
+      BLI_path_slash_ensure(path, FILE_MAXDIR);
     }
   }
 

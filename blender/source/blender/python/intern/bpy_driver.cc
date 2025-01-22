@@ -20,12 +20,11 @@
 
 #include "BKE_animsys.h"
 #include "BKE_fcurve_driver.h"
-#include "BKE_global.h"
+#include "BKE_global.hh"
 #include "BKE_idtype.hh"
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.h"
-#include "RNA_types.hh"
 
 #include "bpy_rna_driver.h" /* For #pyrna_driver_get_variable_value. */
 
@@ -494,7 +493,7 @@ float BPY_driver_exec(PathResolvedRNA *anim_rna,
    * now release the GIL on python operator execution instead, using
    * #PyEval_SaveThread() / #PyEval_RestoreThread() so we don't lock up blender.
    *
-   * For copy-on-write we always cache expressions and write errors in the
+   * For copy-on-evaluation we always cache expressions and write errors in the
    * original driver, otherwise these would get freed while editing.
    * Due to the GIL this is thread-safe. */
 
@@ -634,7 +633,7 @@ float BPY_driver_exec(PathResolvedRNA *anim_rna,
           dvar->curval = float(PyLong_AsLong(driver_arg));
         }
         else if (PyBool_Check(driver_arg)) {
-          dvar->curval = (driver_arg == Py_True);
+          dvar->curval = float(driver_arg == Py_True);
         }
         else {
           dvar->curval = 0.0f;

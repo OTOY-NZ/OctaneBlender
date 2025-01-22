@@ -954,8 +954,6 @@ static void duplicate_instances(GeometrySet &geometry_set,
     const int old_handle = src_instances.reference_handles()[i_selection];
     const bke::InstanceReference reference = src_instances.references()[old_handle];
     const int new_handle = dst_instances->add_reference(reference);
-    const float4x4 transform = src_instances.transforms()[i_selection];
-    dst_instances->transforms().slice(range).fill(transform);
     dst_instances->reference_handles_for_write().slice(range).fill(new_handle);
   }
 
@@ -1070,20 +1068,20 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
   geo_node_type_base(
       &ntype, GEO_NODE_DUPLICATE_ELEMENTS, "Duplicate Elements", NODE_CLASS_GEOMETRY);
 
-  node_type_storage(&ntype,
-                    "NodeGeometryDuplicateElements",
-                    node_free_standard_storage,
-                    node_copy_standard_storage);
+  blender::bke::node_type_storage(&ntype,
+                                  "NodeGeometryDuplicateElements",
+                                  node_free_standard_storage,
+                                  node_copy_standard_storage);
 
   ntype.initfunc = node_init;
   ntype.draw_buttons = node_layout;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

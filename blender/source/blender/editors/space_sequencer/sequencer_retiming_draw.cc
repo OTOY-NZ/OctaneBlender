@@ -11,26 +11,16 @@
 #include "BLI_blenlib.h"
 #include "BLI_span.hh"
 
-#include "DNA_anim_types.h"
 #include "DNA_sequence_types.h"
 
 #include "BKE_context.hh"
-#include "BKE_fcurve.h"
-#include "BKE_scene.h"
+#include "BKE_fcurve.hh"
 
 #include "BLF_api.hh"
 
-#include "GPU_batch.h"
-#include "GPU_batch_utils.h"
-#include "GPU_immediate.h"
-#include "GPU_immediate_util.h"
-#include "GPU_matrix.h"
-#include "GPU_select.hh"
-#include "GPU_state.h"
-
-#include "RNA_access.hh"
-#include "RNA_define.hh"
-#include "RNA_enum_types.hh"
+#include "GPU_batch.hh"
+#include "GPU_immediate.hh"
+#include "GPU_state.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -38,15 +28,9 @@
 #include "ED_keyframes_draw.hh"
 #include "ED_keyframes_keylist.hh"
 #include "ED_screen.hh"
-#include "ED_sequencer.hh"
-#include "ED_view3d.hh"
 
-#include "UI_interface.hh"
-#include "UI_interface_icons.hh"
-#include "UI_resources.hh"
 #include "UI_view2d.hh"
 
-#include "SEQ_iterator.hh"
 #include "SEQ_retiming.hh"
 #include "SEQ_sequencer.hh"
 #include "SEQ_time.hh"
@@ -58,9 +42,8 @@
 #define KEY_SIZE (10 * U.pixelsize)
 #define KEY_CENTER (UI_view2d_view_to_region_y(v2d, strip_y_rescale(seq, 0.0f)) + 4 + KEY_SIZE / 2)
 
-bool retiming_keys_are_visible(const bContext *C)
+bool retiming_keys_are_visible(const SpaceSeq *sseq)
 {
-  const SpaceSeq *sseq = CTX_wm_space_seq(C);
   return (sseq->timeline_overlay.flag & SEQ_TIMELINE_SHOW_STRIP_RETIMING) != 0;
 }
 
@@ -92,67 +75,34 @@ static float pixels_to_view_height(const bContext *C, const float height)
   return height / scale_y;
 }
 
-static float strip_start_screenspace_get(const bContext *C, const Sequence *seq)
+static float strip_start_screenspace_get(const Scene *scene,
+                                         const View2D *v2d,
+                                         const Sequence *seq)
 {
-  const View2D *v2d = UI_view2d_fromcontext(C);
-  const Scene *scene = CTX_data_scene(C);
   return UI_view2d_view_to_region_x(v2d, SEQ_time_left_handle_frame_get(scene, seq));
 }
 
-static float strip_end_screenspace_get(const bContext *C, const Sequence *seq)
+static float strip_end_screenspace_get(const Scene *scene, const View2D *v2d, const Sequence *seq)
 {
-  const View2D *v2d = UI_view2d_fromcontext(C);
-  const Scene *scene = CTX_data_scene(C);
   return UI_view2d_view_to_region_x(v2d, SEQ_time_right_handle_frame_get(scene, seq));
 }
 
-static rctf strip_box_get(const bContext *C, const Sequence *seq)
+static rctf strip_box_get(const Scene *scene, const View2D *v2d, const Sequence *seq)
 {
-  const View2D *v2d = UI_view2d_fromcontext(C);
   rctf rect;
-  rect.xmin = strip_start_screenspace_get(C, seq);
-  rect.xmax = strip_end_screenspace_get(C, seq);
+  rect.xmin = strip_start_screenspace_get(scene, v2d, seq);
+  rect.xmax = strip_end_screenspace_get(scene, v2d, seq);
   rect.ymin = UI_view2d_view_to_region_y(v2d, strip_y_rescale(seq, 0));
   rect.ymax = UI_view2d_view_to_region_y(v2d, strip_y_rescale(seq, 1));
   return rect;
 }
 
-blender::Vector<Sequence *> sequencer_visible_strips_get(const bContext *C)
-{
-  const View2D *v2d = UI_view2d_fromcontext(C);
-  const Scene *scene = CTX_data_scene(C);
-  const Editing *ed = SEQ_editing_get(CTX_data_scene(C));
-  blender::Vector<Sequence *> strips;
-
-  LISTBASE_FOREACH (Sequence *, seq, ed->seqbasep) {
-    if (min_ii(SEQ_time_left_handle_frame_get(scene, seq), SEQ_time_start_frame_get(seq)) >
-        v2d->cur.xmax)
-    {
-      continue;
-    }
-    if (max_ii(SEQ_time_right_handle_frame_get(scene, seq),
-               SEQ_time_content_end_frame_get(scene, seq)) < v2d->cur.xmin)
-    {
-      continue;
-    }
-    if (seq->machine + 1.0f < v2d->cur.ymin) {
-      continue;
-    }
-    if (seq->machine > v2d->cur.ymax) {
-      continue;
-    }
-    strips.append(seq);
-  }
-  return strips;
-}
-
 /** Size in pixels. */
 #define RETIME_KEY_MOUSEOVER_THRESHOLD (16.0f * UI_SCALE_FAC)
 
-static rctf keys_box_get(const bContext *C, const Sequence *seq)
+rctf seq_retiming_keys_box_get(const Scene *scene, const View2D *v2d, const Sequence *seq)
 {
-  const View2D *v2d = UI_view2d_fromcontext(C);
-  rctf rect = strip_box_get(C, seq);
+  rctf rect = strip_box_get(scene, v2d, seq);
   rect.ymax = KEY_CENTER + KEY_SIZE / 2;
   rect.ymin = KEY_CENTER - KEY_SIZE / 2;
   return rect;
@@ -179,7 +129,7 @@ static bool retiming_fake_key_is_clicked(const bContext *C,
 {
   const View2D *v2d = UI_view2d_fromcontext(C);
 
-  rctf box = keys_box_get(C, seq);
+  rctf box = seq_retiming_keys_box_get(CTX_data_scene(C), v2d, seq);
   if (!BLI_rctf_isect_pt(&box, mval[0], mval[1])) {
     return false;
   }
@@ -189,7 +139,7 @@ static bool retiming_fake_key_is_clicked(const bContext *C,
   return distance < RETIME_KEY_MOUSEOVER_THRESHOLD;
 }
 
-SeqRetimingKey *try_to_realize_virtual_key(const bContext *C, Sequence *seq, const int mval[2])
+SeqRetimingKey *try_to_realize_virtual_keys(const bContext *C, Sequence *seq, const int mval[2])
 {
   Scene *scene = CTX_data_scene(C);
   SeqRetimingKey *key = nullptr;
@@ -210,6 +160,12 @@ SeqRetimingKey *try_to_realize_virtual_key(const bContext *C, Sequence *seq, con
     SEQ_retiming_data_ensure(seq);
     const int frame = SEQ_time_right_handle_frame_get(scene, seq);
     key = SEQ_retiming_add_key(scene, seq, frame);
+  }
+
+  /* Ensure both keys are realized, but return only one that was clicked on. */
+  if (key != nullptr) {
+    SEQ_retiming_add_key(scene, seq, SEQ_time_right_handle_frame_get(scene, seq));
+    SEQ_retiming_add_key(scene, seq, SEQ_time_left_handle_frame_get(scene, seq));
   }
 
   return key;
@@ -247,8 +203,10 @@ static SeqRetimingKey *mouse_over_key_get_from_strip(const bContext *C,
 
 SeqRetimingKey *retiming_mousover_key_get(const bContext *C, const int mval[2], Sequence **r_seq)
 {
+  const Scene *scene = CTX_data_scene(C);
+  const View2D *v2d = UI_view2d_fromcontext(C);
   for (Sequence *seq : sequencer_visible_strips_get(C)) {
-    rctf box = keys_box_get(C, seq);
+    rctf box = seq_retiming_keys_box_get(scene, v2d, seq);
     if (!BLI_rctf_isect_pt(&box, mval[0], mval[1])) {
       continue;
     }
@@ -280,10 +238,10 @@ static void retime_key_draw(const bContext *C,
                             const blender::Map<SeqRetimingKey *, Sequence *> &selection)
 {
   const Scene *scene = CTX_data_scene(C);
-  const float key_x = key_x_get(scene, seq, key);
-
   const View2D *v2d = UI_view2d_fromcontext(C);
-  const rctf strip_box = strip_box_get(C, seq);
+
+  const float key_x = key_x_get(scene, seq, key);
+  const rctf strip_box = strip_box_get(scene, v2d, seq);
   if (!BLI_rctf_isect_x(&strip_box, UI_view2d_view_to_region_x(v2d, key_x))) {
     return; /* Key out of the strip bounds. */
   }
@@ -421,7 +379,7 @@ static void retime_keys_draw(const bContext *C, SeqQuadsBatch *quads)
     return;
   }
 
-  if (!retiming_keys_are_visible(C)) {
+  if (!retiming_keys_are_visible(CTX_wm_space_seq(C))) {
     return;
   }
 
@@ -525,7 +483,7 @@ static size_t label_str_get(const Sequence *seq,
 static bool label_rect_get(const bContext *C,
                            const Sequence *seq,
                            const SeqRetimingKey *key,
-                           char *label_str,
+                           const char *label_str,
                            const size_t label_len,
                            rctf *rect)
 {
@@ -589,7 +547,7 @@ static void retime_speed_draw(const bContext *C)
     return;
   }
 
-  if (!retiming_keys_are_visible(C)) {
+  if (!retiming_keys_are_visible(CTX_wm_space_seq(C))) {
     return;
   }
 

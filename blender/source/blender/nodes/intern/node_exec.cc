@@ -11,8 +11,7 @@
 #include "BLI_listbase.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_global.h"
-#include "BKE_node.hh"
+#include "BKE_global.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_node_tree_update.hh"
 
@@ -227,10 +226,11 @@ bNodeTreeExec *ntree_exec_begin(bNodeExecContext *context,
       /* ns = */ setup_stack(exec->stack, ntree, node, sock);
     }
 
-    nodekey = BKE_node_instance_key(parent_key, ntree, node);
-    nodeexec->data.preview = context->previews ? (bNodePreview *)BKE_node_instance_hash_lookup(
-                                                     context->previews, nodekey) :
-                                                 nullptr;
+    nodekey = bke::BKE_node_instance_key(parent_key, ntree, node);
+    nodeexec->data.preview = context->previews ?
+                                 (bNodePreview *)bke::BKE_node_instance_hash_lookup(
+                                     context->previews, nodekey) :
+                                 nullptr;
     if (node->typeinfo->init_exec_fn) {
       nodeexec->data.data = node->typeinfo->init_exec_fn(context, node, nodekey);
     }

@@ -27,7 +27,7 @@
 
 #include "node_shader_util.hh"
 
-static bNodeSocketTemplate sh_node_in[] = {
+static blender::bke::bNodeSocketTemplate  sh_node_in[] = {
     {SOCK_SHADER,
      N_("Specular"),
      0.7f,
@@ -151,7 +151,7 @@ static bNodeSocketTemplate sh_node_in[] = {
      SOCK_NO_INTERNAL_LINK},
     {-1, ""}};
 
-static bNodeSocketTemplate sh_node_out[] = {
+static blender::bke::bNodeSocketTemplate  sh_node_out[] = {
     {SOCK_SHADER, N_("OutMatLayer")},
     {SOCK_SHADER,
      N_("OutMat"),
@@ -167,13 +167,13 @@ static bNodeSocketTemplate sh_node_out[] = {
 
 void register_node_type_sh_oct_metallic_layer(void)
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   if (ntype.type != SH_NODE_OCT_METALLIC_LAYER)
     sh_node_type_base(
         &ntype, SH_NODE_OCT_METALLIC_LAYER, "Octane Metallic Layer", NODE_CLASS_OCT_LAYER);
   blender::bke::node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
-  node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::DEFAULT);
+  node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Default);
   ntype.initfunc = (NULL);
   node_type_storage(&ntype, "", NULL, NULL);
 

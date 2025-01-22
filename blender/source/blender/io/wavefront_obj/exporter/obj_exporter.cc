@@ -11,8 +11,9 @@
 #include <system_error>
 
 #include "BKE_context.hh"
-#include "BKE_report.h"
-#include "BKE_scene.h"
+#include "BKE_lib_id.hh"
+#include "BKE_report.hh"
+#include "BKE_scene.hh"
 
 #include "BLI_path_util.h"
 #include "BLI_string.h"
@@ -21,6 +22,7 @@
 
 #include "DEG_depsgraph_query.hh"
 
+#include "DNA_collection_types.h"
 #include "DNA_scene_types.h"
 
 #include "ED_object.hh"
@@ -33,13 +35,23 @@
 
 namespace blender::io::obj {
 
-OBJDepsgraph::OBJDepsgraph(const bContext *C, const eEvaluationMode eval_mode)
+OBJDepsgraph::OBJDepsgraph(const bContext *C,
+                           const eEvaluationMode eval_mode,
+                           Collection *collection)
 {
   Scene *scene = CTX_data_scene(C);
   Main *bmain = CTX_data_main(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  if (eval_mode == DAG_EVAL_RENDER) {
-    depsgraph_ = DEG_graph_new(bmain, scene, view_layer, DAG_EVAL_RENDER);
+
+  /* If a collection was provided, use it. */
+  if (collection) {
+    depsgraph_ = DEG_graph_new(bmain, scene, view_layer, eval_mode);
+    needs_free_ = true;
+    DEG_graph_build_from_collection(depsgraph_, collection);
+    BKE_scene_graph_evaluated_ensure(depsgraph_, bmain);
+  }
+  else if (eval_mode == DAG_EVAL_RENDER) {
+    depsgraph_ = DEG_graph_new(bmain, scene, view_layer, eval_mode);
     needs_free_ = true;
     DEG_graph_build_for_all_objects(depsgraph_);
     BKE_scene_graph_evaluated_ensure(depsgraph_, bmain);
@@ -213,7 +225,7 @@ static void write_mesh_objects(const Span<std::unique_ptr<OBJMesh>> exportable_a
           obj_writer.write_uv_coords(fh, obj);
         }
         /* This function takes a 0-indexed slot index for the obj_mesh object and
-         * returns the material name that we are using in the .obj file for it. */
+         * returns the material name that we are using in the `.obj` file for it. */
         const auto *obj_mtlindices = mtlindices.is_empty() ? nullptr : &mtlindices[i];
         auto matname_fn = [&](int s) -> const char * {
           if (!obj_mtlindices || s < 0 || s >= obj_mtlindices->size()) {
@@ -265,7 +277,7 @@ void export_frame(Depsgraph *depsgraph, const OBJExportParams &export_params, co
     return;
   }
   if (!frame_writer) {
-    BLI_assert(!"File should be writable by now.");
+    BLI_assert_msg(false, "File should be writable by now.");
     return;
   }
   std::unique_ptr<MTLWriter> mtl_writer = nullptr;
@@ -290,9 +302,9 @@ void export_frame(Depsgraph *depsgraph, const OBJExportParams &export_params, co
   write_mesh_objects(exportable_as_mesh, *frame_writer, mtl_writer.get(), export_params);
   if (mtl_writer) {
     mtl_writer->write_header(export_params.blen_filepath);
-    char dest_dir[PATH_MAX];
+    char dest_dir[FILE_MAX];
     if (export_params.file_base_for_tests[0] == '\0') {
-      BLI_path_split_dir_part(export_params.filepath, dest_dir, PATH_MAX);
+      BLI_path_split_dir_part(export_params.filepath, dest_dir, sizeof(dest_dir));
     }
     else {
       STRNCPY(dest_dir, export_params.file_base_for_tests);
@@ -307,7 +319,9 @@ void export_frame(Depsgraph *depsgraph, const OBJExportParams &export_params, co
   write_nurbs_curve_objects(exportable_as_nurbs, *frame_writer);
 }
 
-bool append_frame_to_filename(const char *filepath, const int frame, char *r_filepath_with_frames)
+bool append_frame_to_filename(const char *filepath,
+                              const int frame,
+                              char r_filepath_with_frames[1024])
 {
   BLI_strncpy(r_filepath_with_frames, filepath, FILE_MAX);
   BLI_path_extension_strip(r_filepath_with_frames);
@@ -317,8 +331,23 @@ bool append_frame_to_filename(const char *filepath, const int frame, char *r_fil
 
 void exporter_main(bContext *C, const OBJExportParams &export_params)
 {
-  ED_object_mode_set(C, OB_MODE_OBJECT);
-  OBJDepsgraph obj_depsgraph(C, export_params.export_eval_mode);
+  ed::object::mode_set(C, OB_MODE_OBJECT);
+
+  Collection *collection = nullptr;
+  if (export_params.collection[0]) {
+    Main *bmain = CTX_data_main(C);
+    collection = reinterpret_cast<Collection *>(
+        BKE_libblock_find_name(bmain, ID_GR, export_params.collection));
+    if (!collection) {
+      BKE_reportf(export_params.reports,
+                  RPT_ERROR,
+                  "OBJ Export: Unable to find collection '%s'",
+                  export_params.collection);
+      return;
+    }
+  }
+
+  OBJDepsgraph obj_depsgraph(C, export_params.export_eval_mode, collection);
   Scene *scene = DEG_get_input_scene(obj_depsgraph.get());
   const char *filepath = export_params.filepath;
 

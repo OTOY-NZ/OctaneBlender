@@ -12,8 +12,6 @@
 
 #include "BLI_color.hh"
 
-#include "FN_multi_function_builder.hh"
-
 #include "NOD_multi_function.hh"
 
 #include "node_shader_util.hh"
@@ -24,7 +22,14 @@ namespace blender::nodes::node_shader_color_ramp_cc {
 static void sh_node_valtorgb_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
-  b.add_input<decl::Float>("Fac").default_value(0.5f).min(0.0f).max(1.0f).subtype(PROP_FACTOR);
+  b.add_input<decl::Float>("Fac")
+      .default_value(0.5f)
+      .min(0.0f)
+      .max(1.0f)
+      .subtype(PROP_FACTOR)
+      .description(
+          "The value used to map onto the color gradient. 0.0 results in the leftmost color, "
+          "while 1.0 results in the rightmost");
   b.add_output<decl::Color>("Color");
   b.add_output<decl::Float>("Alpha");
 }
@@ -152,16 +157,17 @@ void register_node_type_sh_valtorgb()
 {
   namespace file_ns = blender::nodes::node_shader_color_ramp_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   sh_fn_node_type_base(&ntype, SH_NODE_VALTORGB, "Color Ramp", NODE_CLASS_CONVERTER);
   ntype.declare = file_ns::sh_node_valtorgb_declare;
   ntype.initfunc = file_ns::node_shader_init_valtorgb;
-  blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::LARGE);
-  node_type_storage(&ntype, "ColorBand", node_free_standard_storage, node_copy_standard_storage);
+  blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Large);
+  blender::bke::node_type_storage(
+      &ntype, "ColorBand", node_free_standard_storage, node_copy_standard_storage);
   ntype.gpu_fn = file_ns::gpu_shader_valtorgb;
   ntype.build_multi_function = file_ns::sh_node_valtorgb_build_multi_function;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 }

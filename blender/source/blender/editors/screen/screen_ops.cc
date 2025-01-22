@@ -8,23 +8,20 @@
 
 #include <cmath>
 #include <cstring>
+#include <fmt/format.h>
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
-#include "BLI_dlrbTree.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_curve_types.h"
 #include "DNA_lattice_types.h"
-#include "DNA_mask_types.h"
-#include "DNA_mesh_types.h"
 #include "DNA_meta_types.h"
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
@@ -32,21 +29,21 @@
 #include "DNA_userdef_types.h"
 #include "DNA_workspace_types.h"
 
-#include "BKE_callbacks.h"
+#include "BKE_callbacks.hh"
 #include "BKE_context.hh"
 #include "BKE_editmesh.hh"
-#include "BKE_fcurve.h"
-#include "BKE_global.h"
+#include "BKE_fcurve.hh"
+#include "BKE_global.hh"
 #include "BKE_icons.h"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_mask.h"
 #include "BKE_object.hh"
-#include "BKE_report.h"
-#include "BKE_scene.h"
+#include "BKE_report.hh"
+#include "BKE_scene.hh"
 #include "BKE_screen.hh"
 #include "BKE_sound.h"
-#include "BKE_workspace.h"
+#include "BKE_workspace.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -56,7 +53,6 @@
 
 #include "ED_anim_api.hh"
 #include "ED_armature.hh"
-#include "ED_clip.hh"
 #include "ED_fileselect.hh"
 #include "ED_image.hh"
 #include "ED_keyframes_keylist.hh"
@@ -66,8 +62,6 @@
 #include "ED_screen.hh"
 #include "ED_screen_types.hh"
 #include "ED_sequencer.hh"
-#include "ED_undo.hh"
-#include "ED_util.hh"
 #include "ED_view3d.hh"
 
 #include "RNA_access.hh"
@@ -79,9 +73,11 @@
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
 
-#include "GPU_capabilities.h"
+#include "GPU_capabilities.hh"
 
-#include "screen_intern.h" /* own module include */
+#include "screen_intern.hh" /* own module include */
+
+using blender::Vector;
 
 #define KM_MODAL_CANCEL 1
 #define KM_MODAL_APPLY 2
@@ -192,7 +188,7 @@ bool ED_operator_objectmode(bContext *C)
   Scene *scene = CTX_data_scene(C);
   Object *obact = CTX_data_active_object(C);
 
-  if (scene == nullptr || ID_IS_LINKED(scene)) {
+  if (scene == nullptr || !ID_IS_EDITABLE(scene)) {
     return false;
   }
   if (CTX_data_edit_object(C)) {
@@ -300,7 +296,7 @@ bool ED_operator_region_outliner_active(bContext *C)
 bool ED_operator_outliner_active_no_editobject(bContext *C)
 {
   if (ed_spacetype_test(C, SPACE_OUTLINER)) {
-    Object *ob = ED_object_active_context(C);
+    Object *ob = blender::ed::object::context_active_object(C);
     Object *obedit = CTX_data_edit_object(C);
     if (ob && ob == obedit) {
       return false;
@@ -411,7 +407,7 @@ static bool ed_object_hidden(const Object *ob)
 
 bool ED_operator_object_active(bContext *C)
 {
-  Object *ob = ED_object_active_context(C);
+  Object *ob = blender::ed::object::context_active_object(C);
   return ((ob != nullptr) && !ed_object_hidden(ob));
 }
 
@@ -437,7 +433,7 @@ bool ED_operator_object_active_editable_ex(bContext *C, const Object *ob)
 
 bool ED_operator_object_active_editable(bContext *C)
 {
-  Object *ob = ED_object_active_context(C);
+  Object *ob = blender::ed::object::context_active_object(C);
   return ED_operator_object_active_editable_ex(C, ob);
 }
 
@@ -448,28 +444,28 @@ bool ED_operator_object_active_local_editable_ex(bContext *C, const Object *ob)
 
 bool ED_operator_object_active_local_editable(bContext *C)
 {
-  Object *ob = ED_object_active_context(C);
+  Object *ob = blender::ed::object::context_active_object(C);
   return ED_operator_object_active_editable_ex(C, ob) && !ID_IS_OVERRIDE_LIBRARY(ob);
 }
 
 bool ED_operator_object_active_editable_mesh(bContext *C)
 {
-  Object *ob = ED_object_active_context(C);
-  return ((ob != nullptr) && !ID_IS_LINKED(ob) && !ed_object_hidden(ob) && (ob->type == OB_MESH) &&
-          !ID_IS_LINKED(ob->data) && !ID_IS_OVERRIDE_LIBRARY(ob->data));
+  Object *ob = blender::ed::object::context_active_object(C);
+  return ((ob != nullptr) && ID_IS_EDITABLE(ob) && !ed_object_hidden(ob) &&
+          (ob->type == OB_MESH) && ID_IS_EDITABLE(ob->data) && !ID_IS_OVERRIDE_LIBRARY(ob->data));
 }
 
 bool ED_operator_object_active_editable_font(bContext *C)
 {
-  Object *ob = ED_object_active_context(C);
-  return ((ob != nullptr) && !ID_IS_LINKED(ob) && !ed_object_hidden(ob) && (ob->type == OB_FONT) &&
-          !ID_IS_LINKED(ob->data) && !ID_IS_OVERRIDE_LIBRARY(ob->data));
+  Object *ob = blender::ed::object::context_active_object(C);
+  return ((ob != nullptr) && ID_IS_EDITABLE(ob) && !ed_object_hidden(ob) &&
+          (ob->type == OB_FONT) && ID_IS_EDITABLE(ob->data) && !ID_IS_OVERRIDE_LIBRARY(ob->data));
 }
 
 bool ED_operator_editable_mesh(bContext *C)
 {
   Mesh *mesh = ED_mesh_context(C);
-  return (mesh != nullptr) && !ID_IS_LINKED(mesh) && !ID_IS_OVERRIDE_LIBRARY(mesh);
+  return (mesh != nullptr) && ID_IS_EDITABLE(mesh) && !ID_IS_OVERRIDE_LIBRARY(mesh);
 }
 
 bool ED_operator_editmesh(bContext *C)
@@ -526,14 +522,14 @@ static bool ed_operator_posemode_exclusive_ex(bContext *C, Object *obact)
 
 bool ED_operator_posemode_exclusive(bContext *C)
 {
-  Object *obact = ED_object_active_context(C);
+  Object *obact = blender::ed::object::context_active_object(C);
 
   return ed_operator_posemode_exclusive_ex(C, obact);
 }
 
 bool ED_operator_object_active_local_editable_posemode_exclusive(bContext *C)
 {
-  Object *obact = ED_object_active_context(C);
+  Object *obact = blender::ed::object::context_active_object(C);
 
   if (!ed_operator_posemode_exclusive_ex(C, obact)) {
     return false;
@@ -695,7 +691,7 @@ bool ED_operator_editmball(bContext *C)
 bool ED_operator_camera_poll(bContext *C)
 {
   Camera *cam = static_cast<Camera *>(CTX_data_pointer_get_type(C, "camera", &RNA_Camera).data);
-  return (cam != nullptr && !ID_IS_LINKED(cam));
+  return (cam != nullptr && ID_IS_EDITABLE(cam));
 }
 
 /** \} */
@@ -1711,7 +1707,7 @@ static void area_move_set_limits(wmWindow *win,
         areamin += U.pixelsize;
       }
 
-      int y1 = screen_geom_area_height(area) - areamin;
+      int y1 = screen_geom_area_height(area) - areamin - int(U.pixelsize);
 
       /* if top or down edge selected, test height */
       if (area->v1->editflag && area->v4->editflag) {
@@ -1731,7 +1727,7 @@ static void area_move_set_limits(wmWindow *win,
         areamin += U.pixelsize;
       }
 
-      int x1 = screen_geom_area_width(area) - areamin;
+      int x1 = screen_geom_area_width(area) - areamin - int(U.pixelsize);
 
       /* if left or right edge selected, test width */
       if (area->v1->editflag && area->v2->editflag) {
@@ -3031,6 +3027,14 @@ static void SCREEN_OT_region_scale(wmOperatorType *ot)
 /** \name Frame Change Operator
  * \{ */
 
+static bool screen_animation_region_supports_time_follow(eSpace_Type spacetype,
+                                                         eRegion_Type regiontype)
+{
+  return (regiontype == RGN_TYPE_WINDOW &&
+          ELEM(spacetype, SPACE_SEQ, SPACE_GRAPH, SPACE_ACTION, SPACE_NLA)) ||
+         (spacetype == SPACE_CLIP && regiontype == RGN_TYPE_PREVIEW);
+}
+
 static void areas_do_frame_follow(bContext *C, bool middle)
 {
   bScreen *screen_ctx = CTX_wm_screen(C);
@@ -3042,29 +3046,26 @@ static void areas_do_frame_follow(bContext *C, bool middle)
     LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
       LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
         /* do follow here if editor type supports it */
-        if (screen_ctx->redraws_flag & TIME_FOLLOW) {
-          if ((region->regiontype == RGN_TYPE_WINDOW &&
-               ELEM(area->spacetype, SPACE_SEQ, SPACE_GRAPH, SPACE_ACTION, SPACE_NLA)) ||
-              (area->spacetype == SPACE_CLIP && region->regiontype == RGN_TYPE_PREVIEW))
-          {
-            float w = BLI_rctf_size_x(&region->v2d.cur);
+        if ((screen_ctx->redraws_flag & TIME_FOLLOW) &&
+            screen_animation_region_supports_time_follow(eSpace_Type(area->spacetype),
+                                                         eRegion_Type(region->regiontype)))
+        {
+          float w = BLI_rctf_size_x(&region->v2d.cur);
 
-            if (middle) {
-              if ((scene->r.cfra < region->v2d.cur.xmin) || (scene->r.cfra > region->v2d.cur.xmax))
-              {
-                region->v2d.cur.xmax = scene->r.cfra + (w / 2);
-                region->v2d.cur.xmin = scene->r.cfra - (w / 2);
-              }
+          if (middle) {
+            if ((scene->r.cfra < region->v2d.cur.xmin) || (scene->r.cfra > region->v2d.cur.xmax)) {
+              region->v2d.cur.xmax = scene->r.cfra + (w / 2);
+              region->v2d.cur.xmin = scene->r.cfra - (w / 2);
             }
-            else {
-              if (scene->r.cfra < region->v2d.cur.xmin) {
-                region->v2d.cur.xmax = scene->r.cfra;
-                region->v2d.cur.xmin = region->v2d.cur.xmax - w;
-              }
-              else if (scene->r.cfra > region->v2d.cur.xmax) {
-                region->v2d.cur.xmin = scene->r.cfra;
-                region->v2d.cur.xmax = region->v2d.cur.xmin + w;
-              }
+          }
+          else {
+            if (scene->r.cfra < region->v2d.cur.xmin) {
+              region->v2d.cur.xmax = scene->r.cfra;
+              region->v2d.cur.xmin = region->v2d.cur.xmax - w;
+            }
+            else if (scene->r.cfra > region->v2d.cur.xmax) {
+              region->v2d.cur.xmin = scene->r.cfra;
+              region->v2d.cur.xmax = region->v2d.cur.xmin + w;
             }
           }
         }
@@ -4387,23 +4388,21 @@ static void screen_area_menu_items(ScrArea *area, uiLayout *layout)
 
   uiItemS(layout);
 
-  if (area->spacetype != SPACE_FILE) {
-    uiItemO(layout,
-            area->full ? IFACE_("Restore Areas") : IFACE_("Maximize Area"),
-            ICON_NONE,
-            "SCREEN_OT_screen_full_area");
+  uiItemO(layout,
+          area->full ? IFACE_("Restore Areas") : IFACE_("Maximize Area"),
+          ICON_NONE,
+          "SCREEN_OT_screen_full_area");
 
-    if (!area->full) {
-      uiItemFullO(layout,
-                  "SCREEN_OT_screen_full_area",
-                  IFACE_("Full Screen Area"),
-                  ICON_NONE,
-                  nullptr,
-                  WM_OP_INVOKE_DEFAULT,
-                  UI_ITEM_NONE,
-                  &ptr);
-      RNA_boolean_set(&ptr, "use_hide_panels", true);
-    }
+  if (area->spacetype != SPACE_FILE && !area->full) {
+    uiItemFullO(layout,
+                "SCREEN_OT_screen_full_area",
+                IFACE_("Full Screen Area"),
+                ICON_NONE,
+                nullptr,
+                WM_OP_INVOKE_DEFAULT,
+                UI_ITEM_NONE,
+                &ptr);
+    RNA_boolean_set(&ptr, "use_hide_panels", true);
   }
 
   uiItemO(layout, nullptr, ICON_NONE, "SCREEN_OT_area_dupli");
@@ -4491,6 +4490,12 @@ static void ed_screens_statusbar_menu_create(uiLayout *layout, void * /*arg*/)
   if (GPU_mem_stats_supported()) {
     uiItemR(layout, &ptr, "show_statusbar_vram", UI_ITEM_NONE, IFACE_("Video Memory"), ICON_NONE);
   }
+  uiItemR(layout,
+          &ptr,
+          "show_extensions_updates",
+          UI_ITEM_NONE,
+          IFACE_("Extensions Updates"),
+          ICON_NONE);
   uiItemR(
       layout, &ptr, "show_statusbar_version", UI_ITEM_NONE, IFACE_("Blender Version"), ICON_NONE);
 }
@@ -4548,14 +4553,6 @@ static void SCREEN_OT_region_context_menu(wmOperatorType *ot)
  *
  * Animation Step.
  * \{ */
-
-static bool screen_animation_region_supports_time_follow(eSpace_Type spacetype,
-                                                         eRegion_Type regiontype)
-{
-  return (regiontype == RGN_TYPE_WINDOW &&
-          ELEM(spacetype, SPACE_SEQ, SPACE_GRAPH, SPACE_ACTION, SPACE_NLA)) ||
-         (spacetype == SPACE_CLIP && regiontype == RGN_TYPE_PREVIEW);
-}
 
 static bool match_region_with_redraws(const ScrArea *area,
                                       eRegion_Type regiontype,
@@ -4800,7 +4797,7 @@ static int screen_animation_step_invoke(bContext *C, wmOperator * /*op*/, const 
       if (delta_frames < 1.0) {
         /* We can render faster than the scene frame rate. However skipping or delaying frames
          * here seems to in practice lead to jittery playback so just step forward a minimum of
-         * one frame. (Even though this can lead to too fast playback, the jitteryness is more
+         * one frame. (Even though this can lead to too fast playback, the jitteriness is more
          * annoying)
          */
         delta_frames = 1.0f;
@@ -5264,6 +5261,22 @@ static int userpref_show_exec(bContext *C, wmOperator *op)
   return OPERATOR_CANCELLED;
 }
 
+static std::string userpref_show_get_description(bContext *C,
+                                                 wmOperatorType * /*ot*/,
+                                                 PointerRNA *ptr)
+{
+  PropertyRNA *prop = RNA_struct_find_property(ptr, "section");
+  if (RNA_property_is_set(ptr, prop)) {
+    int section = RNA_property_enum_get(ptr, prop);
+    const char *section_name;
+    if (RNA_property_enum_name_gettexted(C, ptr, prop, section, &section_name)) {
+      return fmt::format(TIP_("Show {} preferences"), section_name);
+    }
+  }
+  /* Fallback to default. */
+  return "";
+}
+
 static void SCREEN_OT_userpref_show(wmOperatorType *ot)
 {
   PropertyRNA *prop;
@@ -5276,6 +5289,7 @@ static void SCREEN_OT_userpref_show(wmOperatorType *ot)
   /* api callbacks */
   ot->exec = userpref_show_exec;
   ot->poll = ED_operator_screenactive_nobackground; /* Not in background as this opens a window. */
+  ot->get_description = userpref_show_get_description;
 
   prop = RNA_def_enum(ot->srna,
                       "section",
@@ -5809,32 +5823,24 @@ static int space_workspace_cycle_invoke(bContext *C, wmOperator *op, const wmEve
   Main *bmain = CTX_data_main(C);
   const eScreenCycle direction = eScreenCycle(RNA_enum_get(op->ptr, "direction"));
   WorkSpace *workspace_src = WM_window_get_active_workspace(win);
-  WorkSpace *workspace_dst = nullptr;
 
-  ListBase ordered;
-  BKE_id_ordered_list(&ordered, &bmain->workspaces);
-
-  LISTBASE_FOREACH (LinkData *, link, &ordered) {
-    if (link->data == workspace_src) {
-      if (direction == SPACE_CONTEXT_CYCLE_PREV) {
-        workspace_dst = static_cast<WorkSpace *>((link->prev) ? link->prev->data : nullptr);
-      }
-      else {
-        workspace_dst = static_cast<WorkSpace *>((link->next) ? link->next->data : nullptr);
-      }
-    }
-  }
-
-  if (workspace_dst == nullptr) {
-    LinkData *link = static_cast<LinkData *>(
-        (direction == SPACE_CONTEXT_CYCLE_PREV) ? ordered.last : ordered.first);
-    workspace_dst = static_cast<WorkSpace *>(link->data);
-  }
-
-  BLI_freelistN(&ordered);
-
-  if (workspace_src == workspace_dst) {
+  Vector<ID *> ordered = BKE_id_ordered_list(&bmain->workspaces);
+  if (ordered.size() == 1) {
     return OPERATOR_CANCELLED;
+  }
+
+  const int index = ordered.first_index_of(&workspace_src->id);
+
+  WorkSpace *workspace_dst = nullptr;
+  switch (direction) {
+    case SPACE_CONTEXT_CYCLE_PREV:
+      workspace_dst = reinterpret_cast<WorkSpace *>(index == 0 ? ordered.last() :
+                                                                 ordered[index - 1]);
+      break;
+    case SPACE_CONTEXT_CYCLE_NEXT:
+      workspace_dst = reinterpret_cast<WorkSpace *>(
+          index == ordered.index_range().last() ? ordered.first() : ordered[index + 1]);
+      break;
   }
 
   win->workspace_hook->temp_workspace_store = workspace_dst;

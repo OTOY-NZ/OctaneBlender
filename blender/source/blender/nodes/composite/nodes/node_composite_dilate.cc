@@ -15,9 +15,9 @@
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
-#include "GPU_shader.h"
-#include "GPU_state.h"
-#include "GPU_texture.h"
+#include "GPU_shader.hh"
+#include "GPU_state.hh"
+#include "GPU_texture.hh"
 
 #include "COM_algorithm_morphological_distance.hh"
 #include "COM_algorithm_morphological_distance_feather.hh"
@@ -286,15 +286,15 @@ void register_node_type_cmp_dilateerode()
 {
   namespace file_ns = blender::nodes::node_composite_dilate_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, CMP_NODE_DILATEERODE, "Dilate/Erode", NODE_CLASS_OP_FILTER);
   ntype.draw_buttons = file_ns::node_composit_buts_dilateerode;
   ntype.declare = file_ns::cmp_node_dilate_declare;
   ntype.initfunc = file_ns::node_composit_init_dilateerode;
-  node_type_storage(
+  blender::bke::node_type_storage(
       &ntype, "NodeDilateErode", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 }

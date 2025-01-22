@@ -17,18 +17,16 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_global.h"
-#include "BKE_lib_id.hh"
-#include "BKE_scene.h"
+#include "BKE_global.hh"
+#include "BKE_lib_id.hh" /* For #BKE_id_is_in_global_main. */
+#include "BKE_scene.hh"
 
-#include "DNA_scene_types.h"
-#include "DNA_screen_types.h"
 #include "DNA_view3d_types.h"
 
-#include "GPU_context.h"
-#include "GPU_framebuffer.h"
-#include "GPU_texture.h"
-#include "GPU_viewport.h"
+#include "GPU_context.hh"
+#include "GPU_framebuffer.hh"
+#include "GPU_texture.hh"
+#include "GPU_viewport.hh"
 
 #include "ED_view3d_offscreen.hh"
 
@@ -37,10 +35,10 @@
 #include "../generic/py_capi_utils.h"
 #include "../generic/python_compat.h"
 
-#include "gpu_py.h"
-#include "gpu_py_texture.h"
+#include "gpu_py.hh"
+#include "gpu_py_texture.hh"
 
-#include "gpu_py_offscreen.h" /* own include */
+#include "gpu_py_offscreen.hh" /* own include */
 
 /* Define the free method to avoid breakage. */
 #define BPYGPU_USE_GPUOBJ_FREE_METHOD
@@ -104,6 +102,8 @@ static void pygpu_offscreen_stack_context__tp_dealloc(OffScreenStackContext *sel
 
 static PyObject *pygpu_offscreen_stack_context_enter(OffScreenStackContext *self)
 {
+  BPYGPU_IS_INIT_OR_ERROR_OBJ;
+
   BPY_GPU_OFFSCREEN_CHECK_OBJ(self->py_offscreen);
 
   if (!self->is_explicitly_bound) {
@@ -122,6 +122,8 @@ static PyObject *pygpu_offscreen_stack_context_enter(OffScreenStackContext *self
 static PyObject *pygpu_offscreen_stack_context_exit(OffScreenStackContext *self,
                                                     PyObject * /*args*/)
 {
+  BPYGPU_IS_INIT_OR_ERROR_OBJ;
+
   BPY_GPU_OFFSCREEN_CHECK_OBJ(self->py_offscreen);
 
   if (self->level == -1) {
@@ -269,6 +271,8 @@ static PyObject *pygpu_offscreen_unbind(BPyGPUOffScreen *self, PyObject *args, P
 
 static PyObject *pygpu_offscreen__tp_new(PyTypeObject * /*self*/, PyObject *args, PyObject *kwds)
 {
+  BPYGPU_IS_INIT_OR_ERROR_OBJ;
+
   GPUOffScreen *ofs = nullptr;
   int width, height;
   PyC_StringEnum pygpu_textureformat = {pygpu_framebuffer_color_texture_formats, GPU_RGBA8};

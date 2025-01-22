@@ -8,30 +8,23 @@
 
 #include "BLI_utildefines.h"
 
+#include "BLI_array.hh"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
-#include "BLI_simd.h"
+#include "BLI_simd.hh"
 #include "BLI_task.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_defaults.h"
-#include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
-#include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_context.hh"
 #include "BKE_deform.hh"
-#include "BKE_editmesh.hh"
-#include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
-#include "BKE_mesh.hh"
-#include "BKE_mesh_runtime.hh"
 #include "BKE_mesh_wrapper.hh"
 #include "BKE_modifier.hh"
-#include "BKE_screen.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
@@ -44,7 +37,6 @@
 #include "MEM_guardedalloc.h"
 
 #include "DEG_depsgraph.hh"
-#include "DEG_depsgraph_query.hh"
 
 #include "MOD_ui_common.hh"
 #include "MOD_util.hh"
@@ -157,7 +149,7 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
     DEG_add_object_relation(ctx->node, mmd->object, DEG_OB_COMP_TRANSFORM, "Mesh Deform Modifier");
     DEG_add_object_relation(ctx->node, mmd->object, DEG_OB_COMP_GEOMETRY, "Mesh Deform Modifier");
   }
-  /* We need own transformation as well. */
+  /* We need our own transformation as well. */
   DEG_add_depends_on_transform_relation(ctx->node, "Mesh Deform Modifier");
 }
 
@@ -358,8 +350,8 @@ static void meshdeformModifier_do(ModifierData *md,
   }
 
   /* compute matrices to go in and out of cage object space */
-  invert_m4_m4(imat, ob_target->object_to_world);
-  mul_m4_m4m4(cagemat, imat, ob->object_to_world);
+  invert_m4_m4(imat, ob_target->object_to_world().ptr());
+  mul_m4_m4m4(cagemat, imat, ob->object_to_world().ptr());
   mul_m4_m4m4(cmat, mmd->bindmat, cagemat);
   invert_m4_m4(iobmat, cmat);
   copy_m3_m4(icagemat, iobmat);
@@ -449,10 +441,10 @@ static void deform_verts(ModifierData *md,
 void BKE_modifier_mdef_compact_influences(ModifierData *md)
 {
   MeshDeformModifierData *mmd = (MeshDeformModifierData *)md;
-  float weight, *weights, totweight;
+  float weight, totweight;
   int influences_num, verts_num, cage_verts_num, a, b;
 
-  weights = mmd->bindweights;
+  const float *weights = mmd->bindweights;
   if (!weights) {
     return;
   }
@@ -596,8 +588,9 @@ static void blend_write(BlendWriter *writer, const ID *id_owner, const ModifierD
 static void blend_read(BlendDataReader *reader, ModifierData *md)
 {
   MeshDeformModifierData *mmd = (MeshDeformModifierData *)md;
+  const int size = mmd->dyngridsize;
 
-  BLO_read_data_address(reader, &mmd->bindinfluences);
+  BLO_read_struct_array(reader, MDefInfluence, mmd->influences_num, &mmd->bindinfluences);
 
   /* NOTE: `bindoffset` is abusing `verts_num + 1` as its size, this becomes an incorrect value in
    * case `verts_num == 0`, since `bindoffset` is then nullptr, not a size 1 allocated array. */
@@ -606,8 +599,8 @@ static void blend_read(BlendDataReader *reader, ModifierData *md)
   }
 
   BLO_read_float3_array(reader, mmd->cage_verts_num, &mmd->bindcagecos);
-  BLO_read_data_address(reader, &mmd->dyngrid);
-  BLO_read_data_address(reader, &mmd->dyninfluences);
+  BLO_read_struct_array(reader, MDefCell, size * size * size, &mmd->dyngrid);
+  BLO_read_struct_array(reader, MDefInfluence, mmd->influences_num, &mmd->dyninfluences);
   BLO_read_int32_array(reader, mmd->verts_num, &mmd->dynverts);
 
   /* Deprecated storage. */

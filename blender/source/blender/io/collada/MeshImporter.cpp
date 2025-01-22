@@ -21,10 +21,11 @@
 #include "BKE_attribute.hh"
 #include "BKE_customdata.hh"
 #include "BKE_displist.h"
-#include "BKE_global.h"
+#include "BKE_global.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_material.h"
 #include "BKE_mesh.hh"
+#include "BKE_mesh_runtime.hh"
 #include "BKE_object.hh"
 
 #include "DNA_meshdata_types.h"
@@ -476,7 +477,7 @@ void MeshImporter::allocate_poly_data(COLLADAFW::Mesh *collada_mesh, Mesh *mesh)
         COLLADAFW::String &uvname = info->mName;
         /* Allocate space for UV_data */
         CustomData_add_layer_named(
-            &mesh->corner_data, CD_PROP_FLOAT2, CD_SET_DEFAULT, mesh->corners_num, uvname.c_str());
+            &mesh->corner_data, CD_PROP_FLOAT2, CD_SET_DEFAULT, mesh->corners_num, uvname);
       }
       /* activate the first uv map */
       CustomData_set_layer_active(&mesh->corner_data, CD_PROP_FLOAT2, 0);
@@ -488,11 +489,8 @@ void MeshImporter::allocate_poly_data(COLLADAFW::Mesh *collada_mesh, Mesh *mesh)
         COLLADAFW::MeshVertexData::InputInfos *info =
             collada_mesh->getColors().getInputInfosArray()[i];
         COLLADAFW::String colname = extract_vcolname(info->mName);
-        CustomData_add_layer_named(&mesh->corner_data,
-                                   CD_PROP_BYTE_COLOR,
-                                   CD_SET_DEFAULT,
-                                   mesh->corners_num,
-                                   colname.c_str());
+        CustomData_add_layer_named(
+            &mesh->corner_data, CD_PROP_BYTE_COLOR, CD_SET_DEFAULT, mesh->corners_num, colname);
       }
       BKE_id_attributes_active_color_set(
           &mesh->id, CustomData_get_layer_name(&mesh->corner_data, CD_PROP_BYTE_COLOR, 0));
@@ -569,6 +567,9 @@ void MeshImporter::mesh_add_edges(Mesh *mesh, int len)
 
   CustomData_free(&mesh->edge_data, mesh->edges_num);
   mesh->edge_data = edge_data;
+
+  BKE_mesh_runtime_clear_cache(mesh);
+
   mesh->edges_num = totedge;
 }
 
@@ -625,13 +626,8 @@ void MeshImporter::read_polys(COLLADAFW::Mesh *collada_mesh,
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
   bke::SpanAttributeWriter material_indices = attributes.lookup_or_add_for_write_span<int>(
       "material_index", bke::AttrDomain::Face);
-
-  bool *sharp_faces = static_cast<bool *>(CustomData_get_layer_named_for_write(
-      &mesh->face_data, CD_PROP_BOOL, "sharp_face", mesh->faces_num));
-  if (!sharp_faces) {
-    sharp_faces = static_cast<bool *>(CustomData_add_layer_named(
-        &mesh->face_data, CD_PROP_BOOL, CD_SET_DEFAULT, mesh->faces_num, "sharp_face"));
-  }
+  bke::SpanAttributeWriter sharp_faces = attributes.lookup_or_add_for_write_span<bool>(
+      "sharp_face", bke::AttrDomain::Face);
 
   COLLADAFW::MeshPrimitiveArray &prim_arr = collada_mesh->getMeshPrimitives();
   COLLADAFW::MeshVertexData &nor = collada_mesh->getNormals();
@@ -649,6 +645,10 @@ void MeshImporter::read_polys(COLLADAFW::Mesh *collada_mesh,
     bool mp_has_faces = primitive_has_faces(mp);
 
     int collada_meshtype = mp->getPrimitiveType();
+
+    if (collada_meshtype == COLLADAFW::MeshPrimitive::LINES) {
+      continue; /* read the lines later after all the rest is done */
+    }
 
     /* Since we cannot set `poly->mat_nr` here, we store a portion of `mesh->mpoly` in Primitive.
      */
@@ -676,7 +676,7 @@ void MeshImporter::read_polys(COLLADAFW::Mesh *collada_mesh,
           if (mp_has_normals) { /* vertex normals, same implementation as for the triangles */
             /* The same for vertices normals. */
             uint vertex_normal_indices[3] = {first_normal, normal_indices[1], normal_indices[2]};
-            sharp_faces[face_index] = is_flat_face(vertex_normal_indices, nor, 3);
+            sharp_faces.span[face_index] = is_flat_face(vertex_normal_indices, nor, 3);
             normal_indices++;
           }
 
@@ -726,10 +726,8 @@ void MeshImporter::read_polys(COLLADAFW::Mesh *collada_mesh,
         {
           COLLADAFW::IndexList &index_list = *index_list_array_uvcoord[uvset_index];
           blender::float2 *mloopuv = static_cast<blender::float2 *>(
-              CustomData_get_layer_named_for_write(&mesh->corner_data,
-                                                   CD_PROP_FLOAT2,
-                                                   index_list.getName().c_str(),
-                                                   mesh->corners_num));
+              CustomData_get_layer_named_for_write(
+                  &mesh->corner_data, CD_PROP_FLOAT2, index_list.getName(), mesh->corners_num));
           if (mloopuv == nullptr) {
             fprintf(stderr,
                     "Collada import: Mesh [%s] : Unknown reference to TEXCOORD [#%s].\n",
@@ -748,7 +746,7 @@ void MeshImporter::read_polys(COLLADAFW::Mesh *collada_mesh,
         if (mp_has_normals) {
           /* If it turns out that we have complete custom normals for each poly
            * and we want to use custom normals, this will be overridden. */
-          sharp_faces[face_index] = is_flat_face(normal_indices, nor, vcount);
+          sharp_faces.span[face_index] = is_flat_face(normal_indices, nor, vcount);
 
           if (use_custom_normals) {
             /* Store the custom normals for later application. */
@@ -770,7 +768,7 @@ void MeshImporter::read_polys(COLLADAFW::Mesh *collada_mesh,
             COLLADAFW::IndexList &color_index_list = *mp->getColorIndices(vcolor_index);
             COLLADAFW::String colname = extract_vcolname(color_index_list.getName());
             MLoopCol *mloopcol = (MLoopCol *)CustomData_get_layer_named_for_write(
-                &mesh->corner_data, CD_PROP_BYTE_COLOR, colname.c_str(), mesh->corners_num);
+                &mesh->corner_data, CD_PROP_BYTE_COLOR, colname, mesh->corners_num);
             if (mloopcol == nullptr) {
               fprintf(stderr,
                       "Collada import: Mesh [%s] : Unknown reference to VCOLOR [#%s].\n",
@@ -801,10 +799,6 @@ void MeshImporter::read_polys(COLLADAFW::Mesh *collada_mesh,
                 mesh->id.name,
                 invalid_loop_holes);
       }
-    }
-
-    else if (collada_meshtype == COLLADAFW::MeshPrimitive::LINES) {
-      continue; /* read the lines later after all the rest is done */
     }
 
     if (mp_has_faces) {

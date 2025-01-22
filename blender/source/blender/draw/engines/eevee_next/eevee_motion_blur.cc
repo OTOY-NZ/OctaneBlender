@@ -28,7 +28,9 @@ void MotionBlurModule::init()
   const Scene *scene = inst_.scene;
   const ViewLayer *view_layer = inst_.view_layer;
 
-  enabled_ = (scene->eevee.flag & SCE_EEVEE_MOTION_BLUR_ENABLED) != 0;
+  /* Disable on viewport outside of animation playback,
+   * since it can get distracting while editing the scene. */
+  enabled_ = (scene->r.mode & R_MBLUR) != 0 && (inst_.is_image_render() || inst_.is_playback());
   if (enabled_) {
     enabled_ = (view_layer->layflag & SCE_LAY_MOTION_BLUR) != 0;
   }
@@ -46,8 +48,8 @@ void MotionBlurModule::init()
   initial_frame_ = scene->r.cfra;
   initial_subframe_ = scene->r.subframe;
   frame_time_ = initial_frame_ + initial_subframe_;
-  shutter_position_ = scene->eevee.motion_blur_position;
-  shutter_time_ = scene->eevee.motion_blur_shutter;
+  shutter_position_ = scene->r.motion_blur_position;
+  shutter_time_ = scene->r.motion_blur_shutter;
 
   data_.depth_scale = scene->eevee.motion_blur_depth_scale;
   motion_blur_fx_enabled_ = true; /* TODO(fclem): UI option. */
@@ -108,17 +110,17 @@ void MotionBlurModule::step()
 float MotionBlurModule::shutter_time_to_scene_time(float time)
 {
   switch (shutter_position_) {
-    case SCE_EEVEE_MB_START:
+    case SCE_MB_START:
       /* No offset. */
       break;
-    case SCE_EEVEE_MB_CENTER:
+    case SCE_MB_CENTER:
       time -= 0.5f;
       break;
-    case SCE_EEVEE_MB_END:
+    case SCE_MB_END:
       time -= 1.0;
       break;
     default:
-      BLI_assert(!"Invalid motion blur position enum!");
+      BLI_assert_msg(false, "Invalid motion blur position enum!");
       break;
   }
   time *= shutter_time_;
@@ -131,7 +133,7 @@ void MotionBlurModule::sync()
   /* Disable motion blur in viewport when changing camera projection type.
    * Avoids really high velocities. */
   if (inst_.velocity.camera_changed_projection() ||
-      (inst_.is_viewport() && inst_.camera.overscan_changed()))
+      (inst_.is_viewport() && (inst_.camera.overscan_changed() || inst_.camera.camera_changed())))
   {
     motion_blur_fx_enabled_ = false;
   }
@@ -200,7 +202,7 @@ void MotionBlurModule::render(View &view, GPUTexture **input_tx, GPUTexture **ou
   if (inst_.is_viewport()) {
     float frame_delta = fabsf(inst_.velocity.step_time_delta_get(STEP_PREVIOUS, STEP_CURRENT));
     /* Avoid highly disturbing blurs, during navigation with high shutter time. */
-    if (frame_delta > 0.0f && !DRW_state_is_navigating()) {
+    if (frame_delta > 0.0f && !inst_.is_navigating()) {
       /* Rescale motion blur intensity to be shutter time relative and avoid long streak when we
        * have frame skipping. Always try to stick to what the render frame would look like. */
       data_.motion_scale = float2(shutter_time_ / frame_delta);
@@ -210,15 +212,15 @@ void MotionBlurModule::render(View &view, GPUTexture **input_tx, GPUTexture **ou
        * Apply motion blur as smoothing and only blur towards last frame. */
       data_.motion_scale = float2(1.0f, 0.0f);
 
-      if (was_navigating_ != DRW_state_is_navigating()) {
+      if (was_navigating_ != inst_.is_navigating()) {
         /* Special case for navigation events that only last for one frame (for instance mouse
          * scroll for zooming). For this case we have to wait for the next frame before enabling
          * the navigation motion blur. */
-        was_navigating_ = DRW_state_is_navigating();
+        was_navigating_ = inst_.is_navigating();
         return;
       }
     }
-    was_navigating_ = DRW_state_is_navigating();
+    was_navigating_ = inst_.is_navigating();
   }
   else {
     data_.motion_scale = float2(1.0f);

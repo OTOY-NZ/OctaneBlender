@@ -19,10 +19,10 @@
 
 #include "BKE_animsys.h"
 #include "BKE_context.hh"
-#include "BKE_global.h"
+#include "BKE_global.hh"
 #include "BKE_main.hh"
-#include "BKE_node.h"
-#include "BKE_scene.h"
+#include "BKE_node.hh"
+#include "BKE_scene.hh"
 
 #include "render/camera.h"
 #include "render/light.h"
@@ -37,7 +37,7 @@
 #include "util/progress.h"
 #include "util/types.h"
 
-#include "BKE_duplilist.h"
+#include "BKE_duplilist.hh"
 
 OCT_NAMESPACE_BEGIN
 
@@ -600,6 +600,8 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
   /* test if we need to sync */
   // This would not work for particles(return false even particles updating)
   bool is_object_data_updated = object_map.sync(&object, b_ob, b_parent, key);
+  bool is_object_layer_data_updated = !object_layer.IsSameValue(object->octane_object.oObjectLayer);
+  is_object_data_updated |= is_object_layer_data_updated;
   bool need_update = preview ? is_object_data_updated :
                                is_octane_object_required(object_name, b_ob.type(), mesh_type);
   if (mesh_type == MeshType::AUTO) {

@@ -10,7 +10,6 @@
 
 #include "AS_asset_catalog.hh"
 #include "AS_asset_catalog_tree.hh"
-#include "AS_asset_library.hh"
 
 #include "BLI_string.h"
 
@@ -19,7 +18,7 @@
 #include "BKE_context.hh"
 #include "BKE_screen.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "ED_asset_filter.hh"
 #include "ED_asset_list.hh"
@@ -64,20 +63,22 @@ class AssetCatalogSelectorTree : public ui::AbstractTreeView {
       return;
     }
 
-    catalog_tree_.foreach_root_item([this](asset_system::AssetCatalogTreeItem &catalog_item) {
-      Item &item = build_catalog_items_recursive(*this, catalog_item);
-      item.uncollapse_by_default();
-    });
+    catalog_tree_.foreach_root_item(
+        [this](const asset_system::AssetCatalogTreeItem &catalog_item) {
+          Item &item = build_catalog_items_recursive(*this, catalog_item);
+          item.uncollapse_by_default();
+        });
   }
 
   Item &build_catalog_items_recursive(ui::TreeViewOrItem &parent_view_item,
-                                      asset_system::AssetCatalogTreeItem &catalog_item) const
+                                      const asset_system::AssetCatalogTreeItem &catalog_item) const
   {
-    Item &view_item = parent_view_item.add_tree_item<Item>(catalog_item, shelf_settings_);
+    Item &view_item = parent_view_item.add_tree_item<Item>(catalog_item, shelf_);
 
-    catalog_item.foreach_child([&view_item, this](asset_system::AssetCatalogTreeItem &child) {
-      build_catalog_items_recursive(view_item, child);
-    });
+    catalog_item.foreach_child(
+        [&view_item, this](const asset_system::AssetCatalogTreeItem &child) {
+          build_catalog_items_recursive(view_item, child);
+        });
 
     return view_item;
   }
@@ -85,17 +86,17 @@ class AssetCatalogSelectorTree : public ui::AbstractTreeView {
   void update_shelf_settings_from_enabled_catalogs();
 
   class Item : public ui::BasicTreeViewItem {
-    asset_system::AssetCatalogTreeItem catalog_item_;
+    const asset_system::AssetCatalogTreeItem &catalog_item_;
     /* Is the catalog path enabled in this redraw? Set on construction, updated by the UI (which
      * gets a pointer to it). The UI needs it as char. */
     char catalog_path_enabled_ = false;
 
    public:
-    Item(asset_system::AssetCatalogTreeItem &catalog_item, AssetShelfSettings &shelf_settings)
+    Item(const asset_system::AssetCatalogTreeItem &catalog_item, AssetShelf &shelf)
         : ui::BasicTreeViewItem(catalog_item.get_name()),
           catalog_item_(catalog_item),
           catalog_path_enabled_(
-              settings_is_catalog_path_enabled(shelf_settings, catalog_item.catalog_path()))
+              settings_is_catalog_path_enabled(shelf, catalog_item.catalog_path()))
     {
       disable_activatable();
     }
@@ -133,10 +134,6 @@ class AssetCatalogSelectorTree : public ui::AbstractTreeView {
 
       uiLayoutSetEmboss(&row, UI_EMBOSS);
 
-      if (!is_collapsible()) {
-        uiItemL(&row, nullptr, ICON_BLANK1);
-      }
-
       uiLayout *subrow = uiLayoutRow(&row, false);
       uiLayoutSetActive(subrow, catalog_path_enabled_);
       uiItemL(subrow, catalog_item_.get_name().c_str(), ICON_NONE);
@@ -168,46 +165,51 @@ class AssetCatalogSelectorTree : public ui::AbstractTreeView {
 
 void AssetCatalogSelectorTree::update_shelf_settings_from_enabled_catalogs()
 {
-  settings_clear_enabled_catalogs(shelf_settings_);
+  settings_clear_enabled_catalogs(shelf_);
   foreach_item([this](ui::AbstractTreeViewItem &view_item) {
     const auto &selector_tree_item = dynamic_cast<AssetCatalogSelectorTree::Item &>(view_item);
     if (selector_tree_item.is_catalog_path_enabled()) {
-      settings_set_catalog_path_enabled(shelf_settings_, selector_tree_item.catalog_path());
+      settings_set_catalog_path_enabled(shelf_, selector_tree_item.catalog_path());
     }
   });
 }
 
+void library_selector_draw(const bContext *C, uiLayout *layout, AssetShelf &shelf)
+{
+  uiLayoutSetOperatorContext(layout, WM_OP_INVOKE_DEFAULT);
+
+  PointerRNA shelf_ptr = RNA_pointer_create(&CTX_wm_screen(C)->id, &RNA_AssetShelf, &shelf);
+
+  uiLayout *row = uiLayoutRow(layout, true);
+  uiItemR(row, &shelf_ptr, "asset_library_reference", UI_ITEM_NONE, "", ICON_NONE);
+  if (shelf.settings.asset_library_reference.type != ASSET_LIBRARY_LOCAL) {
+    uiItemO(row, "", ICON_FILE_REFRESH, "ASSET_OT_library_refresh");
+  }
+}
+
 static void catalog_selector_panel_draw(const bContext *C, Panel *panel)
 {
-  const AssetLibraryReference *library_ref = CTX_wm_asset_library_ref(C);
   AssetShelf *shelf = active_shelf_from_context(C);
   if (!shelf) {
     return;
   }
 
   uiLayout *layout = panel->layout;
-  uiBlock *block = uiLayoutGetBlock(layout);
 
-  uiLayoutSetOperatorContext(layout, WM_OP_INVOKE_DEFAULT);
+  library_selector_draw(C, layout, *shelf);
 
-  PointerRNA shelf_ptr = RNA_pointer_create(&CTX_wm_screen(C)->id, &RNA_AssetShelf, shelf);
-
-  uiLayout *row = uiLayoutRow(layout, true);
-  uiItemR(row, &shelf_ptr, "asset_library_reference", UI_ITEM_NONE, "", ICON_NONE);
-  if (library_ref->type != ASSET_LIBRARY_LOCAL) {
-    uiItemO(row, "", ICON_FILE_REFRESH, "ASSET_OT_library_refresh");
-  }
-
-  asset_system::AssetLibrary *library = list::library_get_once_available(*library_ref);
+  asset_system::AssetLibrary *library = list::library_get_once_available(
+      shelf->settings.asset_library_reference);
   if (!library) {
     return;
   }
 
+  uiBlock *block = uiLayoutGetBlock(layout);
   ui::AbstractTreeView *tree_view = UI_block_add_view(
       *block,
       "asset catalog tree view",
       std::make_unique<AssetCatalogSelectorTree>(*library, *shelf));
-
+  tree_view->set_context_menu_title("Catalog");
   ui::TreeViewBuilder::build_tree_view(*tree_view, *layout);
 }
 

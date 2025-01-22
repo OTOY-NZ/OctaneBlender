@@ -14,21 +14,14 @@
 
 #include "RNA_access.hh"
 
-#include "WM_api.hh"
 #include "WM_message.hh"
 #include "WM_types.hh"
 
-#include "wm.hh"
-
-#include "ED_keyframing.hh"
 #include "ED_screen.hh"
-#include "ED_view3d.hh"
 
 #include "ANIM_keyframing.hh"
 
-/* own includes */
-#include "wm_gizmo_intern.hh"
-#include "wm_gizmo_wmapi.hh"
+/* Own includes. */
 
 /* -------------------------------------------------------------------- */
 /** \name Property Definition
@@ -70,7 +63,7 @@ void WM_gizmo_target_property_def_rna_ptr(wmGizmo *gz,
 {
   wmGizmoProperty *gz_prop = WM_gizmo_target_property_at_index(gz, gz_prop_type->index_in_type);
 
-  /* if gizmo evokes an operator we cannot use it for property manipulation */
+  /* If gizmo evokes an operator we cannot use it for property manipulation. */
   BLI_assert(gz->op_data == nullptr);
   BLI_assert(prop != nullptr);
 
@@ -102,7 +95,7 @@ void WM_gizmo_target_property_def_func_ptr(wmGizmo *gz,
 {
   wmGizmoProperty *gz_prop = WM_gizmo_target_property_at_index(gz, gz_prop_type->index_in_type);
 
-  /* if gizmo evokes an operator we cannot use it for property manipulation */
+  /* If gizmo evokes an operator we cannot use it for property manipulation. */
   BLI_assert(gz->op_data == nullptr);
 
   gz_prop->type = gz_prop_type;
@@ -130,7 +123,7 @@ void WM_gizmo_target_property_clear_rna_ptr(wmGizmo *gz, const wmGizmoPropertyTy
 {
   wmGizmoProperty *gz_prop = WM_gizmo_target_property_at_index(gz, gz_prop_type->index_in_type);
 
-  /* if gizmo evokes an operator we cannot use it for property manipulation */
+  /* If gizmo evokes an operator we cannot use it for property manipulation. */
   BLI_assert(gz->op_data == nullptr);
 
   gz_prop->type = nullptr;
@@ -196,7 +189,7 @@ void WM_gizmo_target_property_float_set(bContext *C,
     return;
   }
 
-  /* reset property */
+  /* Reset property. */
   if (gz_prop->index == -1) {
     RNA_property_float_set(&gz_prop->ptr, gz_prop->prop, value);
   }

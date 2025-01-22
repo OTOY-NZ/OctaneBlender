@@ -8,7 +8,6 @@
 
 #pragma once
 
-/* Struct members on own line. */
 /* clang-format off */
 
 /* -------------------------------------------------------------------- */
@@ -31,12 +30,12 @@
     .grid_dilation_radius = 1.0f, \
     .grid_clamp_direct = 0.0f, \
     .grid_clamp_indirect = 10.0f, \
-    .surfel_density = 1.0f, \
+    .grid_surfel_density = 20, \
     .distinf = 2.5f, \
     .distpar = 2.5f, \
     .falloff = 0.2f, \
     .clipsta = 0.8f, \
-    .clipend = 40.0f, \
+    .clipend = 20.0f, \
     .vis_bias = 1.0f, \
     .vis_blur = 0.2f, \
     .intensity = 1.0f, \

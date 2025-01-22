@@ -17,11 +17,12 @@
 
 #include "BLI_alloca.h"
 #include "BLI_math_base.h"
-#include "BLI_strict_flags.h"
 #include "BLI_sys_types.h"
 #include "BLI_utildefines.h"
 
 #include "BLI_array_utils.h"
+
+#include "BLI_strict_flags.h" /* Keep last. */
 
 void _bli_array_reverse(void *arr_v, uint arr_len, size_t arr_stride)
 {
@@ -316,7 +317,7 @@ bool _bli_array_iter_spiral_square(const void *arr_v,
   }
 
   /* For check_bounds. */
-  int limits[2] = {(arr_shape[0] - 1) * stride[0], stride[0] - stride[1]};
+  const int limits[2] = {(arr_shape[0] - 1) * stride[0], stride[0] - stride[1]};
 
   int steps = 0;
   while (steps < steps_out) {

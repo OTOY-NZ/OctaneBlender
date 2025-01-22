@@ -17,24 +17,24 @@
 
 #include "BKE_action.h"
 #include "BKE_context.hh"
-#include "BKE_global.h"
+#include "BKE_global.hh"
 #include "BKE_gpencil_modifier_legacy.h"
-#include "BKE_idprop.h"
+#include "BKE_idprop.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_modifier.hh"
 #include "BKE_object.hh"
-#include "BKE_report.h"
-#include "BKE_scene.h"
+#include "BKE_report.hh"
+#include "BKE_scene.hh"
 
 #include "DEG_depsgraph_query.hh"
 
 #include "UI_resources.hh"
 
-#include "GPU_matrix.h"
+#include "GPU_matrix.hh"
 #include "GPU_select.hh"
-#include "GPU_state.h"
+#include "GPU_state.hh"
 
 #include "WM_api.hh"
 
@@ -46,7 +46,7 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
-#include "view3d_intern.h" /* own include */
+#include "view3d_intern.hh" /* own include */
 #include "view3d_navigate.hh"
 
 /* -------------------------------------------------------------------- */
@@ -241,7 +241,7 @@ static int view3d_setobjectascamera_exec(bContext *C, wmOperator *op)
     v3d->camera = ob;
     if (v3d->scenelock && scene->camera != ob) {
       scene->camera = ob;
-      DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE);
+      DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
       DEG_relations_tag_update(CTX_data_main(C));
     }
 
@@ -370,7 +370,7 @@ static void obmat_to_viewmat(RegionView3D *rv3d, Object *ob)
 
   rv3d->view = RV3D_VIEW_USER; /* don't show the grid */
 
-  normalize_m4_m4(bmat, ob->object_to_world);
+  normalize_m4_m4(bmat, ob->object_to_world().ptr());
   invert_m4_m4(rv3d->viewmat, bmat);
 
   /* view quat calculation, needed for add object */
@@ -409,12 +409,12 @@ void view3d_viewmatrix_set(Depsgraph *depsgraph,
       Object *ob_eval = DEG_get_evaluated_object(depsgraph, v3d->ob_center);
       float vec[3];
 
-      copy_v3_v3(vec, ob_eval->object_to_world[3]);
+      copy_v3_v3(vec, ob_eval->object_to_world().location());
       if (ob_eval->type == OB_ARMATURE && v3d->ob_center_bone[0]) {
         bPoseChannel *pchan = BKE_pose_channel_find_name(ob_eval->pose, v3d->ob_center_bone);
         if (pchan) {
           copy_v3_v3(vec, pchan->pose_mat[3]);
-          mul_m4_v3(ob_eval->object_to_world, vec);
+          mul_m4_v3(ob_eval->object_to_world().ptr(), vec);
         }
       }
       translate_m4(rv3d->viewmat, -vec[0], -vec[1], -vec[2]);
@@ -541,7 +541,7 @@ static bool drw_select_filter_object_mode_lock_for_weight_paint(Object *ob, void
   return ob_pose_list && (BLI_linklist_index(ob_pose_list, DEG_get_original_object(ob)) != -1);
 }
 
-int view3d_opengl_select_ex(ViewContext *vc,
+int view3d_opengl_select_ex(const ViewContext *vc,
                             GPUSelectBuffer *buffer,
                             const rcti *input,
                             eV3DSelectMode select_mode,
@@ -753,7 +753,7 @@ finally:
   return hits;
 }
 
-int view3d_opengl_select(ViewContext *vc,
+int view3d_opengl_select(const ViewContext *vc,
                          GPUSelectBuffer *buffer,
                          const rcti *input,
                          eV3DSelectMode select_mode,
@@ -762,7 +762,7 @@ int view3d_opengl_select(ViewContext *vc,
   return view3d_opengl_select_ex(vc, buffer, input, select_mode, select_filter, false);
 }
 
-int view3d_opengl_select_with_id_filter(ViewContext *vc,
+int view3d_opengl_select_with_id_filter(const ViewContext *vc,
                                         GPUSelectBuffer *buffer,
                                         const rcti *input,
                                         eV3DSelectMode select_mode,
@@ -859,7 +859,8 @@ static bool view3d_localview_init(const Depsgraph *depsgraph,
         base->local_view_bits &= ~local_view_bit;
       }
       FOREACH_BASE_IN_EDIT_MODE_BEGIN (scene, view_layer, v3d, base_iter) {
-        BKE_object_minmax(base_iter->object, min, max);
+        Object *ob_eval = DEG_get_evaluated_object(depsgraph, base_iter->object);
+        BKE_object_minmax(ob_eval ? ob_eval : base_iter->object, min, max);
         base_iter->local_view_bits |= local_view_bit;
         ok = true;
       }
@@ -869,7 +870,8 @@ static bool view3d_localview_init(const Depsgraph *depsgraph,
       BKE_view_layer_synced_ensure(scene, view_layer);
       LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
         if (BASE_SELECTED(v3d, base)) {
-          BKE_object_minmax(base->object, min, max);
+          Object *ob_eval = DEG_get_evaluated_object(depsgraph, base->object);
+          BKE_object_minmax(ob_eval ? ob_eval : base->object, min, max);
           base->local_view_bits |= local_view_bit;
           ok = true;
         }
@@ -1097,7 +1099,7 @@ static int localview_remove_from_exec(bContext *C, wmOperator *op)
   LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
     if (BASE_SELECTED(v3d, base)) {
       base->local_view_bits &= ~v3d->local_view_uid;
-      ED_object_base_select(base, BA_DESELECT);
+      blender::ed::object::base_select(base, blender::ed::object::BA_DESELECT);
 
       if (base == view_layer->basact) {
         view_layer->basact = nullptr;
@@ -1147,7 +1149,9 @@ void VIEW3D_OT_localview_remove_from(wmOperatorType *ot)
 /** \name Local Collections
  * \{ */
 
-static uint free_localcollection_bit(Main *bmain, ushort local_collections_uid, bool *r_reset)
+static uint free_localcollection_bit(const Main *bmain,
+                                     ushort local_collections_uid,
+                                     bool *r_reset)
 {
   ushort local_view_bits = 0;
 
@@ -1196,7 +1200,7 @@ static void local_collections_reset_uuid(LayerCollection *layer_collection,
   }
 }
 
-static void view3d_local_collections_reset(Main *bmain, const uint local_view_bit)
+static void view3d_local_collections_reset(const Main *bmain, const uint local_view_bit)
 {
   LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
     LISTBASE_FOREACH (ViewLayer *, view_layer, &scene->view_layers) {
@@ -1207,7 +1211,7 @@ static void view3d_local_collections_reset(Main *bmain, const uint local_view_bi
   }
 }
 
-bool ED_view3d_local_collections_set(Main *bmain, View3D *v3d)
+bool ED_view3d_local_collections_set(const Main *bmain, View3D *v3d)
 {
   if ((v3d->flag & V3D_LOCAL_COLLECTIONS) == 0) {
     return true;
@@ -1231,7 +1235,7 @@ bool ED_view3d_local_collections_set(Main *bmain, View3D *v3d)
   return true;
 }
 
-void ED_view3d_local_collections_reset(bContext *C, const bool reset_all)
+void ED_view3d_local_collections_reset(const bContext *C, const bool reset_all)
 {
   Main *bmain = CTX_data_main(C);
   uint local_view_bit = ~(0);

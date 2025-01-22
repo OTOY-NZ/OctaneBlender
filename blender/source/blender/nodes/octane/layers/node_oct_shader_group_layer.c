@@ -27,7 +27,7 @@
 
 #include "node_shader_util.hh"
 
-static bNodeSocketTemplate sh_node_in[] = {{SOCK_SHADER,
+static blender::bke::bNodeSocketTemplate  sh_node_in[] = {{SOCK_SHADER,
                                             N_("Layer 1"),
                                             0.0f,
                                             0.0f,
@@ -109,7 +109,7 @@ static bNodeSocketTemplate sh_node_in[] = {{SOCK_SHADER,
                                             SOCK_NO_INTERNAL_LINK},
                                            {-1, ""}};
 
-static bNodeSocketTemplate sh_node_out[] = {
+static blender::bke::bNodeSocketTemplate  sh_node_out[] = {
     {SOCK_SHADER, N_("OutMatLayer")},
     {SOCK_SHADER,
      N_("OutMat"),
@@ -151,13 +151,13 @@ static void node_shader_update_group_layer(bNodeTree *ntree, bNode *node)
 
 void register_node_type_sh_oct_group_layer(void)
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   if (ntype.type != SH_NODE_OCT_GROUP_LAYER)
     sh_node_type_base(
         &ntype, SH_NODE_OCT_GROUP_LAYER, "Octane Layer Group", NODE_CLASS_OCT_LAYER);
   blender::bke::node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
-  node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::DEFAULT);
+  node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Default);
   ntype.initfunc = (node_oct_init_group_layer);
   node_type_storage(&ntype, "", NULL, NULL);
   ntype.updatefunc = (node_shader_update_group_layer);

@@ -22,15 +22,17 @@
 #ifdef __cplusplus
 namespace blender::bke {
 class bNodeTreeInterfaceRuntime;
-}
+struct bNodeSocketType;
+}  // namespace blender::bke
 using bNodeTreeInterfaceRuntimeHandle = blender::bke::bNodeTreeInterfaceRuntime;
+using bNodeSocketTypeHandle = blender::bke::bNodeSocketType;
 #else
 typedef struct bNodeTreeInterfaceRuntimeHandle bNodeTreeInterfaceRuntimeHandle;
+typedef struct bNodeSocketTypeHandle bNodeSocketTypeHandle;
 #endif
 
 struct bContext;
 struct bNodeSocket;
-struct bNodeSocketType;
 struct bNodeTreeInterfaceItem;
 struct bNodeTreeInterfacePanel;
 struct bNodeTreeInterfaceSocket;
@@ -65,8 +67,10 @@ typedef enum NodeTreeInterfaceSocketFlag {
   NODE_INTERFACE_SOCKET_COMPACT = 1 << 4,
   NODE_INTERFACE_SOCKET_SINGLE_VALUE_ONLY = 1 << 5,
   NODE_INTERFACE_SOCKET_LAYER_SELECTION = 1 << 6,
+  /* INSPECT is used by Connect to Output operator to ensure socket that exits from node group. */
+  NODE_INTERFACE_SOCKET_INSPECT = 1 << 7,
 } NodeTreeInterfaceSocketFlag;
-ENUM_OPERATORS(NodeTreeInterfaceSocketFlag, NODE_INTERFACE_SOCKET_LAYER_SELECTION);
+ENUM_OPERATORS(NodeTreeInterfaceSocketFlag, NODE_INTERFACE_SOCKET_INSPECT);
 
 typedef struct bNodeTreeInterfaceSocket {
   bNodeTreeInterfaceItem item;
@@ -93,7 +97,7 @@ typedef struct bNodeTreeInterfaceSocket {
   IDProperty *properties;
 
 #ifdef __cplusplus
-  bNodeSocketType *socket_typeinfo() const;
+  bNodeSocketTypeHandle *socket_typeinfo() const;
   blender::ColorGeometry4f socket_color() const;
 
   /**
@@ -130,6 +134,7 @@ typedef enum GeometryNodeDefaultInputType {
   GEO_NODE_DEFAULT_FIELD_INPUT_ID_INDEX_FIELD = 2,
   GEO_NODE_DEFAULT_FIELD_INPUT_NORMAL_FIELD = 3,
   GEO_NODE_DEFAULT_FIELD_INPUT_POSITION_FIELD = 4,
+  GEO_NODE_DEFAULT_FIELD_INPUT_INSTANCE_TRANSFORM_FIELD = 5,
 } GeometryNodeDefaultInputType;
 
 typedef struct bNodeTreeInterfacePanel {
@@ -210,7 +215,7 @@ typedef struct bNodeTreeInterfacePanel {
 
   /**
    * Apply a function to every item in the panel, including child panels.
-   * \note: The items are visited in drawing order from top to bottom.
+   * \note The items are visited in drawing order from top to bottom.
    *
    * \param fn: Function to execute for each item, iterations stops if false is returned.
    * \param include_self: Include the panel itself in the iteration.
@@ -400,7 +405,7 @@ typedef struct bNodeTreeInterface {
 
   /**
    * Apply a function to every item in the interface.
-   * \note: The items are visited in drawing order from top to bottom.
+   * \note The items are visited in drawing order from top to bottom.
    *
    * \param fn: Function to execute for each item, iterations stops if false is returned.
    * \param include_root: Include the root panel in the iteration.
@@ -412,7 +417,7 @@ typedef struct bNodeTreeInterface {
   }
   /**
    * Apply a function to every item in the interface.
-   * \note: The items are visited in drawing order from top to bottom.
+   * \note The items are visited in drawing order from top to bottom.
    *
    * \param fn: Function to execute for each item, iterations stops if false is returned.
    * \param include_root: Include the root panel in the iteration.

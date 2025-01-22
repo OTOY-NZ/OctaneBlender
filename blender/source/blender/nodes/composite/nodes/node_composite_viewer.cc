@@ -8,7 +8,7 @@
 
 #include "BLI_math_vector_types.hh"
 
-#include "BKE_global.h"
+#include "BKE_global.hh"
 #include "BKE_image.h"
 
 #include "RNA_access.hh"
@@ -16,9 +16,8 @@
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
-#include "GPU_shader.h"
-#include "GPU_state.h"
-#include "GPU_texture.h"
+#include "GPU_shader.hh"
+#include "GPU_texture.hh"
 
 #include "COM_node_operation.hh"
 #include "COM_utilities.hh"
@@ -40,8 +39,6 @@ static void node_composit_init_viewer(bNodeTree * /*ntree*/, bNode *node)
   ImageUser *iuser = MEM_cnew<ImageUser>(__func__);
   node->storage = iuser;
   iuser->sfra = 1;
-  node->custom3 = 0.5f;
-  node->custom4 = 0.5f;
 
   node->id = (ID *)BKE_image_ensure_viewer(G.main, IMA_TYPE_COMPOSITE, "Viewer Node");
 }
@@ -49,19 +46,6 @@ static void node_composit_init_viewer(bNodeTree * /*ntree*/, bNode *node)
 static void node_composit_buts_viewer(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
   uiItemR(layout, ptr, "use_alpha", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
-}
-
-static void node_composit_buts_viewer_ex(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
-{
-  uiLayout *col;
-
-  uiItemR(layout, ptr, "use_alpha", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "tile_order", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
-  if (RNA_enum_get(ptr, "tile_order") == 0) {
-    col = uiLayoutColumn(layout, true);
-    uiItemR(col, ptr, "center_x", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
-    uiItemR(col, ptr, "center_y", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
-  }
 }
 
 using namespace blender::realtime_compositor;
@@ -110,7 +94,8 @@ class ViewerOperation : public NodeOperation {
     }
 
     const Domain domain = compute_domain();
-    GPU_texture_clear(context().get_viewer_output_texture(domain), GPU_DATA_FLOAT, color);
+    GPU_texture_clear(
+        context().get_viewer_output_texture(domain, image.is_data), GPU_DATA_FLOAT, color);
   }
 
   /* Executes when the alpha channel of the image is ignored. */
@@ -120,17 +105,29 @@ class ViewerOperation : public NodeOperation {
                                              ResultPrecision::Half);
     GPU_shader_bind(shader);
 
-    /* The compositing space might be limited to a smaller region of the output texture, so only
-     * write into that compositing region. */
-    const rcti compositing_region = context().get_compositing_region();
-    const int2 lower_bound = int2(compositing_region.xmin, compositing_region.ymin);
-    GPU_shader_uniform_2iv(shader, "lower_bound", lower_bound);
+    const Domain domain = compute_domain();
+    /* The context can use the composite output and thus has a dedicated viewer of an arbitrary
+     * size, so use the input in its entirety. Otherwise, no dedicated viewer exist so only write
+     * into the compositing region, which might be limited to a smaller region of the output
+     * texture. */
+    if (context().use_composite_output()) {
+      GPU_shader_uniform_2iv(shader, "lower_bound", int2(0));
+      GPU_shader_uniform_2iv(shader, "upper_bound", domain.size);
+    }
+    else {
+      /* The compositing space might be limited to a smaller region of the output texture, so only
+       * write into that compositing region. */
+      const rcti compositing_region = context().get_compositing_region();
+      const int2 lower_bound = int2(compositing_region.xmin, compositing_region.ymin);
+      const int2 upper_bound = int2(compositing_region.xmax, compositing_region.ymax);
+      GPU_shader_uniform_2iv(shader, "lower_bound", lower_bound);
+      GPU_shader_uniform_2iv(shader, "upper_bound", upper_bound);
+    }
 
     const Result &image = get_input("Image");
     image.bind_as_texture(shader, "input_tx");
 
-    const Domain domain = compute_domain();
-    GPUTexture *output_texture = context().get_viewer_output_texture(domain);
+    GPUTexture *output_texture = context().get_viewer_output_texture(domain, image.is_data);
     const int image_unit = GPU_shader_get_sampler_binding(shader, "output_img");
     GPU_texture_image_bind(output_texture, image_unit);
 
@@ -148,17 +145,29 @@ class ViewerOperation : public NodeOperation {
     GPUShader *shader = context().get_shader("compositor_write_output", ResultPrecision::Half);
     GPU_shader_bind(shader);
 
-    /* The compositing space might be limited to a smaller region of the output texture, so only
-     * write into that compositing region. */
-    const rcti compositing_region = context().get_compositing_region();
-    const int2 lower_bound = int2(compositing_region.xmin, compositing_region.ymin);
-    GPU_shader_uniform_2iv(shader, "lower_bound", lower_bound);
+    const Domain domain = compute_domain();
+    /* The context can use the composite output and thus has a dedicated viewer of an arbitrary
+     * size, so use the input in its entirety. Otherwise, no dedicated viewer exist so only write
+     * into the compositing region, which might be limited to a smaller region of the output
+     * texture. */
+    if (context().use_composite_output()) {
+      GPU_shader_uniform_2iv(shader, "lower_bound", int2(0));
+      GPU_shader_uniform_2iv(shader, "upper_bound", domain.size);
+    }
+    else {
+      /* The compositing space might be limited to a smaller region of the output texture, so only
+       * write into that compositing region. */
+      const rcti compositing_region = context().get_compositing_region();
+      const int2 lower_bound = int2(compositing_region.xmin, compositing_region.ymin);
+      const int2 upper_bound = int2(compositing_region.xmax, compositing_region.ymax);
+      GPU_shader_uniform_2iv(shader, "lower_bound", lower_bound);
+      GPU_shader_uniform_2iv(shader, "upper_bound", upper_bound);
+    }
 
     const Result &image = get_input("Image");
     image.bind_as_texture(shader, "input_tx");
 
-    const Domain domain = compute_domain();
-    GPUTexture *output_texture = context().get_viewer_output_texture(domain);
+    GPUTexture *output_texture = context().get_viewer_output_texture(domain, image.is_data);
     const int image_unit = GPU_shader_get_sampler_binding(shader, "output_img");
     GPU_texture_image_bind(output_texture, image_unit);
 
@@ -176,11 +185,24 @@ class ViewerOperation : public NodeOperation {
                                              ResultPrecision::Half);
     GPU_shader_bind(shader);
 
-    /* The compositing space might be limited to a smaller region of the output texture, so only
-     * write into that compositing region. */
-    const rcti compositing_region = context().get_compositing_region();
-    const int2 lower_bound = int2(compositing_region.xmin, compositing_region.ymin);
-    GPU_shader_uniform_2iv(shader, "lower_bound", lower_bound);
+    const Domain domain = compute_domain();
+    /* The context can use the composite output and thus has a dedicated viewer of an arbitrary
+     * size, so use the input in its entirety. Otherwise, no dedicated viewer exist so only write
+     * into the compositing region, which might be limited to a smaller region of the output
+     * texture. */
+    if (context().use_composite_output()) {
+      GPU_shader_uniform_2iv(shader, "lower_bound", int2(0));
+      GPU_shader_uniform_2iv(shader, "upper_bound", domain.size);
+    }
+    else {
+      /* The compositing space might be limited to a smaller region of the output texture, so only
+       * write into that compositing region. */
+      const rcti compositing_region = context().get_compositing_region();
+      const int2 lower_bound = int2(compositing_region.xmin, compositing_region.ymin);
+      const int2 upper_bound = int2(compositing_region.xmax, compositing_region.ymax);
+      GPU_shader_uniform_2iv(shader, "lower_bound", lower_bound);
+      GPU_shader_uniform_2iv(shader, "upper_bound", upper_bound);
+    }
 
     const Result &image = get_input("Image");
     image.bind_as_texture(shader, "input_tx");
@@ -188,8 +210,7 @@ class ViewerOperation : public NodeOperation {
     const Result &alpha = get_input("Alpha");
     alpha.bind_as_texture(shader, "alpha_tx");
 
-    const Domain domain = compute_domain();
-    GPUTexture *output_texture = context().get_viewer_output_texture(domain);
+    GPUTexture *output_texture = context().get_viewer_output_texture(domain, image.is_data);
     const int image_unit = GPU_shader_get_sampler_binding(shader, "output_img");
     GPU_texture_image_bind(output_texture, image_unit);
 
@@ -236,18 +257,18 @@ void register_node_type_cmp_viewer()
 {
   namespace file_ns = blender::nodes::node_composite_viewer_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, CMP_NODE_VIEWER, "Viewer", NODE_CLASS_OUTPUT);
   ntype.declare = file_ns::cmp_node_viewer_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_viewer;
-  ntype.draw_buttons_ex = file_ns::node_composit_buts_viewer_ex;
   ntype.flag |= NODE_PREVIEW;
   ntype.initfunc = file_ns::node_composit_init_viewer;
-  node_type_storage(&ntype, "ImageUser", node_free_standard_storage, node_copy_standard_storage);
+  blender::bke::node_type_storage(
+      &ntype, "ImageUser", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
   ntype.no_muting = true;
 
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 }

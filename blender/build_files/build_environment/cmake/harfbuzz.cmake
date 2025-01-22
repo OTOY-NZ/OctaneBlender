@@ -33,13 +33,12 @@ ExternalProject_Add(external_harfbuzz
   PREFIX ${BUILD_DIR}/harfbuzz
 
   CONFIGURE_COMMAND ${HARFBUZZ_CONFIGURE_ENV} &&
-  ${CMAKE_COMMAND} -E env ${HARFBUZZ_PKG_ENV}
-  ${MESON} setup
-  --prefix ${LIBDIR}/harfbuzz ${HARFBUZZ_EXTRA_OPTIONS}
-  --default-library static
-  --libdir lib
-  ${BUILD_DIR}/harfbuzz/src/external_harfbuzz-build
-  ${BUILD_DIR}/harfbuzz/src/external_harfbuzz
+    ${CMAKE_COMMAND} -E env ${HARFBUZZ_PKG_ENV} ${MESON} setup
+      --prefix ${LIBDIR}/harfbuzz ${HARFBUZZ_EXTRA_OPTIONS}
+      --default-library static
+      --libdir lib
+      ${BUILD_DIR}/harfbuzz/src/external_harfbuzz-build
+      ${BUILD_DIR}/harfbuzz/src/external_harfbuzz
 
   BUILD_COMMAND ninja
   INSTALL_COMMAND ninja install
@@ -54,18 +53,29 @@ add_dependencies(
   external_python_site_packages
 )
 
-if(BUILD_MODE STREQUAL Release AND WIN32)
-  ExternalProject_Add_Step(external_harfbuzz after_install
-    COMMAND ${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/harfbuzz/include ${HARVEST_TARGET}/harfbuzz/include
-    # We do not use the subset API currently, so copying only the main library will suffice for now
-    COMMAND ${CMAKE_COMMAND} -E copy ${LIBDIR}/harfbuzz/lib/libharfbuzz.a ${HARVEST_TARGET}/harfbuzz/lib/libharfbuzz.lib
-    DEPENDEES install
-  )
-endif()
+if(WIN32)
+  if(BUILD_MODE STREQUAL Release)
+    ExternalProject_Add_Step(external_harfbuzz after_install
+      COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${LIBDIR}/harfbuzz/include
+        ${HARVEST_TARGET}/harfbuzz/include
+      # We do not use the subset API currently, so copying only the main library will suffice for now
+      COMMAND ${CMAKE_COMMAND} -E copy
+        ${LIBDIR}/harfbuzz/lib/libharfbuzz.a
+        ${HARVEST_TARGET}/harfbuzz/lib/libharfbuzz.lib
+      DEPENDEES install
+    )
+  endif()
 
-if(BUILD_MODE STREQUAL Debug AND WIN32)
-  ExternalProject_Add_Step(external_harfbuzz after_install
-    COMMAND ${CMAKE_COMMAND} -E copy ${LIBDIR}/harfbuzz/lib/libharfbuzz.a ${HARVEST_TARGET}/harfbuzz/lib/libharfbuzz_d.lib
-    DEPENDEES install
-  )
+  if(BUILD_MODE STREQUAL Debug)
+    ExternalProject_Add_Step(external_harfbuzz after_install
+      COMMAND ${CMAKE_COMMAND} -E copy
+        ${LIBDIR}/harfbuzz/lib/libharfbuzz.a
+        ${HARVEST_TARGET}/harfbuzz/lib/libharfbuzz_d.lib
+      DEPENDEES install
+    )
+  endif()
+else()
+  harvest(external_harfbuzz harfbuzz/include harfbuzz/include "*.h")
+  harvest(external_harfbuzz harfbuzz/lib harfbuzz/lib "*.a")
 endif()

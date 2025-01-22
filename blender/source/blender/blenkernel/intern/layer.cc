@@ -19,12 +19,12 @@
 #include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_threads.h"
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "BKE_animsys.h"
-#include "BKE_collection.h"
+#include "BKE_collection.hh"
 #include "BKE_freestyle.h"
-#include "BKE_idprop.h"
+#include "BKE_idprop.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
@@ -431,9 +431,7 @@ static void layer_aov_copy_data(ViewLayer *view_layer_dst,
                                 ListBase *aovs_dst,
                                 const ListBase *aovs_src)
 {
-  if (aovs_src != nullptr) {
-    BLI_duplicatelist(aovs_dst, aovs_src);
-  }
+  BLI_duplicatelist(aovs_dst, aovs_src);
 
   ViewLayerAOV *aov_dst = static_cast<ViewLayerAOV *>(aovs_dst->first);
   const ViewLayerAOV *aov_src = static_cast<const ViewLayerAOV *>(aovs_src->first);
@@ -1221,6 +1219,12 @@ static void layer_collection_sync(ViewLayer *view_layer,
     {
       child_layer->runtime_flag |= LAYER_COLLECTION_VISIBLE_VIEW_LAYER;
     }
+
+    if (!BLI_listbase_is_empty(&child_collection->exporters) &&
+        !(ID_IS_LINKED(&child_collection->id) || ID_IS_OVERRIDE_LIBRARY(&child_collection->id)))
+    {
+      view_layer->flag |= VIEW_LAYER_HAS_EXPORT_COLLECTIONS;
+    }
   }
 
   /* Replace layer collection list with new one. */
@@ -1358,6 +1362,9 @@ void BKE_layer_collection_sync(const Scene *scene, ViewLayer *view_layer)
       static_cast<LayerCollection *>(view_layer->layer_collections.first),
       layer_resync_mempool);
 
+  /* Clear the cached flag indicating if the view layer has a collection exporter set. */
+  view_layer->flag &= ~VIEW_LAYER_HAS_EXPORT_COLLECTIONS;
+
   /* Generate new layer connections and object bases when collections changed. */
   ListBase new_object_bases{};
   const short parent_exclude = 0, parent_restrict = 0, parent_layer_restrict = 0;
@@ -1470,14 +1477,14 @@ void BKE_main_collection_sync_remap(const Main *bmain)
       view_layer_bases_hash_create(view_layer, true);
     }
 
-    DEG_id_tag_update_ex((Main *)bmain, &scene->master_collection->id, ID_RECALC_COPY_ON_WRITE);
-    DEG_id_tag_update_ex((Main *)bmain, &scene->id, ID_RECALC_COPY_ON_WRITE);
+    DEG_id_tag_update_ex((Main *)bmain, &scene->master_collection->id, ID_RECALC_SYNC_TO_EVAL);
+    DEG_id_tag_update_ex((Main *)bmain, &scene->id, ID_RECALC_SYNC_TO_EVAL);
   }
 
   for (Collection *collection = static_cast<Collection *>(bmain->collections.first); collection;
        collection = static_cast<Collection *>(collection->id.next))
   {
-    DEG_id_tag_update_ex((Main *)bmain, &collection->id, ID_RECALC_COPY_ON_WRITE);
+    DEG_id_tag_update_ex((Main *)bmain, &collection->id, ID_RECALC_SYNC_TO_EVAL);
   }
 
   BKE_main_collection_sync(bmain);
@@ -2402,39 +2409,57 @@ void BKE_view_layer_blend_write(BlendWriter *writer, const Scene *scene, ViewLay
   write_layer_collections(writer, &view_layer->layer_collections);
 }
 
-static void direct_link_layer_collections(BlendDataReader *reader, ListBase *lb, bool master)
+static void direct_link_layer_collections(BlendDataReader *reader,
+                                          ViewLayer *view_layer,
+                                          ListBase *lb,
+                                          bool master,
+                                          bool &active_collection_found)
 {
-  BLO_read_list(reader, lb);
+  BLO_read_struct_list(reader, LayerCollection, lb);
   LISTBASE_FOREACH (LayerCollection *, lc, lb) {
     /* Master collection is not a real data-block. */
     if (master) {
-      BLO_read_data_address(reader, &lc->collection);
+      BLO_read_struct(reader, Collection, &lc->collection);
     }
 
-    direct_link_layer_collections(reader, &lc->layer_collections, false);
+    if (lc == view_layer->active_collection) {
+      active_collection_found = true;
+    }
+
+    direct_link_layer_collections(
+        reader, view_layer, &lc->layer_collections, false, active_collection_found);
   }
 }
 
 void BKE_view_layer_blend_read_data(BlendDataReader *reader, ViewLayer *view_layer)
 {
   view_layer->stats = nullptr;
-  BLO_read_list(reader, &view_layer->object_bases);
-  BLO_read_data_address(reader, &view_layer->basact);
+  BLO_read_struct_list(reader, Base, &view_layer->object_bases);
+  BLO_read_struct(reader, Base, &view_layer->basact);
 
-  direct_link_layer_collections(reader, &view_layer->layer_collections, true);
-  BLO_read_data_address(reader, &view_layer->active_collection);
+  bool active_collection_found = false;
+  BLO_read_struct(reader, LayerCollection, &view_layer->active_collection);
 
-  BLO_read_data_address(reader, &view_layer->id_properties);
+  direct_link_layer_collections(
+      reader, view_layer, &view_layer->layer_collections, true, active_collection_found);
+
+  if (!active_collection_found) {
+    /* Ensure pointer is valid, in case of corrupt blend file. */
+    view_layer->active_collection = static_cast<LayerCollection *>(
+        view_layer->layer_collections.first);
+  }
+
+  BLO_read_struct(reader, IDProperty, &view_layer->id_properties);
   IDP_BlendDataRead(reader, &view_layer->id_properties);
 
-  BLO_read_list(reader, &(view_layer->freestyle_config.modules));
-  BLO_read_list(reader, &(view_layer->freestyle_config.linesets));
+  BLO_read_struct_list(reader, FreestyleModuleConfig, &(view_layer->freestyle_config.modules));
+  BLO_read_struct_list(reader, FreestyleLineSet, &(view_layer->freestyle_config.linesets));
 
-  BLO_read_list(reader, &view_layer->aovs);
-  BLO_read_data_address(reader, &view_layer->active_aov);
+  BLO_read_struct_list(reader, ViewLayerAOV, &view_layer->aovs);
+  BLO_read_struct(reader, ViewLayerAOV, &view_layer->active_aov);
 
-  BLO_read_list(reader, &view_layer->lightgroups);
-  BLO_read_data_address(reader, &view_layer->active_lightgroup);
+  BLO_read_struct_list(reader, ViewLayerLightgroup, &view_layer->lightgroups);
+  BLO_read_struct(reader, ViewLayerLightgroup, &view_layer->active_lightgroup);
 
   BLI_listbase_clear(&view_layer->drawdata);
   view_layer->object_bases_array = nullptr;
@@ -2666,7 +2691,7 @@ void BKE_view_layer_rename_lightgroup(Scene *scene,
   if (scene != nullptr) {
     /* Update objects in the scene to refer to the new name instead. */
     FOREACH_SCENE_OBJECT_BEGIN (scene, ob) {
-      if (!ID_IS_LINKED(ob) && ob->lightgroup != nullptr) {
+      if (ID_IS_EDITABLE(ob) && ob->lightgroup != nullptr) {
         LightgroupMembership *lgm = ob->lightgroup;
         if (STREQ(lgm->name, old_name)) {
           STRNCPY_UTF8(lgm->name, lightgroup->name);
@@ -2676,7 +2701,7 @@ void BKE_view_layer_rename_lightgroup(Scene *scene,
     FOREACH_SCENE_OBJECT_END;
 
     /* Update the scene's world to refer to the new name instead. */
-    if (scene->world != nullptr && !ID_IS_LINKED(scene->world) &&
+    if (scene->world != nullptr && ID_IS_EDITABLE(scene->world) &&
         scene->world->lightgroup != nullptr)
     {
       LightgroupMembership *lgm = scene->world->lightgroup;

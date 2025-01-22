@@ -26,7 +26,7 @@
 #include "eevee_ambient_occlusion.hh"
 #include "eevee_instance.hh"
 
-#include "GPU_capabilities.h"
+#include "GPU_capabilities.hh"
 
 namespace blender::eevee {
 
@@ -38,12 +38,22 @@ void AmbientOcclusion::init()
 {
   render_pass_enabled_ = inst_.film.enabled_passes_get() & EEVEE_RENDER_PASS_AO;
 
-  data_.distance = inst_.scene->eevee.gtao_distance;
-  data_.quality = inst_.scene->eevee.gtao_quality;
-  data_.thickness = inst_.scene->eevee.gtao_thickness;
-  data_.angle_bias = 1.0 / max_ff(1e-8f, 1.0 - inst_.scene->eevee.gtao_focus);
+  const SceneEEVEE &sce_eevee = inst_.scene->eevee;
+
+  data_.distance = sce_eevee.gtao_distance;
+  data_.gi_distance = (sce_eevee.fast_gi_distance > 0.0f) ? sce_eevee.fast_gi_distance : 1e16f;
+  /* AO node uses its own number of samples. */
+  data_.lod_factor_ao = 1.0f / (1.0f + sce_eevee.gtao_quality * 4.0f);
+  data_.lod_factor = (4.0f / sce_eevee.fast_gi_step_count) /
+                     (1.0f + sce_eevee.gtao_quality * 4.0f);
+  data_.angle_bias = 1.0 / max_ff(1e-8f, 1.0 - sce_eevee.gtao_focus);
+  data_.thickness_near = sce_eevee.fast_gi_thickness_near;
+  data_.thickness_far = sce_eevee.fast_gi_thickness_far;
   /* Size is multiplied by 2 because it is applied in NDC [-1..1] range. */
   data_.pixel_size = float2(2.0f) / float2(inst_.film.render_extent_get());
+
+  ray_count_ = sce_eevee.fast_gi_ray_count;
+  step_count_ = sce_eevee.fast_gi_step_count;
 }
 
 void AmbientOcclusion::sync()
@@ -53,7 +63,10 @@ void AmbientOcclusion::sync()
   }
 
   render_pass_ps_.init();
-  render_pass_ps_.shader_set(inst_.shaders.static_shader_get(AMBIENT_OCCLUSION_PASS));
+  GPUShader *sh = inst_.shaders.static_shader_get(AMBIENT_OCCLUSION_PASS);
+  render_pass_ps_.specialize_constant(sh, "ao_slice_count", ray_count_);
+  render_pass_ps_.specialize_constant(sh, "ao_step_count", step_count_);
+  render_pass_ps_.shader_set(sh);
 
   render_pass_ps_.bind_texture(RBUFS_UTILITY_TEX_SLOT, &inst_.pipelines.utility_tx);
   render_pass_ps_.bind_resources(inst_.uniform_data);
@@ -66,7 +79,7 @@ void AmbientOcclusion::sync()
   render_pass_ps_.push_constant("out_ao_img_layer_index",
                                 &inst_.render_buffers.data.ambient_occlusion_id);
 
-  render_pass_ps_.barrier(GPU_BARRIER_SHADER_IMAGE_ACCESS & GPU_BARRIER_TEXTURE_FETCH);
+  render_pass_ps_.barrier(GPU_BARRIER_SHADER_IMAGE_ACCESS | GPU_BARRIER_TEXTURE_FETCH);
   render_pass_ps_.dispatch(
       math::divide_ceil(inst_.film.render_extent_get(), int2(AMBIENT_OCCLUSION_PASS_TILE_SIZE)));
 }

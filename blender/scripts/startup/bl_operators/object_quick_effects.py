@@ -60,20 +60,20 @@ class QuickFur(ObjectModeOperator, Operator):
         min=0.001, max=100,
         soft_min=0.01, soft_max=10,
         default=0.1,
-        subtype='DISTANCE'
+        subtype='DISTANCE',
     )
     radius: FloatProperty(
         name="Hair Radius",
         min=0.0, max=10,
         soft_min=0.0001, soft_max=0.1,
         default=0.001,
-        subtype='DISTANCE'
+        subtype='DISTANCE',
     )
     view_percentage: FloatProperty(
         name="View Percentage",
         min=0.0, max=1.0,
         default=1.0,
-        subtype='FACTOR'
+        subtype='FACTOR',
     )
     apply_hair_guides: BoolProperty(
         name="Apply Hair Guides",
@@ -107,17 +107,21 @@ class QuickFur(ObjectModeOperator, Operator):
             node_groups_to_append.add("Hair Curves Noise")
         if self.use_frizz:
             node_groups_to_append.add("Frizz Hair Curves")
-        assets_directory = os.path.join(bpy.utils.system_resource('DATAFILES'),
-                                        "assets",
-                                        "geometry_nodes",
-                                        "procedural_hair_node_assets.blend",
-                                        "NodeTree")
+        assets_directory = os.path.join(
+            bpy.utils.system_resource('DATAFILES'),
+            "assets",
+            "geometry_nodes",
+            "procedural_hair_node_assets.blend",
+            "NodeTree",
+        )
         for name in node_groups_to_append:
-            bpy.ops.wm.append(directory=assets_directory,
-                              filename=name,
-                              use_recursive=True,
-                              clear_asset_data=True,
-                              do_reuse_local_id=True)
+            bpy.ops.wm.append(
+                directory=assets_directory,
+                filename=name,
+                use_recursive=True,
+                clear_asset_data=True,
+                do_reuse_local_id=True,
+            )
         generate_group = bpy.data.node_groups["Generate Hair Curves"]
         interpolate_group = bpy.data.node_groups["Interpolate Hair Curves"]
         radius_group = bpy.data.node_groups["Set Hair Curve Profile"]
@@ -281,9 +285,7 @@ class QuickExplode(ObjectModeOperator, Operator):
 
         for obj in mesh_objects:
             if obj.particle_systems:
-                self.report({'ERROR'},
-                            rpt_("Object %r already has a "
-                                 "particle system") % obj.name)
+                self.report({'ERROR'}, rpt_("Object {!r} already has a particle system").format(obj.name))
 
                 return {'CANCELLED'}
 
@@ -305,7 +307,7 @@ class QuickExplode(ObjectModeOperator, Operator):
             settings.normal_factor = self.velocity
             settings.render_type = 'NONE'
 
-            explode = obj.modifiers.new(name='Explode', type='EXPLODE')
+            explode = obj.modifiers.new(name="Explode", type='EXPLODE')
             explode.use_edge_cut = True
 
             if self.fade:
@@ -522,8 +524,7 @@ class QuickSmoke(ObjectModeOperator, Operator):
         # Add Principled Volume
         node_principled = nodes.new(type='ShaderNodeVolumePrincipled')
         node_principled.location = grid_location(4, 1)
-        links.new(node_principled.outputs["Volume"],
-                  node_out.inputs["Volume"])
+        links.new(node_principled.outputs["Volume"], node_out.inputs["Volume"])
 
         node_principled.inputs["Density"].default_value = 5.0
 

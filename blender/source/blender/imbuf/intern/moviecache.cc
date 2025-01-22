@@ -18,7 +18,6 @@
 #include "BLI_ghash.h"
 #include "BLI_mempool.h"
 #include "BLI_string.h"
-#include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
 #include "IMB_moviecache.hh"
@@ -422,7 +421,7 @@ ImBuf *IMB_moviecache_get(MovieCache *cache, void *userkey, bool *r_is_cached_em
 
       return item->ibuf;
     }
-    if (r_is_cached_empty) {
+    if (r_is_cached_empty && item->added_empty) {
       *r_is_cached_empty = true;
     }
   }

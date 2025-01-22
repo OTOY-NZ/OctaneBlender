@@ -13,7 +13,6 @@
 #include "BLI_sys_types.h"
 
 #include "DNA_windowmanager_types.h"
-#include "DNA_workspace_types.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -22,7 +21,7 @@
 
 #include "BKE_context.hh"
 #include "BKE_screen.hh"
-#include "BKE_workspace.h"
+#include "BKE_workspace.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -67,7 +66,7 @@ void WM_menutype_freelink(MenuType *mt)
 
 void WM_menutype_init()
 {
-  /* reserve size is set based on blender default setup */
+  /* Reserve size is set based on blender default setup. */
   menutypes_hash = BLI_ghash_str_new_ex("menutypes_hash gh", 512);
 }
 
@@ -102,20 +101,20 @@ bool WM_menutype_poll(bContext *C, MenuType *mt)
   return true;
 }
 
-void WM_menutype_idname_visit_for_search(const bContext * /*C*/,
-                                         PointerRNA * /*ptr*/,
-                                         PropertyRNA * /*prop*/,
-                                         const char * /*edit_text*/,
-                                         StringPropertySearchVisitFunc visit_fn,
-                                         void *visit_user_data)
+void WM_menutype_idname_visit_for_search(
+    const bContext * /*C*/,
+    PointerRNA * /*ptr*/,
+    PropertyRNA * /*prop*/,
+    const char * /*edit_text*/,
+    blender::FunctionRef<void(StringPropertySearchVisitParams)> visit_fn)
 {
   GHashIterator gh_iter;
   GHASH_ITER (gh_iter, menutypes_hash) {
     MenuType *mt = static_cast<MenuType *>(BLI_ghashIterator_getValue(&gh_iter));
 
-    StringPropertySearchVisitParams visit_params = {nullptr};
+    StringPropertySearchVisitParams visit_params{};
     visit_params.text = mt->idname;
     visit_params.info = mt->label;
-    visit_fn(visit_user_data, &visit_params);
+    visit_fn(visit_params);
   }
 }

@@ -13,9 +13,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_ghash.h"
 #include "BLI_hash_md5.hh"
-#include "BLI_implicit_sharing.hh"
 #include "BLI_listbase.h"
 #include "BLI_path_util.h"
 #include "BLI_rect.h"
@@ -25,23 +23,20 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_appdir.hh"
-#include "BKE_camera.h"
-#include "BKE_global.h"
+#include "BKE_global.hh"
 #include "BKE_image.h"
 #include "BKE_image_format.h"
 #include "BKE_image_save.h"
 #include "BKE_main.hh"
-#include "BKE_report.h"
-#include "BKE_scene.h"
+#include "BKE_report.hh"
+#include "BKE_scene.hh"
 
 #include "IMB_colormanagement.hh"
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 #include "IMB_openexr.hh"
 
-#include "GPU_texture.h"
-
-#include "RE_engine.h"
+#include "GPU_texture.hh"
 
 #include "render_result.h"
 #include "render_types.h"
@@ -67,6 +62,15 @@ static void render_result_views_free(RenderResult *rr)
 void render_result_free(RenderResult *rr)
 {
   if (rr == nullptr) {
+    return;
+  }
+
+  /* Only actually free when RenderResult when the render result has zero users which is its
+   * default state.
+   * There is no need to lock as the user-counted render results are protected by mutex at the
+   * higher call stack level. */
+  if (rr->user_counter > 0) {
+    --rr->user_counter;
     return;
   }
 
@@ -268,7 +272,7 @@ RenderPass *render_layer_add_pass(RenderResult *rr,
 }
 
 RenderResult *render_result_new(Render *re,
-                                rcti *partrct,
+                                const rcti *partrct,
                                 const char *layername,
                                 const char *viewname)
 {
@@ -316,9 +320,6 @@ RenderResult *render_result_new(Render *re,
     rl->rectx = rectx;
     rl->recty = recty;
 
-    memcpy(rl->oct_passflags, view_layer->oct_passflags, OCTANE_MAX_PASS_NUM * sizeof(int));
-    rl->octane_aov_out_number = view_layer->octane_aov_out_number;
-
     LISTBASE_FOREACH (RenderView *, rv, &rr->views) {
       const char *view = rv->name;
 
@@ -360,7 +361,6 @@ RenderResult *render_result_new(Render *re,
     rl->passflag = SCE_PASS_COMBINED;
 
     re->single_view_layer[0] = '\0';
-    rl->oct_passflags[OCTANE_BEAUTY_PASS] = OCT_SCE_PASS_BEAUTY;
   }
 
   /* Border render; calculate offset for use in compositor. compo is centralized coords. */
@@ -405,8 +405,8 @@ void render_result_clone_passes(Render *re, RenderResult *rr, const char *viewna
         continue;
       }
 
-      /* Compare fullname to make sure that the view also is equal. */
-      RenderPass *rp = static_cast<RenderPass *>(
+      /* Compare `fullname` to make sure that the view also is equal. */
+      const RenderPass *rp = static_cast<const RenderPass *>(
           BLI_findstring(&rl->passes, main_rp->fullname, offsetof(RenderPass, fullname)));
       if (!rp) {
         render_layer_add_pass(
@@ -540,9 +540,6 @@ static int passtype_from_name(const char *name)
     return SCE_PASS_##NAME; \
   } \
   ((void)0)
-#define CHECK_OCT_PASS(NAME) \
-  if (STREQLEN(name, RE_PASSNAME_OCT_##NAME, len)) \
-  return OCT_SCE_PASS_##NAME
 
   CHECK_PASS(COMBINED);
   CHECK_PASS(Z);
@@ -569,119 +566,6 @@ static int passtype_from_name(const char *name)
   CHECK_PASS(SUBSURFACE_INDIRECT);
   CHECK_PASS(SUBSURFACE_COLOR);
 
-  /* Beauty Passes */
-  CHECK_OCT_PASS(BEAUTY);
-  CHECK_OCT_PASS(EMITTERS);
-  CHECK_OCT_PASS(ENVIRONMENT);
-  CHECK_OCT_PASS(DIFFUSE);
-  CHECK_OCT_PASS(DIFFUSE_DIRECT);
-  CHECK_OCT_PASS(DIFFUSE_INDIRECT);
-  CHECK_OCT_PASS(DIFFUSE_FILTER);
-  CHECK_OCT_PASS(REFLECTION);
-  CHECK_OCT_PASS(REFLECTION_DIRECT);
-  CHECK_OCT_PASS(REFLECTION_INDIRECT);
-  CHECK_OCT_PASS(REFLECTION_FILTER);
-  CHECK_OCT_PASS(REFRACTION);
-  CHECK_OCT_PASS(REFRACTION_FILTER);
-  CHECK_OCT_PASS(TRANSMISSION);
-  CHECK_OCT_PASS(TRANSMISSION_FILTER);
-  CHECK_OCT_PASS(SSS);
-  CHECK_OCT_PASS(SHADOW);
-  CHECK_OCT_PASS(IRRADIANCE);
-  CHECK_OCT_PASS(LIGHT_DIRECTION);
-  CHECK_OCT_PASS(VOLUME);
-  CHECK_OCT_PASS(VOLUME_MASK);
-  CHECK_OCT_PASS(VOLUME_EMISSION);
-  CHECK_OCT_PASS(VOLUME_Z_FRONT);
-  CHECK_OCT_PASS(VOLUME_Z_BACK);
-  CHECK_OCT_PASS(NOISE);
-  /* Denoise Passes */
-  CHECK_OCT_PASS(DENOISER_BEAUTY);
-  CHECK_OCT_PASS(DENOISER_DIFF_DIR);
-  CHECK_OCT_PASS(DENOISER_DIFF_INDIR);
-  CHECK_OCT_PASS(DENOISER_REFLECTION_DIR);
-  CHECK_OCT_PASS(DENOISER_REFLECTION_INDIR);
-  CHECK_OCT_PASS(DENOISER_EMISSION);
-  CHECK_OCT_PASS(DENOISER_REMAINDER);
-  CHECK_OCT_PASS(DENOISER_VOLUME);
-  CHECK_OCT_PASS(DENOISER_VOLUME_EMISSION);
-  /* Render Postprocess Passes */
-  CHECK_OCT_PASS(POSTPROCESS);
-  /* Render Layer Passes */
-  CHECK_OCT_PASS(LAYER_SHADOWS);
-  CHECK_OCT_PASS(LAYER_BLACK_SHADOW);
-  CHECK_OCT_PASS(LAYER_REFLECTIONS);
-  /* Render Lighting Passes */
-  CHECK_OCT_PASS(AMBIENT_LIGHT);
-  CHECK_OCT_PASS(AMBIENT_LIGHT_DIRECT);
-  CHECK_OCT_PASS(AMBIENT_LIGHT_INDIRECT);
-  CHECK_OCT_PASS(SUNLIGHT);
-  CHECK_OCT_PASS(SUNLIGHT_DIRECT);
-  CHECK_OCT_PASS(SUNLIGHT_INDIRECT);
-  CHECK_OCT_PASS(LIGHT_PASS_1);
-  CHECK_OCT_PASS(LIGHT_DIRECT_PASS_1);
-  CHECK_OCT_PASS(LIGHT_INDIRECT_PASS_1);
-  CHECK_OCT_PASS(LIGHT_PASS_2);
-  CHECK_OCT_PASS(LIGHT_DIRECT_PASS_2);
-  CHECK_OCT_PASS(LIGHT_INDIRECT_PASS_2);
-  CHECK_OCT_PASS(LIGHT_PASS_3);
-  CHECK_OCT_PASS(LIGHT_DIRECT_PASS_3);
-  CHECK_OCT_PASS(LIGHT_INDIRECT_PASS_3);
-  CHECK_OCT_PASS(LIGHT_PASS_4);
-  CHECK_OCT_PASS(LIGHT_DIRECT_PASS_4);
-  CHECK_OCT_PASS(LIGHT_INDIRECT_PASS_4);
-  CHECK_OCT_PASS(LIGHT_PASS_5);
-  CHECK_OCT_PASS(LIGHT_DIRECT_PASS_5);
-  CHECK_OCT_PASS(LIGHT_INDIRECT_PASS_5);
-  CHECK_OCT_PASS(LIGHT_PASS_6);
-  CHECK_OCT_PASS(LIGHT_DIRECT_PASS_6);
-  CHECK_OCT_PASS(LIGHT_INDIRECT_PASS_6);
-  CHECK_OCT_PASS(LIGHT_PASS_7);
-  CHECK_OCT_PASS(LIGHT_DIRECT_PASS_7);
-  CHECK_OCT_PASS(LIGHT_INDIRECT_PASS_7);
-  CHECK_OCT_PASS(LIGHT_PASS_8);
-  CHECK_OCT_PASS(LIGHT_DIRECT_PASS_8);
-  CHECK_OCT_PASS(LIGHT_INDIRECT_PASS_8);
-  /* Render Cryptomatte Passes */
-  CHECK_OCT_PASS(CRYPTOMATTE_INSTANCE_ID);
-  CHECK_OCT_PASS(CRYPTOMATTE_MATERIAL_NODE_NAME);
-  CHECK_OCT_PASS(CRYPTOMATTE_MATERIAL_NODE);
-  CHECK_OCT_PASS(CRYPTOMATTE_MATERIAL_PIN_NODE);
-  CHECK_OCT_PASS(CRYPTOMATTE_OBJECT_NODE_NAME);
-  CHECK_OCT_PASS(CRYPTOMATTE_OBJECT_NODE);
-  CHECK_OCT_PASS(CRYPTOMATTE_OBJECT_PIN_NODE);
-  CHECK_OCT_PASS(CRYPTOMATTE_RENDER_LAYER);
-  CHECK_OCT_PASS(CRYPTOMATTE_GEOMETRY_NODE_NAME);
-  CHECK_OCT_PASS(CRYPTOMATTE_USER_INSTANCE_ID);
-  /* Render Info Passes */
-  CHECK_OCT_PASS(GEOMETRIC_NORMAL);
-  CHECK_OCT_PASS(SMOOTH_NORMAL);
-  CHECK_OCT_PASS(SHADING_NORMAL);
-  CHECK_OCT_PASS(TANGENT_NORMAL);
-  CHECK_OCT_PASS(Z_DEPTH);
-  CHECK_OCT_PASS(POSITION);
-  CHECK_OCT_PASS(UV_COORDINATES);
-  CHECK_OCT_PASS(TEXTURE_TANGENT);
-  CHECK_OCT_PASS(MOTION_VECTOR);
-  CHECK_OCT_PASS(MATERIAL_ID);
-  CHECK_OCT_PASS(OBJECT_ID);
-  CHECK_OCT_PASS(OBJECT_LAYER_COLOR);
-  CHECK_OCT_PASS(BAKING_GROUP_ID);
-  CHECK_OCT_PASS(LIGHT_PASS_ID);
-  CHECK_OCT_PASS(RENDER_LAYER_ID);
-  CHECK_OCT_PASS(RENDER_LAYER_MASK);
-  CHECK_OCT_PASS(WIREFRAME);
-  CHECK_OCT_PASS(AMBIENT_OCCLUSION);
-  /* Render Material Passes */
-  CHECK_OCT_PASS(OPACITY);
-  CHECK_OCT_PASS(ROUGHNESS);
-  CHECK_OCT_PASS(INDEX_OF_REFRACTION);
-  CHECK_OCT_PASS(DIFFUSE_FILTER_INFO);
-  CHECK_OCT_PASS(REFLECTION_FILTER_INFO);
-  CHECK_OCT_PASS(REFRACTION_FILTER_INFO);
-  CHECK_OCT_PASS(TRANSMISSION_FILTER_INFO);
-
-#undef CHECK_OCT_PASS
 #undef CHECK_PASS
   return 0;
 }
@@ -768,8 +652,8 @@ static void *ml_addview_cb(void *base, const char *str)
 static int order_render_passes(const void *a, const void *b)
 {
   /* 1 if `a` is after `b`. */
-  RenderPass *rpa = (RenderPass *)a;
-  RenderPass *rpb = (RenderPass *)b;
+  const RenderPass *rpa = (const RenderPass *)a;
+  const RenderPass *rpb = (const RenderPass *)b;
   uint passtype_a = passtype_from_name(rpa->name);
   uint passtype_b = passtype_from_name(rpb->name);
 
@@ -1107,13 +991,15 @@ bool render_result_exr_file_read_path(RenderResult *rr,
   return true;
 }
 
-#define FILE_CACHE_MAX (FILE_MAXFILE + FILE_MAXFILE + MAX_ID_NAME + 100)
+#define FILE_CACHE_MAX (FILE_MAXDIR + FILE_MAXFILE + MAX_ID_NAME + 100)
 
 static void render_result_exr_file_cache_path(Scene *sce,
                                               const char *root,
                                               char r_path[FILE_CACHE_MAX])
 {
-  char filename_full[FILE_MAX + MAX_ID_NAME + 100], filename[FILE_MAXFILE], dirname[FILE_MAXDIR];
+  char filename_full[FILE_MAXFILE + MAX_ID_NAME + 100];
+  char filename[FILE_MAXFILE];
+  char dirname[FILE_MAXDIR];
   char path_digest[16] = {0};
   char path_hexdigest[33];
 
@@ -1131,26 +1017,26 @@ static void render_result_exr_file_cache_path(Scene *sce,
   BLI_hash_md5_to_hexdigest(path_digest, path_hexdigest);
 
   /* Default to *non-volatile* temp dir. */
+  char root_buf[FILE_MAX];
   if (*root == '\0') {
     root = BKE_tempdir_base();
+  }
+  else if (BLI_path_is_rel(root)) {
+    STRNCPY(root_buf, root);
+    BLI_path_abs(root_buf, dirname);
+    root = root_buf;
   }
 
   SNPRINTF(filename_full, "cached_RR_%s_%s_%s.exr", filename, sce->id.name + 2, path_hexdigest);
 
   BLI_path_join(r_path, FILE_CACHE_MAX, root, filename_full);
-  if (BLI_path_is_rel(r_path)) {
-    char path_temp[FILE_MAX];
-    STRNCPY(path_temp, r_path);
-    BLI_path_abs(path_temp, dirname);
-    BLI_strncpy(r_path, path_temp, FILE_CACHE_MAX);
-  }
 }
 
 void render_result_exr_file_cache_write(Render *re)
 {
   RenderResult *rr = re->result;
   char str[FILE_CACHE_MAX];
-  char *root = U.render_cachedir;
+  const char *root = U.render_cachedir;
 
   render_result_passes_allocated_ensure(rr);
 
@@ -1164,7 +1050,7 @@ bool render_result_exr_file_cache_read(Render *re)
 {
   /* File path to cache. */
   char filepath[FILE_CACHE_MAX] = "";
-  char *root = U.render_cachedir;
+  const char *root = U.render_cachedir;
   render_result_exr_file_cache_path(re->scene, root, filepath);
 
   printf("read exr cache file: %s\n", filepath);
@@ -1317,25 +1203,26 @@ void render_result_rect_get_pixels(RenderResult *rr,
                                    const int view_id)
 {
   RenderView *rv = RE_RenderViewGetById(rr, view_id);
-  ImBuf *ibuf = rv ? rv->ibuf : nullptr;
+  if (ImBuf *ibuf = rv ? rv->ibuf : nullptr) {
+    if (ibuf->byte_buffer.data) {
+      memcpy(rect, ibuf->byte_buffer.data, sizeof(int) * rr->rectx * rr->recty);
+      return;
+    }
+    if (ibuf->float_buffer.data) {
+      IMB_display_buffer_transform_apply((uchar *)rect,
+                                         ibuf->float_buffer.data,
+                                         rr->rectx,
+                                         rr->recty,
+                                         4,
+                                         view_settings,
+                                         display_settings,
+                                         true);
+      return;
+    }
+  }
 
-  if (ibuf->byte_buffer.data) {
-    memcpy(rect, ibuf->byte_buffer.data, sizeof(int) * rr->rectx * rr->recty);
-  }
-  else if (ibuf->float_buffer.data) {
-    IMB_display_buffer_transform_apply((uchar *)rect,
-                                       ibuf->float_buffer.data,
-                                       rr->rectx,
-                                       rr->recty,
-                                       4,
-                                       view_settings,
-                                       display_settings,
-                                       true);
-  }
-  else {
-    /* else fill with black */
-    memset(rect, 0, sizeof(int) * rectx * recty);
-  }
+  /* Fill with black as a fallback. */
+  memset(rect, 0, sizeof(int) * rectx * recty);
 }
 
 /** \} */

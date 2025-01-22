@@ -19,7 +19,7 @@
 #include "BKE_main.hh"
 #include "BKE_screen.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_screen_types.h"
 
@@ -51,32 +51,92 @@ void send_redraw_notifier(const bContext &C)
 /** \name Shelf Type
  * \{ */
 
-static bool asset_shelf_type_poll(const bContext &C,
-                                  const SpaceType &space_type,
-                                  AssetShelfType *shelf_type)
+static Vector<std::unique_ptr<AssetShelfType>> &static_shelf_types()
+{
+  static Vector<std::unique_ptr<AssetShelfType>> shelf_types;
+  return shelf_types;
+}
+
+void type_register(std::unique_ptr<AssetShelfType> type)
+{
+  Vector<std::unique_ptr<AssetShelfType>> &shelf_types = static_shelf_types();
+  shelf_types.append(std::move(type));
+}
+
+void type_unregister(const AssetShelfType &shelf_type)
+{
+  Vector<std::unique_ptr<AssetShelfType>> &shelf_types = static_shelf_types();
+  auto *const it = std::find_if(shelf_types.begin(),
+                                shelf_types.end(),
+                                [&](const std::unique_ptr<AssetShelfType> &iter_type) {
+                                  return iter_type.get() == &shelf_type;
+                                });
+  BLI_assert(it != shelf_types.end());
+
+  shelf_types.remove(it - shelf_types.begin());
+}
+
+static bool type_poll_no_spacetype_check(const bContext &C, const AssetShelfType *shelf_type)
 {
   if (!shelf_type) {
     return false;
   }
 
-  BLI_assert_msg(std::find_if(space_type.asset_shelf_types.begin(),
-                              space_type.asset_shelf_types.end(),
+#ifndef NDEBUG
+  const Vector<std::unique_ptr<AssetShelfType>> &shelf_types = static_shelf_types();
+  BLI_assert_msg(std::find_if(shelf_types.begin(),
+                              shelf_types.end(),
                               [&](const std::unique_ptr<AssetShelfType> &type) {
                                 return type.get() == shelf_type;
-                              }) != space_type.asset_shelf_types.end(),
+                              }) != shelf_types.end(),
                  "Asset shelf type is not registered");
-  UNUSED_VARS_NDEBUG(space_type);
+#endif
 
   return !shelf_type->poll || shelf_type->poll(&C, shelf_type);
 }
 
-static AssetShelfType *asset_shelf_type_ensure(SpaceType &space_type, AssetShelf &shelf)
+bool type_poll_for_popup(const bContext &C, const AssetShelfType *shelf_type)
+{
+  return type_poll_no_spacetype_check(C, shelf_type);
+}
+
+/**
+ * Poll an asset shelf type for display as a permanent region in a space of a given type (the
+ * type's #bl_space_type).
+ *
+ * Popup asset shelves should use #type_poll_for_popup() instead.
+ */
+static bool type_poll_for_non_popup(const bContext &C,
+                                    const AssetShelfType *shelf_type,
+                                    const int space_type)
+{
+  if (!shelf_type) {
+    return false;
+  }
+  if (shelf_type->space_type && (space_type != shelf_type->space_type)) {
+    return false;
+  }
+
+  return type_poll_no_spacetype_check(C, shelf_type);
+}
+
+AssetShelfType *type_find_from_idname(const StringRef idname)
+{
+  for (const std::unique_ptr<AssetShelfType> &shelf_type : static_shelf_types()) {
+    if (idname == shelf_type->idname) {
+      return shelf_type.get();
+    }
+  }
+  return nullptr;
+}
+
+AssetShelfType *ensure_shelf_has_type(AssetShelf &shelf)
 {
   if (shelf.type) {
     return shelf.type;
   }
 
-  for (std::unique_ptr<AssetShelfType> &shelf_type : space_type.asset_shelf_types) {
+  for (const std::unique_ptr<AssetShelfType> &shelf_type : static_shelf_types()) {
     if (STREQ(shelf.idname, shelf_type->idname)) {
       shelf.type = shelf_type.get();
       return shelf_type.get();
@@ -86,11 +146,12 @@ static AssetShelfType *asset_shelf_type_ensure(SpaceType &space_type, AssetShelf
   return nullptr;
 }
 
-static AssetShelf *create_shelf_from_type(AssetShelfType &type)
+AssetShelf *create_shelf_from_type(AssetShelfType &type)
 {
   AssetShelf *shelf = MEM_new<AssetShelf>(__func__);
   *shelf = dna::shallow_zero_initialize();
-  shelf->settings.preview_size = DEFAULT_TILE_SIZE;
+  shelf->settings.preview_size = type.default_preview_size ? type.default_preview_size :
+                                                             DEFAULT_TILE_SIZE;
   shelf->settings.asset_library_reference = asset_system::all_library_reference();
   shelf->type = &type;
   shelf->preferred_row_count = 1;
@@ -133,19 +194,22 @@ static void activate_shelf(RegionAssetShelf &shelf_regiondata, AssetShelf &shelf
  *
  * The returned shelf is guaranteed to have its #AssetShelf.type pointer set.
  *
+ * \param on_create: Function called when a new asset shelf is created (case 3).
+ *
  * \return A non-owning pointer to the now active shelf. Might be null if no shelf is valid in
  *         current context (all polls failed).
  */
 static AssetShelf *update_active_shelf(const bContext &C,
-                                       SpaceType &space_type,
-                                       RegionAssetShelf &shelf_regiondata)
+                                       const eSpace_Type space_type,
+                                       RegionAssetShelf &shelf_regiondata,
+                                       FunctionRef<void(AssetShelf &new_shelf)> on_create)
 {
-  /* Note: Don't access #AssetShelf.type directly, use #asset_shelf_type_ensure(). */
+  /* NOTE: Don't access #AssetShelf.type directly, use #type_ensure(). */
 
   /* Case 1: */
   if (shelf_regiondata.active_shelf &&
-      asset_shelf_type_poll(
-          C, space_type, asset_shelf_type_ensure(space_type, *shelf_regiondata.active_shelf)))
+      type_poll_for_non_popup(
+          C, ensure_shelf_has_type(*shelf_regiondata.active_shelf), space_type))
   {
     /* Not a strong precondition, but if this is wrong something weird might be going on. */
     BLI_assert(shelf_regiondata.active_shelf == shelf_regiondata.shelves.first);
@@ -159,7 +223,7 @@ static AssetShelf *update_active_shelf(const bContext &C,
       continue;
     }
 
-    if (asset_shelf_type_poll(C, space_type, asset_shelf_type_ensure(space_type, *shelf))) {
+    if (type_poll_for_non_popup(C, ensure_shelf_has_type(*shelf), space_type)) {
       /* Found a valid previously activated shelf, reactivate it. */
       activate_shelf(shelf_regiondata, *shelf);
       return shelf;
@@ -167,12 +231,15 @@ static AssetShelf *update_active_shelf(const bContext &C,
   }
 
   /* Case 3: */
-  for (std::unique_ptr<AssetShelfType> &shelf_type : space_type.asset_shelf_types) {
-    if (asset_shelf_type_poll(C, space_type, shelf_type.get())) {
+  for (const std::unique_ptr<AssetShelfType> &shelf_type : static_shelf_types()) {
+    if (type_poll_for_non_popup(C, shelf_type.get(), space_type)) {
       AssetShelf *new_shelf = create_shelf_from_type(*shelf_type);
       BLI_addhead(&shelf_regiondata.shelves, new_shelf);
       /* Moves ownership to the regiondata. */
       activate_shelf(shelf_regiondata, *new_shelf);
+      if (on_create) {
+        on_create(*new_shelf);
+      }
       return new_shelf;
     }
   }
@@ -212,11 +279,9 @@ void region_free(ARegion *region)
  */
 static bool asset_shelf_space_poll(const bContext *C, const SpaceLink *space_link)
 {
-  const SpaceType *space_type = BKE_spacetype_from_id(space_link->spacetype);
-
   /* Is there any asset shelf type registered that returns true for it's poll? */
-  for (const std::unique_ptr<AssetShelfType> &shelf_type : space_type->asset_shelf_types) {
-    if (asset_shelf_type_poll(*C, *space_type, shelf_type.get())) {
+  for (const std::unique_ptr<AssetShelfType> &shelf_type : static_shelf_types()) {
+    if (type_poll_for_non_popup(*C, shelf_type.get(), space_link->spacetype)) {
       return true;
     }
   }
@@ -247,6 +312,9 @@ static void asset_shelf_region_listen(const wmRegionListenerParams *params)
         ED_region_tag_redraw(region);
       }
       break;
+    case NC_ASSET:
+      ED_region_tag_redraw(region);
+      break;
   }
 }
 
@@ -263,13 +331,13 @@ void region_listen(const wmRegionListenerParams *params)
 
 void region_init(wmWindowManager *wm, ARegion *region)
 {
-  if (!region->regiondata) {
-    region->regiondata = MEM_cnew<RegionAssetShelf>("RegionAssetShelf");
-  }
-  RegionAssetShelf &shelf_regiondata = *RegionAssetShelf::get_from_asset_shelf_region(*region);
+  /* Region-data should've been created by a previously called #region_before_redraw(). */
+  RegionAssetShelf *shelf_regiondata = RegionAssetShelf::get_from_asset_shelf_region(*region);
+  BLI_assert_msg(
+      shelf_regiondata,
+      "Region-data should've been created by a previously called `region_before_redraw()`.");
 
-  /* Active shelf is only set on draw, so this may be null! */
-  AssetShelf *active_shelf = shelf_regiondata.active_shelf;
+  AssetShelf *active_shelf = shelf_regiondata->active_shelf;
 
   UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_PANELS_UI, region->winx, region->winy);
 
@@ -413,17 +481,12 @@ int region_prefsizey()
 
 void region_layout(const bContext *C, ARegion *region)
 {
-  const SpaceLink *space = CTX_wm_space_data(C);
-  SpaceType *space_type = BKE_spacetype_from_id(space->spacetype);
-
   RegionAssetShelf *shelf_regiondata = RegionAssetShelf::get_from_asset_shelf_region(*region);
-  if (!shelf_regiondata) {
-    /* Region-data should've been created by a previously called #region_init(). */
-    BLI_assert_unreachable();
-    return;
-  }
+  BLI_assert_msg(
+      shelf_regiondata,
+      "Region-data should've been created by a previously called `region_before_redraw()`.");
 
-  AssetShelf *active_shelf = update_active_shelf(*C, *space_type, *shelf_regiondata);
+  const AssetShelf *active_shelf = shelf_regiondata->active_shelf;
   if (!active_shelf) {
     return;
   }
@@ -475,6 +538,31 @@ void region_draw(const bContext *C, ARegion *region)
   UI_view2d_scrollers_draw(&region->v2d, nullptr);
 }
 
+void region_on_poll_success(const bContext *C, ARegion *region)
+{
+  RegionAssetShelf *shelf_regiondata = RegionAssetShelf::ensure_from_asset_shelf_region(*region);
+  if (!shelf_regiondata) {
+    BLI_assert_unreachable();
+    return;
+  }
+
+  ScrArea *area = CTX_wm_area(C);
+  update_active_shelf(
+      *C,
+      eSpace_Type(area->spacetype),
+      *shelf_regiondata,
+      /*on_create=*/[&](AssetShelf &new_shelf) {
+        /* Update region visibility (`'DEFAULT_VISIBLE'` option). */
+        const int old_flag = region->flag;
+        SET_FLAG_FROM_TEST(region->flag,
+                           (new_shelf.type->flag & ASSET_SHELF_TYPE_FLAG_DEFAULT_VISIBLE) == 0,
+                           RGN_FLAG_HIDDEN);
+        if (old_flag != region->flag) {
+          ED_region_visibility_change_update(const_cast<bContext *>(C), area, region);
+        }
+      });
+}
+
 void header_region_listen(const wmRegionListenerParams *params)
 {
   asset_shelf_region_listen(params);
@@ -489,15 +577,6 @@ void header_region_init(wmWindowManager * /*wm*/, ARegion *region)
 
 void header_region(const bContext *C, ARegion *region)
 {
-  const SpaceLink *space = CTX_wm_space_data(C);
-  SpaceType *space_type = BKE_spacetype_from_id(space->spacetype);
-  const ARegion *main_shelf_region = BKE_area_find_region_type(CTX_wm_area(C),
-                                                               RGN_TYPE_ASSET_SHELF);
-
-  RegionAssetShelf *shelf_regiondata = RegionAssetShelf::get_from_asset_shelf_region(
-      *main_shelf_region);
-  update_active_shelf(*C, *space_type, *shelf_regiondata);
-
   ED_region_header_with_button_sections(C, region, uiButtonSectionsAlign::Bottom);
 }
 
@@ -536,12 +615,11 @@ void region_blend_write(BlendWriter *writer, ARegion *region)
 /** \name Asset Shelf Context
  * \{ */
 
-static AssetShelf *active_shelf_from_area(const ScrArea *area)
+AssetShelf *active_shelf_from_area(const ScrArea *area)
 {
   const ARegion *shelf_region = BKE_area_find_region_type(area, RGN_TYPE_ASSET_SHELF);
   if (!shelf_region) {
     /* Called in wrong context, area doesn't have a shelf. */
-    BLI_assert_unreachable();
     return nullptr;
   }
 
@@ -660,8 +738,6 @@ static uiBut *add_tab_button(uiBlock &block, StringRefNull name)
       nullptr,
       0,
       0,
-      0,
-      0,
       TIP_("Enable catalog, making contained assets visible in the asset shelf"));
 
   UI_but_drawflag_enable(but, UI_BUT_ALIGN_DOWN);
@@ -670,9 +746,10 @@ static uiBut *add_tab_button(uiBlock &block, StringRefNull name)
   return but;
 }
 
-static void add_catalog_tabs(AssetShelfSettings &shelf_settings, uiLayout &layout)
+static void add_catalog_tabs(AssetShelf &shelf, uiLayout &layout)
 {
   uiBlock *block = uiLayoutGetBlock(&layout);
+  AssetShelfSettings &shelf_settings = shelf.settings;
 
   /* "All" tab. */
   {
@@ -689,18 +766,17 @@ static void add_catalog_tabs(AssetShelfSettings &shelf_settings, uiLayout &layou
   uiItemS(&layout);
 
   /* Regular catalog tabs. */
-  settings_foreach_enabled_catalog_path(
-      shelf_settings, [&shelf_settings, block](const asset_system::AssetCatalogPath &path) {
-        uiBut *but = add_tab_button(*block, path.name());
+  settings_foreach_enabled_catalog_path(shelf, [&](const asset_system::AssetCatalogPath &path) {
+    uiBut *but = add_tab_button(*block, path.name());
 
-        UI_but_func_set(but, [&shelf_settings, path](bContext &C) {
-          settings_set_active_catalog(shelf_settings, path);
-          send_redraw_notifier(C);
-        });
-        UI_but_func_pushed_state_set(but, [&shelf_settings, path](const uiBut &) -> bool {
-          return settings_is_active_catalog(shelf_settings, path);
-        });
-      });
+    UI_but_func_set(but, [&shelf_settings, path](bContext &C) {
+      settings_set_active_catalog(shelf_settings, path);
+      send_redraw_notifier(C);
+    });
+    UI_but_func_pushed_state_set(but, [&shelf_settings, path](const uiBut &) -> bool {
+      return settings_is_active_catalog(shelf_settings, path);
+    });
+  });
 }
 
 /** \} */
@@ -726,9 +802,8 @@ static void asset_shelf_header_draw(const bContext *C, Header *header)
   uiItemS(layout);
 
   PointerRNA shelf_ptr = active_shelf_ptr_from_context(C);
-  AssetShelf *shelf = static_cast<AssetShelf *>(shelf_ptr.data);
-  if (shelf) {
-    add_catalog_tabs(shelf->settings, *layout);
+  if (AssetShelf *shelf = static_cast<AssetShelf *>(shelf_ptr.data)) {
+    add_catalog_tabs(*shelf, *layout);
   }
 
   uiItemSpacer(layout);
@@ -790,6 +865,8 @@ void type_unlink(const Main &bmain, const AssetShelfType &shelf_type)
       }
     }
   }
+
+  type_popup_unlink(shelf_type);
 }
 
 /** \} */

@@ -23,7 +23,7 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 #include "BKE_screen.hh"
 
 #include "WM_api.hh"
@@ -1280,7 +1280,7 @@ static void console_modal_select_apply(bContext *C, wmOperator *op, const wmEven
   ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
 
   SetConsoleCursor *scu = static_cast<SetConsoleCursor *>(op->customdata);
-  int sel_prev[2] = {sc->sel_start, sc->sel_end};
+  const int sel_prev[2] = {sc->sel_start, sc->sel_end};
 
   console_cursor_set_to_pos(sc, region, scu, event);
 
@@ -1386,7 +1386,7 @@ static int console_modal_select_all_invoke(bContext *C,
 
   int offset = strlen(sc->prompt);
 
-  for (ConsoleLine *cl = static_cast<ConsoleLine *>(sc->scrollback.first); cl; cl = cl->next) {
+  LISTBASE_FOREACH (ConsoleLine *, cl, &sc->scrollback) {
     offset += cl->len + 1;
   }
 

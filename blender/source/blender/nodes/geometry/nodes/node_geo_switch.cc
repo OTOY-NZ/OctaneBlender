@@ -105,7 +105,7 @@ class LazyFunctionForSwitchNode : public LazyFunction {
     const eNodeSocketDatatype data_type = eNodeSocketDatatype(storage.input_type);
     can_be_field_ = socket_type_supports_fields(data_type);
 
-    const bNodeSocketType *socket_type = nullptr;
+    const bke::bNodeSocketType *socket_type = nullptr;
     for (const bNodeSocket *socket : node.output_sockets()) {
       if (socket->type == data_type) {
         socket_type = socket->typeinfo;
@@ -190,7 +190,8 @@ class LazyFunctionForSwitchNode : public LazyFunction {
                                    float3,
                                    ColorGeometry4f,
                                    std::string,
-                                   math::Quaternion>([&](auto type_tag) {
+                                   math::Quaternion,
+                                   float4x4>([&](auto type_tag) {
       using T = typename decltype(type_tag)::type;
       if constexpr (std::is_void_v<T>) {
         BLI_assert_unreachable();
@@ -227,6 +228,7 @@ static void node_rna(StructRNA *srna)
                                                SOCK_INT,
                                                SOCK_BOOLEAN,
                                                SOCK_ROTATION,
+                                               SOCK_MATRIX,
                                                SOCK_VECTOR,
                                                SOCK_STRING,
                                                SOCK_RGBA,
@@ -242,15 +244,16 @@ static void node_rna(StructRNA *srna)
 
 static void register_node()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, GEO_NODE_SWITCH, "Switch", NODE_CLASS_CONVERTER);
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
-  node_type_storage(&ntype, "NodeSwitch", node_free_standard_storage, node_copy_standard_storage);
+  blender::bke::node_type_storage(
+      &ntype, "NodeSwitch", node_free_standard_storage, node_copy_standard_storage);
   ntype.gather_link_search_ops = node_gather_link_searches;
   ntype.draw_buttons = node_layout;
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

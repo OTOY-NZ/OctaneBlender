@@ -142,6 +142,11 @@ class Manager {
   ResourceHandle resource_handle(const float4x4 &model_matrix,
                                  const float3 &bounds_center,
                                  const float3 &bounds_half_extent);
+  /**
+   * Get resource id for particle system. The draw-calls for this resource won't be culled. The
+   * associated object info will contain the info from its parent object.
+   */
+  ResourceHandle resource_handle_for_psys(const ObjectRef ref, const float4x4 &model_matrix);
 
   /** Update the bounds of an already created handle. */
   void update_handle_bounds(ResourceHandle handle,
@@ -154,7 +159,11 @@ class Manager {
 
   /**
    * Populate additional per resource data on demand.
+   * IMPORTANT: Should be called only **once** per object.
    */
+  void extract_object_attributes(ResourceHandle handle,
+                                 const ObjectRef &ref,
+                                 const GPUMaterial *material);
   void extract_object_attributes(ResourceHandle handle,
                                  const ObjectRef &ref,
                                  Span<GPUMaterial *> materials);
@@ -265,6 +274,16 @@ inline ResourceHandle Manager::resource_handle(const float4x4 &model_matrix,
   return ResourceHandle(resource_len_++, false);
 }
 
+inline ResourceHandle Manager::resource_handle_for_psys(const ObjectRef ref,
+                                                        const float4x4 &model_matrix)
+{
+  bool is_active_object = (ref.dupli_object ? ref.dupli_parent : ref.object) == object_active;
+  matrix_buf.current().get_or_resize(resource_len_).sync(model_matrix);
+  bounds_buf.current().get_or_resize(resource_len_).sync();
+  infos_buf.current().get_or_resize(resource_len_).sync(ref, is_active_object);
+  return ResourceHandle(resource_len_++, (ref.object->transflag & OB_NEG_SCALE) != 0);
+}
+
 inline void Manager::update_handle_bounds(ResourceHandle handle,
                                           const ObjectRef ref,
                                           float inflate_bounds)
@@ -277,6 +296,26 @@ inline void Manager::update_handle_bounds(ResourceHandle handle,
                                           const float3 &bounds_half_extent)
 {
   bounds_buf.current()[handle.resource_index()].sync(bounds_center, bounds_half_extent);
+}
+
+inline void Manager::extract_object_attributes(ResourceHandle handle,
+                                               const ObjectRef &ref,
+                                               const GPUMaterial *material)
+{
+  ObjectInfos &infos = infos_buf.current().get_or_resize(handle.resource_index());
+  infos.object_attrs_offset = attribute_len_;
+
+  const GPUUniformAttrList *attr_list = GPU_material_uniform_attributes(material);
+  if (attr_list == nullptr) {
+    return;
+  }
+
+  LISTBASE_FOREACH (const GPUUniformAttr *, attr, &attr_list->list) {
+    if (attributes_buf.get_or_resize(attribute_len_).sync(ref, *attr)) {
+      infos.object_attrs_len++;
+      attribute_len_++;
+    }
+  }
 }
 
 inline void Manager::extract_object_attributes(ResourceHandle handle,

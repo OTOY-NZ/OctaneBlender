@@ -33,8 +33,9 @@ bool HydraSceneDelegate::ShadingSettings::operator==(const ShadingSettings &othe
 }
 
 HydraSceneDelegate::HydraSceneDelegate(pxr::HdRenderIndex *parent_index,
-                                       pxr::SdfPath const &delegate_id)
-    : HdSceneDelegate(parent_index, delegate_id)
+                                       pxr::SdfPath const &delegate_id,
+                                       const bool use_materialx)
+    : HdSceneDelegate(parent_index, delegate_id), use_materialx(use_materialx)
 {
   instancer_data_ = std::make_unique<InstancerData>(this, instancer_prim_id());
   world_data_ = std::make_unique<WorldData>(this, world_prim_id());
@@ -398,7 +399,7 @@ void HydraSceneDelegate::check_updates()
         break;
       }
       case ID_SCE: {
-        if ((id->recalc & ID_RECALC_COPY_ON_WRITE && !(id->recalc & ID_RECALC_SELECT)) ||
+        if ((id->recalc & ID_RECALC_SYNC_TO_EVAL && !(id->recalc & ID_RECALC_SELECT)) ||
             id->recalc & (ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_BASE_FLAGS))
         {
           do_update_collection = true;

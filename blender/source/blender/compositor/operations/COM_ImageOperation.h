@@ -23,10 +23,7 @@ class BaseImageOperation : public MultiThreadedOperation {
  protected:
   ImBuf *buffer_;
   Image *image_;
-  ImageUser *image_user_;
-  /* TODO: Remove raw buffers when removing Tiled implementation. */
-  float *image_float_buffer_;
-  uint8_t *image_byte_buffer_;
+  ImageUser image_user_;
 
   int imageheight_;
   int imagewidth_;
@@ -50,7 +47,7 @@ class BaseImageOperation : public MultiThreadedOperation {
   {
     image_ = image;
   }
-  void set_image_user(ImageUser *imageuser)
+  void set_image_user(const ImageUser &imageuser)
   {
     image_user_ = imageuser;
   }
@@ -73,7 +70,6 @@ class ImageOperation : public BaseImageOperation {
    * Constructor
    */
   ImageOperation();
-  void execute_pixel_sampled(float output[4], float x, float y, PixelSampler sampler) override;
 
   void update_memory_buffer_partial(MemoryBuffer *output,
                                     const rcti &area,
@@ -85,7 +81,6 @@ class ImageAlphaOperation : public BaseImageOperation {
    * Constructor
    */
   ImageAlphaOperation();
-  void execute_pixel_sampled(float output[4], float x, float y, PixelSampler sampler) override;
 
   void update_memory_buffer_partial(MemoryBuffer *output,
                                     const rcti &area,

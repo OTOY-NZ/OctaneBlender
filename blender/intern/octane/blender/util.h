@@ -1621,10 +1621,10 @@ static bool osl_node_configuration(Main *main,
       /* create new socket */
       if (pinInfo.mIsOutput)
         b_sock = b_node.outputs.create(
-            main, socket_type.c_str(), socket_name.c_str(), identifier.c_str());
+            main, socket_type.c_str(), socket_name.c_str(), identifier.c_str(), false);
       else
         b_sock = b_node.inputs.create(
-            main, socket_type.c_str(), socket_name.c_str(), identifier.c_str());
+            main, socket_type.c_str(), socket_name.c_str(), identifier.c_str(), false);
 
       /* set default value */
       if (data_type == BL::NodeSocket::type_VALUE) {

@@ -9,7 +9,12 @@ set(PNG_EXTRA_ARGS
 )
 
 if(BLENDER_PLATFORM_ARM)
-  set(PNG_EXTRA_ARGS ${PNG_EXTRA_ARGS} -DPNG_HARDWARE_OPTIMIZATIONS=ON -DPNG_ARM_NEON=on -DCMAKE_SYSTEM_PROCESSOR="aarch64")
+  set(PNG_EXTRA_ARGS
+    ${PNG_EXTRA_ARGS}
+    -DPNG_HARDWARE_OPTIMIZATIONS=ON
+    -DPNG_ARM_NEON=on
+    -DCMAKE_SYSTEM_PROCESSOR="aarch64"
+  )
 endif()
 
 ExternalProject_Add(external_png
@@ -17,7 +22,12 @@ ExternalProject_Add(external_png
   DOWNLOAD_DIR ${DOWNLOAD_DIR}
   URL_HASH ${PNG_HASH_TYPE}=${PNG_HASH}
   PREFIX ${BUILD_DIR}/png
-  CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${LIBDIR}/png ${DEFAULT_CMAKE_FLAGS} ${PNG_EXTRA_ARGS}
+
+  CMAKE_ARGS
+    -DCMAKE_INSTALL_PREFIX=${LIBDIR}/png
+    ${DEFAULT_CMAKE_FLAGS}
+    ${PNG_EXTRA_ARGS}
+
   INSTALL_DIR ${LIBDIR}/png
 )
 
@@ -26,17 +36,30 @@ add_dependencies(
   external_zlib
 )
 
-if(WIN32 AND BUILD_MODE STREQUAL Release)
-  ExternalProject_Add_Step(external_png after_install
-    COMMAND ${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/png/include/ ${HARVEST_TARGET}/png/include/
-    COMMAND ${CMAKE_COMMAND} -E copy ${LIBDIR}/png/lib/libpng16_static${LIBEXT} ${HARVEST_TARGET}/png/lib/libpng${LIBEXT}
-    DEPENDEES install
-  )
-endif()
+if(WIN32)
+  if(BUILD_MODE STREQUAL Release)
+    ExternalProject_Add_Step(external_png after_install
+      COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${LIBDIR}/png/include/
+        ${HARVEST_TARGET}/png/include/
+      COMMAND ${CMAKE_COMMAND} -E copy
+        ${LIBDIR}/png/lib/libpng16_static${LIBEXT}
+        ${HARVEST_TARGET}/png/lib/libpng${LIBEXT}
 
-if(WIN32 AND BUILD_MODE STREQUAL Debug)
-  ExternalProject_Add_Step(external_png after_install
-    COMMAND ${CMAKE_COMMAND} -E copy ${LIBDIR}/png/lib/libpng16_staticd${LIBEXT} ${LIBDIR}/png/lib/libpng16${LIBEXT}
-    DEPENDEES install
-  )
+      DEPENDEES install
+    )
+  endif()
+
+  if(BUILD_MODE STREQUAL Debug)
+    ExternalProject_Add_Step(external_png after_install
+      COMMAND ${CMAKE_COMMAND} -E copy
+        ${LIBDIR}/png/lib/libpng16_staticd${LIBEXT}
+        ${LIBDIR}/png/lib/libpng16${LIBEXT}
+
+      DEPENDEES install
+    )
+  endif()
+else()
+  harvest(external_png png/include png/include "*.h")
+  harvest(external_png png/lib png/lib "*.a")
 endif()

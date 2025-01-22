@@ -25,16 +25,16 @@
 #include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "BKE_context.hh"
 #include "BKE_customdata.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_layer.hh"
-#include "BKE_main.hh"
 #include "BKE_material.h"
 #include "BKE_mesh_mapping.hh"
-#include "BKE_node.h"
+#include "BKE_mesh_types.hh"
+#include "BKE_node.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
@@ -125,7 +125,7 @@ bool ED_object_get_active_image(Object *ob,
   Material *ma = DEG_is_evaluated_object(ob) ? BKE_object_material_get_eval(ob, mat_nr) :
                                                BKE_object_material_get(ob, mat_nr);
   bNodeTree *ntree = (ma && ma->use_nodes) ? ma->nodetree : nullptr;
-  bNode *node = (ntree) ? nodeGetActiveTexture(ntree) : nullptr;
+  bNode *node = (ntree) ? bke::nodeGetActiveTexture(ntree) : nullptr;
 
   if (node && is_image_texture_node(node)) {
     if (r_ima) {
@@ -177,7 +177,7 @@ bool ED_object_get_active_image(Object *ob,
 void ED_object_assign_active_image(Main *bmain, Object *ob, int mat_nr, Image *ima)
 {
   Material *ma = BKE_object_material_get(ob, mat_nr);
-  bNode *node = (ma && ma->use_nodes) ? nodeGetActiveTexture(ma->nodetree) : nullptr;
+  bNode *node = (ma && ma->use_nodes) ? bke::nodeGetActiveTexture(ma->nodetree) : nullptr;
 
   if (node && is_image_texture_node(node)) {
     node->id = &ima->id;
@@ -1222,7 +1222,7 @@ static int uv_pin_exec(bContext *C, wmOperator *op)
 
     if (changed) {
       WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
-      DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_COPY_ON_WRITE);
+      DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SYNC_TO_EVAL);
     }
   }
 
@@ -1679,7 +1679,7 @@ static int uv_seams_from_islands_exec(bContext *C, wmOperator *op)
 
   for (Object *ob : objects) {
     Mesh *mesh = (Mesh *)ob->data;
-    BMEditMesh *em = mesh->edit_mesh;
+    BMEditMesh *em = mesh->runtime->edit_mesh.get();
     BMesh *bm = em->bm;
     BMIter iter;
 
@@ -1783,7 +1783,7 @@ static int uv_mark_seam_exec(bContext *C, wmOperator *op)
 
   for (Object *ob : objects) {
     Mesh *mesh = (Mesh *)ob->data;
-    BMEditMesh *em = mesh->edit_mesh;
+    BMEditMesh *em = mesh->runtime->edit_mesh.get();
     BMesh *bm = em->bm;
 
     if (synced_selection && (bm->totedgesel == 0)) {

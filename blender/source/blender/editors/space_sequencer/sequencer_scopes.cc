@@ -10,7 +10,6 @@
 #include <cstring>
 
 #include "BLI_math_vector.hh"
-#include "BLI_task.h"
 #include "BLI_task.hh"
 #include "BLI_utildefines.h"
 
@@ -124,7 +123,7 @@ ImBuf *make_waveform_view_from_ibuf(const ImBuf *ibuf)
    * overhead, so instead get luma coefficients as 16-bit integers. */
   float coeffs[3];
   IMB_colormanagement_get_luminance_coefficients(coeffs);
-  int muls[3] = {int(coeffs[0] * 65535), int(coeffs[1] * 65535), int(coeffs[2] * 65535)};
+  const int muls[3] = {int(coeffs[0] * 65535), int(coeffs[1] * 65535), int(coeffs[2] * 65535)};
 
   /* Parallel over x, since each column is easily independent from others. */
   threading::parallel_for(IndexRange(ibuf->x), 32, [&](IndexRange x_range) {
@@ -223,7 +222,7 @@ ImBuf *make_zebra_view_from_ibuf(const ImBuf *ibuf, float perc)
 #ifdef DEBUG_TIME
   SCOPED_TIMER(__func__);
 #endif
-  ImBuf *res = IMB_allocImBuf(ibuf->x, ibuf->y, 32, IB_rect);
+  ImBuf *res = IMB_allocImBuf(ibuf->x, ibuf->y, 32, IB_rect | IB_uninitialized_pixels);
 
   threading::parallel_for(IndexRange(ibuf->y), 16, [&](IndexRange y_range) {
     if (ibuf->float_buffer.data) {

@@ -6,6 +6,7 @@ import mathutils
 from bpy.props import EnumProperty, StringProperty, IntProperty
 
 import bpy
+import octane
 from octane.nodes.base_node import OctaneBaseNode
 from octane.utils import utility, consts, octane_name
 
@@ -108,7 +109,12 @@ class OctaneObjectData(bpy.types.Node, OctaneBaseNode):
         if object_eval is not None:
             scene_eval = depsgraph.scene_eval
             is_viewport = depsgraph.mode == "VIEWPORT"
-            octane_geometry_name = octane_name.resolve_object_data_octane_name(object_eval, scene_eval, is_viewport)
+            active_engine = octane.get_active_render_engine()
+            if getattr(active_engine, "session", None) is not None:
+                session = active_engine.session
+                if object_eval.name in session.object_cache.object_name_to_scatter_node_name_map:
+                    octane_geometry_name = session.object_cache.object_name_to_scatter_node_name_map[object_eval.name]
+                    octane_geometry_name = octane_name.resolve_objectlayer_map_octane_name(octane_geometry_name)
             if need_transform:
                 # Transform node
                 transform_node_name = placement_node_name + "_Transform"

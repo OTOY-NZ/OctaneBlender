@@ -120,10 +120,10 @@ class OctaneLayeredMaterial(bpy.types.Node, OctaneBaseNode):
         ("Latest (2022.1)", "Latest (2022.1)", """(null)""", 12000006),
         ("2021.1 compatibility mode", "2021.1 compatibility mode", """Layers on the material connected to the material input are added twice.""", 0),
     ]
-    a_compatibility_version_enum: EnumProperty(name="Compatibility version", default="Latest (2022.1)", update=OctaneBaseNode.update_compatibility_mode, description="The Octane version that the behavior of this node should match", items=compatibility_mode_infos)
+    a_compatibility_version_enum: EnumProperty(name="Compatibility version", default="Latest (2022.1)", update=OctaneBaseNode.update_compatibility_mode_to_int, description="The Octane version that the behavior of this node should match", items=compatibility_mode_infos)
 
     a_pin_count: IntProperty(name="Pin count", default=0, update=OctaneBaseNode.update_node_tree, description="The number of material layers. New material layer pins will be added to the end of the pin list")
-    a_compatibility_version: IntProperty(name="Compatibility version", default=14000005, update=OctaneBaseNode.update_node_tree, description="The Octane version that the behavior of this node should match")
+    a_compatibility_version: IntProperty(name="Compatibility version", default=14000007, update=OctaneBaseNode.update_compatibility_mode_to_enum, description="The Octane version that the behavior of this node should match")
 
     def init(self, context):  # noqa
         self.inputs.new("OctaneLayeredMaterialMaterial1", OctaneLayeredMaterialMaterial1.bl_label).init()

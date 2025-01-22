@@ -26,6 +26,7 @@ class OCTANE_MT_kernel_presets(Menu):
         octane_scene = context.scene.octane
         kernel_json_node_tree_helper = octane_scene.kernel_json_node_tree_helper
         utility.quick_add_octane_kernel_node_tree(assign_to_kernel_node_graph=True,
+                                                  overwrite_current_node_graph=True,
                                                   generate_from_legacy_octane_property=False,
                                                   json_node_tree=kernel_json_node_tree_helper, preset_name=preset_name)
 

@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 ## Update and uncomment this in the release branch
-set(BLENDER_VERSION 4.1)
+set(BLENDER_VERSION 4.2)
 
 function(download_source dep)
   set(TARGET_FILE ${${dep}_FILE})
@@ -107,6 +107,7 @@ download_source(FLAC)
 download_source(VPX)
 download_source(OPUS)
 download_source(X264)
+download_source(X265)
 download_source(OPENJPEG)
 download_source(FFMPEG)
 download_source(FFTW)
@@ -158,6 +159,7 @@ download_source(ICDLOADER)
 download_source(MP11)
 download_source(SPIRV_HEADERS)
 download_source(UNIFIED_RUNTIME)
+download_source(UNIFIED_MEMORY_FRAMEWORK)
 download_source(IGC)
 download_source(IGC_LLVM)
 download_source(IGC_OPENCL_CLANG)

@@ -14,6 +14,9 @@ PATHS: Tuple[Tuple[str, Tuple[Any, ...], Dict[str, str]], ...] = (
     ("build_files/utils/", (), {'MYPYPATH': "modules"}),
     ("doc/manpage/blender.1.py", (), {}),
     ("release/datafiles/", (), {}),
+    ("scripts/modules/_bpy_internal/extensions/junction_module.py", (), {}),
+    ("scripts/modules/_bpy_internal/extensions/wheel_manager.py", (), {}),
+    ("scripts/modules/_bpy_internal/freedesktop.py", (), {}),
     ("tools/check_blender_release/", (), {}),
     ("tools/check_docs/", (), {}),
     ("tools/check_source/", (), {'MYPYPATH': "modules"}),
@@ -50,16 +53,11 @@ PATHS_EXCLUDE = set(
         "tools/check_blender_release/scripts/requests_basic_access.py",
         "tools/check_blender_release/scripts/requests_import.py",
         "tools/check_source/check_descriptions.py",
-        "tools/check_source/check_header_duplicate.py",
         "tools/check_source/check_unused_defines.py",
-        "tools/triage/gitea_utils.py",  # TODO (low priority).
-        "tools/triage/issues_needing_info.py",  # TODO (low priority).
-        "tools/triage/weekly_report.py",  # TODO (low priority).
         "tools/utils/blend2json.py",
         "tools/utils/blender_keyconfig_export_permutations.py",
         "tools/utils/blender_merge_format_changes.py",
         "tools/utils/blender_theme_as_c.py",
-        "tools/utils/cycles_commits_sync.py",
         "tools/utils/cycles_timeit.py",
         "tools/utils/gdb_struct_repr_c99.py",
         "tools/utils/git_log_review_commits.py",

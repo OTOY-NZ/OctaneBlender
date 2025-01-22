@@ -437,7 +437,12 @@ class TEXTURE_PT_image_sampling(TextureTypePanel, Panel):
     bl_options = {'DEFAULT_CLOSED'}
     bl_parent_id = "TEXTURE_PT_image"
     tex_type = 'IMAGE'
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE'}
+    COMPAT_ENGINES = {
+        'BLENDER_RENDER',
+        'BLENDER_EEVEE',
+        'BLENDER_EEVEE_NEXT',
+        'BLENDER_WORKBENCH',
+    }
 
     def draw(self, context):
         layout = self.layout
@@ -467,7 +472,12 @@ class TEXTURE_PT_image_alpha(TextureTypePanel, Panel):
     bl_options = {'DEFAULT_CLOSED'}
     bl_parent_id = "TEXTURE_PT_image"
     tex_type = 'IMAGE'
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE'}
+    COMPAT_ENGINES = {
+        'BLENDER_RENDER',
+        'BLENDER_EEVEE',
+        'BLENDER_EEVEE_NEXT',
+        'BLENDER_WORKBENCH',
+    }
 
     def draw_header(self, context):
         tex = context.texture
@@ -490,7 +500,12 @@ class TEXTURE_PT_image_mapping(TextureTypePanel, Panel):
     bl_options = {'DEFAULT_CLOSED'}
     bl_parent_id = "TEXTURE_PT_image"
     tex_type = 'IMAGE'
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE'}
+    COMPAT_ENGINES = {
+        'BLENDER_RENDER',
+        'BLENDER_EEVEE',
+        'BLENDER_EEVEE_NEXT',
+        'BLENDER_WORKBENCH',
+    }
 
     def draw(self, context):
         layout = self.layout
@@ -542,7 +557,12 @@ class TEXTURE_PT_image_mapping_crop(TextureTypePanel, Panel):
     bl_options = {'DEFAULT_CLOSED'}
     bl_parent_id = "TEXTURE_PT_image_mapping"
     tex_type = 'IMAGE'
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE'}
+    COMPAT_ENGINES = {
+        'BLENDER_RENDER',
+        'BLENDER_EEVEE',
+        'BLENDER_EEVEE_NEXT',
+        'BLENDER_WORKBENCH',
+    }
 
     def draw(self, context):
         layout = self.layout
@@ -904,8 +924,8 @@ class TEXTURE_PT_colors(TextureButtonsPanel, TextureColorsPoll, Panel):
 
         col = flow.column(align=True)
         col.prop(tex, "factor_red", text="Multiply R")
-        col.prop(tex, "factor_green", text="G")
-        col.prop(tex, "factor_blue", text="B")
+        col.prop(tex, "factor_green", text="G", text_ctxt=i18n_contexts.color)
+        col.prop(tex, "factor_blue", text="B", text_ctxt=i18n_contexts.color)
 
         col.separator()
 

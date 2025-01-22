@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "DNA_curve_types.h"
-#include "DNA_vfont_types.h"
 
 #include "BKE_curve.hh"
 #include "BKE_curve_legacy_convert.hh"
@@ -12,7 +11,6 @@
 #include "BKE_vfont.hh"
 
 #include "BLI_bounds.hh"
-#include "BLI_hash.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_string_utf8.h"
 #include "BLI_task.hh"
@@ -320,7 +318,7 @@ static void add_instances_from_handles(bke::Instances &instances,
 {
   instances.resize(layout.positions.size());
   MutableSpan<int> handles = instances.reference_handles_for_write();
-  MutableSpan<float4x4> transforms = instances.transforms();
+  MutableSpan<float4x4> transforms = instances.transforms_for_write();
 
   threading::parallel_for(IndexRange(layout.positions.size()), 256, [&](IndexRange range) {
     for (const int i : range) {
@@ -390,7 +388,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, GEO_NODE_STRING_TO_CURVES, "String to Curves", NODE_CLASS_GEOMETRY);
   ntype.declare = node_declare;
@@ -398,12 +396,12 @@ static void node_register()
   ntype.initfunc = node_init;
   ntype.updatefunc = node_update;
   blender::bke::node_type_size(&ntype, 190, 120, 700);
-  node_type_storage(&ntype,
-                    "NodeGeometryStringToCurves",
-                    node_free_standard_storage,
-                    node_copy_standard_storage);
+  blender::bke::node_type_storage(&ntype,
+                                  "NodeGeometryStringToCurves",
+                                  node_free_standard_storage,
+                                  node_copy_standard_storage);
   ntype.draw_buttons = node_layout;
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

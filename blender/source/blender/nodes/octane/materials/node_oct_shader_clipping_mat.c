@@ -27,7 +27,7 @@
 
 #include "node_shader_util.hh"
 
-static bNodeSocketTemplate sh_node_in[] = {{SOCK_BOOLEAN,
+static blender::bke::bNodeSocketTemplate  sh_node_in[] = {{SOCK_BOOLEAN,
                                             N_("Enabled"),
                                             1.0f,
                                             0.0f,
@@ -59,11 +59,11 @@ static bNodeSocketTemplate sh_node_in[] = {{SOCK_BOOLEAN,
                                             SOCK_NO_INTERNAL_LINK},
                                            {-1, ""}};
 
-static bNodeSocketTemplate sh_node_out[] = {{SOCK_SHADER, N_("OutMat")}, {-1, ""}};
+static blender::bke::bNodeSocketTemplate  sh_node_out[] = {{SOCK_SHADER, N_("OutMat")}, {-1, ""}};
 
 void register_node_type_sh_oct_clipping_mat(void)
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   if (ntype.type != SH_NODE_OCT_CLIPPING_MAT)
     sh_node_type_base(&ntype,
@@ -71,7 +71,7 @@ void register_node_type_sh_oct_clipping_mat(void)
                    "Clipping Material",
                    NODE_CLASS_OCT_SHADER);
   blender::bke::node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
-  node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::DEFAULT);
+  node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Default);
   ntype.initfunc = (NULL);
   node_type_storage(&ntype, "", NULL, NULL);
   

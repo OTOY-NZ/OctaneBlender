@@ -32,7 +32,7 @@
 #include "BKE_node_runtime.hh"
 #include "BKE_texture.h"
 
-static bNodeSocketTemplate sh_node_in[] = {{SOCK_FLOAT,
+static blender::bke::bNodeSocketTemplate  sh_node_in[] = {{SOCK_FLOAT,
                                             N_("Power"),
                                             1.0f,
                                             0.0f,
@@ -84,7 +84,7 @@ static bNodeSocketTemplate sh_node_in[] = {{SOCK_FLOAT,
                                             SOCK_NO_INTERNAL_LINK},
                                            {-1, ""}};
 
-static bNodeSocketTemplate sh_node_out[] = {{SOCK_RGBA, N_("OutTex")}, {-1, ""}};
+static blender::bke::bNodeSocketTemplate  sh_node_out[] = {{SOCK_RGBA, N_("OutTex")}, {-1, ""}};
 
 static void node_oct_instance_color_tex_init(bNodeTree *ntree, bNode *node)
 {
@@ -101,7 +101,7 @@ static void node_oct_instance_color_tex_init(bNodeTree *ntree, bNode *node)
 
 void register_node_type_tex_oct_instance_color(void)
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   if (ntype.type != SH_NODE_OCT_INSTANCE_COLOR_TEX)
     sh_node_type_base(&ntype,

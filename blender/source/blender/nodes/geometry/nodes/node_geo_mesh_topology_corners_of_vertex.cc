@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_mesh.hh"
-#include "BKE_mesh_mapping.hh"
 
 #include "BLI_array_utils.hh"
 
@@ -197,12 +196,12 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
   geo_node_type_base(
       &ntype, GEO_NODE_MESH_TOPOLOGY_CORNERS_OF_VERTEX, "Corners of Vertex", NODE_CLASS_INPUT);
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

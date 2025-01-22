@@ -10,7 +10,7 @@
 
 #include "DNA_userdef_types.h"
 
-#include "BLO_readfile.h"
+#include "BLO_userdef_default.h"
 
 /* clang-format off */
 
@@ -344,7 +344,7 @@ const bTheme U_theme_default = {
     .bone_locked_weight = RGBA(0xff000080),
     .cframe = RGBA(0x4772b3ff),
     .time_keyframe = RGBA(0xddd700ff),
-    .time_gp_keyframe = RGBA(0xb5e61dff),
+    .time_gp_keyframe = RGBA(0x7a9b14ff),
     .freestyle_edge_mark = RGBA(0x7fff7fff),
     .freestyle_face_mark = RGBA(0x7fff7f4d),
     .nurb_uline = RGBA(0x909000ff),
@@ -556,6 +556,8 @@ const bTheme U_theme_default = {
     .keytype_breakdown_select = RGBA(0x54bfedff),
     .keytype_jitter_select = RGBA(0x61c042ff),
     .keytype_movehold_select = RGBA(0xffaf23ff),
+    .keytype_generated = RGBA(0x585858ff),
+    .keytype_generated_select = RGBA(0xa28962ff),
     .keyborder = RGBA(0x000000ff),
     .keyborder_select = RGBA(0x000000ff),
     .vertex_size = 3,
@@ -661,18 +663,7 @@ const bTheme U_theme_default = {
     .vertex_size = 3,
     .outline_width = 1,
     .facedot_size = 4,
-    .movie = RGBA(0x4d6890ff),
-    .movieclip = RGBA(0x8f4c4cff),
-    .mask = RGBA(0x8f5656ff),
-    .image = RGBA(0x8f744bff),
-    .scene = RGBA(0x808033ff),
-    .audio = RGBA(0x448080ff),
-    .effect = RGBA(0x514a73ff),
-    .transition = RGBA(0x50458fff),
-    .meta = RGBA(0x5b4d91ff),
-    .text_strip = RGBA(0x824c8fff),
-    .color_strip = RGBA(0x8f8f8fff),
-    .active_strip = RGBA(0xd9d9d9ff),
+    .active_strip = RGBA(0xffffffff),
     .selected_strip = RGBA(0xff8f0dff),
     .gp_vertex_size = 3,
     .gp_vertex_select = RGBA(0xff8500ff),
@@ -684,13 +675,26 @@ const bTheme U_theme_default = {
     .keytype_breakdown = RGBA(0xb3dbe8ff),
     .keytype_jitter = RGBA(0x94e575ff),
     .keytype_movehold = RGBA(0x808080ff),
+    .keytype_generated = RGBA(0x585858ff),
     .keytype_keyframe_select = RGBA(0xffbe33ff),
     .keytype_extreme_select = RGBA(0xf28080ff),
     .keytype_breakdown_select = RGBA(0x54bfedff),
     .keytype_jitter_select = RGBA(0x61c042ff),
     .keytype_movehold_select = RGBA(0xffaf23ff),
+    .keytype_generated_select = RGBA(0xa28962ff),
     .keyborder = RGBA(0x000000ff),
     .keyborder_select = RGBA(0x000000ff),
+    .movie = RGBA(0x6282a3ff),
+    .movieclip = RGBA(0x8f6e56ff),
+    .mask = RGBA(0x8f5656ff),
+    .image = RGBA(0x8c548cff),
+    .scene = RGBA(0x999999ff),
+    .audio = RGBA(0x568f6dff),
+    .effect = RGBA(0x7b5f80ff),
+    .transition = RGBA(0x867accff),
+    .meta = RGBA(0x7b995cff),
+    .text_strip = RGBA(0x9f926fff),
+    .color_strip = RGBA(0x99995cff),
   },
   .space_image = {
     .back = RGBA(0x30303000),
@@ -714,6 +718,10 @@ const bTheme U_theme_default = {
       .header = RGBA(0x3d3d3dff),
       .back = RGBA(0x3d3d3dff),
       .sub_back = RGBA(0x0000001f),
+    },
+    .asset_shelf = {
+      .header_back = RGBA(0x1d1d1dff),
+      .back = RGBA(0x303030ff),
     },
     .grid = RGBA(0x303030ff),
     .wire_edit = RGBA(0xc0c0c0ff),
@@ -773,7 +781,7 @@ const bTheme U_theme_default = {
       .sub_back = RGBA(0x0000001f),
     },
     .shade2 = RGBA(0x4d4d4de6),
-    .hilite = RGBA(0x65a2ffff),
+    .hilite = RGBA(0x71a8ffff),
     .grid = RGBA(0x1d1d1dff),
     .vertex_size = 3,
     .outline_width = 1,
@@ -941,7 +949,7 @@ const bTheme U_theme_default = {
     .console_input = RGBA(0xf2f2f2ff),
     .console_info = RGBA(0x95d600ff),
     .console_error = RGBA(0xff4d84ff),
-    .console_cursor = RGBA(0xff0000ff),
+    .console_cursor = RGBA(0x71a8ffff),
     .console_select = RGBA(0xffffff30),
     .vertex_size = 3,
     .outline_width = 1,
@@ -1228,19 +1236,19 @@ const bTheme U_theme_default = {
   },
   .strip_color = {
     {
-      .color = RGBA(0xe2605bff),
+      .color = RGBA(0xcc5a52ff),
     },
     {
-      .color = RGBA(0xf1a355ff),
+      .color = RGBA(0xcc8a48ff),
     },
     {
-      .color = RGBA(0xf1dc55ff),
+      .color = RGBA(0xb3a33fff),
     },
     {
-      .color = RGBA(0x7bcc7bff),
+      .color = RGBA(0x5c995cff),
     },
     {
-      .color = RGBA(0x5db6eaff),
+      .color = RGBA(0x519fccff),
     },
     {
       .color = RGBA(0x8d59daff),
@@ -1249,10 +1257,10 @@ const bTheme U_theme_default = {
       .color = RGBA(0xc673b8ff),
     },
     {
-      .color = RGBA(0x7a5441ff),
+      .color = RGBA(0x996952ff),
     },
     {
-      .color = RGBA(0x5f5f5fff),
+      .color = RGBA(0x808080ff),
     },
   },
 };

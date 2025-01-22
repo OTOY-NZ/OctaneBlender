@@ -11,8 +11,8 @@
 
 #include "gpu_context_private.hh"
 
-#include "GPU_common_types.h"
-#include "GPU_context.h"
+#include "GPU_common_types.hh"
+#include "GPU_context.hh"
 
 /* Don't generate OpenGL deprecation warning. This is a known thing, and is not something easily
  * solvable in a short term. */
@@ -180,10 +180,7 @@ class MTLComputeState {
                             bool use_argument_buffer_for_samplers,
                             uint slot);
   /* Buffer binding (ComputeCommandEncoder). */
-  void bind_compute_buffer(id<MTLBuffer> buffer,
-                           uint64_t buffer_offset,
-                           uint index,
-                           bool writeable = false);
+  void bind_compute_buffer(id<MTLBuffer> buffer, uint64_t buffer_offset, uint index);
   void bind_compute_bytes(const void *bytes, uint64_t length, uint index);
 };
 
@@ -488,7 +485,7 @@ struct MTLContextGlobalShaderPipelineState {
   MTLTextureBinding image_bindings[MTL_MAX_TEXTURE_SLOTS];
 
   /*** --- Render Pipeline State --- ***/
-  /* Track global render pipeline state for the current context. The functions in GPU_state.h
+  /* Track global render pipeline state for the current context. The functions in GPU_state.hh
    * modify these parameters. Certain values, tagged [PSO], are parameters which are required to be
    * passed into PSO creation, rather than dynamic state functions on the RenderCommandEncoder.
    */
@@ -754,7 +751,7 @@ class MTLContext : public Context {
   /* Maximum of 32 texture types. Though most combinations invalid. */
   gpu::MTLTexture *dummy_textures_[GPU_SAMPLER_TYPE_MAX][GPU_TEXTURE_BUFFER] = {{nullptr}};
   GPUVertFormat dummy_vertformat_[GPU_SAMPLER_TYPE_MAX];
-  GPUVertBuf *dummy_verts_[GPU_SAMPLER_TYPE_MAX] = {nullptr};
+  VertBuf *dummy_verts_[GPU_SAMPLER_TYPE_MAX] = {nullptr};
 
  public:
   /* GPUContext interface. */
@@ -780,11 +777,14 @@ class MTLContext : public Context {
 
   void debug_group_begin(const char *name, int index) override;
   void debug_group_end() override;
-  bool debug_capture_begin() override;
+  bool debug_capture_begin(const char *title) override;
   void debug_capture_end() override;
   void *debug_capture_scope_create(const char *name) override;
   bool debug_capture_scope_begin(void *scope) override;
   void debug_capture_scope_end(void *scope) override;
+
+  void debug_unbind_all_ubo() override{};
+  void debug_unbind_all_ssbo() override{};
 
   /*** MTLContext Utility functions. */
   /*

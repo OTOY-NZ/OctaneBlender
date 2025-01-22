@@ -10,8 +10,8 @@
 #include <sstream>
 #include <string>
 
-#include "BKE_anim_data.h"
-#include "BKE_duplilist.h"
+#include "BKE_anim_data.hh"
+#include "BKE_duplilist.hh"
 #include "BKE_key.hh"
 #include "BKE_object.hh"
 #include "BKE_particle.h"
@@ -170,7 +170,9 @@ AbstractHierarchyIterator::~AbstractHierarchyIterator()
   /* release_writers() cannot be called here directly, as it calls into the pure-virtual
    * release_writer() function. By the time this destructor is called, the subclass that implements
    * that pure-virtual function is already destructed. */
-  BLI_assert(writers_.empty() || !"release_writers() should be called before the AbstractHierarchyIterator goes out of scope");
+  BLI_assert_msg(
+      writers_.empty(),
+      "release_writers() should be called before the AbstractHierarchyIterator goes out of scope");
 }
 
 void AbstractHierarchyIterator::iterate_and_write()
@@ -413,7 +415,7 @@ void AbstractHierarchyIterator::visit_object(Object *object,
   context->original_export_path = "";
   context->higher_up_export_path = "";
 
-  copy_m4_m4(context->matrix_world, object->object_to_world);
+  copy_m4_m4(context->matrix_world, object->object_to_world().ptr());
 
   ExportGraph::key_type graph_index = determine_graph_index_object(context);
   context_update_for_graph_index(context, graph_index);

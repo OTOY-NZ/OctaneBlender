@@ -104,6 +104,7 @@ set(ADDON_CORE_FILES
   addon/core/octane_node.py
   addon/core/octane_info.py
   addon/core/octanedb.py
+  addon/core/ocs_loader.py
   addon/core/resource_cache.py
 )
 

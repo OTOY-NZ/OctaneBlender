@@ -33,7 +33,7 @@
 #include "BKE_node_runtime.hh"
 #include "BKE_texture.h"
 
-static bNodeSocketTemplate sh_node_in[] = {
+static blender::bke::bNodeSocketTemplate  sh_node_in[] = {
     /****** LEGACY SOCKETS *****/
     {SOCK_INT,
      N_("Interp. type"),
@@ -47,7 +47,7 @@ static bNodeSocketTemplate sh_node_in[] = {
      SOCK_HIDDEN | SOCK_UNAVAIL | SOCK_AUTO_HIDDEN__DEPRECATED},
     {-1, ""}};
 
-static bNodeSocketTemplate sh_node_out[] = {{SOCK_RGBA, N_("OutTex")}, {-1, ""}};
+static blender::bke::bNodeSocketTemplate  sh_node_out[] = {{SOCK_RGBA, N_("OutTex")}, {-1, ""}};
 
 static void node_oct_init_toon_ramp(bNodeTree *ntree, bNode *node)
 {
@@ -59,13 +59,13 @@ static void node_oct_init_toon_ramp(bNodeTree *ntree, bNode *node)
 
 void register_node_type_tex_oct_toon_ramp(void)
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   if (ntype.type != SH_NODE_OCT_TOON_RAMP_TEX)
     sh_node_type_base(
         &ntype, SH_NODE_OCT_TOON_RAMP_TEX, "Toon Ramp Tex", NODE_CLASS_OCT_TEXTURE);
   blender::bke::node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
-  node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::DEFAULT);
+  node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Default);
   ntype.initfunc = (node_oct_init_toon_ramp);
   node_type_storage(&ntype, "ColorBand", node_free_standard_storage, node_copy_standard_storage);
   // node_type_exec(&ntype, 0, 0, 0);

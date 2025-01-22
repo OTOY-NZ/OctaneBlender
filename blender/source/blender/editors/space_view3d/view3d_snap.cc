@@ -28,8 +28,8 @@
 #include "BKE_main.hh"
 #include "BKE_mball.hh"
 #include "BKE_object.hh"
-#include "BKE_report.h"
-#include "BKE_scene.h"
+#include "BKE_report.hh"
+#include "BKE_scene.hh"
 #include "BKE_tracking.h"
 
 #include "DEG_depsgraph.hh"
@@ -50,7 +50,7 @@
 #include "ANIM_bone_collections.hh"
 #include "ANIM_keyframing.hh"
 
-#include "view3d_intern.h"
+#include "view3d_intern.hh"
 
 using blender::Vector;
 
@@ -64,6 +64,7 @@ static bool snap_calc_active_center(bContext *C, const bool select_only, float r
 /** Snaps every individual object center to its nearest point on the grid. */
 static int snap_sel_to_grid_exec(bContext *C, wmOperator *op)
 {
+  using namespace blender::ed;
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   ViewLayer *view_layer_eval = DEG_get_evaluated_view_layer(depsgraph);
   Object *obact = CTX_data_active_object(C);
@@ -90,7 +91,7 @@ static int snap_sel_to_grid_exec(bContext *C, wmOperator *op)
         }
       }
 
-      if (ED_object_edit_report_if_shape_key_is_locked(obedit, op->reports)) {
+      if (blender::ed::object::shape_key_report_if_locked(obedit, op->reports)) {
         continue;
       }
 
@@ -99,18 +100,18 @@ static int snap_sel_to_grid_exec(bContext *C, wmOperator *op)
       }
 
       if (tvs.transverts_tot != 0) {
-        copy_m3_m4(bmat, obedit->object_to_world);
+        copy_m3_m4(bmat, obedit->object_to_world().ptr());
         invert_m3_m3(imat, bmat);
 
         tv = tvs.transverts;
         for (a = 0; a < tvs.transverts_tot; a++, tv++) {
           copy_v3_v3(vec, tv->loc);
           mul_m3_v3(bmat, vec);
-          add_v3_v3(vec, obedit->object_to_world[3]);
+          add_v3_v3(vec, obedit->object_to_world().location());
           vec[0] = gridf * floorf(0.5f + vec[0] / gridf);
           vec[1] = gridf * floorf(0.5f + vec[1] / gridf);
           vec[2] = gridf * floorf(0.5f + vec[2] / gridf);
-          sub_v3_v3(vec, obedit->object_to_world[3]);
+          sub_v3_v3(vec, obedit->object_to_world().location());
 
           mul_m3_v3(imat, vec);
           copy_v3_v3(tv->loc, vec);
@@ -127,7 +128,7 @@ static int snap_sel_to_grid_exec(bContext *C, wmOperator *op)
       Object *ob = DEG_get_original_object(ob_eval);
       bArmature *arm_eval = static_cast<bArmature *>(ob_eval->data);
 
-      invert_m4_m4(ob_eval->world_to_object, ob_eval->object_to_world);
+      invert_m4_m4(ob_eval->runtime->world_to_object.ptr(), ob_eval->object_to_world().ptr());
 
       LISTBASE_FOREACH (bPoseChannel *, pchan_eval, &ob_eval->pose->chanbase) {
         if (pchan_eval->bone->flag & BONE_SELECTED) {
@@ -138,12 +139,12 @@ static int snap_sel_to_grid_exec(bContext *C, wmOperator *op)
               /* get nearest grid point to snap to */
               copy_v3_v3(nLoc, pchan_eval->pose_mat[3]);
               /* We must operate in world space! */
-              mul_m4_v3(ob_eval->object_to_world, nLoc);
+              mul_m4_v3(ob_eval->object_to_world().ptr(), nLoc);
               vec[0] = gridf * floorf(0.5f + nLoc[0] / gridf);
               vec[1] = gridf * floorf(0.5f + nLoc[1] / gridf);
               vec[2] = gridf * floorf(0.5f + nLoc[2] / gridf);
               /* Back in object space... */
-              mul_m4_v3(ob_eval->world_to_object, vec);
+              mul_m4_v3(ob_eval->world_to_object().ptr(), vec);
 
               /* Get location of grid point in pose space. */
               BKE_armature_loc_pose_to_bone(pchan_eval, vec, vec);
@@ -184,8 +185,8 @@ static int snap_sel_to_grid_exec(bContext *C, wmOperator *op)
                                               SCE_XFORM_SKIP_CHILDREN);
     const bool use_transform_data_origin = (scene->toolsettings->transform_flag &
                                             SCE_XFORM_DATA_ORIGIN);
-    XFormObjectSkipChild_Container *xcs = nullptr;
-    XFormObjectData_Container *xds = nullptr;
+    object::XFormObjectSkipChild_Container *xcs = nullptr;
+    object::XFormObjectData_Container *xds = nullptr;
 
     /* Build object array. */
     Vector<Object *> objects_eval;
@@ -204,23 +205,23 @@ static int snap_sel_to_grid_exec(bContext *C, wmOperator *op)
         objects.append_unchecked(DEG_get_original_object(ob_eval));
       }
       BKE_scene_graph_evaluated_ensure(depsgraph, bmain);
-      xcs = ED_object_xform_skip_child_container_create();
-      ED_object_xform_skip_child_container_item_ensure_from_array(
+      xcs = object::xform_skip_child_container_create();
+      object::xform_skip_child_container_item_ensure_from_array(
           xcs, scene, view_layer, objects.data(), objects.size());
     }
     if (use_transform_data_origin) {
       BKE_scene_graph_evaluated_ensure(depsgraph, bmain);
-      xds = ED_object_data_xform_container_create();
+      xds = object::data_xform_container_create();
     }
 
     for (Object *ob_eval : objects_eval) {
       Object *ob = DEG_get_original_object(ob_eval);
-      vec[0] = -ob_eval->object_to_world[3][0] +
-               gridf * floorf(0.5f + ob_eval->object_to_world[3][0] / gridf);
-      vec[1] = -ob_eval->object_to_world[3][1] +
-               gridf * floorf(0.5f + ob_eval->object_to_world[3][1] / gridf);
-      vec[2] = -ob_eval->object_to_world[3][2] +
-               gridf * floorf(0.5f + ob_eval->object_to_world[3][2] / gridf);
+      vec[0] = -ob_eval->object_to_world().location()[0] +
+               gridf * floorf(0.5f + ob_eval->object_to_world().location()[0] / gridf);
+      vec[1] = -ob_eval->object_to_world().location()[1] +
+               gridf * floorf(0.5f + ob_eval->object_to_world().location()[1] / gridf);
+      vec[2] = -ob_eval->object_to_world().location()[2] +
+               gridf * floorf(0.5f + ob_eval->object_to_world().location()[2] / gridf);
 
       if (ob->parent) {
         float originmat[3][3];
@@ -243,19 +244,19 @@ static int snap_sel_to_grid_exec(bContext *C, wmOperator *op)
       blender::animrig::autokeyframe_object(C, scene, ob, ks);
 
       if (use_transform_data_origin) {
-        ED_object_data_xform_container_item_ensure(xds, ob);
+        object::data_xform_container_item_ensure(xds, ob);
       }
 
       DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
     }
 
     if (use_transform_skip_children) {
-      ED_object_xform_skip_child_container_update_all(xcs, bmain, depsgraph);
-      ED_object_xform_skip_child_container_destroy(xcs);
+      object::object_xform_skip_child_container_update_all(xcs, bmain, depsgraph);
+      object::object_xform_skip_child_container_destroy(xcs);
     }
     if (use_transform_data_origin) {
-      ED_object_data_xform_container_update_all(xds, bmain, depsgraph);
-      ED_object_data_xform_container_destroy(xds);
+      object::data_xform_container_update_all(xds, bmain, depsgraph);
+      object::data_xform_container_destroy(xds);
     }
   }
 
@@ -301,6 +302,7 @@ static bool snap_selected_to_location(bContext *C,
                                       const int pivot_point,
                                       const bool use_toolsettings)
 {
+  using namespace blender::ed;
   Scene *scene = CTX_data_scene(C);
   Object *obedit = CTX_data_edit_object(C);
   Object *obact = CTX_data_active_object(C);
@@ -338,7 +340,7 @@ static bool snap_selected_to_location(bContext *C,
         }
       }
 
-      if (ED_object_edit_report_if_shape_key_is_locked(obedit, op->reports)) {
+      if (blender::ed::object::shape_key_report_if_locked(obedit, op->reports)) {
         continue;
       }
 
@@ -347,11 +349,11 @@ static bool snap_selected_to_location(bContext *C,
       }
 
       if (tvs.transverts_tot != 0) {
-        copy_m3_m4(bmat, obedit->object_to_world);
+        copy_m3_m4(bmat, obedit->object_to_world().ptr());
         invert_m3_m3(imat, bmat);
 
         /* get the cursor in object space */
-        sub_v3_v3v3(snap_target_local, snap_target_global, obedit->object_to_world[3]);
+        sub_v3_v3v3(snap_target_local, snap_target_global, obedit->object_to_world().location());
         mul_m3_v3(imat, snap_target_local);
 
         if (use_offset) {
@@ -384,8 +386,8 @@ static bool snap_selected_to_location(bContext *C,
       bArmature *arm = static_cast<bArmature *>(ob->data);
       float snap_target_local[3];
 
-      invert_m4_m4(ob->world_to_object, ob->object_to_world);
-      mul_v3_m4v3(snap_target_local, ob->world_to_object, snap_target_global);
+      invert_m4_m4(ob->runtime->world_to_object.ptr(), ob->object_to_world().ptr());
+      mul_v3_m4v3(snap_target_local, ob->world_to_object().ptr(), snap_target_global);
 
       LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
         if ((pchan->bone->flag & BONE_SELECTED) && PBONE_VISIBLE(arm, pchan->bone) &&
@@ -411,10 +413,10 @@ static bool snap_selected_to_location(bContext *C,
           float cursor_pose[3];
 
           if (use_offset) {
-            mul_v3_m4v3(cursor_pose, ob->object_to_world, pchan->pose_mat[3]);
+            mul_v3_m4v3(cursor_pose, ob->object_to_world().ptr(), pchan->pose_mat[3]);
             add_v3_v3(cursor_pose, offset_global);
 
-            mul_m4_v3(ob->world_to_object, cursor_pose);
+            mul_m4_v3(ob->world_to_object().ptr(), cursor_pose);
             BKE_armature_loc_pose_to_bone(pchan, cursor_pose, cursor_pose);
           }
           else {
@@ -480,23 +482,23 @@ static bool snap_selected_to_location(bContext *C,
     const bool use_transform_data_origin = use_toolsettings &&
                                            (scene->toolsettings->transform_flag &
                                             SCE_XFORM_DATA_ORIGIN);
-    XFormObjectSkipChild_Container *xcs = nullptr;
-    XFormObjectData_Container *xds = nullptr;
+    object::XFormObjectSkipChild_Container *xcs = nullptr;
+    object::XFormObjectData_Container *xds = nullptr;
 
     if (use_transform_skip_children) {
       BKE_scene_graph_evaluated_ensure(depsgraph, bmain);
-      xcs = ED_object_xform_skip_child_container_create();
-      ED_object_xform_skip_child_container_item_ensure_from_array(
+      xcs = object::xform_skip_child_container_create();
+      object::xform_skip_child_container_item_ensure_from_array(
           xcs, scene, view_layer, objects.data(), objects.size());
     }
     if (use_transform_data_origin) {
       BKE_scene_graph_evaluated_ensure(depsgraph, bmain);
-      xds = ED_object_data_xform_container_create();
+      xds = object::data_xform_container_create();
 
       /* Initialize the transform data in a separate loop because the depsgraph
        * may be evaluated while setting the locations. */
       for (Object *ob : objects) {
-        ED_object_data_xform_container_item_ensure(xds, ob);
+        object::data_xform_container_item_ensure(xds, ob);
       }
     }
 
@@ -508,13 +510,13 @@ static bool snap_selected_to_location(bContext *C,
       float cursor_parent[3]; /* parent-relative */
 
       if (use_offset) {
-        add_v3_v3v3(cursor_parent, ob->object_to_world[3], offset_global);
+        add_v3_v3v3(cursor_parent, ob->object_to_world().location(), offset_global);
       }
       else {
         copy_v3_v3(cursor_parent, snap_target_global);
       }
 
-      sub_v3_v3(cursor_parent, ob->object_to_world[3]);
+      sub_v3_v3(cursor_parent, ob->object_to_world().location());
 
       if (ob->parent) {
         float originmat[3][3], parentmat[4][4];
@@ -550,12 +552,12 @@ static bool snap_selected_to_location(bContext *C,
     }
 
     if (use_transform_skip_children) {
-      ED_object_xform_skip_child_container_update_all(xcs, bmain, depsgraph);
-      ED_object_xform_skip_child_container_destroy(xcs);
+      object::object_xform_skip_child_container_update_all(xcs, bmain, depsgraph);
+      object::object_xform_skip_child_container_destroy(xcs);
     }
     if (use_transform_data_origin) {
-      ED_object_data_xform_container_update_all(xds, bmain, depsgraph);
-      ED_object_data_xform_container_destroy(xds);
+      object::data_xform_container_update_all(xds, bmain, depsgraph);
+      object::data_xform_container_destroy(xds);
     }
   }
 
@@ -681,7 +683,7 @@ static int snap_curs_to_grid_exec(bContext *C, wmOperator * /*op*/)
   curs[2] = gridf * floorf(0.5f + curs[2] / gridf);
 
   WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, nullptr); /* hrm */
-  DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
 
   return OPERATOR_FINISHED;
 }
@@ -723,7 +725,7 @@ static void bundle_midpoint(Scene *scene, Object *ob, float r_vec[3])
 
   MovieTracking *tracking = &clip->tracking;
 
-  copy_m4_m4(cammat, ob->object_to_world);
+  copy_m4_m4(cammat, ob->object_to_world().ptr());
 
   BKE_tracking_get_camera_object_matrix(ob, mat);
 
@@ -798,13 +800,13 @@ static bool snap_curs_to_sel_ex(bContext *C, const int pivot_point, float r_curs
       count += tvs.transverts_tot;
       if (tvs.transverts_tot != 0) {
         Object *obedit_eval = DEG_get_evaluated_object(depsgraph, obedit);
-        copy_m3_m4(bmat, obedit_eval->object_to_world);
+        copy_m3_m4(bmat, obedit_eval->object_to_world().ptr());
 
         tv = tvs.transverts;
         for (int i = 0; i < tvs.transverts_tot; i++, tv++) {
           copy_v3_v3(vec, tv->loc);
           mul_m3_v3(bmat, vec);
-          add_v3_v3(vec, obedit_eval->object_to_world[3]);
+          add_v3_v3(vec, obedit_eval->object_to_world().location());
           add_v3_v3(centroid, vec);
           minmax_v3v3_v3(min, max, vec);
         }
@@ -822,7 +824,7 @@ static bool snap_curs_to_sel_ex(bContext *C, const int pivot_point, float r_curs
         if (ANIM_bonecoll_is_visible_pchan(arm, pchan)) {
           if (pchan->bone->flag & BONE_SELECTED) {
             copy_v3_v3(vec, pchan->pose_head);
-            mul_m4_v3(obact_eval->object_to_world, vec);
+            mul_m4_v3(obact_eval->object_to_world().ptr(), vec);
             add_v3_v3(centroid, vec);
             minmax_v3v3_v3(min, max, vec);
             count++;
@@ -832,7 +834,7 @@ static bool snap_curs_to_sel_ex(bContext *C, const int pivot_point, float r_curs
     }
     else {
       FOREACH_SELECTED_OBJECT_BEGIN (view_layer_eval, v3d, ob_eval) {
-        copy_v3_v3(vec, ob_eval->object_to_world[3]);
+        copy_v3_v3(vec, ob_eval->object_to_world().location());
 
         /* special case for camera -- snap to bundles */
         if (ob_eval->type == OB_CAMERA) {
@@ -870,7 +872,7 @@ static int snap_curs_to_sel_exec(bContext *C, wmOperator * /*op*/)
   const int pivot_point = scene->toolsettings->transform_pivot_point;
   if (snap_curs_to_sel_ex(C, pivot_point, scene->cursor.location)) {
     WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
-    DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE);
+    DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
 
     return OPERATOR_FINISHED;
   }
@@ -910,7 +912,7 @@ static bool snap_calc_active_center(bContext *C, const bool select_only, float r
   if (ob == nullptr) {
     return false;
   }
-  return ED_object_calc_active_center(ob, select_only, r_center);
+  return blender::ed::object::calc_active_center(ob, select_only, r_center);
 }
 
 static int snap_curs_to_active_exec(bContext *C, wmOperator * /*op*/)
@@ -919,7 +921,7 @@ static int snap_curs_to_active_exec(bContext *C, wmOperator * /*op*/)
 
   if (snap_calc_active_center(C, false, scene->cursor.location)) {
     WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
-    DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE);
+    DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
 
     return OPERATOR_FINISHED;
   }
@@ -957,7 +959,7 @@ static int snap_curs_to_center_exec(bContext *C, wmOperator * /*op*/)
   zero_v3(scene->cursor.location);
   BKE_scene_cursor_mat3_to_rot(&scene->cursor, mat3, false);
 
-  DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
 
   WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
   return OPERATOR_FINISHED;
@@ -1022,7 +1024,7 @@ bool ED_view3d_minmax_verts(Object *obedit, float r_min[3], float r_max[3])
     changed = BKE_mball_minmax_ex(static_cast<const MetaBall *>(obedit->data),
                                   ob_min,
                                   ob_max,
-                                  obedit->object_to_world,
+                                  obedit->object_to_world().ptr(),
                                   SELECT);
     if (changed) {
       minmax_v3v3_v3(r_min, r_max, ob_min);
@@ -1042,7 +1044,7 @@ bool ED_view3d_minmax_verts(Object *obedit, float r_min[3], float r_max[3])
         bke::crazyspace::get_evaluated_curves_deformation(obedit, ob_orig);
 
     const std::optional<Bounds<float3>> curves_bounds = bounds_min_max_with_transform(
-        float4x4(obedit->object_to_world), deformation.positions, mask);
+        obedit->object_to_world(), deformation.positions, mask);
 
     if (curves_bounds) {
       minmax_v3v3_v3(r_min, r_max, curves_bounds->min);
@@ -1060,13 +1062,13 @@ bool ED_view3d_minmax_verts(Object *obedit, float r_min[3], float r_max[3])
     return false;
   }
 
-  copy_m3_m4(bmat, obedit->object_to_world);
+  copy_m3_m4(bmat, obedit->object_to_world().ptr());
 
   tv = tvs.transverts;
   for (int a = 0; a < tvs.transverts_tot; a++, tv++) {
     copy_v3_v3(vec, (tv->flag & TX_VERT_USE_MAPLOC) ? tv->maploc : tv->loc);
     mul_m3_v3(bmat, vec);
-    add_v3_v3(vec, obedit->object_to_world[3]);
+    add_v3_v3(vec, obedit->object_to_world().location());
     add_v3_v3(centroid, vec);
     minmax_v3v3_v3(r_min, r_max, vec);
   }

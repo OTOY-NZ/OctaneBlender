@@ -18,9 +18,9 @@ static void sh_node_seprgb_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
   b.add_input<decl::Color>("Image").default_value({0.8f, 0.8f, 0.8f, 1.0f});
-  b.add_output<decl::Float>("R");
-  b.add_output<decl::Float>("G");
-  b.add_output<decl::Float>("B");
+  b.add_output<decl::Float>("R").translation_context(BLT_I18NCONTEXT_COLOR);
+  b.add_output<decl::Float>("G").translation_context(BLT_I18NCONTEXT_COLOR);
+  b.add_output<decl::Float>("B").translation_context(BLT_I18NCONTEXT_COLOR);
 }
 
 static int gpu_shader_seprgb(GPUMaterial *mat,
@@ -77,7 +77,7 @@ void register_node_type_sh_seprgb()
 {
   namespace file_ns = blender::nodes::node_shader_sepcomb_rgb_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   sh_fn_node_type_base(
       &ntype, SH_NODE_SEPRGB_LEGACY, "Separate RGB (Legacy)", NODE_CLASS_CONVERTER);
@@ -86,7 +86,7 @@ void register_node_type_sh_seprgb()
   ntype.build_multi_function = file_ns::sh_node_seprgb_build_multi_function;
   ntype.gather_link_search_ops = nullptr;
 
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 }
 
 namespace blender::nodes::node_shader_sepcomb_rgb_cc {
@@ -94,9 +94,9 @@ namespace blender::nodes::node_shader_sepcomb_rgb_cc {
 static void sh_node_combrgb_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
-  b.add_input<decl::Float>("R").min(0.0f).max(1.0f);
-  b.add_input<decl::Float>("G").min(0.0f).max(1.0f);
-  b.add_input<decl::Float>("B").min(0.0f).max(1.0f);
+  b.add_input<decl::Float>("R").min(0.0f).max(1.0f).translation_context(BLT_I18NCONTEXT_COLOR);
+  b.add_input<decl::Float>("G").min(0.0f).max(1.0f).translation_context(BLT_I18NCONTEXT_COLOR);
+  b.add_input<decl::Float>("B").min(0.0f).max(1.0f).translation_context(BLT_I18NCONTEXT_COLOR);
   b.add_output<decl::Color>("Image");
 }
 
@@ -122,7 +122,7 @@ void register_node_type_sh_combrgb()
 {
   namespace file_ns = blender::nodes::node_shader_sepcomb_rgb_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   sh_fn_node_type_base(
       &ntype, SH_NODE_COMBRGB_LEGACY, "Combine RGB (Legacy)", NODE_CLASS_CONVERTER);
@@ -131,5 +131,5 @@ void register_node_type_sh_combrgb()
   ntype.build_multi_function = file_ns::sh_node_combrgb_build_multi_function;
   ntype.gather_link_search_ops = nullptr;
 
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 }

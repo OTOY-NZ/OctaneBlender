@@ -131,7 +131,7 @@ class OctaneImageAOVOutput(bpy.types.Node, OctaneBaseImageNode):
         ("Latest (2022.1)", "Latest (2022.1)", """(null)""", 12000008),
         ("2021.1 compatibility mode", "2021.1 compatibility mode", """When "Enable imager" is disabled, some aspects of the imager are not bypassed, and linear sRGB data is output as sRGB.""", 0),
     ]
-    a_compatibility_version_enum: EnumProperty(name="Compatibility version", default="Latest (2022.1)", update=OctaneBaseNode.update_compatibility_mode, description="The Octane version that the behavior of this node should match", items=compatibility_mode_infos)
+    a_compatibility_version_enum: EnumProperty(name="Compatibility version", default="Latest (2022.1)", update=OctaneBaseNode.update_compatibility_mode_to_int, description="The Octane version that the behavior of this node should match", items=compatibility_mode_infos)
 
     a_filename: StringProperty(name="Filename", default="", update=OctaneBaseNode.update_node_tree, description="Stores the filename of the texture image", subtype="FILE_PATH")
     a_reload: BoolProperty(name="Reload", default=False, update=OctaneBaseNode.update_node_tree, description="TRUE if the file needs a reload or the preference of the image file has been changed.After evaluation the attribute will be false again")

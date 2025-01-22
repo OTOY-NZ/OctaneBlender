@@ -17,6 +17,10 @@
 
 #include "BKE_context.hh"
 
+namespace blender::bke::id {
+class IDRemapper;
+}
+
 namespace blender::asset_system {
 class AssetRepresentation;
 }
@@ -28,7 +32,6 @@ struct BlendLibReader;
 struct BlendWriter;
 struct Header;
 struct ID;
-struct IDRemapper;
 struct LayoutPanelState;
 struct LibraryForeachIDData;
 struct ListBase;
@@ -109,7 +112,7 @@ struct SpaceType {
   bContextDataCallback context;
 
   /* Used when we want to replace an ID by another (or NULL). */
-  void (*id_remap)(ScrArea *area, SpaceLink *sl, const IDRemapper *mappings);
+  void (*id_remap)(ScrArea *area, SpaceLink *sl, const blender::bke::id::IDRemapper &mappings);
 
   /**
    * foreach_id callback to process all ID pointers of the editor. Used indirectly by lib_query's
@@ -139,9 +142,6 @@ struct SpaceType {
 
   /* region type definitions */
   ListBase regiontypes;
-
-  /** Asset shelf type definitions. */
-  blender::Vector<std::unique_ptr<AssetShelfType>> asset_shelf_types;
 
   /* read and write... */
 
@@ -222,13 +222,19 @@ struct ARegionType {
 
   /* register operator types on startup */
   void (*operatortypes)();
-  /* add own items to keymap */
+  /* add items to keymap */
   void (*keymap)(wmKeyConfig *keyconf);
   /* allows default cursor per region */
   void (*cursor)(wmWindow *win, ScrArea *area, ARegion *region);
 
   /* return context data */
   bContextDataCallback context;
+
+  /**
+   * Called on every frame in which the region's poll succeeds, regardless of visibility, before
+   * drawing, visibility evaluation and initialization. Allows the region to override visibility.
+   */
+  void (*on_poll_success)(const bContext *C, ARegion *region);
 
   /**
    * Called whenever the user changes the region's size. Not called when the size is changed
@@ -284,6 +290,7 @@ struct PanelType {
   char parent_id[BKE_ST_MAXNAME]; /* parent idname for sub-panels */
   /** Boolean property identifier of the panel custom data. Used to draw a highlighted border. */
   char active_property[BKE_ST_MAXNAME];
+  char pin_to_last_property[BKE_ST_MAXNAME];
   short space_type;
   short region_type;
   /* For popovers, 0 for default. */
@@ -513,6 +520,8 @@ enum AssetShelfTypeFlag {
   /** Do not trigger asset dragging on drag events. Drag events can be overridden with custom
    * keymap items then. */
   ASSET_SHELF_TYPE_FLAG_NO_ASSET_DRAG = (1 << 0),
+  ASSET_SHELF_TYPE_FLAG_DEFAULT_VISIBLE = (1 << 1),
+  ASSET_SHELF_TYPE_FLAG_STORE_CATALOGS_IN_PREFS = (1 << 2),
 
   ASSET_SHELF_TYPE_FLAG_MAX
 };
@@ -523,7 +532,12 @@ struct AssetShelfType {
 
   int space_type;
 
+  /** Operator to call when activating a grid view item. */
+  std::string activate_operator;
+
   AssetShelfTypeFlag flag;
+
+  short default_preview_size;
 
   /** Determine if asset shelves of this type should be available in current context or not. */
   bool (*poll)(const bContext *C, const AssetShelfType *shelf_type);
@@ -538,6 +552,8 @@ struct AssetShelfType {
                             const AssetShelfType *shelf_type,
                             const blender::asset_system::AssetRepresentation *asset,
                             uiLayout *layout);
+
+  const AssetWeakReference *(*get_active_asset)(const AssetShelfType *shelf_type);
 
   /* RNA integration */
   ExtensionRNA rna_ext;

@@ -7,34 +7,30 @@
  */
 
 #include <cstdlib>
+#include <optional>
 
 #include "MEM_guardedalloc.h"
 
 /* Allow using deprecated functionality for .blend file I/O. */
 #define DNA_DEPRECATED_ALLOW
 
-#include "DNA_anim_types.h"
 #include "DNA_defaults.h"
 #include "DNA_light_types.h"
-#include "DNA_material_types.h"
 #include "DNA_node_types.h"
-#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_texture_types.h"
 
 #include "BLI_utildefines.h"
 
-#include "BKE_anim_data.h"
 #include "BKE_icons.h"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_light.h"
-#include "BKE_main.hh"
-#include "BKE_node.h"
+#include "BKE_node.hh"
 #include "BKE_preview_image.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DEG_depsgraph.hh"
 
@@ -58,7 +54,11 @@ static void light_init_data(ID *id)
  *
  * \param flag: Copying options (see BKE_lib_id.hh's LIB_ID_COPY_... flags for more).
  */
-static void light_copy_data(Main *bmain, ID *id_dst, const ID *id_src, const int flag)
+static void light_copy_data(Main *bmain,
+                            std::optional<Library *> owner_library,
+                            ID *id_dst,
+                            const ID *id_src,
+                            const int flag)
 {
   Light *la_dst = (Light *)id_dst;
   const Light *la_src = (const Light *)id_src;
@@ -69,13 +69,16 @@ static void light_copy_data(Main *bmain, ID *id_dst, const ID *id_src, const int
 
   if (la_src->nodetree) {
     if (is_localized) {
-      la_dst->nodetree = ntreeLocalize(la_src->nodetree);
+      la_dst->nodetree = blender::bke::ntreeLocalize(la_src->nodetree, &la_dst->id);
     }
     else {
-      BKE_id_copy_ex(
-          bmain, (ID *)la_src->nodetree, (ID **)&la_dst->nodetree, flag_private_id_data);
+      BKE_id_copy_in_lib(bmain,
+                         owner_library,
+                         &la_src->nodetree->id,
+                         &la_dst->id,
+                         reinterpret_cast<ID **>(&la_dst->nodetree),
+                         flag_private_id_data);
     }
-    la_dst->nodetree->owner_id = &la_dst->id;
   }
 
   if ((flag & LIB_ID_COPY_NO_PREVIEW) == 0) {
@@ -92,7 +95,7 @@ static void light_free_data(ID *id)
 
   /* is no lib link block, but light extension */
   if (la->nodetree) {
-    ntreeFreeEmbeddedTree(la->nodetree);
+    blender::bke::ntreeFreeEmbeddedTree(la->nodetree);
     MEM_freeN(la->nodetree);
     la->nodetree = nullptr;
   }
@@ -139,7 +142,8 @@ static void light_blend_write(BlendWriter *writer, ID *id, const void *id_addres
         temp_embedded_id_buffer, &la->nodetree->id, BLO_write_is_undo(writer));
     BLO_write_struct_at_address(
         writer, bNodeTree, la->nodetree, BLO_write_get_id_buffer_temp_id(temp_embedded_id_buffer));
-    ntreeBlendWrite(writer, (bNodeTree *)BLO_write_get_id_buffer_temp_id(temp_embedded_id_buffer));
+    blender::bke::ntreeBlendWrite(
+        writer, (bNodeTree *)BLO_write_get_id_buffer_temp_id(temp_embedded_id_buffer));
     BLO_write_destroy_id_buffer(&temp_embedded_id_buffer);
   }
 
@@ -150,13 +154,14 @@ static void light_blend_read_data(BlendDataReader *reader, ID *id)
 {
   Light *la = (Light *)id;
 
-  BLO_read_data_address(reader, &la->preview);
+  BLO_read_struct(reader, PreviewImage, &la->preview);
   BKE_previewimg_blend_read(reader, la->preview);
 }
 
 IDTypeInfo IDType_ID_LA = {
     /*id_code*/ ID_LA,
     /*id_filter*/ FILTER_ID_LA,
+    /*dependencies_id_types*/ FILTER_ID_TE,
     /*main_listbase_index*/ INDEX_ID_LA,
     /*struct_size*/ sizeof(Light),
     /*name*/ "Light",

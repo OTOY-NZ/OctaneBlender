@@ -2,7 +2,9 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-if(NOT WIN32)
+if(BLENDER_PLATFORM_WINDOWS_ARM)
+  set(AOM_EXTRA_ARGS_WIN32 -DAOM_TARGET_CPU=generic)
+else()
   set(AOM_CMAKE_FLAGS ${DEFAULT_CMAKE_FLAGS})
 endif()
 
@@ -24,11 +26,24 @@ ExternalProject_Add(external_aom
   DOWNLOAD_DIR ${DOWNLOAD_DIR}
   URL_HASH ${AOM_HASH_TYPE}=${AOM_HASH}
   PREFIX ${BUILD_DIR}/aom
-  PATCH_COMMAND ${PATCH_CMD} --verbose -p 1 -N -d ${BUILD_DIR}/aom/src/external_aom < ${PATCH_DIR}/aom.diff
+
+  PATCH_COMMAND ${PATCH_CMD} --verbose -p 1 -N -d
+    ${BUILD_DIR}/aom/src/external_aom <
+    ${PATCH_DIR}/aom.diff
+
   CONFIGURE_COMMAND ${CONFIGURE_ENV} &&
     cd ${BUILD_DIR}/aom/src/external_aom-build/ &&
-    ${CMAKE_COMMAND} -DCMAKE_INSTALL_PREFIX=${LIBDIR}/aom ${AOM_CMAKE_FLAGS} ${AOM_EXTRA_ARGS} ${BUILD_DIR}/aom/src/external_aom/
+    ${CMAKE_COMMAND}
+      -DCMAKE_INSTALL_PREFIX=${LIBDIR}/aom
+      ${AOM_CMAKE_FLAGS}
+      ${AOM_EXTRA_ARGS}
+      ${BUILD_DIR}/aom/src/external_aom/
+
   BUILD_COMMAND ${CMAKE_COMMAND} --build .
   INSTALL_COMMAND ${CMAKE_COMMAND} --build . --target install
   INSTALL_DIR ${LIBDIR}/aom
 )
+
+if(NOT WIN32)
+  harvest(external_aom aom/lib ffmpeg/lib "*.a")
+endif()

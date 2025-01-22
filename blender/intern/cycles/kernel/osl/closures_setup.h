@@ -11,6 +11,8 @@
 #include "kernel/closure/bsdf.h"
 #include "kernel/closure/emissive.h"
 
+#include "kernel/geom/object.h"
+
 CCL_NAMESPACE_BEGIN
 
 #define OSL_CLOSURE_STRUCT_BEGIN(Upper, lower) \
@@ -58,7 +60,7 @@ ccl_device_forceinline bool osl_closure_skip(KernelGlobals kg,
     if (reflect_caustics_disabled && has_reflect && !has_transmit) {
       return true;
     }
-    /* Refractive Caustics*/
+    /* Refractive Caustics */
     if (refract_caustics_disabled && has_transmit && !has_reflect) {
       return true;
     }
@@ -197,6 +199,17 @@ ccl_device void osl_closure_transparent_setup(KernelGlobals kg,
   bsdf_transparent_setup(sd, rgb_to_spectrum(weight), path_flag);
 }
 
+ccl_device void osl_closure_ray_portal_bsdf_setup(KernelGlobals kg,
+                                                  ccl_private ShaderData *sd,
+                                                  uint32_t path_flag,
+                                                  float3 weight,
+                                                  ccl_private const RayPortalBSDFClosure *closure,
+                                                  float3 *layer_albedo)
+{
+  bsdf_ray_portal_setup(
+      sd, rgb_to_spectrum(weight), path_flag, closure->position, closure->direction);
+}
+
 /* MaterialX closures */
 ccl_device void osl_closure_dielectric_bsdf_setup(KernelGlobals kg,
                                                   ccl_private ShaderData *sd,
@@ -263,6 +276,8 @@ ccl_device void osl_closure_dielectric_bsdf_setup(KernelGlobals kg,
 
   fresnel->reflection_tint = rgb_to_spectrum(closure->reflection_tint);
   fresnel->transmission_tint = rgb_to_spectrum(closure->transmission_tint);
+  fresnel->thin_film.thickness = closure->thinfilm_thickness;
+  fresnel->thin_film.ior = closure->thinfilm_ior;
   bsdf_microfacet_setup_fresnel_dielectric_tint(kg, bsdf, sd, fresnel, preserve_energy);
 
   if (layer_albedo != NULL) {
@@ -412,6 +427,8 @@ ccl_device void osl_closure_generalized_schlick_bsdf_setup(
   fresnel->f0 = rgb_to_spectrum(closure->f0);
   fresnel->f90 = rgb_to_spectrum(closure->f90);
   fresnel->exponent = closure->exponent;
+  fresnel->thin_film.thickness = closure->thinfilm_thickness;
+  fresnel->thin_film.ior = closure->thinfilm_ior;
   bsdf_microfacet_setup_fresnel_generalized_schlick(kg, bsdf, sd, fresnel, preserve_energy);
 
   if (layer_albedo != NULL) {
@@ -734,6 +751,9 @@ ccl_device void osl_closure_emission_setup(KernelGlobals kg,
                                            ccl_private const GenericEmissiveClosure *closure,
                                            float3 *layer_albedo)
 {
+  if (sd->flag & SD_IS_VOLUME_SHADER_EVAL) {
+    weight *= object_volume_density(kg, sd->object);
+  }
   emission_setup(sd, rgb_to_spectrum(weight));
 }
 
@@ -988,6 +1008,21 @@ ccl_device void osl_closure_hair_huang_setup(KernelGlobals kg,
   bsdf->extra->TT = closure->tt_lobe;
   bsdf->extra->TRT = closure->trt_lobe;
 
+  bsdf->extra->pixel_coverage = 1.0f;
+
+  /* For camera ray, check if the hair covers more than one pixel, in which case a nearfield model
+   * is needed to prevent ribbon-like appearance. */
+  if ((path_flag & PATH_RAY_CAMERA) && (sd->type & PRIMITIVE_CURVE)) {
+    /* Interpolate radius between curve keys. */
+    const KernelCurve kcurve = kernel_data_fetch(curves, sd->prim);
+    const int k0 = kcurve.first_key + PRIMITIVE_UNPACK_SEGMENT(sd->type);
+    const int k1 = k0 + 1;
+    const float radius = mix(
+        kernel_data_fetch(curve_keys, k0).w, kernel_data_fetch(curve_keys, k1).w, sd->u);
+
+    bsdf->extra->pixel_coverage = 0.5f * sd->dP / radius;
+  }
+
   sd->flag |= bsdf_hair_huang_setup(sd, bsdf, path_flag);
 #endif
 }
@@ -1001,7 +1036,7 @@ ccl_device void osl_closure_absorption_setup(KernelGlobals kg,
                                              ccl_private const VolumeAbsorptionClosure *closure,
                                              float3 *layer_albedo)
 {
-  volume_extinction_setup(sd, rgb_to_spectrum(weight));
+  volume_extinction_setup(sd, rgb_to_spectrum(weight * object_volume_density(kg, sd->object)));
 }
 
 ccl_device void osl_closure_henyey_greenstein_setup(
@@ -1012,6 +1047,7 @@ ccl_device void osl_closure_henyey_greenstein_setup(
     ccl_private const VolumeHenyeyGreensteinClosure *closure,
     float3 *layer_albedo)
 {
+  weight *= object_volume_density(kg, sd->object);
   volume_extinction_setup(sd, rgb_to_spectrum(weight));
 
   ccl_private HenyeyGreensteinVolume *volume = (ccl_private HenyeyGreensteinVolume *)bsdf_alloc(

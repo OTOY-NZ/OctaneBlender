@@ -20,14 +20,12 @@
 #include "ED_clip.hh"
 #include "ED_screen.hh"
 
-#include "UI_interface.hh"
-
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
 #include "UI_view2d.hh"
 
-#include "clip_intern.h" /* own include */
+#include "clip_intern.hh" /* own include */
 
 static bool space_clip_dopesheet_poll(bContext *C)
 {

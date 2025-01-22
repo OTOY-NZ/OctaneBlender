@@ -10,6 +10,10 @@
 
 #include "BLI_sys_types.h"
 
+#include "DNA_curve_types.h"
+
+#include "ED_keyframes_keylist.hh"
+
 struct AnimData;
 struct ChannelDrawList;
 struct FCurve;
@@ -26,9 +30,12 @@ struct GreasePencil;
 struct GreasePencilLayer;
 struct GreasePencilLayerTreeGroup;
 
-/* draw simple diamond-shape keyframe */
-/* caller should set up vertex format, bind GPU_SHADER_KEYFRAME_SHAPE,
- * immBegin(GPU_PRIM_POINTS, n), then call this n times */
+/**
+ * Draw simple diamond-shape keyframe.
+ *
+ * The caller should set up vertex format, bind #GPU_SHADER_KEYFRAME_SHAPE,
+ * `immBegin(GPU_PRIM_POINTS, n)`, then call this `n` times.
+ */
 struct KeyframeShaderBindings {
   uint pos_id;
   uint size_id;
@@ -41,8 +48,8 @@ void draw_keyframe_shape(float x,
                          float y,
                          float size,
                          bool sel,
-                         short key_type,
-                         short mode,
+                         eBezTriple_KeyframeType key_type,
+                         eKeyframeShapeDrawOpts mode,
                          float alpha,
                          const KeyframeShaderBindings *sh_bindings,
                          short handle_type,
@@ -65,7 +72,14 @@ void ED_add_action_group_channel(ChannelDrawList *draw_list,
                                  float ypos,
                                  float yscale_fac,
                                  int saction_flag);
-/* Action Summary */
+/* Layered Action Summary.*/
+void ED_add_action_layered_channel(ChannelDrawList *channel_list,
+                                   AnimData *adt,
+                                   bAction *action,
+                                   const float ypos,
+                                   const float yscale_fac,
+                                   int saction_flag);
+/* Legacy Action Summary */
 void ED_add_action_channel(ChannelDrawList *draw_list,
                            AnimData *adt,
                            bAction *act,

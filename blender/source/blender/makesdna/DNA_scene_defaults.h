@@ -10,7 +10,6 @@
 
 #include "DNA_view3d_defaults.h"
 
-/* Struct members on own line. */
 /* clang-format off */
 
 /* -------------------------------------------------------------------- */
@@ -76,7 +75,6 @@
     .framapto = 100, \
     .images = 100, \
     .framelen = 1.0, \
-    .blurfac = 0.5, \
     .frs_sec = 24, \
     .frs_sec_base = 1, \
  \
@@ -129,6 +127,8 @@
     .unit_line_thickness = 1.0f, \
  \
     .ffcodecdata = _DNA_DEFAULT_FFMpegCodecData, \
+ \
+    .motion_blur_shutter = 0.5f, \
   }
 
 #define _DNA_DEFAULT_AudioData \
@@ -164,8 +164,7 @@
                     RAYTRACE_EEVEE_DENOISE_BILATERAL, \
     .screen_trace_quality = 0.25f, \
     .screen_trace_thickness = 0.2f, \
-    .screen_trace_max_roughness = 0.5f, \
-    .sample_clamp = 10.0f, \
+    .trace_max_roughness = 0.5f, \
     .resolution_scale = 2, \
   }
 
@@ -185,6 +184,7 @@
     .gi_irradiance_smoothing = 0.1f, \
     .gi_filter_quality = 3.0f, \
     .gi_irradiance_pool_size = 16, \
+    .shadow_pool_size = 512, \
  \
     .taa_samples = 16, \
     .taa_render_samples = 64, \
@@ -212,6 +212,14 @@
     .gtao_quality = 0.25f, \
     .gtao_thickness = 0.5f, \
     .gtao_focus = 0.05f, \
+    .gtao_resolution = 2, \
+ \
+    .fast_gi_step_count = 8, \
+    .fast_gi_ray_count = 2, \
+    .fast_gi_distance = 0.0f, \
+    .fast_gi_thickness_near = 0.25f, \
+    .fast_gi_thickness_far = DEG2RAD(45), \
+    .fast_gi_method = FAST_GI_FULL, \
  \
     .bokeh_overblur = 5.0f, \
     .bokeh_max_size = 100.0f, \
@@ -226,22 +234,22 @@
     .bloom_radius = 6.5f, \
     .bloom_clamp = 0.0f, \
  \
-    .motion_blur_shutter = 0.5f, \
     .motion_blur_depth_scale = 100.0f, \
     .motion_blur_max = 32, \
     .motion_blur_steps = 1, \
  \
+    .clamp_surface_indirect = 10.0f, \
+\
     .shadow_cube_size = 512, \
     .shadow_cascade_size = 1024, \
     .shadow_ray_count = 1, \
     .shadow_step_count = 6, \
-    .shadow_normal_bias = 0.02f, \
+    .shadow_resolution_scale = 1.0f, \
  \
     .ray_tracing_method = RAYTRACE_EEVEE_METHOD_SCREEN, \
  \
     .ray_tracing_options = _DNA_DEFAULT_RaytraceEEVEE, \
  \
-    .light_cache_data = NULL, \
     .light_threshold = 0.01f, \
  \
     .overscan = 3.0f, \
@@ -378,6 +386,10 @@
     .snap_flag_anim = SCE_SNAP, \
     .snap_transform_mode_flag = SCE_SNAP_TRANSFORM_MODE_TRANSLATE, \
     .snap_face_nearest_steps = 1, \
+    .snap_angle_increment_3d = DEG2RADF(5.0f), \
+    .snap_angle_increment_2d = DEG2RADF(5.0f), \
+    .snap_angle_increment_3d_precision = DEG2RADF(1.0f), \
+    .snap_angle_increment_2d_precision = DEG2RADF(1.0f), \
  \
     .curve_paint_settings = _DNA_DEFAULTS_CurvePaintSettings, \
  \
@@ -403,8 +415,7 @@
  \
     /* UV painting */ \
     .uv_sculpt_settings = 0, \
-    .uv_relax_method = UV_SCULPT_TOOL_RELAX_LAPLACIAN, \
-\
+ \
     /* Placement */ \
     .snap_mode_tools = SCE_SNAP_TO_GEOM,\
     .plane_axis = 2,\

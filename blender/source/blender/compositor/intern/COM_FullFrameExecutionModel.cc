@@ -6,11 +6,15 @@
 
 #include "BLI_string.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "COM_Debug.h"
 #include "COM_ViewerOperation.h"
 #include "COM_WorkScheduler.h"
+
+#include "COM_profiler.hh"
+
+#include "BLI_timeit.hh"
 
 #ifdef WITH_CXX_GUARDEDALLOC
 #  include "MEM_guardedalloc.h"
@@ -26,10 +30,8 @@ FullFrameExecutionModel::FullFrameExecutionModel(CompositorContext &context,
       num_operations_finished_(0)
 {
   priorities_.append(eCompositorPriority::High);
-  if (!context.is_fast_calculation()) {
-    priorities_.append(eCompositorPriority::Medium);
-    priorities_.append(eCompositorPriority::Low);
-  }
+  priorities_.append(eCompositorPriority::Medium);
+  priorities_.append(eCompositorPriority::Low);
 }
 
 void FullFrameExecutionModel::execute(ExecutionSystem &exec_system)
@@ -101,6 +103,8 @@ void FullFrameExecutionModel::render_operation(NodeOperation *op)
   constexpr int output_x = 0;
   constexpr int output_y = 0;
 
+  const timeit::TimePoint before_time = timeit::Clock::now();
+
   const bool has_outputs = op->get_number_of_output_sockets() > 0;
   MemoryBuffer *op_buf = has_outputs ? create_operation_buffer(op, output_x, output_y) : nullptr;
   if (op->get_width() > 0 && op->get_height() > 0) {
@@ -120,13 +124,21 @@ void FullFrameExecutionModel::render_operation(NodeOperation *op)
   active_buffers_.set_rendered_buffer(op, std::unique_ptr<MemoryBuffer>(op_buf));
 
   operation_finished(op);
+
+  /* The operation may not come from any node. For example, it may have been added to convert data
+   * type. Do not accumulate time from its execution. */
+  const timeit::TimePoint after_time = timeit::Clock::now();
+  const bNodeInstanceKey node_instance_key = op->get_node_instance_key();
+  if (context_.get_profiler() && node_instance_key != bke::NODE_INSTANCE_KEY_NONE) {
+    context_.get_profiler()->set_node_evaluation_time(node_instance_key, after_time - before_time);
+  }
 }
 
 void FullFrameExecutionModel::render_operations()
 {
   const bool is_rendering = context_.is_rendering();
 
-  WorkScheduler::start(this->context_);
+  WorkScheduler::start();
   for (eCompositorPriority priority : priorities_) {
     for (NodeOperation *op : operations_) {
       const bool has_size = op->get_width() > 0 && op->get_height() > 0;

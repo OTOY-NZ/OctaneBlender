@@ -10,9 +10,7 @@
 #include <cstring>
 
 #include "DNA_action_types.h"
-#include "DNA_anim_types.h"
 #include "DNA_collection_types.h"
-#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
 #include "MEM_guardedalloc.h"
@@ -23,7 +21,6 @@
 #include "BKE_context.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_lib_remap.hh"
-#include "BKE_nla.h"
 #include "BKE_screen.hh"
 
 #include "RNA_access.hh"
@@ -46,7 +43,7 @@
 
 #include "BLO_read_write.hh"
 
-#include "GPU_matrix.h"
+#include "GPU_matrix.hh"
 
 #include "action_intern.hh" /* own include */
 
@@ -288,9 +285,6 @@ static void action_channel_region_draw(const bContext *C, ARegion *region)
   /* clear and setup matrix */
   UI_ThemeClearColor(TH_BACK);
 
-  /* channel filter next to scrubbing area */
-  ED_time_scrub_channel_search_draw(C, region, ac.ads);
-
   if (!has_valid_animcontext) {
     return;
   }
@@ -309,6 +303,9 @@ static void action_channel_region_draw(const bContext *C, ARegion *region)
 
   UI_view2d_view_ortho(v2d);
   draw_channel_names((bContext *)C, &ac, region, anim_data);
+
+  /* channel filter next to scrubbing area */
+  ED_time_scrub_channel_search_draw(C, region, ac.ads);
 
   /* reset view matrix */
   UI_view2d_view_restore(C);
@@ -394,7 +391,7 @@ static void saction_channel_region_message_subscribe(const wmRegionMessageSubscr
   msg_sub_value_region_tag_redraw.notify = ED_region_do_msg_notify_tag_redraw;
 
   /* All dopesheet filter settings, etc. affect the drawing of this editor,
-   * also same applies for all animation-related datatypes that may appear here,
+   * also same applies for all animation-related data-types that may appear here,
    * so just whitelist the entire structs for updates
    */
   {
@@ -807,13 +804,15 @@ static void action_refresh(const bContext *C, ScrArea *area)
   /* XXX re-sizing y-extents of tot should go here? */
 }
 
-static void action_id_remap(ScrArea * /*area*/, SpaceLink *slink, const IDRemapper *mappings)
+static void action_id_remap(ScrArea * /*area*/,
+                            SpaceLink *slink,
+                            const blender::bke::id::IDRemapper &mappings)
 {
   SpaceAction *sact = (SpaceAction *)slink;
 
-  BKE_id_remapper_apply(mappings, (ID **)&sact->action, ID_REMAP_APPLY_DEFAULT);
-  BKE_id_remapper_apply(mappings, (ID **)&sact->ads.filter_grp, ID_REMAP_APPLY_DEFAULT);
-  BKE_id_remapper_apply(mappings, &sact->ads.source, ID_REMAP_APPLY_DEFAULT);
+  mappings.apply(reinterpret_cast<ID **>(&sact->action), ID_REMAP_APPLY_DEFAULT);
+  mappings.apply(reinterpret_cast<ID **>(&sact->ads.filter_grp), ID_REMAP_APPLY_DEFAULT);
+  mappings.apply(&sact->ads.source, ID_REMAP_APPLY_DEFAULT);
 }
 
 static void action_foreach_id(SpaceLink *space_link, LibraryForeachIDData *data)
@@ -822,11 +821,11 @@ static void action_foreach_id(SpaceLink *space_link, LibraryForeachIDData *data)
   const int data_flags = BKE_lib_query_foreachid_process_flags_get(data);
   const bool is_readonly = (data_flags & IDWALK_READONLY) != 0;
 
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, sact->action, IDWALK_CB_NOP);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, sact->action, IDWALK_CB_DIRECT_WEAK_LINK);
 
   /* NOTE: Could be deduplicated with the #bDopeSheet handling of #SpaceNla and #SpaceGraph. */
-  BKE_LIB_FOREACHID_PROCESS_ID(data, sact->ads.source, IDWALK_CB_NOP);
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, sact->ads.filter_grp, IDWALK_CB_NOP);
+  BKE_LIB_FOREACHID_PROCESS_ID(data, sact->ads.source, IDWALK_CB_DIRECT_WEAK_LINK);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, sact->ads.filter_grp, IDWALK_CB_DIRECT_WEAK_LINK);
 
   if (!is_readonly) {
     /* Force recalc of list of channels, potentially updating the active action while we're

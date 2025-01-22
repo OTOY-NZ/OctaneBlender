@@ -66,6 +66,7 @@ class MetalDeviceQueue : public DeviceQueue {
   id<MTLSharedEvent> shared_event_ = nil;
   API_AVAILABLE(macos(10.14), ios(14.0))
   MTLSharedEventListener *shared_event_listener_ = nil;
+  MetalDispatchPipeline active_pipelines_[DEVICE_KERNEL_NUM];
 
   dispatch_queue_t event_queue_;
   dispatch_semaphore_t wait_semaphore_;
@@ -96,10 +97,13 @@ class MetalDeviceQueue : public DeviceQueue {
     uint64_t timing_id;
   };
   std::vector<TimingData> command_encoder_labels_;
-  API_AVAILABLE(macos(10.14), ios(14.0))
-  id<MTLSharedEvent> timing_shared_event_ = nil;
-  uint64_t timing_shared_event_id_;
-  uint64_t command_buffer_start_timing_id_;
+  bool profiling_enabled_ = false;
+  uint64_t current_encoder_idx_ = 0;
+
+  id<MTLCounterSampleBuffer> counter_sample_buffer_ = nil;
+  std::atomic<uint64_t> counter_sample_buffer_curr_idx_ = 0;
+
+  void flush_timing_stats();
 
   struct TimingStats {
     double total_time = 0.0;

@@ -27,13 +27,12 @@
 #include "WM_types.hh"
 
 #include "ED_mask.hh" /* own include */
-#include "ED_screen.hh"
 #include "ED_select_utils.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
-#include "mask_intern.h" /* own include */
+#include "mask_intern.hh" /* own include */
 
 /* -------------------------------------------------------------------- */
 /** \name Add Vertex

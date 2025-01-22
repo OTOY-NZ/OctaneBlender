@@ -12,19 +12,14 @@
 #include "BLI_task.h"
 #include "BLI_time.h"
 
-#include "DNA_brush_types.h"
-#include "DNA_mesh_types.h"
-#include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 
-#include "BKE_ccg.h"
+#include "BKE_ccg.hh"
 #include "BKE_context.hh"
 #include "BKE_layer.hh"
 #include "BKE_multires.hh"
 #include "BKE_paint.hh"
 #include "BKE_pbvh_api.hh"
-
-#include "DEG_depsgraph.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -50,16 +45,16 @@ enum eSculptMaskInitMode {
   SCULPT_MASK_INIT_RANDOM_PER_LOOSE_PART,
 };
 
-static void mask_init_task(Object *ob,
+static void mask_init_task(Object &ob,
                            const int mode,
                            const int seed,
                            const SculptMaskWriteInfo mask_write,
                            PBVHNode *node)
 {
-  SculptSession *ss = ob->sculpt;
+  SculptSession &ss = *ob.sculpt;
   PBVHVertexIter vd;
   undo::push_node(ob, node, undo::Type::Mask);
-  BKE_pbvh_vertex_iter_begin (ss->pbvh, node, vd, PBVH_ITER_UNIQUE) {
+  BKE_pbvh_vertex_iter_begin (*ss.pbvh, node, vd, PBVH_ITER_UNIQUE) {
     float mask;
     switch (mode) {
       case SCULPT_MASK_INIT_RANDOM_PER_VERTEX:
@@ -74,7 +69,7 @@ static void mask_init_task(Object *ob,
         mask = BLI_hash_int_01(SCULPT_vertex_island_get(ss, vd.vertex) + seed);
         break;
     }
-    SCULPT_mask_vert_set(BKE_pbvh_type(ss->pbvh), mask_write, mask, vd);
+    SCULPT_mask_vert_set(BKE_pbvh_type(*ss.pbvh), mask_write, mask, vd);
   }
   BKE_pbvh_vertex_iter_end;
   BKE_pbvh_node_mark_update_mask(node);
@@ -82,8 +77,8 @@ static void mask_init_task(Object *ob,
 
 static int sculpt_mask_init_exec(bContext *C, wmOperator *op)
 {
-  Object *ob = CTX_data_active_object(C);
-  SculptSession *ss = ob->sculpt;
+  Object &ob = *CTX_data_active_object(C);
+  SculptSession &ss = *ob.sculpt;
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
 
   const View3D *v3d = CTX_wm_view3d(C);
@@ -94,12 +89,12 @@ static int sculpt_mask_init_exec(bContext *C, wmOperator *op)
 
   const int mode = RNA_enum_get(op->ptr, "mode");
 
-  MultiresModifierData *mmd = BKE_sculpt_multires_active(CTX_data_scene(C), ob);
-  BKE_sculpt_mask_layers_ensure(depsgraph, CTX_data_main(C), ob, mmd);
+  MultiresModifierData *mmd = BKE_sculpt_multires_active(CTX_data_scene(C), &ob);
+  BKE_sculpt_mask_layers_ensure(depsgraph, CTX_data_main(C), &ob, mmd);
 
-  BKE_sculpt_update_object_for_edit(depsgraph, ob, false);
+  BKE_sculpt_update_object_for_edit(depsgraph, &ob, false);
 
-  PBVH *pbvh = ob->sculpt->pbvh;
+  PBVH &pbvh = *ob.sculpt->pbvh;
   Vector<PBVHNode *> nodes = bke::pbvh::search_gather(pbvh, {});
 
   if (nodes.is_empty()) {
@@ -112,7 +107,7 @@ static int sculpt_mask_init_exec(bContext *C, wmOperator *op)
     SCULPT_topology_islands_ensure(ob);
   }
 
-  const int mask_init_seed = BLI_check_seconds_timer();
+  const int mask_init_seed = BLI_time_now_seconds();
 
   const SculptMaskWriteInfo mask_write = SCULPT_mask_get_for_write(ss);
   threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
@@ -121,11 +116,11 @@ static int sculpt_mask_init_exec(bContext *C, wmOperator *op)
     }
   });
 
-  multires_stitch_grids(ob);
+  multires_stitch_grids(&ob);
 
   undo::push_end(ob);
 
-  bke::pbvh::update_mask(*ss->pbvh);
+  bke::pbvh::update_mask(*ss.pbvh);
   SCULPT_tag_update_overlays(C);
   return OPERATOR_FINISHED;
 }

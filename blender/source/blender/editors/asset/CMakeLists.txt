@@ -26,7 +26,6 @@ set(SRC
   intern/asset_handle.cc
   intern/asset_import.cc
   intern/asset_indexer.cc
-  intern/asset_library_reference.cc
   intern/asset_library_reference_enum.cc
   intern/asset_list.cc
   intern/asset_mark_clear.cc
@@ -35,6 +34,7 @@ set(SRC
   intern/asset_shelf.cc
   intern/asset_shelf_asset_view.cc
   intern/asset_shelf_catalog_selector.cc
+  intern/asset_shelf_popup.cc
   intern/asset_shelf_regiondata.cc
   intern/asset_shelf_settings.cc
   intern/asset_temp_id_consumer.cc

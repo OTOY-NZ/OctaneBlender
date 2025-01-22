@@ -16,7 +16,7 @@
 #include "BLI_stack.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_brush_types.h"
 #include "DNA_gpencil_legacy_types.h"
@@ -26,17 +26,15 @@
 #include "DNA_object_types.h"
 #include "DNA_windowmanager_types.h"
 
-#include "BKE_brush.hh"
 #include "BKE_context.hh"
 #include "BKE_deform.hh"
 #include "BKE_gpencil_geom_legacy.h"
 #include "BKE_gpencil_legacy.h"
 #include "BKE_image.h"
 #include "BKE_lib_id.hh"
-#include "BKE_main.hh"
 #include "BKE_material.h"
 #include "BKE_paint.hh"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 #include "BKE_screen.hh"
 
 #include "ED_gpencil_legacy.hh"
@@ -52,10 +50,10 @@
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 
-#include "GPU_framebuffer.h"
-#include "GPU_immediate.h"
-#include "GPU_matrix.h"
-#include "GPU_state.h"
+#include "GPU_framebuffer.hh"
+#include "GPU_immediate.hh"
+#include "GPU_matrix.hh"
+#include "GPU_state.hh"
 
 #include "UI_interface.hh"
 
@@ -63,9 +61,8 @@
 #include "WM_types.hh"
 
 #include "DEG_depsgraph.hh"
-#include "DEG_depsgraph_query.hh"
 
-#include "gpencil_intern.h"
+#include "gpencil_intern.hh"
 
 #define LEAK_HORZ 0
 #define LEAK_VERT 1
@@ -261,8 +258,11 @@ static void gpencil_delete_temp_stroke_extension(tGPDfill *tgpf, const bool all_
   }
 }
 
-static bool extended_bbox_overlap(
-    float min1[3], float max1[3], float min2[3], float max2[3], float extend)
+static bool extended_bbox_overlap(const float min1[3],
+                                  const float max1[3],
+                                  const float min2[3],
+                                  const float max2[3],
+                                  float extend)
 {
   for (int axis = 0; axis < 3; axis++) {
     float intersection_min = max_ff(min1[axis], min2[axis]) - extend;

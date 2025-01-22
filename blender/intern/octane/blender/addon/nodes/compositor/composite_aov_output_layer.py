@@ -275,7 +275,7 @@ class OctaneCompositeAOVOutputLayer(bpy.types.Node, OctaneBaseNode):
         ("2021.1.2 compatibility mode (with 2021.1 blend)", "2021.1.2 compatibility mode (with 2021.1 blend)", """"Blend mode" alpha operation uses incorrect math. This applies in addition to 2021.1.2 compatibility mode behavior.""", 11000297),
         ("2021.1 compatibility mode", "2021.1 compatibility mode", """"Blend mode" alpha operation uses incorrect math, and opacity affects all channels, not just alpha. This applies in addition to 2021.1.2 compatibility mode behavior.""", 0),
     ]
-    a_compatibility_version_enum: EnumProperty(name="Compatibility version", default="Latest (2022.1)", update=OctaneBaseNode.update_compatibility_mode, description="The Octane version that the behavior of this node should match", items=compatibility_mode_infos)
+    a_compatibility_version_enum: EnumProperty(name="Compatibility version", default="Latest (2022.1)", update=OctaneBaseNode.update_compatibility_mode_to_int, description="The Octane version that the behavior of this node should match", items=compatibility_mode_infos)
 
     a_compatibility_version: IntProperty(name="Compatibility version", default=12000102, update=OctaneBaseNode.update_node_tree, description="The Octane version that the behavior of this node should match")
 

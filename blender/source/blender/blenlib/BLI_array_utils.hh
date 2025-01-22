@@ -191,6 +191,18 @@ inline void gather_group_to_group(const OffsetIndices<int> src_offsets,
 }
 
 template<typename T>
+inline void gather_group_to_group(const OffsetIndices<int> src_offsets,
+                                  const OffsetIndices<int> dst_offsets,
+                                  const IndexMask &selection,
+                                  const VArray<T> src,
+                                  MutableSpan<T> dst)
+{
+  selection.foreach_index(GrainSize(512), [&](const int64_t src_i, const int64_t dst_i) {
+    src.materialize_compressed(src_offsets[src_i], dst.slice(dst_offsets[dst_i]));
+  });
+}
+
+template<typename T>
 inline void gather_to_groups(const OffsetIndices<int> dst_offsets,
                              const IndexMask &src_selection,
                              const Span<T> src,
@@ -261,7 +273,7 @@ template<typename T> inline Vector<IndexRange> find_all_ranges(const Span<T> spa
   int64_t length = (span.first() == value) ? 1 : 0;
   for (const int64_t i : span.index_range().drop_front(1)) {
     if (span[i - 1] == value && span[i] != value) {
-      ranges.append(IndexRange(i - length, length));
+      ranges.append(IndexRange::from_end_size(i, length));
       length = 0;
     }
     else if (span[i] == value) {
@@ -269,7 +281,7 @@ template<typename T> inline Vector<IndexRange> find_all_ranges(const Span<T> spa
     }
   }
   if (length > 0) {
-    ranges.append(IndexRange(span.size() - length, length));
+    ranges.append(IndexRange::from_end_size(span.size(), length));
   }
   return ranges;
 }
@@ -288,10 +300,10 @@ bool indexed_data_equal(const Span<T> all_values, const Span<int> indices, const
 {
   for (const int i : indices.index_range()) {
     if (all_values[indices[i]] != values[i]) {
-      return true;
+      return false;
     }
   }
-  return false;
+  return true;
 }
 
 bool indices_are_range(Span<int> indices, IndexRange range);

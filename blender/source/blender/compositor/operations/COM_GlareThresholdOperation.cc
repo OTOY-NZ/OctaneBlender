@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_math_base.hh"
+#include "BLI_math_color.h"
+#include "BLI_utildefines.h"
+
 #include "COM_GlareThresholdOperation.h"
 
 #include "IMB_colormanagement.hh"
@@ -12,7 +16,6 @@ GlareThresholdOperation::GlareThresholdOperation()
 {
   this->add_input_socket(DataType::Color, ResizeMode::FitAny);
   this->add_output_socket(DataType::Color);
-  input_program_ = nullptr;
 
   flags_.can_be_constant = true;
 }
@@ -26,55 +29,20 @@ void GlareThresholdOperation::determine_canvas(const rcti &preferred_area, rcti 
   r_area.ymax = r_area.ymin + height;
 }
 
-void GlareThresholdOperation::init_execution()
-{
-  input_program_ = this->get_input_socket_reader(0);
-}
-
-void GlareThresholdOperation::execute_pixel_sampled(float output[4],
-                                                    float x,
-                                                    float y,
-                                                    PixelSampler sampler)
-{
-  const float threshold = settings_->threshold;
-
-  input_program_->read_sampled(output, x, y, sampler);
-  if (IMB_colormanagement_get_luminance(output) >= threshold) {
-    output[0] -= threshold;
-    output[1] -= threshold;
-    output[2] -= threshold;
-
-    output[0] = std::max(output[0], 0.0f);
-    output[1] = std::max(output[1], 0.0f);
-    output[2] = std::max(output[2], 0.0f);
-  }
-  else {
-    zero_v3(output);
-  }
-}
-
-void GlareThresholdOperation::deinit_execution()
-{
-  input_program_ = nullptr;
-}
-
 void GlareThresholdOperation::update_memory_buffer_partial(MemoryBuffer *output,
                                                            const rcti &area,
                                                            Span<MemoryBuffer *> inputs)
 {
   const float threshold = settings_->threshold;
   for (BuffersIterator<float> it = output->iterate_with(inputs, area); !it.is_end(); ++it) {
-    const float *color = it.in(0);
-    if (IMB_colormanagement_get_luminance(color) >= threshold) {
-      it.out[0] = color[0] - threshold;
-      it.out[1] = color[1] - threshold;
-      it.out[2] = color[2] - threshold;
+    float4 hsva;
+    rgb_to_hsv_v(it.in(0), hsva);
 
-      CLAMP3_MIN(it.out, 0.0f);
-    }
-    else {
-      zero_v3(it.out);
-    }
+    hsva.z = math::max(0.0f, hsva.z - threshold);
+
+    hsv_to_rgb_v(hsva, it.out);
+    CLAMP3_MIN(it.out, 0.0f);
+    it.out[3] = 1.0f;
   }
 }
 

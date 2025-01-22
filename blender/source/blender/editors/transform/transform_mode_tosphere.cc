@@ -15,14 +15,13 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BKE_context.hh"
 #include "BKE_unit.hh"
 
 #include "ED_screen.hh"
 
 #include "UI_interface.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "transform.hh"
 #include "transform_convert.hh"
@@ -190,7 +189,7 @@ static void applyToSphere(TransInfo *t)
 
   t->values_final[0] = ratio;
 
-  /* header print for NumInput */
+  /* Header print for NumInput. */
   if (hasNumInput(&t->num)) {
     char c[NUM_STR_REP_LEN];
 
@@ -199,7 +198,7 @@ static void applyToSphere(TransInfo *t)
     SNPRINTF(str, IFACE_("To Sphere: %s %s"), c, t->proptext);
   }
   else {
-    /* default header print */
+    /* Default header print. */
     SNPRINTF(str, IFACE_("To Sphere: %.4f %s"), ratio, t->proptext);
   }
 

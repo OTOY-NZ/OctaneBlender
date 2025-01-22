@@ -16,23 +16,20 @@
 #include "DNA_scene_types.h"
 #include "DNA_userdef_types.h"
 
-#include "BLI_easing.h"
 #include "BLI_link_utils.h"
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_memarena.h"
 #include "BLI_rect.h"
-#include "BLI_string.h"
-#include "BLI_timecode.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
-#include "BKE_global.h"
+#include "BKE_global.hh"
 #include "BKE_screen.hh"
 
-#include "GPU_immediate.h"
-#include "GPU_matrix.h"
-#include "GPU_state.h"
+#include "GPU_immediate.hh"
+#include "GPU_matrix.hh"
+#include "GPU_state.hh"
 
 #include "WM_api.hh"
 
@@ -43,7 +40,6 @@
 #include "UI_interface.hh"
 #include "UI_view2d.hh"
 
-#include "interface_intern.hh"
 #include "view2d_intern.hh"
 
 static void ui_view2d_curRect_validate_resize(View2D *v2d, bool resize);
@@ -2160,7 +2156,7 @@ void UI_view2d_text_cache_draw(ARegion *region)
     }
 
     if (col_pack_prev != v2s->col.pack) {
-      BLF_color3ubv(font_id, v2s->col.ub);
+      BLF_color4ubv(font_id, v2s->col.ub);
       col_pack_prev = v2s->col.pack;
     }
 

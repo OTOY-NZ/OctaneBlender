@@ -10,9 +10,7 @@
 
 #include "DNA_armature_types.h"
 #include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
-#include "DNA_scene_types.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -24,13 +22,11 @@
 #include "BKE_armature.hh"
 #include "BKE_attribute.hh"
 #include "BKE_deform.hh"
-#include "BKE_mesh.hh"
 #include "BKE_mesh_iterators.hh"
-#include "BKE_mesh_runtime.hh"
 #include "BKE_modifier.hh"
 #include "BKE_object.hh"
 #include "BKE_object_deform.h"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 #include "BKE_subsurf.hh"
 
 #include "DEG_depsgraph.hh"
@@ -38,6 +34,7 @@
 
 #include "ED_armature.hh"
 #include "ED_mesh.hh"
+#include "ED_object_vgroup.hh"
 
 #include "ANIM_bone_collections.hh"
 
@@ -246,19 +243,19 @@ static void envelope_bone_weighting(Object *ob,
 
       /* add the vert to the deform group if (weight != 0.0) */
       if (distance != 0.0f) {
-        ED_vgroup_vert_add(ob, dgroup, i, distance, WEIGHT_REPLACE);
+        blender::ed::object::vgroup_vert_add(ob, dgroup, i, distance, WEIGHT_REPLACE);
       }
       else {
-        ED_vgroup_vert_remove(ob, dgroup, i);
+        blender::ed::object::vgroup_vert_remove(ob, dgroup, i);
       }
 
       /* do same for mirror */
       if (dgroupflip && dgroupflip[j] && iflip != -1) {
         if (distance != 0.0f) {
-          ED_vgroup_vert_add(ob, dgroupflip[j], iflip, distance, WEIGHT_REPLACE);
+          blender::ed::object::vgroup_vert_add(ob, dgroupflip[j], iflip, distance, WEIGHT_REPLACE);
         }
         else {
-          ED_vgroup_vert_remove(ob, dgroupflip[j], iflip);
+          blender::ed::object::vgroup_vert_remove(ob, dgroupflip[j], iflip);
         }
       }
     }
@@ -380,8 +377,8 @@ static void add_verts_to_dgroups(ReportList *reports,
       copy_v3_v3(tip[j], bone->arm_tail);
     }
 
-    mul_m4_v3(par->object_to_world, root[j]);
-    mul_m4_v3(par->object_to_world, tip[j]);
+    mul_m4_v3(par->object_to_world().ptr(), root[j]);
+    mul_m4_v3(par->object_to_world().ptr(), tip[j]);
 
     /* set selected */
     if (wpmode) {
@@ -410,9 +407,9 @@ static void add_verts_to_dgroups(ReportList *reports,
   if (wpmode) {
     /* if in weight paint mode, use final verts from evaluated mesh */
     const Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
-    const Mesh *me_eval = BKE_object_get_evaluated_mesh(ob_eval);
-    if (me_eval) {
-      BKE_mesh_foreach_mapped_vert_coords_get(me_eval, verts, mesh->verts_num);
+    const Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob_eval);
+    if (mesh_eval) {
+      BKE_mesh_foreach_mapped_vert_coords_get(mesh_eval, verts, mesh->verts_num);
       vertsfilled = 1;
     }
   }
@@ -430,7 +427,7 @@ static void add_verts_to_dgroups(ReportList *reports,
     if (!vertsfilled) {
       copy_v3_v3(verts[i], positions[i]);
     }
-    mul_m4_v3(ob->object_to_world, verts[i]);
+    mul_m4_v3(ob->object_to_world().ptr(), verts[i]);
   }
 
   /* compute the weights based on gathered vertices and bones */
@@ -454,7 +451,7 @@ static void add_verts_to_dgroups(ReportList *reports,
                             root,
                             tip,
                             selected,
-                            mat4_to_scale(par->object_to_world));
+                            mat4_to_scale(par->object_to_world().ptr()));
   }
 
   /* only generated in some cases but can call anyway */
@@ -495,7 +492,7 @@ void ED_object_vgroup_calc_from_armature(ReportList *reports,
     if (defbase_add) {
       /* It's possible there are DWeights outside the range of the current
        * object's deform groups. In this case the new groups won't be empty #33889. */
-      ED_vgroup_data_clamp_range(static_cast<ID *>(ob->data), defbase_tot);
+      blender::ed::object::vgroup_data_clamp_range(static_cast<ID *>(ob->data), defbase_tot);
     }
   }
   else if (ELEM(mode, ARM_GROUPS_ENVELOPE, ARM_GROUPS_AUTO)) {

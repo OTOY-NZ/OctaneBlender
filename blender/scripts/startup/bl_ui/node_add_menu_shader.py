@@ -7,6 +7,7 @@ from bpy.types import Menu
 from bl_ui import node_add_menu
 from bpy.app.translations import (
     pgettext_iface as iface_,
+    contexts as i18n_contexts,
 )
 
 
@@ -186,6 +187,11 @@ class NODE_MT_category_shader_shader(Menu):
         )
         node_add_menu.add_node_type(
             layout,
+            "ShaderNodeBsdfRayPortal",
+            poll=object_not_eevee_shader_nodes_poll(context),
+        )
+        node_add_menu.add_node_type(
+            layout,
             "ShaderNodeBsdfRefraction",
             poll=object_shader_nodes_poll(context),
         )
@@ -347,6 +353,7 @@ class NODE_MT_category_shader_group(Menu):
 class NODE_MT_shader_node_add_all(Menu):
     bl_idname = "NODE_MT_shader_node_add_all"
     bl_label = "Add"
+    bl_translation_context = i18n_contexts.operator_default
 
     def draw(self, _context):
         layout = self.layout

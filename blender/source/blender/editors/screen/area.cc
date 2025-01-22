@@ -20,20 +20,17 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
-#include "BKE_global.h"
-#include "BKE_image.h"
+#include "BKE_global.hh"
 #include "BKE_screen.hh"
-#include "BKE_workspace.h"
+#include "BKE_workspace.hh"
 
 #include "RNA_access.hh"
-#include "RNA_types.hh"
 
 #include "WM_api.hh"
 #include "WM_message.hh"
 #include "WM_toolsystem.hh"
 #include "WM_types.hh"
 
-#include "ED_asset.hh"
 #include "ED_asset_shelf.hh"
 #include "ED_buttons.hh"
 #include "ED_screen.hh"
@@ -41,15 +38,14 @@
 #include "ED_space_api.hh"
 #include "ED_time_scrub_ui.hh"
 
-#include "GPU_framebuffer.h"
-#include "GPU_immediate.h"
-#include "GPU_immediate_util.h"
-#include "GPU_matrix.h"
-#include "GPU_state.h"
+#include "GPU_framebuffer.hh"
+#include "GPU_immediate.hh"
+#include "GPU_immediate_util.hh"
+#include "GPU_matrix.hh"
+#include "GPU_state.hh"
 
 #include "BLF_api.hh"
 
-#include "IMB_imbuf_types.hh"
 #include "IMB_metadata.hh"
 
 #include "UI_interface.hh"
@@ -57,7 +53,7 @@
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
 
-#include "screen_intern.h"
+#include "screen_intern.hh"
 
 enum RegionEmbossSide {
   REGION_EMBOSS_LEFT = (1 << 0),
@@ -838,34 +834,151 @@ void ED_area_status_text(ScrArea *area, const char *str)
   }
 }
 
-void ED_workspace_status_text(bContext *C, const char *str)
-{
-  wmWindow *win = CTX_wm_window(C);
-  WorkSpace *workspace = CTX_wm_workspace(C);
+/* *************************************************************** */
 
+static void ed_workspace_status_item(WorkSpace *workspace,
+                                     std::string text,
+                                     const int icon,
+                                     const float space_factor = 0.0f,
+                                     const bool inverted = false)
+{
   /* Can be nullptr when running operators in background mode. */
   if (workspace == nullptr) {
     return;
   }
 
-  if (str) {
-    if (workspace->status_text == nullptr) {
-      workspace->status_text = static_cast<char *>(MEM_mallocN(UI_MAX_DRAW_STR, "headerprint"));
-    }
-    BLI_strncpy(workspace->status_text, str, UI_MAX_DRAW_STR);
-  }
-  else {
-    MEM_SAFE_FREE(workspace->status_text);
-  }
+  blender::bke::WorkSpaceStatusItem item;
+  item.text = std::move(text);
+  item.icon = icon;
+  item.space_factor = space_factor;
+  item.inverted = inverted;
+  workspace->runtime->status.append(std::move(item));
+}
 
-  /* Redraw status bar. */
-  LISTBASE_FOREACH (ScrArea *, area, &win->global_areas.areabase) {
-    if (area->spacetype == SPACE_STATUSBAR) {
-      ED_area_tag_redraw(area);
-      break;
+static void ed_workspace_status_space(WorkSpace *workspace, const float space_factor)
+{
+  ed_workspace_status_item(workspace, {}, ICON_NONE, space_factor);
+}
+
+WorkspaceStatus::WorkspaceStatus(bContext *C)
+{
+  workspace_ = CTX_wm_workspace(C);
+  wm_ = CTX_wm_manager(C);
+  if (workspace_) {
+    BKE_workspace_status_clear(workspace_);
+  }
+  ED_area_tag_redraw(WM_window_status_area_find(CTX_wm_window(C), CTX_wm_screen(C)));
+}
+
+/* -------------------------------------------------------------------- */
+/** \name Private helper functions to help ensure consistent spacing
+ * \{ */
+
+static constexpr float STATUS_AFTER_TEXT = 0.7f;
+static constexpr float STATUS_BEFORE_TEXT = 0.3f;
+static constexpr float STATUS_MOUSE_ICON_PAD = -0.5f;
+
+static void ed_workspace_status_text_item(WorkSpace *workspace, std::string text)
+{
+  if (!text.empty()) {
+    ed_workspace_status_space(workspace, STATUS_BEFORE_TEXT);
+    ed_workspace_status_item(workspace, std::move(text), ICON_NONE);
+    ed_workspace_status_space(workspace, STATUS_AFTER_TEXT);
+  }
+}
+
+static void ed_workspace_status_mouse_item(WorkSpace *workspace,
+                                           const int icon,
+                                           const bool inverted = false)
+{
+  if (icon) {
+    if (icon >= ICON_MOUSE_LMB && icon <= ICON_MOUSE_RMB_DRAG) {
+      /* Negative space before all narrow mice icons. */
+      ed_workspace_status_space(workspace, STATUS_MOUSE_ICON_PAD);
+    }
+    ed_workspace_status_item(workspace, {}, icon, 0.0f, inverted);
+    if (icon >= ICON_MOUSE_LMB && icon <= ICON_MOUSE_RMB) {
+      /* Negative space after non-drag mice icons. */
+      ed_workspace_status_space(workspace, STATUS_MOUSE_ICON_PAD);
     }
   }
 }
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Public Functions
+ * \{ */
+
+void WorkspaceStatus::item(std::string text, const int icon1, const int icon2)
+{
+  ed_workspace_status_mouse_item(workspace_, icon1);
+  ed_workspace_status_mouse_item(workspace_, icon2);
+  ed_workspace_status_text_item(workspace_, std::move(text));
+}
+
+void WorkspaceStatus::range(std::string text, const int icon1, const int icon2)
+{
+  ed_workspace_status_item(workspace_, {}, icon1);
+  ed_workspace_status_item(workspace_, "-", ICON_NONE);
+  ed_workspace_status_space(workspace_, -0.5f);
+  ed_workspace_status_item(workspace_, {}, icon2);
+  ed_workspace_status_text_item(workspace_, std::move(text));
+}
+
+void WorkspaceStatus::item_bool(std::string text,
+                                const bool inverted,
+                                const int icon1,
+                                const int icon2)
+{
+  ed_workspace_status_mouse_item(workspace_, icon1, inverted);
+  ed_workspace_status_mouse_item(workspace_, icon2, inverted);
+  ed_workspace_status_text_item(workspace_, std::move(text));
+}
+
+void WorkspaceStatus::opmodal(std::string text,
+                              const wmOperatorType *ot,
+                              const int propvalue,
+                              const bool inverted)
+{
+  wmKeyMap *keymap = WM_keymap_active(wm_, ot->modalkeymap);
+  if (keymap) {
+    const wmKeyMapItem *kmi = WM_modalkeymap_find_propvalue(keymap, propvalue);
+    if (kmi) {
+#ifdef WITH_HEADLESS
+      int icon = 0;
+#else
+      int icon = UI_icon_from_event_type(kmi->type, kmi->val);
+#endif
+      if (!ELEM(kmi->shift, KM_NOTHING, KM_ANY)) {
+        ed_workspace_status_item(workspace_, {}, ICON_EVENT_SHIFT, 0.0f, inverted);
+      }
+      if (!ELEM(kmi->ctrl, KM_NOTHING, KM_ANY)) {
+        ed_workspace_status_item(workspace_, {}, ICON_EVENT_CTRL, 0.0f, inverted);
+      }
+      if (!ELEM(kmi->alt, KM_NOTHING, KM_ANY)) {
+        ed_workspace_status_item(workspace_, {}, ICON_EVENT_ALT, 0.0f, inverted);
+      }
+      if (!ELEM(kmi->oskey, KM_NOTHING, KM_ANY)) {
+        ed_workspace_status_item(workspace_, {}, ICON_EVENT_OS, 0.0f, inverted);
+      }
+      if (kmi->val == KM_DBL_CLICK) {
+        ed_workspace_status_item(workspace_, "2" BLI_STR_UTF8_MULTIPLICATION_SIGN, ICON_NONE);
+        ed_workspace_status_space(workspace_, -0.7f);
+      }
+      ed_workspace_status_mouse_item(workspace_, icon, inverted);
+      ed_workspace_status_text_item(workspace_, std::move(text));
+    }
+  }
+}
+
+void ED_workspace_status_text(bContext *C, const char *str)
+{
+  WorkspaceStatus status(C);
+  status.item(str ? str : "", ICON_NONE);
+}
+
+/** \} */
 
 /* ************************************************************ */
 
@@ -1335,7 +1448,9 @@ bool ED_region_is_overlap(int spacetype, int regiontype)
                RGN_TYPE_UI,
                RGN_TYPE_TOOL_PROPS,
                RGN_TYPE_FOOTER,
-               RGN_TYPE_TOOL_HEADER))
+               RGN_TYPE_TOOL_HEADER,
+               RGN_TYPE_ASSET_SHELF,
+               RGN_TYPE_ASSET_SHELF_HEADER))
       {
         return true;
       }
@@ -2023,6 +2138,9 @@ void ED_area_update_region_sizes(wmWindowManager *wm, wmWindow *win, ScrArea *ar
   area_azone_init(win, screen, area);
 
   LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
+    if (region->flag & RGN_FLAG_POLL_FAILED) {
+      continue;
+    }
     region_evaulate_visibility(region);
 
     /* region size may have changed, init does necessary adjustments */
@@ -3223,7 +3341,7 @@ void ED_region_panels_layout_ex(const bContext *C,
       }
       const int width = panel_draw_width_from_max_width_get(region, panel->type, max_panel_width);
 
-      if (panel && UI_panel_is_dragging(panel)) {
+      if (UI_panel_is_dragging(panel)) {
         /* Prevent View2d.tot rectangle size changes while dragging panels. */
         update_tot_size = false;
       }

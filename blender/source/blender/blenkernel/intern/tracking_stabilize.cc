@@ -10,10 +10,8 @@
 
 #include <climits>
 
-#include "DNA_anim_types.h"
 #include "DNA_movieclip_types.h"
 #include "DNA_scene_types.h"
-#include "RNA_access.hh"
 #include "RNA_prototypes.h"
 
 #include "BLI_ghash.h"
@@ -25,7 +23,7 @@
 #include "BLI_task.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_fcurve.h"
+#include "BKE_fcurve.hh"
 #include "BKE_movieclip.h"
 #include "BKE_tracking.h"
 
@@ -139,7 +137,7 @@ static FCurve *retrieve_track_weight_animation(MovieClip *clip, MovieTrackingTra
   return id_data_find_fcurve(&clip->id, track, &RNA_MovieTrackingTrack, "weight_stab", 0, nullptr);
 }
 
-static float fetch_from_fcurve(FCurve *animationCurve,
+static float fetch_from_fcurve(const FCurve *animationCurve,
                                int framenr,
                                StabContext *ctx,
                                float default_value)
@@ -1331,7 +1329,7 @@ static void tracking_stabilize_frame_interpolation_cb(void *__restrict userdata,
       for (int x = 0; x < tmpibuf->x; x++, dst++) {
         vec[0] = float(x);
         mul_v3_m4v3(rvec, mat, vec);
-        *dst = imbuf::interpolate_nearest_fl(ibuf, rvec[0], rvec[1]);
+        *dst = imbuf::interpolate_nearest_border_fl(ibuf, rvec[0], rvec[1]);
       }
     }
   }
@@ -1357,7 +1355,7 @@ static void tracking_stabilize_frame_interpolation_cb(void *__restrict userdata,
       for (int x = 0; x < tmpibuf->x; x++, dst++) {
         vec[0] = float(x);
         mul_v3_m4v3(rvec, mat, vec);
-        *dst = imbuf::interpolate_nearest_byte(ibuf, rvec[0], rvec[1]);
+        *dst = imbuf::interpolate_nearest_border_byte(ibuf, rvec[0], rvec[1]);
       }
     }
   }

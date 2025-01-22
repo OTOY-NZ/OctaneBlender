@@ -24,8 +24,8 @@
 
 #include "DNA_ID.h"
 
-#include "BKE_bpath.h"
-#include "BKE_global.h"
+#include "BKE_bpath.hh"
+#include "BKE_global.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
@@ -33,10 +33,12 @@
 #include "BKE_main.hh"
 #include "BKE_main_idmap.hh"
 #include "BKE_main_namemap.hh"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
+
+using namespace blender::bke;
 
 static CLG_LogRef LOG = {"bke.main"};
 
@@ -192,24 +194,24 @@ static bool are_ids_from_different_mains_matching(Main *bmain_1, ID *id_1, Main 
     Library *lib_2 = reinterpret_cast<Library *>(id_2);
 
     if (lib_1 && lib_2) {
-      BLI_assert(STREQ(lib_1->filepath_abs, lib_2->filepath_abs));
+      BLI_assert(STREQ(lib_1->runtime.filepath_abs, lib_2->runtime.filepath_abs));
     }
     if (lib_1) {
-      BLI_assert(!STREQ(lib_1->filepath_abs, bmain_1->filepath));
+      BLI_assert(!STREQ(lib_1->runtime.filepath_abs, bmain_1->filepath));
       if (lib_2) {
-        BLI_assert(!STREQ(lib_1->filepath_abs, bmain_2->filepath));
+        BLI_assert(!STREQ(lib_1->runtime.filepath_abs, bmain_2->filepath));
       }
       else {
-        BLI_assert(STREQ(lib_1->filepath_abs, bmain_2->filepath));
+        BLI_assert(STREQ(lib_1->runtime.filepath_abs, bmain_2->filepath));
       }
     }
     if (lib_2) {
-      BLI_assert(!STREQ(lib_2->filepath_abs, bmain_2->filepath));
+      BLI_assert(!STREQ(lib_2->runtime.filepath_abs, bmain_2->filepath));
       if (lib_1) {
-        BLI_assert(!STREQ(lib_2->filepath_abs, bmain_1->filepath));
+        BLI_assert(!STREQ(lib_2->runtime.filepath_abs, bmain_1->filepath));
       }
       else {
-        BLI_assert(STREQ(lib_2->filepath_abs, bmain_1->filepath));
+        BLI_assert(STREQ(lib_2->runtime.filepath_abs, bmain_1->filepath));
       }
     }
 
@@ -229,7 +231,7 @@ static bool are_ids_from_different_mains_matching(Main *bmain_1, ID *id_1, Main 
     if (id_1->lib == id_2->lib) {
       return true;
     }
-    if (STREQ(id_1->lib->filepath_abs, id_2->lib->filepath_abs)) {
+    if (STREQ(id_1->lib->runtime.filepath_abs, id_2->lib->runtime.filepath_abs)) {
       return true;
     }
     return false;
@@ -238,14 +240,14 @@ static bool are_ids_from_different_mains_matching(Main *bmain_1, ID *id_1, Main 
   /* In case one Main is the library of the ID from the other Main. */
 
   if (id_1->lib) {
-    if (STREQ(id_1->lib->filepath_abs, bmain_2->filepath)) {
+    if (STREQ(id_1->lib->runtime.filepath_abs, bmain_2->filepath)) {
       return true;
     }
     return false;
   }
 
   if (id_2->lib) {
-    if (STREQ(id_2->lib->filepath_abs, bmain_1->filepath)) {
+    if (STREQ(id_2->lib->runtime.filepath_abs, bmain_1->filepath)) {
       return true;
     }
     return false;
@@ -258,7 +260,7 @@ static bool are_ids_from_different_mains_matching(Main *bmain_1, ID *id_1, Main 
 static void main_merge_add_id_to_move(Main *bmain_dst,
                                       blender::Map<std::string, blender::Vector<ID *>> &id_map_dst,
                                       ID *id_src,
-                                      IDRemapper *id_remapper,
+                                      id::IDRemapper &id_remapper,
                                       blender::Vector<ID *> &ids_to_move,
                                       const bool is_library,
                                       MainMergeReport &reports)
@@ -268,8 +270,8 @@ static void main_merge_add_id_to_move(Main *bmain_dst,
   if (is_id_src_linked) {
     BLI_assert(!is_library);
     UNUSED_VARS_NDEBUG(is_library);
-    blender::Vector<ID *> id_src_lib_dst = id_map_dst.lookup_default(id_src->lib->filepath_abs,
-                                                                     {});
+    blender::Vector<ID *> id_src_lib_dst = id_map_dst.lookup_default(
+        id_src->lib->runtime.filepath_abs, {});
     /* The current library of the source ID would be remapped to null, which means that it comes
      * from the destination Main. */
     is_id_src_from_bmain_dst = !id_src_lib_dst.is_empty() && !id_src_lib_dst[0];
@@ -287,7 +289,7 @@ static void main_merge_add_id_to_move(Main *bmain_dst,
               "found in given destination Main",
               id_src->name,
               bmain_dst->filepath);
-    BKE_id_remapper_add(id_remapper, id_src, nullptr);
+    id_remapper.add(id_src, nullptr);
     reports.num_unknown_ids++;
   }
   else {
@@ -306,8 +308,8 @@ void BKE_main_merge(Main *bmain_dst, Main **r_bmain_src, MainMergeReport &report
       /* Libraries need specific handling, as we want to check them by their filepath, not the IDs
        * themselves. */
       Library *lib_dst = reinterpret_cast<Library *>(id_iter_dst);
-      BLI_assert(!id_map_dst.contains(lib_dst->filepath_abs));
-      id_map_dst.add(lib_dst->filepath_abs, {id_iter_dst});
+      BLI_assert(!id_map_dst.contains(lib_dst->runtime.filepath_abs));
+      id_map_dst.add(lib_dst->runtime.filepath_abs, {id_iter_dst});
     }
     else {
       id_map_dst.lookup_or_add(id_iter_dst->name, {}).append(id_iter_dst);
@@ -321,15 +323,16 @@ void BKE_main_merge(Main *bmain_dst, Main **r_bmain_src, MainMergeReport &report
   /* A dedicated remapper for libraries is needed because these need to be remapped _before_ IDs
    * are moved from `bmain_src` to `bmain_dst`, to avoid having to fix naming and ordering of IDs
    * afterwards (especially in case some source linked IDs become local in `bmain_dst`). */
-  IDRemapper *id_remapper = BKE_id_remapper_create();
-  IDRemapper *id_remapper_libraries = BKE_id_remapper_create();
+  id::IDRemapper id_remapper;
+  id::IDRemapper id_remapper_libraries;
   blender::Vector<ID *> ids_to_move;
 
   FOREACH_MAIN_ID_BEGIN (bmain_src, id_iter_src) {
     const bool is_library = GS(id_iter_src->name) == ID_LI;
 
     blender::Vector<ID *> ids_dst = id_map_dst.lookup_default(
-        is_library ? reinterpret_cast<Library *>(id_iter_src)->filepath_abs : id_iter_src->name,
+        is_library ? reinterpret_cast<Library *>(id_iter_src)->runtime.filepath_abs :
+                     id_iter_src->name,
         {});
     if (is_library) {
       BLI_assert(ids_dst.size() <= 1);
@@ -347,11 +350,11 @@ void BKE_main_merge(Main *bmain_dst, Main **r_bmain_src, MainMergeReport &report
         BLI_assert(!src_has_match_in_dst);
         if (!src_has_match_in_dst) {
           if (is_library) {
-            BKE_id_remapper_add(id_remapper_libraries, id_iter_src, id_iter_dst);
+            id_remapper_libraries.add(id_iter_src, id_iter_dst);
             reports.num_remapped_libraries++;
           }
           else {
-            BKE_id_remapper_add(id_remapper, id_iter_src, id_iter_dst);
+            id_remapper.add(id_iter_src, id_iter_dst);
             reports.num_remapped_ids++;
           }
           src_has_match_in_dst = true;
@@ -426,8 +429,6 @@ void BKE_main_merge(Main *bmain_dst, Main **r_bmain_src, MainMergeReport &report
 
   BLI_assert(BKE_main_namemap_validate(bmain_dst));
 
-  BKE_id_remapper_free(id_remapper);
-  BKE_id_remapper_free(id_remapper_libraries);
   BKE_main_free(bmain_src);
   *r_bmain_src = nullptr;
 }

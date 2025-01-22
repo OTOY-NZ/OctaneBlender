@@ -20,7 +20,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_shader_buts_output_aov(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "name", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "aov_name", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
 }
 
 static void node_shader_init_output_aov(bNodeTree * /*ntree*/, bNode *node)
@@ -57,17 +57,17 @@ void register_node_type_sh_output_aov()
 {
   namespace file_ns = blender::nodes::node_shader_output_aov_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   sh_node_type_base(&ntype, SH_NODE_OUTPUT_AOV, "AOV Output", NODE_CLASS_OUTPUT);
   ntype.declare = file_ns::node_declare;
   ntype.draw_buttons = file_ns::node_shader_buts_output_aov;
   ntype.initfunc = file_ns::node_shader_init_output_aov;
-  node_type_storage(
+  blender::bke::node_type_storage(
       &ntype, "NodeShaderOutputAOV", node_free_standard_storage, node_copy_standard_storage);
   ntype.gpu_fn = file_ns::node_shader_gpu_output_aov;
 
   ntype.no_muting = true;
 
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 }

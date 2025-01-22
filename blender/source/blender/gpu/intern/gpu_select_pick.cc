@@ -12,10 +12,10 @@
 #include <cstdlib>
 #include <cstring>
 
-#include "GPU_debug.h"
-#include "GPU_framebuffer.h"
+#include "GPU_debug.hh"
+#include "GPU_framebuffer.hh"
 #include "GPU_select.hh"
-#include "GPU_state.h"
+#include "GPU_state.hh"
 
 #include "MEM_guardedalloc.h"
 
@@ -23,9 +23,9 @@
 #include "BLI_rect.h"
 #include "BLI_utildefines.h"
 
-#include "gpu_select_private.h"
+#include "gpu_select_private.hh"
 
-#include "BLI_strict_flags.h"
+#include "BLI_strict_flags.h" /* Keep last. */
 
 /* #define DEBUG_PRINT */
 
@@ -163,7 +163,7 @@ static bool depth_buf_subrect_depth_any_filled(const DepthBufCache *rect_src,
                                                const DepthBufCache *rect_dst,
                                                const SubRectStride *sub_rect)
 {
-  /* Same as above but different rectangle sizes. */
+  /* Same as #depth_buf_rect_depth_any_filled but different rectangle sizes. */
   const depth_t *prev = rect_src->buf + sub_rect->start;
   const depth_t *curr = rect_dst->buf + sub_rect->start;
   for (uint i = 0; i < sub_rect->span_len; i++) {

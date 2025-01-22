@@ -81,8 +81,8 @@ static void wm_uilisttype_unlink_from_area(const uiListType *ult, ScrArea *area)
  * For all lists representing \a ult, clear their `uiListType` pointer. Use when a list-type is
  * deleted, so that the UI doesn't keep references to it.
  *
- * This is a common pattern for unregistering (usually .py defined) types at runtime, e.g. see
- * #WM_gizmomaptype_group_unlink().
+ * This is a common pattern for unregistering (usually `.py` defined) types at runtime, e.g.
+ * see #WM_gizmomaptype_group_unlink().
  * Note that unlike in some other cases using this pattern, we don't actually free the lists with
  * type \a ult, we just clear the reference to the type. That's because UI-Lists are written to
  * files and we don't want them to get lost together with their (user visible) settings.
@@ -153,6 +153,6 @@ const char *WM_uilisttype_list_id_get(const uiListType *ult, uiList *list)
 {
   /* Some sanity check for the assumed behavior of #WM_uilisttype_to_full_list_id(). */
   BLI_assert((list->list_id + strlen(ult->idname))[0] == '_');
-  /* +1 to skip the '_' */
+  /* +1 to skip the '_'. */
   return list->list_id + strlen(ult->idname) + 1;
 }

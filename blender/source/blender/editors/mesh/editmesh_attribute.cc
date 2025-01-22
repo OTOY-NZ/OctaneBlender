@@ -15,7 +15,7 @@
 #include "BKE_editmesh.hh"
 #include "BKE_layer.hh"
 #include "BKE_mesh.hh"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 #include "BKE_type_conversions.hh"
 
 #include "WM_api.hh"
@@ -32,7 +32,7 @@
 #include "ED_transform.hh"
 #include "ED_view3d.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_object_types.h"
 
@@ -77,13 +77,7 @@ static bool mesh_active_attribute_poll(bContext *C)
     return false;
   }
   const Mesh *mesh = ED_mesh_context(C);
-  const CustomDataLayer *layer = BKE_id_attributes_active_get(&const_cast<ID &>(mesh->id));
-  if (!layer) {
-    CTX_wm_operator_poll_msg_set(C, "No active attribute");
-    return false;
-  }
-  if (layer->type == CD_PROP_STRING) {
-    CTX_wm_operator_poll_msg_set(C, "Active string attribute not supported");
+  if (!geometry::attribute_set_poll(*C, mesh->id)) {
     return false;
   }
   return true;
@@ -222,7 +216,7 @@ static int mesh_set_attribute_exec(bContext *C, wmOperator *op)
 static int mesh_set_attribute_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   Mesh *mesh = ED_mesh_context(C);
-  BMesh *bm = mesh->edit_mesh->bm;
+  BMesh *bm = mesh->runtime->edit_mesh->bm;
 
   const CustomDataLayer *layer = BKE_id_attributes_active_get(&mesh->id);
   const eCustomDataType data_type = eCustomDataType(layer->type);

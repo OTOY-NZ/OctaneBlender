@@ -9,7 +9,6 @@
 #include <cmath>
 #include <cstdlib>
 
-#include "DNA_curve_types.h"
 #include "DNA_scene_types.h"
 
 #include "RNA_access.hh"
@@ -20,7 +19,7 @@
 #include "ED_curve.hh"
 #include "ED_screen.hh"
 
-#include "curve_intern.h"
+#include "curve_intern.hh"
 
 /************************* registration ****************************/
 

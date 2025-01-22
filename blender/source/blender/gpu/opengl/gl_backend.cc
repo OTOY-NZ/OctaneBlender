@@ -6,10 +6,13 @@
  * \ingroup gpu
  */
 
-#include "BKE_global.h"
+#include "BKE_global.hh"
 #if defined(WIN32)
 #  include "BLI_winstuff.h"
 #endif
+#include "BLI_subprocess.hh"
+#include "BLI_threads.h"
+#include "DNA_userdef_types.h"
 
 #include "gpu_capabilities_private.hh"
 #include "gpu_platform_private.hh"
@@ -202,6 +205,13 @@ void GLBackend::platform_init()
     }
   }
 
+  /* Compute shaders have some issues with those versions (see #94936). */
+  if ((device & GPU_DEVICE_ATI) && (driver & GPU_DRIVER_OFFICIAL) &&
+      (strstr(version, "4.5.14831") || strstr(version, "4.5.14760")))
+  {
+    support_level = GPU_SUPPORT_LEVEL_UNSUPPORTED;
+  }
+
   GPG.init(device,
            os,
            driver,
@@ -291,7 +301,6 @@ static void detect_workarounds()
     GCaps.depth_blitting_workaround = true;
     GCaps.mip_render_workaround = true;
     GLContext::debug_layer_workaround = true;
-    GLContext::unused_fb_slot_workaround = true;
     /* Turn off Blender features. */
     GCaps.hdr_viewport_support = false;
     /* Turn off OpenGL 4.4 features. */
@@ -313,6 +322,7 @@ static void detect_workarounds()
     GLContext::native_barycentric_support = false;
     GLContext::framebuffer_fetch_support = false;
     GLContext::texture_barrier_support = false;
+    GCaps.stencil_export_support = false;
 
 #if 0
     /* Do not alter OpenGL 4.3 features.
@@ -344,12 +354,6 @@ static void detect_workarounds()
     GCaps.mip_render_workaround = true;
     GCaps.shader_draw_parameters_support = false;
     GCaps.broken_amd_driver = true;
-  }
-  /* Compute shaders have some issues with those versions (see #94936). */
-  if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_OFFICIAL) &&
-      (strstr(version, "4.5.14831") || strstr(version, "4.5.14760")))
-  {
-    GCaps.compute_shader_support = false;
   }
   /* We have issues with this specific renderer. (see #74024) */
   if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_UNIX, GPU_DRIVER_OPENSOURCE) &&
@@ -431,11 +435,15 @@ static void detect_workarounds()
     }
   }
 
-  /* Right now draw shader parameters are broken on Qualcomm devices
-   * regardless of driver version */
+  /* Draw shader parameters are broken on Qualcomm Windows ARM64 devices
+   * on Mesa version < 24.0.0 */
   if (GPU_type_matches(GPU_DEVICE_QUALCOMM, GPU_OS_WIN, GPU_DRIVER_ANY)) {
-    GCaps.shader_draw_parameters_support = false;
-    GLContext::shader_draw_parameters_support = false;
+    if (strstr(version, "Mesa 20.") || strstr(version, "Mesa 21.") ||
+        strstr(version, "Mesa 22.") || strstr(version, "Mesa 23."))
+    {
+      GCaps.shader_draw_parameters_support = false;
+      GLContext::shader_draw_parameters_support = false;
+    }
   }
 
   /* Some Intel drivers have issues with using mips as frame-buffer targets if
@@ -457,6 +465,13 @@ static void detect_workarounds()
   /* There is an issue in AMD official driver where we cannot use multi bind when using images. AMD
    * is aware of the issue, but hasn't released a fix. */
   if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_OFFICIAL)) {
+    GLContext::multi_bind_image_support = false;
+  }
+
+  /* #107642, #120273 Windows Intel iGPU (multiple generations) incorrectly report that
+   * they support image binding. But when used it results into `GL_INVALID_OPERATION` with
+   * `internal format of texture N is not supported`. */
+  if (GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_WIN, GPU_DRIVER_OFFICIAL)) {
     GLContext::multi_bind_image_support = false;
   }
 
@@ -513,6 +528,7 @@ void GLBackend::capabilities_init()
   glGetIntegerv(GL_MAX_ELEMENTS_VERTICES, &GCaps.max_batch_vertices);
   glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &GCaps.max_vertex_attribs);
   glGetIntegerv(GL_MAX_VARYING_FLOATS, &GCaps.max_varying_floats);
+  glGetIntegerv(GL_MAX_IMAGE_UNITS, &GCaps.max_images);
 
   glGetIntegerv(GL_NUM_EXTENSIONS, &GCaps.extensions_len);
   GCaps.extension_get = gl_extension_get;
@@ -521,26 +537,22 @@ void GLBackend::capabilities_init()
   GCaps.mem_stats_support = epoxy_has_gl_extension("GL_NVX_gpu_memory_info") ||
                             epoxy_has_gl_extension("GL_ATI_meminfo");
   GCaps.shader_draw_parameters_support = epoxy_has_gl_extension("GL_ARB_shader_draw_parameters");
-  GCaps.compute_shader_support = epoxy_has_gl_extension("GL_ARB_compute_shader") &&
-                                 epoxy_gl_version() >= 43;
   GCaps.geometry_shader_support = true;
   GCaps.max_samplers = GCaps.max_textures;
   GCaps.hdr_viewport_support = false;
 
-  if (GCaps.compute_shader_support) {
-    glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 0, &GCaps.max_work_group_count[0]);
-    glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 1, &GCaps.max_work_group_count[1]);
-    glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 2, &GCaps.max_work_group_count[2]);
-    glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 0, &GCaps.max_work_group_size[0]);
-    glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 1, &GCaps.max_work_group_size[1]);
-    glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 2, &GCaps.max_work_group_size[2]);
-    glGetIntegerv(GL_MAX_SHADER_STORAGE_BUFFER_BINDINGS,
-                  &GCaps.max_shader_storage_buffer_bindings);
-    glGetIntegerv(GL_MAX_COMPUTE_SHADER_STORAGE_BLOCKS, &GCaps.max_compute_shader_storage_blocks);
-    int64_t max_ssbo_size;
-    glGetInteger64v(GL_MAX_SHADER_STORAGE_BLOCK_SIZE, &max_ssbo_size);
-    GCaps.max_storage_buffer_size = size_t(max_ssbo_size);
-  }
+  glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 0, &GCaps.max_work_group_count[0]);
+  glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 1, &GCaps.max_work_group_count[1]);
+  glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 2, &GCaps.max_work_group_count[2]);
+  glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 0, &GCaps.max_work_group_size[0]);
+  glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 1, &GCaps.max_work_group_size[1]);
+  glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 2, &GCaps.max_work_group_size[2]);
+  glGetIntegerv(GL_MAX_SHADER_STORAGE_BUFFER_BINDINGS, &GCaps.max_shader_storage_buffer_bindings);
+  glGetIntegerv(GL_MAX_COMPUTE_SHADER_STORAGE_BLOCKS, &GCaps.max_compute_shader_storage_blocks);
+  int64_t max_ssbo_size;
+  glGetInteger64v(GL_MAX_SHADER_STORAGE_BLOCK_SIZE, &max_ssbo_size);
+  GCaps.max_storage_buffer_size = size_t(max_ssbo_size);
+
   GCaps.transform_feedback_support = true;
   GCaps.texture_view_support = epoxy_gl_version() >= 43 ||
                                epoxy_has_gl_extension("GL_ARB_texture_view");
@@ -584,6 +596,19 @@ void GLBackend::capabilities_init()
   GLContext::framebuffer_fetch_support = false;
 
   detect_workarounds();
+
+#if BLI_SUBPROCESS_SUPPORT
+  if (GCaps.max_parallel_compilations == -1) {
+    GCaps.max_parallel_compilations = std::min(int(U.max_shader_compilation_subprocesses),
+                                               BLI_system_thread_count());
+  }
+  if (G.debug & G_DEBUG_GPU_RENDERDOC) {
+    /* Avoid crashes on RenderDoc sessions. */
+    GCaps.max_parallel_compilations = 0;
+  }
+#else
+  GCaps.max_parallel_compilations = 0;
+#endif
 
   /* Disable this feature entirely when not debugging. */
   if ((G.debug & G_DEBUG_GPU) == 0) {

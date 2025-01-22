@@ -20,7 +20,7 @@ def exit():
     print("OctaneBlender Engine Exit")
     from octane import core
     from octane.core import resource_cache
-    resource_cache.reset_resource_cache()
+    resource_cache.reset_resource_cache(None)
     if not core.ENABLE_OCTANE_ADDON_CLIENT:
         import _octane
         _octane.exit()

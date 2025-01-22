@@ -12,12 +12,10 @@
 #include "ANIM_rna.hh"
 #include "ANIM_visualkey.hh"
 
-#include "BKE_animsys.h"
 #include "BKE_armature.hh"
 
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
 
 #include "DNA_constraint_types.h"
 #include "DNA_object_types.h"
@@ -25,7 +23,6 @@
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.h"
-#include "RNA_types.hh"
 
 namespace blender::animrig {
 
@@ -76,7 +73,8 @@ bool visualkey_can_use(PointerRNA *ptr, PropertyRNA *prop)
     has_parent = (pchan->parent != nullptr);
   }
   else {
-    BLI_assert(!"visualkey_can_use called for data-block that is not an Object or PoseBone.");
+    BLI_assert_msg(false,
+                   "visualkey_can_use called for data-block that is not an Object or PoseBone.");
     return false;
   }
 
@@ -214,11 +212,11 @@ Vector<float> visualkey_get_values(PointerRNA *ptr, PropertyRNA *prop)
     Object *ob = static_cast<Object *>(ptr->data);
     /* Loc code is specific... */
     if (strstr(identifier, "location")) {
-      values.extend({ob->object_to_world[3], 3});
+      values.extend({ob->object_to_world().location(), 3});
       return values;
     }
 
-    copy_m4_m4(tmat, ob->object_to_world);
+    copy_m4_m4(tmat, ob->object_to_world().ptr());
     rotmode = ob->rotmode;
   }
   else if (ptr->type == &RNA_PoseBone) {

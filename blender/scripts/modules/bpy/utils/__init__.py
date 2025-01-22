@@ -21,6 +21,8 @@ __all__ = (
     "refresh_script_paths",
     "app_template_paths",
     "register_class",
+    "register_cli_command",
+    "unregister_cli_command",
     "register_manual_map",
     "unregister_manual_map",
     "register_classes_factory",
@@ -49,9 +51,11 @@ from _bpy import (
     flip_name,
     unescape_identifier,
     register_class,
+    register_cli_command,
     resource_path,
     script_paths as _bpy_script_paths,
     unregister_class,
+    unregister_cli_command,
     user_resource as _user_resource,
     system_resource,
 )
@@ -119,8 +123,7 @@ def _test_import(module_name, loaded_modules):
     if module_name in loaded_modules:
         return None
     if "." in module_name:
-        print("Ignoring '%s', can't import files containing "
-              "multiple periods" % module_name)
+        print("Ignoring '{:s}', can't import files containing multiple periods".format(module_name))
         return None
 
     if use_time:
@@ -135,7 +138,7 @@ def _test_import(module_name, loaded_modules):
         return None
 
     if use_time:
-        print("time %s %.4f" % (module_name, time.time() - t))
+        print("time {:s} {:.4f}".format(module_name, time.time() - t))
 
     loaded_modules.add(mod.__name__)  # should match mod.__name__ too
     return mod
@@ -231,9 +234,10 @@ def load_scripts(*, reload_scripts=False, refresh_scripts=False, extensions=True
                 import traceback
                 traceback.print_exc()
         else:
-            print("\nWarning! '%s' has no register function, "
-                  "this is now a requirement for registerable scripts" %
-                  mod.__file__)
+            print(
+                "\nWarning! {!r} has no register function, "
+                "this is now a requirement for registerable scripts".format(mod.__file__)
+            )
 
     def unregister_module_call(mod):
         unregister = getattr(mod, "unregister", None)
@@ -320,20 +324,17 @@ def load_scripts(*, reload_scripts=False, refresh_scripts=False, extensions=True
         _bpy.context.window_manager.tag_script_reload()
 
         import gc
-        print("gc.collect() -> %d" % gc.collect())
+        print("gc.collect() -> {:d}".format(gc.collect()))
 
     if use_time:
-        print("Python Script Load Time %.4f" % (time.time() - t_main))
+        print("Python Script Load Time {:.4f}".format(time.time() - t_main))
 
     if use_class_register_check:
         for cls in _bpy.types.bpy_struct.__subclasses__():
             if getattr(cls, "is_registered", False):
                 for subcls in cls.__subclasses__():
                     if not subcls.is_registered:
-                        print(
-                            "Warning, unregistered class: %s(%s)" %
-                            (subcls.__name__, cls.__name__)
-                        )
+                        print("Warning, unregistered class: {:s}({:s})".format(subcls.__name__, cls.__name__))
 
 
 def load_scripts_extensions(*, reload_scripts=False):
@@ -377,7 +378,14 @@ def script_paths_pref():
     return paths
 
 
-def script_paths(*, subdir=None, user_pref=True, check_all=False, use_user=True):
+def script_paths_system_environment():
+    """Returns a list of system script directories from environment variables."""
+    if env_system_path := _os.environ.get("BLENDER_SYSTEM_SCRIPTS"):
+        return [_os.path.normpath(env_system_path)]
+    return []
+
+
+def script_paths(*, subdir=None, user_pref=True, check_all=False, use_user=True, use_system_environment=True):
     """
     Returns a list of valid script paths.
 
@@ -387,6 +395,10 @@ def script_paths(*, subdir=None, user_pref=True, check_all=False, use_user=True)
     :type user_pref: bool
     :arg check_all: Include local, user and system paths rather just the paths Blender uses.
     :type check_all: bool
+    :arg use_user: Include user paths
+    :type use_user: bool
+    :arg use_system_environment: Include BLENDER_SYSTEM_SCRIPTS variable path
+    :type use_system_environment: bool
     :return: script paths.
     :rtype: list
     """
@@ -417,6 +429,9 @@ def script_paths(*, subdir=None, user_pref=True, check_all=False, use_user=True)
 
     if user_pref:
         base_paths.extend(script_paths_pref())
+
+    if use_system_environment:
+        base_paths.extend(script_paths_system_environment())
 
     scripts = []
     for path in base_paths:
@@ -472,15 +487,21 @@ def app_template_paths(*, path=None):
     """
     subdir_args = (path,) if path is not None else ()
     # Note: keep in sync with: Blender's 'BKE_appdir_app_template_any'.
-    # Uses 'BLENDER_USER_SCRIPTS', 'BLENDER_SYSTEM_SCRIPTS'
-    # ... in this case 'system' accounts for 'local' too.
-    for resource_fn, module_name in (
-            (_user_resource, "bl_app_templates_user"),
-            (system_resource, "bl_app_templates_system"),
-    ):
-        path_test = resource_fn('SCRIPTS', path=_os.path.join("startup", module_name, *subdir_args))
-        if path_test and _os.path.isdir(path_test):
+    # Uses BLENDER_USER_SCRIPTS
+    path_test = _user_resource('SCRIPTS', path=_os.path.join("startup", "bl_app_templates_user", *subdir_args))
+    if path_test and _os.path.isdir(path_test):
+        yield path_test
+
+    # Uses BLENDER_SYSTTEM_SCRIPTS
+    for path in script_paths_system_environment():
+        path_test = _os.path.join(path, "startup", "bl_app_templates_system", *subdir_args)
+        if _os.path.isdir(path_test):
             yield path_test
+
+    # Uses default local or system location.
+    path_test = system_resource('SCRIPTS', path=_os.path.join("startup", "bl_app_templates_system", *subdir_args))
+    if path_test and _os.path.isdir(path_test):
+        yield path_test
 
 
 def preset_paths(subdir):
@@ -493,10 +514,10 @@ def preset_paths(subdir):
     :rtype: list
     """
     dirs = []
-    for path in script_paths(subdir="presets", check_all=True):
+    for path in script_paths(subdir="presets"):
         directory = _os.path.join(path, subdir)
         if not directory.startswith(path):
-            raise Exception("invalid subdir given %r" % subdir)
+            raise Exception("invalid subdir given {!r}".format(subdir))
         elif _os.path.isdir(directory):
             dirs.append(directory)
 
@@ -563,7 +584,7 @@ def smpte_from_seconds(time, *, fps=None, fps_base=None):
     return smpte_from_frame(
         time_to_frame(time, fps=fps, fps_base=fps_base),
         fps=fps,
-        fps_base=fps_base
+        fps_base=fps_base,
     )
 
 
@@ -591,13 +612,14 @@ def smpte_from_frame(frame, *, fps=None, fps_base=None):
     frame = abs(frame)
 
     return (
-        "%s%02d:%02d:%02d:%02d" % (
+        "{:s}{:02d}:{:02d}:{:02d}:{:02d}".format(
             sign,
             int(frame / (3600 * fps)),          # HH
             int((frame / (60 * fps)) % 60),     # MM
             int((frame / fps) % 60),            # SS
             int(frame % fps),                   # FF
-        ))
+        )
+    )
 
 
 def time_from_frame(frame, *, fps=None, fps_base=None):
@@ -724,7 +746,7 @@ def keyconfig_set(filepath, *, report=None):
     # Get name, exception for default keymap to keep backwards compatibility.
     if kc_new is None:
         if report is not None:
-            report({'ERROR'}, "Failed to load keymap %r" % filepath)
+            report({'ERROR'}, "Failed to load keymap {!r}".format(filepath))
         return False
     else:
         keyconfigs.active = kc_new
@@ -735,12 +757,11 @@ def user_resource(resource_type, *, path="", create=False):
     """
     Return a user resource path (normally from the users home directory).
 
-    :arg type: Resource type in ['DATAFILES', 'CONFIG', 'SCRIPTS', 'AUTOSAVE'].
+    :arg type: Resource type in ['DATAFILES', 'CONFIG', 'SCRIPTS', 'EXTENSIONS'].
     :type type: string
     :arg path: Optional subdirectory.
     :type path: string
-    :arg create: Treat the path as a directory and create
-       it if its not existing.
+    :arg create: Treat the path as a directory and create it if its not existing.
     :type create: boolean
     :return: a path.
     :rtype: string
@@ -760,7 +781,56 @@ def user_resource(resource_type, *, path="", create=False):
                     traceback.print_exc()
                     target_path = ""
             elif not _os.path.isdir(target_path):
-                print("Path %r found but isn't a directory!" % target_path)
+                print("Path {!r} found but isn't a directory!".format(target_path))
+                target_path = ""
+
+    return target_path
+
+
+def extension_path_user(package, *, path="", create=False):
+    """
+    Return a user writable directory associated with an extension.
+
+    .. note::
+
+       This allows each extension to have it's own user directory to store files.
+
+       The location of the extension it self is not a suitable place to store files
+       because it is cleared each upgrade and the users may not have write permissions
+       to the repository (typically "System" repositories).
+
+    :arg package: The ``__package__`` of the extension.
+    :type package: string
+    :arg path: Optional subdirectory.
+    :type path: string
+    :arg create: Treat the path as a directory and create it if its not existing.
+    :type create: boolean
+    :return: a path.
+    :rtype: string
+    """
+    from addon_utils import _extension_module_name_decompose
+
+    # Handles own errors.
+    repo_module, pkg_idname = _extension_module_name_decompose(package)
+
+    target_path = _user_resource('EXTENSIONS')
+    # Should always be true.
+    if target_path:
+        if path:
+            target_path = _os.path.join(target_path, ".user", repo_module, pkg_idname, path)
+        else:
+            target_path = _os.path.join(target_path, ".user", repo_module, pkg_idname)
+        if create:
+            # create path if not existing.
+            if not _os.path.exists(target_path):
+                try:
+                    _os.makedirs(target_path)
+                except:
+                    import traceback
+                    traceback.print_exc()
+                    target_path = ""
+            elif not _os.path.isdir(target_path):
+                print("Path {!r} found but isn't a directory!".format(target_path))
                 target_path = ""
 
     return target_path
@@ -807,17 +877,16 @@ def register_submodule_factory(module_name, submodule_names):
     def register():
         nonlocal module
         module = __import__(name=module_name, fromlist=submodule_names)
-        submodules[:] = [getattr(module, name) for name in submodule_names]
-        for mod in submodules:
+        submodules[:] = [(getattr(module, mod_name), mod_name) for mod_name in submodule_names]
+        for mod, _mod_name in submodules:
             mod.register()
 
     def unregister():
         from sys import modules
-        for mod in reversed(submodules):
+        for mod, mod_name in reversed(submodules):
             mod.unregister()
-            name = mod.__name__
-            delattr(module, name.partition(".")[2])
-            del modules[name]
+            delattr(module, mod_name)
+            del modules[mod.__name__]
         submodules.clear()
 
     return register, unregister
@@ -831,10 +900,8 @@ def register_tool(tool_cls, *, after=None, separator=False, group=False):
     """
     Register a tool in the toolbar.
 
-    :arg tool: A tool subclass.
-    :type tool: :class:`bpy.types.WorkSpaceTool` subclass.
-    :arg space_type: Space type identifier.
-    :type space_type: string
+    :arg tool_cls: A tool subclass.
+    :type tool_cls: :class:`bpy.types.WorkSpaceTool` subclass.
     :arg after: Optional identifiers this tool will be added after.
     :type after: collection of strings or None.
     :arg separator: When true, add a separator before this tool.
@@ -852,7 +919,7 @@ def register_tool(tool_cls, *, after=None, separator=False, group=False):
 
     cls = ToolSelectPanelHelper._tool_class_from_space_type(space_type)
     if cls is None:
-        raise Exception("Space type %r has no toolbar" % space_type)
+        raise Exception("Space type {!r} has no toolbar".format(space_type))
     tools = cls._tools[context_mode]
 
     # First sanity check
@@ -862,9 +929,9 @@ def register_tool(tool_cls, *, after=None, separator=False, group=False):
         if item is not None
     }
     if not issubclass(tool_cls, WorkSpaceTool):
-        raise Exception("Expected WorkSpaceTool subclass, not %r" % type(tool_cls))
+        raise Exception("Expected WorkSpaceTool subclass, not {!r}".format(type(tool_cls)))
     if tool_cls.bl_idname in tools_id:
-        raise Exception("Tool %r already exists!" % tool_cls.bl_idname)
+        raise Exception("Tool {!r} already exists!".format(tool_cls.bl_idname))
     del tools_id, WorkSpaceTool
 
     # Convert the class into a ToolDef.
@@ -964,7 +1031,7 @@ def unregister_tool(tool_cls):
     from bl_ui.space_toolsystem_common import ToolSelectPanelHelper
     cls = ToolSelectPanelHelper._tool_class_from_space_type(space_type)
     if cls is None:
-        raise Exception("Space type %r has no toolbar" % space_type)
+        raise Exception("Space type {!r} has no toolbar".format(space_type))
     tools = cls._tools[context_mode]
 
     tool_def = tool_cls._bl_tool
@@ -1016,7 +1083,7 @@ def unregister_tool(tool_cls):
                     break
 
     if not changed:
-        raise Exception("Unable to remove %r" % tool_cls)
+        raise Exception("Unable to remove {!r}".format(tool_cls))
     del tool_cls._bl_tool
 
     keymap_data = tool_def.keymap
@@ -1029,7 +1096,7 @@ def unregister_tool(tool_cls):
                 continue
             km = kc.keymaps.get(keymap_data[0])
             if km is None:
-                print("Warning keymap %r not found in %r!" % (keymap_data[0], kc.name))
+                print("Warning keymap {!r} not found in {!r}!".format(keymap_data[0], kc.name))
             else:
                 kc.keymaps.remove(km)
 
@@ -1065,7 +1132,7 @@ def manual_map():
         try:
             prefix, url_manual_mapping = cb()
         except:
-            print("Error calling %r" % cb)
+            print("Error calling {!r}".format(cb))
             import traceback
             traceback.print_exc()
             continue
@@ -1075,35 +1142,58 @@ def manual_map():
 
 # Languages which are supported by the user manual (commented when there is no translation).
 _manual_language_codes = {
+    # "ab": "ab",  #Abkhaz
+    # "am_ET": "am",  # Amharic
     "ar_EG": "ar",  # Arabic
+    # "be": "be",  # Belarusian
     # "bg_BG": "bg",  # Bulgarian
-    # "ca_AD": "ca",  # Catalan
+    "ca_AD": "ca",  # Catalan
     # "cs_CZ": "cz",  # Czech
+    # "da": "da",  # Danish
     "de_DE": "de",  # German
-    # "el_GR": "el",  # Greek
+    "el_GR": "el",  # Greek
+    # "eo": "eo",  # Esperanto
     "es": "es",  # Spanish
+    # "et_EE": "et",  # Estonian
+    # "eu_EU": "eu",  # Basque
+    # "fa_IR": "fa",  # Persian
     "fi_FI": "fi",  # Finnish
     "fr_FR": "fr",  # French
+    # "ha": "ha",  # Hausa
+    # "he_IL": "he",  # Hebrew
+    # "hi_IN": "hi",  # Hindi
+    # "hr_HR": "hr",  # Croatian
+    # "hu_HU": "hu",  # Hungarian
     "id_ID": "id",  # Indonesian
     "it_IT": "it",  # Italian
     "ja_JP": "ja",  # Japanese
+    # "ka": "ka",  # Georgian
+    # "kk_KZ": "kk",  # kazakh
+    # "km": "km",  # Khmer
     "ko_KR": "ko",  # Korean
+    # "ky_KG": "ky",  # Kyrgyz
     # "nb": "nb",  # Norwegian
-    # "nl_NL": "nl",  # Dutch
+    # "ne_NP": "ne",  # Nepali
+    "nl_NL": "nl",  # Dutch
     # "pl_PL": "pl",  # Polish
     "pt_PT": "pt",  # Portuguese
     # Portuguese - Brazil, for until we have a pt_BR version.
     "pt_BR": "pt",
+    # "ro_RO": "ro",  # Romanian
     "ru_RU": "ru",  # Russian
     "sk_SK": "sk",  # Slovak
     # "sl": "sl",  # Slovenian
     "sr_RS": "sr",  # Serbian
     # "sv_SE": "sv",  # Swedish
-    # "tr_TR": "th",  # Thai
+    # "sw": "sw",  # Swahili
+    # "ta": "ta",  # Tamil
+    "th_TH": "th",  # Thai
+    # "tr_TR": "tr",  # Turkish
     "uk_UA": "uk",  # Ukrainian
+    # "uz_UZ": "uz",  # Uzbek
     "vi_VN": "vi",  # Vietnamese
-    "zh_CN": "zh-hans",  # Simplified Chinese
-    "zh_TW": "zh-hant",  # Traditional Chinese
+    "zh_HANS": "zh-hans",  # Simplified Chinese
+    "zh_HANT": "zh-hant",  # Traditional Chinese
 }
 
 
@@ -1141,7 +1231,7 @@ def make_rna_paths(struct_name, prop_name, enum_name):
         if prop_name:
             src = src_rna = ".".join((struct_name, prop_name))
             if enum_name:
-                src = src_enum = "%s:'%s'" % (src_rna, enum_name)
+                src = src_enum = "{:s}:'{:s}'".format(src_rna, enum_name)
         else:
             src = src_rna = struct_name
     return src, src_rna, src_enum

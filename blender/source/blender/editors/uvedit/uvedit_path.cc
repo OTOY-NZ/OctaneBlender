@@ -17,7 +17,6 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_ghash.h"
-#include "BLI_linklist_stack.h"
 #include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
 
@@ -33,14 +32,13 @@
 #include "BKE_editmesh.hh"
 #include "BKE_layer.hh"
 #include "BKE_mesh.hh"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
 
 #include "ED_object.hh"
 #include "ED_screen.hh"
-#include "ED_transform.hh"
 #include "ED_uvedit.hh"
 
 #include "RNA_access.hh"
@@ -674,7 +672,8 @@ static int uv_shortest_path_pick_invoke(bContext *C, wmOperator *op, const wmEve
         index = BM_elem_index_get(ele_dst);
       }
 
-      const int object_index = ED_object_in_mode_to_index(scene, view_layer, OB_MODE_EDIT, obedit);
+      const int object_index = blender::ed::object::object_in_mode_to_index(
+          scene, view_layer, OB_MODE_EDIT, obedit);
       BLI_assert(object_index != -1);
       RNA_int_set(op->ptr, "object_index", object_index);
       RNA_int_set(op->ptr, "index", index);
@@ -698,7 +697,8 @@ static int uv_shortest_path_pick_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  Object *obedit = ED_object_in_mode_from_index(scene, view_layer, OB_MODE_EDIT, object_index);
+  Object *obedit = blender::ed::object::object_in_mode_from_index(
+      scene, view_layer, OB_MODE_EDIT, object_index);
   if (obedit == nullptr) {
     return OPERATOR_CANCELLED;
   }

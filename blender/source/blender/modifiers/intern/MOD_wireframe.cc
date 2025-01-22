@@ -10,17 +10,15 @@
 
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_context.hh"
 #include "BKE_deform.hh"
 #include "BKE_mesh.hh"
-#include "BKE_screen.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
@@ -51,11 +49,6 @@ static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_
   if (wmd->defgrp_name[0] != '\0') {
     r_cddata_masks->vmask |= CD_MASK_MDEFORMVERT;
   }
-}
-
-static bool depends_on_normals(ModifierData * /*md*/)
-{
-  return true;
 }
 
 static Mesh *WireframeModifier_do(WireframeModifierData *wmd, Object *ob, Mesh *mesh)
@@ -189,7 +182,7 @@ ModifierTypeInfo modifierType_Wireframe = {
     /*is_disabled*/ nullptr,
     /*update_depsgraph*/ nullptr,
     /*depends_on_time*/ nullptr,
-    /*depends_on_normals*/ depends_on_normals,
+    /*depends_on_normals*/ nullptr,
     /*foreach_ID_link*/ nullptr,
     /*foreach_tex_link*/ nullptr,
     /*free_runtime_data*/ nullptr,

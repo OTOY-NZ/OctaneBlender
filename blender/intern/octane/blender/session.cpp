@@ -18,10 +18,10 @@
 #include <stdio.h>
 
 #include "BKE_context.hh"
-#include "BKE_global.h"
+#include "BKE_global.hh"
 #include "BKE_main.hh"
-#include "BKE_node.h"
-#include "BKE_scene.h"
+#include "BKE_node.hh"
+#include "BKE_scene.hh"
 /* SpaceType struct has a member called 'new' which obviously conflicts with C++
  * so temporarily redefining the new keyword to make it compile. */
 #define new extern_new

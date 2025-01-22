@@ -6,8 +6,8 @@
 import argparse
 import make_utils
 import os
-import re
 import subprocess
+import sys
 from pathlib import Path
 from typing import Iterable, TextIO, Optional, Any, Union
 
@@ -32,7 +32,7 @@ def main() -> None:
     blender_srcdir = Path(__file__).absolute().parent.parent.parent
 
     cli_parser = argparse.ArgumentParser(
-        description=f"Create a tarball of the Blender sources, optionally including sources of dependencies.",
+        description="Create a tarball of the Blender sources, optionally including sources of dependencies.",
         epilog="This script is intended to be run by `make source_archive_complete`.",
     )
     cli_parser.add_argument(
@@ -115,7 +115,6 @@ def create_manifest(
     with outpath.open("w", encoding="utf-8") as outfile:
         main_files_to_manifest(blender_srcdir, outfile)
         assets_to_manifest(blender_srcdir, outfile)
-        submodules_to_manifest(blender_srcdir, version, outfile)
 
         if packages_dir:
             packages_to_manifest(outfile, packages_dir)
@@ -126,21 +125,6 @@ def main_files_to_manifest(blender_srcdir: Path, outfile: TextIO) -> None:
     assert not blender_srcdir.is_absolute()
     for path in git_ls_files(blender_srcdir):
         print(path, file=outfile)
-
-
-def submodules_to_manifest(
-    blender_srcdir: Path, version: make_utils.BlenderVersion, outfile: TextIO
-) -> None:
-    skip_addon_contrib = version.is_release()
-    assert not blender_srcdir.is_absolute()
-
-    for submodule in ("scripts/addons", "scripts/addons_contrib"):
-        # Don't use native slashes as GIT for MS-Windows outputs forward slashes.
-        if skip_addon_contrib and submodule == "scripts/addons_contrib":
-            continue
-
-        for path in git_ls_files(blender_srcdir / submodule):
-            print(path, file=outfile)
 
 
 def assets_to_manifest(blender_srcdir: Path, outfile: TextIO) -> None:
@@ -176,9 +160,14 @@ def create_tarball(
     packages_dir: Optional[Path],
 ) -> None:
     print(f'Creating archive:            "{tarball}" ...', end="", flush=True)
-    command = ["tar"]
 
     # Requires GNU `tar`, since `--transform` is used.
+    if sys.platform == "darwin":
+        # Provided by `brew install gnu-tar`.
+        command = ["gtar"]
+    else:
+        command = ["tar"]
+
     if packages_dir:
         command += ["--transform", f"s,{packages_dir}/,packages/,g"]
 

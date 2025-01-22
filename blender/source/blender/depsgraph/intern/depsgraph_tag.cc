@@ -14,6 +14,7 @@
 #include <cstring> /* required for memset */
 #include <queue>
 
+#include "BLI_index_range.hh"
 #include "BLI_math_bits.h"
 #include "BLI_task.h"
 #include "BLI_utildefines.h"
@@ -28,14 +29,14 @@
 #include "DNA_screen_types.h"
 #include "DNA_windowmanager_types.h"
 
-#include "BKE_anim_data.h"
-#include "BKE_global.h"
+#include "BKE_anim_data.hh"
+#include "BKE_global.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_override.hh"
 #include "BKE_node.hh"
-#include "BKE_scene.h"
+#include "BKE_scene.hh"
 #include "BKE_screen.hh"
-#include "BKE_workspace.h"
+#include "BKE_workspace.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_debug.hh"
@@ -102,8 +103,8 @@ void depsgraph_select_tag_to_component_opcode(const ID *id,
     *operation_code = OperationCode::GEOMETRY_SELECT_UPDATE;
   }
   else {
-    *component_type = NodeType::COPY_ON_WRITE;
-    *operation_code = OperationCode::COPY_ON_WRITE;
+    *component_type = NodeType::COPY_ON_EVAL;
+    *operation_code = OperationCode::COPY_ON_EVAL;
   }
 }
 
@@ -171,8 +172,8 @@ void depsgraph_tag_to_component_opcode(const ID *id,
         *component_type = NodeType::PARTICLE_SYSTEM;
       }
       break;
-    case ID_RECALC_COPY_ON_WRITE:
-      *component_type = NodeType::COPY_ON_WRITE;
+    case ID_RECALC_SYNC_TO_EVAL:
+      *component_type = NodeType::COPY_ON_EVAL;
       break;
     case ID_RECALC_SHADING:
       *component_type = NodeType::SHADING;
@@ -239,7 +240,7 @@ void depsgraph_tag_to_component_opcode(const ID *id,
 void id_tag_update_ntree_special(
     Main *bmain, Depsgraph *graph, ID *id, uint flags, eUpdateSource update_source)
 {
-  bNodeTree *ntree = ntreeFromID(id);
+  bNodeTree *ntree = bke::ntreeFromID(id);
   if (ntree == nullptr) {
     return;
   }
@@ -250,7 +251,7 @@ void depsgraph_update_editors_tag(Main *bmain, Depsgraph *graph, ID *id)
 {
   /* NOTE: We handle this immediately, without delaying anything, to be
    * sure we don't cause threading issues with OpenGL. */
-  /* TODO(sergey): Make sure this works for CoW-ed data-blocks as well. */
+  /* TODO(sergey): Make sure this works for evaluated data-blocks as well. */
   DEGEditorUpdateContext update_ctx = {nullptr};
   update_ctx.bmain = bmain;
   update_ctx.depsgraph = (::Depsgraph *)graph;
@@ -261,9 +262,9 @@ void depsgraph_update_editors_tag(Main *bmain, Depsgraph *graph, ID *id)
 
 void depsgraph_id_tag_copy_on_write(Depsgraph *graph, IDNode *id_node, eUpdateSource update_source)
 {
-  ComponentNode *cow_comp = id_node->find_component(NodeType::COPY_ON_WRITE);
+  ComponentNode *cow_comp = id_node->find_component(NodeType::COPY_ON_EVAL);
   if (cow_comp == nullptr) {
-    BLI_assert(!deg_copy_on_write_is_needed(GS(id_node->id_orig->name)));
+    BLI_assert(!deg_eval_copy_is_needed(GS(id_node->id_orig->name)));
     return;
   }
   cow_comp->tag_update(graph, update_source);
@@ -277,8 +278,8 @@ void depsgraph_tag_component(Depsgraph *graph,
 {
   ComponentNode *component_node = id_node->find_component(component_type);
   /* NOTE: Animation component might not be existing yet (which happens when adding new driver or
-   * adding a new keyframe), so the required copy-on-write tag needs to be taken care explicitly
-   * here. */
+   * adding a new keyframe), so the required copy-on-evaluation tag needs to be taken care
+   * explicitly here. */
   if (component_node == nullptr) {
     if (component_type == NodeType::ANIMATION) {
       id_node->is_cow_explicitly_tagged = true;
@@ -295,11 +296,11 @@ void depsgraph_tag_component(Depsgraph *graph,
       operation_node->tag_update(graph, update_source);
     }
   }
-  /* If component depends on copy-on-write, tag it as well. */
-  if (component_node->need_tag_cow_before_update()) {
+  /* If component depends on copy-on-evaluation, tag it as well. */
+  if (component_node->need_tag_cow_before_update(IDRecalcFlag(id_node->id_cow->recalc))) {
     depsgraph_id_tag_copy_on_write(graph, id_node, update_source);
   }
-  if (component_type == NodeType::COPY_ON_WRITE) {
+  if (component_type == NodeType::COPY_ON_EVAL) {
     id_node->is_cow_explicitly_tagged = true;
   }
 }
@@ -498,7 +499,7 @@ void deg_graph_node_tag_zero(Main *bmain,
     if (comp_node->type == NodeType::ANIMATION) {
       continue;
     }
-    if (comp_node->type == NodeType::COPY_ON_WRITE) {
+    if (comp_node->type == NodeType::COPY_ON_EVAL) {
       id_node->is_cow_explicitly_tagged = true;
     }
 
@@ -531,8 +532,12 @@ void deg_graph_tag_parameters_if_needed(Main *bmain,
   }
 
   /* Clear flags which are known to not affect parameters usable by drivers. */
-  const uint clean_flags = flags & ~(ID_RECALC_COPY_ON_WRITE | ID_RECALC_SELECT |
-                                     ID_RECALC_BASE_FLAGS | ID_RECALC_SHADING);
+  const uint clean_flags = flags &
+                           ~(ID_RECALC_SYNC_TO_EVAL | ID_RECALC_SELECT | ID_RECALC_BASE_FLAGS |
+                             ID_RECALC_SHADING |
+                             /* While drivers may use the current-frame, this value is assigned
+                              * explicitly and doesn't require a the scene to be copied again. */
+                             ID_RECALC_FRAME_CHANGE);
 
   if (clean_flags == 0) {
     /* Changes are limited to only things which are not usable by drivers. */
@@ -571,8 +576,8 @@ void graph_tag_ids_for_visible_update(Depsgraph *graph)
       continue;
     }
     uint flags = 0;
-    if (!deg::deg_copy_on_write_is_expanded(id_node->id_cow)) {
-      flags |= ID_RECALC_COPY_ON_WRITE;
+    if (!deg::deg_eval_copy_is_expanded(id_node->id_cow)) {
+      flags |= ID_RECALC_SYNC_TO_EVAL;
       if (do_time) {
         if (BKE_animdata_from_id(id_node->id_orig) != nullptr) {
           flags |= ID_RECALC_ANIMATION;
@@ -594,12 +599,12 @@ void graph_tag_ids_for_visible_update(Depsgraph *graph)
     if (id_type == ID_OB) {
       flags |= ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY;
     }
-    /* For non-COW datablocks like images, there is no need to update when
+    /* For non-copy-on-eval datablocks like images, there is no need to update when
      * they just got added to the depsgraph and there is no flag indicating
-     * a specific change that was made to them. Unlike COW datablocks which
+     * a specific change that was made to them. Unlike evaluated datablocks which
      * have just been copied.
      * This helps preserve cached image draw data for the compositor. */
-    if (ID_TYPE_IS_COW(id_type) || flags != 0) {
+    if (ID_TYPE_USE_COPY_ON_EVAL(id_type) || flags != 0) {
       graph_id_tag_update(bmain, graph, id_node->id_orig, flags, DEG_UPDATE_SOURCE_VISIBILITY);
     }
     if (id_type == ID_SCE) {
@@ -770,8 +775,8 @@ const char *DEG_update_tag_as_string(IDRecalcFlag flag)
       return "PSYS_PHYS";
     case ID_RECALC_PSYS_ALL:
       return "PSYS_ALL";
-    case ID_RECALC_COPY_ON_WRITE:
-      return "COPY_ON_WRITE";
+    case ID_RECALC_SYNC_TO_EVAL:
+      return "COPY_ON_EVAL";
     case ID_RECALC_SHADING:
       return "SHADING";
     case ID_RECALC_SELECT:
@@ -840,7 +845,7 @@ void DEG_id_tag_update_ex(Main *bmain, ID *id, uint flags)
   deg::id_tag_update(bmain, id, flags, deg::DEG_UPDATE_SOURCE_USER_EDIT);
 }
 
-void DEG_id_tag_update_for_side_effect_request(Depsgraph *depsgraph, ID *id, unsigned int flags)
+void DEG_id_tag_update_for_side_effect_request(Depsgraph *depsgraph, ID *id, uint flags)
 {
   BLI_assert(depsgraph != nullptr);
   BLI_assert(id != nullptr);
@@ -933,7 +938,7 @@ void DEG_editors_update(Depsgraph *depsgraph, bool time)
 static void deg_graph_clear_id_recalc_flags(ID *id)
 {
   id->recalc &= ~ID_RECALC_ALL;
-  bNodeTree *ntree = ntreeFromID(id);
+  bNodeTree *ntree = blender::bke::ntreeFromID(id);
   /* Clear embedded node trees too. */
   if (ntree) {
     ntree->id.recalc &= ~ID_RECALC_ALL;
@@ -964,6 +969,14 @@ void DEG_ids_clear_recalc(Depsgraph *depsgraph, const bool backup)
       deg_graph_clear_id_recalc_flags(id_node->id_orig);
     }
   }
+
+  if (backup) {
+    for (const int64_t i : blender::IndexRange(INDEX_ID_MAX)) {
+      if (deg_graph->id_type_updated[i] != 0) {
+        deg_graph->id_type_updated_backup[i] = 1;
+      }
+    }
+  }
   memset(deg_graph->id_type_updated, 0, sizeof(deg_graph->id_type_updated));
 }
 
@@ -975,4 +988,11 @@ void DEG_ids_restore_recalc(Depsgraph *depsgraph)
     id_node->id_cow->recalc |= id_node->id_cow_recalc_backup;
     id_node->id_cow_recalc_backup = 0;
   }
+
+  for (const int64_t i : blender::IndexRange(INDEX_ID_MAX)) {
+    if (deg_graph->id_type_updated_backup[i] != 0) {
+      deg_graph->id_type_updated[i] = 1;
+    }
+  }
+  memset(deg_graph->id_type_updated_backup, 0, sizeof(deg_graph->id_type_updated_backup));
 }

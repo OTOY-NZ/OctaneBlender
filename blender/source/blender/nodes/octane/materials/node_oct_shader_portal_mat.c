@@ -27,7 +27,7 @@
 
 #include "node_shader_util.hh"
 
-static bNodeSocketTemplate sh_node_in[] = {{SOCK_BOOLEAN,
+static blender::bke::bNodeSocketTemplate  sh_node_in[] = {{SOCK_BOOLEAN,
                                             N_("Enabled"),
                                             1.0f,
                                             0.0f,
@@ -39,11 +39,11 @@ static bNodeSocketTemplate sh_node_in[] = {{SOCK_BOOLEAN,
                                             SOCK_NO_INTERNAL_LINK},
                                            {-1, ""}};
 
-static bNodeSocketTemplate sh_node_out[] = {{SOCK_SHADER, N_("OutMat")}, {-1, ""}};
+static blender::bke::bNodeSocketTemplate  sh_node_out[] = {{SOCK_SHADER, N_("OutMat")}, {-1, ""}};
 
 void register_node_type_sh_oct_portal_mat(void)
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   if (ntype.type != SH_NODE_OCT_PORTAL_MAT)
     sh_node_type_base(&ntype, SH_NODE_OCT_PORTAL_MAT, "Portal Material", NODE_CLASS_OCT_SHADER);

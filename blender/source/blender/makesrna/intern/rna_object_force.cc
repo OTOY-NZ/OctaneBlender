@@ -8,7 +8,7 @@
 
 #include <cstdlib>
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_cloth_types.h"
 #include "DNA_dynamicpaint_types.h"
@@ -109,7 +109,7 @@ static const EnumPropertyItem empty_vortex_shape_items[] = {
 #  include "DNA_modifier_types.h"
 #  include "DNA_texture_types.h"
 
-#  include "BKE_collection.h"
+#  include "BKE_collection.hh"
 #  include "BKE_context.hh"
 #  include "BKE_modifier.hh"
 #  include "BKE_pointcache.h"
@@ -684,7 +684,7 @@ static void rna_FieldSettings_shape_update(Main *bmain, Scene *scene, PointerRNA
 {
   if (!particle_id_check(ptr)) {
     Object *ob = (Object *)ptr->owner_id;
-    ED_object_check_force_modifiers(bmain, scene, ob);
+    blender::ed::object::check_force_modifiers(bmain, scene, ob);
 
     DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
     WM_main_add_notifier(NC_OBJECT | ND_DRAW, ob);
@@ -887,7 +887,7 @@ static void rna_CollisionSettings_dependency_update(Main *bmain, Scene *scene, P
 
   /* add the modifier if needed */
   if (ob->pd->deflect && !md) {
-    ED_object_modifier_add(nullptr, bmain, scene, ob, nullptr, eModifierType_Collision);
+    blender::ed::object::modifier_add(nullptr, bmain, scene, ob, nullptr, eModifierType_Collision);
   }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);

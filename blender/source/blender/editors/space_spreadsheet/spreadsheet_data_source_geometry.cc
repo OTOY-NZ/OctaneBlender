@@ -12,7 +12,7 @@
 #include "BKE_editmesh.hh"
 #include "BKE_geometry_fields.hh"
 #include "BKE_geometry_set.hh"
-#include "BKE_global.h"
+#include "BKE_global.hh"
 #include "BKE_grease_pencil.hh"
 #include "BKE_instances.hh"
 #include "BKE_lib_id.hh"
@@ -37,7 +37,7 @@
 #include "NOD_geometry_nodes_lazy_function.hh"
 #include "NOD_geometry_nodes_log.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "RNA_access.hh"
 #include "RNA_enum_types.hh"
@@ -204,6 +204,13 @@ void GeometryDataSource::foreach_default_column_ids(
         if (!bke::allow_procedural_attribute_access(attribute_id.name())) {
           return true;
         }
+        if (meta_data.domain == bke::AttrDomain::Instance &&
+            attribute_id.name() == "instance_transform")
+        {
+          /* Don't display the instance transform attribute, since matrix visualization in the
+           * spreadsheet isn't helpful. */
+          return true;
+        }
         SpreadsheetColumnID column_id;
         column_id.name = (char *)attribute_id.name().data();
         const bool is_front = attribute_id.name() == ".viewer";
@@ -212,6 +219,7 @@ void GeometryDataSource::foreach_default_column_ids(
       });
 
   if (component_->type() == bke::GeometryComponent::Type::Instance) {
+    fn({(char *)"Position"}, false);
     fn({(char *)"Rotation"}, false);
     fn({(char *)"Scale"}, false);
   }
@@ -257,6 +265,12 @@ std::unique_ptr<ColumnValues> GeometryDataSource::get_column_values(
                 }));
       }
       Span<float4x4> transforms = instances->transforms();
+      if (STREQ(column_id.name, "Position")) {
+        return std::make_unique<ColumnValues>(
+            column_id.name, VArray<float3>::ForFunc(domain_num, [transforms](int64_t index) {
+              return transforms[index].location();
+            }));
+      }
       if (STREQ(column_id.name, "Rotation")) {
         return std::make_unique<ColumnValues>(
             column_id.name, VArray<float3>::ForFunc(domain_num, [transforms](int64_t index) {
@@ -373,7 +387,7 @@ IndexMask GeometryDataSource::apply_selection_filter(IndexMaskMemory &memory) co
       const Mesh *mesh_eval = geometry_set_.get_mesh();
       const bke::AttributeAccessor attributes_eval = mesh_eval->attributes();
       Mesh *mesh_orig = (Mesh *)object_orig->data;
-      BMesh *bm = mesh_orig->edit_mesh->bm;
+      BMesh *bm = mesh_orig->runtime->edit_mesh->bm;
       BM_mesh_elem_table_ensure(bm, BM_VERT);
 
       const int *orig_indices = (const int *)CustomData_get_layer(&mesh_eval->vert_data,
@@ -452,8 +466,8 @@ std::optional<const bke::AttributeAccessor> GeometryDataSource::get_component_at
     return grease_pencil->attributes();
   }
   if (layer_index_ >= 0 && layer_index_ < grease_pencil->layers().size()) {
-    if (const bke::greasepencil::Drawing *drawing =
-            bke::greasepencil::get_eval_grease_pencil_layer_drawing(*grease_pencil, layer_index_))
+    if (const bke::greasepencil::Drawing *drawing = grease_pencil->get_eval_drawing(
+            *grease_pencil->layer(layer_index_)))
     {
       return drawing->strokes().attributes();
     }
@@ -540,7 +554,7 @@ bke::GeometrySet spreadsheet_get_display_geometry_set(const SpaceSpreadsheet *ss
     if (object_orig->type == OB_MESH) {
       const Mesh *mesh = static_cast<const Mesh *>(object_orig->data);
       if (object_orig->mode == OB_MODE_EDIT) {
-        if (const BMEditMesh *em = mesh->edit_mesh) {
+        if (const BMEditMesh *em = mesh->runtime->edit_mesh.get()) {
           Mesh *new_mesh = (Mesh *)BKE_id_new_nomain(ID_ME, nullptr);
           /* This is a potentially heavy operation to do on every redraw. The best solution here is
            * to display the data directly from the bmesh without a conversion, which can be

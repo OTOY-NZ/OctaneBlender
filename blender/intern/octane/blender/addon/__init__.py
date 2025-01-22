@@ -2,9 +2,9 @@
 
 
 bl_info = {
-    "name": "OctaneBlender (v. 29.9)",
+    "name": "OctaneBlender (v. 29.10)",
     "author": "OTOY Inc.",
-    "version": (29, 7, 0),
+    "version": (29, 9, 0),
     "blender": (4, 1, 1),
     "location": "Info header, render engine menu",
     "description": "OctaneBlender",
@@ -49,6 +49,7 @@ class OctaneRender(bpy.types.RenderEngine):
     bl_label = "Octane"
     bl_use_shading_nodes = True
     bl_use_shading_nodes_custom = False
+    bl_use_eevee_viewport = True
     bl_use_preview = False
     bl_use_exclude_layers = True
     bl_use_save_buffers = True
@@ -97,7 +98,7 @@ class OctaneRender(bpy.types.RenderEngine):
             active_engine.tag_update()
         if core.ENABLE_OCTANE_ADDON_CLIENT:
             return
-        if not self.session:
+        if getattr(self, "session", None) is None:
             engine.create(self, data)
         engine.reset(self, data, depsgraph)
 
@@ -113,20 +114,20 @@ class OctaneRender(bpy.types.RenderEngine):
             self.update_stats("Error", "OctaneServer is not connected or activated")
             self.report({"ERROR"}, "OctaneServer is not connected or activated")
             return
-        self.session.session_type = consts.SessionType.FINAL_RENDER
         scene = depsgraph.scene_eval
         width = utility.render_resolution_x(scene)
         height = utility.render_resolution_y(scene)
         for layer_index, layer in enumerate(scene.view_layers):
-            dummy_result = self.begin_result(0, 0, 1, 1, layer=layer.name)
             if not layer.use:
-                self.end_result(dummy_result, cancel=True, do_merge_results=False)
                 continue
-            self.end_result(dummy_result, cancel=True, do_merge_results=False)
+            self.create_session()
+            self.session.session_type = consts.SessionType.FINAL_RENDER
             utility.add_render_passes(self, scene, layer)
             self.render_layer(depsgraph, scene, layer, width, height)
             if self.test_break():
                 break
+            # Blender 4.2 Update: only process the first view layer as Blender calls render() for each view layer
+            break
 
     def render_layer(self, depsgraph, scene, layer, width, height):
         start_time = time.time()
@@ -145,7 +146,7 @@ class OctaneRender(bpy.types.RenderEngine):
         sync_time = time.time()
         sync_elapsed_time = sync_time - init_time
         self.update_stats("Scene Synced Time", "%.2f" % sync_elapsed_time)
-        result = self.begin_result(0, 0, width, height)
+        result = self.begin_result(0, 0, width, height, layer=layer.name)
         render_layer = result.layers[0]
         combined = render_layer.passes["Combined"]
         sample_status = ""

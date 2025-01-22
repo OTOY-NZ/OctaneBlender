@@ -12,15 +12,13 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_camera_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BKE_global.h"
+#include "BKE_global.hh"
 
 #include "BLI_array.hh"
-#include "BLI_convexhull_2d.h"
 #include "BLI_linklist.h"
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
@@ -34,7 +32,7 @@
 #include "BLI_uvproject.h"
 #include "BLI_vector.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "BKE_context.hh"
 #include "BKE_customdata.hh"
@@ -42,11 +40,9 @@
 #include "BKE_image.h"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
-#include "BKE_main.hh"
-#include "BKE_material.h"
 #include "BKE_mesh.hh"
-#include "BKE_report.h"
-#include "BKE_scene.h"
+#include "BKE_object_types.hh"
+#include "BKE_report.hh"
 #include "BKE_subdiv.hh"
 #include "BKE_subdiv_mesh.hh"
 #include "BKE_subdiv_modifier.hh"
@@ -58,7 +54,6 @@
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
-#include "UI_view2d.hh"
 
 #include "ED_image.hh"
 #include "ED_mesh.hh"
@@ -569,23 +564,24 @@ static Mesh *subdivide_edit_mesh(const Object *object,
                                  const BMEditMesh *em,
                                  const SubsurfModifierData *smd)
 {
+  using namespace blender;
   Mesh *me_from_em = BKE_mesh_from_bmesh_for_eval_nomain(
       em->bm, nullptr, static_cast<const Mesh *>(object->data));
   BKE_mesh_ensure_default_orig_index_customdata(me_from_em);
 
-  SubdivSettings settings = BKE_subsurf_modifier_settings_init(smd, false);
+  bke::subdiv::Settings settings = BKE_subsurf_modifier_settings_init(smd, false);
   if (settings.level == 1) {
     return me_from_em;
   }
 
-  SubdivToMeshSettings mesh_settings;
+  bke::subdiv::ToMeshSettings mesh_settings;
   mesh_settings.resolution = (1 << smd->levels) + 1;
   mesh_settings.use_optimal_display = (smd->flags & eSubsurfModifierFlag_ControlEdges);
 
-  Subdiv *subdiv = BKE_subdiv_new_from_mesh(&settings, me_from_em);
-  Mesh *result = BKE_subdiv_to_mesh(subdiv, &mesh_settings, me_from_em);
+  bke::subdiv::Subdiv *subdiv = bke::subdiv::new_from_mesh(&settings, me_from_em);
+  Mesh *result = bke::subdiv::subdiv_to_mesh(subdiv, &mesh_settings, me_from_em);
   BKE_id_free(nullptr, me_from_em);
-  BKE_subdiv_free(subdiv);
+  bke::subdiv::free(subdiv);
   return result;
 }
 
@@ -799,7 +795,7 @@ static bool minimize_stretch_init(bContext *C, wmOperator *op)
   ms->iterations = RNA_int_get(op->ptr, "iterations");
   ms->i = 0;
   ms->handle = construct_param_handle_multi(scene, objects, &options);
-  ms->lasttime = BLI_check_seconds_timer();
+  ms->lasttime = BLI_time_now_seconds();
 
   blender::geometry::uv_parametrizer_stretch_begin(ms->handle);
   if (ms->blend != 0.0f) {
@@ -825,7 +821,7 @@ static void minimize_stretch_iteration(bContext *C, wmOperator *op, bool interac
   ms->i++;
   RNA_int_set(op->ptr, "iterations", ms->i);
 
-  if (interactive && (BLI_check_seconds_timer() - ms->lasttime > 0.5)) {
+  if (interactive && (BLI_time_now_seconds() - ms->lasttime > 0.5)) {
     char str[UI_MAX_DRAW_STR];
 
     blender::geometry::uv_parametrizer_flush(ms->handle);
@@ -836,7 +832,7 @@ static void minimize_stretch_iteration(bContext *C, wmOperator *op, bool interac
       ED_workspace_status_text(C, IFACE_("Press + and -, or scroll wheel to set blending"));
     }
 
-    ms->lasttime = BLI_check_seconds_timer();
+    ms->lasttime = BLI_time_now_seconds();
 
     for (Object *obedit : ms->objects_edit) {
       BMEditMesh *em = BKE_editmesh_from_object(obedit);
@@ -961,11 +957,11 @@ static int minimize_stretch_modal(bContext *C, wmOperator *op, const wmEvent *ev
       break;
     case TIMER:
       if (ms->timer == event->customdata) {
-        double start = BLI_check_seconds_timer();
+        double start = BLI_time_now_seconds();
 
         do {
           minimize_stretch_iteration(C, op, true);
-        } while (BLI_check_seconds_timer() - start < 0.01);
+        } while (BLI_time_now_seconds() - start < 0.01);
       }
       break;
   }
@@ -1163,7 +1159,7 @@ static void uvedit_pack_islands_multi(const Scene *scene,
     Object *obedit = objects[ob_index];
     BMesh *bm = nullptr;
     if (bmesh_override) {
-      /* Note: obedit is still required for aspect ratio and ID_RECALC_GEOMETRY. */
+      /* NOTE: obedit is still required for aspect ratio and ID_RECALC_GEOMETRY. */
       bm = bmesh_override[ob_index];
     }
     else {
@@ -1632,6 +1628,11 @@ static void uv_pack_islands_ui(bContext * /*C*/, wmOperator *op)
   uiItemS(layout);
 }
 
+static int uv_pack_islands_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  return WM_operator_props_popup_confirm_ex(C, op, event, IFACE_("Pack Islands"), IFACE_("Pack"));
+}
+
 void UV_OT_pack_islands(wmOperatorType *ot)
 {
   static const EnumPropertyItem pack_target[] = {
@@ -1667,7 +1668,7 @@ void UV_OT_pack_islands(wmOperatorType *ot)
 #ifdef USE_INTERACTIVE_PACK
   ot->invoke = WM_operator_props_popup_call;
 #else
-  ot->invoke = WM_operator_props_popup_confirm;
+  ot->invoke = uv_pack_islands_invoke;
 #endif
   ot->ui = uv_pack_islands_ui;
   ot->poll = ED_operator_uvedit;
@@ -1937,8 +1938,8 @@ static void uv_map_transform_center(const Scene *scene,
     }
     case V3D_AROUND_CURSOR: /* cursor center */
     {
-      invert_m4_m4(ob->world_to_object, ob->object_to_world);
-      mul_v3_m4v3(r_center, ob->world_to_object, scene->cursor.location);
+      invert_m4_m4(ob->runtime->world_to_object.ptr(), ob->object_to_world().ptr());
+      mul_v3_m4v3(r_center, ob->world_to_object().ptr(), scene->cursor.location);
       break;
     }
     case V3D_AROUND_ACTIVE: {
@@ -1988,7 +1989,7 @@ static void uv_map_rotation_matrix_ex(float result[4][4],
   zero_v3(viewmatrix[3]);
 
   /* get rotation of the current object matrix */
-  copy_m4_m4(rotobj, ob->object_to_world);
+  copy_m4_m4(rotobj, ob->object_to_world().ptr());
   zero_v3(rotobj[3]);
 
   /* but shifting */
@@ -2479,7 +2480,7 @@ static int unwrap_exec(bContext *C, wmOperator *op)
       continue;
     }
 
-    mat4_to_size(obsize, obedit->object_to_world);
+    mat4_to_size(obsize, obedit->object_to_world().ptr());
     if (!(fabsf(obsize[0] - obsize[1]) < 1e-4f && fabsf(obsize[1] - obsize[2]) < 1e-4f)) {
       if ((reported_errors & UNWRAP_ERROR_NONUNIFORM) == 0) {
         BKE_report(op->reports,
@@ -2489,7 +2490,7 @@ static int unwrap_exec(bContext *C, wmOperator *op)
         reported_errors |= UNWRAP_ERROR_NONUNIFORM;
       }
     }
-    else if (is_negative_m4(obedit->object_to_world)) {
+    else if (is_negative_m4(obedit->object_to_world().ptr())) {
       if ((reported_errors & UNWRAP_ERROR_NEGATIVE) == 0) {
         BKE_report(
             op->reports,
@@ -2939,6 +2940,12 @@ static int smart_project_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
+static int smart_project_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  return WM_operator_props_popup_confirm_ex(
+      C, op, event, IFACE_("Smart UV Project"), IFACE_("Unwrap"));
+}
+
 void UV_OT_smart_project(wmOperatorType *ot)
 {
   PropertyRNA *prop;
@@ -2953,7 +2960,7 @@ void UV_OT_smart_project(wmOperatorType *ot)
   /* api callbacks */
   ot->exec = smart_project_exec;
   ot->poll = ED_operator_uvmap;
-  ot->invoke = WM_operator_props_popup_confirm;
+  ot->invoke = smart_project_invoke;
 
   /* properties */
   prop = RNA_def_float_rotation(ot->srna,
@@ -3016,7 +3023,7 @@ static int uv_from_view_invoke(bContext *C, wmOperator *op, const wmEvent * /*ev
 {
   View3D *v3d = CTX_wm_view3d(C);
   RegionView3D *rv3d = CTX_wm_region_view3d(C);
-  Camera *camera = ED_view3d_camera_data_get(v3d, rv3d);
+  const Camera *camera = ED_view3d_camera_data_get(v3d, rv3d);
   PropertyRNA *prop;
 
   prop = RNA_struct_find_property(op->ptr, "camera_bounds");
@@ -3038,7 +3045,7 @@ static int uv_from_view_exec(bContext *C, wmOperator *op)
   ARegion *region = CTX_wm_region(C);
   View3D *v3d = CTX_wm_view3d(C);
   RegionView3D *rv3d = CTX_wm_region_view3d(C);
-  Camera *camera = ED_view3d_camera_data_get(v3d, rv3d);
+  const Camera *camera = ED_view3d_camera_data_get(v3d, rv3d);
   BMFace *efa;
   BMLoop *l;
   BMIter iter, liter;
@@ -3056,7 +3063,7 @@ static int uv_from_view_exec(bContext *C, wmOperator *op)
     float objects_pos_avg[4] = {0};
 
     for (Object *object : objects) {
-      add_v4_v4(objects_pos_avg, object->object_to_world[3]);
+      add_v4_v4(objects_pos_avg, object->object_to_world().location());
     }
 
     mul_v4_fl(objects_pos_avg, 1.0f / objects.size());
@@ -3095,7 +3102,7 @@ static int uv_from_view_exec(bContext *C, wmOperator *op)
       const bool camera_bounds = RNA_boolean_get(op->ptr, "camera_bounds");
       ProjCameraInfo *uci = BLI_uvproject_camera_info(
           v3d->camera,
-          obedit->object_to_world,
+          obedit->object_to_world().ptr(),
           camera_bounds ? (scene->r.xsch * scene->r.xasp) : 1.0f,
           camera_bounds ? (scene->r.ysch * scene->r.yasp) : 1.0f);
 
@@ -3116,7 +3123,7 @@ static int uv_from_view_exec(bContext *C, wmOperator *op)
       }
     }
     else {
-      copy_m4_m4(rotmat, obedit->object_to_world);
+      copy_m4_m4(rotmat, obedit->object_to_world().ptr());
 
       BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
         if (!BM_elem_flag_test(efa, BM_ELEM_SELECT)) {

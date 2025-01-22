@@ -6,10 +6,12 @@
  * \ingroup cmpnodes
  */
 
+#include "BLI_math_vector.hh"
+
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
-#include "GPU_shader.h"
+#include "GPU_shader.hh"
 
 #include "COM_node_operation.hh"
 #include "COM_utilities.hh"
@@ -56,19 +58,27 @@ class SunBeamsOperation : public NodeOperation {
 
   void execute() override
   {
+    Result &input_image = get_input("Image");
+    Result &output_image = get_result("Image");
+
+    const int2 input_size = input_image.domain().size;
+    const int max_steps = int(node_storage(bnode()).ray_length * math::length(input_size));
+    if (max_steps == 0) {
+      input_image.pass_through(output_image);
+      return;
+    }
+
     GPUShader *shader = context().get_shader("compositor_sun_beams");
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_2fv(shader, "source", node_storage(bnode()).source);
-    GPU_shader_uniform_1f(shader, "max_ray_length", node_storage(bnode()).ray_length);
+    GPU_shader_uniform_1i(shader, "max_steps", max_steps);
 
-    const Result &input_image = get_input("Image");
     GPU_texture_filter_mode(input_image.texture(), true);
     GPU_texture_extend_mode(input_image.texture(), GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER);
     input_image.bind_as_texture(shader, "input_tx");
 
     const Domain domain = compute_domain();
-    Result &output_image = get_result("Image");
     output_image.allocate_texture(domain);
     output_image.bind_as_image(shader, "output_img");
 
@@ -91,15 +101,15 @@ void register_node_type_cmp_sunbeams()
 {
   namespace file_ns = blender::nodes::node_composite_sunbeams_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, CMP_NODE_SUNBEAMS, "Sun Beams", NODE_CLASS_OP_FILTER);
   ntype.declare = file_ns::cmp_node_sunbeams_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_sunbeams;
   ntype.initfunc = file_ns::init;
-  node_type_storage(
+  blender::bke::node_type_storage(
       &ntype, "NodeSunBeams", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 }

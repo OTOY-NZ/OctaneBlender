@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_global.h"
+#include "BKE_global.hh"
 
 #include "DNA_userdef_types.h"
 
@@ -438,7 +438,7 @@ void MTLBufferPool::begin_new_safe_list()
   safelist_lock_.unlock();
 
   /* Release final reference for previous list.
-   * Note: Outside of lock as this function itself locks. */
+   * NOTE: Outside of lock as this function itself locks. */
   if (previous_list) {
     previous_list->decrement_reference();
   }

@@ -23,8 +23,8 @@ class GatherAddNodeSearchParams;
 class GatherLinkSearchOpParams;
 }  // namespace blender::nodes
 
-void geo_node_type_base(bNodeType *ntype, int type, const char *name, short nclass);
-bool geo_node_poll_default(const bNodeType *ntype,
+void geo_node_type_base(blender::bke::bNodeType *ntype, int type, const char *name, short nclass);
+bool geo_node_poll_default(const blender::bke::bNodeType *ntype,
                            const bNodeTree *ntree,
                            const char **r_disabled_hint);
 
@@ -32,6 +32,7 @@ namespace blender::nodes {
 
 bool check_tool_context_and_error(GeoNodeExecParams &params);
 void search_link_ops_for_tool_node(GatherLinkSearchOpParams &params);
+void search_link_ops_for_volume_grid_node(GatherLinkSearchOpParams &params);
 
 void get_closest_in_bvhtree(BVHTreeFromMesh &tree_data,
                             const VArray<float3> &positions,
@@ -66,8 +67,7 @@ const EnumPropertyItem *domain_without_corner_experimental_grease_pencil_version
 
 }  // namespace enums
 
-bool grid_type_supported(eCustomDataType data_type);
-bool grid_type_supported(eNodeSocketDatatype socket_type);
+bool custom_data_type_supports_grids(eCustomDataType data_type);
 const EnumPropertyItem *grid_custom_data_type_items_filter_fn(bContext *C,
                                                               PointerRNA *ptr,
                                                               PropertyRNA *prop,

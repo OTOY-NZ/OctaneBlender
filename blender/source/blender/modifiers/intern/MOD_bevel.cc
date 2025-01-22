@@ -13,22 +13,17 @@
 #include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_curveprofile_types.h"
 #include "DNA_defaults.h"
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
-#include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_context.hh"
 #include "BKE_curveprofile.h"
 #include "BKE_deform.hh"
 #include "BKE_mesh.hh"
 #include "BKE_modifier.hh"
-#include "BKE_screen.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
@@ -45,8 +40,6 @@
 
 #include "bmesh.hh"
 #include "bmesh_tools.hh"
-
-#include "DEG_depsgraph_query.hh"
 
 static void init_data(ModifierData *md)
 {
@@ -231,11 +224,6 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
   return result;
 }
 
-static bool depends_on_normals(ModifierData * /*md*/)
-{
-  return true;
-}
-
 static void free_data(ModifierData *md)
 {
   BevelModifierData *bmd = (BevelModifierData *)md;
@@ -410,7 +398,7 @@ static void blend_read(BlendDataReader *reader, ModifierData *md)
 {
   BevelModifierData *bmd = (BevelModifierData *)md;
 
-  BLO_read_data_address(reader, &bmd->custom_profile);
+  BLO_read_struct(reader, CurveProfile, &bmd->custom_profile);
   if (bmd->custom_profile) {
     BKE_curveprofile_blend_read(reader, bmd->custom_profile);
   }
@@ -439,7 +427,7 @@ ModifierTypeInfo modifierType_Bevel = {
     /*is_disabled*/ is_disabled,
     /*update_depsgraph*/ nullptr,
     /*depends_on_time*/ nullptr,
-    /*depends_on_normals*/ depends_on_normals,
+    /*depends_on_normals*/ nullptr,
     /*foreach_ID_link*/ nullptr,
     /*foreach_tex_link*/ nullptr,
     /*free_runtime_data*/ nullptr,

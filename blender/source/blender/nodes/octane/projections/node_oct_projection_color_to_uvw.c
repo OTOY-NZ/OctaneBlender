@@ -27,7 +27,7 @@
 
 #include "node_shader_util.hh"
 
-static bNodeSocketTemplate sh_node_in[] = {{SOCK_SHADER,
+static blender::bke::bNodeSocketTemplate  sh_node_in[] = {{SOCK_SHADER,
                                             N_("Texture"),
                                             0.0f,
                                             0.0f,
@@ -39,13 +39,13 @@ static bNodeSocketTemplate sh_node_in[] = {{SOCK_SHADER,
                                             SOCK_NO_INTERNAL_LINK},
                                            {-1, ""}};
 
-static bNodeSocketTemplate sh_node_out[] = {
+static blender::bke::bNodeSocketTemplate  sh_node_out[] = {
     {SOCK_SHADER, N_("OutProjection")},
     {-1, ""}};
 
 void register_node_type_projection_oct_color_to_uvw(void)
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   if (ntype.type != SH_NODE_OCT_PROJECTION_COLOR_TO_UVW)
     sh_node_type_base(&ntype,

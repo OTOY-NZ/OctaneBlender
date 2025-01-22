@@ -27,7 +27,7 @@
 
 #include "node_shader_util.hh"
 
-static bNodeSocketTemplate sh_node_in[] = {{SOCK_FLOAT,
+static blender::bke::bNodeSocketTemplate  sh_node_in[] = {{SOCK_FLOAT,
                                             N_("Rotation"),
                                             0.0f,
                                             0.0f,
@@ -89,11 +89,11 @@ static bNodeSocketTemplate sh_node_in[] = {{SOCK_FLOAT,
                                             SOCK_NO_INTERNAL_LINK},
                                            {-1, ""}};
 
-static bNodeSocketTemplate sh_node_out[] = {{SOCK_SHADER, N_("OutProjection")}, {-1, ""}};
+static blender::bke::bNodeSocketTemplate  sh_node_out[] = {{SOCK_SHADER, N_("OutProjection")}, {-1, ""}};
 
 void register_node_type_projection_oct_distorted_mesh_uv(void)
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   if (ntype.type != SH_NODE_OCT_PROJECTION_DISTORTED_MESH_UV)
     sh_node_type_base(&ntype,

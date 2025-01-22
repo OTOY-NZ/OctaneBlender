@@ -21,22 +21,22 @@
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "BKE_action.h"
-#include "BKE_anim_data.h"
+#include "BKE_anim_data.hh"
 #include "BKE_context.hh"
 #include "BKE_curve.hh"
 #include "BKE_displist.h"
-#include "BKE_fcurve.h"
-#include "BKE_global.h"
+#include "BKE_fcurve.hh"
+#include "BKE_global.hh"
 #include "BKE_key.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_modifier.hh"
 #include "BKE_object_types.hh"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
@@ -54,7 +54,7 @@
 #include "ED_transform_snap_object_context.hh"
 #include "ED_view3d.hh"
 
-#include "curve_intern.h"
+#include "curve_intern.hh"
 
 extern "C" {
 #include "curve_fit_nd.h"
@@ -1087,11 +1087,11 @@ int ED_curve_updateAnimPaths(Main *bmain, Curve *cu)
 
   if (adt->action != nullptr) {
     curve_rename_fcurves(cu, &adt->action->curves);
-    DEG_id_tag_update(&adt->action->id, ID_RECALC_COPY_ON_WRITE);
+    DEG_id_tag_update(&adt->action->id, ID_RECALC_SYNC_TO_EVAL);
   }
 
   curve_rename_fcurves(cu, &adt->drivers);
-  DEG_id_tag_update(&cu->id, ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&cu->id, ID_RECALC_SYNC_TO_EVAL);
 
   /* TODO(sergey): Only update if something actually changed. */
   DEG_relations_tag_update(bmain);
@@ -1391,7 +1391,7 @@ static int separate_exec(bContext *C, wmOperator *op)
     /* Take into account user preferences for duplicating actions. */
     const eDupli_ID_Flags dupflag = eDupli_ID_Flags(U.dupflag & USER_DUP_ACT);
 
-    newbase = ED_object_add_duplicate(bmain, scene, view_layer, oldbase, dupflag);
+    newbase = blender::ed::object::add_duplicate(bmain, scene, view_layer, oldbase, dupflag);
     DEG_relations_tag_update(bmain);
 
     newob = newbase->object;
@@ -1463,13 +1463,11 @@ void CURVE_OT_separate(wmOperatorType *ot)
   ot->description = "Separate selected points from connected unselected points into a new object";
 
   /* api callbacks */
-  ot->invoke = WM_operator_confirm_or_exec;
   ot->exec = separate_exec;
   ot->poll = ED_operator_editsurfcurve;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-  WM_operator_properties_confirm_or_exec(ot);
 }
 
 /** \} */
@@ -2700,7 +2698,7 @@ static int set_radius_exec(bContext *C, wmOperator *op)
 
   for (Object *obedit : objects) {
 
-    if (ED_object_edit_report_if_shape_key_is_locked(obedit, op->reports)) {
+    if (blender::ed::object::shape_key_report_if_locked(obedit, op->reports)) {
       continue;
     }
 
@@ -2817,7 +2815,7 @@ static int smooth_exec(bContext *C, wmOperator *op)
 
   for (Object *obedit : objects) {
 
-    if (ED_object_edit_report_if_shape_key_is_locked(obedit, op->reports)) {
+    if (blender::ed::object::shape_key_report_if_locked(obedit, op->reports)) {
       continue;
     }
 
@@ -2826,14 +2824,13 @@ static int smooth_exec(bContext *C, wmOperator *op)
     ListBase *editnurb = object_editcurve_get(obedit);
 
     int a, a_end;
-    bool changed = false;
 
     LISTBASE_FOREACH (Nurb *, nu, editnurb) {
       if (nu->bezt) {
         /* duplicate the curve to use in weight calculation */
         const BezTriple *bezt_orig = static_cast<const BezTriple *>(MEM_dupallocN(nu->bezt));
         BezTriple *bezt;
-        changed = false;
+        bool changed = false;
 
         /* check whether its cyclic or not, and set initial & final conditions */
         if (nu->flagu & CU_NURB_CYCLIC) {
@@ -3160,7 +3157,7 @@ static int curve_smooth_radius_exec(bContext *C, wmOperator *op)
 
   for (Object *obedit : objects) {
 
-    if (ED_object_edit_report_if_shape_key_is_locked(obedit, op->reports)) {
+    if (blender::ed::object::shape_key_report_if_locked(obedit, op->reports)) {
       continue;
     }
 
@@ -3209,7 +3206,7 @@ static int curve_smooth_tilt_exec(bContext *C, wmOperator *op)
 
   for (Object *obedit : objects) {
 
-    if (ED_object_edit_report_if_shape_key_is_locked(obedit, op->reports)) {
+    if (blender::ed::object::shape_key_report_if_locked(obedit, op->reports)) {
       continue;
     }
 
@@ -3394,7 +3391,7 @@ static int reveal_exec(bContext *C, wmOperator *op)
 
     if (changed) {
       DEG_id_tag_update(static_cast<ID *>(obedit->data),
-                        ID_RECALC_COPY_ON_WRITE | ID_RECALC_SELECT | ID_RECALC_GEOMETRY);
+                        ID_RECALC_SYNC_TO_EVAL | ID_RECALC_SELECT | ID_RECALC_GEOMETRY);
       WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
       changed_multi = true;
     }
@@ -4053,7 +4050,7 @@ static int curve_normals_make_consistent_exec(bContext *C, wmOperator *op)
       continue;
     }
 
-    if (ED_object_edit_report_if_shape_key_is_locked(obedit, op->reports)) {
+    if (blender::ed::object::shape_key_report_if_locked(obedit, op->reports)) {
       continue;
     }
 
@@ -4822,7 +4819,7 @@ bool ED_curve_editnurb_select_pick(bContext *C,
       for (Object *ob_iter : objects) {
         ED_curve_deselect_all(((Curve *)ob_iter->data)->editnurb);
         DEG_id_tag_update(static_cast<ID *>(ob_iter->data),
-                          ID_RECALC_SELECT | ID_RECALC_COPY_ON_WRITE);
+                          ID_RECALC_SELECT | ID_RECALC_SYNC_TO_EVAL);
         WM_event_add_notifier(C, NC_GEOM | ND_SELECT, ob_iter->data);
       }
       changed = true;
@@ -4983,10 +4980,10 @@ bool ED_curve_editnurb_select_pick(bContext *C,
 
     BKE_view_layer_synced_ensure(vc.scene, vc.view_layer);
     if (BKE_view_layer_active_base_get(vc.view_layer) != basact) {
-      ED_object_base_activate(C, basact);
+      blender::ed::object::base_activate(C, basact);
     }
 
-    DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT | ID_RECALC_COPY_ON_WRITE);
+    DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT | ID_RECALC_SYNC_TO_EVAL);
     WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
 
     changed = true;
@@ -5016,7 +5013,7 @@ bool ed_editnurb_spin(
   invert_m3_m3(persinv, persmat);
 
   /* imat and center and size */
-  copy_m3_m4(bmat, obedit->object_to_world);
+  copy_m3_m4(bmat, obedit->object_to_world().ptr());
   invert_m3_m3(imat, bmat);
 
   axis_angle_to_mat3(cmat, axis, M_PI_4);
@@ -5110,8 +5107,8 @@ static int spin_exec(bContext *C, wmOperator *op)
       continue;
     }
 
-    invert_m4_m4(obedit->world_to_object, obedit->object_to_world);
-    mul_m4_v3(obedit->world_to_object, cent);
+    invert_m4_m4(obedit->runtime->world_to_object.ptr(), obedit->object_to_world().ptr());
+    mul_m4_v3(obedit->world_to_object().ptr(), cent);
 
     if (!ed_editnurb_spin(viewmat, v3d, obedit, axis, cent)) {
       count_failed += 1;
@@ -5589,7 +5586,7 @@ static int add_vertex_exec(bContext *C, wmOperator *op)
 
   RNA_float_get_array(op->ptr, "location", location);
 
-  invert_m4_m4(imat, obedit->object_to_world);
+  invert_m4_m4(imat, obedit->object_to_world().ptr());
   mul_m4_v3(imat, location);
 
   if (ed_editcurve_addvert(cu, editnurb, v3d, location)) {
@@ -5628,10 +5625,10 @@ static int add_vertex_invoke(bContext *C, wmOperator *op, const wmEvent *event)
     ED_curve_nurb_vert_selected_find(cu, vc.v3d, &nu, &bezt, &bp);
 
     if (bezt) {
-      mul_v3_m4v3(location, vc.obedit->object_to_world, bezt->vec[1]);
+      mul_v3_m4v3(location, vc.obedit->object_to_world().ptr(), bezt->vec[1]);
     }
     else if (bp) {
-      mul_v3_m4v3(location, vc.obedit->object_to_world, bp->vec);
+      mul_v3_m4v3(location, vc.obedit->object_to_world().ptr(), bp->vec);
     }
     else {
       copy_v3_v3(location, vc.scene->cursor.location);
@@ -5672,17 +5669,17 @@ static int add_vertex_invoke(bContext *C, wmOperator *op, const wmEvent *event)
       ED_view3d_global_to_vector(vc.rv3d, location, view_dir);
 
       /* get the plane */
-      float plane[4];
+      const float *plane_co = vc.obedit->object_to_world().location();
+      float plane_no[3];
       /* only normalize to avoid precision errors */
-      normalize_v3_v3(plane, vc.obedit->object_to_world[2]);
-      plane[3] = -dot_v3v3(plane, vc.obedit->object_to_world[3]);
+      normalize_v3_v3(plane_no, vc.obedit->object_to_world()[2]);
 
-      if (fabsf(dot_v3v3(view_dir, plane)) < eps) {
+      if (fabsf(dot_v3v3(view_dir, plane_no)) < eps) {
         /* can't project on an aligned plane. */
       }
       else {
         float lambda;
-        if (isect_ray_plane_v3(location, view_dir, plane, &lambda, false)) {
+        if (isect_ray_plane_v3_factor(location, view_dir, plane_co, plane_no, &lambda)) {
           /* check if we're behind the viewport */
           float location_test[3];
           madd_v3_v3v3fl(location_test, location, view_dir, lambda);
@@ -6922,7 +6919,7 @@ int ED_curve_join_objects_exec(bContext *C, wmOperator *op)
 
   /* Inverse transform for all selected curves in this object,
    * See object_join_exec for detailed comment on why the safe version is used. */
-  invert_m4_m4_safe_ortho(imat, ob_active->object_to_world);
+  invert_m4_m4_safe_ortho(imat, ob_active->object_to_world().ptr());
 
   Curve *cu_active = static_cast<Curve *>(ob_active->data);
 
@@ -6934,7 +6931,7 @@ int ED_curve_join_objects_exec(bContext *C, wmOperator *op)
 
         if (cu->nurb.first) {
           /* watch it: switch order here really goes wrong */
-          mul_m4_m4m4(cmat, imat, ob_iter->object_to_world);
+          mul_m4_m4m4(cmat, imat, ob_iter->object_to_world().ptr());
 
           /* Compensate for different bevel depth. */
           bool do_radius = false;
@@ -6980,7 +6977,7 @@ int ED_curve_join_objects_exec(bContext *C, wmOperator *op)
           }
         }
 
-        ED_object_base_free_and_unlink(bmain, scene, ob_iter);
+        blender::ed::object::base_free_and_unlink(bmain, scene, ob_iter);
       }
     }
   }
@@ -7029,7 +7026,7 @@ static int clear_tilt_exec(bContext *C, wmOperator *op)
       continue;
     }
 
-    if (ED_object_edit_report_if_shape_key_is_locked(obedit, op->reports)) {
+    if (blender::ed::object::shape_key_report_if_locked(obedit, op->reports)) {
       continue;
     }
 

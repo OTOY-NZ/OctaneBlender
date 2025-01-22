@@ -19,10 +19,14 @@
  * - `BKE_lib_query_` should be used for functions in that file.
  */
 
+#include "DNA_ID.h"
+
+#include "BLI_function_ref.hh"
 #include "BLI_sys_types.h"
 
-struct ID;
-struct IDProperty;
+#include <array>
+
+struct IDTypeInfo;
 struct LibraryForeachIDData;
 struct Main;
 
@@ -41,6 +45,9 @@ enum {
    * (pointing to) a linked ID, that usage does not make the linked ID directly linked.
    *
    * E.g. usages of linked collections or objects by ViewLayerCollections or Bases in scenes.
+   *
+   * Also used for most Editors ID usages (active node tree in the Node editor, shown image in the
+   * Image editor, and so on).
    *
    * See also #LIB_INDIRECT_WEAK_LINK in DNA_ID.h
    */
@@ -139,7 +146,7 @@ struct LibraryIDLinkCallbackData {
  *
  * \return a set of flags to control further iteration (0 to keep going).
  */
-typedef int (*LibraryIDLinkCallback)(LibraryIDLinkCallbackData *cb_data);
+using LibraryIDLinkCallback = int(LibraryIDLinkCallbackData *cb_data);
 
 /* Flags for the foreach function itself. */
 enum {
@@ -154,10 +161,11 @@ enum {
    * Recurse into 'descendant' IDs.
    * Each ID is only processed once. Order of ID processing is not guaranteed.
    *
-   * Also implies IDWALK_READONLY, and excludes IDWALK_DO_INTERNAL_RUNTIME_POINTERS.
+   * Also implies #IDWALK_READONLY, and excludes #IDWALK_DO_INTERNAL_RUNTIME_POINTERS.
    *
    * NOTE: When enabled, embedded IDs are processed separately from their owner, as if they were
-   * regular IDs. Owner ID is not available then in the #LibraryForeachIDData callback data.
+   * regular IDs. The owner ID remains available in the #LibraryForeachIDData callback data, unless
+   * #IDWALK_IGNORE_MISSING_OWNER_ID is passed.
    */
   IDWALK_RECURSE = (1 << 1),
   /** Include UI pointers (from WM and screens editors). */
@@ -179,6 +187,8 @@ enum {
    * \note This flag is mutually exclusive with `IDWALK_RECURSE`, since by definition accessing the
    * current ID pointer is required for recursion.
    *
+   * \note Also implies #IDWALK_IGNORE_MISSING_OWNER_ID.
+   *
    * \note After remapping, code may access the newly set ID pointer, which is always presumed
    * valid.
    *
@@ -186,6 +196,16 @@ enum {
    * (especially when it comes to detecting `IDWALK_CB_EMBEDDED_NOT_OWNING` usages).
    */
   IDWALK_NO_ORIG_POINTERS_ACCESS = (1 << 5),
+  /**
+   * Do not attempt to find the owner ID of an embedded one if not explicitly given.
+   *
+   * \note This is needed in some cases, when the loop-back 'owner' ID pointer of the processed
+   * embedded data is known to be invalid (as part of depsgraph ID copying code, where embedded IDs
+   * are mostly processed on their own, separately from their owner ID).
+   *
+   * \note Also implied by #IDWALK_NO_ORIG_POINTERS_ACCESS.
+   */
+  IDWALK_IGNORE_MISSING_OWNER_ID = (1 << 6),
 
   /**
    * Also process internal ID pointers like `ID.newid` or `ID.orig_id`.
@@ -266,9 +286,58 @@ void BKE_lib_query_idpropertiesForeachIDLink_callback(IDProperty *id_prop, void 
 
 /**
  * Loop over all of the ID's this data-block links to.
+ *
+ * \param bmain: The Main data-base containing `owner_id`, may be null.
+ * \param id: The ID to process. Note that currently, embedded IDs may also be passed here.
+ * \param callback: The callback processing a given ID usage (i.e. a given ID pointer within the
+ * given \a id data).
+ * \param user_data: Opaque user data for the callback processing a given ID usage.
+ * \param flag: Flags controlling how/which ID pointers are processed.
  */
-void BKE_library_foreach_ID_link(
-    Main *bmain, ID *id, LibraryIDLinkCallback callback, void *user_data, int flag);
+void BKE_library_foreach_ID_link(Main *bmain,
+                                 ID *id,
+                                 blender::FunctionRef<LibraryIDLinkCallback> callback,
+                                 void *user_data,
+                                 int flag);
+
+/**
+ * Apply `callback` to all ID usages of the data as defined by `subdata_foreach_id`. Useful to e.g.
+ * process all ID usages of a node, or a modifier, and so on.
+ *
+ * \note This function is fully unaware of which data is actually processed. The given
+ * `subdata_foreach_id` callback is responsible to decide which data to process, and to call the
+ * relevant 'foreach_id' helpers (typically shared with the relevant #IDTypeInfo::foreach_id code
+ * path). This is typically done by using a lambda as `subdata_foreach_id`, which captures the
+ * required extra parameters do process the target subdata.
+ *
+ * \note `main`, `owner_id` and `self_id` may be null. There is also no requirement for `owner_id`
+ * or `self_id` to be actual owner IDs of the processed subdata. This function merely
+ * initializes a #LibraryForeachIDData object with given parameters, and wraps a call to given
+ * `subdata_foreach_id`.
+ *
+ * \param bmain: The Main data-base containing `owner_id`, may be null.
+ * \param owner_id: The owner ID, i.e. the data-block owning the given sub-data (may differ from
+ * `self_id` in case the later is an embedded ID).
+ * \param self_id: Typically the same as `owner_id`, unless it is an embedded ID.
+ * \param subdata_foreach_id: The callback handling which data to process, and iterating over all
+ * ID usages of this subdata. Typically a lambda capturing that subdata, see comments above for
+ * details.
+ * \param callback: The callback processing a given ID usage, see #BKE_library_foreach_ID_link.
+ * \param user_data: Opaque user data for the callback processing a given ID usage, see
+ * #BKE_library_foreach_ID_link.
+ * \param flag: Flags controlling the process, see #BKE_library_foreach_ID_link. Note that some
+ * flags are not accepted here (#IDWALK_RECURSE, #IDWALK_DO_INTERNAL_RUNTIME_POINTERS,
+ * #IDWALK_DO_LIBRARY_POINTER, #IDWALK_INCLUDE_UI).
+ */
+void BKE_library_foreach_subdata_id(
+    Main *bmain,
+    ID *owner_id,
+    ID *self_id,
+    blender::FunctionRef<void(LibraryForeachIDData *data)> subdata_foreach_id,
+    blender::FunctionRef<LibraryIDLinkCallback> callback,
+    void *user_data,
+    const int flag);
+
 /**
  * Re-usable function, use when replacing ID's.
  */
@@ -297,7 +366,9 @@ bool BKE_library_id_can_use_idtype(ID *owner_id, short id_type_used);
 /**
  * Given the owner_id return the type of id_types it can use as a filter_id.
  */
-uint64_t BKE_library_id_can_use_filter_id(const ID *owner_id, const bool include_ui);
+uint64_t BKE_library_id_can_use_filter_id(const ID *owner_id,
+                                          const bool include_ui,
+                                          const IDTypeInfo *owner_id_type = nullptr);
 
 /**
  * Check whether given ID is used locally (i.e. by another non-linked ID).
@@ -316,27 +387,90 @@ void BKE_library_ID_test_usages(Main *bmain,
                                 bool *r_is_used_local,
                                 bool *r_is_used_linked);
 
+/** Parameters and result data structure for the 'unused IDs' functions below. */
+struct LibQueryUnusedIDsData {
+  /** Process local data-blocks. */
+  bool do_local_ids = false;
+  /** Process linked data-blocks. */
+  bool do_linked_ids = false;
+  /**
+   * Process all actually unused data-blocks, including these that are currently only used by
+   * other unused data-blocks, and 'dependency islands' of several data-blocks using each-other,
+   * without any external valid user.
+   */
+  bool do_recursive = false;
+
+  /**
+   * Callback filter, if defined and it returns `true`, the given `id` may be considered as unused,
+   * otherwise it will always be considered as used.
+   *
+   * Allows for more complex handling of which IDs should be deleted, on top of the basic
+   * local/linked choices.
+   */
+  blender::FunctionRef<bool(ID *id)> filter_fn = nullptr;
+
+  /**
+   * Amount of detected as unused data-blocks, per type and total as the last value of the array
+   * (#INDEX_ID_NULL).
+   *
+   * \note Return value, set by the executed function.
+   */
+  std::array<int, INDEX_ID_MAX> num_total;
+  /**
+   * Amount of detected as unused local data-blocks, per type and total as the last value of the
+   * array (#INDEX_ID_NULL).
+   *
+   * \note Return value, set by the executed function.
+   */
+  std::array<int, INDEX_ID_MAX> num_local;
+  /**
+   * Amount of detected as unused linked data-blocks, per type and total as the last value of the
+   * array (#INDEX_ID_NULL).
+   *
+   * \note Return value, set by the executed function.
+   */
+  std::array<int, INDEX_ID_MAX> num_linked;
+};
+
 /**
- * Tag all unused IDs (a.k.a 'orphaned').
+ * Compute amount of unused IDs (a.k.a 'orphaned').
  *
- * By default only tag IDs with `0` user count.
- * If `do_tag_recursive` is set, it will check dependencies to detect all IDs that are not actually
+ * By default only consider IDs with `0` user count.
+ * If `do_recursive` is set, it will check dependencies to detect all IDs that are not actually
  * used in current file, including 'archipelagos` (i.e. set of IDs referencing each other in
  * loops, but without any 'external' valid usages.
  *
  * Valid usages here are defined as ref-counting usages, which are not towards embedded or
  * loop-back data.
  *
- * \param r_num_tagged: If non-NULL, must be a zero-initialized array of #INDEX_ID_MAX integers.
- * Number of tagged-as-unused IDs is then set for each type, and as total in
+ * \param r_num_total: A zero-initialized array of #INDEX_ID_MAX integers. Number of IDs detected
+ * as unused from given parameters, per ID type in the matching index, and as total in
+ * #INDEX_ID_NULL item.
+ * \param r_num_local: A zero-initialized array of #INDEX_ID_MAX integers. Number of local IDs
+ * detected as unused from given parameters (but assuming \a do_local_ids is true), per ID type in
+ * the matching index, and as total in #INDEX_ID_NULL item.
+ * \param r_num_linked: A zero-initialized array of #INDEX_ID_MAX integers. Number of linked IDs
+ * detected as unused from given parameters (but assuming \a do_linked_ids is true), per ID type in
+ * the matching index, and as total in #INDEX_ID_NULL item.
+ */
+void BKE_lib_query_unused_ids_amounts(Main *bmain, LibQueryUnusedIDsData &parameters);
+/**
+ * Tag all unused IDs (a.k.a 'orphaned').
+ *
+ * By default only tag IDs with `0` user count.
+ * If `do_recursive` is set, it will check dependencies to detect all IDs that are not actually
+ * used in current file, including 'archipelagos` (i.e. set of IDs referencing each other in
+ * loops, but without any 'external' valid usages.
+ *
+ * Valid usages here are defined as ref-counting usages, which are not towards embedded or
+ * loop-back data.
+ *
+ * \param tag: the ID tag to use to mark the ID as unused. Should never be `0`.
+ * \param r_num_tagged_total: A zero-initialized array of #INDEX_ID_MAX integers. Number of IDs
+ * tagged as unused from given parameters, per ID type in the matching index, and as total in
  * #INDEX_ID_NULL item.
  */
-void BKE_lib_query_unused_ids_tag(Main *bmain,
-                                  int tag,
-                                  bool do_local_ids,
-                                  bool do_linked_ids,
-                                  bool do_tag_recursive,
-                                  int *r_num_tagged);
+void BKE_lib_query_unused_ids_tag(Main *bmain, int tag, LibQueryUnusedIDsData &parameters);
 
 /**
  * Detect orphaned linked data blocks (i.e. linked data not used (directly or indirectly)

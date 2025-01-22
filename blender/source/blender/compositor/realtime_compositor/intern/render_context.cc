@@ -8,7 +8,6 @@
 #include "BLI_assert.h"
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
-#include "BLI_math_base.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
@@ -23,7 +22,7 @@
 
 #include "BKE_image.h"
 #include "BKE_image_save.h"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 
 #include "RE_pipeline.h"
 
@@ -35,7 +34,10 @@ namespace blender::realtime_compositor {
  * File Output
  */
 
-FileOutput::FileOutput(std::string path, ImageFormatData format, int2 size, bool save_as_render)
+FileOutput::FileOutput(const std::string &path,
+                       const ImageFormatData &format,
+                       int2 size,
+                       bool save_as_render)
     : path_(path), format_(format), save_as_render_(save_as_render)
 {
   render_result_ = MEM_cnew<RenderResult>("Temporary Render Result For File Output");
@@ -51,6 +53,9 @@ FileOutput::FileOutput(std::string path, ImageFormatData format, int2 size, bool
   RenderLayer *render_layer = MEM_cnew<RenderLayer>("Render Layer For File Output.");
   BLI_addtail(&render_result_->layers, render_layer);
   render_layer->name[0] = '\0';
+
+  /* File outputs do not support previews. */
+  format_.flag &= ~R_IMF_FLAG_PREVIEW_JPG;
 }
 
 FileOutput::~FileOutput()

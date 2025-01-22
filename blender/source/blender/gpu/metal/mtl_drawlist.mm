@@ -11,7 +11,7 @@
 
 #include "BLI_assert.h"
 
-#include "GPU_batch.h"
+#include "GPU_batch.hh"
 #include "mtl_common.hh"
 #include "mtl_drawlist.hh"
 #include "mtl_primitive.hh"
@@ -68,7 +68,7 @@ MTLDrawList::~MTLDrawList()
 
 void MTLDrawList::init()
 {
-  MTLContext *ctx = static_cast<MTLContext *>(unwrap(GPU_context_active_get()));
+  MTLContext *ctx = MTLContext::get();
   BLI_assert(ctx);
   BLI_assert(MDI_ENABLED);
   BLI_assert(data_ == nullptr);
@@ -81,7 +81,7 @@ void MTLDrawList::init()
   command_offset_ = 0;
 }
 
-void MTLDrawList::append(GPUBatch *gpu_batch, int i_first, int i_count)
+void MTLDrawList::append(Batch *gpu_batch, int i_first, int i_count)
 {
   /* Fallback when MultiDrawIndirect is not supported/enabled. */
   MTLShader *shader = static_cast<MTLShader *>(unwrap(gpu_batch->shader));
@@ -168,7 +168,7 @@ void MTLDrawList::submit()
   bool can_use_MDI = false;
 
   /* Verify context. */
-  MTLContext *ctx = reinterpret_cast<MTLContext *>(GPU_context_active_get());
+  MTLContext *ctx = MTLContext::get();
   BLI_assert(ctx);
 
   /* Execute indirect draw calls. */

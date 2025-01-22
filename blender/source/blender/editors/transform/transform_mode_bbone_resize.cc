@@ -12,14 +12,13 @@
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
 
-#include "BKE_context.hh"
 #include "BKE_unit.hh"
 
 #include "ED_screen.hh"
 
 #include "UI_interface.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "transform.hh"
 #include "transform_constraints.hh"
@@ -44,7 +43,7 @@ static void headerBoneSize(TransInfo *t, const float vec[3], char str[UI_MAX_DRA
     BLI_snprintf(&tvec[NUM_STR_REP_LEN * 2], NUM_STR_REP_LEN, "%.4f", vec[2]);
   }
 
-  /* hmm... perhaps the y-axis values don't need to be shown? */
+  /* Hmm... perhaps the y-axis values don't need to be shown? */
   if (t->con.mode & CON_APPLY) {
     if (t->num.idx_max == 0) {
       BLI_snprintf(
@@ -88,7 +87,7 @@ static void ElementBoneSize(TransInfo *t,
     t->con.applySize(t, tc, td, tmat);
   }
 
-  /* we've tucked the scale in loc */
+  /* We've tucked the scale in loc. */
   oldy = td->iloc[1];
   size_to_mat3(sizemat, td->iloc);
   mul_m3_m3m3(tmat, tmat, sizemat);
@@ -129,7 +128,7 @@ static void applyBoneSize(TransInfo *t)
     }
   }
 
-  copy_m3_m3(t->mat, mat); /* used in gizmo */
+  copy_m3_m3(t->mat, mat); /* Used in gizmo. */
 
   headerBoneSize(t, t->values_final, str);
 

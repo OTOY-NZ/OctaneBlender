@@ -24,10 +24,8 @@ class CollectionButtonsPanel:
 def lineart_make_line_type_entry(col, line_type, text_disp, expand, search_from):
     col.prop(line_type, "use", text=text_disp)
     if line_type.use and expand:
-        col.prop_search(line_type, "layer", search_from,
-                        "layers", icon='GREASEPENCIL')
-        col.prop_search(line_type, "material", search_from,
-                        "materials", icon='SHADING_TEXTURE')
+        col.prop_search(line_type, "layer", search_from, "layers", icon='GREASEPENCIL')
+        col.prop_search(line_type, "material", search_from, "materials", icon='SHADING_TEXTURE')
 
 
 class COLLECTION_PT_collection_flags(CollectionButtonsPanel, Panel):
@@ -49,6 +47,15 @@ class COLLECTION_PT_collection_flags(CollectionButtonsPanel, Panel):
         col = layout.column(align=True)
         col.prop(vlc, "holdout", toggle=False)
         col.prop(vlc, "indirect_only", toggle=False)
+
+
+class COLLECTION_PT_exporters(CollectionButtonsPanel, Panel):
+    bl_label = "Exporters"
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.template_collection_exporters()
 
 
 class COLLECTION_MT_context_menu_instance_offset(Menu):
@@ -116,6 +123,7 @@ classes = (
     COLLECTION_PT_instancing,
     COLLECTION_PT_lineart_collection,
     COLLECTION_PT_collection_custom_props,
+    COLLECTION_PT_exporters,
 )
 
 if __name__ == "__main__":  # only for live edit.

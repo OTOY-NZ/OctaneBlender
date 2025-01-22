@@ -10,21 +10,14 @@
 
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_defaults.h"
-#include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_context.hh"
-#include "BKE_editmesh.hh"
-#include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
-#include "BKE_mesh.hh"
-#include "BKE_mesh_wrapper.hh"
 #include "BKE_modifier.hh"
-#include "BKE_screen.hh"
 #include "BKE_shrinkwrap.hh"
 
 #include "UI_interface.hh"
@@ -37,8 +30,6 @@
 
 #include "MOD_ui_common.hh"
 #include "MOD_util.hh"
-
-static bool depends_on_normals(ModifierData *md);
 
 static void init_data(ModifierData *md)
 {
@@ -138,17 +129,6 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
   DEG_add_depends_on_transform_relation(ctx->node, "Shrinkwrap Modifier");
 }
 
-static bool depends_on_normals(ModifierData *md)
-{
-  ShrinkwrapModifierData *smd = (ShrinkwrapModifierData *)md;
-
-  if (smd->target && smd->shrinkType == MOD_SHRINKWRAP_PROJECT) {
-    return (smd->projAxis == MOD_SHRINKWRAP_PROJECT_OVER_NORMAL);
-  }
-
-  return false;
-}
-
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
   uiLayout *row, *col;
@@ -236,7 +216,7 @@ ModifierTypeInfo modifierType_Shrinkwrap = {
     /*is_disabled*/ is_disabled,
     /*update_depsgraph*/ update_depsgraph,
     /*depends_on_time*/ nullptr,
-    /*depends_on_normals*/ depends_on_normals,
+    /*depends_on_normals*/ nullptr,
     /*foreach_ID_link*/ foreach_ID_link,
     /*foreach_tex_link*/ nullptr,
     /*free_runtime_data*/ nullptr,

@@ -15,7 +15,6 @@
 #include "DNA_gpencil_legacy_types.h"
 #include "DNA_grease_pencil_types.h"
 #include "DNA_mask_types.h"
-#include "DNA_node_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
@@ -24,13 +23,10 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_action.h"
-#include "BKE_anim_data.h"
-#include "BKE_context.hh"
-#include "BKE_fcurve.h"
+#include "BKE_anim_data.hh"
+#include "BKE_fcurve.hh"
 #include "BKE_gpencil_legacy.h"
 #include "BKE_grease_pencil.hh"
-#include "BKE_main.hh"
-#include "BKE_node.h"
 
 #include "DEG_depsgraph.hh"
 
@@ -372,6 +368,19 @@ void ANIM_animdata_update(bAnimContext *ac, ListBase *anim_data)
         ale->update &= ~ANIM_UPDATE_DEPS;
         ANIM_list_elem_update(ac->bmain, ac->scene, ale);
       }
+    }
+    else if (ELEM(ale->type,
+                  ANIMTYPE_GREASE_PENCIL_LAYER,
+                  ANIMTYPE_GREASE_PENCIL_LAYER_GROUP,
+                  ANIMTYPE_GREASE_PENCIL_DATABLOCK))
+    {
+      if (ale->update & ANIM_UPDATE_DEPS) {
+        ale->update &= ~ANIM_UPDATE_DEPS;
+        ANIM_list_elem_update(ac->bmain, ac->scene, ale);
+      }
+      /* Order appears to be already handled in `grease_pencil_layer_apply_trans_data` when
+       * translating. */
+      ale->update &= ~(ANIM_UPDATE_HANDLES | ANIM_UPDATE_ORDER);
     }
     else if (ale->update) {
 #if 0

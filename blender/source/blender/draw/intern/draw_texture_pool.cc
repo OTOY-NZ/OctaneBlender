@@ -6,12 +6,12 @@
  * \ingroup draw
  */
 
-#include "BKE_global.h"
+#include "BKE_global.hh"
 
 #include "BLI_string.h"
 #include "BLI_vector.hh"
 
-#include "draw_texture_pool.h"
+#include "draw_texture_pool.hh"
 
 using namespace blender;
 

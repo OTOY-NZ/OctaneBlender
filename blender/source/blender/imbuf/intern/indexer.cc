@@ -10,6 +10,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_array.hh"
 #include "BLI_endian_defines.h"
 #include "BLI_endian_switch.h"
 #include "BLI_fileops.h"
@@ -21,6 +22,7 @@
 #include "BLI_threads.h"
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
+
 #ifdef _WIN32
 #  include "BLI_winstuff.h"
 #endif
@@ -29,10 +31,6 @@
 #include "IMB_imbuf.hh"
 #include "IMB_indexer.hh"
 #include "imbuf.hh"
-
-#ifdef WITH_AVI
-#  include "AVI_avi.h"
-#endif
 
 #ifdef WITH_FFMPEG
 extern "C" {
@@ -47,15 +45,6 @@ static const char temp_ext[] = "_part";
 static const IMB_Proxy_Size proxy_sizes[] = {
     IMB_PROXY_25, IMB_PROXY_50, IMB_PROXY_75, IMB_PROXY_100};
 static const float proxy_fac[] = {0.25, 0.50, 0.75, 1.00};
-
-#ifdef WITH_FFMPEG
-static IMB_Timecode_Type tc_types[] = {
-    IMB_TC_RECORD_RUN,
-    IMB_TC_FREE_RUN,
-    IMB_TC_INTERPOLATED_REC_DATE_FREE_RUN,
-    IMB_TC_RECORD_RUN_NO_GAPS,
-};
-#endif
 
 #define INDEX_FILE_VERSION 2
 
@@ -362,12 +351,8 @@ int IMB_timecode_to_array_index(IMB_Timecode_Type tc)
       return -1;
     case IMB_TC_RECORD_RUN:
       return 0;
-    case IMB_TC_FREE_RUN:
-      return 1;
-    case IMB_TC_INTERPOLATED_REC_DATE_FREE_RUN:
-      return 2;
     case IMB_TC_RECORD_RUN_NO_GAPS:
-      return 3;
+      return 1;
     default:
       BLI_assert_msg(0, "Unhandled timecode type enum!");
       return -1;
@@ -437,8 +422,6 @@ static void get_tc_filepath(ImBufAnim *anim, IMB_Timecode_Type tc, char *filepat
 
   const char *index_names[] = {
       "record_run%s%s.blen_tc",
-      "free_run%s%s.blen_tc",
-      "interp_free_run%s%s.blen_tc",
       "record_run_no_gaps%s%s.blen_tc",
   };
 
@@ -462,9 +445,7 @@ static void get_tc_filepath(ImBufAnim *anim, IMB_Timecode_Type tc, char *filepat
  * - common rebuilder structures
  * ---------------------------------------------------------------------- */
 
-struct IndexBuildContext {
-  int anim_type;
-};
+struct IndexBuildContext {};
 
 /* ----------------------------------------------------------------------
  * - ffmpeg rebuilder
@@ -497,6 +478,7 @@ static proxy_output_ctx *alloc_proxy_output_ffmpeg(
 
   get_proxy_filepath(rv->anim, rv->proxy_size, filepath, true);
   if (!BLI_file_ensure_parent_dir_exists(filepath)) {
+    MEM_freeN(rv);
     return nullptr;
   }
 
@@ -790,8 +772,9 @@ static void free_proxy_output_ffmpeg(proxy_output_ctx *ctx, int rollback)
   MEM_freeN(ctx);
 }
 
-struct FFmpegIndexBuilderContext {
-  int anim_type;
+static blender::Array<IMB_Timecode_Type> tc_types{IMB_TC_RECORD_RUN, IMB_TC_RECORD_RUN_NO_GAPS};
+
+struct FFmpegIndexBuilderContext : public IndexBuildContext {
 
   AVFormatContext *iFormatCtx;
   AVCodecContext *iCodecCtx;
@@ -800,10 +783,9 @@ struct FFmpegIndexBuilderContext {
   int videoStream;
 
   int num_proxy_sizes;
-  int num_indexers;
 
   proxy_output_ctx *proxy_ctx[IMB_PROXY_MAX_SLOT];
-  anim_index_builder *indexer[IMB_TC_MAX_SLOT];
+  anim_index_builder *indexer[IMB_TC_NUM_TYPES];
 
   int tcs_in_use;
   int proxy_sizes_in_use;
@@ -833,13 +815,11 @@ static IndexBuildContext *index_ffmpeg_create_context(ImBufAnim *anim,
   FFmpegIndexBuilderContext *context = MEM_cnew<FFmpegIndexBuilderContext>(
       "FFmpeg index builder context");
   int num_proxy_sizes = IMB_PROXY_MAX_SLOT;
-  int num_indexers = IMB_TC_MAX_SLOT;
   int i, streamcount;
 
   context->tcs_in_use = tcs_in_use;
   context->proxy_sizes_in_use = proxy_sizes_in_use;
   context->num_proxy_sizes = IMB_PROXY_MAX_SLOT;
-  context->num_indexers = IMB_TC_MAX_SLOT;
   context->build_only_on_bad_performance = build_only_on_bad_performance;
 
   memset(context->proxy_ctx, 0, sizeof(context->proxy_ctx));
@@ -914,12 +894,12 @@ static IndexBuildContext *index_ffmpeg_create_context(ImBufAnim *anim,
 
   for (i = 0; i < num_proxy_sizes; i++) {
     if (proxy_sizes_in_use & proxy_sizes[i]) {
-      context->proxy_ctx[i] = alloc_proxy_output_ffmpeg(anim,
-                                                        context->iStream,
-                                                        proxy_sizes[i],
-                                                        context->iCodecCtx->width * proxy_fac[i],
-                                                        context->iCodecCtx->height * proxy_fac[i],
-                                                        quality);
+      int width = context->iCodecCtx->width * proxy_fac[i];
+      int height = context->iCodecCtx->height * proxy_fac[i];
+      width += width % 2;
+      height += height % 2;
+      context->proxy_ctx[i] = alloc_proxy_output_ffmpeg(
+          anim, context->iStream, proxy_sizes[i], width, height, quality);
       if (!context->proxy_ctx[i]) {
         proxy_sizes_in_use &= ~int(proxy_sizes[i]);
       }
@@ -935,7 +915,7 @@ static IndexBuildContext *index_ffmpeg_create_context(ImBufAnim *anim,
     return nullptr; /* Nothing to transcode. */
   }
 
-  for (i = 0; i < num_indexers; i++) {
+  for (i = 0; i < tc_types.size(); i++) {
     if (tcs_in_use & tc_types[i]) {
       char filepath[FILE_MAX];
 
@@ -957,7 +937,7 @@ static void index_rebuild_ffmpeg_finish(FFmpegIndexBuilderContext *context, cons
 
   const bool do_rollback = stop || context->building_cancelled;
 
-  for (i = 0; i < context->num_indexers; i++) {
+  for (i = 0; i < tc_types.size(); i++) {
     if (context->tcs_in_use & tc_types[i]) {
       IMB_index_builder_finish(context->indexer[i], do_rollback);
     }
@@ -1009,7 +989,7 @@ static void index_rebuild_ffmpeg_proc_decoded_frame(FFmpegIndexBuilderContext *c
     s_dts = context->last_seek_pos_dts;
   }
 
-  for (i = 0; i < context->num_indexers; i++) {
+  for (i = 0; i < tc_types.size(); i++) {
     if (context->tcs_in_use & tc_types[i]) {
       int tc_frameno = context->frameno;
 
@@ -1129,7 +1109,7 @@ static int indexer_performance_get_decode_rate(FFmpegIndexBuilderContext *contex
   AVFrame *in_frame = av_frame_alloc();
   AVPacket *packet = av_packet_alloc();
 
-  const double start = BLI_check_seconds_timer();
+  const double start = BLI_time_now_seconds();
   int frames_decoded = 0;
 
   while (av_read_frame(context->iFormatCtx, packet) >= 0) {
@@ -1155,7 +1135,7 @@ static int indexer_performance_get_decode_rate(FFmpegIndexBuilderContext *contex
       frames_decoded++;
     }
 
-    const double end = BLI_check_seconds_timer();
+    const double end = BLI_time_now_seconds();
 
     if (end > start + time_period) {
       break;
@@ -1241,172 +1221,6 @@ static bool indexer_need_to_build_proxy(FFmpegIndexBuilderContext *context)
 #endif
 
 /* ----------------------------------------------------------------------
- * - internal AVI (fallback) rebuilder
- * ---------------------------------------------------------------------- */
-
-#ifdef WITH_AVI
-struct FallbackIndexBuilderContext {
-  int anim_type;
-
-  ImBufAnim *anim;
-  AviMovie *proxy_ctx[IMB_PROXY_MAX_SLOT];
-  int proxy_sizes_in_use;
-};
-static AviMovie *alloc_proxy_output_avi(
-    ImBufAnim *anim, const char *filepath, int width, int height, int quality)
-{
-  int x, y;
-  AviFormat format;
-  double framerate;
-  AviMovie *avi;
-  /* It doesn't really matter for proxies, but sane defaults help anyways. */
-  short frs_sec = 25;
-  float frs_sec_base = 1.0;
-
-  IMB_anim_get_fps(anim, false, &frs_sec, &frs_sec_base);
-
-  x = width;
-  y = height;
-
-  framerate = double(frs_sec) / double(frs_sec_base);
-
-  avi = MEM_cnew<AviMovie>("avimovie");
-
-  format = AVI_FORMAT_MJPEG;
-
-  if (AVI_open_compress(filepath, avi, 1, format) != AVI_ERROR_NONE) {
-    MEM_freeN(avi);
-    return nullptr;
-  }
-
-  AVI_set_compress_option(avi, AVI_OPTION_TYPE_MAIN, 0, AVI_OPTION_WIDTH, &x);
-  AVI_set_compress_option(avi, AVI_OPTION_TYPE_MAIN, 0, AVI_OPTION_HEIGHT, &y);
-  AVI_set_compress_option(avi, AVI_OPTION_TYPE_MAIN, 0, AVI_OPTION_QUALITY, &quality);
-  AVI_set_compress_option(avi, AVI_OPTION_TYPE_MAIN, 0, AVI_OPTION_FRAMERATE, &framerate);
-
-  avi->interlace = 0;
-  avi->odd_fields = 0;
-
-  return avi;
-}
-
-static IndexBuildContext *index_fallback_create_context(ImBufAnim *anim,
-                                                        int /*tcs_in_use*/,
-                                                        int proxy_sizes_in_use,
-                                                        int quality)
-{
-  FallbackIndexBuilderContext *context;
-  int i;
-
-  /* since timecode indices only work with ffmpeg right now,
-   * don't know a sensible fallback here...
-   *
-   * so no proxies...
-   */
-  if (proxy_sizes_in_use == IMB_PROXY_NONE) {
-    return nullptr;
-  }
-
-  context = MEM_cnew<FallbackIndexBuilderContext>("fallback index builder context");
-
-  context->anim = anim;
-  context->proxy_sizes_in_use = proxy_sizes_in_use;
-
-  memset(context->proxy_ctx, 0, sizeof(context->proxy_ctx));
-
-  for (i = 0; i < IMB_PROXY_MAX_SLOT; i++) {
-    if (context->proxy_sizes_in_use & proxy_sizes[i]) {
-      char filepath[FILE_MAX];
-
-      get_proxy_filepath(anim, proxy_sizes[i], filepath, true);
-      BLI_file_ensure_parent_dir_exists(filepath);
-
-      context->proxy_ctx[i] = alloc_proxy_output_avi(
-          anim, filepath, anim->x * proxy_fac[i], anim->y * proxy_fac[i], quality);
-    }
-  }
-
-  return (IndexBuildContext *)context;
-}
-
-static void index_rebuild_fallback_finish(FallbackIndexBuilderContext *context, const bool stop)
-{
-  ImBufAnim *anim = context->anim;
-  char filepath[FILE_MAX];
-  char filepath_tmp[FILE_MAX];
-  int i;
-
-  for (i = 0; i < IMB_PROXY_MAX_SLOT; i++) {
-    if (context->proxy_sizes_in_use & proxy_sizes[i]) {
-      AVI_close_compress(context->proxy_ctx[i]);
-      MEM_freeN(context->proxy_ctx[i]);
-
-      get_proxy_filepath(anim, proxy_sizes[i], filepath_tmp, true);
-      get_proxy_filepath(anim, proxy_sizes[i], filepath, false);
-
-      if (stop) {
-        unlink(filepath_tmp);
-      }
-      else {
-        unlink(filepath);
-        rename(filepath_tmp, filepath);
-      }
-    }
-  }
-}
-
-static void index_rebuild_fallback(FallbackIndexBuilderContext *context,
-                                   const bool *stop,
-                                   bool *do_update,
-                                   float *progress)
-{
-  int count = IMB_anim_get_duration(context->anim, IMB_TC_NONE);
-  int i, pos;
-  ImBufAnim *anim = context->anim;
-
-  for (pos = 0; pos < count; pos++) {
-    ImBuf *ibuf = IMB_anim_absolute(anim, pos, IMB_TC_NONE, IMB_PROXY_NONE);
-    ImBuf *tmp_ibuf = IMB_dupImBuf(ibuf);
-    float next_progress = float(pos) / float(count);
-
-    if (*progress != next_progress) {
-      *progress = next_progress;
-      *do_update = true;
-    }
-
-    if (*stop) {
-      break;
-    }
-
-    IMB_flipy(tmp_ibuf);
-
-    for (i = 0; i < IMB_PROXY_MAX_SLOT; i++) {
-      if (context->proxy_sizes_in_use & proxy_sizes[i]) {
-        int x = anim->x * proxy_fac[i];
-        int y = anim->y * proxy_fac[i];
-
-        ImBuf *s_ibuf = IMB_dupImBuf(tmp_ibuf);
-
-        IMB_scalefastImBuf(s_ibuf, x, y);
-
-        IMB_convert_rgba_to_abgr(s_ibuf);
-
-        /* note that libavi free's the buffer... */
-        uint8_t *rect = IMB_steal_byte_buffer(s_ibuf);
-        AVI_write_frame(context->proxy_ctx[i], pos, AVI_FORMAT_RGB32, rect, x * y * 4);
-
-        IMB_freeImBuf(s_ibuf);
-      }
-    }
-
-    IMB_freeImBuf(tmp_ibuf);
-    IMB_freeImBuf(ibuf);
-  }
-}
-
-#endif /* WITH_AVI */
-
-/* ----------------------------------------------------------------------
  * - public API
  * ---------------------------------------------------------------------- */
 
@@ -1418,7 +1232,6 @@ IndexBuildContext *IMB_anim_index_rebuild_context(ImBufAnim *anim,
                                                   GSet *file_list,
                                                   bool build_only_on_bad_performance)
 {
-  IndexBuildContext *context = nullptr;
   int proxy_sizes_to_build = proxy_sizes_in_use;
   int i;
 
@@ -1467,26 +1280,15 @@ IndexBuildContext *IMB_anim_index_rebuild_context(ImBufAnim *anim,
     return nullptr;
   }
 
-  switch (anim->curtype) {
+  IndexBuildContext *context = nullptr;
 #ifdef WITH_FFMPEG
-    case ANIM_FFMPEG:
-      context = index_ffmpeg_create_context(
-          anim, tcs_in_use, proxy_sizes_to_build, quality, build_only_on_bad_performance);
-      break;
+  if (anim->state == ImBufAnim::State::Valid) {
+    context = index_ffmpeg_create_context(
+        anim, tcs_in_use, proxy_sizes_to_build, quality, build_only_on_bad_performance);
+  }
 #else
-    UNUSED_VARS(build_only_on_bad_performance);
+  UNUSED_VARS(build_only_on_bad_performance);
 #endif
-
-    default:
-#ifdef WITH_AVI
-      context = index_fallback_create_context(anim, tcs_in_use, proxy_sizes_to_build, quality);
-#endif
-      break;
-  }
-
-  if (context) {
-    context->anim_type = anim->curtype;
-  }
 
   return context;
 
@@ -1501,41 +1303,25 @@ void IMB_anim_index_rebuild(IndexBuildContext *context,
                             /* NOLINTNEXTLINE: readability-non-const-parameter. */
                             float *progress)
 {
-  switch (context->anim_type) {
 #ifdef WITH_FFMPEG
-    case ANIM_FFMPEG:
-      if (indexer_need_to_build_proxy((FFmpegIndexBuilderContext *)context)) {
-        index_rebuild_ffmpeg((FFmpegIndexBuilderContext *)context, stop, do_update, progress);
-      }
-      break;
-#endif
-    default:
-#ifdef WITH_AVI
-      index_rebuild_fallback((FallbackIndexBuilderContext *)context, stop, do_update, progress);
-#endif
-      break;
+  if (context != nullptr) {
+    if (indexer_need_to_build_proxy((FFmpegIndexBuilderContext *)context)) {
+      index_rebuild_ffmpeg((FFmpegIndexBuilderContext *)context, stop, do_update, progress);
+    }
   }
-
-  UNUSED_VARS(stop, do_update, progress);
+#endif
+  UNUSED_VARS(context, stop, do_update, progress);
 }
 
 void IMB_anim_index_rebuild_finish(IndexBuildContext *context, const bool stop)
 {
-  switch (context->anim_type) {
 #ifdef WITH_FFMPEG
-    case ANIM_FFMPEG:
-      index_rebuild_ffmpeg_finish((FFmpegIndexBuilderContext *)context, stop);
-      break;
-#endif
-    default:
-#ifdef WITH_AVI
-      index_rebuild_fallback_finish((FallbackIndexBuilderContext *)context, stop);
-#endif
-      break;
+  if (context != nullptr) {
+    index_rebuild_ffmpeg_finish((FFmpegIndexBuilderContext *)context, stop);
   }
-
+#endif
   /* static defined at top of the file */
-  UNUSED_VARS(stop, proxy_sizes);
+  UNUSED_VARS(context, stop, proxy_sizes);
 }
 
 void IMB_free_indices(ImBufAnim *anim)
@@ -1549,11 +1335,13 @@ void IMB_free_indices(ImBufAnim *anim)
     }
   }
 
-  for (i = 0; i < IMB_TC_MAX_SLOT; i++) {
-    if (anim->curr_idx[i]) {
-      IMB_indexer_close(anim->curr_idx[i]);
-      anim->curr_idx[i] = nullptr;
-    }
+  if (anim->record_run) {
+    IMB_indexer_close(anim->record_run);
+    anim->record_run = nullptr;
+  }
+  if (anim->no_gaps) {
+    IMB_indexer_close(anim->no_gaps);
+    anim->no_gaps = nullptr;
   }
 
   anim->proxies_tried = 0;
@@ -1600,27 +1388,30 @@ ImBufAnim *IMB_anim_open_proxy(ImBufAnim *anim, IMB_Proxy_Size preview_size)
 ImBufAnimIndex *IMB_anim_open_index(ImBufAnim *anim, IMB_Timecode_Type tc)
 {
   char filepath[FILE_MAX];
-  int i = IMB_timecode_to_array_index(tc);
 
-  if (i < 0) {
-    return nullptr;
+  ImBufAnimIndex **index = nullptr;
+
+  if (tc == IMB_TC_RECORD_RUN) {
+    index = &anim->record_run;
   }
-
-  if (anim->curr_idx[i]) {
-    return anim->curr_idx[i];
+  else if (tc == IMB_TC_RECORD_RUN_NO_GAPS) {
+    index = &anim->no_gaps;
   }
 
   if (anim->indices_tried & tc) {
     return nullptr;
   }
+  if (index == nullptr) {
+    return nullptr;
+  }
 
   get_tc_filepath(anim, tc, filepath);
 
-  anim->curr_idx[i] = IMB_indexer_open(filepath);
+  *index = IMB_indexer_open(filepath);
 
   anim->indices_tried |= tc;
 
-  return anim->curr_idx[i];
+  return *index;
 }
 
 int IMB_anim_index_get_frame_index(ImBufAnim *anim, IMB_Timecode_Type tc, int position)

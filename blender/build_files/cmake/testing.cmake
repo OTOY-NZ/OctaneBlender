@@ -27,8 +27,8 @@ function(blender_test_set_envvars testname envvars_list)
   if(NOT CMAKE_BUILD_TYPE MATCHES "Release")
     if(WITH_COMPILER_ASAN)
       set(_lsan_options "LSAN_OPTIONS=print_suppressions=false:suppressions=${CMAKE_SOURCE_DIR}/tools/config/analysis/lsan.supp")
-      # FIXME That `allocator_may_return_null=true` ASAN option is only needed for the `guardedalloc` test,
-      #       would be nice to allow tests definition to pass extra envvars better.
+      # FIXME: That `allocator_may_return_null=true` ASAN option is only needed for the
+      # `guardedalloc` test, would be nice to allow tests definition to pass extra envvars better.
       set(_asan_options "ASAN_OPTIONS=allocator_may_return_null=true")
       if(DEFINED ENV{LSAN_OPTIONS})
         set(_lsan_options "${_lsan_options}:$ENV{LSAN_OPTIONS}")
@@ -346,19 +346,23 @@ function(blender_add_test_suite_executable
           DISCOVER_TESTS FALSE
          )
 
-         # Work-around run-time dynamic loader error
-         #   symbol not found in flat namespace '_PyBaseObject_Type'
-         #
-         # Some tests are testing modules which are linked against Python, while some of unit
-         # tests might not use code path which uses Python functionality. In this case linker
-         # will optimize out all symbols from Python since it decides they are not used. This
-         # somehow conflicts with other libraries which are linked against the test binary and
-         # perform search of _PyBaseObject_Type on startup.
-         #
-         # Work-around by telling the linker that the python libraries should not be stripped.
-         if(APPLE)
-           target_link_libraries("${_test_name}_test" PRIVATE "-Wl,-force_load,${PYTHON_LIBRARIES}")
-         endif()
+        # Work-around run-time dynamic loader error
+        #   symbol not found in flat namespace '_PyBaseObject_Type'
+        #
+        # Some tests are testing modules which are linked against Python, while some of unit
+        # tests might not use code path which uses Python functionality. In this case linker
+        # will optimize out all symbols from Python since it decides they are not used. This
+        # somehow conflicts with other libraries which are linked against the test binary and
+        # perform search of _PyBaseObject_Type on startup.
+        #
+        # Work-around by telling the linker that the python libraries should not be stripped.
+        if(APPLE)
+          target_link_libraries("${_test_name}_test" PRIVATE "-Wl,-force_load,${PYTHON_LIBRARIES}")
+        endif()
+
+        if(WITH_BUILDINFO)
+          target_link_libraries("${_test_name}_test" PRIVATE buildinfoobj)
+        endif()
       endif()
     endforeach()
   endif()

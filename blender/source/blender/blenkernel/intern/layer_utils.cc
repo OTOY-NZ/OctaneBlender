@@ -8,18 +8,16 @@
 
 #include <cstring>
 
-#include "BLI_array.h"
-
-#include "BKE_collection.h"
+#include "BKE_collection.hh"
 #include "BKE_customdata.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_layer.hh"
+#include "BKE_mesh_types.hh"
 
 #include "DNA_ID.h"
 #include "DNA_layer_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
-#include "DNA_scene_types.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -221,8 +219,7 @@ bool BKE_view_layer_filter_edit_mesh_has_uvs(const Object *ob, void * /*user_dat
 {
   if (ob->type == OB_MESH) {
     const Mesh *mesh = static_cast<const Mesh *>(ob->data);
-    const BMEditMesh *em = mesh->edit_mesh;
-    if (em != nullptr) {
+    if (const BMEditMesh *em = mesh->runtime->edit_mesh.get()) {
       if (CustomData_has_layer(&em->bm->ldata, CD_PROP_FLOAT2)) {
         return true;
       }
@@ -235,8 +232,7 @@ bool BKE_view_layer_filter_edit_mesh_has_edges(const Object *ob, void * /*user_d
 {
   if (ob->type == OB_MESH) {
     const Mesh *mesh = static_cast<const Mesh *>(ob->data);
-    const BMEditMesh *em = mesh->edit_mesh;
-    if (em != nullptr) {
+    if (const BMEditMesh *em = mesh->runtime->edit_mesh.get()) {
       if (em->bm->totedge != 0) {
         return true;
       }

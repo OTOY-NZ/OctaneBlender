@@ -6,7 +6,7 @@
  * \ingroup blenloader
  */
 
-#include "BKE_idprop.h"
+#include "BKE_idprop.hh"
 #include "BLI_utildefines.h"
 
 /* allow readfile to use deprecated functionality */
@@ -23,7 +23,6 @@
 #include "DNA_dynamicpaint_types.h"
 #include "DNA_fluid_types.h"
 #include "DNA_genfile.h"
-#include "DNA_key_types.h"
 #include "DNA_light_types.h"
 #include "DNA_linestyle_types.h"
 #include "DNA_material_types.h"
@@ -33,7 +32,6 @@
 #include "DNA_object_fluidsim_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
-#include "DNA_sdna_types.h"
 #include "DNA_sequence_types.h"
 #include "DNA_space_types.h"
 #include "DNA_text_types.h"
@@ -50,20 +48,16 @@
 #include "BLI_math_vector.h"
 #include "BLI_string_utils.hh"
 
-#include "BLT_translation.h"
-
 #include "BKE_anim_visualization.h"
 #include "BKE_customdata.hh"
 #include "BKE_image.h"
 #include "BKE_main.hh" /* for Main */
-#include "BKE_mesh.hh" /* for ME_ defines (patching) */
 #include "BKE_mesh_legacy_convert.hh"
 #include "BKE_modifier.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_node_tree_update.hh"
 #include "BKE_particle.h"
-#include "BKE_pointcache.h"
-#include "BKE_scene.h"
+#include "BKE_scene.hh"
 #include "BKE_screen.hh"
 #include "BKE_text.h" /* for txt_extended_ascii_as_utf8 */
 #include "BKE_texture.h"
@@ -81,9 +75,8 @@
 
 #include "NOD_common.h"
 #include "NOD_composite.hh"
-#include "NOD_texture.h"
 
-#include "BLO_readfile.h"
+#include "BLO_readfile.hh"
 
 #include "readfile.hh"
 
@@ -322,8 +315,8 @@ static void do_versions_nodetree_multi_file_output_format_2_62_1(Scene *sce, bNo
         }
       }
 
-      nodeRemoveSocket(ntree, node, old_image);
-      nodeRemoveSocket(ntree, node, old_z);
+      blender::bke::nodeRemoveSocket(ntree, node, old_image);
+      blender::bke::nodeRemoveSocket(ntree, node, old_z);
       if (old_data) {
         MEM_freeN(old_data);
       }
@@ -574,6 +567,8 @@ static const char *node_get_static_idname(int type, int treetype)
         return "ShaderNodeBsdfTranslucent";
       case SH_NODE_BSDF_TRANSPARENT:
         return "ShaderNodeBsdfTransparent";
+      case SH_NODE_BSDF_RAY_PORTAL:
+        return "ShaderNodeBsdfRayPortal";
       case /*SH_NODE_BSDF_VELVET*/ 139:
         return "ShaderNodeBsdfVelvet";
       case /*SH_NODE_VOLUME_TRANSPARENT*/ 161:
@@ -866,28 +861,28 @@ static const char *node_socket_get_static_idname(bNodeSocket *sock)
   switch (sock->type) {
     case SOCK_FLOAT: {
       bNodeSocketValueFloat *dval = sock->default_value_typed<bNodeSocketValueFloat>();
-      return nodeStaticSocketType(SOCK_FLOAT, dval->subtype);
+      return blender::bke::nodeStaticSocketType(SOCK_FLOAT, dval->subtype);
     }
     case SOCK_INT: {
       bNodeSocketValueInt *dval = sock->default_value_typed<bNodeSocketValueInt>();
-      return nodeStaticSocketType(SOCK_INT, dval->subtype);
+      return blender::bke::nodeStaticSocketType(SOCK_INT, dval->subtype);
     }
     case SOCK_BOOLEAN: {
-      return nodeStaticSocketType(SOCK_BOOLEAN, PROP_NONE);
+      return blender::bke::nodeStaticSocketType(SOCK_BOOLEAN, PROP_NONE);
     }
     case SOCK_VECTOR: {
       bNodeSocketValueVector *dval = sock->default_value_typed<bNodeSocketValueVector>();
-      return nodeStaticSocketType(SOCK_VECTOR, dval->subtype);
+      return blender::bke::nodeStaticSocketType(SOCK_VECTOR, dval->subtype);
     }
     case SOCK_RGBA: {
-      return nodeStaticSocketType(SOCK_RGBA, PROP_NONE);
+      return blender::bke::nodeStaticSocketType(SOCK_RGBA, PROP_NONE);
     }
     case SOCK_STRING: {
       bNodeSocketValueString *dval = sock->default_value_typed<bNodeSocketValueString>();
-      return nodeStaticSocketType(SOCK_STRING, dval->subtype);
+      return blender::bke::nodeStaticSocketType(SOCK_STRING, dval->subtype);
     }
     case SOCK_SHADER: {
-      return nodeStaticSocketType(SOCK_SHADER, PROP_NONE);
+      return blender::bke::nodeStaticSocketType(SOCK_SHADER, PROP_NONE);
     }
   }
   return "";
@@ -1065,7 +1060,7 @@ static bNodeSocket *version_make_socket_stub(const char *idname,
   socket->storage = nullptr;
   socket->flag |= SOCK_COLLAPSED;
 
-  /* Note: technically socket values can store ref-counted ID pointers, but at this stage the
+  /* NOTE: technically socket values can store ref-counted ID pointers, but at this stage the
    * refcount can be ignored. It gets recomputed after lib-linking for all ID pointers. Socket
    * values don't have allocated data, so a simple duplication works here. */
   socket->default_value = default_value ? MEM_dupallocN(default_value) : nullptr;
@@ -1104,7 +1099,7 @@ static bNode *version_add_group_in_out_node(bNodeTree *ntree, const int type)
 
   node->runtime = MEM_new<blender::bke::bNodeRuntime>(__func__);
   BLI_addtail(&ntree->nodes, node);
-  nodeUniqueID(ntree, node);
+  blender::bke::nodeUniqueID(ntree, node);
 
   /* Manual initialization of the node,
    * node->typeinfo is only set after versioning. */
@@ -1260,8 +1255,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
           clip->aspy = 1.0f;
         }
 
-        clip->proxy.build_tc_flag = IMB_TC_RECORD_RUN | IMB_TC_FREE_RUN |
-                                    IMB_TC_INTERPOLATED_REC_DATE_FREE_RUN;
+        clip->proxy.build_tc_flag = IMB_TC_RECORD_RUN;
 
         if (clip->proxy.build_size_flag == 0) {
           clip->proxy.build_size_flag = IMB_PROXY_25;
@@ -1733,14 +1727,6 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 263, 10)) {
     {
       /* composite redesign */
-      LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-        if (scene->nodetree) {
-          if (scene->nodetree->chunksize == 0) {
-            scene->nodetree->chunksize = 256;
-          }
-        }
-      }
-
       FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
         if (ntree->type == NTREE_COMPOSIT) {
           LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
@@ -2265,7 +2251,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
         }
 
         LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-          nodeUniqueName(ntree, node);
+          blender::bke::nodeUniqueName(ntree, node);
         }
       }
       FOREACH_NODETREE_END;
@@ -2358,7 +2344,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
         }
 
         if (free_link) {
-          nodeRemLink(ntree, link);
+          blender::bke::nodeRemLink(ntree, link);
         }
       }
 
@@ -2387,7 +2373,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
       {
         next_link = link->next;
         if (link->fromnode == nullptr || link->tonode == nullptr) {
-          nodeRemLink(ntree, link);
+          blender::bke::nodeRemLink(ntree, link);
         }
       }
     }

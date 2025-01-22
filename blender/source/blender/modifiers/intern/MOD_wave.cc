@@ -9,25 +9,17 @@
 #include "BLI_math_matrix.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
-#include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_context.hh"
 #include "BKE_deform.hh"
 #include "BKE_editmesh.hh"
-#include "BKE_editmesh_cache.hh"
-#include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
-#include "BKE_mesh.hh"
-#include "BKE_mesh_wrapper.hh"
-#include "BKE_scene.h"
-#include "BKE_screen.hh"
 #include "BKE_texture.h"
 
 #include "UI_interface.hh"
@@ -118,13 +110,6 @@ static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_
   }
 }
 
-static bool depends_on_normals(ModifierData *md)
-{
-  WaveModifierData *wmd = (WaveModifierData *)md;
-
-  return (wmd->flag & MOD_WAVE_NORM) != 0;
-}
-
 static void waveModifier_do(WaveModifierData *md,
                             const ModifierEvalContext *ctx,
                             Object *ob,
@@ -152,8 +137,8 @@ static void waveModifier_do(WaveModifierData *md,
   if (wmd->objectcenter != nullptr) {
     float mat[4][4];
     /* get the control object's location in local coordinates */
-    invert_m4_m4(ob->world_to_object, ob->object_to_world);
-    mul_m4_m4m4(mat, ob->world_to_object, wmd->objectcenter->object_to_world);
+    invert_m4_m4(ob->runtime->world_to_object.ptr(), ob->object_to_world().ptr());
+    mul_m4_m4m4(mat, ob->world_to_object().ptr(), wmd->objectcenter->object_to_world().ptr());
 
     wmd->startx = mat[3][0];
     wmd->starty = mat[3][1];
@@ -445,7 +430,7 @@ ModifierTypeInfo modifierType_Wave = {
     /*is_disabled*/ nullptr,
     /*update_depsgraph*/ update_depsgraph,
     /*depends_on_time*/ depends_on_time,
-    /*depends_on_normals*/ depends_on_normals,
+    /*depends_on_normals*/ nullptr,
     /*foreach_ID_link*/ foreach_ID_link,
     /*foreach_tex_link*/ foreach_tex_link,
     /*free_runtime_data*/ nullptr,

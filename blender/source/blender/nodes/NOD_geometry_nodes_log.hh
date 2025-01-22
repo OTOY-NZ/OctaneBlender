@@ -33,11 +33,13 @@
 #include "BLI_compute_context.hh"
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_generic_pointer.hh"
+#include "BLI_linear_allocator_chunked_list.hh"
 #include "BLI_multi_value_map.hh"
 
 #include "BKE_geometry_set.hh"
 #include "BKE_node_tree_zones.hh"
 #include "BKE_viewer_path.hh"
+#include "BKE_volume_grid.hh"
 
 #include "FN_field.hh"
 
@@ -144,6 +146,12 @@ class GeometryInfoLog : public ValueLog {
     bool has_deformed_positions;
     bool has_deform_matrices;
   };
+  struct VolumeInfo {
+    int grids_num;
+  };
+  struct GridInfo {
+    bool is_empty;
+  };
 
   std::optional<MeshInfo> mesh_info;
   std::optional<CurveInfo> curve_info;
@@ -151,8 +159,11 @@ class GeometryInfoLog : public ValueLog {
   std::optional<GreasePencilInfo> grease_pencil_info;
   std::optional<InstancesInfo> instances_info;
   std::optional<EditDataInfo> edit_data_info;
+  std::optional<VolumeInfo> volume_info;
+  std::optional<GridInfo> grid_info;
 
   GeometryInfoLog(const bke::GeometrySet &geometry_set);
+  GeometryInfoLog(const bke::GVolumeGrid &grid);
 };
 
 /**
@@ -174,7 +185,7 @@ using TimePoint = Clock::time_point;
 class GeoTreeLogger {
  public:
   std::optional<ComputeContextHash> parent_hash;
-  std::optional<int32_t> group_node_id;
+  std::optional<int32_t> parent_node_id;
   Vector<ComputeContextHash> children_hashes;
 
   LinearAllocator<> *allocator = nullptr;
@@ -207,13 +218,13 @@ class GeoTreeLogger {
     StringRefNull message;
   };
 
-  Vector<WarningWithNode> node_warnings;
-  Vector<SocketValueLog> input_socket_values;
-  Vector<SocketValueLog> output_socket_values;
-  Vector<NodeExecutionTime> node_execution_times;
-  Vector<ViewerNodeLogWithNode, 0> viewer_node_logs;
-  Vector<AttributeUsageWithNode, 0> used_named_attributes;
-  Vector<DebugMessage, 0> debug_messages;
+  linear_allocator::ChunkedList<WarningWithNode> node_warnings;
+  linear_allocator::ChunkedList<SocketValueLog, 16> input_socket_values;
+  linear_allocator::ChunkedList<SocketValueLog, 16> output_socket_values;
+  linear_allocator::ChunkedList<NodeExecutionTime, 16> node_execution_times;
+  linear_allocator::ChunkedList<ViewerNodeLogWithNode> viewer_node_logs;
+  linear_allocator::ChunkedList<AttributeUsageWithNode> used_named_attributes;
+  linear_allocator::ChunkedList<DebugMessage> debug_messages;
 
   GeoTreeLogger();
   ~GeoTreeLogger();
@@ -339,6 +350,9 @@ class GeoModifierLog {
    */
   static Map<const bke::bNodeTreeZone *, ComputeContextHash>
   get_context_hash_by_zone_for_node_editor(const SpaceNode &snode, StringRefNull modifier_name);
+  static Map<const bke::bNodeTreeZone *, ComputeContextHash>
+  get_context_hash_by_zone_for_node_editor(const SpaceNode &snode,
+                                           ComputeContextBuilder &compute_context_builder);
 
   static Map<const bke::bNodeTreeZone *, GeoTreeLog *> get_tree_log_by_zone_for_node_editor(
       const SpaceNode &snode);

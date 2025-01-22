@@ -46,6 +46,7 @@ struct NestedTreePreviews;
 struct bNodeLinkDrag {
   /** Links dragged by the operator. */
   Vector<bNodeLink> links;
+  /** Which side if the links is fixed. */
   eNodeSocketInOut in_out;
 
   /** Draw handler for the tooltip icon when dragging a link in empty space. */
@@ -203,7 +204,7 @@ void node_keymap(wmKeyConfig *keyconf);
 rctf node_frame_rect_inside(const SpaceNode &snode, const bNode &node);
 bool node_or_socket_isect_event(const bContext &C, const wmEvent &event);
 
-void node_deselect_all(bNodeTree &node_tree);
+bool node_deselect_all(bNodeTree &node_tree);
 void node_socket_select(bNode *node, bNodeSocket &sock);
 void node_socket_deselect(bNode *node, bNodeSocket &sock, bool deselect_node);
 void node_deselect_all_input_sockets(bNodeTree &node_tree, bool deselect_nodes);
@@ -377,8 +378,6 @@ void NODE_OT_render_changed(wmOperatorType *ot);
 void NODE_OT_output_file_add_socket(wmOperatorType *ot);
 void NODE_OT_output_file_remove_active_socket(wmOperatorType *ot);
 void NODE_OT_output_file_move_active_socket(wmOperatorType *ot);
-
-void NODE_OT_switch_view_update(wmOperatorType *ot);
 
 /**
  * \note clipboard_cut is a simple macro of copy + delete.

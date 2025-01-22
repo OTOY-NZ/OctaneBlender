@@ -12,7 +12,6 @@
 
 #include "BKE_bvhutils.hh"
 #include "BKE_curve.hh"
-#include "BKE_mesh.hh"
 #include "BKE_object.hh"
 
 #include "ED_transform_snap_object_context.hh"
@@ -22,7 +21,7 @@
 using blender::float4x4;
 using blender::IndexRange;
 
-eSnapMode snapCurve(SnapObjectContext *sctx, Object *ob_eval, const float4x4 &obmat)
+eSnapMode snapCurve(SnapObjectContext *sctx, const Object *ob_eval, const float4x4 &obmat)
 {
   bool has_snap = false;
 
@@ -38,7 +37,7 @@ eSnapMode snapCurve(SnapObjectContext *sctx, Object *ob_eval, const float4x4 &ob
   const bool use_obedit = BKE_object_is_in_editmode(ob_eval);
 
   if (use_obedit == false) {
-    /* Test BoundBox */
+    /* Test BoundBox. */
     std::optional<blender::Bounds<blender::float3>> bounds = BKE_curve_minmax(cu, true);
     if (bounds && !nearest2d.snap_boundbox(bounds->min, bounds->max)) {
       return SCE_SNAP_TO_NONE;

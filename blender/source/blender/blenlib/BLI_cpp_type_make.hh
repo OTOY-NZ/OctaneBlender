@@ -231,8 +231,14 @@ CPPType::CPPType(TypeTag<T> /*type*/,
     default_construct_indices_ = default_construct_indices_cb<T>;
     value_initialize_ = value_initialize_cb<T>;
     value_initialize_indices_ = value_initialize_indices_cb<T>;
-    static T default_value;
-    default_value_ = &default_value;
+    if constexpr (bool(Flags & CPPTypeFlags::IdentityDefaultValue)) {
+      static const T default_value = T::identity();
+      default_value_ = &default_value;
+    }
+    else {
+      static const T default_value = T();
+      default_value_ = &default_value;
+    }
   }
   if constexpr (std::is_destructible_v<T>) {
     destruct_ = destruct_cb<T>;
@@ -244,33 +250,69 @@ CPPType::CPPType(TypeTag<T> /*type*/,
     copy_assign_compressed_ = copy_assign_compressed_cb<T>;
   }
   if constexpr (std::is_copy_constructible_v<T>) {
-    copy_construct_ = copy_construct_cb<T>;
-    copy_construct_indices_ = copy_construct_indices_cb<T>;
-    copy_construct_compressed_ = copy_construct_compressed_cb<T>;
+    if constexpr (std::is_trivially_copy_constructible_v<T>) {
+      copy_construct_ = copy_assign_;
+      copy_construct_indices_ = copy_assign_indices_;
+      copy_construct_compressed_ = copy_assign_compressed_;
+    }
+    else {
+      copy_construct_ = copy_construct_cb<T>;
+      copy_construct_indices_ = copy_construct_indices_cb<T>;
+      copy_construct_compressed_ = copy_construct_compressed_cb<T>;
+    }
   }
   if constexpr (std::is_move_assignable_v<T>) {
-    move_assign_ = move_assign_cb<T>;
-    move_assign_indices_ = move_assign_indices_cb<T>;
+    if constexpr (std::is_trivially_move_assignable_v<T>) {
+      /* This casts away the const from the src pointer. This is fine for trivial types as moving
+       * them does not change the original value. */
+      move_assign_ = reinterpret_cast<decltype(move_assign_)>(copy_assign_);
+      move_assign_indices_ = reinterpret_cast<decltype(move_assign_indices_)>(
+          copy_assign_indices_);
+    }
+    else {
+      move_assign_ = move_assign_cb<T>;
+      move_assign_indices_ = move_assign_indices_cb<T>;
+    }
   }
   if constexpr (std::is_move_constructible_v<T>) {
-    move_construct_ = move_construct_cb<T>;
-    move_construct_indices_ = move_construct_indices_cb<T>;
+    if constexpr (std::is_trivially_move_constructible_v<T>) {
+      move_construct_ = move_assign_;
+      move_construct_indices_ = move_assign_indices_;
+    }
+    else {
+      move_construct_ = move_construct_cb<T>;
+      move_construct_indices_ = move_construct_indices_cb<T>;
+    }
   }
   if constexpr (std::is_destructible_v<T>) {
-    if constexpr (std::is_move_assignable_v<T>) {
-      relocate_assign_ = relocate_assign_cb<T>;
-      relocate_assign_indices_ = relocate_assign_indices_cb<T>;
+    if constexpr (std::is_trivially_move_assignable_v<T> && std::is_trivially_destructible_v<T>) {
+      relocate_assign_ = move_assign_;
+      relocate_assign_indices_ = move_assign_indices_;
+
+      relocate_construct_ = move_assign_;
+      relocate_construct_indices_ = move_assign_indices_;
     }
-    if constexpr (std::is_move_constructible_v<T>) {
-      relocate_construct_ = relocate_construct_cb<T>;
-      relocate_construct_indices_ = relocate_construct_indices_cb<T>;
+    else {
+      if constexpr (std::is_move_assignable_v<T>) {
+        relocate_assign_ = relocate_assign_cb<T>;
+        relocate_assign_indices_ = relocate_assign_indices_cb<T>;
+      }
+      if constexpr (std::is_move_constructible_v<T>) {
+        relocate_construct_ = relocate_construct_cb<T>;
+        relocate_construct_indices_ = relocate_construct_indices_cb<T>;
+      }
     }
   }
   if constexpr (std::is_copy_assignable_v<T>) {
     fill_assign_indices_ = fill_assign_indices_cb<T>;
   }
   if constexpr (std::is_copy_constructible_v<T>) {
-    fill_construct_indices_ = fill_construct_indices_cb<T>;
+    if constexpr (std::is_trivially_constructible_v<T>) {
+      fill_construct_indices_ = fill_assign_indices_;
+    }
+    else {
+      fill_construct_indices_ = fill_construct_indices_cb<T>;
+    }
   }
   if constexpr ((bool)(Flags & CPPTypeFlags::Hashable)) {
     hash_ = hash_cb<T>;

@@ -27,7 +27,7 @@
 
 #include "node_shader_util.hh"
 
-static bNodeSocketTemplate sh_node_in[] = {{SOCK_BOOLEAN,
+static blender::bke::bNodeSocketTemplate  sh_node_in[] = {{SOCK_BOOLEAN,
                                             N_("Enable imager"),
                                             1.0f,
                                             0.0f,
@@ -349,11 +349,11 @@ static bNodeSocketTemplate sh_node_in[] = {{SOCK_BOOLEAN,
                                             SOCK_NO_INTERNAL_LINK},
                                            {-1, ""}};
 
-static bNodeSocketTemplate sh_node_out[] = {{SOCK_SHADER, N_("OutAOV")}, {-1, ""}};
+static blender::bke::bNodeSocketTemplate  sh_node_out[] = {{SOCK_SHADER, N_("OutAOV")}, {-1, ""}};
 
 void register_node_type_light_mixing_aov_output(void)
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   if (ntype.type != SH_NODE_OCT_LIGHT_MIXING_AOV_OUTPUT)
     sh_node_type_base(&ntype,
@@ -361,7 +361,7 @@ void register_node_type_light_mixing_aov_output(void)
                    "Light mixing AOV Output",
                    NODE_CLASS_OCT_COMPOSITE);
   blender::bke::node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
-  node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::DEFAULT);
+  node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Default);
   ntype.initfunc = (0);
   // node_type_exec(&ntype, 0, 0, 0);
   ntype.updatefunc = (0);

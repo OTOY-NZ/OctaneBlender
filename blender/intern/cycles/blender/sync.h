@@ -66,12 +66,12 @@ class BlenderSync {
                  int width,
                  int height,
                  void **python_thread_state,
-                 const DeviceInfo &device_info);
+                 const DeviceInfo &denoise_device_info);
   void sync_view_layer(BL::ViewLayer &b_view_layer);
   void sync_render_passes(BL::RenderLayer &b_render_layer, BL::ViewLayer &b_view_layer);
   void sync_integrator(BL::ViewLayer &b_view_layer,
                        bool background,
-                       const DeviceInfo &device_info);
+                       const DeviceInfo &denoise_device_info);
   void sync_camera(BL::RenderSettings &b_render,
                    BL::Object &b_override,
                    int width,
@@ -86,6 +86,9 @@ class BlenderSync {
   {
     return view_layer.bound_samples;
   }
+
+  /* Early data free. */
+  void free_data_after_sync(BL::Depsgraph &b_depsgraph);
 
   /* get parameters */
   static SceneParams get_scene_params(BL::Scene &b_scene,
@@ -102,7 +105,7 @@ class BlenderSync {
   static DenoiseParams get_denoise_params(BL::Scene &b_scene,
                                           BL::ViewLayer &b_view_layer,
                                           bool background,
-                                          const DeviceInfo &device);
+                                          const DeviceInfo &denoise_device);
 
  private:
   /* sync */
@@ -208,9 +211,6 @@ class BlenderSync {
   /* Images. */
   void sync_images();
 
-  /* Early data free. */
-  void free_data_after_sync(BL::Depsgraph &b_depsgraph);
-
   /* util */
   void find_shader(BL::ID &id, array<Node *> &used_shaders, Shader *default_shader);
   bool BKE_object_is_modified(BL::Object &b_ob);
@@ -253,6 +253,7 @@ class BlenderSync {
   struct RenderLayerInfo {
     RenderLayerInfo()
         : material_override(PointerRNA_NULL),
+          world_override(PointerRNA_NULL),
           use_background_shader(true),
           use_surfaces(true),
           use_hair(true),
@@ -265,6 +266,7 @@ class BlenderSync {
 
     string name;
     BL::Material material_override;
+    BL::World world_override;
     bool use_background_shader;
     bool use_surfaces;
     bool use_hair;

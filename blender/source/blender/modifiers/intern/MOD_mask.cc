@@ -11,10 +11,9 @@
 #include "BLI_utildefines.h"
 
 #include "BLI_array_utils.hh"
-#include "BLI_ghash.h"
 #include "BLI_listbase.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_armature_types.h"
 #include "DNA_defaults.h"
@@ -25,13 +24,11 @@
 #include "DNA_screen_types.h"
 
 #include "BKE_action.h" /* BKE_pose_channel_find_name */
-#include "BKE_context.hh"
 #include "BKE_customdata.hh"
 #include "BKE_deform.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_mesh.hh"
 #include "BKE_modifier.hh"
-#include "BKE_screen.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
@@ -40,9 +37,7 @@
 #include "RNA_prototypes.h"
 
 #include "DEG_depsgraph_build.hh"
-#include "DEG_depsgraph_query.hh"
 
-#include "MOD_modifiertypes.hh"
 #include "MOD_ui_common.hh"
 
 #include "BLI_array.hh"
@@ -106,8 +101,7 @@ static void compute_vertex_mask__armature_mode(const MDeformVert *dvert,
     bool bone_for_group_exists = pchan && pchan->bone && (pchan->bone->flag & BONE_SELECTED);
     selected_bone_uses_group.append(bone_for_group_exists);
   }
-
-  Span<bool> use_vertex_group = selected_bone_uses_group;
+  const int64_t total_size = selected_bone_uses_group.size();
 
   for (int i : r_vertex_mask.index_range()) {
     Span<MDeformWeight> weights(dvert[i].dw, dvert[i].totweight);
@@ -115,7 +109,10 @@ static void compute_vertex_mask__armature_mode(const MDeformVert *dvert,
 
     /* check the groups that vertex is assigned to, and see if it was any use */
     for (const MDeformWeight &dw : weights) {
-      if (use_vertex_group.get(dw.def_nr, false)) {
+      if (dw.def_nr >= total_size) {
+        continue;
+      }
+      if (selected_bone_uses_group[dw.def_nr]) {
         if (dw.weight > threshold) {
           r_vertex_mask[i] = true;
           break;

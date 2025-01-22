@@ -15,22 +15,29 @@ namespace blender::nodes::node_shader_mapping_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Vector>("Vector").default_value({0.0f, 0.0f, 0.0f}).min(-FLT_MAX).max(FLT_MAX);
+  b.add_input<decl::Vector>("Vector")
+      .default_value({0.0f, 0.0f, 0.0f})
+      .min(-FLT_MAX)
+      .max(FLT_MAX)
+      .description("The vector to be transformed");
   b.add_input<decl::Vector>("Location")
       .default_value({0.0f, 0.0f, 0.0f})
       .min(-FLT_MAX)
       .max(FLT_MAX)
-      .subtype(PROP_TRANSLATION);
+      .subtype(PROP_TRANSLATION)
+      .description("The amount of translation along each axis");
   b.add_input<decl::Vector>("Rotation")
       .default_value({0.0f, 0.0f, 0.0f})
       .min(-FLT_MAX)
       .max(FLT_MAX)
-      .subtype(PROP_EULER);
+      .subtype(PROP_EULER)
+      .description("The amount of rotation along each axis, XYZ order");
   b.add_input<decl::Vector>("Scale")
       .default_value({1.0f, 1.0f, 1.0f})
       .min(-FLT_MAX)
       .max(FLT_MAX)
-      .subtype(PROP_XYZ);
+      .subtype(PROP_XYZ)
+      .description("The amount of scaling along each axis");
   b.add_output<decl::Vector>("Vector");
 }
 
@@ -69,7 +76,7 @@ static int gpu_shader_mapping(GPUMaterial *mat,
 
 static void node_shader_update_mapping(bNodeTree *ntree, bNode *node)
 {
-  bNodeSocket *sock = nodeFindSocket(node, SOCK_IN, "Location");
+  bNodeSocket *sock = bke::nodeFindSocket(node, SOCK_IN, "Location");
   bke::nodeSetSocketAvailability(
       ntree, sock, ELEM(node->custom1, NODE_MAPPING_TYPE_POINT, NODE_MAPPING_TYPE_TEXTURE));
 }
@@ -112,7 +119,7 @@ void register_node_type_sh_mapping()
 {
   namespace file_ns = blender::nodes::node_shader_mapping_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   sh_node_type_base(&ntype, SH_NODE_MAPPING, "Mapping", NODE_CLASS_OP_VECTOR);
   ntype.declare = file_ns::node_declare;
@@ -121,5 +128,5 @@ void register_node_type_sh_mapping()
   ntype.updatefunc = file_ns::node_shader_update_mapping;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 }

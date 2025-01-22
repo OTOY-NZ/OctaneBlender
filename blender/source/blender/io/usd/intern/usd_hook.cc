@@ -14,7 +14,9 @@
 
 #include "BLI_utildefines.h"
 
-#include "BKE_report.h"
+#include "BKE_report.hh"
+
+#include "DNA_windowmanager_types.h"
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.h"
@@ -184,7 +186,7 @@ static void handle_python_error(USDHook *hook, ReportList *reports)
 
   BKE_reportf(reports,
               RPT_ERROR,
-              "An exception occurred invoking USD hook '%s'.  Please see the console for details",
+              "An exception occurred invoking USD hook '%s'. Please see the console for details",
               hook->name);
 }
 

@@ -8,7 +8,7 @@
 
 #include "extract_mesh.hh"
 
-#include "GPU_index_buffer.h"
+#include "GPU_index_buffer.hh"
 
 #include "draw_subdivision.hh"
 
@@ -19,6 +19,7 @@ namespace blender::draw {
 
 struct MeshExtract_EditUvElem_Data {
   GPUIndexBufBuilder elb;
+  Span<int> corner_tri_faces;
   bool sync_selection;
 };
 
@@ -28,7 +29,10 @@ static void extract_edituv_tris_init(const MeshRenderData &mr,
                                      void *tls_data)
 {
   MeshExtract_EditUvElem_Data *data = static_cast<MeshExtract_EditUvElem_Data *>(tls_data);
-  GPU_indexbuf_init(&data->elb, GPU_PRIM_TRIS, mr.tri_len, mr.loop_len);
+  GPU_indexbuf_init(&data->elb, GPU_PRIM_TRIS, mr.corner_tris_num, mr.corners_num);
+  if (mr.extract_type == MR_EXTRACT_MESH) {
+    data->corner_tri_faces = mr.mesh->corner_tri_faces();
+  }
   data->sync_selection = (mr.toolsettings->uv_flag & UV_SYNC_SELECTION) != 0;
 }
 
@@ -60,7 +64,7 @@ static void extract_edituv_tris_iter_corner_tri_mesh(const MeshRenderData &mr,
                                                      void *_data)
 {
   MeshExtract_EditUvElem_Data *data = static_cast<MeshExtract_EditUvElem_Data *>(_data);
-  const int face_i = mr.corner_tri_faces[elt_index];
+  const int face_i = data->corner_tri_faces[elt_index];
   const BMFace *efa = bm_original_face_get(mr, face_i);
   const bool mp_hidden = (efa) ? BM_elem_flag_test_bool(efa, BM_ELEM_HIDDEN) : true;
   const bool mp_select = (efa) ? BM_elem_flag_test_bool(efa, BM_ELEM_SELECT) : false;
@@ -74,7 +78,7 @@ static void extract_edituv_tris_finish(const MeshRenderData & /*mr*/,
                                        void *_data)
 {
   MeshExtract_EditUvElem_Data *data = static_cast<MeshExtract_EditUvElem_Data *>(_data);
-  GPUIndexBuf *ibo = static_cast<GPUIndexBuf *>(buf);
+  gpu::IndexBuf *ibo = static_cast<gpu::IndexBuf *>(buf);
   GPU_indexbuf_build_in_place(&data->elb, ibo);
 }
 
@@ -138,7 +142,7 @@ static void extract_edituv_tris_finish_subdiv(const DRWSubdivCache & /*subdiv_ca
                                               void *_data)
 {
   MeshExtract_EditUvElem_Data *data = static_cast<MeshExtract_EditUvElem_Data *>(_data);
-  GPUIndexBuf *ibo = static_cast<GPUIndexBuf *>(buf);
+  gpu::IndexBuf *ibo = static_cast<gpu::IndexBuf *>(buf);
   GPU_indexbuf_build_in_place(&data->elb, ibo);
 }
 
@@ -172,7 +176,7 @@ static void extract_edituv_lines_init(const MeshRenderData &mr,
                                       void *tls_data)
 {
   MeshExtract_EditUvElem_Data *data = static_cast<MeshExtract_EditUvElem_Data *>(tls_data);
-  GPU_indexbuf_init(&data->elb, GPU_PRIM_LINES, mr.loop_len, mr.loop_len);
+  GPU_indexbuf_init(&data->elb, GPU_PRIM_LINES, mr.corners_num, mr.corners_num);
   data->sync_selection = (mr.toolsettings->uv_flag & UV_SYNC_SELECTION) != 0;
 }
 
@@ -225,7 +229,8 @@ static void extract_edituv_lines_iter_face_mesh(const MeshRenderData &mr,
     const int edge = mr.corner_edges[corner];
     const int corner_next = bke::mesh::face_corner_next(face, corner);
 
-    const bool real_edge = (mr.e_origindex == nullptr || mr.e_origindex[edge] != ORIGINDEX_NONE);
+    const bool real_edge = (mr.orig_index_edge == nullptr ||
+                            mr.orig_index_edge[edge] != ORIGINDEX_NONE);
     edituv_edge_add(data, mp_hidden || !real_edge, mp_select, corner, corner_next);
   }
 }
@@ -236,7 +241,7 @@ static void extract_edituv_lines_finish(const MeshRenderData & /*mr*/,
                                         void *_data)
 {
   MeshExtract_EditUvElem_Data *data = static_cast<MeshExtract_EditUvElem_Data *>(_data);
-  GPUIndexBuf *ibo = static_cast<GPUIndexBuf *>(buf);
+  gpu::IndexBuf *ibo = static_cast<gpu::IndexBuf *>(buf);
   GPU_indexbuf_build_in_place(&data->elb, ibo);
 }
 
@@ -269,8 +274,8 @@ static void extract_edituv_lines_iter_subdiv_bm(const DRWSubdivCache &subdiv_cac
   for (uint loop_idx = start_loop_idx; loop_idx < end_loop_idx; loop_idx++) {
     const int edge_origindex = subdiv_loop_edge_index[loop_idx];
     const bool real_edge = (edge_origindex != -1 &&
-                            (mr.e_origindex == nullptr ||
-                             mr.e_origindex[edge_origindex] != ORIGINDEX_NONE));
+                            (mr.orig_index_edge == nullptr ||
+                             mr.orig_index_edge[edge_origindex] != ORIGINDEX_NONE));
     edituv_edge_add(data,
                     mp_hidden || !real_edge,
                     mp_select,
@@ -303,8 +308,8 @@ static void extract_edituv_lines_iter_subdiv_mesh(const DRWSubdivCache &subdiv_c
   for (uint loop_idx = start_loop_idx; loop_idx < end_loop_idx; loop_idx++) {
     const int edge_origindex = subdiv_loop_edge_index[loop_idx];
     const bool real_edge = (edge_origindex != -1 &&
-                            (mr.e_origindex == nullptr ||
-                             mr.e_origindex[edge_origindex] != ORIGINDEX_NONE));
+                            (mr.orig_index_edge == nullptr ||
+                             mr.orig_index_edge[edge_origindex] != ORIGINDEX_NONE));
     edituv_edge_add(data,
                     mp_hidden || !real_edge,
                     mp_select,
@@ -320,7 +325,7 @@ static void extract_edituv_lines_finish_subdiv(const DRWSubdivCache & /*subdiv_c
                                                void *_data)
 {
   MeshExtract_EditUvElem_Data *data = static_cast<MeshExtract_EditUvElem_Data *>(_data);
-  GPUIndexBuf *ibo = static_cast<GPUIndexBuf *>(buf);
+  gpu::IndexBuf *ibo = static_cast<gpu::IndexBuf *>(buf);
   GPU_indexbuf_build_in_place(&data->elb, ibo);
 }
 
@@ -354,7 +359,7 @@ static void extract_edituv_points_init(const MeshRenderData &mr,
                                        void *tls_data)
 {
   MeshExtract_EditUvElem_Data *data = static_cast<MeshExtract_EditUvElem_Data *>(tls_data);
-  GPU_indexbuf_init(&data->elb, GPU_PRIM_POINTS, mr.loop_len, mr.loop_len);
+  GPU_indexbuf_init(&data->elb, GPU_PRIM_POINTS, mr.corners_num, mr.corners_num);
   data->sync_selection = (mr.toolsettings->uv_flag & UV_SYNC_SELECTION) != 0;
 }
 
@@ -397,7 +402,7 @@ static void extract_edituv_points_iter_face_mesh(const MeshRenderData &mr,
   for (const int corner : mr.faces[face_index]) {
     const int vert = mr.corner_verts[corner];
 
-    const bool real_vert = !mr.v_origindex || mr.v_origindex[vert] != ORIGINDEX_NONE;
+    const bool real_vert = !mr.orig_index_vert || mr.orig_index_vert[vert] != ORIGINDEX_NONE;
     edituv_point_add(data, mp_hidden || !real_vert, mp_select, corner);
   }
 }
@@ -408,7 +413,7 @@ static void extract_edituv_points_finish(const MeshRenderData & /*mr*/,
                                          void *_data)
 {
   MeshExtract_EditUvElem_Data *data = static_cast<MeshExtract_EditUvElem_Data *>(_data);
-  GPUIndexBuf *ibo = static_cast<GPUIndexBuf *>(buf);
+  gpu::IndexBuf *ibo = static_cast<gpu::IndexBuf *>(buf);
   GPU_indexbuf_build_in_place(&data->elb, ibo);
 }
 
@@ -461,8 +466,9 @@ static void extract_edituv_points_iter_subdiv_mesh(const DRWSubdivCache &subdiv_
   uint end_loop_idx = (subdiv_quad_index + 1) * 4;
   for (uint i = start_loop_idx; i < end_loop_idx; i++) {
     const int vert_origindex = subdiv_loop_vert_index[i];
-    const bool real_vert = !mr.v_origindex || (vert_origindex != -1 &&
-                                               mr.v_origindex[vert_origindex] != ORIGINDEX_NONE);
+    const bool real_vert = !mr.orig_index_vert ||
+                           (vert_origindex != -1 &&
+                            mr.orig_index_vert[vert_origindex] != ORIGINDEX_NONE);
     edituv_point_add(data, mp_hidden || !real_vert, mp_select, i);
   }
 }
@@ -474,7 +480,7 @@ static void extract_edituv_points_finish_subdiv(const DRWSubdivCache & /*subdiv_
                                                 void *_data)
 {
   MeshExtract_EditUvElem_Data *data = static_cast<MeshExtract_EditUvElem_Data *>(_data);
-  GPUIndexBuf *ibo = static_cast<GPUIndexBuf *>(buf);
+  gpu::IndexBuf *ibo = static_cast<gpu::IndexBuf *>(buf);
   GPU_indexbuf_build_in_place(&data->elb, ibo);
 }
 
@@ -508,7 +514,7 @@ static void extract_edituv_fdots_init(const MeshRenderData &mr,
                                       void *tls_data)
 {
   MeshExtract_EditUvElem_Data *data = static_cast<MeshExtract_EditUvElem_Data *>(tls_data);
-  GPU_indexbuf_init(&data->elb, GPU_PRIM_POINTS, mr.face_len, mr.face_len);
+  GPU_indexbuf_init(&data->elb, GPU_PRIM_POINTS, mr.faces_num, mr.faces_num);
   data->sync_selection = (mr.toolsettings->uv_flag & UV_SYNC_SELECTION) != 0;
 }
 
@@ -553,13 +559,15 @@ static void extract_edituv_fdots_iter_face_mesh(const MeshRenderData &mr,
     for (const int corner : mr.faces[face_index]) {
       const int vert = mr.corner_verts[corner];
 
-      const bool real_fdot = !mr.p_origindex || (mr.p_origindex[face_index] != ORIGINDEX_NONE);
+      const bool real_fdot = !mr.orig_index_face ||
+                             (mr.orig_index_face[face_index] != ORIGINDEX_NONE);
       const bool subd_fdot = facedot_tags[vert];
       edituv_facedot_add(data, mp_hidden || !real_fdot || !subd_fdot, mp_select, face_index);
     }
   }
   else {
-    const bool real_fdot = !mr.p_origindex || (mr.p_origindex[face_index] != ORIGINDEX_NONE);
+    const bool real_fdot = !mr.orig_index_face ||
+                           (mr.orig_index_face[face_index] != ORIGINDEX_NONE);
     edituv_facedot_add(data, mp_hidden || !real_fdot, mp_select, face_index);
   }
 }
@@ -570,7 +578,7 @@ static void extract_edituv_fdots_finish(const MeshRenderData & /*mr*/,
                                         void *_data)
 {
   MeshExtract_EditUvElem_Data *data = static_cast<MeshExtract_EditUvElem_Data *>(_data);
-  GPUIndexBuf *ibo = static_cast<GPUIndexBuf *>(buf);
+  gpu::IndexBuf *ibo = static_cast<gpu::IndexBuf *>(buf);
   GPU_indexbuf_build_in_place(&data->elb, ibo);
 }
 

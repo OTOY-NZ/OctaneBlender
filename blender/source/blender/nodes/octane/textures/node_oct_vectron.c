@@ -33,9 +33,9 @@
 
 /* **************** Script ******************** */
 
-static bNodeSocketTemplate sh_node_in[] = {{-1, ""}};
+static blender::bke::bNodeSocketTemplate  sh_node_in[] = {{-1, ""}};
 
-static bNodeSocketTemplate sh_node_out[] = {
+static blender::bke::bNodeSocketTemplate  sh_node_out[] = {
     {SOCK_SHADER, N_("OutVectron")},
     {SOCK_RGBA,
      N_("OutTex"),
@@ -82,7 +82,7 @@ static void node_copy_script(bNodeTree *dest_ntree, bNode *dest_node, const bNod
 
 void register_node_type_oct_vectron(void)
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   sh_node_type_base(&ntype, SH_NODE_OCT_VECTRON, "Vectron", NODE_CLASS_OCT_GEOMETRY);
   blender::bke::node_type_socket_templates(&ntype, sh_node_in, sh_node_out);

@@ -17,13 +17,9 @@
 
 #include "BKE_context.hh"
 #include "BKE_node.hh"
-#include "BKE_node_runtime.hh"
-#include "BKE_node_tree_update.hh"
-#include "BKE_report.h"
 
 #include "ED_node.hh"
 
-#include "UI_interface.hh"
 #include "UI_view2d.hh"
 
 #include "transform.hh"
@@ -50,21 +46,21 @@ static void create_transform_data_for_node(TransData &td,
                                            bNode &node,
                                            const float dpi_fac)
 {
-  /* account for parents (nested nodes) */
+  /* Account for parents (nested nodes). */
   const float2 node_offset = {node.offsetx, node.offsety};
   float2 loc = bke::nodeToView(&node, math::round(node_offset));
   loc *= dpi_fac;
 
-  /* use top-left corner as the transform origin for nodes */
+  /* Use top-left corner as the transform origin for nodes. */
   /* Weirdo - but the node system is a mix of free 2d elements and DPI sensitive UI. */
   td2d.loc[0] = loc.x;
   td2d.loc[1] = loc.y;
   td2d.loc[2] = 0.0f;
-  td2d.loc2d = td2d.loc; /* current location */
+  td2d.loc2d = td2d.loc; /* Current location. */
 
   td.loc = td2d.loc;
   copy_v3_v3(td.iloc, td.loc);
-  /* use node center instead of origin (top-left corner) */
+  /* Use node center instead of origin (top-left corner). */
   td.center[0] = td2d.loc[0];
   td.center[1] = td2d.loc[1];
   td.center[2] = 0.0f;
@@ -102,7 +98,7 @@ static void createTransNodeData(bContext * /*C*/, TransInfo *t)
     return;
   }
 
-  /* Custom data to enable edge panning during the node transform */
+  /* Custom data to enable edge panning during the node transform. */
   TransCustomDataNode *customdata = MEM_cnew<TransCustomDataNode>(__func__);
   UI_view2d_edge_pan_init(t->context,
                           &customdata->edgepan_data,
@@ -114,12 +110,7 @@ static void createTransNodeData(bContext * /*C*/, TransInfo *t)
                           NODE_EDGE_PAN_ZOOM_INFLUENCE);
   customdata->viewrect_prev = customdata->edgepan_data.initial_rect;
 
-  if (t->modifiers & MOD_NODE_ATTACH) {
-    space_node::node_insert_on_link_flags_set(*snode, *t->region);
-  }
-  else {
-    space_node::node_insert_on_link_flags_clear(*snode->edittree);
-  }
+  space_node::node_insert_on_link_flags_set(*snode, *t->region, t->modifiers & MOD_NODE_ATTACH);
 
   t->custom.type.data = customdata;
   t->custom.type.use_free = true;
@@ -203,7 +194,7 @@ static void flushTransNodes(TransInfo *t)
       UI_view2d_edge_pan_cancel(t->context, &customdata->edgepan_data);
     }
     else {
-      /* Edge panning functions expect window coordinates, mval is relative to region */
+      /* Edge panning functions expect window coordinates, mval is relative to region. */
       const int xy[2] = {
           t->region->winrct.xmin + int(t->mval[0]),
           t->region->winrct.ymin + int(t->mval[1]),
@@ -225,7 +216,7 @@ static void flushTransNodes(TransInfo *t)
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
     node_snap_grid_apply(t);
 
-    /* flush to 2d vector from internally used 3d vector */
+    /* Flush to 2d vector from internally used 3d vector. */
     for (int i = 0; i < tc->data_len; i++) {
       TransData *td = &tc->data[i];
       TransData2D *td2d = &tc->data_2d[i];
@@ -237,7 +228,7 @@ static void flushTransNodes(TransInfo *t)
       /* Weirdo - but the node system is a mix of free 2d elements and DPI sensitive UI. */
       loc /= dpi_fac;
 
-      /* account for parents (nested nodes) */
+      /* Account for parents (nested nodes). */
       const float2 node_offset = {node->offsetx, node->offsety};
       const float2 new_node_location = loc - math::round(node_offset);
       const float2 location = bke::nodeFromView(node->parent, new_node_location);
@@ -245,14 +236,10 @@ static void flushTransNodes(TransInfo *t)
       node->locy = location.y;
     }
 
-    /* handle intersection with noodles */
+    /* Handle intersection with noodles. */
     if (tc->data_len == 1) {
-      if (t->modifiers & MOD_NODE_ATTACH) {
-        space_node::node_insert_on_link_flags_set(*snode, *t->region);
-      }
-      else {
-        space_node::node_insert_on_link_flags_clear(*snode->edittree);
-      }
+      space_node::node_insert_on_link_flags_set(
+          *snode, *t->region, t->modifiers & MOD_NODE_ATTACH);
     }
   }
 }
@@ -272,11 +259,11 @@ static void special_aftertrans_update__node(bContext *C, TransInfo *t)
   const bool canceled = (t->state == TRANS_CANCEL);
 
   if (canceled && t->remove_on_cancel) {
-    /* remove selected nodes on cancel */
+    /* Remove selected nodes on cancel. */
     if (ntree) {
       LISTBASE_FOREACH_MUTABLE (bNode *, node, &ntree->nodes) {
         if (node->flag & NODE_SELECT) {
-          nodeRemoveNode(bmain, ntree, node, true);
+          bke::nodeRemoveNode(bmain, ntree, node, true);
         }
       }
       ED_node_tree_propagate_change(C, bmain, ntree);

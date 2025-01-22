@@ -33,12 +33,12 @@
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_object.hh"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 #include "BKE_vfont.hh"
 
 #include "BLI_string_utf8.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
@@ -57,7 +57,7 @@
 
 #include "UI_interface.hh"
 
-#include "curve_intern.h"
+#include "curve_intern.hh"
 
 #define MAXTEXT 32766
 
@@ -670,7 +670,7 @@ static void text_insert_unicode_confirm(bContext *C, void *arg_block, void *arg_
   if (val > 31 && val < 0x10FFFF) {
     Object *obedit = CTX_data_edit_object(C);
     if (obedit) {
-      char32_t utf32[2] = {val, 0};
+      const char32_t utf32[2] = {val, 0};
       font_paste_wchar(obedit, utf32, 1, nullptr);
       text_update_edited(C, obedit, FO_EDIT);
     }
@@ -693,8 +693,8 @@ static uiBlock *wm_block_insert_unicode_create(bContext *C, ARegion *region, voi
   uiLayout *layout = UI_block_layout(
       block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL, 0, 0, 200 * UI_SCALE_FAC, UI_UNIT_Y, 0, style);
 
-  uiItemL_ex(layout, "Insert Unicode Character", ICON_NONE, true, false);
-  uiItemL(layout, "Enter a Unicode codepoint hex value", ICON_NONE);
+  uiItemL_ex(layout, IFACE_("Insert Unicode Character"), ICON_NONE, true, false);
+  uiItemL(layout, RPT_("Enter a Unicode codepoint hex value"), ICON_NONE);
 
   uiBut *text_but = uiDefBut(block,
                              UI_BTYPE_TEXT,
@@ -707,8 +707,6 @@ static uiBlock *wm_block_insert_unicode_create(bContext *C, ARegion *region, voi
                              edit_string,
                              0,
                              7,
-                             0,
-                             0,
                              TIP_("Unicode codepoint hex value"));
   UI_but_flag_enable(text_but, UI_BUT_ACTIVATE_ON_INIT);
   /* Hitting Enter in the text input is treated the same as clicking the Confirm button. */
@@ -731,17 +729,17 @@ static uiBlock *wm_block_insert_unicode_create(bContext *C, ARegion *region, voi
 
   if (windows_layout) {
     confirm = uiDefIconTextBut(
-        block, UI_BTYPE_BUT, 0, 0, "Insert", 0, 0, 0, UI_UNIT_Y, nullptr, 0, 0, 0, 0, nullptr);
+        block, UI_BTYPE_BUT, 0, 0, "Insert", 0, 0, 0, UI_UNIT_Y, nullptr, 0, 0, nullptr);
     uiLayoutColumn(split, false);
   }
 
   cancel = uiDefIconTextBut(
-      block, UI_BTYPE_BUT, 0, 0, "Cancel", 0, 0, 0, UI_UNIT_Y, nullptr, 0, 0, 0, 0, nullptr);
+      block, UI_BTYPE_BUT, 0, 0, "Cancel", 0, 0, 0, UI_UNIT_Y, nullptr, 0, 0, nullptr);
 
   if (!windows_layout) {
     uiLayoutColumn(split, false);
     confirm = uiDefIconTextBut(
-        block, UI_BTYPE_BUT, 0, 0, "Insert", 0, 0, 0, UI_UNIT_Y, nullptr, 0, 0, 0, 0, nullptr);
+        block, UI_BTYPE_BUT, 0, 0, "Insert", 0, 0, 0, UI_UNIT_Y, nullptr, 0, 0, nullptr);
   }
 
   UI_block_func_set(block, nullptr, nullptr, nullptr);
@@ -811,7 +809,7 @@ static void txt_add_object(bContext *C,
   object = BKE_view_layer_active_object_get(view_layer);
 
   /* seems to assume view align ? TODO: look into this, could be an operator option. */
-  ED_object_base_init_transform_on_add(object, nullptr, rot);
+  blender::ed::object::init_transform_on_add(object, nullptr, rot);
 
   BKE_object_where_is_calc(depsgraph, scene, obedit);
 
@@ -1956,7 +1954,8 @@ static int font_cursor_text_index_from_event(bContext *C, Object *obedit, const 
 {
   /* Calculate a plane from the text object's orientation. */
   float plane[4];
-  plane_from_point_normal_v3(plane, obedit->object_to_world[3], obedit->object_to_world[2]);
+  plane_from_point_normal_v3(
+      plane, obedit->object_to_world().location(), obedit->object_to_world().ptr()[2]);
 
   /* Convert Mouse location in region to 3D location in world space. */
   float mal_fl[2] = {float(event->mval[0]), float(event->mval[1])};
@@ -1964,7 +1963,7 @@ static int font_cursor_text_index_from_event(bContext *C, Object *obedit, const 
   ED_view3d_win_to_3d_on_plane(CTX_wm_region(C), plane, mal_fl, true, mouse_loc);
 
   /* Convert to object space and scale by font size. */
-  mul_m4_v3(obedit->world_to_object, mouse_loc);
+  mul_m4_v3(obedit->world_to_object().ptr(), mouse_loc);
 
   float curs_loc[2] = {mouse_loc[0], mouse_loc[1]};
   return BKE_vfont_cursor_to_text_index(obedit, curs_loc);
@@ -2592,7 +2591,7 @@ bool ED_curve_editfont_select_pick(
       cu->actbox = actbox_select;
       WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
       /* TODO: support #ID_RECALC_SELECT. */
-      DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_COPY_ON_WRITE);
+      DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SYNC_TO_EVAL);
     }
     return true;
   }

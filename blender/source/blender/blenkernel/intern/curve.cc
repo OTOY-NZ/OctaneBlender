@@ -9,6 +9,7 @@
 #include <cmath> /* floor */
 #include <cstdlib>
 #include <cstring>
+#include <optional>
 
 #include "MEM_guardedalloc.h"
 
@@ -25,7 +26,7 @@
 #include "BLI_math_vector_types.hh"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 /* Allow using deprecated functionality for .blend file I/O. */
 #define DNA_DEPRECATED_ALLOW
@@ -40,23 +41,17 @@
 #include "DNA_object_types.h"
 #include "DNA_vfont_types.h"
 
-#include "BKE_anim_data.h"
 #include "BKE_curve.hh"
 #include "BKE_curveprofile.h"
-#include "BKE_displist.h"
 #include "BKE_idtype.hh"
 #include "BKE_key.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
-#include "BKE_main.hh"
-#include "BKE_object.hh"
 #include "BKE_object_types.hh"
 #include "BKE_vfont.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
-
-#include "CLG_log.h"
 
 #include "BLO_read_write.hh"
 
@@ -85,7 +80,11 @@ static void curve_init_data(ID *id)
   MEMCPY_STRUCT_AFTER(curve, DNA_struct_default_get(Curve), id);
 }
 
-static void curve_copy_data(Main *bmain, ID *id_dst, const ID *id_src, const int flag)
+static void curve_copy_data(Main *bmain,
+                            std::optional<Library *> owner_library,
+                            ID *id_dst,
+                            const ID *id_src,
+                            const int flag)
 {
   Curve *curve_dst = (Curve *)id_dst;
   const Curve *curve_src = (const Curve *)id_src;
@@ -103,9 +102,12 @@ static void curve_copy_data(Main *bmain, ID *id_dst, const ID *id_src, const int
   curve_dst->bevel_profile = BKE_curveprofile_copy(curve_src->bevel_profile);
 
   if (curve_src->key && (flag & LIB_ID_COPY_SHAPEKEY)) {
-    BKE_id_copy_ex(bmain, &curve_src->key->id, (ID **)&curve_dst->key, flag);
-    /* XXX This is not nice, we need to make BKE_id_copy_ex fully re-entrant... */
-    curve_dst->key->from = &curve_dst->id;
+    BKE_id_copy_in_lib(bmain,
+                       owner_library,
+                       &curve_src->key->id,
+                       &curve_dst->id,
+                       reinterpret_cast<ID **>(&curve_dst->key),
+                       flag);
   }
 
   curve_dst->editnurb = nullptr;
@@ -203,16 +205,6 @@ static void curve_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   }
 }
 
-static void switch_endian_knots(Nurb *nu)
-{
-  if (nu->knotsu) {
-    BLI_endian_switch_float_array(nu->knotsu, KNOTSU(nu));
-  }
-  if (nu->knotsv) {
-    BLI_endian_switch_float_array(nu->knotsv, KNOTSV(nu));
-  }
-}
-
 static void curve_blend_read_data(BlendDataReader *reader, ID *id)
 {
   Curve *cu = (Curve *)id;
@@ -222,12 +214,12 @@ static void curve_blend_read_data(BlendDataReader *reader, ID *id)
 
   BLO_read_pointer_array(reader, (void **)&cu->mat);
 
-  BLO_read_data_address(reader, &cu->str);
-  BLO_read_data_address(reader, &cu->strinfo);
-  BLO_read_data_address(reader, &cu->tb);
+  BLO_read_string(reader, &cu->str);
+  BLO_read_struct_array(reader, CharInfo, cu->len_char32 + 1, &cu->strinfo);
+  BLO_read_struct_array(reader, TextBox, cu->totbox, &cu->tb);
 
   if (cu->vfont == nullptr) {
-    BLO_read_list(reader, &(cu->nurb));
+    BLO_read_struct_list(reader, Nurb, &(cu->nurb));
   }
   else {
     cu->nurb.first = cu->nurb.last = nullptr;
@@ -254,21 +246,17 @@ static void curve_blend_read_data(BlendDataReader *reader, ID *id)
   cu->batch_cache = nullptr;
 
   LISTBASE_FOREACH (Nurb *, nu, &cu->nurb) {
-    BLO_read_data_address(reader, &nu->bezt);
-    BLO_read_data_address(reader, &nu->bp);
-    BLO_read_data_address(reader, &nu->knotsu);
-    BLO_read_data_address(reader, &nu->knotsv);
+    BLO_read_struct_array(reader, BezTriple, nu->pntsu, &nu->bezt);
+    BLO_read_struct_array(reader, BPoint, nu->pntsu * nu->pntsv, &nu->bp);
+    BLO_read_float_array(reader, KNOTSU(nu), &nu->knotsu);
+    BLO_read_float_array(reader, KNOTSV(nu), &nu->knotsv);
     if (cu->vfont == nullptr) {
       nu->charidx = 0;
-    }
-
-    if (BLO_read_requires_endian_switch(reader)) {
-      switch_endian_knots(nu);
     }
   }
   cu->texspace_flag &= ~CU_TEXSPACE_FLAG_AUTO_EVALUATED;
 
-  BLO_read_data_address(reader, &cu->bevel_profile);
+  BLO_read_struct(reader, CurveProfile, &cu->bevel_profile);
   if (cu->bevel_profile != nullptr) {
     BKE_curveprofile_blend_read(reader, cu->bevel_profile);
   }
@@ -277,6 +265,7 @@ static void curve_blend_read_data(BlendDataReader *reader, ID *id)
 IDTypeInfo IDType_ID_CU_LEGACY = {
     /*id_code*/ ID_CU_LEGACY,
     /*id_filter*/ FILTER_ID_CU_LEGACY,
+    /*dependencies_id_types*/ FILTER_ID_OB | FILTER_ID_MA | FILTER_ID_VF | FILTER_ID_KE,
     /*main_listbase_index*/ INDEX_ID_CU_LEGACY,
     /*struct_size*/ sizeof(Curve),
     /*name*/ "Curve",

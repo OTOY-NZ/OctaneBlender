@@ -63,7 +63,7 @@
  *       // tag job 'processed
  *       BLI_threadpool_insert(&lb, job);
  *     }
- *     else BLI_sleep_ms(50);
+ *     else BLI_time_sleep_ms(50);
  *
  *     // Find if a job is ready, this the do_something_func() should write in job somewhere.
  *     cont = 0;
@@ -410,7 +410,13 @@ void BLI_spin_lock(SpinLock *spin)
 #elif defined(__APPLE__)
   BLI_mutex_lock(spin);
 #elif defined(_MSC_VER)
+#  if defined(_M_ARM64)
+  // InterlockedExchangeAcquire takes a long arg on MSVC ARM64
+  static_assert(sizeof(long) == sizeof(SpinLock));
+  while (InterlockedExchangeAcquire((volatile long *)spin, 1)) {
+#  else
   while (InterlockedExchangeAcquire(spin, 1)) {
+#  endif
     while (*spin) {
       /* Spin-lock hint for processors with hyper-threading. */
       YieldProcessor();
@@ -498,6 +504,8 @@ struct TicketMutex {
   pthread_cond_t cond;
   pthread_mutex_t mutex;
   uint queue_head, queue_tail;
+  pthread_t owner;
+  bool has_owner;
 };
 
 TicketMutex *BLI_ticket_mutex_alloc()
@@ -518,24 +526,46 @@ void BLI_ticket_mutex_free(TicketMutex *ticket)
   MEM_freeN(ticket);
 }
 
-void BLI_ticket_mutex_lock(TicketMutex *ticket)
+static bool ticket_mutex_lock(TicketMutex *ticket, const bool check_recursive)
 {
   uint queue_me;
 
   pthread_mutex_lock(&ticket->mutex);
+
+  /* Check for recursive locks, for debugging only. */
+  if (check_recursive && ticket->has_owner && pthread_equal(pthread_self(), ticket->owner)) {
+    pthread_mutex_unlock(&ticket->mutex);
+    return false;
+  }
+
   queue_me = ticket->queue_tail++;
 
   while (queue_me != ticket->queue_head) {
     pthread_cond_wait(&ticket->cond, &ticket->mutex);
   }
 
+  ticket->owner = pthread_self();
+  ticket->has_owner = true;
+
   pthread_mutex_unlock(&ticket->mutex);
+  return true;
+}
+
+void BLI_ticket_mutex_lock(TicketMutex *ticket)
+{
+  ticket_mutex_lock(ticket, false);
+}
+
+bool BLI_ticket_mutex_lock_check_recursive(TicketMutex *ticket)
+{
+  return ticket_mutex_lock(ticket, true);
 }
 
 void BLI_ticket_mutex_unlock(TicketMutex *ticket)
 {
   pthread_mutex_lock(&ticket->mutex);
   ticket->queue_head++;
+  ticket->has_owner = false;
   pthread_cond_broadcast(&ticket->cond);
   pthread_mutex_unlock(&ticket->mutex);
 }
@@ -687,7 +717,7 @@ void *BLI_thread_queue_pop_timeout(ThreadQueue *queue, int ms)
   void *work = nullptr;
   timespec timeout;
 
-  t = BLI_check_seconds_timer();
+  t = BLI_time_now_seconds();
   wait_timeout(&timeout, ms);
 
   /* wait until there is work */
@@ -696,7 +726,7 @@ void *BLI_thread_queue_pop_timeout(ThreadQueue *queue, int ms)
     if (pthread_cond_timedwait(&queue->push_cond, &queue->mutex, &timeout) == ETIMEDOUT) {
       break;
     }
-    if (BLI_check_seconds_timer() - t >= ms * 0.001) {
+    if (BLI_time_now_seconds() - t >= ms * 0.001) {
       break;
     }
   }

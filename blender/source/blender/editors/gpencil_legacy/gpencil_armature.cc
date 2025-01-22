@@ -24,7 +24,6 @@
 #include "DNA_armature_types.h"
 #include "DNA_gpencil_legacy_types.h"
 #include "DNA_meshdata_types.h"
-#include "DNA_scene_types.h"
 
 #include "BKE_action.h"
 #include "BKE_armature.hh"
@@ -33,9 +32,8 @@
 #include "BKE_gpencil_legacy.h"
 #include "BKE_gpencil_modifier_legacy.h"
 #include "BKE_layer.hh"
-#include "BKE_main.hh"
 #include "BKE_object_deform.h"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -47,13 +45,14 @@
 #include "ED_gpencil_legacy.hh"
 #include "ED_mesh.hh"
 #include "ED_object.hh"
+#include "ED_object_vgroup.hh"
 
 #include "ANIM_bone_collections.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
 
-#include "gpencil_intern.h"
+#include "gpencil_intern.hh"
 
 enum {
   GP_ARMATURE_NAME = 0,
@@ -340,8 +339,8 @@ static void gpencil_add_verts_to_dgroups(
       copy_v3_v3(tip[j], bone->arm_tail);
     }
 
-    mul_m4_v3(ob_arm->object_to_world, root[j]);
-    mul_m4_v3(ob_arm->object_to_world, tip[j]);
+    mul_m4_v3(ob_arm->object_to_world().ptr(), root[j]);
+    mul_m4_v3(ob_arm->object_to_world().ptr(), tip[j]);
 
     selected[j] = 1;
 
@@ -376,7 +375,7 @@ static void gpencil_add_verts_to_dgroups(
           /* transform stroke points to global space */
           for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
             copy_v3_v3(verts[i], &pt->x);
-            mul_m4_v3(ob->object_to_world, verts[i]);
+            mul_m4_v3(ob->object_to_world().ptr(), verts[i]);
           }
 
           /* loop groups and assign weight */
@@ -462,7 +461,7 @@ static void gpencil_object_vgroup_calc_from_armature(const bContext *C,
   if (defbase_add) {
     /* It's possible there are DWeights outside the range of the current
      * object's deform groups. In this case the new groups won't be empty */
-    ED_vgroup_data_clamp_range(static_cast<ID *>(ob->data), defbase_tot);
+    blender::ed::object::vgroup_data_clamp_range(static_cast<ID *>(ob->data), defbase_tot);
   }
 
   if (mode == GP_ARMATURE_AUTO) {
@@ -488,7 +487,7 @@ bool ED_gpencil_add_armature(const bContext *C, ReportList *reports, Object *ob,
   /* if no armature modifier, add a new one */
   GpencilModifierData *md = BKE_gpencil_modifiers_findby_type(ob, eGpencilModifierType_Armature);
   if (md == nullptr) {
-    md = ED_object_gpencil_modifier_add(
+    md = blender::ed::object::gpencil_modifier_add(
         reports, bmain, scene, ob, "Armature", eGpencilModifierType_Armature);
     if (md == nullptr) {
       BKE_report(reports, RPT_ERROR, "Unable to add a new Armature modifier to object");

@@ -32,7 +32,7 @@
 #include "BKE_node_runtime.hh"
 #include "BKE_texture.h"
 
-static bNodeSocketTemplate sh_node_in[] = {
+static blender::bke::bNodeSocketTemplate  sh_node_in[] = {
     {SOCK_INT,
      N_("Grid size(X)"),
      1.0f,
@@ -127,7 +127,7 @@ static bNodeSocketTemplate sh_node_in[] = {
      SOCK_NO_INTERNAL_LINK},
     {-1, ""}};
 
-static bNodeSocketTemplate sh_node_out[] = {{SOCK_RGBA, N_("OutTex")}, {-1, ""}};
+static blender::bke::bNodeSocketTemplate  sh_node_out[] = {{SOCK_RGBA, N_("OutTex")}, {-1, ""}};
 
 static void node_oct_image_tile_tex_init(bNodeTree *ntree, bNode *node)
 {
@@ -145,7 +145,7 @@ static void node_oct_image_tile_tex_init(bNodeTree *ntree, bNode *node)
 
 void register_node_type_tex_oct_image_tile(void)
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   if (ntype.type != SH_NODE_OCT_IMAGE_TILE_TEX)
     sh_node_type_base(&ntype, SH_NODE_OCT_IMAGE_TILE_TEX, "Image Tile Tex", NODE_CLASS_OCT_TEXTURE);

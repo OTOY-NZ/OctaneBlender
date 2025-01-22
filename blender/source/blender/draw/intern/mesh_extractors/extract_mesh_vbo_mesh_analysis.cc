@@ -31,14 +31,14 @@ static void extract_mesh_analysis_init(const MeshRenderData &mr,
                                        void *buf,
                                        void * /*tls_data*/)
 {
-  GPUVertBuf *vbo = static_cast<GPUVertBuf *>(buf);
+  gpu::VertBuf *vbo = static_cast<gpu::VertBuf *>(buf);
   static GPUVertFormat format = {0};
   if (format.attr_len == 0) {
     GPU_vertformat_attr_add(&format, "weight", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
   }
 
   GPU_vertbuf_init_with_format(vbo, &format);
-  GPU_vertbuf_data_alloc(vbo, mr.loop_len);
+  GPU_vertbuf_data_alloc(vbo, mr.corners_num);
 }
 
 static void axis_from_enum_v3(float v[3], const char axis)
@@ -86,7 +86,7 @@ static void statvis_calc_overhang(const MeshRenderData &mr, float *r_overhang)
   axis_from_enum_v3(dir, axis);
 
   /* now convert into global space */
-  mul_transposed_mat3_m4_v3(mr.obmat, dir);
+  mul_transposed_mat3_m4_v3(mr.object_to_world.ptr(), dir);
   normalize_v3(dir);
 
   if (mr.extract_type == MR_EXTRACT_BMESH) {
@@ -143,9 +143,9 @@ static void statvis_calc_thickness(const MeshRenderData &mr, float *r_thickness)
 {
   const float eps_offset = 0.00002f; /* values <= 0.00001 give errors */
   /* cheating to avoid another allocation */
-  float *face_dists = r_thickness + (mr.loop_len - mr.face_len);
+  float *face_dists = r_thickness + (mr.corners_num - mr.faces_num);
   BMEditMesh *em = mr.edit_bmesh;
-  const float scale = 1.0f / mat4_to_scale(mr.obmat);
+  const float scale = 1.0f / mat4_to_scale(mr.object_to_world.ptr());
   const MeshStatVis *statvis = &mr.toolsettings->statvis;
   const float min = statvis->thickness_min * scale;
   const float max = statvis->thickness_max * scale;
@@ -155,7 +155,7 @@ static void statvis_calc_thickness(const MeshRenderData &mr, float *r_thickness)
   BLI_assert(samples <= 32);
   BLI_assert(min <= max);
 
-  copy_vn_fl(face_dists, mr.face_len, max);
+  copy_vn_fl(face_dists, mr.faces_num, max);
 
   BLI_jitter_init(jit_ofs, samples);
   for (int j = 0; j < samples; j++) {
@@ -167,9 +167,9 @@ static void statvis_calc_thickness(const MeshRenderData &mr, float *r_thickness)
     BM_mesh_elem_index_ensure(bm, BM_FACE);
 
     BMBVHTree *bmtree = BKE_bmbvh_new_from_editmesh(em, 0, nullptr, false);
-    BMLoop *(*looptris)[3] = em->looptris;
-    for (int i = 0; i < mr.tri_len; i++) {
-      BMLoop **ltri = looptris[i];
+    const Span<std::array<BMLoop *, 3>> looptris = em->looptris;
+    for (int i = 0; i < mr.corner_tris_num; i++) {
+      const BMLoop *const *ltri = looptris[i].data();
       const int index = BM_elem_index_get(ltri[0]->f);
       const float *cos[3] = {
           bm_vert_co_get(mr, ltri[0]->v),
@@ -217,8 +217,8 @@ static void statvis_calc_thickness(const MeshRenderData &mr, float *r_thickness)
     BVHTreeFromMesh treeData = {nullptr};
 
     BVHTree *tree = BKE_bvhtree_from_mesh_get(&treeData, mr.mesh, BVHTREE_FROM_CORNER_TRIS, 4);
-    const Span<int3> corner_tris = mr.corner_tris;
-    const Span<int> tri_faces = mr.corner_tri_faces;
+    const Span<int3> corner_tris = mr.mesh->corner_tris();
+    const Span<int> tri_faces = mr.mesh->corner_tri_faces();
     for (const int i : corner_tris.index_range()) {
       const int index = tri_faces[i];
       const float *cos[3] = {mr.vert_positions[mr.corner_verts[corner_tris[i][0]]],
@@ -307,7 +307,7 @@ static void statvis_calc_intersect(const MeshRenderData &mr, float *r_intersect)
 {
   BMEditMesh *em = mr.edit_bmesh;
 
-  for (int l_index = 0; l_index < mr.loop_len; l_index++) {
+  for (int l_index = 0; l_index < mr.corners_num; l_index++) {
     r_intersect[l_index] = -1.0f;
   }
 
@@ -349,16 +349,16 @@ static void statvis_calc_intersect(const MeshRenderData &mr, float *r_intersect)
     BVHTree_OverlapData data = {};
     data.positions = mr.vert_positions;
     data.corner_verts = mr.corner_verts;
-    data.corner_tris = mr.corner_tris;
-    data.tri_faces = mr.corner_tri_faces;
+    data.corner_tris = mr.mesh->corner_tris();
+    data.tri_faces = mr.mesh->corner_tri_faces();
     data.epsilon = BLI_bvhtree_get_epsilon(tree);
 
     BVHTreeOverlap *overlap = BLI_bvhtree_overlap_self(tree, &overlap_len, bvh_overlap_cb, &data);
     if (overlap) {
       for (int i = 0; i < overlap_len; i++) {
 
-        for (const IndexRange f_hit : {mr.faces[mr.corner_tri_faces[overlap[i].indexA]],
-                                       mr.faces[mr.corner_tri_faces[overlap[i].indexB]]})
+        for (const IndexRange f_hit : {mr.faces[data.tri_faces[overlap[i].indexA]],
+                                       mr.faces[data.tri_faces[overlap[i].indexB]]})
         {
           int l_index = f_hit.start();
           for (int k = 0; k < f_hit.size(); k++, l_index++) {
@@ -396,14 +396,6 @@ static void statvis_calc_distort(const MeshRenderData &mr, float *r_distort)
     BMIter iter;
     BMesh *bm = em->bm;
     BMFace *f;
-
-    if (!mr.bm_vert_coords.is_empty()) {
-      BKE_editmesh_cache_ensure_face_normals(*em, *mr.edit_data);
-
-      /* Most likely this is already valid, ensure just in case.
-       * Needed for #BM_loop_calc_face_normal_safe_vcos. */
-      BM_mesh_elem_index_ensure(em->bm, BM_VERT);
-    }
 
     int l_index = 0;
     int f_index = 0;
@@ -456,14 +448,13 @@ static void statvis_calc_distort(const MeshRenderData &mr, float *r_distort)
         const float *f_no = mr.face_normals[face_index];
         fac = 0.0f;
 
-        for (int i = 1; i <= face.size(); i++) {
-          const int corner_prev = face.start() + (i - 1) % face.size();
-          const int corner_curr = face.start() + (i + 0) % face.size();
-          const int corner_next = face.start() + (i + 1) % face.size();
+        for (const int corner : face.drop_front(1)) {
+          const int corner_prev = bke::mesh::face_corner_prev(face, corner);
+          const int corner_next = bke::mesh::face_corner_next(face, corner);
           float no_corner[3];
           normal_tri_v3(no_corner,
                         mr.vert_positions[mr.corner_verts[corner_prev]],
-                        mr.vert_positions[mr.corner_verts[corner_curr]],
+                        mr.vert_positions[mr.corner_verts[corner]],
                         mr.vert_positions[mr.corner_verts[corner_next]]);
           /* simple way to detect (what is most likely) concave */
           if (dot_v3v3(f_no, no_corner) < 0.0f) {
@@ -505,8 +496,8 @@ static void statvis_calc_sharp(const MeshRenderData &mr, float *r_sharp)
   const float minmax_irange = 1.0f / (max - min);
 
   /* Can we avoid this extra allocation? */
-  float *vert_angles = (float *)MEM_mallocN(sizeof(float) * mr.vert_len, __func__);
-  copy_vn_fl(vert_angles, mr.vert_len, -M_PI);
+  float *vert_angles = (float *)MEM_mallocN(sizeof(float) * mr.verts_num, __func__);
+  copy_vn_fl(vert_angles, mr.verts_num, -M_PI);
 
   if (mr.extract_type == MR_EXTRACT_BMESH) {
     BMIter iter;
@@ -536,13 +527,13 @@ static void statvis_calc_sharp(const MeshRenderData &mr, float *r_sharp)
     /* first assign float values to verts */
 
     Map<OrderedEdge, int> eh;
-    eh.reserve(mr.edge_len);
+    eh.reserve(mr.edges_num);
 
-    for (int face_index = 0; face_index < mr.face_len; face_index++) {
+    for (int face_index = 0; face_index < mr.faces_num; face_index++) {
       const IndexRange face = mr.faces[face_index];
-      for (int i = 0; i < face.size(); i++) {
-        const int vert_curr = mr.corner_verts[face.start() + (i + 0) % face.size()];
-        const int vert_next = mr.corner_verts[face.start() + (i + 1) % face.size()];
+      for (const int corner : face) {
+        const int vert_curr = mr.corner_verts[corner];
+        const int vert_next = mr.corner_verts[bke::mesh::face_corner_next(face, corner)];
         float angle;
         eh.add_or_modify(
             {vert_curr, vert_next},
@@ -581,7 +572,7 @@ static void statvis_calc_sharp(const MeshRenderData &mr, float *r_sharp)
       *col2 = max_ff(*col2, angle);
     }
 
-    for (int l_index = 0; l_index < mr.loop_len; l_index++) {
+    for (int l_index = 0; l_index < mr.corners_num; l_index++) {
       const int vert = mr.corner_verts[l_index];
       r_sharp[l_index] = sharp_remap(vert_angles[vert], min, max, minmax_irange);
     }
@@ -595,7 +586,7 @@ static void extract_analysis_iter_finish_mesh(const MeshRenderData &mr,
                                               void *buf,
                                               void * /*data*/)
 {
-  GPUVertBuf *vbo = static_cast<GPUVertBuf *>(buf);
+  gpu::VertBuf *vbo = static_cast<gpu::VertBuf *>(buf);
   BLI_assert(mr.edit_bmesh);
 
   float *l_weight = (float *)GPU_vertbuf_get_data(vbo);
@@ -626,7 +617,7 @@ constexpr MeshExtract create_extractor_mesh_analysis()
   extractor.finish = extract_analysis_iter_finish_mesh;
   /* This is not needed for all visualization types.
    * Maybe split into different extract. */
-  extractor.data_type = MR_DATA_POLY_NOR | MR_DATA_CORNER_TRI;
+  extractor.data_type = MR_DATA_POLY_NOR;
   extractor.data_size = 0;
   extractor.use_threading = false;
   extractor.mesh_buffer_offset = offsetof(MeshBufferList, vbo.mesh_analysis);

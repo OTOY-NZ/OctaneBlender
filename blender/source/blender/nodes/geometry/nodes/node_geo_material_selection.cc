@@ -4,16 +4,12 @@
 
 #include "node_geometry_util.hh"
 
-#include "UI_interface.hh"
-#include "UI_resources.hh"
-
 #include "DNA_mesh_types.h"
 
 #include "BLI_task.hh"
 
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
-#include "BKE_material.h"
 
 namespace blender::nodes::node_geo_material_selection_cc {
 
@@ -140,13 +136,13 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   geo_node_type_base(
       &ntype, GEO_NODE_MATERIAL_SELECTION, "Material Selection", NODE_CLASS_GEOMETRY);
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

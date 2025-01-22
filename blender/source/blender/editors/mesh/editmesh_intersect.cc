@@ -21,7 +21,7 @@
 #include "BKE_editmesh.hh"
 #include "BKE_editmesh_bvh.h"
 #include "BKE_layer.hh"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -33,8 +33,6 @@
 
 #include "ED_mesh.hh"
 #include "ED_screen.hh"
-
-#include "intern/bmesh_private.hh"
 
 #include "mesh_intern.hh" /* own include */
 
@@ -200,7 +198,6 @@ static int edbm_intersect_exec(bContext *C, wmOperator *op)
       int nshapes = use_self ? 1 : 2;
       has_isect = BM_mesh_boolean_knife(em->bm,
                                         em->looptris,
-                                        em->tottri,
                                         test_fn,
                                         nullptr,
                                         nshapes,
@@ -212,7 +209,6 @@ static int edbm_intersect_exec(bContext *C, wmOperator *op)
     else {
       has_isect = BM_mesh_intersect(em->bm,
                                     em->looptris,
-                                    em->tottri,
                                     test_fn,
                                     nullptr,
                                     use_self,
@@ -365,21 +361,12 @@ static int edbm_intersect_boolean_exec(bContext *C, wmOperator *op)
     }
 
     if (use_exact) {
-      has_isect = BM_mesh_boolean(em->bm,
-                                  em->looptris,
-                                  em->tottri,
-                                  test_fn,
-                                  nullptr,
-                                  2,
-                                  use_self,
-                                  true,
-                                  false,
-                                  boolean_operation);
+      has_isect = BM_mesh_boolean(
+          em->bm, em->looptris, test_fn, nullptr, 2, use_self, true, false, boolean_operation);
     }
     else {
       has_isect = BM_mesh_intersect(em->bm,
                                     em->looptris,
-                                    em->tottri,
                                     test_fn,
                                     nullptr,
                                     false,
@@ -979,8 +966,7 @@ static int edbm_face_split_by_edges_exec(bContext *C, wmOperator * /*op*/)
       BM_mesh_elem_index_ensure(bm, BM_FACE);
 
       {
-        BMBVHTree *bmbvh = BKE_bmbvh_new(
-            bm, em->looptris, em->tottri, BMBVH_RESPECT_SELECT, nullptr, false);
+        BMBVHTree *bmbvh = BKE_bmbvh_new(bm, em->looptris, BMBVH_RESPECT_SELECT, nullptr, false);
 
         BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
           BM_elem_index_set(e, -1); /* set_dirty */

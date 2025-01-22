@@ -16,7 +16,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 #include "render/shader.h"
-#include "BKE_node.h"
+#include "BKE_node.hh"
 #include "render/camera.h"
 #include "render/environment.h"
 #include "render/graph.h"
@@ -1430,8 +1430,11 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
       BL::ImageUser b_image_user(b_tex_node.image_user());
       PointerRNA ptr = RNA_pointer_get(&b_node.ptr, "image");
       BL::Image b_image(ptr);
-      std::string filepath = image_user_file_path(
-          b_image_user, b_image, b_scene.frame_current(), false);
+      std::string filepath = "";
+      if (b_image.ptr.data) {
+        filepath = image_user_file_path(
+            b_image_user, b_image, b_scene.frame_current(), false);
+      }
       ::OctaneDataTransferObject::OctaneCustomNode *octane_node =
           (::OctaneDataTransferObject::OctaneCustomNode *)(node->oct_node);
       octane_node->oStringSockets.emplace_back(
@@ -1774,13 +1777,13 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
     for (int i = 1; i <= displacement_number; ++i) {
       std::string sock_name = "Displacement " + std::to_string(i);
       for (b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
-        if (b_input->identifier() == sock_name) {
+        if (b_input->name() == sock_name) {
           octane_node->sDisplacements[i - 1] = link_resolver.get_link_node_name(b_input->ptr.data);
         }
       }
       sock_name = "Blend weight " + std::to_string(i);
       for (b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
-        if (b_input->identifier() == sock_name) {
+        if (b_input->name() == sock_name) {
           octane_node->sWeightLinks[i - 1] = link_resolver.get_link_node_name(b_input->ptr.data);
           octane_node->fWeights[i - 1] = RNA_float_get(&b_input->ptr, "default_value");
         }
@@ -2203,7 +2206,7 @@ static void resolve_octane_outputs(std::string shader_name,
   BL::Node output_node(PointerRNA_NULL);
   if (is_shader_node) {
     BL::ShaderNodeTree b_shader_ntree(b_ntree);
-    output_node = b_shader_ntree.get_output_node(BL::ShaderNodeOutputMaterial::target_octane);
+    output_node = b_shader_ntree.get_output_node(BL::ShaderNodeOutputMaterial::target_ALL);
     if (graph->type == SHADER_GRAPH_ENVIRONMENT) {
       if (output_node.ptr.data == NULL) {
         output_node = BlenderSync::find_active_environment_output(b_ntree);
@@ -2521,7 +2524,7 @@ static void add_graph_nodes(std::string prefix_name,
     BL::Node output_node(PointerRNA_NULL);
     if (b_ntree.type() == BL::NodeTree::type_SHADER) {
       BL::ShaderNodeTree b_shader_ntree(b_ntree);
-      output_node = b_shader_ntree.get_output_node(BL::ShaderNodeOutputMaterial::target_octane);
+      output_node = b_shader_ntree.get_output_node(BL::ShaderNodeOutputMaterial::target_ALL);
       if (graph->type == SHADER_GRAPH_ENVIRONMENT) {
         if (output_node.ptr.data == NULL) {
           output_node = BlenderSync::find_active_environment_output(b_ntree);
@@ -3463,15 +3466,15 @@ int BlenderSync::get_render_aov_preview_pass(BL::NodeTree &node_tree)
 
 bool BlenderSync::use_geonodes_modifiers(BL::Object &b_ob) {
   bool use_geometry_node_modifier = false;
-  //BL::Object::modifiers_iterator b_mod;
-  //for (b_ob.modifiers.begin(b_mod); b_mod != b_ob.modifiers.end(); ++b_mod) {
-  //  if (b_mod->type() == BL::Modifier::type_NODES) {
-  //    if ((preview && b_mod->show_viewport()) || (!preview && b_mod->show_render())) {
-  //      use_geometry_node_modifier = true;
-  //      break;
-  //    }
-  //  }
-  //}
+  BL::Object::modifiers_iterator b_mod;
+  for (b_ob.modifiers.begin(b_mod); b_mod != b_ob.modifiers.end(); ++b_mod) {
+    if (b_mod->type() == BL::Modifier::type_NODES) {
+      if ((preview && b_mod->show_viewport()) || (!preview && b_mod->show_render())) {
+        use_geometry_node_modifier = true;
+        break;
+      }
+    }
+  }
   return use_geometry_node_modifier;
 }
 

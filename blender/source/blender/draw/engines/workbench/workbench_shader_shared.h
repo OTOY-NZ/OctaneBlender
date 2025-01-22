@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #ifndef GPU_SHADER
-#  include "GPU_shader_shared_utils.h"
+#  include "GPU_shader_shared_utils.hh"
 #endif
 
 #define WORKBENCH_SHADER_SHARED_H
@@ -56,7 +56,8 @@ struct ExtrudedFrustum {
   float4 planes[12];
   int corners_count;
   int planes_count;
-  int _padding[2];
+  int _pad0;
+  int _pad1;
 };
 
 struct ShadowPassData {

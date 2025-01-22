@@ -46,7 +46,7 @@
 #include "BLI_path_util.h"
 #include "BLI_string.h"
 #include "BLI_string_utils.hh"
-#include "BLI_sys_types.h" /* for intptr_t support */
+#include "BLI_sys_types.h" /* For `intptr_t` support. */
 #include "BLI_utildefines.h"
 
 /** Sizes above this must be allocated. */
@@ -292,19 +292,19 @@ bool BLI_file_is_writable(const char *filepath)
 {
   bool writable;
   if (BLI_access(filepath, W_OK) == 0) {
-    /* file exists and I can write to it */
+    /* File exists and I can write to it. */
     writable = true;
   }
   else if (errno != ENOENT) {
-    /* most likely file or containing directory cannot be accessed */
+    /* Most likely file or containing directory cannot be accessed. */
     writable = false;
   }
   else {
-    /* file doesn't exist -- check I can create it in parent directory */
+    /* File doesn't exist -- check I can create it in parent directory. */
     char parent[FILE_MAX];
     BLI_path_split_dir_part(filepath, parent, sizeof(parent));
 #ifdef WIN32
-    /* windows does not have X_OK */
+    /* Windows does not have X_OK. */
     writable = BLI_access(parent, W_OK) == 0;
 #else
     writable = BLI_access(parent, X_OK | W_OK) == 0;
@@ -321,7 +321,7 @@ bool BLI_file_touch(const char *filepath)
     int c = getc(f);
 
     if (c == EOF) {
-      /* Empty file, reopen in truncate write mode... */
+      /* Empty file, reopen in truncate write mode. */
       fclose(f);
       f = BLI_fopen(filepath, "w+b");
     }
@@ -734,6 +734,9 @@ int BLI_delete(const char *path, bool dir, bool recursive)
 
   BLI_assert(!BLI_path_is_rel(path));
 
+  /* Not an error but avoid ambiguous arguments (recursive file deletion isn't meaningful). */
+  BLI_assert(!(dir == false && recursive == true));
+
   if (recursive) {
     err = delete_recursive(path);
   }
@@ -1089,6 +1092,9 @@ static int recursive_operation_impl(StrBuf *src_buf,
  * prefixing it with path_dst, recursively scanning subdirectories, and invoking the specified
  * callbacks for files and subdirectories found as appropriate.
  *
+ * \note Symbolic links are *not* followed, even when `path_src` links to a directory,
+ * it wont be recursed down. Support for this could be added.
+ *
  * \param path_src: Top-level source path.
  * \param path_dst: Top-level destination path.
  * \param callback_dir_pre: Optional, to be invoked before entering a subdirectory,
@@ -1153,7 +1159,7 @@ static int delete_single_file(const char *from, const char * /*to*/)
 }
 
 #  ifdef __APPLE__
-static int delete_soft(const char *file, const char **error_message)
+static int delete_soft(const char *filepath, const char **error_message)
 {
   int ret = -1;
 
@@ -1166,7 +1172,7 @@ static int delete_soft(const char *file, const char **error_message)
   Class NSStringClass = objc_getClass("NSString");
   SEL stringWithUTF8StringSel = sel_registerName("stringWithUTF8String:");
   id pathString = ((id(*)(Class, SEL, const char *))objc_msgSend)(
-      NSStringClass, stringWithUTF8StringSel, file);
+      NSStringClass, stringWithUTF8StringSel, filepath);
 
   Class NSFileManagerClass = objc_getClass("NSFileManager");
   SEL defaultManagerSel = sel_registerName("defaultManager");
@@ -1193,20 +1199,22 @@ static int delete_soft(const char *file, const char **error_message)
   return ret;
 }
 #  else
-static int delete_soft(const char *file, const char **error_message)
+static int delete_soft(const char *filepath, const char **error_message)
 {
   const char *args[5];
   const char *process_failed;
 
-  char *xdg_current_desktop = getenv("XDG_CURRENT_DESKTOP");
-  char *xdg_session_desktop = getenv("XDG_SESSION_DESKTOP");
+  /* May contain `:` delimiter characters according to version 1.5 of the spec:
+   * https://specifications.freedesktop.org/desktop-entry-spec/desktop-entry-spec-latest.html */
+  const char *xdg_current_desktop = getenv("XDG_CURRENT_DESKTOP");
+  const char *xdg_session_desktop = getenv("XDG_SESSION_DESKTOP");
 
-  if ((xdg_current_desktop != nullptr && STREQ(xdg_current_desktop, "KDE")) ||
-      (xdg_session_desktop != nullptr && STREQ(xdg_session_desktop, "KDE")))
+  if ((xdg_current_desktop && BLI_string_elem_split_by_delim(xdg_current_desktop, ':', "KDE")) ||
+      (xdg_session_desktop && STREQ(xdg_session_desktop, "KDE")))
   {
     args[0] = "kioclient5";
     args[1] = "move";
-    args[2] = file;
+    args[2] = filepath;
     args[3] = "trash:/";
     args[4] = nullptr;
     process_failed = "kioclient5 reported failure";
@@ -1214,7 +1222,7 @@ static int delete_soft(const char *file, const char **error_message)
   else {
     args[0] = "gio";
     args[1] = "trash";
-    args[2] = file;
+    args[2] = filepath;
     args[3] = nullptr;
     process_failed = "gio reported failure";
   }
@@ -1222,7 +1230,7 @@ static int delete_soft(const char *file, const char **error_message)
   int pid = fork();
 
   if (pid != 0) {
-    /* Parent process */
+    /* Parent process. */
     int wstatus = 0;
 
     waitpid(pid, &wstatus, 0);
@@ -1243,7 +1251,7 @@ static int delete_soft(const char *file, const char **error_message)
   execvp(args[0], (char **)args);
 
   *error_message = "Forking process failed.";
-  return -1; /* This should only be reached if execvp fails and stack isn't replaced. */
+  return -1; /* This should only be reached if `execvp` fails and stack isn't replaced. */
 }
 #  endif
 
@@ -1278,6 +1286,8 @@ int BLI_access(const char *filepath, int mode)
 int BLI_delete(const char *path, bool dir, bool recursive)
 {
   BLI_assert(!BLI_path_is_rel(path));
+  /* Not an error but avoid ambiguous arguments (recursive file deletion isn't meaningful). */
+  BLI_assert(!(dir == false && recursive == true));
 
   if (recursive) {
     return recursive_operation(path, nullptr, nullptr, delete_single_file, delete_callback_post);
@@ -1288,11 +1298,11 @@ int BLI_delete(const char *path, bool dir, bool recursive)
   return remove(path);
 }
 
-int BLI_delete_soft(const char *file, const char **error_message)
+int BLI_delete_soft(const char *filepath, const char **error_message)
 {
-  BLI_assert(!BLI_path_is_rel(file));
+  BLI_assert(!BLI_path_is_rel(filepath));
 
-  return delete_soft(file, error_message);
+  return delete_soft(filepath, error_message);
 }
 
 /**
@@ -1316,14 +1326,14 @@ static bool check_the_same(const char *path_a, const char *path_b)
 /**
  * Sets the mode and ownership of file to the values from st.
  */
-static int set_permissions(const char *file, const struct stat *st)
+static int set_permissions(const char *filepath, const struct stat *st)
 {
-  if (chown(file, st->st_uid, st->st_gid)) {
+  if (chown(filepath, st->st_uid, st->st_gid)) {
     perror("chown");
     return -1;
   }
 
-  if (chmod(file, st->st_mode)) {
+  if (chmod(filepath, st->st_mode)) {
     perror("chmod");
     return -1;
   }
@@ -1347,13 +1357,13 @@ static int copy_callback_pre(const char *from, const char *to)
     return RecursiveOp_Callback_Error;
   }
 
-  /* create a directory */
+  /* Create a directory. */
   if (mkdir(to, st.st_mode)) {
     perror("mkdir");
     return RecursiveOp_Callback_Error;
   }
 
-  /* set proper owner and group on new directory */
+  /* Set proper owner and group on new directory. */
   if (chown(to, st.st_uid, st.st_gid)) {
     perror("chown");
     return RecursiveOp_Callback_Error;
@@ -1380,12 +1390,12 @@ static int copy_single_file(const char *from, const char *to)
   }
 
   if (S_ISLNK(st.st_mode)) {
-    /* symbolic links should be copied in special way */
+    /* Symbolic links should be copied in special way. */
     char *link_buffer;
     int need_free;
     int64_t link_len;
 
-    /* get large enough buffer to read link content */
+    /* Get large enough buffer to read link content. */
     if ((st.st_size + 1) < sizeof(buf)) {
       link_buffer = buf;
       need_free = 0;
@@ -1423,7 +1433,7 @@ static int copy_single_file(const char *from, const char *to)
     return RecursiveOp_Callback_OK;
   }
   if (S_ISCHR(st.st_mode) || S_ISBLK(st.st_mode) || S_ISFIFO(st.st_mode) || S_ISSOCK(st.st_mode)) {
-    /* copy special type of file */
+    /* Copy special type of file. */
     if (mknod(to, st.st_mode, st.st_rdev)) {
       perror("mknod");
       return RecursiveOp_Callback_Error;

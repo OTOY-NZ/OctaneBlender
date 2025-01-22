@@ -401,6 +401,7 @@ bool BKE_main_namemap_get_name(Main *bmain, ID *id, char *name, const bool do_un
      * truncated name again. */
     is_name_changed = true;
   }
+
   return is_name_changed;
 }
 
@@ -597,7 +598,7 @@ static bool main_namemap_validate_and_fix(Main *bmain, const bool do_fix)
     return is_valid;
   }
 
-  /* Clear all existing namemaps. */
+  /* Clear all existing name-maps. */
   BKE_main_namemap_clear(bmain);
 
   return is_valid;

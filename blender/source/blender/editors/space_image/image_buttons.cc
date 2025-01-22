@@ -17,13 +17,12 @@
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "BKE_context.hh"
 #include "BKE_image.h"
 #include "BKE_image_format.h"
-#include "BKE_node.h"
-#include "BKE_scene.h"
+#include "BKE_node.hh"
 #include "BKE_screen.hh"
 
 #include "RE_pipeline.h"
@@ -32,7 +31,6 @@
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 
-#include "ED_gpencil_legacy.hh"
 #include "ED_image.hh"
 #include "ED_screen.hh"
 
@@ -90,8 +88,6 @@ static void ui_imageuser_slot_menu(bContext * /*C*/, uiLayout *layout, void *ima
               &image->render_slot,
               float(slot_id),
               0.0,
-              0,
-              -1,
               "");
   }
 
@@ -107,8 +103,6 @@ static void ui_imageuser_slot_menu(bContext * /*C*/, uiLayout *layout, void *ima
            nullptr,
            0.0,
            0.0,
-           0,
-           0,
            "");
 }
 
@@ -184,8 +178,6 @@ static void ui_imageuser_layer_menu(bContext * /*C*/, uiLayout *layout, void *rn
               &iuser->layer,
               0.0,
               0.0,
-              0,
-              -1,
               "");
   }
 
@@ -202,8 +194,6 @@ static void ui_imageuser_layer_menu(bContext * /*C*/, uiLayout *layout, void *rn
               &iuser->layer,
               float(nr),
               0.0,
-              0,
-              -1,
               "");
   }
 
@@ -219,11 +209,9 @@ static void ui_imageuser_layer_menu(bContext * /*C*/, uiLayout *layout, void *rn
            nullptr,
            0.0,
            0.0,
-           0,
-           0,
            "");
 
-  BKE_image_release_renderresult(scene, image);
+  BKE_image_release_renderresult(scene, image, rr);
 }
 
 static void ui_imageuser_pass_menu(bContext * /*C*/, uiLayout *layout, void *rnd_pt)
@@ -278,8 +266,6 @@ static void ui_imageuser_pass_menu(bContext * /*C*/, uiLayout *layout, void *rnd
               &iuser->pass,
               float(nr),
               0.0,
-              0,
-              -1,
               "");
   }
 
@@ -295,13 +281,11 @@ static void ui_imageuser_pass_menu(bContext * /*C*/, uiLayout *layout, void *rnd
            nullptr,
            0.0,
            0.0,
-           0,
-           0,
            "");
 
   BLI_freelistN(&added_passes);
 
-  BKE_image_release_renderresult(scene, image);
+  BKE_image_release_renderresult(scene, image, rr);
 }
 
 /**************************** view menus *****************************/
@@ -336,8 +320,6 @@ static void ui_imageuser_view_menu_rr(bContext * /*C*/, uiLayout *layout, void *
            nullptr,
            0.0,
            0.0,
-           0,
-           0,
            "");
 
   uiItemS(layout);
@@ -357,12 +339,10 @@ static void ui_imageuser_view_menu_rr(bContext * /*C*/, uiLayout *layout, void *
               &iuser->view,
               float(nr),
               0.0,
-              0,
-              -1,
               "");
   }
 
-  BKE_image_release_renderresult(scene, image);
+  BKE_image_release_renderresult(scene, image, rr);
 }
 
 static void ui_imageuser_view_menu_multiview(bContext * /*C*/, uiLayout *layout, void *rnd_pt)
@@ -388,8 +368,6 @@ static void ui_imageuser_view_menu_multiview(bContext * /*C*/, uiLayout *layout,
            nullptr,
            0.0,
            0.0,
-           0,
-           0,
            "");
 
   uiItemS(layout);
@@ -407,8 +385,6 @@ static void ui_imageuser_view_menu_multiview(bContext * /*C*/, uiLayout *layout,
               &iuser->view,
               float(nr),
               0.0,
-              0,
-              -1,
               "");
   }
 }
@@ -459,7 +435,7 @@ static bool ui_imageuser_layer_menu_step(bContext *C, int direction, void *rnd_p
     BLI_assert(0);
   }
 
-  BKE_image_release_renderresult(scene, image);
+  BKE_image_release_renderresult(scene, image, rr);
 
   if (changed) {
     BKE_image_multilayer_index(rr, iuser);
@@ -483,7 +459,7 @@ static bool ui_imageuser_pass_menu_step(bContext *C, int direction, void *rnd_pt
 
   rr = BKE_image_acquire_renderresult(scene, image);
   if (UNLIKELY(rr == nullptr)) {
-    BKE_image_release_renderresult(scene, image);
+    BKE_image_release_renderresult(scene, image, rr);
     return false;
   }
 
@@ -493,13 +469,13 @@ static bool ui_imageuser_pass_menu_step(bContext *C, int direction, void *rnd_pt
 
   rl = static_cast<RenderLayer *>(BLI_findlink(&rr->layers, layer));
   if (rl == nullptr) {
-    BKE_image_release_renderresult(scene, image);
+    BKE_image_release_renderresult(scene, image, rr);
     return false;
   }
 
   rpass = static_cast<RenderPass *>(BLI_findlink(&rl->passes, iuser->pass));
   if (rpass == nullptr) {
-    BKE_image_release_renderresult(scene, image);
+    BKE_image_release_renderresult(scene, image, rr);
     return false;
   }
 
@@ -521,7 +497,7 @@ static bool ui_imageuser_pass_menu_step(bContext *C, int direction, void *rnd_pt
     int rp_index = 0;
 
     if (iuser->pass == 0) {
-      BKE_image_release_renderresult(scene, image);
+      BKE_image_release_renderresult(scene, image, rr);
       return false;
     }
 
@@ -537,7 +513,7 @@ static bool ui_imageuser_pass_menu_step(bContext *C, int direction, void *rnd_pt
     BLI_assert(0);
   }
 
-  BKE_image_release_renderresult(scene, image);
+  BKE_image_release_renderresult(scene, image, rr);
 
   if (changed) {
     BKE_image_multilayer_index(rr, iuser);
@@ -804,7 +780,7 @@ void uiTemplateImage(uiLayout *layout,
       /* Use #BKE_image_acquire_renderresult so we get the correct slot in the menu. */
       rr = BKE_image_acquire_renderresult(scene, ima);
       uiblock_layer_pass_buttons(layout, ima, rr, iuser, menus_width, &ima->render_slot);
-      BKE_image_release_renderresult(scene, ima);
+      BKE_image_release_renderresult(scene, ima, rr);
     }
 
     return;
@@ -1177,7 +1153,7 @@ void uiTemplateImageLayers(uiLayout *layout, bContext *C, Image *ima, ImageUser 
     rr = BKE_image_acquire_renderresult(scene, ima);
     uiblock_layer_pass_buttons(
         layout, ima, rr, iuser, menus_width, is_render_result ? &ima->render_slot : nullptr);
-    BKE_image_release_renderresult(scene, ima);
+    BKE_image_release_renderresult(scene, ima, rr);
   }
 }
 
@@ -1228,7 +1204,7 @@ void uiTemplateImageInfo(uiLayout *layout, bContext *C, Image *ima, ImageUser *i
     eGPUTextureFormat texture_format = IMB_gpu_get_texture_format(
         ibuf, ima->flag & IMA_HIGH_BITDEPTH, ibuf->planes >= 8);
     const char *texture_format_description = GPU_texture_format_name(texture_format);
-    ofs += BLI_snprintf_rlen(str + ofs, len - ofs, RPT_(",  %s"), texture_format_description);
+    ofs += BLI_snprintf_rlen(str + ofs, len - ofs, RPT_(", %s"), texture_format_description);
 
     uiItemL(col, str, ICON_NONE);
   }

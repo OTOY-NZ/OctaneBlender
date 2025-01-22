@@ -2,8 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_scene.h"
-
 #include "DEG_depsgraph_query.hh"
 
 #include "node_geometry_util.hh"
@@ -25,11 +23,11 @@ static void node_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
   geo_node_type_base(&ntype, GEO_NODE_INPUT_ACTIVE_CAMERA, "Active Camera", NODE_CLASS_INPUT);
   ntype.geometry_node_execute = node_exec;
   ntype.declare = node_declare;
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

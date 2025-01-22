@@ -13,9 +13,9 @@
 
 #include "../generic/py_capi_utils.h"
 #include "../generic/python_compat.h"
-#include "../generic/python_utildefines.h"
 
-#include "gpu_py_vertex_format.h" /* own include */
+#include "gpu_py.hh"
+#include "gpu_py_vertex_format.hh" /* own include */
 
 /* -------------------------------------------------------------------- */
 /** \name Enum Conversion
@@ -51,6 +51,8 @@ static PyC_StringEnumItems pygpu_vertfetchmode_items[] = {
 
 static PyObject *pygpu_vertformat__tp_new(PyTypeObject * /*type*/, PyObject *args, PyObject *kwds)
 {
+  BPYGPU_IS_INIT_OR_ERROR_OBJ;
+
   if (PyTuple_GET_SIZE(args) || (kwds && PyDict_Size(kwds))) {
     PyErr_SetString(PyExc_ValueError, "This function takes no arguments");
     return nullptr;

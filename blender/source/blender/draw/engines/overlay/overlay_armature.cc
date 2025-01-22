@@ -42,7 +42,7 @@
 
 #include "UI_resources.hh"
 
-#include "draw_common.h"
+#include "draw_common_c.hh"
 #include "draw_manager_text.hh"
 
 #include "overlay_private.hh"
@@ -432,11 +432,16 @@ void OVERLAY_armature_cache_init(OVERLAY_Data *vedata)
       else {
         cb->transp.point_outline = cb->solid.point_outline;
       }
+      DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
+      GPUTexture **depth_tex = &dtxl->depth;
+      const bool do_smooth_wire = U.gpu_flag & USER_GPU_FLAG_OVERLAY_SMOOTH_WIRE;
 
       sh = OVERLAY_shader_armature_shape(true);
       cb->solid.custom_outline = grp = DRW_shgroup_create(sh, armature_ps);
       DRW_shgroup_uniform_block(grp, "globalsBlock", G_draw.block_ubo);
       DRW_shgroup_uniform_float_copy(grp, "alpha", 1.0f);
+      DRW_shgroup_uniform_bool_copy(grp, "do_smooth_wire", do_smooth_wire);
+      DRW_shgroup_uniform_texture_ref(grp, "depthTex", depth_tex);
       cb->solid.box_outline = BUF_INSTANCE(grp, format, DRW_cache_bone_box_wire_get());
       cb->solid.octa_outline = BUF_INSTANCE(grp, format, DRW_cache_bone_octahedral_wire_get());
 
@@ -458,10 +463,12 @@ void OVERLAY_armature_cache_init(OVERLAY_Data *vedata)
       cb->solid.custom_wire = grp = DRW_shgroup_create(sh, armature_ps);
       DRW_shgroup_uniform_block(grp, "globalsBlock", G_draw.block_ubo);
       DRW_shgroup_uniform_float_copy(grp, "alpha", 1.0f);
+      DRW_shgroup_uniform_bool_copy(grp, "do_smooth_wire", do_smooth_wire);
+      DRW_shgroup_uniform_texture_ref(grp, "depthTex", depth_tex);
+      DRW_shgroup_state_enable(grp, DRW_STATE_BLEND_ALPHA);
 
       if (use_wire_alpha) {
         cb->transp.custom_wire = grp = DRW_shgroup_create(sh, armature_ps);
-        DRW_shgroup_state_enable(grp, DRW_STATE_BLEND_ALPHA);
         DRW_shgroup_uniform_block(grp, "globalsBlock", G_draw.block_ubo);
         DRW_shgroup_uniform_float_copy(grp, "alpha", wire_alpha);
       }
@@ -653,7 +660,7 @@ static void drw_shgroup_bone_octahedral(const ArmatureDrawContext *ctx,
                                         const float outline_color[4])
 {
   BoneInstanceData inst_data;
-  mul_m4_m4m4(inst_data.mat, ctx->ob->object_to_world, bone_mat);
+  mul_m4_m4m4(inst_data.mat, ctx->ob->object_to_world().ptr(), bone_mat);
   if (ctx->solid) {
     OVERLAY_bone_instance_data_set_color(&inst_data, bone_color);
     OVERLAY_bone_instance_data_set_color_hint(&inst_data, hint_color);
@@ -673,7 +680,7 @@ static void drw_shgroup_bone_box(const ArmatureDrawContext *ctx,
                                  const float outline_color[4])
 {
   BoneInstanceData inst_data;
-  mul_m4_m4m4(inst_data.mat, ctx->ob->object_to_world, bone_mat);
+  mul_m4_m4m4(inst_data.mat, ctx->ob->object_to_world().ptr(), bone_mat);
   if (ctx->solid) {
     OVERLAY_bone_instance_data_set_color(&inst_data, bone_color);
     OVERLAY_bone_instance_data_set_color_hint(&inst_data, hint_color);
@@ -691,9 +698,9 @@ static void drw_shgroup_bone_wire(const ArmatureDrawContext *ctx,
                                   const float color[4])
 {
   float head[3], tail[3];
-  mul_v3_m4v3(head, ctx->ob->object_to_world, bone_mat[3]);
+  mul_v3_m4v3(head, ctx->ob->object_to_world().ptr(), bone_mat[3]);
   add_v3_v3v3(tail, bone_mat[3], bone_mat[1]);
-  mul_m4_v3(ctx->ob->object_to_world, tail);
+  mul_m4_v3(ctx->ob->object_to_world().ptr(), tail);
 
   DRW_buffer_add_entry(ctx->wire, head, color);
   DRW_buffer_add_entry(ctx->wire, tail, color);
@@ -708,9 +715,9 @@ static void drw_shgroup_bone_stick(const ArmatureDrawContext *ctx,
                                    const float col_tail[4])
 {
   float head[3], tail[3];
-  mul_v3_m4v3(head, ctx->ob->object_to_world, bone_mat[3]);
+  mul_v3_m4v3(head, ctx->ob->object_to_world().ptr(), bone_mat[3]);
   add_v3_v3v3(tail, bone_mat[3], bone_mat[1]);
-  mul_m4_v3(ctx->ob->object_to_world, tail);
+  mul_m4_v3(ctx->ob->object_to_world().ptr(), tail);
 
   DRW_buffer_add_entry(ctx->stick, head, tail, col_wire, col_bone, col_head, col_tail);
 }
@@ -729,11 +736,11 @@ static void drw_shgroup_bone_envelope_distance(const ArmatureDrawContext *ctx,
     mul_m4_v4(bone_mat, head_sph);
     mul_m4_v4(bone_mat, tail_sph);
     mul_m4_v4(bone_mat, xaxis);
-    mul_m4_v4(ctx->ob->object_to_world, head_sph);
-    mul_m4_v4(ctx->ob->object_to_world, tail_sph);
-    mul_m4_v4(ctx->ob->object_to_world, xaxis);
+    mul_m4_v4(ctx->ob->object_to_world().ptr(), head_sph);
+    mul_m4_v4(ctx->ob->object_to_world().ptr(), tail_sph);
+    mul_m4_v4(ctx->ob->object_to_world().ptr(), xaxis);
     sub_v3_v3(xaxis, head_sph);
-    float obscale = mat4_to_scale(ctx->ob->object_to_world);
+    float obscale = mat4_to_scale(ctx->ob->object_to_world().ptr());
     head_sph[3] = *radius_head * obscale;
     head_sph[3] += *distance * obscale;
     tail_sph[3] = *radius_tail * obscale;
@@ -756,10 +763,10 @@ static void drw_shgroup_bone_envelope(const ArmatureDrawContext *ctx,
   mul_m4_v4(bone_mat, head_sph);
   mul_m4_v4(bone_mat, tail_sph);
   mul_m4_v4(bone_mat, xaxis);
-  mul_m4_v4(ctx->ob->object_to_world, head_sph);
-  mul_m4_v4(ctx->ob->object_to_world, tail_sph);
-  mul_m4_v4(ctx->ob->object_to_world, xaxis);
-  float obscale = mat4_to_scale(ctx->ob->object_to_world);
+  mul_m4_v4(ctx->ob->object_to_world().ptr(), head_sph);
+  mul_m4_v4(ctx->ob->object_to_world().ptr(), tail_sph);
+  mul_m4_v4(ctx->ob->object_to_world().ptr(), xaxis);
+  float obscale = mat4_to_scale(ctx->ob->object_to_world().ptr());
   head_sph[3] = *radius_head * obscale;
   tail_sph[3] = *radius_tail * obscale;
 
@@ -829,7 +836,7 @@ static void drw_shgroup_bone_envelope(const ArmatureDrawContext *ctx,
 
 BLI_INLINE DRWCallBuffer *custom_bone_instance_shgroup(const ArmatureDrawContext *ctx,
                                                        DRWShadingGroup *grp,
-                                                       GPUBatch *custom_geom)
+                                                       blender::gpu::Batch *custom_geom)
 {
   DRWCallBuffer *buf = static_cast<DRWCallBuffer *>(
       BLI_ghash_lookup(ctx->custom_shapes_ghash, custom_geom));
@@ -842,26 +849,27 @@ BLI_INLINE DRWCallBuffer *custom_bone_instance_shgroup(const ArmatureDrawContext
 }
 
 static void drw_shgroup_bone_custom_solid_mesh(const ArmatureDrawContext *ctx,
-                                               Mesh *mesh,
+                                               Mesh &mesh,
                                                const float (*bone_mat)[4],
                                                const float bone_color[4],
                                                const float hint_color[4],
                                                const float outline_color[4],
-                                               Object *custom)
+                                               const float wire_width,
+                                               Object &custom)
 {
   using namespace blender::draw;
   /* TODO(fclem): arg... less than ideal but we never iter on this object
    * to assure batch cache is valid. */
   DRW_mesh_batch_cache_validate(custom, mesh);
 
-  GPUBatch *surf = DRW_mesh_batch_cache_get_surface(mesh);
-  GPUBatch *edges = DRW_mesh_batch_cache_get_edge_detection(mesh, nullptr);
-  GPUBatch *loose_edges = DRW_mesh_batch_cache_get_loose_edges(mesh);
+  blender::gpu::Batch *surf = DRW_mesh_batch_cache_get_surface(mesh);
+  blender::gpu::Batch *edges = DRW_mesh_batch_cache_get_edge_detection(mesh, nullptr);
+  blender::gpu::Batch *loose_edges = DRW_mesh_batch_cache_get_loose_edges(mesh);
   BoneInstanceData inst_data;
   DRWCallBuffer *buf;
 
   if (surf || edges || loose_edges) {
-    mul_m4_m4m4(inst_data.mat, ctx->ob->object_to_world, bone_mat);
+    mul_m4_m4m4(inst_data.mat, ctx->ob->object_to_world().ptr(), bone_mat);
   }
 
   if (surf && ctx->custom_solid) {
@@ -880,43 +888,47 @@ static void drw_shgroup_bone_custom_solid_mesh(const ArmatureDrawContext *ctx,
   if (loose_edges) {
     buf = custom_bone_instance_shgroup(ctx, ctx->custom_wire, loose_edges);
     OVERLAY_bone_instance_data_set_color_hint(&inst_data, outline_color);
-    OVERLAY_bone_instance_data_set_color(&inst_data, outline_color);
+    inst_data.color_a = encode_2f_to_float(outline_color[0], outline_color[1]);
+    inst_data.color_b = encode_2f_to_float(outline_color[2], wire_width / WIRE_WIDTH_COMPRESSION);
     DRW_buffer_add_entry_struct(buf, inst_data.mat);
   }
 
   /* TODO(fclem): needs to be moved elsewhere. */
-  drw_batch_cache_generate_requested_delayed(custom);
+  drw_batch_cache_generate_requested_delayed(&custom);
 }
 
 static void drw_shgroup_bone_custom_mesh_wire(const ArmatureDrawContext *ctx,
-                                              Mesh *mesh,
+                                              Mesh &mesh,
                                               const float (*bone_mat)[4],
                                               const float color[4],
-                                              Object *custom)
+                                              const float wire_width,
+                                              Object &custom)
 {
   using namespace blender::draw;
   /* TODO(fclem): arg... less than ideal but we never iter on this object
    * to assure batch cache is valid. */
   DRW_mesh_batch_cache_validate(custom, mesh);
 
-  GPUBatch *geom = DRW_mesh_batch_cache_get_all_edges(mesh);
+  blender::gpu::Batch *geom = DRW_mesh_batch_cache_get_all_edges(mesh);
   if (geom) {
     DRWCallBuffer *buf = custom_bone_instance_shgroup(ctx, ctx->custom_wire, geom);
     BoneInstanceData inst_data;
-    mul_m4_m4m4(inst_data.mat, ctx->ob->object_to_world, bone_mat);
+    mul_m4_m4m4(inst_data.mat, ctx->ob->object_to_world().ptr(), bone_mat);
     OVERLAY_bone_instance_data_set_color_hint(&inst_data, color);
-    OVERLAY_bone_instance_data_set_color(&inst_data, color);
+    inst_data.color_a = encode_2f_to_float(color[0], color[1]);
+    inst_data.color_b = encode_2f_to_float(color[2], wire_width / WIRE_WIDTH_COMPRESSION);
     DRW_buffer_add_entry_struct(buf, inst_data.mat);
   }
 
   /* TODO(fclem): needs to be moved elsewhere. */
-  drw_batch_cache_generate_requested_delayed(custom);
+  drw_batch_cache_generate_requested_delayed(&custom);
 }
 
 static void drw_shgroup_custom_bone_curve(const ArmatureDrawContext *ctx,
                                           Curve *curve,
                                           const float (*bone_mat)[4],
                                           const float outline_color[4],
+                                          const float wire_width,
                                           Object *custom)
 {
   using namespace blender::draw;
@@ -926,7 +938,7 @@ static void drw_shgroup_custom_bone_curve(const ArmatureDrawContext *ctx,
 
   /* This only handles curves without any surface. The other curve types should have been converted
    * to meshes and rendered in the mesh drawing function. */
-  GPUBatch *loose_edges = nullptr;
+  blender::gpu::Batch *loose_edges = nullptr;
   if (custom->type == OB_FONT) {
     loose_edges = DRW_cache_text_edge_wire_get(custom);
   }
@@ -936,11 +948,12 @@ static void drw_shgroup_custom_bone_curve(const ArmatureDrawContext *ctx,
 
   if (loose_edges) {
     BoneInstanceData inst_data;
-    mul_m4_m4m4(inst_data.mat, ctx->ob->object_to_world, bone_mat);
+    mul_m4_m4m4(inst_data.mat, ctx->ob->object_to_world().ptr(), bone_mat);
 
     DRWCallBuffer *buf = custom_bone_instance_shgroup(ctx, ctx->custom_wire, loose_edges);
     OVERLAY_bone_instance_data_set_color_hint(&inst_data, outline_color);
-    OVERLAY_bone_instance_data_set_color(&inst_data, outline_color);
+    inst_data.color_a = encode_2f_to_float(outline_color[0], outline_color[1]);
+    inst_data.color_b = encode_2f_to_float(outline_color[2], wire_width / WIRE_WIDTH_COMPRESSION);
     DRW_buffer_add_entry_struct(buf, inst_data.mat);
   }
 
@@ -953,6 +966,7 @@ static void drw_shgroup_bone_custom_solid(const ArmatureDrawContext *ctx,
                                           const float bone_color[4],
                                           const float hint_color[4],
                                           const float outline_color[4],
+                                          const float wire_width,
                                           Object *custom)
 {
   /* The custom object is not an evaluated object, so its object->data field hasn't been replaced
@@ -962,31 +976,32 @@ static void drw_shgroup_bone_custom_solid(const ArmatureDrawContext *ctx,
   Mesh *mesh = BKE_object_get_evaluated_mesh_no_subsurf(custom);
   if (mesh != nullptr) {
     drw_shgroup_bone_custom_solid_mesh(
-        ctx, mesh, bone_mat, bone_color, hint_color, outline_color, custom);
+        ctx, *mesh, bone_mat, bone_color, hint_color, outline_color, wire_width, *custom);
     return;
   }
 
   if (ELEM(custom->type, OB_CURVES_LEGACY, OB_FONT, OB_SURF)) {
     drw_shgroup_custom_bone_curve(
-        ctx, static_cast<Curve *>(custom->data), bone_mat, outline_color, custom);
+        ctx, static_cast<Curve *>(custom->data), bone_mat, outline_color, wire_width, custom);
   }
 }
 
 static void drw_shgroup_bone_custom_wire(const ArmatureDrawContext *ctx,
                                          const float (*bone_mat)[4],
                                          const float color[4],
+                                         const float wire_width,
                                          Object *custom)
 {
   /* See comments in #drw_shgroup_bone_custom_solid. */
   Mesh *mesh = BKE_object_get_evaluated_mesh_no_subsurf(custom);
   if (mesh != nullptr) {
-    drw_shgroup_bone_custom_mesh_wire(ctx, mesh, bone_mat, color, custom);
+    drw_shgroup_bone_custom_mesh_wire(ctx, *mesh, bone_mat, color, wire_width, *custom);
     return;
   }
 
   if (ELEM(custom->type, OB_CURVES_LEGACY, OB_FONT, OB_SURF)) {
     drw_shgroup_custom_bone_curve(
-        ctx, static_cast<Curve *>(custom->data), bone_mat, color, custom);
+        ctx, static_cast<Curve *>(custom->data), bone_mat, color, wire_width, custom);
   }
 }
 
@@ -997,7 +1012,7 @@ static void drw_shgroup_bone_custom_empty(const ArmatureDrawContext *ctx,
 {
   const float final_color[4] = {color[0], color[1], color[2], 1.0f};
   float mat[4][4];
-  mul_m4_m4m4(mat, ctx->ob->object_to_world, bone_mat);
+  mul_m4_m4m4(mat, ctx->ob->object_to_world().ptr(), bone_mat);
 
   switch (custom->empty_drawtype) {
     case OB_PLAINAXES:
@@ -1023,7 +1038,7 @@ static void drw_shgroup_bone_point(const ArmatureDrawContext *ctx,
                                    const float outline_color[4])
 {
   BoneInstanceData inst_data;
-  mul_m4_m4m4(inst_data.mat, ctx->ob->object_to_world, bone_mat);
+  mul_m4_m4m4(inst_data.mat, ctx->ob->object_to_world().ptr(), bone_mat);
   if (ctx->point_solid) {
     OVERLAY_bone_instance_data_set_color(&inst_data, bone_color);
     OVERLAY_bone_instance_data_set_color_hint(&inst_data, hint_color);
@@ -1041,7 +1056,7 @@ static void drw_shgroup_bone_axes(const ArmatureDrawContext *ctx,
                                   const float color[4])
 {
   float mat[4][4];
-  mul_m4_m4m4(mat, ctx->ob->object_to_world, bone_mat);
+  mul_m4_m4m4(mat, ctx->ob->object_to_world().ptr(), bone_mat);
   /* Move to bone tail. */
   add_v3_v3(mat[3], mat[1]);
   OVERLAY_empty_shape(ctx->extras, mat, 0.25f, OB_ARROWS, color);
@@ -1054,8 +1069,8 @@ static void drw_shgroup_bone_relationship_lines_ex(const ArmatureDrawContext *ct
                                                    const float color[4])
 {
   float s[3], e[3];
-  mul_v3_m4v3(s, ctx->ob->object_to_world, start);
-  mul_v3_m4v3(e, ctx->ob->object_to_world, end);
+  mul_v3_m4v3(s, ctx->ob->object_to_world().ptr(), start);
+  mul_v3_m4v3(e, ctx->ob->object_to_world().ptr(), end);
   /* reverse order to have less stipple overlap */
   OVERLAY_extra_line_dashed(ctx->extras, s, e, color);
 }
@@ -1137,8 +1152,10 @@ static void cp_shade_color3ub(uchar cp[3], const int offset)
  */
 static void use_bone_color(float *r_color, const uint8_t *color_from_theme, const int shade_offset)
 {
-  uint8_t srgb_color[4];
-  copy_v4_v4_uchar(srgb_color, color_from_theme);
+  uint8_t srgb_color[4] = {255, 255, 255, 255};
+  /* Only copy RGB, not alpha.  The "alpha" channel in the bone theme colors is
+   * essentially just padding, and should be ignored. */
+  copy_v3_v3_uchar(srgb_color, color_from_theme);
   if (shade_offset != 0) {
     cp_shade_color3ub(srgb_color, shade_offset);
   }
@@ -1754,7 +1771,7 @@ static void draw_bone_degrees_of_freedom(const ArmatureDrawContext *ctx, const b
     zero_v3(tmp[3]);
     mul_m4_m4m4(posetrans, posetrans, tmp);
   }
-  /* ... but own rest-space. */
+  /* ... but its own rest-space. */
   mul_m4_m4m3(posetrans, posetrans, pchan->bone->bone_mat);
 
   float scale = pchan->bone->length * pchan->size[1];
@@ -1763,7 +1780,7 @@ static void draw_bone_degrees_of_freedom(const ArmatureDrawContext *ctx, const b
   mul_m4_m4m4(posetrans, posetrans, tmp);
 
   /* into world space. */
-  mul_m4_m4m4(inst_data.mat, ctx->ob->object_to_world, posetrans);
+  mul_m4_m4m4(inst_data.mat, ctx->ob->object_to_world().ptr(), posetrans);
 
   if ((pchan->ikflag & BONE_IK_XLIMIT) && (pchan->ikflag & BONE_IK_ZLIMIT)) {
     bone_instance_data_set_angle_minmax(
@@ -1944,7 +1961,7 @@ static void draw_bone_name(const ArmatureDrawContext *ctx,
   const float *head = is_pose ? pchan->pose_head : eBone->head;
   const float *tail = is_pose ? pchan->pose_tail : eBone->tail;
   mid_v3_v3v3(vec, head, tail);
-  mul_m4_v3(ctx->ob->object_to_world, vec);
+  mul_m4_v3(ctx->ob->object_to_world().ptr(), vec);
 
   DRW_text_cache_add(dt,
                      vec,
@@ -2120,10 +2137,17 @@ class ArmatureBoneDrawStrategyCustomShape : public ArmatureBoneDrawStrategy {
       }
     }
     if ((boneflag & BONE_DRAWWIRE) == 0 && (boneflag & BONE_DRAW_LOCKED_WEIGHT) == 0) {
-      drw_shgroup_bone_custom_solid(ctx, disp_mat, col_solid, col_hint, col_wire, pchan->custom);
+      drw_shgroup_bone_custom_solid(ctx,
+                                    disp_mat,
+                                    col_solid,
+                                    col_hint,
+                                    col_wire,
+                                    pchan->custom_shape_wire_width,
+                                    pchan->custom);
     }
     else {
-      drw_shgroup_bone_custom_wire(ctx, disp_mat, col_wire, pchan->custom);
+      drw_shgroup_bone_custom_wire(
+          ctx, disp_mat, col_wire, pchan->custom_shape_wire_width, pchan->custom);
     }
 
     if (select_id != -1) {
@@ -2225,16 +2249,6 @@ class ArmatureBoneDrawStrategyLine : public ArmatureBoneDrawStrategy {
       col_bone = col_head = col_tail = ctx->const_color;
     }
     else {
-      if (bone.is_editbone()) {
-        if (bone.flag() & BONE_TIPSEL) {
-          col_tail = G_draw.block.color_vertex_select;
-        }
-        if (boneflag & BONE_SELECTED) {
-          col_bone = G_draw.block.color_bone_active;
-        }
-        col_wire = G_draw.block.color_wire;
-      }
-
       /* Draw root point if we are not connected to our parent. */
       if (!(bone.has_parent() && (boneflag & BONE_CONNECTED))) {
 
@@ -2284,13 +2298,13 @@ class ArmatureBoneDrawStrategyBBone : public ArmatureBoneDrawStrategy {
     const bArmature *arm = static_cast<bArmature *>(ob->data);
     BLI_assert(arm->drawtype == ARM_B_BONE);
     UNUSED_VARS_NDEBUG(arm);
-    const float ob_scale = mat4_to_size_max_axis(ob->object_to_world);
+    const float ob_scale = mat4_to_size_max_axis(ob->object_to_world().ptr());
     const Mat4 *bbones_mat = (const Mat4 *)pchan->draw_data->bbone_matrix;
     for (int i = pchan->bone->segments; i--; bbones_mat++) {
       BoundSphere bsphere;
       float size[3];
       mat4_to_size(size, bbones_mat->mat);
-      mul_v3_m4v3(bsphere.center, ob->object_to_world, bbones_mat->mat[3]);
+      mul_v3_m4v3(bsphere.center, ob->object_to_world().ptr(), bbones_mat->mat[3]);
       bsphere.radius = len_v3(size) * ob_scale;
       if (DRW_culling_sphere_test(view, &bsphere)) {
         return true;
@@ -2365,7 +2379,7 @@ class ArmatureBoneDrawStrategyEnvelope : public ArmatureBoneDrawStrategy {
     BoundSphere bsphere;
     pchan_culling_calc_bsphere(ob, pchan, &bsphere);
     bsphere.radius += max_ff(pchan->bone->rad_head, pchan->bone->rad_tail) *
-                      mat4_to_size_max_axis(ob->object_to_world) *
+                      mat4_to_size_max_axis(ob->object_to_world().ptr()) *
                       mat4_to_size_max_axis(pchan->disp_mat);
     return DRW_culling_sphere_test(view, &bsphere);
   }
@@ -2547,7 +2561,7 @@ static void draw_armature_edit(ArmatureDrawContext *ctx)
   const bool show_text = DRW_state_show_text();
 
   const Object *ob_orig = DEG_get_original_object(ob);
-  /* FIXME(@ideasman42): We should be able to use the CoW object,
+  /* FIXME(@ideasman42): We should be able to use the evaluated object,
    * however the active bone isn't updated. Long term solution is an 'EditArmature' struct.
    * for now we can draw from the original armature. See: #66773. */
   // bArmature *arm = ob->data;
@@ -2851,7 +2865,7 @@ void OVERLAY_pose_cache_populate(OVERLAY_Data *vedata, Object *ob)
 {
   OVERLAY_PrivateData *pd = vedata->stl->pd;
 
-  GPUBatch *geom = DRW_cache_object_surface_get(ob);
+  blender::gpu::Batch *geom = DRW_cache_object_surface_get(ob);
   if (geom) {
     if (POSE_is_driven_by_active_armature(ob)) {
       DRW_shgroup_call(pd->armature_bone_select_act_grp, geom, ob);

@@ -3,6 +3,11 @@ if EXIST %BLENDER_DIR%\lib\windows_x64\llvm\bin\clang-format.exe (
     goto detect_done
 )
 
+if EXIST %BLENDER_DIR%\lib\windows_arm64\llvm\bin\clang-format.exe (
+    set CF_PATH=lib\windows_arm64\llvm\bin
+    goto detect_done
+)
+
 echo clang-format not found
 exit /b 1
 
@@ -21,5 +26,7 @@ set PATH=%CF_PATH%;%PATH%
 
 REM Use -B to avoid writing __pycache__ in lib directory and causing update conflicts.
 %PYTHON% -B %FORMAT_PATHS% %FORMAT_ARGS%
+
+call "%~dp0\autopep8.cmd"
 
 :EOF

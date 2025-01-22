@@ -37,9 +37,9 @@
 #include "BLI_math_base.h"
 #include "BLI_utildefines.h"
 
-#include "BLO_readfile.h"
+#include "BLO_userdef_default.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "BKE_appdir.hh"
 #include "BKE_context.hh"
@@ -481,6 +481,10 @@ blender::asset_system::AssetLibrary *ED_fileselect_active_asset_library_get(cons
 ID *ED_fileselect_active_asset_get(const SpaceFile *sfile)
 {
   if (!ED_fileselect_is_asset_browser(sfile)) {
+    return nullptr;
+  }
+
+  if (sfile->files == nullptr) {
     return nullptr;
   }
 
@@ -1095,7 +1099,9 @@ void ED_fileselect_init_layout(SpaceFile *sfile, ARegion *region)
     file_attribute_columns_init(params, layout);
 
     layout->rows = std::max(rowcount, numfiles);
-    BLI_assert(layout->rows != 0);
+
+    /* layout->rows can be zero if a very small area is changed to a File Browser. #124168. */
+
     layout->height = sfile->layout->rows * (layout->tile_h + 2 * layout->tile_border_y) +
                      layout->tile_border_y * 2 + layout->offset_top;
     layout->flag = FILE_LAYOUT_VER;
@@ -1349,7 +1355,7 @@ void file_params_invoke_rename_postscroll(wmWindowManager *wm, wmWindow *win, Sp
 void file_params_rename_end(wmWindowManager *wm,
                             wmWindow *win,
                             SpaceFile *sfile,
-                            FileDirEntry *rename_file)
+                            const FileDirEntry *rename_file)
 {
   FileSelectParams *params = ED_fileselect_get_active_params(sfile);
 

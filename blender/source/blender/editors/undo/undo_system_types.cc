@@ -13,6 +13,7 @@
 #include "ED_armature.hh"
 #include "ED_curve.hh"
 #include "ED_curves.hh"
+#include "ED_grease_pencil.hh"
 #include "ED_lattice.hh"
 #include "ED_mball.hh"
 #include "ED_mesh.hh"
@@ -30,13 +31,15 @@ void ED_undosys_type_init()
 {
   /* Edit Modes */
   using namespace blender;
+  using namespace blender::ed;
   BKE_undosys_type_append(ED_armature_undosys_type);
   BKE_undosys_type_append(ED_curve_undosys_type);
   BKE_undosys_type_append(ED_font_undosys_type);
   BKE_undosys_type_append(ED_lattice_undosys_type);
   BKE_undosys_type_append(ED_mball_undosys_type);
   BKE_undosys_type_append(ED_mesh_undosys_type);
-  BKE_undosys_type_append(ED_curves_undosys_type);
+  BKE_undosys_type_append(curves::undosys_type_register);
+  BKE_undosys_type_append(ED_undosys_type_grease_pencil);
 
   /* Paint Modes */
   BKE_UNDOSYS_TYPE_IMAGE = BKE_undosys_type_append(ED_image_undosys_type);

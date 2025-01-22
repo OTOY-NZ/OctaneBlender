@@ -18,7 +18,7 @@
 
 #ifndef __BUFFERS_H__
 #define __BUFFERS_H__
-#include "GPU_texture.h"
+#include "GPU_texture.hh"
 #include "blender/server/octane_client.h"
 #include "util/boundbox.h"
 #include "util/function.h"

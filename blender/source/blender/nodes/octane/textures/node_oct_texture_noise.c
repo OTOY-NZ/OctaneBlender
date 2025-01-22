@@ -32,7 +32,7 @@
 #include "BKE_node_runtime.hh"
 #include "BKE_texture.h"
 
-static bNodeSocketTemplate sh_node_in[] = {
+static blender::bke::bNodeSocketTemplate  sh_node_in[] = {
     {SOCK_INT,
      N_("Octaves"),
      5.0f,
@@ -116,7 +116,7 @@ static bNodeSocketTemplate sh_node_in[] = {
      SOCK_HIDDEN | SOCK_UNAVAIL | SOCK_AUTO_HIDDEN__DEPRECATED},
     {-1, ""}};
 
-static bNodeSocketTemplate sh_node_out[] = {{SOCK_RGBA, N_("OutTex")}, {-1, ""}};
+static blender::bke::bNodeSocketTemplate  sh_node_out[] = {{SOCK_RGBA, N_("OutTex")}, {-1, ""}};
 
 static void node_type_tex_oct_noise_init(bNodeTree *ntree, bNode *node)
 {
@@ -126,13 +126,13 @@ static void node_type_tex_oct_noise_init(bNodeTree *ntree, bNode *node)
 
 void register_node_type_tex_oct_noise(void)
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   if (ntype.type != SH_NODE_OCT_NOISE_TEX)
     sh_node_type_base(
         &ntype, SH_NODE_OCT_NOISE_TEX, "Noise Tex", NODE_CLASS_OCT_TEXTURE);
   blender::bke::node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
-  node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::DEFAULT);
+  node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Default);
   ntype.initfunc = (node_type_tex_oct_noise_init);
   // node_type_exec(&ntype, 0, 0, 0);
   ntype.updatefunc = node_octane_noise_tex_conversion_update;

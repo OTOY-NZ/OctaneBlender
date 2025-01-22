@@ -40,7 +40,6 @@
 #include "BLI_string_utils.hh"
 #include "BLI_task.h"
 #include "BLI_threads.h"
-#include "BLI_time.h"
 #include "BLI_utildefines.h"
 #include "BLI_uuid.h"
 
@@ -51,12 +50,10 @@
 #include "BKE_asset.hh"
 #include "BKE_blendfile.hh"
 #include "BKE_context.hh"
-#include "BKE_global.h"
+#include "BKE_global.hh"
 #include "BKE_icons.h"
 #include "BKE_idtype.hh"
-#include "BKE_lib_id.hh"
 #include "BKE_main.hh"
-#include "BKE_main_idmap.hh"
 #include "BKE_preferences.h"
 #include "BKE_preview_image.hh"
 
@@ -65,7 +62,6 @@
 
 #include "ED_datafiles.h"
 #include "ED_fileselect.hh"
-#include "ED_screen.hh"
 
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
@@ -197,7 +193,7 @@ struct FileListFilter {
   char filter_search[66]; /* + 2 for heading/trailing implicit '*' wildcards. */
   short flags;
 
-  FileAssetCatalogFilterSettingsHandle *asset_catalog_filter;
+  blender::ed::asset_browser::AssetCatalogFilterSettings *asset_catalog_filter;
 };
 
 /** #FileListFilter.flags */
@@ -571,6 +567,60 @@ static int compare_extension(void *user_data, const void *a1, const void *a2)
   return compare_apply_inverted(compare_tiebreaker(entry1, entry2), sort_data);
 }
 
+static int compare_asset_catalog(void *user_data, const void *a1, const void *a2)
+{
+  const FileListInternEntry *entry1 = static_cast<const FileListInternEntry *>(a1);
+  const FileListInternEntry *entry2 = static_cast<const FileListInternEntry *>(a2);
+  const FileSortData *sort_data = static_cast<const FileSortData *>(user_data);
+
+  /* Order non-assets. */
+  if (entry1->asset && !entry2->asset) {
+    return 1;
+  }
+  else if (!entry1->asset && entry2->asset) {
+    return -1;
+  }
+  else if (!entry1->asset && !entry2->asset) {
+    if (int order = compare_direntry_generic(entry1, entry2); order) {
+      return compare_apply_inverted(order, sort_data);
+    }
+
+    return compare_apply_inverted(compare_tiebreaker(entry1, entry2), sort_data);
+  }
+
+  const asset_system::AssetLibrary &asset_library1 = entry1->asset->owner_asset_library();
+  const asset_system::AssetLibrary &asset_library2 = entry2->asset->owner_asset_library();
+
+  const asset_system::AssetCatalog *catalog1 = asset_library1.catalog_service().find_catalog(
+      entry1->asset->get_metadata().catalog_id);
+  const asset_system::AssetCatalog *catalog2 = asset_library2.catalog_service().find_catalog(
+      entry2->asset->get_metadata().catalog_id);
+
+  /* Order by catalog. Always keep assets without catalog last. */
+  int order = 0;
+
+  if (catalog1 && !catalog2) {
+    order = 1;
+  }
+  else if (!catalog1 && catalog2) {
+    order = -1;
+  }
+  else if (catalog1 && catalog2) {
+    order = BLI_strcasecmp_natural(catalog1->path.name().c_str(), catalog2->path.name().c_str());
+  }
+
+  if (!order) {
+    /* Order by name. */
+    order = compare_tiebreaker(entry1, entry2);
+    if (!order) {
+      /* Order by library name. */
+      order = BLI_strcasecmp_natural(asset_library1.name().c_str(), asset_library2.name().c_str());
+    }
+  }
+
+  return compare_apply_inverted(order, sort_data);
+}
+
 void filelist_sort(FileList *filelist)
 {
   if (filelist->flags & FL_NEED_SORTING) {
@@ -588,6 +638,9 @@ void filelist_sort(FileList *filelist)
         break;
       case FILE_SORT_EXTENSION:
         sort_cb = compare_extension;
+        break;
+      case FILE_SORT_ASSET_CATALOG:
+        sort_cb = compare_asset_catalog;
         break;
       case FILE_SORT_DEFAULT:
       default:
@@ -618,46 +671,6 @@ void filelist_setsorting(FileList *filelist, const short sort, bool invert_sort)
 
 /* ********** Filter helpers ********** */
 
-/* True if filename is meant to be hidden, eg. starting with period. */
-static bool is_hidden_dot_filename(const char *filename, const FileListInternEntry *file)
-{
-  if (filename[0] == '.' && !ELEM(filename[1], '.', '\0')) {
-    return true; /* ignore .file */
-  }
-
-  int len = strlen(filename);
-  if ((len > 0) && (filename[len - 1] == '~')) {
-    return true; /* ignore file~ */
-  }
-
-  /* filename might actually be a piece of path, in which case we have to check all its parts. */
-
-  bool hidden = false;
-  char *sep = (char *)BLI_path_slash_rfind(filename);
-
-  if (!hidden && sep) {
-    char tmp_filename[FILE_MAX_LIBEXTRA];
-
-    STRNCPY(tmp_filename, filename);
-    sep = tmp_filename + (sep - filename);
-    while (sep) {
-      /* This happens when a path contains 'ALTSEP', '\' on Unix for e.g.
-       * Supporting alternate slashes in paths is a bigger task involving changes
-       * in many parts of the code, for now just prevent an assert, see #74579. */
-#if 0
-      BLI_assert(sep[1] != '\0');
-#endif
-      if (is_hidden_dot_filename(sep + 1, file)) {
-        hidden = true;
-        break;
-      }
-      *sep = '\0';
-      sep = (char *)BLI_path_slash_rfind(tmp_filename);
-    }
-  }
-  return hidden;
-}
-
 /* True if should be hidden, based on current filtering. */
 static bool is_filtered_hidden(const char *filename,
                                const FileListFilter *filter,
@@ -673,16 +686,13 @@ static bool is_filtered_hidden(const char *filename,
     }
   }
 
+  /* Check for _OUR_ "hidden" attribute. This not only mirrors OS-level hidden file
+   * attribute but is also set for Linux/Mac "dot" files. See `filelist_readjob_list_dir`.
+   */
   if ((filter->flags & FLF_HIDE_DOT) && (file->attributes & FILE_ATTR_HIDDEN)) {
-    return true; /* Ignore files with Hidden attribute. */
-  }
-
-#ifndef WIN32
-  /* Check for unix-style names starting with period. */
-  if ((filter->flags & FLF_HIDE_DOT) && is_hidden_dot_filename(filename, file)) {
     return true;
   }
-#endif
+
   /* For data-blocks (but not the group directories), check the asset-only filter. */
   if (!(file->typeflag & FILE_TYPE_DIR) && (file->typeflag & FILE_TYPE_BLENDERLIB) &&
       (filter->flags & FLF_ASSETS_ONLY) && !(file->typeflag & FILE_TYPE_ASSET))
@@ -1038,7 +1048,8 @@ void filelist_set_asset_catalog_filter_options(
 {
   if (!filelist->filter_data.asset_catalog_filter) {
     /* There's no filter data yet. */
-    filelist->filter_data.asset_catalog_filter = file_create_asset_catalog_filter_settings();
+    filelist->filter_data.asset_catalog_filter =
+        blender::ed::asset_browser::file_create_asset_catalog_filter_settings();
   }
 
   const bool needs_update = file_set_asset_catalog_filter_settings(
@@ -1445,7 +1456,9 @@ static void filelist_direntryarr_free(FileDirEntryArr *array)
 
 static void filelist_intern_entry_free(FileList *filelist, FileListInternEntry *entry)
 {
-  if (entry->asset) {
+  /* Asset system storage might be cleared already on file exit. Asset library
+   * pointers are dangling then, so don't access (#120466). */
+  if (AS_asset_libraries_available() && entry->asset) {
     BLI_assert(filelist->asset_library);
     filelist->asset_library->remove_asset(*entry->asset);
   }
@@ -2253,6 +2266,13 @@ ID *filelist_entry_get_id(const FileList *filelist, const int index)
   return intern_entry->local_data.id;
 }
 
+asset_system::AssetRepresentation *filelist_entry_get_asset_representation(
+    const FileList *filelist, const int index)
+{
+  const FileListInternEntry *intern_entry = filelist_entry_intern_get(filelist, index);
+  return intern_entry->asset;
+}
+
 ID *filelist_file_get_id(const FileDirEntry *file)
 {
   return file->id;
@@ -2733,9 +2753,10 @@ int ED_path_extension_type(const char *path)
   {
     return FILE_TYPE_TEXT;
   }
-  if (BLI_path_extension_check_n(
-          path, ".ttf", ".ttc", ".pfb", ".otf", ".otc", ".woff", ".woff2", nullptr))
-  {
+
+  /* NOTE: While `.ttc` & `.otc` files can be loaded, only a single "face" is supported,
+   * users will have to extract bold/italic etc manually for Blender to use them, see #44254. */
+  if (BLI_path_extension_check_n(path, ".ttf", ".pfb", ".otf", ".woff", ".woff2", nullptr)) {
     return FILE_TYPE_FTFONT;
   }
   if (BLI_path_extension_check(path, ".btx")) {
@@ -3134,7 +3155,7 @@ static int filelist_readjob_list_dir(FileListReadJob *job_params,
 
 #ifndef WIN32
       /* Set linux-style dot files hidden too. */
-      if (is_hidden_dot_filename(entry->relpath, entry)) {
+      if (BLI_path_has_hidden_component(entry->relpath)) {
         entry->attributes |= FILE_ATTR_HIDDEN;
       }
 #endif
@@ -4166,6 +4187,21 @@ static void filelist_readjob_free(void *flrjv)
   MEM_freeN(flrj);
 }
 
+static eWM_JobType filelist_jobtype_get(const FileList *filelist)
+{
+  if (filelist->asset_library_ref) {
+    return WM_JOB_TYPE_ASSET_LIBRARY_LOAD;
+  }
+  return WM_JOB_TYPE_FILESEL_READDIR;
+}
+
+/* TODO(Julian): This is temporary, because currently the job system identifies jobs to suspend by
+ * the startjob callback, rather than the type. See PR #123033. */
+static void assetlibrary_readjob_startjob(void *flrjv, wmJobWorkerStatus *worker_status)
+{
+  filelist_readjob_startjob(flrjv, worker_status);
+}
+
 void filelist_readjob_start(FileList *filelist, const int space_notifier, const bContext *C)
 {
   Main *bmain = CTX_data_main(C);
@@ -4214,11 +4250,12 @@ void filelist_readjob_start(FileList *filelist, const int space_notifier, const 
                        filelist,
                        "Listing Dirs...",
                        WM_JOB_PROGRESS,
-                       WM_JOB_TYPE_FILESEL_READDIR);
+                       filelist_jobtype_get(filelist));
   WM_jobs_customdata_set(wm_job, flrj, filelist_readjob_free);
   WM_jobs_timer(wm_job, 0.01, space_notifier, space_notifier | NA_JOB_FINISHED);
   WM_jobs_callbacks(wm_job,
-                    filelist_readjob_startjob,
+                    filelist->asset_library_ref ? assetlibrary_readjob_startjob :
+                                                  filelist_readjob_startjob,
                     nullptr,
                     filelist_readjob_update,
                     filelist_readjob_endjob);
@@ -4229,10 +4266,10 @@ void filelist_readjob_start(FileList *filelist, const int space_notifier, const 
 
 void filelist_readjob_stop(FileList *filelist, wmWindowManager *wm)
 {
-  WM_jobs_kill_type(wm, filelist, WM_JOB_TYPE_FILESEL_READDIR);
+  WM_jobs_kill_type(wm, filelist, filelist_jobtype_get(filelist));
 }
 
 int filelist_readjob_running(FileList *filelist, wmWindowManager *wm)
 {
-  return WM_jobs_test(wm, filelist, WM_JOB_TYPE_FILESEL_READDIR);
+  return WM_jobs_test(wm, filelist, filelist_jobtype_get(filelist));
 }

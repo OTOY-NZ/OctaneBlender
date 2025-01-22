@@ -15,7 +15,6 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
-#include "BKE_global.h"
 #include "BKE_screen.hh"
 
 #include "ED_screen.hh"
@@ -151,12 +150,12 @@ static void console_cursor(wmWindow *win, ScrArea * /*area*/, ARegion *region)
 
 /* ************* dropboxes ************* */
 
-static bool id_drop_poll(bContext * /*C*/, wmDrag *drag, const wmEvent * /*event*/)
+static bool console_drop_id_poll(bContext * /*C*/, wmDrag *drag, const wmEvent * /*event*/)
 {
   return WM_drag_get_local_ID(drag, 0) != nullptr;
 }
 
-static void id_drop_copy(bContext * /*C*/, wmDrag *drag, wmDropBox *drop)
+static void console_drop_id_copy(bContext * /*C*/, wmDrag *drag, wmDropBox *drop)
 {
   ID *id = WM_drag_get_local_ID(drag, 0);
 
@@ -165,16 +164,30 @@ static void id_drop_copy(bContext * /*C*/, wmDrag *drag, wmDropBox *drop)
   RNA_string_set(drop->ptr, "text", text.c_str());
 }
 
-static bool path_drop_poll(bContext * /*C*/, wmDrag *drag, const wmEvent * /*event*/)
+static bool console_drop_path_poll(bContext * /*C*/, wmDrag *drag, const wmEvent * /*event*/)
 {
   return (drag->type == WM_DRAG_PATH);
 }
 
-static void path_drop_copy(bContext * /*C*/, wmDrag *drag, wmDropBox *drop)
+static void console_drop_path_copy(bContext * /*C*/, wmDrag *drag, wmDropBox *drop)
 {
   char pathname[FILE_MAX + 2];
   SNPRINTF(pathname, "\"%s\"", WM_drag_get_single_path(drag));
   RNA_string_set(drop->ptr, "text", pathname);
+}
+
+static bool console_drop_string_poll(bContext * /*C*/, wmDrag *drag, const wmEvent * /*event*/)
+{
+  return (drag->type == WM_DRAG_STRING);
+}
+
+static void console_drop_string_copy(bContext * /*C*/, wmDrag *drag, wmDropBox *drop)
+{
+  /* NOTE(@ideasman42): Only a single line is supported, multiple lines could be supported
+   * but this implies executing all lines except for the last. While we could consider that,
+   * there are some security implications for this, so just drop one line for now. */
+  std::string str = WM_drag_get_string_firstline(drag);
+  RNA_string_set(drop->ptr, "text", str.c_str());
 }
 
 /* this region dropbox definition */
@@ -182,8 +195,16 @@ static void console_dropboxes()
 {
   ListBase *lb = WM_dropboxmap_find("Console", SPACE_CONSOLE, RGN_TYPE_WINDOW);
 
-  WM_dropbox_add(lb, "CONSOLE_OT_insert", id_drop_poll, id_drop_copy, nullptr, nullptr);
-  WM_dropbox_add(lb, "CONSOLE_OT_insert", path_drop_poll, path_drop_copy, nullptr, nullptr);
+  WM_dropbox_add(
+      lb, "CONSOLE_OT_insert", console_drop_id_poll, console_drop_id_copy, nullptr, nullptr);
+  WM_dropbox_add(
+      lb, "CONSOLE_OT_insert", console_drop_path_poll, console_drop_path_copy, nullptr, nullptr);
+  WM_dropbox_add(lb,
+                 "CONSOLE_OT_insert",
+                 console_drop_string_poll,
+                 console_drop_string_copy,
+                 nullptr,
+                 nullptr);
 }
 
 /* ************* end drop *********** */
@@ -291,14 +312,14 @@ static void console_blend_read_data(BlendDataReader *reader, SpaceLink *sl)
 {
   SpaceConsole *sconsole = (SpaceConsole *)sl;
 
-  BLO_read_list(reader, &sconsole->scrollback);
-  BLO_read_list(reader, &sconsole->history);
+  BLO_read_struct_list(reader, ConsoleLine, &sconsole->scrollback);
+  BLO_read_struct_list(reader, ConsoleLine, &sconsole->history);
 
   /* Comma expressions, (e.g. expr1, expr2, expr3) evaluate each expression,
    * from left to right.  the right-most expression sets the result of the comma
    * expression as a whole. */
   LISTBASE_FOREACH_MUTABLE (ConsoleLine *, cl, &sconsole->history) {
-    BLO_read_data_address(reader, &cl->line);
+    BLO_read_char_array(reader, size_t(cl->len) + 1, &cl->line);
     if (cl->line) {
       /* The allocated length is not written, so reset here. */
       cl->len_alloc = cl->len + 1;
@@ -317,7 +338,7 @@ static void console_space_blend_write(BlendWriter *writer, SpaceLink *sl)
   LISTBASE_FOREACH (ConsoleLine *, cl, &con->history) {
     /* 'len_alloc' is invalid on write, set from 'len' on read */
     BLO_write_struct(writer, ConsoleLine, cl);
-    BLO_write_raw(writer, size_t(cl->len) + 1, cl->line);
+    BLO_write_char_array(writer, size_t(cl->len) + 1, cl->line);
   }
   BLO_write_struct(writer, SpaceConsole, sl);
 }

@@ -19,7 +19,7 @@ class ViewportDrawData(object):
         self.shader = None
         self.batch = None
         self.is_demo = is_demo
-        self.transparent = True
+        self.transparent = not use_shared_surface
         if self.transparent:
             buffer_depth = 4
         else:

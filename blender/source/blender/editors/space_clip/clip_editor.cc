@@ -26,14 +26,12 @@
 #include "BLI_listbase.h"
 #include "BLI_rect.h"
 #include "BLI_task.h"
-#include "BLI_time.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
-#include "BKE_global.h"
+#include "BKE_global.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
-#include "BKE_mask.h"
 #include "BKE_movieclip.h"
 #include "BKE_tracking.h"
 
@@ -42,8 +40,6 @@
 #include "IMB_imbuf_types.hh"
 
 #include "ED_clip.hh"
-#include "ED_mask.hh"
-#include "ED_screen.hh"
 #include "ED_select_utils.hh"
 
 #include "WM_api.hh"
@@ -51,7 +47,7 @@
 
 #include "UI_view2d.hh"
 
-#include "clip_intern.h" /* own include */
+#include "clip_intern.hh" /* own include */
 
 /* -------------------------------------------------------------------- */
 /** \name Operator Poll Functions
@@ -512,14 +508,16 @@ void ED_clip_point_stable_pos(
 
   if (sc->user.render_flag & MCLIP_PROXY_RENDER_UNDISTORT) {
     MovieClip *clip = ED_space_clip_get_clip(sc);
-    MovieTracking *tracking = &clip->tracking;
-    float aspy = 1.0f / tracking->camera.pixel_aspect;
-    float tmp[2] = {*xr * width, *yr * height * aspy};
+    if (clip != nullptr) {
+      MovieTracking *tracking = &clip->tracking;
+      float aspy = 1.0f / tracking->camera.pixel_aspect;
+      float tmp[2] = {*xr * width, *yr * height * aspy};
 
-    BKE_tracking_distort_v2(tracking, width, height, tmp, tmp);
+      BKE_tracking_distort_v2(tracking, width, height, tmp, tmp);
 
-    *xr = tmp[0] / width;
-    *yr = tmp[1] / (height * aspy);
+      *xr = tmp[0] / width;
+      *yr = tmp[1] / (height * aspy);
+    }
   }
 }
 

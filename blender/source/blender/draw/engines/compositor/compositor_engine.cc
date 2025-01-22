@@ -8,7 +8,7 @@
 #include "BLI_string_ref.hh"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_ID.h"
 #include "DNA_ID_enums.h"
@@ -30,8 +30,8 @@
 #include "COM_result.hh"
 #include "COM_texture_pool.hh"
 
-#include "GPU_context.h"
-#include "GPU_texture.h"
+#include "GPU_context.hh"
+#include "GPU_texture.hh"
 
 #include "compositor_engine.h" /* Own include. */
 
@@ -91,42 +91,16 @@ class Context : public realtime_compositor::Context {
     return int2(float2(DRW_viewport_size_get()));
   }
 
-  /* Returns true if the viewport is in camera view and has an opaque passepartout, that is, the
-   * area outside of the camera border is not visible. */
-  bool is_opaque_camera_view() const
-  {
-    /* Check if the viewport is in camera view. */
-    if (DRW_context_state_get()->rv3d->persp != RV3D_CAMOB) {
-      return false;
-    }
-
-    /* Check if the camera object that is currently in view is an actual camera. It is possible for
-     * a non camera object to be used as a camera, in which case, there will be no passepartout or
-     * any other camera setting, so those pseudo cameras can be ignored. */
-    Object *camera_object = DRW_context_state_get()->v3d->camera;
-    if (camera_object->type != OB_CAMERA) {
-      return false;
-    }
-
-    /* Check if the camera has passepartout active and is totally opaque. */
-    Camera *cam = static_cast<Camera *>(camera_object->data);
-    if (!(cam->flag & CAM_SHOWPASSEPARTOUT) || cam->passepartalpha != 1.0f) {
-      return false;
-    }
-
-    return true;
-  }
-
+  /* We limit the compositing region to the camera region if in camera view, while we use the
+   * entire viewport otherwise. We also use the entire viewport when doing viewport rendering since
+   * the viewport is already the camera region in that case. */
   rcti get_compositing_region() const override
   {
     const int2 viewport_size = int2(float2(DRW_viewport_size_get()));
     const rcti render_region = rcti{0, viewport_size.x, 0, viewport_size.y};
 
-    /* If the camera view is not opaque, that means the content outside of the camera region is
-     * visible to some extent, so it would make sense to include them in the compositing region.
-     * Otherwise, we limit the compositing region to the visible camera region because anything
-     * outside of the camera region will not be visible anyways. */
-    if (!is_opaque_camera_view()) {
+    if (DRW_context_state_get()->rv3d->persp != RV3D_CAMOB || DRW_state_is_viewport_image_render())
+    {
       return render_region;
     }
 
@@ -153,7 +127,8 @@ class Context : public realtime_compositor::Context {
     return DRW_viewport_texture_list_get()->color;
   }
 
-  GPUTexture *get_viewer_output_texture(realtime_compositor::Domain /* domain */) override
+  GPUTexture *get_viewer_output_texture(realtime_compositor::Domain /* domain */,
+                                        bool /*is_data*/) override
   {
     return DRW_viewport_texture_list_get()->color;
   }
@@ -190,10 +165,10 @@ class Context : public realtime_compositor::Context {
 
   realtime_compositor::ResultPrecision get_precision() const override
   {
-    switch (get_node_tree().precision) {
-      case NODE_TREE_COMPOSITOR_PRECISION_AUTO:
+    switch (get_scene().r.compositor_precision) {
+      case SCE_COMPOSITOR_PRECISION_AUTO:
         return realtime_compositor::ResultPrecision::Half;
-      case NODE_TREE_COMPOSITOR_PRECISION_FULL:
+      case SCE_COMPOSITOR_PRECISION_FULL:
         return realtime_compositor::ResultPrecision::Full;
     }
 
@@ -303,12 +278,6 @@ static void compositor_engine_draw(void *data)
      * workload scheduling. When expensive compositor nodes are in the graph, these can stall out
      * the GPU for extended periods of time and sub-optimally schedule work for execution. */
     GPU_flush();
-  }
-  else {
-    /* Realtime Compositor is not supported on macOS with the OpenGL backend. */
-    blender::StringRef("Viewport compositor is only supported on MacOS with the Metal Backend.")
-        .copy(compositor_data->info, GPU_INFO_SIZE);
-    return;
   }
 #endif
 

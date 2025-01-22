@@ -11,7 +11,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "GPU_index_buffer.h"
+#include "GPU_index_buffer.hh"
 
 #include "draw_subdivision.hh"
 #include "extract_mesh.hh"
@@ -33,8 +33,8 @@ static void extract_lines_paint_mask_init(const MeshRenderData &mr,
                                           void *tls_data)
 {
   MeshExtract_LinePaintMask_Data *data = static_cast<MeshExtract_LinePaintMask_Data *>(tls_data);
-  data->select_map = BLI_BITMAP_NEW(mr.edge_len, __func__);
-  GPU_indexbuf_init(&data->elb, GPU_PRIM_LINES, mr.edge_len, mr.loop_len);
+  data->select_map = BLI_BITMAP_NEW(mr.edges_num, __func__);
+  GPU_indexbuf_init(&data->elb, GPU_PRIM_LINES, mr.edges_num, mr.corners_num);
 }
 
 static void extract_lines_paint_mask_iter_face_mesh(const MeshRenderData &mr,
@@ -48,7 +48,7 @@ static void extract_lines_paint_mask_iter_face_mesh(const MeshRenderData &mr,
     const int e_index = mr.corner_edges[corner];
 
     if (!((mr.use_hide && !mr.hide_edge.is_empty() && mr.hide_edge[e_index]) ||
-          ((mr.e_origindex) && (mr.e_origindex[e_index] == ORIGINDEX_NONE))))
+          ((mr.orig_index_edge) && (mr.orig_index_edge[e_index] == ORIGINDEX_NONE))))
     {
 
       const int corner_next = bke::mesh::face_corner_next(face, corner);
@@ -81,7 +81,7 @@ static void extract_lines_paint_mask_finish(const MeshRenderData & /*mr*/,
                                             void *_data)
 {
   MeshExtract_LinePaintMask_Data *data = static_cast<MeshExtract_LinePaintMask_Data *>(_data);
-  GPUIndexBuf *ibo = static_cast<GPUIndexBuf *>(buf);
+  gpu::IndexBuf *ibo = static_cast<gpu::IndexBuf *>(buf);
   GPU_indexbuf_build_in_place(&data->elb, ibo);
   MEM_freeN(data->select_map);
 }
@@ -93,7 +93,7 @@ static void extract_lines_paint_mask_init_subdiv(const DRWSubdivCache &subdiv_ca
                                                  void *tls_data)
 {
   MeshExtract_LinePaintMask_Data *data = static_cast<MeshExtract_LinePaintMask_Data *>(tls_data);
-  data->select_map = BLI_BITMAP_NEW(mr.edge_len, __func__);
+  data->select_map = BLI_BITMAP_NEW(mr.edges_num, __func__);
   GPU_indexbuf_init(&data->elb,
                     GPU_PRIM_LINES,
                     subdiv_cache.num_subdiv_edges,
@@ -121,7 +121,7 @@ static void extract_lines_paint_mask_iter_subdiv_mesh(const DRWSubdivCache &subd
     }
     else {
       if (!((mr.use_hide && !mr.hide_edge.is_empty() && mr.hide_edge[coarse_edge_index]) ||
-            ((mr.e_origindex) && (mr.e_origindex[coarse_edge_index] == ORIGINDEX_NONE))))
+            ((mr.orig_index_edge) && (mr.orig_index_edge[coarse_edge_index] == ORIGINDEX_NONE))))
       {
         const int corner_next = bke::mesh::face_corner_next(subdiv_face, corner);
         if (!mr.select_poly.is_empty() && mr.select_poly[coarse_quad_index]) {

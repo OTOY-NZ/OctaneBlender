@@ -8,15 +8,15 @@
 
 #pragma once
 
-#include "BKE_node.h"
+#include "BKE_node.hh"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-extern struct bNodeTreeType *ntreeType_Shader;
+extern struct blender::bke::bNodeTreeType *ntreeType_Shader;
 
-void register_node_type_sh_custom_group(bNodeType *ntype);
+void register_node_type_sh_custom_group(blender::bke::bNodeType *ntype);
 
 struct bNodeTreeExec *ntreeShaderBeginExecTree(struct bNodeTree *ntree);
 void ntreeShaderEndExecTree(struct bNodeTreeExec *exec);

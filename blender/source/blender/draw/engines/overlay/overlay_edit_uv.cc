@@ -17,6 +17,7 @@
 #include "BKE_image.h"
 #include "BKE_layer.hh"
 #include "BKE_mask.h"
+#include "BKE_mesh_types.hh"
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
 
@@ -29,7 +30,7 @@
 
 #include "IMB_imbuf_types.hh"
 
-#include "GPU_batch.h"
+#include "GPU_batch.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
@@ -39,7 +40,7 @@
 using blender::Vector;
 
 /* Forward declarations. */
-static void overlay_edit_uv_cache_populate(OVERLAY_Data *vedata, Object *ob);
+static void overlay_edit_uv_cache_populate(OVERLAY_Data *vedata, Object &ob);
 
 struct OVERLAY_StretchingAreaTotals {
   void *next, *prev;
@@ -161,6 +162,7 @@ void OVERLAY_edit_uv_init(OVERLAY_Data *vedata)
 
   pd->edit_uv.do_uv_stretching_overlay = show_overlays && do_uvstretching_overlay;
   pd->edit_uv.uv_opacity = sima->uv_opacity;
+  pd->edit_uv.stretch_opacity = sima->stretch_opacity;
   pd->edit_uv.do_tiled_image_overlay = show_overlays && is_image_type && is_tiled_image;
   pd->edit_uv.do_tiled_image_border_overlay = is_image_type && is_tiled_image;
   pd->edit_uv.dash_length = 4.0f * UI_SCALE_FAC;
@@ -284,6 +286,8 @@ void OVERLAY_edit_uv_cache_init(OVERLAY_Data *vedata)
       pd->edit_uv_stretching_grp = DRW_shgroup_create(sh, psl->edit_uv_stretching_ps);
       DRW_shgroup_uniform_block(pd->edit_uv_stretching_grp, "globalsBlock", G_draw.block_ubo);
       DRW_shgroup_uniform_vec2_copy(pd->edit_uv_stretching_grp, "aspect", pd->edit_uv.uv_aspect);
+      DRW_shgroup_uniform_float_copy(
+          pd->edit_uv_stretching_grp, "stretch_opacity", pd->edit_uv.stretch_opacity);
     }
     else /* SI_UVDT_STRETCH_AREA */ {
       GPUShader *sh = OVERLAY_shader_edit_uv_stretching_area_get();
@@ -291,11 +295,13 @@ void OVERLAY_edit_uv_cache_init(OVERLAY_Data *vedata)
       DRW_shgroup_uniform_block(pd->edit_uv_stretching_grp, "globalsBlock", G_draw.block_ubo);
       DRW_shgroup_uniform_float(
           pd->edit_uv_stretching_grp, "totalAreaRatio", &pd->edit_uv.total_area_ratio, 1);
+      DRW_shgroup_uniform_float_copy(
+          pd->edit_uv_stretching_grp, "stretch_opacity", pd->edit_uv.stretch_opacity);
     }
   }
 
   if (pd->edit_uv.do_tiled_image_border_overlay) {
-    GPUBatch *geom = DRW_cache_quad_wires_get();
+    blender::gpu::Batch *geom = DRW_cache_quad_wires_get();
     float obmat[4][4];
     unit_m4(obmat);
 
@@ -361,7 +367,7 @@ void OVERLAY_edit_uv_cache_init(OVERLAY_Data *vedata)
                       DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_ALWAYS |
                           DRW_STATE_BLEND_ALPHA_PREMUL);
       GPUShader *sh = OVERLAY_shader_edit_uv_stencil_image();
-      GPUBatch *geom = DRW_cache_quad_get();
+      blender::gpu::Batch *geom = DRW_cache_quad_get();
       DRWShadingGroup *grp = DRW_shgroup_create(sh, psl->edit_uv_stencil_ps);
       DRW_shgroup_uniform_texture(grp, "imgTexture", stencil_texture);
       DRW_shgroup_uniform_bool_copy(grp, "imgPremultiplied", true);
@@ -392,7 +398,7 @@ void OVERLAY_edit_uv_cache_init(OVERLAY_Data *vedata)
     DRW_PASS_CREATE(psl->edit_uv_mask_ps, state);
 
     GPUShader *sh = OVERLAY_shader_edit_uv_mask_image();
-    GPUBatch *geom = DRW_cache_quad_get();
+    blender::gpu::Batch *geom = DRW_cache_quad_get();
     DRWShadingGroup *grp = DRW_shgroup_create(sh, psl->edit_uv_mask_ps);
     GPUTexture *mask_texture = edit_uv_mask_texture(pd->edit_uv.mask,
                                                     pd->edit_uv.image_size[0],
@@ -416,33 +422,33 @@ void OVERLAY_edit_uv_cache_init(OVERLAY_Data *vedata)
         draw_ctx->scene, draw_ctx->view_layer, nullptr, draw_ctx->object_mode);
     for (Object *object : objects) {
       Object *object_eval = DEG_get_evaluated_object(draw_ctx->depsgraph, object);
-      DRW_mesh_batch_cache_validate(object_eval, (Mesh *)object_eval->data);
-      overlay_edit_uv_cache_populate(vedata, object_eval);
+      DRW_mesh_batch_cache_validate(*object_eval, *(Mesh *)object_eval->data);
+      overlay_edit_uv_cache_populate(vedata, *object_eval);
     }
   }
 }
 
-static void overlay_edit_uv_cache_populate(OVERLAY_Data *vedata, Object *ob)
+static void overlay_edit_uv_cache_populate(OVERLAY_Data *vedata, Object &ob)
 {
   using namespace blender::draw;
-  if (!(DRW_object_visibility_in_active_context(ob) & OB_VISIBLE_SELF)) {
+  if (!(DRW_object_visibility_in_active_context(&ob) & OB_VISIBLE_SELF)) {
     return;
   }
 
   OVERLAY_StorageList *stl = vedata->stl;
   OVERLAY_PrivateData *pd = stl->pd;
-  GPUBatch *geom;
+  blender::gpu::Batch *geom;
 
   const DRWContextState *draw_ctx = DRW_context_state_get();
-  const bool is_edit_object = DRW_object_is_in_edit_mode(ob);
-  Mesh *mesh = (Mesh *)ob->data;
-  const bool has_active_object_uvmap = CustomData_get_active_layer(&mesh->corner_data,
+  const bool is_edit_object = DRW_object_is_in_edit_mode(&ob);
+  Mesh &mesh = *(Mesh *)ob.data;
+  const bool has_active_object_uvmap = CustomData_get_active_layer(&mesh.corner_data,
                                                                    CD_PROP_FLOAT2) != -1;
-  const bool has_active_edit_uvmap = is_edit_object &&
-                                     (CustomData_get_active_layer(&mesh->edit_mesh->bm->ldata,
-                                                                  CD_PROP_FLOAT2) != -1);
+  const bool has_active_edit_uvmap = is_edit_object && (CustomData_get_active_layer(
+                                                            &mesh.runtime->edit_mesh->bm->ldata,
+                                                            CD_PROP_FLOAT2) != -1);
   const bool draw_shadows = (draw_ctx->object_mode != OB_MODE_OBJECT) &&
-                            (ob->mode == draw_ctx->object_mode);
+                            (ob.mode == draw_ctx->object_mode);
 
   if (has_active_edit_uvmap) {
     if (pd->edit_uv.do_uv_overlay) {

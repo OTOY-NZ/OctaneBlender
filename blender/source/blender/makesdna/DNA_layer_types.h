@@ -32,7 +32,7 @@ typedef enum eViewLayerEEVEEPassType {
   EEVEE_RENDER_PASS_ENVIRONMENT = (1 << 11),
   EEVEE_RENDER_PASS_SHADOW = (1 << 12),
   EEVEE_RENDER_PASS_AO = (1 << 13),
-  EEVEE_RENDER_PASS_BLOOM = (1 << 14),
+  EEVEE_RENDER_PASS_UNUSED_14 = (1 << 14), /* EEVEE_RENDER_PASS_BLOOM */
   EEVEE_RENDER_PASS_AOV = (1 << 15),
   /*
    * TODO(@jbakker): Clean up conflicting bits after EEVEE has been removed.
@@ -178,6 +178,7 @@ typedef struct ViewLayer {
   int samples;
 
   struct Material *mat_override;
+  struct World *world_override;
   /** Equivalent to datablocks ID properties. */
   struct IDProperty *id_properties;
 
@@ -283,4 +284,5 @@ enum {
   /* VIEW_LAYER_DEPRECATED  = (1 << 1), */
   VIEW_LAYER_FREESTYLE = (1 << 2),
   VIEW_LAYER_OUT_OF_SYNC = (1 << 3),
+  VIEW_LAYER_HAS_EXPORT_COLLECTIONS = (1 << 4),
 };

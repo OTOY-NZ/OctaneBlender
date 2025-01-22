@@ -8,11 +8,10 @@
 #include "BLI_array.hh"
 #include "BLI_hash.hh"
 #include "BLI_index_range.hh"
-#include "BLI_listbase.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_task.hh"
 
-#include "GPU_texture.h"
+#include "GPU_texture.hh"
 
 #include "BKE_lib_id.hh"
 #include "BKE_mask.h"
@@ -190,7 +189,9 @@ CachedMask &CachedMaskContainer::get(Context &context,
   const CachedMaskKey key(
       size, aspect_ratio, use_feather, motion_blur_samples, motion_blur_shutter);
 
-  auto &cached_masks_for_id = map_.lookup_or_add_default(mask->id.name);
+  const std::string library_key = mask->id.lib ? mask->id.lib->id.name : "";
+  const std::string id_key = std::string(mask->id.name) + library_key;
+  auto &cached_masks_for_id = map_.lookup_or_add_default(id_key);
 
   /* Invalidate the cache for that mask ID if it was changed and reset the recalculate flag. */
   if (context.query_id_recalc_flag(reinterpret_cast<ID *>(mask)) & ID_RECALC_ALL) {

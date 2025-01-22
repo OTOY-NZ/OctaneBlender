@@ -15,12 +15,11 @@
 #include "DNA_rigidbody_types.h"
 #include "DNA_scene_types.h"
 
-#include "BKE_collection.h"
+#include "BKE_collection.hh"
 #include "BKE_context.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
-#include "BKE_main.hh"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 #include "BKE_rigidbody.h"
 
 #include "DEG_depsgraph.hh"
@@ -37,16 +36,16 @@
 #include "ED_physics.hh"
 #include "ED_screen.hh"
 
-#include "physics_intern.h"
+#include "physics_intern.hh"
 
 /* ********************************************** */
 /* Helper API's for RigidBody Constraint Editing */
 
 static bool operator_rigidbody_constraints_editable_poll(Scene *scene)
 {
-  if (scene == nullptr || ID_IS_LINKED(scene) || ID_IS_OVERRIDE_LIBRARY(scene) ||
+  if (scene == nullptr || !ID_IS_EDITABLE(scene) || ID_IS_OVERRIDE_LIBRARY(scene) ||
       (scene->rigidbody_world != nullptr && scene->rigidbody_world->constraints != nullptr &&
-       (ID_IS_LINKED(scene->rigidbody_world->constraints) ||
+       (!ID_IS_EDITABLE(scene->rigidbody_world->constraints) ||
         ID_IS_OVERRIDE_LIBRARY(scene->rigidbody_world->constraints))))
   {
     return false;
@@ -62,7 +61,7 @@ static bool ED_operator_rigidbody_con_active_poll(bContext *C)
   }
 
   if (ED_operator_object_active_editable(C)) {
-    Object *ob = ED_object_active_context(C);
+    Object *ob = blender::ed::object::context_active_object(C);
     return (ob && ob->rigidbody_constraint);
   }
   return false;
@@ -101,7 +100,7 @@ bool ED_rigidbody_constraint_add(
 
   DEG_relations_tag_update(bmain);
   DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
-  DEG_id_tag_update(&rbw->constraints->id, ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&rbw->constraints->id, ID_RECALC_SYNC_TO_EVAL);
 
   return true;
 }

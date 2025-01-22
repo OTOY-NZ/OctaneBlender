@@ -17,20 +17,17 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
-
 #include "BKE_context.hh"
-#include "BKE_fcurve.h"
+#include "BKE_fcurve.hh"
 #include "BKE_screen.hh"
 
 #include "ED_anim_api.hh"
 #include "ED_screen.hh"
 #include "UI_interface.hh"
 
-#include "RNA_access.hh"
 #include "RNA_prototypes.h"
 
-#include "graph_intern.h" /* own include */
+#include "graph_intern.hh" /* own include */
 
 /* -------------------------------------------------------------------- */
 /** \name Set Up Drivers Editor
@@ -141,7 +138,7 @@ bool graphop_visible_keyframes_poll(bContext *C)
   }
 
   LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
-    FCurve *fcu = (FCurve *)ale->data;
+    const FCurve *fcu = (const FCurve *)ale->data;
 
     /* visible curves for selection must fulfill the following criteria:
      * - it has bezier keyframes
@@ -195,7 +192,7 @@ bool graphop_editable_keyframes_poll(bContext *C)
   }
 
   LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
-    FCurve *fcu = (FCurve *)ale->data;
+    const FCurve *fcu = (const FCurve *)ale->data;
 
     /* editable curves must fulfill the following criteria:
      * - it has bezier keyframes
@@ -250,7 +247,7 @@ bool graphop_active_fcurve_poll(bContext *C)
    */
   has_fcurve = ((ale->data) && ELEM(ale->type, ANIMTYPE_FCURVE, ANIMTYPE_NLACURVE));
   if (has_fcurve) {
-    FCurve *fcu = (FCurve *)ale->data;
+    const FCurve *fcu = (const FCurve *)ale->data;
     has_fcurve = (fcu->flag & FCURVE_VISIBLE) != 0;
   }
 

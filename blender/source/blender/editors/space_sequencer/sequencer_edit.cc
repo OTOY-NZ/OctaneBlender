@@ -15,17 +15,16 @@
 #include "BLI_timecode.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_anim_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_sound_types.h"
 
 #include "BKE_context.hh"
-#include "BKE_fcurve.h"
-#include "BKE_global.h"
+#include "BKE_global.hh"
 #include "BKE_main.hh"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 #include "BKE_sound.h"
 
 #include "SEQ_add.hh"
@@ -66,21 +65,6 @@
 
 /* Own include. */
 #include "sequencer_intern.hh"
-
-/* -------------------------------------------------------------------- */
-/** \name Structs & Enums
- * \{ */
-
-struct TransSeq {
-  int start, machine;
-  int startofs, endofs;
-  int anim_startofs, anim_endofs;
-  // int final_left, final_right; /* UNUSED. */
-  int len;
-  float content_start;
-};
-
-/** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name Public Context Checks
@@ -197,7 +181,7 @@ bool sequencer_strip_poll(bContext *C)
 bool sequencer_strip_editable_poll(bContext *C)
 {
   Scene *scene = CTX_data_scene(C);
-  if (ID_IS_LINKED(&scene->id)) {
+  if (!ID_IS_EDITABLE(&scene->id)) {
     return false;
   }
   Editing *ed = SEQ_editing_get(scene);
@@ -637,17 +621,18 @@ static int sequencer_slip_exec(bContext *C, wmOperator *op)
 
 static void sequencer_slip_update_header(Scene *scene, ScrArea *area, SlipData *data, int offset)
 {
-  char msg[UI_MAX_DRAW_STR];
+  if (area == nullptr) {
+    return;
+  }
 
-  if (area) {
-    if (hasNumInput(&data->num_input)) {
-      char num_str[NUM_STR_REP_LEN];
-      outputNumInput(&data->num_input, num_str, &scene->unit);
-      SNPRINTF(msg, IFACE_("Slip offset: %s"), num_str);
-    }
-    else {
-      SNPRINTF(msg, IFACE_("Slip offset: %d"), offset);
-    }
+  char msg[UI_MAX_DRAW_STR];
+  if (hasNumInput(&data->num_input)) {
+    char num_str[NUM_STR_REP_LEN];
+    outputNumInput(&data->num_input, num_str, &scene->unit);
+    SNPRINTF(msg, IFACE_("Slip offset: %s"), num_str);
+  }
+  else {
+    SNPRINTF(msg, IFACE_("Slip offset: %d"), offset);
   }
 
   ED_area_status_text(area, msg);
@@ -1072,6 +1057,7 @@ static int sequencer_refresh_all_exec(bContext *C, wmOperator * /*op*/)
   Editing *ed = SEQ_editing_get(scene);
 
   SEQ_relations_free_imbuf(scene, &ed->seqbase, false);
+  blender::seq::media_presence_free(scene);
 
   WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
 
@@ -1338,7 +1324,7 @@ static const EnumPropertyItem prop_split_types[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-EnumPropertyItem prop_side_types[] = {
+const EnumPropertyItem prop_side_types[] = {
     {SEQ_SIDE_MOUSE, "MOUSE", 0, "Mouse Position", ""},
     {SEQ_SIDE_LEFT, "LEFT", 0, "Left", ""},
     {SEQ_SIDE_RIGHT, "RIGHT", 0, "Right", ""},
@@ -1677,13 +1663,9 @@ static int sequencer_delete_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  if (RNA_boolean_get(op->ptr, "use_retiming_mode")) {
-    sequencer_retiming_key_remove_exec(C, op);
-  }
-
   SEQ_prefetch_stop(scene);
 
-  for (Sequence *seq : selected_strips_from_context(C)) {
+  for (Sequence *seq : ED_sequencer_selected_strips_from_context(C)) {
     SEQ_edit_flag_for_removal(scene, seqbasep, seq);
     if (delete_data) {
       sequencer_delete_strip_data(C, seq);
@@ -1713,24 +1695,7 @@ static int sequencer_delete_invoke(bContext *C, wmOperator *op, const wmEvent *e
     }
   }
 
-  if (sequencer_retiming_mode_is_active(C)) {
-    RNA_boolean_set(op->ptr, "use_retiming_mode", true);
-  }
-
   return sequencer_delete_exec(C, op);
-}
-
-static bool sequencer_delete_poll_property(const bContext * /* C */,
-                                           wmOperator *op,
-                                           const PropertyRNA *prop)
-{
-  const char *prop_id = RNA_property_identifier(prop);
-
-  if (STREQ(prop_id, "delete_data") && RNA_boolean_get(op->ptr, "use_retiming_mode")) {
-    return false;
-  }
-
-  return true;
 }
 
 void SEQUENCER_OT_delete(wmOperatorType *ot)
@@ -1745,7 +1710,6 @@ void SEQUENCER_OT_delete(wmOperatorType *ot)
   ot->invoke = sequencer_delete_invoke;
   ot->exec = sequencer_delete_exec;
   ot->poll = sequencer_edit_poll;
-  ot->poll_property = sequencer_delete_poll_property;
 
   /* Flags. */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -1757,13 +1721,6 @@ void SEQUENCER_OT_delete(wmOperatorType *ot)
                              "Delete Data",
                              "After removing the Strip, delete the associated data also");
   RNA_def_property_flag(ot->prop, PROP_SKIP_SAVE);
-
-  ot->prop = RNA_def_boolean(ot->srna,
-                             "use_retiming_mode",
-                             false,
-                             "Use Retiming Data",
-                             "Operate on retiming data instead of strips");
-  RNA_def_property_flag(ot->prop, PROP_HIDDEN);
 }
 
 /** \} */
@@ -1913,6 +1870,12 @@ static int sequencer_separate_images_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
+static int sequencer_separate_images_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  return WM_operator_props_popup_confirm_ex(
+      C, op, event, IFACE_("Separate Sequence Images"), IFACE_("Separate"));
+}
+
 void SEQUENCER_OT_images_separate(wmOperatorType *ot)
 {
   /* Identifiers. */
@@ -1922,7 +1885,7 @@ void SEQUENCER_OT_images_separate(wmOperatorType *ot)
 
   /* Api callbacks. */
   ot->exec = sequencer_separate_images_exec;
-  ot->invoke = WM_operator_props_popup_confirm;
+  ot->invoke = sequencer_separate_images_invoke;
   ot->poll = sequencer_edit_poll;
 
   /* Flags. */
@@ -2019,7 +1982,7 @@ static int sequencer_meta_make_exec(bContext *C, wmOperator *op)
   }
 
   seqm->machine = active_seq ? active_seq->machine : channel_max;
-  BLI_strncpy(seqm->name + 2, "MetaStrip", sizeof(seqm->name) - 2);
+  BLI_strncpy(seqm->name + 2, DATA_("MetaStrip"), sizeof(seqm->name) - 2);
   SEQ_sequence_base_unique_name_recursive(scene, &ed->seqbase, seqm);
   seqm->start = meta_start_frame;
   seqm->len = meta_end_frame - meta_start_frame;
@@ -2264,7 +2227,7 @@ static Sequence *find_next_prev_sequence(Scene *scene, Sequence *test, int lr, i
   return best_seq; /* Can be nullptr. */
 }
 
-static bool seq_is_parent(Sequence *par, Sequence *seq)
+static bool seq_is_parent(const Sequence *par, const Sequence *seq)
 {
   return ((par->seq1 == seq) || (par->seq2 == seq) || (par->seq3 == seq));
 }
@@ -2618,7 +2581,7 @@ void SEQUENCER_OT_change_effect_input(wmOperatorType *ot)
 /** \name Change Effect Type Operator
  * \{ */
 
-EnumPropertyItem sequencer_prop_effect_types[] = {
+const EnumPropertyItem sequencer_prop_effect_types[] = {
     {SEQ_TYPE_CROSS, "CROSS", 0, "Crossfade", "Crossfade effect strip type"},
     {SEQ_TYPE_ADD, "ADD", 0, "Add", "Add effect strip type"},
     {SEQ_TYPE_SUB, "SUBTRACT", 0, "Subtract", "Subtract effect strip type"},
@@ -2987,7 +2950,7 @@ static int sequencer_export_subtitles_exec(bContext *C, wmOperator *op)
   Sequence *seq, *seq_next;
   Editing *ed = SEQ_editing_get(scene);
   ListBase text_seq = {nullptr};
-  int iter = 1; /* Sequence numbers in .srt files are 1-indexed. */
+  int iter = 1; /* Sequence numbers in `.srt` files are 1-indexed. */
   FILE *file;
   char filepath[FILE_MAX];
 

@@ -101,7 +101,6 @@ static bool is_object_keyframe(Object *ob, int frame_index)
 static void add_keyframes_from(bAction *action, BCFrameSet &frameset)
 {
   if (action) {
-    FCurve *fcu = nullptr;
     LISTBASE_FOREACH (FCurve *, fcu, &action->curves) {
       BezTriple *bezt = fcu->bezt;
       for (int i = 0; i < fcu->totvert; bezt++, i++) {
@@ -257,7 +256,7 @@ void BCAnimationSampler::find_depending_animated(std::set<Object *> &animated_ob
     std::set<Object *>::iterator it;
     for (it = candidates.begin(); it != candidates.end(); ++it) {
       Object *cob = *it;
-      ListBase *conlist = ED_object_constraint_active_list(cob);
+      ListBase *conlist = blender::ed::object::constraint_active_list(cob);
       if (is_animated_by_constraint(cob, conlist, animated_objects)) {
         animated_objects.insert(cob);
         candidates.erase(cob);

@@ -8,8 +8,6 @@
 
 #pragma once
 
-#include "BKE_lib_id.hh"
-
 #include "BLI_map.hh"
 #include "BLI_math_base.hh"
 #include "BLI_math_vector_types.hh"
@@ -71,6 +69,7 @@ struct NurbsElement {
    */
   std::string group_;
   int degree = 0;
+  float2 range{0.0f, 1.0f};
   /**
    * Indices into the global list of vertex coordinates. Must be non-negative.
    */

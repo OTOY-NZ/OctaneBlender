@@ -11,23 +11,13 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
-#include "DNA_modifier_types.h"
-#include "DNA_object_types.h"
 
-#include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 
-#include "BKE_customdata.hh"
-#include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
-#include "BKE_mesh_mapping.hh"
-#include "BKE_mesh_runtime.hh"
 #include "BKE_multires.hh"
 #include "BKE_subdiv_eval.hh"
-
-#include "DEG_depsgraph_query.hh"
 
 void multires_reshape_apply_base_update_mesh_coords(MultiresReshapeContext *reshape_context)
 {
@@ -145,7 +135,8 @@ void multires_reshape_apply_base_refit_base_mesh(MultiresReshapeContext *reshape
 
 void multires_reshape_apply_base_refine_from_base(MultiresReshapeContext *reshape_context)
 {
-  BKE_subdiv_eval_refine_from_mesh(reshape_context->subdiv, reshape_context->base_mesh, nullptr);
+  blender::bke::subdiv::eval_refine_from_mesh(
+      reshape_context->subdiv, reshape_context->base_mesh, nullptr);
 }
 
 void multires_reshape_apply_base_refine_from_deform(MultiresReshapeContext *reshape_context)
@@ -160,7 +151,8 @@ void multires_reshape_apply_base_refine_from_deform(MultiresReshapeContext *resh
   blender::Array<blender::float3> deformed_verts =
       BKE_multires_create_deformed_base_mesh_vert_coords(depsgraph, object, mmd);
 
-  BKE_subdiv_eval_refine_from_mesh(reshape_context->subdiv,
-                                   reshape_context->base_mesh,
-                                   reinterpret_cast<float(*)[3]>(deformed_verts.data()));
+  blender::bke::subdiv::eval_refine_from_mesh(
+      reshape_context->subdiv,
+      reshape_context->base_mesh,
+      reinterpret_cast<float(*)[3]>(deformed_verts.data()));
 }

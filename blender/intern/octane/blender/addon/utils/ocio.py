@@ -93,7 +93,10 @@ def update_ocio_info_xml_request(ocio_config_file_path, ocio_use_other_config_fi
         content = ElementTree.fromstring(response).get("content")
         try:
             content_et = ElementTree.fromstring(content)
-            color_space_octane_value = int(content_et.get("intermediateColorSpaceOctaneValue"))
+            try:
+                color_space_octane_value = int(content_et.get("intermediateColorSpaceOctaneValue"))
+            except TypeError:
+                color_space_octane_value = 0
             color_space_ocio_name = content_et.get("intermediateColorSpaceOCIOName")
             role_names = []
             role_color_space_names = []
@@ -180,7 +183,10 @@ def update_ocio_info(_self=None, _context=None):
     ocio_manager.ocio_config_map.update(color_space_name_map)
     if ocio_use_automatic:
         automatic_ocio_intermediate_color_space_octane = int(ocio_manager.raw_ocio_info[7][0])
-        automatic_ocio_intermediate_color_space_ocio = "[ColorSpace]" + ocio_manager.raw_ocio_info[7][1]
+        try:
+            automatic_ocio_intermediate_color_space_ocio = "[ColorSpace]" + ocio_manager.raw_ocio_info[7][1]
+        except TypeError:
+            automatic_ocio_intermediate_color_space_ocio = ""
         for k, v in preferences.rna_type.properties['ocio_intermediate_color_space_octane'].enum_items.items():
             if v.value == automatic_ocio_intermediate_color_space_octane:
                 preferences.ocio_intermediate_color_space_octane = k

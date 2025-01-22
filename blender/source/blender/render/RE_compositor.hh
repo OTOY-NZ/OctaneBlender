@@ -8,7 +8,8 @@
 
 namespace blender::realtime_compositor {
 class RenderContext;
-}
+class Profiler;
+}  // namespace blender::realtime_compositor
 
 struct bNodeTree;
 struct Depsgraph;
@@ -32,9 +33,9 @@ void RE_compositor_execute(Render &render,
                            const Scene &scene,
                            const RenderData &render_data,
                            const bNodeTree &node_tree,
-                           const bool use_file_output,
                            const char *view_name,
-                           blender::realtime_compositor::RenderContext *render_context);
+                           blender::realtime_compositor::RenderContext *render_context,
+                           blender::realtime_compositor::Profiler *profiler);
 
 /* Free compositor caches. */
 void RE_compositor_free(Render &render);

@@ -22,7 +22,7 @@
 #include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -92,6 +92,11 @@ static const EnumPropertyItem rna_enum_keyframe_type_items[] = {
      ICON_KEYTYPE_JITTER_VEC,
      "Jitter",
      "A filler or baked keyframe for keying on ones, or some other purpose as needed"},
+    {BEZT_KEYTYPE_GENERATED,
+     "GENERATED",
+     ICON_KEYTYPE_GENERATED_VEC,
+     "Generated",
+     "A key generated automatically by a tool, not manually created"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -122,6 +127,11 @@ static const EnumPropertyItem rna_enum_onion_keyframe_type_items[] = {
      ICON_KEYTYPE_JITTER_VEC,
      "Jitter",
      "A filler or baked keyframe for keying on ones, or some other purpose as needed"},
+    {BEZT_KEYTYPE_GENERATED,
+     "GENERATED",
+     ICON_KEYTYPE_GENERATED_VEC,
+     "Generated",
+     "A key generated automatically by a tool, not manually created"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -340,13 +350,13 @@ static int rna_GPencilLayer_active_frame_editable(const PointerRNA *ptr, const c
 static void set_parent(bGPDlayer *gpl, Object *par, const int type, const char *substr)
 {
   if (type == PAROBJECT) {
-    invert_m4_m4(gpl->inverse, par->object_to_world);
+    invert_m4_m4(gpl->inverse, par->object_to_world().ptr());
     gpl->parent = par;
     gpl->partype |= PAROBJECT;
     gpl->parsubstr[0] = 0;
   }
   else if (type == PARSKEL) {
-    invert_m4_m4(gpl->inverse, par->object_to_world);
+    invert_m4_m4(gpl->inverse, par->object_to_world().ptr());
     gpl->parent = par;
     gpl->partype |= PARSKEL;
     gpl->parsubstr[0] = 0;
@@ -355,7 +365,7 @@ static void set_parent(bGPDlayer *gpl, Object *par, const int type, const char *
     bPoseChannel *pchan = BKE_pose_channel_find_name(par->pose, substr);
     if (pchan) {
       float tmp_mat[4][4];
-      mul_m4_m4m4(tmp_mat, par->object_to_world, pchan->pose_mat);
+      mul_m4_m4m4(tmp_mat, par->object_to_world().ptr(), pchan->pose_mat);
 
       invert_m4_m4(gpl->inverse, tmp_mat);
       gpl->parent = par;
@@ -363,7 +373,7 @@ static void set_parent(bGPDlayer *gpl, Object *par, const int type, const char *
       STRNCPY(gpl->parsubstr, substr);
     }
     else {
-      invert_m4_m4(gpl->inverse, par->object_to_world);
+      invert_m4_m4(gpl->inverse, par->object_to_world().ptr());
       gpl->parent = par;
       gpl->partype |= PAROBJECT;
       gpl->parsubstr[0] = 0;
@@ -756,8 +766,7 @@ static void rna_GPencil_stroke_point_add(
     /* Calc geometry data. */
     BKE_gpencil_stroke_geometry_update(gpd, stroke);
 
-    DEG_id_tag_update(&gpd->id,
-                      ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_COPY_ON_WRITE);
+    DEG_id_tag_update(&gpd->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_SYNC_TO_EVAL);
 
     WM_main_add_notifier(NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
   }
@@ -819,7 +828,7 @@ static void rna_GPencil_stroke_point_pop(ID *id,
   /* Calc geometry data. */
   BKE_gpencil_stroke_geometry_update(gpd, stroke);
 
-  DEG_id_tag_update(&gpd->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&gpd->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_SYNC_TO_EVAL);
 
   WM_main_add_notifier(NC_GPENCIL | NA_EDITED, nullptr);
 }
@@ -832,8 +841,7 @@ static void rna_GPencil_stroke_point_update(ID *id, bGPDstroke *stroke)
   if (stroke) {
     BKE_gpencil_stroke_geometry_update(gpd, stroke);
 
-    DEG_id_tag_update(&gpd->id,
-                      ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_COPY_ON_WRITE);
+    DEG_id_tag_update(&gpd->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_SYNC_TO_EVAL);
 
     WM_main_add_notifier(NC_GPENCIL | NA_EDITED, nullptr);
   }
@@ -913,7 +921,7 @@ static void rna_GPencil_stroke_remove(ID *id,
   BKE_gpencil_free_stroke(stroke);
   RNA_POINTER_INVALIDATE(stroke_ptr);
 
-  DEG_id_tag_update(&gpd->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&gpd->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_SYNC_TO_EVAL);
   WM_main_add_notifier(NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
 }
 
@@ -931,7 +939,7 @@ static void rna_GPencil_stroke_close(ID *id,
 
   BKE_gpencil_stroke_close(stroke);
 
-  DEG_id_tag_update(&gpd->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&gpd->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_SYNC_TO_EVAL);
   WM_main_add_notifier(NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
 }
 
@@ -2446,9 +2454,9 @@ static void rna_def_gpencil_data(BlenderRNA *brna)
   PropertyRNA *prop;
   FunctionRNA *func;
 
-  static float default_1[4] = {0.6f, 0.6f, 0.6f, 0.5f};
-  static float onion_dft1[3] = {0.145098f, 0.419608f, 0.137255f}; /* green */
-  static float onion_dft2[3] = {0.125490f, 0.082353f, 0.529412f}; /* blue */
+  static const float default_1[4] = {0.6f, 0.6f, 0.6f, 0.5f};
+  static const float onion_dft1[3] = {0.145098f, 0.419608f, 0.137255f}; /* green */
+  static const float onion_dft2[3] = {0.125490f, 0.082353f, 0.529412f}; /* blue */
 
   static const EnumPropertyItem stroke_thickness_items[] = {
       {0, "WORLDSPACE", 0, "World Space", "Set stroke thickness relative to the world space"},

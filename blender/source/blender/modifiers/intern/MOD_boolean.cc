@@ -17,24 +17,20 @@
 #include "BLI_vector.hh"
 #include "BLI_vector_set.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "DNA_collection_types.h"
 #include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_collection.h"
-#include "BKE_context.hh"
-#include "BKE_global.h" /* only to check G.debug */
+#include "BKE_collection.hh"
+#include "BKE_global.hh" /* only to check G.debug */
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_material.h"
 #include "BKE_mesh.hh"
-#include "BKE_mesh_boolean_convert.hh"
 #include "BKE_mesh_wrapper.hh"
 #include "BKE_modifier.hh"
 
@@ -45,17 +41,13 @@
 #include "RNA_prototypes.h"
 
 #include "MOD_ui_common.hh"
-#include "MOD_util.hh"
-
-#include "DEG_depsgraph_query.hh"
 
 #include "MEM_guardedalloc.h"
 
+#include "GEO_mesh_boolean.hh"
 #include "GEO_randomize.hh"
 
 #include "bmesh.hh"
-#include "bmesh_tools.hh"
-#include "tools/bmesh_boolean.hh"
 #include "tools/bmesh_intersect.hh"
 
 // #define DEBUG_TIME
@@ -92,7 +84,7 @@ static bool is_disabled(const Scene * /*scene*/, ModifierData *md, bool /*use_re
   }
   if (bmd->flag & eBooleanModifierFlag_Collection) {
     /* The Exact solver tolerates an empty collection. */
-    return !col && bmd->solver != eBooleanModifierSolver_Exact;
+    return !col && bmd->solver != eBooleanModifierSolver_Mesh_Arr;
   }
   return false;
 }
@@ -143,8 +135,8 @@ static Mesh *get_quick_mesh(
 
           float imat[4][4];
           float omat[4][4];
-          invert_m4_m4(imat, ob_self->object_to_world);
-          mul_m4_m4m4(omat, imat, ob_operand_ob->object_to_world);
+          invert_m4_m4(imat, ob_self->object_to_world().ptr());
+          mul_m4_m4m4(omat, imat, ob_operand_ob->object_to_world().ptr());
 
           MutableSpan<float3> positions = result->vert_positions_for_write();
           for (const int i : positions.index_range()) {
@@ -184,7 +176,7 @@ static bool BMD_error_messages(const Object *ob, ModifierData *md)
   bool error_returns_result = false;
 
   const bool operand_collection = (bmd->flag & eBooleanModifierFlag_Collection) != 0;
-  const bool use_exact = bmd->solver == eBooleanModifierSolver_Exact;
+  const bool use_exact = bmd->solver == eBooleanModifierSolver_Mesh_Arr;
   const bool operation_intersect = bmd->operation == eBooleanModifierOp_Intersect;
 
 #ifndef WITH_GMP
@@ -231,8 +223,8 @@ static BMesh *BMD_mesh_bm_create(
   SCOPED_TIMER(__func__);
 #endif
 
-  *r_is_flip = (is_negative_m4(object->object_to_world) !=
-                is_negative_m4(operand_ob->object_to_world));
+  *r_is_flip = (is_negative_m4(object->object_to_world().ptr()) !=
+                is_negative_m4(operand_ob->object_to_world().ptr()));
 
   const BMAllocTemplate allocsize = BMALLOC_TEMPLATE_FROM_ME(mesh, mesh_operand_ob);
 
@@ -284,9 +276,7 @@ static void BMD_mesh_intersection(BMesh *bm,
   /* Main BMesh intersection setup. */
   /* Create tessellation & intersect. */
   const int looptris_tot = poly_to_tri_count(bm->totface, bm->totloop);
-  BMLoop *(*looptris)[3] = (BMLoop * (*)[3])
-      MEM_malloc_arrayN(looptris_tot, sizeof(*looptris), __func__);
-
+  blender::Array<std::array<BMLoop *, 3>> looptris(looptris_tot);
   BM_mesh_calc_tessellation_beauty(bm, looptris);
 
   /* postpone this until after tessellating
@@ -299,8 +289,8 @@ static void BMD_mesh_intersection(BMesh *bm,
 
     float imat[4][4];
     float omat[4][4];
-    invert_m4_m4(imat, object->object_to_world);
-    mul_m4_m4m4(omat, imat, operand_ob->object_to_world);
+    invert_m4_m4(imat, object->object_to_world().ptr());
+    mul_m4_m4m4(omat, imat, operand_ob->object_to_world().ptr());
 
     BMVert *eve;
     i = 0;
@@ -324,7 +314,7 @@ static void BMD_mesh_intersection(BMesh *bm,
     Array<short> material_remap(operand_ob->totcol ? operand_ob->totcol : 1);
 
     /* Using original (not evaluated) object here since we are writing to it. */
-    /* XXX Pretty sure comment above is fully wrong now with CoW & co ? */
+    /* XXX Pretty sure comment above is fully wrong now with copy-on-eval & co ? */
     BKE_object_material_remap_calc(ctx->object, operand_ob, material_remap.data());
 
     BMFace *efa;
@@ -339,6 +329,9 @@ static void BMD_mesh_intersection(BMesh *bm,
       /* remap material */
       if (LIKELY(efa->mat_nr < operand_ob->totcol)) {
         efa->mat_nr = material_remap[efa->mat_nr];
+      }
+      else {
+        efa->mat_nr = 0;
       }
 
       if (++i == i_faces_end) {
@@ -364,7 +357,6 @@ static void BMD_mesh_intersection(BMesh *bm,
 
   BM_mesh_intersect(bm,
                     looptris,
-                    looptris_tot,
                     bm_face_isect_pair,
                     nullptr,
                     false,
@@ -375,8 +367,6 @@ static void BMD_mesh_intersection(BMesh *bm,
                     false,
                     bmd->operation,
                     bmd->double_threshold);
-
-  MEM_freeN(looptris);
 }
 
 #ifdef WITH_GMP
@@ -386,9 +376,9 @@ static void BMD_mesh_intersection(BMesh *bm,
  * or to zero if there aren't enough slots in the destination. */
 static Array<short> get_material_remap_index_based(Object *dest_ob, Object *src_ob)
 {
-  int n = src_ob->totcol;
+  const int n = src_ob->totcol;
   if (n <= 0) {
-    n = 1;
+    return Array<short>(1, 0);
   }
   Array<short> remap(n);
   BKE_object_material_remap_calc(dest_ob, src_ob, remap.data());
@@ -428,7 +418,7 @@ static Mesh *exact_boolean_mesh(BooleanModifierData *bmd,
   }
 
   meshes.append(mesh);
-  obmats.append(float4x4(ctx->object->object_to_world));
+  obmats.append(ctx->object->object_to_world());
   material_remaps.append({});
 
   const BooleanModifierMaterialMode material_mode = BooleanModifierMaterialMode(
@@ -451,7 +441,7 @@ static Mesh *exact_boolean_mesh(BooleanModifierData *bmd,
     }
     BKE_mesh_wrapper_ensure_mdata(mesh_operand);
     meshes.append(mesh_operand);
-    obmats.append(float4x4(bmd->object->object_to_world));
+    obmats.append(bmd->object->object_to_world());
     if (material_mode == eBooleanModifierMaterialMode_Index) {
       material_remaps.append(get_material_remap_index_based(ctx->object, bmd->object));
     }
@@ -471,7 +461,7 @@ static Mesh *exact_boolean_mesh(BooleanModifierData *bmd,
           }
           BKE_mesh_wrapper_ensure_mdata(collection_mesh);
           meshes.append(collection_mesh);
-          obmats.append(float4x4(ob->object_to_world));
+          obmats.append(ob->object_to_world());
           if (material_mode == eBooleanModifierMaterialMode_Index) {
             material_remaps.append(get_material_remap_index_based(ctx->object, ob));
           }
@@ -486,14 +476,18 @@ static Mesh *exact_boolean_mesh(BooleanModifierData *bmd,
 
   const bool use_self = (bmd->flag & eBooleanModifierFlag_Self) != 0;
   const bool hole_tolerant = (bmd->flag & eBooleanModifierFlag_HoleTolerant) != 0;
-  Mesh *result = blender::meshintersect::direct_mesh_boolean(
+  blender::geometry::boolean::BooleanOpParameters op_params;
+  op_params.boolean_mode = blender::geometry::boolean::Operation(bmd->operation);
+  op_params.no_self_intersections = !use_self;
+  op_params.watertight = !hole_tolerant;
+  op_params.no_nested_components = false;
+  Mesh *result = blender::geometry::boolean::mesh_boolean(
       meshes,
       obmats,
-      float4x4(ctx->object->object_to_world),
+      ctx->object->object_to_world(),
       material_remaps,
-      use_self,
-      hole_tolerant,
-      bmd->operation,
+      op_params,
+      blender::geometry::boolean::Solver::MeshArr,
       nullptr);
 
   if (material_mode == eBooleanModifierMaterialMode_Transfer) {
@@ -522,7 +516,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
   }
 
 #ifdef WITH_GMP
-  if (bmd->solver == eBooleanModifierSolver_Exact) {
+  if (bmd->solver == eBooleanModifierSolver_Mesh_Arr) {
     return exact_boolean_mesh(bmd, ctx, mesh);
   }
 #endif
@@ -640,7 +634,7 @@ static void solver_options_panel_draw(const bContext * /*C*/, Panel *panel)
   uiLayout *layout = panel->layout;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  const bool use_exact = RNA_enum_get(ptr, "solver") == eBooleanModifierSolver_Exact;
+  const bool use_exact = RNA_enum_get(ptr, "solver") == eBooleanModifierSolver_Mesh_Arr;
 
   uiLayoutSetPropSep(layout, true);
 

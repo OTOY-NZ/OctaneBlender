@@ -91,7 +91,7 @@ static void extract_edituv_stretch_angle_init(const MeshRenderData &mr,
                                               void *buf,
                                               void *tls_data)
 {
-  GPUVertBuf *vbo = static_cast<GPUVertBuf *>(buf);
+  gpu::VertBuf *vbo = static_cast<gpu::VertBuf *>(buf);
   static GPUVertFormat format = {0};
   if (format.attr_len == 0) {
     /* Waning: adjust #UVStretchAngle struct accordingly. */
@@ -100,7 +100,7 @@ static void extract_edituv_stretch_angle_init(const MeshRenderData &mr,
   }
 
   GPU_vertbuf_init_with_format(vbo, &format);
-  GPU_vertbuf_data_alloc(vbo, mr.loop_len);
+  GPU_vertbuf_data_alloc(vbo, mr.corners_num);
 
   MeshExtract_StretchAngle_Data *data = static_cast<MeshExtract_StretchAngle_Data *>(tls_data);
   data->vbo_data = (UVStretchAngle *)GPU_vertbuf_get_data(vbo);
@@ -228,13 +228,13 @@ static void extract_edituv_stretch_angle_init_subdiv(const DRWSubdivCache &subdi
                                                      void *buffer,
                                                      void * /*tls_data*/)
 {
-  GPUVertBuf *refined_vbo = static_cast<GPUVertBuf *>(buffer);
+  gpu::VertBuf *refined_vbo = static_cast<gpu::VertBuf *>(buffer);
 
   GPU_vertbuf_init_build_on_device(
       refined_vbo, get_edituv_stretch_angle_format_subdiv(), subdiv_cache.num_subdiv_loops);
 
-  GPUVertBuf *pos_nor = cache.final.buff.vbo.pos_nor;
-  GPUVertBuf *uvs = cache.final.buff.vbo.uv;
+  gpu::VertBuf *pos_nor = cache.final.buff.vbo.pos;
+  gpu::VertBuf *uvs = cache.final.buff.vbo.uv;
 
   /* It may happen that the data for the UV editor is requested before (as a separate draw update)
    * the data for the mesh when switching to the `UV Editing` workspace, and therefore the position
@@ -242,19 +242,17 @@ static void extract_edituv_stretch_angle_init_subdiv(const DRWSubdivCache &subdi
    * data should already be evaluated if we are here. This can happen if the subsurf modifier is
    * only enabled in edit-mode. See #96338. */
   if (!pos_nor) {
-    const DRWSubdivLooseGeom &loose_geom = subdiv_cache.loose_geom;
     pos_nor = GPU_vertbuf_calloc();
-    GPU_vertbuf_init_build_on_device(pos_nor,
-                                     draw_subdiv_get_pos_nor_format(),
-                                     subdiv_cache.num_subdiv_loops + loose_geom.loop_len);
+    GPU_vertbuf_init_build_on_device(
+        pos_nor, draw_subdiv_get_pos_nor_format(), subdiv_full_vbo_size(mr, subdiv_cache));
 
     draw_subdiv_extract_pos_nor(subdiv_cache, nullptr, pos_nor, nullptr);
   }
 
   /* UVs are stored contiguously so we need to compute the offset in the UVs buffer for the active
    * UV layer. */
-  CustomData *cd_ldata = (mr.extract_type == MR_EXTRACT_MESH) ? &mr.mesh->corner_data :
-                                                                &mr.bm->ldata;
+  const CustomData *cd_ldata = (mr.extract_type == MR_EXTRACT_MESH) ? &mr.mesh->corner_data :
+                                                                      &mr.bm->ldata;
 
   uint32_t uv_layers = cache.cd_used.uv;
   /* HACK to fix #68857 */
@@ -282,7 +280,7 @@ static void extract_edituv_stretch_angle_init_subdiv(const DRWSubdivCache &subdi
   draw_subdiv_build_edituv_stretch_angle_buffer(
       subdiv_cache, pos_nor, uvs, uvs_offset, refined_vbo);
 
-  if (!cache.final.buff.vbo.pos_nor) {
+  if (!cache.final.buff.vbo.pos) {
     GPU_vertbuf_discard(pos_nor);
   }
 }

@@ -119,16 +119,25 @@ ccl_device_inline bool is_zero(const float2 a)
   return (a.x == 0.0f && a.y == 0.0f);
 }
 
-ccl_device_inline float average(const float2 a)
-{
-  return (a.x + a.y) * (1.0f / 2.0f);
-}
-
 ccl_device_inline float dot(const float2 a, const float2 b)
 {
   return a.x * b.x + a.y * b.y;
 }
 #endif
+
+ccl_device_inline float average(const float2 a)
+{
+  return (a.x + a.y) * (1.0f / 2.0f);
+}
+
+ccl_device_inline bool isequal(const float2 a, const float2 b)
+{
+#if defined(__KERNEL_METAL__)
+  return all(a == b);
+#else
+  return a == b;
+#endif
+}
 
 ccl_device_inline float len(const float2 a)
 {
@@ -155,6 +164,12 @@ ccl_device_inline float len_squared(const float2 a)
   return dot(a, a);
 }
 
+ccl_device_inline float2 safe_normalize(const float2 a)
+{
+  float t = len(a);
+  return (t != 0.0f) ? a / t : a;
+}
+
 #if !defined(__KERNEL_METAL__)
 ccl_device_inline float distance(const float2 a, const float2 b)
 {
@@ -177,12 +192,6 @@ ccl_device_inline float2 normalize_len(const float2 a, ccl_private float *t)
   return a / (*t);
 }
 
-ccl_device_inline float2 safe_normalize(const float2 a)
-{
-  float t = len(a);
-  return (t != 0.0f) ? a / t : a;
-}
-
 ccl_device_inline float2 min(const float2 a, const float2 b)
 {
   return make_float2(min(a.x, b.x), min(a.y, b.y));
@@ -196,6 +205,11 @@ ccl_device_inline float2 max(const float2 a, const float2 b)
 ccl_device_inline float2 clamp(const float2 a, const float2 mn, const float2 mx)
 {
   return min(max(a, mn), mx);
+}
+
+ccl_device_inline float2 fmod(const float2 a, const float b)
+{
+  return make_float2(fmodf(a.x, b), fmodf(a.y, b));
 }
 
 ccl_device_inline float2 fabs(const float2 a)

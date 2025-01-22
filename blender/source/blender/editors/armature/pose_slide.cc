@@ -32,10 +32,9 @@
 
 #include "BLI_array.hh"
 #include "BLI_blenlib.h"
-#include "BLI_dlrbTree.h"
 #include "BLI_math_rotation.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
@@ -43,20 +42,17 @@
 #include "DNA_scene_types.h"
 #include "DNA_vec_types.h"
 
-#include "BKE_fcurve.h"
+#include "BKE_fcurve.hh"
 #include "BKE_nla.h"
 
 #include "BKE_context.hh"
 #include "BKE_layer.hh"
-#include "BKE_object.hh"
-#include "BKE_report.h"
-#include "BKE_scene.h"
-#include "BKE_screen.hh"
+#include "BKE_report.hh"
+#include "BKE_scene.hh"
 #include "BKE_unit.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
-#include "RNA_path.hh"
 #include "RNA_prototypes.h"
 
 #include "WM_api.hh"
@@ -65,25 +61,16 @@
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
-#include "ED_armature.hh"
 #include "ED_keyframes_edit.hh"
 #include "ED_keyframes_keylist.hh"
 #include "ED_markers.hh"
 #include "ED_numinput.hh"
 #include "ED_screen.hh"
-#include "ED_space_api.hh"
 #include "ED_util.hh"
 
 #include "ANIM_fcurve.hh"
 
-#include "GPU_immediate.h"
-#include "GPU_immediate_util.h"
-#include "GPU_matrix.h"
-#include "GPU_state.h"
-
 #include "armature_intern.hh"
-
-#include "BLF_api.hh"
 
 using blender::Vector;
 
@@ -344,7 +331,7 @@ static bool pose_frame_range_from_object_get(tPoseSlideOp *pso,
 /**
  * Helper for apply() - perform sliding for some value.
  */
-static void pose_slide_apply_val(tPoseSlideOp *pso, FCurve *fcu, Object *ob, float *val)
+static void pose_slide_apply_val(tPoseSlideOp *pso, const FCurve *fcu, Object *ob, float *val)
 {
   float prev_frame, next_frame;
   float prev_weight, next_weight;
@@ -552,10 +539,10 @@ static void pose_slide_apply_props(tPoseSlideOp *pso,
               if (UNLIKELY(uint(fcu->array_index) >= RNA_property_array_length(&ptr, prop))) {
                 break; /* Out of range, skip. */
               }
-              tval = RNA_property_boolean_get_index(&ptr, prop, fcu->array_index);
+              tval = float(RNA_property_boolean_get_index(&ptr, prop, fcu->array_index));
             }
             else {
-              tval = RNA_property_boolean_get(&ptr, prop);
+              tval = float(RNA_property_boolean_get(&ptr, prop));
             }
 
             pose_slide_apply_val(pso, fcu, pfl->ob, &tval);
@@ -590,7 +577,7 @@ static void pose_slide_apply_props(tPoseSlideOp *pso,
  */
 static void pose_slide_apply_quat(tPoseSlideOp *pso, tPChanFCurveLink *pfl)
 {
-  FCurve *fcu_w = nullptr, *fcu_x = nullptr, *fcu_y = nullptr, *fcu_z = nullptr;
+  const FCurve *fcu_w = nullptr, *fcu_x = nullptr, *fcu_y = nullptr, *fcu_z = nullptr;
   bPoseChannel *pchan = pfl->pchan;
   LinkData *ld = nullptr;
   char *path = nullptr;
@@ -1724,10 +1711,13 @@ static void propagate_curve_values(ListBase /*tPChanFCurveLink*/ *pflinks,
   LISTBASE_FOREACH (tPChanFCurveLink *, pfl, pflinks) {
     LISTBASE_FOREACH (LinkData *, ld, &pfl->fcurves) {
       FCurve *fcu = (FCurve *)ld->data;
+      if (!fcu->bezt) {
+        continue;
+      }
       const float current_fcu_value = evaluate_fcurve(fcu, source_frame);
       LISTBASE_FOREACH (FrameLink *, target_frame, target_frames) {
         insert_vert_fcurve(
-            fcu, {target_frame->frame, current_fcu_value}, settings, INSERTKEY_NEEDED);
+            fcu, {target_frame->frame, current_fcu_value}, settings, INSERTKEY_NOFLAGS);
       }
     }
   }
@@ -1739,16 +1729,17 @@ static float find_next_key(ListBase *pflinks, const float start_frame)
   LISTBASE_FOREACH (tPChanFCurveLink *, pfl, pflinks) {
     LISTBASE_FOREACH (LinkData *, ld, &pfl->fcurves) {
       FCurve *fcu = (FCurve *)ld->data;
+      if (!fcu->bezt) {
+        continue;
+      }
       bool replace;
       int current_frame_index = BKE_fcurve_bezt_binarysearch_index(
           fcu->bezt, start_frame, fcu->totvert, &replace);
       if (replace) {
-        const int bezt_index = min_ii(current_frame_index + 1, fcu->totvert - 1);
-        target_frame = min_ff(target_frame, fcu->bezt[bezt_index].vec[1][0]);
+        current_frame_index += 1;
       }
-      else {
-        target_frame = min_ff(target_frame, fcu->bezt[current_frame_index].vec[1][0]);
-      }
+      const int bezt_index = min_ii(current_frame_index, fcu->totvert - 1);
+      target_frame = min_ff(target_frame, fcu->bezt[bezt_index].vec[1][0]);
     }
   }
 
@@ -1760,7 +1751,10 @@ static float find_last_key(ListBase *pflinks)
   float target_frame = FLT_MIN;
   LISTBASE_FOREACH (tPChanFCurveLink *, pfl, pflinks) {
     LISTBASE_FOREACH (LinkData *, ld, &pfl->fcurves) {
-      FCurve *fcu = (FCurve *)ld->data;
+      const FCurve *fcu = (const FCurve *)ld->data;
+      if (!fcu->bezt) {
+        continue;
+      }
       target_frame = max_ff(target_frame, fcu->bezt[fcu->totvert - 1].vec[1][0]);
     }
   }

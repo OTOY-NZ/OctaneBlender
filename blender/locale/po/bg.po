@@ -1,10 +1,10 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.1.0 Release Candidate (b'64bfe491645f')\n"
+"Project-Id-Version: Blender 4.2.0 Release Candidate (b'988bf2b88f3b')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-01-01 00:00+0000\n"
-"PO-Revision-Date: 2023-09-26 10:37+0000\n"
+"POT-Creation-Date: 2024-07-15 07:57+0000\n"
+"PO-Revision-Date: 2024-04-29 13:31+0000\n"
 "Last-Translator: Gilberto Rodrigues <gilbertorodrigues@outlook.com>\n"
 "Language-Team: Bulgarian <https://translate.blender.org/projects/blender-ui/ui/bg/>\n"
 "Language: bg\n"
@@ -42,6 +42,18 @@ msgstr "Модул"
 
 msgid "On"
 msgstr "Върху"
+
+
+msgid "Always"
+msgstr "Винаги"
+
+
+msgid "Center"
+msgstr "Център"
+
+
+msgid "Bottom"
+msgstr "Дъно"
 
 
 msgid "Action"
@@ -148,10 +160,6 @@ msgid "Index"
 msgstr "Индекс"
 
 
-msgid "Remove"
-msgstr "Премахване"
-
-
 msgid "Fill"
 msgstr "Запълни"
 
@@ -178,10 +186,6 @@ msgstr "Отрязване"
 
 msgid "Left"
 msgstr "Ляво"
-
-
-msgid "Center"
-msgstr "Център"
 
 
 msgid "Default Goal (vertex target position) value, when no Vertex Group used"
@@ -274,10 +278,6 @@ msgstr "Натрупващо се"
 
 msgid "Camera"
 msgstr "Камера"
-
-
-msgid "Always"
-msgstr "Винаги"
 
 
 msgid "Front"
@@ -428,10 +428,6 @@ msgid "Delete"
 msgstr "Изтриване"
 
 
-msgid "Bottom"
-msgstr "Дъно"
-
-
 msgid "Collision"
 msgstr "Противоречия"
 
@@ -552,14 +548,6 @@ msgid "Layers"
 msgstr "Слоеве"
 
 
-msgid "AVI Raw"
-msgstr "AVI Суров"
-
-
-msgid "Movie"
-msgstr "Преместване"
-
-
 msgid "Render polygon transparent, depending on alpha channel of the texture"
 msgstr "Генериране на полигона като прозрачен, според канала за запълненост на текстурата"
 
@@ -634,6 +622,10 @@ msgstr "Модел"
 
 msgid "Sharp"
 msgstr "Рязък"
+
+
+msgid "Themes"
+msgstr "Теми"
 
 
 msgid "Mist"
@@ -1006,6 +998,10 @@ msgid "Report"
 msgstr "Докладвай"
 
 
+msgid "Handles"
+msgstr "Дръжки"
+
+
 msgid "Shrink/Fatten"
 msgstr "Смали/Удебели"
 
@@ -1041,10 +1037,6 @@ msgid "Spin"
 msgstr "Завъртане"
 
 
-msgid "Handles"
-msgstr "Дръжки"
-
-
 msgid "Item"
 msgstr "Артикул"
 
@@ -1055,14 +1047,6 @@ msgstr "Лампа"
 
 msgid "Other"
 msgstr "Колеб"
-
-
-msgid "Compress"
-msgstr "Компресирай"
-
-
-msgid "End frame for baking"
-msgstr "Краен кадър за изпичане"
 
 
 msgid "Open"
@@ -1099,12 +1083,21 @@ msgid "Unlink"
 msgstr "Развържи"
 
 
+msgctxt "Operator"
+msgid "Rotate"
+msgstr "Завърти"
+
+
 msgid "Both"
 msgstr "Двете"
 
 
 msgid "Join"
 msgstr "Събери"
+
+
+msgid "Remove"
+msgstr "Премахване"
 
 
 msgid "Next Keyframe"
@@ -1125,10 +1118,6 @@ msgstr "X Начало"
 
 msgid "Y Start"
 msgstr "Y Начало"
-
-
-msgid "Shadeless"
-msgstr "Без сенки"
 
 
 msgctxt "Operator"
@@ -1217,6 +1206,10 @@ msgid "Smooth along the Z axis"
 msgstr "Ограничение на въртенето по дълбочинната ос"
 
 
+msgid "End frame for baking"
+msgstr "Краен кадър за изпичане"
+
+
 msgctxt "Operator"
 msgid "Make Single User"
 msgstr "Направи с Единствен Потребител"
@@ -1227,6 +1220,10 @@ msgid "Hide"
 msgstr "Скриване"
 
 
+msgid "Wrap"
+msgstr "Обвив"
+
+
 msgctxt "Operator"
 msgid "Bake"
 msgstr "Изпечи"
@@ -1235,10 +1232,6 @@ msgstr "Изпечи"
 msgctxt "Operator"
 msgid "Add Constraint"
 msgstr "Добавяне на ограничител"
-
-
-msgid "Monkey"
-msgstr "Маймуна"
 
 
 msgctxt "Operator"
@@ -1401,10 +1394,6 @@ msgid "Toggle Quad View"
 msgstr "Превключване на Четворен Иглед"
 
 
-msgid "Themes"
-msgstr "Теми"
-
-
 msgid "Editing"
 msgstr "Редактиране"
 
@@ -1506,11 +1495,6 @@ msgstr "Натиск/Дърпане"
 
 
 msgctxt "Operator"
-msgid "Rotate"
-msgstr "Завърти"
-
-
-msgctxt "Operator"
 msgid "Shrink/Fatten"
 msgstr "Смали/Удебели"
 
@@ -1544,10 +1528,6 @@ msgstr "Делта X"
 msgctxt "Operator"
 msgid "Zoom Camera 1:1"
 msgstr "Увеличи Камера 1:1"
-
-
-msgid "Wrap"
-msgstr "Обвив"
 
 
 msgid "Doc ID"
@@ -1622,6 +1602,10 @@ msgstr "Отмяна/Връщане"
 
 msgid "Save the current file in the desired location"
 msgstr "Запазва текущия файл в желаната директория"
+
+
+msgid "Compress"
+msgstr "Компресирай"
 
 
 msgid "Write compressed .blend file"
@@ -1775,6 +1759,10 @@ msgid "Animated"
 msgstr "Анимирани"
 
 
+msgid "Author:"
+msgstr "Автор"
+
+
 msgid "Torus"
 msgstr "Тороид"
 
@@ -1824,16 +1812,8 @@ msgid "Missing script files"
 msgstr "Липсват скриптови файлове"
 
 
-msgid "Author:"
-msgstr "Автор"
-
-
 msgid "Layer:"
 msgstr "Слой"
-
-
-msgid "Stop this job"
-msgstr "Спри тази задача"
 
 
 msgid "%d items"
@@ -1844,12 +1824,16 @@ msgid "OK"
 msgstr "ОК"
 
 
-msgid "Fields"
-msgstr "Полета"
-
-
 msgid "Cancel"
 msgstr "Отказ"
+
+
+msgid "Stop this job"
+msgstr "Спри тази задача"
+
+
+msgid "Fields"
+msgstr "Полета"
 
 
 msgid "{} (String)"
@@ -1860,8 +1844,8 @@ msgid "{} (Integer)"
 msgstr "{} (Integer)"
 
 
-msgid "OK?"
-msgstr "ОК?"
+msgid "Movie"
+msgstr "Преместване"
 
 
 msgid "English (English)"

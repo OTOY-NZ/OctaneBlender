@@ -12,7 +12,7 @@
 
 #include "BKE_asset.hh"
 #include "BKE_context.hh"
-#include "BKE_global.h"
+#include "BKE_global.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
@@ -20,14 +20,12 @@
 
 #include "UI_interface_icons.hh"
 
-#include "RNA_access.hh"
 #include "RNA_prototypes.h"
 
 #include "ED_asset_list.hh"
 #include "ED_asset_mark_clear.hh"
 #include "ED_asset_type.hh"
 
-#include "WM_api.hh"
 #include "WM_types.hh"
 
 namespace blender::ed::asset {
@@ -71,6 +69,14 @@ bool clear_id(ID *id)
   if (!id->asset_data) {
     return false;
   }
+
+  const IDTypeInfo *id_type_info = BKE_idtype_get_info_from_id(id);
+  if (AssetTypeInfo *type_info = id_type_info->asset_type_info) {
+    if (type_info->on_clear_asset_fn) {
+      type_info->on_clear_asset_fn(id, id->asset_data);
+    }
+  }
+
   BKE_asset_metadata_free(&id->asset_data);
   id_fake_user_clear(id);
 

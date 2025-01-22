@@ -2,11 +2,11 @@
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
-#include "GPU_context.h"
-#include "GPU_immediate.h"
-#include "GPU_shader.h"
-#include "GPU_state.h"
-#include "GPU_texture.h"
+#include "GPU_context.hh"
+#include "GPU_immediate.hh"
+#include "GPU_shader.hh"
+#include "GPU_state.hh"
+#include "GPU_texture.hh"
 
 #include "RE_engine.h"
 
@@ -699,8 +699,7 @@ static void draw_tile(const float2 &zoom,
 
   /* Trick to keep sharp rendering without jagged edges on all GPUs.
    *
-   * The idea here is to enforce driver to use linear interpolation when the image is not zoomed
-   * in.
+   * The idea here is to enforce driver to use linear interpolation when the image is zoomed out.
    * For the render result with a resolution divider in effect we always use nearest interpolation.
    *
    * Use explicit MIN assignment to make sure the driver does not have an undefined behavior at
@@ -711,8 +710,8 @@ static void draw_tile(const float2 &zoom,
     /* Resolution divider is different from 1, force nearest interpolation. */
     GPU_texture_bind_ex(texture.gpu_texture, GPUSamplerState::default_sampler(), 0);
   }
-  else if (zoomed_width - draw_tile.params.size.x > 0.5f ||
-           zoomed_height - draw_tile.params.size.y > 0.5f)
+  else if (zoomed_width - draw_tile.params.size.x > -0.5f ||
+           zoomed_height - draw_tile.params.size.y > -0.5f)
   {
     GPU_texture_bind_ex(texture.gpu_texture, GPUSamplerState::default_sampler(), 0);
   }
@@ -776,7 +775,7 @@ void BlenderDisplayDriver::draw(const Params &params)
   const int position_attribute = GPU_vertformat_attr_add(
       format, display_shader_->position_attribute_name, GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
 
-  /* Note: Shader is bound again through IMM to register this shader with the IMM module
+  /* NOTE: Shader is bound again through IMM to register this shader with the IMM module
    * and perform required setup for IMM rendering. This is required as the IMM module
    * needs to be aware of which shader is bound, and the main display shader
    * is bound externally. */

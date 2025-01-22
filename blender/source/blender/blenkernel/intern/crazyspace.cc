@@ -11,15 +11,12 @@
 #include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
-#include "DNA_scene_types.h"
 
-#include "BLI_bitmap.h"
 #include "BLI_linklist.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_DerivedMesh.hh"
 #include "BKE_crazyspace.hh"
 #include "BKE_curves.hh"
 #include "BKE_editmesh.hh"
@@ -27,12 +24,12 @@
 #include "BKE_grease_pencil.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
+#include "BKE_mesh_runtime.hh"
 #include "BKE_mesh_wrapper.hh"
 #include "BKE_modifier.hh"
 #include "BKE_multires.hh"
-#include "BKE_object.hh"
 #include "BKE_object_types.hh"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 
 #include "DEG_depsgraph_query.hh"
 
@@ -100,17 +97,17 @@ blender::Array<blender::float3> BKE_crazyspace_get_mapped_editverts(Depsgraph *d
   if (modifiers_disable_subsurf_temporary(obedit_eval, cageIndex)) {
     /* Need to make new cage.
      * TODO: Avoid losing original evaluated geometry. */
-    makeDerivedMesh(depsgraph, scene_eval, obedit_eval, &CD_MASK_BAREMESH);
+    blender::bke::mesh_data_update(*depsgraph, *scene_eval, *obedit_eval, CD_MASK_BAREMESH);
   }
 
   /* Now get the cage. */
   BMEditMesh *em_eval = BKE_editmesh_from_object(obedit_eval);
-  Mesh *mesh_eval_cage = editbmesh_get_eval_cage(
+  Mesh *mesh_eval_cage = blender::bke::editbmesh_get_eval_cage(
       depsgraph, scene_eval, obedit_eval, em_eval, &CD_MASK_BAREMESH);
 
   const int nverts = em_eval->bm->totvert;
   blender::Array<blender::float3> vertexcos(nverts);
-  mesh_get_mapped_verts_coords(mesh_eval_cage, vertexcos);
+  blender::bke::mesh_get_mapped_verts_coords(mesh_eval_cage, vertexcos);
 
   /* Set back the flag, and ensure new cage needs to be built. */
   if (modifiers_disable_subsurf_temporary(obedit_eval, cageIndex)) {
@@ -126,6 +123,7 @@ void BKE_crazyspace_set_quats_editmesh(BMEditMesh *em,
                                        float (*quats)[4],
                                        const bool use_select)
 {
+  using namespace blender;
   BMFace *f;
   BMIter iter;
   int index;
@@ -154,21 +152,20 @@ void BKE_crazyspace_set_quats_editmesh(BMEditMesh *em,
 
       if (!BM_elem_flag_test(l_iter->v, BM_ELEM_TAG)) {
         const float *co_prev, *co_curr, *co_next; /* orig */
-        const float *vd_prev, *vd_curr, *vd_next; /* deform */
 
-        const int i_prev = BM_elem_index_get(l_iter->prev->v);
-        const int i_curr = BM_elem_index_get(l_iter->v);
-        const int i_next = BM_elem_index_get(l_iter->next->v);
+        const int vert_prev = BM_elem_index_get(l_iter->prev->v);
+        const int vert = BM_elem_index_get(l_iter->v);
+        const int vert_next = BM_elem_index_get(l_iter->next->v);
 
         /* Retrieve mapped coordinates. */
-        vd_prev = mappedcos[i_prev];
-        vd_curr = mappedcos[i_curr];
-        vd_next = mappedcos[i_next];
+        const float3 &vd_prev = mappedcos[vert_prev];
+        const float3 &vd_curr = mappedcos[vert];
+        const float3 &vd_next = mappedcos[vert_next];
 
         if (has_origcos) {
-          co_prev = origcos[i_prev];
-          co_curr = origcos[i_curr];
-          co_next = origcos[i_next];
+          co_prev = origcos[vert_prev];
+          co_curr = origcos[vert];
+          co_next = origcos[vert_next];
         }
         else {
           co_prev = l_iter->prev->v->co;
@@ -176,7 +173,7 @@ void BKE_crazyspace_set_quats_editmesh(BMEditMesh *em,
           co_next = l_iter->next->v->co;
         }
 
-        set_crazy_vertex_quat(quats[i_curr], co_curr, co_next, co_prev, vd_curr, vd_next, vd_prev);
+        set_crazy_vertex_quat(quats[vert], co_curr, co_next, co_prev, vd_curr, vd_next, vd_prev);
 
         BM_elem_flag_enable(l_iter->v, BM_ELEM_TAG);
       }
@@ -194,44 +191,32 @@ void BKE_crazyspace_set_quats_mesh(Mesh *mesh,
   BitVector<> vert_tag(mesh->verts_num);
 
   /* first store two sets of tangent vectors in vertices, we derive it just from the face-edges */
-  const Span<float3> positions = mesh->vert_positions();
+  const Span<float3> positions = origcos.is_empty() ? mesh->vert_positions() : origcos;
   const OffsetIndices<int> faces = mesh->faces();
   const Span<int> corner_verts = mesh->corner_verts();
-  const bool has_origcos = !origcos.is_empty();
 
   for (const int i : faces.index_range()) {
     const IndexRange face = faces[i];
 
     for (const int corner : face) {
-      const int i_curr = corner_verts[corner];
-      if (vert_tag[i_curr]) {
+      const int vert = corner_verts[corner];
+      if (vert_tag[vert]) {
         continue;
       }
-      const int i_prev = corner_verts[mesh::face_corner_prev(face, corner)];
-      const int i_next = corner_verts[mesh::face_corner_next(face, corner)];
+      const int vert_prev = corner_verts[mesh::face_corner_prev(face, corner)];
+      const int vert_next = corner_verts[mesh::face_corner_next(face, corner)];
 
-      const float *co_prev, *co_curr, *co_next; /* orig */
-      const float *vd_prev, *vd_curr, *vd_next; /* deform */
+      const float3 &vd_prev = mappedcos[vert_prev];
+      const float3 &vd_curr = mappedcos[vert];
+      const float3 &vd_next = mappedcos[vert_next];
 
-      /* Retrieve mapped coordinates. */
-      vd_prev = mappedcos[i_prev];
-      vd_curr = mappedcos[i_curr];
-      vd_next = mappedcos[i_next];
+      const float3 &co_prev = positions[vert_prev];
+      const float3 &co_curr = positions[vert];
+      const float3 &co_next = positions[vert_next];
 
-      if (has_origcos) {
-        co_prev = origcos[i_prev];
-        co_curr = origcos[i_curr];
-        co_next = origcos[i_next];
-      }
-      else {
-        co_prev = positions[i_prev];
-        co_curr = positions[i_curr];
-        co_next = positions[i_next];
-      }
+      set_crazy_vertex_quat(quats[vert], co_curr, co_next, co_prev, vd_curr, vd_next, vd_prev);
 
-      set_crazy_vertex_quat(quats[i_curr], co_curr, co_next, co_prev, vd_curr, vd_next, vd_prev);
-
-      vert_tag[i_curr].set();
+      vert_tag[vert].set();
     }
   }
 }
@@ -263,7 +248,7 @@ int BKE_crazyspace_get_first_deform_matrices_editbmesh(
   for (i = 0; md && i <= cageIndex; i++, md = md->next) {
     const ModifierTypeInfo *mti = BKE_modifier_get_info(static_cast<ModifierType>(md->type));
 
-    if (!editbmesh_modifier_is_enabled(scene, ob, md, mesh != nullptr)) {
+    if (!blender::bke::editbmesh_modifier_is_enabled(scene, ob, md, mesh != nullptr)) {
       continue;
     }
 
@@ -276,7 +261,8 @@ int BKE_crazyspace_get_first_deform_matrices_editbmesh(
         cd_mask_extra = datamasks->mask;
         BLI_linklist_free((LinkNode *)datamasks, nullptr);
 
-        mesh = BKE_mesh_wrapper_from_editmesh(em, &cd_mask_extra, me_input);
+        mesh = BKE_mesh_wrapper_from_editmesh(
+            std::make_shared<BMEditMesh>(*em), &cd_mask_extra, me_input);
         deformcos.reinitialize(verts_num);
         BKE_mesh_wrapper_vert_coords_copy(mesh, deformcos);
         deformmats.reinitialize(verts_num);
@@ -290,7 +276,7 @@ int BKE_crazyspace_get_first_deform_matrices_editbmesh(
   }
 
   for (; md && i <= cageIndex; md = md->next, i++) {
-    if (editbmesh_modifier_is_enabled(scene, ob, md, mesh != nullptr) &&
+    if (blender::bke::editbmesh_modifier_is_enabled(scene, ob, md, mesh != nullptr) &&
         BKE_modifier_is_correctable_deformed(md))
     {
       modifiers_left_num++;
@@ -345,7 +331,7 @@ int BKE_sculpt_get_first_deform_matrices(Depsgraph *depsgraph,
                                          blender::Array<blender::float3, 0> &deformcos)
 {
   ModifierData *md;
-  Mesh *me_eval = nullptr;
+  Mesh *mesh_eval = nullptr;
   int modifiers_left_num = 0;
   VirtualModifierData virtual_modifier_data;
   Object object_eval;
@@ -374,14 +360,14 @@ int BKE_sculpt_get_first_deform_matrices(Depsgraph *depsgraph,
       if (deformmats.is_empty()) {
         /* NOTE: Evaluated object is re-set to its original un-deformed state. */
         Mesh *mesh = static_cast<Mesh *>(object_eval.data);
-        me_eval = BKE_mesh_copy_for_eval(mesh);
+        mesh_eval = BKE_mesh_copy_for_eval(*mesh);
         deformcos = mesh->vert_positions();
         deformmats.reinitialize(mesh->verts_num);
         deformmats.fill(blender::float3x3::identity());
       }
 
       if (mti->deform_matrices) {
-        mti->deform_matrices(md, &mectx, me_eval, deformcos, deformmats);
+        mti->deform_matrices(md, &mectx, mesh_eval, deformcos, deformmats);
       }
       else {
         /* More complex handling will continue in BKE_crazyspace_build_sculpt.
@@ -402,8 +388,8 @@ int BKE_sculpt_get_first_deform_matrices(Depsgraph *depsgraph,
     }
   }
 
-  if (me_eval != nullptr) {
-    BKE_id_free(nullptr, me_eval);
+  if (mesh_eval != nullptr) {
+    BKE_id_free(nullptr, mesh_eval);
   }
 
   return modifiers_left_num;
@@ -438,6 +424,7 @@ void BKE_crazyspace_build_sculpt(Depsgraph *depsgraph,
     VirtualModifierData virtual_modifier_data;
     Object object_eval;
     crazyspace_init_object_for_eval(depsgraph, object, &object_eval);
+    BLI_SCOPED_DEFER([&]() { MEM_delete(object_eval.runtime); });
     ModifierData *md = BKE_modifiers_get_virtual_modifierlist(&object_eval,
                                                               &virtual_modifier_data);
     const ModifierEvalContext mectx = {depsgraph, &object_eval, ModifierApplyFlag(0)};
@@ -457,7 +444,7 @@ void BKE_crazyspace_build_sculpt(Depsgraph *depsgraph,
         }
 
         if (mesh_eval == nullptr) {
-          mesh_eval = BKE_mesh_copy_for_eval(mesh);
+          mesh_eval = BKE_mesh_copy_for_eval(*mesh);
         }
 
         mti->deform_verts(md, &mectx, mesh_eval, deformedVerts);
@@ -602,9 +589,9 @@ GeometryDeformation get_evaluated_curves_deformation(const Object *ob_eval, cons
   if (edit_component_eval != nullptr) {
     const CurvesEditHints *edit_hints = edit_component_eval->curves_edit_hints_.get();
     if (edit_hints != nullptr && &edit_hints->curves_id_orig == &curves_id_orig) {
-      if (edit_hints->positions.has_value()) {
-        BLI_assert(edit_hints->positions->size() == points_num);
-        deformation.positions = *edit_hints->positions;
+      if (const std::optional<Span<float3>> positions = edit_hints->positions()) {
+        BLI_assert(positions->size() == points_num);
+        deformation.positions = *positions;
         uses_extra_positions = true;
       }
       if (edit_hints->deform_mats.has_value()) {
@@ -646,43 +633,40 @@ GeometryDeformation get_evaluated_grease_pencil_drawing_deformation(const Object
   const GreasePencil &grease_pencil_orig = *static_cast<const GreasePencil *>(ob_orig.data);
 
   const Span<const bke::greasepencil::Layer *> layers_orig = grease_pencil_orig.layers();
-  BLI_assert(layer_index >= 0 && layer_index < layers_orig.size());
-  const int drawing_index = layers_orig[layer_index]->drawing_index_at(frame);
-  if (drawing_index == -1) {
+  const bke::greasepencil::Layer &layer_orig = *grease_pencil_orig.layer(layer_index);
+  const bke::greasepencil::Drawing *drawing_orig = grease_pencil_orig.get_drawing_at(layer_orig,
+                                                                                     frame);
+  if (drawing_orig == nullptr) {
     return {};
   }
-  const GreasePencilDrawingBase *drawing_base = grease_pencil_orig.drawing(drawing_index);
-  if (drawing_base->type != GP_DRAWING) {
-    return {};
-  }
-  const bke::greasepencil::Drawing &drawing_orig =
-      reinterpret_cast<const GreasePencilDrawing *>(drawing_base)->wrap();
 
   GeometryDeformation deformation;
   /* Use the undeformed positions by default. */
-  deformation.positions = drawing_orig.strokes().positions();
+  deformation.positions = drawing_orig->strokes().positions();
 
   if (ob_eval == nullptr) {
     return deformation;
   }
   const GeometrySet *geometry_eval = ob_eval->runtime->geometry_set_eval;
-  if (geometry_eval == nullptr || !geometry_eval->has<GeometryComponentEditData>()) {
+  if (geometry_eval == nullptr) {
     return deformation;
   }
 
   /* If there are edit hints, use the positions of those. */
-  const GeometryComponentEditData &edit_component_eval =
-      *geometry_eval->get_component<GeometryComponentEditData>();
-  const GreasePencilEditHints *edit_hints = edit_component_eval.grease_pencil_edit_hints_.get();
-  if (edit_hints != nullptr && &edit_hints->grease_pencil_id_orig == &grease_pencil_orig &&
-      edit_hints->drawing_hints.has_value())
-  {
-    BLI_assert(edit_hints->drawing_hints->size() == layers_orig.size());
-    const GreasePencilDrawingEditHints &drawing_hints =
-        edit_hints->drawing_hints.value()[layer_index];
-    if (drawing_hints.positions.has_value()) {
-      deformation.positions = *drawing_hints.positions;
-      return deformation;
+  if (geometry_eval->has<GeometryComponentEditData>()) {
+    const GeometryComponentEditData &edit_component_eval =
+        *geometry_eval->get_component<GeometryComponentEditData>();
+    const GreasePencilEditHints *edit_hints = edit_component_eval.grease_pencil_edit_hints_.get();
+    if (edit_hints != nullptr && &edit_hints->grease_pencil_id_orig == &grease_pencil_orig &&
+        edit_hints->drawing_hints.has_value())
+    {
+      BLI_assert(edit_hints->drawing_hints->size() == layers_orig.size());
+      const GreasePencilDrawingEditHints &drawing_hints =
+          edit_hints->drawing_hints.value()[layer_index];
+      if (const std::optional<Span<float3>> positions = drawing_hints.positions()) {
+        deformation.positions = *positions;
+        return deformation;
+      }
     }
   }
 
@@ -693,24 +677,17 @@ GeometryDeformation get_evaluated_grease_pencil_drawing_deformation(const Object
     if (const GreasePencil *grease_pencil_eval = grease_pencil_component_eval->get()) {
       Span<const bke::greasepencil::Layer *> layers_eval = grease_pencil_eval->layers();
       if (layers_eval.size() == layers_orig.size()) {
-        const bke::greasepencil::Layer *layer_eval = layers_eval[layer_index];
-        const int drawing_index_eval = layer_eval->drawing_index_at(frame);
-        if (drawing_index_eval != -1) {
-          const GreasePencilDrawingBase *drawing_base_eval = grease_pencil_eval->drawing(
-              drawing_index_eval);
-          if (drawing_base_eval->type != GP_DRAWING) {
+        const bke::greasepencil::Layer &layer_eval = *layers_eval[layer_index];
+        if (const bke::greasepencil::Drawing *drawing_eval = grease_pencil_eval->get_drawing_at(
+                layer_eval, frame))
+          if (drawing_eval->strokes().points_num() == drawing_orig->strokes().points_num()) {
+            deformation.positions = drawing_eval->strokes().positions();
             return deformation;
           }
-          const bke::greasepencil::Drawing &drawing_eval =
-              reinterpret_cast<const GreasePencilDrawing *>(drawing_base_eval)->wrap();
-          if (drawing_eval.strokes().points_num() == drawing_orig.strokes().points_num()) {
-            deformation.positions = drawing_eval.strokes().positions();
-            return deformation;
-          }
-        }
       }
     }
   }
+
   return deformation;
 }
 

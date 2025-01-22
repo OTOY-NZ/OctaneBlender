@@ -3,9 +3,9 @@ import bpy
 from bpy.app.handlers import persistent
 from octane.utils import logger, utility
 
-OCTANE_BLENDER_VERSION = '29.3'
-OCTANE_VERSION = 14000004
-OCTANE_VERSION_STR = "2024.1 Alpha 4"
+OCTANE_BLENDER_VERSION = '29.10'
+OCTANE_VERSION = 14000007
+OCTANE_VERSION_STR = "2024.1 Beta 2"
 
 
 def get_current_octane_blender_version():

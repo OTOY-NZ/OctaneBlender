@@ -11,10 +11,10 @@
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "BKE_file_handler.hh"
-#include "BKE_idprop.h"
+#include "BKE_idprop.hh"
 #include "BKE_screen.hh"
 
 #include "BLI_listbase.h"
@@ -63,7 +63,7 @@ const EnumPropertyItem rna_enum_uilist_layout_type_items[] = {
 
 #  include "BKE_context.hh"
 #  include "BKE_main.hh"
-#  include "BKE_report.h"
+#  include "BKE_report.hh"
 #  include "BKE_screen.hh"
 
 #  include "ED_asset_library.hh"
@@ -612,7 +612,7 @@ static void uilist_filter_items(uiList *ui_list,
 
   /* We have to do some final checks and transforms... */
   {
-    int i, filter_exclude = ui_list->filter_flag & UILST_FLT_EXCLUDE;
+    int i;
     if (filter_flags) {
       flt_data->items_filter_flags = static_cast<int *>(MEM_mallocN(sizeof(int) * len, __func__));
       memcpy(flt_data->items_filter_flags, filter_flags, sizeof(int) * len);
@@ -625,10 +625,7 @@ static void uilist_filter_items(uiList *ui_list,
         int t_idx, t_ni, prev_ni;
         flt_data->items_shown = 0;
         for (i = 0, shown_idx = 0; i < len; i++) {
-          if (filter_flags[i] & UILST_FLT_ITEM_NEVER_SHOW) {
-            BLI_assert_msg(false, "Bit reserved for internal use");
-          }
-          else if ((filter_flags[i] & UILST_FLT_ITEM) ^ filter_exclude) {
+          if (UI_list_item_index_is_filtered_visible(ui_list, i)) {
             filter_neworder[shown_idx++] = filter_neworder[i];
           }
         }
@@ -656,10 +653,7 @@ static void uilist_filter_items(uiList *ui_list,
         /* we still have to set flt_data->items_shown... */
         flt_data->items_shown = 0;
         for (i = 0; i < len; i++) {
-          if (filter_flags[i] & UILST_FLT_ITEM_NEVER_SHOW) {
-            /* Pass. */
-          }
-          else if ((filter_flags[i] & UILST_FLT_ITEM) ^ filter_exclude) {
+          if (UI_list_item_index_is_filtered_visible(ui_list, i)) {
             flt_data->items_shown++;
           }
         }
@@ -1151,6 +1145,28 @@ static bool asset_shelf_poll(const bContext *C, const AssetShelfType *shelf_type
   return is_visible;
 }
 
+static const AssetWeakReference *asset_shelf_get_active_asset(const AssetShelfType *shelf_type)
+{
+  extern FunctionRNA rna_AssetShelf_get_active_asset_func;
+
+  PointerRNA ptr = RNA_pointer_create(nullptr, shelf_type->rna_ext.srna, nullptr); /* dummy */
+
+  FunctionRNA *func = &rna_AssetShelf_get_active_asset_func;
+
+  ParameterList list;
+  RNA_parameter_list_create(&list, &ptr, func);
+  shelf_type->rna_ext.call(nullptr, &ptr, func, &list);
+
+  void *ret;
+  RNA_parameter_get_lookup(&list, "asset_reference", &ret);
+  /* Get the value before freeing. */
+  AssetWeakReference *active_asset = *(AssetWeakReference **)ret;
+
+  RNA_parameter_list_free(&list);
+
+  return active_asset;
+}
+
 static void asset_shelf_draw_context_menu(const bContext *C,
                                           const AssetShelfType *shelf_type,
                                           const AssetRepresentationHandle *asset,
@@ -1181,23 +1197,12 @@ static bool rna_AssetShelf_unregister(Main *bmain, StructRNA *type)
     return false;
   }
 
-  SpaceType *space_type = BKE_spacetype_from_id(shelf_type->space_type);
-  if (!space_type) {
-    return false;
-  }
-
   blender::ed::asset::shelf::type_unlink(*bmain, *shelf_type);
 
   RNA_struct_free_extension(type, &shelf_type->rna_ext);
   RNA_struct_free(&BLENDER_RNA, type);
 
-  const auto it = std::find_if(
-      space_type->asset_shelf_types.begin(),
-      space_type->asset_shelf_types.end(),
-      [&](const std::unique_ptr<AssetShelfType> &type) { return type.get() == shelf_type; });
-  BLI_assert(it != space_type->asset_shelf_types.end());
-
-  space_type->asset_shelf_types.remove(it - space_type->asset_shelf_types.begin());
+  blender::ed::asset::shelf::type_unregister(*shelf_type);
 
   /* update while blender is running */
   WM_main_add_notifier(NC_WINDOW, nullptr);
@@ -1220,7 +1225,7 @@ static StructRNA *rna_AssetShelf_register(Main *bmain,
   dummy_shelf.type = shelf_type.get();
   PointerRNA dummy_shelf_ptr = RNA_pointer_create(nullptr, &RNA_AssetShelf, &dummy_shelf);
 
-  bool have_function[3];
+  bool have_function[4];
 
   /* validate the python class */
   if (validate(&dummy_shelf_ptr, data, have_function) != 0) {
@@ -1236,27 +1241,21 @@ static StructRNA *rna_AssetShelf_register(Main *bmain,
     return nullptr;
   }
 
-  SpaceType *space_type = BKE_spacetype_from_id(shelf_type->space_type);
-  if (!space_type) {
-    BLI_assert_unreachable();
-    return nullptr;
-  }
-
   /* Check if we have registered this asset shelf type before, and remove it. */
-  for (std::unique_ptr<AssetShelfType> &iter_shelf_type : space_type->asset_shelf_types) {
-    if (STREQ(iter_shelf_type->idname, shelf_type->idname)) {
-      if (iter_shelf_type->rna_ext.srna) {
-        BKE_reportf(reports,
-                    RPT_INFO,
-                    "Registering asset shelf class: '%s' has been registered before, "
-                    "unregistering previous",
-                    shelf_type->idname);
+  {
+    AssetShelfType *existing_shelf_type = blender::ed::asset::shelf::type_find_from_idname(
+        shelf_type->idname);
+    if (existing_shelf_type && existing_shelf_type->rna_ext.srna) {
+      BKE_reportf(reports,
+                  RPT_INFO,
+                  "Registering asset shelf class: '%s' has been registered before, "
+                  "unregistering previous",
+                  shelf_type->idname);
 
-        rna_AssetShelf_unregister(bmain, iter_shelf_type->rna_ext.srna);
-      }
-      break;
+      rna_AssetShelf_unregister(bmain, existing_shelf_type->rna_ext.srna);
     }
   }
+
   if (!RNA_struct_available_or_report(reports, shelf_type->idname)) {
     return nullptr;
   }
@@ -1273,16 +1272,35 @@ static StructRNA *rna_AssetShelf_register(Main *bmain,
 
   shelf_type->poll = have_function[0] ? asset_shelf_poll : nullptr;
   shelf_type->asset_poll = have_function[1] ? asset_shelf_asset_poll : nullptr;
-  shelf_type->draw_context_menu = have_function[2] ? asset_shelf_draw_context_menu : nullptr;
+  shelf_type->get_active_asset = have_function[2] ? asset_shelf_get_active_asset : nullptr;
+  shelf_type->draw_context_menu = have_function[3] ? asset_shelf_draw_context_menu : nullptr;
 
   StructRNA *srna = shelf_type->rna_ext.srna;
 
-  space_type->asset_shelf_types.append(std::move(shelf_type));
+  blender::ed::asset::shelf::type_register(std::move(shelf_type));
 
   /* update while blender is running */
   WM_main_add_notifier(NC_WINDOW, nullptr);
 
   return srna;
+}
+
+static void rna_AssetShelf_activate_operator_get(PointerRNA *ptr, char *value)
+{
+  AssetShelf *shelf = static_cast<AssetShelf *>(ptr->data);
+  strcpy(value, shelf->type->activate_operator.c_str());
+}
+
+static int rna_AssetShelf_activate_operator_length(PointerRNA *ptr)
+{
+  AssetShelf *shelf = static_cast<AssetShelf *>(ptr->data);
+  return shelf->type->activate_operator.size();
+}
+
+static void rna_AssetShelf_activate_operator_set(PointerRNA *ptr, const char *value)
+{
+  AssetShelf *shelf = static_cast<AssetShelf *>(ptr->data);
+  shelf->type->activate_operator = value;
 }
 
 static StructRNA *rna_AssetShelf_refine(PointerRNA *shelf_ptr)
@@ -2267,6 +2285,18 @@ static void rna_def_asset_shelf(BlenderRNA *brna)
        "No Asset Dragging",
        "Disable the default asset dragging on drag events. Useful for implementing custom "
        "dragging via custom key-map items"},
+      {ASSET_SHELF_TYPE_FLAG_DEFAULT_VISIBLE,
+       "DEFAULT_VISIBLE",
+       0,
+       "Visible by Default",
+       "Unhide the asset shelf when it's available for the first time, otherwise it will be "
+       "hidden"},
+      {ASSET_SHELF_TYPE_FLAG_STORE_CATALOGS_IN_PREFS,
+       "STORE_ENABLED_CATALOGS_IN_PREFERENCES",
+       0,
+       "Store Enabled Catalogs in Preferences",
+       "Store the shelf's enabled catalogs in the preferences rather than the local asset shelf "
+       "settings"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -2303,6 +2333,24 @@ static void rna_def_asset_shelf(BlenderRNA *brna)
   RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL | PROP_ENUM_FLAG);
   RNA_def_property_ui_text(prop, "Options", "Options for this asset shelf type");
 
+  prop = RNA_def_property(srna, "bl_activate_operator", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_funcs(prop,
+                                "rna_AssetShelf_activate_operator_get",
+                                "rna_AssetShelf_activate_operator_length",
+                                "rna_AssetShelf_activate_operator_set");
+  RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
+  RNA_def_property_ui_text(
+      prop,
+      "Activate Operator",
+      "Operator to call when activating an item with asset reference properties");
+
+  prop = RNA_def_property(srna, "bl_default_preview_size", PROP_INT, PROP_UNSIGNED);
+  RNA_def_property_int_sdna(prop, nullptr, "type->default_preview_size");
+  RNA_def_property_range(prop, 32, 256);
+  RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
+  RNA_def_property_ui_text(
+      prop, "Default Preview Size", "Default size of the asset preview thumbnails in pixels");
+
   PropertyRNA *parm;
   FunctionRNA *func;
 
@@ -2323,6 +2371,19 @@ static void rna_def_asset_shelf(BlenderRNA *brna)
   RNA_def_function_return(func, RNA_def_boolean(func, "visible", true, "", ""));
   parm = RNA_def_pointer(func, "asset", "AssetRepresentation", "", "");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+
+  func = RNA_def_function(srna, "get_active_asset", nullptr);
+  RNA_def_function_ui_description(
+      func,
+      "Return a reference to the asset that should be highlighted as active in the asset shelf");
+  RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_REGISTER_OPTIONAL);
+  /* return type */
+  parm = RNA_def_pointer(func,
+                         "asset_reference",
+                         "AssetWeakReference",
+                         "",
+                         "The weak reference to the asset to be hightlighted as active, or None");
+  RNA_def_function_return(func, parm);
 
   func = RNA_def_function(srna, "draw_context_menu", nullptr);
   RNA_def_function_ui_description(
@@ -2398,7 +2459,14 @@ static void rna_def_file_handler(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop,
       "Operator",
-      "Operator that can handle import files with the extensions given in bl_file_extensions");
+      "Operator that can handle import for files with the extensions given in bl_file_extensions");
+  prop = RNA_def_property(srna, "bl_export_operator", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_sdna(prop, nullptr, "type->export_operator");
+  RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
+  RNA_def_property_ui_text(
+      prop,
+      "Operator",
+      "Operator that can handle export for files with the extensions given in bl_file_extensions");
 
   prop = RNA_def_property(srna, "bl_label", PROP_STRING, PROP_NONE);
   RNA_def_property_string_sdna(prop, nullptr, "type->label");

@@ -63,8 +63,7 @@ void init_globals_curves()
     /* Random cosine normal distribution on the hair surface. */
     float noise = utility_tx_fetch(utility_tx, gl_FragCoord.xy, UTIL_BLUE_NOISE_LAYER).x;
 #      ifdef EEVEE_SAMPLING_DATA
-    /* Needs to check for SAMPLING_DATA,
-     * otherwise Surfel and World (?!?!) shader validation fails. */
+    /* Needs to check for SAMPLING_DATA, otherwise surfel shader validation fails. */
     noise = fract(noise + sampling_rng_1D_get(SAMPLING_CURVES_U));
 #      endif
     cos_theta = noise * 2.0 - 1.0;
@@ -112,7 +111,7 @@ void init_globals()
 #elif defined(MAT_CAPTURE)
   g_data.ray_type = RAY_TYPE_DIFFUSE;
 #else
-  if (uniform_buf.pipeline.is_probe_reflection) {
+  if (uniform_buf.pipeline.is_sphere_probe) {
     g_data.ray_type = RAY_TYPE_GLOSSY;
   }
   else {
@@ -161,6 +160,27 @@ void shadow_viewport_layer_set(int view_id, int lod)
   gpu_Layer = view_id;
 #  endif
   gpu_ViewportIndex = lod;
+}
+
+vec3 shadow_position_vector_get(vec3 view_position, ShadowRenderView view)
+{
+  if (view.is_directional) {
+    return vec3(0.0, 0.0, -view_position.z - view.clip_near);
+  }
+  return view_position;
+}
+
+/* In order to support physical clipping, we pass a vector to the fragment shader that then clips
+ * each fragment using a unit sphere test. This allows to support both point light and area light
+ * clipping at the same time. */
+vec3 shadow_clip_vector_get(vec3 view_position, float clip_distance_inv)
+{
+  if (clip_distance_inv == 0.0) {
+    /* No clipping. */
+    return vec3(2.0);
+  }
+  /* Punctual shadow case. */
+  return view_position * clip_distance_inv;
 }
 #endif
 

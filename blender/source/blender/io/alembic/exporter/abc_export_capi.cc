@@ -13,14 +13,13 @@
 #include "DEG_depsgraph_build.hh"
 #include "DEG_depsgraph_query.hh"
 
-#include "DNA_modifier_types.h"
 #include "DNA_scene_types.h"
 
-#include "BKE_blender_version.h"
 #include "BKE_context.hh"
-#include "BKE_global.h"
+#include "BKE_global.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_main.hh"
-#include "BKE_scene.h"
+#include "BKE_scene.hh"
 
 #include "BLI_fileops.h"
 #include "BLI_path_util.h"
@@ -33,7 +32,6 @@
 #include "CLG_log.h"
 static CLG_LogRef LOG = {"io.alembic"};
 
-#include <algorithm>
 #include <memory>
 
 struct ExportJobData {
@@ -52,14 +50,27 @@ struct ExportJobData {
 namespace blender::io::alembic {
 
 /* Construct the depsgraph for exporting. */
-static void build_depsgraph(Depsgraph *depsgraph, const bool visible_objects_only)
+static bool build_depsgraph(ExportJobData *job)
 {
-  if (visible_objects_only) {
-    DEG_graph_build_from_view_layer(depsgraph);
+  if (job->params.collection[0]) {
+    Collection *collection = reinterpret_cast<Collection *>(
+        BKE_libblock_find_name(job->bmain, ID_GR, job->params.collection));
+    if (!collection) {
+      WM_reportf(
+          RPT_ERROR, "Alembic Export: Unable to find collection '%s'", job->params.collection);
+      return false;
+    }
+
+    DEG_graph_build_from_collection(job->depsgraph, collection);
+  }
+  else if (job->params.visible_objects_only) {
+    DEG_graph_build_from_view_layer(job->depsgraph);
   }
   else {
-    DEG_graph_build_for_all_objects(depsgraph);
+    DEG_graph_build_for_all_objects(job->depsgraph);
   }
+
+  return true;
 }
 
 static void report_job_duration(const ExportJobData *data)
@@ -83,11 +94,13 @@ static void export_startjob(void *customdata, wmJobWorkerStatus *worker_status)
   worker_status->progress = 0.0f;
   worker_status->do_update = true;
 
+  BKE_scene_graph_update_tagged(data->depsgraph, data->bmain);
+
   SubdivModifierDisabler subdiv_disabler(data->depsgraph);
   if (!data->params.apply_subdiv) {
     subdiv_disabler.disable_modifiers();
+    BKE_scene_graph_update_tagged(data->depsgraph, data->bmain);
   }
-  BKE_scene_graph_update_tagged(data->depsgraph, data->bmain);
 
   /* For restoring the current frame after exporting animation is done. */
   Scene *scene = DEG_get_input_scene(data->depsgraph);
@@ -211,7 +224,9 @@ bool ABC_export(Scene *scene,
    *
    * Has to be done from main thread currently, as it may affect Main original data (e.g. when
    * doing deferred update of the view-layers, see #112534 for details). */
-  blender::io::alembic::build_depsgraph(job->depsgraph, job->params.visible_objects_only);
+  if (!blender::io::alembic::build_depsgraph(job)) {
+    return false;
+  }
 
   bool export_ok = false;
   if (as_background_job) {

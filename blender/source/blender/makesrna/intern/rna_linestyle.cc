@@ -12,7 +12,7 @@
 #include "BLI_math_rotation.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
@@ -616,6 +616,7 @@ static void rna_def_linestyle_mtex(BlenderRNA *brna)
   prop = RNA_def_property(srna, "texture_coords", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "texco");
   RNA_def_property_enum_items(prop, texco_items);
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_TEXTURE);
   RNA_def_property_ui_text(prop,
                            "Texture Coordinates",
                            "Texture coordinates used to map the texture onto the background");

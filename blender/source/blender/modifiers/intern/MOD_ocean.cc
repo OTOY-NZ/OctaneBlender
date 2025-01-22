@@ -10,7 +10,7 @@
 
 #include "BLI_task.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_customdata_types.h"
 #include "DNA_defaults.h"
@@ -18,16 +18,13 @@
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
-#include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_context.hh"
 #include "BKE_customdata.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
 #include "BKE_modifier.hh"
 #include "BKE_ocean.h"
-#include "BKE_screen.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
@@ -35,13 +32,10 @@
 #include "RNA_access.hh"
 #include "RNA_prototypes.h"
 
-#include "BLO_read_write.hh"
-
 #include "WM_types.hh" /* For UI free bake operator. */
 
 #include "DEG_depsgraph_query.hh"
 
-#include "MOD_modifiertypes.hh"
 #include "MOD_ui_common.hh"
 
 #ifdef WITH_OCEANSIM
@@ -141,12 +135,6 @@ static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_
 #else  /* WITH_OCEANSIM */
 static void required_data_mask(ModifierData * /*md*/, CustomData_MeshMasks * /*r_cddata_masks*/) {}
 #endif /* WITH_OCEANSIM */
-
-static bool depends_on_normals(ModifierData *md)
-{
-  OceanModifierData *omd = (OceanModifierData *)md;
-  return (omd->geometry_mode != MOD_OCEAN_GEOM_GENERATE);
-}
 
 #ifdef WITH_OCEANSIM
 
@@ -454,7 +442,7 @@ static Mesh *doOcean(ModifierData *md, const ModifierEvalContext *ctx, Mesh *mes
     }
   }
 
-  mesh->tag_positions_changed();
+  result->tag_positions_changed();
 
   if (allocated_ocean) {
     BKE_ocean_free(omd->ocean);
@@ -644,13 +632,22 @@ static void bake_panel_draw(const bContext * /*C*/, Panel *panel)
                 IFACE_("Delete Bake"),
                 ICON_NONE,
                 nullptr,
-                WM_OP_EXEC_DEFAULT,
+                WM_OP_INVOKE_DEFAULT,
                 UI_ITEM_NONE,
                 &op_ptr);
     RNA_boolean_set(&op_ptr, "free", true);
   }
   else {
-    uiItemO(layout, nullptr, ICON_NONE, "OBJECT_OT_ocean_bake");
+    PointerRNA op_ptr;
+    uiItemFullO(layout,
+                "OBJECT_OT_ocean_bake",
+                IFACE_("Bake"),
+                ICON_NONE,
+                nullptr,
+                WM_OP_INVOKE_DEFAULT,
+                UI_ITEM_NONE,
+                &op_ptr);
+    RNA_boolean_set(&op_ptr, "free", false);
   }
 
   uiItemR(layout, ptr, "filepath", UI_ITEM_NONE, nullptr, ICON_NONE);
@@ -716,7 +713,7 @@ ModifierTypeInfo modifierType_Ocean = {
     /*is_disabled*/ nullptr,
     /*update_depsgraph*/ nullptr,
     /*depends_on_time*/ nullptr,
-    /*depends_on_normals*/ depends_on_normals,
+    /*depends_on_normals*/ nullptr,
     /*foreach_ID_link*/ nullptr,
     /*foreach_tex_link*/ nullptr,
     /*free_runtime_data*/ nullptr,

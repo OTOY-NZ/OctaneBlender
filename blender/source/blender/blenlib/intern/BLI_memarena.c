@@ -21,7 +21,6 @@
 
 #include "BLI_asan.h"
 #include "BLI_memarena.h"
-#include "BLI_strict_flags.h"
 #include "BLI_utildefines.h"
 
 #ifdef WITH_MEM_VALGRIND
@@ -32,6 +31,8 @@
 #  define VALGRIND_MEMPOOL_ALLOC(pool, addr, size) UNUSED_VARS(pool, addr, size)
 #  define VALGRIND_MOVE_MEMPOOL(pool_a, pool_b) UNUSED_VARS(pool_a, pool_b)
 #endif
+
+#include "BLI_strict_flags.h" /* Keep last. */
 
 struct MemBuf {
   struct MemBuf *next;
@@ -190,8 +191,7 @@ void BLI_memarena_merge(MemArena *ma_dst, MemArena *ma_src)
       /* Loop over `ma_src` instead of `ma_dst` since it's likely the destination is larger
        * when used for accumulating from multiple sources. */
       struct MemBuf *mb_src = ma_src->bufs;
-      mb_src = ma_src->bufs;
-      while (mb_src && mb_src->next) {
+      while (mb_src->next) {
         mb_src = mb_src->next;
       }
       mb_src->next = ma_dst->bufs->next;
@@ -210,20 +210,17 @@ void BLI_memarena_merge(MemArena *ma_dst, MemArena *ma_src)
 void BLI_memarena_clear(MemArena *ma)
 {
   if (ma->bufs) {
-    uchar *curbuf_prev;
-    size_t curbuf_used;
-
     if (ma->bufs->next) {
       memarena_buf_free_all(ma->bufs->next);
       ma->bufs->next = NULL;
     }
 
-    curbuf_prev = ma->curbuf;
+    const uchar *curbuf_prev = ma->curbuf;
     ma->curbuf = ma->bufs->data;
     memarena_curbuf_align(ma);
 
     /* restore to original size */
-    curbuf_used = (size_t)(curbuf_prev - ma->curbuf);
+    const size_t curbuf_used = (size_t)(curbuf_prev - ma->curbuf);
     ma->cursize += curbuf_used;
 
     if (ma->use_calloc) {

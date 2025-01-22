@@ -34,20 +34,19 @@
 
 #include "BIF_glutil.hh"
 
-#include "GPU_immediate.h"
-#include "GPU_immediate_util.h"
-#include "GPU_matrix.h"
-#include "GPU_state.h"
+#include "GPU_immediate.hh"
+#include "GPU_immediate_util.hh"
+#include "GPU_matrix.hh"
+#include "GPU_state.hh"
 
 #include "WM_types.hh"
 
-#include "UI_interface.hh"
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
 
 #include "BLF_api.hh"
 
-#include "clip_intern.h" /* own include */
+#include "clip_intern.hh" /* own include */
 
 /*********************** main area drawing *************************/
 

@@ -39,11 +39,11 @@
 #include "BKE_appdir.hh"
 #include "BKE_colortools.hh"
 #include "BKE_context.hh"
-#include "BKE_image.h"
+#include "BKE_global.hh"
 #include "BKE_image_format.h"
 #include "BKE_main.hh"
 
-#include "GPU_capabilities.h"
+#include "GPU_capabilities.hh"
 
 #include "RNA_define.hh"
 
@@ -363,7 +363,6 @@ static uchar *colormanage_cache_get(ImBuf *ibuf,
   cache_ibuf = colormanage_cache_get_ibuf(ibuf, &key, cache_handle);
 
   if (cache_ibuf) {
-    ColormanageCacheData *cache_data;
 
     BLI_assert(cache_ibuf->x == ibuf->x && cache_ibuf->y == ibuf->y);
 
@@ -374,7 +373,7 @@ static uchar *colormanage_cache_get(ImBuf *ibuf,
      * check here which exposure/gamma/curve was used for cached buffer and if they're
      * different from requested buffer should be re-generated
      */
-    cache_data = colormanage_cachedata_get(cache_ibuf);
+    const ColormanageCacheData *cache_data = colormanage_cachedata_get(cache_ibuf);
 
     if (cache_data->look != view_settings->look ||
         cache_data->exposure != view_settings->exposure ||
@@ -468,7 +467,9 @@ static bool colormanage_role_color_space_name_get(OCIO_ConstConfigRcPtr *config,
   }
 
   if (ociocs == nullptr) {
-    printf("Color management: Error, could not find role \"%s\"\n", role);
+    if (!G.quiet) {
+      printf("Color management: Error, could not find role \"%s\"\n", role);
+    }
     return false;
   }
 
@@ -554,11 +555,15 @@ static bool colormanage_load_config(OCIO_ConstConfigRcPtr *config)
 
   global_tot_display = tot_display;
   if (global_tot_display == 0) {
-    printf("Color management: Error, could not find any displays\n");
+    if (!G.quiet) {
+      printf("Color management: Error, could not find any displays\n");
+    }
     ok = false;
   }
   else if (global_tot_view == 0) {
-    printf("Color management: Error, could not find any views\n");
+    if (!G.quiet) {
+      printf("Color management: Error, could not find any views\n");
+    }
     ok = false;
   }
 
@@ -660,21 +665,24 @@ void colormanagement_init()
   if (ocio_env && ocio_env[0] != '\0') {
     config = OCIO_configCreateFromEnv();
     if (config != nullptr) {
-      printf("Color management: Using %s as a configuration file\n", ocio_env);
-
+      if (!G.quiet) {
+        printf("Color management: Using %s as a configuration file\n", ocio_env);
+      }
       OCIO_setCurrentConfig(config);
       const bool ok = colormanage_load_config(config);
       OCIO_configRelease(config);
 
       if (!ok) {
-        printf("Color management: Failed to load config from environment\n");
+        if (!G.quiet) {
+          printf("Color management: Failed to load config from environment\n");
+        }
         colormanage_free_config();
         config = nullptr;
       }
     }
   }
 
-  /* Then try bunded config file. */
+  /* Then try bundled configuration file. */
   if (config == nullptr) {
     const std::optional<std::string> configdir = BKE_appdir_folder_id(BLENDER_DATAFILES,
                                                                       "colormanagement");
@@ -690,7 +698,9 @@ void colormanagement_init()
         OCIO_configRelease(config);
 
         if (!ok) {
-          printf("Color management: Failed to load bundled config\n");
+          if (!G.quiet) {
+            printf("Color management: Failed to load bundled config\n");
+          }
           colormanage_free_config();
           config = nullptr;
         }
@@ -700,7 +710,9 @@ void colormanagement_init()
 
   /* Then use fallback. */
   if (config == nullptr) {
-    printf("Color management: Using fallback mode for management\n");
+    if (!G.quiet) {
+      printf("Color management: Using fallback mode for management\n");
+    }
     config = OCIO_configCreateFallback();
     colormanage_load_config(config);
   }
@@ -1047,7 +1059,9 @@ void IMB_colormanagement_init_default_view_settings(
   view_settings->curve_mapping = nullptr;
 }
 
-static void curve_mapping_apply_pixel(CurveMapping *curve_mapping, float *pixel, int channels)
+static void curve_mapping_apply_pixel(const CurveMapping *curve_mapping,
+                                      float *pixel,
+                                      int channels)
 {
   if (channels == 1) {
     pixel[0] = BKE_curvemap_evaluateF(curve_mapping, curve_mapping->cm, pixel[0]);
@@ -1121,11 +1135,14 @@ static void colormanage_check_display_settings(ColorManagedDisplaySettings *disp
     ColorManagedDisplay *display = colormanage_display_get_named(display_settings->display_device);
 
     if (!display) {
-      printf(
-          "Color management: display \"%s\" used by %s not found, setting to default (\"%s\").\n",
-          display_settings->display_device,
-          what,
-          default_display->name);
+      if (!G.quiet) {
+        printf(
+            "Color management: display \"%s\" used by %s not found, setting to default "
+            "(\"%s\").\n",
+            display_settings->display_device,
+            what,
+            default_display->name);
+      }
 
       STRNCPY(display_settings->display_device, default_display->name);
     }
@@ -1162,10 +1179,12 @@ static void colormanage_check_view_settings(ColorManagedDisplaySettings *display
       }
 
       if (default_view) {
-        printf("Color management: %s view \"%s\" not found, setting default \"%s\".\n",
-               what,
-               view_settings->view_transform,
-               default_view->name);
+        if (!G.quiet) {
+          printf("Color management: %s view \"%s\" not found, setting default \"%s\".\n",
+                 what,
+                 view_settings->view_transform,
+                 default_view->name);
+        }
 
         STRNCPY(view_settings->view_transform, default_view->name);
       }
@@ -1178,21 +1197,25 @@ static void colormanage_check_view_settings(ColorManagedDisplaySettings *display
   else {
     ColorManagedLook *look = colormanage_look_get_named(view_settings->look);
     if (look == nullptr) {
-      printf("Color management: %s look \"%s\" not found, setting default \"%s\".\n",
-             what,
-             view_settings->look,
-             default_look_name);
+      if (!G.quiet) {
+        printf("Color management: %s look \"%s\" not found, setting default \"%s\".\n",
+               what,
+               view_settings->look,
+               default_look_name);
+      }
 
       STRNCPY(view_settings->look, default_look_name);
     }
     else if (!colormanage_compatible_look(look, view_settings->view_transform)) {
-      printf(
-          "Color management: %s look \"%s\" is not compatible with view \"%s\", setting default "
-          "\"%s\".\n",
-          what,
-          view_settings->look,
-          view_settings->view_transform,
-          default_look_name);
+      if (!G.quiet) {
+        printf(
+            "Color management: %s look \"%s\" is not compatible with view \"%s\", setting default "
+            "\"%s\".\n",
+            what,
+            view_settings->look,
+            view_settings->view_transform,
+            default_look_name);
+      }
 
       STRNCPY(view_settings->look, default_look_name);
     }
@@ -1215,9 +1238,11 @@ static void colormanage_check_colorspace_settings(
     ColorSpace *colorspace = colormanage_colorspace_get_named(colorspace_settings->name);
 
     if (!colorspace) {
-      printf("Color management: %s colorspace \"%s\" not found, will use default instead.\n",
-             what,
-             colorspace_settings->name);
+      if (!G.quiet) {
+        printf("Color management: %s colorspace \"%s\" not found, will use default instead.\n",
+               what,
+               colorspace_settings->name);
+      }
 
       STRNCPY(colorspace_settings->name, "");
     }
@@ -1313,7 +1338,9 @@ const char *IMB_colormanagement_role_colorspace_name_get(int role)
     case COLOR_ROLE_DEFAULT_BYTE:
       return global_role_default_byte;
     default:
-      printf("Unknown role was passed to %s\n", __func__);
+      if (!G.quiet) {
+        printf("Unknown role was passed to %s\n", __func__);
+      }
       BLI_assert(0);
       break;
   }
@@ -4019,8 +4046,8 @@ void IMB_colormanagement_processor_apply_pixel(ColormanageProcessor *cm_processo
     }
   }
   else {
-    BLI_assert(
-        !"Incorrect number of channels passed to IMB_colormanagement_processor_apply_pixel");
+    BLI_assert_msg(
+        false, "Incorrect number of channels passed to IMB_colormanagement_processor_apply_pixel");
   }
 }
 

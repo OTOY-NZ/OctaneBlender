@@ -7,10 +7,11 @@
 #include "BKE_volume.hh"
 #include "BKE_volume_grid.hh"
 
+#include "BLT_translation.hh"
+
 #include "RNA_enum_types.hh"
 
 #include "NOD_rna_define.hh"
-#include "NOD_socket_search_link.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
@@ -21,7 +22,8 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Geometry>("Volume");
   b.add_input<decl::String>("Name");
-  b.add_input<decl::Bool>("Remove").default_value(true);
+  b.add_input<decl::Bool>("Remove").default_value(true).translation_context(
+      BLT_I18NCONTEXT_OPERATOR_DEFAULT);
 
   b.add_output<decl::Geometry>("Volume");
 
@@ -32,13 +34,6 @@ static void node_declare(NodeDeclarationBuilder &b)
   }
 
   b.add_output(eNodeSocketDatatype(node->custom1), "Grid");
-}
-
-static void search_link_ops(GatherLinkSearchOpParams &params)
-{
-  if (U.experimental.use_new_volume_nodes) {
-    nodes::search_link_ops_for_basic_node(params);
-  }
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
@@ -98,16 +93,16 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, GEO_NODE_GET_NAMED_GRID, "Get Named Grid", NODE_CLASS_GEOMETRY);
 
   ntype.declare = node_declare;
-  ntype.gather_link_search_ops = search_link_ops;
+  ntype.gather_link_search_ops = search_link_ops_for_volume_grid_node;
   ntype.draw_buttons = node_layout;
   ntype.initfunc = node_init;
   ntype.geometry_node_execute = node_geo_exec;
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

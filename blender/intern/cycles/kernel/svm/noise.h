@@ -684,7 +684,13 @@ ccl_device_inline float noise_scale4(float result)
 
 ccl_device_inline float snoise_1d(float p)
 {
-  return noise_scale1(ensure_finite(perlin_1d(p)));
+  float precision_correction = 0.5f * float(fabsf(p) >= 1000000.0f);
+  /* Repeat Perlin noise texture every 100000.0 on each axis to prevent floating point
+   * representation issues. */
+  /* The 1D variant of fmod is called fmodf. */
+  p = fmodf(p, 100000.0f) + precision_correction;
+
+  return noise_scale1(perlin_1d(p));
 }
 
 ccl_device_inline float noise_1d(float p)
@@ -694,7 +700,14 @@ ccl_device_inline float noise_1d(float p)
 
 ccl_device_inline float snoise_2d(float2 p)
 {
-  return noise_scale2(ensure_finite(perlin_2d(p.x, p.y)));
+  float2 precision_correction = 0.5f * make_float2(float(fabsf(p.x) >= 1000000.0f),
+                                                   float(fabsf(p.y) >= 1000000.0f));
+  /* Repeat Perlin noise texture every 100000.0f on each axis to prevent floating point
+   * representation issues. This causes discontinuities every 100000.0f, however at such scales
+   * this usually shouldn't be noticeable. */
+  p = fmod(p, 100000.0f) + precision_correction;
+
+  return noise_scale2(perlin_2d(p.x, p.y));
 }
 
 ccl_device_inline float noise_2d(float2 p)
@@ -704,7 +717,15 @@ ccl_device_inline float noise_2d(float2 p)
 
 ccl_device_inline float snoise_3d(float3 p)
 {
-  return noise_scale3(ensure_finite(perlin_3d(p.x, p.y, p.z)));
+  float3 precision_correction = 0.5f * make_float3(float(fabsf(p.x) >= 1000000.0f),
+                                                   float(fabsf(p.y) >= 1000000.0f),
+                                                   float(fabsf(p.z) >= 1000000.0f));
+  /* Repeat Perlin noise texture every 100000.0f on each axis to prevent floating point
+   * representation issues. This causes discontinuities every 100000.0f, however at such scales
+   * this usually shouldn't be noticeable. */
+  p = fmod(p, 100000.0f) + precision_correction;
+
+  return noise_scale3(perlin_3d(p.x, p.y, p.z));
 }
 
 ccl_device_inline float noise_3d(float3 p)
@@ -714,7 +735,16 @@ ccl_device_inline float noise_3d(float3 p)
 
 ccl_device_inline float snoise_4d(float4 p)
 {
-  return noise_scale4(ensure_finite(perlin_4d(p.x, p.y, p.z, p.w)));
+  float4 precision_correction = 0.5f * make_float4(float(fabsf(p.x) >= 1000000.0f),
+                                                   float(fabsf(p.y) >= 1000000.0f),
+                                                   float(fabsf(p.z) >= 1000000.0f),
+                                                   float(fabsf(p.w) >= 1000000.0f));
+  /* Repeat Perlin noise texture every 100000.0f on each axis to prevent floating point
+   * representation issues. This causes discontinuities every 100000.0f, however at such scales
+   * this usually shouldn't be noticeable. */
+  p = fmod(p, 100000.0f) + precision_correction;
+
+  return noise_scale4(perlin_4d(p.x, p.y, p.z, p.w));
 }
 
 ccl_device_inline float noise_4d(float4 p)

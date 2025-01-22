@@ -24,10 +24,13 @@
 
 #include "BKE_context.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_report.hh"
 #include "BKE_screen.hh"
 #include "BKE_unit.hh"
 
 #include "RNA_access.hh"
+#include "RNA_define.hh"
+#include "RNA_path.hh"
 #include "RNA_prototypes.h"
 
 #include "UI_interface.hh"
@@ -69,37 +72,119 @@ static void depthdropper_draw_cb(const bContext * /*C*/, ARegion * /*region*/, v
   eyedropper_draw_cursor_text_region(ddr->name_pos, ddr->name);
 }
 
-static int depthdropper_init(bContext *C, wmOperator *op)
+static bool depthdropper_get_path(PointerRNA *ctx_ptr,
+                                  wmOperator *op,
+                                  const char *prop_path,
+                                  PointerRNA *r_ptr,
+                                  PropertyRNA **r_prop)
 {
+  PropertyRNA *unused_prop;
+
+  if (prop_path[0] == '\0') {
+    return false;
+  }
+
+  if (!r_prop) {
+    r_prop = &unused_prop;
+  }
+
+  /* Get rna from path. */
+  if (!RNA_path_resolve(ctx_ptr, prop_path, r_ptr, r_prop)) {
+    BKE_reportf(op->reports, RPT_ERROR, "Could not resolve path '%s'", prop_path);
+    return false;
+  }
+
+  /* Check property type. */
+  PropertyType prop_type = RNA_property_type(*r_prop);
+  if (prop_type != PROP_FLOAT) {
+    BKE_reportf(op->reports, RPT_ERROR, "Property from path '%s' is not a float", prop_path);
+    return false;
+  }
+
+  /* Success. */
+  return true;
+}
+
+static bool depthdropper_test(bContext *C, wmOperator *op)
+{
+  PointerRNA ptr;
+  PropertyRNA *prop;
   int index_dummy;
+  uiBut *but;
 
-  SpaceType *st;
-  ARegionType *art;
+  /* Check if the custom prop_data_path is set. */
+  if ((prop = RNA_struct_find_property(op->ptr, "prop_data_path")) &&
+      RNA_property_is_set(op->ptr, prop))
+  {
+    return true;
+  }
 
-  st = BKE_spacetype_from_id(SPACE_VIEW3D);
-  art = BKE_regiontype_from_id(st, RGN_TYPE_WINDOW);
-
-  DepthDropper *ddr = MEM_cnew<DepthDropper>(__func__);
-
-  uiBut *but = UI_context_active_but_prop_get(C, &ddr->ptr, &ddr->prop, &index_dummy);
-
-  /* fallback to the active camera's dof */
-  if (ddr->prop == nullptr) {
+  /* check if there's an active button taking depth value */
+  if ((CTX_wm_window(C) != nullptr) &&
+      (but = UI_context_active_but_prop_get(C, &ptr, &prop, &index_dummy)) &&
+      (but->type == UI_BTYPE_NUM) && (prop != nullptr))
+  {
+    if ((RNA_property_type(prop) == PROP_FLOAT) &&
+        (RNA_property_subtype(prop) & PROP_UNIT_LENGTH) &&
+        (RNA_property_array_check(prop) == false))
+    {
+      return true;
+    }
+  }
+  else {
     RegionView3D *rv3d = CTX_wm_region_view3d(C);
     if (rv3d && rv3d->persp == RV3D_CAMOB) {
       View3D *v3d = CTX_wm_view3d(C);
       if (v3d->camera && v3d->camera->data &&
           BKE_id_is_editable(CTX_data_main(C), static_cast<const ID *>(v3d->camera->data)))
       {
-        Camera *camera = (Camera *)v3d->camera->data;
-        ddr->ptr = RNA_pointer_create(&camera->id, &RNA_CameraDOFSettings, &camera->dof);
-        ddr->prop = RNA_struct_find_property(&ddr->ptr, "focus_distance");
-        ddr->is_undo = true;
+        return true;
       }
     }
   }
+
+  return false;
+}
+
+static int depthdropper_init(bContext *C, wmOperator *op)
+{
+  DepthDropper *ddr = MEM_cnew<DepthDropper>(__func__);
+  PropertyRNA *prop;
+  if ((prop = RNA_struct_find_property(op->ptr, "prop_data_path")) &&
+      RNA_property_is_set(op->ptr, prop))
+  {
+    char *prop_data_path = RNA_string_get_alloc(op->ptr, "prop_data_path", nullptr, 0, nullptr);
+    BLI_SCOPED_DEFER([&] { MEM_SAFE_FREE(prop_data_path); });
+    if (!prop_data_path) {
+      return false;
+    }
+    PointerRNA ctx_ptr = RNA_pointer_create(nullptr, &RNA_Context, C);
+    if (!depthdropper_get_path(&ctx_ptr, op, prop_data_path, &ddr->ptr, &ddr->prop)) {
+      MEM_freeN(ddr);
+      return false;
+    }
+  }
   else {
-    ddr->is_undo = UI_but_flag_is_set(but, UI_BUT_UNDO);
+    /* fallback to the active camera's dof */
+    int index_dummy;
+    uiBut *but = UI_context_active_but_prop_get(C, &ddr->ptr, &ddr->prop, &index_dummy);
+    if (ddr->prop == nullptr) {
+      RegionView3D *rv3d = CTX_wm_region_view3d(C);
+      if (rv3d && rv3d->persp == RV3D_CAMOB) {
+        View3D *v3d = CTX_wm_view3d(C);
+        if (v3d->camera && v3d->camera->data &&
+            BKE_id_is_editable(CTX_data_main(C), static_cast<const ID *>(v3d->camera->data)))
+        {
+          Camera *camera = (Camera *)v3d->camera->data;
+          ddr->ptr = RNA_pointer_create(&camera->id, &RNA_CameraDOFSettings, &camera->dof);
+          ddr->prop = RNA_struct_find_property(&ddr->ptr, "focus_distance");
+          ddr->is_undo = true;
+        }
+      }
+    }
+    else {
+      ddr->is_undo = UI_but_flag_is_set(but, UI_BUT_UNDO);
+    }
   }
 
   if ((ddr->ptr.data == nullptr) || (ddr->prop == nullptr) ||
@@ -110,6 +195,9 @@ static int depthdropper_init(bContext *C, wmOperator *op)
     return false;
   }
   op->customdata = ddr;
+
+  SpaceType *st = BKE_spacetype_from_id(SPACE_VIEW3D);
+  ARegionType *art = BKE_regiontype_from_id(st, RGN_TYPE_WINDOW);
 
   ddr->art = art;
   ddr->draw_handle_pixel = ED_region_draw_cb_activate(
@@ -163,7 +251,10 @@ static void depthdropper_depth_sample_pt(bContext *C,
         View3D *v3d = static_cast<View3D *>(area->spacedata.first);
         RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
         /* weak, we could pass in some reference point */
-        const float *view_co = v3d->camera ? v3d->camera->object_to_world[3] : rv3d->viewinv[3];
+        const blender::float3 &view_co = (v3d->camera && rv3d->persp == RV3D_CAMOB) ?
+                                             v3d->camera->object_to_world().location() :
+                                             rv3d->viewinv[3];
+
         const int mval[2] = {m_xy[0] - region->winrct.xmin, m_xy[1] - region->winrct.ymin};
         copy_v2_v2_int(ddr->name_pos, mval);
 
@@ -177,7 +268,10 @@ static void depthdropper_depth_sample_pt(bContext *C,
 
         view3d_operator_needs_opengl(C);
 
-        if (ED_view3d_autodist(depsgraph, region, v3d, mval, co, true, nullptr)) {
+        /* Ensure the depth buffer is updated for #ED_view3d_autodist. */
+        ED_view3d_depth_override(depsgraph, region, v3d, nullptr, V3D_DEPTH_NO_GPENCIL, nullptr);
+
+        if (ED_view3d_autodist(region, v3d, mval, co, nullptr)) {
           const float mval_center_fl[2] = {float(region->winx) / 2, float(region->winy) / 2};
           float co_align[3];
 
@@ -302,6 +396,10 @@ static int depthdropper_modal(bContext *C, wmOperator *op, const wmEvent *event)
 /* Modal Operator init */
 static int depthdropper_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
+  if (!depthdropper_test(C, op)) {
+    /* If the operator can't be executed, make sure to not consume the event. */
+    return OPERATOR_PASS_THROUGH;
+  }
   /* init */
   if (depthdropper_init(C, op)) {
     wmWindow *win = CTX_wm_window(C);
@@ -339,10 +437,18 @@ static bool depthdropper_poll(bContext *C)
 
   /* check if there's an active button taking depth value */
   if ((CTX_wm_window(C) != nullptr) &&
-      (but = UI_context_active_but_prop_get(C, &ptr, &prop, &index_dummy)) &&
-      (but->type == UI_BTYPE_NUM) && (prop != nullptr))
+      (but = UI_context_active_but_prop_get(C, &ptr, &prop, &index_dummy)))
   {
-    if ((RNA_property_type(prop) == PROP_FLOAT) &&
+    if (but->icon == ICON_EYEDROPPER) {
+      return true;
+    }
+    /* Context menu button. */
+    if (but->optype && STREQ(but->optype->idname, "UI_OT_eyedropper_depth")) {
+      return true;
+    }
+
+    if ((but->type == UI_BTYPE_NUM) && (prop != nullptr) &&
+        (RNA_property_type(prop) == PROP_FLOAT) &&
         (RNA_property_subtype(prop) & PROP_UNIT_LENGTH) &&
         (RNA_property_array_check(prop) == false))
     {
@@ -381,5 +487,13 @@ void UI_OT_eyedropper_depth(wmOperatorType *ot)
   /* flags */
   ot->flag = OPTYPE_UNDO | OPTYPE_BLOCKING | OPTYPE_INTERNAL;
 
-  /* properties */
+  /* Paths relative to the context. */
+  PropertyRNA *prop;
+  prop = RNA_def_string(ot->srna,
+                        "prop_data_path",
+                        nullptr,
+                        0,
+                        "Data Path",
+                        "Path of property to be set with the depth");
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }

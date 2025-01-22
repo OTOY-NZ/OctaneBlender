@@ -22,7 +22,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "BLI_array_utils.h"
 #include "BLI_bitmap.h"
@@ -40,9 +40,11 @@
 #include "BKE_deform.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_layer.hh"
+#include "BKE_mesh_types.hh"
 #include "BKE_object.hh"
 #include "BKE_object_deform.h"
-#include "BKE_report.h"
+#include "BKE_object_types.hh"
+#include "BKE_report.hh"
 #include "BKE_screen.hh"
 
 #include "DEG_depsgraph.hh"
@@ -55,6 +57,7 @@
 
 #include "ED_mesh.hh"
 #include "ED_object.hh"
+#include "ED_object_vgroup.hh"
 #include "ED_screen.hh"
 
 #include "ANIM_bone_collections.hh"
@@ -62,7 +65,7 @@
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
-#include "view3d_intern.h" /* own include */
+#include "view3d_intern.hh" /* own include */
 
 /* ******************* view3d space & buttons ************** */
 enum {
@@ -308,7 +311,7 @@ static void v3d_editvertex_buts(uiLayout *layout, View3D *v3d, Object *ob, float
   if (ob->type == OB_MESH) {
     TransformMedian_Mesh *median = &median_basis.mesh;
     Mesh *mesh = static_cast<Mesh *>(ob->data);
-    BMEditMesh *em = mesh->edit_mesh;
+    BMEditMesh *em = mesh->runtime->edit_mesh.get();
     BMesh *bm = em->bm;
     BMVert *eve;
     BMEdge *eed;
@@ -469,27 +472,15 @@ static void v3d_editvertex_buts(uiLayout *layout, View3D *v3d, Object *ob, float
   }
 
   if (tot == 0) {
-    uiDefBut(block,
-             UI_BTYPE_LABEL,
-             0,
-             IFACE_("Nothing selected"),
-             0,
-             130,
-             200,
-             20,
-             nullptr,
-             0,
-             0,
-             0,
-             0,
-             "");
+    uiDefBut(
+        block, UI_BTYPE_LABEL, 0, IFACE_("Nothing selected"), 0, 130, 200, 20, nullptr, 0, 0, "");
     return;
   }
 
   /* Location, X/Y/Z */
   mul_v3_fl(median_basis.generic.location, 1.0f / float(tot));
   if (v3d->flag & V3D_GLOBAL_STATS) {
-    mul_m4_v3(ob->object_to_world, median_basis.generic.location);
+    mul_m4_v3(ob->object_to_world().ptr(), median_basis.generic.location);
   }
 
   if (has_meshdata) {
@@ -546,7 +537,7 @@ static void v3d_editvertex_buts(uiLayout *layout, View3D *v3d, Object *ob, float
     else {
       c = IFACE_("Median:");
     }
-    uiDefBut(block, UI_BTYPE_LABEL, 0, c, 0, yi -= buth, butw, buth, nullptr, 0, 0, 0, 0, "");
+    uiDefBut(block, UI_BTYPE_LABEL, 0, c, 0, yi -= buth, butw, buth, nullptr, 0, 0, "");
 
     UI_block_align_begin(block);
 
@@ -658,8 +649,6 @@ static void v3d_editvertex_buts(uiLayout *layout, View3D *v3d, Object *ob, float
                  nullptr,
                  0.0,
                  0.0,
-                 0,
-                 0,
                  "");
         /* customdata layer added on demand */
         but = uiDefButF(block,
@@ -736,8 +725,6 @@ static void v3d_editvertex_buts(uiLayout *layout, View3D *v3d, Object *ob, float
                  nullptr,
                  0.0,
                  0.0,
-                 0,
-                 0,
                  "");
         /* customdata layer added on demand */
         but = uiDefButF(block,
@@ -874,20 +861,20 @@ static void v3d_editvertex_buts(uiLayout *layout, View3D *v3d, Object *ob, float
     else if (totlattdata) {
       TransformMedian_Lattice *ve_median = &tfp->ve_median.lattice;
       if (totlattdata == 1) {
-        uiDefButR(block,
-                  UI_BTYPE_NUM,
-                  0,
-                  IFACE_("Weight:"),
-                  0,
-                  yi -= buth + but_margin,
-                  butw,
-                  buth,
-                  &data_ptr,
-                  "weight_softbody",
-                  0,
-                  0.0,
-                  1.0,
-                  nullptr);
+        but = uiDefButR(block,
+                        UI_BTYPE_NUM,
+                        0,
+                        IFACE_("Weight:"),
+                        0,
+                        yi -= buth + but_margin,
+                        butw,
+                        buth,
+                        &data_ptr,
+                        "weight_softbody",
+                        0,
+                        0.0,
+                        1.0,
+                        nullptr);
         UI_but_number_step_size_set(but, 1);
         UI_but_number_precision_set(but, 3);
       }
@@ -913,8 +900,7 @@ static void v3d_editvertex_buts(uiLayout *layout, View3D *v3d, Object *ob, float
 
     if (ob->type == OB_MESH) {
       Mesh *mesh = static_cast<Mesh *>(ob->data);
-      BMEditMesh *em = mesh->edit_mesh;
-      if (em != nullptr) {
+      if (BMEditMesh *em = mesh->runtime->edit_mesh.get()) {
         uiBlockInteraction_CallbackData callback_data{};
         callback_data.begin_fn = editmesh_partial_update_begin_fn;
         callback_data.end_fn = editmesh_partial_update_end_fn;
@@ -928,9 +914,9 @@ static void v3d_editvertex_buts(uiLayout *layout, View3D *v3d, Object *ob, float
     memcpy(&ve_median_basis, &tfp->ve_median, sizeof(tfp->ve_median));
 
     if (v3d->flag & V3D_GLOBAL_STATS) {
-      invert_m4_m4(ob->world_to_object, ob->object_to_world);
-      mul_m4_v3(ob->world_to_object, median_basis.generic.location);
-      mul_m4_v3(ob->world_to_object, ve_median_basis.generic.location);
+      invert_m4_m4(ob->runtime->world_to_object.ptr(), ob->object_to_world().ptr());
+      mul_m4_v3(ob->world_to_object().ptr(), median_basis.generic.location);
+      mul_m4_v3(ob->world_to_object().ptr(), ve_median_basis.generic.location);
     }
     sub_vn_vnvn((float *)&median_basis,
                 (float *)&ve_median_basis,
@@ -947,7 +933,7 @@ static void v3d_editvertex_buts(uiLayout *layout, View3D *v3d, Object *ob, float
     {
       const TransformMedian_Mesh *median = &median_basis.mesh, *ve_median = &ve_median_basis.mesh;
       Mesh *mesh = static_cast<Mesh *>(ob->data);
-      BMEditMesh *em = mesh->edit_mesh;
+      BMEditMesh *em = mesh->runtime->edit_mesh.get();
       BMesh *bm = em->bm;
       BMIter iter;
       BMVert *eve;
@@ -1201,7 +1187,7 @@ static void v3d_object_dimension_buts(bContext *C, uiLayout *layout, View3D *v3d
     BKE_object_dimensions_eval_cached_get(ob, tfp->ob_dims);
     copy_v3_v3(tfp->ob_dims_orig, tfp->ob_dims);
     copy_v3_v3(tfp->ob_scale_orig, ob->scale);
-    copy_m4_m4(tfp->ob_obmat_orig, ob->object_to_world);
+    copy_m4_m4(tfp->ob_obmat_orig, ob->object_to_world().ptr());
 
     uiDefBut(block,
              UI_BTYPE_LABEL,
@@ -1212,8 +1198,6 @@ static void v3d_object_dimension_buts(bContext *C, uiLayout *layout, View3D *v3d
              butw,
              buth,
              nullptr,
-             0,
-             0,
              0,
              0,
              "");
@@ -1269,7 +1253,7 @@ static void do_view3d_vgroup_buttons(bContext *C, void * /*arg*/, int event)
   ViewLayer *view_layer = CTX_data_view_layer(C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
-  ED_vgroup_vert_active_mirror(ob, event - B_VGRP_PNL_EDIT_SINGLE);
+  blender::ed::object::vgroup_vert_active_mirror(ob, event - B_VGRP_PNL_EDIT_SINGLE);
   DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
 }
@@ -1772,7 +1756,7 @@ static void view3d_panel_transform(const bContext *C, Panel *panel)
 
 static void hide_collections_menu_draw(const bContext *C, Menu *menu)
 {
-  ED_collection_hide_menu_draw(C, menu->layout);
+  blender::ed::object::collection_hide_menu_draw(C, menu->layout);
 }
 
 void view3d_buttons_register(ARegionType *art)
@@ -1815,7 +1799,7 @@ static int view3d_object_mode_menu_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
   if (((ob->mode & OB_MODE_EDIT) == 0) && ELEM(ob->type, OB_ARMATURE)) {
-    ED_object_mode_set(C, (ob->mode == OB_MODE_OBJECT) ? OB_MODE_POSE : OB_MODE_OBJECT);
+    blender::ed::object::mode_set(C, (ob->mode == OB_MODE_OBJECT) ? OB_MODE_POSE : OB_MODE_OBJECT);
     return OPERATOR_CANCELLED;
   }
 

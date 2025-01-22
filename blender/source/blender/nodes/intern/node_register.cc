@@ -10,15 +10,11 @@
 
 #include "BKE_node.hh"
 
-#include "ED_node.hh"
-
-#include "BLT_translation.h"
-
-#include "RNA_access.hh"
+#include "BLT_translation.hh"
 
 #include "UI_resources.hh"
 
-static bool node_undefined_poll(const bNodeType * /*ntype*/,
+static bool node_undefined_poll(const blender::bke::bNodeType * /*ntype*/,
                                 const bNodeTree * /*nodetree*/,
                                 const char ** /*r_disabled_hint*/)
 {
@@ -38,7 +34,7 @@ static void register_undefined_types()
   STRNCPY(blender::bke::NodeTreeTypeUndefined.ui_name, N_("Undefined"));
   STRNCPY(blender::bke::NodeTreeTypeUndefined.ui_description, N_("Undefined Node Tree Type"));
 
-  node_type_base_custom(
+  blender::bke::node_type_base_custom(
       &blender::bke::NodeTypeUndefined, "NodeUndefined", "Undefined", "UNDEFINED", 0);
   blender::bke::NodeTypeUndefined.poll = node_undefined_poll;
 

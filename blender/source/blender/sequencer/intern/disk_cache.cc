@@ -14,7 +14,6 @@
 
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
-#include "DNA_space_types.h" /* for FILE_MAX. */
 
 #include "IMB_colormanagement.hh"
 #include "IMB_imbuf.hh"
@@ -25,25 +24,17 @@
 #include "BLI_endian_switch.h"
 #include "BLI_fileops.h"
 #include "BLI_fileops_types.h"
-#include "BLI_ghash.h"
 #include "BLI_listbase.h"
-#include "BLI_mempool.h"
 #include "BLI_path_util.h"
 #include "BLI_threads.h"
 
 #include "BKE_main.hh"
-#include "BKE_scene.h"
 
-#include "SEQ_prefetch.hh"
-#include "SEQ_relations.hh"
 #include "SEQ_render.hh"
-#include "SEQ_sequencer.hh"
 #include "SEQ_time.hh"
 
 #include "disk_cache.hh"
 #include "image_cache.hh"
-#include "prefetch.hh"
-#include "strip_time.hh"
 
 /**
  * Disk Cache Design Notes
@@ -106,7 +97,7 @@ struct DiskCacheFile {
 
 static ThreadMutex cache_create_lock = BLI_MUTEX_INITIALIZER;
 
-static char *seq_disk_cache_base_dir()
+static const char *seq_disk_cache_base_dir()
 {
   return U.sequencer_disk_cache_dir;
 }
@@ -161,7 +152,7 @@ static DiskCacheFile *seq_disk_cache_add_file_to_list(SeqDiskCache *disk_cache,
   return cache_file;
 }
 
-static void seq_disk_cache_get_files(SeqDiskCache *disk_cache, char *dirpath)
+static void seq_disk_cache_get_files(SeqDiskCache *disk_cache, const char *dirpath)
 {
   direntry *filelist, *fl;
   uint i;
@@ -293,12 +284,9 @@ static void seq_disk_cache_get_project_dir(SeqDiskCache *disk_cache,
                                            size_t dirpath_maxncpy)
 {
   char cache_dir[FILE_MAX];
-  BLI_path_split_file_part(
-      BKE_main_blendfile_path(disk_cache->bmain), cache_dir, sizeof(cache_dir));
+  const char *blendfile_path = BKE_main_blendfile_path(disk_cache->bmain);
   /* Use suffix, so that the cache directory name does not conflict with the bmain's blend file. */
-  const char *suffix = "_seq_cache";
-  strncat(cache_dir, suffix, sizeof(cache_dir) - strlen(cache_dir) - 1);
-
+  SNPRINTF(cache_dir, "%s_seq_cache", BLI_path_basename(blendfile_path));
   BLI_path_join(dirpath, dirpath_maxncpy, seq_disk_cache_base_dir(), cache_dir);
 }
 
@@ -338,7 +326,7 @@ static void seq_disk_cache_get_file_path(SeqDiskCache *disk_cache,
   BLI_path_append(filepath, filepath_maxncpy, cache_filename);
 }
 
-static void seq_disk_cache_create_version_file(char *filepath)
+static void seq_disk_cache_create_version_file(const char *filepath)
 {
   BLI_file_ensure_parent_dir_exists(filepath);
 
@@ -370,7 +358,7 @@ static void seq_disk_cache_handle_versioning(SeqDiskCache *disk_cache)
     }
 
     if (version != DCACHE_CURRENT_VERSION) {
-      BLI_delete(dirpath, false, true);
+      BLI_delete(dirpath, true, true);
       seq_disk_cache_create_version_file(path_version_file);
     }
   }
@@ -484,7 +472,7 @@ static bool seq_disk_cache_read_header(FILE *file, DiskCacheHeader *header)
   return true;
 }
 
-static size_t seq_disk_cache_write_header(FILE *file, DiskCacheHeader *header)
+static size_t seq_disk_cache_write_header(FILE *file, const DiskCacheHeader *header)
 {
   BLI_fseek(file, 0LL, SEEK_SET);
   return fwrite(header, sizeof(*header), 1, file);
@@ -528,11 +516,11 @@ static int seq_disk_cache_add_header_entry(SeqCacheKey *key, ImBuf *ibuf, DiskCa
   /* Store colorspace name of ibuf. */
   const char *colorspace_name;
   if (ibuf->byte_buffer.data) {
-    header->entry[i].size_raw = ibuf->x * ibuf->y * ibuf->channels;
+    header->entry[i].size_raw = int64_t(ibuf->x) * ibuf->y * ibuf->channels;
     colorspace_name = IMB_colormanagement_get_rect_colorspace(ibuf);
   }
   else {
-    header->entry[i].size_raw = ibuf->x * ibuf->y * ibuf->channels * 4;
+    header->entry[i].size_raw = int64_t(ibuf->x) * ibuf->y * ibuf->channels * 4;
     colorspace_name = IMB_colormanagement_get_float_colorspace(ibuf);
   }
   STRNCPY(header->entry[i].colorspace_name, colorspace_name);
@@ -540,7 +528,7 @@ static int seq_disk_cache_add_header_entry(SeqCacheKey *key, ImBuf *ibuf, DiskCa
   return i;
 }
 
-static int seq_disk_cache_get_header_entry(SeqCacheKey *key, DiskCacheHeader *header)
+static int seq_disk_cache_get_header_entry(SeqCacheKey *key, const DiskCacheHeader *header)
 {
   for (int i = 0; i < DCACHE_IMAGES_PER_FILE; i++) {
     if (header->entry[i].frameno == key->frame_index) {
@@ -641,12 +629,14 @@ ImBuf *seq_disk_cache_read_file(SeqDiskCache *disk_cache, SeqCacheKey *key)
 
   if (header.entry[entry_index].size_raw == size_char) {
     expected_size = size_char;
-    ibuf = IMB_allocImBuf(key->context.rectx, key->context.recty, 32, IB_rect);
+    ibuf = IMB_allocImBuf(
+        key->context.rectx, key->context.recty, 32, IB_rect | IB_uninitialized_pixels);
     IMB_colormanagement_assign_byte_colorspace(ibuf, header.entry[entry_index].colorspace_name);
   }
   else if (header.entry[entry_index].size_raw == size_float) {
     expected_size = size_float;
-    ibuf = IMB_allocImBuf(key->context.rectx, key->context.recty, 32, IB_rectfloat);
+    ibuf = IMB_allocImBuf(
+        key->context.rectx, key->context.recty, 32, IB_rectfloat | IB_uninitialized_pixels);
     IMB_colormanagement_assign_float_colorspace(ibuf, header.entry[entry_index].colorspace_name);
   }
   else {

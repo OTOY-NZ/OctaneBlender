@@ -91,7 +91,7 @@ class ChromaMatteShaderNode : public ShaderNode {
 
   float get_acceptance()
   {
-    return std::tan(node_storage(bnode()).t1) / 2.0f;
+    return std::tan(node_storage(bnode()).t1 / 2.0f);
   }
 
   float get_cutoff()
@@ -116,15 +116,16 @@ void register_node_type_cmp_chroma_matte()
 {
   namespace file_ns = blender::nodes::node_composite_chroma_matte_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, CMP_NODE_CHROMA_MATTE, "Chroma Key", NODE_CLASS_MATTE);
   ntype.declare = file_ns::cmp_node_chroma_matte_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_chroma_matte;
   ntype.flag |= NODE_PREVIEW;
   ntype.initfunc = file_ns::node_composit_init_chroma_matte;
-  node_type_storage(&ntype, "NodeChroma", node_free_standard_storage, node_copy_standard_storage);
+  blender::bke::node_type_storage(
+      &ntype, "NodeChroma", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_shader_node = file_ns::get_compositor_shader_node;
 
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 }

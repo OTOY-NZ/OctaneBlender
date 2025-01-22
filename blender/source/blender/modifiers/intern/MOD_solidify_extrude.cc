@@ -23,7 +23,6 @@
 #include "BKE_customdata.hh"
 #include "BKE_deform.hh"
 #include "BKE_mesh.hh"
-#include "BKE_particle.h"
 
 #include "MOD_modifiertypes.hh"
 #include "MOD_solidify_util.hh" /* own include */
@@ -31,13 +30,13 @@
 
 /* -------------------------------------------------------------------- */
 /** \name High Quality Normal Calculation Function
+ *
+ * High quality mesh normal calculation function
+ * (could be exposed for other functions to use).
  * \{ */
 
 /* skip shell thickness for non-manifold edges, see #35710. */
 #define USE_NONMANIFOLD_WORKAROUND
-
-/* *** derived mesh high quality normal calculation function  *** */
-/* could be exposed for other functions to use */
 
 struct EdgeFaceRef {
   int p1; /* init as -1 */

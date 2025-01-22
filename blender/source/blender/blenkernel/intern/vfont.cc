@@ -12,6 +12,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <cwctype>
+#include <optional>
 
 #include "CLG_log.h"
 
@@ -29,7 +30,7 @@
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_curve_types.h"
 #include "DNA_object_types.h"
@@ -37,9 +38,9 @@
 #include "DNA_vfont_types.h"
 
 #include "BKE_anim_path.h"
-#include "BKE_bpath.h"
+#include "BKE_bpath.hh"
 #include "BKE_curve.hh"
-#include "BKE_global.h"
+#include "BKE_global.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
@@ -82,7 +83,11 @@ static void vfont_init_data(ID *id)
   }
 }
 
-static void vfont_copy_data(Main * /*bmain*/, ID *id_dst, const ID * /*id_src*/, const int flag)
+static void vfont_copy_data(Main * /*bmain*/,
+                            std::optional<Library *> /*owner_library*/,
+                            ID *id_dst,
+                            const ID * /*id_src*/,
+                            const int flag)
 {
   VFont *vfont_dst = (VFont *)id_dst;
 
@@ -163,6 +168,7 @@ static void vfont_blend_read_data(BlendDataReader *reader, ID *id)
 IDTypeInfo IDType_ID_VF = {
     /*id_code*/ ID_VF,
     /*id_filter*/ FILTER_ID_VF,
+    /*dependencies_id_types*/ 0,
     /*main_listbase_index*/ INDEX_ID_VF,
     /*struct_size*/ sizeof(VFont),
     /*name*/ "Font",
@@ -399,7 +405,7 @@ VFont *BKE_vfont_load_exists(Main *bmain, const char *filepath)
   return BKE_vfont_load_exists_ex(bmain, filepath, nullptr);
 }
 
-static VFont *which_vfont(Curve *cu, CharInfo *info)
+static VFont *which_vfont(Curve *cu, const CharInfo *info)
 {
   switch (info->flag & (CU_CHINFO_BOLD | CU_CHINFO_ITALIC)) {
     case CU_CHINFO_BOLD:
@@ -429,7 +435,7 @@ VFont *BKE_vfont_builtin_get()
   return vfont;
 }
 
-static VChar *find_vfont_char(VFontData *vfd, uint character)
+static VChar *find_vfont_char(const VFontData *vfd, uint character)
 {
   return static_cast<VChar *>(BLI_ghash_lookup(vfd->characters, POINTER_FROM_UINT(character)));
 }
@@ -501,7 +507,7 @@ static void build_underline(Curve *cu,
 void BKE_vfont_build_char(Curve *cu,
                           ListBase *nubase,
                           uint character,
-                          CharInfo *info,
+                          const CharInfo *info,
                           float ofsx,
                           float ofsy,
                           float rot,
@@ -673,7 +679,7 @@ void BKE_vfont_select_clamp(Object *ob)
   CLAMP_MAX(ef->selend, ef->len);
 }
 
-static float char_width(Curve *cu, VChar *che, CharInfo *info)
+static float char_width(Curve *cu, VChar *che, const CharInfo *info)
 {
   /* The character wasn't found, probably ascii = 0, then the width shall be 0 as well */
   if (che == nullptr) {
@@ -1423,14 +1429,14 @@ static bool vfont_to_curve(Object *ob,
       float timeofs, sizefac;
 
       if (ob != nullptr) {
-        invert_m4_m4(imat, ob->object_to_world);
+        invert_m4_m4(imat, ob->object_to_world().ptr());
       }
       else {
         unit_m4(imat);
       }
       copy_m3_m4(imat3, imat);
 
-      copy_m3_m4(cmat, cu->textoncurve->object_to_world);
+      copy_m3_m4(cmat, cu->textoncurve->object_to_world().ptr());
       mul_m3_m3m3(cmat, cmat, imat3);
       sizefac = normalize_v3(cmat[0]) / font_size;
 
@@ -2000,7 +2006,7 @@ bool BKE_vfont_to_curve_ex(Object *ob,
   return data.ok;
 }
 
-int BKE_vfont_cursor_to_text_index(Object *ob, float cursor_location[2])
+int BKE_vfont_cursor_to_text_index(Object *ob, const float cursor_location[2])
 {
   Curve *cu = (Curve *)ob->data;
   ListBase *r_nubase = &cu->nurb;

@@ -8,14 +8,14 @@
 
 #pragma once
 
-#include "BKE_node.h"
+#include "BKE_node.hh"
 
 struct bNode;
 struct bNodeTree;
 
 bNodeSocket *node_add_socket_from_template(bNodeTree *ntree,
                                            bNode *node,
-                                           bNodeSocketTemplate *stemp,
+                                           blender::bke::bNodeSocketTemplate *stemp,
                                            eNodeSocketInOut in_out);
 
 void node_verify_sockets(bNodeTree *ntree, bNode *node, bool do_id_user);
@@ -30,5 +30,6 @@ namespace blender::nodes {
 
 void update_node_declaration_and_sockets(bNodeTree &ntree, bNode &node);
 bool socket_type_supports_fields(eNodeSocketDatatype socket_type);
+bool socket_type_supports_grids(eNodeSocketDatatype socket_type);
 
 }  // namespace blender::nodes

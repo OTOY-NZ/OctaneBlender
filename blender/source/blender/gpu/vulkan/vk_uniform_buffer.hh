@@ -21,7 +21,7 @@ class VKUniformBuffer : public UniformBuf, public VKBindableResource, NonCopyabl
   VKBuffer buffer_;
 
  public:
-  VKUniformBuffer(int size, const char *name) : UniformBuf(size, name) {}
+  VKUniformBuffer(size_t size, const char *name) : UniformBuf(size, name) {}
 
   void update(const void *data) override;
   void clear_to_zero() override;
@@ -44,9 +44,10 @@ class VKUniformBuffer : public UniformBuf, public VKBindableResource, NonCopyabl
   }
 
   /* Bindable resource */
-  void bind(int binding,
-            shader::ShaderCreateInfo::Resource::BindType bind_type,
-            const GPUSamplerState sampler_state) override;
+  void add_to_descriptor_set(AddToDescriptorSetContext &data,
+                             int binding,
+                             shader::ShaderCreateInfo::Resource::BindType bind_type,
+                             const GPUSamplerState sampler_state) override;
 
  private:
   void allocate();

@@ -6,14 +6,11 @@
  * \ingroup cmpnodes
  */
 
-#include "BKE_global.h"
-#include "BKE_image.h"
-
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
-#include "GPU_shader.h"
-#include "GPU_texture.h"
+#include "GPU_shader.hh"
+#include "GPU_texture.hh"
 
 #include "COM_node_operation.hh"
 #include "COM_utilities.hh"
@@ -108,7 +105,7 @@ void register_node_type_cmp_split()
 {
   namespace file_ns = blender::nodes::node_composite_split_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, CMP_NODE_SPLIT, "Split", NODE_CLASS_CONVERTER);
   ntype.declare = file_ns::cmp_node_split_declare;
@@ -119,5 +116,5 @@ void register_node_type_cmp_split()
 
   ntype.no_muting = true;
 
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 }

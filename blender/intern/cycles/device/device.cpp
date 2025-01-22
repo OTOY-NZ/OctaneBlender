@@ -62,52 +62,52 @@ void Device::build_bvh(BVH *bvh, Progress &progress, bool refit)
   }
 }
 
-Device *Device::create(const DeviceInfo &info, Stats &stats, Profiler &profiler)
+Device *Device::create(const DeviceInfo &info, Stats &stats, Profiler &profiler, bool headless)
 {
   if (!info.multi_devices.empty()) {
     /* Always create a multi device when info contains multiple devices.
      * This is done so that the type can still be e.g. DEVICE_CPU to indicate
      * that it is a homogeneous collection of devices, which simplifies checks. */
-    return device_multi_create(info, stats, profiler);
+    return device_multi_create(info, stats, profiler, headless);
   }
 
   Device *device = NULL;
 
   switch (info.type) {
     case DEVICE_CPU:
-      device = device_cpu_create(info, stats, profiler);
+      device = device_cpu_create(info, stats, profiler, headless);
       break;
 #ifdef WITH_CUDA
     case DEVICE_CUDA:
       if (device_cuda_init()) {
-        device = device_cuda_create(info, stats, profiler);
+        device = device_cuda_create(info, stats, profiler, headless);
       }
       break;
 #endif
 #ifdef WITH_OPTIX
     case DEVICE_OPTIX:
       if (device_optix_init())
-        device = device_optix_create(info, stats, profiler);
+        device = device_optix_create(info, stats, profiler, headless);
       break;
 #endif
 
 #ifdef WITH_HIP
     case DEVICE_HIP:
       if (device_hip_init())
-        device = device_hip_create(info, stats, profiler);
+        device = device_hip_create(info, stats, profiler, headless);
       break;
 #endif
 
 #ifdef WITH_METAL
     case DEVICE_METAL:
       if (device_metal_init())
-        device = device_metal_create(info, stats, profiler);
+        device = device_metal_create(info, stats, profiler, headless);
       break;
 #endif
 
 #ifdef WITH_ONEAPI
     case DEVICE_ONEAPI:
-      device = device_oneapi_create(info, stats, profiler);
+      device = device_oneapi_create(info, stats, profiler, headless);
       break;
 #endif
 
@@ -116,7 +116,7 @@ Device *Device::create(const DeviceInfo &info, Stats &stats, Profiler &profiler)
   }
 
   if (device == NULL) {
-    device = device_dummy_create(info, stats, profiler);
+    device = device_dummy_create(info, stats, profiler, headless);
   }
 
   return device;
@@ -208,29 +208,6 @@ vector<DeviceType> Device::available_types()
   return types;
 }
 
-static void device_oidn_init_once()
-{
-  static bool initialized = false;
-
-  if (initialized == false) {
-    /* Disable OIDN for HIP until it has been tested to be stable on more systems.
-     *
-     * In older drivers with an integrated GPU, this may crash with message:
-     * "hipErrorNoBinaryForGpu: Unable to find code object for all current devices".
-     *
-     * This also affects systems which have for example an NVIDIA GPU as OIDN
-     * initializes all device types together. */
-    if (getenv("OIDN_DEVICE_HIP") == nullptr) {
-#ifdef _WIN32
-      _putenv_s("OIDN_DEVICE_HIP", "0");
-#else
-      setenv("OIDN_DEVICE_HIP", "0", true);
-#endif
-    }
-    initialized = true;
-  }
-}
-
 vector<DeviceInfo> Device::available_devices(uint mask)
 {
   /* Lazy initialize devices. On some platforms OpenCL or CUDA drivers can
@@ -238,8 +215,6 @@ vector<DeviceInfo> Device::available_devices(uint mask)
    * we don't want to do any initialization until the user chooses to. */
   thread_scoped_lock lock(device_mutex);
   vector<DeviceInfo> devices;
-
-  device_oidn_init_once();
 
 #if defined(WITH_CUDA) || defined(WITH_OPTIX)
   if (mask & (DEVICE_MASK_CUDA | DEVICE_MASK_OPTIX)) {
@@ -338,8 +313,6 @@ string Device::device_capabilities(uint mask)
 {
   thread_scoped_lock lock(device_mutex);
   string capabilities = "";
-
-  device_oidn_init_once();
 
   if (mask & DEVICE_MASK_CPU) {
     capabilities += "\nCPU device capabilities: ";

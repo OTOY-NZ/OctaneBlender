@@ -11,13 +11,10 @@
 
 #include "node_geometry_util.hh"
 
-#include "DNA_mesh_types.h"
-
 #include "BLI_task.hh"
 
 #include "BKE_geometry_set.hh"
 #include "BKE_lib_id.hh"
-#include "BKE_mesh.hh"
 #include "BKE_volume.hh"
 #include "BKE_volume_openvdb.hh"
 
@@ -183,13 +180,13 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, GEO_NODE_VOLUME_CUBE, "Volume Cube", NODE_CLASS_GEOMETRY);
 
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

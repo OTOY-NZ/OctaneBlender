@@ -19,11 +19,8 @@
 #include "BKE_context.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_override.hh"
-#include "BKE_main.hh"
 #include "BKE_preview_image.hh"
-#include "BKE_report.h"
-
-#include "BLT_translation.h"
+#include "BKE_report.hh"
 
 #include "ED_asset.hh"
 #include "ED_render.hh"
@@ -51,7 +48,7 @@ static bool lib_id_preview_editing_poll(bContext *C)
   if (!id) {
     return false;
   }
-  if (ID_IS_LINKED(id)) {
+  if (!ID_IS_EDITABLE(id)) {
     CTX_wm_operator_poll_msg_set(C, "Can't edit external library data");
     return false;
   }

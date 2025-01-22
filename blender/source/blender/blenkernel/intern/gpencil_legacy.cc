@@ -11,6 +11,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <optional>
 
 #include "CLG_log.h"
 
@@ -21,7 +22,7 @@
 #include "BLI_math_vector.h"
 #include "BLI_string_utils.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "IMB_interp.hh"
 
@@ -34,8 +35,8 @@
 #include "DNA_space_types.h"
 
 #include "BKE_action.h"
-#include "BKE_anim_data.h"
-#include "BKE_collection.h"
+#include "BKE_anim_data.hh"
+#include "BKE_collection.hh"
 #include "BKE_colortools.hh"
 #include "BKE_deform.hh"
 #include "BKE_gpencil_geom_legacy.h"
@@ -59,6 +60,7 @@
 static CLG_LogRef LOG = {"bke.gpencil"};
 
 static void greasepencil_copy_data(Main * /*bmain*/,
+                                   std::optional<Library *> /*owner_library*/,
                                    ID *id_dst,
                                    const ID *id_src,
                                    const int /*flag*/)
@@ -202,52 +204,54 @@ void BKE_gpencil_blend_read_data(BlendDataReader *reader, bGPdata *gpd)
   gpd->runtime.update_cache = nullptr;
 
   /* Relink palettes (old palettes deprecated, only to convert old files). */
-  BLO_read_list(reader, &gpd->palettes);
+  BLO_read_struct_list(reader, bGPDpalette, &gpd->palettes);
   if (gpd->palettes.first != nullptr) {
     LISTBASE_FOREACH (bGPDpalette *, palette, &gpd->palettes) {
-      BLO_read_list(reader, &palette->colors);
+      BLO_read_struct_list(reader, PaletteColor, &palette->colors);
     }
   }
 
-  BLO_read_list(reader, &gpd->vertex_group_names);
+  BLO_read_struct_list(reader, bDeformGroup, &gpd->vertex_group_names);
 
   /* Materials. */
   BLO_read_pointer_array(reader, (void **)&gpd->mat);
 
   /* Relink layers. */
-  BLO_read_list(reader, &gpd->layers);
+  BLO_read_struct_list(reader, bGPDlayer, &gpd->layers);
 
   LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
     /* Relink frames. */
-    BLO_read_list(reader, &gpl->frames);
+    BLO_read_struct_list(reader, bGPDframe, &gpl->frames);
 
-    BLO_read_data_address(reader, &gpl->actframe);
+    BLO_read_struct(reader, bGPDframe, &gpl->actframe);
 
     gpl->runtime.icon_id = 0;
 
     /* Relink masks. */
-    BLO_read_list(reader, &gpl->mask_layers);
+    BLO_read_struct_list(reader, bGPDlayer_Mask, &gpl->mask_layers);
 
     LISTBASE_FOREACH (bGPDframe *, gpf, &gpl->frames) {
       /* Relink strokes (and their points). */
-      BLO_read_list(reader, &gpf->strokes);
+      BLO_read_struct_list(reader, bGPDstroke, &gpf->strokes);
 
       LISTBASE_FOREACH (bGPDstroke *, gps, &gpf->strokes) {
         /* Relink stroke points array. */
-        BLO_read_data_address(reader, &gps->points);
+        BLO_read_struct_array(reader, bGPDspoint, gps->totpoints, &gps->points);
         /* Relink geometry. */
-        BLO_read_data_address(reader, &gps->triangles);
+        BLO_read_struct_array(reader, bGPDtriangle, gps->tot_triangles, &gps->triangles);
 
         /* Relink stroke edit curve. */
-        BLO_read_data_address(reader, &gps->editcurve);
+        BLO_read_struct(reader, bGPDcurve, &gps->editcurve);
         if (gps->editcurve != nullptr) {
           /* Relink curve point array. */
-          BLO_read_data_address(reader, &gps->editcurve->curve_points);
+          bGPDcurve *gpc = gps->editcurve;
+          BLO_read_struct_array(
+              reader, bGPDcurve_point, gpc->tot_curve_points, &gps->editcurve->curve_points);
         }
 
         /* Relink weight data. */
         if (gps->dvert) {
-          BLO_read_data_address(reader, &gps->dvert);
+          BLO_read_struct_array(reader, MDeformVert, gps->totpoints, &gps->dvert);
           BKE_defvert_blend_read(reader, gps->totpoints, gps->dvert);
         }
       }
@@ -264,6 +268,7 @@ static void greasepencil_blend_read_data(BlendDataReader *reader, ID *id)
 IDTypeInfo IDType_ID_GD_LEGACY = {
     /*id_code*/ ID_GD_LEGACY,
     /*id_filter*/ FILTER_ID_GD_LEGACY,
+    /*dependencies_id_types*/ FILTER_ID_MA,
     /*main_listbase_index*/ INDEX_ID_GD_LEGACY,
     /*struct_size*/ sizeof(bGPdata),
     /*name*/ "GPencil",
@@ -1058,7 +1063,7 @@ bGPdata *BKE_gpencil_data_duplicate(Main *bmain, const bGPdata *gpd_src, bool in
   }
 
   /* Copy internal data (layers, etc.) */
-  greasepencil_copy_data(bmain, &gpd_dst->id, &gpd_src->id, 0);
+  greasepencil_copy_data(bmain, std::nullopt, &gpd_dst->id, &gpd_src->id, 0);
 
   /* return new */
   return gpd_dst;
@@ -1746,9 +1751,9 @@ Material *BKE_gpencil_object_material_ensure_from_active_input_toolsettings(Main
                                                                             Object *ob,
                                                                             ToolSettings *ts)
 {
-  if (ts && ts->gp_paint && ts->gp_paint->paint.brush) {
+  if (ts && ts->gp_paint && BKE_paint_brush(&ts->gp_paint->paint)) {
     return BKE_gpencil_object_material_ensure_from_active_input_brush(
-        bmain, ob, ts->gp_paint->paint.brush);
+        bmain, ob, BKE_paint_brush(&ts->gp_paint->paint));
   }
 
   return BKE_gpencil_object_material_ensure_from_active_input_brush(bmain, ob, nullptr);
@@ -2696,7 +2701,7 @@ void BKE_gpencil_layer_transform_matrix_get(const Depsgraph *depsgraph,
   /* if not layer parented, try with object parented */
   if (obparent_eval == nullptr) {
     if ((ob_eval != nullptr) && (ob_eval->type == OB_GPENCIL_LEGACY)) {
-      copy_m4_m4(diff_mat, ob_eval->object_to_world);
+      copy_m4_m4(diff_mat, ob_eval->object_to_world().ptr());
       mul_m4_m4m4(diff_mat, diff_mat, gpl->layer_mat);
       return;
     }
@@ -2706,8 +2711,8 @@ void BKE_gpencil_layer_transform_matrix_get(const Depsgraph *depsgraph,
   }
 
   if (ELEM(gpl->partype, PAROBJECT, PARSKEL)) {
-    mul_m4_m4m4(diff_mat, obparent_eval->object_to_world, gpl->inverse);
-    add_v3_v3(diff_mat[3], ob_eval->object_to_world[3]);
+    mul_m4_m4m4(diff_mat, obparent_eval->object_to_world().ptr(), gpl->inverse);
+    add_v3_v3(diff_mat[3], ob_eval->object_to_world().location());
     mul_m4_m4m4(diff_mat, diff_mat, gpl->layer_mat);
     return;
   }
@@ -2715,14 +2720,14 @@ void BKE_gpencil_layer_transform_matrix_get(const Depsgraph *depsgraph,
     bPoseChannel *pchan = BKE_pose_channel_find_name(obparent_eval->pose, gpl->parsubstr);
     if (pchan) {
       float tmp_mat[4][4];
-      mul_m4_m4m4(tmp_mat, obparent_eval->object_to_world, pchan->pose_mat);
+      mul_m4_m4m4(tmp_mat, obparent_eval->object_to_world().ptr(), pchan->pose_mat);
       mul_m4_m4m4(diff_mat, tmp_mat, gpl->inverse);
-      add_v3_v3(diff_mat[3], ob_eval->object_to_world[3]);
+      add_v3_v3(diff_mat[3], ob_eval->object_to_world().location());
     }
     else {
       /* if bone not found use object (armature) */
-      mul_m4_m4m4(diff_mat, obparent_eval->object_to_world, gpl->inverse);
-      add_v3_v3(diff_mat[3], ob_eval->object_to_world[3]);
+      mul_m4_m4m4(diff_mat, obparent_eval->object_to_world().ptr(), gpl->inverse);
+      add_v3_v3(diff_mat[3], ob_eval->object_to_world().location());
     }
     mul_m4_m4m4(diff_mat, diff_mat, gpl->layer_mat);
     return;
@@ -2776,12 +2781,15 @@ void BKE_gpencil_update_layer_transforms(const Depsgraph *depsgraph, Object *ob)
       Object *ob_parent = DEG_get_evaluated_object(depsgraph, gpl->parent);
       /* calculate new matrix */
       if (ELEM(gpl->partype, PAROBJECT, PARSKEL)) {
-        mul_m4_m4m4(cur_mat, ob->world_to_object, ob_parent->object_to_world);
+        mul_m4_m4m4(cur_mat, ob->world_to_object().ptr(), ob_parent->object_to_world().ptr());
       }
       else if (gpl->partype == PARBONE) {
         bPoseChannel *pchan = BKE_pose_channel_find_name(ob_parent->pose, gpl->parsubstr);
         if (pchan != nullptr) {
-          mul_m4_series(cur_mat, ob->world_to_object, ob_parent->object_to_world, pchan->pose_mat);
+          mul_m4_series(cur_mat,
+                        ob->world_to_object().ptr(),
+                        ob_parent->object_to_world().ptr(),
+                        pchan->pose_mat);
         }
         else {
           unit_m4(cur_mat);

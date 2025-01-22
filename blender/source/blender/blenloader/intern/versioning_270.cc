@@ -33,13 +33,11 @@
 #include "DNA_mask_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
-#include "DNA_object_force_types.h"
 #include "DNA_object_types.h"
 #include "DNA_particle_types.h"
 #include "DNA_pointcache_types.h"
 #include "DNA_rigidbody_types.h"
 #include "DNA_screen_types.h"
-#include "DNA_sdna_types.h"
 #include "DNA_sequence_types.h"
 #include "DNA_space_types.h"
 #include "DNA_view3d_types.h"
@@ -48,7 +46,7 @@
 
 #undef DNA_GENFILE_VERSIONING_MACROS
 
-#include "BKE_anim_data.h"
+#include "BKE_anim_data.hh"
 #include "BKE_animsys.h"
 #include "BKE_colortools.hh"
 #include "BKE_customdata.hh"
@@ -56,10 +54,9 @@
 #include "BKE_main.hh"
 #include "BKE_mask.h"
 #include "BKE_modifier.hh"
-#include "BKE_node.h"
-#include "BKE_scene.h"
+#include "BKE_node.hh"
+#include "BKE_scene.hh"
 #include "BKE_screen.hh"
-#include "BKE_tracking.h"
 #include "DNA_material_types.h"
 
 #include "SEQ_effects.hh"
@@ -72,11 +69,10 @@
 #include "BLI_string.h"
 #include "BLI_string_utils.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "BLO_readfile.h"
+#include "BLO_readfile.hh"
 
-#include "NOD_common.h"
 #include "NOD_composite.hh"
 #include "NOD_socket.hh"
 
@@ -284,18 +280,20 @@ static void do_version_hue_sat_node(bNodeTree *ntree, bNode *node)
 
   /* Convert value from old storage to new sockets. */
   NodeHueSat *nhs = static_cast<NodeHueSat *>(node->storage);
-  bNodeSocket *hue = nodeFindSocket(node, SOCK_IN, "Hue");
-  bNodeSocket *saturation = nodeFindSocket(node, SOCK_IN, "Saturation");
-  bNodeSocket *value = nodeFindSocket(node, SOCK_IN, "Value");
+  bNodeSocket *hue = blender::bke::nodeFindSocket(node, SOCK_IN, "Hue");
+  bNodeSocket *saturation = blender::bke::nodeFindSocket(node, SOCK_IN, "Saturation");
+  bNodeSocket *value = blender::bke::nodeFindSocket(node, SOCK_IN, "Value");
   if (hue == nullptr) {
-    hue = nodeAddStaticSocket(ntree, node, SOCK_IN, SOCK_FLOAT, PROP_FACTOR, "Hue", "Hue");
+    hue = blender::bke::nodeAddStaticSocket(
+        ntree, node, SOCK_IN, SOCK_FLOAT, PROP_FACTOR, "Hue", "Hue");
   }
   if (saturation == nullptr) {
-    saturation = nodeAddStaticSocket(
+    saturation = blender::bke::nodeAddStaticSocket(
         ntree, node, SOCK_IN, SOCK_FLOAT, PROP_FACTOR, "Saturation", "Saturation");
   }
   if (value == nullptr) {
-    value = nodeAddStaticSocket(ntree, node, SOCK_IN, SOCK_FLOAT, PROP_FACTOR, "Value", "Value");
+    value = blender::bke::nodeAddStaticSocket(
+        ntree, node, SOCK_IN, SOCK_FLOAT, PROP_FACTOR, "Value", "Value");
   }
 
   ((bNodeSocketValueFloat *)hue->default_value)->value = nhs->hue;
@@ -1068,7 +1066,7 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
          * Original commit (3fcf535d2e) forgot to handle embedded IDs. Fortunately, back then, the
          * only embedded IDs that existed were the NodeTree ones, and the current API to access
          * them should still be valid on code from 9 years ago. */
-        bNodeTree *node_tree = ntreeFromID(id);
+        bNodeTree *node_tree = blender::bke::ntreeFromID(id);
         if (node_tree) {
           node_tree->id.flag &= LIB_FAKEUSER;
         }
@@ -1463,15 +1461,15 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
     if (!DNA_struct_member_exists(fd->filesdna, "NodeGlare", "char", "star_45")) {
       FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
         if (ntree->type == NTREE_COMPOSIT) {
-          ntreeSetTypes(nullptr, ntree);
+          blender::bke::ntreeSetTypes(nullptr, ntree);
           LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
             if (node->type == CMP_NODE_GLARE) {
               NodeGlare *ndg = static_cast<NodeGlare *>(node->storage);
               switch (ndg->type) {
-                case 2: /* Grrrr! magic numbers :( */
+                case CMP_NODE_GLARE_STREAKS:
                   ndg->streaks = ndg->angle;
                   break;
-                case 0:
+                case CMP_NODE_GLARE_SIMPLE_STAR:
                   ndg->star_45 = ndg->angle != 0;
                   break;
                 default:
@@ -1615,7 +1613,7 @@ void do_versions_after_linking_270(Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 279, 0)) {
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
       if (ntree->type == NTREE_COMPOSIT) {
-        ntreeSetTypes(nullptr, ntree);
+        blender::bke::ntreeSetTypes(nullptr, ntree);
         LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
           if (node->type == CMP_NODE_HUE_SAT) {
             do_version_hue_sat_node(ntree, node);

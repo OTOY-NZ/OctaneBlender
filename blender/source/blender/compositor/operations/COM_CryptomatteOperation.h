@@ -18,13 +18,23 @@ class CryptomatteOperation : public MultiThreadedOperation {
   CryptomatteOperation(size_t num_inputs = 6);
 
   void init_execution() override;
-  void execute_pixel(float output[4], int x, int y, void *data) override;
 
   void add_object_index(float object_index);
 
   void update_memory_buffer_partial(MemoryBuffer *output,
                                     const rcti &area,
                                     Span<MemoryBuffer *> inputs) override;
+};
+
+class CryptomattePickOperation : public MultiThreadedOperation {
+ public:
+  CryptomattePickOperation();
+
+  void update_memory_buffer_partial(MemoryBuffer *output,
+                                    const rcti &area,
+                                    Span<MemoryBuffer *> inputs) override;
+
+  std::unique_ptr<MetaData> get_meta_data() override;
 };
 
 }  // namespace blender::compositor

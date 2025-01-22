@@ -6,21 +6,15 @@
 #include "BKE_bake_items_serialize.hh"
 #include "BKE_curves.hh"
 #include "BKE_instances.hh"
-#include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
 #include "BKE_pointcloud.hh"
 #include "BKE_volume.hh"
+#include "BKE_volume_grid.hh"
 
-#include "BLI_endian_defines.h"
-#include "BLI_endian_switch.h"
 #include "BLI_math_matrix_types.hh"
-#include "BLI_path_util.h"
 
 #include "DNA_material_types.h"
 #include "DNA_volume_types.h"
-
-#include "RNA_access.hh"
-#include "RNA_enum_types.hh"
 
 namespace blender::bke::bake {
 
@@ -140,6 +134,14 @@ void GeometryBakeItem::try_restore_data_blocks(GeometrySet &main_geometry,
     }
   });
 }
+
+#ifdef WITH_OPENVDB
+VolumeGridBakeItem::VolumeGridBakeItem(std::unique_ptr<GVolumeGrid> grid) : grid(std::move(grid))
+{
+}
+
+VolumeGridBakeItem::~VolumeGridBakeItem() = default;
+#endif
 
 PrimitiveBakeItem::PrimitiveBakeItem(const CPPType &type, const void *value) : type_(type)
 {

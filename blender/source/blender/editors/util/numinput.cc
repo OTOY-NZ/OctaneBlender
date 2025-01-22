@@ -15,11 +15,11 @@
 #include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "BKE_context.hh"
-#include "BKE_report.h"
-#include "BKE_scene.h"
+#include "BKE_report.hh"
+#include "BKE_scene.hh"
 #include "BKE_unit.hh"
 
 #include "DNA_scene_types.h"
@@ -85,7 +85,7 @@ void initNumInput(NumInput *n)
   n->str_cur = 0;
 }
 
-void outputNumInput(NumInput *n, char *str, UnitSettings *unit_settings)
+void outputNumInput(NumInput *n, char *str, const UnitSettings *unit_settings)
 {
   short j;
   const int ln = NUM_STR_REP_LEN;

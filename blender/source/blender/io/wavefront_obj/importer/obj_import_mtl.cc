@@ -10,7 +10,6 @@
 #include "BKE_main.hh"
 #include "BKE_node.hh"
 
-#include "BLI_map.hh"
 #include "BLI_math_vector.h"
 #include "BLI_path_util.h"
 #include "BLI_string.h"
@@ -22,7 +21,6 @@
 
 #include "obj_export_mtl.hh"
 #include "obj_import_mtl.hh"
-#include "obj_import_string_utils.hh"
 
 #include <iostream>
 
@@ -38,7 +36,7 @@ static void set_property_of_socket(eNodeSocketDatatype property_type,
                                    bNode *r_node)
 {
   BLI_assert(r_node);
-  bNodeSocket *socket{nodeFindSocket(r_node, SOCK_IN, socket_id)};
+  bNodeSocket *socket{bke::nodeFindSocket(r_node, SOCK_IN, socket_id)};
   BLI_assert(socket && socket->type == property_type);
   switch (property_type) {
     case SOCK_FLOAT: {
@@ -157,7 +155,7 @@ const float node_locy_step = 300.0f;
 /* Add a node of the given type at the given location. */
 static bNode *add_node(bNodeTree *ntree, int type, float x, float y)
 {
-  bNode *node = nodeAddStaticNode(nullptr, ntree, type);
+  bNode *node = bke::nodeAddStaticNode(nullptr, ntree, type);
   node->locx = x;
   node->locy = y;
   return node;
@@ -169,10 +167,10 @@ static void link_sockets(bNodeTree *ntree,
                          bNode *to_node,
                          const char *to_node_id)
 {
-  bNodeSocket *from_sock{nodeFindSocket(from_node, SOCK_OUT, from_node_id)};
-  bNodeSocket *to_sock{nodeFindSocket(to_node, SOCK_IN, to_node_id)};
+  bNodeSocket *from_sock{bke::nodeFindSocket(from_node, SOCK_OUT, from_node_id)};
+  bNodeSocket *to_sock{bke::nodeFindSocket(to_node, SOCK_IN, to_node_id)};
   BLI_assert(from_sock && to_sock);
-  nodeAddLink(ntree, from_node, from_sock, to_node, to_sock);
+  bke::nodeAddLink(ntree, from_node, from_sock, to_node, to_sock);
 }
 
 static void set_bsdf_socket_values(bNode *bsdf, Material *mat, const MTLMaterial &mtl_mat)
@@ -312,7 +310,8 @@ static void set_bsdf_socket_values(bNode *bsdf, Material *mat, const MTLMaterial
   mat->roughness = roughness;
   set_property_of_socket(SOCK_FLOAT, "Metallic", {metallic}, bsdf);
   mat->metallic = metallic;
-  if (ior != -1) {
+  /* Some files have `Ni 0`, ignore those values. */
+  if (ior > 0.0f) {
     set_property_of_socket(SOCK_FLOAT, "IOR", {ior}, bsdf);
   }
   if (alpha != -1) {
@@ -425,7 +424,7 @@ bNodeTree *create_mtl_node_tree(Main *bmain,
   set_bsdf_socket_values(bsdf, mat, mtl);
   add_image_textures(bmain, ntree, bsdf, mat, mtl, relative_paths);
   link_sockets(ntree, bsdf, "BSDF", output, "Surface");
-  nodeSetActive(ntree, output);
+  bke::nodeSetActive(ntree, output);
 
   return ntree;
 }

@@ -10,7 +10,6 @@
 
 #include "DNA_asset_types.h"
 
-/* Struct members on own line. */
 /* clang-format off */
 
 /* -------------------------------------------------------------------- */
@@ -34,8 +33,20 @@
     .name = {'\0'}, \
     .module = {'\0'}, \
     .custom_dirpath = {'\0'}, \
-    .remote_path = {'\0'}, \
+    .remote_url = {'\0'}, \
     .flag = 0, \
+  }
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name bUserExtensionRepo Struct
+ * \{ */
+
+#define _DNA_DEFAULT_bUserAssetShelfSettings \
+  { \
+    .shelf_idname = {'\0'}, \
+    .enabled_catalog_paths = {NULL, NULL}, \
   }
 
 /** \} */

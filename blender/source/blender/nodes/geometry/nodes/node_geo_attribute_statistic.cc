@@ -11,7 +11,6 @@
 #include "UI_resources.hh"
 
 #include "BLI_array_utils.hh"
-#include "BLI_math_base_safe.h"
 
 #include "NOD_socket_search_link.hh"
 
@@ -32,14 +31,14 @@ static void node_declare(NodeDeclarationBuilder &b)
     const eCustomDataType data_type = eCustomDataType(node->custom1);
     b.add_input(data_type, "Attribute").hide_value().field_on_all();
 
-    b.add_output(data_type, "Mean");
-    b.add_output(data_type, "Median");
-    b.add_output(data_type, "Sum");
-    b.add_output(data_type, "Min");
-    b.add_output(data_type, "Max");
-    b.add_output(data_type, "Range");
-    b.add_output(data_type, "Standard Deviation");
-    b.add_output(data_type, "Variance");
+    b.add_output(data_type, N_("Mean"));
+    b.add_output(data_type, N_("Median"));
+    b.add_output(data_type, N_("Sum"));
+    b.add_output(data_type, N_("Min"));
+    b.add_output(data_type, N_("Max"));
+    b.add_output(data_type, N_("Range"));
+    b.add_output(data_type, N_("Standard Deviation"));
+    b.add_output(data_type, N_("Variance"));
   }
 }
 
@@ -64,6 +63,7 @@ static std::optional<eCustomDataType> node_type_from_other_socket(const bNodeSoc
       return CD_PROP_FLOAT;
     case SOCK_VECTOR:
     case SOCK_RGBA:
+    case SOCK_ROTATION:
       return CD_PROP_FLOAT3;
     default:
       return {};
@@ -72,7 +72,7 @@ static std::optional<eCustomDataType> node_type_from_other_socket(const bNodeSoc
 
 static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 {
-  const bNodeType &node_type = params.node_type();
+  const blender::bke::bNodeType &node_type = params.node_type();
   const NodeDeclaration &declaration = *params.node_type().static_declaration;
   search_link_ops_for_declarations(params, declaration.inputs);
 
@@ -362,7 +362,7 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   geo_node_type_base(
       &ntype, GEO_NODE_ATTRIBUTE_STATISTIC, "Attribute Statistic", NODE_CLASS_ATTRIBUTE);
@@ -372,7 +372,7 @@ static void node_register()
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
   ntype.gather_link_search_ops = node_gather_link_searches;
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

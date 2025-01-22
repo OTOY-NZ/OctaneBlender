@@ -121,6 +121,9 @@ NODE_DEFINE(Integrator)
   static NodeEnum sampling_pattern_enum;
   sampling_pattern_enum.insert("sobol_burley", SAMPLING_PATTERN_SOBOL_BURLEY);
   sampling_pattern_enum.insert("tabulated_sobol", SAMPLING_PATTERN_TABULATED_SOBOL);
+  sampling_pattern_enum.insert("blue_noise_pure", SAMPLING_PATTERN_BLUE_NOISE_PURE);
+  sampling_pattern_enum.insert("blue_noise_round", SAMPLING_PATTERN_BLUE_NOISE_ROUND);
+  sampling_pattern_enum.insert("blue_noise_first", SAMPLING_PATTERN_BLUE_NOISE_FIRST);
   SOCKET_ENUM(sampling_pattern,
               "Sampling Pattern",
               sampling_pattern_enum,
@@ -139,6 +142,7 @@ NODE_DEFINE(Integrator)
   static NodeEnum denoiser_quality_enum;
   denoiser_quality_enum.insert("high", DENOISER_QUALITY_HIGH);
   denoiser_quality_enum.insert("balanced", DENOISER_QUALITY_BALANCED);
+  denoiser_quality_enum.insert("fast", DENOISER_QUALITY_FAST);
 
   /* Default to accurate denoising with OpenImageDenoise. For interactive viewport
    * it's best use OptiX and disable the normal pass since it does not always have
@@ -262,8 +266,6 @@ void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene
   kintegrator->guiding_directional_sampling_type = guiding_params.sampling_type;
   kintegrator->guiding_roughness_threshold = guiding_params.roughness_threshold;
 
-  kintegrator->seed = seed;
-
   kintegrator->sample_clamp_direct = (sample_clamp_direct == 0.0f) ? FLT_MAX :
                                                                      sample_clamp_direct * 3.0f;
   kintegrator->sample_clamp_indirect = (sample_clamp_indirect == 0.0f) ?
@@ -273,6 +275,27 @@ void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene
   kintegrator->sampling_pattern = sampling_pattern;
   kintegrator->scrambling_distance = scrambling_distance;
   kintegrator->sobol_index_mask = reverse_integer_bits(next_power_of_two(aa_samples - 1) - 1);
+  kintegrator->blue_noise_sequence_length = aa_samples;
+  if (kintegrator->sampling_pattern == SAMPLING_PATTERN_BLUE_NOISE_ROUND) {
+    if (!is_power_of_two(aa_samples)) {
+      kintegrator->blue_noise_sequence_length = next_power_of_two(aa_samples);
+    }
+    kintegrator->sampling_pattern = SAMPLING_PATTERN_BLUE_NOISE_PURE;
+  }
+  if (kintegrator->sampling_pattern == SAMPLING_PATTERN_BLUE_NOISE_FIRST) {
+    kintegrator->blue_noise_sequence_length -= 1;
+  }
+
+  /* The blue-noise sampler needs a randomized seed to scramble properly, providing e.g. 0 won't
+   * work properly. Therefore, hash the seed in those cases. */
+  if (kintegrator->sampling_pattern == SAMPLING_PATTERN_BLUE_NOISE_FIRST ||
+      kintegrator->sampling_pattern == SAMPLING_PATTERN_BLUE_NOISE_PURE)
+  {
+    kintegrator->seed = hash_uint(seed);
+  }
+  else {
+    kintegrator->seed = seed;
+  }
 
   /* NOTE: The kintegrator->use_light_tree is assigned to the efficient value in the light manager,
    * and the synchronization code is expected to tag the light manager for update when the
@@ -287,17 +310,16 @@ void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene
   /* Build pre-tabulated Sobol samples if needed. */
   int sequence_size = clamp(
       next_power_of_two(aa_samples - 1), MIN_TAB_SOBOL_SAMPLES, MAX_TAB_SOBOL_SAMPLES);
+  const int table_size = sequence_size * NUM_TAB_SOBOL_PATTERNS * NUM_TAB_SOBOL_DIMENSIONS;
   if (kintegrator->sampling_pattern == SAMPLING_PATTERN_TABULATED_SOBOL &&
-      dscene->sample_pattern_lut.size() !=
-          (sequence_size * NUM_TAB_SOBOL_PATTERNS * NUM_TAB_SOBOL_DIMENSIONS))
+      dscene->sample_pattern_lut.size() != table_size)
   {
     kintegrator->tabulated_sobol_sequence_size = sequence_size;
 
     if (dscene->sample_pattern_lut.size() != 0) {
       dscene->sample_pattern_lut.free();
     }
-    float4 *directions = (float4 *)dscene->sample_pattern_lut.alloc(
-        sequence_size * NUM_TAB_SOBOL_PATTERNS * NUM_TAB_SOBOL_DIMENSIONS);
+    float4 *directions = (float4 *)dscene->sample_pattern_lut.alloc(table_size);
     TaskPool pool;
     for (int j = 0; j < NUM_TAB_SOBOL_PATTERNS; ++j) {
       float4 *sequence = directions + j * sequence_size;
@@ -343,6 +365,10 @@ uint Integrator::get_kernel_features() const
 
   if (ao_additive_factor != 0.0f) {
     kernel_features |= KERNEL_FEATURE_AO_ADDITIVE;
+  }
+
+  if (get_use_light_tree()) {
+    kernel_features |= KERNEL_FEATURE_LIGHT_TREE;
   }
 
   return kernel_features;

@@ -514,11 +514,12 @@ def check_compatibility_octane_mesh_25_2(file_version):
     for mesh in bpy.data.meshes:
         oct_mesh = mesh.octane
         try:
-            mesh.oct_enable_subd = int(oct_mesh.open_subd_enable)
-            mesh.oct_subd_level = oct_mesh.open_subd_level
-            mesh.oct_open_subd_scheme = int(oct_mesh.open_subd_scheme)
-            mesh.oct_open_subd_bound_interp = int(oct_mesh.open_subd_bound_interp)
-            mesh.oct_open_subd_sharpness = oct_mesh.open_subd_sharpness
+            if hasattr(mesh, "oct_enable_subd"):
+                mesh.oct_enable_subd = int(oct_mesh.open_subd_enable)
+                mesh.oct_subd_level = oct_mesh.open_subd_level
+                mesh.oct_open_subd_scheme = int(oct_mesh.open_subd_scheme)
+                mesh.oct_open_subd_bound_interp = int(oct_mesh.open_subd_bound_interp)
+                mesh.oct_open_subd_sharpness = oct_mesh.open_subd_sharpness
         except Exception as e:
             logger.exception(e)
 
@@ -667,6 +668,7 @@ def check_compatibility_octane_node_tree(file_version):
     check_compatibility_octane_node_tree_27_12(file_version)
     check_compatibility_octane_node_tree_28_0(file_version)
     check_compatibility_octane_node_tree_28_5(file_version)
+    check_compatibility_octane_node_tree_29_10(file_version)
 
 
 # node tree
@@ -983,6 +985,28 @@ def check_compatibility_octane_node_tree_28_5(file_version):
     for node_group in bpy.data.node_groups:
         _check_compatibility_octane_node_tree_28_5(node_group)
 
+
+def _check_compatibility_octane_node_tree_29_10(node_tree):
+    for node in node_tree.nodes:
+        if node.type in ("OUTPUT_MATERIAL", "OUTPUT_WORLD"):
+            if node.target == "":
+                node.target = "ALL"
+
+
+def check_compatibility_octane_node_tree_29_10(file_version):
+    if not check_update(file_version, '29.10'):
+        return
+    for material in bpy.data.materials:
+        if material.use_nodes:
+            _check_compatibility_octane_node_tree_29_10(material.node_tree)
+    for world in bpy.data.worlds:
+        if world.use_nodes:
+            _check_compatibility_octane_node_tree_29_10(world.node_tree)
+    for light in bpy.data.lights:
+        if light.use_nodes:
+            _check_compatibility_octane_node_tree_29_10(light.node_tree)
+    for node_group in bpy.data.node_groups:
+        _check_compatibility_octane_node_tree_29_10(node_group)
 
 def _post_check_compatibility_octane_node_tree_29_0(node_tree):
     nodes = [node for node in node_tree.nodes]

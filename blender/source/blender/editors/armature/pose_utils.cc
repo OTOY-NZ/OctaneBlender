@@ -15,11 +15,10 @@
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_object_types.h"
-#include "DNA_scene_types.h"
 
 #include "BKE_action.h"
-#include "BKE_anim_data.h"
-#include "BKE_idprop.h"
+#include "BKE_anim_data.hh"
+#include "BKE_idprop.hh"
 #include "BKE_layer.hh"
 #include "BKE_object.hh"
 
@@ -38,6 +37,7 @@
 #include "ED_keyframing.hh"
 
 #include "ANIM_keyframing.hh"
+#include "ANIM_keyingsets.hh"
 
 #include "armature_intern.hh"
 
@@ -294,7 +294,7 @@ void poseAnim_mapping_autoKeyframe(bContext *C, Scene *scene, ListBase *pfLinks,
   }
 
   /* insert keyframes for all relevant bones in one go */
-  ANIM_apply_keyingset(C, &sources, ks, MODIFYKEY_MODE_INSERT, cframe);
+  ANIM_apply_keyingset(C, &sources, ks, blender::animrig::ModifyKeyMode::INSERT, cframe);
 
   /* do the bone paths
    * - only do this if keyframes should have been added
@@ -323,7 +323,7 @@ LinkData *poseAnim_mapping_getNextFCurve(ListBase *fcuLinks, LinkData *prev, con
 
   /* check each link to see if the linked F-Curve has a matching path */
   for (ld = first; ld; ld = ld->next) {
-    FCurve *fcu = (FCurve *)ld->data;
+    const FCurve *fcu = (const FCurve *)ld->data;
 
     /* check if paths match */
     if (STREQ(path, fcu->rna_path)) {

@@ -11,7 +11,6 @@
 #include <cstdio>
 #include <cstring>
 
-#include "BLI_blenlib.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
@@ -20,22 +19,19 @@
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
-#include "DNA_windowmanager_types.h"
 
-#include "BKE_action.h"
-#include "BKE_anim_data.h"
-#include "BKE_context.hh"
+#include "BKE_anim_data.hh"
 #include "BKE_curve.hh"
-#include "BKE_fcurve.h"
+#include "BKE_fcurve.hh"
 #include "BKE_nla.h"
 
-#include "GPU_immediate.h"
-#include "GPU_matrix.h"
-#include "GPU_state.h"
+#include "GPU_immediate.hh"
+#include "GPU_matrix.hh"
+#include "GPU_state.hh"
 
 #include "ED_anim_api.hh"
 
-#include "graph_intern.h"
+#include "graph_intern.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
@@ -51,13 +47,15 @@ static void graph_draw_driver_debug(bAnimContext *ac, ID *id, FCurve *fcu);
  * drawing components for some F-Curve (fcu)
  * - selected F-Curves should be more visible than partially visible ones
  */
-static float fcurve_display_alpha(FCurve *fcu)
+static float fcurve_display_alpha(const FCurve *fcu)
 {
   return (fcu->flag & FCURVE_SELECTED) ? 1.0f : U.fcu_inactive_alpha;
 }
 
 /** Get the first and last index to the bezt array that are just outside min and max. */
-static blender::int2 get_bounding_bezt_indices(FCurve *fcu, const float min, const float max)
+static blender::IndexRange get_bounding_bezt_index_range(const FCurve *fcu,
+                                                         const float min,
+                                                         const float max)
 {
   bool replace;
   int first, last;
@@ -67,7 +65,9 @@ static blender::int2 get_bounding_bezt_indices(FCurve *fcu, const float min, con
   last = BKE_fcurve_bezt_binarysearch_index(fcu->bezt, max, fcu->totvert, &replace);
   last = replace ? last + 1 : last;
   last = clamp_i(last, 0, fcu->totvert - 1);
-  return {first, last};
+  /* Iterating over index range is exclusive of the last index.
+   * But we need `last` to be visited. */
+  return blender::IndexRange(first, (last - first) + 1);
 }
 
 /** \} */
@@ -188,7 +188,7 @@ static void set_fcurve_vertex_color(FCurve *fcu, bool sel)
  * NOTE: the caller MUST HAVE GL_LINE_SMOOTH & GL_BLEND ENABLED, otherwise the controls don't
  * have a consistent appearance (due to off-pixel alignments).
  */
-static void draw_cross(float position[2], float scale[2], uint attr_id)
+static void draw_cross(float position[2], const float scale[2], uint attr_id)
 {
   GPU_matrix_push();
   GPU_matrix_translate_2fv(position);
@@ -207,28 +207,23 @@ static void draw_cross(float position[2], float scale[2], uint attr_id)
   GPU_matrix_pop();
 }
 
-static void draw_fcurve_selected_keyframe_vertices(FCurve *fcu, View2D *v2d, bool sel, uint pos)
+static void draw_fcurve_selected_keyframe_vertices(FCurve *fcu,
+                                                   bool sel,
+                                                   uint pos,
+                                                   const blender::IndexRange index_range)
 {
-  const float fac = 0.05f * BLI_rctf_size_x(&v2d->cur);
-
   set_fcurve_vertex_color(fcu, sel);
 
   immBeginAtMost(GPU_PRIM_POINTS, fcu->totvert);
 
-  BezTriple *bezt = fcu->bezt;
-  for (int i = 0; i < fcu->totvert; i++, bezt++) {
-    /* As an optimization step, only draw those in view
-     * - We apply a correction factor to ensure that points
-     *   don't pop in/out due to slight twitches of view size.
+  for (const int i : index_range) {
+    BezTriple *bezt = &fcu->bezt[i];
+    /* 'Keyframe' vertex only, as handle lines and handles have already been drawn
+     * - only draw those with correct selection state for the current drawing color
+     * -
      */
-    if (IN_RANGE(bezt->vec[1][0], (v2d->cur.xmin - fac), (v2d->cur.xmax + fac))) {
-      /* 'Keyframe' vertex only, as handle lines and handles have already been drawn
-       * - only draw those with correct selection state for the current drawing color
-       * -
-       */
-      if ((bezt->f2 & SELECT) == sel) {
-        immVertex2fv(pos, bezt->vec[1]);
-      }
+    if ((bezt->f2 & SELECT) == sel) {
+      immVertex2fv(pos, bezt->vec[1]);
     }
   }
 
@@ -274,8 +269,10 @@ static void draw_fcurve_keyframe_vertices(FCurve *fcu, View2D *v2d, const uint p
     immUniform1f("size", (UI_GetThemeValuef(TH_VERTEX_SIZE) * UI_SCALE_FAC) * 0.8f);
   }
 
-  draw_fcurve_selected_keyframe_vertices(fcu, v2d, false, pos);
-  draw_fcurve_selected_keyframe_vertices(fcu, v2d, true, pos);
+  const blender::IndexRange index_range = get_bounding_bezt_index_range(
+      fcu, v2d->cur.xmin, v2d->cur.xmax);
+  draw_fcurve_selected_keyframe_vertices(fcu, false, pos, index_range);
+  draw_fcurve_selected_keyframe_vertices(fcu, true, pos, index_range);
   draw_fcurve_active_vertex(fcu, v2d, pos);
 
   immUnbindProgram();
@@ -285,7 +282,7 @@ static void draw_fcurve_keyframe_vertices(FCurve *fcu, View2D *v2d, const uint p
 static void draw_fcurve_selected_handle_vertices(
     FCurve *fcu, View2D *v2d, bool sel, bool sel_handle_only, uint pos)
 {
-  const blender::int2 bounding_indices = get_bounding_bezt_indices(
+  const blender::IndexRange index_range = get_bounding_bezt_index_range(
       fcu, v2d->cur.xmin, v2d->cur.xmax);
 
   /* set handle color */
@@ -297,7 +294,7 @@ static void draw_fcurve_selected_handle_vertices(
   immBeginAtMost(GPU_PRIM_POINTS, fcu->totvert * 2);
 
   BezTriple *prevbezt = nullptr;
-  for (int i = bounding_indices[0]; i <= bounding_indices[1]; i++) {
+  for (const int i : index_range) {
     BezTriple *bezt = &fcu->bezt[i];
     /* Draw the editmode handles for a bezier curve (others don't have handles)
      * if their selection status matches the selection status we're drawing for
@@ -418,7 +415,7 @@ static void draw_fcurve_vertices(ARegion *region,
 
 /* Handles ---------------- */
 
-static bool draw_fcurve_handles_check(SpaceGraph *sipo, FCurve *fcu)
+static bool draw_fcurve_handles_check(const SpaceGraph *sipo, const FCurve *fcu)
 {
   /* don't draw handle lines if handles are not to be shown */
   if (/* handles shouldn't be shown anywhere */
@@ -440,7 +437,7 @@ static bool draw_fcurve_handles_check(SpaceGraph *sipo, FCurve *fcu)
 
 /* draw lines for F-Curve handles only (this is only done in EditMode)
  * NOTE: draw_fcurve_handles_check must be checked before running this. */
-static void draw_fcurve_handles(SpaceGraph *sipo, ARegion *region, FCurve *fcu)
+static void draw_fcurve_handles(SpaceGraph *sipo, ARegion *region, const FCurve *fcu)
 {
   using namespace blender;
 
@@ -456,7 +453,7 @@ static void draw_fcurve_handles(SpaceGraph *sipo, ARegion *region, FCurve *fcu)
 
   immBeginAtMost(GPU_PRIM_LINES, 4 * 2 * fcu->totvert);
 
-  const int2 bounding_indices = get_bounding_bezt_indices(
+  const IndexRange index_range = get_bounding_bezt_index_range(
       fcu, region->v2d.cur.xmin, region->v2d.cur.xmax);
 
   /* slightly hacky, but we want to draw unselected points before selected ones
@@ -467,7 +464,7 @@ static void draw_fcurve_handles(SpaceGraph *sipo, ARegion *region, FCurve *fcu)
     uchar col[4];
 
     BezTriple *prevbezt = nullptr;
-    for (int i = bounding_indices[0]; i <= bounding_indices[1]; i++) {
+    for (const int i : index_range) {
       BezTriple *bezt = &fcu->bezt[i];
       /* if only selected keyframes can get their handles shown,
        * check that keyframe is selected
@@ -541,7 +538,7 @@ static void draw_fcurve_handles(SpaceGraph *sipo, ARegion *region, FCurve *fcu)
 /* Samples ---------------- */
 
 /* helper func - draw keyframe vertices only for an F-Curve */
-static void draw_fcurve_samples(ARegion *region, FCurve *fcu, const float unit_scale)
+static void draw_fcurve_samples(ARegion *region, const FCurve *fcu, const float unit_scale)
 {
   FPoint *first, *last;
   float scale[2];
@@ -588,7 +585,7 @@ static void draw_fcurve_samples(ARegion *region, FCurve *fcu, const float unit_s
  * (for drawing curves with modifiers). */
 static void draw_fcurve_curve(bAnimContext *ac,
                               ID *id,
-                              FCurve *fcu_,
+                              const FCurve *fcu_,
                               View2D *v2d,
                               uint pos,
                               const bool use_nla_remap,
@@ -862,7 +859,7 @@ static void add_bezt_vertices(BezTriple *bezt,
   }
 
   /* If the resolution goes too high the line will not end exactly at the keyframe. Probably due to
-   * accumulating floating point issues in BKE_curve_forward_diff_bezier.*/
+   * accumulating floating point issues in BKE_curve_forward_diff_bezier. */
   resolution = min_ii(64, resolution);
 
   float prev_key[2], prev_handle[2], bez_handle[2], bez_key[2];
@@ -906,7 +903,7 @@ static void add_bezt_vertices(BezTriple *bezt,
   MEM_freeN(bezier_diff_points);
 }
 
-static void add_extrapolation_point_left(FCurve *fcu,
+static void add_extrapolation_point_left(const FCurve *fcu,
                                          const float v2d_xmin,
                                          blender::Vector<blender::float2> &curve_vertices)
 {
@@ -943,7 +940,7 @@ static void add_extrapolation_point_left(FCurve *fcu,
   curve_vertices.append(vertex_position);
 }
 
-static void add_extrapolation_point_right(FCurve *fcu,
+static void add_extrapolation_point_right(const FCurve *fcu,
                                           const float v2d_xmax,
                                           blender::Vector<blender::float2> &curve_vertices)
 {
@@ -979,7 +976,7 @@ static void add_extrapolation_point_right(FCurve *fcu,
   curve_vertices.append(vertex_position);
 }
 
-static blender::float2 calculate_pixels_per_unit(View2D *v2d)
+static blender::float2 calculate_pixels_per_unit(View2D *v2d, const float unit_scale)
 {
   const int window_width = BLI_rcti_size_x(&v2d->mask);
   const int window_height = BLI_rcti_size_y(&v2d->mask);
@@ -987,7 +984,7 @@ static blender::float2 calculate_pixels_per_unit(View2D *v2d)
   const float v2d_frame_range = BLI_rctf_size_x(&v2d->cur);
   const float v2d_value_range = BLI_rctf_size_y(&v2d->cur);
   const blender::float2 pixels_per_unit = {window_width / v2d_frame_range,
-                                           window_height / v2d_value_range};
+                                           (window_height / v2d_value_range) * unit_scale};
   return pixels_per_unit;
 }
 
@@ -1037,20 +1034,20 @@ static void draw_fcurve_curve_keys(
     add_extrapolation_point_left(fcu, v2d->cur.xmin, curve_vertices);
   }
 
-  const int2 bounding_indices = get_bounding_bezt_indices(fcu, v2d->cur.xmin, v2d->cur.xmax);
+  const IndexRange index_range = get_bounding_bezt_index_range(fcu, v2d->cur.xmin, v2d->cur.xmax);
 
   /* Always add the first point so the extrapolation line doesn't jump. */
   curve_vertices.append(
-      {fcu->bezt[bounding_indices[0]].vec[1][0], fcu->bezt[bounding_indices[0]].vec[1][1]});
+      {fcu->bezt[index_range.first()].vec[1][0], fcu->bezt[index_range.first()].vec[1][1]});
 
-  const blender::float2 pixels_per_unit = calculate_pixels_per_unit(v2d);
+  const float2 pixels_per_unit = calculate_pixels_per_unit(v2d, unit_scale);
   const int window_width = BLI_rcti_size_x(&v2d->mask);
   const float v2d_frame_range = BLI_rctf_size_x(&v2d->cur);
   const float pixel_width = v2d_frame_range / window_width;
   const float samples_per_pixel = 0.66f;
   const float evaluation_step = pixel_width / samples_per_pixel;
 
-  BezTriple *first_key = &fcu->bezt[bounding_indices[0]];
+  BezTriple *first_key = &fcu->bezt[index_range.first()];
   rctf key_bounds = {
       first_key->vec[1][0], first_key->vec[1][1], first_key->vec[1][0], first_key->vec[1][1]};
   /* Used when skipping keys. */
@@ -1058,7 +1055,7 @@ static void draw_fcurve_curve_keys(
   const float min_pixel_distance = 3.0f;
 
   /* Draw curve between first and last keyframe (if there are enough to do so). */
-  for (int i = bounding_indices[0] + 1; i <= bounding_indices[1]; i++) {
+  for (const int i : index_range.drop_front(1)) {
     BezTriple *prevbezt = &fcu->bezt[i - 1];
     BezTriple *bezt = &fcu->bezt[i];
     expand_key_bounds(prevbezt, bezt, key_bounds);
@@ -1121,7 +1118,7 @@ static void draw_fcurve_curve_keys(
 
   /* Always add the last point so the extrapolation line doesn't jump. */
   curve_vertices.append(
-      {fcu->bezt[bounding_indices[1]].vec[1][0], fcu->bezt[bounding_indices[1]].vec[1][1]});
+      {fcu->bezt[index_range.last()].vec[1][0], fcu->bezt[index_range.last()].vec[1][1]});
 
   /* Extrapolate to the right? (see code for left-extrapolation above too) */
   if (draw_extrapolation && fcu->bezt[fcu->totvert - 1].vec[1][0] < v2d->cur.xmax) {

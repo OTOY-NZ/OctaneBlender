@@ -19,9 +19,9 @@
 #include "DNA_movieclip_types.h"
 #include "DNA_tracking_types.h"
 
-#include "GPU_shader.h"
-#include "GPU_storage_buffer.h"
-#include "GPU_texture.h"
+#include "GPU_shader.hh"
+#include "GPU_storage_buffer.hh"
+#include "GPU_texture.hh"
 
 #include "BKE_movieclip.h"
 #include "BKE_tracking.h"
@@ -241,9 +241,10 @@ KeyingScreen &KeyingScreenContainer::get(Context &context,
 
   /* We concatenate the movie clip ID name with the tracking object name to cache multiple tracking
    * objects per movie clip. */
-  const std::string id_name = std::string(movie_clip->id.name) +
-                              std::string(movie_tracking_object->name);
-  auto &cached_keying_screens_for_id = map_.lookup_or_add_default(id_name);
+  const std::string library_key = movie_clip->id.lib ? movie_clip->id.lib->id.name : "";
+  const std::string id_key = std::string(movie_clip->id.name) + library_key;
+  const std::string object_key = id_key + movie_tracking_object->name;
+  auto &cached_keying_screens_for_id = map_.lookup_or_add_default(object_key);
 
   /* Invalidate the keying screen cache for that MovieClip ID if it was changed and reset the
    * recalculate flag. */

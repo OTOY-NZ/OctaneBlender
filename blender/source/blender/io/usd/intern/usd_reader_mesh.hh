@@ -11,7 +11,7 @@
 #include "usd.hh"
 #include "usd_reader_geom.hh"
 
-#include "pxr/usd/usdGeom/mesh.h"
+#include <pxr/usd/usdGeom/mesh.h>
 
 namespace blender::io::usd {
 
@@ -50,9 +50,9 @@ class USDMeshReader : public USDGeomReader {
   void create_object(Main *bmain, double motionSampleTime) override;
   void read_object_data(Main *bmain, double motionSampleTime) override;
 
-  struct Mesh *read_mesh(struct Mesh *existing_mesh,
-                         USDMeshReadParams params,
-                         const char **err_str) override;
+  void read_geometry(bke::GeometrySet &geometry_set,
+                     USDMeshReadParams params,
+                     const char **err_str) override;
 
   bool topology_changed(const Mesh *existing_mesh, double motionSampleTime) override;
 
@@ -78,20 +78,21 @@ class USDMeshReader : public USDGeomReader {
 
   void read_mpolys(Mesh *mesh);
   void read_vertex_creases(Mesh *mesh, double motionSampleTime);
+  void read_velocities(Mesh *mesh, double motionSampleTime);
 
   void read_mesh_sample(ImportSettings *settings,
                         Mesh *mesh,
                         double motionSampleTime,
                         bool new_mesh);
 
+  Mesh *read_mesh(struct Mesh *existing_mesh,
+                  const USDMeshReadParams params,
+                  const char **err_str);
+
   void read_custom_data(const ImportSettings *settings,
                         Mesh *mesh,
                         double motionSampleTime,
                         bool new_mesh);
-
-  void read_color_data_primvar(Mesh *mesh,
-                               const pxr::UsdGeomPrimvar &color_primvar,
-                               const double motionSampleTime);
 
   void read_uv_data_primvar(Mesh *mesh,
                             const pxr::UsdGeomPrimvar &primvar,
@@ -99,12 +100,6 @@ class USDMeshReader : public USDGeomReader {
   void read_generic_data_primvar(Mesh *mesh,
                                  const pxr::UsdGeomPrimvar &primvar,
                                  const double motionSampleTime);
-
-  template<typename USDT, typename BlenderT>
-  void copy_prim_array_to_blender_attribute(const Mesh *mesh,
-                                            const pxr::UsdGeomPrimvar &primvar,
-                                            const double motionSampleTime,
-                                            MutableSpan<BlenderT> attribute);
 
   /**
    * Override transform computation to account for the binding

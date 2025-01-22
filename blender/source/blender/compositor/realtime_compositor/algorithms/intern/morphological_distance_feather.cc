@@ -5,11 +5,10 @@
 #include "BLI_math_base.hh"
 #include "BLI_math_vector_types.hh"
 
-#include "GPU_shader.h"
-#include "GPU_texture.h"
+#include "GPU_shader.hh"
+#include "GPU_texture.hh"
 
 #include "COM_algorithm_morphological_distance_feather.hh" /* Own include. */
-#include "COM_algorithm_symmetric_separable_blur.hh"
 #include "COM_context.hh"
 #include "COM_morphological_distance_feather_weights.hh"
 #include "COM_result.hh"

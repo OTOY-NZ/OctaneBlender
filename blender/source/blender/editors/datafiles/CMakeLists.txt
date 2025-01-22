@@ -613,6 +613,8 @@ set(ICON_NAMES
   outliner_data_volume
   volume_data
   pointcloud_point
+  internet_offline
+  internet
   current_file
   home
   documents
@@ -624,6 +626,7 @@ set(ICON_NAMES
   shortdisplay
   longdisplay
   imgdisplay
+  tag
   bookmarks
   fontpreview
   filter
@@ -874,12 +877,20 @@ set_property(GLOBAL PROPERTY ICON_GEOM_NAMES
   ops.sculpt.color_filter
   ops.sculpt.face_set_edit
   ops.sculpt.lasso_face_set
+  ops.sculpt.lasso_hide
   ops.sculpt.lasso_mask
   ops.sculpt.lasso_trim
+  ops.sculpt.line_face_set
+  ops.sculpt.line_hide
   ops.sculpt.line_mask
   ops.sculpt.line_project
+  ops.sculpt.line_trim
   ops.sculpt.mask_by_color
   ops.sculpt.mesh_filter
+  ops.sculpt.polyline_face_set
+  ops.sculpt.polyline_hide
+  ops.sculpt.polyline_mask
+  ops.sculpt.polyline_trim
   ops.sequencer.blade
   ops.sequencer.retime
   ops.transform.bone_envelope

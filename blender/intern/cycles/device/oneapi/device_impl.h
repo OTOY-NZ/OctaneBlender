@@ -14,20 +14,26 @@ CCL_NAMESPACE_BEGIN
 
 class DeviceQueue;
 
-typedef void (*OneAPIDeviceIteratorCallback)(
-    const char *id, const char *name, int num, bool hwrt_support, void *user_ptr);
+typedef void (*OneAPIDeviceIteratorCallback)(const char *id,
+                                             const char *name,
+                                             int num,
+                                             bool hwrt_support,
+                                             bool oidn_support,
+                                             void *user_ptr);
 
-class OneapiDevice : public Device {
+class OneapiDevice : public GPUDevice {
  private:
   SyclQueue *device_queue_;
 #  ifdef WITH_EMBREE_GPU
   RTCDevice embree_device;
   RTCScene embree_scene;
+#    if RTC_VERSION >= 40302
+  thread_mutex scene_data_mutex;
+  vector<RTCScene> all_embree_scenes;
+#    endif
 #  endif
   using ConstMemMap = map<string, device_vector<uchar> *>;
   ConstMemMap const_mem_map_;
-  device_vector<TextureInfo> texture_info_;
-  bool need_texture_info_;
   void *kg_memory_;
   void *kg_memory_device_;
   size_t kg_memory_size_ = (size_t)0;
@@ -37,10 +43,12 @@ class OneapiDevice : public Device {
   unsigned int kernel_features = 0;
   int scene_max_shaders_ = 0;
 
+  size_t get_free_mem() const;
+
  public:
   virtual BVHLayoutMask get_bvh_layout_mask(uint kernel_features) const override;
 
-  OneapiDevice(const DeviceInfo &info, Stats &stats, Profiler &profiler);
+  OneapiDevice(const DeviceInfo &info, Stats &stats, Profiler &profiler, bool headless);
 
   virtual ~OneapiDevice();
 #  ifdef WITH_EMBREE_GPU
@@ -50,13 +58,15 @@ class OneapiDevice : public Device {
 
   bool load_kernels(const uint kernel_features) override;
 
-  void load_texture_info();
+  void reserve_private_memory(const uint kernel_features);
 
-  void generic_alloc(device_memory &mem);
-
-  void generic_copy_to(device_memory &mem);
-
-  void generic_free(device_memory &mem);
+  virtual void get_device_memory_info(size_t &total, size_t &free) override;
+  virtual bool alloc_device(void *&device_pointer, size_t size) override;
+  virtual void free_device(void *device_pointer) override;
+  virtual bool alloc_host(void *&shared_pointer, size_t size) override;
+  virtual void free_host(void *shared_pointer) override;
+  virtual void transform_host_pointer(void *&device_pointer, void *&shared_pointer) override;
+  virtual void copy_host_to_device(void *device_pointer, void *host_pointer, size_t size) override;
 
   string oneapi_error_message();
 

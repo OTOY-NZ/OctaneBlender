@@ -10,7 +10,6 @@
 #include "BLI_function_ref.hh"
 #include "BLI_stack.hh"
 #include "BLI_task.hh"
-#include "BLI_timeit.hh"
 
 #include "NOD_geometry_nodes_lazy_function.hh"
 
@@ -136,7 +135,7 @@ static void update_directly_linked_links_and_sockets(const bNodeTree &ntree)
       std::sort(socket->runtime->directly_linked_links.begin(),
                 socket->runtime->directly_linked_links.end(),
                 [&](const bNodeLink *a, const bNodeLink *b) {
-                  return a->multi_input_socket_index > b->multi_input_socket_index;
+                  return a->multi_input_sort_id > b->multi_input_sort_id;
                 });
     }
   }
@@ -290,7 +289,7 @@ static Vector<const bNode *> get_implicit_origin_nodes(const bNodeTree &ntree, b
     /* Can't use #zone_type.get_corresponding_input because that expects the topology cache to be
      * build already, but we are still building it here. */
     for (const bNode *input_node :
-         ntree.runtime->nodes_by_type.lookup(nodeTypeFind(zone_type.input_idname.c_str())))
+         ntree.runtime->nodes_by_type.lookup(bke::nodeTypeFind(zone_type.input_idname.c_str())))
     {
       if (zone_type.get_corresponding_output_id(*input_node) == node.identifier) {
         origin_nodes.append(input_node);
@@ -492,7 +491,7 @@ static void update_direct_frames_childrens(const bNodeTree &ntree)
 static void update_group_output_node(const bNodeTree &ntree)
 {
   bNodeTreeRuntime &tree_runtime = *ntree.runtime;
-  const bNodeType *node_type = nodeTypeFind("NodeGroupOutput");
+  const bke::bNodeType *node_type = bke::nodeTypeFind("NodeGroupOutput");
   const Span<bNode *> group_output_nodes = tree_runtime.nodes_by_type.lookup(node_type);
   if (group_output_nodes.is_empty()) {
     tree_runtime.group_output_node = nullptr;
@@ -507,6 +506,25 @@ static void update_group_output_node(const bNodeTree &ntree)
         break;
       }
     }
+  }
+}
+
+static void update_dangling_reroute_nodes(const bNodeTree &ntree)
+{
+  for (const bNode *node : ntree.runtime->toposort_left_to_right) {
+    bNodeRuntime &node_runtime = *node->runtime;
+    if (!node->is_reroute()) {
+      node_runtime.is_dangling_reroute = false;
+      continue;
+    }
+    const Span<const bNodeLink *> links = node_runtime.inputs[0]->runtime->directly_linked_links;
+    if (links.is_empty()) {
+      node_runtime.is_dangling_reroute = true;
+      continue;
+    }
+    BLI_assert(links.size() == 1);
+    const bNode &source_node = *links.first()->fromnode;
+    node_runtime.is_dangling_reroute = source_node.runtime->is_dangling_reroute;
   }
 }
 
@@ -547,6 +565,7 @@ static void ensure_topology_cache(const bNodeTree &ntree)
         [&]() { update_root_frames(ntree); },
         [&]() { update_direct_frames_childrens(ntree); });
     update_group_output_node(ntree);
+    update_dangling_reroute_nodes(ntree);
     tree_runtime.topology_cache_exists = true;
   });
 }

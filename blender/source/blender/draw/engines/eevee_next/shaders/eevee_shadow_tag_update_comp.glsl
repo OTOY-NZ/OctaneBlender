@@ -13,9 +13,9 @@
 
 #pragma BLENDER_REQUIRE(gpu_shader_utildefines_lib.glsl)
 #pragma BLENDER_REQUIRE(draw_view_lib.glsl)
+#pragma BLENDER_REQUIRE(eevee_shadow_tilemap_lib.glsl)
 #pragma BLENDER_REQUIRE(common_intersect_lib.glsl)
 #pragma BLENDER_REQUIRE(common_aabb_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_shadow_tilemap_lib.glsl)
 
 vec3 safe_project(mat4 winmat, mat4 viewmat, inout int clipped, vec3 v)
 {
@@ -38,10 +38,14 @@ void main()
   uint resource_id = resource_ids_buf[gl_GlobalInvocationID.x];
   resource_id = (resource_id & 0x7FFFFFFFu);
 
-  IsectBox box = isect_box_setup(bounds_buf[resource_id].bounding_corners[0].xyz,
-                                 bounds_buf[resource_id].bounding_corners[1].xyz,
-                                 bounds_buf[resource_id].bounding_corners[2].xyz,
-                                 bounds_buf[resource_id].bounding_corners[3].xyz);
+  ObjectBounds bounds = bounds_buf[resource_id];
+  if (!drw_bounds_are_valid(bounds)) {
+    return;
+  }
+  IsectBox box = isect_box_setup(bounds.bounding_corners[0].xyz,
+                                 bounds.bounding_corners[1].xyz,
+                                 bounds.bounding_corners[2].xyz,
+                                 bounds.bounding_corners[3].xyz);
 
   int clipped = 0;
   /* NDC space post projection [-1..1] (unclamped). */
@@ -67,6 +71,9 @@ void main()
         return;
       }
     }
+    else {
+      /* None of the verts are behind the camera. The projected AABB is correct. */
+    }
   }
 
   AABB aabb_tag;
@@ -91,7 +98,7 @@ void main()
   for (int lod = 0; lod <= SHADOW_TILEMAP_LOD; lod++, box_min >>= 1, box_max >>= 1) {
     for (int y = box_min.y; y <= box_max.y; y++) {
       for (int x = box_min.x; x <= box_max.x; x++) {
-        int tile_index = shadow_tile_offset(ivec2(x, y), tilemap.tiles_index, lod);
+        int tile_index = shadow_tile_offset(uvec2(x, y), tilemap.tiles_index, lod);
         atomicOr(tiles_buf[tile_index], uint(SHADOW_DO_UPDATE));
       }
     }

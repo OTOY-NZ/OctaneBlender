@@ -1,16 +1,18 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.1.0 Release Candidate (b'64bfe491645f')\n"
+"Project-Id-Version: Blender 4.2.0 Release Candidate (b'988bf2b88f3b')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-01-01 00:00+0000\n"
-"PO-Revision-Date: 2008-03-23 12:20+0200\n"
-"Last-Translator: Kostas Karvouniaris <neogen556@yahoo.gr>\n"
-"Language-Team: \n"
+"POT-Creation-Date: 2024-07-15 07:57+0000\n"
+"PO-Revision-Date: 2024-04-29 13:44+0000\n"
+"Last-Translator: Anonymous <noreply@weblate.org>\n"
+"Language-Team: Greek <https://translate.blender.org/projects/blender-ui/ui/el/>\n"
 "Language: el\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
-"Content-Transfer-Encoding: 8bit"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=n != 1;\n"
+"X-Generator: Weblate 5.0.1"
 
 
 msgid "Name"
@@ -33,12 +35,16 @@ msgid "Select"
 msgstr "Επιλογή"
 
 
-msgid "Message"
-msgstr "Μήνυμα"
-
-
 msgid "On"
 msgstr "Ενεργό"
+
+
+msgid "Always"
+msgstr "Πάντα"
+
+
+msgid "Center"
+msgstr "Κεντράρισμα"
 
 
 msgid "Action"
@@ -137,10 +143,6 @@ msgid "Deform"
 msgstr "Παραμόρφωση"
 
 
-msgid "Remove"
-msgstr "Remove"
-
-
 msgid "Mode"
 msgstr "Κατάσταση"
 
@@ -163,10 +165,6 @@ msgstr "Μεγέθυνση"
 
 msgid "Left"
 msgstr "Αριστερά"
-
-
-msgid "Center"
-msgstr "Κεντράρισμα"
 
 
 msgid "Linear"
@@ -235,10 +233,6 @@ msgstr "Κάμερα"
 
 msgid "Bone"
 msgstr "Οστό"
-
-
-msgid "Always"
-msgstr "Πάντα"
 
 
 msgid "Script"
@@ -377,6 +371,10 @@ msgid "Merge"
 msgstr "Συγχώνευση"
 
 
+msgid "Repeat"
+msgstr "Repeat"
+
+
 msgid "Green"
 msgstr "Πράσινο"
 
@@ -433,10 +431,6 @@ msgid "Dynamic"
 msgstr "Δυναμικό"
 
 
-msgid "Repeat"
-msgstr "Repeat"
-
-
 msgid "Sequence"
 msgstr "Μείξη"
 
@@ -467,10 +461,6 @@ msgstr "Μέγιστο"
 
 msgid "Panel"
 msgstr "Ταμπλό"
-
-
-msgid "Movie"
-msgstr "Βίντεο"
 
 
 msgid "Render polygon transparent, depending on alpha channel of the texture"
@@ -543,6 +533,10 @@ msgstr "Περιοχή"
 
 msgid "Sharp"
 msgstr "Απότομο"
+
+
+msgid "Themes"
+msgstr "Θέματα"
 
 
 msgid "Mist"
@@ -754,12 +748,21 @@ msgid "Open"
 msgstr "Άνοιγμα"
 
 
+msgctxt "Operator"
+msgid "Rotate"
+msgstr "Rotate"
+
+
 msgid "Both"
 msgstr "Both"
 
 
 msgid "Join"
 msgstr "Ένωσε"
+
+
+msgid "Remove"
+msgstr "Remove"
 
 
 msgid "Next Keyframe"
@@ -833,10 +836,6 @@ msgid "Bake"
 msgstr "Φτιάξε"
 
 
-msgid "Monkey"
-msgstr "Μαϊμού"
-
-
 msgctxt "Operator"
 msgid "Join"
 msgstr "Ένωσε"
@@ -893,10 +892,6 @@ msgid "Sync"
 msgstr "Συγχρον"
 
 
-msgid "Themes"
-msgstr "Θέματα"
-
-
 msgctxt "Operator"
 msgid "Save"
 msgstr "Αποθήκευση"
@@ -905,11 +900,6 @@ msgstr "Αποθήκευση"
 msgctxt "Operator"
 msgid "Save As"
 msgstr "Αποθήκευση ως"
-
-
-msgctxt "Operator"
-msgid "Rotate"
-msgstr "Rotate"
 
 
 msgctxt "Operator"
@@ -942,10 +932,6 @@ msgstr "Polar ZY"
 
 msgid "Pan"
 msgstr "Ολίσθηση προβολής"
-
-
-msgid "Pause"
-msgstr "Παύση"
 
 
 msgctxt "Operator"
@@ -1040,12 +1026,16 @@ msgid "Layer:"
 msgstr "Στρώμα"
 
 
+msgid "Cancel"
+msgstr "Ακύρωση"
+
+
 msgid "Fields"
 msgstr "Πεδία"
 
 
-msgid "Cancel"
-msgstr "Ακύρωση"
+msgid "Movie"
+msgstr "Βίντεο"
 
 
 msgid "Life"

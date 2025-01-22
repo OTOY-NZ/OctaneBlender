@@ -12,6 +12,7 @@
 #include <cstring>
 #include <ctime>
 #include <fcntl.h>
+#include <optional>
 #ifndef WIN32
 #  include <unistd.h>
 #else
@@ -60,11 +61,11 @@
 #include "BLI_timecode.h" /* For stamp time-code format. */
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "BKE_bpath.h"
+#include "BKE_bpath.hh"
 #include "BKE_colortools.hh"
-#include "BKE_global.h"
+#include "BKE_global.hh"
 #include "BKE_icons.h"
 #include "BKE_idtype.hh"
 #include "BKE_image.h"
@@ -76,9 +77,9 @@
 #include "BKE_node_tree_update.hh"
 #include "BKE_packedFile.h"
 #include "BKE_preview_image.hh"
-#include "BKE_report.h"
-#include "BKE_scene.h"
-#include "BKE_workspace.h"
+#include "BKE_report.hh"
+#include "BKE_scene.hh"
+#include "BKE_workspace.hh"
 
 #include "BLF_api.hh"
 
@@ -87,7 +88,7 @@
 #include "SEQ_utils.hh" /* SEQ_get_topmost_sequence() */
 
 #include "GPU_material.hh"
-#include "GPU_texture.h"
+#include "GPU_texture.hh"
 
 #include "BLI_sys_types.h" /* for intptr_t support */
 
@@ -132,6 +133,9 @@ static void image_runtime_reset_on_copy(Image *image)
 
   image->runtime.partial_update_register = nullptr;
   image->runtime.partial_update_user = nullptr;
+
+  image->runtime.backdrop_offset[0] = 0.0f;
+  image->runtime.backdrop_offset[1] = 0.0f;
 }
 
 static void image_runtime_free_data(Image *image)
@@ -156,7 +160,11 @@ static void image_init_data(ID *id)
   }
 }
 
-static void image_copy_data(Main * /*bmain*/, ID *id_dst, const ID *id_src, const int flag)
+static void image_copy_data(Main * /*bmain*/,
+                            std::optional<Library *> /*owner_library*/,
+                            ID *id_dst,
+                            const ID *id_src,
+                            const int flag)
 {
   Image *image_dst = (Image *)id_dst;
   const Image *image_src = (const Image *)id_src;
@@ -390,16 +398,16 @@ static void image_blend_write(BlendWriter *writer, ID *id, const void *id_addres
 static void image_blend_read_data(BlendDataReader *reader, ID *id)
 {
   Image *ima = (Image *)id;
-  BLO_read_list(reader, &ima->tiles);
+  BLO_read_struct_list(reader, ImageTile, &ima->tiles);
 
-  BLO_read_list(reader, &(ima->renderslots));
+  BLO_read_struct_list(reader, RenderSlot, &(ima->renderslots));
   if (!BLO_read_data_is_undo(reader)) {
     /* We reset this last render slot index only when actually reading a file, not for undo. */
     ima->last_render_slot = ima->render_slot;
   }
 
-  BLO_read_list(reader, &(ima->views));
-  BLO_read_list(reader, &(ima->packedfiles));
+  BLO_read_struct_list(reader, ImageView, &(ima->views));
+  BLO_read_struct_list(reader, ImagePackedFile, &(ima->packedfiles));
 
   if (ima->packedfiles.first) {
     LISTBASE_FOREACH (ImagePackedFile *, imapf, &ima->packedfiles) {
@@ -412,9 +420,9 @@ static void image_blend_read_data(BlendDataReader *reader, ID *id)
   }
 
   BLI_listbase_clear(&ima->anims);
-  BLO_read_data_address(reader, &ima->preview);
+  BLO_read_struct(reader, PreviewImage, &ima->preview);
   BKE_previewimg_blend_read(reader, ima->preview);
-  BLO_read_data_address(reader, &ima->stereo3d_format);
+  BLO_read_struct(reader, Stereo3dFormat, &ima->stereo3d_format);
 
   ima->lastused = 0;
   ima->gpuflag = 0;
@@ -440,6 +448,7 @@ constexpr IDTypeInfo get_type_info()
   IDTypeInfo info{};
   info.id_code = ID_IM;
   info.id_filter = FILTER_ID_IM;
+  info.dependencies_id_types = 0;
   info.main_listbase_index = INDEX_ID_IM;
   info.struct_size = sizeof(Image);
   info.name = "Image";
@@ -1494,7 +1503,7 @@ void BKE_image_packfiles_from_mem(ReportList *reports,
 
 void BKE_image_tag_time(Image *ima)
 {
-  ima->lastused = BLI_check_seconds_timer_i();
+  ima->lastused = BLI_time_now_seconds_i();
 }
 
 static uintptr_t image_mem_size(Image *image)
@@ -1969,8 +1978,7 @@ void BKE_image_stamp_buf(Scene *scene,
                          uchar *rect,
                          float *rectf,
                          int width,
-                         int height,
-                         int channels)
+                         int height)
 {
   StampData stamp_data;
   int w, h, pad;
@@ -1994,7 +2002,7 @@ void BKE_image_stamp_buf(Scene *scene,
 
   /* must enable BLF_WORD_WRAP before using */
 #define TEXT_SIZE_CHECK_WORD_WRAP(str, w, h) \
-  ((str[0]) && (BLF_boundbox_ex(mono, str, sizeof(str), &wrap.rect, &wrap.info), \
+  ((str[0]) && (BLF_boundbox(mono, str, sizeof(str), &wrap.rect, &wrap.info), \
                 (void)(h = h_fixed * wrap.info.lines), \
                 (w = BLI_rcti_size_x(&wrap.rect))))
 
@@ -2025,7 +2033,7 @@ void BKE_image_stamp_buf(Scene *scene,
   BLF_size(mono, scene->r.stamp_font_id);
   BLF_wordwrap(mono, width - (BUFF_MARGIN_X * 2));
 
-  BLF_buffer(mono, rectf, rect, width, height, channels, display);
+  BLF_buffer(mono, rectf, rect, width, height, display);
   BLF_buffer_col(mono, scene->r.fg_stamp);
   pad = BLF_width_max(mono);
 
@@ -2349,7 +2357,7 @@ void BKE_image_stamp_buf(Scene *scene,
   }
 
   /* cleanup the buffer. */
-  BLF_buffer(mono, nullptr, nullptr, 0, 0, 0, nullptr);
+  BLF_buffer(mono, nullptr, nullptr, 0, 0, nullptr);
   BLF_wordwrap(mono, 0);
 
 #undef TEXT_SIZE_CHECK
@@ -2470,6 +2478,23 @@ void BKE_stamp_info_callback(void *data,
   }
 
 #undef CALL
+}
+
+void BKE_image_multilayer_stamp_info_callback(void *data,
+                                              const Image &image,
+                                              StampCallback callback,
+                                              bool noskip)
+{
+  BLI_mutex_lock(static_cast<ThreadMutex *>(image.runtime.cache_mutex));
+
+  if (!image.rr || !image.rr->stamp_data) {
+    BLI_mutex_unlock(static_cast<ThreadMutex *>(image.runtime.cache_mutex));
+    return;
+  }
+
+  BKE_stamp_info_callback(data, image.rr->stamp_data, callback, noskip);
+
+  BLI_mutex_unlock(static_cast<ThreadMutex *>(image.runtime.cache_mutex));
 }
 
 void BKE_render_result_stamp_data(RenderResult *rr, const char *key, const char *value)
@@ -3004,8 +3029,8 @@ static void image_tag_frame_recalc(Image *ima, ID *iuser_id, ImageUser *iuser, v
     iuser->flag |= IMA_NEED_FRAME_RECALC;
 
     if (iuser_id) {
-      /* Must copy image user changes to CoW data-block. */
-      DEG_id_tag_update(iuser_id, ID_RECALC_COPY_ON_WRITE);
+      /* Must copy image user changes to evaluated data-block. */
+      DEG_id_tag_update(iuser_id, ID_RECALC_SYNC_TO_EVAL);
     }
   }
 }
@@ -3019,8 +3044,8 @@ static void image_tag_reload(Image *ima, ID *iuser_id, ImageUser *iuser, void *c
       image_update_views_format(ima, iuser);
     }
     if (iuser_id) {
-      /* Must copy image user changes to CoW data-block. */
-      DEG_id_tag_update(iuser_id, ID_RECALC_COPY_ON_WRITE);
+      /* Must copy image user changes to evaluated data-block. */
+      DEG_id_tag_update(iuser_id, ID_RECALC_SYNC_TO_EVAL);
     }
     BKE_image_partial_update_mark_full_update(ima);
   }
@@ -3806,11 +3831,14 @@ static void image_init_multilayer_multiview(Image *ima, RenderResult *rr)
 
 RenderResult *BKE_image_acquire_renderresult(Scene *scene, Image *ima)
 {
+  BLI_mutex_lock(static_cast<ThreadMutex *>(ima->runtime.cache_mutex));
+
   RenderResult *rr = nullptr;
+
   if (ima->rr) {
     rr = ima->rr;
   }
-  else if (ima->type == IMA_TYPE_R_RESULT) {
+  else if (scene && ima->type == IMA_TYPE_R_RESULT) {
     if (ima->render_slot == ima->last_render_slot) {
       rr = RE_AcquireResultRead(RE_GetSceneRender(scene));
     }
@@ -3823,15 +3851,27 @@ RenderResult *BKE_image_acquire_renderresult(Scene *scene, Image *ima)
     image_init_multilayer_multiview(ima, rr);
   }
 
+  if (rr) {
+    RE_ReferenceRenderResult(rr);
+  }
+
+  BLI_mutex_unlock(static_cast<ThreadMutex *>(ima->runtime.cache_mutex));
   return rr;
 }
 
-void BKE_image_release_renderresult(Scene *scene, Image *ima)
+void BKE_image_release_renderresult(Scene *scene, Image *ima, RenderResult *render_result)
 {
+  if (render_result) {
+    /* Decrement user counter, and free if nobody else holds a reference to the result. */
+    BLI_mutex_lock(static_cast<ThreadMutex *>(ima->runtime.cache_mutex));
+    RE_FreeRenderResult(render_result);
+    BLI_mutex_unlock(static_cast<ThreadMutex *>(ima->runtime.cache_mutex));
+  }
+
   if (ima->rr) {
     /* pass */
   }
-  else if (ima->type == IMA_TYPE_R_RESULT) {
+  else if (scene && ima->type == IMA_TYPE_R_RESULT) {
     if (ima->render_slot == ima->last_render_slot) {
       RE_ReleaseResult(RE_GetSceneRender(scene));
     }
@@ -4752,6 +4792,77 @@ ImBuf *BKE_image_acquire_ibuf(Image *ima, ImageUser *iuser, void **r_lock)
   ibuf = image_acquire_ibuf(ima, iuser, r_lock);
 
   BLI_mutex_unlock(static_cast<ThreadMutex *>(ima->runtime.cache_mutex));
+
+  return ibuf;
+}
+
+static int get_multilayer_view_index(const Image &image,
+                                     const ImageUser &image_user,
+                                     const char *view_name)
+{
+  if (BLI_listbase_count_at_most(&image.rr->views, 2) <= 1) {
+    return 0;
+  }
+
+  const int view_image = image_user.view;
+  const bool is_allview = (view_image == 0); /* if view selected == All (0) */
+
+  if (is_allview) {
+    /* Heuristic to match image name with scene names check if the view name exists in the image.
+     */
+    const int view = BLI_findstringindex(&image.rr->views, view_name, offsetof(RenderView, name));
+    if (view == -1) {
+      return 0;
+    }
+    return view;
+  }
+
+  return view_image - 1;
+}
+
+ImBuf *BKE_image_acquire_multilayer_view_ibuf(const RenderData &render_data,
+                                              Image &image,
+                                              const ImageUser &image_user,
+                                              const char *pass_name,
+                                              const char *view_name)
+{
+  BLI_mutex_lock(static_cast<ThreadMutex *>(image.runtime.cache_mutex));
+
+  /* Local changes to the original ImageUser. */
+  ImageUser local_user = image_user;
+
+  /* Force load the image once, possibly with a different user from what it will need to be in the
+   * end. This ensures proper image type, and initializes multi-layer state when needed. */
+  ImBuf *tmp_ibuf = image_acquire_ibuf(&image, &local_user, nullptr);
+  IMB_freeImBuf(tmp_ibuf);
+
+  if (BKE_image_is_multilayer(&image)) {
+    BLI_assert(pass_name);
+
+    if (!image.rr) {
+      BLI_mutex_unlock(static_cast<ThreadMutex *>(image.runtime.cache_mutex));
+      return nullptr;
+    }
+
+    const RenderLayer *render_layer = static_cast<const RenderLayer *>(
+        BLI_findlink(&image.rr->layers, local_user.layer));
+
+    local_user.view = get_multilayer_view_index(image, local_user, view_name);
+    local_user.pass = BLI_findstringindex(
+        &render_layer->passes, pass_name, offsetof(RenderPass, name));
+
+    if (!BKE_image_multilayer_index(image.rr, &local_user)) {
+      BLI_mutex_unlock(static_cast<ThreadMutex *>(image.runtime.cache_mutex));
+      return nullptr;
+    }
+  }
+  else {
+    local_user.multi_index = BKE_scene_multiview_view_id_get(&render_data, view_name);
+  }
+
+  ImBuf *ibuf = image_acquire_ibuf(&image, &local_user, nullptr);
+
+  BLI_mutex_unlock(static_cast<ThreadMutex *>(image.runtime.cache_mutex));
 
   return ibuf;
 }

@@ -31,14 +31,16 @@ static void node_shader_buts_tangent(uiLayout *layout, bContext *C, PointerRNA *
     if (obptr.data && RNA_enum_get(&obptr, "type") == OB_MESH) {
       PointerRNA eval_obptr;
 
-      Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-      DEG_get_evaluated_rna_pointer(depsgraph, &obptr, &eval_obptr);
-      PointerRNA dataptr = RNA_pointer_get(&eval_obptr, "data");
-      uiItemPointerR(layout, ptr, "uv_map", &dataptr, "uv_layers", "", ICON_GROUP_UVS);
+      Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+      if (depsgraph) {
+        DEG_get_evaluated_rna_pointer(depsgraph, &obptr, &eval_obptr);
+        PointerRNA dataptr = RNA_pointer_get(&eval_obptr, "data");
+        uiItemPointerR(layout, ptr, "uv_map", &dataptr, "uv_layers", "", ICON_GROUP_UVS);
+        return;
+      }
     }
-    else {
-      uiItemR(layout, ptr, "uv_map", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_GROUP_UVS);
-    }
+
+    uiItemR(layout, ptr, "uv_map", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_GROUP_UVS);
   }
   else {
     uiItemR(
@@ -97,17 +99,17 @@ void register_node_type_sh_tangent()
 {
   namespace file_ns = blender::nodes::node_shader_tangent_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   sh_node_type_base(&ntype, SH_NODE_TANGENT, "Tangent", NODE_CLASS_INPUT);
   ntype.declare = file_ns::node_declare;
   ntype.draw_buttons = file_ns::node_shader_buts_tangent;
-  blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::MIDDLE);
+  blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Middle);
   ntype.initfunc = file_ns::node_shader_init_tangent;
   ntype.gpu_fn = file_ns::node_shader_gpu_tangent;
-  node_type_storage(
+  blender::bke::node_type_storage(
       &ntype, "NodeShaderTangent", node_free_standard_storage, node_copy_standard_storage);
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 }

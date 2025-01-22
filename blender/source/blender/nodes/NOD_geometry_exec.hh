@@ -87,8 +87,15 @@ class GeoNodeExecParams {
   }
 
   template<typename T>
-  static inline constexpr bool is_field_base_type_v =
-      is_same_any_v<T, float, int, bool, ColorGeometry4f, float3, std::string, math::Quaternion>;
+  static inline constexpr bool is_field_base_type_v = is_same_any_v<T,
+                                                                    float,
+                                                                    int,
+                                                                    bool,
+                                                                    ColorGeometry4f,
+                                                                    float3,
+                                                                    std::string,
+                                                                    math::Quaternion,
+                                                                    float4x4>;
 
   template<typename T>
   static inline constexpr bool stored_as_SocketValueVariant_v =
@@ -218,18 +225,20 @@ class GeoNodeExecParams {
     return nullptr;
   }
 
-  Depsgraph *depsgraph() const
+  const Depsgraph *depsgraph() const
   {
     if (const auto *data = this->user_data()) {
       if (data->call_data->modifier_data) {
         return data->call_data->modifier_data->depsgraph;
       }
       if (data->call_data->operator_data) {
-        return data->call_data->operator_data->depsgraph;
+        return data->call_data->operator_data->depsgraphs->active;
       }
     }
     return nullptr;
   }
+
+  Main *bmain() const;
 
   GeoNodesLFUserData *user_data() const
   {

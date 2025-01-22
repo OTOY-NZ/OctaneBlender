@@ -27,7 +27,7 @@
 
 #include "node_shader_util.hh"
 
-static bNodeSocketTemplate sh_node_in[] = {{SOCK_SHADER,
+static blender::bke::bNodeSocketTemplate  sh_node_in[] = {{SOCK_SHADER,
                                             N_("AOV output 1"),
                                             0.0f,
                                             0.0f,
@@ -189,7 +189,7 @@ static bNodeSocketTemplate sh_node_in[] = {{SOCK_SHADER,
                                             SOCK_NO_INTERNAL_LINK},
                                            {-1, ""}};
 
-static bNodeSocketTemplate sh_node_out[] = {{-1, ""}};
+static blender::bke::bNodeSocketTemplate  sh_node_out[] = {{-1, ""}};
 
 static void node_type_aov_output_group_init(bNodeTree *ntree, bNode *node)
 {
@@ -220,13 +220,13 @@ static void node_shader_update_aov_output_group(bNodeTree *ntree, bNode *node)
 
 void register_node_type_aov_output_group(void)
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   if (ntype.type != SH_NODE_OCT_AOV_OUTPUT_GROUP)
     sh_node_type_base(&ntype,
                    SH_NODE_OCT_AOV_OUTPUT_GROUP, "AOV Output Group", NODE_CLASS_OUTPUT);
   blender::bke::node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
-  node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::DEFAULT);
+  node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Default);
   ntype.initfunc = node_type_aov_output_group_init;
   ntype.updatefunc = node_shader_update_aov_output_group;
   

@@ -2,7 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 
 #include "node_function_util.hh"
@@ -41,12 +40,12 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   fn_node_type_base(&ntype, FN_NODE_REPLACE_STRING, "Replace String", NODE_CLASS_CONVERTER);
   ntype.declare = node_declare;
   ntype.build_multi_function = node_build_multi_function;
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

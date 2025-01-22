@@ -10,7 +10,6 @@
 
 #include "DNA_ID.h"
 #include "DNA_asset_types.h"
-#include "DNA_userdef_types.h"
 
 #include "AS_asset_identifier.hh"
 #include "AS_asset_library.hh"
@@ -23,9 +22,9 @@ AssetRepresentation::AssetRepresentation(AssetIdentifier &&identifier,
                                          const int id_type,
                                          std::unique_ptr<AssetMetaData> metadata,
                                          const AssetLibrary &owner_asset_library)
-    : identifier_(identifier),
+    : identifier_(std::move(identifier)),
       is_local_id_(false),
-      owner_asset_library_(&owner_asset_library),
+      owner_asset_library_(owner_asset_library),
       external_asset_()
 {
   external_asset_.name = name;
@@ -36,25 +35,13 @@ AssetRepresentation::AssetRepresentation(AssetIdentifier &&identifier,
 AssetRepresentation::AssetRepresentation(AssetIdentifier &&identifier,
                                          ID &id,
                                          const AssetLibrary &owner_asset_library)
-    : identifier_(identifier),
+    : identifier_(std::move(identifier)),
       is_local_id_(true),
-      owner_asset_library_(&owner_asset_library),
+      owner_asset_library_(owner_asset_library),
       local_asset_id_(&id)
 {
   if (!id.asset_data) {
     throw std::invalid_argument("Passed ID is not an asset");
-  }
-}
-
-AssetRepresentation::AssetRepresentation(AssetRepresentation &&other)
-    : identifier_(std::move(other.identifier_)), is_local_id_(other.is_local_id_)
-{
-  if (is_local_id_) {
-    local_asset_id_ = other.local_asset_id_;
-    other.local_asset_id_ = nullptr;
-  }
-  else {
-    external_asset_ = std::move(other.external_asset_);
   }
 }
 
@@ -70,13 +57,9 @@ const AssetIdentifier &AssetRepresentation::get_identifier() const
   return identifier_;
 }
 
-AssetWeakReference *AssetRepresentation::make_weak_reference() const
+AssetWeakReference AssetRepresentation::make_weak_reference() const
 {
-  if (!owner_asset_library_) {
-    return nullptr;
-  }
-
-  return AssetWeakReference::make_reference(*owner_asset_library_, identifier_);
+  return AssetWeakReference::make_reference(owner_asset_library_, identifier_);
 }
 
 StringRefNull AssetRepresentation::get_name() const
@@ -104,26 +87,20 @@ AssetMetaData &AssetRepresentation::get_metadata() const
 
 std::optional<eAssetImportMethod> AssetRepresentation::get_import_method() const
 {
-  if (!owner_asset_library_) {
-    return {};
-  }
-  return owner_asset_library_->import_method_;
+  return owner_asset_library_.import_method_;
 }
 
 bool AssetRepresentation::may_override_import_method() const
 {
-  if (!owner_asset_library_ || !owner_asset_library_->import_method_) {
+  if (!owner_asset_library_.import_method_) {
     return true;
   }
-  return owner_asset_library_->may_override_import_method_;
+  return owner_asset_library_.may_override_import_method_;
 }
 
 bool AssetRepresentation::get_use_relative_path() const
 {
-  if (!owner_asset_library_) {
-    return false;
-  }
-  return owner_asset_library_->use_relative_path_;
+  return owner_asset_library_.use_relative_path_;
 }
 
 ID *AssetRepresentation::local_id() const
@@ -138,7 +115,7 @@ bool AssetRepresentation::is_local_id() const
 
 const AssetLibrary &AssetRepresentation::owner_asset_library() const
 {
-  return *owner_asset_library_;
+  return owner_asset_library_;
 }
 
 }  // namespace blender::asset_system

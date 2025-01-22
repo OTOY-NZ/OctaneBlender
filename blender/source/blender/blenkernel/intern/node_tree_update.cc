@@ -2,20 +2,22 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <fmt/format.h>
+
 #include "BLI_map.hh"
 #include "BLI_multi_value_map.hh"
 #include "BLI_noise.hh"
 #include "BLI_rand.hh"
 #include "BLI_set.hh"
 #include "BLI_stack.hh"
-#include "BLI_timeit.hh"
+#include "BLI_string_utf8_symbols.h"
 #include "BLI_vector_set.hh"
 
 #include "DNA_anim_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_node_types.h"
 
-#include "BKE_anim_data.h"
+#include "BKE_anim_data.hh"
 #include "BKE_image.h"
 #include "BKE_main.hh"
 #include "BKE_node.hh"
@@ -31,7 +33,7 @@
 #include "NOD_socket.hh"
 #include "NOD_texture.h"
 
-#include "DEG_depsgraph_query.hh"
+#include "BLT_translation.hh"
 
 using namespace blender::nodes;
 
@@ -487,6 +489,8 @@ class NodeTreeMainUpdater {
   {
     TreeUpdateResult result;
 
+    ntree.runtime->link_errors_by_target_node.clear();
+
     this->update_socket_link_and_use(ntree);
     this->update_individual_nodes(ntree);
     this->update_internal_links(ntree);
@@ -567,9 +571,9 @@ class NodeTreeMainUpdater {
   void update_individual_nodes(bNodeTree &ntree)
   {
     for (bNode *node : ntree.all_nodes()) {
-      blender::bke::nodeDeclarationEnsure(&ntree, node);
+      bke::nodeDeclarationEnsure(&ntree, node);
       if (this->should_update_individual_node(ntree, *node)) {
-        bNodeType &ntype = *node->typeinfo;
+        bke::bNodeType &ntype = *node->typeinfo;
         if (ntype.group_update_func) {
           ntype.group_update_func(&ntree, node);
         }
@@ -619,16 +623,16 @@ class NodeTreeMainUpdater {
   struct InternalLink {
     bNodeSocket *from;
     bNodeSocket *to;
-    int multi_input_socket_index = 0;
+    int multi_input_sort_id = 0;
 
-    BLI_STRUCT_EQUALITY_OPERATORS_3(InternalLink, from, to, multi_input_socket_index);
+    BLI_STRUCT_EQUALITY_OPERATORS_3(InternalLink, from, to, multi_input_sort_id);
   };
 
-  const bNodeLink *first_non_dangling_link(const bNodeTree &ntree,
+  const bNodeLink *first_non_dangling_link(const bNodeTree & /*ntree*/,
                                            const Span<const bNodeLink *> links) const
   {
     for (const bNodeLink *link : links) {
-      if (!bke::nodeIsDanglingReroute(&ntree, link->fromnode)) {
+      if (!link->fromnode->is_dangling_reroute()) {
         return link;
       }
     }
@@ -663,7 +667,7 @@ class NodeTreeMainUpdater {
         const Span<const bNodeLink *> connected_links = input_socket->directly_linked_links();
         const bNodeLink *connected_link = first_non_dangling_link(ntree, connected_links);
 
-        const int index = connected_link ? connected_link->multi_input_socket_index :
+        const int index = connected_link ? connected_link->multi_input_sort_id :
                                            std::max<int>(0, connected_links.size() - 1);
         expected_internal_links.append(InternalLink{const_cast<bNodeSocket *>(input_socket),
                                                     const_cast<bNodeSocket *>(output_socket),
@@ -680,8 +684,7 @@ class NodeTreeMainUpdater {
           node->runtime->internal_links.begin(),
           node->runtime->internal_links.end(),
           [&](const bNodeLink &link) {
-            const InternalLink internal_link{
-                link.fromsock, link.tosock, link.multi_input_socket_index};
+            const InternalLink internal_link{link.fromsock, link.tosock, link.multi_input_sort_id};
             return expected_internal_links.as_span().contains(internal_link);
           });
 
@@ -739,7 +742,7 @@ class NodeTreeMainUpdater {
       link.fromsock = internal_link.from;
       link.tonode = &node;
       link.tosock = internal_link.to;
-      link.multi_input_socket_index = internal_link.multi_input_socket_index;
+      link.multi_input_sort_id = internal_link.multi_input_sort_id;
       link.flag |= NODE_LINK_VALID;
       node.runtime->internal_links.append(link);
     }
@@ -1127,12 +1130,29 @@ class NodeTreeMainUpdater {
       }
       if (is_invalid_enum_ref(*link->fromsock) || is_invalid_enum_ref(*link->tosock)) {
         link->flag &= ~NODE_LINK_VALID;
+        ntree.runtime->link_errors_by_target_node.add(
+            link->tonode->identifier,
+            NodeLinkError{TIP_("Use node groups to reuse the same menu multiple times")});
         continue;
+      }
+      if (ntree.type == NTREE_GEOMETRY) {
+        if (link->fromsock->display_shape == SOCK_DISPLAY_SHAPE_DIAMOND &&
+            link->tosock->display_shape != SOCK_DISPLAY_SHAPE_DIAMOND)
+        {
+          link->flag &= ~NODE_LINK_VALID;
+          ntree.runtime->link_errors_by_target_node.add(
+              link->tonode->identifier,
+              NodeLinkError{TIP_("The node input does not support fields")});
+          continue;
+        }
       }
       const bNode &from_node = *link->fromnode;
       const bNode &to_node = *link->tonode;
       if (toposort_indices[from_node.index()] > toposort_indices[to_node.index()]) {
         link->flag &= ~NODE_LINK_VALID;
+        ntree.runtime->link_errors_by_target_node.add(
+            link->tonode->identifier,
+            NodeLinkError{TIP_("The links form a cycle which is not supported")});
         continue;
       }
       if (ntree.typeinfo->validate_link) {
@@ -1140,6 +1160,13 @@ class NodeTreeMainUpdater {
         const eNodeSocketDatatype to_type = eNodeSocketDatatype(link->tosock->type);
         if (!ntree.typeinfo->validate_link(from_type, to_type)) {
           link->flag &= ~NODE_LINK_VALID;
+          ntree.runtime->link_errors_by_target_node.add(
+              link->tonode->identifier,
+              NodeLinkError{fmt::format("{}: {} " BLI_STR_UTF8_BLACK_RIGHT_POINTING_SMALL_TRIANGLE
+                                        " {}",
+                                        TIP_("Conversion is not supported"),
+                                        TIP_(link->fromsock->typeinfo->label),
+                                        TIP_(link->tosock->typeinfo->label))});
           continue;
         }
       }
@@ -1165,7 +1192,7 @@ class NodeTreeMainUpdater {
        * be used without causing updates all the time currently. In the future we could try to
        * handle other drivers better as well.
        * Note that this optimization only works in practice when the depsgraph didn't also get a
-       * copy-on-write tag for the node tree (which happens when changing node properties). It
+       * copy-on-evaluation tag for the node tree (which happens when changing node properties). It
        * does work in a few situations like adding reroutes and duplicating nodes though. */
       LISTBASE_FOREACH (const FCurve *, fcurve, &adt->drivers) {
         const ChannelDriver *driver = fcurve->driver;

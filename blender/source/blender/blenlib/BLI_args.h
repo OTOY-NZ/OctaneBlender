@@ -62,14 +62,14 @@ void BLI_args_add_case(struct bArgs *ba,
                        BA_ArgCallback cb,
                        void *data);
 
-void BLI_args_parse(struct bArgs *ba, int pass, BA_ArgCallback default_cb, void *data);
+void BLI_args_parse(struct bArgs *ba, int pass, BA_ArgCallback default_cb, void *default_data);
 
 void BLI_args_print_arg_doc(struct bArgs *ba, const char *arg);
 void BLI_args_print_other_doc(struct bArgs *ba);
 
 bool BLI_args_has_other_doc(const struct bArgs *ba);
 
-void BLI_args_print(struct bArgs *ba);
+void BLI_args_print(const struct bArgs *ba);
 
 #ifdef __cplusplus
 }

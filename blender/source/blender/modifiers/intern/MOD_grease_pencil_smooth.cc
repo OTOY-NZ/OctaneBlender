@@ -8,7 +8,7 @@
 
 #include "BLI_index_mask.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "BLO_read_write.hh"
 
@@ -21,7 +21,6 @@
 #include "BKE_curves.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_grease_pencil.hh"
-#include "BKE_lib_query.hh"
 #include "BKE_modifier.hh"
 
 #include "UI_interface.hh"
@@ -30,7 +29,6 @@
 #include "GEO_smooth_curves.hh"
 
 #include "MOD_grease_pencil_util.hh"
-#include "MOD_modifiertypes.hh"
 #include "MOD_ui_common.hh"
 
 #include "RNA_prototypes.h"
@@ -101,12 +99,13 @@ static void deform_drawing(const ModifierData &md,
   const bool smooth_position = (mmd.flag & MOD_GREASE_PENCIL_SMOOTH_MOD_LOCATION);
   const bool smooth_radius = (mmd.flag & MOD_GREASE_PENCIL_SMOOTH_MOD_THICKNESS);
   const bool smooth_opacity = (mmd.flag & MOD_GREASE_PENCIL_SMOOTH_MOD_STRENGTH);
+  const bool smooth_uv = (mmd.flag & MOD_GREASE_PENCIL_SMOOTH_MOD_UV);
 
   if (iterations <= 0 || influence <= 0.0f) {
     return;
   }
 
-  if (!(smooth_position || smooth_radius || smooth_opacity)) {
+  if (!(smooth_position || smooth_radius || smooth_opacity || smooth_uv)) {
     return;
   }
 
@@ -168,6 +167,21 @@ static void deform_drawing(const ModifierData &md,
                                      radii.span);
     radii.finish();
   }
+  if (smooth_uv) {
+    bke::SpanAttributeWriter<float> rotation = attributes.lookup_for_write_span<float>("rotation");
+    if (rotation) {
+      geometry::smooth_curve_attribute(strokes,
+                                       points_by_curve,
+                                       point_selection,
+                                       cyclic,
+                                       iterations,
+                                       influence,
+                                       smooth_ends,
+                                       false,
+                                       rotation.span);
+    }
+    rotation.finish();
+  }
 }
 
 static void modify_geometry_set(ModifierData *md,
@@ -205,8 +219,7 @@ static void panel_draw(const bContext *C, Panel *panel)
   uiItemR(row, ptr, "use_edit_strength", UI_ITEM_R_TOGGLE, IFACE_("Strength"), ICON_NONE);
   uiItemR(row, ptr, "use_edit_thickness", UI_ITEM_R_TOGGLE, IFACE_("Thickness"), ICON_NONE);
 
-  /* TODO: UV not implemented yet in GPv3. */
-  // uiItemR(row, ptr, "use_edit_uv", UI_ITEM_R_TOGGLE, IFACE_("UV"), ICON_NONE);
+  uiItemR(row, ptr, "use_edit_uv", UI_ITEM_R_TOGGLE, IFACE_("UV"), ICON_NONE);
 
   uiLayoutSetPropSep(layout, true);
 

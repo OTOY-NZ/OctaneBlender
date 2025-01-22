@@ -28,9 +28,9 @@
 #include "node_shader_util.hh"
 
 /* **************** Script ******************** */
-static bNodeSocketTemplate sh_node_in[] = {{-1, ""}};
+static blender::bke::bNodeSocketTemplate  sh_node_in[] = {{-1, ""}};
 
-static bNodeSocketTemplate sh_node_out[] = {
+static blender::bke::bNodeSocketTemplate  sh_node_out[] = {
     {SOCK_SHADER, N_("OutProjection")},
     {SOCK_SHADER,
      N_("OutTex"),
@@ -79,7 +79,7 @@ static void node_copy_script(bNodeTree *dest_ntree,
 
 void register_node_type_projection_oct_osl_projection(void)
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   sh_node_type_base(
       &ntype, SH_NODE_OCT_PROJECTION_OSL, "OSL Projection", NODE_CLASS_OCT_PROJECTION);

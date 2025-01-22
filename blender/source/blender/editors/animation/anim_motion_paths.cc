@@ -20,16 +20,16 @@
 #include "DNA_scene_types.h"
 
 #include "BKE_action.h"
-#include "BKE_anim_data.h"
+#include "BKE_anim_data.hh"
 #include "BKE_main.hh"
-#include "BKE_scene.h"
+#include "BKE_scene.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
 #include "DEG_depsgraph_query.hh"
 
-#include "GPU_batch.h"
-#include "GPU_vertex_buffer.h"
+#include "GPU_batch.hh"
+#include "GPU_vertex_buffer.hh"
 
 #include "ED_anim_api.hh"
 #include "ED_keyframes_keylist.hh"
@@ -52,7 +52,7 @@ struct MPathTarget {
   Object *ob;          /* source object */
   bPoseChannel *pchan; /* source posechannel (if applicable) */
 
-  /* "Evaluated" Copies (these come from the background COW copy
+  /* "Evaluated" Copies (these come from the background evaluated copy
    * that provide all the coordinates we want to save off). */
   Object *ob_eval; /* evaluated object */
 };
@@ -75,7 +75,7 @@ Depsgraph *animviz_depsgraph_build(Main *bmain,
 
   /* Make a flat array of IDs for the DEG API. */
   const int num_ids = BLI_listbase_count(targets);
-  ID **ids = static_cast<ID **>(MEM_malloc_arrayN(num_ids, sizeof(ID *), "animviz IDS"));
+  blender::Array<ID *> ids(num_ids);
   int current_id_index = 0;
   for (MPathTarget *mpt = static_cast<MPathTarget *>(targets->first); mpt != nullptr;
        mpt = mpt->next)
@@ -84,8 +84,7 @@ Depsgraph *animviz_depsgraph_build(Main *bmain,
   }
 
   /* Build graph from all requested IDs. */
-  DEG_graph_build_from_ids(depsgraph, ids, num_ids);
-  MEM_freeN(ids);
+  DEG_graph_build_from_ids(depsgraph, ids);
 
   /* Update once so we can access pointers of evaluated animation data. */
   motionpaths_calc_update_scene(depsgraph);
@@ -168,18 +167,17 @@ static void motionpaths_calc_bake_targets(ListBase *targets,
       }
 
       /* Result must be in world-space. */
-      mul_m4_v3(ob_eval->object_to_world, mpv->co);
+      mul_m4_v3(ob_eval->object_to_world().ptr(), mpv->co);
     }
     else {
       /* World-space object location. */
-      copy_v3_v3(mpv->co, ob_eval->object_to_world[3]);
+      copy_v3_v3(mpv->co, ob_eval->object_to_world().location());
     }
 
     if (mpath->flag & MOTIONPATH_FLAG_BAKE_CAMERA && camera) {
       Object *cam_eval = DEG_get_evaluated_object(depsgraph, camera);
       /* Convert point to camera space. */
-      float3 co_camera_space = math::transform_point(float4x4(cam_eval->world_to_object),
-                                                     float3(mpv->co));
+      float3 co_camera_space = math::transform_point(cam_eval->world_to_object(), float3(mpv->co));
       copy_v3_v3(mpv->co, co_camera_space);
     }
 
@@ -436,7 +434,7 @@ void animviz_calc_motionpaths(Depsgraph *depsgraph,
   }
 
   /* get copies of objects/bones to get the calculated results from
-   * (for copy-on-write evaluation), so that we actually get some results
+   * (for copy-on-evaluation), so that we actually get some results
    */
 
   /* TODO: Create a copy of background depsgraph that only contain these entities,

@@ -8,7 +8,14 @@ namespace blender::nodes::node_shader_mix_shader_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Float>("Fac").default_value(0.5f).min(0.0f).max(1.0f).subtype(PROP_FACTOR);
+  b.add_input<decl::Float>("Fac")
+      .default_value(0.5f)
+      .min(0.0f)
+      .max(1.0f)
+      .subtype(PROP_FACTOR)
+      .description(
+          "Blend weight to use for mixing two shaders. "
+          "At zero it uses the first shader entirely and at one the second shader");
   b.add_input<decl::Shader>("Shader");
   b.add_input<decl::Shader>("Shader", "Shader_001");
   b.add_output<decl::Shader>("Shader");
@@ -56,12 +63,12 @@ void register_node_type_sh_mix_shader()
 {
   namespace file_ns = blender::nodes::node_shader_mix_shader_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   sh_node_type_base(&ntype, SH_NODE_MIX_SHADER, "Mix Shader", NODE_CLASS_SHADER);
   ntype.declare = file_ns::node_declare;
   ntype.gpu_fn = file_ns::node_shader_gpu_mix_shader;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 }

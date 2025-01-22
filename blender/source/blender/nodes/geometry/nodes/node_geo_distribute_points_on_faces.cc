@@ -5,18 +5,14 @@
 #include "BLI_kdtree.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_rotation.h"
-#include "BLI_math_rotation.hh"
 #include "BLI_noise.hh"
 #include "BLI_rand.hh"
 #include "BLI_task.hh"
-#include "BLI_timeit.hh"
 
 #include "DNA_pointcloud_types.h"
 
 #include "BKE_attribute_math.hh"
-#include "BKE_bvhutils.hh"
 #include "BKE_mesh.hh"
-#include "BKE_mesh_runtime.hh"
 #include "BKE_mesh_sample.hh"
 #include "BKE_pointcloud.hh"
 
@@ -607,7 +603,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   geo_node_type_base(&ntype,
                      GEO_NODE_DISTRIBUTE_POINTS_ON_FACES,
@@ -619,7 +615,7 @@ static void node_register()
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
   ntype.draw_buttons_ex = node_layout_ex;
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

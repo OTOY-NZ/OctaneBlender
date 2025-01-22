@@ -8,8 +8,8 @@
 
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.hh"
-#include "GPU_compute.h"
-#include "GPU_debug.h"
+#include "GPU_compute.hh"
+#include "GPU_debug.hh"
 
 #include "draw_debug.hh"
 #include "draw_shader.hh"
@@ -80,14 +80,10 @@ void View::frustum_boundbox_calc(int view_id)
   corners[1][1] = corners[5][1] = bottom;
   corners[2][1] = corners[6][1] = top;
 
+  const float4x4 &view_inv = data_[view_id].viewinv;
   /* Transform into world space. */
   for (float4 &corner : corners) {
-    mul_m4_v3(data_[view_id].viewinv.ptr(), corner);
-    corner.w = 1.0;
-    /* Special case for planar reflection. */
-    if (is_inverted_) {
-      corner.z = -corner.z;
-    }
+    corner = float4(math::transform_point(view_inv, float3(corner)), 1.0);
   }
 }
 
@@ -101,15 +97,9 @@ void View::frustum_culling_planes_calc(int view_id)
                       culling_[view_id].frustum_planes.planes[3],
                       culling_[view_id].frustum_planes.planes[4],
                       culling_[view_id].frustum_planes.planes[2]);
-
   /* Normalize. */
   for (float4 &plane : culling_[view_id].frustum_planes.planes) {
-    plane.w /= normalize_v3(plane);
-
-    /* Special case for planar reflection. */
-    if (is_inverted_) {
-      plane.z = -plane.z;
-    }
+    plane /= math::length(plane.xyz());
   }
 }
 
@@ -225,16 +215,6 @@ void View::frustum_culling_sphere_calc(int view_id)
     mul_m4_v3(data_[view_id].viewinv.ptr(), bsphere.center); /* Transform to world space. */
     mul_m4_v3(data_[view_id].viewinv.ptr(), farpoint);
     bsphere.radius = len_v3v3(bsphere.center, farpoint);
-  }
-}
-
-void View::disable(IndexRange range)
-{
-  /* Set bounding sphere to -1.0f radius will bypass the culling test and treat every instance as
-   * invisible. */
-  range = IndexRange(view_len_).intersect(range);
-  for (auto view_id : range) {
-    reinterpret_cast<BoundSphere *>(&culling_[view_id].bound_sphere)->radius = -1.0f;
   }
 }
 

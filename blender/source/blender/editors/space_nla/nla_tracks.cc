@@ -15,17 +15,14 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_anim_data.h"
+#include "BKE_anim_data.hh"
 #include "BKE_context.hh"
-#include "BKE_global.h"
+#include "BKE_global.hh"
 #include "BKE_layer.hh"
 #include "BKE_nla.h"
-#include "BKE_report.h"
-#include "BKE_scene.h"
-#include "BKE_screen.hh"
+#include "BKE_report.hh"
 
 #include "ED_anim_api.hh"
 #include "ED_keyframes_edit.hh"
@@ -37,8 +34,6 @@
 
 #include "WM_api.hh"
 #include "WM_types.hh"
-
-#include "UI_interface.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
@@ -119,7 +114,7 @@ static int mouse_nla_tracks(bContext *C, bAnimContext *ac, int track_index, shor
         /* set selection status */
         if (selectmode == SELECT_INVERT) {
           /* swap select */
-          ED_object_base_select(base, BA_INVERT);
+          blender::ed::object::base_select(base, blender::ed::object::BA_INVERT);
 
           if (adt) {
             adt->flag ^= ADT_UI_SELECTED;
@@ -130,21 +125,21 @@ static int mouse_nla_tracks(bContext *C, bAnimContext *ac, int track_index, shor
           /* TODO: should this deselect all other types of tracks too? */
           BKE_view_layer_synced_ensure(ac->scene, view_layer);
           LISTBASE_FOREACH (Base *, b, BKE_view_layer_object_bases_get(view_layer)) {
-            ED_object_base_select(b, BA_DESELECT);
+            blender::ed::object::base_select(b, blender::ed::object::BA_DESELECT);
             if (b->object->adt) {
               b->object->adt->flag &= ~(ADT_UI_SELECTED | ADT_UI_ACTIVE);
             }
           }
 
           /* select object now */
-          ED_object_base_select(base, BA_SELECT);
+          blender::ed::object::base_select(base, blender::ed::object::BA_SELECT);
           if (adt) {
             adt->flag |= ADT_UI_SELECTED;
           }
         }
 
         /* change active object - regardless of whether it is now selected [#37883] */
-        ED_object_base_activate_with_mode_exit_if_needed(C, base); /* adds notifier */
+        blender::ed::object::base_activate_with_mode_exit_if_needed(C, base); /* adds notifier */
 
         if ((adt) && (adt->flag & ADT_UI_SELECTED)) {
           adt->flag |= ADT_UI_ACTIVE;
@@ -266,6 +261,9 @@ static int mouse_nla_tracks(bContext *C, bAnimContext *ac, int track_index, shor
       }
       break;
     }
+    case ANIMTYPE_FILLACT_LAYERED:
+      /* The NLA doesn't support Animation data-blocks. */
+      break;
     default:
       if (G.debug & G_DEBUG) {
         printf("Error: Invalid track type in mouse_nla_tracks()\n");

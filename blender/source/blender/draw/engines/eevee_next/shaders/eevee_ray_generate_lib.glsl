@@ -13,84 +13,55 @@
 #pragma BLENDER_REQUIRE(eevee_bxdf_sampling_lib.glsl)
 #pragma BLENDER_REQUIRE(eevee_ray_types_lib.glsl)
 #pragma BLENDER_REQUIRE(eevee_sampling_lib.glsl)
-
-struct BsdfSample {
-  vec3 direction;
-  float pdf;
-};
-
-/* Could maybe become parameters. */
-#define RAY_BIAS 0.05
-
-bool is_singular_ray(float roughness)
-{
-  return roughness < BSDF_ROUGHNESS_THRESHOLD;
-}
+#pragma BLENDER_REQUIRE(eevee_thickness_lib.glsl)
 
 /* Returns view-space ray. */
-BsdfSample ray_generate_direction(vec2 noise, ClosureUndetermined cl, vec3 V)
+BsdfSample ray_generate_direction(vec2 noise, ClosureUndetermined cl, vec3 V, float thickness)
 {
   vec3 random_point_on_cylinder = sample_cylinder(noise);
   /* Bias the rays so we never get really high energy rays almost parallel to the surface. */
-  random_point_on_cylinder.x = random_point_on_cylinder.x * (1.0 - RAY_BIAS) + RAY_BIAS;
+  const float rng_bias = 0.08;
+  /* When modeling object thickness as a sphere, the outgoing rays are distributed uniformly
+   * over the sphere. We don't want the RAY_BIAS in this case. */
+  if (cl.type != CLOSURE_BSDF_TRANSLUCENT_ID || thickness <= 0.0) {
+    random_point_on_cylinder.x = 1.0 - random_point_on_cylinder.x * (1.0 - rng_bias);
+  }
 
-  mat3 world_to_tangent = from_up_axis(cl.N);
+  switch (cl.type) {
+    case CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID:
+      bxdf_ggx_context_amend_transmission(cl, V, thickness);
+      break;
+  }
+
+  mat3 tangent_to_world = from_up_axis(cl.N);
 
   BsdfSample samp;
+  samp.pdf = 0.0;
+  samp.direction = vec3(0.0);
   switch (cl.type) {
     case CLOSURE_BSDF_TRANSLUCENT_ID:
-      samp.direction = sample_cosine_hemisphere(random_point_on_cylinder,
-                                                -world_to_tangent[2],
-                                                world_to_tangent[1],
-                                                world_to_tangent[0],
-                                                samp.pdf);
+      samp = bxdf_translucent_sample(random_point_on_cylinder, thickness);
       break;
     case CLOSURE_BSSRDF_BURLEY_ID:
     case CLOSURE_BSDF_DIFFUSE_ID:
-      samp.direction = sample_cosine_hemisphere(random_point_on_cylinder,
-                                                world_to_tangent[2],
-                                                world_to_tangent[1],
-                                                world_to_tangent[0],
-                                                samp.pdf);
+      samp = bxdf_diffuse_sample(random_point_on_cylinder);
       break;
     case CLOSURE_BSDF_MICROFACET_GGX_REFLECTION_ID: {
-      if (is_singular_ray(to_closure_reflection(cl).roughness)) {
-        samp.direction = reflect(-V, cl.N);
-        samp.pdf = 1.0;
-      }
-      else {
-        samp.direction = sample_ggx_reflect(random_point_on_cylinder,
-                                            square(to_closure_reflection(cl).roughness),
-                                            V,
-                                            world_to_tangent[2],
-                                            world_to_tangent[1],
-                                            world_to_tangent[0],
-                                            samp.pdf);
-      }
+      samp = bxdf_ggx_sample_reflection(random_point_on_cylinder,
+                                        V * tangent_to_world,
+                                        square(to_closure_reflection(cl).roughness));
       break;
     }
     case CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID: {
-      if (is_singular_ray(to_closure_refraction(cl).roughness)) {
-        samp.direction = refract(-V, cl.N, 1.0 / to_closure_refraction(cl).ior);
-        samp.pdf = 1.0;
-      }
-      else {
-        samp.direction = sample_ggx_refract(random_point_on_cylinder,
-                                            square(to_closure_refraction(cl).roughness),
-                                            to_closure_refraction(cl).ior,
-                                            V,
-                                            world_to_tangent[2],
-                                            world_to_tangent[1],
-                                            world_to_tangent[0],
-                                            samp.pdf);
-      }
+      samp = bxdf_ggx_sample_transmission(random_point_on_cylinder,
+                                          V * tangent_to_world,
+                                          square(to_closure_refraction(cl).roughness),
+                                          to_closure_refraction(cl).ior,
+                                          thickness);
       break;
     }
-    case CLOSURE_NONE_ID:
-      /* TODO(fclem): Assert. */
-      samp.pdf = 0.0;
-      break;
   }
+  samp.direction = tangent_to_world * samp.direction;
 
   return samp;
 }

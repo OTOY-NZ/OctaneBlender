@@ -30,7 +30,7 @@
 #  include "BKE_image_format.h"
 #  include "BKE_image_save.h"
 #  include "BKE_main.hh"
-#  include "BKE_scene.h"
+#  include "BKE_scene.hh"
 #  include <errno.h>
 
 #  include "IMB_imbuf.hh"
@@ -144,15 +144,21 @@ static void rna_Image_unpack(Image *image, Main *bmain, ReportList *reports, int
 {
   if (!BKE_image_has_packedfile(image)) {
     BKE_report(reports, RPT_ERROR, "Image not packed");
+    return;
   }
-  else if (ELEM(image->source, IMA_SRC_MOVIE, IMA_SRC_SEQUENCE)) {
+
+  if (!ID_IS_EDITABLE(&image->id)) {
+    BKE_report(reports, RPT_ERROR, "Image is not editable");
+    return;
+  }
+
+  if (ELEM(image->source, IMA_SRC_MOVIE, IMA_SRC_SEQUENCE)) {
     BKE_report(reports, RPT_ERROR, "Unpacking movies or image sequences not supported");
     return;
   }
-  else {
-    /* reports its own error on failure */
-    BKE_packedfile_unpack_image(bmain, reports, image, ePF_FileStatus(method));
-  }
+
+  /* reports its own error on failure */
+  BKE_packedfile_unpack_image(bmain, reports, image, ePF_FileStatus(method));
 }
 
 static void rna_Image_reload(Image *image, Main *bmain)

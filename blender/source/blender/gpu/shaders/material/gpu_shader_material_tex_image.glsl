@@ -56,7 +56,15 @@ void point_map_to_tube(vec3 vin, out vec3 vout)
 
 void node_tex_image_linear(vec3 co, sampler2D ima, out vec4 color, out float alpha)
 {
+#ifdef GPU_FRAGMENT_SHADER
+  vec2 dx = dFdx(co.xy) * texture_lod_bias_get();
+  vec2 dy = dFdy(co.xy) * texture_lod_bias_get();
+
+  color = safe_color(textureGrad(ima, co.xy, dx, dy));
+#else
   color = safe_color(texture(ima, co.xy));
+#endif
+
   alpha = color.a;
 }
 

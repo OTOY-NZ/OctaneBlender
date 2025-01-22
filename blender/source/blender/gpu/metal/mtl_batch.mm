@@ -5,16 +5,16 @@
 /** \file
  * \ingroup gpu
  *
- * Metal implementation of GPUBatch.
+ * Metal implementation of gpu::Batch.
  */
 
 #include "BLI_assert.h"
 #include "BLI_span.hh"
 
-#include "BKE_global.h"
+#include "BKE_global.hh"
 
-#include "GPU_common.h"
-#include "gpu_batch_private.hh"
+#include "GPU_batch.hh"
+#include "GPU_common.hh"
 #include "gpu_shader_private.hh"
 
 #include "mtl_batch.hh"
@@ -134,7 +134,7 @@ int MTLBatch::prepare_vertex_binding(MTLVertBuf *verts,
         "In Metal, Vertex buffer stride should be 4. SSBO Vertex fetch is not affected by this");
   }
 
-  /* Iterate over GPUVertBuf vertex format and find attributes matching those in the active
+  /* Iterate over VertBuf vertex format and find attributes matching those in the active
    * shader's interface. */
   for (uint32_t a_idx = 0; a_idx < format->attr_len; a_idx++) {
     const GPUVertAttr *a = &format->attrs[a_idx];
@@ -754,7 +754,7 @@ void MTLBatch::draw_advanced(int v_first, int v_count, int i_first, int i_count)
 #endif
 
   /* Setup RenderPipelineState for batch. */
-  MTLContext *ctx = static_cast<MTLContext *>(unwrap(GPU_context_active_get()));
+  MTLContext *ctx = MTLContext::get();
   id<MTLRenderCommandEncoder> rec = this->bind(v_count);
   if (rec == nil) {
     /* End of draw. */
@@ -896,7 +896,7 @@ void MTLBatch::draw_advanced(int v_first, int v_count, int i_first, int i_count)
 void MTLBatch::draw_advanced_indirect(GPUStorageBuf *indirect_buf, intptr_t offset)
 {
   /* Setup RenderPipelineState for batch. */
-  MTLContext *ctx = reinterpret_cast<MTLContext *>(GPU_context_active_get());
+  MTLContext *ctx = MTLContext::get();
   id<MTLRenderCommandEncoder> rec = this->bind(0);
   if (rec == nil) {
     printf("Failed to open Render Command encoder for DRAW INDIRECT\n");

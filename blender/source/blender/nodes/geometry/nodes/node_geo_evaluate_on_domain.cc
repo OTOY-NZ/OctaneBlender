@@ -9,9 +9,7 @@
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
-#include "BKE_attribute_math.hh"
 #include "BKE_geometry_fields.hh"
-#include "BKE_grease_pencil.hh"
 
 #include "BLI_task.hh"
 
@@ -47,7 +45,7 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 
 static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 {
-  const bNodeType &node_type = params.node_type();
+  const blender::bke::bNodeType &node_type = params.node_type();
   const std::optional<eCustomDataType> type = bke::socket_type_to_custom_data_type(
       eNodeSocketDatatype(params.other_socket().type));
   if (type && *type != CD_PROP_STRING) {
@@ -92,7 +90,7 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   geo_node_type_base(
       &ntype, GEO_NODE_EVALUATE_ON_DOMAIN, "Evaluate on Domain", NODE_CLASS_CONVERTER);
@@ -101,7 +99,7 @@ static void node_register()
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
   ntype.gather_link_search_ops = node_gather_link_searches;
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

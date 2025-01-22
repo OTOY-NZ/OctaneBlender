@@ -92,6 +92,7 @@ class USDExportTest(AbstractUSDTest):
             filepath=str(export_path),
             export_materials=True,
             evaluation_mode="RENDER",
+            convert_world_material=False,
         )
         self.assertEqual({'FINISHED'}, res, f"Unable to export to {export_path}")
 
@@ -148,53 +149,172 @@ class USDExportTest(AbstractUSDTest):
         opacity_input = shader.GetInput('opacity')
         self.assertEqual(opacity_input.HasConnectedSource(), False,
                          "Opacity input should not be connected for opaque material")
-        self.assertAlmostEqual(opacity_input.Get(), 1.0, "Opacity input should be set to 1")
+        self.assertAlmostEqual(opacity_input.Get(), 1.0, 2, "Opacity input should be set to 1")
 
-        # The material already has a texture input to the Base Color.
-        # Now also link this texture to the Alpha input.
-        # Set an opacity threshold appropriate for alpha clipping.
-        mat = bpy.data.materials['Material']
-        bsdf = mat.node_tree.nodes['Principled BSDF']
-        tex_output = bsdf.inputs['Base Color'].links[0].from_node.outputs['Color']
-        alpha_input = bsdf.inputs['Alpha']
-        mat.node_tree.links.new(tex_output, alpha_input)
-        bpy.data.materials['Material'].blend_method = 'CLIP'
-        bpy.data.materials['Material'].alpha_threshold = 0.01
-        export_path = self.tempdir / "alphaclip_material.usda"
+        # Inspect and validate the exported USD for the alpha clip w/Round node case.
+        shader_prim = stage.GetPrimAtPath("/root/_materials/Clip_With_Round/Principled_BSDF")
+        shader = UsdShade.Shader(shader_prim)
+        opacity_input = shader.GetInput('opacity')
+        opacity_thresh_input = shader.GetInput('opacityThreshold')
+        self.assertEqual(opacity_input.HasConnectedSource(), True, "Alpha input should be connected")
+        self.assertAlmostEqual(opacity_thresh_input.Get(), 0.5, 2, "Opacity threshold input should be 0.5")
+
+        # Inspect and validate the exported USD for the alpha clip w/LessThan+Invert node case.
+        shader_prim = stage.GetPrimAtPath("/root/_materials/Clip_With_LessThanInvert/Principled_BSDF")
+        shader = UsdShade.Shader(shader_prim)
+        opacity_input = shader.GetInput('opacity')
+        opacity_thresh_input = shader.GetInput('opacityThreshold')
+        self.assertEqual(opacity_input.HasConnectedSource(), True, "Alpha input should be connected")
+        self.assertAlmostEqual(opacity_thresh_input.Get(), 0.2, 2, "Opacity threshold input should be 0.2")
+
+    def check_primvar(self, prim, pv_name, pv_typeName, pv_interp, elements_len):
+        pv = UsdGeom.PrimvarsAPI(prim).GetPrimvar(pv_name)
+        self.assertTrue(pv.HasValue())
+        self.assertEqual(pv.GetTypeName().type.typeName, pv_typeName)
+        self.assertEqual(pv.GetInterpolation(), pv_interp)
+        self.assertEqual(len(pv.Get()), elements_len)
+
+    def check_primvar_missing(self, prim, pv_name):
+        pv = UsdGeom.PrimvarsAPI(prim).GetPrimvar(pv_name)
+        self.assertFalse(pv.HasValue())
+
+    def test_export_attributes(self):
+        bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "usd_attribute_test.blend"))
+        export_path = self.tempdir / "usd_attribute_test.usda"
+        res = bpy.ops.wm.usd_export(filepath=str(export_path), evaluation_mode="RENDER")
+        self.assertEqual({'FINISHED'}, res, f"Unable to export to {export_path}")
+
+        stage = Usd.Stage.Open(str(export_path))
+
+        # Validate all expected Mesh attributes. Notice that nothing on
+        # the Edge domain is supported by USD.
+        prim = stage.GetPrimAtPath("/root/Mesh/Mesh")
+
+        self.check_primvar(prim, "p_bool", "VtArray<bool>", "vertex", 4)
+        self.check_primvar(prim, "p_int8", "VtArray<unsigned char>", "vertex", 4)
+        self.check_primvar(prim, "p_int32", "VtArray<int>", "vertex", 4)
+        self.check_primvar(prim, "p_float", "VtArray<float>", "vertex", 4)
+        self.check_primvar(prim, "p_color", "VtArray<GfVec3f>", "vertex", 4)
+        self.check_primvar(prim, "p_byte_color", "VtArray<GfVec3f>", "vertex", 4)
+        self.check_primvar(prim, "p_vec2", "VtArray<GfVec2f>", "vertex", 4)
+        self.check_primvar(prim, "p_vec3", "VtArray<GfVec3f>", "vertex", 4)
+        self.check_primvar(prim, "p_quat", "VtArray<GfQuatf>", "vertex", 4)
+        self.check_primvar_missing(prim, "p_mat4x4")
+
+        self.check_primvar_missing(prim, "e_bool")
+        self.check_primvar_missing(prim, "e_int8")
+        self.check_primvar_missing(prim, "e_int32")
+        self.check_primvar_missing(prim, "e_float")
+        self.check_primvar_missing(prim, "e_color")
+        self.check_primvar_missing(prim, "e_byte_color")
+        self.check_primvar_missing(prim, "e_vec2")
+        self.check_primvar_missing(prim, "e_vec3")
+        self.check_primvar_missing(prim, "e_quat")
+        self.check_primvar_missing(prim, "e_mat4x4")
+
+        self.check_primvar(prim, "f_bool", "VtArray<bool>", "uniform", 1)
+        self.check_primvar(prim, "f_int8", "VtArray<unsigned char>", "uniform", 1)
+        self.check_primvar(prim, "f_int32", "VtArray<int>", "uniform", 1)
+        self.check_primvar(prim, "f_float", "VtArray<float>", "uniform", 1)
+        self.check_primvar_missing(prim, "f_color")
+        self.check_primvar_missing(prim, "f_byte_color")
+        self.check_primvar(prim, "f_vec2", "VtArray<GfVec2f>", "uniform", 1)
+        self.check_primvar(prim, "f_vec3", "VtArray<GfVec3f>", "uniform", 1)
+        self.check_primvar(prim, "f_quat", "VtArray<GfQuatf>", "uniform", 1)
+        self.check_primvar_missing(prim, "f_mat4x4")
+
+        self.check_primvar(prim, "fc_bool", "VtArray<bool>", "faceVarying", 4)
+        self.check_primvar(prim, "fc_int8", "VtArray<unsigned char>", "faceVarying", 4)
+        self.check_primvar(prim, "fc_int32", "VtArray<int>", "faceVarying", 4)
+        self.check_primvar(prim, "fc_float", "VtArray<float>", "faceVarying", 4)
+        self.check_primvar(prim, "fc_color", "VtArray<GfVec3f>", "faceVarying", 4)
+        self.check_primvar(prim, "fc_byte_color", "VtArray<GfVec3f>", "faceVarying", 4)
+        self.check_primvar(prim, "fc_vec2", "VtArray<GfVec2f>", "faceVarying", 4)
+        self.check_primvar(prim, "fc_vec3", "VtArray<GfVec3f>", "faceVarying", 4)
+        self.check_primvar(prim, "fc_quat", "VtArray<GfQuatf>", "faceVarying", 4)
+        self.check_primvar_missing(prim, "fc_mat4x4")
+
+        prim = stage.GetPrimAtPath("/root/Curve_base/Curves/Curves")
+
+        self.check_primvar(prim, "p_bool", "VtArray<bool>", "vertex", 24)
+        self.check_primvar(prim, "p_int8", "VtArray<unsigned char>", "vertex", 24)
+        self.check_primvar(prim, "p_int32", "VtArray<int>", "vertex", 24)
+        self.check_primvar(prim, "p_float", "VtArray<float>", "vertex", 24)
+        self.check_primvar_missing(prim, "p_color")
+        self.check_primvar_missing(prim, "p_byte_color")
+        self.check_primvar(prim, "p_vec2", "VtArray<GfVec2f>", "vertex", 24)
+        self.check_primvar(prim, "p_vec3", "VtArray<GfVec3f>", "vertex", 24)
+        self.check_primvar(prim, "p_quat", "VtArray<GfQuatf>", "vertex", 24)
+        self.check_primvar_missing(prim, "p_mat4x4")
+
+        self.check_primvar(prim, "sp_bool", "VtArray<bool>", "uniform", 2)
+        self.check_primvar(prim, "sp_int8", "VtArray<unsigned char>", "uniform", 2)
+        self.check_primvar(prim, "sp_int32", "VtArray<int>", "uniform", 2)
+        self.check_primvar(prim, "sp_float", "VtArray<float>", "uniform", 2)
+        self.check_primvar_missing(prim, "sp_color")
+        self.check_primvar_missing(prim, "sp_byte_color")
+        self.check_primvar(prim, "sp_vec2", "VtArray<GfVec2f>", "uniform", 2)
+        self.check_primvar(prim, "sp_vec3", "VtArray<GfVec3f>", "uniform", 2)
+        self.check_primvar(prim, "sp_quat", "VtArray<GfQuatf>", "uniform", 2)
+        self.check_primvar_missing(prim, "sp_mat4x4")
+
+        prim = stage.GetPrimAtPath("/root/Curve_bezier_base/Curves_bezier/Curves")
+
+        self.check_primvar(prim, "p_bool", "VtArray<bool>", "varying", 10)
+        self.check_primvar(prim, "p_int8", "VtArray<unsigned char>", "varying", 10)
+        self.check_primvar(prim, "p_int32", "VtArray<int>", "varying", 10)
+        self.check_primvar(prim, "p_float", "VtArray<float>", "varying", 10)
+        self.check_primvar_missing(prim, "p_color")
+        self.check_primvar_missing(prim, "p_byte_color")
+        self.check_primvar(prim, "p_vec2", "VtArray<GfVec2f>", "varying", 10)
+        self.check_primvar(prim, "p_vec3", "VtArray<GfVec3f>", "varying", 10)
+        self.check_primvar(prim, "p_quat", "VtArray<GfQuatf>", "varying", 10)
+        self.check_primvar_missing(prim, "p_mat4x4")
+
+        self.check_primvar(prim, "sp_bool", "VtArray<bool>", "uniform", 3)
+        self.check_primvar(prim, "sp_int8", "VtArray<unsigned char>", "uniform", 3)
+        self.check_primvar(prim, "sp_int32", "VtArray<int>", "uniform", 3)
+        self.check_primvar(prim, "sp_float", "VtArray<float>", "uniform", 3)
+        self.check_primvar_missing(prim, "sp_color")
+        self.check_primvar_missing(prim, "sp_byte_color")
+        self.check_primvar(prim, "sp_vec2", "VtArray<GfVec2f>", "uniform", 3)
+        self.check_primvar(prim, "sp_vec3", "VtArray<GfVec3f>", "uniform", 3)
+        self.check_primvar(prim, "sp_quat", "VtArray<GfQuatf>", "uniform", 3)
+        self.check_primvar_missing(prim, "sp_mat4x4")
+
+    def test_materialx_network(self):
+        """Test exporting that a MaterialX export makes it out alright"""
+        bpy.ops.wm.open_mainfile(
+            filepath=str(self.testdir / "usd_materials_export.blend")
+        )
+        export_path = self.tempdir / "materialx.usda"
         res = bpy.ops.wm.usd_export(
             filepath=str(export_path),
             export_materials=True,
+            generate_materialx_network=True,
             evaluation_mode="RENDER",
         )
         self.assertEqual({'FINISHED'}, res, f"Unable to export to {export_path}")
 
-        # Inspect and validate the exported USD for the alpha clip case.
         stage = Usd.Stage.Open(str(export_path))
-        shader_prim = stage.GetPrimAtPath("/root/_materials/Material/Principled_BSDF")
-        shader = UsdShade.Shader(shader_prim)
-        opacity_input = shader.GetInput('opacity')
-        opacity_thres_input = shader.GetInput('opacityThreshold')
-        self.assertEqual(opacity_input.HasConnectedSource(), True, "Alpha input should be connected")
-        self.assertGreater(opacity_thres_input.Get(), 0.0, "Opacity threshold input should be > 0")
+        material_prim = stage.GetPrimAtPath("/root/_materials/Material")
+        self.assertTrue(material_prim, "Could not find Material prim")
 
-        # Modify material again, this time with alpha blend.
-        bpy.data.materials['Material'].blend_method = 'BLEND'
-        export_path = self.tempdir / "alphablend_material.usda"
-        res = bpy.ops.wm.usd_export(
-            filepath=str(export_path),
-            export_materials=True,
-            evaluation_mode="RENDER",
-        )
-        self.assertEqual({'FINISHED'}, res, f"Unable to export to {export_path}")
+        material = UsdShade.Material(material_prim)
+        mtlx_output = material.GetOutput("mtlx:surface")
+        self.assertTrue(mtlx_output, "Could not find mtlx output")
 
-        # Inspect and validate the exported USD for the alpha blend case.
-        stage = Usd.Stage.Open(str(export_path))
-        shader_prim = stage.GetPrimAtPath("/root/_materials/Material/Principled_BSDF")
-        shader = UsdShade.Shader(shader_prim)
-        opacity_input = shader.GetInput('opacity')
-        opacity_thres_input = shader.GetInput('opacityThreshold')
-        self.assertEqual(opacity_input.HasConnectedSource(), True, "Alpha input should be connected")
-        self.assertEqual(opacity_thres_input.Get(), None, "Opacity threshold should not be specified for alpha blend")
+        connection, source_name, _ = UsdShade.ConnectableAPI.GetConnectedSource(
+            mtlx_output
+        ) or [None, None, None]
+
+        self.assertTrue((connection and source_name), "Could not find mtlx output source")
+
+        shader = UsdShade.Shader(connection.GetPrim())
+        self.assertTrue(shader, "Connected prim is not a shader")
+
+        shader_id = shader.GetIdAttr().Get()
+        self.assertEqual(shader_id, "ND_standard_surface_surfaceshader", "Shader is not a Standard Surface")
 
 
 def main():

@@ -10,38 +10,27 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
-#include "DNA_world_types.h"
 
-#include "BLI_blenlib.h"
-#include "BLI_time.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_DerivedMesh.hh"
 #include "BKE_attribute.hh"
-#include "BKE_blender.h"
-#include "BKE_cdderivedmesh.h"
 #include "BKE_context.hh"
 #include "BKE_customdata.hh"
-#include "BKE_global.h"
+#include "BKE_global.hh"
 #include "BKE_image.h"
-#include "BKE_material.h"
-#include "BKE_mesh.hh"
+#include "BKE_mesh_legacy_derived_mesh.hh"
 #include "BKE_modifier.hh"
 #include "BKE_multires.hh"
-#include "BKE_report.h"
-#include "BKE_scene.h"
-
-#include "DEG_depsgraph.hh"
+#include "BKE_report.hh"
+#include "BKE_scene.hh"
 
 #include "RE_multires_bake.h"
 #include "RE_pipeline.h"
-#include "RE_texture.h"
 
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
@@ -49,11 +38,12 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "ED_object.hh"
 #include "ED_screen.hh"
 #include "ED_uvedit.hh"
 
-#include "object_intern.h"
+#include "object_intern.hh"
+
+namespace blender::ed::object {
 
 static Image *bake_object_image_get(Object *ob, int mat_nr)
 {
@@ -114,7 +104,6 @@ struct MultiresBakeJob {
 
 static bool multiresbake_check(bContext *C, wmOperator *op)
 {
-  using namespace blender;
   Scene *scene = CTX_data_scene(C);
   Object *ob;
   Mesh *mesh;
@@ -226,7 +215,7 @@ static DerivedMesh *multiresbake_create_loresdm(Scene *scene, Object *ob, int *l
   DerivedMesh *dm;
   MultiresModifierData *mmd = get_multires_modifier(scene, ob, false);
   Mesh *mesh = (Mesh *)ob->data;
-  MultiresModifierData tmp_mmd = blender::dna::shallow_copy(*mmd);
+  MultiresModifierData tmp_mmd = dna::shallow_copy(*mmd);
 
   *lvl = mmd->lvl;
 
@@ -251,7 +240,7 @@ static DerivedMesh *multiresbake_create_hiresdm(Scene *scene, Object *ob, int *l
 {
   Mesh *mesh = (Mesh *)ob->data;
   MultiresModifierData *mmd = get_multires_modifier(scene, ob, false);
-  MultiresModifierData tmp_mmd = blender::dna::shallow_copy(*mmd);
+  MultiresModifierData tmp_mmd = dna::shallow_copy(*mmd);
   DerivedMesh *cddm = CDDM_from_mesh(mesh);
   DerivedMesh *dm;
 
@@ -571,6 +560,7 @@ static int multiresbake_image_exec(bContext *C, wmOperator *op)
 
   if (!bkr->data.first) {
     BKE_report(op->reports, RPT_ERROR, "No objects found to bake from");
+    MEM_freeN(bkr);
     return OPERATOR_CANCELLED;
   }
 
@@ -665,3 +655,5 @@ void OBJECT_OT_bake_image(wmOperatorType *ot)
   ot->modal = objects_bake_render_modal;
   ot->poll = ED_operator_object_active;
 }
+
+}  // namespace blender::ed::object

@@ -28,9 +28,7 @@
 #include "ED_select_utils.hh"
 #include "ED_view3d.hh"
 
-#include "BKE_object.hh"
-
-#include "curve_intern.h"
+#include "curve_intern.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -153,17 +151,17 @@ static void update_location_for_2d_curve(const ViewContext *vc, float location[3
     ED_view3d_global_to_vector(vc->rv3d, location, view_dir);
 
     /* Get the plane. */
-    float plane[4];
+    const float *plane_co = vc->obedit->object_to_world().location();
+    float plane_no[3];
     /* Only normalize to avoid precision errors. */
-    normalize_v3_v3(plane, vc->obedit->object_to_world[2]);
-    plane[3] = -dot_v3v3(plane, vc->obedit->object_to_world[3]);
+    normalize_v3_v3(plane_no, vc->obedit->object_to_world()[2]);
 
-    if (fabsf(dot_v3v3(view_dir, plane)) < eps) {
+    if (fabsf(dot_v3v3(view_dir, plane_no)) < eps) {
       /* Can't project on an aligned plane. */
     }
     else {
       float lambda;
-      if (isect_ray_plane_v3(location, view_dir, plane, &lambda, false)) {
+      if (isect_ray_plane_v3_factor(location, view_dir, plane_co, plane_no, &lambda)) {
         /* Check if we're behind the viewport */
         float location_test[3];
         madd_v3_v3v3fl(location_test, location, view_dir, lambda);
@@ -177,7 +175,7 @@ static void update_location_for_2d_curve(const ViewContext *vc, float location[3
   }
 
   float imat[4][4];
-  invert_m4_m4(imat, vc->obedit->object_to_world);
+  invert_m4_m4(imat, vc->obedit->object_to_world().ptr());
   mul_m4_v3(imat, location);
 
   if (CU_IS_2D(cu)) {
@@ -190,7 +188,7 @@ static void screenspace_to_worldspace(const ViewContext *vc,
                                       const float depth[3],
                                       float r_pos_3d[3])
 {
-  mul_v3_m4v3(r_pos_3d, vc->obedit->object_to_world, depth);
+  mul_v3_m4v3(r_pos_3d, vc->obedit->object_to_world().ptr(), depth);
   ED_view3d_win_to_3d(vc->v3d, vc->region, r_pos_3d, pos_2d, r_pos_3d);
   update_location_for_2d_curve(vc, r_pos_3d);
 }
@@ -1104,7 +1102,7 @@ static void extrude_points_from_selected_vertices(const ViewContext *vc,
 
   float location[3];
   if (sel_exists) {
-    mul_v3_m4v3(location, vc->obedit->object_to_world, center);
+    mul_v3_m4v3(location, vc->obedit->object_to_world().ptr(), center);
   }
   else {
     copy_v3_v3(location, vc->scene->cursor.location);
@@ -1174,7 +1172,7 @@ static bool is_spline_nearby(ViewContext *vc,
   return false;
 }
 
-static void move_segment(ViewContext *vc, MoveSegmentData *seg_data, const wmEvent *event)
+static void move_segment(const ViewContext *vc, MoveSegmentData *seg_data, const wmEvent *event)
 {
   Nurb *nu = seg_data->nu;
   BezTriple *bezt1 = nu->bezt + seg_data->bezt_index;
@@ -1292,7 +1290,7 @@ static void toggle_sel_bezt_free_align_handles(ListBase *nurbs)
 /**
  * If a point is found under mouse, delete point and return true. Else return false.
  */
-static bool delete_point_under_mouse(ViewContext *vc, const wmEvent *event)
+static bool delete_point_under_mouse(const ViewContext *vc, const wmEvent *event)
 {
   BezTriple *bezt = nullptr;
   BPoint *bp = nullptr;
@@ -1340,7 +1338,7 @@ static bool delete_point_under_mouse(ViewContext *vc, const wmEvent *event)
   return deleted;
 }
 
-static void move_adjacent_handle(ViewContext *vc, const wmEvent *event, ListBase *nurbs)
+static void move_adjacent_handle(const ViewContext *vc, const wmEvent *event, ListBase *nurbs)
 {
   FOREACH_SELECTED_BEZT_BEGIN (bezt, nurbs) {
     BezTriple *adj_bezt;
@@ -1384,7 +1382,7 @@ static void move_adjacent_handle(ViewContext *vc, const wmEvent *event, ListBase
 /**
  * Close the spline if endpoints are selected consecutively. Return true if cycle was created.
  */
-static bool make_cyclic_if_endpoints(ViewContext *vc,
+static bool make_cyclic_if_endpoints(const ViewContext *vc,
                                      Nurb *sel_nu,
                                      BezTriple *sel_bezt,
                                      BPoint *sel_bp)

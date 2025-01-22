@@ -245,7 +245,7 @@ class OctaneRenderAOVOutput(bpy.types.Node, OctaneBaseNode):
         ("Latest (2022.1)", "Latest (2022.1)", """(null)""", 12000008),
         ("2021.1 compatibility mode", "2021.1 compatibility mode", """When "Enable imager" is disabled, some aspects of the imager are not bypassed, and linear sRGB data is output as sRGB.""", 0),
     ]
-    a_compatibility_version_enum: EnumProperty(name="Compatibility version", default="Latest (2022.1)", update=OctaneBaseNode.update_compatibility_mode, description="The Octane version that the behavior of this node should match", items=compatibility_mode_infos)
+    a_compatibility_version_enum: EnumProperty(name="Compatibility version", default="Latest (2022.1)", update=OctaneBaseNode.update_compatibility_mode_to_enum, description="The Octane version that the behavior of this node should match", items=compatibility_mode_infos)
 
     a_compatibility_version: IntProperty(name="Compatibility version", default=12000102, update=OctaneBaseNode.update_node_tree, description="The Octane version that the behavior of this node should match")
 
@@ -288,10 +288,10 @@ from ...utils import utility
 OctaneRenderAOVOutputInput_simplified_items = utility.make_blender_style_enum_items(OctaneRenderAOVOutputInput.items)
 
 class OctaneRenderAOVOutputInput_Override(OctaneRenderAOVOutputInput):
-    default_value: EnumProperty(default="Beauty", update=OctaneBaseSocket.update_node_tree, description="Select a render AOV from the list of all available render AOVs", items=OctaneRenderAOVOutputInput_simplified_items)    
+    default_value: EnumProperty(default="Beauty", update=OctaneBaseSocket.update_node_tree, description="Select a render AOV from the list of all available render AOVs", items=OctaneRenderAOVOutputInput_simplified_items)
 
     def draw_buttons(self, context, layout):
         row = layout.row()
         row.prop(self, "a_compatibility_version_enum")
 
-utility.override_class(_CLASSES, OctaneRenderAOVOutputInput, OctaneRenderAOVOutputInput_Override)  
+utility.override_class(_CLASSES, OctaneRenderAOVOutputInput, OctaneRenderAOVOutputInput_Override)

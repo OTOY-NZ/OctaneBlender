@@ -13,10 +13,11 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BKE_duplilist.h"
+#include "BKE_duplilist.hh"
 #include "BKE_geometry_set.hh"
-#include "BKE_idprop.h"
+#include "BKE_idprop.hh"
 #include "BKE_layer.hh"
+#include "BKE_modifier.hh"
 #include "BKE_node.hh"
 #include "BKE_object.hh"
 #include "BKE_object_types.hh"
@@ -180,10 +181,11 @@ bool deg_iterator_duplis_step(DEGObjectIterData *data)
     bool is_neg_scale = is_negative_m4(dob->mat);
     SET_FLAG_FROM_TEST(data->temp_dupli_object.transflag, is_neg_scale, OB_NEG_SCALE);
 
-    copy_m4_m4(data->temp_dupli_object.object_to_world, dob->mat);
-    invert_m4_m4(data->temp_dupli_object.world_to_object, data->temp_dupli_object.object_to_world);
+    copy_m4_m4(data->temp_dupli_object.runtime->object_to_world.ptr(), dob->mat);
+    invert_m4_m4(data->temp_dupli_object.runtime->world_to_object.ptr(),
+                 data->temp_dupli_object.object_to_world().ptr());
     data->next_object = &data->temp_dupli_object;
-    BLI_assert(deg::deg_validate_copy_on_write_datablock(&data->temp_dupli_object.id));
+    BLI_assert(deg::deg_validate_eval_copy_datablock(&data->temp_dupli_object.id));
     return true;
   }
 
@@ -237,7 +239,15 @@ bool deg_iterator_objects_step(DEGObjectIterData *data)
 
     Object *object = (Object *)id_node->id_cow;
     Object *object_orig = DEG_get_original_object(object);
-    BLI_assert(deg::deg_validate_copy_on_write_datablock(&object->id));
+
+    /* NOTE: The object might be invisible after the latest depsgraph evaluation, in which case
+     * going into its evaluated state might not be safe. For example, its evaluated mesh state
+     * might point to a freed data-block if the mesh is animated.
+     * So it is required to perform the visibility checks prior to looking into any deeper into the
+     * object. */
+
+    BLI_assert(deg::deg_eval_copy_is_expanded(&object->id));
+
     object->runtime->select_id = object_orig->runtime->select_id;
 
     const bool use_preview = object_orig == data->object_orig_with_preview;
@@ -262,12 +272,14 @@ bool deg_iterator_objects_step(DEGObjectIterData *data)
       if ((data->flag & DEG_ITER_OBJECT_FLAG_DUPLI) &&
           ((object->transflag & OB_DUPLI) || object->runtime->geometry_set_eval != nullptr))
       {
+        BLI_assert(deg::deg_validate_eval_copy_datablock(&object->id));
         ListBase *duplis = object_duplilist(data->graph, data->scene, object);
         deg_iterator_duplis_init(data, object, duplis);
       }
     }
 
     if (ob_visibility & (OB_VISIBLE_SELF | OB_VISIBLE_PARTICLES)) {
+      BLI_assert(deg::deg_validate_eval_copy_datablock(&object->id));
       data->next_object = object;
     }
     data->id_node_index++;
@@ -301,6 +313,38 @@ DEGObjectIterData &DEGObjectIterData::operator=(const DEGObjectIterData &other)
   return *this;
 }
 
+static Object *find_object_with_preview_geometry(const ViewerPath &viewer_path)
+{
+  if (BLI_listbase_is_empty(&viewer_path.path)) {
+    return nullptr;
+  }
+  const ViewerPathElem *elem = static_cast<const ViewerPathElem *>(viewer_path.path.first);
+  if (elem->type != VIEWER_PATH_ELEM_TYPE_ID) {
+    return nullptr;
+  }
+  const IDViewerPathElem *id_elem = reinterpret_cast<const IDViewerPathElem *>(elem);
+  if (id_elem->id == nullptr) {
+    return nullptr;
+  }
+  if (GS(id_elem->id->name) != ID_OB) {
+    return nullptr;
+  }
+  Object *object = reinterpret_cast<Object *>(id_elem->id);
+  if (elem->next->type != VIEWER_PATH_ELEM_TYPE_MODIFIER) {
+    return nullptr;
+  }
+  const ModifierViewerPathElem *modifier_elem = reinterpret_cast<const ModifierViewerPathElem *>(
+      elem->next);
+  ModifierData *md = BKE_modifiers_findby_name(object, modifier_elem->modifier_name);
+  if (md == nullptr) {
+    return nullptr;
+  }
+  if (!(md->mode & eModifierMode_Realtime)) {
+    return nullptr;
+  }
+  return reinterpret_cast<Object *>(id_elem->id);
+}
+
 void DEG_iterator_objects_begin(BLI_Iterator *iter, DEGObjectIterData *data)
 {
   Depsgraph *depsgraph = data->graph;
@@ -328,17 +372,7 @@ void DEG_iterator_objects_begin(BLI_Iterator *iter, DEGObjectIterData *data)
   /* Determine if the preview of any object should be in the iterator. */
   const ViewerPath *viewer_path = data->settings->viewer_path;
   if (viewer_path != nullptr) {
-    if (!BLI_listbase_is_empty(&viewer_path->path)) {
-      const ViewerPathElem *elem = static_cast<const ViewerPathElem *>(viewer_path->path.first);
-      if (elem->type == VIEWER_PATH_ELEM_TYPE_ID) {
-        const IDViewerPathElem *id_elem = reinterpret_cast<const IDViewerPathElem *>(elem);
-        if (id_elem->id != nullptr) {
-          if (GS(id_elem->id->name) == ID_OB) {
-            data->object_orig_with_preview = reinterpret_cast<Object *>(id_elem->id);
-          }
-        }
-      }
-    }
+    data->object_orig_with_preview = find_object_with_preview_geometry(*viewer_path);
   }
 
   DEG_iterator_objects_next(iter);
@@ -381,15 +415,18 @@ static void DEG_iterator_ids_step(BLI_Iterator *iter, deg::IDNode *id_node, bool
   ID *id_cow = id_node->id_cow;
 
   /* Use the build time visibility so that the ID is not appearing/disappearing throughout
-   * animation export. */
-  if (!id_node->is_visible_on_build) {
+   * animation export.
+   * When the dependency graph is asked for updates report all IDs, as the user of those updates
+   * might need to react to updates coming from IDs which do change visibility throughout the
+   * life-time of the graph. */
+  if (!only_updated && !id_node->is_visible_on_build) {
     iter->skip = true;
     return;
   }
 
   if (only_updated && !(id_cow->recalc & ID_RECALC_ALL)) {
     /* Node-tree is considered part of the data-block. */
-    bNodeTree *ntree = ntreeFromID(id_cow);
+    bNodeTree *ntree = blender::bke::ntreeFromID(id_cow);
     if (ntree == nullptr) {
       iter->skip = true;
       return;

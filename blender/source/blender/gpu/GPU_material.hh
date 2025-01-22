@@ -8,14 +8,16 @@
 
 #pragma once
 
+#include <string>
+
 #include "DNA_customdata_types.h" /* for eCustomDataType */
 #include "DNA_image_types.h"
 #include "DNA_listBase.h"
 
 #include "BLI_sys_types.h" /* for bool */
 
-#include "GPU_shader.h"  /* for GPUShaderCreateInfo */
-#include "GPU_texture.h" /* for GPUSamplerState */
+#include "GPU_shader.hh"  /* for GPUShaderCreateInfo */
+#include "GPU_texture.hh" /* for GPUSamplerState */
 
 struct GHash;
 struct GPUMaterial;
@@ -71,6 +73,7 @@ enum eGPUMaterialFlag {
   GPU_MATFLAG_HOLDOUT = (1 << 6),
   GPU_MATFLAG_SHADER_TO_RGBA = (1 << 7),
   GPU_MATFLAG_AO = (1 << 8),
+  /* Signals the presence of multiple reflection closures. */
   GPU_MATFLAG_COAT = (1 << 9),
   GPU_MATFLAG_TRANSLUCENT = (1 << 10),
 
@@ -130,19 +133,24 @@ enum eGPUDefaultValue {
 };
 
 struct GPUCodegenOutput {
-  char *attr_load;
+  std::string attr_load;
   /* Node-tree functions calls. */
-  char *displacement;
-  char *surface;
-  char *volume;
-  char *thickness;
-  char *composite;
-  char *material_functions;
+  std::string displacement;
+  std::string surface;
+  std::string volume;
+  std::string thickness;
+  std::string composite;
+  std::string material_functions;
 
   GPUShaderCreateInfo *create_info;
 };
 
 using GPUCodegenCallbackFn = void (*)(void *thunk, GPUMaterial *mat, GPUCodegenOutput *codegen);
+/**
+ * Should return an already compiled pass if it's functionally equivalent to the one being
+ * compiled.
+ */
+using GPUMaterialPassReplacementCallbackFn = GPUPass *(*)(void *thunk, GPUMaterial *mat);
 
 GPUNodeLink *GPU_constant(const float *num);
 GPUNodeLink *GPU_uniform(const float *num);
@@ -234,21 +242,47 @@ enum eGPUMaterialEngine {
   GPU_MAT_COMPOSITOR,
 };
 
-GPUMaterial *GPU_material_from_nodetree(Scene *scene,
-                                        Material *ma,
-                                        bNodeTree *ntree,
-                                        ListBase *gpumaterials,
-                                        const char *name,
-                                        eGPUMaterialEngine engine,
-                                        uint64_t shader_uuid,
-                                        bool is_volume_shader,
-                                        bool is_lookdev,
-                                        GPUCodegenCallbackFn callback,
-                                        void *thunk);
+GPUMaterial *GPU_material_from_nodetree(
+    Scene *scene,
+    Material *ma,
+    bNodeTree *ntree,
+    ListBase *gpumaterials,
+    const char *name,
+    eGPUMaterialEngine engine,
+    uint64_t shader_uuid,
+    bool is_volume_shader,
+    bool is_lookdev,
+    GPUCodegenCallbackFn callback,
+    void *thunk,
+    GPUMaterialPassReplacementCallbackFn pass_replacement_cb = nullptr);
 
 void GPU_material_compile(GPUMaterial *mat);
 void GPU_material_free_single(GPUMaterial *material);
 void GPU_material_free(ListBase *gpumaterial);
+
+/**
+ * Request the creation of multiple `GPUMaterial`s at once, allowing the backend to use
+ * multithreaded compilation.
+ * Returns a handle that can be used to poll if all materials have been
+ * compiled, and to retrieve the compiled result.
+ * NOTE: This function is asynchronous on OpenGL, but it's blocking on Vulkan and Metal.
+ * WARNING: The material pointers and their pass->create_info should be valid until
+ * `GPU_material_batch_finalize` has returned.
+ */
+BatchHandle GPU_material_batch_compile(blender::Span<GPUMaterial *> mats);
+/**
+ * Returns true if all the materials from the batch have finished their compilation.
+ */
+bool GPU_material_batch_is_ready(BatchHandle handle);
+/**
+ * Assign the compiled shaders to their respective materials and flag their status.
+ * The materials list should have the same length and order as in the `GPU_material_batch_compile`
+ * call.
+ * If the compilation has not finished yet, this call will block the thread until all the
+ * shaders are ready.
+ * WARNING: The handle will be invalidated by this call, you can't process the same batch twice.
+ */
+void GPU_material_batch_finalize(BatchHandle &handle, blender::Span<GPUMaterial *> mats);
 
 void GPU_material_acquire(GPUMaterial *mat);
 void GPU_material_release(GPUMaterial *mat);
@@ -272,7 +306,7 @@ const char *GPU_material_get_name(GPUMaterial *material);
 void GPU_material_optimize(GPUMaterial *mat);
 
 /**
- * Return can be NULL if it's a world material.
+ * Return can be null if it's a world material.
  */
 Material *GPU_material_get_material(GPUMaterial *material);
 /**

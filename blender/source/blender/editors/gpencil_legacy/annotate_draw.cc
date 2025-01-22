@@ -20,11 +20,7 @@
 #include "BLI_listbase.h"
 #include "BLI_utildefines.h"
 
-#include "BLF_api.hh"
-#include "BLT_translation.h"
-
 #include "DNA_gpencil_legacy_types.h"
-#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
@@ -32,22 +28,18 @@
 #include "DNA_view3d_types.h"
 
 #include "BKE_context.hh"
-#include "BKE_global.h"
+#include "BKE_global.hh"
 #include "BKE_gpencil_legacy.h"
 
 #include "WM_api.hh"
 
-#include "GPU_immediate.h"
-#include "GPU_matrix.h"
-#include "GPU_state.h"
+#include "GPU_immediate.hh"
+#include "GPU_matrix.hh"
+#include "GPU_state.hh"
 
 #include "ED_gpencil_legacy.hh"
 #include "ED_screen.hh"
-#include "ED_space_api.hh"
 #include "ED_view3d.hh"
-
-#include "UI_interface_icons.hh"
-#include "UI_resources.hh"
 
 /* ************************************************** */
 /* GREASE PENCIL DRAWING */

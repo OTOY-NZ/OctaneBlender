@@ -14,7 +14,7 @@
 #include "DNA_view3d_types.h"
 
 #include "BKE_context.hh"
-#include "BKE_global.h"
+#include "BKE_global.hh"
 #include "BKE_main.hh"
 
 #include "BLI_math_geom.h"
@@ -32,7 +32,7 @@
 #include "CLG_log.h"
 
 /* own includes */
-#include "gizmo_library_intern.h"
+#include "gizmo_library_intern.hh"
 
 static CLG_LogRef LOG = {"ed.gizmo.library_utils"};
 

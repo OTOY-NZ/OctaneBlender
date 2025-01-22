@@ -18,18 +18,16 @@
 #include "BLI_blenlib.h"
 #include "BLI_ghash.h"
 #include "BLI_hash.h"
-#include "BLI_lasso_2d.h"
+#include "BLI_lasso_2d.hh"
 #include "BLI_math_color.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.hh"
-#include "BLI_rand.h"
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_brush_types.h"
-#include "DNA_collection_types.h"
 #include "DNA_gpencil_legacy_types.h"
 #include "DNA_material_types.h"
 #include "DNA_meshdata_types.h"
@@ -41,7 +39,7 @@
 
 #include "BKE_action.h"
 #include "BKE_brush.hh"
-#include "BKE_collection.h"
+#include "BKE_collection.hh"
 #include "BKE_colortools.hh"
 #include "BKE_context.hh"
 #include "BKE_deform.hh"
@@ -52,6 +50,7 @@
 #include "BKE_material.h"
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
+#include "BKE_preview_image.hh"
 #include "BKE_tracking.h"
 
 #include "WM_api.hh"
@@ -69,19 +68,18 @@
 #include "ED_clip.hh"
 #include "ED_gpencil_legacy.hh"
 #include "ED_object.hh"
-#include "ED_screen.hh"
 #include "ED_select_utils.hh"
 #include "ED_transform_snap_object_context.hh"
 #include "ED_view3d.hh"
 
-#include "GPU_immediate.h"
-#include "GPU_immediate_util.h"
-#include "GPU_state.h"
+#include "GPU_immediate.hh"
+#include "GPU_immediate_util.hh"
+#include "GPU_state.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
 
-#include "gpencil_intern.h"
+#include "gpencil_intern.hh"
 
 /* ******************************************************** */
 /* Context Wrangling... */
@@ -126,21 +124,19 @@ bGPdata **ED_annotation_data_get_pointers_direct(ID *screen_id,
     SpaceLink *sl = static_cast<SpaceLink *>(area->spacedata.first);
 
     switch (area->spacetype) {
-      case SPACE_PROPERTIES: /* properties */
-      case SPACE_INFO:       /* header info */
+      case SPACE_INFO: /* header info */
       {
         return nullptr;
       }
 
-      case SPACE_TOPBAR: /* Top-bar */
-      case SPACE_VIEW3D: /* 3D-View */
+      case SPACE_TOPBAR:     /* Top-bar */
+      case SPACE_VIEW3D:     /* 3D-View */
+      case SPACE_PROPERTIES: /* properties */
       {
         if (r_ptr) {
           *r_ptr = RNA_id_pointer_create(&scene->id);
         }
         return &scene->gpd;
-
-        break;
       }
       case SPACE_NODE: /* Nodes Editor */
       {
@@ -331,7 +327,7 @@ bool gpencil_active_brush_poll(bContext *C)
   ToolSettings *ts = CTX_data_tool_settings(C);
   Paint *paint = &ts->gp_paint->paint;
   if (paint) {
-    return (paint->brush != nullptr);
+    return (BKE_paint_brush(paint) != nullptr);
   }
   return false;
 }
@@ -450,7 +446,7 @@ const EnumPropertyItem *ED_gpencil_material_enum_itemf(bContext *C,
       item_tmp.identifier = ma->id.name + 2;
       item_tmp.name = ma->id.name + 2;
       item_tmp.value = i;
-      item_tmp.icon = ma->preview ? ma->preview->icon_id : ICON_NONE;
+      item_tmp.icon = ma->preview ? ma->preview->runtime->icon_id : ICON_NONE;
 
       RNA_enum_item_add(&item, &totitem, &item_tmp);
     }
@@ -911,7 +907,7 @@ void ED_gpencil_drawing_reference_get(const Scene *scene,
       }
       else {
         /* use object location */
-        copy_v3_v3(r_vec, ob->object_to_world[3]);
+        copy_v3_v3(r_vec, ob->object_to_world().location());
         /* Apply layer offset. */
         bGPdata *gpd = static_cast<bGPdata *>(ob->data);
         bGPDlayer *gpl = BKE_gpencil_layer_active_get(gpd);
@@ -995,7 +991,7 @@ void ED_gpencil_project_stroke_to_plane(const Scene *scene,
     /* if object, apply object rotation */
     if (ob && (ob->type == OB_GPENCIL_LEGACY)) {
       float mat[4][4];
-      copy_m4_m4(mat, ob->object_to_world);
+      copy_m4_m4(mat, ob->object_to_world().ptr());
 
       /* move origin to cursor */
       if ((ts->gpencil_v3d_align & GP_PROJECT_CURSOR) == 0) {
@@ -1218,7 +1214,7 @@ void ED_gpencil_project_point_to_plane(const Scene *scene,
     /* if object, apply object rotation */
     if (ob && (ob->type == OB_GPENCIL_LEGACY)) {
       float mat[4][4];
-      copy_m4_m4(mat, ob->object_to_world);
+      copy_m4_m4(mat, ob->object_to_world().ptr());
       if ((ts->gpencil_v3d_align & GP_PROJECT_CURSOR) == 0) {
         if (gpl != nullptr) {
           add_v3_v3(mat[3], gpl->location);
@@ -1245,7 +1241,7 @@ void ED_gpencil_project_point_to_plane(const Scene *scene,
 
     /* move origin to object */
     if ((ts->gpencil_v3d_align & GP_PROJECT_CURSOR) == 0) {
-      copy_v3_v3(mat[3], ob->object_to_world[3]);
+      copy_v3_v3(mat[3], ob->object_to_world().location());
     }
 
     mul_mat3_m4_v3(mat, plane_normal);
@@ -1379,16 +1375,16 @@ void ED_gpencil_reset_layers_parent(Depsgraph *depsgraph, Object *obact, bGPdata
     if (gpl->parent != nullptr) {
       /* calculate new matrix */
       if (ELEM(gpl->partype, PAROBJECT, PARSKEL)) {
-        invert_m4_m4(cur_mat, gpl->parent->object_to_world);
-        copy_v3_v3(gpl_loc, obact->object_to_world[3]);
+        invert_m4_m4(cur_mat, gpl->parent->object_to_world().ptr());
+        copy_v3_v3(gpl_loc, obact->object_to_world().location());
       }
       else if (gpl->partype == PARBONE) {
         bPoseChannel *pchan = BKE_pose_channel_find_name(gpl->parent->pose, gpl->parsubstr);
         if (pchan) {
           float tmp_mat[4][4];
-          mul_m4_m4m4(tmp_mat, gpl->parent->object_to_world, pchan->pose_mat);
+          mul_m4_m4m4(tmp_mat, gpl->parent->object_to_world().ptr(), pchan->pose_mat);
           invert_m4_m4(cur_mat, tmp_mat);
-          copy_v3_v3(gpl_loc, obact->object_to_world[3]);
+          copy_v3_v3(gpl_loc, obact->object_to_world().location());
         }
       }
 
@@ -1419,7 +1415,8 @@ Object *ED_gpencil_add_object(bContext *C, const float loc[3], ushort local_view
 {
   const float rot[3] = {0.0f};
 
-  Object *ob = ED_object_add_type(C, OB_GPENCIL_LEGACY, nullptr, loc, rot, false, local_view_bits);
+  Object *ob = blender::ed::object::add_type(
+      C, OB_GPENCIL_LEGACY, nullptr, loc, rot, false, local_view_bits);
 
   /* create default brushes and colors */
   ED_gpencil_add_defaults(C, ob);
@@ -1432,10 +1429,11 @@ void ED_gpencil_add_defaults(bContext *C, Object *ob)
   Main *bmain = CTX_data_main(C);
   ToolSettings *ts = CTX_data_tool_settings(C);
 
-  BKE_paint_ensure(ts, (Paint **)&ts->gp_paint);
+  BKE_paint_ensure(bmain, ts, (Paint **)&ts->gp_paint);
   Paint *paint = &ts->gp_paint->paint;
+  Brush *brush = BKE_paint_brush(paint);
   /* if not exist, create a new one */
-  if ((paint->brush == nullptr) || (paint->brush->gpencil_settings == nullptr)) {
+  if ((brush == nullptr) || (brush->gpencil_settings == nullptr)) {
     /* create new brushes */
     BKE_brush_gpencil_paint_presets(bmain, ts, true);
   }
@@ -1729,7 +1727,7 @@ void ED_gpencil_brush_draw_eraser(Brush *brush, int x, int y)
   GPU_line_smooth(false);
 }
 
-static bool gpencil_brush_cursor_poll(bContext *C)
+bool ED_gpencil_brush_cursor_poll(bContext *C)
 {
   if (WM_toolsystem_active_tool_is_brush(C)) {
     return true;
@@ -1742,7 +1740,7 @@ float ED_gpencil_cursor_radius(bContext *C, int x, int y)
   Scene *scene = CTX_data_scene(C);
   Object *ob = CTX_data_active_object(C);
   ARegion *region = CTX_wm_region(C);
-  Brush *brush = scene->toolsettings->gp_paint->paint.brush;
+  Brush *brush = BKE_paint_brush(&scene->toolsettings->gp_paint->paint);
   bGPdata *gpd = ED_gpencil_data_get_active(C);
 
   /* Show brush size. */
@@ -1833,7 +1831,7 @@ static void gpencil_brush_cursor_draw(bContext *C, int x, int y, void *customdat
 
   /* for paint use paint brush size and color */
   if (gpd->flag & GP_DATA_STROKE_PAINTMODE) {
-    brush = scene->toolsettings->gp_paint->paint.brush;
+    brush = BKE_paint_brush(&scene->toolsettings->gp_paint->paint);
     if ((brush == nullptr) || (brush->gpencil_settings == nullptr)) {
       return;
     }
@@ -1905,7 +1903,7 @@ static void gpencil_brush_cursor_draw(bContext *C, int x, int y, void *customdat
 
   /* Sculpt use sculpt brush size */
   if (GPENCIL_SCULPT_MODE(gpd)) {
-    brush = scene->toolsettings->gp_sculptpaint->paint.brush;
+    brush = BKE_paint_brush(&scene->toolsettings->gp_sculptpaint->paint);
     if ((brush == nullptr) || (brush->gpencil_settings == nullptr)) {
       return;
     }
@@ -1925,7 +1923,7 @@ static void gpencil_brush_cursor_draw(bContext *C, int x, int y, void *customdat
 
   /* Weight Paint */
   if (GPENCIL_WEIGHT_MODE(gpd)) {
-    brush = scene->toolsettings->gp_weightpaint->paint.brush;
+    brush = BKE_paint_brush(&scene->toolsettings->gp_weightpaint->paint);
     if ((brush == nullptr) || (brush->gpencil_settings == nullptr)) {
       return;
     }
@@ -1945,7 +1943,7 @@ static void gpencil_brush_cursor_draw(bContext *C, int x, int y, void *customdat
 
   /* For Vertex Paint use brush size. */
   if (GPENCIL_VERTEX_MODE(gpd)) {
-    brush = scene->toolsettings->gp_vertexpaint->paint.brush;
+    brush = BKE_paint_brush(&scene->toolsettings->gp_vertexpaint->paint);
     if ((brush == nullptr) || (brush->gpencil_settings == nullptr)) {
       return;
     }
@@ -2020,7 +2018,7 @@ void ED_gpencil_toggle_brush_cursor(bContext *C, bool enable, void *customdata)
     /* enable cursor */
     gset->paintcursor = WM_paint_cursor_activate(SPACE_TYPE_ANY,
                                                  RGN_TYPE_ANY,
-                                                 gpencil_brush_cursor_poll,
+                                                 ED_gpencil_brush_cursor_poll,
                                                  gpencil_brush_cursor_draw,
                                                  (lastpost) ? customdata : nullptr);
   }
@@ -2792,7 +2790,7 @@ void ED_gpencil_tag_scene_gpencil(Scene *scene)
   }
   FOREACH_SCENE_COLLECTION_END;
 
-  DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
 
   WM_main_add_notifier(NC_GPENCIL | NA_EDITED, nullptr);
 }
@@ -2843,7 +2841,7 @@ void ED_gpencil_init_random_settings(Brush *brush,
                                      const int mval[2],
                                      GpRandomSettings *random_settings)
 {
-  int seed = (uint(ceil(BLI_check_seconds_timer())) + 1) % 128;
+  int seed = (uint(ceil(BLI_time_now_seconds())) + 1) % 128;
   /* Use mouse position to get randomness. */
   int ix = mval[0] * seed;
   int iy = mval[1] * seed;
@@ -2889,7 +2887,7 @@ static void gpencil_sbuffer_vertex_color_random(
 {
   BrushGpencilSettings *brush_settings = brush->gpencil_settings;
   if (brush_settings->flag & GP_BRUSH_GROUP_RANDOM) {
-    int seed = (uint(ceil(BLI_check_seconds_timer())) + 1) % 128;
+    int seed = (uint(ceil(BLI_time_now_seconds())) + 1) % 128;
 
     int ix = int(tpt->m_xy[0] * seed);
     int iy = int(tpt->m_xy[1] * seed);
@@ -3022,6 +3020,7 @@ void ED_gpencil_sbuffer_vertex_color_set(Depsgraph *depsgraph,
   if (gpd_eval != nullptr) {
     copy_v4_v4(gpd_eval->runtime.vert_color_fill, gpd->runtime.vert_color_fill);
     gpd_eval->runtime.matid = gpd->runtime.matid;
+    gpd_eval->runtime.fill_opacity_fac = gpd->runtime.fill_opacity_fac;
   }
 }
 
@@ -3096,9 +3095,8 @@ bool ED_gpencil_stroke_point_is_inside(const bGPDstroke *gps,
     return hit;
   }
 
-  int(*mcoords)[2] = nullptr;
   int len = gps->totpoints;
-  mcoords = static_cast<int(*)[2]>(MEM_mallocN(sizeof(int[2]) * len, __func__));
+  blender::Array<blender::int2> mcoords(len);
 
   /* Convert stroke to 2D array of points. */
   const bGPDspoint *pt;
@@ -3111,14 +3109,11 @@ bool ED_gpencil_stroke_point_is_inside(const bGPDstroke *gps,
 
   /* Compute bound-box of lasso (for faster testing later). */
   rcti rect;
-  BLI_lasso_boundbox(&rect, mcoords, len);
+  BLI_lasso_boundbox(&rect, mcoords);
 
   /* Test if point inside stroke. */
   hit = (!ELEM(V2D_IS_CLIPPED, mval[0], mval[1]) && BLI_rcti_isect_pt(&rect, mval[0], mval[1]) &&
-         BLI_lasso_is_point_inside(mcoords, len, mval[0], mval[1], INT_MAX));
-
-  /* Free memory. */
-  MEM_SAFE_FREE(mcoords);
+         BLI_lasso_is_point_inside(mcoords, mval[0], mval[1], INT_MAX));
 
   return hit;
 }
@@ -3435,7 +3430,11 @@ int ED_gpencil_new_layer_dialog(bContext *C, wmOperator *op)
       bGPdata *gpd = static_cast<bGPdata *>(ob->data);
       gpencil_layer_new_name_get(gpd, name, sizeof(name));
       RNA_property_string_set(op->ptr, prop, name);
-      return WM_operator_props_dialog_popup(C, op, 200);
+      return WM_operator_props_dialog_popup(C,
+                                            op,
+                                            200,
+                                            IFACE_("Add New Layer"),
+                                            CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Add"));
     }
   }
   return 0;

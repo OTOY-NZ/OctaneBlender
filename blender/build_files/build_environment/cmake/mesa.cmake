@@ -45,11 +45,22 @@ ExternalProject_Add(external_mesa
   DOWNLOAD_DIR ${DOWNLOAD_DIR}
   URL_HASH ${MESA_HASH_TYPE}=${MESA_HASH}
   PREFIX ${BUILD_DIR}/mesa
+
   CONFIGURE_COMMAND ${CONFIGURE_ENV} &&
     cd ${BUILD_DIR}/mesa/src/external_mesa/ &&
-    ${MESON} ${BUILD_DIR}/mesa/src/external_mesa-build --prefix=${LIBDIR}/mesa ${MESA_EXTRA_FLAGS}
-  BUILD_COMMAND ${CONFIGURE_ENV} && cd ${BUILD_DIR}/mesa/src/external_mesa-build && ninja -j${MAKE_THREADS}
-  INSTALL_COMMAND ${CONFIGURE_ENV} && cd ${BUILD_DIR}/mesa/src/external_mesa-build && ninja install
+    ${MESON}
+      ${BUILD_DIR}/mesa/src/external_mesa-build
+      --prefix=${LIBDIR}/mesa
+      ${MESA_EXTRA_FLAGS}
+
+  BUILD_COMMAND ${CONFIGURE_ENV} &&
+    cd ${BUILD_DIR}/mesa/src/external_mesa-build &&
+    ninja -j${MAKE_THREADS}
+
+  INSTALL_COMMAND ${CONFIGURE_ENV} &&
+    cd ${BUILD_DIR}/mesa/src/external_mesa-build &&
+    ninja install
+
   INSTALL_DIR ${LIBDIR}/mesa
 )
 
@@ -62,3 +73,6 @@ add_dependencies(
   # Needed for `MESON`.
   external_python_site_packages
 )
+
+harvest(external_mesa libglu/lib mesa/lib "*${SHAREDLIBEXT}*")
+harvest(external_mesa mesa/lib64 mesa/lib "*${SHAREDLIBEXT}*")

@@ -27,9 +27,9 @@
 
 #include "node_shader_util.hh"
 
-static bNodeSocketTemplate sh_node_in[] = {{-1, ""}};
+static blender::bke::bNodeSocketTemplate  sh_node_in[] = {{-1, ""}};
 
-static bNodeSocketTemplate sh_node_out[] = {
+static blender::bke::bNodeSocketTemplate  sh_node_out[] = {
     {SOCK_SHADER, N_("OutProjection")},
     {SOCK_SHADER,
      N_("OutTex"),
@@ -45,7 +45,7 @@ static bNodeSocketTemplate sh_node_out[] = {
 
 void register_node_type_projection_oct_triplanar(void)
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   if (ntype.type != SH_NODE_OCT_PROJECTION_TRIPLANAR)
     sh_node_type_base(&ntype,

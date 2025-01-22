@@ -26,7 +26,12 @@ ExternalProject_Add(external_blosc
   DOWNLOAD_DIR ${DOWNLOAD_DIR}
   URL_HASH ${BLOSC_HASH_TYPE}=${BLOSC_HASH}
   PREFIX ${BUILD_DIR}/blosc
-  CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${LIBDIR}/blosc ${DEFAULT_CMAKE_FLAGS} ${BLOSC_EXTRA_ARGS}
+
+  CMAKE_ARGS
+    -DCMAKE_INSTALL_PREFIX=${LIBDIR}/blosc
+    ${DEFAULT_CMAKE_FLAGS}
+    ${BLOSC_EXTRA_ARGS}
+
   INSTALL_DIR ${LIBDIR}/blosc
 )
 
@@ -34,9 +39,14 @@ add_dependencies(
   external_blosc
   external_zlib
 )
+
 if(WIN32)
   add_dependencies(
     external_blosc
     external_pthreads
   )
+endif()
+
+if(APPLE)
+  harvest(external_blosc blosc/lib openvdb/lib "*.a")
 endif()

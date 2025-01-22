@@ -11,10 +11,11 @@
  * Each of them are reference by resource index (#ResourceHandle).
  */
 
+#include "BLI_math_base.h"
 #include "BLI_math_matrix.hh"
 
 #include "BKE_curve.hh"
-#include "BKE_duplilist.h"
+#include "BKE_duplilist.hh"
 #include "BKE_mesh.h"
 #include "BKE_object.hh"
 #include "BKE_volume.hh"
@@ -26,7 +27,7 @@
 
 #include "draw_handle.hh"
 #include "draw_manager.hh"
-#include "draw_shader_shared.h"
+#include "draw_shader_shared.hh"
 
 /* -------------------------------------------------------------------- */
 /** \name ObjectMatrices
@@ -34,8 +35,8 @@
 
 inline void ObjectMatrices::sync(const Object &object)
 {
-  model.view() = blender::float4x4_view(object.object_to_world);
-  model_inverse.view() = blender::float4x4_view(object.world_to_object);
+  model = object.object_to_world();
+  model_inverse = object.world_to_object();
 }
 
 inline void ObjectMatrices::sync(const float4x4 &model_matrix)
@@ -72,6 +73,8 @@ inline void ObjectInfos::sync(const blender::draw::ObjectRef ref, bool is_active
 {
   object_attrs_len = 0;
   object_attrs_offset = 0;
+  bool is_holdout = (ref.object->base_flag & BASE_HOLDOUT) ||
+                    (ref.object->visibility_flag & OB_HOLDOUT);
 
   ob_color = ref.object->color;
   index = ref.object->index;
@@ -84,6 +87,7 @@ inline void ObjectInfos::sync(const blender::draw::ObjectRef ref, bool is_active
       flag, ref.object->base_flag & BASE_FROM_SET, eObjectInfoFlag::OBJECT_FROM_SET);
   SET_FLAG_FROM_TEST(
       flag, ref.object->transflag & OB_NEG_SCALE, eObjectInfoFlag::OBJECT_NEGATIVE_SCALE);
+  SET_FLAG_FROM_TEST(flag, is_holdout, eObjectInfoFlag::OBJECT_HOLDOUT);
 
   if (ref.dupli_object == nullptr) {
     /* TODO(fclem): this is rather costly to do at draw time. Maybe we can
@@ -108,6 +112,10 @@ inline void ObjectInfos::sync(const blender::draw::ObjectRef ref, bool is_active
       if (bounds) {
         orco_add = blender::math::midpoint(bounds->min, bounds->max);
         orco_mul = (bounds->max - bounds->min) * 0.5f;
+      }
+      else {
+        orco_add = float3(0.0f);
+        orco_mul = float3(1.0f);
       }
       break;
     }
@@ -159,6 +167,14 @@ inline std::ostream &operator<<(std::ostream &stream, const ObjectInfos &infos)
 
 inline void ObjectBounds::sync()
 {
+#ifndef NDEBUG
+  /* Initialize to NaN for easier debugging of uninitialized data usage. */
+  bounding_corners[0] = float4(NAN_FLT);
+  bounding_corners[1] = float4(NAN_FLT);
+  bounding_corners[2] = float4(NAN_FLT);
+  bounding_corners[3] = float4(NAN_FLT);
+  bounding_sphere = float4(NAN_FLT);
+#endif
   bounding_sphere.w = -1.0f; /* Disable test. */
 }
 
@@ -166,6 +182,14 @@ inline void ObjectBounds::sync(const Object &ob, float inflate_bounds)
 {
   const std::optional<blender::Bounds<float3>> bounds = BKE_object_boundbox_get(&ob);
   if (!bounds) {
+#ifndef NDEBUG
+    /* Initialize to NaN for easier debugging of uninitialized data usage. */
+    bounding_corners[0] = float4(NAN_FLT);
+    bounding_corners[1] = float4(NAN_FLT);
+    bounding_corners[2] = float4(NAN_FLT);
+    bounding_corners[3] = float4(NAN_FLT);
+    bounding_sphere = float4(NAN_FLT);
+#endif
     bounding_sphere.w = -1.0f; /* Disable test. */
     return;
   }

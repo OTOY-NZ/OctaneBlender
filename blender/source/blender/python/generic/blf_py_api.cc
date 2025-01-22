@@ -139,33 +139,6 @@ static PyObject *py_blf_color(PyObject * /*self*/, PyObject *args)
   Py_RETURN_NONE;
 }
 
-#if BLF_BLUR_ENABLE
-PyDoc_STRVAR(
-    /* Wrap. */
-    py_blf_blur_doc,
-    ".. function:: blur(fontid, radius)\n"
-    "\n"
-    "   Set the blur radius for drawing text.\n"
-    "\n"
-    "   :arg fontid: The id of the typeface as returned by :func:`blf.load`, for default "
-    "font use 0.\n"
-    "   :type fontid: int\n"
-    "   :arg radius: The radius for blurring text (in pixels).\n"
-    "   :type radius: int\n");
-static PyObject *py_blf_blur(PyObject * /*self*/, PyObject *args)
-{
-  int blur, fontid;
-
-  if (!PyArg_ParseTuple(args, "ii:blf.blur", &fontid, &blur)) {
-    return nullptr;
-  }
-
-  BLF_blur(fontid, blur);
-
-  Py_RETURN_NONE;
-}
-#endif
-
 PyDoc_STRVAR(
     /* Wrap. */
     py_blf_draw_doc,
@@ -369,7 +342,7 @@ PyDoc_STRVAR(
     "   :arg fontid: The id of the typeface as returned by :func:`blf.load`, for default "
     "font use 0.\n"
     "   :type fontid: int\n"
-    "   :arg level: The blur level, can be 3, 5 or 0.\n"
+    "   :arg level: The blur level (0, 3, 5) or outline (6).\n"
     "   :type level: int\n"
     "   :arg r: Shadow color (red channel 0.0 - 1.0).\n"
     "   :type r: float\n"
@@ -390,12 +363,12 @@ static PyObject *py_blf_shadow(PyObject * /*self*/, PyObject *args)
     return nullptr;
   }
 
-  if (!ELEM(level, 0, 3, 5)) {
-    PyErr_SetString(PyExc_TypeError, "blf.shadow expected arg to be in (0, 3, 5)");
+  if (!ELEM(level, 0, 3, 5, 6)) {
+    PyErr_SetString(PyExc_TypeError, "blf.shadow expected arg to be in (0, 3, 5, 6)");
     return nullptr;
   }
 
-  BLF_shadow(fontid, level, rgba);
+  BLF_shadow(fontid, FontShadowType(level), rgba);
 
   Py_RETURN_NONE;
 }
@@ -485,9 +458,6 @@ static PyObject *py_blf_unload(PyObject * /*self*/, PyObject *args)
 /*----------------------------MODULE INIT-------------------------*/
 static PyMethodDef BLF_methods[] = {
     {"aspect", (PyCFunction)py_blf_aspect, METH_VARARGS, py_blf_aspect_doc},
-#if BLF_BLUR_ENABLE
-    {"blur", (PyCFunction)py_blf_blur, METH_VARARGS, py_blf_blur_doc},
-#endif
     {"clipping", (PyCFunction)py_blf_clipping, METH_VARARGS, py_blf_clipping_doc},
     {"word_wrap", (PyCFunction)py_blf_word_wrap, METH_VARARGS, py_blf_word_wrap_doc},
     {"disable", (PyCFunction)py_blf_disable, METH_VARARGS, py_blf_disable_doc},

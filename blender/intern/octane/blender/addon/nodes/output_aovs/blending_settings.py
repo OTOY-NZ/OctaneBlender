@@ -45,13 +45,24 @@ class OctaneBlendingSettingsBlendMode(OctaneBaseSocket):
         ("Compatibility|Lighten (SDR only)", "Compatibility|Lighten (SDR only)", "", 2010),
         ("Compatibility|Darken (SDR only)", "Compatibility|Darken (SDR only)", "", 2004),
         ("Compatibility|Difference (SDR only)", "Compatibility|Difference (SDR only)", "", 2005),
+        ("Compatibility|Lighter color (SDR only)", "Compatibility|Lighter color (SDR only)", "", 2037),
+        ("Compatibility|Darker color (SDR only)", "Compatibility|Darker color (SDR only)", "", 2036),
         ("Compatibility|Color dodge (SDR only)", "Compatibility|Color dodge (SDR only)", "", 2003),
         ("Compatibility|Color burn (SDR only)", "Compatibility|Color burn (SDR only)", "", 2002),
+        ("Compatibility|Linear burn (SDR only)", "Compatibility|Linear burn (SDR only)", "", 2011),
         ("Compatibility|Screen (SDR only)", "Compatibility|Screen (SDR only)", "", 2021),
         ("Compatibility|Overlay (SDR only)", "Compatibility|Overlay (SDR only)", "", 2017),
-        ("Compatibility|Hard light (SDR only)", "Compatibility|Hard light (SDR only)", "", 2008),
         ("Compatibility|Soft light (SDR only)", "Compatibility|Soft light (SDR only)", "", 2022),
-        ("Compatibility|Exclude (SDR only)", "Compatibility|Exclude (SDR only)", "", 2006),
+        ("Compatibility|Hard light (SDR only)", "Compatibility|Hard light (SDR only)", "", 2008),
+        ("Compatibility|Vivid light (SDR only)", "Compatibility|Vivid light (SDR only)", "", 2024),
+        ("Compatibility|Linear light (SDR only)", "Compatibility|Linear light (SDR only)", "", 2013),
+        ("Compatibility|Pin light (SDR only)", "Compatibility|Pin light (SDR only)", "", 2019),
+        ("Compatibility|Hard mix (SDR only)", "Compatibility|Hard mix (SDR only)", "", 2009),
+        ("Compatibility|Exclusion (SDR only)", "Compatibility|Exclusion (SDR only)", "", 2006),
+        ("Compatibility|Hue (SDR only)", "Compatibility|Hue (SDR only)", "", 2032),
+        ("Compatibility|Saturation (SDR only)", "Compatibility|Saturation (SDR only)", "", 2033),
+        ("Compatibility|Color (hue + saturation) (SDR only)", "Compatibility|Color (hue + saturation) (SDR only)", "", 2034),
+        ("Compatibility|Luminosity (SDR only)", "Compatibility|Luminosity (SDR only)", "", 2035),
     ]
     default_value: EnumProperty(default="Physical|Normal", update=OctaneBaseSocket.update_node_tree, description="The blend mode used to combine the background and foreground. This is only used in the region of intersection covered by both the background and foreground", items=items)
     octane_hide_value = False
@@ -100,9 +111,17 @@ class OctaneBlendingSettings(bpy.types.Node, OctaneBaseNode):
     octane_min_version = 13000000
     octane_node_type = consts.NodeType.NT_BLENDING_SETTINGS
     octane_socket_list = ["Mode", "Regions", ]
-    octane_attribute_list = []
-    octane_attribute_config = {}
+    octane_attribute_list = ["a_compatibility_version", ]
+    octane_attribute_config = {"a_compatibility_version": [consts.AttributeID.A_COMPATIBILITY_VERSION, "compatibilityVersion", consts.AttributeType.AT_INT], }
     octane_static_pin_count = 2
+
+    compatibility_mode_infos = [
+        ("Latest (2024.1)", "Latest (2024.1)", """(null)""", 14000007),
+        ("2023.1 compatibility mode", "2023.1 compatibility mode", """"Soft light (SDR only)" mode uses an incorrect equation that produces too-bright output for some dark background colors.""", 0),
+    ]
+    a_compatibility_version_enum: EnumProperty(name="Compatibility version", default="Latest (2024.1)", update=OctaneBaseNode.update_compatibility_mode_to_int, description="The Octane version that the behavior of this node should match", items=compatibility_mode_infos)
+
+    a_compatibility_version: IntProperty(name="Compatibility version", default=14000007, update=OctaneBaseNode.update_compatibility_mode_to_enum, description="The Octane version that the behavior of this node should match")
 
     def init(self, context):  # noqa
         self.inputs.new("OctaneBlendingSettingsBlendMode", OctaneBlendingSettingsBlendMode.bl_label).init()
@@ -112,6 +131,10 @@ class OctaneBlendingSettings(bpy.types.Node, OctaneBaseNode):
     @classmethod
     def poll(cls, node_tree):
         return OctaneBaseNode.poll(node_tree)
+
+    def draw_buttons(self, context, layout):
+        super().draw_buttons(context, layout)
+        layout.row().prop(self, "a_compatibility_version_enum")
 
 
 _CLASSES = [

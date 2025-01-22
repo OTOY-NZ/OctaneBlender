@@ -10,13 +10,11 @@
 
 #include "DNA_space_types.h"
 
-#include "BLO_readfile.h"
+#include "BLO_readfile.hh"
 
 #include "WM_api.hh"
 
 #include "ED_asset_import.hh"
-
-using namespace blender;
 
 namespace blender::ed::asset {
 

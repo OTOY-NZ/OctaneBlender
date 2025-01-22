@@ -11,6 +11,7 @@
 #include "BLI_bounds_types.hh"
 #include "BLI_function_ref.hh"
 #include "BLI_listbase.h"
+#include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_set.hh"
 
@@ -33,6 +34,7 @@ struct bConstraint;
 struct bGPDstroke;
 struct bPose;
 struct bPoseChannel;
+struct MDeformVert;
 
 struct EditBone {
   EditBone *next, *prev;
@@ -153,7 +155,10 @@ void BKE_armature_copy_bone_transforms(bArmature *armature_dst, const bArmature 
 
 void BKE_armature_transform(bArmature *arm, const float mat[4][4], bool do_props);
 
-std::optional<blender::Bounds<blender::float3>> BKE_armature_min_max(const bPose *pose);
+/**
+ * Return the posed Armature bounding box in object-local coordinate space.
+ */
+std::optional<blender::Bounds<blender::float3>> BKE_armature_min_max(const Object *ob);
 
 /**
  * Calculate the axis-aligned bounds of `pchan` in world-space,
@@ -178,12 +183,16 @@ void BKE_pchan_minmax(const Object *ob,
 /**
  * Calculate the axis aligned bounds of the pose of `ob` in world-space.
  *
- * `r_min` and `r_max` are expanded to fit `ob->pose` so the caller must initialize them
- * (typically using #INIT_MINMAX).
+ * This only considers visible bones. When they are either directly (via a flag on the bone) or
+ * indirectly (via bone collections) hidden, they are not part of the bounds calculation. When a
+ * bone has a custom bone shape, that is included in the bounding box.
  *
  * \note This uses #BKE_pchan_minmax, see its documentation for details on bounds calculation.
+ *
+ * \param use_select: When true, only consider selected bones. When false, selection state is
+ * ignored and all bones are included in the bounds.
  */
-bool BKE_pose_minmax(Object *ob, float r_min[3], float r_max[3], bool use_hidden, bool use_select);
+std::optional<blender::Bounds<blender::float3>> BKE_pose_minmax(const Object *ob, bool use_select);
 
 /**
  * Finds the best possible extension to the name on a particular axis.
@@ -278,17 +287,17 @@ void BKE_pose_where_is_bone_tail(bPoseChannel *pchan);
  */
 void BKE_pose_apply_action_selected_bones(Object *ob,
                                           bAction *action,
-                                          AnimationEvalContext *anim_eval_context);
+                                          const AnimationEvalContext *anim_eval_context);
 /**
  * Evaluate the action and apply it to the pose. Ignore selection state of the bones.
  */
 void BKE_pose_apply_action_all_bones(Object *ob,
                                      bAction *action,
-                                     AnimationEvalContext *anim_eval_context);
+                                     const AnimationEvalContext *anim_eval_context);
 
 void BKE_pose_apply_action_blend(Object *ob,
                                  bAction *action,
-                                 AnimationEvalContext *anim_eval_context,
+                                 const AnimationEvalContext *anim_eval_context,
                                  float blend_factor);
 
 void vec_roll_to_mat3(const float vec[3], float roll, float r_mat[3][3]);
@@ -651,6 +660,16 @@ void BKE_armature_deform_coords_with_gpencil_stroke(const Object *ob_arm,
                                                     const char *defgrp_name,
                                                     bGPDstroke *gps_target);
 
+void BKE_armature_deform_coords_with_curves(
+    const Object &ob_arm,
+    const Object &ob_target,
+    blender::MutableSpan<blender::float3> vert_coords,
+    std::optional<blender::MutableSpan<blender::float3>> vert_coords_prev,
+    std::optional<blender::MutableSpan<blender::float3x3>> vert_deform_mats,
+    blender::Span<MDeformVert> dverts,
+    int deformflag,
+    blender::StringRefNull defgrp_name);
+
 void BKE_armature_deform_coords_with_mesh(const Object *ob_arm,
                                           const Object *ob_target,
                                           float (*vert_coords)[3],
@@ -669,7 +688,7 @@ void BKE_armature_deform_coords_with_editmesh(const Object *ob_arm,
                                               int deformflag,
                                               float (*vert_coords_prev)[3],
                                               const char *defgrp_name,
-                                              BMEditMesh *em_target);
+                                              const BMEditMesh *em_target);
 
 /** \} */
 

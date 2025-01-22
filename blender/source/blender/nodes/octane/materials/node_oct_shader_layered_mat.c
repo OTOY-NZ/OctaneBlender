@@ -32,7 +32,7 @@
 #include "BKE_node_runtime.hh"
 #include "BKE_texture.h"
 
-static bNodeSocketTemplate sh_node_in[] = {{SOCK_SHADER,
+static blender::bke::bNodeSocketTemplate  sh_node_in[] = {{SOCK_SHADER,
                                             N_("Base Material"),
                                             0.0f,
                                             0.0f,
@@ -124,7 +124,7 @@ static bNodeSocketTemplate sh_node_in[] = {{SOCK_SHADER,
                                             SOCK_NO_INTERNAL_LINK},
                                            {-1, ""}};
 
-static bNodeSocketTemplate sh_node_out[] = {{SOCK_SHADER, N_("OutMat")}, {-1, ""}};
+static blender::bke::bNodeSocketTemplate  sh_node_out[] = {{SOCK_SHADER, N_("OutMat")}, {-1, ""}};
 
 static void node_oct_init_layered_mat(bNodeTree *ntree, bNode *node)
 {
@@ -155,13 +155,13 @@ static void node_shader_update_layered_mat(bNodeTree *ntree, bNode *node)
 
 void register_node_type_sh_oct_layered_mat(void)
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   if (ntype.type != SH_NODE_OCT_LAYERED_MAT)
     sh_node_type_base(
         &ntype, SH_NODE_OCT_LAYERED_MAT, "Layered Material", NODE_CLASS_OCT_SHADER);
   blender::bke::node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
-  node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::DEFAULT);
+  node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Default);
   ntype.initfunc = (node_oct_init_layered_mat);
   node_type_storage(&ntype, "", NULL, NULL);
   ntype.updatefunc = (node_shader_update_layered_mat);

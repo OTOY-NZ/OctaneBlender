@@ -17,20 +17,11 @@
 
 #include "BKE_object.hh"
 #include "DRW_render.hh"
-#include "GPU_compute.h"
+#include "GPU_compute.hh"
 
 #include "workbench_private.hh"
 
-#define DEBUG_SHADOW_VOLUME 0
-
 namespace blender::workbench {
-
-ShadowPass::ShadowView::ShadowView() : View("ShadowPass.View"){};
-ShadowPass::ShadowView::~ShadowView()
-{
-  DRW_SHADER_FREE_SAFE(dynamic_pass_type_shader_);
-  DRW_SHADER_FREE_SAFE(static_pass_type_shader_);
-}
 
 void ShadowPass::ShadowView::setup(View &view, float3 light_direction, bool force_fail_method)
 {
@@ -65,48 +56,54 @@ void ShadowPass::ShadowView::setup(View &view, float3 light_direction, bool forc
   const int z_pos = 4; /* Near */
   const int z_neg = 2; /* Far */
 
-  int3 corner_faces[8] = {{x_neg, y_neg, z_pos},
-                          {x_neg, y_neg, z_neg},
-                          {x_neg, y_pos, z_neg},
-                          {x_neg, y_pos, z_pos},
-                          {x_pos, y_neg, z_pos},
-                          {x_pos, y_neg, z_neg},
-                          {x_pos, y_pos, z_neg},
-                          {x_pos, y_pos, z_pos}};
+  const int3 corner_faces[8] = {
+      {x_neg, y_neg, z_pos},
+      {x_neg, y_neg, z_neg},
+      {x_neg, y_pos, z_neg},
+      {x_neg, y_pos, z_pos},
+      {x_pos, y_neg, z_pos},
+      {x_pos, y_neg, z_neg},
+      {x_pos, y_pos, z_neg},
+      {x_pos, y_pos, z_pos},
+  };
 
-  int2 edge_faces[12] = {{x_neg, y_neg},
-                         {x_neg, z_neg},
-                         {x_neg, y_pos},
-                         {x_neg, z_pos},
-                         {y_neg, x_pos},
-                         {z_neg, x_pos},
-                         {y_pos, x_pos},
-                         {z_pos, x_pos},
-                         {y_neg, z_pos},
-                         {z_neg, y_neg},
-                         {y_pos, z_neg},
-                         {z_pos, y_pos}};
+  const int2 edge_faces[12] = {
+      {x_neg, y_neg},
+      {x_neg, z_neg},
+      {x_neg, y_pos},
+      {x_neg, z_pos},
+      {y_neg, x_pos},
+      {z_neg, x_pos},
+      {y_pos, x_pos},
+      {z_pos, x_pos},
+      {y_neg, z_pos},
+      {z_neg, y_neg},
+      {y_pos, z_neg},
+      {z_pos, y_pos},
+  };
 
-  int2 edge_corners[12] = {{0, 1},
-                           {1, 2},
-                           {2, 3},
-                           {3, 0},
-                           {4, 5},
-                           {5, 6},
-                           {6, 7},
-                           {7, 4},
-                           {0, 4},
-                           {1, 5},
-                           {2, 6},
-                           {3, 7}};
+  const int2 edge_corners[12] = {
+      {0, 1},
+      {1, 2},
+      {2, 3},
+      {3, 0},
+      {4, 5},
+      {5, 6},
+      {6, 7},
+      {7, 4},
+      {0, 4},
+      {1, 5},
+      {2, 6},
+      {3, 7},
+  };
 
   BoundBox frustum_corners;
   DRW_culling_frustum_corners_get(nullptr, &frustum_corners);
   float4 frustum_planes[6];
   DRW_culling_frustum_planes_get(nullptr, (float(*)[4])frustum_planes);
 
-  Vector<float4> faces_result = {};
-  Vector<float3> corners_result = {};
+  Vector<float4> faces_result;
+  Vector<float3> corners_result;
 
   /* "Unlit" frustum faces are left "as-is" */
 
@@ -190,7 +187,7 @@ bool ShadowPass::ShadowView::debug_object_culling(Object *ob)
     float4 plane = extruded_frustum_.planes[p];
     bool separating_axis = true;
     for (float3 corner : bb.vec) {
-      corner = math::transform_point(float4x4(ob->object_to_world), corner);
+      corner = math::transform_point(ob->object_to_world(), corner);
       float signed_distance = math::dot(corner, float3(plane)) - plane.w;
       if (signed_distance <= 0) {
         separating_axis = false;
@@ -244,18 +241,9 @@ void ShadowPass::ShadowView::compute_visibility(ObjectBoundsBuf &bounds,
 
   if (do_visibility_) {
     /* TODO(@pragma37): Use regular culling for the caps pass. */
-
-    if (dynamic_pass_type_shader_ == nullptr) {
-      dynamic_pass_type_shader_ = GPU_shader_create_from_info_name(
-          "workbench_shadow_visibility_compute_dynamic_pass_type");
-    }
-    if (static_pass_type_shader_ == nullptr) {
-      static_pass_type_shader_ = GPU_shader_create_from_info_name(
-          "workbench_shadow_visibility_compute_static_pass_type");
-    }
-
-    GPUShader *shader = current_pass_type_ == ShadowPass::FORCED_FAIL ? static_pass_type_shader_ :
-                                                                        dynamic_pass_type_shader_;
+    GPUShader *shader = current_pass_type_ == ShadowPass::FORCED_FAIL ?
+                            ShaderCache::get().shadow_visibility_static.get() :
+                            ShaderCache::get().shadow_visibility_dynamic.get();
     GPU_shader_bind(shader);
     GPU_shader_uniform_1i(shader, "resource_len", resource_len);
     GPU_shader_uniform_1i(shader, "view_len", view_len_);
@@ -296,37 +284,9 @@ VisibilityBuf &ShadowPass::ShadowView::get_visibility_buffer()
   return visibility_buf_;
 }
 
-ShadowPass::~ShadowPass()
-{
-  for (int depth_pass : IndexRange(2)) {
-    for (int manifold : IndexRange(2)) {
-      for (int cap : IndexRange(2)) {
-        DRW_SHADER_FREE_SAFE(shaders_[depth_pass][manifold][cap]);
-      }
-    }
-  }
-}
-
 PassMain::Sub *&ShadowPass::get_pass_ptr(PassType type, bool manifold, bool cap /*=false*/)
 {
   return passes_[type][manifold][cap];
-}
-
-GPUShader *ShadowPass::get_shader(bool depth_pass, bool manifold, bool cap /*=false*/)
-{
-  GPUShader *&shader = shaders_[depth_pass][manifold][cap];
-
-  if (shader == nullptr) {
-    std::string create_info_name = "workbench_shadow";
-    create_info_name += (depth_pass) ? "_pass" : "_fail";
-    create_info_name += (manifold) ? "_manifold" : "_no_manifold";
-    create_info_name += (cap) ? "_caps" : "_no_caps";
-#if DEBUG_SHADOW_VOLUME
-    create_info_name += "_debug";
-#endif
-    shader = GPU_shader_create_from_info_name(create_info_name.c_str());
-  }
-  return shader;
 }
 
 void ShadowPass::init(const SceneState &scene_state, SceneResources &resources)
@@ -397,7 +357,7 @@ void ShadowPass::sync()
   for (bool manifold : {false, true}) {
     PassMain::Sub *&ps = get_pass_ptr(PASS, manifold);
     ps = &pass_ps_.sub(manifold ? "manifold" : "non_manifold");
-    ps->shader_set(get_shader(true, manifold));
+    ps->shader_set(ShaderCache::get().shadow_get(true, manifold));
     ps->bind_ubo("pass_data", pass_data_);
 
     for (PassType fail_type : {FAIL, FORCED_FAIL}) {
@@ -405,12 +365,12 @@ void ShadowPass::sync()
 
       PassMain::Sub *&ps = get_pass_ptr(fail_type, manifold, false);
       ps = &ps_main.sub(manifold ? "NoCaps.manifold" : "NoCaps.non_manifold");
-      ps->shader_set(get_shader(false, manifold, false));
+      ps->shader_set(ShaderCache::get().shadow_get(false, manifold, false));
       ps->bind_ubo("pass_data", pass_data_);
 
       PassMain::Sub *&caps_ps = get_pass_ptr(fail_type, manifold, true);
       caps_ps = &ps_main.sub(manifold ? "Caps.manifold" : "Caps.non_manifold");
-      caps_ps->shader_set(get_shader(false, manifold, true));
+      caps_ps->shader_set(ShaderCache::get().shadow_get(false, manifold, true));
       caps_ps->bind_ubo("pass_data", pass_data_);
     }
   }
@@ -427,7 +387,7 @@ void ShadowPass::object_sync(SceneState &scene_state,
 
   Object *ob = ob_ref.object;
   bool is_manifold;
-  GPUBatch *geom_shadow = DRW_cache_object_edge_detection_get(ob, &is_manifold);
+  blender::gpu::Batch *geom_shadow = DRW_cache_object_edge_detection_get(ob, &is_manifold);
   if (geom_shadow == nullptr) {
     return;
   }

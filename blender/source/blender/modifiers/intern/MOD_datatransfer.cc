@@ -8,15 +8,13 @@
 
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_context.hh"
 #include "BKE_customdata.hh"
 #include "BKE_data_transfer.h"
 #include "BKE_lib_id.hh"
@@ -25,8 +23,7 @@
 #include "BKE_mesh_mapping.hh"
 #include "BKE_mesh_remap.hh"
 #include "BKE_modifier.hh"
-#include "BKE_report.h"
-#include "BKE_screen.hh"
+#include "BKE_report.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
@@ -34,12 +31,9 @@
 #include "RNA_access.hh"
 #include "RNA_prototypes.h"
 
-#include "DEG_depsgraph_query.hh"
-
 #include "MEM_guardedalloc.h"
 
 #include "MOD_ui_common.hh"
-#include "MOD_util.hh"
 
 /**************************************
  * Modifiers functions.               *
@@ -82,27 +76,6 @@ static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_
   }
 
   BKE_object_data_transfer_dttypes_to_cdmask(dtmd->data_types, r_cddata_masks);
-}
-
-static bool depends_on_normals(ModifierData *md)
-{
-  DataTransferModifierData *dtmd = (DataTransferModifierData *)md;
-  int item_types = BKE_object_data_transfer_get_dttypes_item_types(dtmd->data_types);
-
-  if ((item_types & ME_VERT) && (dtmd->vmap_mode & (MREMAP_USE_NORPROJ | MREMAP_USE_NORMAL))) {
-    return true;
-  }
-  if ((item_types & ME_EDGE) && (dtmd->emap_mode & (MREMAP_USE_NORPROJ | MREMAP_USE_NORMAL))) {
-    return true;
-  }
-  if ((item_types & ME_LOOP) && (dtmd->lmap_mode & (MREMAP_USE_NORPROJ | MREMAP_USE_NORMAL))) {
-    return true;
-  }
-  if ((item_types & ME_POLY) && (dtmd->pmap_mode & (MREMAP_USE_NORPROJ | MREMAP_USE_NORMAL))) {
-    return true;
-  }
-
-  return false;
 }
 
 static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void *user_data)
@@ -524,7 +497,7 @@ ModifierTypeInfo modifierType_DataTransfer = {
     /*is_disabled*/ is_disabled,
     /*update_depsgraph*/ update_depsgraph,
     /*depends_on_time*/ nullptr,
-    /*depends_on_normals*/ depends_on_normals,
+    /*depends_on_normals*/ nullptr,
     /*foreach_ID_link*/ foreach_ID_link,
     /*foreach_tex_link*/ nullptr,
     /*free_runtime_data*/ nullptr,

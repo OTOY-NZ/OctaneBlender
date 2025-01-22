@@ -7,13 +7,21 @@
  */
 
 #include <array>
+#include <complex>
+#include <memory>
+
+#if defined(WITH_FFTW3)
+#  include <fftw3.h>
+#endif
 
 #include "BLI_array.hh"
 #include "BLI_assert.h"
+#include "BLI_fftw.hh"
 #include "BLI_index_range.hh"
 #include "BLI_math_base.h"
 #include "BLI_math_base.hh"
 #include "BLI_math_vector_types.hh"
+#include "BLI_task.hh"
 
 #include "DNA_scene_types.h"
 
@@ -22,11 +30,9 @@
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
-#include "IMB_colormanagement.hh"
-
-#include "GPU_shader.h"
-#include "GPU_state.h"
-#include "GPU_texture.h"
+#include "GPU_shader.hh"
+#include "GPU_state.hh"
+#include "GPU_texture.hh"
 
 #include "COM_algorithm_symmetric_separable_blur.hh"
 #include "COM_node_operation.hh"
@@ -53,7 +59,7 @@ static void node_composit_init_glare(bNodeTree * /*ntree*/, bNode *node)
 {
   NodeGlare *ndg = MEM_cnew<NodeGlare>(__func__);
   ndg->quality = 1;
-  ndg->type = 2;
+  ndg->type = CMP_NODE_GLARE_STREAKS;
   ndg->iter = 3;
   ndg->colmod = 0.25;
   ndg->mix = 0;
@@ -68,38 +74,47 @@ static void node_composit_init_glare(bNodeTree * /*ntree*/, bNode *node)
 
 static void node_composit_buts_glare(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
+  const int glare_type = RNA_enum_get(ptr, "glare_type");
+#ifndef WITH_FFTW3
+  if (glare_type == CMP_NODE_GLARE_FOG_GLOW) {
+    uiItemL(layout, RPT_("Disabled, built without FFTW"), ICON_ERROR);
+  }
+#endif
+
   uiItemR(layout, ptr, "glare_type", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
   uiItemR(layout, ptr, "quality", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 
-  if (RNA_enum_get(ptr, "glare_type") != 1) {
+  if (ELEM(glare_type, CMP_NODE_GLARE_SIMPLE_STAR, CMP_NODE_GLARE_GHOST, CMP_NODE_GLARE_STREAKS)) {
     uiItemR(layout, ptr, "iterations", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
+  }
 
-    if (RNA_enum_get(ptr, "glare_type") != 0) {
-      uiItemR(layout,
-              ptr,
-              "color_modulation",
-              UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_SLIDER,
-              nullptr,
-              ICON_NONE);
-    }
+  if (ELEM(glare_type, CMP_NODE_GLARE_GHOST, CMP_NODE_GLARE_STREAKS)) {
+    uiItemR(layout,
+            ptr,
+            "color_modulation",
+            UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_SLIDER,
+            nullptr,
+            ICON_NONE);
   }
 
   uiItemR(layout, ptr, "mix", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
   uiItemR(layout, ptr, "threshold", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
 
-  if (RNA_enum_get(ptr, "glare_type") == 2) {
+  if (glare_type == CMP_NODE_GLARE_STREAKS) {
     uiItemR(layout, ptr, "streaks", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
     uiItemR(layout, ptr, "angle_offset", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
   }
-  if (RNA_enum_get(ptr, "glare_type") == 0 || RNA_enum_get(ptr, "glare_type") == 2) {
+
+  if (ELEM(glare_type, CMP_NODE_GLARE_SIMPLE_STAR, CMP_NODE_GLARE_STREAKS)) {
     uiItemR(
         layout, ptr, "fade", UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_SLIDER, nullptr, ICON_NONE);
-
-    if (RNA_enum_get(ptr, "glare_type") == 0) {
-      uiItemR(layout, ptr, "use_rotate_45", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
-    }
   }
-  if (RNA_enum_get(ptr, "glare_type") == 1) {
+
+  if (glare_type == CMP_NODE_GLARE_SIMPLE_STAR) {
+    uiItemR(layout, ptr, "use_rotate_45", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
+  }
+
+  if (ELEM(glare_type, CMP_NODE_GLARE_FOG_GLOW, CMP_NODE_GLARE_BLOOM)) {
     uiItemR(layout, ptr, "size", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
   }
 }
@@ -148,6 +163,8 @@ class GlareOperation : public NodeOperation {
         return execute_streaks(highlights_result);
       case CMP_NODE_GLARE_GHOST:
         return execute_ghost(highlights_result);
+      case CMP_NODE_GLARE_BLOOM:
+        return execute_bloom(highlights_result);
       default:
         BLI_assert_unreachable();
         return context().create_temporary_result(ResultType::Color);
@@ -163,9 +180,6 @@ class GlareOperation : public NodeOperation {
     GPUShader *shader = context().get_shader("compositor_glare_highlights");
     GPU_shader_bind(shader);
 
-    float luminance_coefficients[3];
-    IMB_colormanagement_get_luminance_coefficients(luminance_coefficients);
-    GPU_shader_uniform_3fv(shader, "luminance_coefficients", luminance_coefficients);
     GPU_shader_uniform_1f(shader, "threshold", node_storage(bnode()).threshold);
 
     const Result &input_image = get_input("Image");
@@ -687,16 +701,16 @@ class GlareOperation : public NodeOperation {
     return 1.0f - get_color_modulation_factor();
   }
 
-  /* ---------------
-   * Fog Glow Glare.
-   * --------------- */
+  /* ------------
+   * Bloom Glare.
+   * ------------ */
 
-  /* Fog glow is computed by first progressively half-down-sampling the highlights down to a
-   * certain size, then progressively double-up-sampling the last down-sampled result up to the
-   * original size of the highlights, adding the down-sampled result of the same size in each
-   * up-sampling step. This can be illustrated as follows:
+  /* Bloom is computed by first progressively half-down-sampling the highlights down to a certain
+   * size, then progressively double-up-sampling the last down-sampled result up to the original
+   * size of the highlights, adding the down-sampled result of the same size in each up-sampling
+   * step. This can be illustrated as follows:
    *
-   *             Highlights   ---+---> Fog Glare
+   *             Highlights   ---+--->  Bloom
    *                  |                   |
    *             Down-sampled ---+---> Up-sampled
    *                  |                   |
@@ -714,7 +728,7 @@ class GlareOperation : public NodeOperation {
    * Smaller down-sampled results contribute to larger glare size, so controlling the size can be
    * done by stopping down-sampling down to a certain size, where the maximum possible size is
    * achieved when down-sampling happens down to the smallest size of 2. */
-  Result execute_fog_glow(Result &highlights_result)
+  Result execute_bloom(Result &highlights_result)
   {
     /* The maximum possible glare size is achieved when we down-sampled down to the smallest size
      * of 2, which would result in a down-sampling chain length of the binary logarithm of the
@@ -725,14 +739,24 @@ class GlareOperation : public NodeOperation {
     const int2 glare_size = get_glare_size();
     const int smaller_glare_dimension = math::min(glare_size.x, glare_size.y);
     const int chain_length = int(std::log2(smaller_glare_dimension)) -
-                             compute_fog_glare_size_halving_count();
+                             compute_bloom_size_halving_count();
 
-    Array<Result> downsample_chain = compute_fog_glow_downsample_chain(highlights_result,
-                                                                       chain_length);
+    /* If the chain length is less than 2, that means no down-sampling will happen, so we just
+     * return a copy of the highlights. This is a sanitization of a corner case, so no need to
+     * worry about optimizing the copy away. */
+    if (chain_length < 2) {
+      Result bloom_result = context().create_temporary_result(ResultType::Color);
+      bloom_result.allocate_texture(highlights_result.domain());
+      GPU_texture_copy(bloom_result.texture(), highlights_result.texture());
+      return bloom_result;
+    }
+
+    Array<Result> downsample_chain = compute_bloom_downsample_chain(highlights_result,
+                                                                    chain_length);
 
     /* Notice that for a chain length of n, we need (n - 1) up-sampling passes. */
     const IndexRange upsample_passes_range(chain_length - 1);
-    GPUShader *shader = context().get_shader("compositor_glare_fog_glow_upsample");
+    GPUShader *shader = context().get_shader("compositor_glare_bloom_upsample");
     GPU_shader_bind(shader);
 
     for (const int i : upsample_passes_range) {
@@ -761,7 +785,7 @@ class GlareOperation : public NodeOperation {
    * expected not to exceed the binary logarithm of the smaller dimension of the given result,
    * because that would result in down-sampling passes that produce useless textures with just
    * one pixel. */
-  Array<Result> compute_fog_glow_downsample_chain(Result &highlights_result, int chain_length)
+  Array<Result> compute_bloom_downsample_chain(Result &highlights_result, int chain_length)
   {
     const Result downsampled_result = context().create_temporary_result(ResultType::Color);
     Array<Result> downsample_chain(chain_length, downsampled_result);
@@ -779,11 +803,11 @@ class GlareOperation : public NodeOperation {
        * more information. Later passes use a simple average down-sampling filter because fireflies
        * doesn't service the first pass. */
       if (i == downsample_passes_range.first()) {
-        shader = context().get_shader("compositor_glare_fog_glow_downsample_karis_average");
+        shader = context().get_shader("compositor_glare_bloom_downsample_karis_average");
         GPU_shader_bind(shader);
       }
       else {
-        shader = context().get_shader("compositor_glare_fog_glow_downsample_simple_average");
+        shader = context().get_shader("compositor_glare_bloom_downsample_simple_average");
         GPU_shader_bind(shader);
       }
 
@@ -805,19 +829,181 @@ class GlareOperation : public NodeOperation {
     return downsample_chain;
   }
 
-  /* The fog glow has a maximum possible size when the fog glow size is equal to MAX_GLARE_SIZE and
-   * halves for every unit decrement of the fog glow size. This method computes the number of
-   * halving that should take place, which is simply the difference to MAX_GLARE_SIZE. */
-  int compute_fog_glare_size_halving_count()
+  /* The bloom has a maximum possible size when the bloom size is equal to MAX_GLARE_SIZE and
+   * halves for every unit decrement of the bloom size. This method computes the number of halving
+   * that should take place, which is simply the difference to MAX_GLARE_SIZE. */
+  int compute_bloom_size_halving_count()
   {
-    return MAX_GLARE_SIZE - get_fog_glow_size();
+    return MAX_GLARE_SIZE - get_bloom_size();
   }
 
-  /* The size of the fog glow relative to its maximum possible size, see the
-   * compute_fog_glare_size_halving_count() method for more information. */
-  int get_fog_glow_size()
+  /* The size of the bloom relative to its maximum possible size, see the
+   * compute_bloom_size_halving_count() method for more information. */
+  int get_bloom_size()
   {
     return node_storage(bnode()).size;
+  }
+
+  /* ---------------
+   * Fog Glow Glare.
+   * --------------- */
+
+  Result execute_fog_glow(Result &highlights_result)
+  {
+    Result fog_glow_result = context().create_temporary_result(ResultType::Color);
+    fog_glow_result.allocate_texture(highlights_result.domain());
+
+#if defined(WITH_FFTW3)
+    fftw::initialize_float();
+
+    const int kernel_size = compute_fog_glow_kernel_size();
+
+    /* Since we will be doing a circular convolution, we need to zero pad our input image by half
+     * the kernel size to avoid the kernel affecting the pixels at the other side of image.
+     * Therefore, zero boundary is assumed. */
+    const int needed_padding_amount = kernel_size / 2;
+    const int2 image_size = highlights_result.domain().size;
+    const int2 needed_spatial_size = image_size + needed_padding_amount;
+    const int2 spatial_size = fftw::optimal_size_for_real_transform(needed_spatial_size);
+
+    /* The FFTW real to complex transforms utilizes the hermitian symmetry of real transforms and
+     * stores only half the output since the other half is redundant, so we only allocate half of
+     * the first dimension. See Section 4.3.4 Real-data DFT Array Format in the FFTW manual for
+     * more information. */
+    const int2 frequency_size = int2(spatial_size.x / 2 + 1, spatial_size.y);
+
+    /* We only process the color channels, the alpha channel is written to the output as is. */
+    const int channels_count = 3;
+    const float image_channels_count = 4;
+    const int64_t spatial_pixels_per_channel = int64_t(spatial_size.x) * spatial_size.y;
+    const int64_t frequency_pixels_per_channel = int64_t(frequency_size.x) * frequency_size.y;
+    const int64_t spatial_pixels_count = spatial_pixels_per_channel * channels_count;
+    const int64_t frequency_pixels_count = frequency_pixels_per_channel * channels_count;
+
+    float *image_spatial_domain = fftwf_alloc_real(spatial_pixels_count);
+    std::complex<float> *image_frequency_domain = reinterpret_cast<std::complex<float> *>(
+        fftwf_alloc_complex(frequency_pixels_count));
+
+    /* Create a real to complex plan to transform the image to the frequency domain. */
+    fftwf_plan forward_plan = fftwf_plan_dft_r2c_2d(
+        spatial_size.y,
+        spatial_size.x,
+        image_spatial_domain,
+        reinterpret_cast<fftwf_complex *>(image_frequency_domain),
+        FFTW_ESTIMATE);
+
+    GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
+    float *highlights_buffer = static_cast<float *>(
+        GPU_texture_read(highlights_result.texture(), GPU_DATA_FLOAT, 0));
+
+    /* Zero pad the image to the required spatial domain size, storing each channel in planar
+     * format for better cache locality, that is, RRRR...GGGG...BBBB. */
+    threading::parallel_for(IndexRange(spatial_size.y), 1, [&](const IndexRange sub_y_range) {
+      for (const int64_t y : sub_y_range) {
+        for (const int64_t x : IndexRange(spatial_size.x)) {
+          const bool is_inside_image = x < image_size.x && y < image_size.y;
+          for (const int64_t channel : IndexRange(channels_count)) {
+            const int64_t base_index = y * spatial_size.x + x;
+            const int64_t output_index = base_index + spatial_pixels_per_channel * channel;
+            if (is_inside_image) {
+              const int64_t image_index = (y * image_size.x + x) * image_channels_count + channel;
+              image_spatial_domain[output_index] = highlights_buffer[image_index];
+            }
+            else {
+              image_spatial_domain[output_index] = 0.0f;
+            }
+          }
+        }
+      }
+    });
+
+    threading::parallel_for(IndexRange(channels_count), 1, [&](const IndexRange sub_range) {
+      for (const int64_t channel : sub_range) {
+        fftwf_execute_dft_r2c(forward_plan,
+                              image_spatial_domain + spatial_pixels_per_channel * channel,
+                              reinterpret_cast<fftwf_complex *>(image_frequency_domain) +
+                                  frequency_pixels_per_channel * channel);
+      }
+    });
+
+    const FogGlowKernel &fog_glow_kernel = context().cache_manager().fog_glow_kernels.get(
+        kernel_size, spatial_size);
+
+    /* Multiply the kernel and the image in the frequency domain to perform the convolution. The
+     * FFT is not normalized, meaning the result of the FFT followed by an inverse FFT will result
+     * in an image that is scaled by a factor of the product of the width and height, so we take
+     * that into account by dividing by that scale. See Section 4.8.6 Multi-dimensional Transforms
+     * of the FFTW manual for more information. */
+    const float normalization_scale = float(spatial_size.x) * spatial_size.y *
+                                      fog_glow_kernel.normalization_factor();
+    threading::parallel_for(IndexRange(frequency_size.y), 1, [&](const IndexRange sub_y_range) {
+      for (const int64_t channel : IndexRange(channels_count)) {
+        for (const int64_t y : sub_y_range) {
+          for (const int64_t x : IndexRange(frequency_size.x)) {
+            const int64_t base_index = x + y * frequency_size.x;
+            const int64_t output_index = base_index + frequency_pixels_per_channel * channel;
+            const std::complex<float> kernel_value = fog_glow_kernel.frequencies()[base_index];
+            image_frequency_domain[output_index] *= kernel_value / normalization_scale;
+          }
+        }
+      }
+    });
+
+    /* Create a complex to real plan to transform the image to the real domain. */
+    fftwf_plan backward_plan = fftwf_plan_dft_c2r_2d(
+        spatial_size.y,
+        spatial_size.x,
+        reinterpret_cast<fftwf_complex *>(image_frequency_domain),
+        image_spatial_domain,
+        FFTW_ESTIMATE);
+
+    threading::parallel_for(IndexRange(channels_count), 1, [&](const IndexRange sub_range) {
+      for (const int64_t channel : sub_range) {
+        fftwf_execute_dft_c2r(backward_plan,
+                              reinterpret_cast<fftwf_complex *>(image_frequency_domain) +
+                                  frequency_pixels_per_channel * channel,
+                              image_spatial_domain + spatial_pixels_per_channel * channel);
+      }
+    });
+
+    Array<float> output(int64_t(image_size.x) * int64_t(image_size.y) * image_channels_count);
+
+    /* Copy the result to the output. */
+    threading::parallel_for(IndexRange(image_size.y), 1, [&](const IndexRange sub_y_range) {
+      for (const int64_t y : sub_y_range) {
+        for (const int64_t x : IndexRange(image_size.x)) {
+          for (const int64_t channel : IndexRange(channels_count)) {
+            const int64_t output_index = (x + y * image_size.x) * image_channels_count;
+            const int64_t base_index = x + y * spatial_size.x;
+            const int64_t input_index = base_index + spatial_pixels_per_channel * channel;
+            output[output_index + channel] = image_spatial_domain[input_index];
+            output[output_index + 3] = highlights_buffer[output_index + 3];
+          }
+        }
+      }
+    });
+
+    MEM_freeN(highlights_buffer);
+    fftwf_destroy_plan(forward_plan);
+    fftwf_destroy_plan(backward_plan);
+    fftwf_free(image_spatial_domain);
+    fftwf_free(image_frequency_domain);
+
+    GPU_texture_update(fog_glow_result.texture(), GPU_DATA_FLOAT, output.data());
+#else
+    GPU_texture_copy(fog_glow_result.texture(), highlights_result.texture());
+#endif
+
+    return fog_glow_result;
+  }
+
+  /* Computes the size of the fog glow kernel that will be convolved with the image, which is
+   * essentially the extent of the glare in pixels. */
+  int compute_fog_glow_kernel_size()
+  {
+    /* We use an odd sized kernel since an even one will typically introduce a tiny offset as it
+     * has no exact center value. */
+    return (1 << node_storage(bnode()).size) + 1;
   }
 
   /* ----------
@@ -901,14 +1087,15 @@ void register_node_type_cmp_glare()
 {
   namespace file_ns = blender::nodes::node_composite_glare_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, CMP_NODE_GLARE, "Glare", NODE_CLASS_OP_FILTER);
   ntype.declare = file_ns::cmp_node_glare_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_glare;
   ntype.initfunc = file_ns::node_composit_init_glare;
-  node_type_storage(&ntype, "NodeGlare", node_free_standard_storage, node_copy_standard_storage);
+  blender::bke::node_type_storage(
+      &ntype, "NodeGlare", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 }

@@ -35,6 +35,20 @@ def resolve_object_octane_name(_object, _scene, _is_viewport):
     return resolve_octane_name(_object, OBJECT_TAG, "")
 
 
+def resolve_object_mesh_data_octane_name(_object, scene, is_viewport):
+    is_modified = _object.is_modified(scene, "PREVIEW" if is_viewport else "RENDER")
+    modifier_tag = _object.name if is_modified else ""
+    ob_data = _object.data
+    object_data_name = ""
+    type_tag = MESH_TAG
+    if ob_data is not None:
+        if _object.mode == "EDIT":
+            object_data_name = resolve_octane_name(_object.original.data, "", modifier_tag)
+        else:
+            object_data_name = resolve_octane_name(ob_data, "", modifier_tag)
+    return "{object_data_name}{type_tag}".format(object_data_name=object_data_name, type_tag=type_tag)
+
+
 def resolve_object_data_octane_name(_object, scene, is_viewport):
     is_modified = _object.is_modified(scene, "PREVIEW" if is_viewport else "RENDER")
     modifier_tag = _object.name if is_modified else ""

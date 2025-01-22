@@ -27,7 +27,7 @@
 
 #include "node_shader_util.hh"
 
-static bNodeSocketTemplate sh_node_in[] = {{SOCK_RGBA,
+static blender::bke::bNodeSocketTemplate  sh_node_in[] = {{SOCK_RGBA,
                                             N_("Color"),
                                             0.7f,
                                             0.7f,
@@ -39,11 +39,11 @@ static bNodeSocketTemplate sh_node_in[] = {{SOCK_RGBA,
                                             SOCK_NO_INTERNAL_LINK},
                                            {-1, ""}};
 
-static bNodeSocketTemplate sh_node_out[] = {{SOCK_RGBA, N_("OutTex")}, {-1, ""}};
+static blender::bke::bNodeSocketTemplate  sh_node_out[] = {{SOCK_RGBA, N_("OutTex")}, {-1, ""}};
 
 void register_node_type_tex_oct_rgb_spectrum(void)
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   if (ntype.type != SH_NODE_OCT_RGB_SPECTRUM_TEX)
     sh_node_type_base(&ntype,
@@ -51,7 +51,7 @@ void register_node_type_tex_oct_rgb_spectrum(void)
                    "RGBSpectrum Tex",
                    NODE_CLASS_OCT_TEXTURE);
   blender::bke::node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
-  node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::DEFAULT);
+  node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Default);
   ntype.initfunc = (0);
   // node_type_exec(&ntype, 0, 0, 0);
   

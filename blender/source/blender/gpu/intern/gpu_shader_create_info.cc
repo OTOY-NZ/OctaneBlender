@@ -12,15 +12,17 @@
 #include "BLI_set.hh"
 #include "BLI_string_ref.hh"
 
-#include "GPU_capabilities.h"
-#include "GPU_context.h"
-#include "GPU_platform.h"
-#include "GPU_shader.h"
-#include "GPU_texture.h"
+#include "BKE_global.hh"
+
+#include "GPU_capabilities.hh"
+#include "GPU_context.hh"
+#include "GPU_platform.hh"
+#include "GPU_shader.hh"
+#include "GPU_texture.hh"
 
 #include "gpu_shader_create_info.hh"
 #include "gpu_shader_create_info_private.hh"
-#include "gpu_shader_dependency_private.h"
+#include "gpu_shader_dependency_private.hh"
 
 #undef GPU_SHADER_INTERFACE_INFO
 #undef GPU_SHADER_CREATE_INFO
@@ -270,7 +272,16 @@ std::string ShaderCreateInfo::check_error() const
     }
   }
 
-#ifndef NDEBUG
+  if ((G.debug & G_DEBUG_GPU) == 0) {
+    return error;
+  }
+
+  /*
+   * The next check has been disabled. 'eevee_legacy_surface_common_iface' is known to fail.
+   * The check was added to validate if shader would be able to compile on Vulkan.
+   * TODO(jbakker): Enable the check after EEVEE is replaced by EEVEE-Next.
+   */
+#if 0
   if (bool(this->builtins_ &
            (BuiltinBits::BARYCENTRIC_COORD | BuiltinBits::VIEWPORT_INDEX | BuiltinBits::LAYER)))
   {
@@ -282,6 +293,7 @@ std::string ShaderCreateInfo::check_error() const
       }
     }
   }
+#endif
 
   if (!this->is_vulkan_compatible()) {
     error += this->name_ +
@@ -298,7 +310,6 @@ std::string ShaderCreateInfo::check_error() const
       }
     }
   }
-#endif
 
   return error;
 }
@@ -456,7 +467,6 @@ void gpu_shader_create_info_init()
                           GPU_OS_ANY,
                           GPU_DRIVER_ANY,
                           GPU_BACKEND_OPENGL) ||
-      GPU_type_matches_ex(GPU_DEVICE_ANY, GPU_OS_MAC, GPU_DRIVER_ANY, GPU_BACKEND_OPENGL) ||
       GPU_crappy_amd_driver())
   {
     draw_modelmat = draw_modelmat_legacy;
@@ -489,6 +499,7 @@ void gpu_shader_create_info_init()
     /* Overlay Armature Shape outline. */
     overlay_armature_shape_outline = overlay_armature_shape_outline_no_geom;
     overlay_armature_shape_outline_clipped = overlay_armature_shape_outline_clipped_no_geom;
+    overlay_armature_shape_wire = overlay_armature_shape_wire_no_geom;
 
     /* Overlay Motion Path Line. */
     overlay_motion_path_line = overlay_motion_path_line_no_geom;
@@ -514,31 +525,20 @@ void gpu_shader_create_info_init()
     /* Edit UV Edges. */
     overlay_edit_uv_edges = overlay_edit_uv_edges_no_geom;
 
-    /* Down-sample Cube/Probe rendering. */
-    eevee_legacy_effect_downsample_cube = eevee_legacy_effect_downsample_cube_no_geom;
-    eevee_legacy_probe_filter_glossy = eevee_legacy_probe_filter_glossy_no_geom;
-    eevee_legacy_lightprobe_planar_downsample = eevee_legacy_lightprobe_planar_downsample_no_geom;
-
-    /* EEVEE Volumetrics */
-    eevee_legacy_volumes_clear = eevee_legacy_volumes_clear_no_geom;
-    eevee_legacy_volumes_scatter = eevee_legacy_volumes_scatter_no_geom;
-    eevee_legacy_volumes_scatter_with_lights = eevee_legacy_volumes_scatter_with_lights_no_geom;
-    eevee_legacy_volumes_integration = eevee_legacy_volumes_integration_no_geom;
-    eevee_legacy_volumes_integration_OPTI = eevee_legacy_volumes_integration_OPTI_no_geom;
-
-    /* EEVEE Volumetric Material */
-    eevee_legacy_material_volumetric_vert = eevee_legacy_material_volumetric_vert_no_geom;
-
     /* GPencil stroke. */
     gpu_shader_gpencil_stroke = gpu_shader_gpencil_stroke_no_geom;
 
     /* NOTE: As atomic data types can alter shader gen if native atomics are unsupported, we need
      * to use differing create info's to handle the tile optimized check. This does prevent
-     * the shadow techniques from being dynamically switchable . */
+     * the shadow techniques from being dynamically switchable. */
+#  if 0
+    /* Temp: Disable TILE_COPY path while efficient solution for parameter buffer overflow is
+     * identified. This path can be re-enabled in future. */
     const bool is_tile_based_arch = (GPU_platform_architecture() == GPU_ARCHITECTURE_TBDR);
     if (is_tile_based_arch) {
       eevee_shadow_data = eevee_shadow_data_non_atomic;
     }
+#  endif
   }
 #endif
 
@@ -596,7 +596,6 @@ bool gpu_shader_create_info_compile(const char *name_starts_with_filter)
         continue;
       }
       if ((info->metal_backend_only_ && GPU_backend_get_type() != GPU_BACKEND_METAL) ||
-          (GPU_compute_shader_support() == false && info->compute_source_ != nullptr) ||
           (GPU_geometry_shader_support() == false && info->geometry_source_ != nullptr) ||
           (GPU_transform_feedback_support() == false && info->tf_type_ != GPU_SHADER_TFB_NONE))
       {

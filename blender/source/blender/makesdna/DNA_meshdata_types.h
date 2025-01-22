@@ -82,9 +82,7 @@ enum {
  * };
  *
  * // Access all triangles in a given face.
- * const IndexRange face = faces[i];
- * const Span<int3> corner_tris = corner_tris.slice(poly_to_tri_count(i, face.start()),
- *                                                bke::mesh::face_triangles_num(face.size()));
+ * const Span<int3> corner_tris = corner_tris.slice(face_triangles_range(faces, i));
  * \endcode
  *
  * It may also be useful to check whether or not two vertices of a triangle form an edge in the
@@ -106,6 +104,7 @@ typedef struct MFloatProperty {
 typedef struct MIntProperty {
   int i;
 } MIntProperty;
+/** Byte string, no encoding implied. May not be null terminated. */
 typedef struct MStringProperty {
   char s[255], s_len;
 } MStringProperty;

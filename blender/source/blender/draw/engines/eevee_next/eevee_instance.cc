@@ -10,7 +10,7 @@
 
 #include <sstream>
 
-#include "BKE_global.h"
+#include "BKE_global.hh"
 #include "BKE_object.hh"
 #include "BLI_rect.h"
 #include "DEG_depsgraph_query.hh"
@@ -62,8 +62,14 @@ void Instance::init(const int2 &output_res,
   v3d = v3d_;
   rv3d = rv3d_;
   manager = DRW_manager_get();
+  update_eval_members();
 
   info = "";
+
+  shaders_are_ready_ = shaders.is_ready(is_image_render());
+  if (!shaders_are_ready_) {
+    return;
+  }
 
   if (assign_if_different(debug_mode, (eDebugMode)G.debug_value)) {
     sampling.reset();
@@ -71,18 +77,27 @@ void Instance::init(const int2 &output_res,
   if (output_res != film.display_extent_get()) {
     sampling.reset();
   }
+  if (output_rect) {
+    int2 offset = int2(output_rect->xmin, output_rect->ymin);
+    int2 extent = int2(BLI_rcti_size_x(output_rect), BLI_rcti_size_y(output_rect));
+    if (offset != film.get_data().offset || extent != film.get_data().extent) {
+      sampling.reset();
+    }
+  }
   if (assign_if_different(overlays_enabled_, v3d && !(v3d->flag2 & V3D_HIDE_OVERLAYS))) {
     sampling.reset();
   }
-  if (DRW_state_is_navigating()) {
+  if (is_painting()) {
     sampling.reset();
   }
-
-  update_eval_members();
+  if (is_navigating() && scene->eevee.flag & SCE_EEVEE_SHADOW_JITTERED_VIEWPORT) {
+    sampling.reset();
+  }
 
   sampling.init(scene);
   camera.init();
   film.init(output_res, output_rect);
+  render_buffers.init();
   ambient_occlusion.init();
   velocity.init();
   raytracing.init();
@@ -90,12 +105,18 @@ void Instance::init(const int2 &output_res,
   shadows.init();
   motion_blur.init();
   main_view.init();
+  light_probes.init();
   planar_probes.init();
   /* Irradiance Cache needs reflection probes to be initialized. */
-  reflection_probes.init();
-  irradiance_cache.init();
+  sphere_probes.init();
+  volume_probes.init();
   volume.init();
   lookdev.init(visible_rect);
+
+  /* Pre-compile specialization constants in parallel (if supported). */
+  shaders.precompile_specializations(
+      render_buffers.data.shadow_id, shadows.get_data().ray_count, shadows.get_data().step_count);
+  shaders_are_ready_ = shaders.is_ready(is_image_render());
 }
 
 void Instance::init_light_bake(Depsgraph *depsgraph, draw::Manager *manager)
@@ -108,26 +129,29 @@ void Instance::init_light_bake(Depsgraph *depsgraph, draw::Manager *manager)
   drw_view = nullptr;
   v3d = nullptr;
   rv3d = nullptr;
+  update_eval_members();
 
   is_light_bake = true;
   debug_mode = (eDebugMode)G.debug_value;
   info = "";
 
-  update_eval_members();
+  shaders.is_ready(true);
 
   sampling.init(scene);
   camera.init();
   /* Film isn't used but init to avoid side effects in other module. */
   rcti empty_rect{0, 0, 0, 0};
   film.init(int2(1), &empty_rect);
+  render_buffers.init();
   velocity.init();
   depth_of_field.init();
   shadows.init();
   main_view.init();
+  light_probes.init();
   planar_probes.init();
   /* Irradiance Cache needs reflection probes to be initialized. */
-  reflection_probes.init();
-  irradiance_cache.init();
+  sphere_probes.init();
+  volume_probes.init();
   volume.init();
   lookdev.init(&empty_rect);
 }
@@ -151,7 +175,6 @@ void Instance::update_eval_members()
 void Instance::view_update()
 {
   sampling.reset();
-  sync.view_update();
 }
 
 /** \} */
@@ -166,6 +189,13 @@ void Instance::view_update()
 
 void Instance::begin_sync()
 {
+  if (!shaders_are_ready_) {
+    return;
+  }
+
+  /* Needs to be first for sun light parameters. */
+  world.sync();
+
   materials.begin_sync();
   velocity.begin_sync(); /* NOTE: Also syncs camera. */
   lights.begin_sync();
@@ -173,8 +203,7 @@ void Instance::begin_sync()
   volume.begin_sync();
   pipelines.begin_sync();
   cryptomatte.begin_sync();
-  reflection_probes.begin_sync();
-  planar_probes.begin_sync();
+  sphere_probes.begin_sync();
   light_probes.begin_sync();
 
   gpencil_engine_enabled = false;
@@ -184,11 +213,9 @@ void Instance::begin_sync()
   motion_blur.sync();
   hiz_buffer.sync();
   main_view.sync();
-  world.sync();
   film.sync();
-  render_buffers.sync();
   ambient_occlusion.sync();
-  irradiance_cache.sync();
+  volume_probes.sync();
   lookdev.sync();
 
   use_surfaces = (view_layer->layflag & SCE_LAY_SOLID) != 0;
@@ -197,7 +224,7 @@ void Instance::begin_sync()
 
   if (is_light_bake) {
     /* Do not use render layer visibility during bake.
-     * Note: This is arbitrary and could be changed if needed. */
+     * NOTE: This is arbitrary and could be changed if needed. */
     use_surfaces = use_curves = use_volumes = true;
   }
 
@@ -208,6 +235,10 @@ void Instance::begin_sync()
 
 void Instance::object_sync(Object *ob)
 {
+  if (!shaders_are_ready_) {
+    return;
+  }
+
   const bool is_renderable_type = ELEM(ob->type,
                                        OB_CURVES,
                                        OB_GPENCIL_LEGACY,
@@ -238,7 +269,8 @@ void Instance::object_sync(Object *ob)
   if (partsys_is_visible && ob != DRW_context_state_get()->object_edit) {
     auto sync_hair =
         [&](ObjectHandle hair_handle, ModifierData &md, ParticleSystem &particle_sys) {
-          ResourceHandle _res_handle = manager->resource_handle(float4x4(ob->object_to_world));
+          ResourceHandle _res_handle = manager->resource_handle_for_psys(ob_ref,
+                                                                         ob->object_to_world());
           sync.sync_curves(ob, hair_handle, _res_handle, ob_ref, &md, &particle_sys);
         };
     foreach_hair_particle_handle(ob, ob_handle, sync_hair);
@@ -258,7 +290,7 @@ void Instance::object_sync(Object *ob)
         sync.sync_point_cloud(ob, ob_handle, res_handle, ob_ref);
         break;
       case OB_VOLUME:
-        sync.sync_volume(ob, ob_handle, res_handle);
+        sync.sync_volume(ob, ob_handle, res_handle, ob_ref);
         break;
       case OB_CURVES:
         sync.sync_curves(ob, ob_handle, res_handle, ob_ref);
@@ -267,7 +299,7 @@ void Instance::object_sync(Object *ob)
         sync.sync_gpencil(ob, ob_handle, res_handle);
         break;
       case OB_LIGHTPROBE:
-        sync.sync_light_probe(ob, ob_handle);
+        light_probes.sync_probe(ob, ob_handle);
         break;
       default:
         break;
@@ -293,6 +325,10 @@ void Instance::object_sync_render(void *instance_,
 
 void Instance::end_sync()
 {
+  if (!shaders_are_ready_) {
+    return;
+  }
+
   velocity.end_sync();
   volume.end_sync();  /* Needs to be before shadows. */
   shadows.end_sync(); /* Needs to be before lights. */
@@ -303,7 +339,7 @@ void Instance::end_sync()
   cryptomatte.end_sync();
   pipelines.end_sync();
   light_probes.end_sync();
-  reflection_probes.end_sync();
+  sphere_probes.end_sync();
   planar_probes.end_sync();
 
   uniform_data.push_update();
@@ -342,26 +378,24 @@ void Instance::render_sync()
   DRW_curves_update();
 }
 
-bool Instance::do_reflection_probe_sync() const
+bool Instance::needs_lightprobe_sphere_passes() const
 {
-  if (!reflection_probes.update_probes_this_sample_) {
-    return false;
-  }
-  if (materials.queued_shaders_count > 0) {
-    return false;
-  }
-  return true;
+  return sphere_probes.update_probes_this_sample_;
+}
+
+bool Instance::do_lightprobe_sphere_sync() const
+{
+  return (materials.queued_shaders_count == 0) && needs_lightprobe_sphere_passes();
+}
+
+bool Instance::needs_planar_probe_passes() const
+{
+  return planar_probes.update_probes_;
 }
 
 bool Instance::do_planar_probe_sync() const
 {
-  if (!planar_probes.update_probes_) {
-    return false;
-  }
-  if (materials.queued_shaders_count > 0) {
-    return false;
-  }
-  return true;
+  return (materials.queued_shaders_count == 0) && needs_planar_probe_passes();
 }
 
 /** \} */
@@ -447,8 +481,8 @@ void Instance::render_read_result(RenderLayer *render_layer, const char *view_na
       BLI_mutex_lock(&render->update_render_passes_mutex);
       /* WORKAROUND: We use texture read to avoid using a frame-buffer to get the render result.
        * However, on some implementation, we need a buffer with a few extra bytes for the read to
-       * happen correctly (see GLTexture::read()). So we need a custom memory allocation. */
-      /* Avoid memcpy(), replace the pointer directly. */
+       * happen correctly (see #GLTexture::read()). So we need a custom memory allocation. */
+      /* Avoid #memcpy(), replace the pointer directly. */
       RE_pass_set_buffer_data(rp, result);
       BLI_mutex_unlock(&render->update_render_passes_mutex);
     }
@@ -456,7 +490,7 @@ void Instance::render_read_result(RenderLayer *render_layer, const char *view_na
 
   /* The vector pass is initialized to weird values. Set it to neutral value if not rendered. */
   if ((pass_bits & EEVEE_RENDER_PASS_VECTOR) == 0) {
-    for (std::string vector_pass_name :
+    for (const std::string &vector_pass_name :
          Film::pass_to_render_pass_names(EEVEE_RENDER_PASS_VECTOR, view_layer))
     {
       RenderPass *vector_rp = RE_pass_find_by_name(
@@ -478,12 +512,6 @@ void Instance::render_read_result(RenderLayer *render_layer, const char *view_na
 
 void Instance::render_frame(RenderLayer *render_layer, const char *view_name)
 {
-  /* TODO(jbakker): should we check on the subtype as well? Now it also populates even when there
-   * are other light probes in the scene. */
-  if (DEG_id_type_any_exists(this->depsgraph, ID_LP)) {
-    reflection_probes.update_probes_next_sample_ = true;
-    planar_probes.update_probes_ = true;
-  }
 
   while (!sampling.finished()) {
     this->render_sample();
@@ -511,6 +539,14 @@ void Instance::render_frame(RenderLayer *render_layer, const char *view_name)
 
 void Instance::draw_viewport()
 {
+  if (!shaders_are_ready_) {
+    DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
+    GPU_framebuffer_clear_color_depth(dfbl->default_fb, float4(0.0f), 1.0f);
+    info += "Compiling EEVEE Engine Shaders\n";
+    DRW_viewport_request_redraw();
+    return;
+  }
+
   render_sample();
   velocity.step_swap();
 
@@ -524,7 +560,15 @@ void Instance::draw_viewport()
   if (materials.queued_shaders_count > 0) {
     std::stringstream ss;
     ss << "Compiling Shaders (" << materials.queued_shaders_count << " remaining)";
+    if (!GPU_use_parallel_compilation() &&
+        GPU_type_matches_ex(GPU_DEVICE_ANY, GPU_OS_ANY, GPU_DRIVER_ANY, GPU_BACKEND_OPENGL))
+    {
+      ss << "\n"
+         << "Increasing Preferences > System > Max Shader Compilation Subprocesses "
+         << "may improve compilation time.";
+    }
     info = ss.str();
+    DRW_viewport_request_redraw();
   }
   else if (materials.queued_optimize_shaders_count > 0) {
     std::stringstream ss;
@@ -577,6 +621,7 @@ void Instance::update_passes(RenderEngine *engine, Scene *scene, ViewLayer *view
   CHECK_PASS_LEGACY(ENVIRONMENT, SOCK_RGBA, 3, "RGB");
   CHECK_PASS_LEGACY(SHADOW, SOCK_RGBA, 3, "RGB");
   CHECK_PASS_LEGACY(AO, SOCK_RGBA, 3, "RGB");
+  CHECK_PASS_EEVEE(TRANSPARENT, SOCK_RGBA, 4, "RGBA");
 
   LISTBASE_FOREACH (ViewLayerAOV *, aov, &view_layer->aovs) {
     if ((aov->flag & AOV_CONFLICT) != 0) {
@@ -600,7 +645,8 @@ void Instance::update_passes(RenderEngine *engine, Scene *scene, ViewLayer *view
   auto register_cryptomatte_passes = [&](eViewLayerCryptomatteFlags cryptomatte_layer,
                                          eViewLayerEEVEEPassType eevee_pass) {
     if (view_layer->cryptomatte_flag & cryptomatte_layer) {
-      for (std::string pass_name : Film::pass_to_render_pass_names(eevee_pass, view_layer)) {
+      for (const std::string &pass_name : Film::pass_to_render_pass_names(eevee_pass, view_layer))
+      {
         RE_engine_register_pass(
             engine, scene, view_layer, pass_name.c_str(), 4, "rgba", SOCK_RGBA);
       }
@@ -635,7 +681,7 @@ void Instance::light_bake_irradiance(
     context_disable();
   };
 
-  irradiance_cache.bake.init(probe);
+  volume_probes.bake.init(probe);
 
   custom_pipeline_wrapper([&]() {
     manager->begin_sync();
@@ -646,19 +692,19 @@ void Instance::light_bake_irradiance(
 
     capture_view.render_world();
 
-    irradiance_cache.bake.surfels_create(probe);
+    volume_probes.bake.surfels_create(probe);
 
-    if (irradiance_cache.bake.should_break()) {
+    if (volume_probes.bake.should_break()) {
       return;
     }
 
-    irradiance_cache.bake.surfels_lights_eval();
+    volume_probes.bake.surfels_lights_eval();
 
-    irradiance_cache.bake.clusters_build();
-    irradiance_cache.bake.irradiance_offset();
+    volume_probes.bake.clusters_build();
+    volume_probes.bake.irradiance_offset();
   });
 
-  if (irradiance_cache.bake.should_break()) {
+  if (volume_probes.bake.should_break()) {
     return;
   }
 
@@ -673,23 +719,18 @@ void Instance::light_bake_irradiance(
       for (int i = 0; i < 16 && !sampling.finished(); i++) {
         sampling.step();
 
-        irradiance_cache.bake.raylists_build();
-        irradiance_cache.bake.propagate_light();
-        irradiance_cache.bake.irradiance_capture();
-      }
-
-      if (sampling.finished()) {
-        /* TODO(fclem): Dilation, filter etc... */
-        // irradiance_cache.bake.irradiance_finalize();
+        volume_probes.bake.raylists_build();
+        volume_probes.bake.propagate_light();
+        volume_probes.bake.irradiance_capture();
       }
 
       LightProbeGridCacheFrame *cache_frame;
       if (sampling.finished()) {
-        cache_frame = irradiance_cache.bake.read_result_packed();
+        cache_frame = volume_probes.bake.read_result_packed();
       }
       else {
         /* TODO(fclem): Only do this read-back if needed. But it might be tricky to know when. */
-        cache_frame = irradiance_cache.bake.read_result_unpacked();
+        cache_frame = volume_probes.bake.read_result_unpacked();
       }
 
       float progress = sampling.sample_index() / float(sampling.sample_count());

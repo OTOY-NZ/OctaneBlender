@@ -6,6 +6,8 @@
  * \ingroup bke
  */
 
+#include <optional>
+
 #include "MEM_guardedalloc.h"
 
 #include "DNA_defaults.h"
@@ -15,32 +17,26 @@
 
 #include "BLI_bounds.hh"
 #include "BLI_index_range.hh"
-#include "BLI_listbase.h"
 #include "BLI_math_vector.hh"
 #include "BLI_rand.h"
 #include "BLI_span.hh"
-#include "BLI_string.h"
 #include "BLI_task.hh"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 
-#include "BKE_anim_data.h"
+#include "BKE_anim_data.hh"
 #include "BKE_bake_data_block_id.hh"
 #include "BKE_customdata.hh"
 #include "BKE_geometry_set.hh"
-#include "BKE_global.h"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
-#include "BKE_lib_remap.hh"
-#include "BKE_main.hh"
-#include "BKE_mesh_wrapper.hh"
 #include "BKE_modifier.hh"
 #include "BKE_object.hh"
 #include "BKE_object_types.hh"
 #include "BKE_pointcloud.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DEG_depsgraph_query.hh"
 
@@ -66,14 +62,15 @@ static void pointcloud_init_data(ID *id)
 
   MEMCPY_STRUCT_AFTER(pointcloud, DNA_struct_default_get(PointCloud), id);
 
+  pointcloud->runtime = new blender::bke::PointCloudRuntime();
+
   CustomData_reset(&pointcloud->pdata);
   pointcloud->attributes_for_write().add<float3>(
       "position", blender::bke::AttrDomain::Point, blender::bke::AttributeInitConstruct());
-
-  pointcloud->runtime = new blender::bke::PointCloudRuntime();
 }
 
 static void pointcloud_copy_data(Main * /*bmain*/,
+                                 std::optional<Library *> /*owner_library*/,
                                  ID *id_dst,
                                  const ID *id_src,
                                  const int /*flag*/)
@@ -152,6 +149,7 @@ static void pointcloud_blend_read_data(BlendDataReader *reader, ID *id)
 IDTypeInfo IDType_ID_PT = {
     /*id_code*/ ID_PT,
     /*id_filter*/ FILTER_ID_PT,
+    /*dependencies_id_types*/ FILTER_ID_MA,
     /*main_listbase_index*/ INDEX_ID_PT,
     /*struct_size*/ sizeof(PointCloud),
     /*name*/ "PointCloud",

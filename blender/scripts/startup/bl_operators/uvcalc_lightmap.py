@@ -551,7 +551,7 @@ def lightmap_uvpack(
     for me in meshes:
         me.update()
 
-    print("finished all %.2f " % (time.time() - t))
+    print("finished all {:.2f} ".format(time.time() - t))
 
 
 def unwrap(operator, context, **kwargs):
@@ -567,7 +567,7 @@ def unwrap(operator, context, **kwargs):
     meshes = list({
         me for obj in objects
         if obj.type == 'MESH'
-        if (me := obj.data).polygons and me.library is None
+        if (me := obj.data).polygons and me.is_editable
     })
 
     if not meshes:

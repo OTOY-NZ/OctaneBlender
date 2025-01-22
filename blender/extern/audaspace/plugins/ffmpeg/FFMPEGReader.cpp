@@ -244,7 +244,7 @@ void FFMPEGReader::init(int stream)
 	m_duration = lround(dur_sec * m_codecCtx->sample_rate);
 }
 
-FFMPEGReader::FFMPEGReader(std::string filename, int stream) :
+FFMPEGReader::FFMPEGReader(const std::string &filename, int stream) :
 	m_pkgbuf(),
 	m_formatCtx(nullptr),
 	m_codecCtx(nullptr),
@@ -414,7 +414,7 @@ void FFMPEGReader::seek(int position)
 	{
 		double pts_time_base = av_q2d(m_formatCtx->streams[m_stream]->time_base);
 
-		uint64_t st_time = m_formatCtx->streams[m_stream]->start_time;
+		int64_t st_time = m_formatCtx->streams[m_stream]->start_time;
 		uint64_t seek_pos = (uint64_t)(position / (pts_time_base * m_specs.rate));
 
 		if(st_time != AV_NOPTS_VALUE)

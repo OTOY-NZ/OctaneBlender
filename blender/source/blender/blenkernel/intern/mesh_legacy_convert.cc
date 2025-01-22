@@ -26,14 +26,13 @@
 #include "BLI_memarena.h"
 #include "BLI_multi_value_map.hh"
 #include "BLI_polyfill_2d.h"
-#include "BLI_resource_scope.hh"
 #include "BLI_string.h"
 #include "BLI_task.hh"
 #include "BLI_utildefines.h"
 
 #include "BKE_attribute.hh"
 #include "BKE_customdata.hh"
-#include "BKE_global.h"
+#include "BKE_global.hh"
 #include "BKE_idprop.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
@@ -46,7 +45,7 @@
 #include "BKE_node_runtime.hh"
 #include "BKE_node_tree_update.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 using blender::MutableSpan;
 using blender::Span;
@@ -818,7 +817,7 @@ void BKE_mesh_do_versions_convert_mfaces_to_mpolys(Mesh *mesh)
 /* -------------------------------------------------------------------- */
 /** \name MFace Tessellation
  *
- * #MFace is a legacy data-structure that should be avoided, use #MLoopTri instead.
+ * #MFace is a legacy data-structure that should be avoided, use #Mesh::corner_tris() instead.
  * \{ */
 
 #define MESH_MLOOPCOL_TO_MCOL(_mloopcol, _mcol) \
@@ -1714,7 +1713,7 @@ void BKE_mesh_legacy_convert_uvs_to_generic(Mesh *mesh)
 
   for (const int i : uv_names.index_range()) {
     const MLoopUV *mloopuv = static_cast<const MLoopUV *>(
-        CustomData_get_layer_named(&mesh->corner_data, CD_MLOOPUV, uv_names[i].c_str()));
+        CustomData_get_layer_named(&mesh->corner_data, CD_MLOOPUV, uv_names[i]));
     const uint32_t needed_boolean_attributes = threading::parallel_reduce(
         IndexRange(mesh->corners_num),
         4096,
@@ -1765,13 +1764,13 @@ void BKE_mesh_legacy_convert_uvs_to_generic(Mesh *mesh)
       }
     });
 
-    CustomData_free_layer_named(&mesh->corner_data, uv_names[i].c_str(), mesh->corners_num);
+    CustomData_free_layer_named(&mesh->corner_data, uv_names[i], mesh->corners_num);
 
     const std::string new_name = BKE_id_attribute_calc_unique_name(mesh->id, uv_names[i].c_str());
     uv_names[i] = new_name;
 
     CustomData_add_layer_named_with_data(
-        &mesh->corner_data, CD_PROP_FLOAT2, coords, mesh->corners_num, new_name.c_str(), nullptr);
+        &mesh->corner_data, CD_PROP_FLOAT2, coords, mesh->corners_num, new_name, nullptr);
     char buffer[MAX_CUSTOMDATA_LAYER_NAME];
     if (vert_selection) {
       CustomData_add_layer_named_with_data(
@@ -1802,18 +1801,18 @@ void BKE_mesh_legacy_convert_uvs_to_generic(Mesh *mesh)
   }
 
   if (active_name_i != -1) {
-    CustomData_set_layer_active_index(
-        &mesh->corner_data,
-        CD_PROP_FLOAT2,
-        CustomData_get_named_layer_index(
-            &mesh->corner_data, CD_PROP_FLOAT2, uv_names[active_name_i].c_str()));
+    CustomData_set_layer_active_index(&mesh->corner_data,
+                                      CD_PROP_FLOAT2,
+                                      CustomData_get_named_layer_index(&mesh->corner_data,
+                                                                       CD_PROP_FLOAT2,
+                                                                       uv_names[active_name_i]));
   }
   if (default_name_i != -1) {
-    CustomData_set_layer_render_index(
-        &mesh->corner_data,
-        CD_PROP_FLOAT2,
-        CustomData_get_named_layer_index(
-            &mesh->corner_data, CD_PROP_FLOAT2, uv_names[default_name_i].c_str()));
+    CustomData_set_layer_render_index(&mesh->corner_data,
+                                      CD_PROP_FLOAT2,
+                                      CustomData_get_named_layer_index(&mesh->corner_data,
+                                                                       CD_PROP_FLOAT2,
+                                                                       uv_names[default_name_i]));
   }
 }
 
@@ -2121,9 +2120,10 @@ void BKE_mesh_legacy_convert_polys_to_offsets(Mesh *mesh)
 
 namespace blender::bke {
 
-static bNodeTree *add_auto_smooth_node_tree(Main &bmain)
+static bNodeTree *add_auto_smooth_node_tree(Main &bmain, Library *owner_library)
 {
-  bNodeTree *group = ntreeAddTree(&bmain, DATA_("Auto Smooth"), "GeometryNodeTree");
+  bNodeTree *group = BKE_node_tree_add_in_lib(
+      &bmain, owner_library, DATA_("Auto Smooth"), "GeometryNodeTree");
   if (!group->geometry_node_asset_traits) {
     group->geometry_node_asset_traits = MEM_new<GeometryNodeAssetTraits>(__func__);
   }
@@ -2291,7 +2291,7 @@ static bool is_auto_smooth_node_tree(const bNodeTree &group)
   }
   if (static_cast<bNodeSocket *>(nodes[4]->inputs.last)
           ->default_value_typed<bNodeSocketValueBoolean>()
-          ->value != true)
+          ->value != 1)
   {
     return false;
   }
@@ -2327,7 +2327,7 @@ static bool is_auto_smooth_node_tree(const bNodeTree &group)
 
 static ModifierData *create_auto_smooth_modifier(
     Object &object,
-    const FunctionRef<bNodeTree *(Library *library)> get_node_group,
+    const FunctionRef<bNodeTree *(Library *owner_library)> get_node_group,
     const float angle)
 {
   auto *md = reinterpret_cast<NodesModifierData *>(BKE_modifier_new(eModifierType_Nodes));
@@ -2359,38 +2359,25 @@ void BKE_main_mesh_legacy_convert_auto_smooth(Main &bmain)
 
   /* Add the node group lazily and share it among all objects in the same library. */
   Map<Library *, bNodeTree *> group_by_library;
-  const auto add_node_group = [&](Library *library) {
-    if (bNodeTree **group = group_by_library.lookup_ptr(library)) {
+  const auto add_node_group = [&](Library *owner_library) {
+    if (bNodeTree **group = group_by_library.lookup_ptr(owner_library)) {
       /* Node tree has already been found/created for this versioning call. */
       return *group;
     }
     /* Try to find an existing group added by previous versioning to avoid adding duplicates. */
     LISTBASE_FOREACH (bNodeTree *, existing_group, &bmain.nodetrees) {
-      if (existing_group->id.lib != library) {
+      if (existing_group->id.lib != owner_library) {
         continue;
       }
       if (is_auto_smooth_node_tree(*existing_group)) {
-        group_by_library.add_new(library, existing_group);
+        group_by_library.add_new(owner_library, existing_group);
         return existing_group;
       }
     }
-    bNodeTree *new_group = add_auto_smooth_node_tree(bmain);
+    bNodeTree *new_group = add_auto_smooth_node_tree(bmain, owner_library);
     /* Remove the default user. The count is tracked manually when assigning to modifiers. */
     id_us_min(&new_group->id);
-
-    if (new_group->id.lib != library) {
-      /* Move the node group to the requested library so that library data-blocks don't point to
-       * local data-blocks. This requires making sure the name is unique in that library and
-       * changing the name maps to be consistent with the new state. */
-      BKE_main_namemap_remove_name(&bmain, &new_group->id, new_group->id.name + 2);
-      new_group->id.lib = library;
-      BKE_id_new_name_validate(&bmain, &bmain.nodetrees, &new_group->id, nullptr, false);
-      if (library) {
-        new_group->id.tag |= LIB_TAG_INDIRECT;
-      }
-    }
-
-    group_by_library.add_new(library, new_group);
+    group_by_library.add_new(owner_library, new_group);
     return new_group;
   };
 

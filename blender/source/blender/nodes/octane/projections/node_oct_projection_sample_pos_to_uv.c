@@ -27,15 +27,15 @@
 
 #include "node_shader_util.hh"
 
-static bNodeSocketTemplate sh_node_in[] = {{-1, ""}};
+static blender::bke::bNodeSocketTemplate  sh_node_in[] = {{-1, ""}};
 
-static bNodeSocketTemplate sh_node_out[] = {
+static blender::bke::bNodeSocketTemplate  sh_node_out[] = {
     {SOCK_SHADER, N_("OutProjection")},
     {-1, ""}};
 
 void register_node_type_projection_oct_sample_pos_to_uv(void)
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   if (ntype.type != SH_NODE_OCT_PROJECTION_SAMPLE_POS_TO_UV)
     sh_node_type_base(&ntype,

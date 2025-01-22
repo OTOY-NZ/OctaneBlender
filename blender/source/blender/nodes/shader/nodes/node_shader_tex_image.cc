@@ -190,10 +190,10 @@ NODE_SHADER_MATERIALX_BEGIN
       NodeTexImage *tex_image = static_cast<NodeTexImage *>(node_->storage);
 
       std::string image_path = image->id.name;
-      if (export_image_fn_) {
+      if (export_params_.image_fn) {
         Scene *scene = DEG_get_input_scene(depsgraph_);
         Main *bmain = DEG_get_bmain(depsgraph_);
-        image_path = export_image_fn_(bmain, scene, image, &tex_image->iuser);
+        image_path = export_params_.image_fn(bmain, scene, image, &tex_image->iuser);
       }
 
       NodeItem vector = get_input_link("Vector", NodeItem::Type::Vector2);
@@ -235,14 +235,31 @@ NODE_SHADER_MATERIALX_BEGIN
           BLI_assert_unreachable();
       }
 
+      NodeItem::Type node_type = NodeItem::Type::Color4;
+      const char *node_colorspace = nullptr;
+
+      const char *image_colorspace = image->colorspace_settings.name;
+      if (IMB_colormanagement_space_name_is_data(image_colorspace)) {
+        node_type = NodeItem::Type::Vector4;
+      }
+      else if (IMB_colormanagement_space_name_is_scene_linear(image_colorspace)) {
+        node_colorspace = "lin_rec709";
+      }
+      else if (IMB_colormanagement_space_name_is_srgb(image_colorspace)) {
+        node_colorspace = "srgb_texture";
+      }
+
       res = create_node("image",
-                        NodeItem::Type::Color4,
+                        node_type,
                         {{"texcoord", vector},
                          {"filtertype", val(filtertype)},
                          {"uaddressmode", val(addressmode)},
                          {"vaddressmode", val(addressmode)}});
       res.set_input("file", image_path, NodeItem::Type::Filename);
       res.node->setName(image_node_name);
+      if (node_colorspace) {
+        res.node->setAttribute("colorspace", node_colorspace);
+      }
     }
   }
 
@@ -260,17 +277,17 @@ void register_node_type_sh_tex_image()
 {
   namespace file_ns = blender::nodes::node_shader_tex_image_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   sh_node_type_base(&ntype, SH_NODE_TEX_IMAGE, "Image Texture", NODE_CLASS_TEXTURE);
   ntype.declare = file_ns::sh_node_tex_image_declare;
   ntype.initfunc = file_ns::node_shader_init_tex_image;
-  node_type_storage(
+  blender::bke::node_type_storage(
       &ntype, "NodeTexImage", node_free_standard_storage, node_copy_standard_storage);
   ntype.gpu_fn = file_ns::node_shader_gpu_tex_image;
   ntype.labelfunc = node_image_label;
-  blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::LARGE);
+  blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Large);
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 }

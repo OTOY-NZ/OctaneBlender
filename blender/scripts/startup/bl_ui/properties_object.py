@@ -393,7 +393,16 @@ class OBJECT_PT_visibility(ObjectButtonsPanel, Panel):
             if ob.type in {'MESH', 'CURVE', 'SURFACE', 'META', 'FONT', 'CURVES', 'POINTCLOUD', 'VOLUME'}:
                 layout.separator()
                 col = layout.column(heading="Ray Visibility")
+                col.prop(ob, "visible_camera", text="Camera", toggle=False)
                 col.prop(ob, "visible_shadow", text="Shadow", toggle=False)
+
+            if ob.type in {'LIGHT'}:
+                layout.separator()
+                col = layout.column(heading="Ray Visibility")
+                col.prop(ob, "visible_diffuse", text="Diffuse", toggle=False)
+                col.prop(ob, "visible_glossy", text="Glossy", toggle=False)
+                col.prop(ob, "visible_transmission", text="Transmission", toggle=False)
+                col.prop(ob, "visible_volume_scatter", text="Volume Scatter", toggle=False)
 
             if ob.type in {'MESH', 'CURVE', 'SURFACE', 'META', 'FONT', 'CURVES', 'POINTCLOUD', 'VOLUME'}:
                 layout.separator()
@@ -402,7 +411,7 @@ class OBJECT_PT_visibility(ObjectButtonsPanel, Panel):
                 col.prop(ob, "hide_probe_sphere", text="Sphere", toggle=False, invert_checkbox=True)
                 col.prop(ob, "hide_probe_plane", text="Plane", toggle=False, invert_checkbox=True)
 
-        if ob.type == 'GPENCIL':
+        if ob.type in {'GPENCIL', 'GREASEPENCIL'}:
             col = layout.column(heading="Grease Pencil")
             col.prop(ob, "use_grease_pencil_lights", toggle=False)
 

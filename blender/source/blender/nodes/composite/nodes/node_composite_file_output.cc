@@ -28,7 +28,7 @@
 #include "BKE_image_format.h"
 #include "BKE_main.hh"
 #include "BKE_node_tree_update.hh"
-#include "BKE_scene.h"
+#include "BKE_scene.hh"
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.h"
@@ -42,10 +42,12 @@
 #include "IMB_imbuf_types.hh"
 #include "IMB_openexr.hh"
 
-#include "GPU_state.h"
-#include "GPU_texture.h"
+#include "GPU_state.hh"
+#include "GPU_texture.hh"
 
 #include "COM_node_operation.hh"
+
+#include "NOD_socket_search_link.hh"
 
 #include "node_composite_util.hh"
 
@@ -140,7 +142,7 @@ bNodeSocket *ntreeCompositOutputFileAddSocket(bNodeTree *ntree,
                                               const ImageFormatData *im_format)
 {
   NodeImageMultiFile *nimf = (NodeImageMultiFile *)node->storage;
-  bNodeSocket *sock = nodeAddStaticSocket(
+  bNodeSocket *sock = blender::bke::nodeAddStaticSocket(
       ntree, node, SOCK_IN, SOCK_RGBA, PROP_NONE, nullptr, name);
 
   /* create format data for the input socket */
@@ -188,7 +190,7 @@ int ntreeCompositOutputFileRemoveActiveSocket(bNodeTree *ntree, bNode *node)
   /* free format data */
   MEM_freeN(sock->storage);
 
-  nodeRemoveSocket(ntree, node, sock);
+  blender::bke::nodeRemoveSocket(ntree, node, sock);
   return 1;
 }
 
@@ -284,11 +286,11 @@ static void update_output_file(bNodeTree *ntree, bNode *node)
    */
   LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
     if (sock->storage == nullptr) {
-      nodeRemoveSocket(ntree, node, sock);
+      blender::bke::nodeRemoveSocket(ntree, node, sock);
     }
   }
   LISTBASE_FOREACH (bNodeSocket *, sock, &node->outputs) {
-    nodeRemoveSocket(ntree, node, sock);
+    blender::bke::nodeRemoveSocket(ntree, node, sock);
   }
 
   cmp_node_update_default(ntree, node);
@@ -299,10 +301,20 @@ static void update_output_file(bNodeTree *ntree, bNode *node)
     if (sock->is_logically_linked()) {
       const bNodeSocket *from_socket = sock->logically_linked_sockets()[0];
       if (sock->type != from_socket->type) {
-        nodeModifySocketTypeStatic(ntree, node, sock, from_socket->type, 0);
+        blender::bke::nodeModifySocketTypeStatic(ntree, node, sock, from_socket->type, 0);
         BKE_ntree_update_tag_socket_property(ntree, sock);
       }
     }
+  }
+}
+
+static void node_gather_link_searches(GatherLinkSearchOpParams &params)
+{
+  if (params.in_out() == SOCK_IN) {
+    params.add_item(IFACE_("Image"), [](LinkSearchOpParams &params) {
+      bNode &node = params.add_node("CompositorNodeOutputFile");
+      params.update_and_connect_available_socket(node, "Image");
+    });
   }
 }
 
@@ -470,7 +482,15 @@ using namespace blender::realtime_compositor;
 
 class FileOutputOperation : public NodeOperation {
  public:
-  using NodeOperation::NodeOperation;
+  FileOutputOperation(Context &context, DNode node) : NodeOperation(context, node)
+  {
+    for (const bNodeSocket *input : node->input_sockets()) {
+      InputDescriptor &descriptor = this->get_input_descriptor(input->identifier);
+      /* Inputs for multi-layer files need to be the same size, while they can be different for
+       * individual file outputs. */
+      descriptor.realization_options.realize_on_operation_domain = this->is_multi_layer();
+    }
+  }
 
   void execute() override
   {
@@ -488,7 +508,6 @@ class FileOutputOperation : public NodeOperation {
 
   void execute_single_layer()
   {
-    const int2 size = compute_domain().size;
     for (const bNodeSocket *input : this->node()->input_sockets()) {
       const Result &result = get_input(input->identifier);
       /* We only write images, not single values. */
@@ -516,6 +535,7 @@ class FileOutputOperation : public NodeOperation {
       char image_path[FILE_MAX];
       get_single_layer_image_path(base_path, format, image_path);
 
+      const int2 size = result.domain().size;
       FileOutput &file_output = context().render_context()->get_file_output(
           image_path, format, size, socket.save_as_render);
 
@@ -539,9 +559,9 @@ class FileOutputOperation : public NodeOperation {
     const char *path_view = has_views ? "" : context().get_view_name().data();
     get_multi_layer_exr_image_path(base_path, path_view, image_path);
 
-    const int2 size = compute_domain().size;
+    const int2 size = result.domain().size;
     FileOutput &file_output = context().render_context()->get_file_output(
-        image_path, format, size, false);
+        image_path, format, size, true);
 
     /* The EXR stores all views in the same file, so we add the actual render view. Otherwise, we
      * add a default unnamed view. */
@@ -568,7 +588,7 @@ class FileOutputOperation : public NodeOperation {
     const int2 size = compute_domain().size;
     const ImageFormatData format = node_storage(bnode()).format;
     FileOutput &file_output = context().render_context()->get_file_output(
-        image_path, format, size, false);
+        image_path, format, size, true);
 
     /* If we are saving views in separate files, we needn't store the view in the channel names, so
      * we add an unnamed view. */
@@ -754,17 +774,18 @@ void register_node_type_cmp_output_file()
 {
   namespace file_ns = blender::nodes::node_composite_file_output_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, CMP_NODE_OUTPUT_FILE, "File Output", NODE_CLASS_OUTPUT);
   ntype.draw_buttons = file_ns::node_composit_buts_file_output;
   ntype.draw_buttons_ex = file_ns::node_composit_buts_file_output_ex;
   ntype.initfunc_api = file_ns::init_output_file;
   ntype.flag |= NODE_PREVIEW;
-  node_type_storage(
+  blender::bke::node_type_storage(
       &ntype, "NodeImageMultiFile", file_ns::free_output_file, file_ns::copy_output_file);
   ntype.updatefunc = file_ns::update_output_file;
+  ntype.gather_link_search_ops = file_ns::node_gather_link_searches;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 }

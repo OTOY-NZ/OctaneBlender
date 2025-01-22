@@ -22,15 +22,12 @@
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_particle_types.h"
-#include "DNA_scene_types.h"
 
 #include "BKE_customdata.hh"
-#include "BKE_global.h"
+#include "BKE_global.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_legacy_convert.hh"
-#include "BKE_mesh_runtime.hh"
-#include "BKE_object.hh"
 #include "BKE_particle.h"
 
 #include "DEG_depsgraph_query.hh"
@@ -837,8 +834,8 @@ static int distribute_compare_orig_index(const void *p1, const void *p2, void *u
     return -1;
   }
   if (index1 == index2) {
-    /* this pointer comparison appears to make qsort stable for glibc,
-     * and apparently on solaris too, makes the renders reproducible */
+    /* This pointer comparison appears to make #qsort stable for GLIBC,
+     * and apparently on SOLARIS too, makes the renders reproducible. */
     if (p1 < p2) {
       return -1;
     }

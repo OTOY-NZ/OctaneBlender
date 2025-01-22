@@ -7,6 +7,7 @@
  */
 
 #include <cstddef>
+#include <fmt/format.h>
 
 #include "MEM_guardedalloc.h"
 
@@ -30,7 +31,6 @@
 #include "BLI_math_vector.h"
 #include "BLI_rand.h"
 #include "BLI_sort_utils.h"
-#include "BLI_string.h"
 
 #include "BKE_attribute.hh"
 #include "BKE_context.hh"
@@ -40,17 +40,17 @@
 #include "BKE_key.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
-#include "BKE_main.hh"
 #include "BKE_material.h"
 #include "BKE_mesh.hh"
+#include "BKE_mesh_types.hh"
 #include "BKE_object.hh"
-#include "BKE_report.h"
-#include "BKE_texture.h"
+#include "BKE_object_types.hh"
+#include "BKE_report.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -68,8 +68,6 @@
 #include "ED_transform.hh"
 #include "ED_uvedit.hh"
 #include "ED_view3d.hh"
-
-#include "RE_texture.h"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
@@ -1769,7 +1767,7 @@ static int edbm_face_make_planar_exec(bContext *C, wmOperator *op)
       continue;
     }
 
-    if (ED_object_edit_report_if_shape_key_is_locked(obedit, op->reports)) {
+    if (blender::ed::object::shape_key_report_if_locked(obedit, op->reports)) {
       continue;
     }
 
@@ -2644,7 +2642,7 @@ static int edbm_do_smooth_vertex_exec(bContext *C, wmOperator *op)
       continue;
     }
 
-    if (ED_object_edit_report_if_shape_key_is_locked(obedit, op->reports)) {
+    if (blender::ed::object::shape_key_report_if_locked(obedit, op->reports)) {
       tot_locked++;
       continue;
     }
@@ -2783,7 +2781,7 @@ static int edbm_do_smooth_laplacian_vertex_exec(bContext *C, wmOperator *op)
       continue;
     }
 
-    if (ED_object_edit_report_if_shape_key_is_locked(obedit, op->reports)) {
+    if (blender::ed::object::shape_key_report_if_locked(obedit, op->reports)) {
       tot_locked++;
       continue;
     }
@@ -3308,8 +3306,8 @@ static bool merge_target(BMEditMesh *em,
   if (use_cursor) {
     vco = scene->cursor.location;
     copy_v3_v3(co, vco);
-    invert_m4_m4(ob->world_to_object, ob->object_to_world);
-    mul_m4_v3(ob->world_to_object, co);
+    invert_m4_m4(ob->runtime->world_to_object.ptr(), ob->object_to_world().ptr());
+    mul_m4_v3(ob->world_to_object().ptr(), co);
   }
   else {
     float fac;
@@ -3445,8 +3443,8 @@ static const EnumPropertyItem *merge_type_itemf(bContext *C,
 
     /* Only active object supported:
      * In practice it doesn't make sense to run this operation on non-active meshes
-     * since selecting will activate - we could have own code-path for these but it's a hassle
-     * for now just apply to the active (first) object. */
+     * since selecting will activate - we could have a separate code-path for these but it's a
+     * hassle for now just apply to the active (first) object. */
     if (em->selectmode & SCE_SELECT_VERTEX) {
       if (em->bm->selected.first && em->bm->selected.last &&
           ((BMEditSelection *)em->bm->selected.first)->htype == BM_VERT &&
@@ -3586,7 +3584,10 @@ static int edbm_remove_doubles_exec(bContext *C, wmOperator *op)
     }
   }
 
-  BKE_reportf(op->reports, RPT_INFO, "Removed %d vertice(s)", count_multi);
+  BKE_reportf(op->reports,
+              RPT_INFO,
+              count_multi == 1 ? "Removed %d vertex" : "Removed %d vertices",
+              count_multi);
 
   return OPERATOR_FINISHED;
 }
@@ -3677,14 +3678,14 @@ static int edbm_shape_propagate_to_all_exec(bContext *C, wmOperator *op)
       scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
     Mesh *mesh = static_cast<Mesh *>(obedit->data);
-    BMEditMesh *em = mesh->edit_mesh;
+    BMEditMesh *em = mesh->runtime->edit_mesh.get();
 
     if (em->bm->totvertsel == 0) {
       continue;
     }
 
     /* Check for locked shape keys. */
-    if (ED_object_report_if_any_shape_key_is_locked(obedit, op->reports)) {
+    if (blender::ed::object::shape_key_report_if_any_locked(obedit, op->reports)) {
       tot_locked++;
       continue;
     }
@@ -3756,7 +3757,7 @@ static int edbm_blend_from_shape_exec(bContext *C, wmOperator *op)
   Mesh *me_ref = static_cast<Mesh *>(obedit_ref->data);
   Key *key_ref = me_ref->key;
   KeyBlock *kb_ref = nullptr;
-  BMEditMesh *em_ref = me_ref->edit_mesh;
+  BMEditMesh *em_ref = me_ref->runtime->edit_mesh.get();
   BMVert *eve;
   BMIter iter;
   const Scene *scene = CTX_data_scene(C);
@@ -3792,14 +3793,14 @@ static int edbm_blend_from_shape_exec(bContext *C, wmOperator *op)
     Mesh *mesh = static_cast<Mesh *>(obedit->data);
     Key *key = mesh->key;
     KeyBlock *kb = nullptr;
-    BMEditMesh *em = mesh->edit_mesh;
+    BMEditMesh *em = mesh->runtime->edit_mesh.get();
     int shape;
 
     if (em->bm->totvertsel == 0) {
       continue;
     }
 
-    if (ED_object_edit_report_if_shape_key_is_locked(obedit, op->reports)) {
+    if (blender::ed::object::shape_key_report_if_locked(obedit, op->reports)) {
       tot_locked++;
       continue;
     }
@@ -4393,7 +4394,7 @@ static Base *mesh_separate_tagged(
 
   /* Take into account user preferences for duplicating actions. */
   const eDupli_ID_Flags dupflag = eDupli_ID_Flags(USER_DUP_MESH | (U.dupflag & USER_DUP_ACT));
-  Base *base_new = ED_object_add_duplicate(bmain, scene, view_layer, base_old, dupflag);
+  Base *base_new = blender::ed::object::add_duplicate(bmain, scene, view_layer, base_old, dupflag);
 
   /* normally would call directly after but in this case delay recalc */
   // DAG_relations_tag_update(bmain);
@@ -4405,7 +4406,7 @@ static Base *mesh_separate_tagged(
                                    *BKE_object_material_len_p(obedit),
                                    false);
 
-  ED_object_base_select(base_new, BA_SELECT);
+  blender::ed::object::base_select(base_new, blender::ed::object::BA_SELECT);
 
   BMO_op_callf(bm_old,
                (BMO_FLAG_DEFAULTS & ~BMO_FLAG_RESPECT_HIDE),
@@ -4429,7 +4430,7 @@ static Base *mesh_separate_tagged(
   BM_mesh_bm_to_me(bmain, bm_new, static_cast<Mesh *>(base_new->object->data), &to_mesh_params);
 
   BM_mesh_free(bm_new);
-  ((Mesh *)base_new->object->data)->edit_mesh = nullptr;
+  ((Mesh *)base_new->object->data)->runtime->edit_mesh = nullptr;
 
   return base_new;
 }
@@ -4469,7 +4470,7 @@ static Base *mesh_separate_arrays(Main *bmain,
 
   /* Take into account user preferences for duplicating actions. */
   const eDupli_ID_Flags dupflag = eDupli_ID_Flags(USER_DUP_MESH | (U.dupflag & USER_DUP_ACT));
-  Base *base_new = ED_object_add_duplicate(bmain, scene, view_layer, base_old, dupflag);
+  Base *base_new = blender::ed::object::add_duplicate(bmain, scene, view_layer, base_old, dupflag);
 
   /* normally would call directly after but in this case delay recalc */
   // DAG_relations_tag_update(bmain);
@@ -4481,7 +4482,7 @@ static Base *mesh_separate_arrays(Main *bmain,
                                    *BKE_object_material_len_p(obedit),
                                    false);
 
-  ED_object_base_select(base_new, BA_SELECT);
+  blender::ed::object::base_select(base_new, blender::ed::object::BA_SELECT);
 
   BM_mesh_copy_arrays(bm_old, bm_new, verts, verts_len, edges, edges_len, faces, faces_len);
 
@@ -4496,7 +4497,7 @@ static Base *mesh_separate_arrays(Main *bmain,
   BM_mesh_bm_to_me(bmain, bm_new, static_cast<Mesh *>(base_new->object->data), &to_mesh_params);
 
   BM_mesh_free(bm_new);
-  ((Mesh *)base_new->object->data)->edit_mesh = nullptr;
+  ((Mesh *)base_new->object->data)->runtime->edit_mesh = nullptr;
 
   return base_new;
 }
@@ -5108,15 +5109,14 @@ static int edbm_fill_grid_exec(bContext *C, wmOperator *op)
 
     Object *obedit = objects[ob_index];
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
+    if (em->bm->totedgesel == 0) {
+      continue;
+    }
 
     bool use_prepare = true;
     const bool use_smooth = edbm_add_edge_face__smooth_get(em->bm);
     const int totedge_orig = em->bm->totedge;
     const int totface_orig = em->bm->totface;
-
-    if (em->bm->totedgesel == 0) {
-      continue;
-    }
 
     if (use_prepare) {
       /* use when we have a single loop selected */
@@ -5500,8 +5500,6 @@ static int edbm_quads_convert_to_tris_exec(bContext *C, wmOperator *op)
     BMOIter oiter;
     BMFace *f;
 
-    BM_custom_loop_normals_to_vector_layer(em->bm);
-
     EDBM_op_init(em,
                  &bmop,
                  op,
@@ -5525,8 +5523,6 @@ static int edbm_quads_convert_to_tris_exec(bContext *C, wmOperator *op)
     if (!EDBM_op_finish(em, &bmop, op, true)) {
       continue;
     }
-
-    BM_custom_loop_normals_from_vector_layer(em->bm, false);
 
     EDBMUpdate_Params params{};
     params.calc_looptris = true;
@@ -5684,7 +5680,7 @@ static void join_triangle_props(wmOperatorType *ot)
   RNA_def_property_float_default(prop, DEG2RADF(40.0f));
 
   RNA_def_boolean(ot->srna, "uvs", false, "Compare UVs", "");
-  RNA_def_boolean(ot->srna, "vcols", false, "Compare VCols", "");
+  RNA_def_boolean(ot->srna, "vcols", false, "Compare Color Attributes", "");
   RNA_def_boolean(ot->srna, "seam", false, "Compare Seam", "");
   RNA_def_boolean(ot->srna, "sharp", false, "Compare Sharp", "");
   RNA_def_boolean(ot->srna, "materials", false, "Compare Materials", "");
@@ -6608,7 +6604,7 @@ static void sort_bmelem_flag(bContext *C,
     int coidx = (action == SRT_VIEW_ZAXIS) ? 2 : 0;
 
     /* Apply the view matrix to the object matrix. */
-    mul_m4_m4m4(mat, rv3d->viewmat, ob->object_to_world);
+    mul_m4_m4m4(mat, rv3d->viewmat, ob->object_to_world().ptr());
 
     if (totelem[0]) {
       pb = pblock[0] = static_cast<char *>(MEM_callocN(sizeof(char) * totelem[0], __func__));
@@ -6680,7 +6676,7 @@ static void sort_bmelem_flag(bContext *C,
 
     copy_v3_v3(cur, scene->cursor.location);
 
-    invert_m4_m4(mat, ob->object_to_world);
+    invert_m4_m4(mat, ob->object_to_world().ptr());
     mul_m4_v3(mat, cur);
 
     if (totelem[0]) {
@@ -7894,7 +7890,7 @@ static int mesh_symmetry_snap_exec(bContext *C, wmOperator *op)
       continue;
     }
 
-    if (ED_object_edit_report_if_shape_key_is_locked(obedit, op->reports)) {
+    if (blender::ed::object::shape_key_report_if_locked(obedit, op->reports)) {
       continue;
     }
 
@@ -8352,41 +8348,33 @@ static void point_normals_cancel(bContext *C, wmOperator *op)
 
 static void point_normals_update_header(bContext *C, wmOperator *op)
 {
-  char header[UI_MAX_DRAW_STR];
-  char buf[UI_MAX_DRAW_STR];
+  auto get_modal_key_str = [&](int id) {
+    return WM_modalkeymap_operator_items_to_string(op->type, id, true).value_or("");
+  };
 
-  char *p = buf;
-  int available_len = sizeof(buf);
+  const std::string header = fmt::format(
+      IFACE_("{}: confirm, {}: cancel, "
+             "{}: point to mouse ({}), {}: point to Pivot, "
+             "{}: point to object origin, {}: reset normals, "
+             "{}: set & point to 3D cursor, {}: select & point to mesh item, "
+             "{}: invert normals ({}), {}: spherize ({}), {}: align ({})"),
+      get_modal_key_str(EDBM_CLNOR_MODAL_CONFIRM),
+      get_modal_key_str(EDBM_CLNOR_MODAL_CANCEL),
+      get_modal_key_str(EDBM_CLNOR_MODAL_POINTTO_USE_MOUSE),
+      WM_bool_as_string(RNA_enum_get(op->ptr, "mode") == EDBM_CLNOR_POINTTO_MODE_MOUSE),
+      get_modal_key_str(EDBM_CLNOR_MODAL_POINTTO_USE_PIVOT),
+      get_modal_key_str(EDBM_CLNOR_MODAL_POINTTO_USE_OBJECT),
+      get_modal_key_str(EDBM_CLNOR_MODAL_POINTTO_RESET),
+      get_modal_key_str(EDBM_CLNOR_MODAL_POINTTO_SET_USE_3DCURSOR),
+      get_modal_key_str(EDBM_CLNOR_MODAL_POINTTO_SET_USE_SELECTED),
+      get_modal_key_str(EDBM_CLNOR_MODAL_POINTTO_INVERT),
+      WM_bool_as_string(RNA_boolean_get(op->ptr, "invert")),
+      get_modal_key_str(EDBM_CLNOR_MODAL_POINTTO_SPHERIZE),
+      WM_bool_as_string(RNA_boolean_get(op->ptr, "spherize")),
+      get_modal_key_str(EDBM_CLNOR_MODAL_POINTTO_ALIGN),
+      WM_bool_as_string(RNA_boolean_get(op->ptr, "align")));
 
-#define WM_MODALKEY(_id) \
-  WM_modalkeymap_operator_items_to_string_buf( \
-      op->type, (_id), true, UI_MAX_SHORTCUT_STR, &available_len, &p)
-
-  SNPRINTF(header,
-           IFACE_("%s: confirm, %s: cancel, "
-                  "%s: point to mouse (%s), %s: point to Pivot, "
-                  "%s: point to object origin, %s: reset normals, "
-                  "%s: set & point to 3D cursor, %s: select & point to mesh item, "
-                  "%s: invert normals (%s), %s: spherize (%s), %s: align (%s)"),
-           WM_MODALKEY(EDBM_CLNOR_MODAL_CONFIRM),
-           WM_MODALKEY(EDBM_CLNOR_MODAL_CANCEL),
-           WM_MODALKEY(EDBM_CLNOR_MODAL_POINTTO_USE_MOUSE),
-           WM_bool_as_string(RNA_enum_get(op->ptr, "mode") == EDBM_CLNOR_POINTTO_MODE_MOUSE),
-           WM_MODALKEY(EDBM_CLNOR_MODAL_POINTTO_USE_PIVOT),
-           WM_MODALKEY(EDBM_CLNOR_MODAL_POINTTO_USE_OBJECT),
-           WM_MODALKEY(EDBM_CLNOR_MODAL_POINTTO_RESET),
-           WM_MODALKEY(EDBM_CLNOR_MODAL_POINTTO_SET_USE_3DCURSOR),
-           WM_MODALKEY(EDBM_CLNOR_MODAL_POINTTO_SET_USE_SELECTED),
-           WM_MODALKEY(EDBM_CLNOR_MODAL_POINTTO_INVERT),
-           WM_bool_as_string(RNA_boolean_get(op->ptr, "invert")),
-           WM_MODALKEY(EDBM_CLNOR_MODAL_POINTTO_SPHERIZE),
-           WM_bool_as_string(RNA_boolean_get(op->ptr, "spherize")),
-           WM_MODALKEY(EDBM_CLNOR_MODAL_POINTTO_ALIGN),
-           WM_bool_as_string(RNA_boolean_get(op->ptr, "align")));
-
-#undef WM_MODALKEY
-
-  ED_area_status_text(CTX_wm_area(C), header);
+  ED_area_status_text(CTX_wm_area(C), header.c_str());
 }
 
 /* TODO: move that to generic function in BMesh? */
@@ -8556,7 +8544,7 @@ static int edbm_point_normals_modal(bContext *C, wmOperator *op, const wmEvent *
         params.sel_op = SEL_OP_SET;
         if (EDBM_select_pick(C, event->mval, &params)) {
           /* Point to newly selected active. */
-          ED_object_calc_active_center_for_editmode(obedit, false, target);
+          blender::ed::object::calc_active_center_for_editmode(obedit, false, target);
 
           add_v3_v3(target, obedit->loc);
           ret = OPERATOR_RUNNING_MODAL;
@@ -8601,7 +8589,7 @@ static int edbm_point_normals_modal(bContext *C, wmOperator *op, const wmEvent *
             break;
 
           case V3D_AROUND_ACTIVE:
-            if (!ED_object_calc_active_center_for_editmode(obedit, false, target)) {
+            if (!blender::ed::object::calc_active_center_for_editmode(obedit, false, target)) {
               zero_v3(target);
             }
             add_v3_v3(target, obedit->loc);
@@ -9208,12 +9196,13 @@ static bool average_normals_draw_check_prop(PointerRNA *ptr,
   const char *prop_id = RNA_property_identifier(prop);
   const int average_type = RNA_enum_get(ptr, "average_type");
 
-  /* Only show weight/threshold options in loop average type. */
+  /* Only show weight/threshold options when not in loop average type. */
+  const bool is_clor_average_loop = average_type == EDBM_CLNOR_AVERAGE_LOOP;
   if (STREQ(prop_id, "weight")) {
-    return (average_type == EDBM_CLNOR_AVERAGE_LOOP);
+    return !is_clor_average_loop;
   }
   if (STREQ(prop_id, "threshold")) {
-    return (average_type == EDBM_CLNOR_AVERAGE_LOOP);
+    return !is_clor_average_loop;
   }
 
   /* Else, show it! */
@@ -9518,7 +9507,7 @@ void MESH_OT_normals_tools(wmOperatorType *ot)
                   "absolute",
                   false,
                   "Absolute Coordinates",
-                  "Copy Absolute coordinates or Normal vector");
+                  "Copy Absolute coordinates of Normal vector");
 }
 
 /** \} */

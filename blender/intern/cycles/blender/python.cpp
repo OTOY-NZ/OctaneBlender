@@ -26,7 +26,7 @@
 #include "util/tbb.h"
 #include "util/types.h"
 
-#include "GPU_state.h"
+#include "GPU_state.hh"
 
 #ifdef WITH_OSL
 #  include "scene/osl.h"
@@ -65,8 +65,7 @@ static void debug_flags_sync_from_scene(BL::Scene b_scene)
   PointerRNA cscene = RNA_pointer_get(&b_scene.ptr, "cycles");
   /* Synchronize CPU flags. */
   flags.cpu.avx2 = get_boolean(cscene, "debug_use_cpu_avx2");
-  flags.cpu.sse41 = get_boolean(cscene, "debug_use_cpu_sse41");
-  flags.cpu.sse2 = get_boolean(cscene, "debug_use_cpu_sse2");
+  flags.cpu.sse42 = get_boolean(cscene, "debug_use_cpu_sse42");
   flags.cpu.bvh_layout = (BVHLayout)get_enum(cscene, "debug_bvh_layout");
   /* Synchronize CUDA flags. */
   flags.cuda.adaptive_compile = get_boolean(cscene, "debug_use_cuda_adaptive_compile");
@@ -417,7 +416,7 @@ static PyObject *available_devices_func(PyObject * /*self*/, PyObject *args)
   for (size_t i = 0; i < devices.size(); i++) {
     DeviceInfo &device = devices[i];
     string type_name = Device::string_from_type(device.type);
-    PyObject *device_tuple = PyTuple_New(6);
+    PyObject *device_tuple = PyTuple_New(7);
     PyTuple_SET_ITEM(device_tuple, 0, pyunicode_from_string(device.description.c_str()));
     PyTuple_SET_ITEM(device_tuple, 1, pyunicode_from_string(type_name.c_str()));
     PyTuple_SET_ITEM(device_tuple, 2, pyunicode_from_string(device.id.c_str()));
@@ -425,6 +424,7 @@ static PyObject *available_devices_func(PyObject * /*self*/, PyObject *args)
     PyTuple_SET_ITEM(device_tuple, 4, PyBool_FromLong(device.use_hardware_raytracing));
     PyTuple_SET_ITEM(
         device_tuple, 5, PyBool_FromLong(device.denoisers & DENOISER_OPENIMAGEDENOISE));
+    PyTuple_SET_ITEM(device_tuple, 6, PyBool_FromLong(device.denoisers & DENOISER_OPTIX));
     PyTuple_SET_ITEM(ret, i, device_tuple);
   }
 
@@ -615,14 +615,12 @@ static PyObject *osl_update_node_func(PyObject * /*self*/, PyObject *args)
 
     if (!found_existing) {
       /* Create new socket. */
-      BL::NodeSocket b_sock = (param->isoutput) ? b_node.outputs.create(b_data,
-                                                                        socket_type.c_str(),
-                                                                        param_label.c_str(),
-                                                                        param->name.c_str()) :
-                                                  b_node.inputs.create(b_data,
-                                                                       socket_type.c_str(),
-                                                                       param_label.c_str(),
-                                                                       param->name.c_str());
+      BL::NodeSocket b_sock =
+          (param->isoutput) ?
+              b_node.outputs.create(
+                  b_data, socket_type.c_str(), param_label.c_str(), param->name.c_str(), false) :
+              b_node.inputs.create(
+                  b_data, socket_type.c_str(), param_label.c_str(), param->name.c_str(), false);
 
       /* set default value */
       if (data_type == BL::NodeSocket::type_VALUE) {
@@ -754,14 +752,17 @@ static PyObject *denoise_func(PyObject * /*self*/, PyObject *args, PyObject *key
   PointerRNA sceneptr = RNA_id_pointer_create((ID *)PyLong_AsVoidPtr(pyscene));
   BL::Scene b_scene(sceneptr);
 
-  DeviceInfo device = blender_device_info(b_preferences, b_scene, true, true);
+  DeviceInfo preferences_device;
+  DeviceInfo pathtrace_device = blender_device_info(
+      b_preferences, b_scene, true, true, preferences_device);
 
   /* Get denoising parameters from view layer. */
   PointerRNA viewlayerptr = RNA_pointer_create(
       (ID *)PyLong_AsVoidPtr(pyscene), &RNA_ViewLayer, PyLong_AsVoidPtr(pyviewlayer));
   BL::ViewLayer b_view_layer(viewlayerptr);
 
-  DenoiseParams params = BlenderSync::get_denoise_params(b_scene, b_view_layer, true, device);
+  DenoiseParams params = BlenderSync::get_denoise_params(
+      b_scene, b_view_layer, true, preferences_device);
   params.use = true;
 
   /* Parse file paths list. */
@@ -790,7 +791,10 @@ static PyObject *denoise_func(PyObject * /*self*/, PyObject *args, PyObject *key
   }
 
   /* Create denoiser. */
-  DenoiserPipeline denoiser(device, params);
+  /* We are using preference device here, because path trace device will be identical to it unless
+   * scene is setting CPU render or command line override render device. But both of this options
+   * are for render, not for denoising. */
+  DenoiserPipeline denoiser(preferences_device, params);
   denoiser.input = input;
   denoiser.output = output;
 

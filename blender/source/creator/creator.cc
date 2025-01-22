@@ -12,6 +12,9 @@
 #ifdef WIN32
 #  include "utfconv.hh"
 #  include <windows.h>
+#  ifdef WITH_CPU_CHECK
+#    pragma comment(linker, "/include:cpu_check_win32")
+#  endif
 #endif
 
 #if defined(WITH_TBB_MALLOC) && defined(_MSC_VER) && defined(NDEBUG)
@@ -33,18 +36,18 @@
 
 /* Mostly initialization functions. */
 #include "BKE_appdir.hh"
-#include "BKE_blender.h"
+#include "BKE_blender.hh"
 #include "BKE_brush.hh"
-#include "BKE_cachefile.h"
-#include "BKE_callbacks.h"
+#include "BKE_cachefile.hh"
+#include "BKE_callbacks.hh"
 #include "BKE_context.hh"
 #include "BKE_cpp_types.hh"
-#include "BKE_global.h"
+#include "BKE_global.hh"
 #include "BKE_gpencil_modifier_legacy.h"
 #include "BKE_idtype.hh"
 #include "BKE_material.h"
 #include "BKE_modifier.hh"
-#include "BKE_node.h"
+#include "BKE_node.hh"
 #include "BKE_particle.h"
 #include "BKE_shader_fx.h"
 #include "BKE_sound.h"
@@ -65,9 +68,10 @@
 #include "ED_datafiles.h"
 
 #include "WM_api.hh"
-#include "WM_toolsystem.hh"
 
 #include "RNA_define.hh"
+
+#include "GPU_compilation_subprocess.hh"
 
 #ifdef WITH_FREESTYLE
 #  include "FRS_freestyle.h"
@@ -113,12 +117,13 @@
 /** \name Local Application State
  * \{ */
 
-/* written to by 'creator_args.c' */
+/* Written to by `creator_args.cc`. */
 ApplicationState app_state = []() {
   ApplicationState app_state{};
   app_state.signal.use_crash_handler = true;
   app_state.signal.use_abort_handler = true;
   app_state.exit_code_on_error.python = 0;
+  app_state.main_arg_deferred = nullptr;
   return app_state;
 }();
 
@@ -278,7 +283,6 @@ int main(int argc,
 )
 {
   bContext *C;
-
 #ifndef WITH_PYTHON_MODULE
   bArgs *ba;
 #endif
@@ -287,8 +291,6 @@ int main(int argc,
   char **argv;
   int argv_num;
 #endif
-
-  /* --- end declarations --- */
 
   /* Ensure we free data on early-exit. */
   CreatorAtExitData app_init_data = {nullptr};
@@ -313,7 +315,7 @@ int main(int argc,
   /* Win32 Unicode Arguments. */
   {
     /* NOTE: Can't use `guardedalloc` allocation here, as it's not yet initialized
-     * (it depends on the arguments passed in, which is what we're getting here!) */
+     * (it depends on the arguments passed in, which is what we're getting here!). */
     wchar_t **argv_16 = CommandLineToArgvW(GetCommandLineW(), &argc);
     argv = static_cast<char **>(malloc(argc * sizeof(char *)));
     for (argv_num = 0; argv_num < argc; argv_num++) {
@@ -321,12 +323,20 @@ int main(int argc,
     }
     LocalFree(argv_16);
 
-    /* free on early-exit */
+    /* Free on early-exit. */
     app_init_data.argv = argv;
     app_init_data.argv_num = argv_num;
   }
 #  endif /* USE_WIN32_UNICODE_ARGS */
 #endif   /* WIN32 */
+
+#if defined(WITH_OPENGL_BACKEND) && BLI_SUBPROCESS_SUPPORT
+  if (strcmp(argv[0], "--compilation-subprocess") == 0) {
+    BLI_assert(argc == 2);
+    GPU_compilation_subprocess_run(argv[1]);
+    return 0;
+  }
+#endif
 
   /* NOTE: Special exception for guarded allocator type switch:
    *       we need to perform switch from lock-free to fully
@@ -340,7 +350,7 @@ int main(int argc,
         MEM_use_guarded_allocator();
         break;
       }
-      if (STREQ(argv[i], "--")) {
+      if (STR_ELEM(argv[i], "--", "--command")) {
         break;
       }
     }
@@ -349,8 +359,8 @@ int main(int argc,
 
 #ifdef BUILD_DATE
   {
-    time_t temp_time = build_commit_timestamp;
-    tm *tm = gmtime(&temp_time);
+    const time_t temp_time = build_commit_timestamp;
+    const tm *tm = gmtime(&temp_time);
     if (LIKELY(tm)) {
       strftime(build_commit_date, sizeof(build_commit_date), "%Y-%m-%d", tm);
       strftime(build_commit_time, sizeof(build_commit_time), "%H:%M", tm);
@@ -399,7 +409,7 @@ int main(int argc,
   main_callback_setup();
 
 #if defined(__APPLE__) && !defined(WITH_PYTHON_MODULE) && !defined(WITH_HEADLESS)
-  /* Patch to ignore argument finder gives us (PID?) */
+  /* Patch to ignore argument finder gives us (PID?). */
   if (argc == 2 && STRPREFIX(argv[1], "-psn_")) {
     static char firstfilebuf[512];
 
@@ -439,9 +449,9 @@ int main(int argc,
 
   BKE_callback_global_init();
 
-/* First test for background-mode (#Global.background) */
+/* First test for background-mode (#Global.background). */
 #ifndef WITH_PYTHON_MODULE
-  ba = BLI_args_create(argc, (const char **)argv); /* skip binary path */
+  ba = BLI_args_create(argc, (const char **)argv); /* Skip binary path. */
 
   /* Ensure we free on early exit. */
   app_init_data.ba = ba;
@@ -493,7 +503,7 @@ int main(int argc,
   RNA_init();
 
   RE_engines_init();
-  BKE_node_system_init();
+  blender::bke::BKE_node_system_init();
   BKE_particle_init_rng();
   /* End second initialization. */
 
@@ -536,7 +546,7 @@ int main(int argc,
   FRS_set_context(C);
 #endif
 
-/* OK we are ready for it */
+/* OK we are ready for it. */
 #ifndef WITH_PYTHON_MODULE
   /* Handles #ARG_PASS_FINAL. */
   BLI_args_parse(ba, ARG_PASS_FINAL, main_args_handle_load_file, C);
@@ -565,10 +575,21 @@ int main(int argc,
 
 #ifndef WITH_PYTHON_MODULE
   if (G.background) {
+    int exit_code;
+    if (app_state.main_arg_deferred != nullptr) {
+      exit_code = main_arg_deferred_handle();
+      main_arg_deferred_free();
+    }
+    else {
+      exit_code = G.is_break ? EXIT_FAILURE : EXIT_SUCCESS;
+    }
     /* Using window-manager API in background-mode is a bit odd, but works fine. */
-    WM_exit(C, G.is_break ? EXIT_FAILURE : EXIT_SUCCESS);
+    WM_exit(C, exit_code);
   }
   else {
+    /* Not supported, although it could be made to work if needed. */
+    BLI_assert(app_state.main_arg_deferred == nullptr);
+
     /* Shows the splash as needed. */
     WM_init_splash_on_startup(C);
 

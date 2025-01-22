@@ -14,7 +14,6 @@
 #pragma BLENDER_REQUIRE(draw_view_lib.glsl)
 #pragma BLENDER_REQUIRE(eevee_surf_lib.glsl)
 #pragma BLENDER_REQUIRE(eevee_nodetree_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_transparency_lib.glsl)
 #pragma BLENDER_REQUIRE(eevee_sampling_lib.glsl)
 #pragma BLENDER_REQUIRE(eevee_shadow_tilemap_lib.glsl)
 
@@ -25,22 +24,38 @@ vec4 closure_to_rgba(Closure cl)
 
 void main()
 {
+  float ndc_depth = gl_FragCoord.z;
+  float linear_depth = length(shadow_clip.position);
+
+#ifdef SHADOW_UPDATE_TBDR
+/* We need to write to `gl_FragDepth` un-conditionally. So we cannot early exit or use discard. */
+#  define discard_result \
+    linear_depth = FLT_MAX; \
+    ndc_depth = 1.0;
+#else
+#  define discard_result \
+    discard; \
+    return;
+#endif
+
+  /* Clip to light shape. */
+  if (length_squared(shadow_clip.vector) < 1.0) {
+    discard_result;
+  }
+
 #ifdef MAT_TRANSPARENT
   init_globals();
 
-  nodetree_surface();
+  nodetree_surface(0.0);
 
   float noise_offset = sampling_rng_1D_get(SAMPLING_TRANSPARENCY);
-  float random_threshold = transparency_hashed_alpha_threshold(1.0, noise_offset, g_data.P);
+  float random_threshold = pcg4d(vec4(g_data.P, noise_offset)).x;
 
   float transparency = average(g_transmittance);
   if (transparency > random_threshold) {
-    discard;
-    return;
+    discard_result;
   }
 #endif
-
-  float f_depth = gl_FragCoord.z + fwidth(gl_FragCoord.z);
 
 #ifdef SHADOW_UPDATE_ATOMIC_RASTER
   ivec2 texel_co = ivec2(gl_FragCoord.xy);
@@ -58,17 +73,20 @@ void main()
   uint page_packed = render_map_buf[render_page_index];
 
   ivec3 page = ivec3(shadow_page_unpack(page_packed));
+  /* If the page index is invalid this page shouldn't be rendered,
+   * however shadow_page_unpack clamps the result to a valid page.
+   * Instead of doing an early return (and introducing branching),
+   * we simply ensure the page layer is out-of-bounds. */
+  page.z = page_packed < SHADOW_MAX_PAGE ? page.z : -1;
+
   ivec3 out_texel = ivec3((page.xy << page_shift) | texel_page, page.z);
 
-  uint u_depth = floatBitsToUint(f_depth);
-  /* Quantization bias. Equivalent to `nextafter()` in C without all the safety. */
-  u_depth += 2;
+  uint u_depth = floatBitsToUint(linear_depth);
   imageAtomicMin(shadow_atlas_img, out_texel, u_depth);
 #endif
 
 #ifdef SHADOW_UPDATE_TBDR
-  /* Store output depth in tile memory using F32 attachment. NOTE: As depth testing is enabled,
-   * only the closest fragment will store the result. */
-  out_depth = f_depth;
+  gl_FragDepth = ndc_depth;
+  out_depth = linear_depth;
 #endif
 }

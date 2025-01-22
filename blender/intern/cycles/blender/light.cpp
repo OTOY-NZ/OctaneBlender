@@ -114,7 +114,7 @@ void BlenderSync::sync_light(BL::Object &b_parent,
 
   /* shadow */
   PointerRNA clight = RNA_pointer_get(&b_light.ptr, "cycles");
-  light->set_cast_shadow(get_boolean(clight, "cast_shadow"));
+  light->set_cast_shadow(b_light.use_shadow());
   light->set_use_mis(get_boolean(clight, "use_multiple_importance_sampling"));
 
   /* caustics light */
@@ -166,7 +166,7 @@ void BlenderSync::sync_light(BL::Object &b_parent,
 
 void BlenderSync::sync_background_light(BL::SpaceView3D &b_v3d, bool use_portal)
 {
-  BL::World b_world = b_scene.world();
+  BL::World b_world = view_layer.world_override ? view_layer.world_override : b_scene.world();
 
   if (b_world) {
     PointerRNA cworld = RNA_pointer_get(&b_world.ptr, "cycles");

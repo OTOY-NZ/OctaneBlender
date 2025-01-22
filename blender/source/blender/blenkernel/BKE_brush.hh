@@ -10,6 +10,7 @@
  * General operations for brushes.
  */
 
+#include "DNA_brush_enums.h"
 #include "DNA_color_types.h"
 #include "DNA_object_enums.h"
 
@@ -74,8 +75,8 @@ void BKE_brush_gpencil_sculpt_presets(Main *bmain, ToolSettings *ts, bool reset)
 void BKE_brush_gpencil_weight_presets(Main *bmain, ToolSettings *ts, bool reset);
 void BKE_gpencil_brush_preset_set(Main *bmain, Brush *brush, short type);
 
-void BKE_brush_jitter_pos(const Scene *scene,
-                          Brush *brush,
+void BKE_brush_jitter_pos(const Scene &scene,
+                          const Brush &brush,
                           const float pos[2],
                           float jitterpos[2]);
 void BKE_brush_randomize_texture_coords(UnifiedPaintSettings *ups, bool mask);
@@ -93,6 +94,10 @@ float BKE_brush_curve_strength_clamped(const Brush *br, float p, float len);
 /**
  * Uses the brush curve control to find a strength value.
  */
+float BKE_brush_curve_strength(eBrushCurvePreset preset,
+                               const CurveMapping *cumap,
+                               float distance,
+                               float brush_radius);
 float BKE_brush_curve_strength(const Brush *br, float p, float len);
 
 /* Sampling. */

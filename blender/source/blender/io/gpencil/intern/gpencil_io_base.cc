@@ -24,7 +24,7 @@
 #include "BKE_layer.hh"
 #include "BKE_main.hh"
 #include "BKE_material.h"
-#include "BKE_scene.h"
+#include "BKE_scene.hh"
 
 #include "UI_view2d.hh"
 
@@ -79,7 +79,7 @@ void GpencilIO::prepare_camera_params(Scene *scene, const GpencilIOParams *ipara
     BKE_camera_params_compute_viewplane(&params, rd->xsch, rd->ysch, rd->xasp, rd->yasp);
     BKE_camera_params_compute_matrix(&params);
 
-    float4x4 viewmat = math::invert(float4x4(cam_ob->object_to_world));
+    float4x4 viewmat = math::invert(cam_ob->object_to_world());
 
     persmat_ = float4x4(params.winmat) * viewmat;
   }
@@ -149,7 +149,7 @@ void GpencilIO::create_object_list()
       continue;
     }
 
-    float3 object_position = float3(object->object_to_world[3]);
+    float3 object_position = float3(object->object_to_world().location());
 
     /* Save z-depth from view to sort from back to front. */
     if (is_camera_) {
@@ -159,16 +159,14 @@ void GpencilIO::create_object_list()
     }
     else {
       float zdepth = 0;
-      if (rv3d_) {
-        if (rv3d_->is_persp) {
-          zdepth = ED_view3d_calc_zfac(rv3d_, object_position);
-        }
-        else {
-          zdepth = -math::dot(camera_z_axis, object_position);
-        }
-        ObjectZ obz = {zdepth * -1.0f, object};
-        ob_list_.append(obz);
+      if (rv3d_->is_persp) {
+        zdepth = ED_view3d_calc_zfac(rv3d_, object_position);
       }
+      else {
+        zdepth = -math::dot(camera_z_axis, object_position);
+      }
+      ObjectZ obz = {zdepth * -1.0f, object};
+      ob_list_.append(obz);
     }
   }
   /* Sort list of objects from point of view. */
@@ -253,14 +251,14 @@ float2 GpencilIO::gpencil_3D_point_to_2D(const float3 co)
   return result;
 }
 
-float GpencilIO::stroke_point_radius_get(bGPDlayer *gpl, bGPDstroke *gps)
+float GpencilIO::stroke_point_radius_get(bGPdata *gpd, bGPDlayer *gpl, bGPDstroke *gps)
 {
   bGPDspoint *pt = &gps->points[0];
   const float2 screen_co = gpencil_3D_point_to_2D(&pt->x);
 
   /* Radius. */
   bGPDstroke *gps_perimeter = BKE_gpencil_stroke_perimeter_from_view(
-      rv3d_->viewmat, gpd_, gpl, gps, 3, diff_mat_.ptr(), 0.0f);
+      rv3d_->viewmat, gpd, gpl, gps, 3, diff_mat_.ptr(), 0.0f);
 
   pt = &gps_perimeter->points[0];
   const float2 screen_ex = gpencil_3D_point_to_2D(&pt->x);

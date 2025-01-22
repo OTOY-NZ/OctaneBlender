@@ -10,26 +10,20 @@
 #include "BLI_math_matrix.h"
 #include "BLI_task.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
-#include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 
 #include "BKE_bvhutils.hh"
-#include "BKE_context.hh"
 #include "BKE_deform.hh"
-#include "BKE_editmesh.hh"
-#include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_mesh.hh"
-#include "BKE_mesh_runtime.hh"
 #include "BKE_mesh_wrapper.hh"
 #include "BKE_modifier.hh"
-#include "BKE_screen.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
@@ -40,7 +34,6 @@
 #include "RNA_prototypes.h"
 
 #include "DEG_depsgraph.hh"
-#include "DEG_depsgraph_query.hh"
 
 #include "MEM_guardedalloc.h"
 
@@ -1469,8 +1462,8 @@ static void surfacedeformModifier_do(ModifierData *md,
         ob, md);
     float tmp_mat[4][4];
 
-    invert_m4_m4(tmp_mat, ob->object_to_world);
-    mul_m4_m4m4(smd_orig->mat, tmp_mat, ob_target->object_to_world);
+    invert_m4_m4(tmp_mat, ob->object_to_world().ptr());
+    mul_m4_m4m4(smd_orig->mat, tmp_mat, ob_target->object_to_world().ptr());
 
     /* Avoid converting edit-mesh data, binding is an exception. */
     BKE_mesh_wrapper_ensure_mdata(target);
@@ -1688,11 +1681,11 @@ static void blend_read(BlendDataReader *reader, ModifierData *md)
 {
   SurfaceDeformModifierData *smd = (SurfaceDeformModifierData *)md;
 
-  BLO_read_data_address(reader, &smd->verts);
+  BLO_read_struct_array(reader, SDefVert, smd->bind_verts_num, &smd->verts);
 
   if (smd->verts) {
     for (int i = 0; i < smd->bind_verts_num; i++) {
-      BLO_read_data_address(reader, &smd->verts[i].binds);
+      BLO_read_struct_array(reader, SDefBind, smd->verts[i].binds_num, &smd->verts[i].binds);
 
       if (smd->verts[i].binds) {
         for (int j = 0; j < smd->verts[i].binds_num; j++) {

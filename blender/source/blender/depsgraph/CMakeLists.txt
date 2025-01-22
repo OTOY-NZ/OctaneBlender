@@ -4,6 +4,7 @@
 
 set(INC
   PUBLIC .
+  ../animrig
   ../blenkernel
   ../bmesh
   ../draw
@@ -43,6 +44,7 @@ set(SRC
   intern/builder/pipeline.cc
   intern/builder/pipeline_all_objects.cc
   intern/builder/pipeline_compositor.cc
+  intern/builder/pipeline_from_collection.cc
   intern/builder/pipeline_from_ids.cc
   intern/builder/pipeline_render.cc
   intern/builder/pipeline_view_layer.cc
@@ -114,6 +116,7 @@ set(SRC
   intern/builder/pipeline.h
   intern/builder/pipeline_all_objects.h
   intern/builder/pipeline_compositor.h
+  intern/builder/pipeline_from_collection.h
   intern/builder/pipeline_from_ids.h
   intern/builder/pipeline_render.h
   intern/builder/pipeline_view_layer.h
@@ -163,6 +166,10 @@ if(WITH_PYTHON)
   list(APPEND INC
     ../python
   )
+endif()
+
+if(WITH_EXPERIMENTAL_FEATURES)
+  add_definitions(-DWITH_ANIM_BAKLAVA)
 endif()
 
 blender_add_lib(bf_depsgraph "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

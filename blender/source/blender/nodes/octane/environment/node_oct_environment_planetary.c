@@ -27,7 +27,7 @@
 
 #include "node_shader_util.hh"
 
-static bNodeSocketTemplate node_in[] = {{SOCK_VECTOR,
+static blender::bke::bNodeSocketTemplate  node_in[] = {{SOCK_VECTOR,
                                          N_("Sun direction"),
                                          0.61775f,
                                          0.7034096f,
@@ -249,11 +249,11 @@ static bNodeSocketTemplate node_in[] = {{SOCK_VECTOR,
                                          SOCK_NO_INTERNAL_LINK},
                                         {-1, ""}};
 
-static bNodeSocketTemplate node_out[] = {{SOCK_SHADER, N_("OutEnv")}, {-1, ""}};
+static blender::bke::bNodeSocketTemplate node_out[] = {{SOCK_SHADER, N_("OutEnv")}, {-1, ""}};
 
 void register_node_type_environment_oct_planetary(void)
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   if (ntype.type != SH_NODE_OCT_PLANETARY_ENVIRONMENT)
     sh_node_type_base(&ntype,
@@ -261,7 +261,7 @@ void register_node_type_environment_oct_planetary(void)
                    "Planetary Environment",
                    NODE_CLASS_OCT_ENVIRONMENT);
   blender::bke::node_type_socket_templates(&ntype, node_in, node_out);
-  node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::DEFAULT);
+  node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Default);
   ntype.initfunc = (0);
   // node_type_exec(&ntype, 0, 0, 0);
   

@@ -11,27 +11,19 @@
 #include "DNA_sequence_types.h"
 #include "DNA_space_types.h"
 
-#include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 
-#include "BKE_context.hh"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 
 #include "SEQ_channels.hh"
 #include "SEQ_iterator.hh"
 #include "SEQ_relations.hh"
 #include "SEQ_sequencer.hh"
-#include "SEQ_time.hh"
 #include "SEQ_transform.hh"
-#include "SEQ_utils.hh"
-
-#include "ED_keyframing.hh"
 
 #include "ANIM_keyframing.hh"
-
-#include "UI_view2d.hh"
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.h"
@@ -171,28 +163,30 @@ static bool autokeyframe_sequencer_image(bContext *C,
   const bool do_loc = tmode == TFM_TRANSLATION || around_cursor;
   const bool do_rot = tmode == TFM_ROTATION;
   const bool do_scale = tmode == TFM_RESIZE;
+  const bool only_when_keyed = blender::animrig::is_keying_flag(scene,
+                                                                AUTOKEY_FLAG_INSERTAVAILABLE);
 
   bool changed = false;
   if (do_rot) {
     prop = RNA_struct_find_property(&ptr, "rotation");
     changed |= blender::animrig::autokeyframe_property(
-        C, scene, &ptr, prop, -1, scene->r.cfra, false);
+        C, scene, &ptr, prop, -1, scene->r.cfra, only_when_keyed);
   }
   if (do_loc) {
     prop = RNA_struct_find_property(&ptr, "offset_x");
     changed |= blender::animrig::autokeyframe_property(
-        C, scene, &ptr, prop, -1, scene->r.cfra, false);
+        C, scene, &ptr, prop, -1, scene->r.cfra, only_when_keyed);
     prop = RNA_struct_find_property(&ptr, "offset_y");
     changed |= blender::animrig::autokeyframe_property(
-        C, scene, &ptr, prop, -1, scene->r.cfra, false);
+        C, scene, &ptr, prop, -1, scene->r.cfra, only_when_keyed);
   }
   if (do_scale) {
     prop = RNA_struct_find_property(&ptr, "scale_x");
     changed |= blender::animrig::autokeyframe_property(
-        C, scene, &ptr, prop, -1, scene->r.cfra, false);
+        C, scene, &ptr, prop, -1, scene->r.cfra, only_when_keyed);
     prop = RNA_struct_find_property(&ptr, "scale_y");
     changed |= blender::animrig::autokeyframe_property(
-        C, scene, &ptr, prop, -1, scene->r.cfra, false);
+        C, scene, &ptr, prop, -1, scene->r.cfra, only_when_keyed);
   }
 
   return changed;
@@ -238,8 +232,13 @@ static void recalcData_sequencer_image(TransInfo *t)
     mul_v2_v2(translation, mirror);
     translation[0] *= t->scene->r.yasp / t->scene->r.xasp;
 
-    transform->xofs = tdseq->orig_translation[0] - translation[0];
-    transform->yofs = tdseq->orig_translation[1] - translation[1];
+    /* Round resulting position to integer pixels. Resulting strip
+     * will more often end up using faster interpolation (without bilinear),
+     * and avoids "text edges are too dark" artifacts with light text strips
+     * on light backgrounds. The latter happens because bilinear filtering
+     * does not do full alpha pre-multiplication. */
+    transform->xofs = roundf(tdseq->orig_translation[0] - translation[0]);
+    transform->yofs = roundf(tdseq->orig_translation[1] - translation[1]);
 
     /* Scale. */
     transform->scale_x = tdseq->orig_scale[0] * fabs(len_v2(handle_x));

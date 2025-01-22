@@ -69,7 +69,7 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 
 static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 {
-  const bNodeType &node_type = params.node_type();
+  const blender::bke::bNodeType &node_type = params.node_type();
   const NodeDeclaration &declaration = *node_type.static_declaration;
 
   /* Weight and Iterations inputs don't change based on the data type. */
@@ -85,7 +85,10 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     return;
   }
   if (fixed_data_type == CD_PROP_QUATERNION) {
-    /* Don't implement quaternion blurring for now. */
+    fixed_data_type = CD_PROP_FLOAT3;
+  }
+  if (fixed_data_type == CD_PROP_FLOAT4X4) {
+    /* Don't implement matrix blurring for now. */
     return;
   }
   if (fixed_data_type == CD_PROP_BOOL) {
@@ -252,6 +255,19 @@ static Span<T> blur_on_mesh_exec(const Span<float> neighbor_weights,
   return dst;
 }
 
+template<typename Func> static void to_static_type_for_blur(const CPPType &type, const Func &func)
+{
+  type.to_static_type_tag<int, float, float3, ColorGeometry4f>([&](auto type_tag) {
+    using T = typename decltype(type_tag)::type;
+    if constexpr (!std::is_same_v<T, void>) {
+      func(T());
+    }
+    else {
+      BLI_assert_unreachable();
+    }
+  });
+}
+
 static GSpan blur_on_mesh(const Mesh &mesh,
                           const AttrDomain domain,
                           const int iterations,
@@ -265,12 +281,10 @@ static GSpan blur_on_mesh(const Mesh &mesh,
       mesh, domain, neighbor_offsets, neighbor_indices);
 
   GSpan result_buffer;
-  bke::attribute_math::convert_to_static_type(buffer_a.type(), [&](auto dummy) {
+  to_static_type_for_blur(buffer_a.type(), [&](auto dummy) {
     using T = decltype(dummy);
-    if constexpr (!std::is_same_v<T, bool>) {
-      result_buffer = blur_on_mesh_exec<T>(
-          neighbor_weights, neighbors_map, iterations, buffer_a.typed<T>(), buffer_b.typed<T>());
-    }
+    result_buffer = blur_on_mesh_exec<T>(
+        neighbor_weights, neighbors_map, iterations, buffer_a.typed<T>(), buffer_b.typed<T>());
   });
   return result_buffer;
 }
@@ -340,12 +354,10 @@ static GSpan blur_on_curves(const bke::CurvesGeometry &curves,
                             const GMutableSpan buffer_b)
 {
   GSpan result_buffer;
-  bke::attribute_math::convert_to_static_type(buffer_a.type(), [&](auto dummy) {
+  to_static_type_for_blur(buffer_a.type(), [&](auto dummy) {
     using T = decltype(dummy);
-    if constexpr (!std::is_same_v<T, bool>) {
-      result_buffer = blur_on_curve_exec<T>(
-          curves, neighbor_weights, iterations, buffer_a.typed<T>(), buffer_b.typed<T>());
-    }
+    result_buffer = blur_on_curve_exec<T>(
+        curves, neighbor_weights, iterations, buffer_a.typed<T>(), buffer_b.typed<T>());
   });
   return result_buffer;
 }
@@ -483,14 +495,14 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
   geo_node_type_base(&ntype, GEO_NODE_BLUR_ATTRIBUTE, "Blur Attribute", NODE_CLASS_ATTRIBUTE);
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
   ntype.draw_buttons = node_layout;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.gather_link_search_ops = node_gather_link_searches;
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

@@ -8,12 +8,12 @@
  * Mimics old style opengl immediate mode drawing.
  */
 
-#include "BKE_global.h"
+#include "BKE_global.hh"
 
-#include "GPU_vertex_format.h"
+#include "GPU_vertex_format.hh"
 #include "gpu_context_private.hh"
 #include "gpu_shader_private.hh"
-#include "gpu_vertex_format_private.h"
+#include "gpu_vertex_format_private.hh"
 
 #include "mtl_context.hh"
 #include "mtl_debug.hh"
@@ -184,7 +184,7 @@ void MTLImmediate::end()
          * - Converting from a normalized short2 format to float2
          * - Type truncation e.g. Float4 to Float2.
          * - Type expansion from Float3 to Float4.
-         * - Note: extra components are filled with the corresponding components of (0,0,0,1).
+         * - NOTE: extra components are filled with the corresponding components of (0,0,0,1).
          * (See
          * https://developer.apple.com/documentation/metal/mtlvertexattributedescriptor/1516081-format)
          */

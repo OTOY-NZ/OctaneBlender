@@ -18,20 +18,16 @@ GaussianAlphaBlurBaseOperation::GaussianAlphaBlurBaseOperation(eDimension dim)
 void GaussianAlphaBlurBaseOperation::init_data()
 {
   BlurBaseOperation::init_data();
-  if (execution_model_ == eExecutionModel::FullFrame) {
-    rad_ = max_ff(size_ * this->get_blur_size(dimension_), 0.0f);
-    rad_ = min_ff(rad_, MAX_GAUSSTAB_RADIUS);
-    filtersize_ = min_ii(ceil(rad_), MAX_GAUSSTAB_RADIUS);
-  }
+  rad_ = max_ff(size_ * this->get_blur_size(dimension_), 0.0f);
+  rad_ = min_ff(rad_, MAX_GAUSSTAB_RADIUS);
+  filtersize_ = min_ii(ceil(rad_), MAX_GAUSSTAB_RADIUS);
 }
 
 void GaussianAlphaBlurBaseOperation::init_execution()
 {
   BlurBaseOperation::init_execution();
-  if (execution_model_ == eExecutionModel::FullFrame) {
-    gausstab_ = BlurBaseOperation::make_gausstab(rad_, filtersize_);
-    distbuf_inv_ = BlurBaseOperation::make_dist_fac_inverse(rad_, filtersize_, falloff_);
-  }
+  gausstab_ = BlurBaseOperation::make_gausstab(rad_, filtersize_);
+  distbuf_inv_ = BlurBaseOperation::make_dist_fac_inverse(rad_, filtersize_, falloff_);
 }
 
 void GaussianAlphaBlurBaseOperation::deinit_execution()
@@ -114,12 +110,11 @@ void GaussianAlphaBlurBaseOperation::update_memory_buffer_partial(MemoryBuffer *
     float value_max = finv_test(*it.in(0), do_invert);
     float distfacinv_max = 1.0f; /* 0 to 1 */
 
-    const int step = QualityStepHelper::get_step();
     const float *in = it.in(0) + (intptr_t(coord_min) - coord) * elem_stride;
-    const int in_stride = elem_stride * step;
+    const int in_stride = elem_stride;
     int index = (coord_min - coord) + filtersize_;
     const int index_end = index + (coord_max - coord_min);
-    for (; index < index_end; in += in_stride, index += step) {
+    for (; index < index_end; in += in_stride, ++index) {
       float value = finv_test(*in, do_invert);
 
       /* Gauss. */

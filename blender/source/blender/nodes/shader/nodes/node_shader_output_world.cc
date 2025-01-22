@@ -3,7 +3,9 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "node_shader_util.hh"
-#include "BKE_scene.h"
+#include "BKE_global.hh"
+#include "BKE_main.hh"
+#include "BKE_scene.hh"
 
 namespace blender::nodes::node_shader_output_world_cc {
 
@@ -17,13 +19,6 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_oct_init_output_world(bNodeTree *ntree, bNode *node)
 {
-  for (Scene *sce_iter = (Scene *)G_MAIN->scenes.first; sce_iter;
-       sce_iter = (Scene *)sce_iter->id.next) {
-    if (BKE_scene_uses_octane(sce_iter)) {
-      node->custom1 = SHD_OUTPUT_OCTANE;
-      break;
-    }
-  }
 }
 
 static void node_oct_update_output_world(bNodeTree *ntree, bNode *node)
@@ -79,7 +74,7 @@ void register_node_type_sh_output_world()
 {
   namespace file_ns = blender::nodes::node_shader_output_world_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   sh_node_type_base(&ntype, SH_NODE_OUTPUT_WORLD, "World Output", NODE_CLASS_OUTPUT);
   ntype.declare = file_ns::node_declare;
@@ -90,5 +85,5 @@ void register_node_type_sh_output_world()
 
   ntype.no_muting = true;
 
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 }

@@ -8,7 +8,7 @@
 
 #include "BLI_string.h"
 
-#include "BKE_global.h"
+#include "BKE_global.hh"
 
 #include "mtl_context.hh"
 #include "mtl_debug.hh"
@@ -66,7 +66,7 @@ MTLFrameBuffer::~MTLFrameBuffer()
   if (context_->active_fb == this && context_->back_left != this) {
     /* If this assert triggers it means the frame-buffer is being freed while in use by another
      * context which, by the way, is TOTALLY UNSAFE!!!  (Copy from GL behavior). */
-    BLI_assert(context_ == static_cast<MTLContext *>(unwrap(GPU_context_active_get())));
+    BLI_assert(context_ == MTLContext::get());
     GPU_framebuffer_restore();
   }
 
@@ -110,7 +110,7 @@ void MTLFrameBuffer::bind(bool enabled_srgb)
 {
 
   /* Verify Context is valid. */
-  if (context_ != static_cast<MTLContext *>(unwrap(GPU_context_active_get()))) {
+  if (context_ != MTLContext::get()) {
     BLI_assert_msg(false, "Trying to use the same frame-buffer in multiple context's.");
     return;
   }
@@ -134,7 +134,7 @@ void MTLFrameBuffer::bind(bool enabled_srgb)
   this->reset_clear_state();
 
   /* Bind to active context. */
-  MTLContext *mtl_context = reinterpret_cast<MTLContext *>(GPU_context_active_get());
+  MTLContext *mtl_context = MTLContext::get();
   if (mtl_context) {
     mtl_context->framebuffer_bind(this);
     dirty_state_ = true;
@@ -294,7 +294,7 @@ bool MTLFrameBuffer::check(char err_out[256])
 void MTLFrameBuffer::force_clear()
 {
   /* Perform clear by ending current and starting a new render pass. */
-  MTLContext *mtl_context = static_cast<MTLContext *>(unwrap(GPU_context_active_get()));
+  MTLContext *mtl_context = MTLContext::get();
   MTLFrameBuffer *current_framebuffer = mtl_context->get_current_framebuffer();
   if (current_framebuffer) {
     BLI_assert(current_framebuffer == this);
@@ -313,7 +313,7 @@ void MTLFrameBuffer::clear(eGPUFrameBufferBits buffers,
                            uint clear_stencil)
 {
 
-  BLI_assert(unwrap(GPU_context_active_get()) == context_);
+  BLI_assert(MTLContext::get() == context_);
   BLI_assert(context_->active_fb == this);
 
   /* Ensure attachments are up to date. */
@@ -391,7 +391,7 @@ void MTLFrameBuffer::clear_attachment(GPUAttachmentType type,
                                       eGPUDataFormat data_format,
                                       const void *clear_value)
 {
-  BLI_assert(static_cast<MTLContext *>(unwrap(GPU_context_active_get())) == context_);
+  BLI_assert(MTLContext::get() == context_);
   BLI_assert(context_->active_fb == this);
 
   /* If we had no previous clear pending, reset clear state. */
@@ -470,6 +470,27 @@ void MTLFrameBuffer::clear_attachment(GPUAttachmentType type,
      * between clears where no draws occur. Can optimize at the high-level by using explicit
      * load-store flags. */
     this->force_clear();
+  }
+}
+void MTLFrameBuffer::subpass_transition_impl(const GPUAttachmentState /*depth_attachment_state*/,
+                                             Span<GPUAttachmentState> color_attachment_states)
+{
+  const bool is_tile_based_arch = (GPU_platform_architecture() == GPU_ARCHITECTURE_TBDR);
+  if (!is_tile_based_arch) {
+    /* Break render-pass if tile memory is unsupported to ensure current frame-buffer results are
+     * stored. */
+    context_->main_command_buffer.end_active_command_encoder();
+
+    /* Bind frame-buffer attachments as textures.
+     * NOTE: Follows behavior of gl_framebuffer. However, shaders utilizing subpass_in will
+     * need to avoid bind-point collisions for image/texture resources. */
+    for (int i : color_attachment_states.index_range()) {
+      GPUAttachmentType type = GPU_FB_COLOR_ATTACHMENT0 + i;
+      GPUTexture *attach_tex = this->attachments_[type].tex;
+      if (color_attachment_states[i] == GPU_ATTACHEMENT_READ) {
+        GPU_texture_image_bind(attach_tex, i);
+      }
+    }
   }
 }
 
@@ -770,7 +791,7 @@ void MTLFrameBuffer::update_attachments(bool /*update_viewport*/)
 
 void MTLFrameBuffer::apply_state()
 {
-  MTLContext *mtl_ctx = static_cast<MTLContext *>(unwrap(GPU_context_active_get()));
+  MTLContext *mtl_ctx = MTLContext::get();
   BLI_assert(mtl_ctx);
   if (mtl_ctx->active_fb == this) {
     if (dirty_state_ == false && dirty_state_ctx_ == mtl_ctx) {
@@ -1515,7 +1536,7 @@ MTLRenderPassDescriptor *MTLFrameBuffer::bake_render_pass_descriptor(bool load_c
   }
 
   /* Ensure we are inside a frame boundary. */
-  MTLContext *metal_ctx = static_cast<MTLContext *>(unwrap(GPU_context_active_get()));
+  MTLContext *metal_ctx = MTLContext::get();
   BLI_assert(metal_ctx && metal_ctx->get_inside_frame());
   UNUSED_VARS_NDEBUG(metal_ctx);
 
@@ -1827,7 +1848,7 @@ void MTLFrameBuffer::blit(uint read_slot,
   if (!metal_fb_write) {
     return;
   }
-  MTLContext *mtl_context = reinterpret_cast<MTLContext *>(GPU_context_active_get());
+  MTLContext *mtl_context = MTLContext::get();
 
   const bool do_color = (blit_buffers & GPU_COLOR_BIT);
   const bool do_depth = (blit_buffers & GPU_DEPTH_BIT);

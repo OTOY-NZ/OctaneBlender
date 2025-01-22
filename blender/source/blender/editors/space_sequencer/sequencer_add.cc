@@ -14,25 +14,18 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
-#include "BLI_ghash.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "DNA_mask_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_sound_types.h"
 #include "DNA_space_types.h"
 
 #include "BKE_context.hh"
-#include "BKE_global.h"
-#include "BKE_lib_id.hh"
+#include "BKE_global.hh"
 #include "BKE_main.hh"
-#include "BKE_mask.h"
-#include "BKE_movieclip.h"
-#include "BKE_report.h"
-#include "BKE_scene.h"
-#include "BKE_sound.h"
+#include "BKE_report.hh"
+#include "BKE_scene.hh"
 
 #include "IMB_imbuf.hh"
 
@@ -45,15 +38,11 @@
 
 #include "SEQ_add.hh"
 #include "SEQ_effects.hh"
-#include "SEQ_iterator.hh"
 #include "SEQ_proxy.hh"
-#include "SEQ_relations.hh"
-#include "SEQ_render.hh"
 #include "SEQ_select.hh"
 #include "SEQ_sequencer.hh"
 #include "SEQ_time.hh"
 #include "SEQ_transform.hh"
-#include "SEQ_utils.hh"
 
 #include "ED_scene.hh"
 /* For menu, popup, icons, etc. */
@@ -61,6 +50,7 @@
 #include "ED_sequencer.hh"
 
 #include "UI_interface.hh"
+#include "UI_view2d.hh"
 
 #ifdef WITH_AUDASPACE
 #  include <AUD_Sequence.h>
@@ -214,11 +204,42 @@ static int sequencer_generic_invoke_xy_guess_channel(bContext *C, int type)
   return 1;
 }
 
-static void sequencer_generic_invoke_xy__internal(bContext *C, wmOperator *op, int flag, int type)
+/* Sets `channel` and `frame_start` properties when the operator is likely to have been invoked
+ * with drag-and-drop data. */
+static void sequencer_file_drop_channel_frame_set(bContext *C,
+                                                  wmOperator *op,
+                                                  const wmEvent *event)
+{
+  BLI_assert((RNA_struct_property_is_set(op->ptr, "files") &&
+              !RNA_collection_is_empty(op->ptr, "files")) ||
+             RNA_struct_property_is_set(op->ptr, "filepath"));
+
+  if (RNA_struct_property_is_set(op->ptr, "channel") ||
+      RNA_struct_property_is_set(op->ptr, "frame_start"))
+  {
+    return;
+  }
+
+  ARegion *region = CTX_wm_region(C);
+  if (!region || region->regiontype != RGN_TYPE_WINDOW) {
+    return;
+  }
+
+  float frame_start, channel;
+  UI_view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &frame_start, &channel);
+  RNA_int_set(op->ptr, "channel", int(channel));
+  RNA_int_set(op->ptr, "frame_start", int(frame_start));
+}
+
+static void sequencer_generic_invoke_xy__internal(
+    bContext *C, wmOperator *op, int flag, int type, const wmEvent *event = nullptr)
 {
   Scene *scene = CTX_data_scene(C);
 
   int timeline_frame = int(scene->r.cfra);
+  if ((flag & SEQPROP_NOPATHS) && event) {
+    sequencer_file_drop_channel_frame_set(C, op, event);
+  }
 
   /* Effect strips don't need a channel initialized from the mouse. */
   if (!(flag & SEQPROP_NOCHAN) && RNA_struct_property_is_set(op->ptr, "channel") == 0) {
@@ -975,7 +996,7 @@ static int sequencer_add_movie_strip_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int sequencer_add_movie_strip_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static int sequencer_add_movie_strip_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   PropertyRNA *prop;
   Scene *scene = CTX_data_scene(C);
@@ -990,7 +1011,7 @@ static int sequencer_add_movie_strip_invoke(bContext *C, wmOperator *op, const w
        !RNA_collection_is_empty(op->ptr, "files")) ||
       RNA_struct_property_is_set(op->ptr, "filepath"))
   {
-    sequencer_generic_invoke_xy__internal(C, op, SEQPROP_NOPATHS, SEQ_TYPE_MOVIE);
+    sequencer_generic_invoke_xy__internal(C, op, SEQPROP_NOPATHS, SEQ_TYPE_MOVIE, event);
     return sequencer_add_movie_strip_exec(C, op);
   }
 
@@ -1143,14 +1164,14 @@ static int sequencer_add_sound_strip_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int sequencer_add_sound_strip_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static int sequencer_add_sound_strip_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   /* This is for drag and drop. */
   if ((RNA_struct_property_is_set(op->ptr, "files") &&
        !RNA_collection_is_empty(op->ptr, "files")) ||
       RNA_struct_property_is_set(op->ptr, "filepath"))
   {
-    sequencer_generic_invoke_xy__internal(C, op, SEQPROP_NOPATHS, SEQ_TYPE_SOUND_RAM);
+    sequencer_generic_invoke_xy__internal(C, op, SEQPROP_NOPATHS, SEQ_TYPE_SOUND_RAM, event);
     return sequencer_add_sound_strip_exec(C, op);
   }
 
@@ -1331,7 +1352,7 @@ static int sequencer_add_image_strip_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int sequencer_add_image_strip_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static int sequencer_add_image_strip_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   PropertyRNA *prop;
   Scene *scene = CTX_data_scene(C);
@@ -1343,7 +1364,7 @@ static int sequencer_add_image_strip_invoke(bContext *C, wmOperator *op, const w
   /* Name set already by drag and drop. */
   if (RNA_struct_property_is_set(op->ptr, "files") && !RNA_collection_is_empty(op->ptr, "files")) {
     sequencer_generic_invoke_xy__internal(
-        C, op, SEQPROP_ENDFRAME | SEQPROP_NOPATHS, SEQ_TYPE_IMAGE);
+        C, op, SEQPROP_ENDFRAME | SEQPROP_NOPATHS, SEQ_TYPE_IMAGE, event);
     return sequencer_add_image_strip_exec(C, op);
   }
 
@@ -1376,14 +1397,14 @@ void SEQUENCER_OT_image_strip_add(wmOperatorType *ot)
   /* Flags. */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  WM_operator_properties_filesel(ot,
-                                 FILE_TYPE_FOLDER | FILE_TYPE_IMAGE,
-                                 FILE_SPECIAL,
-                                 FILE_OPENFILE,
-                                 WM_FILESEL_DIRECTORY | WM_FILESEL_RELPATH | WM_FILESEL_FILES |
-                                     WM_FILESEL_SHOW_PROPS | WM_FILESEL_DIRECTORY,
-                                 FILE_DEFAULTDISPLAY,
-                                 FILE_SORT_DEFAULT);
+  WM_operator_properties_filesel(
+      ot,
+      FILE_TYPE_FOLDER | FILE_TYPE_IMAGE,
+      FILE_SPECIAL,
+      FILE_OPENFILE,
+      (WM_FILESEL_DIRECTORY | WM_FILESEL_RELPATH | WM_FILESEL_FILES | WM_FILESEL_SHOW_PROPS),
+      FILE_DEFAULTDISPLAY,
+      FILE_SORT_DEFAULT);
   sequencer_generic_props__internal(
       ot, SEQPROP_STARTFRAME | SEQPROP_ENDFRAME | SEQPROP_FIT_METHOD | SEQPROP_VIEW_TRANSFORM);
 
@@ -1468,9 +1489,9 @@ static int sequencer_add_effect_strip_invoke(bContext *C,
   return sequencer_add_effect_strip_exec(C, op);
 }
 
-static std::string sequencer_add_effect_strip_desc(bContext * /*C*/,
-                                                   wmOperatorType * /*ot*/,
-                                                   PointerRNA *ptr)
+static std::string sequencer_add_effect_strip_get_description(bContext * /*C*/,
+                                                              wmOperatorType * /*ot*/,
+                                                              PointerRNA *ptr)
 {
   const int type = RNA_enum_get(ptr, "type");
 
@@ -1533,7 +1554,7 @@ void SEQUENCER_OT_effect_strip_add(wmOperatorType *ot)
   ot->exec = sequencer_add_effect_strip_exec;
   ot->poll = ED_operator_sequencer_active_editable;
   ot->poll_property = seq_effect_add_properties_poll;
-  ot->get_description = sequencer_add_effect_strip_desc;
+  ot->get_description = sequencer_add_effect_strip_get_description;
 
   /* Flags. */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;

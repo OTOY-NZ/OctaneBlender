@@ -264,17 +264,17 @@ class IndexOnSplineFieldInput final : public bke::CurvesFieldInput {
     return VArray<int>::ForContainer(std::move(result));
   }
 
-  uint64_t hash() const override
+  uint64_t hash() const final
   {
     return 4536246522;
   }
 
-  bool is_equal_to(const fn::FieldNode &other) const override
+  bool is_equal_to(const fn::FieldNode &other) const final
   {
     return dynamic_cast<const IndexOnSplineFieldInput *>(&other) != nullptr;
   }
 
-  std::optional<AttrDomain> preferred_domain(const CurvesGeometry & /*curves*/) const
+  std::optional<AttrDomain> preferred_domain(const bke::CurvesGeometry & /*curves*/) const final
   {
     return AttrDomain::Point;
   }
@@ -292,12 +292,12 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
   geo_node_type_base(
       &ntype, GEO_NODE_CURVE_SPLINE_PARAMETER, "Spline Parameter", NODE_CLASS_INPUT);
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

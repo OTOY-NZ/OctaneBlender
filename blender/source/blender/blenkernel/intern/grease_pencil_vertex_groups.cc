@@ -11,14 +11,11 @@
 #include "BLI_listbase.h"
 #include "BLI_set.hh"
 #include "BLI_string.h"
-#include "BLI_string_utils.hh"
 
 #include "BKE_curves.hh"
 #include "BKE_deform.hh"
 #include "BKE_grease_pencil.hh"
 #include "BKE_grease_pencil_vertex_groups.hh"
-
-#include "BLT_translation.h"
 
 namespace blender::bke::greasepencil {
 
@@ -53,6 +50,19 @@ void validate_drawing_vertex_groups(GreasePencil &grease_pencil)
       ++defgroup_index;
     }
   }
+}
+
+int ensure_vertex_group(const StringRef name, ListBase &vertex_group_names)
+{
+  int def_nr = BLI_findstringindex(&vertex_group_names, name.data(), offsetof(bDeformGroup, name));
+  if (def_nr < 0) {
+    bDeformGroup *defgroup = MEM_cnew<bDeformGroup>(__func__);
+    STRNCPY(defgroup->name, name.data());
+    BLI_addtail(&vertex_group_names, defgroup);
+    def_nr = BLI_listbase_count(&vertex_group_names) - 1;
+    BLI_assert(def_nr >= 0);
+  }
+  return def_nr;
 }
 
 void assign_to_vertex_group(GreasePencil &grease_pencil, const StringRef name, const float weight)

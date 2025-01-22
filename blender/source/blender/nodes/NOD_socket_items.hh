@@ -20,7 +20,7 @@
 #include "BLI_string.h"
 #include "BLI_string_utils.hh"
 
-#include "BKE_node.h"
+#include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
 
 #include "DNA_array_utils.hh"
@@ -95,7 +95,10 @@ inline void set_item_name_and_make_unique(bNode &node,
 {
   using ItemT = typename Accessor::ItemT;
   SocketItemsRef array = Accessor::get_items_from_node(node);
-  const char *default_name = nodeStaticSocketLabel(*Accessor::get_socket_type(item), 0);
+  const char *default_name = "Item";
+  if constexpr (Accessor::has_type) {
+    default_name = bke::nodeStaticSocketLabel(Accessor::get_socket_type(item), 0);
+  }
 
   char unique_name[MAX_NAME + 4];
   STRNCPY(unique_name, value);
@@ -158,13 +161,25 @@ template<typename Accessor> inline typename Accessor::ItemT &add_item_to_array(b
  * Add a new item at the end with the given socket type and name.
  */
 template<typename Accessor>
-inline typename Accessor::ItemT *add_item_with_socket_and_name(
+inline typename Accessor::ItemT *add_item_with_socket_type_and_name(
     bNode &node, const eNodeSocketDatatype socket_type, const char *name)
 {
   using ItemT = typename Accessor::ItemT;
   BLI_assert(Accessor::supports_socket_type(socket_type));
   ItemT &new_item = detail::add_item_to_array<Accessor>(node);
   Accessor::init_with_socket_type_and_name(node, new_item, socket_type, name);
+  return &new_item;
+}
+
+/**
+ * Add a new item at the end with the given name.
+ */
+template<typename Accessor>
+inline typename Accessor::ItemT *add_item_with_name(bNode &node, const char *name)
+{
+  using ItemT = typename Accessor::ItemT;
+  ItemT &new_item = detail::add_item_to_array<Accessor>(node);
+  Accessor::init_with_name(node, new_item, name);
   return &new_item;
 }
 
@@ -177,6 +192,23 @@ template<typename Accessor> inline typename Accessor::ItemT *add_item(bNode &nod
   ItemT &new_item = detail::add_item_to_array<Accessor>(node);
   Accessor::init(node, new_item);
   return &new_item;
+}
+
+template<typename Accessor>
+inline std::string get_socket_identifier(const typename Accessor::ItemT &item,
+                                         const eNodeSocketInOut in_out)
+{
+  if constexpr (Accessor::has_single_identifier_str) {
+    return Accessor::socket_identifier_for_item(item);
+  }
+  else {
+    if (in_out == SOCK_IN) {
+      return Accessor::input_socket_identifier_for_item(item);
+    }
+    else {
+      return Accessor::output_socket_identifier_for_item(item);
+    }
+  }
 }
 
 /**
@@ -209,7 +241,11 @@ template<typename Accessor>
     if (!Accessor::supports_socket_type(socket_type)) {
       return false;
     }
-    item = add_item_with_socket_and_name<Accessor>(storage_node, socket_type, src_socket->name);
+    item = add_item_with_socket_type_and_name<Accessor>(
+        storage_node, socket_type, src_socket->name);
+  }
+  else if constexpr (Accessor::has_name && !Accessor::has_type) {
+    item = add_item_with_name<Accessor>(storage_node, src_socket->name);
   }
   else {
     item = add_item<Accessor>(storage_node);
@@ -219,13 +255,14 @@ template<typename Accessor>
   }
 
   update_node_declaration_and_sockets(ntree, extend_node);
-  const std::string item_identifier = Accessor::socket_identifier_for_item(*item);
   if (extend_socket.is_input()) {
-    bNodeSocket *new_socket = nodeFindSocket(&extend_node, SOCK_IN, item_identifier.c_str());
+    const std::string item_identifier = get_socket_identifier<Accessor>(*item, SOCK_IN);
+    bNodeSocket *new_socket = bke::nodeFindSocket(&extend_node, SOCK_IN, item_identifier.c_str());
     link.tosock = new_socket;
   }
   else {
-    bNodeSocket *new_socket = nodeFindSocket(&extend_node, SOCK_OUT, item_identifier.c_str());
+    const std::string item_identifier = get_socket_identifier<Accessor>(*item, SOCK_OUT);
+    bNodeSocket *new_socket = bke::nodeFindSocket(&extend_node, SOCK_OUT, item_identifier.c_str());
     link.fromsock = new_socket;
   }
   return true;

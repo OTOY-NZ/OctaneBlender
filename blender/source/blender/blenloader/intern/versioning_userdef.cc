@@ -19,7 +19,6 @@
 #include "BLI_utildefines.h"
 
 #include "DNA_anim_types.h"
-#include "DNA_collection_types.h"
 #include "DNA_curve_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_space_types.h"
@@ -29,16 +28,17 @@
 #include "BKE_addon.h"
 #include "BKE_blender_version.h"
 #include "BKE_colorband.hh"
-#include "BKE_idprop.h"
+#include "BKE_idprop.hh"
 #include "BKE_keyconfig.h"
 #include "BKE_main.hh"
 #include "BKE_preferences.h"
 
-#include "BLO_readfile.h"
+#include "BLO_readfile.hh"
+#include "BLO_userdef_default.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "GPU_platform.h"
+#include "GPU_platform.hh"
 
 #include "MEM_guardedalloc.h"
 
@@ -52,7 +52,7 @@
  * If this is important we can set the translations as part of versioning preferences,
  * however that should only be done if there are important use-cases. */
 #if 0
-#  include "BLT_translation.h"
+#  include "BLT_translation.hh"
 #else
 #  define N_(msgid) msgid
 #endif
@@ -67,7 +67,7 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
 #define FROM_DEFAULT_V4_UCHAR(member) copy_v4_v4_uchar(btheme->member, U_theme_default.member)
 
   if (!USER_VERSION_ATLEAST(300, 41)) {
-    memcpy(btheme, &U_theme_default, sizeof(*btheme));
+    MEMCPY_STRUCT_AFTER(btheme, &U_theme_default, name);
   }
 
   /* Again reset the theme, but only if stored with an early 3.1 alpha version. Some changes were
@@ -76,7 +76,7 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
    * don't want to reset theme changes stored in the eventual 3.0 release once opened in a 3.1
    * build. */
   if (userdef->versionfile > 300 && !USER_VERSION_ATLEAST(301, 1)) {
-    memcpy(btheme, &U_theme_default, sizeof(*btheme));
+    MEMCPY_STRUCT_AFTER(btheme, &U_theme_default, name);
   }
 
   if (!USER_VERSION_ATLEAST(301, 2)) {
@@ -140,6 +140,49 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(space_view3d.face_mode_select);
   }
 
+  if (!USER_VERSION_ATLEAST(402, 13)) {
+    FROM_DEFAULT_V4_UCHAR(space_text.hilite);
+    FROM_DEFAULT_V4_UCHAR(space_console.console_cursor);
+  }
+
+  if (!USER_VERSION_ATLEAST(402, 16)) {
+    BLI_uniquename(
+        &userdef->themes, btheme, "Theme", '.', offsetof(bTheme, name), sizeof(btheme->name));
+  }
+
+  if (!USER_VERSION_ATLEAST(402, 17)) {
+    FROM_DEFAULT_V4_UCHAR(space_action.keytype_generated);
+    FROM_DEFAULT_V4_UCHAR(space_action.keytype_generated_select);
+  }
+
+  if (!USER_VERSION_ATLEAST(402, 21)) {
+    FROM_DEFAULT_V4_UCHAR(space_image.asset_shelf.back);
+    FROM_DEFAULT_V4_UCHAR(space_image.asset_shelf.header_back);
+  }
+
+  if (!USER_VERSION_ATLEAST(402, 47)) {
+    FROM_DEFAULT_V4_UCHAR(space_view3d.time_gp_keyframe);
+  }
+
+  if (!USER_VERSION_ATLEAST(402, 57)) {
+    FROM_DEFAULT_V4_UCHAR(space_sequencer.keytype_generated);
+    FROM_DEFAULT_V4_UCHAR(space_sequencer.keytype_generated_select);
+  }
+
+  if (!USER_VERSION_ATLEAST(402, 62)) {
+    FROM_DEFAULT_V4_UCHAR(space_sequencer.audio);
+    FROM_DEFAULT_V4_UCHAR(space_sequencer.color_strip);
+    FROM_DEFAULT_V4_UCHAR(space_sequencer.effect);
+    FROM_DEFAULT_V4_UCHAR(space_sequencer.image);
+    FROM_DEFAULT_V4_UCHAR(space_sequencer.mask);
+    FROM_DEFAULT_V4_UCHAR(space_sequencer.meta);
+    FROM_DEFAULT_V4_UCHAR(space_sequencer.movie);
+    FROM_DEFAULT_V4_UCHAR(space_sequencer.movieclip);
+    FROM_DEFAULT_V4_UCHAR(space_sequencer.scene);
+    FROM_DEFAULT_V4_UCHAR(space_sequencer.text_strip);
+    FROM_DEFAULT_V4_UCHAR(space_sequencer.transition);
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a USER_VERSION_ATLEAST check.
@@ -155,7 +198,7 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
 /** #UserDef.flag */
 #define USER_LMOUSESELECT (1 << 14) /* deprecated */
 
-static void do_version_select_mouse(UserDef *userdef, wmKeyMapItem *kmi)
+static void do_version_select_mouse(const UserDef *userdef, wmKeyMapItem *kmi)
 {
   /* Remove select/action mouse from user defined keymaps. */
   enum {
@@ -491,7 +534,7 @@ void blo_do_versions_userdef(UserDef *userdef)
   if (!USER_VERSION_ATLEAST(278, 6)) {
     /* Clear preference flags for re-use. */
     userdef->flag &= ~(USER_FLAG_NUMINPUT_ADVANCED | (1 << 2) | USER_FLAG_UNUSED_3 |
-                       USER_FLAG_UNUSED_6 | USER_FLAG_UNUSED_7 | USER_FLAG_UNUSED_9 |
+                       USER_FLAG_UNUSED_6 | USER_FLAG_UNUSED_7 | USER_INTERNET_ALLOW |
                        USER_DEVELOPER_UI);
     userdef->uiflag &= ~(USER_HEADER_BOTTOM);
     userdef->transopts &= ~(USER_TR_UNUSED_3 | USER_TR_UNUSED_4 | USER_TR_UNUSED_6 |
@@ -505,7 +548,7 @@ void blo_do_versions_userdef(UserDef *userdef)
 
     /* Reset theme, old themes will not be compatible with minor version updates from now on. */
     LISTBASE_FOREACH (bTheme *, btheme, &userdef->themes) {
-      memcpy(btheme, &U_theme_default, sizeof(*btheme));
+      MEMCPY_STRUCT_AFTER(btheme, &U_theme_default, name);
     }
 
     /* Annotations - new layer color
@@ -923,6 +966,61 @@ void blo_do_versions_userdef(UserDef *userdef)
     }
   }
 
+  if (!USER_VERSION_ATLEAST(402, 36)) {
+    /* Reset repositories. */
+    while (!BLI_listbase_is_empty(&userdef->extension_repos)) {
+      BKE_preferences_extension_repo_remove(
+          userdef, static_cast<bUserExtensionRepo *>(userdef->extension_repos.first));
+    }
+
+    BKE_preferences_extension_repo_add_default_remote(userdef);
+    BKE_preferences_extension_repo_add_default_user(userdef);
+  }
+
+  if (!USER_VERSION_ATLEAST(402, 42)) {
+    /* 80 was the old default. */
+    if (userdef->node_margin == 80) {
+      userdef->node_margin = 40;
+    }
+  }
+
+  if (!USER_VERSION_ATLEAST(402, 51)) {
+    userdef->sequencer_editor_flag |= USER_SEQ_ED_SIMPLE_TWEAKING;
+  }
+
+  if (!USER_VERSION_ATLEAST(402, 56)) {
+    BKE_preferences_extension_repo_add_default_system(userdef);
+  }
+
+  if (!USER_VERSION_ATLEAST(402, 58)) {
+    /* Remove add-ons which are no longer bundled by default
+     * and have no upgrade path to extensions in the UI. */
+    const char *addon_modules[] = {
+        "depsgraph_debug",
+        "io_coat3D",
+        "io_import_images_as_planes",
+        "io_mesh_stl",
+        "io_scene_x3d",
+    };
+    for (int i = 0; i < ARRAY_SIZE(addon_modules); i++) {
+      BKE_addon_remove_safe(&userdef->addons, addon_modules[i]);
+    }
+  }
+
+  if (!USER_VERSION_ATLEAST(402, 59)) {
+    userdef->network_timeout = 10;
+    userdef->network_connection_limit = 5;
+  }
+
+  if (!USER_VERSION_ATLEAST(402, 63)) {
+    userdef->statusbar_flag |= STATUSBAR_SHOW_EXTENSIONS_UPDATES;
+  }
+
+  if (!USER_VERSION_ATLEAST(402, 65)) {
+    /* Bone Selection Sets is no longer an add-on, but core functionality. */
+    BKE_addon_remove_safe(&userdef->addons, "bone_selection_sets");
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a USER_VERSION_ATLEAST check.
@@ -946,10 +1044,11 @@ void BLO_sanitize_experimental_features_userpref_blend(UserDef *userdef)
    *
    * At that time master already has its version bumped so its user preferences
    * are not touched by these settings. */
-
+#ifdef WITH_EXPERIMENTAL_FEATURES
   if (BKE_blender_version_is_alpha()) {
     return;
   }
+#endif
 
   MEMSET_STRUCT_AFTER(&userdef->experimental, 0, SANITIZE_AFTER_HERE);
 }

@@ -12,31 +12,25 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLT_translation.h"
-
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
 #include "BLI_math_bits.h"
-#include "BLI_rect.h"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_object_types.h"
 
 #include "BKE_camera.h"
-#include "BKE_global.h"
-#include "BKE_layer.hh"
+#include "BKE_global.hh"
 #include "BKE_node.hh"
-#include "BKE_report.h"
-#include "BKE_scene.h"
+#include "BKE_report.hh"
+#include "BKE_scene.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_debug.hh"
 #include "DEG_depsgraph_query.hh"
 
-#include "GPU_context.h"
-
-#include "RNA_access.hh"
+#include "GPU_context.hh"
 
 #ifdef WITH_PYTHON
 #  include "BPY_extern.h"
@@ -100,7 +94,7 @@ RenderEngineType *RE_engines_find(const char *idname)
       BLI_findstring(&R_engines, idname, offsetof(RenderEngineType, idname)));
   if (!type) {
     type = static_cast<RenderEngineType *>(
-        BLI_findstring(&R_engines, "BLENDER_EEVEE", offsetof(RenderEngineType, idname)));
+        BLI_findstring(&R_engines, "BLENDER_EEVEE_NEXT", offsetof(RenderEngineType, idname)));
   }
 
   return type;
@@ -1342,8 +1336,8 @@ bool RE_engine_gpu_context_enable(RenderEngine *engine)
     /* Activate RenderEngine System and Blender GPU Context. */
     WM_system_gpu_context_activate(engine->system_gpu_context);
     if (engine->blender_gpu_context) {
-      GPU_context_active_set(engine->blender_gpu_context);
       GPU_render_begin();
+      GPU_context_active_set(engine->blender_gpu_context);
     }
     return true;
   }
@@ -1358,8 +1352,8 @@ void RE_engine_gpu_context_disable(RenderEngine *engine)
   else {
     if (engine->system_gpu_context) {
       if (engine->blender_gpu_context) {
-        GPU_render_end();
         GPU_context_active_set(nullptr);
+        GPU_render_end();
       }
       WM_system_gpu_context_release(engine->system_gpu_context);
       /* Restore DRW state context if previously active. */

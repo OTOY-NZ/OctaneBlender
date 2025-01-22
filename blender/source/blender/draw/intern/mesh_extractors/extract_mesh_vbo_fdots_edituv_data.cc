@@ -26,14 +26,14 @@ static void extract_fdots_edituv_data_init(const MeshRenderData &mr,
                                            void *buf,
                                            void *tls_data)
 {
-  GPUVertBuf *vbo = static_cast<GPUVertBuf *>(buf);
+  gpu::VertBuf *vbo = static_cast<gpu::VertBuf *>(buf);
   static GPUVertFormat format = {0};
   if (format.attr_len == 0) {
     GPU_vertformat_attr_add(&format, "flag", GPU_COMP_U8, 4, GPU_FETCH_INT);
   }
 
   GPU_vertbuf_init_with_format(vbo, &format);
-  GPU_vertbuf_data_alloc(vbo, mr.face_len);
+  GPU_vertbuf_data_alloc(vbo, mr.faces_num);
 
   MeshExtract_EditUVFdotData_Data *data = static_cast<MeshExtract_EditUVFdotData_Data *>(tls_data);
   data->vbo_data = (EditLoopData *)GPU_vertbuf_get_data(vbo);
@@ -48,7 +48,7 @@ static void extract_fdots_edituv_data_iter_face_bm(const MeshRenderData &mr,
   MeshExtract_EditUVFdotData_Data *data = static_cast<MeshExtract_EditUVFdotData_Data *>(_data);
   EditLoopData *eldata = &data->vbo_data[BM_elem_index_get(f)];
   memset(eldata, 0x0, sizeof(*eldata));
-  mesh_render_data_face_flag(mr, f, data->offsets, eldata);
+  mesh_render_data_face_flag(mr, f, data->offsets, *eldata);
 }
 
 static void extract_fdots_edituv_data_iter_face_mesh(const MeshRenderData &mr,
@@ -60,7 +60,7 @@ static void extract_fdots_edituv_data_iter_face_mesh(const MeshRenderData &mr,
   memset(eldata, 0x0, sizeof(*eldata));
   BMFace *efa = bm_original_face_get(mr, face_index);
   if (efa) {
-    mesh_render_data_face_flag(mr, efa, data->offsets, eldata);
+    mesh_render_data_face_flag(mr, efa, data->offsets, *eldata);
   }
 }
 

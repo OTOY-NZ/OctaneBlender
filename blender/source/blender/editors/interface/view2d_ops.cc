@@ -13,7 +13,6 @@
 #include "DNA_userdef_types.h"
 #include "DNA_windowmanager_types.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_math_base.h"
 #include "BLI_math_vector.h"
 #include "BLI_time.h" /* USER_ZOOM_CONTINUE */
@@ -257,14 +256,16 @@ static int view_pan_invoke(bContext *C, wmOperator *op, const wmEvent *event)
   RNA_int_set(op->ptr, "deltax", 0);
   RNA_int_set(op->ptr, "deltay", 0);
 
-  if (v2d->keepofs & V2D_LOCKOFS_X) {
-    WM_cursor_modal_set(window, WM_CURSOR_NS_SCROLL);
-  }
-  else if (v2d->keepofs & V2D_LOCKOFS_Y) {
-    WM_cursor_modal_set(window, WM_CURSOR_EW_SCROLL);
-  }
-  else {
-    WM_cursor_modal_set(window, WM_CURSOR_NSEW_SCROLL);
+  if (window->grabcursor == 0) {
+    if (v2d->keepofs & V2D_LOCKOFS_X) {
+      WM_cursor_modal_set(window, WM_CURSOR_NS_SCROLL);
+    }
+    else if (v2d->keepofs & V2D_LOCKOFS_Y) {
+      WM_cursor_modal_set(window, WM_CURSOR_EW_SCROLL);
+    }
+    else {
+      WM_cursor_modal_set(window, WM_CURSOR_NSEW_SCROLL);
+    }
   }
 
   /* add temp handler */
@@ -1032,7 +1033,7 @@ static void view_zoomdrag_apply(bContext *C, wmOperator *op)
   /* Check if the 'timer' is initialized, as zooming with the trackpad
    * never uses the "Continuous" zoom method, and the 'timer' is not initialized. */
   if ((U.viewzoom == USER_ZOOM_CONTINUE) && vzd->timer) { /* XXX store this setting as RNA prop? */
-    const double time = BLI_check_seconds_timer();
+    const double time = BLI_time_now_seconds();
     const float time_step = float(time - vzd->timer_lastdraw);
 
     dx *= time_step * 5.0f;
@@ -1216,14 +1217,16 @@ static int view_zoomdrag_invoke(bContext *C, wmOperator *op, const wmEvent *even
   /* for modal exit test */
   vzd->invoke_event = event->type;
 
-  if (v2d->keepofs & V2D_LOCKOFS_X) {
-    WM_cursor_modal_set(window, WM_CURSOR_NS_SCROLL);
-  }
-  else if (v2d->keepofs & V2D_LOCKOFS_Y) {
-    WM_cursor_modal_set(window, WM_CURSOR_EW_SCROLL);
-  }
-  else {
-    WM_cursor_modal_set(window, WM_CURSOR_NSEW_SCROLL);
+  if (window->grabcursor == 0) {
+    if (v2d->keepofs & V2D_LOCKOFS_X) {
+      WM_cursor_modal_set(window, WM_CURSOR_NS_SCROLL);
+    }
+    else if (v2d->keepofs & V2D_LOCKOFS_Y) {
+      WM_cursor_modal_set(window, WM_CURSOR_EW_SCROLL);
+    }
+    else {
+      WM_cursor_modal_set(window, WM_CURSOR_NSEW_SCROLL);
+    }
   }
 
   /* add temp handler */
@@ -1232,7 +1235,7 @@ static int view_zoomdrag_invoke(bContext *C, wmOperator *op, const wmEvent *even
   if (U.viewzoom == USER_ZOOM_CONTINUE) {
     /* needs a timer to continue redrawing */
     vzd->timer = WM_event_timer_add(CTX_wm_manager(C), window, TIMER, 0.01f);
-    vzd->timer_lastdraw = BLI_check_seconds_timer();
+    vzd->timer_lastdraw = BLI_time_now_seconds();
   }
 
   return OPERATOR_RUNNING_MODAL;

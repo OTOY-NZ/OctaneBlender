@@ -129,6 +129,10 @@ class TIME_MT_view(Menu):
 
         # NOTE: "action" now, since timeline is in the dopesheet editor, instead of as own editor
         layout.operator("action.view_all")
+        if context.scene.use_preview_range:
+            layout.operator("anim.scene_range_frame", text="Frame Preview Range")
+        else:
+            layout.operator("anim.scene_range_frame", text="Frame Scene Range")
         layout.operator("action.view_frame")
         layout.separator()
 
@@ -190,7 +194,7 @@ def marker_menu_generic(layout, context):
 
     layout.separator()
 
-    layout.menu('NLA_MT_marker_select')
+    layout.menu("NLA_MT_marker_select")
 
     layout.separator()
 
@@ -252,7 +256,7 @@ class TIME_PT_playback(TimelinePanelButtons, Panel):
         col.prop(screen, "use_play_3d_editors", text="3D Viewport")
         col.prop(screen, "use_play_animation_editors", text="Animation Editors")
         col.prop(screen, "use_play_image_editors", text="Image Editor")
-        col.prop(screen, "use_play_properties_editors", text="Properties Editor")
+        col.prop(screen, "use_play_properties_editors", text="Properties and Sidebars")
         col.prop(screen, "use_play_clip_editors", text="Movie Clip Editor")
         col.prop(screen, "use_play_node_editors", text="Node Editors")
         col.prop(screen, "use_play_sequence_editors", text="Video Sequencer")

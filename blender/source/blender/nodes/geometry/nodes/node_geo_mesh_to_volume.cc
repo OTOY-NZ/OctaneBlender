@@ -2,15 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "DEG_depsgraph_query.hh"
 #include "node_geometry_util.hh"
 
 #include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
-#include "BKE_mesh_runtime.hh"
-#include "BKE_mesh_wrapper.hh"
-#include "BKE_object.hh"
-#include "BKE_volume.hh"
 
 #include "GEO_mesh_to_volume.hh"
 
@@ -60,8 +55,8 @@ static void node_update(bNodeTree *ntree, bNode *node)
 {
   NodeGeometryMeshToVolume &data = node_storage(*node);
 
-  bNodeSocket *voxel_size_socket = nodeFindSocket(node, SOCK_IN, "Voxel Size");
-  bNodeSocket *voxel_amount_socket = nodeFindSocket(node, SOCK_IN, "Voxel Amount");
+  bNodeSocket *voxel_size_socket = bke::nodeFindSocket(node, SOCK_IN, "Voxel Size");
+  bNodeSocket *voxel_amount_socket = bke::nodeFindSocket(node, SOCK_IN, "Voxel Amount");
   bke::nodeSetSocketAvailability(ntree,
                                  voxel_amount_socket,
                                  data.resolution_mode ==
@@ -113,7 +108,9 @@ static Volume *create_volume_from_mesh(const Mesh &mesh, GeoNodeExecParams &para
   /* Convert mesh to grid and add to volume. */
   geometry::fog_volume_grid_add_from_mesh(volume,
                                           "density",
-                                          &mesh,
+                                          mesh.vert_positions(),
+                                          mesh.corner_verts(),
+                                          mesh.corner_tris(),
                                           mesh_to_volume_space_transform,
                                           voxel_size,
                                           interior_band_width,
@@ -169,7 +166,7 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, GEO_NODE_MESH_TO_VOLUME, "Mesh to Volume", NODE_CLASS_GEOMETRY);
   ntype.declare = node_declare;
@@ -178,9 +175,9 @@ static void node_register()
   ntype.updatefunc = node_update;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
-  node_type_storage(
+  blender::bke::node_type_storage(
       &ntype, "NodeGeometryMeshToVolume", node_free_standard_storage, node_copy_standard_storage);
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

@@ -16,7 +16,8 @@ from bpy.props import (
 )
 from bpy.app.translations import (
     contexts as i18n_contexts,
-    pgettext_rpt as rpt_
+    pgettext_tip as n_,
+    pgettext_rpt as rpt_,
 )
 
 from math import pi
@@ -70,10 +71,56 @@ enum_use_layer_samples = (
     ('IGNORE', "Ignore", "Ignore per render layer number of samples"),
 )
 
-enum_sampling_pattern = (
-    ('SOBOL_BURLEY', "Sobol-Burley", "Use on-the-fly computed Owen-scrambled Sobol for random sampling", 0),
-    ('TABULATED_SOBOL', "Tabulated Sobol", "Use pre-computed tables of Owen-scrambled Sobol for random sampling", 1),
-)
+
+def enum_sampling_pattern(self, context):
+    prefs = context.preferences
+    use_debug = prefs.experimental.use_cycles_debug and prefs.view.show_developer_ui
+
+    items = [
+        ('AUTOMATIC',
+         "Automatic",
+         "Use a blue-noise sampling pattern, which optimizes the frequency distribution of noise, for random sampling. For viewport rendering, optimize first sample quality for interactive preview",
+         5)]
+
+    debug_items = [
+        ('SOBOL_BURLEY',
+         "Sobol-Burley",
+         "Use on-the-fly computed Owen-scrambled Sobol for random sampling",
+         0),
+        ('TABULATED_SOBOL',
+         "Tabulated Sobol",
+         "Use pre-computed tables of Owen-scrambled Sobol for random sampling",
+         1),
+        ('BLUE_NOISE',
+         "Blue-Noise (pure)",
+         "Use a blue-noise pattern, which optimizes the frequency distribution of noise, for random sampling",
+         2),
+        ('BLUE_NOISE_FIRST',
+         "Blue-Noise (first)",
+         "Use a blue-noise pattern for the first sample, then use Tabulated Sobol for the remaining samples, for random sampling",
+         3),
+        ('BLUE_NOISE_ROUND',
+         "Blue-Noise (round)",
+         "Use a blue-noise sequence with a length rounded up to the next power of 2, for random sampling",
+         4),
+    ]
+
+    non_debug_items = [
+        ('TABULATED_SOBOL',
+         "Classic",
+         "Use pre-computed tables of Owen-scrambled Sobol for random sampling",
+         1),
+        ('BLUE_NOISE',
+         "Blue-Noise",
+         "Use a blue-noise pattern, which optimizes the frequency distribution of noise, for random sampling",
+         2),
+    ]
+
+    if use_debug:
+        return items + debug_items
+    else:
+        return items + non_debug_items
+
 
 enum_emission_sampling = (
     ('NONE',
@@ -217,13 +264,14 @@ def enum_openimagedenoise_denoiser(self, context):
     import _cycles
     if _cycles.with_openimagedenoise:
         return [('OPENIMAGEDENOISE', "OpenImageDenoise",
-                 "Use Intel OpenImageDenoise AI denoiser", 4)]
+                 n_("Use Intel OpenImageDenoise AI denoiser"), 4)]
     return []
 
 
 def enum_optix_denoiser(self, context):
     if not context or bool(context.preferences.addons[__package__].preferences.get_devices_for_type('OPTIX')):
-        return [('OPTIX', "OptiX", "Use the OptiX AI denoiser with GPU acceleration, only available on NVIDIA GPUs", 2)]
+        return [('OPTIX', "OptiX", n_(
+            "Use the OptiX AI denoiser with GPU acceleration, only available on NVIDIA GPUs when configured in the system tab in the user preferences"), 2)]
     return []
 
 
@@ -235,11 +283,11 @@ def enum_preview_denoiser(self, context):
         items = [
             ('AUTO',
              "Automatic",
-             ("Use the fastest available denoiser for viewport rendering "
-              "(OptiX if available, OpenImageDenoise otherwise)"),
+             n_("Use GPU accelerated denoising if supported, for the best performance. "
+                "Prefer OpenImageDenoise over OptiX"),
              0)]
     else:
-        items = [('AUTO', "None", "Blender was compiled without a viewport denoiser", 0)]
+        items = [('AUTO', "None", n_("Blender was compiled without a viewport denoiser"), 0)]
 
     items += optix_items
     items += oidn_items
@@ -274,6 +322,21 @@ enum_denoising_prefilter = (
      3),
 )
 
+enum_denoising_quality = (
+    ('HIGH',
+     "High",
+     "High quality",
+     1),
+    ('BALANCED',
+     "Balanced",
+     "Balanced between performance and quality",
+     2),
+    ('FAST',
+     "Fast",
+     "High performance",
+     3),
+)
+
 enum_direct_light_sampling_type = (
     ('MULTIPLE_IMPORTANCE_SAMPLING',
      "Multiple Importance Sampling",
@@ -300,6 +363,10 @@ def update_render_engine(self, context):
     scene.update_render_engine()
 
 
+def update_pause(self, context):
+    context.area.tag_redraw()
+
+
 class CyclesRenderSettings(bpy.types.PropertyGroup):
 
     device: EnumProperty(
@@ -324,6 +391,7 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         name="Pause Preview",
         description="Pause all viewport preview renders",
         default=False,
+        update=update_pause,
     )
 
     use_denoising: BoolProperty(
@@ -342,9 +410,15 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
     )
     denoising_prefilter: EnumProperty(
         name="Denoising Prefilter",
-        description="Prefilter noisy guiding (albedo and normal) passes to improve denoising quality when using OpenImageDenoiser",
+        description="Prefilter noisy guiding (albedo and normal) passes to improve denoising quality when using OpenImageDenoise",
         items=enum_denoising_prefilter,
         default='ACCURATE',
+    )
+    denoising_quality: EnumProperty(
+        name="Denoising Quality",
+        description="Overall denoising quality when using OpenImageDenoise",
+        items=enum_denoising_quality,
+        default='HIGH',
     )
     denoising_input_passes: EnumProperty(
         name="Denoising Input Passes",
@@ -354,7 +428,7 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
     )
     denoising_use_gpu: BoolProperty(
         name="Denoise on GPU",
-        description="Perform denoising on GPU devices, if available. This is significantly faster than on CPU, but requires additional GPU memory. When large scenes need more GPU memory, this option can be disabled",
+        description="Perform denoising on GPU devices configured in the system tab in the user preferences. This is significantly faster than on CPU, but requires additional GPU memory. When large scenes need more GPU memory, this option can be disabled",
         default=False,
     )
 
@@ -371,9 +445,15 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
     )
     preview_denoising_prefilter: EnumProperty(
         name="Viewport Denoising Prefilter",
-        description="Prefilter noisy guiding (albedo and normal) passes to improve denoising quality when using OpenImageDenoiser",
+        description="Prefilter noisy guiding (albedo and normal) passes to improve denoising quality when using OpenImageDenoise",
         items=enum_denoising_prefilter,
         default='FAST',
+    )
+    preview_denoising_quality: EnumProperty(
+        name="Viewport Denoising Quality",
+        description="Overall denoising quality when using OpenImageDenoise",
+        items=enum_denoising_quality,
+        default='BALANCED',
     )
     preview_denoising_input_passes: EnumProperty(
         name="Viewport Denoising Input Passes",
@@ -389,7 +469,7 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
     )
     preview_denoising_use_gpu: BoolProperty(
         name="Denoise Preview on GPU",
-        description="Perform denoising on GPU devices, if available. This is significantly faster than on CPU, but requires additional GPU memory. When large scenes need more GPU memory, this option can be disabled",
+        description="Perform denoising on GPU devices configured in the system tab in the user preferences. This is significantly faster than on CPU, but requires additional GPU memory. When large scenes need more GPU memory, this option can be disabled",
         default=True,
     )
 
@@ -429,7 +509,7 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         name="Sampling Pattern",
         description="Random sampling pattern used by the integrator",
         items=enum_sampling_pattern,
-        default='TABULATED_SOBOL',
+        default=5,
     )
 
     scrambling_distance: FloatProperty(
@@ -888,17 +968,6 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         unit='LENGTH'
     )
 
-    motion_blur_position: EnumProperty(
-        name="Motion Blur Position",
-        default='CENTER',
-        description="Offset for the shutter's time interval, allows to change the motion blur trails",
-        items=(
-            ('START', "Start on Frame", "The shutter opens at the current frame"),
-            ('CENTER', "Center on Frame", "The shutter is open during the current frame"),
-            ('END', "End on Frame", "The shutter closes at the current frame"),
-        ),
-    )
-
     rolling_shutter_type: EnumProperty(
         name="Shutter Type",
         default='NONE',
@@ -980,8 +1049,7 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         return _cycles.debug_flags_update(scene)
 
     debug_use_cpu_avx2: BoolProperty(name="AVX2", default=True)
-    debug_use_cpu_sse41: BoolProperty(name="SSE41", default=True)
-    debug_use_cpu_sse2: BoolProperty(name="SSE2", default=True)
+    debug_use_cpu_sse42: BoolProperty(name="SSE42", default=True)
     debug_bvh_layout: EnumProperty(
         name="BVH Layout",
         items=enum_bvh_layouts,
@@ -1066,11 +1134,6 @@ class CyclesMaterialSettings(bpy.types.PropertyGroup):
 
 class CyclesLightSettings(bpy.types.PropertyGroup):
 
-    cast_shadow: BoolProperty(
-        name="Cast Shadow",
-        description="Light casts shadows",
-        default=True,
-    )
     max_bounces: IntProperty(
         name="Max Bounces",
         description="Maximum number of bounces the light will contribute to the render",
@@ -1437,6 +1500,15 @@ class CyclesDeviceSettings(bpy.types.PropertyGroup):
 class CyclesPreferences(bpy.types.AddonPreferences):
     bl_idname = __package__
 
+    @staticmethod
+    def default_device():
+        import platform
+        # Default to selecting the Metal compute device on Apple Silicon GPUs
+        # (drivers are tightly integrated with macOS so pose no stability risk)
+        if (platform.system() == 'Darwin') and (platform.machine() == 'arm64'):
+            return 5
+        return 0
+
     def get_device_types(self, context):
         import _cycles
         has_cuda, has_optix, has_hip, has_metal, has_oneapi, has_hiprt = _cycles.get_device_types()
@@ -1458,6 +1530,7 @@ class CyclesPreferences(bpy.types.AddonPreferences):
     compute_device_type: EnumProperty(
         name="Compute Device Type",
         description="Device to use for computation (rendering with Cycles)",
+        default=CyclesPreferences.default_device(),
         items=CyclesPreferences.get_device_types,
     )
 
@@ -1507,6 +1580,17 @@ class CyclesPreferences(bpy.types.AddonPreferences):
         ),
     )
 
+    # Be careful when deciding when to call this function,
+    # as Blender can crash with `_cycles.available_devices()` on some drivers.
+    def get_device_list(self, compute_device_type):
+        import _cycles
+        device_list = _cycles.available_devices(compute_device_type)
+        # Make sure device entries are up to date and not referenced before
+        # we know we won't add new devices. This way we guarantee to not
+        # hold pointers to a resized array.
+        self.update_device_entries(device_list)
+        return device_list
+
     def find_existing_device_entry(self, device):
         for device_entry in self.devices:
             if device_entry.id == device[2] and device_entry.type == device[1]:
@@ -1532,13 +1616,9 @@ class CyclesPreferences(bpy.types.AddonPreferences):
 
     # Gets all devices types for a compute device type.
     def get_devices_for_type(self, compute_device_type):
-        import _cycles
         # Layout of the device tuples: (Name, Type, Persistent ID)
-        device_list = _cycles.available_devices(compute_device_type)
-        # Make sure device entries are up to date and not referenced before
-        # we know we don't add new devices. This way we guarantee to not
-        # hold pointers to a resized array.
-        self.update_device_entries(device_list)
+        device_list = self.get_device_list(compute_device_type)
+
         # Sort entries into lists
         devices = []
         cpu_devices = []
@@ -1554,13 +1634,15 @@ class CyclesPreferences(bpy.types.AddonPreferences):
         return devices
 
     # Refresh device list. This does not happen automatically on Blender
-    # startup due to unstable OpenCL implementations that can cause crashes.
+    # startup due to unstable drivers that can cause crashes.
     def refresh_devices(self):
-        import _cycles
         # Ensure `self.devices` is not re-allocated when the second call to
         # get_devices_for_type is made, freeing items from the first list.
         for device_type in ('CUDA', 'OPTIX', 'HIP', 'METAL', 'ONEAPI'):
-            self.update_device_entries(_cycles.available_devices(device_type))
+            # Query the device list to trigger all required updates.
+            # Note that even though the device list is unused,
+            # the function has side-effects with internal state updates.
+            _device_list = self.get_device_list(device_type)
 
     # Deprecated: use refresh_devices instead.
     def get_devices(self, compute_device_type=''):
@@ -1573,28 +1655,27 @@ class CyclesPreferences(bpy.types.AddonPreferences):
         return self.compute_device_type
 
     def get_num_gpu_devices(self):
-        import _cycles
         compute_device_type = self.get_compute_device_type()
-        device_list = _cycles.available_devices(compute_device_type)
+
         num = 0
-        for device in device_list:
-            if device[1] != compute_device_type:
-                continue
-            for dev in self.devices:
-                if dev.use and dev.id == device[2]:
-                    num += 1
+        if compute_device_type != 'NONE':
+            for device in self.get_device_list(compute_device_type):
+                if device[1] != compute_device_type:
+                    continue
+                for dev in self.devices:
+                    if dev.use and dev.id == device[2]:
+                        num += 1
         return num
 
     def has_multi_device(self):
-        import _cycles
         compute_device_type = self.get_compute_device_type()
-        device_list = _cycles.available_devices(compute_device_type)
-        for device in device_list:
-            if device[1] == compute_device_type:
-                continue
-            for dev in self.devices:
-                if dev.use and dev.id == device[2]:
-                    return True
+        if compute_device_type != 'NONE':
+            for device in self.get_device_list(compute_device_type):
+                if device[1] == compute_device_type:
+                    continue
+                for dev in self.devices:
+                    if dev.use and dev.id == device[2]:
+                        return True
 
         return False
 
@@ -1602,18 +1683,33 @@ class CyclesPreferences(bpy.types.AddonPreferences):
         return self.get_num_gpu_devices() > 0
 
     def has_oidn_gpu_devices(self):
-        import _cycles
         compute_device_type = self.get_compute_device_type()
 
         # We need non-CPU devices, used for rendering and supporting OIDN GPU denoising
         if compute_device_type != 'NONE':
-            for device in _cycles.available_devices(compute_device_type):
+            for device in self.get_device_list(compute_device_type):
                 device_type = device[1]
                 if device_type == 'CPU':
                     continue
 
                 has_device_oidn_support = device[5]
                 if has_device_oidn_support and self.find_existing_device_entry(device).use:
+                    return True
+
+        return False
+
+    def has_optixdenoiser_gpu_devices(self):
+        compute_device_type = self.get_compute_device_type()
+
+        if compute_device_type == 'OPTIX':
+            # We need any OptiX devices, used for rendering
+            for device in self.get_device_list(compute_device_type):
+                device_type = device[1]
+                if device_type == 'CPU':
+                    continue
+
+                has_device_optixdenoiser_support = device[6]
+                if has_device_optixdenoiser_support and self.find_existing_device_entry(device).use:
                     return True
 
         return False
@@ -1663,7 +1759,7 @@ class CyclesPreferences(bpy.types.AddonPreferences):
             elif device_type == 'ONEAPI':
                 import sys
                 if sys.platform.startswith("win"):
-                    driver_version = "XX.X.101.5186"
+                    driver_version = "XX.X.101.5518"
                     col.label(text=rpt_("Requires Intel GPU with Xe-HPG architecture"), icon='BLANK1', translate=False)
                     col.label(text=rpt_("and Windows driver version %s or newer") % driver_version,
                               icon='BLANK1', translate=False)
@@ -1713,7 +1809,7 @@ class CyclesPreferences(bpy.types.AddonPreferences):
         import _cycles
         has_peer_memory = 0
         has_rt_api_support = {'METAL': False, 'HIP': False, 'ONEAPI': False}
-        for device in _cycles.available_devices(compute_device_type):
+        for device in self.get_device_list(compute_device_type):
             if device[3] and self.find_existing_device_entry(device).use:
                 has_peer_memory += 1
             if device[4] and self.find_existing_device_entry(device).use:

@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.1.0 Release Candidate (b'64bfe491645f')\n"
+"Project-Id-Version: Blender 4.2.0 Release Candidate (b'988bf2b88f3b')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-01-01 00:00+0000\n"
+"POT-Creation-Date: 2024-07-15 07:57+0000\n"
 "PO-Revision-Date: \n"
 "Last-Translator: Yudhir Khanal <yudhir.khanal@gmail.com>\n"
 "Language-Team: Yudhir\n"
@@ -103,10 +103,6 @@ msgstr "घुमाव लेउ "
 
 msgid "Local Location"
 msgstr "Local स्थान"
-
-
-msgid "Remove"
-msgstr "हटाउने"
 
 
 msgid "Direction"
@@ -260,6 +256,10 @@ msgid "Limit"
 msgstr "हद"
 
 
+msgid "Remove"
+msgstr "हटाउने"
+
+
 msgctxt "Operator"
 msgid "Delete Edge Loop"
 msgstr "धार चक्र "
@@ -406,6 +406,10 @@ msgid "Subdivision Set"
 msgstr "अर्धभाग "
 
 
+msgid "Property Name"
+msgstr "गुण : नाम "
+
+
 msgctxt "Operator"
 msgid "Copy Previous Settings"
 msgstr "पहिलेको बेबस्ता सार्ने"
@@ -460,11 +464,6 @@ msgstr "यसको अभिलेख हेर्ने"
 
 
 msgctxt "Operator"
-msgid "Add Keyconfig Preset"
-msgstr "पुर्व-स्थापित keyboard संग्रह बनाऊ "
-
-
-msgctxt "Operator"
 msgid "Add Property"
 msgstr "गुण थप्नुस "
 
@@ -484,10 +483,6 @@ msgstr "संदर्भ "
 msgctxt "Operator"
 msgid "Edit Property"
 msgstr "गुण सम्पादन गर्ने"
-
-
-msgid "Property Name"
-msgstr "गुण : नाम "
 
 
 msgid "Property name edit"
@@ -510,10 +505,6 @@ msgstr "ब्लेंडर बन्द "
 
 msgid "Quit Blender"
 msgstr "ब्लेंडर बन्द "
-
-
-msgid "Shapes"
-msgstr "आकार"
 
 
 msgid "Pose Library"
@@ -544,16 +535,20 @@ msgid "+ Non-Grouped Keyframes"
 msgstr "+ असंग्रहित मुख्याचित्रसाचोहरु"
 
 
+msgid "Before"
+msgstr "पहिले "
+
+
+msgid "Shapes"
+msgstr "आकार"
+
+
 msgid "Axes"
 msgstr "अक्ष"
 
 
 msgid "Control Rotation"
 msgstr "घुमावमा नियन्त्रण"
-
-
-msgid "Before"
-msgstr "पहिले "
 
 
 msgid "Parent:"

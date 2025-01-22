@@ -14,7 +14,6 @@
 
 #include "BLI_endian_defines.h"
 #include "BLI_endian_switch.h"
-#include "BLI_hash_md5.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_path_util.h"
 
@@ -26,6 +25,7 @@
 
 #include <fmt/format.h>
 #include <sstream>
+#include <xxhash.h>
 
 #ifdef WITH_OPENVDB
 #  include <openvdb/io/Stream.h>
@@ -192,8 +192,7 @@ DictionaryValuePtr BlobWriteSharing::write_implicitly_shared(
 std::shared_ptr<io::serialize::DictionaryValue> BlobWriteSharing::write_deduplicated(
     BlobWriter &writer, const void *data, const int64_t size_in_bytes)
 {
-  SliceHash content_hash;
-  BLI_hash_md5_buffer(static_cast<const char *>(data), size_in_bytes, &content_hash);
+  const uint64_t content_hash = XXH3_64bits(data, size_in_bytes);
   const BlobSlice slice = slice_by_content_hash_.lookup_or_add_cb(
       content_hash, [&]() { return writer.write(data, size_in_bytes); });
   return slice.serialize();
@@ -388,6 +387,10 @@ static std::shared_ptr<DictionaryValue> write_blob_simple_gspan(BlobWriter &blob
         blob_reader, io_data, sizeof(float), r_data.size() * 16, r_data.data());
   }
   if (type.is<ColorGeometry4f>()) {
+    return read_blob_raw_data_with_endian(
+        blob_reader, io_data, sizeof(float), r_data.size() * 4, r_data.data());
+  }
+  if (type.is<math::Quaternion>()) {
     return read_blob_raw_data_with_endian(
         blob_reader, io_data, sizeof(float), r_data.size() * 4, r_data.data());
   }
@@ -716,14 +719,6 @@ static std::unique_ptr<Instances> try_load_instances(const DictionaryValue &io_g
     instances->add_reference(std::move(reference_geometry));
   }
 
-  const auto *io_transforms = io_instances->lookup_dict("transforms");
-  if (!io_transforms) {
-    return {};
-  }
-  if (!read_blob_simple_gspan(blob_reader, *io_transforms, instances->transforms())) {
-    return {};
-  }
-
   MutableAttributeAccessor attributes = instances->attributes_for_write();
   if (!load_attributes(*io_attributes, attributes, blob_reader, blob_sharing)) {
     return {};
@@ -739,6 +734,18 @@ static std::unique_ptr<Instances> try_load_instances(const DictionaryValue &io_g
     if (!read_blob_simple_gspan(
             blob_reader, *io_handles, instances->reference_handles_for_write()))
     {
+      return {};
+    }
+  }
+
+  if (!attributes.contains("instance_transform")) {
+    /* Try reading the transform attribute from the old bake format from before it was an
+     * attribute. */
+    const auto *io_handles = io_instances->lookup_dict("transforms");
+    if (!io_handles) {
+      return {};
+    }
+    if (!read_blob_simple_gspan(blob_reader, *io_handles, instances->transforms_for_write())) {
       return {};
     }
   }
@@ -978,11 +985,8 @@ static std::shared_ptr<DictionaryValue> serialize_geometry_set(const GeometrySet
       }
     }
 
-    io_instances->append(
-        "transforms", write_blob_simple_gspan(blob_writer, blob_sharing, instances.transforms()));
-
     auto io_attributes = serialize_attributes(
-        instances.attributes(), blob_writer, blob_sharing, {"position"});
+        instances.attributes(), blob_writer, blob_sharing, {});
     io_instances->append("attributes", io_attributes);
   }
   return io_geometry;
@@ -1045,7 +1049,11 @@ static std::shared_ptr<io::serialize::Value> serialize_primitive_value(
     }
     case CD_PROP_QUATERNION: {
       const math::Quaternion value = *static_cast<const math::Quaternion *>(value_ptr);
-      return serialize_float_array({&value.x, 4});
+      return serialize_float_array({&value.w, 4});
+    }
+    case CD_PROP_FLOAT4X4: {
+      const float4x4 value = *static_cast<const float4x4 *>(value_ptr);
+      return serialize_float_array({value.base_ptr(), value.col_len * value.row_len});
     }
     default:
       break;
@@ -1165,6 +1173,9 @@ template<typename T>
     case CD_PROP_QUATERNION: {
       return deserialize_float_array(io_value, {static_cast<float *>(r_value), 4});
     }
+    case CD_PROP_FLOAT4X4: {
+      return deserialize_float_array(io_value, {static_cast<float *>(r_value), 4 * 4});
+    }
     default:
       break;
   }
@@ -1190,6 +1201,23 @@ static void serialize_bake_item(const BakeItem &item,
     r_io_item.append_str("type", "ATTRIBUTE");
     r_io_item.append_str("name", attribute_state_item->name());
   }
+#ifdef WITH_OPENVDB
+  else if (const auto *grid_state_item = dynamic_cast<const VolumeGridBakeItem *>(&item)) {
+    r_io_item.append_str("type", "GRID");
+    const GVolumeGrid &grid = *grid_state_item->grid;
+    auto io_vdb = blob_writer
+                      .write_as_stream(".vdb",
+                                       [&](std::ostream &stream) {
+                                         openvdb::GridCPtrVec vdb_grids;
+                                         bke::VolumeTreeAccessToken tree_token;
+                                         vdb_grids.push_back(grid->grid_ptr(tree_token));
+                                         openvdb::io::Stream vdb_stream(stream);
+                                         vdb_stream.write(vdb_grids);
+                                       })
+                      .serialize();
+    r_io_item.append("vdb", std::move(io_vdb));
+  }
+#endif
   else if (const auto *string_state_item = dynamic_cast<const StringBakeItem *>(&item)) {
     r_io_item.append_str("type", "STRING");
     const StringRefNull str = string_state_item->value();
@@ -1239,6 +1267,39 @@ static std::unique_ptr<BakeItem> deserialize_bake_item(const DictionaryValue &io
     }
     return std::make_unique<AttributeBakeItem>(std::move(*name));
   }
+#ifdef WITH_OPENVDB
+  if (*state_item_type == StringRef("GRID")) {
+    const DictionaryValue &io_grid = io_item;
+    const auto *io_vdb = io_grid.lookup_dict("vdb");
+    if (!io_vdb) {
+      return {};
+    }
+    std::optional<BlobSlice> vdb_slice = BlobSlice::deserialize(*io_vdb);
+    if (!vdb_slice) {
+      return {};
+    }
+    openvdb::GridPtrVecPtr vdb_grids;
+    if (!blob_reader.read_as_stream(*vdb_slice, [&](std::istream &stream) {
+          try {
+            openvdb::io::Stream vdb_stream{stream};
+            vdb_grids = vdb_stream.getGrids();
+            return true;
+          }
+          catch (...) {
+            return false;
+          }
+        }))
+    {
+      return {};
+    }
+    if (vdb_grids->size() != 1) {
+      return {};
+    }
+    std::shared_ptr<openvdb::GridBase> vdb_grid = std::move((*vdb_grids)[0]);
+    GVolumeGrid grid{std::move(vdb_grid)};
+    return std::make_unique<VolumeGridBakeItem>(std::make_unique<GVolumeGrid>(grid));
+  }
+#endif
   if (*state_item_type == StringRef("STRING")) {
     const std::shared_ptr<io::serialize::Value> *io_data = io_item.lookup("data");
     if (!io_data) {

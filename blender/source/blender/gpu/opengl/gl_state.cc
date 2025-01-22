@@ -6,12 +6,12 @@
  * \ingroup gpu
  */
 
-#include "BKE_global.h"
+#include "BKE_global.hh"
 
 #include "BLI_math_base.h"
 #include "BLI_math_bits.h"
 
-#include "GPU_capabilities.h"
+#include "GPU_capabilities.hh"
 
 #include "gl_context.hh"
 #include "gl_framebuffer.hh"
@@ -248,7 +248,7 @@ void GLStateManager::set_stencil_test(const eGPUStencilTest test, const eGPUSten
   }
 }
 
-void GLStateManager::set_stencil_mask(const eGPUStencilTest test, const GPUStateMutable state)
+void GLStateManager::set_stencil_mask(const eGPUStencilTest test, const GPUStateMutable &state)
 {
   GLenum func;
   switch (test) {

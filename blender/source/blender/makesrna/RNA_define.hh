@@ -20,7 +20,7 @@
 #ifdef UNIT_TEST
 #  define RNA_MAX_ARRAY_LENGTH 64
 #else
-#  define RNA_MAX_ARRAY_LENGTH 32
+#  define RNA_MAX_ARRAY_LENGTH 64
 #endif
 
 #define RNA_MAX_ARRAY_DIMENSION 3
@@ -111,25 +111,25 @@ PropertyRNA *RNA_def_boolean(StructOrFunctionRNA *cont,
 PropertyRNA *RNA_def_boolean_array(StructOrFunctionRNA *cont,
                                    const char *identifier,
                                    int len,
-                                   bool *default_value,
+                                   const bool *default_value,
                                    const char *ui_name,
                                    const char *ui_description);
 PropertyRNA *RNA_def_boolean_layer(StructOrFunctionRNA *cont,
                                    const char *identifier,
                                    int len,
-                                   bool *default_value,
+                                   const bool *default_value,
                                    const char *ui_name,
                                    const char *ui_description);
 PropertyRNA *RNA_def_boolean_layer_member(StructOrFunctionRNA *cont,
                                           const char *identifier,
                                           int len,
-                                          bool *default_value,
+                                          const bool *default_value,
                                           const char *ui_name,
                                           const char *ui_description);
 PropertyRNA *RNA_def_boolean_vector(StructOrFunctionRNA *cont,
                                     const char *identifier,
                                     int len,
-                                    bool *default_value,
+                                    const bool *default_value,
                                     const char *ui_name,
                                     const char *ui_description);
 
@@ -195,7 +195,7 @@ PropertyRNA *RNA_def_enum(StructOrFunctionRNA *cont,
                           const char *ui_name,
                           const char *ui_description);
 /**
- * Same as above but sets #PROP_ENUM_FLAG before setting the default value.
+ * Same as #RNA_def_enum but sets #PROP_ENUM_FLAG before setting the default value.
  */
 PropertyRNA *RNA_def_enum_flag(StructOrFunctionRNA *cont,
                                const char *identifier,
@@ -434,7 +434,7 @@ void RNA_def_property_ui_text(PropertyRNA *prop, const char *name, const char *d
  */
 void RNA_def_property_ui_range(
     PropertyRNA *prop, double min, double max, double step, int precision);
-void RNA_def_property_ui_scale_type(PropertyRNA *prop, PropertyScaleType scale_type);
+void RNA_def_property_ui_scale_type(PropertyRNA *prop, PropertyScaleType ui_scale_type);
 void RNA_def_property_ui_icon(PropertyRNA *prop, int icon, int consecutive);
 
 void RNA_def_property_update(PropertyRNA *prop, int noteflag, const char *updatefunc);
@@ -451,10 +451,10 @@ void RNA_def_property_override_funcs(PropertyRNA *prop,
                                      const char *store,
                                      const char *apply);
 
-typedef void (*RNAPropertyUpdateFunc)(Main *, Scene *, PointerRNA *);
-typedef void (*RNAPropertyUpdateFuncWithContextAndProperty)(bContext *C,
-                                                            PointerRNA *ptr,
-                                                            PropertyRNA *prop);
+using RNAPropertyUpdateFunc = void (*)(Main *, Scene *, PointerRNA *);
+using RNAPropertyUpdateFuncWithContextAndProperty = void (*)(bContext *C,
+                                                             PointerRNA *ptr,
+                                                             PropertyRNA *prop);
 
 void RNA_def_property_update_runtime(PropertyRNA *prop, RNAPropertyUpdateFunc func);
 void RNA_def_property_update_runtime_with_context_and_property(
@@ -494,6 +494,11 @@ void RNA_def_property_collection_funcs(PropertyRNA *prop,
                                        const char *lookupint,
                                        const char *lookupstring,
                                        const char *assignint);
+
+void RNA_def_property_float_default_func(PropertyRNA *prop, const char *get_default);
+void RNA_def_property_int_default_func(PropertyRNA *prop, const char *get_default);
+void RNA_def_property_boolean_default_func(PropertyRNA *prop, const char *get_default);
+
 void RNA_def_property_srna(PropertyRNA *prop, const char *type);
 void RNA_def_py_data(PropertyRNA *prop, void *py_data);
 

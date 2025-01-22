@@ -864,23 +864,53 @@ int RenderScheduler::get_num_samples_to_path_trace() const
       num_samples_to_occupy = lround(state_.occupancy_num_samples * 0.7f / state_.occupancy);
     }
 
-    /* When time limit is used clamp the calculated number of samples to keep occupancy.
-     * This is because time limit causes the last render iteration to happen with less number of
-     * samples, which conflicts with the occupancy (lower number of samples causes lower
-     * occupancy, also the calculation is based on number of previously rendered samples).
+    /* Time limit for path tracing, which constraints the scheduler from "over-scheduling" work
+     * in scenes which have very long path trace times and low occupancy. This allows faster
+     * feedback of render results, and faster canceling when artists notice something is wrong.
      *
-     * When time limit is not used the number of samples per render iteration is either increasing
-     * or stays the same, so there is no need to clamp number of samples calculated for occupancy.
-     */
+     * Additionally, when the time limit is enabled, do not render more samples than it is needed
+     * to reach the time limit. */
+    double path_tracing_time_limit = 0;
+    if (headless_) {
+      /* In the headless (command-line) render "over-scheduling" is not as bad, as it ensures the
+       * best possible render time. */
+    }
+    else if (background_) {
+      /* For the first few seconds prefer quicker updates, giving it a better chance for artists
+       * to cancel render early on when they notice something is wrong. After that increase the
+       * update times a lot, giving the best possible performance on a complicated scenes like
+       * the Spring splash screen (where occupancy is just very bad). */
+      if (state_.start_render_time == 0.0 || time_dt() - state_.start_render_time < 10) {
+        path_tracing_time_limit = 2.0;
+      }
+      else {
+        path_tracing_time_limit = 15.0;
+      }
+    }
+    else {
+      /* Viewport render: prefer faster updates over overall render time reduction. */
+      /* TODO: Look into enabling this entire code-path for the viewport as well, allowing
+       * compensation even in viewport (currently parent scope checks for non-viewport render). */
+      path_tracing_time_limit = guess_display_update_interval_in_seconds();
+    }
     if (time_limit_ != 0.0 && state_.start_render_time != 0.0) {
       const double remaining_render_time = max(
           0.0, time_limit_ - (time_dt() - state_.start_render_time));
-      const double time_per_sample_average = path_trace_time_.get_average();
-      const double predicted_render_time = num_samples_to_occupy * time_per_sample_average;
-
-      if (predicted_render_time > remaining_render_time) {
+      if (path_tracing_time_limit == 0) {
+        path_tracing_time_limit = remaining_render_time;
+      }
+      else {
+        path_tracing_time_limit = min(path_tracing_time_limit, remaining_render_time);
+      }
+    }
+    if (path_tracing_time_limit != 0) {
+      /* Use the per-sample time from the previously rendered batch of samples so that the
+       * correction is applied much quicker. */
+      const double predicted_render_time = num_samples_to_occupy *
+                                           path_trace_time_.get_last_sample_time();
+      if (predicted_render_time > path_tracing_time_limit) {
         num_samples_to_occupy = lround(num_samples_to_occupy *
-                                       (remaining_render_time / predicted_render_time));
+                                       (path_tracing_time_limit / predicted_render_time));
       }
     }
 
@@ -911,17 +941,19 @@ int RenderScheduler::get_num_samples_during_navigation(int resolution_divider) c
   if (is_denoise_active_during_update()) {
     /* When denoising is used during navigation prefer using a higher resolution with less samples
      * (scheduling less samples here will make it so the resolution_divider calculation will use a
-     * lower value for the divider). This is because both OpenImageDenoiser and OptiX denoiser
+     * lower value for the divider). This is because both OpenImageDenoise and OptiX denoiser
      * give visually better results on a higher resolution image with less samples. */
     return 1;
   }
 
-  /* Schedule samples equal to the resolution divider up to a maximum of 4.
+  /* Schedule samples equal to the resolution divider up to a maximum of 4, limited by the maximum
+   * number of samples overall.
    * The idea is to have enough information on the screen by increasing the sample count as the
    * resolution is decreased. */
+  const int max_navigation_samples = min(num_samples_, 4);
   /* NOTE: Changing this formula will change the formula in
    * `RenderScheduler::calculate_resolution_divider_for_time()`. */
-  return min(max(1, resolution_divider / pixel_size_), 4);
+  return min(max(1, resolution_divider / pixel_size_), max_navigation_samples);
 }
 
 bool RenderScheduler::work_need_adaptive_filter() const
@@ -1127,7 +1159,7 @@ double RenderScheduler::guess_viewport_navigation_update_interval_in_seconds() c
     /* Use lower value than the non-denoised case to allow having more pixels to reconstruct the
      * image from. With the faster updates and extra compute required the resolution becomes too
      * low to give usable feedback. */
-    /* NOTE: Based on performance of OpenImageDenoiser on CPU. For OptiX denoiser or other denoiser
+    /* NOTE: Based on performance of OpenImageDenoise on CPU. For OptiX denoiser or other denoiser
      * on GPU the value might need to become lower for faster navigation. */
     return 1.0 / 12.0;
   }

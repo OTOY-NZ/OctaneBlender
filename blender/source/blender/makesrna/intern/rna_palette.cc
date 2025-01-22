@@ -22,10 +22,10 @@
 #  include "DNA_brush_types.h"
 
 #  include "BKE_paint.hh"
-#  include "BKE_report.h"
+#  include "BKE_report.hh"
 static PaletteColor *rna_Palette_color_new(Palette *palette)
 {
-  if (ID_IS_LINKED(palette) || ID_IS_OVERRIDE_LIBRARY(palette)) {
+  if (!ID_IS_EDITABLE(palette) || ID_IS_OVERRIDE_LIBRARY(palette)) {
     return nullptr;
   }
 
@@ -35,7 +35,7 @@ static PaletteColor *rna_Palette_color_new(Palette *palette)
 
 static void rna_Palette_color_remove(Palette *palette, ReportList *reports, PointerRNA *color_ptr)
 {
-  if (ID_IS_LINKED(palette) || ID_IS_OVERRIDE_LIBRARY(palette)) {
+  if (!ID_IS_EDITABLE(palette) || ID_IS_OVERRIDE_LIBRARY(palette)) {
     return;
   }
 
@@ -54,7 +54,7 @@ static void rna_Palette_color_remove(Palette *palette, ReportList *reports, Poin
 
 static void rna_Palette_color_clear(Palette *palette)
 {
-  if (ID_IS_LINKED(palette) || ID_IS_OVERRIDE_LIBRARY(palette)) {
+  if (!ID_IS_EDITABLE(palette) || ID_IS_OVERRIDE_LIBRARY(palette)) {
     return;
   }
 
@@ -80,7 +80,7 @@ static void rna_Palette_active_color_set(PointerRNA *ptr,
                                          ReportList * /*reports*/)
 {
   Palette *palette = static_cast<Palette *>(ptr->data);
-  PaletteColor *color = static_cast<PaletteColor *>(value.data);
+  const PaletteColor *color = static_cast<const PaletteColor *>(value.data);
 
   /* -1 is ok for an unset index */
   if (color == nullptr) {

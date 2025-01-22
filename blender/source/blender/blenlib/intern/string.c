@@ -20,7 +20,7 @@
 
 #include "BLI_utildefines.h"
 
-#include "BLI_strict_flags.h"
+#include "BLI_strict_flags.h" /* Keep last. */
 
 /* -------------------------------------------------------------------- */
 /** \name String Duplicate/Copy
@@ -260,6 +260,7 @@ char *BLI_sprintfN_with_buffer(
   retval = vsnprintf(result, size, format, args);
   va_end(args);
   BLI_assert((size_t)(retval + 1) == size);
+  UNUSED_VARS_NDEBUG(retval);
   return result;
 }
 
@@ -292,6 +293,7 @@ char *BLI_vsprintfN_with_buffer(char *fixed_buf,
   char *result = MEM_mallocN(sizeof(char) * size, __func__);
   retval = vsnprintf(result, size, format, args);
   BLI_assert((size_t)(retval + 1) == size);
+  UNUSED_VARS_NDEBUG(retval);
   return result;
 }
 
@@ -876,12 +878,12 @@ bool BLI_str_startswith(const char *__restrict str, const char *__restrict start
   return (*start == '\0');
 }
 
-bool BLI_strn_endswith(const char *__restrict str, const char *__restrict end, size_t slength)
+bool BLI_strn_endswith(const char *__restrict str, const char *__restrict end, size_t str_len)
 {
-  size_t elength = strlen(end);
+  size_t end_len = strlen(end);
 
-  if (elength < slength) {
-    const char *iter = &str[slength - elength];
+  if (end_len < str_len) {
+    const char *iter = &str[str_len - end_len];
     while (*iter) {
       if (*iter++ != *end++) {
         return false;
@@ -894,8 +896,8 @@ bool BLI_strn_endswith(const char *__restrict str, const char *__restrict end, s
 
 bool BLI_str_endswith(const char *__restrict str, const char *__restrict end)
 {
-  const size_t slength = strlen(str);
-  return BLI_strn_endswith(str, end, slength);
+  const size_t str_len = strlen(str);
+  return BLI_strn_endswith(str, end, str_len);
 }
 
 /** \} */
@@ -904,12 +906,12 @@ bool BLI_str_endswith(const char *__restrict str, const char *__restrict end)
 /** \name String Length
  * \{ */
 
-size_t BLI_strnlen(const char *s, const size_t maxlen)
+size_t BLI_strnlen(const char *str, const size_t maxlen)
 {
   size_t len;
 
-  for (len = 0; len < maxlen; len++, s++) {
-    if (!*s) {
+  for (len = 0; len < maxlen; len++, str++) {
+    if (!*str) {
       break;
     }
   }
@@ -1113,6 +1115,24 @@ int BLI_string_find_split_words(
   }
 
   return n;
+}
+
+bool BLI_string_elem_split_by_delim(const char *haystack, const char delim, const char *needle)
+{
+  /* May be zero, returns true when an empty span exists. */
+  const size_t needle_len = strlen(needle);
+  const char *p = haystack;
+  while (true) {
+    const char *p_next = BLI_strchr_or_end(p, delim);
+    if (((size_t)(p_next - p) == needle_len) && (memcmp(p, needle, needle_len) == 0)) {
+      return true;
+    }
+    if (*p_next == '\0') {
+      break;
+    }
+    p = p_next + 1;
+  }
+  return false;
 }
 
 /** \} */

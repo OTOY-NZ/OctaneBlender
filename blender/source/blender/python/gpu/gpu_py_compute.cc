@@ -13,25 +13,15 @@
 
 #include "BLI_utildefines.h"
 
-#include "GPU_capabilities.h"
-#include "GPU_compute.h"
-#include "GPU_shader.h"
-#include "GPU_state.h"
-#include "GPU_texture.h"
-#include "GPU_uniform_buffer.h"
+#include "GPU_capabilities.hh"
+#include "GPU_compute.hh"
+#include "GPU_state.hh"
 
-#include "../generic/py_capi_utils.h"
 #include "../generic/python_compat.h"
-#include "../generic/python_utildefines.h"
 
-#include "../mathutils/mathutils.h"
-
-#include "gpu_py.h"
-#include "gpu_py_compute.h" /* own include */
-#include "gpu_py_shader.h"
-#include "gpu_py_texture.h"
-#include "gpu_py_uniformbuffer.h"
-#include "gpu_py_vertex_format.h"
+#include "gpu_py.hh"
+#include "gpu_py_compute.hh" /* own include */
+#include "gpu_py_shader.hh"
 
 PyDoc_STRVAR(
     /* Wrap. */
@@ -52,6 +42,8 @@ PyDoc_STRVAR(
     "   :rtype: :class:`bpy.types.GPUShader`\n");
 static PyObject *pygpu_compute_dispatch(PyObject * /*self*/, PyObject *args, PyObject *kwds)
 {
+  BPYGPU_IS_INIT_OR_ERROR_OBJ;
+
   BPyGPUShader *py_shader;
   int groups_x_len;
   int groups_y_len;
@@ -72,18 +64,17 @@ static PyObject *pygpu_compute_dispatch(PyObject * /*self*/, PyObject *args, PyO
   if (_PyArg_ParseTupleAndKeywordsFast(
           args, kwds, &_parser, &py_shader, &groups_x_len, &groups_y_len, &groups_z_len))
   {
-
     if (!BPyGPUShader_Check(py_shader)) {
       PyErr_Format(PyExc_TypeError, "Expected a GPUShader, got %s", Py_TYPE(py_shader)->tp_name);
       return nullptr;
     }
 
-    // Check that groups do not exceed GPU_max_work_group_count()
+    /* Check that groups do not exceed #GPU_max_work_group_count(). */
     const int max_work_group_count_x = GPU_max_work_group_count(0);
     const int max_work_group_count_y = GPU_max_work_group_count(1);
     const int max_work_group_count_z = GPU_max_work_group_count(2);
 
-    // Report back to the user both the requested and the maximum supported value
+    /* Report back to the user both the requested and the maximum supported value. */
     if (groups_x_len > GPU_max_work_group_count(0)) {
       PyErr_Format(PyExc_ValueError,
                    "groups_x_len (%d) exceeds maximum supported value (max work group count: %d)",
@@ -149,7 +140,7 @@ PyObject *bpygpu_compute_init()
 {
   PyObject *submodule;
 
-  submodule = bpygpu_create_module(&pygpu_compute_module_def);
+  submodule = PyModule_Create(&pygpu_compute_module_def);
 
   return submodule;
 }

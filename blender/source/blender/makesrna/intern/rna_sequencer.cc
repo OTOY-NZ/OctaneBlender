@@ -22,9 +22,9 @@
 #include "BLI_string_utf8_symbols.h"
 #include "BLI_string_utils.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "BKE_anim_data.h"
+#include "BKE_anim_data.hh"
 #include "BKE_animsys.h"
 #include "BKE_sound.h"
 
@@ -115,10 +115,10 @@ const EnumPropertyItem rna_enum_strip_color_items[] = {
 
 #  include <fmt/format.h>
 
-#  include "BKE_global.h"
-#  include "BKE_idprop.h"
+#  include "BKE_global.hh"
+#  include "BKE_idprop.hh"
 #  include "BKE_movieclip.h"
-#  include "BKE_report.h"
+#  include "BKE_report.hh"
 
 #  include "WM_api.hh"
 
@@ -205,13 +205,13 @@ static void rna_Sequence_use_sequence(Main *bmain, Scene *scene, PointerRNA *ptr
 {
   /* General update callback. */
   rna_Sequence_invalidate_raw_update(bmain, scene, ptr);
-  /* Changing recursion changes set of IDs which needs to be remapped by the copy-on-write.
-   * the only way for this currently is to tag the ID for ID_RECALC_COPY_ON_WRITE. */
+  /* Changing recursion changes set of IDs which needs to be remapped by the copy-on-evaluation.
+   * the only way for this currently is to tag the ID for ID_RECALC_SYNC_TO_EVAL. */
   Editing *ed = SEQ_editing_get(scene);
   if (ed) {
     Sequence *seq = (Sequence *)ptr->data;
     if (seq->scene != nullptr) {
-      DEG_id_tag_update(&seq->scene->id, ID_RECALC_COPY_ON_WRITE);
+      DEG_id_tag_update(&seq->scene->id, ID_RECALC_SYNC_TO_EVAL);
     }
   }
   /* The sequencer scene is to be updated as well, including new relations from the nested
@@ -283,9 +283,9 @@ static void rna_SequenceEditor_sequences_all_end(CollectionPropertyIterator *ite
   MEM_freeN(bli_iter);
 }
 
-static int rna_SequenceEditor_sequences_all_lookup_string(PointerRNA *ptr,
-                                                          const char *key,
-                                                          PointerRNA *r_ptr)
+static bool rna_SequenceEditor_sequences_all_lookup_string(PointerRNA *ptr,
+                                                           const char *key,
+                                                           PointerRNA *r_ptr)
 {
   ID *id = ptr->owner_id;
   Scene *scene = (Scene *)id;
@@ -970,7 +970,7 @@ static int rna_Sequence_input_count_get(PointerRNA *ptr)
 }
 
 static void rna_Sequence_input_set(PointerRNA *ptr,
-                                   PointerRNA ptr_value,
+                                   const PointerRNA &ptr_value,
                                    ReportList *reports,
                                    int input_num)
 {
@@ -1507,7 +1507,8 @@ static void rna_Sequence_separate(ID *id, Sequence *seqm, Main *bmain)
 }
 
 /* Find channel owner. If nullptr, owner is `Editing`, otherwise it's `Sequence`. */
-static Sequence *rna_SeqTimelineChannel_owner_get(Editing *ed, SeqTimelineChannel *channel)
+static Sequence *rna_SeqTimelineChannel_owner_get(const Editing *ed,
+                                                  const SeqTimelineChannel *channel)
 {
   blender::VectorSet strips = SEQ_query_all_meta_strips_recursive(&ed->seqbase);
 
@@ -1788,29 +1789,23 @@ static void rna_def_strip_proxy(BlenderRNA *brna)
   PropertyRNA *prop;
 
   static const EnumPropertyItem seq_tc_items[] = {
-      {SEQ_PROXY_TC_NONE, "NONE", 0, "None", ""},
+      {SEQ_PROXY_TC_NONE,
+       "NONE",
+       0,
+       "None",
+       "Ignore generated timecodes, seek in movie stream based on calculated timestamp"},
       {SEQ_PROXY_TC_RECORD_RUN,
        "RECORD_RUN",
        0,
        "Record Run",
-       "Use images in the order as they are recorded"},
-      {SEQ_PROXY_TC_FREE_RUN,
-       "FREE_RUN",
-       0,
-       "Free Run",
-       "Use global timestamp written by recording device"},
-      {SEQ_PROXY_TC_INTERP_REC_DATE_FREE_RUN,
-       "FREE_RUN_REC_DATE",
-       0,
-       "Free Run (rec date)",
-       "Interpolate a global timestamp using the "
-       "record date and time written by recording device"},
+       "Seek based on timestamps read from movie stream, giving the best match between scene and "
+       "movie times"},
       {SEQ_PROXY_TC_RECORD_RUN_NO_GAPS,
        "RECORD_RUN_NO_GAPS",
        0,
        "Record Run No Gaps",
-       "Like record run, but ignore timecode, "
-       "changes in framerate or dropouts"},
+       "Effectively convert movie to an image sequence, ignoring incomplete or dropped frames, "
+       "and changes in frame rate"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -1856,16 +1851,6 @@ static void rna_def_strip_proxy(BlenderRNA *brna)
   prop = RNA_def_property(srna, "build_record_run", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "build_tc_flags", SEQ_PROXY_TC_RECORD_RUN);
   RNA_def_property_ui_text(prop, "Rec Run", "Build record run time code index");
-
-  prop = RNA_def_property(srna, "build_free_run", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "build_tc_flags", SEQ_PROXY_TC_FREE_RUN);
-  RNA_def_property_ui_text(prop, "Free Run", "Build free run time code index");
-
-  prop = RNA_def_property(srna, "build_free_run_rec_date", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(
-      prop, nullptr, "build_tc_flags", SEQ_PROXY_TC_INTERP_REC_DATE_FREE_RUN);
-  RNA_def_property_ui_text(
-      prop, "Free Run (Rec Date)", "Build free run time code index using Record Date/Time");
 
   prop = RNA_def_property(srna, "quality", PROP_INT, PROP_UNSIGNED);
   RNA_def_property_int_sdna(prop, nullptr, "quality");
@@ -2305,11 +2290,10 @@ static void rna_def_sequence(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "use_default_fade", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", SEQ_USE_EFFECT_DEFAULT_FADE);
-  RNA_def_property_ui_text(
-      prop,
-      "Use Default Fade",
-      "Fade effect using the built-in default (usually make transition as long as "
-      "effect strip)");
+  RNA_def_property_ui_text(prop,
+                           "Use Default Fade",
+                           "Fade effect using the built-in default (usually makes the transition "
+                           "as long as the effect strip)");
   RNA_def_property_update(
       prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_invalidate_preprocessed_update");
 
@@ -2472,6 +2456,13 @@ static void rna_def_editor(BlenderRNA *brna)
   RNA_def_property_boolean_funcs(prop, nullptr, "rna_SequenceEditor_overlay_lock_set");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
 
+  prop = RNA_def_property(srna, "show_missing_media", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "show_missing_media_flag", SEQ_EDIT_SHOW_MISSING_MEDIA);
+  RNA_def_property_ui_text(
+      prop, "Show Missing Media", "Render missing images/movies with a solid magenta color");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, "rna_SequenceEditor_update_cache");
+
   /* access to fixed and relative frame */
   prop = RNA_def_property(srna, "overlay_frame", PROP_INT, PROP_NONE);
   RNA_def_property_ui_text(prop, "Overlay Offset", "Number of frames to offset");
@@ -2493,31 +2484,6 @@ static void rna_def_editor(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, "rna_SequenceEditor_update_cache");
 
   /* cache flags */
-
-  prop = RNA_def_property(srna, "show_cache", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "cache_flag", SEQ_CACHE_VIEW_ENABLE);
-  RNA_def_property_ui_text(prop, "Show Cache", "Visualize cached images on the timeline");
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, nullptr);
-
-  prop = RNA_def_property(srna, "show_cache_final_out", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "cache_flag", SEQ_CACHE_VIEW_FINAL_OUT);
-  RNA_def_property_ui_text(prop, "Final Images", "Visualize cached complete frames");
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, nullptr);
-
-  prop = RNA_def_property(srna, "show_cache_raw", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "cache_flag", SEQ_CACHE_VIEW_RAW);
-  RNA_def_property_ui_text(prop, "Raw Images", "Visualize cached raw images");
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, nullptr);
-
-  prop = RNA_def_property(srna, "show_cache_preprocessed", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "cache_flag", SEQ_CACHE_VIEW_PREPROCESSED);
-  RNA_def_property_ui_text(prop, "Preprocessed Images", "Visualize cached pre-processed images");
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, nullptr);
-
-  prop = RNA_def_property(srna, "show_cache_composite", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "cache_flag", SEQ_CACHE_VIEW_COMPOSITE);
-  RNA_def_property_ui_text(prop, "Composite Images", "Visualize cached composite images");
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, nullptr);
 
   prop = RNA_def_property(srna, "use_cache_raw", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "cache_flag", SEQ_CACHE_STORE_RAW);
@@ -3396,6 +3362,42 @@ static void rna_def_text(StructRNA *srna)
   RNA_def_property_ui_text(prop, "Shadow Color", "");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_invalidate_raw_update");
 
+  prop = RNA_def_property(srna, "shadow_angle", PROP_FLOAT, PROP_ANGLE);
+  RNA_def_property_float_sdna(prop, nullptr, "shadow_angle");
+  RNA_def_property_range(prop, 0, M_PI * 2);
+  RNA_def_property_ui_text(prop, "Shadow Angle", "");
+  RNA_def_property_float_default(prop, DEG2RADF(65.0f));
+  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_invalidate_raw_update");
+
+  prop = RNA_def_property(srna, "shadow_offset", PROP_FLOAT, PROP_UNSIGNED);
+  RNA_def_property_float_sdna(prop, nullptr, "shadow_offset");
+  RNA_def_property_ui_text(prop, "Shadow Offset", "");
+  RNA_def_property_float_default(prop, 0.04f);
+  RNA_def_property_range(prop, 0.0f, 1.0f);
+  RNA_def_property_ui_range(prop, 0.0f, 1.0f, 1.0f, 2);
+  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_invalidate_raw_update");
+
+  prop = RNA_def_property(srna, "shadow_blur", PROP_FLOAT, PROP_UNSIGNED);
+  RNA_def_property_float_sdna(prop, nullptr, "shadow_blur");
+  RNA_def_property_ui_text(prop, "Shadow Blur", "");
+  RNA_def_property_float_default(prop, 0.0f);
+  RNA_def_property_range(prop, 0.0f, 1.0f);
+  RNA_def_property_ui_range(prop, 0.0f, 1.0f, 1.0f, 2);
+  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_invalidate_raw_update");
+
+  prop = RNA_def_property(srna, "outline_color", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_float_sdna(prop, nullptr, "outline_color");
+  RNA_def_property_ui_text(prop, "Outline Color", "");
+  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_invalidate_raw_update");
+
+  prop = RNA_def_property(srna, "outline_width", PROP_FLOAT, PROP_UNSIGNED);
+  RNA_def_property_float_sdna(prop, nullptr, "outline_width");
+  RNA_def_property_ui_text(prop, "Outline Width", "");
+  RNA_def_property_float_default(prop, 0.05f);
+  RNA_def_property_range(prop, 0.0f, 1.0f);
+  RNA_def_property_ui_range(prop, 0.0f, 1.0f, 1.0f, 2);
+  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_invalidate_raw_update");
+
   prop = RNA_def_property(srna, "box_color", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_float_sdna(prop, nullptr, "box_color");
   RNA_def_property_ui_text(prop, "Box Color", "");
@@ -3447,6 +3449,11 @@ static void rna_def_text(StructRNA *srna)
   RNA_def_property_ui_text(prop, "Shadow", "Display shadow behind text");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_invalidate_raw_update");
 
+  prop = RNA_def_property(srna, "use_outline", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", SEQ_TEXT_OUTLINE);
+  RNA_def_property_ui_text(prop, "Outline", "Display outline around text");
+  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_invalidate_raw_update");
+
   prop = RNA_def_property(srna, "use_box", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", SEQ_TEXT_BOX);
   RNA_def_property_ui_text(prop, "Box", "Display colored box behind text");
@@ -3466,7 +3473,7 @@ static void rna_def_text(StructRNA *srna)
 
 static void rna_def_color_mix(StructRNA *srna)
 {
-  static EnumPropertyItem blend_color_items[] = {
+  static const EnumPropertyItem blend_color_items[] = {
       {SEQ_TYPE_DARKEN, "DARKEN", 0, "Darken", ""},
       {SEQ_TYPE_MUL, "MULTIPLY", 0, "Multiply", ""},
       {SEQ_TYPE_COLOR_BURN, "BURN", 0, "Color Burn", ""},
@@ -3750,7 +3757,7 @@ static void rna_def_brightcontrast_modifier(BlenderRNA *brna)
   prop = RNA_def_property(srna, "bright", PROP_FLOAT, PROP_UNSIGNED);
   RNA_def_property_float_sdna(prop, nullptr, "bright");
   RNA_def_property_range(prop, -FLT_MAX, FLT_MAX);
-  RNA_def_property_ui_text(prop, "Bright", "Adjust the luminosity of the colors");
+  RNA_def_property_ui_text(prop, "Brightness", "Adjust the luminosity of the colors");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_SequenceModifier_update");
 
   prop = RNA_def_property(srna, "contrast", PROP_FLOAT, PROP_UNSIGNED);

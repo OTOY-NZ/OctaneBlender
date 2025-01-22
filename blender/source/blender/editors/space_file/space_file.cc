@@ -12,16 +12,14 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
-#include "BLI_linklist.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_appdir.hh"
 #include "BKE_context.hh"
-#include "BKE_global.h"
+#include "BKE_global.hh"
 #include "BKE_lib_query.hh"
-#include "BKE_lib_remap.hh"
 #include "BKE_main.hh"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 #include "BKE_screen.hh"
 
 #include "RNA_access.hh"
@@ -38,7 +36,6 @@
 #include "ED_screen.hh"
 #include "ED_space_api.hh"
 
-#include "IMB_imbuf_types.hh"
 #include "IMB_thumbs.hh"
 
 #include "UI_resources.hh"
@@ -46,7 +43,6 @@
 
 #include "BLO_read_write.hh"
 
-#include "GPU_framebuffer.h"
 #include "file_indexer.hh"
 #include "file_intern.hh" /* own include */
 #include "filelist.hh"
@@ -437,6 +433,10 @@ static void file_main_region_init(wmWindowManager *wm, ARegion *region)
 
   UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_LIST, region->winx, region->winy);
 
+  /* Truncate, otherwise these can be on ".5" and give fuzzy text. #77696. */
+  region->v2d.cur.ymin = trunc(region->v2d.cur.ymin);
+  region->v2d.cur.ymax = trunc(region->v2d.cur.ymax);
+
   /* own keymaps */
   keymap = WM_keymap_ensure(wm->defaultconf, "File Browser", SPACE_FILE, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->handlers, keymap);
@@ -580,7 +580,7 @@ static void file_main_region_draw(const bContext *C, ARegion *region)
 
   /* on first read, find active file */
   if (params->highlight_file == -1) {
-    wmEvent *event = CTX_wm_window(C)->eventstate;
+    const wmEvent *event = CTX_wm_window(C)->eventstate;
     file_highlight_set(sfile, region, event->xy[0], event->xy[1]);
   }
 
@@ -831,7 +831,9 @@ static void file_space_subtype_item_extend(bContext * /*C*/, EnumPropertyItem **
   RNA_enum_items_add(item, totitem, rna_enum_space_file_browse_mode_items);
 }
 
-static void file_id_remap(ScrArea *area, SpaceLink *sl, const IDRemapper * /*mappings*/)
+static void file_id_remap(ScrArea *area,
+                          SpaceLink *sl,
+                          const blender::bke::id::IDRemapper & /*mappings*/)
 {
   SpaceFile *sfile = (SpaceFile *)sl;
 
@@ -871,8 +873,8 @@ static void file_space_blend_read_data(BlendDataReader *reader, SpaceLink *sl)
   sfile->previews_timer = nullptr;
   sfile->tags = 0;
   sfile->runtime = nullptr;
-  BLO_read_data_address(reader, &sfile->params);
-  BLO_read_data_address(reader, &sfile->asset_params);
+  BLO_read_struct(reader, FileSelectParams, &sfile->params);
+  BLO_read_struct(reader, FileAssetSelectParams, &sfile->asset_params);
   if (sfile->params) {
     sfile->params->rename_id = nullptr;
   }

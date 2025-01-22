@@ -121,7 +121,7 @@ class EEVEE_WORLD_PT_volume(WorldButtonsPanel, Panel):
     bl_label = "Volume"
     bl_translation_context = i18n_contexts.id_id
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_EEVEE'}
+    COMPAT_ENGINES = {'BLENDER_EEVEE', 'BLENDER_EEVEE_NEXT'}
 
     @classmethod
     def poll(cls, context):
@@ -138,6 +138,9 @@ class EEVEE_WORLD_PT_volume(WorldButtonsPanel, Panel):
 
         layout.use_property_split = True
 
+        if world.use_eevee_finite_volume:
+            layout.operator("world.convert_volume_to_mesh", icon='WORLD', text="Convert Volume")
+
         if node:
             input = find_node_input(node, "Volume")
             if input:
@@ -148,9 +151,8 @@ class EEVEE_WORLD_PT_volume(WorldButtonsPanel, Panel):
             layout.label(text="No output node")
 
 
-class EEVEE_WORLD_PT_probe(WorldButtonsPanel, Panel):
-    bl_label = "Light Probe"
-    bl_translation_context = i18n_contexts.id_id
+class EEVEE_WORLD_PT_settings(WorldButtonsPanel, Panel):
+    bl_label = "Settings"
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {'BLENDER_EEVEE_NEXT'}
 
@@ -161,12 +163,67 @@ class EEVEE_WORLD_PT_probe(WorldButtonsPanel, Panel):
         return world and (engine in cls.COMPAT_ENGINES)
 
     def draw(self, context):
+        pass
+
+
+class EEVEE_WORLD_PT_lightprobe(WorldButtonsPanel, Panel):
+    bl_label = "Light Probe"
+    bl_parent_id = "EEVEE_WORLD_PT_settings"
+    COMPAT_ENGINES = {'BLENDER_EEVEE_NEXT'}
+
+    def draw(self, context):
         layout = self.layout
 
         world = context.world
 
         layout.use_property_split = True
-        layout.prop(world, "probe_resolution")
+        layout.prop(world, "probe_resolution", text="Resolution")
+
+
+class EEVEE_WORLD_PT_sun(WorldButtonsPanel, Panel):
+    bl_label = "Sun"
+    bl_parent_id = "EEVEE_WORLD_PT_settings"
+    COMPAT_ENGINES = {'BLENDER_EEVEE_NEXT'}
+
+    def draw(self, context):
+        layout = self.layout
+
+        world = context.world
+
+        layout.use_property_split = True
+        layout.prop(world, "sun_threshold", text="Threshold")
+        layout.prop(world, "sun_angle", text="Angle")
+
+
+class EEVEE_WORLD_PT_sun_shadow(WorldButtonsPanel, Panel):
+    bl_label = "Shadow"
+    bl_parent_id = "EEVEE_WORLD_PT_sun"
+    bl_options = {'DEFAULT_CLOSED'}
+    COMPAT_ENGINES = {'BLENDER_EEVEE_NEXT'}
+
+    def draw_header(self, context):
+        world = context.world
+        self.layout.prop(world, "use_sun_shadow", text="")
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+
+        world = context.world
+
+        col = layout.column(align=False, heading="Jitter")
+        row = col.row(align=True)
+        sub = row.row(align=True)
+        sub.prop(world, "use_sun_shadow_jitter", text="")
+        sub = sub.row(align=True)
+        sub.active = world.use_sun_shadow_jitter
+        sub.prop(world, "sun_shadow_jitter_overblur", text="Overblur")
+
+        col.separator()
+
+        col = layout.column()
+        col.prop(world, "sun_shadow_filter_radius", text="Filter")
+        col.prop(world, "sun_shadow_maximum_resolution", text="Resolution Limit")
 
 
 class WORLD_PT_viewport_display(WorldButtonsPanel, Panel):
@@ -190,7 +247,10 @@ classes = (
     EEVEE_WORLD_PT_surface,
     EEVEE_WORLD_PT_volume,
     EEVEE_WORLD_PT_mist,
-    EEVEE_WORLD_PT_probe,
+    EEVEE_WORLD_PT_settings,
+    EEVEE_WORLD_PT_lightprobe,
+    EEVEE_WORLD_PT_sun,
+    EEVEE_WORLD_PT_sun_shadow,
     WORLD_PT_viewport_display,
     WORLD_PT_custom_props,
 )

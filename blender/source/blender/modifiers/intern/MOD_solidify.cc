@@ -10,7 +10,7 @@
 
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
@@ -31,15 +31,6 @@
 #include "MOD_ui_common.hh"
 
 #include "MOD_solidify_util.hh"
-
-static bool depends_on_normals(ModifierData *md)
-{
-  const SolidifyModifierData *smd = (SolidifyModifierData *)md;
-  /* even when we calculate our own normals,
-   * the vertex normals are used as a fallback
-   * if manifold is enabled vertex normals are not used */
-  return smd->mode == MOD_SOLIDIFY_MODE_EXTRUDE;
-}
 
 static void init_data(ModifierData *md)
 {
@@ -289,7 +280,7 @@ ModifierTypeInfo modifierType_Solidify = {
     /*is_disabled*/ nullptr,
     /*update_depsgraph*/ nullptr,
     /*depends_on_time*/ nullptr,
-    /*depends_on_normals*/ depends_on_normals,
+    /*depends_on_normals*/ nullptr,
     /*foreach_ID_link*/ nullptr,
     /*foreach_tex_link*/ nullptr,
     /*free_runtime_data*/ nullptr,

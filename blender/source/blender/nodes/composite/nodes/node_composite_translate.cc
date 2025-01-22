@@ -48,6 +48,7 @@ static void node_composit_init_translate(bNodeTree * /*ntree*/, bNode *node)
 
 static void node_composit_buts_translate(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
+  uiItemR(layout, ptr, "interpolation", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
   uiItemR(layout, ptr, "use_relative", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
   uiItemR(layout, ptr, "wrap_axis", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
 }
@@ -77,8 +78,24 @@ class TranslateOperation : public NodeOperation {
     RealizationOptions realization_options = input.get_realization_options();
     realization_options.wrap_x = get_wrap_x();
     realization_options.wrap_y = get_wrap_y();
+    realization_options.interpolation = get_interpolation();
 
     transform(context(), input, result, transformation, realization_options);
+  }
+
+  Interpolation get_interpolation()
+  {
+    switch (node_storage(bnode()).interpolation) {
+      case CMP_NODE_INTERPOLATION_NEAREST:
+        return Interpolation::Nearest;
+      case CMP_NODE_INTERPOLATION_BILINEAR:
+        return Interpolation::Bilinear;
+      case CMP_NODE_INTERPOLATION_BICUBIC:
+        return Interpolation::Bicubic;
+    }
+
+    BLI_assert_unreachable();
+    return Interpolation::Nearest;
   }
 
   bool get_use_relative()
@@ -108,15 +125,15 @@ void register_node_type_cmp_translate()
 {
   namespace file_ns = blender::nodes::node_composite_translate_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, CMP_NODE_TRANSLATE, "Translate", NODE_CLASS_DISTORT);
   ntype.declare = file_ns::cmp_node_translate_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_translate;
   ntype.initfunc = file_ns::node_composit_init_translate;
-  node_type_storage(
+  blender::bke::node_type_storage(
       &ntype, "NodeTranslateData", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 }

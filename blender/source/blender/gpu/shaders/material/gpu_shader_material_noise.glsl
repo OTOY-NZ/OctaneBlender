@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#pragma BLENDER_REQUIRE(gpu_shader_common_math_utils.glsl)
 #pragma BLENDER_REQUIRE(gpu_shader_common_hash.glsl)
 
 /* clang-format off */
@@ -260,8 +261,12 @@ float noise_scale4(float result)
 
 float snoise(float p)
 {
-  float r = noise_perlin(p);
-  return (isinf(r)) ? 0.0 : noise_scale1(r);
+  float precision_correction = 0.5 * float(abs(p) >= 1000000.0);
+  /* Repeat Perlin noise texture every 100000.0 on each axis to prevent floating point
+   * representation issues. */
+  p = compatible_fmod(p, 100000.0) + precision_correction;
+
+  return noise_scale1(noise_perlin(p));
 }
 
 float noise(float p)
@@ -271,8 +276,14 @@ float noise(float p)
 
 float snoise(vec2 p)
 {
-  float r = noise_perlin(p);
-  return (isinf(r)) ? 0.0 : noise_scale2(r);
+  vec2 precision_correction = 0.5 *
+                              vec2(float(abs(p.x) >= 1000000.0), float(abs(p.y) >= 1000000.0));
+  /* Repeat Perlin noise texture every 100000.0 on each axis to prevent floating point
+   * representation issues. This causes discontinuities every 100000.0, however at such scales this
+   * usually shouldn't be noticeable. */
+  p = compatible_fmod(p, 100000.0) + precision_correction;
+
+  return noise_scale2(noise_perlin(p));
 }
 
 float noise(vec2 p)
@@ -282,8 +293,15 @@ float noise(vec2 p)
 
 float snoise(vec3 p)
 {
-  float r = noise_perlin(p);
-  return (isinf(r)) ? 0.0 : noise_scale3(r);
+  vec3 precision_correction = 0.5 * vec3(float(abs(p.x) >= 1000000.0),
+                                         float(abs(p.y) >= 1000000.0),
+                                         float(abs(p.z) >= 1000000.0));
+  /* Repeat Perlin noise texture every 100000.0 on each axis to prevent floating point
+   * representation issues. This causes discontinuities every 100000.0, however at such scales this
+   * usually shouldn't be noticeable. */
+  p = compatible_fmod(p, 100000.0) + precision_correction;
+
+  return noise_scale3(noise_perlin(p));
 }
 
 float noise(vec3 p)
@@ -293,8 +311,16 @@ float noise(vec3 p)
 
 float snoise(vec4 p)
 {
-  float r = noise_perlin(p);
-  return (isinf(r)) ? 0.0 : noise_scale4(r);
+  vec4 precision_correction = 0.5 * vec4(float(abs(p.x) >= 1000000.0),
+                                         float(abs(p.y) >= 1000000.0),
+                                         float(abs(p.z) >= 1000000.0),
+                                         float(abs(p.w) >= 1000000.0));
+  /* Repeat Perlin noise texture every 100000.0 on each axis to prevent floating point
+   * representation issues. This causes discontinuities every 100000.0, however at such scales this
+   * usually shouldn't be noticeable. */
+  p = compatible_fmod(p, 100000.0) + precision_correction;
+
+  return noise_scale4(noise_perlin(p));
 }
 
 float noise(vec4 p)

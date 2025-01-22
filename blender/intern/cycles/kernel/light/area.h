@@ -23,28 +23,24 @@ ccl_device_inline float area_light_rect_sample(float3 P,
                                                const float2 rand,
                                                bool sample_coord)
 {
-  /* In our name system we're using P for the center, which is o in the paper. */
-  float3 corner = *light_p - axis_u * len_u * 0.5f - axis_v * len_v * 0.5f;
   /* Compute local reference system R. */
   float3 x = axis_u;
   float3 y = axis_v;
   float3 z = cross(x, y);
   /* Compute rectangle coords in local reference system. */
-  float3 dir = corner - P;
+  float3 dir = *light_p - P;
   float z0 = dot(dir, z);
   /* Flip 'z' to make it point against Q. */
   if (z0 > 0.0f) {
     z *= -1.0f;
     z0 *= -1.0f;
   }
-  float x0 = dot(dir, x);
-  float y0 = dot(dir, y);
-  float x1 = x0 + len_u;
-  float y1 = y0 + len_v;
+  float xc = dot(dir, x), yc = dot(dir, y);
+  float x0 = xc - 0.5f * len_u, x1 = xc + 0.5f * len_u;
+  float y0 = yc - 0.5f * len_v, y1 = yc + 0.5f * len_v;
   /* Compute predefined constants. */
-  float4 diff = make_float4(x0, y1, x1, y0) - make_float4(x1, y0, x0, y1);
-  float4 nz = make_float4(y0, x1, y1, x0) * diff;
-  nz = nz / sqrt(z0 * z0 * diff * diff + nz * nz);
+  float4 nz = make_float4(-y0, x1, y1, -x0);
+  nz /= sqrt(nz * nz + z0 * z0);
   /* The original paper uses `acos()` to compute the internal angles here, and then computes the
    * solid angle as their sum minus 2*pi. However, for very small rectangles, this results in
    * excessive cancellation error since the sum will be almost 2*pi as well.
@@ -73,25 +69,31 @@ ccl_device_inline float area_light_rect_sample(float3 P,
     float xu = -(cu * z0) / max(sqrtf(1.0f - cu * cu), 1e-7f);
     xu = clamp(xu, x0, x1);
     /* Compute yv. */
-    float z0sq = z0 * z0;
-    float y0sq = y0 * y0;
-    float y1sq = y1 * y1;
-    float d = sqrtf(xu * xu + z0sq);
-    float h0 = y0 / sqrtf(d * d + y0sq);
-    float h1 = y1 / sqrtf(d * d + y1sq);
+    float d2 = sqr(xu) + sqr(z0);
+    float h0 = y0 / sqrtf(d2 + sqr(y0));
+    float h1 = y1 / sqrtf(d2 + sqr(y1));
     float hv = h0 + rand.y * (h1 - h0), hv2 = hv * hv;
-    float yv = (hv2 < 1.0f - 1e-6f) ? (hv * d) / sqrtf(1.0f - hv2) : y1;
+    float yv = (hv2 < 1.0f - 1e-6f) ? hv * sqrtf(d2 / (1.0f - hv2)) : y1;
 
     /* Transform (xu, yv, z0) to world coords. */
     *light_p = P + xu * x + yv * y + z0 * z;
   }
 
   /* return pdf */
-  if (S != 0.0f) {
-    return 1.0f / S;
+  if (S < 1e-5f || reduce_min(sqr(nz)) > 0.99999f) {
+    /* The solid angle is too small to be computed accurately in single precision.
+     * As a fallback, approximate it using the planar sampling PDF,
+     * for such tiny lights the difference is irrelevant.
+     *
+     * A threshold of 1e-5 was found to be the smallest option that avoids structured
+     * artifacts at all tested parameter combinations. The additional check of nz is
+     * needed for the case where the light is viewed from grazing angles, see e.g. #98930.
+     */
+    const float t = len(dir);
+    return -t * t * t / (z0 * len_u * len_v);
   }
   else {
-    return 0.0f;
+    return 1.0f / S;
   }
 }
 
@@ -233,6 +235,11 @@ ccl_device bool area_light_spread_clamp_light(const float3 P,
   return true;
 }
 
+ccl_device_forceinline bool area_light_is_ellipse(const ccl_global KernelAreaLight *light)
+{
+  return light->invarea < 0.0f;
+}
+
 /* Common API. */
 /* Compute `eval_fac` and `pdf`. Also sample a new position on the light if `sample_coord`. */
 template<bool in_volume_segment>
@@ -311,7 +318,7 @@ ccl_device_inline bool area_light_eval(const ccl_global KernelLight *klight,
     ls->pdf *= light_pdf_area_to_solid_angle(Ng, -ls->D, ls->t);
   }
 
-  return ls->eval_fac > 0;
+  return in_volume_segment || ls->eval_fac > 0;
 }
 
 template<bool in_volume_segment>
@@ -334,20 +341,28 @@ ccl_device_inline bool area_light_sample(const ccl_global KernelLight *klight,
   }
 
   const float3 inplane = ls->P - klight->co;
-  const float light_u = dot(inplane, klight->area.axis_u) / klight->area.len_u;
-  const float light_v = dot(inplane, klight->area.axis_v) / klight->area.len_v;
+  float light_u = dot(inplane, klight->area.axis_u);
+  float light_v = dot(inplane, klight->area.axis_v);
 
-  if (!in_volume_segment) {
-    const bool is_ellipse = (klight->area.invarea < 0.0f);
+  if (!in_volume_segment && klight->area.normalize_spread > 0) {
+    const bool is_ellipse = area_light_is_ellipse(&klight->area);
 
-    /* Sampled point lies outside of the area light. */
-    if (is_ellipse && (sqr(light_u) + sqr(light_v) > 0.25f)) {
+    /* Check whether the sampled point lies outside of the area light.
+     * For very small area lights, numerical issues can cause this to be
+     * slightly off since the sampling logic clamps the result right at the border,
+     * so allow for a small margin of error. */
+    const float len_u_epsilon = ((0.5f + 1e-7f) * klight->area.len_u + 1e-6f);
+    const float len_v_epsilon = ((0.5f + 1e-7f) * klight->area.len_v + 1e-6f);
+    if (is_ellipse && (sqr(light_u / len_u_epsilon) + sqr(light_v / len_v_epsilon) > 1.0f)) {
       return false;
     }
-    if (!is_ellipse && (fabsf(light_u) > 0.5f || fabsf(light_v) > 0.5f)) {
+    if (!is_ellipse && (fabsf(light_u) > len_u_epsilon || fabsf(light_v) > len_v_epsilon)) {
       return false;
     }
   }
+
+  light_u /= klight->area.len_u;
+  light_v /= klight->area.len_v;
 
   /* NOTE: Return barycentric coordinates in the same notation as Embree and OptiX. */
   ls->u = light_v + 0.5f;
@@ -380,7 +395,7 @@ ccl_device_inline bool area_light_intersect(const ccl_global KernelLight *klight
 {
   /* Area light. */
   const float invarea = fabsf(klight->area.invarea);
-  const bool is_ellipse = (klight->area.invarea < 0.0f);
+  const bool is_ellipse = area_light_is_ellipse(&klight->area);
   if (invarea == 0.0f) {
     return false;
   }
@@ -428,6 +443,55 @@ ccl_device_inline bool area_light_sample_from_intersection(
   return area_light_eval<false>(klight, ray_P, &light_P, ls, zero_float2(), false);
 }
 
+/* Returns the maximal distance between the light center and the boundary. */
+ccl_device_forceinline float area_light_max_extent(const ccl_global KernelAreaLight *light)
+{
+  return 0.5f * (area_light_is_ellipse(light) ? fmaxf(light->len_u, light->len_v) :
+                                                len(make_float2(light->len_u, light->len_v)));
+}
+
+/* Find the ray segment lit by the area light. */
+ccl_device_inline bool area_light_valid_ray_segment(const ccl_global KernelAreaLight *light,
+                                                    float3 P,
+                                                    float3 D,
+                                                    ccl_private float2 *t_range)
+{
+  bool valid;
+  const float tan_half_spread = light->tan_half_spread;
+  float3 axis = light->dir;
+
+  const bool angle_almost_zero = (tan_half_spread < 1e-5f);
+  if (angle_almost_zero) {
+    /* Map to local coordinate of the light. Do not use `itfm` in `KernelLight` as there might be
+     * additional scaling in the light size. */
+    const Transform tfm = make_transform(light->axis_u, light->axis_v, axis);
+    P = transform_point(&tfm, P);
+    D = transform_direction(&tfm, D);
+    axis = make_float3(0.0f, 0.0f, 1.0f);
+
+    const float half_len_u = 0.5f * light->len_u;
+    const float half_len_v = 0.5f * light->len_v;
+    if (area_light_is_ellipse(light)) {
+      valid = ray_infinite_cylinder_intersect(P, D, half_len_u, half_len_v, t_range);
+    }
+    else {
+      const float3 bbox_min = make_float3(-half_len_u, -half_len_v, 0.0f);
+      const float3 bbox_max = make_float3(half_len_u, half_len_v, FLT_MAX);
+      valid = ray_aabb_intersect(bbox_min, bbox_max, P, D, t_range);
+    }
+  }
+  else {
+    /* Conservative estimation with the smallest possible cone covering the whole spread. */
+    const float3 apex_to_point = P + area_light_max_extent(light) / tan_half_spread * axis;
+    const float cos_angle_sq = 1.0f / (1.0f + sqr(tan_half_spread));
+
+    valid = ray_cone_intersect(axis, apex_to_point, D, cos_angle_sq, t_range);
+  }
+
+  /* Limit the range to the positive side of the area light. */
+  return valid && ray_plane_intersect(axis, P, D, t_range);
+}
+
 template<bool in_volume_segment>
 ccl_device_forceinline bool area_light_tree_parameters(const ccl_global KernelLight *klight,
                                                        const float3 centroid,
@@ -438,13 +502,11 @@ ccl_device_forceinline bool area_light_tree_parameters(const ccl_global KernelLi
                                                        ccl_private float2 &distance,
                                                        ccl_private float3 &point_to_centroid)
 {
-  if (!in_volume_segment) {
-    /* TODO: a cheap substitute for minimal distance between point and primitive. Does it
-     * worth the overhead to compute the accurate minimal distance? */
-    float min_distance;
-    point_to_centroid = safe_normalize_len(centroid - P, &min_distance);
-    distance = make_float2(min_distance, min_distance);
-  }
+  /* TODO: a cheap substitute for minimal distance between point and primitive. Does it worth the
+   * overhead to compute the accurate minimal distance? */
+  float min_distance;
+  point_to_centroid = safe_normalize_len(centroid - P, &min_distance);
+  distance = make_float2(min_distance, min_distance);
 
   cos_theta_u = FLT_MAX;
 
@@ -464,9 +526,8 @@ ccl_device_forceinline bool area_light_tree_parameters(const ccl_global KernelLi
   const bool shape_above_surface = dot(N, centroid - P) + fabsf(dot(N, extentu)) +
                                        fabsf(dot(N, extentv)) >
                                    0;
-  const bool in_volume = is_zero(N);
 
-  return (front_facing && shape_above_surface) || in_volume;
+  return front_facing && shape_above_surface;
 }
 
 CCL_NAMESPACE_END

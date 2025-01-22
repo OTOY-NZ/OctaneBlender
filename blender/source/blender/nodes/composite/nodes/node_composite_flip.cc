@@ -12,8 +12,8 @@
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
-#include "GPU_shader.h"
-#include "GPU_texture.h"
+#include "GPU_shader.hh"
+#include "GPU_texture.hh"
 
 #include "COM_node_operation.hh"
 #include "COM_utilities.hh"
@@ -93,12 +93,12 @@ void register_node_type_cmp_flip()
 {
   namespace file_ns = blender::nodes::node_composite_flip_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, CMP_NODE_FLIP, "Flip", NODE_CLASS_DISTORT);
   ntype.declare = file_ns::cmp_node_flip_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_flip;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 }

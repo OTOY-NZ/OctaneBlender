@@ -52,8 +52,8 @@ NODE_SHADER_MATERIALX_END
 
 }  // namespace blender::nodes::node_shader_camera_cc
 
-bool camera_data_node_poll(const struct bNodeType *ntype,
-                           const struct bNodeTree *ntree,
+bool camera_data_node_poll(const blender::bke::bNodeType * /*ntype*/,
+                           const bNodeTree *ntree,
                            const char **r_disabled_hint)
 {
   bool is_octane_node_tree = STREQ(ntree->idname, "octane_composite_nodes") ||
@@ -69,7 +69,7 @@ void register_node_type_sh_camera()
 {
   namespace file_ns = blender::nodes::node_shader_camera_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   sh_node_type_base(&ntype, SH_NODE_CAMERA, "Camera Data", NODE_CLASS_INPUT);
   ntype.poll = camera_data_node_poll;
@@ -77,5 +77,5 @@ void register_node_type_sh_camera()
   ntype.gpu_fn = file_ns::gpu_shader_camera;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 }

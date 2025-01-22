@@ -35,6 +35,8 @@
 
 class GHOST_WindowWayland;
 
+bool ghost_wl_display_report_error_if_set(wl_display *display);
+
 bool ghost_wl_output_own(const struct wl_output *wl_output);
 void ghost_wl_output_tag(struct wl_output *wl_output);
 struct GWL_Output *ghost_wl_output_user_data(struct wl_output *wl_output);
@@ -158,6 +160,27 @@ class GHOST_SystemWayland : public GHOST_System {
   char *getClipboard(bool selection) const override;
 
   void putClipboard(const char *buffer, bool selection) const override;
+
+  /**
+   * Returns GHOST_kSuccess if the clipboard contains an image.
+   */
+  GHOST_TSuccess hasClipboardImage() const override;
+
+  /**
+   * Get image data from the Clipboard
+   * \param r_width: the returned image width in pixels.
+   * \param r_height: the returned image height in pixels.
+   * \return pointer uint array in RGBA byte order. Caller must free.
+   */
+  uint *getClipboardImage(int *r_width, int *r_height) const override;
+
+  /**
+   * Put image data to the Clipboard
+   * \param rgba: uint array in RGBA byte order.
+   * \param width: the image width in pixels.
+   * \param height: the image height in pixels.
+   */
+  GHOST_TSuccess putClipboardImage(uint *rgba, int width, int height) const override;
 
   uint8_t getNumDisplays() const override;
 

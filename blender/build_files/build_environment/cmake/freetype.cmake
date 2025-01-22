@@ -21,7 +21,12 @@ ExternalProject_Add(external_freetype
   DOWNLOAD_DIR ${DOWNLOAD_DIR}
   URL_HASH ${FREETYPE_HASH_TYPE}=${FREETYPE_HASH}
   PREFIX ${BUILD_DIR}/freetype
-  CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${LIBDIR}/freetype ${DEFAULT_CMAKE_FLAGS} ${FREETYPE_EXTRA_ARGS}
+
+  CMAKE_ARGS
+    -DCMAKE_INSTALL_PREFIX=${LIBDIR}/freetype
+    ${DEFAULT_CMAKE_FLAGS}
+    ${FREETYPE_EXTRA_ARGS}
+
   INSTALL_DIR ${LIBDIR}/freetype
 )
 
@@ -31,13 +36,23 @@ add_dependencies(
   external_zlib
 )
 
-if(BUILD_MODE STREQUAL Release AND WIN32)
+if(WIN32)
+  if(BUILD_MODE STREQUAL Release)
   ExternalProject_Add_Step(external_freetype after_install
-    COMMAND ${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/freetype ${HARVEST_TARGET}/freetype
-    # harfbuzz *NEEDS* to find freetype.lib and will not be conviced to take alternative names so just give it
-    # what it wants.
-    COMMAND ${CMAKE_COMMAND} -E copy ${LIBDIR}/freetype/lib/freetype2st.lib ${LIBDIR}/freetype/lib/freetype.lib
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+      ${LIBDIR}/freetype
+      ${HARVEST_TARGET}/freetype
+
+    # `harfbuzz` *NEEDS* to find `freetype.lib` and will not be convinced to take
+    # alternative names so just give it what it wants.
+    COMMAND ${CMAKE_COMMAND} -E copy
+      ${LIBDIR}/freetype/lib/freetype2st.lib
+      ${LIBDIR}/freetype/lib/freetype.lib
 
     DEPENDEES install
   )
+  endif()
+else()
+  harvest(external_freetype freetype/include freetype/include "*.h")
+  harvest(external_freetype freetype/lib/libfreetype2ST.a freetype/lib/libfreetype.a)
 endif()

@@ -193,8 +193,8 @@ static void nla_track_region_draw(const bContext *C, ARegion *region)
   const size_t item_count = ANIM_animdata_filter(
       &ac, &anim_data, filter, ac.data, eAnimCont_Types(ac.datatype));
 
-  /* Recalculate the height of the track list. Needs to be done before the call to
-   * `UI_view2d_view_ortho`.*/
+  /* Recalculate the height of the track list.
+   * Needs to be done before the call to #UI_view2d_view_ortho. */
   int height = NLATRACK_TOT_HEIGHT(&ac, item_count);
   if (!BLI_listbase_is_empty(ED_context_get_markers(C))) {
     height += (UI_MARKER_MARGIN_Y - NLATRACK_STEP(snla));
@@ -559,17 +559,18 @@ static void nla_listener(const wmSpaceTypeListenerParams *params)
   }
 }
 
-static void nla_id_remap(ScrArea * /*area*/, SpaceLink *slink, const IDRemapper *mappings)
+static void nla_id_remap(ScrArea * /*area*/,
+                         SpaceLink *slink,
+                         const blender::bke::id::IDRemapper &mappings)
 {
   SpaceNla *snla = reinterpret_cast<SpaceNla *>(slink);
 
   if (snla->ads == nullptr) {
     return;
   }
-  BKE_id_remapper_apply(
-      mappings, reinterpret_cast<ID **>(&snla->ads->filter_grp), ID_REMAP_APPLY_DEFAULT);
-  BKE_id_remapper_apply(
-      mappings, reinterpret_cast<ID **>(&snla->ads->source), ID_REMAP_APPLY_DEFAULT);
+
+  mappings.apply(reinterpret_cast<ID **>(&snla->ads->filter_grp), ID_REMAP_APPLY_DEFAULT);
+  mappings.apply(reinterpret_cast<ID **>(&snla->ads->source), ID_REMAP_APPLY_DEFAULT);
 }
 
 static void nla_foreach_id(SpaceLink *space_link, LibraryForeachIDData *data)
@@ -581,14 +582,14 @@ static void nla_foreach_id(SpaceLink *space_link, LibraryForeachIDData *data)
     return;
   }
 
-  BKE_LIB_FOREACHID_PROCESS_ID(data, snla->ads->source, IDWALK_CB_NOP);
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, snla->ads->filter_grp, IDWALK_CB_NOP);
+  BKE_LIB_FOREACHID_PROCESS_ID(data, snla->ads->source, IDWALK_CB_DIRECT_WEAK_LINK);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, snla->ads->filter_grp, IDWALK_CB_DIRECT_WEAK_LINK);
 }
 
 static void nla_space_blend_read_data(BlendDataReader *reader, SpaceLink *sl)
 {
   SpaceNla *snla = reinterpret_cast<SpaceNla *>(sl);
-  BLO_read_data_address(reader, &snla->ads);
+  BLO_read_struct(reader, bDopeSheet, &snla->ads);
 }
 
 static void nla_space_blend_write(BlendWriter *writer, SpaceLink *sl)

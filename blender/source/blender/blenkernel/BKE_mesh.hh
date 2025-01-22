@@ -14,6 +14,8 @@
 #include "BKE_mesh.h"
 #include "BKE_mesh_types.hh"
 
+struct ModifierData;
+
 namespace blender::bke {
 
 enum class AttrDomain : int8_t;
@@ -291,6 +293,17 @@ inline int face_triangles_num(const int face_size)
 }
 
 /**
+ * Return the range of triangles that belong to the given face.
+ */
+inline IndexRange face_triangles_range(OffsetIndices<int> faces, int face_i)
+{
+  const IndexRange face = faces[face_i];
+  /* This is the same as #poly_to_tri_count which is not included here. */
+  const int start_triangle = face.start() - face_i * 2;
+  return IndexRange(start_triangle, face_triangles_num(face.size()));
+}
+
+/**
  * Return the index of the edge's vertex that is not the \a vert.
  */
 inline int edge_other_vert(const int2 edge, const int vert)
@@ -305,6 +318,9 @@ inline int edge_other_vert(const int2 edge, const int vert)
 /** \} */
 
 }  // namespace mesh
+
+/** Create a mesh with no built-in attributes. */
+Mesh *mesh_new_no_attributes(int verts_num, int edges_num, int faces_num, int corners_num);
 
 /** Calculate edges from faces. */
 void mesh_calc_edges(Mesh &mesh, bool keep_existing_edges, bool select_new_edges);
@@ -322,16 +338,27 @@ void mesh_vert_normals_assign(Mesh &mesh, Vector<float3> vert_normals);
 void mesh_smooth_set(Mesh &mesh, bool use_smooth, bool keep_sharp_edges = false);
 void mesh_sharp_edges_set_from_angle(Mesh &mesh, float angle, bool keep_sharp_edges = false);
 
+/**
+ * Calculate edge visibility based on vertex visibility, hides an edge when either of its
+ * vertices are hidden. */
+void mesh_edge_hide_from_vert(Span<int2> edges, Span<bool> hide_vert, MutableSpan<bool> hide_edge);
+
+/* Hide faces when any of their vertices are hidden. */
+void mesh_face_hide_from_vert(OffsetIndices<int> faces,
+                              Span<int> corner_verts,
+                              Span<bool> hide_vert,
+                              MutableSpan<bool> hide_poly);
+
 /** Make edge and face visibility consistent with vertices. */
 void mesh_hide_vert_flush(Mesh &mesh);
 /** Make vertex and edge visibility consistent with faces. */
 void mesh_hide_face_flush(Mesh &mesh);
 
-/** Make edge and face visibility consistent with vertices. */
+/** Make edge and face selection consistent with vertices. */
 void mesh_select_vert_flush(Mesh &mesh);
-/** Make vertex and face visibility consistent with edges. */
+/** Make vertex and face selection consistent with edges. */
 void mesh_select_edge_flush(Mesh &mesh);
-/** Make vertex and edge visibility consistent with faces. */
+/** Make vertex and edge selection consistent with faces. */
 void mesh_select_face_flush(Mesh &mesh);
 
 /** Set the default name when adding a color attribute if there is no default yet. */
@@ -339,5 +366,10 @@ void mesh_ensure_default_color_attribute_on_add(Mesh &mesh,
                                                 const AttributeIDRef &id,
                                                 AttrDomain domain,
                                                 eCustomDataType data_type);
+
+void mesh_data_update(Depsgraph &depsgraph,
+                      const Scene &scene,
+                      Object &ob,
+                      const CustomData_MeshMasks &dataMask);
 
 }  // namespace blender::bke

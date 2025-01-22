@@ -12,20 +12,17 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_anim_types.h"
-#include "DNA_object_types.h"
 #include "DNA_texture_types.h"
 
-#include "BKE_anim_data.h"
-#include "BKE_animsys.h"
+#include "BKE_anim_data.hh"
 #include "BKE_context.hh"
-#include "BKE_fcurve.h"
+#include "BKE_fcurve.hh"
 #include "BKE_fcurve_driver.h"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
@@ -45,7 +42,7 @@
 
 #include "ANIM_fcurve.hh"
 
-#include "anim_intern.h"
+#include "anim_intern.hh"
 
 /* ************************************************** */
 /* Animation Data Validation */
@@ -523,49 +520,39 @@ int ANIM_add_driver(
   return done_tot;
 }
 
-bool ANIM_remove_driver(
-    ReportList * /*reports*/, ID *id, const char rna_path[], int array_index, short /*flag*/)
+bool ANIM_remove_driver(ID *id, const char rna_path[], int array_index)
 {
-  AnimData *adt;
-  FCurve *fcu;
-  bool success = false;
-
-  /* we don't check the validity of the path here yet, but it should be ok... */
-  adt = BKE_animdata_from_id(id);
-
-  if (adt) {
-    if (array_index == -1) {
-      /* step through all drivers, removing all of those with the same base path */
-      FCurve *fcu_iter = static_cast<FCurve *>(adt->drivers.first);
-
-      while ((fcu = BKE_fcurve_iter_step(fcu_iter, rna_path)) != nullptr) {
-        /* Store the next fcurve for looping. */
-        fcu_iter = fcu->next;
-
-        /* remove F-Curve from driver stack, then free it */
-        BLI_remlink(&adt->drivers, fcu);
-        BKE_fcurve_free(fcu);
-
-        /* done successfully */
-        success = true;
-      }
-    }
-    else {
-      /* find the matching driver and remove it only
-       * NOTE: here is one of the places where we don't want new F-Curve + Driver added!
-       *      so 'add' var must be 0
-       */
-      fcu = verify_driver_fcurve(id, rna_path, array_index, DRIVER_FCURVE_LOOKUP_ONLY);
-      if (fcu) {
-        BLI_remlink(&adt->drivers, fcu);
-        BKE_fcurve_free(fcu);
-
-        success = true;
-      }
-    }
+  AnimData *adt = BKE_animdata_from_id(id);
+  if (!adt) {
+    return false;
   }
 
-  return success;
+  if (array_index >= 0) {
+    /* Simple case: Find the matching driver and remove it. */
+    FCurve *fcu = verify_driver_fcurve(id, rna_path, array_index, DRIVER_FCURVE_LOOKUP_ONLY);
+    if (!fcu) {
+      return false;
+    }
+
+    BLI_remlink(&adt->drivers, fcu);
+    BKE_fcurve_free(fcu);
+    return true;
+  }
+
+  /* Step through all drivers, removing all of those with the same RNA path. */
+  bool any_driver_removed = false;
+  FCurve *fcu_iter = static_cast<FCurve *>(adt->drivers.first);
+  FCurve *fcu;
+  while ((fcu = BKE_fcurve_iter_step(fcu_iter, rna_path)) != nullptr) {
+    /* Store the next fcurve for looping. */
+    fcu_iter = fcu->next;
+
+    BLI_remlink(&adt->drivers, fcu);
+    BKE_fcurve_free(fcu);
+
+    any_driver_removed = true;
+  }
+  return any_driver_removed;
 }
 
 /* ************************************************** */
@@ -838,7 +825,7 @@ void ANIM_copy_as_driver(ID *target_id, const char *target_path, const char *var
 
 /* Add Driver - Enum Defines ------------------------- */
 
-EnumPropertyItem prop_driver_create_mapping_types[] = {
+const EnumPropertyItem prop_driver_create_mapping_types[] = {
     /* XXX: These names need reviewing. */
     {CREATEDRIVER_MAPPING_1_N,
      "SINGLE_MANY",
@@ -876,7 +863,7 @@ static const EnumPropertyItem *driver_mapping_type_itemf(bContext *C,
                                                          PropertyRNA * /*owner_prop*/,
                                                          bool *r_free)
 {
-  EnumPropertyItem *input = prop_driver_create_mapping_types;
+  const EnumPropertyItem *input = prop_driver_create_mapping_types;
   EnumPropertyItem *item = nullptr;
 
   PointerRNA ptr = {nullptr};
@@ -932,7 +919,7 @@ static bool add_driver_button_poll(bContext *C)
   }
 
   /* Don't do anything if there is an fcurve for animation without a driver. */
-  FCurve *fcu = BKE_fcurve_find_by_rna_context_ui(
+  const FCurve *fcu = BKE_fcurve_find_by_rna_context_ui(
       C, &ptr, prop, index, nullptr, nullptr, &driven, &special);
   return (fcu == nullptr || fcu->driver);
 }
@@ -1057,7 +1044,7 @@ static int add_driver_button_invoke(bContext *C, wmOperator *op, const wmEvent *
     if (changed) {
       /* send updates */
       UI_context_update_anim_flag(C);
-      DEG_id_tag_update(ptr.owner_id, ID_RECALC_COPY_ON_WRITE);
+      DEG_id_tag_update(ptr.owner_id, ID_RECALC_SYNC_TO_EVAL);
       DEG_relations_tag_update(CTX_data_main(C));
       WM_event_add_notifier(C, NC_ANIMATION | ND_FCURVES_ORDER, nullptr);
     }
@@ -1104,7 +1091,7 @@ static int remove_driver_button_exec(bContext *C, wmOperator *op)
 
   if (ptr.owner_id && ptr.data && prop) {
     if (const std::optional<std::string> path = RNA_path_from_ID_to_property(&ptr, prop)) {
-      changed = ANIM_remove_driver(op->reports, ptr.owner_id, path->c_str(), index, 0);
+      changed = ANIM_remove_driver(ptr.owner_id, path->c_str(), index);
     }
   }
 

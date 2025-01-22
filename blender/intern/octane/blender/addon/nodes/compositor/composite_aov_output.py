@@ -71,7 +71,7 @@ class OctaneCompositeAOVOutput(bpy.types.Node, OctaneBaseNode):
         ("Latest (2022.1)", "Latest (2022.1)", """(null)""", 12000008),
         ("2021.1 compatibility mode", "2021.1 compatibility mode", """When "Enable imager" is disabled, some aspects of the imager are not bypassed, and linear sRGB data is output as sRGB.""", 0),
     ]
-    a_compatibility_version_enum: EnumProperty(name="Compatibility version", default="Latest (2022.1)", update=OctaneBaseNode.update_compatibility_mode, description="The Octane version that the behavior of this node should match", items=compatibility_mode_infos)
+    a_compatibility_version_enum: EnumProperty(name="Compatibility version", default="Latest (2022.1)", update=OctaneBaseNode.update_compatibility_mode_to_int, description="The Octane version that the behavior of this node should match", items=compatibility_mode_infos)
 
     a_layer_count: IntProperty(name="Layer count", default=0, update=OctaneBaseNode.update_node_tree, description="The number of layers. Changing this value and evaluating the node will update the number of layers. New layers will be added to the front of the dynamic pin list")
     a_compatibility_version: IntProperty(name="Compatibility version", default=12000102, update=OctaneBaseNode.update_node_tree, description="The Octane version that the behavior of this node should match")
@@ -117,7 +117,7 @@ class OctaneCompositeAOVOutputMovableLayerInput(OctaneMovableInput):
     color = consts.OctanePinColor.CompositeAOVOutputLayer
     octane_default_node_type = consts.NodeType.NT_COMPOSITE_AOV_LAYER
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_OUTPUT_AOV_LAYER)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)    
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
 
 
 class OctaneCompositeAOVOutputGroupLayers(OctaneGroupTitleMovableInputs):
@@ -128,11 +128,11 @@ class OctaneCompositeAOVOutputGroupLayers(OctaneGroupTitleMovableInputs):
 
 class OctaneCompositeAOVOutput_Override(OctaneCompositeAOVOutput):
     MAX_LAYER_COUNT = 16
-    DEFAULT_LAYER_COUNT = 1    
+    DEFAULT_LAYER_COUNT = 1
 
     def init(self, context):
         super().init(context)
-        self.inputs.new("OctaneCompositeAOVOutputGroupLayers", OctaneCompositeAOVOutputGroupLayers.bl_label).init(cls=OctaneCompositeAOVOutputMovableLayerInput, max_num=self.MAX_LAYER_COUNT)        
+        self.inputs.new("OctaneCompositeAOVOutputGroupLayers", OctaneCompositeAOVOutputGroupLayers.bl_label).init(cls=OctaneCompositeAOVOutputMovableLayerInput, max_num=self.MAX_LAYER_COUNT)
         self.init_movable_inputs(context, OctaneCompositeAOVOutputMovableLayerInput, self.DEFAULT_LAYER_COUNT)
 
     def draw_buttons(self, context, layout):

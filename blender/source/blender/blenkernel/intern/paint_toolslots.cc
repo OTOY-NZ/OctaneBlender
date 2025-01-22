@@ -11,7 +11,6 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_brush_types.h"
-#include "DNA_modifier_types.h"
 #include "DNA_scene_types.h"
 
 #include "BLI_utildefines.h"
@@ -90,9 +89,6 @@ void BKE_paint_toolslots_init_from_main(Main *bmain)
     if (ts->wpaint) {
       paint_toolslots_init_with_runtime(bmain, ts, &ts->wpaint->paint);
     }
-    if (ts->uvsculpt) {
-      paint_toolslots_init_with_runtime(bmain, ts, &ts->uvsculpt->paint);
-    }
     if (ts->gp_paint) {
       paint_toolslots_init_with_runtime(bmain, ts, &ts->gp_paint->paint);
     }
@@ -136,7 +132,7 @@ void BKE_paint_toolslots_brush_update(Paint *paint)
   BKE_paint_toolslots_brush_update_ex(paint, paint->brush);
 }
 
-void BKE_paint_toolslots_brush_validate(Main *bmain, Paint *paint)
+void BKE_paint_brush_validate(Main *bmain, Paint *paint)
 {
   /* Clear slots with invalid slots or mode (unlikely but possible). */
   const uint tool_offset = paint->runtime.tool_offset;

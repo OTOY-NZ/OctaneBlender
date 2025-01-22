@@ -16,26 +16,24 @@
 #include "DNA_node_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
-#include "DNA_windowmanager_types.h"
 
 #include "BLI_blenlib.h"
-#include "BLI_dlrbTree.h"
 #include "BLI_range.h"
 #include "BLI_utildefines.h"
 
+#include "BLT_translation.hh"
+
 #include "BKE_action.h"
-#include "BKE_context.hh"
-#include "BKE_fcurve.h"
+#include "BKE_fcurve.hh"
 #include "BKE_nla.h"
-#include "BKE_screen.hh"
 
 #include "ED_anim_api.hh"
 #include "ED_keyframes_draw.hh"
 #include "ED_keyframes_keylist.hh"
 
-#include "GPU_immediate.h"
-#include "GPU_immediate_util.h"
-#include "GPU_state.h"
+#include "GPU_immediate.hh"
+#include "GPU_immediate_util.hh"
+#include "GPU_state.hh"
 
 #include "WM_types.hh"
 
@@ -85,7 +83,7 @@ static void nla_action_draw_keyframes(
 
   /* get a list of the keyframes with NLA-scaling applied */
   AnimKeylist *keylist = ED_keylist_create();
-  action_to_keylist(adt, act, keylist, 0, {-FLT_MAX, FLT_MAX});
+  action_to_keylist(adt, act, keylist, 0, {v2d->cur.xmin, v2d->cur.xmax});
 
   if (ED_keylist_is_empty(keylist)) {
     ED_keylist_free(keylist);
@@ -312,7 +310,7 @@ static void nla_draw_strip_curves(NlaStrip *strip, float yminc, float ymaxc, uin
 
   /* influence -------------------------- */
   if (strip->flag & NLASTRIP_FLAG_USR_INFLUENCE) {
-    FCurve *fcu = BKE_fcurve_find(&strip->fcurves, "influence", 0);
+    const FCurve *fcu = BKE_fcurve_find(&strip->fcurves, "influence", 0);
 
     /* plot the curve (over the strip's main region) */
     if (fcu) {
@@ -423,8 +421,15 @@ static void nla_draw_strip(SpaceNla *snla,
                            float yminc,
                            float ymaxc)
 {
-  const bool solo = !((adt && (adt->flag & ADT_NLA_SOLO_TRACK)) &&
-                      (nlt->flag & NLATRACK_SOLO) == 0);
+  /* If there is no 'adt', this strip came from nowhere. */
+  BLI_assert(adt);
+  if (!adt) {
+    return;
+  }
+
+  const bool adt_has_solo_track = (adt->flag & ADT_NLA_SOLO_TRACK);
+  const bool is_track_solo = (nlt->flag & NLATRACK_SOLO);
+  const bool is_other_track_soloed = adt_has_solo_track && !is_track_solo;
 
   const bool muted = ((nlt->flag & NLATRACK_MUTED) || (strip->flag & NLASTRIP_FLAG_MUTED));
   float color[4] = {1.0f, 1.0f, 1.0f, 1.0f};
@@ -439,7 +444,7 @@ static void nla_draw_strip(SpaceNla *snla,
   /* draw extrapolation info first (as backdrop)
    * - but this should only be drawn if track has some contribution
    */
-  if ((strip->extendmode != NLASTRIP_EXTEND_NOTHING) && solo) {
+  if ((strip->extendmode != NLASTRIP_EXTEND_NOTHING) && !is_other_track_soloed) {
     /* enable transparency... */
     GPU_blend(GPU_BLEND_ALPHA);
 
@@ -477,9 +482,8 @@ static void nla_draw_strip(SpaceNla *snla,
   }
 
   /* draw 'inside' of strip itself */
-  if (solo && is_nlastrip_enabled(adt, nlt, strip) &&
-      !(strip->flag & NLASTRIP_FLAG_INVALID_LOCATION))
-  {
+  const bool is_invalid_location = (strip->flag & NLASTRIP_FLAG_INVALID_LOCATION);
+  if (!is_other_track_soloed && is_nlastrip_enabled(adt, nlt, strip) && !is_invalid_location) {
     immUnbindProgram();
 
     /* strip is in normal track */
@@ -522,7 +526,7 @@ static void nla_draw_strip(SpaceNla *snla,
   /* draw strip outline
    * - color used here is to indicate active vs non-active
    */
-  if (strip->flag & NLASTRIP_FLAG_INVALID_LOCATION) {
+  if (is_invalid_location) {
     color[0] = 1.0f;
     color[1] = color[2] = 0.15f;
   }
@@ -627,7 +631,7 @@ static void nla_draw_strip_text(AnimData *adt,
 
   /* just print the name and the range */
   if (strip->flag & NLASTRIP_FLAG_TEMP_META) {
-    str_len = BLI_snprintf_rlen(str, sizeof(str), "Temp-Meta");
+    str_len = STRNCPY_RLEN(str, DATA_("Temp-Meta"));
   }
   else {
     str_len = STRNCPY_RLEN(str, strip->name);
@@ -640,7 +644,7 @@ static void nla_draw_strip_text(AnimData *adt,
   else {
     col[0] = col[1] = col[2] = 255;
   }
-  // Default strip to 100% opacity.
+  /* Default strip to 100% opacity. */
   col[3] = 255;
 
   /* Reduce text opacity if a track is soloed,

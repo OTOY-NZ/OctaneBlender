@@ -19,39 +19,55 @@ void main()
 
   LightData light = in_light_buf[l_idx];
 
-  /* Do not select 0 power lights. */
-  if (light.influence_radius_max < 1e-8) {
+  /* Sun lights are packed at the end of the array. Perform early copy. */
+  if (is_sun_light(light.type)) {
+    /* First sun-light is reserved for world light. Perform copy from dedicated buffer. */
+    bool is_world_sun_light = light.color.r < 0.0;
+    if (is_world_sun_light) {
+      light.color = sunlight_buf.color;
+      light.object_to_world = sunlight_buf.object_to_world;
+
+      LightSunData sun_data = light_sun_data_get(light);
+      sun_data.direction = transform_z_axis(sunlight_buf.object_to_world);
+      light = light_sun_data_set(light, sun_data);
+      /* NOTE: Use the radius from UI instead of auto sun size for now. */
+    }
+    /* NOTE: We know the index because sun lights are packed at the start of the input buffer. */
+    out_light_buf[light_cull_buf.local_lights_len + l_idx] = light;
     return;
   }
 
-  /* Sun lights are packed at the end of the array. Perform early copy. */
-  if (is_sun_light(light.type)) {
-    /* NOTE: We know the index because sun lights are packed at the start of the input buffer. */
-    out_light_buf[light_cull_buf.local_lights_len + l_idx] = light;
+  /* Do not select 0 power lights. */
+  if (light_local_data_get(light).influence_radius_max < 1e-8) {
     return;
   }
 
   Sphere sphere;
   switch (light.type) {
     case LIGHT_SPOT_SPHERE:
-    case LIGHT_SPOT_DISK:
+    case LIGHT_SPOT_DISK: {
+      LightSpotData spot = light_spot_data_get(light);
       /* Only for < ~170 degree Cone due to plane extraction precision. */
-      if (light.spot_tan < 10.0) {
+      if (spot.spot_tan < 10.0) {
+        vec3 x_axis = light_x_axis(light);
+        vec3 y_axis = light_y_axis(light);
+        vec3 z_axis = light_z_axis(light);
         Pyramid pyramid = shape_pyramid_non_oblique(
-            light._position,
-            light._position - light._back * light.influence_radius_max,
-            light._right * light.influence_radius_max * light.spot_tan / light.spot_size_inv.x,
-            light._up * light.influence_radius_max * light.spot_tan / light.spot_size_inv.y);
+            light_position_get(light),
+            light_position_get(light) - z_axis * spot.influence_radius_max,
+            x_axis * spot.influence_radius_max * spot.spot_tan / spot.spot_size_inv.x,
+            y_axis * spot.influence_radius_max * spot.spot_tan / spot.spot_size_inv.y);
         if (!intersect_view(pyramid)) {
           return;
         }
       }
+    }
     case LIGHT_RECT:
     case LIGHT_ELLIPSE:
     case LIGHT_OMNI_SPHERE:
     case LIGHT_OMNI_DISK:
-      sphere.center = light._position;
-      sphere.radius = light.influence_radius_max;
+      sphere.center = light_position_get(light);
+      sphere.radius = light_local_data_get(light).influence_radius_max;
       break;
     default:
       break;
@@ -64,7 +80,7 @@ void main()
   if (intersect_view(sphere)) {
     uint index = atomicAdd(light_cull_buf.visible_count, 1u);
 
-    float z_dist = dot(drw_view_forward(), light._position) -
+    float z_dist = dot(drw_view_forward(), light_position_get(light)) -
                    dot(drw_view_forward(), drw_view_position());
     out_zdist_buf[index] = z_dist;
     out_key_buf[index] = l_idx;

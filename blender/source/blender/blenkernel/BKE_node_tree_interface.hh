@@ -7,7 +7,7 @@
 #include "DNA_node_tree_interface_types.h"
 #include "DNA_node_types.h"
 
-#include "BKE_node.h"
+#include "BKE_node.hh"
 
 #include <queue>
 #include <type_traits>
@@ -106,7 +106,7 @@ struct bNodeSocketStaticTypeInfo {
   const char *label;
 };
 
-/* Note: Socket and interface subtypes could be defined from a single central list,
+/* NOTE: Socket and interface subtypes could be defined from a single central list,
  * but makesrna cannot have a dependency on BKE, so this list would have to live in RNA itself,
  * with BKE etc. accessing the RNA API to get the subtypes info. */
 static const bNodeSocketStaticTypeInfo node_socket_subtypes[] = {
@@ -124,12 +124,17 @@ static const bNodeSocketStaticTypeInfo node_socket_subtypes[] = {
      SOCK_FLOAT,
      PROP_TIME_ABSOLUTE},
     {"NodeSocketFloatDistance", "NodeTreeInterfaceSocketFloatDistance", SOCK_FLOAT, PROP_DISTANCE},
+    {"NodeSocketFloatWavelength",
+     "NodeTreeInterfaceSocketFloatWavelength",
+     SOCK_FLOAT,
+     PROP_WAVELENGTH},
     {"NodeSocketInt", "NodeTreeInterfaceSocketInt", SOCK_INT, PROP_NONE},
     {"NodeSocketIntUnsigned", "NodeTreeInterfaceSocketIntUnsigned", SOCK_INT, PROP_UNSIGNED},
     {"NodeSocketIntPercentage", "NodeTreeInterfaceSocketIntPercentage", SOCK_INT, PROP_PERCENTAGE},
     {"NodeSocketIntFactor", "NodeTreeInterfaceSocketIntFactor", SOCK_INT, PROP_FACTOR},
     {"NodeSocketBool", "NodeTreeInterfaceSocketBool", SOCK_BOOLEAN, PROP_NONE},
     {"NodeSocketRotation", "NodeTreeInterfaceSocketRotation", SOCK_ROTATION, PROP_NONE},
+    {"NodeSocketMatrix", "NodeTreeInterfaceSocketMatrix", SOCK_MATRIX, PROP_NONE},
     {"NodeSocketVector", "NodeTreeInterfaceSocketVector", SOCK_VECTOR, PROP_NONE},
     {"NodeSocketVectorTranslation",
      "NodeTreeInterfaceSocketVectorTranslation",
@@ -206,6 +211,7 @@ template<typename Fn> bool socket_data_to_static_type(const eNodeSocketDatatype 
 
     case SOCK_CUSTOM:
     case SOCK_SHADER:
+    case SOCK_MATRIX:
     case SOCK_GEOMETRY:
       return true;
   }

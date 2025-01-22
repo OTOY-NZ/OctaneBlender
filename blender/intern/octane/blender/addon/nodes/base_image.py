@@ -311,7 +311,8 @@ class OctaneBaseImageNode(OctaneBaseNode):
             if attr_et.get("name", "") == "filename":
                 try:
                     asset_filepath = creator.get_asset_filepath(attr_et.text) if attr_et.text is not None else ""
-                    self.image = bpy.data.images.load(asset_filepath)
+                    if len(asset_filepath):
+                        self.image = bpy.data.images.load(asset_filepath)
                 except Exception as e:
                     logger.exception(e)
 

@@ -11,7 +11,6 @@
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_ghash.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_vector.h"
@@ -20,10 +19,12 @@
 #include "BKE_context.hh"
 #include "BKE_image.h"
 #include "BKE_movieclip.h"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 #include "BKE_tracking.h"
 
 #include "DEG_depsgraph.hh"
+
+#include "UI_interface_icons.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -34,13 +35,13 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 
-#include "clip_intern.h"
-#include "tracking_ops_intern.h"
+#include "clip_intern.hh"
+#include "tracking_ops_intern.hh"
 
 /* -------------------------------------------------------------------- */
 /** \name Add Marker Operator
@@ -244,6 +245,20 @@ static int delete_track_exec(bContext *C, wmOperator * /*op*/)
   return OPERATOR_FINISHED;
 }
 
+static int delete_track_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+{
+  if (RNA_boolean_get(op->ptr, "confirm")) {
+    return WM_operator_confirm_ex(C,
+                                  op,
+                                  IFACE_("Delete selected tracks?"),
+                                  nullptr,
+                                  IFACE_("Delete"),
+                                  ALERT_ICON_NONE,
+                                  false);
+  }
+  return delete_track_exec(C, op);
+}
+
 void CLIP_OT_delete_track(wmOperatorType *ot)
 {
   /* identifiers */
@@ -252,7 +267,7 @@ void CLIP_OT_delete_track(wmOperatorType *ot)
   ot->description = "Delete selected tracks";
 
   /* api callbacks */
-  ot->invoke = WM_operator_confirm_or_exec;
+  ot->invoke = delete_track_invoke;
   ot->exec = delete_track_exec;
   ot->poll = ED_space_clip_tracking_poll;
 
@@ -310,6 +325,20 @@ static int delete_marker_exec(bContext *C, wmOperator * /*op*/)
   return OPERATOR_FINISHED;
 }
 
+static int delete_marker_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+{
+  if (RNA_boolean_get(op->ptr, "confirm")) {
+    return WM_operator_confirm_ex(C,
+                                  op,
+                                  IFACE_("Delete marker for current frame from selected tracks?"),
+                                  nullptr,
+                                  IFACE_("Delete"),
+                                  ALERT_ICON_NONE,
+                                  false);
+  }
+  return delete_marker_exec(C, op);
+}
+
 void CLIP_OT_delete_marker(wmOperatorType *ot)
 {
   /* identifiers */
@@ -318,7 +347,7 @@ void CLIP_OT_delete_marker(wmOperatorType *ot)
   ot->description = "Delete marker for current frame from selected tracks";
 
   /* api callbacks */
-  ot->invoke = WM_operator_confirm_or_exec;
+  ot->invoke = delete_marker_invoke;
   ot->exec = delete_marker_exec;
   ot->poll = ED_space_clip_tracking_poll;
 
@@ -1792,7 +1821,7 @@ static int tracking_object_new_exec(bContext *C, wmOperator * /*op*/)
 
   BKE_tracking_object_add(tracking, "Object");
 
-  DEG_id_tag_update(&clip->id, ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&clip->id, ID_RECALC_SYNC_TO_EVAL);
   WM_event_add_notifier(C, NC_MOVIECLIP | NA_EDITED, clip);
 
   return OPERATOR_FINISHED;
@@ -1833,7 +1862,7 @@ static int tracking_object_remove_exec(bContext *C, wmOperator *op)
 
   BKE_tracking_object_delete(tracking, tracking_object);
 
-  DEG_id_tag_update(&clip->id, ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&clip->id, ID_RECALC_SYNC_TO_EVAL);
   WM_event_add_notifier(C, NC_MOVIECLIP | NA_EDITED, clip);
 
   return OPERATOR_FINISHED;

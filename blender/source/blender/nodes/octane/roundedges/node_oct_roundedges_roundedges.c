@@ -27,7 +27,7 @@
 
 #include "node_shader_util.hh"
 
-static bNodeSocketTemplate sh_node_in[] = {{SOCK_FLOAT,
+static blender::bke::bNodeSocketTemplate  sh_node_in[] = {{SOCK_FLOAT,
                                             N_("Radius"),
                                             0.0f,
                                             0.0f,
@@ -69,7 +69,7 @@ static bNodeSocketTemplate sh_node_in[] = {{SOCK_FLOAT,
                                             SOCK_NO_INTERNAL_LINK},
                                            {-1, ""}};
 
-static bNodeSocketTemplate sh_node_out[] = {
+static blender::bke::bNodeSocketTemplate  sh_node_out[] = {
     {SOCK_SHADER, N_("OutRoundEdge")},
     {SOCK_SHADER,
      N_("OutTex"),
@@ -90,13 +90,13 @@ static void node_roundedges_oct_roundedges_init(bNodeTree *ntree, bNode *node)
 
 void register_node_type_roundedges_oct_roundedges(void)
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   if (ntype.type != SH_NODE_OCT_ROUNDEDGES)
     sh_node_type_base(
         &ntype, SH_NODE_OCT_ROUNDEDGES, "Round Edge", NODE_CLASS_OCT_ROUNDEDGES);
   blender::bke::node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
-  node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::DEFAULT);
+  node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Default);
   ntype.initfunc = (node_roundedges_oct_roundedges_init);
   // node_type_exec(&ntype, 0, 0, 0);
   ntype.updatefunc = (0);

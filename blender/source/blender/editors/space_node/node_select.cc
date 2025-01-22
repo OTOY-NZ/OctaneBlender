@@ -13,7 +13,7 @@
 #include "DNA_node_types.h"
 #include "DNA_windowmanager_types.h"
 
-#include "BLI_lasso_2d.h"
+#include "BLI_lasso_2d.hh"
 #include "BLI_listbase.h"
 #include "BLI_rect.h"
 #include "BLI_string.h"
@@ -25,7 +25,7 @@
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_node_tree_update.hh"
-#include "BKE_workspace.h"
+#include "BKE_workspace.hh"
 
 #include "ED_node.hh" /* own include */
 #include "ED_screen.hh"
@@ -245,11 +245,13 @@ static void node_socket_toggle(bNode *node, bNodeSocket &sock, bool deselect_nod
   }
 }
 
-void node_deselect_all(bNodeTree &node_tree)
+bool node_deselect_all(bNodeTree &node_tree)
 {
+  bool changed = false;
   for (bNode *node : node_tree.all_nodes()) {
-    nodeSetSelected(node, false);
+    changed |= bke::nodeSetSelected(node, false);
   }
+  return changed;
 }
 
 void node_deselect_all_input_sockets(bNodeTree &node_tree, const bool deselect_nodes)
@@ -353,7 +355,7 @@ static bool node_select_grouped_type(bNodeTree &node_tree, bNode &node_act)
   for (bNode *node : node_tree.all_nodes()) {
     if ((node->flag & SELECT) == 0) {
       if (node->type == node_act.type) {
-        nodeSetSelected(node, true);
+        bke::nodeSetSelected(node, true);
         changed = true;
       }
     }
@@ -367,7 +369,7 @@ static bool node_select_grouped_color(bNodeTree &node_tree, bNode &node_act)
   for (bNode *node : node_tree.all_nodes()) {
     if ((node->flag & SELECT) == 0) {
       if (compare_v3v3(node->color, node_act.color, 0.005f)) {
-        nodeSetSelected(node, true);
+        bke::nodeSetSelected(node, true);
         changed = true;
       }
     }
@@ -408,7 +410,7 @@ static bool node_select_grouped_name(bNodeTree &node_tree, bNode &node_act, cons
         (!from_right && (pref_len_act == pref_len_curr) &&
          STREQLEN(node_act.name, node->name, pref_len_act)))
     {
-      nodeSetSelected(node, true);
+      bke::nodeSetSelected(node, true);
       changed = true;
     }
   }
@@ -427,7 +429,7 @@ static int node_select_grouped_exec(bContext *C, wmOperator *op)
 {
   SpaceNode &snode = *CTX_wm_space_node(C);
   bNodeTree &node_tree = *snode.edittree;
-  bNode *node_act = nodeGetActive(snode.edittree);
+  bNode *node_act = bke::nodeGetActive(snode.edittree);
 
   if (node_act == nullptr) {
     return OPERATOR_CANCELLED;
@@ -440,7 +442,7 @@ static int node_select_grouped_exec(bContext *C, wmOperator *op)
   if (!extend) {
     node_deselect_all(node_tree);
   }
-  nodeSetSelected(node_act, true);
+  bke::nodeSetSelected(node_act, true);
 
   switch (type) {
     case NODE_SELECT_GROUPED_TYPE:
@@ -520,17 +522,17 @@ void node_select_single(bContext &C, bNode &node)
 
   for (bNode *node_iter : node_tree.all_nodes()) {
     if (node_iter != &node) {
-      nodeSetSelected(node_iter, false);
+      bke::nodeSetSelected(node_iter, false);
     }
   }
-  nodeSetSelected(&node, true);
+  bke::nodeSetSelected(&node, true);
 
   ED_node_set_active(bmain, &snode, &node_tree, &node, &active_texture_changed);
   ED_node_set_active_viewer_key(&snode);
 
   tree_draw_order_update(node_tree);
   if (active_texture_changed && has_workbench_in_texture_color(wm, scene, ob)) {
-    DEG_id_tag_update(&node_tree.id, ID_RECALC_COPY_ON_WRITE);
+    DEG_id_tag_update(&node_tree.id, ID_RECALC_SYNC_TO_EVAL);
   }
 
   WM_event_add_notifier(&C, NC_NODE | NA_SELECTED, nullptr);
@@ -631,27 +633,26 @@ static bool node_mouse_select(bContext *C,
       }
       else if (found || params->deselect_all) {
         /* Deselect everything. */
-        node_deselect_all(node_tree);
-        changed = true;
+        changed = node_deselect_all(node_tree);
       }
     }
 
     if (found) {
       switch (params->sel_op) {
         case SEL_OP_ADD:
-          nodeSetSelected(node, true);
+          bke::nodeSetSelected(node, true);
           break;
         case SEL_OP_SUB:
-          nodeSetSelected(node, false);
+          bke::nodeSetSelected(node, false);
           break;
         case SEL_OP_XOR: {
           /* Check active so clicking on an inactive node activates it. */
           bool is_selected = (node->flag & NODE_SELECT) && (node->flag & NODE_ACTIVE);
-          nodeSetSelected(node, !is_selected);
+          bke::nodeSetSelected(node, !is_selected);
           break;
         }
         case SEL_OP_SET:
-          nodeSetSelected(node, true);
+          bke::nodeSetSelected(node, true);
           break;
         case SEL_OP_AND:
           /* Doesn't make sense for picking. */
@@ -690,7 +691,7 @@ static bool node_mouse_select(bContext *C,
   if ((active_texture_changed && has_workbench_in_texture_color(wm, scene, ob)) ||
       viewer_node_changed)
   {
-    DEG_id_tag_update(&snode.edittree->id, ID_RECALC_COPY_ON_WRITE);
+    DEG_id_tag_update(&snode.edittree->id, ID_RECALC_SYNC_TO_EVAL);
   }
 
   WM_event_add_notifier(C, NC_NODE | NA_SELECTED, nullptr);
@@ -801,7 +802,7 @@ static int node_box_select_exec(bContext *C, wmOperator *op)
         if (BLI_rctf_isect(&rectf, &node->runtime->totr, nullptr) &&
             !BLI_rctf_inside_rctf(&frame_inside, &rectf))
         {
-          nodeSetSelected(node, select);
+          bke::nodeSetSelected(node, select);
           is_inside = true;
         }
         break;
@@ -813,7 +814,7 @@ static int node_box_select_exec(bContext *C, wmOperator *op)
     }
 
     if (is_inside) {
-      nodeSetSelected(node, select);
+      bke::nodeSetSelected(node, select);
     }
   }
 
@@ -907,13 +908,13 @@ static int node_circleselect_exec(bContext *C, wmOperator *op)
         if (BLI_rctf_isect_circle(&node->runtime->totr, offset, radius_adjusted) &&
             !BLI_rctf_isect_circle(&frame_inside, offset, radius_adjusted))
         {
-          nodeSetSelected(node, select);
+          bke::nodeSetSelected(node, select);
         }
         break;
       }
       default: {
         if (BLI_rctf_isect_circle(&node->runtime->totr, offset, radius / zoom)) {
-          nodeSetSelected(node, select);
+          bke::nodeSetSelected(node, select);
         }
         break;
       }
@@ -964,10 +965,7 @@ static int node_lasso_select_invoke(bContext *C, wmOperator *op, const wmEvent *
   return WM_gesture_lasso_invoke(C, op, event);
 }
 
-static bool do_lasso_select_node(bContext *C,
-                                 const int mcoords[][2],
-                                 const int mcoords_len,
-                                 eSelectOp sel_op)
+static bool do_lasso_select_node(bContext *C, const Span<int2> mcoords, eSelectOp sel_op)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
   bNodeTree &node_tree = *snode->edittree;
@@ -984,7 +982,7 @@ static bool do_lasso_select_node(bContext *C,
   }
 
   /* Get rectangle from operator. */
-  BLI_lasso_boundbox(&rect, mcoords, mcoords_len);
+  BLI_lasso_boundbox(&rect, mcoords);
 
   for (bNode *node : node_tree.all_nodes()) {
     if (select && (node->flag & NODE_SELECT)) {
@@ -1002,7 +1000,7 @@ static bool do_lasso_select_node(bContext *C,
         if (BLI_rctf_isect(&rectf, &node->runtime->totr, nullptr) &&
             !BLI_rctf_inside_rctf(&frame_inside, &rectf))
         {
-          nodeSetSelected(node, select);
+          bke::nodeSetSelected(node, select);
           changed = true;
         }
         break;
@@ -1016,9 +1014,9 @@ static bool do_lasso_select_node(bContext *C,
         if (UI_view2d_view_to_region_clip(
                 &region->v2d, center.x, center.y, &screen_co.x, &screen_co.y) &&
             BLI_rcti_isect_pt(&rect, screen_co.x, screen_co.y) &&
-            BLI_lasso_is_point_inside(mcoords, mcoords_len, screen_co.x, screen_co.y, INT_MAX))
+            BLI_lasso_is_point_inside(mcoords, screen_co.x, screen_co.y, INT_MAX))
         {
-          nodeSetSelected(node, select);
+          bke::nodeSetSelected(node, select);
           changed = true;
         }
         break;
@@ -1035,19 +1033,17 @@ static bool do_lasso_select_node(bContext *C,
 
 static int node_lasso_select_exec(bContext *C, wmOperator *op)
 {
-  int mcoords_len;
-  const int(*mcoords)[2] = WM_gesture_lasso_path_to_array(C, op, &mcoords_len);
+  const Array<int2> mcoords = WM_gesture_lasso_path_to_array(C, op);
 
-  if (mcoords) {
-    const eSelectOp sel_op = (eSelectOp)RNA_enum_get(op->ptr, "mode");
-
-    do_lasso_select_node(C, mcoords, mcoords_len, sel_op);
-
-    MEM_freeN((void *)mcoords);
-
-    return OPERATOR_FINISHED;
+  if (mcoords.is_empty()) {
+    return OPERATOR_PASS_THROUGH;
   }
-  return OPERATOR_PASS_THROUGH;
+
+  const eSelectOp sel_op = (eSelectOp)RNA_enum_get(op->ptr, "mode");
+
+  do_lasso_select_node(C, mcoords, sel_op);
+
+  return OPERATOR_FINISHED;
 }
 
 void NODE_OT_select_lasso(wmOperatorType *ot)
@@ -1114,7 +1110,7 @@ static int node_select_all_exec(bContext *C, wmOperator *op)
   switch (action) {
     case SEL_SELECT:
       for (bNode *node : node_tree.all_nodes()) {
-        nodeSetSelected(node, true);
+        bke::nodeSetSelected(node, true);
       }
       break;
     case SEL_DESELECT:
@@ -1122,7 +1118,7 @@ static int node_select_all_exec(bContext *C, wmOperator *op)
       break;
     case SEL_INVERT:
       for (bNode *node : node_tree.all_nodes()) {
-        nodeSetSelected(node, !(node->flag & SELECT));
+        bke::nodeSetSelected(node, !(node->flag & SELECT));
       }
       break;
   }
@@ -1174,7 +1170,7 @@ static int node_select_linked_to_exec(bContext *C, wmOperator * /*op*/)
         if (!input_socket->is_available()) {
           continue;
         }
-        nodeSetSelected(&input_socket->owner_node(), true);
+        bke::nodeSetSelected(&input_socket->owner_node(), true);
       }
     }
   }
@@ -1224,7 +1220,7 @@ static int node_select_linked_from_exec(bContext *C, wmOperator * /*op*/)
         if (!output_socket->is_available()) {
           continue;
         }
-        nodeSetSelected(&output_socket->owner_node(), true);
+        bke::nodeSetSelected(&output_socket->owner_node(), true);
       }
     }
   }
@@ -1266,7 +1262,11 @@ static int node_select_same_type_step_exec(bContext *C, wmOperator *op)
   SpaceNode *snode = CTX_wm_space_node(C);
   ARegion *region = CTX_wm_region(C);
   const bool prev = RNA_boolean_get(op->ptr, "prev");
-  bNode &active_node = *nodeGetActive(snode->edittree);
+  bNode *active_node = bke::nodeGetActive(snode->edittree);
+
+  if (active_node == nullptr) {
+    return OPERATOR_CANCELLED;
+  }
 
   bNodeTree &node_tree = *snode->edittree;
   node_tree.ensure_topology_cache();
@@ -1275,7 +1275,7 @@ static int node_select_same_type_step_exec(bContext *C, wmOperator *op)
   }
 
   const Span<const bNode *> toposort = node_tree.toposort_left_to_right();
-  const int index = toposort.first_index(&active_node);
+  const int index = toposort.first_index(active_node);
 
   int new_index = index;
   while (true) {
@@ -1283,13 +1283,13 @@ static int node_select_same_type_step_exec(bContext *C, wmOperator *op)
     if (!toposort.index_range().contains(new_index)) {
       return OPERATOR_CANCELLED;
     }
-    if (nodes_are_same_type_for_select(*toposort[new_index], active_node)) {
+    if (nodes_are_same_type_for_select(*toposort[new_index], *active_node)) {
       break;
     }
   }
 
   bNode *new_active_node = node_tree.all_nodes()[toposort[new_index]->index()];
-  if (new_active_node == &active_node) {
+  if (new_active_node == active_node) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1379,12 +1379,12 @@ static void node_find_exec_fn(bContext *C, void * /*arg1*/, void *arg2)
   }
 }
 
-static uiBlock *node_find_menu(bContext *C, ARegion *region, void *arg_op)
+static uiBlock *node_find_menu(bContext *C, ARegion *region, void *arg_optype)
 {
   static char search[256] = "";
   uiBlock *block;
   uiBut *but;
-  wmOperator *op = (wmOperator *)arg_op;
+  wmOperatorType *optype = (wmOperatorType *)arg_optype;
 
   block = UI_block_begin(C, region, "_popup", UI_EMBOSS);
   UI_block_flag_enable(block, UI_BLOCK_LOOP | UI_BLOCK_MOVEMOUSE_QUIT | UI_BLOCK_SEARCH_MENU);
@@ -1399,11 +1399,9 @@ static uiBlock *node_find_menu(bContext *C, ARegion *region, void *arg_op)
                        10,
                        UI_searchbox_size_x(),
                        UI_UNIT_Y,
-                       0,
-                       0,
                        "");
   UI_but_func_search_set(
-      but, nullptr, node_find_update_fn, op->type, false, nullptr, node_find_exec_fn, nullptr);
+      but, nullptr, node_find_update_fn, optype, false, nullptr, node_find_exec_fn, nullptr);
   UI_but_flag_enable(but, UI_BUT_ACTIVATE_ON_INIT);
 
   /* Fake button holds space for search items. */
@@ -1418,8 +1416,6 @@ static uiBlock *node_find_menu(bContext *C, ARegion *region, void *arg_op)
            nullptr,
            0,
            0,
-           0,
-           0,
            nullptr);
 
   /* Move it downwards, mouse over button. */
@@ -1431,7 +1427,7 @@ static uiBlock *node_find_menu(bContext *C, ARegion *region, void *arg_op)
 
 static int node_find_node_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
-  UI_popup_block_invoke(C, node_find_menu, op, nullptr);
+  UI_popup_block_invoke(C, node_find_menu, op->type, nullptr);
   return OPERATOR_CANCELLED;
 }
 

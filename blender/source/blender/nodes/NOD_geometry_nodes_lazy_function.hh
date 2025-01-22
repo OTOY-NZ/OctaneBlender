@@ -29,6 +29,7 @@
 #include "NOD_multi_function.hh"
 
 #include "BLI_compute_context.hh"
+#include "BLI_math_quaternion_types.hh"
 
 #include "BKE_bake_items.hh"
 #include "BKE_node_tree_zones.hh"
@@ -60,8 +61,9 @@ struct OutputCopy {
 };
 
 /**
- * Same as above, but the values can be output by move, instead of copy. This can reduce the amount
- * of unnecessary copies, when the old simulation state is not needed anymore.
+ * Same as #OutputCopy, but the values can be output by move, instead of copy.
+ * This can reduce the amount of unnecessary copies,
+ * when the old simulation state is not needed anymore.
  */
 struct OutputMove {
   float delta_time;
@@ -164,13 +166,45 @@ struct GeoNodesModifierData {
   Depsgraph *depsgraph = nullptr;
 };
 
+struct GeoNodesOperatorDepsgraphs {
+  /** Current evaluated depsgraph from the viewport. Shouldn't be null. */
+  const Depsgraph *active = nullptr;
+  /**
+   * Depsgraph containing IDs referenced by the node tree and the node tree itself and from node
+   * group inputs (the redo panel).
+   */
+  Depsgraph *extra = nullptr;
+
+  ~GeoNodesOperatorDepsgraphs();
+
+  /**
+   * The evaluated data-block might be in the scene's active depsgraph, in that case we should use
+   * it directly. Otherwise retrieve it from the extra depsgraph that was built for all other
+   * data-blocks. Return null if it isn't found, generally geometry nodes can handle null ID
+   * pointers.
+   */
+  const ID *get_evaluated_id(const ID &id_orig) const;
+};
+
 struct GeoNodesOperatorData {
   eObjectMode mode;
   /** The object currently effected by the operator. */
-  const Object *self_object = nullptr;
-  /** Current evaluated depsgraph. */
-  Depsgraph *depsgraph = nullptr;
-  Scene *scene = nullptr;
+  const Object *self_object_orig = nullptr;
+  const GeoNodesOperatorDepsgraphs *depsgraphs = nullptr;
+  Scene *scene_orig = nullptr;
+  int2 mouse_position;
+  int2 region_size;
+
+  float3 cursor_position;
+  math::Quaternion cursor_rotation;
+
+  float4x4 viewport_winmat;
+  float4x4 viewport_viewmat;
+  bool viewport_is_perspective;
+
+  int active_point_index = -1;
+  int active_edge_index = -1;
+  int active_face_index = -1;
 };
 
 struct GeoNodesCallData {

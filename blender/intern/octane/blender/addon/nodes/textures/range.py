@@ -188,9 +188,9 @@ class OctaneRange(bpy.types.Node, OctaneBaseNode):
         ("Latest (2022.1)", "Latest (2022.1)", """(null)""", 12000005),
         ("2021.1 compatibility mode", "2021.1 compatibility mode", """The Steps interpolation type produces more distinct output values than requested by Levels if the input values are inclusive of "Input max", or if Clamp is disabled and the input contains values outside of the specified input range.""", 0),
     ]
-    a_compatibility_version_enum: EnumProperty(name="Compatibility version", default="Latest (2022.1)", update=OctaneBaseNode.update_compatibility_mode, description="The Octane version that the behavior of this node should match", items=compatibility_mode_infos)
+    a_compatibility_version_enum: EnumProperty(name="Compatibility version", default="Latest (2022.1)", update=OctaneBaseNode.update_compatibility_mode_to_int, description="The Octane version that the behavior of this node should match", items=compatibility_mode_infos)
 
-    a_compatibility_version: IntProperty(name="Compatibility version", default=14000005, update=OctaneBaseNode.update_node_tree, description="The Octane version that the behavior of this node should match")
+    a_compatibility_version: IntProperty(name="Compatibility version", default=14000007, update=OctaneBaseNode.update_compatibility_mode_to_enum, description="The Octane version that the behavior of this node should match")
 
     def init(self, context):  # noqa
         self.inputs.new("OctaneRangeInput", OctaneRangeInput.bl_label).init()

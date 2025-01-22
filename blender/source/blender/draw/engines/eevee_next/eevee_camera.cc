@@ -81,6 +81,7 @@ void Camera::init()
     overscan = inst_.scene->eevee.overscan / 100.0f;
   }
   overscan_changed_ = assign_if_different(overscan_, overscan);
+  camera_changed_ = assign_if_different(last_camera_object_, inst_.camera_orig_object);
 }
 
 void Camera::sync()
@@ -110,13 +111,13 @@ void Camera::sync()
 
   if (inst_.is_baking()) {
     /* Any view so that shadows and light culling works during irradiance bake. */
-    draw::View &view = inst_.irradiance_cache.bake.view_z_;
+    draw::View &view = inst_.volume_probes.bake.view_z_;
     data.viewmat = view.viewmat();
     data.viewinv = view.viewinv();
     data.winmat = view.winmat();
     data.type = CAMERA_ORTHO;
 
-    /* \note: Follow camera parameters where distances are positive in front of the camera. */
+    /* \note Follow camera parameters where distances are positive in front of the camera. */
     data.clip_near = -view.far_clip();
     data.clip_far = -view.near_clip();
     data.fisheye_fov = data.fisheye_lens = -1.0f;
@@ -132,20 +133,26 @@ void Camera::sync()
       DRW_view_winmat_get(inst_.drw_view, data.winmat.ptr(), false);
     }
     else {
-      rctf viewplane;
-      float clip_start;
-      float clip_end;
-      bool is_ortho = ED_view3d_viewplane_get(inst_.depsgraph,
-                                              inst_.v3d,
-                                              inst_.rv3d,
-                                              UNPACK2(inst_.film.display_extent_get()),
-                                              &viewplane,
-                                              &clip_start,
-                                              &clip_end,
-                                              nullptr);
+      CameraParams params;
+      BKE_camera_params_init(&params);
 
-      RE_GetWindowMatrixWithOverscan(
-          is_ortho, clip_start, clip_end, viewplane, overscan_, data.winmat.ptr());
+      if (inst_.rv3d->persp == RV3D_CAMOB && DRW_state_is_viewport_image_render()) {
+        /* We are rendering camera view, no need for pan/zoom params from viewport.*/
+        BKE_camera_params_from_object(&params, camera_eval);
+      }
+      else {
+        BKE_camera_params_from_view3d(&params, inst_.depsgraph, inst_.v3d, inst_.rv3d);
+      }
+
+      BKE_camera_params_compute_viewplane(
+          &params, UNPACK2(inst_.film.display_extent_get()), 1.0f, 1.0f);
+
+      RE_GetWindowMatrixWithOverscan(params.is_ortho,
+                                     params.clip_start,
+                                     params.clip_end,
+                                     params.viewplane,
+                                     overscan_,
+                                     data.winmat.ptr());
     }
   }
   else if (inst_.render) {
@@ -166,6 +173,7 @@ void Camera::sync()
   data.persmat = data.winmat * data.viewmat;
   data.persinv = math::invert(data.persmat);
 
+  is_camera_object_ = false;
   if (camera_eval && camera_eval->type == OB_CAMERA) {
     const ::Camera *cam = reinterpret_cast<const ::Camera *>(camera_eval->data);
     data.clip_near = cam->clip_start;
@@ -187,9 +195,10 @@ void Camera::sync()
     data.equirect_bias = float2(0.0f);
     data.equirect_scale = float2(0.0f);
 #endif
+    is_camera_object_ = true;
   }
   else if (inst_.drw_view) {
-    /* \note: Follow camera parameters where distances are positive in front of the camera. */
+    /* \note Follow camera parameters where distances are positive in front of the camera. */
     data.clip_near = -DRW_view_near_distance_get(inst_.drw_view);
     data.clip_far = -DRW_view_far_distance_get(inst_.drw_view);
     data.fisheye_fov = data.fisheye_lens = -1.0f;

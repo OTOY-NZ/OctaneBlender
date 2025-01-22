@@ -28,7 +28,7 @@ struct SearchItem {
   int main_group_id;
   int main_group_length;
   int total_length;
-  int weight;
+  float weight;
   /**
    * This is a logical time stamp, i.e. the greater it is, the more recent the item was used. The
    * number is not based on an actual clock.
@@ -70,7 +70,7 @@ class StringSearchBase {
   MainWordsHeuristic main_words_heuristic_;
 
  protected:
-  void add_impl(StringRef str, void *user_data, int weight);
+  void add_impl(StringRef str, void *user_data, float weight);
   Vector<void *> query_impl(StringRef query) const;
 };
 
@@ -98,7 +98,7 @@ template<typename T> class StringSearch : private StringSearchBase {
    * \param weight: Can be used to customize the order when multiple items have the same match
    * score.
    */
-  void add(const StringRefNull str, T *user_data, const int weight = 0)
+  void add(const StringRef str, T *user_data, const int weight = 0)
   {
     this->add_impl(str, (void *)user_data, weight);
   }

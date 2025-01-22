@@ -8,17 +8,18 @@
 #include "usd.hh"
 #include "usd_hierarchy_iterator.hh"
 #include "usd_hook.hh"
+#include "usd_light_convert.hh"
 #include "usd_private.hh"
 
-#include <pxr/base/plug/registry.h>
 #include <pxr/base/tf/token.h>
 #include <pxr/pxr.h>
-#include <pxr/usd/usd/prim.h>
+#include <pxr/usd/sdf/assetPath.h>
 #include <pxr/usd/usd/primRange.h>
 #include <pxr/usd/usd/stage.h>
 #include <pxr/usd/usdGeom/tokens.h>
 #include <pxr/usd/usdGeom/xform.h>
-#include <pxr/usd/usdUtils/dependencies.h>
+#include <pxr/usd/usdGeom/xformCommonAPI.h>
+#include <pxr/usd/usdUtils/usdzPackage.h>
 
 #include "MEM_guardedalloc.h"
 
@@ -26,22 +27,35 @@
 #include "DEG_depsgraph_build.hh"
 #include "DEG_depsgraph_query.hh"
 
+#include "DNA_collection_types.h"
 #include "DNA_scene_types.h"
 
 #include "BKE_appdir.hh"
 #include "BKE_blender_version.h"
 #include "BKE_context.hh"
-#include "BKE_global.h"
-#include "BKE_report.h"
-#include "BKE_scene.h"
+#include "BKE_global.hh"
+#include "BKE_image.h"
+#include "BKE_image_save.h"
+#include "BKE_lib_id.hh"
+#include "BKE_report.hh"
+#include "BKE_scene.hh"
 
 #include "BLI_fileops.h"
+#include "BLI_math_matrix.h"
+#include "BLI_math_rotation.h"
+#include "BLI_math_vector.h"
 #include "BLI_path_util.h"
 #include "BLI_string.h"
 #include "BLI_timeit.hh"
 
+#include <IMB_imbuf.hh>
+#include <IMB_imbuf_types.hh>
+
 #include "WM_api.hh"
 #include "WM_types.hh"
+
+#include "CLG_log.h"
+static CLG_LogRef LOG = {"io.usd"};
 
 namespace blender::io::usd {
 
@@ -49,6 +63,7 @@ struct ExportJobData {
   Main *bmain;
   Depsgraph *depsgraph;
   wmWindowManager *wm;
+  Scene *scene;
 
   /** Unarchived_filepath is used for USDA/USDC/USD export. */
   char unarchived_filepath[FILE_MAX];
@@ -139,6 +154,33 @@ static void ensure_root_prim(pxr::UsdStageRefPtr stage, const USDExportParams &p
     return;
   }
 
+  pxr::UsdGeomXform root_xf = pxr::UsdGeomXform::Define(stage,
+                                                        pxr::SdfPath(params.root_prim_path));
+
+  if (!root_xf) {
+    return;
+  }
+
+  pxr::UsdGeomXformCommonAPI xf_api(root_xf.GetPrim());
+
+  if (!xf_api) {
+    return;
+  }
+
+  if (params.convert_orientation) {
+    float mrot[3][3];
+    mat3_from_axis_conversion(IO_AXIS_Y, IO_AXIS_Z, params.forward_axis, params.up_axis, mrot);
+    transpose_m3(mrot);
+
+    float eul[3];
+    mat3_to_eul(eul, mrot);
+
+    /* Convert radians to degrees. */
+    mul_v3_fl(eul, 180.0f / M_PI);
+
+    xf_api.SetRotate(pxr::GfVec3f(eul[0], eul[1], eul[2]));
+  }
+
   for (auto path : pxr::SdfPath(params.root_prim_path).GetPrefixes()) {
     auto xform = pxr::UsdGeomXform::Define(stage, path);
     /* Tag generated prims to allow filtering on import */
@@ -153,6 +195,80 @@ static void report_job_duration(const ExportJobData *data)
   std::cout << "USD export of '" << export_filepath << "' took ";
   timeit::print_duration(duration);
   std::cout << '\n';
+}
+
+static void process_usdz_textures(const ExportJobData *data, const char *path)
+{
+  const eUSDZTextureDownscaleSize enum_value = data->params.usdz_downscale_size;
+  if (enum_value == USD_TEXTURE_SIZE_KEEP) {
+    return;
+  }
+
+  int image_size = ((enum_value == USD_TEXTURE_SIZE_CUSTOM ?
+                         data->params.usdz_downscale_custom_size :
+                         enum_value));
+
+  char texture_path[FILE_MAX];
+  BLI_strncpy(texture_path, path, FILE_MAX);
+  BLI_path_append(texture_path, FILE_MAX, "textures");
+  BLI_path_slash_ensure(texture_path, sizeof(texture_path));
+
+  struct direntry *entries;
+  unsigned int num_files = BLI_filelist_dir_contents(texture_path, &entries);
+
+  for (int index = 0; index < num_files; index++) {
+    /* We can skip checking extensions as this folder is only created
+     * when we're doing a USDZ export. */
+    if (!BLI_is_dir(entries[index].path)) {
+      Image *im = BKE_image_load(data->bmain, entries[index].path);
+      if (!im) {
+        CLOG_WARN(&LOG, "Unable to open file for downscaling: %s", entries[index].path);
+        continue;
+      }
+
+      int width, height;
+      BKE_image_get_size(im, nullptr, &width, &height);
+      const int longest = width >= height ? width : height;
+      const float scale = 1.0 / (float(longest) / float(image_size));
+
+      if (longest > image_size) {
+        const int width_adjusted = float(width) * scale;
+        const int height_adjusted = float(height) * scale;
+        BKE_image_scale(im, width_adjusted, height_adjusted, nullptr);
+
+        ImageSaveOptions opts;
+
+        if (BKE_image_save_options_init(
+                &opts, data->bmain, data->scene, im, nullptr, false, false))
+        {
+          bool result = BKE_image_save(nullptr, data->bmain, im, nullptr, &opts);
+          if (!result) {
+            CLOG_ERROR(&LOG,
+                       "Unable to resave '%s' (new size: %dx%d)",
+                       data->usdz_filepath,
+                       width_adjusted,
+                       height_adjusted);
+          }
+          else {
+            CLOG_INFO(&LOG,
+                      2,
+                      "Downscaled '%s' to %dx%d",
+                      entries[index].path,
+                      width_adjusted,
+                      height_adjusted);
+          }
+        }
+
+        BKE_image_save_options_free(&opts);
+      }
+
+      /* Make sure to free the image so it doesn't stick
+       * around in the library of the open file. */
+      BKE_id_free(data->bmain, (void *)im);
+    }
+  }
+
+  BLI_filelist_free(entries, num_files);
 }
 
 /**
@@ -184,6 +300,8 @@ static bool perform_usdz_conversion(const ExportJobData *data)
 
   BLI_change_working_dir(usdc_temp_dir);
 
+  process_usdz_textures(data, usdc_temp_dir);
+
   pxr::UsdUtilsCreateNewUsdzPackage(pxr::SdfAssetPath(usdc_file), usdz_file);
   BLI_change_working_dir(original_working_dir);
 
@@ -212,6 +330,54 @@ static bool perform_usdz_conversion(const ExportJobData *data)
   }
 
   return true;
+}
+
+std::string image_cache_file_path()
+{
+  char dir_path[FILE_MAX];
+  BLI_path_join(dir_path, sizeof(dir_path), BKE_tempdir_session(), "usd", "image_cache");
+  return dir_path;
+}
+
+std::string get_image_cache_file(const std::string &file_name, bool mkdir)
+{
+  std::string dir_path = image_cache_file_path();
+  if (mkdir) {
+    BLI_dir_create_recursive(dir_path.c_str());
+  }
+
+  char file_path[FILE_MAX];
+  BLI_path_join(file_path, sizeof(file_path), dir_path.c_str(), file_name.c_str());
+  return file_path;
+}
+
+std::string cache_image_color(float color[4])
+{
+  char name[128];
+  SNPRINTF(name,
+           "color_%02d%02d%02d.hdr",
+           int(color[0] * 255),
+           int(color[1] * 255),
+           int(color[2] * 255));
+  std::string file_path = get_image_cache_file(name);
+  if (BLI_exists(file_path.c_str())) {
+    return file_path;
+  }
+
+  ImBuf *ibuf = IMB_allocImBuf(4, 4, 32, IB_rectfloat);
+  IMB_rectfill(ibuf, color);
+  ibuf->ftype = IMB_FTYPE_RADHDR;
+
+  if (IMB_saveiff(ibuf, file_path.c_str(), IB_rectfloat)) {
+    CLOG_INFO(&LOG, 1, "%s", file_path.c_str());
+  }
+  else {
+    CLOG_ERROR(&LOG, "Can't save %s", file_path.c_str());
+    file_path = "";
+  }
+  IMB_freeImBuf(ibuf);
+
+  return file_path;
 }
 
 pxr::UsdStageRefPtr export_to_stage(const USDExportParams &params,
@@ -258,7 +424,16 @@ pxr::UsdStageRefPtr export_to_stage(const USDExportParams &params,
   /* Ensure Python types for invoking hooks are registered. */
   register_hook_converters();
 
-  usd_stage->SetMetadata(pxr::UsdGeomTokens->upAxis, pxr::VtValue(pxr::UsdGeomTokens->z));
+  pxr::VtValue upAxis = pxr::VtValue(pxr::UsdGeomTokens->z);
+  if (params.convert_orientation) {
+    if (params.up_axis == IO_AXIS_X)
+      upAxis = pxr::VtValue(pxr::UsdGeomTokens->x);
+    else if (params.up_axis == IO_AXIS_Y)
+      upAxis = pxr::VtValue(pxr::UsdGeomTokens->y);
+  }
+
+  usd_stage->SetMetadata(pxr::UsdGeomTokens->upAxis, upAxis);
+
   ensure_root_prim(usd_stage, params);
 
   USDHierarchyIterator iter(bmain, depsgraph, usd_stage, params);
@@ -299,6 +474,13 @@ pxr::UsdStageRefPtr export_to_stage(const USDExportParams &params,
 
   if (params.export_shapekeys || params.export_armatures) {
     iter.process_usd_skel();
+  }
+
+  /* Creating dome lights should be called after writers have
+   * completed, to avoid a name collision when creating the light
+   * prim. */
+  if (params.convert_world_material) {
+    world_material_to_dome_light(params, scene, usd_stage);
   }
 
   /* Set the default prim if it doesn't exist */
@@ -425,9 +607,11 @@ static void export_endjob(void *customdata)
   report_job_duration(data);
 }
 
-/* To create a usdz file, we must first create a .usd/a/c file and then covert it to .usdz. The
- * temporary files will be created in Blender's temporary session storage. The .usdz file will then
- * be moved to job->usdz_filepath. */
+/**
+ * To create a USDZ file, we must first create a `.usd/a/c` file and then covert it to `.usdz`.
+ * The temporary files will be created in Blender's temporary session storage.
+ * The `.usdz` file will then be moved to `job->usdz_filepath`.
+ */
 static void create_temp_path_for_usdz_export(const char *filepath,
                                              blender::io::usd::ExportJobData *job)
 {
@@ -474,6 +658,7 @@ bool USD_export(bContext *C,
 
   job->bmain = CTX_data_main(C);
   job->wm = CTX_wm_manager(C);
+  job->scene = scene;
   job->export_ok = false;
   set_job_filepath(job, filepath);
 
@@ -484,7 +669,20 @@ bool USD_export(bContext *C,
    *
    * Has to be done from main thread currently, as it may affect Main original data (e.g. when
    * doing deferred update of the view-layers, see #112534 for details). */
-  if (job->params.visible_objects_only) {
+  if (job->params.collection[0]) {
+    Collection *collection = reinterpret_cast<Collection *>(
+        BKE_libblock_find_name(job->bmain, ID_GR, job->params.collection));
+    if (!collection) {
+      BKE_reportf(job->params.worker_status->reports,
+                  RPT_ERROR,
+                  "USD Export: Unable to find collection '%s'",
+                  job->params.collection);
+      return false;
+    }
+
+    DEG_graph_build_from_collection(job->depsgraph, collection);
+  }
+  else if (job->params.visible_objects_only) {
     DEG_graph_build_from_view_layer(job->depsgraph);
   }
   else {

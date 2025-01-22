@@ -13,7 +13,7 @@ namespace blender::nodes::node_shader_tex_coord_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::Vector>("Generated");
+  b.add_output<decl::Vector>("Generated").translation_context(BLT_I18NCONTEXT_ID_TEXTURE);
   b.add_output<decl::Vector>("Normal");
   b.add_output<decl::Vector>("UV");
   b.add_output<decl::Vector>("Object");
@@ -39,7 +39,7 @@ static int node_shader_gpu_tex_coord(GPUMaterial *mat,
   /* Use special matrix to let the shader branch to using the render object's matrix. */
   float dummy_matrix[4][4];
   dummy_matrix[3][3] = 0.0f;
-  GPUNodeLink *inv_obmat = (ob != nullptr) ? GPU_uniform(&ob->world_to_object[0][0]) :
+  GPUNodeLink *inv_obmat = (ob != nullptr) ? GPU_uniform(&ob->world_to_object()[0][0]) :
                                              GPU_uniform(&dummy_matrix[0][0]);
 
   /* Optimization: don't request orco if not needed. */
@@ -103,7 +103,7 @@ void register_node_type_sh_tex_coord()
 {
   namespace file_ns = blender::nodes::node_shader_tex_coord_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   sh_node_type_base(&ntype, SH_NODE_TEX_COORD, "Texture Coordinate", NODE_CLASS_INPUT);
   ntype.declare = file_ns::node_declare;
@@ -111,5 +111,5 @@ void register_node_type_sh_tex_coord()
   ntype.gpu_fn = file_ns::node_shader_gpu_tex_coord;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 }

@@ -11,19 +11,22 @@
 #include "BLI_span.hh"
 #include "BLI_string_ref.hh"
 
-#include "GPU_shader.h"
+#include "GPU_shader.hh"
 #include "gpu_shader_create_info.hh"
 #include "gpu_shader_interface.hh"
-#include "gpu_vertex_buffer_private.hh"
 
 #include "BLI_map.hh"
 
+#include <mutex>
 #include <string>
 
 namespace blender {
 namespace gpu {
 
 class GPULogParser;
+
+/* Set to 1 to log the full source of shaders that fail to compile. */
+#define DEBUG_LOG_SHADER_SRC_ON_ERROR 0
 
 /**
  * Compilation is done on a list of GLSL sources. This list contains placeholders that should be
@@ -47,7 +50,7 @@ class Shader {
    * The backend is free to implement their support as they see fit.
    */
   struct Constants {
-    using Value = shader::ShaderCreateInfo::SpecializationConstant::Value;
+    using Value = shader::SpecializationConstant::Value;
     Vector<gpu::shader::Type> types;
     /* Current values set by `GPU_shader_constant_*()` call. The backend can choose to interpret
      * that however it wants (i.e: bind another shader instead). */
@@ -75,7 +78,9 @@ class Shader {
   Shader(const char *name);
   virtual ~Shader();
 
-  virtual void init(const shader::ShaderCreateInfo &info) = 0;
+  /* `is_batch_compilation` is true when the shader is being compiled as part of a
+   * `GPU_shader_batch`. Backends that use the `ShaderCompilerGeneric` can ignore it. */
+  virtual void init(const shader::ShaderCreateInfo &info, bool is_batch_compilation) = 0;
 
   virtual void vertex_shader_from_glsl(MutableSpan<const char *> sources) = 0;
   virtual void geometry_shader_from_glsl(MutableSpan<const char *> sources) = 0;
@@ -85,12 +90,12 @@ class Shader {
   /* Pre-warms PSOs using parent shader's cached PSO descriptors. Limit specifies maximum PSOs to
    * warm. If -1, compiles all PSO permutations in parent shader.
    *
-   * See `GPU_shader_warm_cache(..)` in `GPU_shader.h` for more information. */
+   * See `GPU_shader_warm_cache(..)` in `GPU_shader.hh` for more information. */
   virtual void warm_cache(int limit) = 0;
 
   virtual void transform_feedback_names_set(Span<const char *> name_list,
                                             eGPUShaderTFBType geom_type) = 0;
-  virtual bool transform_feedback_enable(GPUVertBuf *) = 0;
+  virtual bool transform_feedback_enable(VertBuf *) = 0;
   virtual void transform_feedback_disable() = 0;
 
   virtual void bind() = 0;
@@ -157,6 +162,58 @@ static inline const Shader *unwrap(const GPUShader *vert)
 {
   return reinterpret_cast<const Shader *>(vert);
 }
+
+class ShaderCompiler {
+ protected:
+  struct Sources {
+    std::string vert;
+    std::string geom;
+    std::string frag;
+    std::string comp;
+  };
+
+ public:
+  virtual ~ShaderCompiler(){};
+
+  Shader *compile(const shader::ShaderCreateInfo &info, bool is_batch_compilation);
+
+  virtual BatchHandle batch_compile(Span<const shader::ShaderCreateInfo *> &infos) = 0;
+  virtual bool batch_is_ready(BatchHandle handle) = 0;
+  virtual Vector<Shader *> batch_finalize(BatchHandle &handle) = 0;
+
+  virtual SpecializationBatchHandle precompile_specializations(
+      Span<ShaderSpecialization> /*specializations*/)
+  {
+    /* No-op.*/
+    return 0;
+  };
+
+  virtual bool specialization_batch_is_ready(SpecializationBatchHandle &handle)
+  {
+    handle = 0;
+    return true;
+  };
+};
+
+/* Generic (fully synchronous) implementation for backends that don't implement their own
+ * ShaderCompiler. Used by Vulkan and Metal. */
+class ShaderCompilerGeneric : public ShaderCompiler {
+ private:
+  struct Batch {
+    Vector<Shader *> shaders;
+    Vector<const shader::ShaderCreateInfo *> infos;
+    bool is_ready = false;
+  };
+  BatchHandle next_batch_handle = 1;
+  Map<BatchHandle, Batch> batches;
+
+ public:
+  virtual ~ShaderCompilerGeneric() override;
+
+  virtual BatchHandle batch_compile(Span<const shader::ShaderCreateInfo *> &infos) override;
+  virtual bool batch_is_ready(BatchHandle handle) override;
+  virtual Vector<Shader *> batch_finalize(BatchHandle &handle) override;
+};
 
 enum class Severity {
   Unknown,

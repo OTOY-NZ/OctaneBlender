@@ -11,7 +11,7 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
-#include "BKE_global.h"
+#include "BKE_global.hh"
 
 #include "ED_gizmo_library.hh"
 #include "ED_gizmo_utils.hh"
@@ -30,7 +30,7 @@
 #include "WM_toolsystem.hh"
 #include "WM_types.hh"
 
-#include "view3d_intern.h" /* own include */
+#include "view3d_intern.hh" /* own include */
 
 static const char *handle_normal_id = "VIEW3D_GGT_tool_generic_handle_normal";
 static const char *handle_free_id = "VIEW3D_GGT_tool_generic_handle_free";

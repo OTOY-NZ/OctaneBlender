@@ -1,10 +1,10 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.1.0 Release Candidate (b'64bfe491645f')\n"
+"Project-Id-Version: Blender 4.2.0 Release Candidate (b'988bf2b88f3b')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-01-01 00:00+0000\n"
-"PO-Revision-Date: 2024-03-25 00:51+0000\n"
+"POT-Creation-Date: 2024-07-15 07:57+0000\n"
+"PO-Revision-Date: 2024-04-29 13:46+0000\n"
 "Last-Translator: william sélifet <williamselifet@live.be>\n"
 "Language-Team: Esperanto <https://translate.blender.org/projects/blender-ui/ui/eo/>\n"
 "Language: eo\n"
@@ -63,6 +63,10 @@ msgid "B-Bone"
 msgstr "B-osto"
 
 
+msgid "Attribute"
+msgstr "Atributo"
+
+
 msgid "Links"
 msgstr "Ligiloj"
 
@@ -73,10 +77,6 @@ msgstr "Objekto Modo"
 
 msgid "Sculpt Mode"
 msgstr "Skulptaĵo Modo"
-
-
-msgid "Attribute"
-msgstr "Atributo"
 
 
 msgid "File"

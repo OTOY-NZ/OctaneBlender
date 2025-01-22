@@ -11,9 +11,8 @@
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
-#include "GPU_shader.h"
-#include "GPU_state.h"
-#include "GPU_texture.h"
+#include "GPU_shader.hh"
+#include "GPU_texture.hh"
 
 #include "COM_node_operation.hh"
 #include "COM_utilities.hh"
@@ -92,7 +91,9 @@ class CompositeOperation : public NodeOperation {
      * that compositing region. */
     const rcti compositing_region = context().get_compositing_region();
     const int2 lower_bound = int2(compositing_region.xmin, compositing_region.ymin);
+    const int2 upper_bound = int2(compositing_region.xmax, compositing_region.ymax);
     GPU_shader_uniform_2iv(shader, "lower_bound", lower_bound);
+    GPU_shader_uniform_2iv(shader, "upper_bound", upper_bound);
 
     const Result &image = get_input("Image");
     image.bind_as_texture(shader, "input_tx");
@@ -120,7 +121,9 @@ class CompositeOperation : public NodeOperation {
      * that compositing region. */
     const rcti compositing_region = context().get_compositing_region();
     const int2 lower_bound = int2(compositing_region.xmin, compositing_region.ymin);
+    const int2 upper_bound = int2(compositing_region.xmax, compositing_region.ymax);
     GPU_shader_uniform_2iv(shader, "lower_bound", lower_bound);
+    GPU_shader_uniform_2iv(shader, "upper_bound", upper_bound);
 
     const Result &image = get_input("Image");
     image.bind_as_texture(shader, "input_tx");
@@ -148,7 +151,9 @@ class CompositeOperation : public NodeOperation {
      * that compositing region. */
     const rcti compositing_region = context().get_compositing_region();
     const int2 lower_bound = int2(compositing_region.xmin, compositing_region.ymin);
+    const int2 upper_bound = int2(compositing_region.xmax, compositing_region.ymax);
     GPU_shader_uniform_2iv(shader, "lower_bound", lower_bound);
+    GPU_shader_uniform_2iv(shader, "upper_bound", upper_bound);
 
     const Result &image = get_input("Image");
     image.bind_as_texture(shader, "input_tx");
@@ -196,7 +201,7 @@ void register_node_type_cmp_composite()
 {
   namespace file_ns = blender::nodes::node_composite_composite_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, CMP_NODE_COMPOSITE, "Composite", NODE_CLASS_OUTPUT);
   ntype.declare = file_ns::cmp_node_composite_declare;
@@ -205,5 +210,5 @@ void register_node_type_cmp_composite()
   ntype.flag |= NODE_PREVIEW;
   ntype.no_muting = true;
 
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 }

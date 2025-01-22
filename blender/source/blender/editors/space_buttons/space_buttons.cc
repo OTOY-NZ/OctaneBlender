@@ -33,15 +33,13 @@
 #include "WM_types.hh"
 
 #include "RNA_access.hh"
-#include "RNA_define.hh"
-#include "RNA_enum_types.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
 #include "BLO_read_write.hh"
 
-#include "buttons_intern.h" /* own include */
+#include "buttons_intern.hh" /* own include */
 
 /* -------------------------------------------------------------------- */
 /** \name Default Callbacks for Properties Space
@@ -728,6 +726,7 @@ static void buttons_area_listener(const wmSpaceTypeListenerParams *params)
           buttons_area_redraw(area, BCONTEXT_PHYSICS);
           /* Needed to refresh context path when changing active particle system index. */
           buttons_area_redraw(area, BCONTEXT_PARTICLE);
+          buttons_area_redraw(area, BCONTEXT_TOOL);
           break;
         case ND_DRAW_ANIMVIZ:
           buttons_area_redraw(area, BCONTEXT_OBJECT);
@@ -813,12 +812,13 @@ static void buttons_area_listener(const wmSpaceTypeListenerParams *params)
       }
       break;
     case NC_GPENCIL:
-      switch (wmn->data) {
-        case ND_DATA:
-          if (ELEM(wmn->action, NA_EDITED, NA_ADDED, NA_REMOVED, NA_SELECTED, NA_RENAME)) {
-            ED_area_tag_redraw(area);
-          }
-          break;
+      if (wmn->data == ND_DATA) {
+        if (ELEM(wmn->action, NA_EDITED, NA_ADDED, NA_REMOVED, NA_SELECTED, NA_RENAME)) {
+          ED_area_tag_redraw(area);
+        }
+      }
+      else if (wmn->action == NA_EDITED) {
+        ED_area_tag_redraw(area);
       }
       break;
     case NC_NODE:
@@ -856,20 +856,20 @@ static void buttons_area_listener(const wmSpaceTypeListenerParams *params)
   }
 }
 
-static void buttons_id_remap(ScrArea * /*area*/, SpaceLink *slink, const IDRemapper *mappings)
+static void buttons_id_remap(ScrArea * /*area*/,
+                             SpaceLink *slink,
+                             const blender::bke::id::IDRemapper &mappings)
 {
   SpaceProperties *sbuts = (SpaceProperties *)slink;
 
-  if (BKE_id_remapper_apply(mappings, &sbuts->pinid, ID_REMAP_APPLY_DEFAULT) ==
-      ID_REMAP_RESULT_SOURCE_UNASSIGNED)
-  {
+  if (mappings.apply(&sbuts->pinid, ID_REMAP_APPLY_DEFAULT) == ID_REMAP_RESULT_SOURCE_UNASSIGNED) {
     sbuts->flag &= ~SB_PIN_CONTEXT;
   }
 
   if (sbuts->path) {
     ButsContextPath *path = static_cast<ButsContextPath *>(sbuts->path);
     for (int i = 0; i < path->len; i++) {
-      switch (BKE_id_remapper_apply(mappings, &path->ptr[i].owner_id, ID_REMAP_APPLY_DEFAULT)) {
+      switch (mappings.apply(&path->ptr[i].owner_id, ID_REMAP_APPLY_DEFAULT)) {
         case ID_REMAP_RESULT_SOURCE_UNASSIGNED: {
           path->len = i;
           if (i != 0) {
@@ -903,7 +903,7 @@ static void buttons_id_remap(ScrArea * /*area*/, SpaceLink *slink, const IDRemap
 
   if (sbuts->texuser) {
     ButsContextTexture *ct = static_cast<ButsContextTexture *>(sbuts->texuser);
-    BKE_id_remapper_apply(mappings, (ID **)&ct->texture, ID_REMAP_APPLY_DEFAULT);
+    mappings.apply(reinterpret_cast<ID **>(&ct->texture), ID_REMAP_APPLY_DEFAULT);
     BLI_freelistN(&ct->users);
     ct->user = nullptr;
   }
@@ -915,7 +915,7 @@ static void buttons_foreach_id(SpaceLink *space_link, LibraryForeachIDData *data
   const int data_flags = BKE_lib_query_foreachid_process_flags_get(data);
   const bool is_readonly = (data_flags & IDWALK_READONLY) != 0;
 
-  BKE_LIB_FOREACHID_PROCESS_ID(data, sbuts->pinid, IDWALK_CB_NOP);
+  BKE_LIB_FOREACHID_PROCESS_ID(data, sbuts->pinid, IDWALK_CB_DIRECT_WEAK_LINK);
   if (!is_readonly) {
     if (sbuts->pinid == nullptr) {
       sbuts->flag &= ~SB_PIN_CONTEXT;
@@ -927,7 +927,7 @@ static void buttons_foreach_id(SpaceLink *space_link, LibraryForeachIDData *data
 
   if (sbuts->texuser) {
     ButsContextTexture *ct = static_cast<ButsContextTexture *>(sbuts->texuser);
-    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, ct->texture, IDWALK_CB_NOP);
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, ct->texture, IDWALK_CB_DIRECT_WEAK_LINK);
 
     if (!is_readonly) {
       BLI_freelistN(&ct->users);

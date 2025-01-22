@@ -140,7 +140,7 @@ static void sample_image(const ImBuf *source, float u, float v, T *r_sample)
   }
   else if constexpr (Filter == IMB_FILTER_NEAREST && std::is_same_v<T, uchar> && NumChannels == 4)
   {
-    interpolate_nearest_byte(source, r_sample, u, v);
+    interpolate_nearest_border_byte(source, r_sample, u, v);
   }
   else if constexpr (Filter == IMB_FILTER_BILINEAR && std::is_same_v<T, uchar> && NumChannels == 4)
   {
@@ -164,7 +164,7 @@ static void sample_image(const ImBuf *source, float u, float v, T *r_sample)
     }
   }
   else if constexpr (Filter == IMB_FILTER_NEAREST && std::is_same_v<T, float>) {
-    math::interpolate_nearest_fl(
+    math::interpolate_nearest_border_fl(
         source->float_buffer.data, r_sample, source->x, source->y, NumChannels, u, v);
   }
   else if constexpr (Filter == IMB_FILTER_CUBIC_BSPLINE && std::is_same_v<T, float>) {
@@ -231,7 +231,7 @@ template<int SrcChannels> static void store_sample(const float *sample, float *d
     copy_v4_fl4(dst, sample[0], sample[1], 0.0f, 1.0f);
   }
   else if constexpr (SrcChannels == 1) {
-    /* Note: single channel sample is stored as grayscale. */
+    /* NOTE: single channel sample is stored as grayscale. */
     copy_v4_fl4(dst, sample[0], sample[0], sample[0], 1.0f);
   }
   else {
@@ -297,7 +297,8 @@ static void process_scanlines(const TransformContext &ctx, IndexRange y_range)
     }
   }
   else {
-    /* One sample per pixel. Note: sample at pixel center for proper filtering. */
+    /* One sample per pixel.
+     * NOTE: sample at pixel center for proper filtering. */
     float2 uv_start = ctx.start_uv + ctx.add_x * 0.5f + ctx.add_y * 0.5f;
     for (int yi : y_range) {
       T *output = init_pixel_pointer<T>(ctx.dst, ctx.dst_region_x_range.first(), yi);

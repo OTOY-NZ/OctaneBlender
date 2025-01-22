@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 #pragma once
 
-#include "DNA_modifier_types.h"
 #include "usd_writer_abstract.hh"
 
 #include "BLI_map.hh"
@@ -11,6 +10,7 @@
 #include <pxr/usd/usdGeom/mesh.h>
 
 struct Key;
+struct SubsurfModifierData;
 
 namespace blender::bke {
 class AttributeIDRef;
@@ -62,11 +62,6 @@ class USDGenericMeshWriter : public USDAbstractWriter {
                         pxr::UsdGeomMesh usd_mesh,
                         const bke::AttributeIDRef &attribute_id,
                         const bke::AttributeMetaData &meta_data);
-
-  template<typename BlenderT, typename USDT>
-  void copy_blender_buffer_to_prim(const Span<BlenderT> buffer,
-                                   const pxr::UsdTimeCode timecode,
-                                   pxr::UsdGeomPrimvar attribute_pv);
 };
 
 class USDMeshWriter : public USDGenericMeshWriter {

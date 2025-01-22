@@ -2,10 +2,10 @@
 
 from xml.etree import ElementTree
 
+import bpy
 from bpy.props import IntProperty, FloatProperty, BoolProperty, StringProperty, EnumProperty, FloatVectorProperty, \
     IntVectorProperty
 
-import bpy
 from octane.core.octane_info import OctaneInfoManger
 from octane.nodes import base_node, base_socket
 from octane.utils import utility, consts
@@ -578,6 +578,30 @@ class OctaneScriptNode(base_node.OctaneBaseNode):
         return octane_node.node.set_pin(consts.OctaneDataBlockSymbolType.PIN_NAME, socket_idx, osl_pin_name,
                                         octane_socket_type, octane_pin_type, octane_default_node_type, is_linked,
                                         link_node_name, default_value)
+
+    def load_custom_ocs_data(self, creator, ocs_element_tree):
+        is_updated = False
+        for attr_et in ocs_element_tree.findall("attr"):
+            if attr_et.get("name", "") == "shaderCode":
+                shader_code = attr_et.text
+                if shader_code is not None and len(shader_code):
+                    text = bpy.data.texts.new(self.name + ".osl")
+                    text.from_string(shader_code)
+                    self.internal_file_path = text.name
+                    self.script_type = "INTERNAL"
+                    is_updated = True
+                    break
+            elif attr_et.get("name", "") == "filename":
+                external_file_path = attr_et.text
+                if external_file_path is not None and len(external_file_path):
+                    asset_filepath = creator.get_asset_filepath(external_file_path)
+                    self.external_file_path = asset_filepath
+                    self.script_type = "EXTERNAL"
+                    is_updated = True
+                    break
+        if is_updated:
+            self.update_shader_code(True)
+            self.compile_osl_node()
 
 
 class OCTANE_OT_compile_osl_node(bpy.types.Operator):

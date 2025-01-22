@@ -50,7 +50,7 @@ static void copy_property_from_node(const eNodeSocketDatatype property_type,
   if (!node) {
     return;
   }
-  const bNodeSocket *socket = nodeFindSocket(const_cast<bNode *>(node), SOCK_IN, identifier);
+  const bNodeSocket *socket = bke::nodeFindSocket(const_cast<bNode *>(node), SOCK_IN, identifier);
   BLI_assert(socket && socket->type == property_type);
   if (!socket) {
     return;
@@ -142,7 +142,7 @@ static std::string get_image_filepath(const bNode *tex_node)
   }
 
   if (BKE_image_has_packedfile(tex_image)) {
-    /* Put image in the same directory as the .MTL file. */
+    /* Put image in the same directory as the `.MTL` file. */
     const char *filename = BLI_path_basename(tex_image->filepath);
     fprintf(stderr,
             "Packed image found:'%s'. Unpack and place the image in the same "

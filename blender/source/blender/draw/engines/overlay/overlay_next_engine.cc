@@ -17,11 +17,11 @@
 
 #include "UI_interface.hh"
 
-#include "BKE_duplilist.h"
+#include "BKE_duplilist.hh"
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
 
-#include "GPU_capabilities.h"
+#include "GPU_capabilities.hh"
 
 #include "DNA_space_types.h"
 

@@ -35,7 +35,6 @@
 #  include "DNA_object_types.h"
 
 #  include "BKE_customdata.hh"
-#  include "BKE_editmesh_bvh.h"
 #  include "BKE_lib_id.hh"
 #  include "BKE_mesh.hh"
 #  include "BKE_mesh_runtime.hh"
@@ -48,7 +47,7 @@
 #  include "../bmesh/bmesh_py_types.h"
 #endif /* MATH_STANDALONE */
 
-#include "BLI_strict_flags.h"
+#include "BLI_strict_flags.h" /* Keep last. */
 
 /* -------------------------------------------------------------------- */
 /** \name Documentation String (snippets)
@@ -949,7 +948,6 @@ static PyObject *C_BVHTree_FromBMesh(PyObject * /*cls*/, PyObject *args, PyObjec
   float epsilon = 0.0f;
 
   BMesh *bm;
-  BMLoop *(*corner_tris)[3];
 
   if (!PyArg_ParseTupleAndKeywords(args,
                                    kwargs,
@@ -965,18 +963,15 @@ static PyObject *C_BVHTree_FromBMesh(PyObject * /*cls*/, PyObject *args, PyObjec
   bm = py_bm->bm;
 
   /* Get data for tessellation */
-  {
-    coords_len = uint(bm->totvert);
-    tris_len = uint(poly_to_tri_count(bm->totface, bm->totloop));
 
-    coords = static_cast<float(*)[3]>(MEM_mallocN(sizeof(*coords) * size_t(coords_len), __func__));
-    tris = static_cast<uint(*)[3]>(MEM_mallocN(sizeof(*tris) * size_t(tris_len), __func__));
+  coords_len = uint(bm->totvert);
+  tris_len = uint(poly_to_tri_count(bm->totface, bm->totloop));
 
-    corner_tris = static_cast<BMLoop *(*)[3]>(
-        MEM_mallocN(sizeof(*corner_tris) * size_t(tris_len), __func__));
+  coords = static_cast<float(*)[3]>(MEM_mallocN(sizeof(*coords) * size_t(coords_len), __func__));
+  tris = static_cast<uint(*)[3]>(MEM_mallocN(sizeof(*tris) * size_t(tris_len), __func__));
 
-    BM_mesh_calc_tessellation(bm, corner_tris);
-  }
+  blender::Array<std::array<BMLoop *, 3>> corner_tris(tris_len);
+  BM_mesh_calc_tessellation(bm, corner_tris);
 
   {
     BMIter iter;
@@ -1024,14 +1019,12 @@ static PyObject *C_BVHTree_FromBMesh(PyObject * /*cls*/, PyObject *args, PyObjec
       BLI_bvhtree_balance(tree);
     }
 
-    MEM_freeN(corner_tris);
-
     return bvhtree_CreatePyObject(
         tree, epsilon, coords, coords_len, tris, tris_len, orig_index, orig_normal);
   }
 }
 
-/* return various derived meshes based on requested settings */
+/** Return various evaluated meshes based on requested settings. */
 static const Mesh *bvh_get_mesh(const char *funcname,
                                 Depsgraph *depsgraph,
                                 Scene *scene,
@@ -1058,11 +1051,11 @@ static const Mesh *bvh_get_mesh(const char *funcname,
       }
 
       *r_free_mesh = true;
-      return mesh_create_eval_final(depsgraph, scene, ob, &data_masks);
+      return blender::bke::mesh_create_eval_final(depsgraph, scene, ob, &data_masks);
     }
     if (ob_eval != nullptr) {
       if (use_cage) {
-        return mesh_get_eval_deform(depsgraph, scene, ob_eval, &data_masks);
+        return blender::bke::mesh_get_eval_deform(depsgraph, scene, ob_eval, &data_masks);
       }
 
       return BKE_object_get_evaluated_mesh(ob_eval);
@@ -1085,7 +1078,7 @@ static const Mesh *bvh_get_mesh(const char *funcname,
     }
 
     *r_free_mesh = true;
-    return mesh_create_eval_no_deform_render(depsgraph, scene, ob, &data_masks);
+    return blender::bke::mesh_create_eval_no_deform_render(depsgraph, scene, ob, &data_masks);
   }
 
   if (use_cage) {
@@ -1097,7 +1090,7 @@ static const Mesh *bvh_get_mesh(const char *funcname,
   }
 
   *r_free_mesh = true;
-  return mesh_create_eval_no_deform(depsgraph, scene, ob, &data_masks);
+  return blender::bke::mesh_create_eval_no_deform(depsgraph, scene, ob, &data_masks);
 }
 
 PyDoc_STRVAR(

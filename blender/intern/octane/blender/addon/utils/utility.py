@@ -333,7 +333,7 @@ def get_enum_int_value(data, property_name, default_value):
 def set_enum_int_value(data, property_name, int_value):
     for item in data.rna_type.properties[property_name].enum_items:
         if int_value == item.value:
-            setattr(data, property_name, item.name)
+            setattr(data, property_name, item.identifier)
             break
 
 
@@ -430,6 +430,15 @@ def sync_legacy_property(current_property_data, current_property_name, legacy_pr
 
 
 # NodeTrees & Nodes & Sockets
+
+def is_octane_input_node(node_type):
+    return consts.NodeType.NT_IN_BOOL <= node_type < consts.NodeType.NT_OUT_BOOL
+
+
+def is_octane_output_node(node_type):
+    return consts.NodeType.NT_OUT_BOOL <= node_type < consts.NodeType.NT_SWITCH_BOOL
+
+
 def dump_json_node_tree(node_tree):
     json_node_list = []
     for node in node_tree.nodes:
@@ -478,15 +487,24 @@ def copy_nodes(dest_node_tree, _src_node_tree, src_root_node):
     return dest_root_node
 
 
-def quick_add_octane_kernel_node_tree(assign_to_kernel_node_graph=False, generate_from_legacy_octane_property=False,
+def quick_add_octane_kernel_node_tree(assign_to_kernel_node_graph=False, overwrite_current_node_graph=False,
+                                      generate_from_legacy_octane_property=False,
                                       json_node_tree=None, preset_name=None):
     from octane.nodes.base_kernel import OctaneBaseKernelNode
     scene = bpy.context.scene
     octane_scene = scene.octane
-    node_tree = bpy.data.node_groups.new(
-        name=consts.OctanePresetNodeTreeNames.KERNEL if preset_name is None else preset_name,
-        type=consts.OctaneNodeTreeIDName.KERNEL)
-    node_tree.use_fake_user = True
+    node_tree = None
+    current_active_node_tree = None
+    if octane_scene.kernel_data_mode == "NODETREE":
+        current_active_node_tree = octane_scene.kernel_node_graph_property.node_tree
+    if overwrite_current_node_graph:
+        node_tree = current_active_node_tree
+        node_tree.nodes.clear()
+    if node_tree is None:
+        node_tree = bpy.data.node_groups.new(
+            name=consts.OctanePresetNodeTreeNames.KERNEL if preset_name is None else preset_name,
+            type=consts.OctaneNodeTreeIDName.KERNEL)
+        node_tree.use_fake_user = True
     nodes = node_tree.nodes
     if json_node_tree is not None:
         load_json_node_tree(node_tree, json_node_tree)

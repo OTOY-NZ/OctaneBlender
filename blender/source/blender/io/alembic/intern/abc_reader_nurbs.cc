@@ -8,7 +8,6 @@
 
 #include "abc_reader_nurbs.h"
 #include "abc_axis_conversion.h"
-#include "abc_reader_transform.h"
 #include "abc_util.h"
 
 #include "MEM_guardedalloc.h"
@@ -17,9 +16,8 @@
 #include "DNA_object_types.h"
 
 #include "BLI_listbase.h"
-#include "BLI_string.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "BKE_curve.hh"
 #include "BKE_object.hh"

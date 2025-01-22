@@ -32,7 +32,7 @@
 #include "BKE_node_runtime.hh"
 #include "BKE_texture.h"
 
-static bNodeSocketTemplate sh_node_in[] = {
+static blender::bke::bNodeSocketTemplate  sh_node_in[] = {
     {SOCK_VECTOR,
      N_("Rotation"),
      0.0f,
@@ -76,7 +76,7 @@ static bNodeSocketTemplate sh_node_in[] = {
      SOCK_HIDDEN | SOCK_UNAVAIL | SOCK_AUTO_HIDDEN__DEPRECATED},
     {-1, ""}};
 
-static bNodeSocketTemplate sh_node_out[] = {
+static blender::bke::bNodeSocketTemplate  sh_node_out[] = {
     {SOCK_SHADER, N_("OutTransform")},
     {SOCK_SHADER,
      N_("OutTex"),
@@ -98,13 +98,13 @@ static void node_transform_oct_3d_init(bNodeTree *ntree, bNode *node)
 
 void register_node_type_transform_oct_3d(void)
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   if (ntype.type != SH_NODE_OCT_3D_TRN)
     sh_node_type_base(
         &ntype, SH_NODE_OCT_3D_TRN, "3D Transform", NODE_CLASS_OCT_TRANSFORM);
   blender::bke::node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
-  node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::DEFAULT);
+  node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Default);
   ntype.initfunc = (node_transform_oct_3d_init);
   // node_type_exec(&ntype, 0, 0, 0);
   ntype.updatefunc = node_octane_transform_conversion_update;

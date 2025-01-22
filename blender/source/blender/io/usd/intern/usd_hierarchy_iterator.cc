@@ -8,6 +8,7 @@
 #include "usd_hierarchy_iterator.hh"
 #include "usd_skel_convert.hh"
 #include "usd_skel_root_utils.hh"
+#include "usd_utils.hh"
 #include "usd_writer_abstract.hh"
 #include "usd_writer_armature.hh"
 #include "usd_writer_camera.hh"
@@ -19,24 +20,14 @@
 #include "usd_writer_transform.hh"
 #include "usd_writer_volume.hh"
 
-#include <memory>
 #include <string>
 
-#include <pxr/base/tf/stringUtils.h>
-
-#include "BKE_duplilist.h"
+#include "BKE_main.hh"
 
 #include "BLI_assert.h"
-#include "BLI_utildefines.h"
 
-#include "DEG_depsgraph_query.hh"
-
-#include "DNA_ID.h"
 #include "DNA_layer_types.h"
 #include "DNA_object_types.h"
-
-#include "DNA_armature_types.h"
-#include "DNA_mesh_types.h"
 
 namespace blender::io::usd {
 
@@ -53,7 +44,30 @@ bool USDHierarchyIterator::mark_as_weak_export(const Object *object) const
   if (params_.selected_objects_only && (object->base_flag & BASE_SELECTED) == 0) {
     return true;
   }
-  return false;
+
+  switch (object->type) {
+    case OB_EMPTY:
+      /* Always assume empties are being exported intentionally. */
+      return false;
+    case OB_MESH:
+    case OB_MBALL:
+      return !params_.export_meshes;
+    case OB_CAMERA:
+      return !params_.export_cameras;
+    case OB_LAMP:
+      return !params_.export_lights;
+    case OB_CURVES_LEGACY:
+    case OB_CURVES:
+      return !params_.export_curves;
+    case OB_VOLUME:
+      return !params_.export_volumes;
+    case OB_ARMATURE:
+      return !params_.export_armatures;
+
+    default:
+      /* Assume weak for all other types. */
+      return true;
+  }
 }
 
 void USDHierarchyIterator::release_writer(AbstractHierarchyWriter *writer)
@@ -63,7 +77,7 @@ void USDHierarchyIterator::release_writer(AbstractHierarchyWriter *writer)
 
 std::string USDHierarchyIterator::make_valid_name(const std::string &name) const
 {
-  return pxr::TfMakeValidIdentifier(name);
+  return make_safe_name(name, params_.allow_unicode);
 }
 
 void USDHierarchyIterator::process_usd_skel() const
@@ -116,23 +130,48 @@ AbstractHierarchyWriter *USDHierarchyIterator::create_data_writer(const Hierarch
 
   switch (context->object->type) {
     case OB_MESH:
-      data_writer = new USDMeshWriter(usd_export_context);
+      if (usd_export_context.export_params.export_meshes) {
+        data_writer = new USDMeshWriter(usd_export_context);
+      }
+      else {
+        return nullptr;
+      }
       break;
     case OB_CAMERA:
-      data_writer = new USDCameraWriter(usd_export_context);
+      if (usd_export_context.export_params.export_cameras) {
+        data_writer = new USDCameraWriter(usd_export_context);
+      }
+      else {
+        return nullptr;
+      }
       break;
     case OB_LAMP:
-      data_writer = new USDLightWriter(usd_export_context);
+      if (usd_export_context.export_params.export_lights) {
+        data_writer = new USDLightWriter(usd_export_context);
+      }
+      else {
+        return nullptr;
+      }
       break;
     case OB_MBALL:
       data_writer = new USDMetaballWriter(usd_export_context);
       break;
     case OB_CURVES_LEGACY:
     case OB_CURVES:
-      data_writer = new USDCurvesWriter(usd_export_context);
+      if (usd_export_context.export_params.export_curves) {
+        data_writer = new USDCurvesWriter(usd_export_context);
+      }
+      else {
+        return nullptr;
+      }
       break;
     case OB_VOLUME:
-      data_writer = new USDVolumeWriter(usd_export_context);
+      if (usd_export_context.export_params.export_volumes) {
+        data_writer = new USDVolumeWriter(usd_export_context);
+      }
+      else {
+        return nullptr;
+      }
       break;
     case OB_ARMATURE:
       if (usd_export_context.export_params.export_armatures) {

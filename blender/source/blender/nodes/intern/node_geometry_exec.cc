@@ -2,14 +2,18 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "DNA_curves_types.h"
+#include "DNA_grease_pencil_types.h"
+#include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
+#include "DNA_pointcloud_types.h"
 
 #include "DEG_depsgraph_query.hh"
 
 #include "BKE_curves.hh"
 #include "BKE_type_conversions.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "NOD_geometry_exec.hh"
 
@@ -17,11 +21,17 @@
 
 namespace blender::nodes {
 
+Main *GeoNodeExecParams::bmain() const
+{
+  return DEG_get_bmain(this->depsgraph());
+}
+
 void GeoNodeExecParams::error_message_add(const NodeWarningType type,
                                           const StringRef message) const
 {
   if (geo_eval_log::GeoTreeLogger *tree_logger = this->get_local_tree_logger()) {
     tree_logger->node_warnings.append(
+        *tree_logger->allocator,
         {node_.identifier, {type, tree_logger->allocator->copy_string(message)}});
   }
 }
@@ -31,6 +41,7 @@ void GeoNodeExecParams::used_named_attribute(const StringRef attribute_name,
 {
   if (geo_eval_log::GeoTreeLogger *tree_logger = this->get_local_tree_logger()) {
     tree_logger->used_named_attributes.append(
+        *tree_logger->allocator,
         {node_.identifier, tree_logger->allocator->copy_string(attribute_name), usage});
   }
 }
@@ -76,10 +87,20 @@ void GeoNodeExecParams::check_input_geometry_set(StringRef identifier,
     std::string message = RPT_("Input geometry has unsupported type: ");
     switch (type) {
       case GeometryComponent::Type::Mesh: {
+        if (const Mesh *mesh = geometry_set.get_mesh()) {
+          if (mesh->verts_num == 0) {
+            continue;
+          }
+        }
         message += RPT_("Mesh");
         break;
       }
       case GeometryComponent::Type::PointCloud: {
+        if (const PointCloud *pointcloud = geometry_set.get_pointcloud()) {
+          if (pointcloud->totpoint == 0) {
+            continue;
+          }
+        }
         message += RPT_("Point Cloud");
         break;
       }
@@ -92,6 +113,11 @@ void GeoNodeExecParams::check_input_geometry_set(StringRef identifier,
         break;
       }
       case GeometryComponent::Type::Curve: {
+        if (const Curves *curves = geometry_set.get_curves()) {
+          if (curves->geometry.point_num == 0) {
+            continue;
+          }
+        }
         message += RPT_("Curve");
         break;
       }
@@ -99,6 +125,11 @@ void GeoNodeExecParams::check_input_geometry_set(StringRef identifier,
         continue;
       }
       case GeometryComponent::Type::GreasePencil: {
+        if (const GreasePencil *grease_pencil = geometry_set.get_grease_pencil()) {
+          if (grease_pencil->drawing_array_num == 0) {
+            continue;
+          }
+        }
         message += RPT_("Grease Pencil");
         break;
       }

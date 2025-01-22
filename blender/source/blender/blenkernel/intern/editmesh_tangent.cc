@@ -12,7 +12,6 @@
 
 #include "DNA_customdata_types.h"
 #include "DNA_defs.h"
-#include "DNA_meshdata_types.h"
 
 #include "BKE_customdata.hh"
 #include "BKE_editmesh.hh"
@@ -24,6 +23,9 @@
 
 /* interface */
 #include "mikktspace.hh"
+
+using blender::float3;
+using blender::Span;
 
 /* -------------------------------------------------------------------- */
 /** \name Tangent Space Calculation
@@ -60,14 +62,14 @@ struct SGLSLEditMeshToTangent {
   const BMLoop *GetLoop(const uint face_num, uint vert_index)
   {
     // BLI_assert(vert_index >= 0 && vert_index < 4);
-    const BMLoop **lt;
+    BMLoop *const *ltri;
     const BMLoop *l;
 
 #ifdef USE_LOOPTRI_DETECT_QUADS
     if (face_as_quad_map) {
-      lt = looptris[face_as_quad_map[face_num]];
-      if (lt[0]->f->len == 4) {
-        l = BM_FACE_FIRST_LOOP(lt[0]->f);
+      ltri = looptris[face_as_quad_map[face_num]].data();
+      if (ltri[0]->f->len == 4) {
+        l = BM_FACE_FIRST_LOOP(ltri[0]->f);
         while (vert_index--) {
           l = l->next;
         }
@@ -76,12 +78,12 @@ struct SGLSLEditMeshToTangent {
       /* fall through to regular triangle */
     }
     else {
-      lt = looptris[face_num];
+      ltri = looptris[face_num].data();
     }
 #else
-    lt = looptris[face_num];
+    ltri = looptris[face_num].data();
 #endif
-    return lt[vert_index];
+    return ltri[vert_index];
   }
 
   mikk::float3 GetPosition(const uint face_num, const uint vert_index)
@@ -106,12 +108,12 @@ struct SGLSLEditMeshToTangent {
   mikk::float3 GetNormal(const uint face_num, const uint vert_index)
   {
     const BMLoop *l = GetLoop(face_num, vert_index);
-    if (precomputedLoopNormals) {
-      return mikk::float3(precomputedLoopNormals[BM_elem_index_get(l)]);
+    if (!corner_normals.is_empty()) {
+      return mikk::float3(corner_normals[BM_elem_index_get(l)]);
     }
     if (BM_elem_flag_test(l->f, BM_ELEM_SMOOTH) == 0) { /* flat */
-      if (precomputedFaceNormals) {
-        return mikk::float3(precomputedFaceNormals[BM_elem_index_get(l->f)]);
+      if (!face_normals.is_empty()) {
+        return mikk::float3(face_normals[BM_elem_index_get(l->f)]);
       }
       return mikk::float3(l->f->no);
     }
@@ -128,11 +130,11 @@ struct SGLSLEditMeshToTangent {
     copy_v4_fl4(p_res, T.x, T.y, T.z, orientation ? 1.0f : -1.0f);
   }
 
-  const float (*precomputedFaceNormals)[3];
-  const float (*precomputedLoopNormals)[3];
-  const BMLoop *(*looptris)[3];
+  Span<float3> face_normals;
+  Span<float3> corner_normals;
+  Span<std::array<BMLoop *, 3>> looptris;
   int cd_loop_uv_offset; /* texture coordinates */
-  const float (*orco)[3];
+  Span<float3> orco;
   float (*tangent)[4]; /* destination */
   int numTessFaces;
 
@@ -156,9 +158,9 @@ void BKE_editmesh_loop_tangent_calc(BMEditMesh *em,
                                     bool calc_active_tangent,
                                     const char (*tangent_names)[MAX_CUSTOMDATA_LAYER_NAME],
                                     int tangent_names_len,
-                                    const float (*face_normals)[3],
-                                    const float (*corner_normals)[3],
-                                    const float (*vert_orco)[3],
+                                    const Span<float3> face_normals,
+                                    const Span<float3> corner_normals,
+                                    const Span<float3> vert_orco,
                                     /* result */
                                     CustomData *loopdata_out,
                                     const uint loopdata_out_len,
@@ -208,13 +210,13 @@ void BKE_editmesh_loop_tangent_calc(BMEditMesh *em,
       BKE_mesh_add_loop_tangent_named_layer_for_uv(
           &bm->ldata, loopdata_out, int(loopdata_out_len), ren_uv_name);
     }
-    int totface = em->tottri;
+    int totface = em->looptris.size();
 #ifdef USE_LOOPTRI_DETECT_QUADS
     int num_face_as_quad_map;
     int *face_as_quad_map = nullptr;
 
     /* map faces to quads */
-    if (em->tottri != bm->totface) {
+    if (em->looptris.size() != bm->totface) {
       /* Over allocate, since we don't know how many ngon or quads we have. */
 
       /* map fake face index to looptri */
@@ -234,7 +236,7 @@ void BKE_editmesh_loop_tangent_calc(BMEditMesh *em,
     }
 #endif
     /* Calculation */
-    if (em->tottri != 0) {
+    if (em->looptris.size() != 0) {
       TaskPool *task_pool;
       task_pool = BLI_task_pool_create(nullptr, TASK_PRIORITY_HIGH);
 
@@ -249,22 +251,22 @@ void BKE_editmesh_loop_tangent_calc(BMEditMesh *em,
         index = CustomData_get_layer_index_n(loopdata_out, CD_TANGENT, n);
         BLI_assert(n < MAX_MTFACE);
         SGLSLEditMeshToTangent *mesh2tangent = &data_array[n];
-        mesh2tangent->numTessFaces = em->tottri;
+        mesh2tangent->numTessFaces = em->looptris.size();
 #ifdef USE_LOOPTRI_DETECT_QUADS
         mesh2tangent->face_as_quad_map = face_as_quad_map;
         mesh2tangent->num_face_as_quad_map = num_face_as_quad_map;
 #endif
-        mesh2tangent->precomputedFaceNormals = face_normals;
+        mesh2tangent->face_normals = face_normals;
         /* NOTE: we assume we do have tessellated loop normals at this point
          * (in case it is object-enabled), have to check this is valid. */
-        mesh2tangent->precomputedLoopNormals = corner_normals;
+        mesh2tangent->corner_normals = corner_normals;
         mesh2tangent->cd_loop_uv_offset = CustomData_get_n_offset(&bm->ldata, CD_PROP_FLOAT2, n);
 
         /* needed for indexing loop-tangents */
         int htype_index = BM_LOOP;
         if (mesh2tangent->cd_loop_uv_offset == -1) {
           mesh2tangent->orco = vert_orco;
-          if (!mesh2tangent->orco) {
+          if (mesh2tangent->orco.is_empty()) {
             continue;
           }
           /* needed for orco lookups */
@@ -280,13 +282,13 @@ void BKE_editmesh_loop_tangent_calc(BMEditMesh *em,
           BLI_assert(uv_ind - uv_start < MAX_MTFACE);
           tangent_mask_curr |= 1 << (uv_ind - uv_start);
         }
-        if (mesh2tangent->precomputedFaceNormals) {
+        if (!mesh2tangent->face_normals.is_empty()) {
           /* needed for face normal lookups */
           htype_index |= BM_FACE;
         }
         BM_mesh_elem_index_ensure(bm, htype_index);
 
-        mesh2tangent->looptris = const_cast<const BMLoop *(*)[3]>(em->looptris);
+        mesh2tangent->looptris = em->looptris;
         mesh2tangent->tangent = static_cast<float(*)[4]>(loopdata_out->layers[index].data);
 
         BLI_task_pool_push(

@@ -15,22 +15,20 @@ try:
 except ImportError:
     inside_blender = False
 
-ENABLE_REALTIME_COMPOSITOR_SCRIPT = "import bpy; " \
-    "bpy.context.preferences.experimental.use_experimental_compositors = True; " \
-    "bpy.data.scenes[0].node_tree.execution_mode = 'REALTIME'"
+SET_COMPOSITOR_DEVICE_SCRIPT = "import bpy; " \
+    "bpy.data.scenes[0].render.compositor_device = 'GPU'"
 
 
 def get_arguments(filepath, output_filepath):
     return [
         "--background",
-        "-noaudio",
         "--factory-startup",
         "--enable-autoexec",
         "--debug-memory",
         "--debug-exit-on-error",
         filepath,
         "-P", os.path.realpath(__file__),
-        "--python-expr", ENABLE_REALTIME_COMPOSITOR_SCRIPT,
+        "--python-expr", SET_COMPOSITOR_DEVICE_SCRIPT,
         "-o", output_filepath,
         "-F", "PNG",
         "-f", "1"

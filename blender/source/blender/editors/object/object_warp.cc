@@ -25,7 +25,9 @@
 #include "ED_object.hh"
 #include "ED_transverts.hh"
 
-#include "object_intern.h"
+#include "object_intern.hh"
+
+namespace blender::ed::object {
 
 static void object_warp_calc_view_matrix(float r_mat_view[4][4],
                                          float r_center_view[3],
@@ -42,7 +44,7 @@ static void object_warp_calc_view_matrix(float r_mat_view[4][4],
   mul_m4_m4m4(viewmat_roll, mat_offset, viewmat);
 
   /* apply the view and the object matrix */
-  mul_m4_m4m4(r_mat_view, viewmat_roll, obedit->object_to_world);
+  mul_m4_m4m4(r_mat_view, viewmat_roll, obedit->object_to_world().ptr());
 
   /* get the view-space cursor */
   mul_v3_m4v3(r_center_view, viewmat_roll, center);
@@ -169,7 +171,7 @@ static int object_warp_verts_exec(bContext *C, wmOperator *op)
 
   float min, max;
 
-  if (ED_object_edit_report_if_shape_key_is_locked(obedit, op->reports)) {
+  if (shape_key_report_if_locked(obedit, op->reports)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -299,3 +301,5 @@ void TRANSFORM_OT_vertex_warp(wmOperatorType *ot)
       ot->srna, "center", 3, nullptr, -FLT_MAX, FLT_MAX, "Center", "", -FLT_MAX, FLT_MAX);
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
+
+}  // namespace blender::ed::object

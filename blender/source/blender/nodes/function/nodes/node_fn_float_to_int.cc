@@ -37,9 +37,9 @@ static void node_label(const bNodeTree * /*tree*/,
   const char *name;
   bool enum_label = RNA_enum_name(rna_enum_node_float_to_int_items, node->custom1, &name);
   if (!enum_label) {
-    name = "Unknown";
+    name = CTX_N_(BLT_I18NCONTEXT_ID_NODETREE, "Unknown");
   }
-  BLI_strncpy_utf8(label, IFACE_(name), label_maxncpy);
+  BLI_strncpy_utf8(label, CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, name), label_maxncpy);
 }
 
 static const mf::MultiFunction *get_multi_function(const bNode &bnode)
@@ -77,14 +77,14 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   fn_node_type_base(&ntype, FN_NODE_FLOAT_TO_INT, "Float to Integer", NODE_CLASS_CONVERTER);
   ntype.declare = node_declare;
   ntype.labelfunc = node_label;
   ntype.build_multi_function = node_build_multi_function;
   ntype.draw_buttons = node_layout;
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

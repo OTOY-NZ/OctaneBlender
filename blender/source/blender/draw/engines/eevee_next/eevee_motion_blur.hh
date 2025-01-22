@@ -75,7 +75,7 @@ class MotionBlurModule {
   float initial_subframe_;
   /** Time of the frame we are rendering. */
   float frame_time_;
-  /** Enum controlling when the shutter opens. See SceneEEVEE.motion_blur_position. */
+  /** Enum controlling when the shutter opens. See RenderData.motion_blur_position. */
   int shutter_position_;
   /** Time in scene frame the shutter is open. Controls the amount of blur. */
   float shutter_time_;
@@ -83,7 +83,7 @@ class MotionBlurModule {
   /** True if motion blur is enabled as a module. */
   bool enabled_ = false;
   /** True if motion blur post-fx is enabled. */
-  float motion_blur_fx_enabled_ = false;
+  bool motion_blur_fx_enabled_ = false;
   /** True if last viewport redraw state was already in navigation state. */
   bool was_navigating_ = false;
 

@@ -27,7 +27,7 @@
 
 #include "node_shader_util.hh"
 
-static bNodeSocketTemplate sh_node_in[] = {{SOCK_INT,
+static blender::bke::bNodeSocketTemplate  sh_node_in[] = {{SOCK_INT,
                                             N_("UV set"),
                                             1.0f,
                                             0.0f,
@@ -39,7 +39,7 @@ static bNodeSocketTemplate sh_node_in[] = {{SOCK_INT,
                                             SOCK_NO_INTERNAL_LINK},
                                            {-1, ""}};
 
-static bNodeSocketTemplate sh_node_out[] = {
+static blender::bke::bNodeSocketTemplate  sh_node_out[] = {
     {SOCK_SHADER, N_("OutProjection")},
     {SOCK_SHADER,
      N_("OutTex"),
@@ -55,7 +55,7 @@ static bNodeSocketTemplate sh_node_out[] = {
 
 void register_node_type_projection_oct_uvw(void)
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   if (ntype.type != SH_NODE_OCT_PROJECTION_UVW)
     sh_node_type_base(&ntype,

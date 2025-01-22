@@ -37,6 +37,7 @@ void main()
   if (gl_LocalInvocationIndex == 0u) {
     /* Reset shift to not tag for update more than once per sync cycle. */
     tilemaps_buf[tilemap_index].grid_shift = ivec2(0);
+    tilemaps_buf[tilemap_index].is_dirty = false;
 
     directional_range_changed = 0;
 
@@ -68,9 +69,10 @@ void main()
   barrier();
 
   ivec2 tile_co = ivec2(gl_GlobalInvocationID.xy);
-  ivec2 tile_shifted = tile_co + clamp(tilemap.grid_shift,
-                                       ivec2(-SHADOW_TILEMAP_RES),
-                                       ivec2(SHADOW_TILEMAP_RES));
+  ivec2 tile_shifted = tile_co +
+                       clamp(tilemap.is_dirty ? ivec2(SHADOW_TILEMAP_RES) : tilemap.grid_shift,
+                             ivec2(-SHADOW_TILEMAP_RES),
+                             ivec2(SHADOW_TILEMAP_RES));
   ivec2 tile_wrapped = ivec2((ivec2(SHADOW_TILEMAP_RES) + tile_shifted) % SHADOW_TILEMAP_RES);
 
   /* If this tile was shifted in and contains old information, update it.
@@ -87,7 +89,7 @@ void main()
   for (int lod = 0; lod <= lod_max; lod++, lod_size >>= 1u) {
     bool thread_active = all(lessThan(tile_co, ivec2(lod_size)));
     ShadowTileDataPacked tile = 0;
-    int tile_load = shadow_tile_offset(tile_wrapped, tilemap.tiles_index, lod);
+    int tile_load = shadow_tile_offset(uvec2(tile_wrapped), tilemap.tiles_index, lod);
     if (thread_active) {
       tile = init_tile_data(tiles_buf[tile_load], do_update);
     }
@@ -96,7 +98,7 @@ void main()
     barrier();
 
     if (thread_active) {
-      int tile_store = shadow_tile_offset(tile_co, tilemap.tiles_index, lod);
+      int tile_store = shadow_tile_offset(uvec2(tile_co), tilemap.tiles_index, lod);
       if ((tile_load != tile_store) && flag_test(tile, SHADOW_IS_CACHED)) {
         /* Inlining of shadow_page_cache_update_tile_ref to avoid buffer dependencies. */
         pages_cached_buf[shadow_tile_unpack(tile).cache_index].y = tile_store;

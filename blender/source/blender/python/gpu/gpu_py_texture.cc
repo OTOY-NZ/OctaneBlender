@@ -17,18 +17,18 @@
 
 #include "DNA_image_types.h"
 
-#include "GPU_context.h"
-#include "GPU_texture.h"
+#include "GPU_context.hh"
+#include "GPU_texture.hh"
 
 #include "BKE_image.h"
 
 #include "../generic/py_capi_utils.h"
 #include "../generic/python_compat.h"
 
-#include "gpu_py.h"
-#include "gpu_py_buffer.h"
+#include "gpu_py.hh"
+#include "gpu_py_buffer.hh"
 
-#include "gpu_py_texture.h" /* own include */
+#include "gpu_py_texture.hh" /* own include */
 
 /* -------------------------------------------------------------------- */
 /** \name GPUTexture Common Utilities
@@ -114,6 +114,8 @@ static int pygpu_texture_valid_check(BPyGPUTexture *bpygpu_tex)
 
 static PyObject *pygpu_texture__tp_new(PyTypeObject * /*self*/, PyObject *args, PyObject *kwds)
 {
+  BPYGPU_IS_INIT_OR_ERROR_OBJ;
+
   PyObject *py_size;
   int size[3] = {1, 1, 1};
   int layers = 0;
@@ -728,7 +730,7 @@ int bpygpu_ParseTexture(PyObject *o, void *p)
 PyObject *bpygpu_texture_init()
 {
   PyObject *submodule;
-  submodule = bpygpu_create_module(&pygpu_texture_module_def);
+  submodule = PyModule_Create(&pygpu_texture_module_def);
 
   return submodule;
 }

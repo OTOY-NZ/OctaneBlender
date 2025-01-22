@@ -32,7 +32,7 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "rna_internal.hh"
 
@@ -474,7 +474,7 @@ static void rna_ParticleSystem_co_hair(
   if (step >= 0 && step <= max_k) {
     copy_v3_v3(n_co, (cache + step)->co);
     mul_m4_v3(particlesystem->imat, n_co);
-    mul_m4_v3(object->object_to_world, n_co);
+    mul_m4_v3(object->object_to_world().ptr(), n_co);
   }
 }
 
@@ -2183,6 +2183,7 @@ static void rna_def_particle_settings_mtex(BlenderRNA *brna)
   prop = RNA_def_property(srna, "texture_coords", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "texco");
   RNA_def_property_enum_items(prop, texco_items);
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_TEXTURE);
   RNA_def_property_ui_text(prop,
                            "Texture Coordinates",
                            "Texture coordinates used to map the texture onto the background");

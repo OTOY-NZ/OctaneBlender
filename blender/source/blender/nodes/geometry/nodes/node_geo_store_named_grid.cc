@@ -34,8 +34,31 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void search_link_ops(GatherLinkSearchOpParams &params)
 {
-  if (U.experimental.use_new_volume_nodes) {
-    nodes::search_link_ops_for_basic_node(params);
+  if (!U.experimental.use_new_volume_nodes) {
+    return;
+  }
+  params.add_item(IFACE_("Volume"), [](LinkSearchOpParams &params) {
+    bNode &node = params.add_node("GeometryNodeStoreNamedGrid");
+    params.update_and_connect_available_socket(node, "Volume");
+  });
+  if (params.in_out() == SOCK_IN) {
+    if (params.other_socket().type == SOCK_STRING) {
+      params.add_item(IFACE_("Name"), [](LinkSearchOpParams &params) {
+        bNode &node = params.add_node("GeometryNodeStoreNamedGrid");
+        params.update_and_connect_available_socket(node, "Name");
+      });
+    }
+    if (const std::optional<eCustomDataType> data_type = bke::socket_type_to_custom_data_type(
+            eNodeSocketDatatype(params.other_socket().type)))
+    {
+      if (custom_data_type_supports_grids(*data_type)) {
+        params.add_item(IFACE_("Grid"), [data_type](LinkSearchOpParams &params) {
+          bNode &node = params.add_node("GeometryNodeStoreNamedGrid");
+          node.custom1 = *data_type;
+          params.update_and_connect_available_socket(node, "Grid");
+        });
+      }
+    }
   }
 }
 
@@ -107,7 +130,7 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, GEO_NODE_STORE_NAMED_GRID, "Store Named Grid", NODE_CLASS_GEOMETRY);
 
@@ -116,7 +139,7 @@ static void node_register()
   ntype.draw_buttons = node_layout;
   ntype.initfunc = node_init;
   ntype.geometry_node_execute = node_geo_exec;
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

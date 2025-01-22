@@ -16,11 +16,11 @@
 #include "BLI_string_utf8_symbols.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "BKE_keyconfig.h"
 #include "BKE_screen.hh"
-#include "BKE_workspace.h"
+#include "BKE_workspace.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -33,28 +33,38 @@
 
 #ifdef RNA_RUNTIME
 
+#  include "wm_event_system.hh"
+
 static const EnumPropertyItem event_mouse_type_items[] = {
-    {LEFTMOUSE, "LEFTMOUSE", 0, "Left", ""},
-    {MIDDLEMOUSE, "MIDDLEMOUSE", 0, "Middle", ""},
-    {RIGHTMOUSE, "RIGHTMOUSE", 0, "Right", ""},
-    {BUTTON4MOUSE, "BUTTON4MOUSE", 0, "Button4", ""},
-    {BUTTON5MOUSE, "BUTTON5MOUSE", 0, "Button5", ""},
-    {BUTTON6MOUSE, "BUTTON6MOUSE", 0, "Button6", ""},
-    {BUTTON7MOUSE, "BUTTON7MOUSE", 0, "Button7", ""},
+    {LEFTMOUSE, "LEFTMOUSE", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Left"), ""},
+    {MIDDLEMOUSE, "MIDDLEMOUSE", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Middle"), ""},
+    {RIGHTMOUSE, "RIGHTMOUSE", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Right"), ""},
+    {BUTTON4MOUSE, "BUTTON4MOUSE", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Button4"), ""},
+    {BUTTON5MOUSE, "BUTTON5MOUSE", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Button5"), ""},
+    {BUTTON6MOUSE, "BUTTON6MOUSE", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Button6"), ""},
+    {BUTTON7MOUSE, "BUTTON7MOUSE", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Button7"), ""},
     RNA_ENUM_ITEM_SEPR,
-    {TABLET_STYLUS, "PEN", 0, "Pen", ""},
-    {TABLET_ERASER, "ERASER", 0, "Eraser", ""},
+    {TABLET_STYLUS, "PEN", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Pen"), ""},
+    {TABLET_ERASER, "ERASER", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Eraser"), ""},
     RNA_ENUM_ITEM_SEPR,
-    {MOUSEMOVE, "MOUSEMOVE", 0, "Move", ""},
-    {MOUSEPAN, "TRACKPADPAN", 0, "Mouse/Trackpad Pan", ""},
-    {MOUSEZOOM, "TRACKPADZOOM", 0, "Mouse/Trackpad Zoom", ""},
-    {MOUSEROTATE, "MOUSEROTATE", 0, "Mouse/Trackpad Rotate", ""},
-    {MOUSESMARTZOOM, "MOUSESMARTZOOM", 0, "Mouse/Trackpad Smart Zoom", ""},
+    {MOUSEMOVE, "MOUSEMOVE", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Move"), ""},
+    {MOUSEPAN, "TRACKPADPAN", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Mouse/Trackpad Pan"), ""},
+    {MOUSEZOOM, "TRACKPADZOOM", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Mouse/Trackpad Zoom"), ""},
+    {MOUSEROTATE,
+     "MOUSEROTATE",
+     0,
+     CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Mouse/Trackpad Rotate"),
+     ""},
+    {MOUSESMARTZOOM,
+     "MOUSESMARTZOOM",
+     0,
+     CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Mouse/Trackpad Smart Zoom"),
+     ""},
     RNA_ENUM_ITEM_SEPR,
-    {WHEELUPMOUSE, "WHEELUPMOUSE", 0, "Wheel Up", ""},
-    {WHEELDOWNMOUSE, "WHEELDOWNMOUSE", 0, "Wheel Down", ""},
-    {WHEELINMOUSE, "WHEELINMOUSE", 0, "Wheel In", ""},
-    {WHEELOUTMOUSE, "WHEELOUTMOUSE", 0, "Wheel Out", ""},
+    {WHEELUPMOUSE, "WHEELUPMOUSE", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Wheel Up"), ""},
+    {WHEELDOWNMOUSE, "WHEELDOWNMOUSE", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Wheel Down"), ""},
+    {WHEELINMOUSE, "WHEELINMOUSE", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Wheel In"), ""},
+    {WHEELOUTMOUSE, "WHEELOUTMOUSE", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Wheel Out"), ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -76,61 +86,101 @@ static const EnumPropertyItem event_textinput_type_items[] = {
 };
 
 static const EnumPropertyItem event_ndof_type_items[] = {
-    {NDOF_MOTION, "NDOF_MOTION", 0, "Motion", ""},
+    {NDOF_MOTION, "NDOF_MOTION", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Motion"), ""},
     /* buttons on all 3dconnexion devices */
-    {NDOF_BUTTON_MENU, "NDOF_BUTTON_MENU", 0, "Menu", ""},
-    {NDOF_BUTTON_FIT, "NDOF_BUTTON_FIT", 0, "Fit", ""},
+    {NDOF_BUTTON_MENU, "NDOF_BUTTON_MENU", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Menu"), ""},
+    {NDOF_BUTTON_FIT, "NDOF_BUTTON_FIT", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Fit"), ""},
     /* view buttons */
-    {NDOF_BUTTON_TOP, "NDOF_BUTTON_TOP", 0, "Top", ""},
-    {NDOF_BUTTON_BOTTOM, "NDOF_BUTTON_BOTTOM", 0, "Bottom", ""},
-    {NDOF_BUTTON_LEFT, "NDOF_BUTTON_LEFT", 0, "Left", ""},
-    {NDOF_BUTTON_RIGHT, "NDOF_BUTTON_RIGHT", 0, "Right", ""},
-    {NDOF_BUTTON_FRONT, "NDOF_BUTTON_FRONT", 0, "Front", ""},
-    {NDOF_BUTTON_BACK, "NDOF_BUTTON_BACK", 0, "Back", ""},
+    {NDOF_BUTTON_TOP, "NDOF_BUTTON_TOP", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Top"), ""},
+    {NDOF_BUTTON_BOTTOM, "NDOF_BUTTON_BOTTOM", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Bottom"), ""},
+    {NDOF_BUTTON_LEFT, "NDOF_BUTTON_LEFT", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Left"), ""},
+    {NDOF_BUTTON_RIGHT, "NDOF_BUTTON_RIGHT", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Right"), ""},
+    {NDOF_BUTTON_FRONT, "NDOF_BUTTON_FRONT", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Front"), ""},
+    {NDOF_BUTTON_BACK, "NDOF_BUTTON_BACK", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Back"), ""},
     /* more views */
-    {NDOF_BUTTON_ISO1, "NDOF_BUTTON_ISO1", 0, "Isometric 1", ""},
-    {NDOF_BUTTON_ISO2, "NDOF_BUTTON_ISO2", 0, "Isometric 2", ""},
+    {NDOF_BUTTON_ISO1,
+     "NDOF_BUTTON_ISO1",
+     0,
+     CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Isometric 1"),
+     ""},
+    {NDOF_BUTTON_ISO2,
+     "NDOF_BUTTON_ISO2",
+     0,
+     CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Isometric 2"),
+     ""},
     /* 90 degree rotations */
-    {NDOF_BUTTON_ROLL_CW, "NDOF_BUTTON_ROLL_CW", 0, "Roll CW", ""},
-    {NDOF_BUTTON_ROLL_CCW, "NDOF_BUTTON_ROLL_CCW", 0, "Roll CCW", ""},
-    {NDOF_BUTTON_SPIN_CW, "NDOF_BUTTON_SPIN_CW", 0, "Spin CW", ""},
-    {NDOF_BUTTON_SPIN_CCW, "NDOF_BUTTON_SPIN_CCW", 0, "Spin CCW", ""},
-    {NDOF_BUTTON_TILT_CW, "NDOF_BUTTON_TILT_CW", 0, "Tilt CW", ""},
-    {NDOF_BUTTON_TILT_CCW, "NDOF_BUTTON_TILT_CCW", 0, "Tilt CCW", ""},
+    {NDOF_BUTTON_ROLL_CW,
+     "NDOF_BUTTON_ROLL_CW",
+     0,
+     CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Roll CW"),
+     ""},
+    {NDOF_BUTTON_ROLL_CCW,
+     "NDOF_BUTTON_ROLL_CCW",
+     0,
+     CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Roll CCW"),
+     ""},
+    {NDOF_BUTTON_SPIN_CW,
+     "NDOF_BUTTON_SPIN_CW",
+     0,
+     CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Spin CW"),
+     ""},
+    {NDOF_BUTTON_SPIN_CCW,
+     "NDOF_BUTTON_SPIN_CCW",
+     0,
+     CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Spin CCW"),
+     ""},
+    {NDOF_BUTTON_TILT_CW,
+     "NDOF_BUTTON_TILT_CW",
+     0,
+     CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Tilt CW"),
+     ""},
+    {NDOF_BUTTON_TILT_CCW,
+     "NDOF_BUTTON_TILT_CCW",
+     0,
+     CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Tilt CCW"),
+     ""},
     /* device control */
-    {NDOF_BUTTON_ROTATE, "NDOF_BUTTON_ROTATE", 0, "Rotate", ""},
-    {NDOF_BUTTON_PANZOOM, "NDOF_BUTTON_PANZOOM", 0, "Pan/Zoom", ""},
-    {NDOF_BUTTON_DOMINANT, "NDOF_BUTTON_DOMINANT", 0, "Dominant", ""},
-    {NDOF_BUTTON_PLUS, "NDOF_BUTTON_PLUS", 0, "Plus", ""},
-    {NDOF_BUTTON_MINUS, "NDOF_BUTTON_MINUS", 0, "Minus", ""},
+    {NDOF_BUTTON_ROTATE, "NDOF_BUTTON_ROTATE", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Rotate"), ""},
+    {NDOF_BUTTON_PANZOOM,
+     "NDOF_BUTTON_PANZOOM",
+     0,
+     CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Pan/Zoom"),
+     ""},
+    {NDOF_BUTTON_DOMINANT,
+     "NDOF_BUTTON_DOMINANT",
+     0,
+     CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Dominant"),
+     ""},
+    {NDOF_BUTTON_PLUS, "NDOF_BUTTON_PLUS", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Plus"), ""},
+    {NDOF_BUTTON_MINUS, "NDOF_BUTTON_MINUS", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Minus"), ""},
     /* View buttons. */
-    {NDOF_BUTTON_V1, "NDOF_BUTTON_V1", 0, "View 1", ""},
-    {NDOF_BUTTON_V2, "NDOF_BUTTON_V2", 0, "View 2", ""},
-    {NDOF_BUTTON_V3, "NDOF_BUTTON_V3", 0, "View 3", ""},
+    {NDOF_BUTTON_V1, "NDOF_BUTTON_V1", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "View 1"), ""},
+    {NDOF_BUTTON_V2, "NDOF_BUTTON_V2", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "View 2"), ""},
+    {NDOF_BUTTON_V3, "NDOF_BUTTON_V3", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "View 3"), ""},
     /* general-purpose buttons */
-    {NDOF_BUTTON_1, "NDOF_BUTTON_1", 0, "Button 1", ""},
-    {NDOF_BUTTON_2, "NDOF_BUTTON_2", 0, "Button 2", ""},
-    {NDOF_BUTTON_3, "NDOF_BUTTON_3", 0, "Button 3", ""},
-    {NDOF_BUTTON_4, "NDOF_BUTTON_4", 0, "Button 4", ""},
-    {NDOF_BUTTON_5, "NDOF_BUTTON_5", 0, "Button 5", ""},
-    {NDOF_BUTTON_6, "NDOF_BUTTON_6", 0, "Button 6", ""},
-    {NDOF_BUTTON_7, "NDOF_BUTTON_7", 0, "Button 7", ""},
-    {NDOF_BUTTON_8, "NDOF_BUTTON_8", 0, "Button 8", ""},
-    {NDOF_BUTTON_9, "NDOF_BUTTON_9", 0, "Button 9", ""},
-    {NDOF_BUTTON_10, "NDOF_BUTTON_10", 0, "Button 10", ""},
-    {NDOF_BUTTON_A, "NDOF_BUTTON_A", 0, "Button A", ""},
-    {NDOF_BUTTON_B, "NDOF_BUTTON_B", 0, "Button B", ""},
-    {NDOF_BUTTON_C, "NDOF_BUTTON_C", 0, "Button C", ""},
+    {NDOF_BUTTON_1, "NDOF_BUTTON_1", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Button 1"), ""},
+    {NDOF_BUTTON_2, "NDOF_BUTTON_2", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Button 2"), ""},
+    {NDOF_BUTTON_3, "NDOF_BUTTON_3", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Button 3"), ""},
+    {NDOF_BUTTON_4, "NDOF_BUTTON_4", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Button 4"), ""},
+    {NDOF_BUTTON_5, "NDOF_BUTTON_5", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Button 5"), ""},
+    {NDOF_BUTTON_6, "NDOF_BUTTON_6", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Button 6"), ""},
+    {NDOF_BUTTON_7, "NDOF_BUTTON_7", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Button 7"), ""},
+    {NDOF_BUTTON_8, "NDOF_BUTTON_8", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Button 8"), ""},
+    {NDOF_BUTTON_9, "NDOF_BUTTON_9", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Button 9"), ""},
+    {NDOF_BUTTON_10, "NDOF_BUTTON_10", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Button 10"), ""},
+    {NDOF_BUTTON_A, "NDOF_BUTTON_A", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Button A"), ""},
+    {NDOF_BUTTON_B, "NDOF_BUTTON_B", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Button B"), ""},
+    {NDOF_BUTTON_C, "NDOF_BUTTON_C", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Button C"), ""},
 #  if 0 /* Never used (converted to keyboard events by GHOST). */
     /* keyboard emulation */
-    {NDOF_BUTTON_ESC, "NDOF_BUTTON_ESC", 0, "Esc"},
-    {NDOF_BUTTON_ENTER, "NDOF_BUTTON_ENTER", 0, "Enter"},
-    {NDOF_BUTTON_DELETE, "NDOF_BUTTON_DELETE", 0, "Delete"},
-    {NDOF_BUTTON_TAB, "NDOF_BUTTON_TAB", 0, "Tab"},
-    {NDOF_BUTTON_SPACE, "NDOF_BUTTON_SPACE", 0, "Space"},
-    {NDOF_BUTTON_ALT, "NDOF_BUTTON_ALT", 0, "Alt"},
-    {NDOF_BUTTON_SHIFT, "NDOF_BUTTON_SHIFT", 0, "Shift"},
-    {NDOF_BUTTON_CTRL, "NDOF_BUTTON_CTRL", 0, "Ctrl"},
+    {NDOF_BUTTON_ESC, "NDOF_BUTTON_ESC", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Esc")},
+    {NDOF_BUTTON_ENTER, "NDOF_BUTTON_ENTER", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Enter")},
+    {NDOF_BUTTON_DELETE, "NDOF_BUTTON_DELETE", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Delete")},
+    {NDOF_BUTTON_TAB, "NDOF_BUTTON_TAB", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Tab")},
+    {NDOF_BUTTON_SPACE, "NDOF_BUTTON_SPACE", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Space")},
+    {NDOF_BUTTON_ALT, "NDOF_BUTTON_ALT", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Alt")},
+    {NDOF_BUTTON_SHIFT, "NDOF_BUTTON_SHIFT", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Shift")},
+    {NDOF_BUTTON_CTRL, "NDOF_BUTTON_CTRL", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Ctrl")},
 #  endif
     {0, nullptr, 0, nullptr, nullptr},
 };
@@ -493,6 +543,12 @@ const EnumPropertyItem rna_enum_operator_type_flag_items[] = {
      "before beginning the operation"},
     {OPTYPE_PRESET, "PRESET", 0, "Preset", "Display a preset button with the operators settings"},
     {OPTYPE_INTERNAL, "INTERNAL", 0, "Internal", "Removes the operator from search results"},
+    {OPTYPE_MODAL_PRIORITY,
+     "MODAL_PRIORITY",
+     0,
+     "Modal Priority",
+     "Handle events before other modal operators without this option. Use with caution, do not "
+     "modify data that other modal operators assume is unchanged during their operation"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -554,8 +610,8 @@ const EnumPropertyItem rna_enum_wm_report_items[] = {
 
 #  include "UI_interface.hh"
 
-#  include "BKE_global.h"
-#  include "BKE_idprop.h"
+#  include "BKE_global.hh"
+#  include "BKE_idprop.hh"
 
 #  include "MEM_guardedalloc.h"
 
@@ -565,14 +621,16 @@ const EnumPropertyItem rna_enum_wm_report_items[] = {
 
 static wmOperator *rna_OperatorProperties_find_operator(PointerRNA *ptr)
 {
+  if (ptr->owner_id == nullptr || GS(ptr->owner_id->name) != ID_WM) {
+    return nullptr;
+  }
+
   wmWindowManager *wm = (wmWindowManager *)ptr->owner_id;
 
-  if (wm) {
-    IDProperty *properties = (IDProperty *)ptr->data;
-    for (wmOperator *op = static_cast<wmOperator *>(wm->operators.last); op; op = op->prev) {
-      if (op->properties == properties) {
-        return op;
-      }
+  IDProperty *properties = (IDProperty *)ptr->data;
+  for (wmOperator *op = static_cast<wmOperator *>(wm->operators.last); op; op = op->prev) {
+    if (op->properties == properties) {
+      return op;
     }
   }
 
@@ -614,6 +672,13 @@ static bool rna_Operator_has_reports_get(PointerRNA *ptr)
   return (op->reports && op->reports->list.first);
 }
 
+static PointerRNA rna_Operator_layout_get(PointerRNA *ptr)
+{
+  /* Operator owner is not inherited, layout is owned by WM. */
+  wmOperator *op = (wmOperator *)ptr->data;
+  return RNA_pointer_create(nullptr, &RNA_UILayout, op->layout);
+}
+
 static PointerRNA rna_Operator_options_get(PointerRNA *ptr)
 {
   return rna_pointer_inherit_refine(ptr, &RNA_OperatorOptions, ptr->data);
@@ -625,6 +690,7 @@ static PointerRNA rna_Operator_properties_get(PointerRNA *ptr)
 
   PointerRNA result;
   WM_operator_properties_create_ptr(&result, op->type);
+  result.owner_id = (ptr->owner_id) ? ptr->owner_id : result.owner_id;
   result.data = op->properties;
   return result;
 }
@@ -636,6 +702,7 @@ static PointerRNA rna_OperatorMacro_properties_get(PointerRNA *ptr)
 
   PointerRNA result;
   WM_operator_properties_create_ptr(&result, ot);
+  result.owner_id = (ptr->owner_id) ? ptr->owner_id : result.owner_id;
   result.data = otmacro->properties;
   return result;
 }
@@ -825,6 +892,7 @@ static void rna_Window_workspace_update(bContext *C, PointerRNA *ptr)
   if (new_workspace) {
     wmWindowManager *wm = CTX_wm_manager(C);
     WM_event_add_notifier_ex(wm, win, NC_SCREEN | ND_WORKSPACE_SET, new_workspace);
+    WM_event_add_notifier(C, NC_SPACE | ND_SPACE_INFO, nullptr);
     win->workspace_hook->temp_workspace_store = nullptr;
   }
 }
@@ -893,6 +961,25 @@ static void rna_Window_view_layer_set(PointerRNA *ptr, PointerRNA value, ReportL
   ViewLayer *view_layer = static_cast<ViewLayer *>(value.data);
 
   WM_window_set_active_view_layer(win, view_layer);
+}
+
+static bool rna_Window_modal_handler_skip(CollectionPropertyIterator * /*iter*/, void *data)
+{
+  const wmEventHandler_Op *handler = (wmEventHandler_Op *)data;
+  return handler->head.type != WM_HANDLER_TYPE_OP;
+}
+
+static void rna_Window_modal_operators_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
+{
+  wmWindow *window = static_cast<wmWindow *>(ptr->data);
+  rna_iterator_listbase_begin(iter, &window->modalhandlers, rna_Window_modal_handler_skip);
+}
+
+static PointerRNA rna_Window_modal_operators_get(CollectionPropertyIterator *iter)
+{
+  const wmEventHandler_Op *handler = static_cast<wmEventHandler_Op *>(
+      rna_iterator_listbase_get(iter));
+  return RNA_pointer_create(iter->parent.owner_id, &RNA_Operator, handler->op);
 }
 
 static void rna_KeyMap_modal_event_values_items_begin(CollectionPropertyIterator *iter,
@@ -1105,6 +1192,20 @@ static void rna_WindowManager_active_keyconfig_set(PointerRNA *ptr,
 
   if (kc) {
     WM_keyconfig_set_active(wm, kc->idname);
+  }
+}
+
+static void rna_WindowManager_extensions_update(Main * /*bmain*/,
+                                                Scene * /*scene*/,
+                                                PointerRNA *ptr)
+{
+  if ((U.statusbar_flag & STATUSBAR_SHOW_EXTENSIONS_UPDATES) == 0) {
+    return;
+  }
+
+  wmWindowManager *wm = static_cast<wmWindowManager *>(ptr->data);
+  LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
+    WM_window_status_area_tag_redraw(win);
   }
 }
 
@@ -1333,7 +1434,8 @@ static int rna_operator_exec_cb(bContext *C, wmOperator *op)
   void *ret;
   int result;
 
-  PointerRNA opr = RNA_pointer_create(nullptr, op->type->rna_ext.srna, op);
+  ID *owner_id = (op->ptr) ? op->ptr->owner_id : nullptr;
+  PointerRNA opr = RNA_pointer_create(owner_id, op->type->rna_ext.srna, op);
   func = &rna_Operator_execute_func; /* RNA_struct_find_function(&opr, "execute"); */
 
   RNA_parameter_list_create(&list, &opr, func);
@@ -1363,7 +1465,8 @@ static bool rna_operator_check_cb(bContext *C, wmOperator *op)
   void *ret;
   bool result;
 
-  PointerRNA opr = RNA_pointer_create(nullptr, op->type->rna_ext.srna, op);
+  ID *owner_id = (op->ptr) ? op->ptr->owner_id : nullptr;
+  PointerRNA opr = RNA_pointer_create(owner_id, op->type->rna_ext.srna, op);
   func = &rna_Operator_check_func; /* RNA_struct_find_function(&opr, "check"); */
 
   RNA_parameter_list_create(&list, &opr, func);
@@ -1387,7 +1490,8 @@ static int rna_operator_invoke_cb(bContext *C, wmOperator *op, const wmEvent *ev
   void *ret;
   int result;
 
-  PointerRNA opr = RNA_pointer_create(nullptr, op->type->rna_ext.srna, op);
+  ID *owner_id = (op->ptr) ? op->ptr->owner_id : nullptr;
+  PointerRNA opr = RNA_pointer_create(owner_id, op->type->rna_ext.srna, op);
   func = &rna_Operator_invoke_func; /* RNA_struct_find_function(&opr, "invoke"); */
 
   RNA_parameter_list_create(&list, &opr, func);
@@ -1418,7 +1522,8 @@ static int rna_operator_modal_cb(bContext *C, wmOperator *op, const wmEvent *eve
   void *ret;
   int result;
 
-  PointerRNA opr = RNA_pointer_create(nullptr, op->type->rna_ext.srna, op);
+  ID *owner_id = (op->ptr) ? op->ptr->owner_id : nullptr;
+  PointerRNA opr = RNA_pointer_create(owner_id, op->type->rna_ext.srna, op);
   func = &rna_Operator_modal_func; /* RNA_struct_find_function(&opr, "modal"); */
 
   RNA_parameter_list_create(&list, &opr, func);
@@ -1441,7 +1546,10 @@ static void rna_operator_draw_cb(bContext *C, wmOperator *op)
   ParameterList list;
   FunctionRNA *func;
 
-  PointerRNA opr = RNA_pointer_create(nullptr, op->type->rna_ext.srna, op);
+  /* Operator draw gets reused for drawing stored properties, in which
+   * case we need a proper owner. */
+  ID *owner_id = (op->ptr) ? op->ptr->owner_id : nullptr;
+  PointerRNA opr = RNA_pointer_create(owner_id, op->type->rna_ext.srna, op);
   func = &rna_Operator_draw_func; /* RNA_struct_find_function(&opr, "draw"); */
 
   RNA_parameter_list_create(&list, &opr, func);
@@ -1459,7 +1567,8 @@ static void rna_operator_cancel_cb(bContext *C, wmOperator *op)
   ParameterList list;
   FunctionRNA *func;
 
-  PointerRNA opr = RNA_pointer_create(nullptr, op->type->rna_ext.srna, op);
+  ID *owner_id = (op->ptr) ? op->ptr->owner_id : nullptr;
+  PointerRNA opr = RNA_pointer_create(owner_id, op->type->rna_ext.srna, op);
   func = &rna_Operator_cancel_func; /* RNA_struct_find_function(&opr, "cancel"); */
 
   RNA_parameter_list_create(&list, &opr, func);
@@ -1607,7 +1716,7 @@ static StructRNA *rna_Operator_register(Main *bmain,
   }
 
   /* XXX, this doubles up with the operator name #29666.
-   * for now just remove from dir(bpy.types) */
+   * for now just remove from `dir(bpy.types)`. */
 
   /* create a new operator type */
   dummy_ot.rna_ext.srna = RNA_def_struct_ptr(&BLENDER_RNA, dummy_ot.idname, &RNA_Operator);
@@ -1686,7 +1795,7 @@ static StructRNA *rna_MacroOperator_register(Main *bmain,
   const char *error_prefix = "Registering operator macro class:";
   wmOperatorType dummy_ot = {nullptr};
   wmOperator dummy_operator = {nullptr};
-  bool have_function[4];
+  bool have_function[2];
 
   struct {
     char idname[OP_MAX_TYPENAME];
@@ -1780,7 +1889,7 @@ static StructRNA *rna_MacroOperator_register(Main *bmain,
   }
 
   /* XXX, this doubles up with the operator name #29666.
-   * for now just remove from dir(bpy.types) */
+   * for now just remove from `dir(bpy.types)`. */
 
   /* create a new operator type */
   dummy_ot.rna_ext.srna = RNA_def_struct_ptr(&BLENDER_RNA, dummy_ot.idname, &RNA_Operator);
@@ -1790,7 +1899,7 @@ static StructRNA *rna_MacroOperator_register(Main *bmain,
   dummy_ot.rna_ext.free = free;
 
   dummy_ot.pyop_poll = (have_function[0]) ? rna_operator_poll_cb : nullptr;
-  dummy_ot.ui = (have_function[3]) ? rna_operator_draw_cb : nullptr;
+  dummy_ot.ui = (have_function[1]) ? rna_operator_draw_cb : nullptr;
 
   WM_operatortype_append_macro_ptr(BPY_RNA_operator_macro_wrapper, (void *)&dummy_ot);
 
@@ -1852,8 +1961,9 @@ static void rna_Operator_bl_label_set(PointerRNA *ptr, const char *value)
         BLI_strncpy(str, value, attr_maxncpy); /* utf8 already ensured */ \
       } \
       else { \
-        BLI_assert( \
-            !"setting the bl_" STRINGIFY(translation_context) " on a non-builtin operator"); \
+        BLI_assert_msg( \
+            false, \
+            "setting the bl_" STRINGIFY(translation_context) " on a non-builtin operator"); \
       } \
     } \
     static void rna_Operator_bl_##attr##_get(PointerRNA *ptr, char *value) \
@@ -2031,6 +2141,7 @@ static void rna_def_operator(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "layout", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "UILayout");
+  RNA_def_property_pointer_funcs(prop, "rna_Operator_layout_get", nullptr, nullptr, nullptr);
 
   prop = RNA_def_property(srna, "options", PROP_POINTER, PROP_NONE);
   RNA_def_property_flag(prop, PROP_NEVER_NULL);
@@ -2051,7 +2162,6 @@ static void rna_def_operator(BlenderRNA *brna)
   RNA_def_struct_idprops_func(srna, "rna_OperatorProperties_idprops");
   RNA_def_struct_property_tags(srna, rna_enum_operator_property_tag_items);
   RNA_def_struct_flag(srna, STRUCT_NO_DATABLOCK_IDPROPERTIES | STRUCT_NO_CONTEXT_WITHOUT_OWNER_ID);
-  RNA_def_struct_clear_flag(srna, STRUCT_UNDO);
 }
 
 static void rna_def_macro_operator(BlenderRNA *brna)
@@ -2388,7 +2498,6 @@ static void rna_def_window_stereo3d(BlenderRNA *brna)
 
   srna = RNA_def_struct(brna, "Stereo3dDisplay", nullptr);
   RNA_def_struct_sdna(srna, "Stereo3dFormat");
-  RNA_def_struct_clear_flag(srna, STRUCT_UNDO);
   RNA_def_struct_ui_text(srna, "Stereo 3D Display", "Settings for stereo 3D display");
 
   prop = RNA_def_property(srna, "display_mode", PROP_ENUM, PROP_NONE);
@@ -2489,6 +2598,20 @@ static void rna_def_window(BlenderRNA *brna)
   RNA_def_property_struct_type(prop, "Stereo3dDisplay");
   RNA_def_property_ui_text(prop, "Stereo 3D Display", "Settings for stereo 3D display");
 
+  prop = RNA_def_property(srna, "modal_operators", PROP_COLLECTION, PROP_NONE);
+  RNA_def_property_struct_type(prop, "Operator");
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_collection_funcs(prop,
+                                    "rna_Window_modal_operators_begin",
+                                    "rna_iterator_listbase_next",
+                                    "rna_iterator_listbase_end",
+                                    "rna_Window_modal_operators_get",
+                                    nullptr,
+                                    nullptr,
+                                    nullptr,
+                                    nullptr);
+  RNA_def_property_ui_text(prop, "Modal Operators", "A list of currently running modal operators");
+
   RNA_api_window(srna);
 }
 
@@ -2577,6 +2700,11 @@ static void rna_def_windowmanager(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(
       prop, "XR Session State", "Runtime state information about the VR session");
+
+  prop = RNA_def_property(srna, "extensions_updates", PROP_INT, PROP_NONE);
+  RNA_def_property_ui_text(
+      prop, "Extensions Updates", "Number of extensions with available update");
+  RNA_def_property_update(prop, 0, "rna_WindowManager_extensions_update");
 
   RNA_api_wm(srna);
 }

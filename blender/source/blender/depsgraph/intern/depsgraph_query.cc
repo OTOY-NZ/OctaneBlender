@@ -32,6 +32,7 @@
 
 #include "intern/depsgraph.hh"
 #include "intern/eval/deg_eval_copy_on_write.h"
+#include "intern/node/deg_node_component.hh"
 #include "intern/node/deg_node_id.hh"
 
 namespace blender::deg {
@@ -44,7 +45,7 @@ static const ID *get_original_id(const ID *id)
   if (id->orig_id == nullptr) {
     return id;
   }
-  BLI_assert((id->tag & LIB_TAG_COPIED_ON_WRITE) != 0);
+  BLI_assert((id->tag & LIB_TAG_COPIED_ON_EVAL) != 0);
   return (ID *)id->orig_id;
 }
 
@@ -189,7 +190,7 @@ Scene *DEG_get_evaluated_scene(const Depsgraph *graph)
   Scene *scene_cow = deg_graph->scene_cow;
   /* TODO(sergey): Shall we expand data-block here? Or is it OK to assume
    * that caller is OK with just a pointer in case scene is not updated yet? */
-  BLI_assert(scene_cow != nullptr && deg::deg_copy_on_write_is_expanded(&scene_cow->id));
+  BLI_assert(scene_cow != nullptr && deg::deg_eval_copy_is_expanded(&scene_cow->id));
   return scene_cow;
 }
 
@@ -250,16 +251,16 @@ void DEG_get_evaluated_rna_pointer(const Depsgraph *depsgraph,
   }
   else {
     /* For everything else, try to get RNA Path of the BMain-pointer,
-     * then use that to look up what the COW-domain one should be
-     * given the COW ID pointer as the new lookup point */
+     * then use that to look up what the evaluated one should be
+     * given the evaluated ID pointer as the new lookup point */
     /* TODO: Find a faster alternative, or implement support for other
      * common types too above (e.g. modifiers) */
     if (const std::optional<std::string> path = RNA_path_from_ID_to_struct(ptr)) {
       PointerRNA cow_id_ptr = RNA_id_pointer_create(cow_id);
       if (!RNA_path_resolve(&cow_id_ptr, path->c_str(), r_ptr_eval, nullptr)) {
-        /* Couldn't find COW copy of data */
+        /* Couldn't find evaluated copy of data */
         fprintf(stderr,
-                "%s: Couldn't resolve RNA path ('%s') relative to COW ID (%p) for '%s'\n",
+                "%s: Couldn't resolve RNA path ('%s') relative to evaluated ID (%p) for '%s'\n",
                 __func__,
                 path->c_str(),
                 (void *)cow_id,
@@ -287,6 +288,11 @@ ID *DEG_get_original_id(ID *id)
   return deg::get_original_id(id);
 }
 
+Depsgraph *DEG_get_depsgraph_by_id(const ID &id)
+{
+  return id.runtime.depsgraph;
+}
+
 bool DEG_is_original_id(const ID *id)
 {
   /* Some explanation of the logic.
@@ -294,19 +300,18 @@ bool DEG_is_original_id(const ID *id)
    * What we want here is to be able to tell whether given ID is a result of dependency graph
    * evaluation or not.
    *
-   * All the data-blocks which are created by copy-on-write mechanism will have will be tagged with
-   * LIB_TAG_COPIED_ON_WRITE tag. Those data-blocks can not be original.
+   * All the data-blocks which are created by copy-on-evaluation mechanism will have will be tagged
+   * with LIB_TAG_COPIED_ON_EVAL tag. Those data-blocks can not be original.
    *
    * Modifier stack evaluation might create special data-blocks which have all the modifiers
-   * applied, and those will be tagged with LIB_TAG_COPIED_ON_WRITE_EVAL_RESULT. Such data-blocks
+   * applied, and those will be tagged with LIB_TAG_COPIED_ON_EVAL_FINAL_RESULT. Such data-blocks
    * can not be original as well.
    *
    * Localization is usually happening from evaluated data-block, or will have some special pointer
    * magic which will make them to act as evaluated.
    *
    * NOTE: We consider ID evaluated if ANY of those flags is set. We do NOT require ALL of them. */
-  if (id->tag &
-      (LIB_TAG_COPIED_ON_WRITE | LIB_TAG_COPIED_ON_WRITE_EVAL_RESULT | LIB_TAG_LOCALIZED))
+  if (id->tag & (LIB_TAG_COPIED_ON_EVAL | LIB_TAG_COPIED_ON_EVAL_FINAL_RESULT | LIB_TAG_LOCALIZED))
   {
     return false;
   }
@@ -340,4 +345,74 @@ bool DEG_is_fully_evaluated(const Depsgraph *depsgraph)
     return false;
   }
   return true;
+}
+
+bool DEG_id_is_fully_evaluated(const Depsgraph *depsgraph, const ID *id_eval)
+{
+  const deg::Depsgraph *deg_graph = reinterpret_cast<const deg::Depsgraph *>(depsgraph);
+  /* Only us the original ID pointer to look up the IDNode, do not dereference it. */
+  const ID *id_orig = deg::get_original_id(id_eval);
+  const deg::IDNode *id_node = deg_graph->find_id_node(id_orig);
+  if (!id_node) {
+    return false;
+  }
+  for (deg::ComponentNode *component : id_node->components.values()) {
+    for (deg::OperationNode *operation : component->operations) {
+      if (operation->flag & deg::DEPSOP_FLAG_NEEDS_UPDATE) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+static bool operation_needs_update(const ID &id,
+                                   const deg::NodeType component_type,
+                                   const deg::OperationCode opcode)
+{
+  const Depsgraph *depsgraph = DEG_get_depsgraph_by_id(id);
+  if (!depsgraph) {
+    return false;
+  }
+  const deg::Depsgraph &deg_graph = *reinterpret_cast<const deg::Depsgraph *>(depsgraph);
+  /* Only us the original ID pointer to look up the IDNode, do not dereference it. */
+  const ID *id_orig = deg::get_original_id(&id);
+  if (!id_orig) {
+    return false;
+  }
+  const deg::IDNode *id_node = deg_graph.find_id_node(id_orig);
+  if (!id_node) {
+    return false;
+  };
+  const deg::ComponentNode *component_node = id_node->find_component(component_type);
+  if (!component_node) {
+    return false;
+  }
+  const deg::OperationNode *operation_node = component_node->find_operation(opcode);
+  if (!operation_node) {
+    return false;
+  }
+  /* Technically, there is potential for a race condition here, because the depsgraph evaluation
+   * might update this flag, but it's very unlikely to cause issues right now. Maybe this should
+   * become an atomic eventually. */
+  const bool needs_update = operation_node->flag & deg::DEPSOP_FLAG_NEEDS_UPDATE;
+  return needs_update;
+}
+
+bool DEG_object_geometry_is_evaluated(const Object &object)
+{
+  return !operation_needs_update(
+      object.id, deg::NodeType::GEOMETRY, deg::OperationCode::GEOMETRY_EVAL);
+}
+
+bool DEG_object_transform_is_evaluated(const Object &object)
+{
+  return !operation_needs_update(
+      object.id, deg::NodeType::TRANSFORM, deg::OperationCode::TRANSFORM_FINAL);
+}
+
+bool DEG_collection_geometry_is_evaluated(const Collection &collection)
+{
+  return !operation_needs_update(
+      collection.id, deg::NodeType::GEOMETRY, deg::OperationCode::GEOMETRY_EVAL_DONE);
 }

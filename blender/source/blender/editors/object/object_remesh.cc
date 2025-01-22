@@ -15,67 +15,54 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_math_matrix.h"
-#include "BLI_string.h"
 #include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_object_types.h"
 #include "DNA_userdef_types.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "BKE_attribute.hh"
 #include "BKE_context.hh"
-#include "BKE_customdata.hh"
-#include "BKE_global.h"
+#include "BKE_global.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_mirror.hh"
 #include "BKE_mesh_remesh_voxel.hh"
-#include "BKE_mesh_runtime.hh"
 #include "BKE_modifier.hh"
 #include "BKE_object.hh"
+#include "BKE_object_types.hh"
 #include "BKE_paint.hh"
-#include "BKE_report.h"
-#include "BKE_scene.h"
+#include "BKE_report.hh"
 #include "BKE_shrinkwrap.hh"
 #include "BKE_unit.hh"
 
 #include "DEG_depsgraph.hh"
-#include "DEG_depsgraph_build.hh"
 
-#include "ED_mesh.hh"
-#include "ED_object.hh"
 #include "ED_screen.hh"
 #include "ED_sculpt.hh"
 #include "ED_space_api.hh"
-#include "ED_undo.hh"
 #include "ED_view3d.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
-#include "RNA_enum_types.hh"
 
-#include "GPU_immediate.h"
-#include "GPU_immediate_util.h"
-#include "GPU_matrix.h"
-#include "GPU_state.h"
+#include "GPU_immediate.hh"
+#include "GPU_matrix.hh"
+#include "GPU_state.hh"
 
 #include "WM_api.hh"
-#include "WM_message.hh"
-#include "WM_toolsystem.hh"
 #include "WM_types.hh"
 
 #include "UI_interface.hh"
 
 #include "BLF_api.hh"
 
-#include "object_intern.h" /* own include */
+#include "object_intern.hh" /* own include */
 
-using blender::float3;
-using blender::IndexRange;
-using blender::Span;
+namespace blender::ed::object {
 
 /* TODO(sebpa): unstable, can lead to unrecoverable errors. */
 // #define USE_MESH_CURVATURE
@@ -92,7 +79,7 @@ static bool object_remesh_poll(bContext *C)
     return false;
   }
 
-  if (ID_IS_LINKED(ob) || ID_IS_LINKED(ob->data) || ID_IS_OVERRIDE_LIBRARY(ob->data)) {
+  if (!ID_IS_EDITABLE(ob) || !ID_IS_EDITABLE(ob->data) || ID_IS_OVERRIDE_LIBRARY(ob->data)) {
     CTX_wm_operator_poll_msg_set(C, "The remesher cannot work on linked or override data");
     return false;
   }
@@ -118,8 +105,6 @@ static bool object_remesh_poll(bContext *C)
 
 static int voxel_remesh_exec(bContext *C, wmOperator *op)
 {
-  using namespace blender;
-  using namespace blender::ed;
   Object *ob = CTX_data_active_object(C);
 
   Mesh *mesh = static_cast<Mesh *>(ob->data);
@@ -147,7 +132,7 @@ static int voxel_remesh_exec(bContext *C, wmOperator *op)
   }
 
   if (ob->mode == OB_MODE_SCULPT) {
-    sculpt_paint::undo::geometry_begin(ob, op);
+    sculpt_paint::undo::geometry_begin(*ob, op);
   }
 
   if (mesh->flag & ME_REMESH_FIX_POLES && mesh->remesh_voxel_adaptivity <= 0.0f) {
@@ -172,7 +157,7 @@ static int voxel_remesh_exec(bContext *C, wmOperator *op)
   BKE_mesh_nomain_to_mesh(new_mesh, mesh, ob);
 
   if (ob->mode == OB_MODE_SCULPT) {
-    sculpt_paint::undo::geometry_end(ob);
+    sculpt_paint::undo::geometry_end(*ob);
   }
 
   BKE_mesh_batch_cache_dirty_tag(static_cast<Mesh *>(ob->data), BKE_MESH_BATCH_DIRTY_ALL);
@@ -282,7 +267,7 @@ static void voxel_size_edit_draw(const bContext *C, ARegion * /*region*/, void *
   uint pos3d = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
   GPU_matrix_push();
-  GPU_matrix_mul(cd->active_object->object_to_world);
+  GPU_matrix_mul(cd->active_object->object_to_world().ptr());
 
   /* Draw Rect */
   immUniformColor4f(0.9f, 0.9f, 0.9f, 0.8f);
@@ -329,7 +314,7 @@ static void voxel_size_edit_draw(const bContext *C, ARegion * /*region*/, void *
   char str[VOXEL_SIZE_EDIT_MAX_STR_LEN];
   short strdrawlen = 0;
   Scene *scene = CTX_data_scene(C);
-  UnitSettings *unit = &scene->unit;
+  const UnitSettings *unit = &scene->unit;
   BKE_unit_value_as_string(str,
                            VOXEL_SIZE_EDIT_MAX_STR_LEN,
                            double(cd->voxel_size * unit->scale_length),
@@ -394,6 +379,7 @@ static int voxel_size_edit_modal(bContext *C, wmOperator *op, const wmEvent *eve
     MEM_freeN(op->customdata);
     ED_region_tag_redraw(region);
     ED_workspace_status_text(C, nullptr);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, nullptr);
     return OPERATOR_FINISHED;
   }
 
@@ -458,7 +444,7 @@ static int voxel_size_edit_invoke(bContext *C, wmOperator *op, const wmEvent *ev
   op->customdata = cd;
 
   /* Select the front facing face of the mesh bounding box. */
-  const blender::Bounds<float3> bounds = *mesh->bounds_min_max();
+  const Bounds<float3> bounds = *mesh->bounds_min_max();
   BoundBox bb;
   BKE_boundbox_init_from_minmax(&bb, bounds.min, bounds.max);
 
@@ -484,10 +470,11 @@ static int voxel_size_edit_invoke(bContext *C, wmOperator *op, const wmEvent *ev
   float view_normal[3] = {0.0f, 0.0f, 1.0f};
 
   /* Calculate the view normal. */
-  invert_m4_m4(active_object->world_to_object, active_object->object_to_world);
+  invert_m4_m4(active_object->runtime->world_to_object.ptr(),
+               active_object->object_to_world().ptr());
   copy_m3_m4(mat, rv3d->viewinv);
   mul_m3_v3(mat, view_normal);
-  copy_m3_m4(mat, active_object->world_to_object);
+  copy_m3_m4(mat, active_object->world_to_object().ptr());
   mul_m3_v3(mat, view_normal);
   normalize_v3(view_normal);
 
@@ -525,7 +512,8 @@ static int voxel_size_edit_invoke(bContext *C, wmOperator *op, const wmEvent *ev
   /* Project the selected face in the previous step of the Bounding Box. */
   for (int i = 0; i < 4; i++) {
     float preview_plane_world_space[3];
-    mul_v3_m4v3(preview_plane_world_space, active_object->object_to_world, cd->preview_plane[i]);
+    mul_v3_m4v3(
+        preview_plane_world_space, active_object->object_to_world().ptr(), cd->preview_plane[i]);
     ED_view3d_project_v2(region, preview_plane_world_space, preview_plane_proj[i]);
   }
 
@@ -572,7 +560,7 @@ static int voxel_size_edit_invoke(bContext *C, wmOperator *op, const wmEvent *ev
 
   /* Invert object scale. */
   float scale[3];
-  mat4_to_size(scale, active_object->object_to_world);
+  mat4_to_size(scale, active_object->object_to_world().ptr());
   invert_v3(scale);
   size_to_mat4(scale_mat, scale);
 
@@ -583,7 +571,7 @@ static int voxel_size_edit_invoke(bContext *C, wmOperator *op, const wmEvent *ev
 
   /* Scale the text to constant viewport size. */
   float text_pos_word_space[3];
-  mul_v3_m4v3(text_pos_word_space, active_object->object_to_world, text_pos);
+  mul_v3_m4v3(text_pos_word_space, active_object->object_to_world().ptr(), text_pos);
   const float pixelsize = ED_view3d_pixel_size(rv3d, text_pos_word_space);
   scale_m4_fl(scale_mat, pixelsize * 0.5f);
   mul_m4_m4_post(cd->text_mat, scale_mat);
@@ -672,7 +660,7 @@ static bool mesh_is_manifold_consistent(Mesh *mesh)
    * flip
    */
   const Span<float3> positions = mesh->vert_positions();
-  const Span<blender::int2> edges = mesh->edges();
+  const Span<int2> edges = mesh->edges();
   const Span<int> corner_verts = mesh->corner_verts();
   const Span<int> corner_edges = mesh->corner_edges();
 
@@ -771,7 +759,7 @@ static Mesh *remesh_symmetry_bisect(Mesh *mesh, eSymmetryAxes symmetry_axes)
   mmd.tolerance = QUADRIFLOW_MIRROR_BISECT_TOLERANCE;
 
   Mesh *mesh_bisect, *mesh_bisect_temp;
-  mesh_bisect = BKE_mesh_copy_for_eval(mesh);
+  mesh_bisect = BKE_mesh_copy_for_eval(*mesh);
 
   int axis;
   float plane_co[3], plane_no[3];
@@ -829,8 +817,6 @@ static Mesh *remesh_symmetry_mirror(Object *ob, Mesh *mesh, eSymmetryAxes symmet
 
 static void quadriflow_start_job(void *customdata, wmJobWorkerStatus *worker_status)
 {
-  using namespace blender;
-  using namespace blender::ed;
   QuadriFlowJob *qj = static_cast<QuadriFlowJob *>(customdata);
 
   qj->stop = &worker_status->stop;
@@ -855,7 +841,7 @@ static void quadriflow_start_job(void *customdata, wmJobWorkerStatus *worker_sta
 
   /* Run Quadriflow bisect operations on a copy of the mesh to keep the code readable without
    * freeing the original ID */
-  bisect_mesh = BKE_mesh_copy_for_eval(mesh);
+  bisect_mesh = BKE_mesh_copy_for_eval(*mesh);
 
   /* Bisect the input mesh using the paint symmetry settings */
   bisect_mesh = remesh_symmetry_bisect(bisect_mesh, qj->symmetry_axes);
@@ -889,11 +875,11 @@ static void quadriflow_start_job(void *customdata, wmJobWorkerStatus *worker_sta
   new_mesh = remesh_symmetry_mirror(qj->owner, new_mesh, qj->symmetry_axes);
 
   if (ob->mode == OB_MODE_SCULPT) {
-    sculpt_paint::undo::geometry_begin(ob, qj->op);
+    sculpt_paint::undo::geometry_begin(*ob, qj->op);
   }
 
   if (qj->preserve_attributes) {
-    blender::bke::mesh_remesh_reproject_attributes(*mesh, *new_mesh);
+    bke::mesh_remesh_reproject_attributes(*mesh, *new_mesh);
   }
 
   BKE_mesh_nomain_to_mesh(new_mesh, mesh, ob);
@@ -901,7 +887,7 @@ static void quadriflow_start_job(void *customdata, wmJobWorkerStatus *worker_sta
   bke::mesh_smooth_set(*static_cast<Mesh *>(ob->data), qj->smooth_normals);
 
   if (ob->mode == OB_MODE_SCULPT) {
-    sculpt_paint::undo::geometry_end(ob);
+    sculpt_paint::undo::geometry_end(*ob);
   }
 
   BKE_mesh_batch_cache_dirty_tag(static_cast<Mesh *>(ob->data), BKE_MESH_BATCH_DIRTY_ALL);
@@ -1093,6 +1079,12 @@ static const EnumPropertyItem mode_type_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+static int quadriflow_remesh_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  return WM_operator_props_popup_confirm_ex(
+      C, op, event, IFACE_("QuadriFlow Remesh the Selected Mesh"), IFACE_("Remesh"));
+}
+
 void OBJECT_OT_quadriflow_remesh(wmOperatorType *ot)
 {
   /* identifiers */
@@ -1106,7 +1098,7 @@ void OBJECT_OT_quadriflow_remesh(wmOperatorType *ot)
   ot->poll = object_remesh_poll;
   ot->poll_property = quadriflow_poll_property;
   ot->check = quadriflow_check;
-  ot->invoke = WM_operator_props_popup_confirm;
+  ot->invoke = quadriflow_remesh_invoke;
   ot->exec = quadriflow_remesh_exec;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -1212,3 +1204,5 @@ void OBJECT_OT_quadriflow_remesh(wmOperatorType *ot)
 }
 
 /** \} */
+
+}  // namespace blender::ed::object

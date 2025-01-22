@@ -108,6 +108,11 @@ static bool has_libdecor = true;
 #  endif
 #endif
 
+static signed char has_wl_trackpad_physical_direction = -1;
+
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
+
 /* -------------------------------------------------------------------- */
 /** \name Forward Declarations
  * \{ */
@@ -186,15 +191,6 @@ static bool use_gnome_confine_hack = false;
  */
 #define USE_KDE_TABLET_HIDDEN_CURSOR_HACK
 
-/**
- * When GNOME is found, require `libdecor`.
- * This is a hack because it seems there is no way to check if the compositor supports
- * server side decorations when initializing WAYLAND.
- */
-#ifdef WITH_GHOST_WAYLAND_LIBDECOR
-#  define USE_GNOME_NEEDS_LIBDECOR_HACK
-#endif
-
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -202,6 +198,39 @@ static bool use_gnome_confine_hack = false;
  *
  * Control local functionality, compositors specific workarounds.
  * \{ */
+
+/**
+ * A version clamping macro that optionally prints when the version is outdated.
+ * This is useful when investigating when newer versions of an interface might be supported.
+ *
+ * This addresses the following:
+ * - Filling in callbacks which wont be called because they aren't part of the older interface.
+ * - Not taking advantage of newer interfaces which would be beneficial.
+ * - When interface versions need to be bumped to support new features,
+ *   avoid large version bumps that could change behavior in unexpected ways
+ *   due to versions changes between each version that wont have been accounted for.
+ *
+ * This should only be enabled during development, never enabled for regular releases.
+ */
+// #define USE_VERBOSE_OLD_IFACE_PRINT
+
+#ifdef USE_VERBOSE_OLD_IFACE_PRINT
+#  define _VERBOSE_OLD_IFACE_PRINT(params_version, version_max) \
+    ((params_version > version_max) ? \
+         fprintf(stderr, \
+                 "%s: version_max=%u, is smaller than run-time version=%u\n", \
+                 __func__, \
+                 version_max, \
+                 params_version) : \
+         0)
+#else
+#  define _VERBOSE_OLD_IFACE_PRINT(params_version, version_max) \
+    ((void)(params_version), (version_max))
+#endif
+
+#define GWL_IFACE_VERSION_CLAMP(params_version, version_min, version_max) \
+  ((void)_VERBOSE_OLD_IFACE_PRINT(params_version, version_max), \
+   std::clamp(params_version, version_min, version_max))
 
 /**
  * Fix short-cut part of keyboard reading code not properly handling some keys, see: #102194.
@@ -424,7 +453,7 @@ struct GWL_Cursor {
 
   /**
    * The name of the theme (set by an environment variable).
-   * When disabled, leave as an empty string and the default theme will be used.
+   * When disabled, leave as an empty string and pass in nullptr to use the default theme.
    */
   std::string theme_name;
   /**
@@ -668,6 +697,15 @@ struct GWL_SeatStatePointer {
 };
 
 /**
+ * Support for converting smooth-scrolling as discrete steps.
+ */
+struct GWL_SeatStatePointerScroll_SmoothAsDiscrete {
+  wl_fixed_t smooth_xy_accum[2] = {0, 0};
+};
+/** Number of smooth steps for a discrete step (matches X11 for touch-pads). */
+static constexpr int smooth_as_discrete_steps = 2400;
+
+/**
  * Scroll state, applying to pointer (not tablet) events.
  * Otherwise this would be part of #GWL_SeatStatePointer.
  */
@@ -676,6 +714,10 @@ struct GWL_SeatStatePointerScroll {
   wl_fixed_t smooth_xy[2] = {0, 0};
   /** Discrete scrolling (handled & reset with pointer "frame" callback). */
   int32_t discrete_xy[2] = {0, 0};
+  /** Discrete scrolling, v8 of the seat API (handled & reset with pointer "frame" callback). */
+  int32_t discrete120_xy[2] = {0, 0};
+  /** Accumulated value from `discrete120_xy`, not reset between "frame" callbacks. */
+  int32_t discrete120_xy_accum[2] = {0, 0};
   /** True when the axis is inverted (also known is "natural" scrolling). */
   bool inverted_xy[2] = {false, false};
   /** The source of scroll event. */
@@ -688,6 +730,8 @@ struct GWL_SeatStatePointerScroll {
   bool has_event_ms = false;
   /** Event time-stamp. */
   uint64_t event_ms = 0;
+
+  GWL_SeatStatePointerScroll_SmoothAsDiscrete smooth_as_discrete;
 };
 
 /**
@@ -980,6 +1024,7 @@ struct GWL_Seat {
   GWL_SeatStatePointer pointer;
   GWL_SeatStatePointerScroll pointer_scroll;
   GWL_SeatStatePointerGesture_Pinch pointer_gesture_pinch;
+  bool use_pointer_scroll_smooth_as_discrete = false;
 
   /** Mostly this can be interchanged with `pointer` however it can't be locked/confined. */
   GWL_SeatStatePointer tablet;
@@ -1308,7 +1353,6 @@ struct GWL_Display {
 
 #ifdef WITH_GHOST_WAYLAND_LIBDECOR
   GWL_LibDecor_System *libdecor = nullptr;
-  bool libdecor_required = false;
 #endif
   GWL_XDG_Decor_System *xdg_decor = nullptr;
 
@@ -1493,7 +1537,7 @@ struct GWL_RegisteryAdd_Params {
  * \param params: Various arguments needed for registration.
  */
 using GWL_RegistryHandler_AddFn = void (*)(GWL_Display *display,
-                                           const GWL_RegisteryAdd_Params *params);
+                                           const GWL_RegisteryAdd_Params &params);
 
 struct GWL_RegisteryUpdate_Params {
   uint32_t name = 0;
@@ -1512,7 +1556,7 @@ struct GWL_RegisteryUpdate_Params {
  * \param params: Various arguments needed for updating.
  */
 using GWL_RegistryHandler_UpdateFn = void (*)(GWL_Display *display,
-                                              const GWL_RegisteryUpdate_Params *params);
+                                              const GWL_RegisteryUpdate_Params &params);
 
 /**
  * Remove callback for object registry.
@@ -1572,14 +1616,14 @@ struct GWL_RegistryEntry {
 };
 
 static void gwl_registry_entry_add(GWL_Display *display,
-                                   const GWL_RegisteryAdd_Params *params,
+                                   const GWL_RegisteryAdd_Params &params,
                                    void *user_data)
 {
   GWL_RegistryEntry *reg = new GWL_RegistryEntry;
 
-  reg->interface_slot = params->interface_slot;
-  reg->name = params->name;
-  reg->version = params->version;
+  reg->interface_slot = params.interface_slot;
+  reg->name = params.name;
+  reg->version = params.version;
   reg->user_data = user_data;
 
   reg->next = display->registry_entry;
@@ -1709,7 +1753,7 @@ static void gwl_registry_entry_update_all(GWL_Display *display, const int interf
     params.version = reg->version;
     params.user_data = reg->user_data;
 
-    handler->update_fn(display, &params);
+    handler->update_fn(display, params);
   }
 }
 
@@ -1718,6 +1762,35 @@ static void gwl_registry_entry_update_all(GWL_Display *display, const int interf
 /* -------------------------------------------------------------------- */
 /** \name Private Utility Functions
  * \{ */
+
+static const char *strchr_or_end(const char *str, const char ch)
+{
+  const char *p = str;
+  while (!ELEM(*p, ch, '\0')) {
+    p++;
+  }
+  return p;
+}
+
+static bool string_elem_split_by_delim(const char *haystack, const char delim, const char *needle)
+{
+  /* Local copy of #BLI_string_elem_split_by_delim (would be a bad level call). */
+
+  /* May be zero, returns true when an empty span exists. */
+  const size_t needle_len = strlen(needle);
+  const char *p = haystack, *p_next;
+  while (true) {
+    p_next = strchr_or_end(p, delim);
+    if ((size_t(p_next - p) == needle_len) && (memcmp(p, needle, needle_len) == 0)) {
+      return true;
+    }
+    if (*p_next == '\0') {
+      break;
+    }
+    p = p_next + 1;
+  }
+  return false;
+}
 
 static uint64_t sub_abs_u64(const uint64_t a, const uint64_t b)
 {
@@ -1750,16 +1823,36 @@ static const char *ghost_wl_locale_from_env_with_default()
   return locale;
 }
 
+static void ghost_wl_display_report_error_from_code(wl_display *display, const int ecode)
+{
+  GHOST_ASSERT(ecode, "Error not set!");
+  if (ELEM(ecode, EPIPE, ECONNRESET)) {
+    fprintf(stderr, "The Wayland connection broke. Did the Wayland compositor die?\n");
+    return;
+  }
+
+  if (ecode == EPROTO) {
+    const wl_interface *interface = nullptr;
+    const int ecode_proto = wl_display_get_protocol_error(display, &interface, nullptr);
+    fprintf(stderr,
+            "The Wayland connection experienced a protocol error %d in interface: %s\n",
+            ecode_proto,
+            interface ? interface->name : "<nil>");
+    const char *env_debug = "WAYLAND_DEBUG";
+    if (getenv(env_debug) == nullptr) {
+      fprintf(stderr, "Run with the environment variable \"%s=1\" for details.\n", env_debug);
+    }
+    return;
+  }
+
+  fprintf(stderr, "The Wayland connection experienced a fatal error: %s\n", strerror(ecode));
+}
+
 static void ghost_wl_display_report_error(wl_display *display)
 {
   int ecode = wl_display_get_error(display);
   GHOST_ASSERT(ecode, "Error not set!");
-  if (ELEM(ecode, EPIPE, ECONNRESET)) {
-    fprintf(stderr, "The Wayland connection broke. Did the Wayland compositor die?\n");
-  }
-  else {
-    fprintf(stderr, "The Wayland connection experienced a fatal error: %s\n", strerror(ecode));
-  }
+  ghost_wl_display_report_error_from_code(display, ecode);
 
   /* NOTE(@ideasman42): The application is running,
    * however an error closes all windows and most importantly:
@@ -1773,6 +1866,16 @@ static void ghost_wl_display_report_error(wl_display *display)
    * Exit since leaving the process open will simply flood the output and do nothing.
    * Although as the process is in a valid state, auto-save for e.g. is possible, see: #100855. */
   ::exit(-1);
+}
+
+bool ghost_wl_display_report_error_if_set(wl_display *display)
+{
+  const int ecode = wl_display_get_error(display);
+  if (ecode == 0) {
+    return false;
+  }
+  ghost_wl_display_report_error_from_code(display, ecode);
+  return true;
 }
 
 #ifdef __GNUC__
@@ -2153,7 +2256,7 @@ static int file_descriptor_is_io_ready(int fd, const int flags, const int timeou
 
   GHOST_ASSERT(flags & (GWL_IOR_READ | GWL_IOR_WRITE), "X");
 
-  /* Note: We don't bother to account for elapsed time if we get EINTR */
+  /* NOTE: We don't bother to account for elapsed time if we get #EINTR. */
   do {
 #ifdef HAVE_POLL
     pollfd info;
@@ -2504,7 +2607,9 @@ static const wl_cursor *gwl_seat_cursor_find_from_shape(GWL_Seat *seat,
     if (!cursor->wl.theme) {
       /* The cursor wl_surface hasn't entered an output yet. Initialize theme with scale 1. */
       cursor->wl.theme = wl_cursor_theme_load(
-          cursor->theme_name.c_str(), cursor->theme_size, seat->system->wl_shm_get());
+          (cursor->theme_name.empty() ? nullptr : cursor->theme_name.c_str()),
+          cursor->theme_size,
+          seat->system->wl_shm_get());
     }
 
     if (cursor->wl.theme) {
@@ -2972,6 +3077,9 @@ static char *read_buffer_from_data_offer(GWL_DataOffer *data_offer,
     }
     close(pipefd[0]);
   }
+  else {
+    *r_len = 0;
+  }
   return buf;
 }
 
@@ -3305,20 +3413,19 @@ static void data_device_handle_drop(void *data, wl_data_device * /*wl_data_devic
 
   CLOG_INFO(LOG, 2, "drop mime_recieve=%s", mime_receive);
 
-  auto read_uris_fn = [](GWL_Seat *const seat,
-                         GWL_DataOffer *data_offer,
-                         wl_surface *wl_surface_window,
-                         const char *mime_receive) {
+  auto read_drop_data_fn = [](GWL_Seat *const seat,
+                              GWL_DataOffer *data_offer,
+                              wl_surface *wl_surface_window,
+                              const char *mime_receive) {
     const uint64_t event_ms = seat->system->getMilliSeconds();
     const wl_fixed_t xy[2] = {UNPACK2(data_offer->dnd.xy)};
 
+    const bool nil_terminate = (mime_receive != ghost_wl_mime_text_uri);
     size_t data_buf_len = 0;
     const char *data_buf = read_buffer_from_data_offer(
-        data_offer, mime_receive, nullptr, false, &data_buf_len);
-    std::string data = data_buf ? std::string(data_buf, data_buf_len) : "";
-    free(const_cast<char *>(data_buf));
+        data_offer, mime_receive, nullptr, nil_terminate, &data_buf_len);
 
-    CLOG_INFO(LOG, 2, "drop_read_uris mime_receive=%s, data=%s", mime_receive, data.c_str());
+    CLOG_INFO(LOG, 2, "read_drop_data mime_receive=%s, data_len=%zu", mime_receive, data_buf_len);
 
     wl_data_offer_finish(data_offer->wl.id);
     wl_data_offer_destroy(data_offer->wl.id);
@@ -3329,69 +3436,97 @@ static void data_device_handle_drop(void *data, wl_data_device * /*wl_data_devic
     delete data_offer;
     data_offer = nullptr;
 
-    GHOST_SystemWayland *const system = seat->system;
+    /* Don't generate a drop event if the data could not be read,
+     * an error will have been logged. */
+    if (data_buf != nullptr) {
+      GHOST_TDragnDropTypes ghost_dnd_type = GHOST_kDragnDropTypeUnknown;
+      void *ghost_dnd_data = nullptr;
 
-    if (mime_receive == ghost_wl_mime_text_uri) {
-      const char file_proto[] = "file://";
-      /* NOTE: some applications CRLF (`\r\n`) GTK3 for e.g. & others don't `pcmanfm-qt`.
-       * So support both, once `\n` is found, strip the preceding `\r` if found. */
-      const char lf = '\n';
+      /* Failure to receive drop data. */
+      if (mime_receive == ghost_wl_mime_text_uri) {
+        const char file_proto[] = "file://";
+        /* NOTE: some applications CRLF (`\r\n`) GTK3 for e.g. & others don't `pcmanfm-qt`.
+         * So support both, once `\n` is found, strip the preceding `\r` if found. */
+        const char lf = '\n';
 
-      GHOST_WindowWayland *win = ghost_wl_surface_user_data(wl_surface_window);
-      std::vector<std::string> uris;
+        const std::string_view data = std::string_view(data_buf, data_buf_len);
+        std::vector<std::string_view> uris;
 
-      size_t pos = 0;
-      while (pos != std::string::npos) {
-        pos = data.find(file_proto, pos);
-        if (pos == std::string::npos) {
-          break;
+        size_t pos = 0;
+        while (pos != std::string::npos) {
+          pos = data.find(file_proto, pos);
+          if (pos == std::string::npos) {
+            break;
+          }
+          const size_t start = pos + sizeof(file_proto) - 1;
+          pos = data.find(lf, pos);
+
+          size_t end = pos;
+          if (UNLIKELY(end == std::string::npos)) {
+            /* Note that most well behaved file managers will add a trailing newline,
+             * Gnome's web browser (44.3) doesn't, so support reading up until the last byte. */
+            end = data.size();
+          }
+          /* Account for 'CRLF' case. */
+          if (data[end - 1] == '\r') {
+            end -= 1;
+          }
+
+          std::string_view data_substr = data.substr(start, end - start);
+          uris.push_back(data_substr);
+          CLOG_INFO(LOG,
+                    2,
+                    "read_drop_data pos=%zu, text_uri=\"%.*s\"",
+                    start,
+                    int(data_substr.size()),
+                    data_substr.data());
         }
-        const size_t start = pos + sizeof(file_proto) - 1;
-        pos = data.find(lf, pos);
 
-        size_t end = pos;
-        if (UNLIKELY(end == std::string::npos)) {
-          /* Note that most well behaved file managers will add a trailing newline,
-           * Gnome's web browser (44.3) doesn't, so support reading up until the last byte. */
-          end = data.size();
+        GHOST_TStringArray *flist = static_cast<GHOST_TStringArray *>(
+            malloc(sizeof(GHOST_TStringArray)));
+        flist->count = int(uris.size());
+        flist->strings = static_cast<uint8_t **>(malloc(uris.size() * sizeof(uint8_t *)));
+        for (size_t i = 0; i < uris.size(); i++) {
+          flist->strings[i] = reinterpret_cast<uint8_t *>(
+              GHOST_URL_decode_alloc(uris[i].data(), uris[i].size()));
         }
-        /* Account for 'CRLF' case. */
-        if (data[end - 1] == '\r') {
-          end -= 1;
-        }
-        uris.push_back(data.substr(start, end - start));
-        CLOG_INFO(LOG, 2, "drop_read_uris pos=%zu, text_uri=\"%s\"", start, uris.back().c_str());
+
+        CLOG_INFO(LOG, 2, "read_drop_data file_count=%d", flist->count);
+        ghost_dnd_type = GHOST_kDragnDropTypeFilenames;
+        ghost_dnd_data = flist;
+      }
+      else if (ELEM(mime_receive, ghost_wl_mime_text_plain, ghost_wl_mime_text_utf8)) {
+        ghost_dnd_type = GHOST_kDragnDropTypeString;
+        ghost_dnd_data = (void *)data_buf; /* Move ownership to the event. */
+        data_buf = nullptr;
       }
 
-      GHOST_TStringArray *flist = static_cast<GHOST_TStringArray *>(
-          malloc(sizeof(GHOST_TStringArray)));
-      flist->count = int(uris.size());
-      flist->strings = static_cast<uint8_t **>(malloc(uris.size() * sizeof(uint8_t *)));
-      for (size_t i = 0; i < uris.size(); i++) {
-        flist->strings[i] = reinterpret_cast<uint8_t *>(GHOST_URL_decode_alloc(uris[i].c_str()));
+      if (ghost_dnd_type != GHOST_kDragnDropTypeUnknown) {
+        GHOST_SystemWayland *const system = seat->system;
+        GHOST_WindowWayland *win = ghost_wl_surface_user_data(wl_surface_window);
+        const int event_xy[2] = {WL_FIXED_TO_INT_FOR_WINDOW_V2(win, xy)};
+
+        system->pushEvent_maybe_pending(new GHOST_EventDragnDrop(event_ms,
+                                                                 GHOST_kEventDraggingDropDone,
+                                                                 ghost_dnd_type,
+                                                                 win,
+                                                                 UNPACK2(event_xy),
+                                                                 ghost_dnd_data));
+
+        wl_display_roundtrip(system->wl_display_get());
+      }
+      else {
+        CLOG_INFO(LOG, 2, "read_drop_data, unhandled!");
       }
 
-      CLOG_INFO(LOG, 2, "drop_read_uris_fn file_count=%d", flist->count);
-      const int event_xy[2] = {WL_FIXED_TO_INT_FOR_WINDOW_V2(win, xy)};
-      system->pushEvent_maybe_pending(new GHOST_EventDragnDrop(event_ms,
-                                                               GHOST_kEventDraggingDropDone,
-                                                               GHOST_kDragnDropTypeFilenames,
-                                                               win,
-                                                               UNPACK2(event_xy),
-                                                               flist));
+      free(const_cast<char *>(data_buf));
     }
-    else if (ELEM(mime_receive, ghost_wl_mime_text_plain, ghost_wl_mime_text_utf8)) {
-      /* TODO: enable use of internal functions 'txt_insert_buf' and
-       * 'text_update_edited' to behave like dropped text was pasted. */
-      CLOG_INFO(LOG, 2, "drop_read_uris_fn (text_plain, text_utf8), unhandled!");
-    }
-    wl_display_roundtrip(system->wl_display_get());
   };
 
   /* Pass in `seat->wl_surface_window_focus_dnd` instead of accessing it from `seat` since the
    * leave callback (#data_device_handle_leave) will clear the value once this function starts. */
   std::thread read_thread(
-      read_uris_fn, seat, data_offer, seat->wl.surface_window_focus_dnd, mime_receive);
+      read_drop_data_fn, seat, data_offer, seat->wl.surface_window_focus_dnd, mime_receive);
   read_thread.detach();
 }
 
@@ -3488,7 +3623,9 @@ static bool update_cursor_scale(GWL_Cursor &cursor,
     }
     wl_cursor_theme_destroy(cursor.wl.theme);
     cursor.wl.theme = wl_cursor_theme_load(
-        cursor.theme_name.c_str(), scale * cursor.theme_size, shm);
+        (cursor.theme_name.empty() ? nullptr : cursor.theme_name.c_str()),
+        scale * cursor.theme_size,
+        shm);
     if (cursor.wl.theme_cursor) {
       cursor.wl.theme_cursor = wl_cursor_theme_get_cursor(cursor.wl.theme,
                                                           cursor.wl.theme_cursor_name);
@@ -3531,9 +3668,34 @@ static void cursor_surface_handle_leave(void *data, wl_surface *wl_surface, wl_o
   update_cursor_scale(seat->cursor, seat->system->wl_shm_get(), seat_state_pointer, wl_surface);
 }
 
+static void cursor_surface_handle_preferred_buffer_scale(void * /*data*/,
+                                                         wl_surface * /*wl_surface*/,
+                                                         int32_t factor)
+{
+  /* Only available in interface version 6. */
+  CLOG_INFO(LOG, 2, "handle_preferred_buffer_scale (factor=%d)", factor);
+}
+
+#if defined(WL_SURFACE_PREFERRED_BUFFER_SCALE_SINCE_VERSION) && \
+    defined(WL_SURFACE_PREFERRED_BUFFER_TRANSFORM_SINCE_VERSION)
+static void cursor_surface_handle_preferred_buffer_transform(void * /*data*/,
+                                                             wl_surface * /*wl_surface*/,
+                                                             uint32_t transform)
+{
+  /* Only available in interface version 6. */
+  CLOG_INFO(LOG, 2, "handle_preferred_buffer_transform (transform=%u)", transform);
+}
+#endif /* WL_SURFACE_PREFERRED_BUFFER_SCALE_SINCE_VERSION && \
+        * WL_SURFACE_PREFERRED_BUFFER_TRANSFORM_SINCE_VERSION */
+
 static const wl_surface_listener cursor_surface_listener = {
     /*enter*/ cursor_surface_handle_enter,
     /*leave*/ cursor_surface_handle_leave,
+#if defined(WL_SURFACE_PREFERRED_BUFFER_SCALE_SINCE_VERSION) && \
+    defined(WL_SURFACE_PREFERRED_BUFFER_TRANSFORM_SINCE_VERSION)
+    /*preferred_buffer_scale*/ cursor_surface_handle_preferred_buffer_scale,
+    /*preferred_buffer_transform*/ cursor_surface_handle_preferred_buffer_transform,
+#endif
 };
 
 #undef LOG
@@ -3709,6 +3871,50 @@ static void pointer_handle_frame(void *data, wl_pointer * /*wl_pointer*/)
 
   CLOG_INFO(LOG, 2, "frame");
 
+  /* Handle value120 to discrete steps first. */
+  if (seat->pointer_scroll.discrete120_xy[0] || seat->pointer_scroll.discrete120_xy[1]) {
+    for (int i = 0; i < 2; i++) {
+      seat->pointer_scroll.discrete120_xy_accum[i] += seat->pointer_scroll.discrete120_xy[i];
+      seat->pointer_scroll.discrete120_xy[i] = 0;
+      /* The values will have been normalized so 120 represents a single click-step. */
+      seat->pointer_scroll.discrete_xy[i] = seat->pointer_scroll.discrete120_xy_accum[i] / 120;
+      seat->pointer_scroll.discrete120_xy_accum[i] -= seat->pointer_scroll.discrete_xy[i] * 120;
+    }
+  }
+
+  /* Multiple wheel events may have been generated and it's not known which.
+   * The logic here handles prioritizing how they should be handled. */
+  if (seat->pointer_scroll.axis_source == WL_POINTER_AXIS_SOURCE_WHEEL) {
+    /* We never want mouse wheel events to be treated as smooth scrolling as this
+     * causes mouse wheel scroll to orbit the view, see #120587.
+     * Although it could be supported if the event system would forward
+     * the source of the scroll action (a wheel or touch device).  */
+    seat->pointer_scroll.smooth_xy[0] = 0;
+    seat->pointer_scroll.smooth_xy[1] = 0;
+  }
+  else if (seat->pointer_scroll.axis_source == WL_POINTER_AXIS_SOURCE_FINGER) {
+    if (seat->use_pointer_scroll_smooth_as_discrete) {
+      GWL_SeatStatePointerScroll_SmoothAsDiscrete &smooth_as_discrete =
+          seat->pointer_scroll.smooth_as_discrete;
+      /* If discrete steps have been sent, use them as-is. */
+      if ((seat->pointer_scroll.discrete_xy[0] == 0) && (seat->pointer_scroll.discrete_xy[1] == 0))
+      {
+        /* Convert smooth to discrete. */
+        for (int i = 0; i < 2; i++) {
+          smooth_as_discrete.smooth_xy_accum[i] += seat->pointer_scroll.smooth_xy[i];
+          if (std::abs(smooth_as_discrete.smooth_xy_accum[i]) >= smooth_as_discrete_steps) {
+            seat->pointer_scroll.discrete_xy[i] = smooth_as_discrete.smooth_xy_accum[i] /
+                                                  smooth_as_discrete_steps;
+            smooth_as_discrete.smooth_xy_accum[i] -= seat->pointer_scroll.discrete_xy[i] *
+                                                     smooth_as_discrete_steps;
+          }
+        }
+      }
+      seat->pointer_scroll.smooth_xy[0] = 0;
+      seat->pointer_scroll.smooth_xy[1] = 0;
+    }
+  }
+
   /* Both discrete and smooth events may be set at once, never generate events for both
    * as this will be handling the same event in to different ways.
    * Prioritize discrete axis events for the mouse wheel, otherwise smooth scroll. */
@@ -3730,12 +3936,13 @@ static void pointer_handle_frame(void *data, wl_pointer * /*wl_pointer*/)
   }
 
   /* Discrete X axis currently unsupported. */
-  if (seat->pointer_scroll.discrete_xy[1]) {
-    if (wl_surface *wl_surface_focus = seat->pointer.wl.surface_window) {
-      GHOST_WindowWayland *win = ghost_wl_surface_user_data(wl_surface_focus);
-      const int32_t discrete = seat->pointer_scroll.discrete_xy[1];
-      seat->system->pushEvent_maybe_pending(
-          new GHOST_EventWheel(event_ms, win, std::signbit(discrete) ? +1 : -1));
+  if (seat->pointer_scroll.discrete_xy[0] || seat->pointer_scroll.discrete_xy[1]) {
+    if (seat->pointer_scroll.discrete_xy[1]) {
+      if (wl_surface *wl_surface_focus = seat->pointer.wl.surface_window) {
+        GHOST_WindowWayland *win = ghost_wl_surface_user_data(wl_surface_focus);
+        seat->system->pushEvent_maybe_pending(
+            new GHOST_EventWheel(event_ms, win, -seat->pointer_scroll.discrete_xy[1]));
+      }
     }
     seat->pointer_scroll.discrete_xy[0] = 0;
     seat->pointer_scroll.discrete_xy[1] = 0;
@@ -3789,6 +3996,16 @@ static void pointer_handle_axis_stop(void *data,
   seat->pointer_scroll.event_ms = seat->system->ms_from_input_time(time);
   seat->pointer_scroll.has_event_ms = true;
 
+  if (seat->use_pointer_scroll_smooth_as_discrete) {
+    /* Reset the scroll steps when the touch event ends.
+     * Done so the user doesn't accidentally bump smooth scroll input a small number of steps
+     * causing an unexpected discrete step caused by a very small amount of smooth-scrolling. */
+    GWL_SeatStatePointerScroll_SmoothAsDiscrete &smooth_as_discrete =
+        seat->pointer_scroll.smooth_as_discrete;
+    smooth_as_discrete.smooth_xy_accum[0] = 0;
+    smooth_as_discrete.smooth_xy_accum[1] = 0;
+  }
+
   CLOG_INFO(LOG, 2, "axis_stop (axis=%u)", axis);
 }
 static void pointer_handle_axis_discrete(void *data,
@@ -3806,14 +4023,19 @@ static void pointer_handle_axis_discrete(void *data,
   GWL_Seat *seat = static_cast<GWL_Seat *>(data);
   seat->pointer_scroll.discrete_xy[index] = discrete;
 }
-static void pointer_handle_axis_value120(void * /*data*/,
+static void pointer_handle_axis_value120(void *data,
                                          wl_pointer * /*wl_pointer*/,
                                          uint32_t axis,
                                          int32_t value120)
 {
-  /* NOTE: the axis handler seems high resolution enough.
-   * Nevertheless, we might want to support this. */
+  /* Only available in interface version 8. */
   CLOG_INFO(LOG, 2, "axis_value120 (axis=%u, value120=%d)", axis, value120);
+  const int index = pointer_axis_as_index(axis);
+  if (UNLIKELY(index == -1)) {
+    return;
+  }
+  GWL_Seat *seat = static_cast<GWL_Seat *>(data);
+  seat->pointer_scroll.discrete120_xy[index] = value120;
 }
 #ifdef WL_POINTER_AXIS_RELATIVE_DIRECTION_ENUM /* Requires WAYLAND 1.22 or newer. */
 static void pointer_handle_axis_relative_direction(void *data,
@@ -3821,6 +4043,7 @@ static void pointer_handle_axis_relative_direction(void *data,
                                                    uint32_t axis,
                                                    uint32_t direction)
 {
+  /* Only available in interface version 9. */
   CLOG_INFO(LOG, 2, "axis_relative_direction (axis=%u, direction=%u)", axis, direction);
   const int index = pointer_axis_as_index(axis);
   if (UNLIKELY(index == -1)) {
@@ -4511,7 +4734,7 @@ static void tablet_tool_handle_frame(void *data,
         }
         case GWL_TabletTool_EventTypes::Wheel: {
           seat->system->pushEvent_maybe_pending(
-              new GHOST_EventWheel(event_ms, win, tablet_tool->frame_pending.wheel.clicks));
+              new GHOST_EventWheel(event_ms, win, -tablet_tool->frame_pending.wheel.clicks));
           break;
         }
       }
@@ -5513,7 +5736,7 @@ static CLG_LogRef LOG_WL_SEAT = {"ghost.wl.handle.seat"};
 
 static bool gwl_seat_capability_pointer_multitouch_check(const GWL_Seat *seat, const bool fallback)
 {
-  zwp_pointer_gestures_v1 *pointer_gestures = seat->system->wp_pointer_gestures_get();
+  const zwp_pointer_gestures_v1 *pointer_gestures = seat->system->wp_pointer_gestures_get();
   if (pointer_gestures == nullptr) {
     return fallback;
   }
@@ -5537,6 +5760,10 @@ static bool gwl_seat_capability_pointer_multitouch_check(const GWL_Seat *seat, c
   }
   found = true;
 #endif
+  if (seat->use_pointer_scroll_smooth_as_discrete == false) {
+    return true;
+  }
+
   if (found == false) {
     return fallback;
   }
@@ -5545,6 +5772,10 @@ static bool gwl_seat_capability_pointer_multitouch_check(const GWL_Seat *seat, c
 
 static void gwl_seat_capability_pointer_multitouch_enable(GWL_Seat *seat)
 {
+  /* Smooth to discrete handling. */
+  seat->use_pointer_scroll_smooth_as_discrete = false;
+  seat->pointer_scroll.smooth_as_discrete = GWL_SeatStatePointerScroll_SmoothAsDiscrete{};
+
   zwp_pointer_gestures_v1 *pointer_gestures = seat->system->wp_pointer_gestures_get();
   if (pointer_gestures == nullptr) {
     return;
@@ -5583,6 +5814,12 @@ static void gwl_seat_capability_pointer_multitouch_enable(GWL_Seat *seat)
 
 static void gwl_seat_capability_pointer_multitouch_disable(GWL_Seat *seat)
 {
+  /* Smooth to discrete handling. */
+  seat->use_pointer_scroll_smooth_as_discrete = true;
+  seat->pointer_scroll.smooth_as_discrete = GWL_SeatStatePointerScroll_SmoothAsDiscrete{};
+  seat->pointer_scroll.smooth_xy[0] = 0;
+  seat->pointer_scroll.smooth_xy[1] = 0;
+
   const zwp_pointer_gestures_v1 *pointer_gestures = seat->system->wp_pointer_gestures_get();
   if (pointer_gestures == nullptr) {
     return;
@@ -5967,11 +6204,26 @@ static void output_handle_scale(void *data, wl_output * /*wl_output*/, const int
   output->system->output_scale_update(output);
 }
 
+static void output_handle_name(void * /*data*/, wl_output * /*wl_output*/, const char *name)
+{
+  /* Only available in interface version 4. */
+  CLOG_INFO(LOG, 2, "name (%s)", name);
+}
+static void output_handle_description(void * /*data*/,
+                                      wl_output * /*wl_output*/,
+                                      const char *description)
+{
+  /* Only available in interface version 4. */
+  CLOG_INFO(LOG, 2, "description (%s)", description);
+}
+
 static const wl_output_listener output_listener = {
     /*geometry*/ output_handle_geometry,
     /*mode*/ output_handle_mode,
     /*done*/ output_handle_done,
     /*scale*/ output_handle_scale,
+    /*name*/ output_handle_name,
+    /*description*/ output_handle_description,
 };
 
 #undef LOG
@@ -6040,10 +6292,12 @@ static CLG_LogRef LOG_WL_REGISTRY = {"ghost.wl.handle.registry"};
 /* #GWL_Display.wl_compositor */
 
 static void gwl_registry_compositor_add(GWL_Display *display,
-                                        const GWL_RegisteryAdd_Params *params)
+                                        const GWL_RegisteryAdd_Params &params)
 {
+  const uint version = GWL_IFACE_VERSION_CLAMP(params.version, 3u, 6u);
+
   display->wl.compositor = static_cast<wl_compositor *>(
-      wl_registry_bind(display->wl.registry, params->name, &wl_compositor_interface, 3));
+      wl_registry_bind(display->wl.registry, params.name, &wl_compositor_interface, version));
   gwl_registry_entry_add(display, params, nullptr);
 }
 static void gwl_registry_compositor_remove(GWL_Display *display,
@@ -6058,13 +6312,15 @@ static void gwl_registry_compositor_remove(GWL_Display *display,
 /* #GWL_Display.xdg_decor.shell */
 
 static void gwl_registry_xdg_wm_base_add(GWL_Display *display,
-                                         const GWL_RegisteryAdd_Params *params)
+                                         const GWL_RegisteryAdd_Params &params)
 {
+  const uint version = GWL_IFACE_VERSION_CLAMP(params.version, 1u, 6u);
+
   GWL_XDG_Decor_System &decor = *display->xdg_decor;
   decor.shell = static_cast<xdg_wm_base *>(
-      wl_registry_bind(display->wl.registry, params->name, &xdg_wm_base_interface, 1));
+      wl_registry_bind(display->wl.registry, params.name, &xdg_wm_base_interface, version));
   xdg_wm_base_add_listener(decor.shell, &shell_listener, nullptr);
-  decor.shell_name = params->name;
+  decor.shell_name = params.name;
   gwl_registry_entry_add(display, params, nullptr);
 }
 static void gwl_registry_xdg_wm_base_remove(GWL_Display *display,
@@ -6082,12 +6338,14 @@ static void gwl_registry_xdg_wm_base_remove(GWL_Display *display,
 /* #GWL_Display.xdg_decor.manager */
 
 static void gwl_registry_xdg_decoration_manager_add(GWL_Display *display,
-                                                    const GWL_RegisteryAdd_Params *params)
+                                                    const GWL_RegisteryAdd_Params &params)
 {
+  const uint version = GWL_IFACE_VERSION_CLAMP(params.version, 1u, 1u);
+
   GWL_XDG_Decor_System &decor = *display->xdg_decor;
   decor.manager = static_cast<zxdg_decoration_manager_v1 *>(wl_registry_bind(
-      display->wl.registry, params->name, &zxdg_decoration_manager_v1_interface, 1));
-  decor.manager_name = params->name;
+      display->wl.registry, params.name, &zxdg_decoration_manager_v1_interface, version));
+  decor.manager_name = params.name;
   gwl_registry_entry_add(display, params, nullptr);
 }
 static void gwl_registry_xdg_decoration_manager_remove(GWL_Display *display,
@@ -6105,10 +6363,12 @@ static void gwl_registry_xdg_decoration_manager_remove(GWL_Display *display,
 /* #GWL_Display.xdg_output_manager */
 
 static void gwl_registry_xdg_output_manager_add(GWL_Display *display,
-                                                const GWL_RegisteryAdd_Params *params)
+                                                const GWL_RegisteryAdd_Params &params)
 {
-  display->xdg.output_manager = static_cast<zxdg_output_manager_v1 *>(
-      wl_registry_bind(display->wl.registry, params->name, &zxdg_output_manager_v1_interface, 2));
+  const uint version = GWL_IFACE_VERSION_CLAMP(params.version, 2u, 3u);
+
+  display->xdg.output_manager = static_cast<zxdg_output_manager_v1 *>(wl_registry_bind(
+      display->wl.registry, params.name, &zxdg_output_manager_v1_interface, version));
   gwl_registry_entry_add(display, params, nullptr);
 }
 static void gwl_registry_xdg_output_manager_remove(GWL_Display *display,
@@ -6122,12 +6382,14 @@ static void gwl_registry_xdg_output_manager_remove(GWL_Display *display,
 
 /* #GWL_Display.wl_output */
 
-static void gwl_registry_wl_output_add(GWL_Display *display, const GWL_RegisteryAdd_Params *params)
+static void gwl_registry_wl_output_add(GWL_Display *display, const GWL_RegisteryAdd_Params &params)
 {
+  const uint version = GWL_IFACE_VERSION_CLAMP(params.version, 2u, 4u);
+
   GWL_Output *output = new GWL_Output;
   output->system = display->system;
   output->wl.output = static_cast<wl_output *>(
-      wl_registry_bind(display->wl.registry, params->name, &wl_output_interface, 2));
+      wl_registry_bind(display->wl.registry, params.name, &wl_output_interface, version));
   ghost_wl_output_tag(output->wl.output);
   wl_output_set_user_data(output->wl.output, output);
 
@@ -6136,9 +6398,9 @@ static void gwl_registry_wl_output_add(GWL_Display *display, const GWL_Registery
   gwl_registry_entry_add(display, params, static_cast<void *>(output));
 }
 static void gwl_registry_wl_output_update(GWL_Display *display,
-                                          const GWL_RegisteryUpdate_Params *params)
+                                          const GWL_RegisteryUpdate_Params &params)
 {
-  GWL_Output *output = static_cast<GWL_Output *>(params->user_data);
+  GWL_Output *output = static_cast<GWL_Output *>(params.user_data);
   if (display->xdg.output_manager) {
     if (output->xdg.output == nullptr) {
       output->xdg.output = zxdg_output_manager_v1_get_xdg_output(display->xdg.output_manager,
@@ -6188,8 +6450,10 @@ static void gwl_registry_wl_output_remove(GWL_Display *display,
 
 /* #GWL_Display.seats */
 
-static void gwl_registry_wl_seat_add(GWL_Display *display, const GWL_RegisteryAdd_Params *params)
+static void gwl_registry_wl_seat_add(GWL_Display *display, const GWL_RegisteryAdd_Params &params)
 {
+  const uint version = GWL_IFACE_VERSION_CLAMP(params.version, 5u, 9u);
+
   GWL_Seat *seat = new GWL_Seat;
   seat->system = display->system;
   seat->xkb.context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
@@ -6200,15 +6464,17 @@ static void gwl_registry_wl_seat_add(GWL_Display *display, const GWL_RegisteryAd
 
   seat->data_source = new GWL_DataSource;
   seat->wl.seat = static_cast<wl_seat *>(
-      wl_registry_bind(display->wl.registry, params->name, &wl_seat_interface, 5));
+      wl_registry_bind(display->wl.registry, params.name, &wl_seat_interface, version));
   display->seats.push_back(seat);
   wl_seat_add_listener(seat->wl.seat, &seat_listener, seat);
   gwl_registry_entry_add(display, params, static_cast<void *>(seat));
+
+  has_wl_trackpad_physical_direction = version >= 9;
 }
 static void gwl_registry_wl_seat_update(GWL_Display *display,
-                                        const GWL_RegisteryUpdate_Params *params)
+                                        const GWL_RegisteryUpdate_Params &params)
 {
-  GWL_Seat *seat = static_cast<GWL_Seat *>(params->user_data);
+  GWL_Seat *seat = static_cast<GWL_Seat *>(params.user_data);
 
   /* Register data device per seat for IPC between WAYLAND clients. */
   if (display->wl.data_device_manager) {
@@ -6314,6 +6580,10 @@ static void gwl_registry_wl_seat_remove(GWL_Display *display, void *user_data, c
     wl_data_device_release(seat->wl.data_device);
   }
 
+  if (seat->wp.tablet_seat) {
+    zwp_tablet_seat_v2_destroy(seat->wp.tablet_seat);
+  }
+
   if (seat->cursor.custom_data) {
     munmap(seat->cursor.custom_data, seat->cursor.custom_data_size);
   }
@@ -6358,10 +6628,12 @@ static void gwl_registry_wl_seat_remove(GWL_Display *display, void *user_data, c
 
 /* #GWL_Display.wl_shm */
 
-static void gwl_registry_wl_shm_add(GWL_Display *display, const GWL_RegisteryAdd_Params *params)
+static void gwl_registry_wl_shm_add(GWL_Display *display, const GWL_RegisteryAdd_Params &params)
 {
+  const uint version = GWL_IFACE_VERSION_CLAMP(params.version, 1u, 1u);
+
   display->wl.shm = static_cast<wl_shm *>(
-      wl_registry_bind(display->wl.registry, params->name, &wl_shm_interface, 1));
+      wl_registry_bind(display->wl.registry, params.name, &wl_shm_interface, version));
   gwl_registry_entry_add(display, params, nullptr);
 }
 static void gwl_registry_wl_shm_remove(GWL_Display *display,
@@ -6376,10 +6648,12 @@ static void gwl_registry_wl_shm_remove(GWL_Display *display,
 /* #GWL_Display.wl_data_device_manager */
 
 static void gwl_registry_wl_data_device_manager_add(GWL_Display *display,
-                                                    const GWL_RegisteryAdd_Params *params)
+                                                    const GWL_RegisteryAdd_Params &params)
 {
-  display->wl.data_device_manager = static_cast<wl_data_device_manager *>(
-      wl_registry_bind(display->wl.registry, params->name, &wl_data_device_manager_interface, 3));
+  const uint version = GWL_IFACE_VERSION_CLAMP(params.version, 3u, 3u);
+
+  display->wl.data_device_manager = static_cast<wl_data_device_manager *>(wl_registry_bind(
+      display->wl.registry, params.name, &wl_data_device_manager_interface, version));
   gwl_registry_entry_add(display, params, nullptr);
 }
 static void gwl_registry_wl_data_device_manager_remove(GWL_Display *display,
@@ -6394,10 +6668,12 @@ static void gwl_registry_wl_data_device_manager_remove(GWL_Display *display,
 /* #GWL_Display.wp_tablet_manager */
 
 static void gwl_registry_wp_tablet_manager_add(GWL_Display *display,
-                                               const GWL_RegisteryAdd_Params *params)
+                                               const GWL_RegisteryAdd_Params &params)
 {
-  display->wp.tablet_manager = static_cast<zwp_tablet_manager_v2 *>(
-      wl_registry_bind(display->wl.registry, params->name, &zwp_tablet_manager_v2_interface, 1));
+  const uint version = GWL_IFACE_VERSION_CLAMP(params.version, 1u, 1u);
+
+  display->wp.tablet_manager = static_cast<zwp_tablet_manager_v2 *>(wl_registry_bind(
+      display->wl.registry, params.name, &zwp_tablet_manager_v2_interface, version));
   gwl_registry_entry_add(display, params, nullptr);
 }
 static void gwl_registry_wp_tablet_manager_remove(GWL_Display *display,
@@ -6412,11 +6688,13 @@ static void gwl_registry_wp_tablet_manager_remove(GWL_Display *display,
 /* #GWL_Display.wp_relative_pointer_manager */
 
 static void gwl_registry_wp_relative_pointer_manager_add(GWL_Display *display,
-                                                         const GWL_RegisteryAdd_Params *params)
+                                                         const GWL_RegisteryAdd_Params &params)
 {
+  const uint version = GWL_IFACE_VERSION_CLAMP(params.version, 1u, 1u);
+
   display->wp.relative_pointer_manager = static_cast<zwp_relative_pointer_manager_v1 *>(
       wl_registry_bind(
-          display->wl.registry, params->name, &zwp_relative_pointer_manager_v1_interface, 1));
+          display->wl.registry, params.name, &zwp_relative_pointer_manager_v1_interface, version));
   gwl_registry_entry_add(display, params, nullptr);
 }
 static void gwl_registry_wp_relative_pointer_manager_remove(GWL_Display *display,
@@ -6431,10 +6709,12 @@ static void gwl_registry_wp_relative_pointer_manager_remove(GWL_Display *display
 /* #GWL_Display.wp_pointer_constraints */
 
 static void gwl_registry_wp_pointer_constraints_add(GWL_Display *display,
-                                                    const GWL_RegisteryAdd_Params *params)
+                                                    const GWL_RegisteryAdd_Params &params)
 {
+  const uint version = GWL_IFACE_VERSION_CLAMP(params.version, 1u, 1u);
+
   display->wp.pointer_constraints = static_cast<zwp_pointer_constraints_v1 *>(wl_registry_bind(
-      display->wl.registry, params->name, &zwp_pointer_constraints_v1_interface, 1));
+      display->wl.registry, params.name, &zwp_pointer_constraints_v1_interface, version));
   gwl_registry_entry_add(display, params, nullptr);
 }
 static void gwl_registry_wp_pointer_constraints_remove(GWL_Display *display,
@@ -6449,13 +6729,15 @@ static void gwl_registry_wp_pointer_constraints_remove(GWL_Display *display,
 /* #GWL_Display.wp_pointer_gestures */
 
 static void gwl_registry_wp_pointer_gestures_add(GWL_Display *display,
-                                                 const GWL_RegisteryAdd_Params *params)
+                                                 const GWL_RegisteryAdd_Params &params)
 {
+  const uint version = GWL_IFACE_VERSION_CLAMP(params.version, 3u, 3u);
+
   display->wp.pointer_gestures = static_cast<zwp_pointer_gestures_v1 *>(
       wl_registry_bind(display->wl.registry,
-                       params->name,
+                       params.name,
                        &zwp_pointer_gestures_v1_interface,
-                       std::min(params->version, 3u)));
+                       std::min(params.version, version)));
   gwl_registry_entry_add(display, params, nullptr);
 }
 static void gwl_registry_wp_pointer_gestures_remove(GWL_Display *display,
@@ -6470,10 +6752,12 @@ static void gwl_registry_wp_pointer_gestures_remove(GWL_Display *display,
 /* #GWL_Display.xdg_activation */
 
 static void gwl_registry_xdg_activation_add(GWL_Display *display,
-                                            const GWL_RegisteryAdd_Params *params)
+                                            const GWL_RegisteryAdd_Params &params)
 {
+  const uint version = GWL_IFACE_VERSION_CLAMP(params.version, 1u, 1u);
+
   display->xdg.activation_manager = static_cast<xdg_activation_v1 *>(
-      wl_registry_bind(display->wl.registry, params->name, &xdg_activation_v1_interface, 1));
+      wl_registry_bind(display->wl.registry, params.name, &xdg_activation_v1_interface, version));
   gwl_registry_entry_add(display, params, nullptr);
 }
 static void gwl_registry_xdg_activation_remove(GWL_Display *display,
@@ -6488,11 +6772,13 @@ static void gwl_registry_xdg_activation_remove(GWL_Display *display,
 /* #GWL_Display.wp_fractional_scale_manger */
 
 static void gwl_registry_wp_fractional_scale_manager_add(GWL_Display *display,
-                                                         const GWL_RegisteryAdd_Params *params)
+                                                         const GWL_RegisteryAdd_Params &params)
 {
+  const uint version = GWL_IFACE_VERSION_CLAMP(params.version, 1u, 1u);
+
   display->wp.fractional_scale_manager = static_cast<wp_fractional_scale_manager_v1 *>(
       wl_registry_bind(
-          display->wl.registry, params->name, &wp_fractional_scale_manager_v1_interface, 1));
+          display->wl.registry, params.name, &wp_fractional_scale_manager_v1_interface, version));
   gwl_registry_entry_add(display, params, nullptr);
 }
 static void gwl_registry_wp_fractional_scale_manager_remove(GWL_Display *display,
@@ -6507,10 +6793,12 @@ static void gwl_registry_wp_fractional_scale_manager_remove(GWL_Display *display
 /* #GWL_Display.wl_viewport */
 
 static void gwl_registry_wp_viewporter_add(GWL_Display *display,
-                                           const GWL_RegisteryAdd_Params *params)
+                                           const GWL_RegisteryAdd_Params &params)
 {
+  const uint version = GWL_IFACE_VERSION_CLAMP(params.version, 1u, 1u);
+
   display->wp.viewporter = static_cast<wp_viewporter *>(
-      wl_registry_bind(display->wl.registry, params->name, &wp_viewporter_interface, 1));
+      wl_registry_bind(display->wl.registry, params.name, &wp_viewporter_interface, version));
   gwl_registry_entry_add(display, params, nullptr);
 }
 static void gwl_registry_wp_viewporter_remove(GWL_Display *display,
@@ -6525,14 +6813,16 @@ static void gwl_registry_wp_viewporter_remove(GWL_Display *display,
 /* #GWL_Display.wp_primary_selection_device_manager */
 
 static void gwl_registry_wp_primary_selection_device_manager_add(
-    GWL_Display *display, const GWL_RegisteryAdd_Params *params)
+    GWL_Display *display, const GWL_RegisteryAdd_Params &params)
 {
+  const uint version = GWL_IFACE_VERSION_CLAMP(params.version, 1u, 1u);
+
   display->wp.primary_selection_device_manager =
       static_cast<zwp_primary_selection_device_manager_v1 *>(
           wl_registry_bind(display->wl.registry,
-                           params->name,
+                           params.name,
                            &zwp_primary_selection_device_manager_v1_interface,
-                           1));
+                           version));
   gwl_registry_entry_add(display, params, nullptr);
 }
 static void gwl_registry_wp_primary_selection_device_manager_remove(GWL_Display *display,
@@ -6550,10 +6840,12 @@ static void gwl_registry_wp_primary_selection_device_manager_remove(GWL_Display 
 /* #GWL_Display.wp_text_input_manager */
 
 static void gwl_registry_wp_text_input_manager_add(GWL_Display *display,
-                                                   const GWL_RegisteryAdd_Params *params)
+                                                   const GWL_RegisteryAdd_Params &params)
 {
+  const uint version = GWL_IFACE_VERSION_CLAMP(params.version, 1u, 1u);
+
   display->wp.text_input_manager = static_cast<zwp_text_input_manager_v3 *>(wl_registry_bind(
-      display->wl.registry, params->name, &zwp_text_input_manager_v3_interface, 1));
+      display->wl.registry, params.name, &zwp_text_input_manager_v3_interface, version));
   gwl_registry_entry_add(display, params, nullptr);
 }
 static void gwl_registry_wp_text_input_manager_remove(GWL_Display *display,
@@ -6744,19 +7036,9 @@ static void global_handle_add(void *data,
     params.interface_slot = interface_slot;
     params.version = version;
 
-    handler->add_fn(display, &params);
+    handler->add_fn(display, params);
 
     added = display->registry_entry != registry_entry_prev;
-  }
-  else {
-    /* Not found. */
-#ifdef USE_GNOME_NEEDS_LIBDECOR_HACK
-    if (STRPREFIX(interface, "gtk_shell")) { /* `gtk_shell1` at time of writing. */
-      /* Only require `libdecor` when built with X11 support,
-       * otherwise there is nothing to fall back on. */
-      display->libdecor_required = true;
-    }
-#endif
   }
 
   CLOG_INFO(LOG,
@@ -6915,24 +7197,33 @@ GHOST_SystemWayland::GHOST_SystemWayland(bool background)
   }
 
 #ifdef WITH_GHOST_WAYLAND_LIBDECOR
-  if (display_->libdecor_required) {
+  bool libdecor_required = false;
+  if (const char *xdg_current_desktop = getenv("XDG_CURRENT_DESKTOP")) {
+    /* See the free-desktop specifications for details on `XDG_CURRENT_DESKTOP`.
+     * https://specifications.freedesktop.org/desktop-entry-spec/desktop-entry-spec-latest.html */
+    if (string_elem_split_by_delim(xdg_current_desktop, ':', "GNOME")) {
+      libdecor_required = true;
+    }
+  }
+
+  if (libdecor_required) {
     /* Ignore windowing requirements when running in background mode,
      * as it doesn't make sense to fall back to X11 because of windowing functionality
      * in background mode, also LIBDECOR is crashing in background mode `blender -b -f 1`
      * for e.g. while it could be fixed, requiring the library at all makes no sense. */
     if (background) {
-      display_->libdecor_required = false;
+      libdecor_required = false;
     }
 #  ifdef WITH_GHOST_X11
     else if (!has_libdecor && !ghost_wayland_is_x11_available()) {
       /* Only require LIBDECOR when X11 is available, otherwise there is nothing to fall back to.
        * It's better to open without window decorations than failing entirely. */
-      display_->libdecor_required = false;
+      libdecor_required = false;
     }
 #  endif /* WITH_GHOST_X11 */
   }
 
-  if (display_->libdecor_required) {
+  if (libdecor_required) {
     gwl_xdg_decor_system_destroy(display_, display_->xdg_decor);
     display_->xdg_decor = nullptr;
 
@@ -7443,6 +7734,148 @@ void GHOST_SystemWayland::putClipboard(const char *buffer, bool selection) const
   }
 }
 
+static constexpr const char *ghost_wl_mime_img_png = "image/png";
+
+GHOST_TSuccess GHOST_SystemWayland::hasClipboardImage(void) const
+{
+  GWL_Seat *seat = gwl_display_seat_active_get(display_);
+  if (UNLIKELY(!seat)) {
+    return GHOST_kFailure;
+  }
+
+  GWL_DataOffer *data_offer = seat->data_offer_copy_paste;
+  if (data_offer) {
+    if (data_offer->types.count(ghost_wl_mime_img_png)) {
+      return GHOST_kSuccess;
+    }
+  }
+
+  return GHOST_kFailure;
+}
+
+uint *GHOST_SystemWayland::getClipboardImage(int *r_width, int *r_height) const
+{
+#ifdef USE_EVENT_BACKGROUND_THREAD
+  std::lock_guard lock_server_guard{*server_mutex};
+#endif
+
+  GWL_Seat *seat = gwl_display_seat_active_get(display_);
+  if (UNLIKELY(!seat)) {
+    return nullptr;
+  }
+
+  std::mutex &mutex = seat->data_offer_copy_paste_mutex;
+  mutex.lock();
+  bool mutex_locked = true;
+
+  uint *rgba = nullptr;
+
+  GWL_DataOffer *data_offer = seat->data_offer_copy_paste;
+  if (data_offer) {
+    /* Check if the source offers a supported mime type.
+     * This check could be skipped, because the paste option is not supposed to be enabled
+     * otherwise. */
+    if (data_offer->types.count(ghost_wl_mime_img_png)) {
+      /* Receive the clipboard in a thread, performing round-trips while waiting,
+       * so pasting content from own `primary->data_source` doesn't hang. */
+      struct ThreadResult {
+        char *data = nullptr;
+        size_t data_len = 0;
+        std::atomic<bool> done = false;
+      } thread_result;
+
+      auto read_clipboard_fn = [](GWL_DataOffer *data_offer,
+                                  const char *mime_receive,
+                                  std::mutex *mutex,
+                                  ThreadResult *thread_result) {
+        thread_result->data = read_buffer_from_data_offer(
+            data_offer, mime_receive, mutex, false, &thread_result->data_len);
+        thread_result->done = true;
+      };
+      std::thread read_thread(
+          read_clipboard_fn, data_offer, ghost_wl_mime_img_png, &mutex, &thread_result);
+      read_thread.detach();
+
+      while (!thread_result.done) {
+        wl_display_roundtrip(display_->wl.display);
+      }
+
+      if (thread_result.data) {
+        /* Generate the image buffer with the received data. */
+        ImBuf *ibuf = IMB_ibImageFromMemory((uint8_t *)thread_result.data,
+                                            thread_result.data_len,
+                                            IB_rect,
+                                            nullptr,
+                                            "<clipboard>");
+        if (ibuf) {
+          *r_width = ibuf->x;
+          *r_height = ibuf->y;
+          const size_t byte_count = size_t(ibuf->x) * size_t(ibuf->y) * 4;
+          rgba = (uint *)malloc(byte_count);
+          std::memcpy(rgba, ibuf->byte_buffer.data, byte_count);
+          IMB_freeImBuf(ibuf);
+        }
+      }
+
+      /* After reading the data offer, the mutex gets unlocked. */
+      mutex_locked = false;
+    }
+  }
+
+  if (mutex_locked) {
+    mutex.unlock();
+  }
+  return rgba;
+}
+
+GHOST_TSuccess GHOST_SystemWayland::putClipboardImage(uint *rgba, int width, int height) const
+{
+#ifdef USE_EVENT_BACKGROUND_THREAD
+  std::lock_guard lock_server_guard{*server_mutex};
+#endif
+
+  /* Create a #wl_data_source object. */
+  GWL_Seat *seat = gwl_display_seat_active_get(display_);
+  if (UNLIKELY(!seat)) {
+    return GHOST_kFailure;
+  }
+  std::lock_guard lock(seat->data_source_mutex);
+
+  GWL_DataSource *data_source = seat->data_source;
+
+  /* Load buffer into an #ImBuf and convert to PNG. */
+  ImBuf *ibuf = IMB_allocFromBuffer(reinterpret_cast<uint8_t *>(rgba), nullptr, width, height, 32);
+  ibuf->ftype = IMB_FTYPE_PNG;
+  ibuf->foptions.quality = 15;
+  if (!IMB_saveiff(ibuf, "<memory>", IB_rect | IB_mem)) {
+    IMB_freeImBuf(ibuf);
+    return GHOST_kFailure;
+  }
+
+  /* Copy #ImBuf encoded_buffer to data source. */
+  GWL_SimpleBuffer *imgbuffer = &data_source->buffer_out;
+  gwl_simple_buffer_free_data(imgbuffer);
+  imgbuffer->data_size = ibuf->encoded_buffer_size;
+  char *data = static_cast<char *>(malloc(imgbuffer->data_size));
+  std::memcpy(data, ibuf->encoded_buffer.data, ibuf->encoded_buffer_size);
+  imgbuffer->data = data;
+
+  data_source->wl.source = wl_data_device_manager_create_data_source(
+      display_->wl.data_device_manager);
+  wl_data_source_add_listener(data_source->wl.source, &data_source_listener, seat);
+
+  /* Advertise the mime types supported. */
+  wl_data_source_offer(data_source->wl.source, ghost_wl_mime_img_png);
+
+  if (seat->wl.data_device) {
+    wl_data_device_set_selection(
+        seat->wl.data_device, data_source->wl.source, seat->data_source_serial);
+  }
+
+  IMB_freeImBuf(ibuf);
+  return GHOST_kSuccess;
+}
+
 uint8_t GHOST_SystemWayland::getNumDisplays() const
 {
 #ifdef USE_EVENT_BACKGROUND_THREAD
@@ -7533,7 +7966,7 @@ GHOST_TSuccess GHOST_SystemWayland::getCursorPositionClientRelative(const GHOST_
   if (UNLIKELY(!seat)) {
     return GHOST_kFailure;
   }
-  GWL_SeatStatePointer *seat_state_pointer = gwl_seat_state_pointer_active(seat);
+  const GWL_SeatStatePointer *seat_state_pointer = gwl_seat_state_pointer_active(seat);
   if (!seat_state_pointer || !seat_state_pointer->wl.surface_window) {
     return GHOST_kFailure;
   }
@@ -7567,7 +8000,7 @@ GHOST_TSuccess GHOST_SystemWayland::getCursorPosition(int32_t &x, int32_t &y) co
   if (UNLIKELY(!seat)) {
     return GHOST_kFailure;
   }
-  GWL_SeatStatePointer *seat_state_pointer = gwl_seat_state_pointer_active(seat);
+  const GWL_SeatStatePointer *seat_state_pointer = gwl_seat_state_pointer_active(seat);
   if (!seat_state_pointer) {
     return GHOST_kFailure;
   }
@@ -7997,6 +8430,9 @@ GHOST_TSuccess GHOST_SystemWayland::cursor_visibility_set(const bool visible)
 
 GHOST_TCapabilityFlag GHOST_SystemWayland::getCapabilities() const
 {
+  GHOST_ASSERT(has_wl_trackpad_physical_direction != -1,
+               "The trackpad direction was expected to be initialized");
+
   return GHOST_TCapabilityFlag(
       GHOST_CAPABILITY_FLAG_ALL &
       ~(
@@ -8019,8 +8455,8 @@ GHOST_TCapabilityFlag GHOST_SystemWayland::getCapabilities() const
           GHOST_kCapabilityGPUReadFrontBuffer |
           /* This WAYLAND back-end has not yet implemented desktop color sample. */
           GHOST_kCapabilityDesktopSample |
-          /* This WAYLAND back-end has not yet implemented image copy/paste. */
-          GHOST_kCapabilityClipboardImages));
+          /* This flag will eventually be removed. */
+          (has_wl_trackpad_physical_direction ? 0 : GHOST_kCapabilityTrackpadPhysicalDirection)));
 }
 
 bool GHOST_SystemWayland::cursor_grab_use_software_display_get(const GHOST_TGrabCursorMode mode)

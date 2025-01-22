@@ -32,7 +32,7 @@
 #include "BKE_node_runtime.hh"
 #include "BKE_texture.h"
 
-static bNodeSocketTemplate sh_node_in[] = {
+static blender::bke::bNodeSocketTemplate  sh_node_in[] = {
     {SOCK_FLOAT,
      N_("Octaves"),
      5.0f,
@@ -135,7 +135,7 @@ static bNodeSocketTemplate sh_node_in[] = {
      SOCK_NO_INTERNAL_LINK},
     {-1, ""}};
 
-static bNodeSocketTemplate sh_node_out[] = {{SOCK_RGBA, N_("OutTex")}, {-1, ""}};
+static blender::bke::bNodeSocketTemplate  sh_node_out[] = {{SOCK_RGBA, N_("OutTex")}, {-1, ""}};
 
 static void node_type_tex_oct_cinema4d_noise_init(bNodeTree *ntree, bNode *node)
 {
@@ -145,7 +145,7 @@ static void node_type_tex_oct_cinema4d_noise_init(bNodeTree *ntree, bNode *node)
 
 void register_node_type_tex_oct_cinema4d_noise(void)
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   if (ntype.type != SH_NODE_OCT_CINEMA4D_NOISE_TEX)
     sh_node_type_base(&ntype,
@@ -153,7 +153,7 @@ void register_node_type_tex_oct_cinema4d_noise(void)
                    "Cinema4D Noise Tex",
                    NODE_CLASS_OCT_TEXTURE);
   blender::bke::node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
-  node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::DEFAULT);
+  node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Default);
   ntype.initfunc = (node_type_tex_oct_cinema4d_noise_init);
   // node_type_exec(&ntype, 0, 0, 0);
   

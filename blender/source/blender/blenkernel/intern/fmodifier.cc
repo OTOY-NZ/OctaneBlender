@@ -20,7 +20,7 @@
 #include "DNA_anim_types.h"
 #include "DNA_screen_types.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "BLI_blenlib.h"
 #include "BLI_ghash.h"
@@ -28,8 +28,8 @@
 #include "BLI_noise.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_fcurve.h"
-#include "BKE_idprop.h"
+#include "BKE_fcurve.hh"
+#include "BKE_idprop.hh"
 
 static CLG_LogRef LOG = {"bke.fmodifier"};
 
@@ -155,8 +155,11 @@ static void fcm_generator_verify(FModifier *fcm)
   }
 }
 
-static void fcm_generator_evaluate(
-    FCurve * /*fcu*/, FModifier *fcm, float *cvalue, float evaltime, void * /*storage*/)
+static void fcm_generator_evaluate(const FCurve * /*fcu*/,
+                                   const FModifier *fcm,
+                                   float *cvalue,
+                                   float evaltime,
+                                   void * /*storage*/)
 {
   FMod_Generator *data = (FMod_Generator *)fcm->data;
 
@@ -235,7 +238,7 @@ static FModifierTypeInfo FMI_GENERATOR = {
     /*size*/ sizeof(FMod_Generator),
     /*acttype*/ FMI_TYPE_GENERATE_CURVE,
     /*requires_flag*/ FMI_REQUIRES_NOTHING,
-    /*name*/ N_("Generator"),
+    /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_ACTION, "Generator"),
     /*struct_name*/ "FMod_Generator",
     /*storage_size*/ 0,
     /*free_data*/ fcm_generator_free,
@@ -280,8 +283,11 @@ static double sinc(double x)
   return sin(M_PI * x) / (M_PI * x);
 }
 
-static void fcm_fn_generator_evaluate(
-    FCurve * /*fcu*/, FModifier *fcm, float *cvalue, float evaltime, void * /*storage*/)
+static void fcm_fn_generator_evaluate(const FCurve * /*fcu*/,
+                                      const FModifier *fcm,
+                                      float *cvalue,
+                                      float evaltime,
+                                      void * /*storage*/)
 {
   FMod_FunctionGenerator *data = (FMod_FunctionGenerator *)fcm->data;
   double arg = data->phase_multiplier * evaltime + data->phase_offset;
@@ -365,7 +371,7 @@ static FModifierTypeInfo FMI_FN_GENERATOR = {
     /*size*/ sizeof(FMod_FunctionGenerator),
     /*acttype*/ FMI_TYPE_GENERATE_CURVE,
     /*requires_flag*/ FMI_REQUIRES_NOTHING,
-    /*name*/ N_("Built-In Function"),
+    /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_ACTION, "Built-In Function"),
     /*struct_name*/ "FMod_FunctionGenerator",
     /*storage_size*/ 0,
     /*free_data*/ nullptr,
@@ -418,8 +424,11 @@ static void fcm_envelope_verify(FModifier *fcm)
   }
 }
 
-static void fcm_envelope_evaluate(
-    FCurve * /*fcu*/, FModifier *fcm, float *cvalue, float evaltime, void * /*storage*/)
+static void fcm_envelope_evaluate(const FCurve * /*fcu*/,
+                                  const FModifier *fcm,
+                                  float *cvalue,
+                                  float evaltime,
+                                  void * /*storage*/)
 {
   FMod_Envelope *env = (FMod_Envelope *)fcm->data;
   FCM_EnvelopeData *fed, *prevfed, *lastfed;
@@ -478,7 +487,7 @@ static FModifierTypeInfo FMI_ENVELOPE = {
     /*size*/ sizeof(FMod_Envelope),
     /*acttype*/ FMI_TYPE_REPLACE_VALUES,
     /*requires_flag*/ 0,
-    /*name*/ N_("Envelope"),
+    /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_ACTION, "Envelope"),
     /*struct_name*/ "FMod_Envelope",
     /*storage_size*/ 0,
     /*free_data*/ fcm_envelope_free,
@@ -611,11 +620,11 @@ static void fcm_cycles_new_data(void *mdata)
 }
 
 static float fcm_cycles_time(
-    FCurve *fcu, FModifier *fcm, float /*cvalue*/, float evaltime, void *storage_)
+    const FCurve *fcu, const FModifier *fcm, float /*cvalue*/, float evaltime, void *storage_)
 {
   const FMod_Cycles *data = (FMod_Cycles *)fcm->data;
   tFCMED_Cycles *storage = static_cast<tFCMED_Cycles *>(storage_);
-  float prevkey[2], lastkey[2], cycyofs = 0.0f;
+  float firstkey[2], lastkey[2], cycyofs = 0.0f;
   short side = 0, mode = 0;
   int cycles = 0;
   float ofs = 0;
@@ -623,12 +632,9 @@ static float fcm_cycles_time(
   /* Initialize storage. */
   storage->cycyofs = 0;
 
-  /* check if modifier is first in stack, otherwise disable ourself... */
-  /* FIXME... */
-  if (fcm->prev) {
-    fcm->flag |= FMODIFIER_FLAG_DISABLED;
-    return evaltime;
-  }
+  /* It shouldn't be possible for this modifier type to be anywhere other than
+   * the top of the stack. If it is, something's wrong. */
+  BLI_assert(fcm->prev == nullptr);
 
   if (fcu == nullptr || (fcu->bezt == nullptr && fcu->fpt == nullptr)) {
     return evaltime;
@@ -636,11 +642,11 @@ static float fcm_cycles_time(
 
   /* calculate new evaltime due to cyclic interpolation */
   if (fcu->bezt) {
-    const BezTriple *prevbezt = fcu->bezt;
-    const BezTriple *lastbezt = prevbezt + fcu->totvert - 1;
+    const BezTriple *firstbezt = &fcu->bezt[0];
+    const BezTriple *lastbezt = &fcu->bezt[fcu->totvert - 1];
 
-    prevkey[0] = prevbezt->vec[1][0];
-    prevkey[1] = prevbezt->vec[1][1];
+    firstkey[0] = firstbezt->vec[1][0];
+    firstkey[1] = firstbezt->vec[1][1];
 
     lastkey[0] = lastbezt->vec[1][0];
     lastkey[1] = lastbezt->vec[1][1];
@@ -650,8 +656,8 @@ static float fcm_cycles_time(
     const FPoint *prevfpt = fcu->fpt;
     const FPoint *lastfpt = prevfpt + fcu->totvert - 1;
 
-    prevkey[0] = prevfpt->vec[0];
-    prevkey[1] = prevfpt->vec[1];
+    firstkey[0] = prevfpt->vec[0];
+    firstkey[1] = prevfpt->vec[1];
 
     lastkey[0] = lastfpt->vec[0];
     lastkey[1] = lastfpt->vec[1];
@@ -661,12 +667,12 @@ static float fcm_cycles_time(
    * 1) if in data range, definitely don't do anything
    * 2) if before first frame or after last frame, make sure some cycling is in use
    */
-  if (evaltime < prevkey[0]) {
+  if (evaltime < firstkey[0]) {
     if (data->before_mode) {
       side = -1;
       mode = data->before_mode;
       cycles = data->before_cycles;
-      ofs = prevkey[0];
+      ofs = firstkey[0];
     }
   }
   else if (evaltime > lastkey[0]) {
@@ -684,17 +690,18 @@ static float fcm_cycles_time(
   /* find relative place within a cycle */
   {
     /* calculate period and amplitude (total height) of a cycle */
-    const float cycdx = lastkey[0] - prevkey[0];
-    const float cycdy = lastkey[1] - prevkey[1];
+    const float cycdx = lastkey[0] - firstkey[0];
+    const float cycdy = lastkey[1] - firstkey[1];
 
     /* check if cycle is infinitely small, to be point of being impossible to use */
     if (cycdx == 0) {
       return evaltime;
     }
 
-    /* calculate the 'number' of the cycle */
-    const float cycle = (float(side) * (evaltime - ofs) / cycdx);
-
+    /* Calculate the 'number' of the cycle. Needs to be a double to combat precision issues like
+     * #119360. With floats it can happen that the `cycle` jumps to the next full number, while
+     * `cyct` below is still behind. */
+    const double cycle = side * (double(evaltime) - double(ofs)) / double(cycdx);
     /* calculate the time inside the cycle */
     const float cyct = fmod(evaltime - ofs, cycdx);
 
@@ -724,10 +731,10 @@ static float fcm_cycles_time(
 
     /* special case for cycle start/end */
     if (cyct == 0.0f) {
-      evaltime = (side == 1 ? lastkey[0] : prevkey[0]);
+      evaltime = (side == 1 ? lastkey[0] : firstkey[0]);
 
       if ((mode == FCM_EXTRAPOLATE_MIRROR) && (int(cycle) % 2)) {
-        evaltime = (side == 1 ? prevkey[0] : lastkey[0]);
+        evaltime = (side == 1 ? firstkey[0] : lastkey[0]);
       }
     }
     /* calculate where in the cycle we are (overwrite evaltime to reflect this) */
@@ -738,7 +745,7 @@ static float fcm_cycles_time(
        *   (result of fmod will be negative, and with different phase).
        */
       if (side < 0) {
-        evaltime = prevkey[0] - cyct;
+        evaltime = firstkey[0] - cyct;
       }
       else {
         evaltime = lastkey[0] - cyct;
@@ -746,9 +753,9 @@ static float fcm_cycles_time(
     }
     else {
       /* the cycle is played normally... */
-      evaltime = prevkey[0] + cyct;
+      evaltime = firstkey[0] + cyct;
     }
-    if (evaltime < prevkey[0]) {
+    if (evaltime < firstkey[0]) {
       evaltime += cycdx;
     }
   }
@@ -762,8 +769,11 @@ static float fcm_cycles_time(
   return evaltime;
 }
 
-static void fcm_cycles_evaluate(
-    FCurve * /*fcu*/, FModifier * /*fcm*/, float *cvalue, float /*evaltime*/, void *storage_)
+static void fcm_cycles_evaluate(const FCurve * /*fcu*/,
+                                const FModifier * /*fcm*/,
+                                float *cvalue,
+                                float /*evaltime*/,
+                                void *storage_)
 {
   tFCMED_Cycles *storage = static_cast<tFCMED_Cycles *>(storage_);
   *cvalue += storage->cycyofs;
@@ -800,8 +810,11 @@ static void fcm_noise_new_data(void *mdata)
   data->modification = FCM_NOISE_MODIF_REPLACE;
 }
 
-static void fcm_noise_evaluate(
-    FCurve * /*fcu*/, FModifier *fcm, float *cvalue, float evaltime, void * /*storage*/)
+static void fcm_noise_evaluate(const FCurve * /*fcu*/,
+                               const FModifier *fcm,
+                               float *cvalue,
+                               float evaltime,
+                               void * /*storage*/)
 {
   FMod_Noise *data = (FMod_Noise *)fcm->data;
   float noise;
@@ -836,7 +849,7 @@ static FModifierTypeInfo FMI_NOISE = {
     /*size*/ sizeof(FMod_Noise),
     /*acttype*/ FMI_TYPE_REPLACE_VALUES,
     /*requires_flag*/ 0,
-    /*name*/ N_("Noise"),
+    /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_ACTION, "Noise"),
     /*struct_name*/ "FMod_Noise",
     /*storage_size*/ 0,
     /*free_data*/ nullptr,
@@ -874,8 +887,8 @@ static void fcm_python_copy(FModifier *fcm, const FModifier *src)
   pymod->prop = IDP_CopyProperty(opymod->prop);
 }
 
-static void fcm_python_evaluate(FCurve * /*fcu*/,
-                                FModifier * /*fcm*/,
+static void fcm_python_evaluate(const FCurve * /*fcu*/,
+                                const FModifier * /*fcm*/,
                                 float * /*cvalue*/,
                                 float /*evaltime*/,
                                 void * /*storage*/)
@@ -894,7 +907,7 @@ static FModifierTypeInfo FMI_PYTHON = {
     /*size*/ sizeof(FMod_Python),
     /*acttype*/ FMI_TYPE_GENERATE_CURVE,
     /*requires_flag*/ FMI_REQUIRES_RUNTIME_CHECK,
-    /*name*/ N_("Python"),
+    /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_ACTION, "Python"),
     /*struct_name*/ "FMod_Python",
     /*storage_size*/ 0,
     /*free_data*/ fcm_python_free,
@@ -907,8 +920,11 @@ static FModifierTypeInfo FMI_PYTHON = {
 
 /* Limits F-Curve Modifier --------------------------- */
 
-static float fcm_limits_time(
-    FCurve * /*fcu*/, FModifier *fcm, float /*cvalue*/, float evaltime, void * /*storage*/)
+static float fcm_limits_time(const FCurve * /*fcu*/,
+                             const FModifier *fcm,
+                             float /*cvalue*/,
+                             float evaltime,
+                             void * /*storage*/)
 {
   FMod_Limits *data = (FMod_Limits *)fcm->data;
 
@@ -924,8 +940,11 @@ static float fcm_limits_time(
   return evaltime;
 }
 
-static void fcm_limits_evaluate(
-    FCurve * /*fcu*/, FModifier *fcm, float *cvalue, float /*evaltime*/, void * /*storage*/)
+static void fcm_limits_evaluate(const FCurve * /*fcu*/,
+                                const FModifier *fcm,
+                                float *cvalue,
+                                float /*evaltime*/,
+                                void * /*storage*/)
 {
   FMod_Limits *data = (FMod_Limits *)fcm->data;
 
@@ -943,7 +962,7 @@ static FModifierTypeInfo FMI_LIMITS = {
     /*size*/ sizeof(FMod_Limits),
     /*acttype*/ FMI_TYPE_GENERATE_CURVE,
     /*requires_flag*/ FMI_REQUIRES_RUNTIME_CHECK, /* XXX... err... */
-    /*name*/ N_("Limits"),
+    /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_ACTION, "Limits"),
     /*struct_name*/ "FMod_Limits",
     /*storage_size*/ 0,
     /*free_data*/ nullptr,
@@ -965,8 +984,11 @@ static void fcm_stepped_new_data(void *mdata)
   data->step_size = 2.0f;
 }
 
-static float fcm_stepped_time(
-    FCurve * /*fcu*/, FModifier *fcm, float /*cvalue*/, float evaltime, void * /*storage*/)
+static float fcm_stepped_time(const FCurve * /*fcu*/,
+                              const FModifier *fcm,
+                              float /*cvalue*/,
+                              float evaltime,
+                              void * /*storage*/)
 {
   FMod_Stepped *data = (FMod_Stepped *)fcm->data;
   int snapblock;
@@ -1000,7 +1022,7 @@ static FModifierTypeInfo FMI_STEPPED = {
     /*size*/ sizeof(FMod_Limits),
     /*acttype*/ FMI_TYPE_GENERATE_CURVE,
     /*requires_flag*/ FMI_REQUIRES_RUNTIME_CHECK, /* XXX... err... */
-    /*name*/ N_("Stepped"),
+    /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_ACTION, "Stepped"),
     /*struct_name*/ "FMod_Stepped",
     /*storage_size*/ 0,
     /*free_data*/ nullptr,
@@ -1312,7 +1334,7 @@ bool list_has_suitable_fmodifier(const ListBase *modifiers, int mtype, short act
 
 /* Evaluation API --------------------------- */
 
-uint evaluate_fmodifiers_storage_size_per_modifier(ListBase *modifiers)
+uint evaluate_fmodifiers_storage_size_per_modifier(const ListBase *modifiers)
 {
   /* Sanity checks. */
   if (ELEM(nullptr, modifiers, modifiers->first)) {
@@ -1385,8 +1407,8 @@ static float eval_fmodifier_influence(FModifier *fcm, float evaltime)
 }
 
 float evaluate_time_fmodifiers(FModifiersStackStorage *storage,
-                               ListBase *modifiers,
-                               FCurve *fcu,
+                               const ListBase *modifiers,
+                               const FCurve *fcu,
                                float cvalue,
                                float evaltime)
 {
@@ -1445,8 +1467,8 @@ float evaluate_time_fmodifiers(FModifiersStackStorage *storage,
 }
 
 void evaluate_value_fmodifiers(FModifiersStackStorage *storage,
-                               ListBase *modifiers,
-                               FCurve *fcu,
+                               const ListBase *modifiers,
+                               const FCurve *fcu,
                                float *cvalue,
                                float evaltime)
 {

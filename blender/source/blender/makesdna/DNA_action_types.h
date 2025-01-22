@@ -20,10 +20,45 @@
 #include "DNA_vec_types.h"
 #include "DNA_view2d_types.h"
 
+#ifdef __cplusplus
+#  include <type_traits>
+#endif
+
+struct AnimData;
 struct Collection;
+struct FCurve;
 struct GHash;
 struct Object;
 struct SpaceLink;
+#ifdef __cplusplus
+namespace blender::gpu {
+class VertBuf;
+class Batch;
+}  // namespace blender::gpu
+using GPUBatchHandle = blender::gpu::Batch;
+using GPUVertBufHandle = blender::gpu::VertBuf;
+#else
+typedef struct GPUBatchHandle GPUBatchHandle;
+typedef struct GPUVertBufHandle GPUVertBufHandle;
+#endif
+
+/* Forward declarations so the actual declarations can happen top-down. */
+struct ActionLayer;
+struct ActionBinding;
+struct ActionStrip;
+struct ActionChannelBag;
+
+/* Declarations of the C++ wrappers. */
+#ifdef __cplusplus
+namespace blender::animrig {
+class Action;
+class Binding;
+class ChannelBag;
+class KeyframeStrip;
+class Layer;
+class Strip;
+}  // namespace blender::animrig
+#endif
 
 /* ************************************************ */
 /* Visualization */
@@ -57,22 +92,24 @@ typedef struct bMotionPath {
   /** The number of cached verts. */
   int length;
 
-  /** For drawing paths, the start frame number. Inclusive.*/
+  /** For drawing paths, the start frame number. Inclusive. */
   int start_frame;
   /** For drawing paths, the end frame number. Exclusive. */
   int end_frame;
 
   /** Optional custom color. */
   float color[3];
+  float color_post[3];
   /** Line thickness. */
   int line_thickness;
   /** Baking settings - eMotionPath_Flag. */
   int flag;
 
+  char _pad2[4];
   /* Used for drawing. */
-  struct GPUVertBuf *points_vbo;
-  struct GPUBatch *batch_line;
-  struct GPUBatch *batch_points;
+  GPUVertBufHandle *points_vbo;
+  GPUBatchHandle *batch_line;
+  GPUBatchHandle *batch_points;
   void *_pad;
 } bMotionPath;
 
@@ -113,7 +150,7 @@ typedef struct bAnimVizSettings {
   short path_bakeflag;
   char _pad[4];
 
-  /** Start and end frames of path-calculation range. Both are inclusive.*/
+  /** Start and end frames of path-calculation range. Both are inclusive. */
   int path_sf, path_ef;
   /** Number of frames before/after current frame to show. */
   int path_bc, path_ac;
@@ -298,6 +335,7 @@ typedef struct bPoseChannel {
   float custom_scale_xyz[3];
   float custom_translation[3];
   float custom_rotation_euler[3];
+  float custom_shape_wire_width;
 
   /** Transforms - written in by actions or transform. */
   float loc[3];
@@ -315,7 +353,7 @@ typedef struct bPoseChannel {
   float rotAxis[3], rotAngle;
   /** #eRotationModes - rotation representation to use. */
   short rotmode;
-  char _pad[2];
+  char _pad[6];
 
   /**
    * Matrix result of location/rotation/scale components, and evaluation of
@@ -614,7 +652,8 @@ typedef enum eItasc_Solver {
 
 /* Groups -------------------------------------- */
 
-/* Action-Channel Group (agrp)
+/**
+ * Action-Channel Group (agrp)
  *
  * These are stored as a list per-Action, and are only used to
  * group that Action's channels in an Animation Editor.
@@ -693,16 +732,37 @@ typedef struct bAction {
   /** ID-serialization for relinking. */
   ID id;
 
-  /** Function-curves (FCurve). */
+  struct ActionLayer **layer_array; /* Array of 'layer_array_num' layers. */
+  int layer_array_num;
+  int layer_active_index; /* Index into layer_array, -1 means 'no active'. */
+
+  struct ActionBinding **binding_array; /* Array of 'binding_array_num` bindings. */
+  int binding_array_num;
+  int32_t last_binding_handle;
+
+  /* Note about legacy animation data:
+   *
+   * Blender 2.5 introduced a new animation system 'Animato'. This replaced the
+   * IPO ('interpolation') curves with F-Curves. Both are considered 'legacy' at
+   * different levels:
+   *
+   * - Actions with F-Curves in `curves`, as introduced in Blender 2.5, are
+   *   considered 'legacy' but still functional in current Blender.
+   * - Pre-2.5 data are deprecated and old files are automatically converted to
+   *   the post-2.5 data model.
+   */
+
+  /** Legacy F-Curves (FCurve), introduced in Blender 2.5. */
   ListBase curves;
-  /** Legacy data - Action Channels (bActionChannel) in pre-2.5 animation system. */
+  /** Legacy Action Channels (bActionChannel) from pre-2.5 animation system. */
   ListBase chanbase DNA_DEPRECATED;
-  /** Groups of function-curves (bActionGroup). */
+  /** Legacy Groups of function-curves (bActionGroup), introduced in Blender 2.5. */
   ListBase groups;
+
   /** Markers local to the Action (used to provide Pose-Libraries). */
   ListBase markers;
 
-  /** Settings for this action. */
+  /** Settings for this action. \see eAction_Flags */
   int flag;
   /** Index of the active marker. */
   int active_marker;
@@ -721,9 +781,14 @@ typedef struct bAction {
   float frame_start, frame_end;
 
   PreviewImage *preview;
+
+#ifdef __cplusplus
+  blender::animrig::Action &wrap();
+  const blender::animrig::Action &wrap() const;
+#endif
 } bAction;
 
-/* Flags for the action */
+/** Flags for the action. */
 typedef enum eAction_Flags {
   /* flags for displaying in UI */
   ACT_COLLAPSED = (1 << 0),
@@ -742,7 +807,7 @@ typedef enum eAction_Flags {
 /* ************************************************ */
 /* Action/Dopesheet Editor */
 
-/* Storage for Dopesheet/Grease-Pencil Editor data */
+/** Storage for Dopesheet/Grease-Pencil Editor data. */
 typedef struct bDopeSheet {
   /** Currently ID_SCE (for Dopesheet), and ID_SC (for Grease Pencil). */
   ID *source;
@@ -765,7 +830,7 @@ typedef struct bDopeSheet {
   int renameIndex;
 } bDopeSheet;
 
-/* DopeSheet filter-flag */
+/** DopeSheet filter-flag. */
 typedef enum eDopeSheet_FilterFlag {
   /* general filtering */
   /** only include channels relating to selected data */
@@ -1004,3 +1069,148 @@ typedef struct bActionChannel {
   /** Temporary setting - may be used to indicate group that channel belongs to during syncing. */
   int temp;
 } bActionChannel;
+
+/* ************************************************ */
+/* Layered Animation data-types. */
+
+/**
+ * \see #blender::animrig::Layer
+ */
+typedef struct ActionLayer {
+  /** User-Visible identifier, unique within the Animation. */
+  char name[64]; /* MAX_NAME. */
+
+  float influence; /* [0-1] */
+
+  /** \see #blender::animrig::Layer::flags() */
+  uint8_t layer_flags;
+
+  /** \see #blender::animrig::Layer::mixmode() */
+  int8_t layer_mix_mode;
+
+  uint8_t _pad0[2];
+
+  /**
+   * There is always at least one strip.
+   * If there is only one, it can be infinite. This is the default for new layers.
+   */
+  struct ActionStrip **strip_array; /* Array of 'strip_array_num' strips. */
+  int strip_array_num;
+
+  uint8_t _pad1[4];
+
+#ifdef __cplusplus
+  blender::animrig::Layer &wrap();
+  const blender::animrig::Layer &wrap() const;
+#endif
+} ActionLayer;
+
+/**
+ * \see #blender::animrig::Binding
+ */
+typedef struct ActionBinding {
+  /**
+   * Typically the ID name this binding was created for, including the two
+   * letters indicating the ID type.
+   *
+   * \see #AnimData::binding_name
+   */
+  char name[66]; /* MAX_ID_NAME */
+  uint8_t _pad0[2];
+
+  /**
+   * Type of ID-blocks that this binding can be assigned to.
+   * If 0, will be set to whatever ID is first assigned.
+   */
+  int idtype;
+
+  /**
+   * Identifier of this Binding within the Animation data-block.
+   *
+   * This number allows reorganization of the #bAction::binding_array without
+   * invalidating references. Also these remain valid when copy-on-evaluate
+   * copies are made.
+   *
+   * Only valid within the Animation data-block that owns this Binding.
+   *
+   * \see #blender::animrig::Action::binding_for_handle()
+   */
+  int32_t handle;
+
+#ifdef __cplusplus
+  blender::animrig::Binding &wrap();
+  const blender::animrig::Binding &wrap() const;
+#endif
+} ActionBinding;
+
+/**
+ * \see #blender::animrig::Strip
+ */
+typedef struct ActionStrip {
+  /**
+   * \see #blender::animrig::Strip::type()
+   */
+  int8_t strip_type;
+  uint8_t _pad0[3];
+
+  float frame_start; /** Start frame of the strip, in Animation time. */
+  float frame_end;   /** End frame of the strip, in Animation time. */
+
+  /**
+   * Offset applied to the contents of the strip, in frames.
+   *
+   * This offset determines the difference between "Animation time" (which would
+   * typically be the same as the scene time, until the animation system
+   * supports strips referencing other Animation data-blocks).
+   */
+  float frame_offset;
+
+#ifdef __cplusplus
+  blender::animrig::Strip &wrap();
+  const blender::animrig::Strip &wrap() const;
+#endif
+} ActionStrip;
+
+/**
+ * #ActionStrip::type = #Strip::Type::Keyframe.
+ *
+ * \see #blender::animrig::KeyframeStrip
+ */
+typedef struct KeyframeActionStrip {
+  ActionStrip strip;
+
+  struct ActionChannelBag **channelbags_array;
+  int channelbags_array_num;
+
+  uint8_t _pad[4];
+
+#ifdef __cplusplus
+  blender::animrig::KeyframeStrip &wrap();
+  const blender::animrig::KeyframeStrip &wrap() const;
+#endif
+} KeyframeActionStrip;
+
+/**
+ * \see #blender::animrig::ChannelBag
+ */
+typedef struct ActionChannelBag {
+  int32_t binding_handle;
+
+  int fcurve_array_num;
+  struct FCurve **fcurve_array; /* Array of 'fcurve_array_num' FCurves. */
+
+  /* TODO: Design & implement a way to integrate other channel types as well,
+   * and still have them map to a certain binding */
+#ifdef __cplusplus
+  blender::animrig::ChannelBag &wrap();
+  const blender::animrig::ChannelBag &wrap() const;
+#endif
+} ChannelBag;
+
+#ifdef __cplusplus
+/* Some static assertions that things that should have the same type actually do. */
+static_assert(
+    std::is_same_v<decltype(ActionBinding::handle), decltype(bAction::last_binding_handle)>);
+static_assert(
+    std::is_same_v<decltype(ActionBinding::handle), decltype(ActionChannelBag::binding_handle)>);
+#endif

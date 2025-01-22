@@ -90,7 +90,7 @@ static void edit_text_cache_populate_select(OVERLAY_Data *vedata, Object *ob)
   const Curve *cu = static_cast<Curve *>(ob->data);
   EditFont *ef = cu->editfont;
   float final_mat[4][4], box[4][2];
-  GPUBatch *geom = DRW_cache_quad_get();
+  blender::gpu::Batch *geom = DRW_cache_quad_get();
 
   for (int i = 0; i < ef->selboxes_len; i++) {
     EditFontSelBox *sb = &ef->selboxes[i];
@@ -123,7 +123,7 @@ static void edit_text_cache_populate_select(OVERLAY_Data *vedata, Object *ob)
       add_v2_v2(box[3], &sb->x);
     }
     v2_quad_corners_to_mat4(box, final_mat);
-    mul_m4_m4m4(final_mat, ob->object_to_world, final_mat);
+    mul_m4_m4m4(final_mat, ob->object_to_world().ptr(), final_mat);
 
     DRW_shgroup_call_obmat(pd->edit_text_selection_grp, geom, final_mat);
   }
@@ -138,9 +138,9 @@ static void edit_text_cache_populate_cursor(OVERLAY_Data *vedata, Object *ob)
   float mat[4][4];
 
   v2_quad_corners_to_mat4(cursor, mat);
-  mul_m4_m4m4(mat, ob->object_to_world, mat);
+  mul_m4_m4m4(mat, ob->object_to_world().ptr(), mat);
 
-  GPUBatch *geom = DRW_cache_quad_get();
+  blender::gpu::Batch *geom = DRW_cache_quad_get();
   DRW_shgroup_call_obmat(pd->edit_text_cursor_grp, geom, mat);
 }
 
@@ -166,7 +166,7 @@ static void edit_text_cache_populate_boxes(OVERLAY_Data *vedata, Object *ob)
       vecs[3][1] -= tb->h;
 
       for (int j = 0; j < 4; j++) {
-        mul_v3_m4v3(vecs[j], ob->object_to_world, vecs[j]);
+        mul_v3_m4v3(vecs[j], ob->object_to_world().ptr(), vecs[j]);
       }
       for (int j = 0; j < 4; j++) {
         OVERLAY_extra_line_dashed(cb, vecs[j], vecs[(j + 1) % 4], color);
@@ -178,7 +178,7 @@ static void edit_text_cache_populate_boxes(OVERLAY_Data *vedata, Object *ob)
 void OVERLAY_edit_text_cache_populate(OVERLAY_Data *vedata, Object *ob)
 {
   OVERLAY_PrivateData *pd = vedata->stl->pd;
-  GPUBatch *geom;
+  blender::gpu::Batch *geom;
   bool do_in_front = (ob->dtx & OB_DRAW_IN_FRONT) != 0;
 
   geom = DRW_cache_text_edge_wire_get(ob);

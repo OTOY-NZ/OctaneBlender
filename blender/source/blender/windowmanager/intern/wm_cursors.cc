@@ -15,14 +15,11 @@
 
 #include "BLI_utildefines.h"
 
-#include "BLI_sys_types.h"
-
 #include "DNA_listBase.h"
 #include "DNA_userdef_types.h"
 #include "DNA_workspace_types.h"
 
-#include "BKE_context.hh"
-#include "BKE_global.h"
+#include "BKE_global.hh"
 #include "BKE_main.hh"
 
 #include "WM_api.hh"
@@ -133,7 +130,7 @@ static void window_set_custom_cursor_ex(wmWindow *win, BCursor *cursor)
 void WM_cursor_set(wmWindow *win, int curs)
 {
   if (win == nullptr || G.background) {
-    return; /* Can't set custom cursor before Window init */
+    return; /* Can't set custom cursor before Window init. */
   }
 
   if (curs == WM_CURSOR_DEFAULT && win->modalcursor) {
@@ -148,7 +145,7 @@ void WM_cursor_set(wmWindow *win, int curs)
   GHOST_SetCursorVisibility(static_cast<GHOST_WindowHandle>(win->ghostwin), true);
 
   if (win->cursor == curs) {
-    return; /* Cursor is already set */
+    return; /* Cursor is already set. */
   }
 
   win->cursor = curs;
@@ -321,7 +318,7 @@ static void wm_cursor_warp_relative(wmWindow *win, int x, int y)
 
 bool wm_cursor_arrow_move(wmWindow *win, const wmEvent *event)
 {
-  /* TODO: give it a modal keymap? Hard coded for now */
+  /* TODO: give it a modal keymap? Hard coded for now. */
 
   if (win && event->val == KM_PRESS) {
     /* Must move at least this much to avoid rounding in WM_cursor_warp. */
@@ -349,7 +346,7 @@ bool wm_cursor_arrow_move(wmWindow *win, const wmEvent *event)
 
 void WM_cursor_time(wmWindow *win, int nr)
 {
-  /* 10 8x8 digits */
+  /* 10 8x8 digits. */
   const char number_bitmaps[10][8] = {
       {0, 56, 68, 68, 68, 68, 68, 56},
       {0, 24, 16, 16, 16, 16, 16, 56},
@@ -371,7 +368,7 @@ void WM_cursor_time(wmWindow *win, int nr)
 
   memset(&mask, 0xFF, sizeof(mask));
 
-  /* print number bottom right justified */
+  /* Print number bottom right justified. */
   for (int idx = 3; nr && idx >= 0; idx--) {
     const char *digit = number_bitmaps[nr % 10];
     int x = idx % 2;
@@ -416,8 +413,8 @@ void WM_cursor_time(wmWindow *win, int nr)
  * Because defining a cursor mixes declarations and executable code
  * each cursor needs its own scoping block or it would be split up
  * over several hundred lines of code. To enforce/document this better
- * I define 2 pretty brain-dead macros so it's obvious what the extra "[]"
- * are for */
+ * I define 2 pretty brain-dead macros so it's obvious what the extra "[]" are for.
+ */
 
 #define BEGIN_CURSOR_BLOCK \
   { \
@@ -1182,6 +1179,84 @@ void wm_init_cursor_data()
   };
 
   BlenderCursor[WM_CURSOR_PICK_AREA] = &PickAreaCursor;
+  END_CURSOR_BLOCK;
+
+  /********************** Right handle cursor ***********************/
+  BEGIN_CURSOR_BLOCK;
+
+  static char right_handle_bitmap[] = {
+      0x00, 0x00, 0xfc, 0x01, 0xc0, 0x01, 0xc0, 0x01, 0xc0, 0x01, 0xc0,
+      0x11, 0xc0, 0x31, 0xc0, 0x71, 0xc0, 0x71, 0xc0, 0x31, 0xc0, 0x11,
+      0xc0, 0x01, 0xc0, 0x01, 0xc0, 0x01, 0xfc, 0x01, 0x00, 0x00,
+  };
+
+  static char right_handle_mask[] = {
+      0xfc, 0x03, 0xfc, 0x03, 0xfc, 0x03, 0xe0, 0x0b, 0xe0, 0x1b, 0xe0,
+      0x3b, 0xe0, 0x7b, 0xe0, 0xfb, 0xe0, 0xfb, 0xe0, 0x7b, 0xe0, 0x3b,
+      0xe0, 0x1b, 0xe0, 0x0b, 0xfc, 0x03, 0xfc, 0x03, 0xfc, 0x03,
+  };
+
+  static BCursor RightHandleCursor = {
+      right_handle_bitmap,
+      right_handle_mask,
+      7,
+      7,
+      false,
+  };
+
+  BlenderCursor[WM_CURSOR_RIGHT_HANDLE] = &RightHandleCursor;
+  END_CURSOR_BLOCK;
+
+  /********************** Left handle cursor ***********************/
+  BEGIN_CURSOR_BLOCK;
+
+  static char left_handle_bitmap[] = {
+      0x00, 0x00, 0x80, 0x3f, 0x80, 0x03, 0x80, 0x03, 0x80, 0x03, 0x88,
+      0x03, 0x8c, 0x03, 0x8e, 0x03, 0x8e, 0x03, 0x8c, 0x03, 0x88, 0x03,
+      0x80, 0x03, 0x80, 0x03, 0x80, 0x03, 0x80, 0x3f, 0x00, 0x00,
+  };
+
+  static char left_handle_mask[] = {
+      0xc0, 0x3f, 0xc0, 0x3f, 0xc0, 0x3f, 0xc0, 0x07, 0xd8, 0x07, 0xdc,
+      0x07, 0xde, 0x07, 0xdf, 0x07, 0xdf, 0x07, 0xde, 0x07, 0xdc, 0x07,
+      0xd8, 0x07, 0xc0, 0x07, 0xc0, 0x3f, 0xc0, 0x3f, 0xc0, 0x3f,
+  };
+
+  static BCursor LeftHandleCursor = {
+      left_handle_bitmap,
+      left_handle_mask,
+      7,
+      7,
+      false,
+  };
+
+  BlenderCursor[WM_CURSOR_LEFT_HANDLE] = &LeftHandleCursor;
+  END_CURSOR_BLOCK;
+
+  /********************** both handles cursor ***********************/
+  BEGIN_CURSOR_BLOCK;
+
+  static char both_handles_bitmap[] = {
+      0x00, 0x00, 0x3f, 0xfc, 0x38, 0x1c, 0x38, 0x1c, 0x38, 0x1c, 0x38,
+      0x1c, 0x38, 0x1c, 0x38, 0x1c, 0x38, 0x1c, 0x38, 0x1c, 0x38, 0x1c,
+      0x38, 0x1c, 0x38, 0x1c, 0x38, 0x1c, 0x3f, 0xfc, 0x00, 0x00,
+  };
+
+  static char both_handles_mask[] = {
+      0x7f, 0xfe, 0x7f, 0xfe, 0x7f, 0xfe, 0x7c, 0x3e, 0x7c, 0x3e, 0x7c,
+      0x3e, 0x7c, 0x3e, 0x7c, 0x3e, 0x7c, 0x3e, 0x7c, 0x3e, 0x7c, 0x3e,
+      0x7c, 0x3e, 0x7c, 0x3e, 0x7f, 0xfe, 0x7f, 0xfe, 0x7f, 0xfe,
+  };
+
+  static BCursor BothHandlesCursor = {
+      both_handles_bitmap,
+      both_handles_mask,
+      7,
+      7,
+      false,
+  };
+
+  BlenderCursor[WM_CURSOR_BOTH_HANDLES] = &BothHandlesCursor;
   END_CURSOR_BLOCK;
 
   /********************** Put the cursors in the array ***********************/

@@ -12,8 +12,9 @@
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
-#include "GPU_texture.h"
+#include "GPU_texture.hh"
 
+#include "COM_algorithm_parallel_reduction.hh"
 #include "COM_node_operation.hh"
 #include "COM_utilities.hh"
 
@@ -117,11 +118,13 @@ class BokehBlurOperation : public NodeOperation {
 
   void execute_variable_size()
   {
+    const int search_radius = compute_variable_size_search_radius();
+
     GPUShader *shader = context().get_shader("compositor_bokeh_blur_variable_size");
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_1f(shader, "base_size", compute_blur_radius());
-    GPU_shader_uniform_1i(shader, "search_radius", get_max_size());
+    GPU_shader_uniform_1i(shader, "search_radius", search_radius);
 
     const Result &input_image = get_input("Image");
     input_image.bind_as_texture(shader, "input_tx");
@@ -148,6 +151,15 @@ class BokehBlurOperation : public NodeOperation {
     input_weights.unbind_as_texture();
     input_size.unbind_as_texture();
     input_mask.unbind_as_texture();
+  }
+
+  int compute_variable_size_search_radius()
+  {
+    const Result &input_size = get_input("Size");
+    const float maximum_size = maximum_float(context(), input_size.texture());
+
+    const float base_size = compute_blur_radius();
+    return math::clamp(int(maximum_size * base_size), 0, get_max_size());
   }
 
   float compute_blur_radius()
@@ -211,7 +223,7 @@ void register_node_type_cmp_bokehblur()
 {
   namespace file_ns = blender::nodes::node_composite_bokehblur_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, CMP_NODE_BOKEHBLUR, "Bokeh Blur", NODE_CLASS_OP_FILTER);
   ntype.declare = file_ns::cmp_node_bokehblur_declare;
@@ -219,5 +231,5 @@ void register_node_type_cmp_bokehblur()
   ntype.initfunc = file_ns::node_composit_init_bokehblur;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 }

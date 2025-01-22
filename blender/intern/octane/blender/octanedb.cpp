@@ -1,11 +1,11 @@
 #include <stdio.h>
 
 #include "BKE_context.hh"
-#include "BKE_global.h"
+#include "BKE_global.hh"
 #include "BKE_main.hh"
 #include "BKE_material.h"
-#include "BKE_node.h"
-#include "BKE_scene.h"
+#include "BKE_node.hh"
+#include "BKE_scene.hh"
 #include "BKE_text.h"
 #include "BKE_node_tree_update.hh"
 
@@ -40,7 +40,7 @@ void link_node(std::string linked_name,
       std::string socket_to_name = socket_to->name;
       // Do not link OCIO Color Context
       if (!(socket_from_name == "OutColorSpace" && socket_to_name == "Color space")) {
-        nodeAddLink(bnode_tree, node_from, socket_from, bnode, socket_to);
+        blender::bke::nodeAddLink(bnode_tree, node_from, socket_from, bnode, socket_to);
       }
     }
     int currentNodeLevel = blenderNodeLevels[bnode];
@@ -155,10 +155,11 @@ bool BlenderOctaneDb::generate_blender_material_from_octanedb(
                                                name.length() ? name.c_str() : "OctaneDB Material");
   target_material->is_octanedb_updating = 1;
   target_material->use_nodes = true;
-  target_material->nodetree = ntreeAddTree(NULL, "Shader Nodetree", "ShaderNodeTree");
+  target_material->nodetree = blender::bke::ntreeAddTree(
+      NULL, "Shader Nodetree", "ShaderNodeTree");
 
   bNodeTree *node_tree = target_material->nodetree;
-  bNode *node_output = nodeAddNode(context, node_tree, "ShaderNodeOutputMaterial");
+  bNode *node_output = blender::bke::nodeAddNode(context, node_tree, "ShaderNodeOutputMaterial");
   bNodeSocket *sock_output = NULL;
   const char *sock_output_destination_name =
       dbNodes.iOctaneDBType == OctaneDataTransferObject::OctaneDBNodes::MEDIUM ? "Volume" :
@@ -176,7 +177,8 @@ bool BlenderOctaneDb::generate_blender_material_from_octanedb(
       pOctaneNode->pluginType =
           ((::OctaneDataTransferObject::OctaneCustomNode *)pOctaneNode)->sClientNodeName;
     }
-    bNode *pBlenderNode = nodeAddNode(context, node_tree, pOctaneNode->pluginType.c_str());
+    bNode *pBlenderNode = blender::bke::nodeAddNode(
+        context, node_tree, pOctaneNode->pluginType.c_str());
     //std::strcpy(pBlenderNode->name, pOctaneNode->sName.c_str());
     blenderNodes.emplace_back(pBlenderNode);
     blenderNodeLevels[pBlenderNode] = 1;
@@ -185,7 +187,8 @@ bool BlenderOctaneDb::generate_blender_material_from_octanedb(
   if (blenderNodes.size() && node_output) {
     bNode *node_from = blenderNodes[0];
     bNodeSocket *socket_from = (bNodeSocket *)node_from->outputs.first;
-    output_link = nodeAddLink(node_tree, node_from, socket_from, node_output, sock_output);
+    output_link = blender::bke::nodeAddLink(
+        node_tree, node_from, socket_from, node_output, sock_output);
     }
   for (int i = 0; i < blenderNodes.size(); ++i) {
     BNodeSocketSetter setter(blenderNodes[i], node_tree, bmain, blenderNodes, blenderNodeLevels);
@@ -196,7 +199,7 @@ bool BlenderOctaneDb::generate_blender_material_from_octanedb(
   organize_node_tree_layout(
       target_material->nodetree, node_output, blenderNodes, blenderNodeLevels);
   if (dbNodes.iOctaneDBType == OctaneDataTransferObject::OctaneDBNodes::TEXTURE) {
-    bNode *mat_node = nodeAddNode(context, node_tree, "OctaneUniversalMaterial");
+    bNode *mat_node = blender::bke::nodeAddNode(context, node_tree, "OctaneUniversalMaterial");
     bNodeSocket *socket_color = NULL;
     for (socket_color = (bNodeSocket *)mat_node->inputs.first; socket_color;
          socket_color = socket_color->next) {
@@ -205,9 +208,11 @@ bool BlenderOctaneDb::generate_blender_material_from_octanedb(
       break;
     }
     bNodeLink *link = NULL;
-    link = nodeAddLink(node_tree, output_link->fromnode, output_link->fromsock, mat_node, socket_color);
-    link = nodeAddLink(node_tree, mat_node, (bNodeSocket *)mat_node->outputs.first, node_output, sock_output);
-    nodeRemLink(node_tree, output_link);
+    link = blender::bke::nodeAddLink(
+        node_tree, output_link->fromnode, output_link->fromsock, mat_node, socket_color);
+    link = blender::bke::nodeAddLink(
+        node_tree, mat_node, (bNodeSocket *)mat_node->outputs.first, node_output, sock_output);
+    blender::bke::nodeRemLink(node_tree, output_link);
     mat_node->locx = node_output->locx;
     mat_node->locy = node_output->locy - 200;
   }

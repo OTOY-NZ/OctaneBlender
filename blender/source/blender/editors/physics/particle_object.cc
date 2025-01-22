@@ -26,18 +26,16 @@
 #include "BKE_bvhutils.hh"
 #include "BKE_context.hh"
 #include "BKE_customdata.hh"
-#include "BKE_global.h"
+#include "BKE_global.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
-#include "BKE_main.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_legacy_convert.hh"
-#include "BKE_mesh_runtime.hh"
 #include "BKE_modifier.hh"
 #include "BKE_object.hh"
 #include "BKE_particle.h"
 #include "BKE_pointcache.h"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
@@ -54,11 +52,9 @@
 #include "ED_particle.hh"
 #include "ED_screen.hh"
 
-#include "UI_resources.hh"
-
 #include "particle_edit_utildefines.h"
 
-#include "physics_intern.h"
+#include "physics_intern.hh"
 
 static float I[4][4] = {
     {1.0f, 0.0f, 0.0f, 0.0f},
@@ -72,7 +68,7 @@ static float I[4][4] = {
 static int particle_system_add_exec(bContext *C, wmOperator * /*op*/)
 {
   Main *bmain = CTX_data_main(C);
-  Object *ob = ED_object_context(C);
+  Object *ob = blender::ed::object::context_object(C);
   Scene *scene = CTX_data_scene(C);
 
   if (!scene || !ob) {
@@ -105,7 +101,7 @@ void OBJECT_OT_particle_system_add(wmOperatorType *ot)
 static int particle_system_remove_exec(bContext *C, wmOperator * /*op*/)
 {
   Main *bmain = CTX_data_main(C);
-  Object *ob = ED_object_context(C);
+  Object *ob = blender::ed::object::context_object(C);
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   int mode_orig;
@@ -643,7 +639,7 @@ static int disconnect_hair_exec(bContext *C, wmOperator *op)
 {
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Scene *scene = CTX_data_scene(C);
-  Object *ob = ED_object_context(C);
+  Object *ob = blender::ed::object::context_object(C);
   ParticleSystem *psys = nullptr;
   const bool all = RNA_boolean_get(op->ptr, "all");
 
@@ -706,7 +702,7 @@ static bool remap_hair_emitter(Depsgraph *depsgraph,
   PTCacheEditKey *ekey;
   BVHTreeFromMesh bvhtree = {nullptr};
   const MFace *mface = nullptr, *mf;
-  const vec2i *edges = nullptr, *edge;
+  const blender::int2 *edges = nullptr, *edge;
   Mesh *mesh, *target_mesh;
   int numverts;
   int k;
@@ -725,8 +721,8 @@ static bool remap_hair_emitter(Depsgraph *depsgraph,
 
   edit_point = target_edit ? target_edit->points : nullptr;
 
-  invert_m4_m4(from_ob_imat, ob->object_to_world);
-  invert_m4_m4(to_ob_imat, target_ob->object_to_world);
+  invert_m4_m4(from_ob_imat, ob->object_to_world().ptr());
+  invert_m4_m4(to_ob_imat, target_ob->object_to_world().ptr());
   invert_m4_m4(from_imat, from_mat);
   invert_m4_m4(to_imat, to_mat);
 
@@ -763,7 +759,7 @@ static bool remap_hair_emitter(Depsgraph *depsgraph,
     BKE_bvhtree_from_mesh_get(&bvhtree, mesh, BVHTREE_FROM_FACES, 2);
   }
   else if (mesh->edges_num != 0) {
-    edges = static_cast<const vec2i *>(
+    edges = static_cast<const blender::int2 *>(
         CustomData_get_layer_named(&mesh->edge_data, CD_PROP_INT32_2D, ".edge_verts"));
     BKE_bvhtree_from_mesh_get(&bvhtree, mesh, BVHTREE_FROM_EDGES, 2);
   }
@@ -844,7 +840,7 @@ static bool remap_hair_emitter(Depsgraph *depsgraph,
       float offset[3];
 
       if (to_global) {
-        copy_m4_m4(imat, target_ob->object_to_world);
+        copy_m4_m4(imat, target_ob->object_to_world().ptr());
       }
       else {
         /* NOTE: using target_dm here, which is in target_ob object space and has full modifiers.
@@ -925,8 +921,8 @@ static bool connect_hair(Depsgraph *depsgraph, Scene *scene, Object *ob, Particl
                           ob,
                           psys,
                           psys->edit,
-                          ob->object_to_world,
-                          ob->object_to_world,
+                          ob->object_to_world().ptr(),
+                          ob->object_to_world().ptr(),
                           psys->flag & PSYS_GLOBAL_HAIR,
                           false);
   if (ok) {
@@ -940,7 +936,7 @@ static int connect_hair_exec(bContext *C, wmOperator *op)
 {
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Scene *scene = CTX_data_scene(C);
-  Object *ob = ED_object_context(C);
+  Object *ob = blender::ed::object::context_object(C);
   ParticleSystem *psys = nullptr;
   const bool all = RNA_boolean_get(op->ptr, "all");
   bool any_connected = false;
@@ -1054,7 +1050,7 @@ static void remove_particle_systems_from_object(Object *ob_to)
   if (ob_to->type != OB_MESH) {
     return;
   }
-  if (!ob_to->data || ID_IS_LINKED(ob_to->data) || ID_IS_OVERRIDE_LIBRARY(ob_to->data)) {
+  if (!ob_to->data || !ID_IS_EDITABLE(ob_to->data) || ID_IS_OVERRIDE_LIBRARY(ob_to->data)) {
     return;
   }
 
@@ -1175,7 +1171,7 @@ static bool copy_particle_systems_to_object(const bContext *C,
   for (psys = psys_start, psys_from = PSYS_FROM_FIRST, i = 0; psys;
        psys = psys->next, psys_from = PSYS_FROM_NEXT(psys_from), i++)
   {
-    float(*from_mat)[4], (*to_mat)[4];
+    const float(*from_mat)[4], (*to_mat)[4];
 
     switch (space) {
       case PAR_COPY_SPACE_OBJECT:
@@ -1183,8 +1179,8 @@ static bool copy_particle_systems_to_object(const bContext *C,
         to_mat = I;
         break;
       case PAR_COPY_SPACE_WORLD:
-        from_mat = ob_from->object_to_world;
-        to_mat = ob_to->object_to_world;
+        from_mat = ob_from->object_to_world().ptr();
+        to_mat = ob_to->object_to_world().ptr();
         break;
       default:
         /* should not happen */
@@ -1226,7 +1222,7 @@ static bool copy_particle_systems_poll(bContext *C)
     return false;
   }
 
-  ob = ED_object_active_context(C);
+  ob = blender::ed::object::context_active_object(C);
   if (BLI_listbase_is_empty(&ob->particlesystem)) {
     return false;
   }
@@ -1240,7 +1236,7 @@ static int copy_particle_systems_exec(bContext *C, wmOperator *op)
   const bool remove_target_particles = RNA_boolean_get(op->ptr, "remove_target_particles");
   const bool use_active = RNA_boolean_get(op->ptr, "use_active");
   Scene *scene = CTX_data_scene(C);
-  Object *ob_from = ED_object_active_context(C);
+  Object *ob_from = blender::ed::object::context_active_object(C);
 
   ParticleSystem *psys_from = nullptr;
   if (use_active) {
@@ -1332,7 +1328,7 @@ static bool duplicate_particle_systems_poll(bContext *C)
   if (!ED_operator_object_active_local_editable(C)) {
     return false;
   }
-  Object *ob = ED_object_active_context(C);
+  Object *ob = blender::ed::object::context_active_object(C);
   if (BLI_listbase_is_empty(&ob->particlesystem)) {
     return false;
   }
@@ -1343,7 +1339,7 @@ static int duplicate_particle_systems_exec(bContext *C, wmOperator *op)
 {
   const bool duplicate_settings = RNA_boolean_get(op->ptr, "use_duplicate_settings");
   Scene *scene = CTX_data_scene(C);
-  Object *ob = ED_object_active_context(C);
+  Object *ob = blender::ed::object::context_active_object(C);
   /* Context pointer is only valid in the Properties Editor. */
   ParticleSystem *psys = static_cast<ParticleSystem *>(
       CTX_data_pointer_get_type(C, "particle_system", &RNA_ParticleSystem).data);

@@ -14,7 +14,8 @@
 #include "BKE_mesh_sample.hh"
 #include "BKE_modifier.hh"
 #include "BKE_object.hh"
-#include "BKE_report.h"
+#include "BKE_paint.hh"
+#include "BKE_report.hh"
 
 #include "ED_screen.hh"
 #include "ED_view3d.hh"
@@ -261,12 +262,15 @@ struct DensityAddOperationExecutor {
     add_inputs.uvs = new_uvs;
     add_inputs.interpolate_length = brush_settings_->flag &
                                     BRUSH_CURVES_SCULPT_FLAG_INTERPOLATE_LENGTH;
+    add_inputs.interpolate_radius = brush_settings_->flag &
+                                    BRUSH_CURVES_SCULPT_FLAG_INTERPOLATE_RADIUS;
     add_inputs.interpolate_shape = brush_settings_->flag &
                                    BRUSH_CURVES_SCULPT_FLAG_INTERPOLATE_SHAPE;
     add_inputs.interpolate_point_count = brush_settings_->flag &
                                          BRUSH_CURVES_SCULPT_FLAG_INTERPOLATE_POINT_COUNT;
     add_inputs.interpolate_resolution = curves_orig_->attributes().contains("resolution");
     add_inputs.fallback_curve_length = brush_settings_->curve_length;
+    add_inputs.fallback_curve_radius = brush_settings_->curve_radius;
     add_inputs.fallback_point_count = std::max(2, brush_settings_->points_per_curve);
     add_inputs.transforms = &transforms_;
     add_inputs.surface = surface_orig_;
@@ -853,7 +857,7 @@ static bool use_add_density_mode(const BrushStrokeMode brush_mode,
 
   /* Compute distance from brush to curve roots. */
   Array<std::pair<float, int>> distances_sq_to_brush(curves.curves_num());
-  threading::EnumerableThreadSpecific<int> valid_curve_count_by_thread;
+  threading::EnumerableThreadSpecific<int> valid_curve_count_by_thread([&]() { return 0; });
   threading::parallel_for(curves.curves_range(), 512, [&](const IndexRange range) {
     int &valid_curve_count = valid_curve_count_by_thread.local();
     for (const int curve_i : range) {

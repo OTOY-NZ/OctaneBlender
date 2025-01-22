@@ -14,20 +14,14 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_listbase.h"
 #include "BLI_math_color.h"
 #include "BLI_math_vector.h"
 
 #include "BKE_context.hh"
-#include "BKE_global.h"
-#include "BKE_main.hh"
 
 #include "ED_gizmo_library.hh"
 #include "ED_screen.hh"
-#include "ED_transform_snap_object_context.hh"
 #include "ED_view3d.hh"
-
-#include "UI_resources.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -36,11 +30,12 @@
 #include "WM_api.hh"
 
 /* own includes */
-#include "../gizmo_library_intern.h"
+#include "../gizmo_library_intern.hh"
 
 struct SnapGizmo3D {
   wmGizmo gizmo;
   V3DSnapCursorState *snap_state;
+  V3DSnapCursorState snap_state_stored;
 };
 
 /* -------------------------------------------------------------------- */
@@ -73,15 +68,14 @@ void ED_gizmotypes_snap_3d_data_get(const bContext *C,
 {
   if (C) {
     /* Snap values are updated too late at the cursor. Be sure to update ahead of time. */
-    wmWindowManager *wm = CTX_wm_manager(C);
-    const wmEvent *event = wm->winactive ? wm->winactive->eventstate : nullptr;
+    const wmEvent *event = CTX_wm_window(C)->eventstate;
     if (event) {
       ARegion *region = CTX_wm_region(C);
       int x = event->xy[0] - region->winrct.xmin;
       int y = event->xy[1] - region->winrct.ymin;
 
       SnapGizmo3D *snap_gizmo = (SnapGizmo3D *)gz;
-      ED_view3d_cursor_snap_data_update(snap_gizmo->snap_state, C, x, y);
+      ED_view3d_cursor_snap_data_update(snap_gizmo->snap_state, C, region, x, y);
     }
   }
 
@@ -194,6 +188,7 @@ static void gizmo_snap_rna_snap_srouce_type_set_fn(PointerRNA * /*ptr*/,
 static void snap_cursor_free(SnapGizmo3D *snap_gizmo)
 {
   if (snap_gizmo->snap_state) {
+    snap_gizmo->snap_state_stored = *snap_gizmo->snap_state;
     ED_view3d_cursor_snap_state_free(snap_gizmo->snap_state);
     snap_gizmo->snap_state = nullptr;
   }
@@ -222,18 +217,6 @@ static bool snap_cursor_poll(ARegion *region, void *data)
   return true;
 }
 
-static void snap_cursor_init(SnapGizmo3D *snap_gizmo)
-{
-  snap_gizmo->snap_state = ED_view3d_cursor_snap_state_create();
-  snap_gizmo->snap_state->draw_point = true;
-  snap_gizmo->snap_state->draw_plane = false;
-
-  rgba_float_to_uchar(snap_gizmo->snap_state->target_color, snap_gizmo->gizmo.color);
-
-  snap_gizmo->snap_state->poll = snap_cursor_poll;
-  snap_gizmo->snap_state->poll_data = snap_gizmo;
-}
-
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -243,14 +226,23 @@ static void snap_cursor_init(SnapGizmo3D *snap_gizmo)
 static void snap_gizmo_setup(wmGizmo *gz)
 {
   gz->flag |= WM_GIZMO_NO_TOOLTIP;
-  snap_cursor_init((SnapGizmo3D *)gz);
+
+  SnapGizmo3D *snap_gizmo = (SnapGizmo3D *)gz;
+  snap_gizmo->snap_state = ED_view3d_cursor_snap_state_create();
+  snap_gizmo->snap_state->draw_point = true;
+  snap_gizmo->snap_state->draw_plane = false;
+  snap_gizmo->snap_state->poll = snap_cursor_poll;
+  snap_gizmo->snap_state->poll_data = snap_gizmo;
+
+  snap_gizmo->snap_state_stored = *snap_gizmo->snap_state;
 }
 
 static void snap_gizmo_draw(const bContext * /*C*/, wmGizmo *gz)
 {
   SnapGizmo3D *snap_gizmo = (SnapGizmo3D *)gz;
   if (snap_gizmo->snap_state == nullptr) {
-    snap_cursor_init(snap_gizmo);
+    snap_gizmo->snap_state = ED_view3d_cursor_snap_state_create();
+    *snap_gizmo->snap_state = snap_gizmo->snap_state_stored;
   }
 
   /* All drawing is handled at the paint cursor.
@@ -261,14 +253,13 @@ static void snap_gizmo_draw(const bContext * /*C*/, wmGizmo *gz)
 static int snap_gizmo_test_select(bContext *C, wmGizmo *gz, const int mval[2])
 {
   SnapGizmo3D *snap_gizmo = (SnapGizmo3D *)gz;
+  const ARegion *region = CTX_wm_region(C);
 
   /* Snap values are updated too late at the cursor. Be sure to update ahead of time. */
   int x, y;
   {
-    wmWindowManager *wm = CTX_wm_manager(C);
-    const wmEvent *event = wm->winactive ? wm->winactive->eventstate : nullptr;
+    const wmEvent *event = CTX_wm_window(C)->eventstate;
     if (event) {
-      ARegion *region = CTX_wm_region(C);
       x = event->xy[0] - region->winrct.xmin;
       y = event->xy[1] - region->winrct.ymin;
     }
@@ -277,7 +268,7 @@ static int snap_gizmo_test_select(bContext *C, wmGizmo *gz, const int mval[2])
       y = mval[1];
     }
   }
-  ED_view3d_cursor_snap_data_update(snap_gizmo->snap_state, C, x, y);
+  ED_view3d_cursor_snap_data_update(snap_gizmo->snap_state, C, region, x, y);
   V3DSnapCursorData *snap_data = ED_view3d_cursor_snap_data_get();
 
   if (snap_data->type_target != SCE_SNAP_TO_NONE) {

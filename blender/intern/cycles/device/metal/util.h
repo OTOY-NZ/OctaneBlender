@@ -27,12 +27,16 @@ enum MetalGPUVendor {
 };
 
 enum AppleGPUArchitecture {
+  /* NOT_APPLE_GPU represents AMD/Intel GPUs. This should remained at the start of this enum to
+   * ensure that AMD/Intel GPUs don't accidentally get Apple Silicon only features enabled when
+   * using comparison operators. */
+  NOT_APPLE_GPU,
   APPLE_M1,
   APPLE_M2,
   APPLE_M2_BIG,
   APPLE_M3,
   /* Keep APPLE_UNKNOWN at the end of this enum to ensure that unknown future architectures get
-     the most recent defaults when using comparison operators. */
+   * the most recent defaults when using comparison operators. */
   APPLE_UNKNOWN,
 };
 
@@ -49,23 +53,14 @@ struct MetalInfo {
 /* Pool of MTLBuffers whose lifetime is linked to a single MTLCommandBuffer */
 class MetalBufferPool {
   struct MetalBufferListEntry {
-    MetalBufferListEntry(id<MTLBuffer> buffer, id<MTLCommandBuffer> command_buffer)
-        : buffer(buffer), command_buffer(command_buffer)
-    {
-    }
-
-    MetalBufferListEntry() = delete;
-
     id<MTLBuffer> buffer;
     id<MTLCommandBuffer> command_buffer;
   };
-  std::vector<MetalBufferListEntry> buffer_free_list;
-  std::vector<MetalBufferListEntry> buffer_in_use_list;
+  std::vector<MetalBufferListEntry> temp_buffers;
   thread_mutex buffer_mutex;
   size_t total_temp_mem_size = 0;
 
  public:
-  MetalBufferPool() = default;
   ~MetalBufferPool();
 
   id<MTLBuffer> get_buffer(id<MTLDevice> device,

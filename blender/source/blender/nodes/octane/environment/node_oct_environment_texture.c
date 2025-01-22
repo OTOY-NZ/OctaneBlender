@@ -27,7 +27,7 @@
 
 #include "node_shader_util.hh"
 
-static bNodeSocketTemplate node_in[] = {{SOCK_RGBA,
+static blender::bke::bNodeSocketTemplate  node_in[] = {{SOCK_RGBA,
                                          N_("Texture"),
                                          0.7f,
                                          0.7f,
@@ -109,11 +109,11 @@ static bNodeSocketTemplate node_in[] = {{SOCK_RGBA,
                                          SOCK_NO_INTERNAL_LINK},
                                         {-1, ""}};
 
-static bNodeSocketTemplate node_out[] = {{SOCK_SHADER, N_("OutEnv")}, {-1, ""}};
+static blender::bke::bNodeSocketTemplate node_out[] = {{SOCK_SHADER, N_("OutEnv")}, {-1, ""}};
 
 void register_node_type_environment_oct_texture(void)
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   if (ntype.type != SH_NODE_OCT_TEXTURE_ENVIRONMENT)
     sh_node_type_base(&ntype,
@@ -121,7 +121,7 @@ void register_node_type_environment_oct_texture(void)
                    "Texture Environment",
                    NODE_CLASS_OCT_ENVIRONMENT);
   blender::bke::node_type_socket_templates(&ntype, node_in, node_out);
-  node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::DEFAULT);
+  node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Default);
   ntype.initfunc = (0);
   // node_type_exec(&ntype, 0, 0, 0);
   

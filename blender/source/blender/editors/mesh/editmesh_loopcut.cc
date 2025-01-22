@@ -13,15 +13,13 @@
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
 
-#include "BLT_translation.h"
-
-#include "DNA_mesh_types.h"
+#include "BLT_translation.hh"
 
 #include "BKE_context.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_layer.hh"
 #include "BKE_modifier.hh"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 #include "BKE_unit.hh"
 
 #include "UI_interface.hh"
@@ -44,6 +42,9 @@
 
 #include "mesh_intern.hh" /* own include */
 
+using blender::Array;
+using blender::float3;
+using blender::Span;
 using blender::Vector;
 
 #define SUBD_SMOOTH_MAX 4.0f
@@ -52,8 +53,9 @@ using blender::Vector;
 /* ringsel operator */
 
 struct MeshCoordsCache {
-  bool is_init, is_alloc;
-  const float (*coords)[3];
+  bool is_init;
+  Array<float3> allocated_vert_positions;
+  Span<float3> vert_positions;
 };
 
 /* struct for properties used while drawing */
@@ -69,7 +71,7 @@ struct RingSelOpData {
 
   Vector<Base *> bases;
 
-  MeshCoordsCache *geom_cache;
+  Array<MeshCoordsCache> geom_cache;
 
   /* These values switch objects based on the object under the cursor. */
   uint base_index;
@@ -90,7 +92,9 @@ struct RingSelOpData {
 static void ringsel_draw(const bContext * /*C*/, ARegion * /*region*/, void *arg)
 {
   RingSelOpData *lcd = static_cast<RingSelOpData *>(arg);
-  EDBM_preselect_edgering_draw(lcd->presel_edgering, lcd->ob->object_to_world);
+  if (lcd->ob != nullptr) {
+    EDBM_preselect_edgering_draw(lcd->presel_edgering, lcd->ob->object_to_world().ptr());
+  }
 }
 
 static void edgering_select(RingSelOpData *lcd)
@@ -138,13 +142,13 @@ static void ringsel_find_edge(RingSelOpData *lcd, const int previewlines)
       Scene *scene_eval = (Scene *)DEG_get_evaluated_id(lcd->vc.depsgraph, &lcd->vc.scene->id);
       Object *ob_eval = DEG_get_evaluated_object(lcd->vc.depsgraph, lcd->ob);
       BMEditMesh *em_eval = BKE_editmesh_from_object(ob_eval);
-      gcache->coords = BKE_editmesh_vert_coords_when_deformed(
-          lcd->vc.depsgraph, em_eval, scene_eval, ob_eval, nullptr, &gcache->is_alloc);
+      gcache->vert_positions = BKE_editmesh_vert_coords_when_deformed(
+          lcd->vc.depsgraph, em_eval, scene_eval, ob_eval, gcache->allocated_vert_positions);
       gcache->is_init = true;
     }
 
     EDBM_preselect_edgering_update_from_edge(
-        lcd->presel_edgering, lcd->em->bm, lcd->eed, previewlines, gcache->coords);
+        lcd->presel_edgering, lcd->em->bm, lcd->eed, previewlines, gcache->vert_positions);
   }
   else {
     EDBM_preselect_edgering_clear(lcd->presel_edgering);
@@ -255,14 +259,6 @@ static void ringsel_exit(bContext * /*C*/, wmOperator *op)
   ED_region_draw_cb_exit(lcd->region->type, lcd->draw_handle);
 
   EDBM_preselect_edgering_destroy(lcd->presel_edgering);
-
-  for (const int i : lcd->bases.index_range()) {
-    MeshCoordsCache *gcache = &lcd->geom_cache[i];
-    if (gcache->is_alloc) {
-      MEM_freeN((void *)gcache->coords);
-    }
-  }
-  MEM_freeN(lcd->geom_cache);
 
   ED_region_tag_redraw(lcd->region);
 
@@ -428,8 +424,7 @@ static int loopcut_init(bContext *C, wmOperator *op, const wmEvent *event)
   RingSelOpData *lcd = static_cast<RingSelOpData *>(op->customdata);
 
   lcd->bases = std::move(bases);
-  lcd->geom_cache = static_cast<MeshCoordsCache *>(
-      MEM_callocN(sizeof(*lcd->geom_cache) * lcd->bases.size(), __func__));
+  lcd->geom_cache.reinitialize(lcd->bases.size());
 
   if (is_interactive) {
     copy_v2_v2_int(lcd->vc.mval, event->mval);
@@ -461,10 +456,25 @@ static int loopcut_init(bContext *C, wmOperator *op, const wmEvent *event)
 #endif
 
   if (is_interactive) {
-    ED_workspace_status_text(
-        C,
-        IFACE_("Select a ring to be cut, use mouse-wheel or page-up/down for number of cuts, "
-               "hold Alt for smooth"));
+    char buf[UI_MAX_DRAW_STR];
+    char str_rep[NUM_STR_REP_LEN * 2];
+    if (hasNumInput(&lcd->num)) {
+      outputNumInput(&lcd->num, str_rep, &scene->unit);
+    }
+    else {
+      BLI_snprintf(str_rep, NUM_STR_REP_LEN, "%d", int(lcd->cuts));
+      BLI_snprintf(str_rep + NUM_STR_REP_LEN, NUM_STR_REP_LEN, "%.2f", lcd->smoothness);
+    }
+    SNPRINTF(buf, IFACE_("Cuts: %s, Smoothness: %s"), str_rep, str_rep + NUM_STR_REP_LEN);
+    ED_area_status_text(CTX_wm_area(C), buf);
+
+    WorkspaceStatus status(C);
+    status.item(IFACE_("Confirm"), ICON_MOUSE_LMB);
+    status.item(IFACE_("Cancel"), ICON_MOUSE_RMB);
+    status.item(IFACE_("Select Ring"), ICON_MOUSE_MOVE);
+    status.item("", ICON_MOUSE_MMB);
+    status.item(IFACE_("Number of Cuts"), ICON_EVENT_PAGEUP, ICON_EVENT_PAGEDOWN);
+    status.item(IFACE_("Smoothness"), ICON_EVENT_ALT, ICON_MOUSE_MMB);
     return OPERATOR_RUNNING_MODAL;
   }
 
@@ -509,6 +519,7 @@ static int loopcut_finish(RingSelOpData *lcd, bContext *C, wmOperator *op)
   /* finish */
   ED_region_tag_redraw(lcd->region);
   ED_workspace_status_text(C, nullptr);
+  ED_area_status_text(CTX_wm_area(C), nullptr);
 
   if (lcd->eed) {
     /* set for redo */
@@ -570,6 +581,7 @@ static int loopcut_modal(bContext *C, wmOperator *op, const wmEvent *event)
         ED_region_tag_redraw(lcd->region);
         ringsel_exit(C, op);
         ED_workspace_status_text(C, nullptr);
+        ED_area_status_text(CTX_wm_area(C), nullptr);
 
         return OPERATOR_CANCELLED;
       case EVT_ESCKEY:
@@ -577,6 +589,7 @@ static int loopcut_modal(bContext *C, wmOperator *op, const wmEvent *event)
           /* cancel */
           ED_region_tag_redraw(lcd->region);
           ED_workspace_status_text(C, nullptr);
+          ED_area_status_text(CTX_wm_area(C), nullptr);
 
           ringcut_cancel(C, op);
           return OPERATOR_CANCELLED;
@@ -684,9 +697,8 @@ static int loopcut_modal(bContext *C, wmOperator *op, const wmEvent *event)
       BLI_snprintf(str_rep, NUM_STR_REP_LEN, "%d", int(lcd->cuts));
       BLI_snprintf(str_rep + NUM_STR_REP_LEN, NUM_STR_REP_LEN, "%.2f", smoothness);
     }
-    SNPRINTF(
-        buf, IFACE_("Number of Cuts: %s, Smooth: %s (Alt)"), str_rep, str_rep + NUM_STR_REP_LEN);
-    ED_workspace_status_text(C, buf);
+    SNPRINTF(buf, IFACE_("Cuts: %s, Smoothness: %s"), str_rep, str_rep + NUM_STR_REP_LEN);
+    ED_area_status_text(CTX_wm_area(C), buf);
   }
 
   /* keep going until the user confirms */

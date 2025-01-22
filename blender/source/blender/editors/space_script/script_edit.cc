@@ -13,9 +13,9 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -26,7 +26,7 @@
 
 #include "ED_screen.hh"
 
-#include "script_intern.h" /* own include */
+#include "script_intern.hh" /* own include */
 
 #ifdef WITH_PYTHON
 #  include "BPY_extern_run.h"

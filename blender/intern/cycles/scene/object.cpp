@@ -366,6 +366,7 @@ float Object::compute_volume_step_size() const
 
   if (step_size == FLT_MAX) {
     /* Fall back to 1/10th of bounds for procedural volumes. */
+    assert(bounds.valid());
     step_size = 0.1f * average(bounds.size());
   }
 
@@ -858,8 +859,15 @@ void ObjectManager::device_update_flags(
     }
   });
 
-  update_flags = UPDATE_NONE;
-  need_flags_update = false;
+  if (bounds_valid) {
+    /* Object flags and calculations related to volume depend on proper bounds calculated, which
+     * might not be available yet when object flags are updated for displacement or hair
+     * transparency calculation. In this case do not clear the need_flags_update, so that these
+     * values which depend on bounds are re-calculated when the device_update process comes back
+     * here from the "Updating Objects Flags" stage. */
+    update_flags = UPDATE_NONE;
+    need_flags_update = false;
+  }
 
   if (scene->objects.size() == 0) {
     return;
@@ -874,11 +882,17 @@ void ObjectManager::device_update_flags(
   bool has_volume_objects = false;
   foreach (Object *object, scene->objects) {
     if (object->geometry->has_volume) {
+      /* If the bounds are not valid it is not always possible to calculate the volume step, and
+       * the step size is not needed for the displacement. So, delay calculation of the volume
+       * step size until the final bounds are known. */
       if (bounds_valid) {
         volume_objects.push_back(object);
+        object_volume_step[object->index] = object->compute_volume_step_size();
+      }
+      else {
+        object_volume_step[object->index] = FLT_MAX;
       }
       has_volume_objects = true;
-      object_volume_step[object->index] = object->compute_volume_step_size();
     }
     else {
       object_volume_step[object->index] = FLT_MAX;

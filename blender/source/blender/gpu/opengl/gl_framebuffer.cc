@@ -8,7 +8,7 @@
 
 #include "BLI_string.h"
 
-#include "BKE_global.h"
+#include "BKE_global.hh"
 
 #include "gl_backend.hh"
 #include "gl_debug.hh"
@@ -381,6 +381,12 @@ void GLFrameBuffer::bind(bool enabled_srgb)
     /* Internal frame-buffers have only one color output and needs to be set every time. */
     if (immutable_ && fbo_id_ == 0) {
       glDrawBuffer(gl_attachments_[0]);
+    }
+  }
+
+  if (!GLContext::texture_barrier_support && !GLContext::framebuffer_fetch_support) {
+    for (int index : IndexRange(GPU_FB_MAX_ATTACHMENT)) {
+      tmp_detached_[index] = GPU_ATTACHMENT_NONE;
     }
   }
 

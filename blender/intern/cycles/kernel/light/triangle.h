@@ -177,27 +177,27 @@ ccl_device_forceinline bool triangle_light_sample(KernelGlobals kg,
     const float cos_a = dot(B, C);
     const float cos_b = dot(A, C);
     const float cos_c = dot(A, B);
-    const float sin_b_sin_c_2 = (1.0f - sqr(cos_b)) * (1.0f - sqr(cos_c));
 
     const float mixed_product = fabsf(dot(A, cross(B, C)));
 
     /* The area of the spherical triangle is equal to the subtended solid angle. */
     const float solid_angle = 2.0f * fast_atan2f(mixed_product, (1.0f + cos_a + cos_b + cos_c));
 
+    /* Compute the angle at A. */
+    const float cos_alpha = dot(safe_normalize(cross(A, B)), safe_normalize(cross(A, C)));
+    const float sin_alpha = sin_from_cos(cos_alpha);
+    const float alpha = safe_acosf(cos_alpha);
+
     /* Select a random sub-area of the spherical triangle and calculate the third vertex C_ of that
      * new triangle. */
     const float A_hat = rand.x * solid_angle;
-    float sin_A_hat, cos_A_hat;
-    fast_sincosf(A_hat, &sin_A_hat, &cos_A_hat);
-
-    /* These values lack a `sin_b * sin_c` factor, will divide when computing `temp`. */
-    const float cos_alpha = cos_a - cos_b * cos_c;
-    const float sin_alpha = mixed_product;
-    const float t = cos_A_hat * cos_alpha + sin_A_hat * sin_alpha;
-
-    const float temp = (cos_c - 1.0f) * t * cos_alpha / sin_b_sin_c_2;
-
-    const float q = (cos_A_hat - cos_c + temp) / (1.0f - cos_A_hat * cos_c + temp);
+    float sin_phi, cos_phi;
+    fast_sincosf(A_hat - alpha, &sin_phi, &cos_phi);
+    const float u = cos_phi - cos_alpha;
+    const float v = sin_phi + sin_alpha * cos_c;
+    const float num = (v * cos_phi - u * sin_phi) * cos_alpha - v;
+    const float den = (v * sin_phi + u * cos_phi) * sin_alpha;
+    const float q = (den == 0.0f) ? 1.0f : num / den;
 
     const float3 U = safe_normalize(C - cos_b * A);
     const float3 C_ = safe_normalize(q * A + sin_from_cos(q) * U);
@@ -269,6 +269,26 @@ ccl_device_forceinline bool triangle_light_sample(KernelGlobals kg,
   return (ls->pdf > 0.0f);
 }
 
+/* Find the ray segment lit by the triangle light. */
+ccl_device_inline bool triangle_light_valid_ray_segment(KernelGlobals kg,
+                                                        const float3 P,
+                                                        const float3 D,
+                                                        ccl_private float2 *t_range,
+                                                        const ccl_private LightSample *ls)
+{
+  const int shader_flag = kernel_data_fetch(shaders, ls->shader & SHADER_MASK).flags;
+  const int SD_MIS_BOTH = SD_MIS_BACK | SD_MIS_FRONT;
+  if ((shader_flag & SD_MIS_BOTH) == SD_MIS_BOTH) {
+    /* Both sides are sampled, the complete ray segment is visible. */
+    return true;
+  }
+
+  /* Only one side is sampled, intersect the ray and the triangle light plane to find the visible
+   * ray segment. Flip normal if Emission Sampling is set to back. */
+  const float3 N = ls->Ng;
+  return ray_plane_intersect((shader_flag & SD_MIS_BACK) ? -N : N, P, D, t_range);
+}
+
 template<bool in_volume_segment>
 ccl_device_forceinline bool triangle_light_tree_parameters(
     KernelGlobals kg,
@@ -281,13 +301,11 @@ ccl_device_forceinline bool triangle_light_tree_parameters(
     ccl_private float2 &distance,
     ccl_private float3 &point_to_centroid)
 {
-  if (!in_volume_segment) {
-    /* TODO: a cheap substitute for minimal distance between point and primitive. Does it
-     * worth the overhead to compute the accurate minimal distance? */
-    float min_distance;
-    point_to_centroid = safe_normalize_len(centroid - P, &min_distance);
-    distance = make_float2(min_distance, min_distance);
-  }
+  /* TODO: a cheap substitute for minimal distance between point and primitive. Does it worth the
+   * overhead to compute the accurate minimal distance? */
+  float min_distance;
+  point_to_centroid = safe_normalize_len(centroid - P, &min_distance);
+  distance = make_float2(min_distance, min_distance);
 
   cos_theta_u = FLT_MAX;
 
@@ -307,9 +325,8 @@ ccl_device_forceinline bool triangle_light_tree_parameters(
   }
 
   const bool front_facing = bcone.theta_o != 0.0f || dot(bcone.axis, point_to_centroid) < 0;
-  const bool in_volume = is_zero(N);
 
-  return (front_facing && shape_above_surface) || in_volume;
+  return front_facing && shape_above_surface;
 }
 
 CCL_NAMESPACE_END

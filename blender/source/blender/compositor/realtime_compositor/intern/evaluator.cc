@@ -27,17 +27,23 @@ Evaluator::Evaluator(Context &context) : context_(context) {}
 
 void Evaluator::evaluate()
 {
-  context_.cache_manager().reset();
-  context_.texture_pool().reset();
+  context_.reset();
 
   if (!is_compiled_) {
     compile_and_evaluate();
-    is_compiled_ = true;
-    return;
+  }
+  else {
+    for (const std::unique_ptr<Operation> &operation : operations_stream_) {
+      if (context_.is_canceled()) {
+        context_.cache_manager().skip_next_reset();
+        break;
+      }
+      operation->evaluate();
+    }
   }
 
-  for (const std::unique_ptr<Operation> &operation : operations_stream_) {
-    operation->evaluate();
+  if (context_.profiler()) {
+    context_.profiler()->finalize(context_.get_node_tree());
   }
 }
 
@@ -72,11 +78,23 @@ void Evaluator::compile_and_evaluate()
     return;
   }
 
+  if (context_.is_canceled()) {
+    context_.cache_manager().skip_next_reset();
+    reset();
+    return;
+  }
+
   const Schedule schedule = compute_schedule(context_, *derived_node_tree_);
 
   CompileState compile_state(schedule);
 
   for (const DNode &node : schedule) {
+    if (context_.is_canceled()) {
+      context_.cache_manager().skip_next_reset();
+      reset();
+      return;
+    }
+
     if (compile_state.should_compile_shader_compile_unit(node)) {
       compile_and_evaluate_shader_compile_unit(compile_state);
     }
@@ -88,6 +106,8 @@ void Evaluator::compile_and_evaluate()
       compile_and_evaluate_node(node, compile_state);
     }
   }
+
+  is_compiled_ = true;
 }
 
 void Evaluator::compile_and_evaluate_node(DNode node, CompileState &compile_state)

@@ -18,9 +18,8 @@ if(UNIX)
   endif()
   set(PATCH_MAYBE_DOS2UNIX_CMD
     ${_dos2unix}
-    ${PATCH_DIR}/opencollada.diff
     ${BUILD_DIR}/opencollada/src/external_opencollada/CMakeLists.txt
-    ${BUILD_DIR}/opencollada/src/external_opencollada/Externals/LibXML/CMakeLists.txt &&
+    ${BUILD_DIR}/opencollada/src/external_opencollada/Externals/LibXML/CMakeLists.txt
   )
 else()
   set(OPENCOLLADA_EXTRA_ARGS
@@ -40,10 +39,15 @@ ExternalProject_Add(external_opencollada
   DOWNLOAD_DIR ${DOWNLOAD_DIR}
   URL_HASH ${OPENCOLLADA_HASH_TYPE}=${OPENCOLLADA_HASH}
   PREFIX ${BUILD_DIR}/opencollada
+
   PATCH_COMMAND
     ${PATCH_MAYBE_DOS2UNIX_CMD}
-    ${PATCH_CMD} -p 1 -N -d ${BUILD_DIR}/opencollada/src/external_opencollada < ${PATCH_DIR}/opencollada.diff
-  CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${LIBDIR}/opencollada ${DEFAULT_CMAKE_FLAGS} ${OPENCOLLADA_EXTRA_ARGS}
+
+  CMAKE_ARGS
+    -DCMAKE_INSTALL_PREFIX=${LIBDIR}/opencollada
+    ${DEFAULT_CMAKE_FLAGS}
+    ${OPENCOLLADA_EXTRA_ARGS}
+
   INSTALL_DIR ${LIBDIR}/opencollada
 )
 
@@ -57,14 +61,23 @@ add_dependencies(
 if(WIN32)
   if(BUILD_MODE STREQUAL Release)
     ExternalProject_Add_Step(external_opencollada after_install
-      COMMAND ${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/opencollada/ ${HARVEST_TARGET}/opencollada/
+      COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${LIBDIR}/opencollada/
+        ${HARVEST_TARGET}/opencollada/
+
       DEPENDEES install
     )
   endif()
   if(BUILD_MODE STREQUAL Debug)
     ExternalProject_Add_Step(external_opencollada after_install
-      COMMAND ${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/opencollada/lib ${HARVEST_TARGET}/opencollada/lib
+      COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${LIBDIR}/opencollada/lib
+        ${HARVEST_TARGET}/opencollada/lib
+
       DEPENDEES install
     )
   endif()
+else()
+  harvest(external_opencollada opencollada/include/opencollada opencollada/include "*.h")
+  harvest(external_opencollada opencollada/lib/opencollada opencollada/lib "*.a")
 endif()

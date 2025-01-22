@@ -10,7 +10,6 @@
 #include "BKE_attribute.hh"
 #include "BKE_attribute_math.hh"
 #include "BKE_curves.hh"
-#include "BKE_geometry_set.hh"
 #include "BKE_mesh.hh"
 
 #include "GEO_mesh_to_curve.hh"
@@ -56,6 +55,9 @@ BLI_NOINLINE bke::CurvesGeometry create_curve_from_vert_indices(
         if (meta_data.domain == bke::AttrDomain::Point) {
           return true;
         }
+        if (meta_data.data_type == CD_PROP_STRING) {
+          return true;
+        }
         if (skip.contains(id.name())) {
           return true;
         }
@@ -71,6 +73,9 @@ BLI_NOINLINE bke::CurvesGeometry create_curve_from_vert_indices(
         }
         bke::GSpanAttributeWriter dst = curves_attributes.lookup_or_add_for_write_only_span(
             id, bke::AttrDomain::Point, meta_data.data_type);
+        if (!dst) {
+          return true;
+        }
         bke::attribute_math::gather(*src, vert_indices, dst.span);
         dst.finish();
         return true;

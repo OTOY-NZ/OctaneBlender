@@ -24,13 +24,13 @@
 #include "node_shader_util.hh"
 
 /* **************** OBJECT INFO  ******************** */
-static bNodeSocketTemplate sh_node_object_in[] = {
+static blender::bke::bNodeSocketTemplate sh_node_object_in[] = {
     {SOCK_OBJECT, N_("Object")},
     {SOCK_COLLECTION, N_("Collection")},
     {-1, ""},
 };
 
-static bNodeSocketTemplate sh_node_object_out[] = {
+static blender::bke::bNodeSocketTemplate sh_node_object_out[] = {
     {SOCK_VECTOR, N_("OutTransform")},
     {SOCK_VECTOR, N_("OutRotation")},
     {SOCK_GEOMETRY, N_("OutGeo")},
@@ -58,8 +58,8 @@ static void oct_node_object_data_update(bNodeTree *tree, bNode *node)
       tree, out_rotation_socket, type == OBJECT_DATA_NODE_TYPE_OBJECT);
 }
 
-bool object_data_node_poll(const struct bNodeType *ntype,
-                           const struct bNodeTree *ntree,
+bool object_data_node_poll(const blender::bke::bNodeType * /*ntype*/,
+                           const bNodeTree *ntree,
                            const char **r_disabled_hint)
 {
   bool is_octane_node_tree = STREQ(ntree->idname, "octane_composite_nodes") ||
@@ -75,7 +75,7 @@ bool object_data_node_poll(const struct bNodeType *ntype,
 
 void register_node_type_oct_object_data(void)
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   sh_node_type_base(&ntype, SH_NODE_OCT_OBJECT_DATA, "Object Data", NODE_CLASS_INPUT);
   ntype.poll = object_data_node_poll;

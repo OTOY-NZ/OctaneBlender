@@ -27,7 +27,7 @@
 
 #include "node_shader_util.hh"
 
-static bNodeSocketTemplate sh_node_in[] = {{SOCK_VECTOR,
+static blender::bke::bNodeSocketTemplate  sh_node_in[] = {{SOCK_VECTOR,
                                             N_("Scale"),
                                             1.0f,
                                             1.0f,
@@ -39,7 +39,7 @@ static bNodeSocketTemplate sh_node_in[] = {{SOCK_VECTOR,
                                             SOCK_NO_INTERNAL_LINK},
                                            {-1, ""}};
 
-static bNodeSocketTemplate sh_node_out[] = {
+static blender::bke::bNodeSocketTemplate  sh_node_out[] = {
     {SOCK_SHADER, N_("OutTransform")},
     {SOCK_SHADER,
      N_("OutTex"),
@@ -55,13 +55,13 @@ static bNodeSocketTemplate sh_node_out[] = {
 
 void register_node_type_transform_oct_scale(void)
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   if (ntype.type != SH_NODE_OCT_SCALE_TRN)
     sh_node_type_base(
         &ntype, SH_NODE_OCT_SCALE_TRN, "Scale Transform", NODE_CLASS_OCT_TRANSFORM);
   blender::bke::node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
-  node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::DEFAULT);
+  node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Default);
   ntype.initfunc = (0);
   // node_type_exec(&ntype, 0, 0, 0);
   

@@ -15,7 +15,7 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
-#include "BKE_global.h"
+#include "BKE_global.hh"
 
 #include "blender/OCT_api.h"
 #include <Python.h>
@@ -35,7 +35,7 @@
 
 #include "render/osl.h"
 
-#include "GPU_state.h"
+#include "GPU_state.hh"
 
 OCT_NAMESPACE_BEGIN
 
@@ -533,10 +533,10 @@ static PyObject *osl_update_node_func(PyObject * /*self*/, PyObject *args)
         /* create new socket */
         if (pinInfo.mIsOutput)
           b_sock = b_node.outputs.create(
-              b_data, socket_type.c_str(), socket_name.c_str(), identifier.c_str());
+              b_data, socket_type.c_str(), socket_name.c_str(), identifier.c_str(), false);
         else
           b_sock = b_node.inputs.create(
-              b_data, socket_type.c_str(), socket_name.c_str(), identifier.c_str());
+              b_data, socket_type.c_str(), socket_name.c_str(), identifier.c_str(), false);
 
         /* set default value */
         if (data_type == BL::NodeSocket::type_VALUE) {

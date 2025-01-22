@@ -16,13 +16,12 @@
 #include "BKE_material.h"
 #include "BKE_screen.hh"
 
-#include "DNA_material_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 
 #include "ED_object.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
@@ -40,7 +39,7 @@
  */
 static bool gpencil_modifier_ui_poll(const bContext *C, PanelType * /*pt*/)
 {
-  Object *ob = ED_object_active_context(C);
+  Object *ob = blender::ed::object::context_active_object(C);
 
   return (ob != nullptr) && (ob->type == OB_GPENCIL_LEGACY);
 }
@@ -217,7 +216,7 @@ PointerRNA *gpencil_modifier_panel_get_property_pointers(Panel *panel, PointerRN
 
   uiBlock *block = uiLayoutGetBlock(panel->layout);
   UI_block_lock_clear(block);
-  UI_block_lock_set(block, ID_IS_LINKED((Object *)ptr->owner_id), ERROR_LIBDATA_MESSAGE);
+  UI_block_lock_set(block, !ID_IS_EDITABLE((Object *)ptr->owner_id), ERROR_LIBDATA_MESSAGE);
 
   UI_panel_context_pointer_set(panel, "modifier", ptr);
 
@@ -232,7 +231,7 @@ static void gpencil_modifier_ops_extra_draw(bContext *C, uiLayout *layout, void 
   const GpencilModifierTypeInfo *mti = BKE_gpencil_modifier_get_info(
       GpencilModifierType(md->type));
 
-  Object *ob = ED_object_active_context(C);
+  Object *ob = blender::ed::object::context_active_object(C);
   PointerRNA ptr = RNA_pointer_create(&ob->id, &RNA_GpencilModifier, md);
   uiLayoutSetContextPointer(layout, "modifier", &ptr);
   uiLayoutSetOperatorContext(layout, WM_OP_INVOKE_DEFAULT);
@@ -384,6 +383,7 @@ PanelType *gpencil_modifier_subpanel_register(ARegionType *region_type,
 {
   PanelType *panel_type = static_cast<PanelType *>(MEM_callocN(sizeof(PanelType), __func__));
 
+  BLI_assert(parent != nullptr);
   SNPRINTF(panel_type->idname, "%s_%s", parent->idname, name);
   STRNCPY(panel_type->label, label);
   STRNCPY(panel_type->context, "modifier");
@@ -394,7 +394,6 @@ PanelType *gpencil_modifier_subpanel_register(ARegionType *region_type,
   panel_type->poll = gpencil_modifier_ui_poll;
   panel_type->flag = PANEL_TYPE_DEFAULT_CLOSED;
 
-  BLI_assert(parent != nullptr);
   STRNCPY(panel_type->parent_id, parent->idname);
   panel_type->parent = parent;
   BLI_addtail(&parent->children, BLI_genericNodeN(panel_type));

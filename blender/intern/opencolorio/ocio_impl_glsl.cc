@@ -19,9 +19,9 @@
 #  pragma warning(pop)
 #endif
 
-#include "GPU_immediate.h"
-#include "GPU_shader.h"
-#include "GPU_uniform_buffer.h"
+#include "GPU_immediate.hh"
+#include "GPU_shader.hh"
+#include "GPU_uniform_buffer.hh"
 
 #include "gpu_shader_create_info.hh"
 
@@ -204,6 +204,10 @@ static bool createGPUShader(OCIO_GPUShader &shader,
   info.define("texture1D", "texture");
   info.define("texture2D", "texture");
   info.define("texture3D", "texture");
+  /* Work around unsupported in keyword in Metal GLSL emulation. */
+#ifdef __APPLE__
+  info.define("in", "");
+#endif
   info.typedef_source("ocio_shader_shared.hh");
   info.sampler(TEXTURE_SLOT_IMAGE, ImageType::FLOAT_2D, "image_texture");
   info.sampler(TEXTURE_SLOT_OVERLAY, ImageType::FLOAT_2D, "overlay_texture");
@@ -512,8 +516,8 @@ static void updateGPUCurveMapping(OCIO_GPUCurveMappping &curvemap,
   curvemap.cache_id = curve_mapping_settings->cache_id;
 
   /* Update texture. */
-  int offset[3] = {0, 0, 0};
-  int extent[3] = {curve_mapping_settings->lut_size, 0, 0};
+  const int offset[3] = {0, 0, 0};
+  const int extent[3] = {curve_mapping_settings->lut_size, 0, 0};
   const float *pixels = curve_mapping_settings->lut;
   GPU_texture_update_sub(
       curvemap.texture, GPU_DATA_FLOAT, pixels, UNPACK3(offset), UNPACK3(extent));

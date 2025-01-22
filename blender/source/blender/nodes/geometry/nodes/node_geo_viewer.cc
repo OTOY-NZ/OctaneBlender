@@ -74,13 +74,14 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
       set_active_fn(params, node);
     });
   }
-  if (type && ELEM(type,
+  if (type && ELEM(*type,
                    CD_PROP_FLOAT,
                    CD_PROP_BOOL,
                    CD_PROP_INT32,
                    CD_PROP_FLOAT3,
                    CD_PROP_COLOR,
-                   CD_PROP_QUATERNION))
+                   CD_PROP_QUATERNION,
+                   CD_PROP_FLOAT4X4))
   {
     params.add_item(IFACE_("Value"), [type, set_active_fn](LinkSearchOpParams &params) {
       bNode &node = params.add_node("GeometryNodeViewer");
@@ -90,11 +91,12 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
       /* If the source node has a geometry socket, connect it to the new viewer node as well. */
       LISTBASE_FOREACH (bNodeSocket *, socket, &params.node.outputs) {
         if (socket->type == SOCK_GEOMETRY && socket->is_visible()) {
-          nodeAddLink(&params.node_tree,
-                      &params.node,
-                      socket,
-                      &node,
-                      static_cast<bNodeSocket *>(node.inputs.first));
+          bke::nodeAddLink(&params.node_tree,
+                           &params.node,
+                           socket,
+                           &node,
+                           static_cast<bNodeSocket *>(node.inputs.first));
+          break;
         }
       }
 
@@ -106,7 +108,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 static void node_extra_info(NodeExtraInfoParams &params)
 {
   const auto data_type = eCustomDataType(node_storage(params.node).data_type);
-  if (data_type == CD_PROP_QUATERNION) {
+  if (ELEM(data_type, CD_PROP_QUATERNION, CD_PROP_FLOAT4X4)) {
     NodeExtraInfoRow row;
     row.icon = ICON_INFO;
     row.text = TIP_("No color overlay");
@@ -133,15 +135,16 @@ static void node_rna(StructRNA *srna)
                     "Domain to evaluate the field on",
                     rna_enum_attribute_domain_with_auto_items,
                     NOD_storage_enum_accessors(domain),
-                    int(AttrDomain::Point));
+                    int(AttrDomain::Point),
+                    enums::domain_experimental_grease_pencil_version3_fn);
 }
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, GEO_NODE_VIEWER, "Viewer", NODE_CLASS_OUTPUT);
-  node_type_storage(
+  blender::bke::node_type_storage(
       &ntype, "NodeGeometryViewer", node_free_standard_storage, node_copy_standard_storage);
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
@@ -150,7 +153,7 @@ static void node_register()
   ntype.gather_link_search_ops = node_gather_link_searches;
   ntype.no_muting = true;
   ntype.get_extra_info = node_extra_info;
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

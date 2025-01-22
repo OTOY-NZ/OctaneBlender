@@ -24,11 +24,13 @@
 #include "BKE_animsys.h"
 #include "BKE_context.hh"
 #include "BKE_main.hh"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 
 #include "DEG_depsgraph.hh"
 
 #include "ANIM_keyframing.hh"
+#include "ANIM_keyingsets.hh"
+
 #include "ED_keyframing.hh"
 #include "ED_screen.hh"
 
@@ -43,7 +45,7 @@
 #include "RNA_enum_types.hh"
 #include "RNA_path.hh"
 
-#include "anim_intern.h"
+#include "anim_intern.hh"
 
 /* ************************************************** */
 /* KEYING SETS - OPERATORS (for use in UI panels) */
@@ -101,7 +103,7 @@ static int add_default_keyingset_exec(bContext *C, wmOperator * /*op*/)
    */
   const eKS_Settings flag = KEYINGSET_ABSOLUTE;
 
-  const eInsertKeyFlags keyingflag = ANIM_get_keyframing_flags(scene);
+  const eInsertKeyFlags keyingflag = blender::animrig::get_keyframing_flags(scene);
 
   /* Call the API func, and set the active keyingset index. */
   BKE_keyingset_add(&scene->keyingsets, nullptr, nullptr, flag, keyingflag);
@@ -285,7 +287,7 @@ static int add_keyingset_button_exec(bContext *C, wmOperator *op)
      */
     const eKS_Settings flag = KEYINGSET_ABSOLUTE;
 
-    const eInsertKeyFlags keyingflag = ANIM_get_keyframing_flags(scene);
+    const eInsertKeyFlags keyingflag = blender::animrig::get_keyframing_flags(scene);
 
     /* Call the API func, and set the active keyingset index. */
     keyingset = BKE_keyingset_add(
@@ -744,10 +746,10 @@ KeyingSet *ANIM_get_keyingset_for_autokeying(const Scene *scene, const char *tra
   return ANIM_builtin_keyingset_get_named(transformKSName);
 }
 
-static void anim_keyingset_visit_for_search_impl(const bContext *C,
-                                                 StringPropertySearchVisitFunc visit_fn,
-                                                 void *visit_user_data,
-                                                 const bool use_poll)
+static void anim_keyingset_visit_for_search_impl(
+    const bContext *C,
+    blender::FunctionRef<void(StringPropertySearchVisitParams)> visit_fn,
+    const bool use_poll)
 {
   /* Poll requires context. */
   if (use_poll && (C == nullptr)) {
@@ -758,10 +760,10 @@ static void anim_keyingset_visit_for_search_impl(const bContext *C,
 
   /* Active Keying Set. */
   if (!use_poll || (scene && scene->active_keyingset)) {
-    StringPropertySearchVisitParams visit_params = {nullptr};
+    StringPropertySearchVisitParams visit_params{};
     visit_params.text = "__ACTIVE__";
     visit_params.info = "Active Keying Set";
-    visit_fn(visit_user_data, &visit_params);
+    visit_fn(visit_params);
   }
 
   /* User-defined Keying Sets. */
@@ -770,10 +772,10 @@ static void anim_keyingset_visit_for_search_impl(const bContext *C,
       if (use_poll && !ANIM_keyingset_context_ok_poll((bContext *)C, keyingset)) {
         continue;
       }
-      StringPropertySearchVisitParams visit_params = {nullptr};
+      StringPropertySearchVisitParams visit_params{};
       visit_params.text = keyingset->idname;
       visit_params.info = keyingset->name;
-      visit_fn(visit_user_data, &visit_params);
+      visit_fn(visit_params);
     }
   }
 
@@ -782,31 +784,31 @@ static void anim_keyingset_visit_for_search_impl(const bContext *C,
     if (use_poll && !ANIM_keyingset_context_ok_poll((bContext *)C, keyingset)) {
       continue;
     }
-    StringPropertySearchVisitParams visit_params = {nullptr};
+    StringPropertySearchVisitParams visit_params{};
     visit_params.text = keyingset->idname;
     visit_params.info = keyingset->name;
-    visit_fn(visit_user_data, &visit_params);
+    visit_fn(visit_params);
   }
 }
 
-void ANIM_keyingset_visit_for_search(const bContext *C,
-                                     PointerRNA * /*ptr*/,
-                                     PropertyRNA * /*prop*/,
-                                     const char * /*edit_text*/,
-                                     StringPropertySearchVisitFunc visit_fn,
-                                     void *visit_user_data)
+void ANIM_keyingset_visit_for_search(
+    const bContext *C,
+    PointerRNA * /*ptr*/,
+    PropertyRNA * /*prop*/,
+    const char * /*edit_text*/,
+    blender::FunctionRef<void(StringPropertySearchVisitParams)> visit_fn)
 {
-  anim_keyingset_visit_for_search_impl(C, visit_fn, visit_user_data, false);
+  anim_keyingset_visit_for_search_impl(C, visit_fn, false);
 }
 
-void ANIM_keyingset_visit_for_search_no_poll(const bContext *C,
-                                             PointerRNA * /*ptr*/,
-                                             PropertyRNA * /*prop*/,
-                                             const char * /*edit_text*/,
-                                             StringPropertySearchVisitFunc visit_fn,
-                                             void *visit_user_data)
+void ANIM_keyingset_visit_for_search_no_poll(
+    const bContext *C,
+    PointerRNA * /*ptr*/,
+    PropertyRNA * /*prop*/,
+    const char * /*edit_text*/,
+    blender::FunctionRef<void(StringPropertySearchVisitParams)> visit_fn)
 {
-  anim_keyingset_visit_for_search_impl(C, visit_fn, visit_user_data, true);
+  anim_keyingset_visit_for_search_impl(C, visit_fn, true);
 }
 
 /* Menu of All Keying Sets ----------------------------- */
@@ -928,17 +930,18 @@ void ANIM_relative_keyingset_add_source(blender::Vector<PointerRNA> &sources, ID
 
 /* KeyingSet Operations (Insert/Delete Keyframes) ------------ */
 
-eModifyKey_Returns ANIM_validate_keyingset(bContext *C,
-                                           blender::Vector<PointerRNA> *sources,
-                                           KeyingSet *keyingset)
+blender::animrig::ModifyKeyReturn ANIM_validate_keyingset(bContext *C,
+                                                          blender::Vector<PointerRNA> *sources,
+                                                          KeyingSet *keyingset)
 {
+  using namespace blender::animrig;
   if (keyingset == nullptr) {
-    return MODIFYKEY_SUCCESS;
+    return ModifyKeyReturn::SUCCESS;
   }
 
   /* If relative Keying Sets, poll and build up the paths. */
   if (keyingset->flag & KEYINGSET_ABSOLUTE) {
-    return MODIFYKEY_SUCCESS;
+    return ModifyKeyReturn::SUCCESS;
   }
 
   KeyingSetInfo *keyingset_info = ANIM_keyingset_info_find_name(keyingset->typeinfo);
@@ -951,7 +954,7 @@ eModifyKey_Returns ANIM_validate_keyingset(bContext *C,
 
   /* Get the associated 'type info' for this KeyingSet. */
   if (keyingset_info == nullptr) {
-    return MODIFYKEY_MISSING_TYPEINFO;
+    return ModifyKeyReturn::MISSING_TYPEINFO;
   }
   /* TODO: check for missing callbacks! */
 
@@ -959,7 +962,7 @@ eModifyKey_Returns ANIM_validate_keyingset(bContext *C,
   if (!keyingset_info->poll(keyingset_info, C)) {
     /* Poll callback tells us that KeyingSet is useless in current context. */
     /* FIXME: the poll callback needs to give us more info why. */
-    return MODIFYKEY_INVALID_CONTEXT;
+    return ModifyKeyReturn::INVALID_CONTEXT;
   }
 
   /* If a list of data sources are provided, run a special iterator over them,
@@ -976,10 +979,10 @@ eModifyKey_Returns ANIM_validate_keyingset(bContext *C,
   /* FIXME: we need some error conditions (to be retrieved from the iterator why this failed!)
    */
   if (BLI_listbase_is_empty(&keyingset->paths)) {
-    return MODIFYKEY_INVALID_CONTEXT;
+    return ModifyKeyReturn::INVALID_CONTEXT;
   }
 
-  return MODIFYKEY_SUCCESS;
+  return ModifyKeyReturn::SUCCESS;
 }
 
 /* Determine which keying flags apply based on the override flags. */
@@ -1017,9 +1020,10 @@ static int insert_key_to_keying_set_path(bContext *C,
                                          KS_Path *keyingset_path,
                                          KeyingSet *keyingset,
                                          const eInsertKeyFlags insert_key_flags,
-                                         const eModifyKey_Modes mode,
+                                         const blender::animrig::ModifyKeyMode mode,
                                          const float frame)
 {
+  using namespace blender::animrig;
   /* Since keying settings can be defined on the paths too,
    * apply the settings for this path first. */
   const eInsertKeyFlags path_insert_key_flags = keyingset_apply_keying_flags(
@@ -1074,28 +1078,34 @@ static int insert_key_to_keying_set_path(bContext *C,
   const AnimationEvalContext anim_eval_context = BKE_animsys_eval_context_construct(depsgraph,
                                                                                     frame);
   int keyed_channels = 0;
+
+  CombinedKeyingResult combined_result;
   for (; array_index < array_length; array_index++) {
-    if (mode == MODIFYKEY_MODE_INSERT) {
-      keyed_channels += blender::animrig::insert_keyframe(bmain,
-                                                          reports,
-                                                          keyingset_path->id,
-                                                          nullptr,
-                                                          groupname,
-                                                          keyingset_path->rna_path,
-                                                          array_index,
-                                                          &anim_eval_context,
-                                                          keytype,
-                                                          path_insert_key_flags);
+    if (mode == ModifyKeyMode::INSERT) {
+      CombinedKeyingResult result = insert_keyframe(bmain,
+                                                    *keyingset_path->id,
+                                                    groupname,
+                                                    keyingset_path->rna_path,
+                                                    array_index,
+                                                    &anim_eval_context,
+                                                    keytype,
+                                                    path_insert_key_flags);
+      keyed_channels += result.get_count(SingleKeyingResult::SUCCESS);
+      combined_result.merge(result);
     }
-    else if (mode == MODIFYKEY_MODE_DELETE) {
-      keyed_channels += blender::animrig::delete_keyframe(bmain,
-                                                          reports,
-                                                          keyingset_path->id,
-                                                          nullptr,
-                                                          keyingset_path->rna_path,
-                                                          array_index,
-                                                          frame);
+    else if (mode == ModifyKeyMode::DELETE) {
+      keyed_channels += delete_keyframe(bmain,
+                                        reports,
+                                        keyingset_path->id,
+                                        nullptr,
+                                        keyingset_path->rna_path,
+                                        array_index,
+                                        frame);
     }
+  }
+
+  if (combined_result.get_count(SingleKeyingResult::SUCCESS) == 0) {
+    combined_result.generate_reports(reports);
   }
 
   switch (GS(keyingset_path->id->name)) {
@@ -1121,32 +1131,33 @@ static int insert_key_to_keying_set_path(bContext *C,
 int ANIM_apply_keyingset(bContext *C,
                          blender::Vector<PointerRNA> *sources,
                          KeyingSet *keyingset,
-                         short mode,
-                         float cfra)
+                         const blender::animrig::ModifyKeyMode mode,
+                         const float cfra)
 {
+  using namespace blender::animrig;
   if (keyingset == nullptr) {
     return 0;
   }
 
   Scene *scene = CTX_data_scene(C);
-  const eInsertKeyFlags base_kflags = ANIM_get_keyframing_flags(scene);
+  const eInsertKeyFlags base_kflags = get_keyframing_flags(scene);
   eInsertKeyFlags kflag = INSERTKEY_NOFLAGS;
-  if (mode == MODIFYKEY_MODE_INSERT) {
+  if (mode == ModifyKeyMode::INSERT) {
     /* use context settings as base */
     kflag = keyingset_apply_keying_flags(base_kflags,
                                          eInsertKeyFlags(keyingset->keyingoverride),
                                          eInsertKeyFlags(keyingset->keyingflag));
   }
-  else if (mode == MODIFYKEY_MODE_DELETE) {
+  else if (mode == ModifyKeyMode::DELETE) {
     kflag = INSERTKEY_NOFLAGS;
   }
 
   /* If relative Keying Sets, poll and build up the paths. */
   {
-    const eModifyKey_Returns error = ANIM_validate_keyingset(C, sources, keyingset);
-    if (error != MODIFYKEY_SUCCESS) {
-      BLI_assert(error < 0);
-      return error;
+    const ModifyKeyReturn error = ANIM_validate_keyingset(C, sources, keyingset);
+    if (error != ModifyKeyReturn::SUCCESS) {
+      BLI_assert(int(error) < 0);
+      return int(error);
     }
   }
 
@@ -1167,7 +1178,7 @@ int ANIM_apply_keyingset(bContext *C,
     }
 
     keyed_channels += insert_key_to_keying_set_path(
-        C, keyingset_path, keyingset, kflag, eModifyKey_Modes(mode), cfra);
+        C, keyingset_path, keyingset, kflag, mode, cfra);
   }
 
   /* Return the number of channels successfully affected. */

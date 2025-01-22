@@ -103,6 +103,77 @@ vec2 hammersley_2d(int i, int sample_count)
   return hammersley_2d(uint(i), uint(sample_count));
 }
 
+/* Not random but still useful. sample_count should be an even. */
+vec2 regular_grid_2d(int i, int sample_count)
+{
+  int sample_per_dim = int(sqrt(float(sample_count)));
+  return (vec2(i % sample_per_dim, i / sample_per_dim) + 0.5) / float(sample_per_dim);
+}
+
+/* PCG */
+
+/* https://www.pcg-random.org/ */
+uint pcg_uint(uint u)
+{
+  uint state = u * 747796405u + 2891336453u;
+  uint word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
+  return (word >> 22u) ^ word;
+}
+
+float pcg(float v)
+{
+  return pcg_uint(floatBitsToUint(v)) / float(0xffffffffU);
+}
+
+float pcg(vec2 v)
+{
+  /* Nested pcg (faster and better quality that pcg2d). */
+  uvec2 u = floatBitsToUint(v);
+  return pcg_uint(pcg_uint(u.x) + u.y) / float(0xffffffffU);
+}
+
+/* http://www.jcgt.org/published/0009/03/02/ */
+vec3 pcg3d(vec3 v)
+{
+  uvec3 u = floatBitsToUint(v);
+
+  u = u * 1664525u + 1013904223u;
+
+  u.x += u.y * u.z;
+  u.y += u.z * u.x;
+  u.z += u.x * u.y;
+
+  u ^= u >> 16u;
+
+  u.x += u.y * u.z;
+  u.y += u.z * u.x;
+  u.z += u.x * u.y;
+
+  return vec3(u) / float(0xffffffffU);
+}
+
+/* http://www.jcgt.org/published/0009/03/02/ */
+vec4 pcg4d(vec4 v)
+{
+  uvec4 u = floatBitsToUint(v);
+
+  u = u * 1664525u + 1013904223u;
+
+  u.x += u.y * u.w;
+  u.y += u.z * u.x;
+  u.z += u.x * u.y;
+  u.w += u.y * u.z;
+
+  u ^= u >> 16u;
+
+  u.x += u.y * u.w;
+  u.y += u.z * u.x;
+  u.z += u.x * u.y;
+  u.w += u.y * u.z;
+
+  return vec4(u) / float(0xffffffffU);
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -134,6 +205,12 @@ vec3 sample_cylinder(vec2 rand)
   return vec3(rand.x, sample_circle(rand.y));
 }
 
+/**
+ * Uniform sphere distribution.
+ * \a rand is 2 random float in the [0..1] range.
+ * Returns point on a Z positive hemisphere of radius 1 and centered on the origin.
+ * PDF = 1 / (4 * pi)
+ */
 vec3 sample_sphere(vec2 rand)
 {
   float cos_theta = rand.x * 2.0 - 1.0;
@@ -142,13 +219,38 @@ vec3 sample_sphere(vec2 rand)
 }
 
 /**
+ * Returns a point in a ball that is "uniformly" distributed after projection along any axis.
+ * PDF = unknown
+ */
+vec3 sample_ball(vec3 rand)
+{
+  /* Completely ad-hoc, but works well in practice and is fast. */
+  return sample_sphere(rand.xy) * sqrt(sqrt(rand.z));
+}
+
+/**
  * Uniform hemisphere distribution.
  * \a rand is 2 random float in the [0..1] range.
  * Returns point on a Z positive hemisphere of radius 1 and centered on the origin.
+ * PDF = 1 / (2 * pi)
  */
 vec3 sample_hemisphere(vec2 rand)
 {
   float cos_theta = rand.x;
+  float sin_theta = safe_sqrt(1.0 - square(cos_theta));
+  return vec3(sin_theta * sample_circle(rand.y), cos_theta);
+}
+
+/**
+ * Uniform cone distribution.
+ * \a rand is 2 random float in the [0..1] range.
+ * \a cos_angle is the cosine of the half angle.
+ * Returns point on a Z positive hemisphere of radius 1 and centered on the origin.
+ * PDF = 1 / (2 * pi * (1 - cos_angle))
+ */
+vec3 sample_uniform_cone(vec2 rand, float cos_angle)
+{
+  float cos_theta = mix(cos_angle, 1.0, rand.x);
   float sin_theta = safe_sqrt(1.0 - square(cos_theta));
   return vec3(sin_theta * sample_circle(rand.y), cos_theta);
 }

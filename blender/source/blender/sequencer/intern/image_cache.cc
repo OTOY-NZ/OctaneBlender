@@ -19,30 +19,21 @@
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 
-#include "BLI_blenlib.h"
-#include "BLI_endian_defines.h"
-#include "BLI_endian_switch.h"
-#include "BLI_fileops.h"
 #include "BLI_fileops_types.h"
 #include "BLI_ghash.h"
-#include "BLI_listbase.h"
 #include "BLI_mempool.h"
-#include "BLI_path_util.h"
 #include "BLI_threads.h"
 
 #include "BKE_main.hh"
-#include "BKE_scene.h"
 
 #include "SEQ_prefetch.hh"
 #include "SEQ_relations.hh"
 #include "SEQ_render.hh"
-#include "SEQ_sequencer.hh"
 #include "SEQ_time.hh"
 
 #include "disk_cache.hh"
 #include "image_cache.hh"
 #include "prefetch.hh"
-#include "strip_time.hh"
 
 /**
  * Sequencer Cache Design Notes
@@ -142,7 +133,8 @@ static float seq_cache_timeline_frame_to_frame_index(Scene *scene,
   /* With raw images, map timeline_frame to strip input media frame range. This means that static
    * images or extended frame range of movies will only generate one cache entry. No special
    * treatment in converting frame index to timeline_frame is needed. */
-  if (ELEM(type, SEQ_CACHE_STORE_RAW, SEQ_CACHE_STORE_THUMBNAIL)) {
+  bool is_effect = seq->type & SEQ_TYPE_EFFECT;
+  if (!is_effect && ELEM(type, SEQ_CACHE_STORE_RAW, SEQ_CACHE_STORE_THUMBNAIL)) {
     return SEQ_give_frame_index(scene, seq, timeline_frame);
   }
 
@@ -927,8 +919,24 @@ void SEQ_cache_iterate(
     SeqCacheKey *key = static_cast<SeqCacheKey *>(BLI_ghashIterator_getKey(&gh_iter));
     BLI_ghashIterator_step(&gh_iter);
     BLI_assert(key->cache_owner == cache);
+    int timeline_frame;
+    if (key->type & SEQ_CACHE_STORE_FINAL_OUT) {
+      timeline_frame = key->timeline_frame;
+    }
+    else {
+      /* This is not a final cache image. The cached frame is relative to where the strip is
+       * currently and where it was when it was cached. We can't use the timeline_frame, we need to
+       * derive the timeline frame from key->frame_index.
+       *
+       * NOTE This will not work for RAW caches if they have retiming, strobing, or different
+       * playback rate than the scene. Because it would take quite a bit of effort to properly
+       * convert RAW frames like that to a timeline frame, we skip doing this as visualizing these
+       * are a developer option that not many people will see.
+       */
+      timeline_frame = key->frame_index + SEQ_time_start_frame_get(key->seq);
+    }
 
-    interrupt = callback_iter(userdata, key->seq, key->timeline_frame, key->type);
+    interrupt = callback_iter(userdata, key->seq, timeline_frame, key->type);
   }
 
   cache->last_key = nullptr;

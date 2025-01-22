@@ -5,7 +5,7 @@
 #ifndef GPU_SHADER
 #  pragma once
 
-#  include "GPU_shader_shared_utils.h"
+#  include "GPU_shader_shared_utils.hh"
 
 #  include "DNA_action_types.h"
 #  include "DNA_view3d_types.h"
@@ -51,6 +51,9 @@ ENUM_OPERATORS(OVERLAY_GridBits, CUSTOM_GRID)
 /* Match: #SI_GRID_STEPS_LEN */
 #define OVERLAY_GRID_STEPS_LEN 8
 
+/* Due to the encoding clamping the passed in floats, the wire width needs to be scaled down. */
+#define WIRE_WIDTH_COMPRESSION 16
+
 struct OVERLAY_GridData {
   float4 steps[OVERLAY_GRID_STEPS_LEN]; /* float arrays are padded to float4 in std130. */
   float4 size;                          /* float3 padded to float4. */
@@ -62,6 +65,11 @@ struct OVERLAY_GridData {
 BLI_STATIC_ASSERT_ALIGN(OVERLAY_GridData, 16)
 
 #ifdef GPU_SHADER
+/* Keep the same values as in `draw_cache_impl_curves.cc` */
+#  define EDIT_CURVES_NURBS_CONTROL_POINT (1u)
+#  define EDIT_CURVES_BEZIER_HANDLE (1u << 1)
+#  define EDIT_CURVES_LEFT_HANDLE_TYPES_SHIFT (6u)
+#  define EDIT_CURVES_RIGHT_HANDLE_TYPES_SHIFT (4u)
 /* Keep the same values as in `draw_cache_imp_curve.c` */
 #  define ACTIVE_NURB (1u << 2)
 #  define BEZIER_HANDLE (1u << 3)

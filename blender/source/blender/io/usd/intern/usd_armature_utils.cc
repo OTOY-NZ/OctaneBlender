@@ -3,15 +3,16 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "usd_armature_utils.hh"
+#include "usd_utils.hh"
 
 #include "BKE_armature.hh"
 #include "BKE_modifier.hh"
+#include "BLI_listbase.h"
+#include "BLI_vector.hh"
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
+#include "DNA_action_types.h"
 #include "DNA_armature_types.h"
-#include "ED_armature.hh"
-
-#include "WM_api.hh"
 
 namespace blender::io::usd {
 
@@ -95,13 +96,13 @@ void get_armature_bone_names(const Object *ob_arm,
   visit_bones(ob_arm, visitor);
 }
 
-pxr::TfToken build_usd_joint_path(const Bone *bone)
+pxr::TfToken build_usd_joint_path(const Bone *bone, bool allow_unicode)
 {
-  std::string path(pxr::TfMakeValidIdentifier(bone->name));
+  std::string path(make_safe_name(bone->name, allow_unicode));
 
   const Bone *parent = bone->parent;
   while (parent) {
-    path = pxr::TfMakeValidIdentifier(parent->name) + std::string("/") + path;
+    path = make_safe_name(parent->name, allow_unicode) + std::string("/") + path;
     parent = parent->parent;
   }
 
@@ -110,7 +111,8 @@ pxr::TfToken build_usd_joint_path(const Bone *bone)
 
 void create_pose_joints(pxr::UsdSkelAnimation &skel_anim,
                         const Object &obj,
-                        const Map<StringRef, const Bone *> *deform_map)
+                        const Map<StringRef, const Bone *> *deform_map,
+                        bool allow_unicode)
 {
   BLI_assert(obj.pose);
 
@@ -126,7 +128,7 @@ void create_pose_joints(pxr::UsdSkelAnimation &skel_anim,
         continue;
       }
 
-      joints.push_back(build_usd_joint_path(pchan->bone));
+      joints.push_back(build_usd_joint_path(pchan->bone, allow_unicode));
     }
   }
 

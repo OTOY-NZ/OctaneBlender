@@ -32,10 +32,6 @@
 
 #include <sys/stat.h>
 
-/* Set to 0 to allow devices that do not have the required features.
- * This allows development on OSX until we really needs these features. */
-#define STRICT_REQUIREMENTS true
-
 /*
  * Should we only select surfaces that are known to be compatible. Or should we in case no
  * compatible surfaces have been found select the first one.
@@ -96,21 +92,6 @@ static const char *vulkan_error_as_string(VkResult result)
     default:
       return "Unknown Error";
   }
-}
-
-enum class VkLayer : uint8_t { KHRONOS_validation };
-
-static bool vklayer_config_exist(const char *vk_extension_config)
-{
-  const char *ev_val = getenv("VK_LAYER_PATH");
-  if (ev_val == nullptr) {
-    return true;
-  }
-  std::stringstream filename;
-  filename << ev_val;
-  filename << "/" << vk_extension_config;
-  struct stat buffer;
-  return (stat(filename.str().c_str(), &buffer) == 0);
 }
 
 #define __STR(A) "" #A
@@ -208,7 +189,7 @@ class GHOST_DeviceVK {
     return true;
   }
 
-  void ensure_device(vector<const char *> &layers_enabled, vector<const char *> &extensions_device)
+  void ensure_device(vector<const char *> &extensions_device)
   {
     if (device != VK_NULL_HANDLE) {
       return;
@@ -226,14 +207,15 @@ class GHOST_DeviceVK {
     queue_create_infos.push_back(graphic_queue_create_info);
 
     VkPhysicalDeviceFeatures device_features = {};
-#if STRICT_REQUIREMENTS
+#ifndef __APPLE__
     device_features.geometryShader = VK_TRUE;
-    device_features.dualSrcBlend = VK_TRUE;
+    /* MoltenVK supports logicOp, needs to be build with MVK_USE_METAL_PRIVATE_API. */
     device_features.logicOp = VK_TRUE;
+#endif
+    device_features.dualSrcBlend = VK_TRUE;
     device_features.imageCubeArray = VK_TRUE;
     device_features.multiViewport = VK_TRUE;
     device_features.shaderClipDistance = VK_TRUE;
-#endif
     device_features.drawIndirectFirstInstance = VK_TRUE;
     device_features.fragmentStoresAndAtomics = VK_TRUE;
     device_features.samplerAnisotropy = features.features.samplerAnisotropy;
@@ -242,8 +224,6 @@ class GHOST_DeviceVK {
     device_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
     device_create_info.queueCreateInfoCount = uint32_t(queue_create_infos.size());
     device_create_info.pQueueCreateInfos = queue_create_infos.data();
-    device_create_info.enabledLayerCount = uint32_t(layers_enabled.size());
-    device_create_info.ppEnabledLayerNames = layers_enabled.data();
     device_create_info.enabledExtensionCount = uint32_t(extensions_device.size());
     device_create_info.ppEnabledExtensionNames = extensions_device.data();
     device_create_info.pEnabledFeatures = &device_features;
@@ -267,6 +247,13 @@ class GHOST_DeviceVK {
     shader_draw_parameters.shaderDrawParameters = features_11.shaderDrawParameters;
     shader_draw_parameters.pNext = device_create_info_p_next;
     device_create_info_p_next = &shader_draw_parameters;
+
+    /* Enable dynamic rendering. */
+    VkPhysicalDeviceDynamicRenderingFeatures dynamic_rendering = {};
+    dynamic_rendering.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES;
+    dynamic_rendering.dynamicRendering = true;
+    dynamic_rendering.pNext = device_create_info_p_next;
+    device_create_info_p_next = &dynamic_rendering;
 
     /* Query for Mainenance4 (core in Vulkan 1.3). */
     VkPhysicalDeviceMaintenance4FeaturesKHR maintenance_4 = {};
@@ -355,7 +342,11 @@ static GHOST_TSuccess ensure_vulkan_device(VkInstance vk_instance,
       }
     }
 
-#if STRICT_REQUIREMENTS
+#ifdef __APPLE__
+    if (!device_vk.features.features.dualSrcBlend || !device_vk.features.features.imageCubeArray) {
+      continue;
+    }
+#else
     if (!device_vk.features.features.geometryShader || !device_vk.features.features.dualSrcBlend ||
         !device_vk.features.features.logicOp || !device_vk.features.features.imageCubeArray)
     {
@@ -646,65 +637,6 @@ static void requireExtension(const vector<VkExtensionProperties> &extensions_ava
   }
 }
 
-static vector<VkLayerProperties> getLayersAvailable()
-{
-  uint32_t layer_count = 0;
-  vkEnumerateInstanceLayerProperties(&layer_count, nullptr);
-
-  vector<VkLayerProperties> layers(layer_count);
-  vkEnumerateInstanceLayerProperties(&layer_count, layers.data());
-
-  return layers;
-}
-
-static bool checkLayerSupport(const vector<VkLayerProperties> &layers_available,
-                              const char *layer_name)
-{
-  for (const auto &layer : layers_available) {
-    if (strcmp(layer_name, layer.layerName) == 0) {
-      return true;
-    }
-  }
-  return false;
-}
-
-static void enableLayer(const vector<VkLayerProperties> &layers_available,
-                        vector<const char *> &layers_enabled,
-                        const VkLayer layer,
-                        const bool display_warning)
-{
-#define PUSH_VKLAYER(name, name2) \
-  if (vklayer_config_exist("VkLayer_" #name ".json") && \
-      checkLayerSupport(layers_available, "VK_LAYER_" #name2)) \
-  { \
-    layers_enabled.push_back("VK_LAYER_" #name2); \
-    enabled = true; \
-  } \
-  else { \
-    warnings << "VK_LAYER_" #name2; \
-  }
-
-  bool enabled = false;
-  std::stringstream warnings;
-
-  switch (layer) {
-    case VkLayer::KHRONOS_validation:
-      PUSH_VKLAYER(khronos_validation, KHRONOS_validation);
-  };
-
-  if (enabled) {
-    return;
-  }
-
-  if (display_warning) {
-    fprintf(stderr,
-            "Warning: Layer requested, but not supported by the platform. [%s] \n",
-            warnings.str().c_str());
-  }
-
-#undef PUSH_VKLAYER
-}
-
 static GHOST_TSuccess selectPresentMode(VkPhysicalDevice device,
                                         VkSurfaceKHR surface,
                                         VkPresentModeKHR *r_presentMode)
@@ -861,7 +793,7 @@ GHOST_TSuccess GHOST_ContextVK::createSwapchain()
 
   /* Driver can stall if only using minimal image count. */
   uint32_t image_count = capabilities.minImageCount + 1;
-  /* Note: maxImageCount == 0 means no limit. */
+  /* NOTE: maxImageCount == 0 means no limit. */
   if (image_count > capabilities.maxImageCount && capabilities.maxImageCount > 0) {
     image_count = capabilities.maxImageCount;
   }
@@ -986,34 +918,33 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
   }
 #endif
 
-  auto layers_available = getLayersAvailable();
-  auto extensions_available = getExtensionsAvailable();
-
-  vector<const char *> layers_enabled;
+  std::vector<VkExtensionProperties> extensions_available = getExtensionsAvailable();
   vector<const char *> extensions_device;
   vector<const char *> extensions_enabled;
 
   if (m_debug) {
-    enableLayer(layers_available, layers_enabled, VkLayer::KHRONOS_validation, m_debug);
     requireExtension(extensions_available, extensions_enabled, VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
   }
 
   if (use_window_surface) {
     const char *native_surface_extension_name = getPlatformSpecificSurfaceExtension();
-
-    requireExtension(extensions_available, extensions_enabled, "VK_KHR_surface");
+    requireExtension(extensions_available, extensions_enabled, VK_KHR_SURFACE_EXTENSION_NAME);
     requireExtension(extensions_available, extensions_enabled, native_surface_extension_name);
 
     extensions_device.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
   }
   extensions_device.push_back(VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME);
   extensions_device.push_back(VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME);
+  extensions_device.push_back(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);
 
   /* Enable MoltenVK required instance extensions. */
-#ifdef VK_MVK_MOLTENVK_EXTENSION_NAME
+#ifdef __APPLE__
   requireExtension(
-      extensions_available, extensions_enabled, "VK_KHR_get_physical_device_properties2");
+      extensions_available, extensions_enabled, VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
 #endif
+  requireExtension(extensions_available,
+                   extensions_enabled,
+                   VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
 
   VkInstance instance = VK_NULL_HANDLE;
   if (!vulkan_device.has_value()) {
@@ -1029,8 +960,6 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
     VkInstanceCreateInfo create_info = {};
     create_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     create_info.pApplicationInfo = &app_info;
-    create_info.enabledLayerCount = uint32_t(layers_enabled.size());
-    create_info.ppEnabledLayerNames = layers_enabled.data();
     create_info.enabledExtensionCount = uint32_t(extensions_enabled.size());
     create_info.ppEnabledExtensionNames = extensions_enabled.data();
 
@@ -1045,6 +974,10 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
     if (m_debug) {
       create_info.pNext = &validationFeatures;
     }
+
+#ifdef __APPLE__
+    create_info.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+#endif
 
     VK_CHECK(vkCreateInstance(&create_info, nullptr, &instance));
   }
@@ -1097,6 +1030,11 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
     return GHOST_kFailure;
   }
 
+  vulkan_device->users++;
+  /* Register optional device extensions */
+  if (vulkan_device->has_extensions({VK_KHR_MAINTENANCE_4_EXTENSION_NAME})) {
+    extensions_device.push_back(VK_KHR_MAINTENANCE_4_EXTENSION_NAME);
+  }
 #ifdef VK_MVK_MOLTENVK_EXTENSION_NAME
   /* According to the Vulkan specs, when `VK_KHR_portability_subset` is available it should be
    * enabled. See
@@ -1105,8 +1043,7 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
     extensions_device.push_back(VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME);
   }
 #endif
-  vulkan_device->users++;
-  vulkan_device->ensure_device(layers_enabled, extensions_device);
+  vulkan_device->ensure_device(extensions_device);
 
   vkGetDeviceQueue(
       vulkan_device->device, vulkan_device->generic_queue_family, 0, &m_graphic_queue);

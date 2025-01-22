@@ -13,10 +13,12 @@
 
 #pragma once
 
+#include "BLI_hash.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
+#include "GPU_common_types.hh"
 #include "GPU_material.hh"
-#include "GPU_texture.h"
+#include "GPU_texture.hh"
 
 #include <iostream>
 
@@ -31,48 +33,6 @@ namespace blender::gpu::shader {
     ShaderCreateInfo _info(#_info); \
     _info
 #endif
-
-enum class Type {
-  /* Types supported natively across all GPU back-ends. */
-  FLOAT = 0,
-  VEC2,
-  VEC3,
-  VEC4,
-  MAT3,
-  MAT4,
-  UINT,
-  UVEC2,
-  UVEC3,
-  UVEC4,
-  INT,
-  IVEC2,
-  IVEC3,
-  IVEC4,
-  BOOL,
-  /* Additionally supported types to enable data optimization and native
-   * support in some GPU back-ends.
-   * NOTE: These types must be representable in all APIs. E.g. `VEC3_101010I2` is aliased as vec3
-   * in the GL back-end, as implicit type conversions from packed normal attribute data to vec3 is
-   * supported. UCHAR/CHAR types are natively supported in Metal and can be used to avoid
-   * additional data conversions for `GPU_COMP_U8` vertex attributes. */
-  VEC3_101010I2,
-  UCHAR,
-  UCHAR2,
-  UCHAR3,
-  UCHAR4,
-  CHAR,
-  CHAR2,
-  CHAR3,
-  CHAR4,
-  USHORT,
-  USHORT2,
-  USHORT3,
-  USHORT4,
-  SHORT,
-  SHORT2,
-  SHORT3,
-  SHORT4
-};
 
 /* All of these functions is a bit out of place */
 static inline Type to_type(const eGPUType type)
@@ -479,7 +439,7 @@ struct ShaderCreateInfo {
     Type type;
     DualBlend blend;
     StringRefNull name;
-    /* Note: Currently only supported by Metal. */
+    /* NOTE: Currently only supported by Metal. */
     int raster_order_group;
 
     bool operator==(const FragOut &b) const
@@ -497,32 +457,6 @@ struct ShaderCreateInfo {
   using SubpassIn = FragOut;
   Vector<SubpassIn> subpass_inputs_;
 
-  struct SpecializationConstant {
-    struct Value {
-      union {
-        uint32_t u;
-        int32_t i;
-        float f;
-      };
-
-      bool operator==(const Value &other) const
-      {
-        return u == other.u;
-      }
-    };
-
-    Type type;
-    StringRefNull name;
-    Value default_value;
-
-    bool operator==(const SpecializationConstant &b) const
-    {
-      TEST_EQUAL(*this, b, type);
-      TEST_EQUAL(*this, b, name);
-      TEST_EQUAL(*this, b, default_value);
-      return true;
-    }
-  };
   Vector<SpecializationConstant> specialization_constants_;
 
   struct Sampler {
@@ -775,14 +709,14 @@ struct ShaderCreateInfo {
     constant.name = name;
     switch (type) {
       case Type::INT:
-        constant.default_value.i = static_cast<int>(default_value);
+        constant.value.i = static_cast<int>(default_value);
         break;
       case Type::BOOL:
       case Type::UINT:
-        constant.default_value.u = static_cast<uint>(default_value);
+        constant.value.u = static_cast<uint>(default_value);
         break;
       case Type::FLOAT:
-        constant.default_value.f = static_cast<float>(default_value);
+        constant.value.f = static_cast<float>(default_value);
         break;
       default:
         BLI_assert_msg(0, "Only scalar types can be used as constants");
@@ -1167,3 +1101,16 @@ struct ShaderCreateInfo {
 };
 
 }  // namespace blender::gpu::shader
+
+namespace blender {
+template<> struct DefaultHash<Vector<blender::gpu::shader::SpecializationConstant::Value>> {
+  uint64_t operator()(const Vector<blender::gpu::shader::SpecializationConstant::Value> &key) const
+  {
+    uint64_t hash = 0;
+    for (const blender::gpu::shader::SpecializationConstant::Value &value : key) {
+      hash = hash * 33 ^ uint64_t(value.u);
+    }
+    return hash;
+  }
+};
+}  // namespace blender

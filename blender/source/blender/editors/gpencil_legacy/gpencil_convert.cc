@@ -21,10 +21,7 @@
 #include "BLI_rand.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
-
 #include "DNA_anim_types.h"
-#include "DNA_collection_types.h"
 #include "DNA_curve_types.h"
 #include "DNA_gpencil_legacy_types.h"
 #include "DNA_material_types.h"
@@ -36,26 +33,20 @@
 #include "DNA_view3d_types.h"
 
 #include "BKE_animsys.h"
-#include "BKE_collection.h"
+#include "BKE_collection.hh"
 #include "BKE_context.hh"
 #include "BKE_curve.hh"
-#include "BKE_fcurve.h"
-#include "BKE_global.h"
+#include "BKE_fcurve.hh"
+#include "BKE_global.hh"
 #include "BKE_gpencil_geom_legacy.h"
 #include "BKE_gpencil_legacy.h"
 #include "BKE_image.h"
 #include "BKE_layer.hh"
-#include "BKE_main.hh"
-#include "BKE_material.h"
 #include "BKE_object.hh"
-#include "BKE_report.h"
-#include "BKE_scene.h"
-#include "BKE_tracking.h"
+#include "BKE_report.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
-
-#include "UI_interface.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -70,13 +61,11 @@
 #include "ANIM_animdata.hh"
 #include "ANIM_keyframing.hh"
 
-#include "ED_clip.hh"
 #include "ED_gpencil_legacy.hh"
-#include "ED_keyframing.hh"
 #include "ED_object.hh"
 #include "ED_view3d.hh"
 
-#include "gpencil_intern.h"
+#include "gpencil_intern.hh"
 
 /* ************************************************ */
 /* Grease Pencil to Data Operator */
@@ -384,7 +373,7 @@ static void gpencil_stroke_path_animation_preprocess_gaps(tGpTimingData *gtd,
 }
 
 static void gpencil_stroke_path_animation_add_keyframes(ReportList *reports,
-                                                        PointerRNA ptr,
+                                                        const PointerRNA &ptr,
                                                         PropertyRNA *prop,
                                                         Depsgraph *depsgraph,
                                                         FCurve *fcu,
@@ -1399,7 +1388,7 @@ static void gpencil_layer_to_curve(bContext *C,
     }
   }
 
-  ED_object_base_select(base_new, BA_SELECT);
+  blender::ed::object::base_select(base_new, blender::ed::object::BA_SELECT);
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
 }

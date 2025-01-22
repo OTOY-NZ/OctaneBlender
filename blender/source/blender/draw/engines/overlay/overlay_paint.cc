@@ -30,7 +30,11 @@ static bool paint_object_is_rendered_transparent(View3D *v3d, Object *ob)
     if (ob && v3d->shading.color_type == V3D_SHADING_OBJECT_COLOR) {
       return ob->color[3] < 1.0f;
     }
-    if (ob && ob->type == OB_MESH && ob->data &&
+
+    /* NOTE: The active object might be hidden and hence have inconsistent evaluated state of its
+     * mesh data. So only perform checks dependent on mesh after checking the object is actually
+     * visible. */
+    if (ob && ob->type == OB_MESH && BKE_object_is_visible_in_viewport(v3d, ob) && ob->data &&
         v3d->shading.color_type == V3D_SHADING_MATERIAL_COLOR)
     {
       Mesh *mesh = static_cast<Mesh *>(ob->data);
@@ -193,7 +197,7 @@ void OVERLAY_paint_cache_init(OVERLAY_Data *vedata)
 void OVERLAY_paint_texture_cache_populate(OVERLAY_Data *vedata, Object *ob)
 {
   OVERLAY_PrivateData *pd = vedata->stl->pd;
-  GPUBatch *geom = nullptr;
+  blender::gpu::Batch *geom = nullptr;
 
   const Mesh *me_orig = static_cast<Mesh *>(DEG_get_original_object(ob)->data);
   const bool use_face_sel = (me_orig->editflag & ME_EDIT_PAINT_FACE_SEL) != 0;
@@ -212,7 +216,7 @@ void OVERLAY_paint_texture_cache_populate(OVERLAY_Data *vedata, Object *ob)
 void OVERLAY_paint_vertex_cache_populate(OVERLAY_Data *vedata, Object *ob)
 {
   OVERLAY_PrivateData *pd = vedata->stl->pd;
-  GPUBatch *geom = nullptr;
+  blender::gpu::Batch *geom = nullptr;
 
   const Mesh *me_orig = static_cast<Mesh *>(DEG_get_original_object(ob)->data);
   const bool is_edit_mode = (pd->ctx_mode == CTX_MODE_EDIT_MESH);

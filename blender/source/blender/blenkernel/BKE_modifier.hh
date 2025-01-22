@@ -165,15 +165,15 @@ struct ModifierEvalContext {
 struct ModifierTypeInfo {
   /* A unique identifier for this modifier. Used to generate the panel id type name.
    * See #BKE_modifier_type_panel_id. */
-  char idname[32];
+  char idname[64];
 
   /* The user visible name for this modifier */
-  char name[32];
+  char name[64];
 
   /* The DNA struct name for the modifier data type, used to
    * write the DNA data out.
    */
-  char struct_name[32];
+  char struct_name[64];
 
   /* The size of the modifier data type, used by allocation. */
   int struct_size;
@@ -200,8 +200,8 @@ struct ModifierTypeInfo {
   /********************* Deform modifier functions *********************/
 
   /**
-   * Apply a deformation to the positions in the \a vertexCos array. If the \a mesh argument is
-   * non-null, if will contain proper (not wrapped) mesh data. The \a vertexCos array may or may
+   * Apply a deformation to the positions in the \a positions array. If the \a mesh argument is
+   * non-null, if will contain proper (not wrapped) mesh data. The \a positions array may or may
    * not be the same as the mesh's position attribute.
    */
   void (*deform_verts)(ModifierData *md,
@@ -223,14 +223,14 @@ struct ModifierTypeInfo {
    */
   void (*deform_verts_EM)(ModifierData *md,
                           const ModifierEvalContext *ctx,
-                          BMEditMesh *em,
+                          const BMEditMesh *em,
                           Mesh *mesh,
                           blender::MutableSpan<blender::float3> positions);
 
   /* Set deform matrix per vertex for crazy-space correction */
   void (*deform_matrices_EM)(ModifierData *md,
                              const ModifierEvalContext *ctx,
-                             BMEditMesh *em,
+                             const BMEditMesh *em,
                              Mesh *mesh,
                              blender::MutableSpan<blender::float3> positions,
                              blender::MutableSpan<blender::float3x3> matrices);
@@ -322,12 +322,9 @@ struct ModifierTypeInfo {
   bool (*depends_on_time)(Scene *scene, ModifierData *md);
 
   /**
-   * True when a deform modifier uses normals, the required_data_mask
-   * can't be used here because that refers to a normal layer whereas
-   * in this case we need to know if the deform modifier uses normals.
-   *
-   * this is needed because applying 2 deform modifiers will give the
-   * second modifier bogus normals.
+   * Returns true when a deform modifier uses mesh normals as input. This callback is only required
+   * for deform modifiers that support deforming positions with an edit mesh (when #deform_verts_EM
+   * is implemented).
    */
   bool (*depends_on_normals)(ModifierData *md);
 
@@ -581,14 +578,14 @@ void BKE_modifier_deform_verts(ModifierData *md,
 
 void BKE_modifier_deform_vertsEM(ModifierData *md,
                                  const ModifierEvalContext *ctx,
-                                 BMEditMesh *em,
+                                 const BMEditMesh *em,
                                  Mesh *mesh,
                                  blender::MutableSpan<blender::float3> positions);
 
 /**
  * Get evaluated mesh for other evaluated object, which is used as an operand for the modifier,
  * e.g. second operand for boolean modifier.
- * Note that modifiers in stack always get fully evaluated COW ID pointers,
+ * Note that modifiers in stack always get fully evaluated ID pointers,
  * never original ones. Makes things simpler.
  */
 Mesh *BKE_modifier_get_evaluated_mesh_from_evaluated_object(Object *ob_eval);

@@ -32,7 +32,7 @@ void main()
 
   ObjectBounds bounds = bounds_buf[gl_GlobalInvocationID.x];
 
-  if (bounds.bounding_sphere.w != -1.0) {
+  if (drw_bounds_are_valid(bounds)) {
     IsectBox box = isect_box_setup(bounds.bounding_corners[0].xyz,
                                    bounds.bounding_corners[1].xyz,
                                    bounds.bounding_corners[2].xyz,
@@ -55,6 +55,15 @@ void main()
       }
       else if (intersect_view(box) == false) {
         /* Not visible. */
+        mask_visibility_bit(drw_view_id);
+      }
+    }
+  }
+  else {
+    /* Culling is disabled, but we need to mask the bits for disabled views. */
+    for (drw_view_id = 0u; drw_view_id < uint(view_len); drw_view_id++) {
+      if (drw_view_culling.bound_sphere.w == -1.0) {
+        /* View disabled. */
         mask_visibility_bit(drw_view_id);
       }
     }

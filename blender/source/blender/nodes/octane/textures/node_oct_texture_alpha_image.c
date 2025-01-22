@@ -32,7 +32,7 @@
 #include "BKE_node_runtime.hh"
 #include "BKE_texture.h"
 
-static bNodeSocketTemplate sh_node_in[] = {
+static blender::bke::bNodeSocketTemplate  sh_node_in[] = {
     {SOCK_FLOAT,
      N_("Power"),
      1.0f,
@@ -116,7 +116,7 @@ static bNodeSocketTemplate sh_node_in[] = {
      SOCK_HIDDEN | SOCK_UNAVAIL | SOCK_AUTO_HIDDEN__DEPRECATED},
     {-1, ""}};
 
-static bNodeSocketTemplate sh_node_out[] = {{SOCK_RGBA, N_("OutTex")}, {-1, ""}};
+static blender::bke::bNodeSocketTemplate  sh_node_out[] = {{SOCK_RGBA, N_("OutTex")}, {-1, ""}};
 
 static void node_oct_alpha_image_tex_init(bNodeTree *ntree, bNode *node)
 {
@@ -134,7 +134,7 @@ static void node_oct_alpha_image_tex_init(bNodeTree *ntree, bNode *node)
 
 void register_node_type_tex_oct_alpha_image(void)
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   if (ntype.type != SH_NODE_OCT_ALPHA_IMAGE_TEX)
     sh_node_type_base(&ntype,

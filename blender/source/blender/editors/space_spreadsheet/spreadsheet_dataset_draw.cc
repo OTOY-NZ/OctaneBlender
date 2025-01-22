@@ -20,10 +20,9 @@
 
 #include "WM_types.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "spreadsheet_dataset_draw.hh"
-#include "spreadsheet_draw.hh"
 #include "spreadsheet_intern.hh"
 
 namespace blender::ed::spreadsheet {
@@ -286,9 +285,9 @@ std::optional<int> GeometryDataSetTreeViewItem::count() const
   }
 
   if (component_type_ == bke::GeometryComponent::Type::GreasePencil && layer_index_) {
-    if (const bke::greasepencil::Drawing *drawing =
-            bke::greasepencil::get_eval_grease_pencil_layer_drawing(*geometry.get_grease_pencil(),
-                                                                    *layer_index_))
+    const GreasePencil *grease_pencil = geometry.get_grease_pencil();
+    if (const bke::greasepencil::Drawing *drawing = grease_pencil->get_eval_drawing(
+            *grease_pencil->layer(*layer_index_)))
     {
       return drawing->strokes().attributes().domain_size(*domain_);
     }
@@ -319,7 +318,7 @@ void spreadsheet_data_set_panel_draw(const bContext *C, Panel *panel)
       "Data Set Tree View",
       std::make_unique<GeometryDataSetTreeView>(
           spreadsheet_get_display_geometry_set(sspreadsheet, object), *C));
-
+  tree_view->set_context_menu_title("Spreadsheet");
   ui::TreeViewBuilder::build_tree_view(*tree_view, *layout);
 }
 

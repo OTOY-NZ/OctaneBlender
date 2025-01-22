@@ -20,8 +20,6 @@
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
-#include "DEG_depsgraph_query.hh"
-
 #include "GEO_randomize.hh"
 
 #include "node_geometry_util.hh"
@@ -215,7 +213,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
     const VolumeComponent *component = geometry_set.get_component<VolumeComponent>();
     const Volume *volume = component->get();
-    BKE_volume_load(volume, DEG_get_bmain(params.depsgraph()));
+    BKE_volume_load(volume, params.bmain());
 
     Vector<float3> positions;
 
@@ -291,22 +289,22 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
   geo_node_type_base(&ntype,
                      GEO_NODE_DISTRIBUTE_POINTS_IN_VOLUME,
                      "Distribute Points in Volume",
                      NODE_CLASS_GEOMETRY);
-  node_type_storage(&ntype,
-                    "NodeGeometryDistributePointsInVolume",
-                    node_free_standard_storage,
-                    node_copy_standard_storage);
+  blender::bke::node_type_storage(&ntype,
+                                  "NodeGeometryDistributePointsInVolume",
+                                  node_free_standard_storage,
+                                  node_copy_standard_storage);
   ntype.initfunc = node_init;
   ntype.updatefunc = node_update;
   blender::bke::node_type_size(&ntype, 170, 100, 320);
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
-  nodeRegisterType(&ntype);
+  blender::bke::nodeRegisterType(&ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

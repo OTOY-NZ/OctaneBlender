@@ -8,10 +8,9 @@
 
 #include "BKE_context.hh"
 #include "BKE_layer.hh"
-#include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
 #include "BKE_object.hh"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 
 #include "DNA_collection_types.h"
 #include "DNA_object_types.h"
@@ -20,7 +19,7 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
-#include "BLI_memory_utils.hh"
+#include "BLI_span.hh"
 #include "BLI_string.h"
 
 #include "DEG_depsgraph.hh"
@@ -214,7 +213,7 @@ void importer_main(Main *bmain,
   BKE_view_layer_base_deselect_all(scene, view_layer);
   LayerCollection *lc = BKE_layer_collection_get_active(view_layer);
   Object *obj = BKE_object_add_only_object(bmain, OB_MESH, ob_name);
-  BKE_mesh_assign_object(bmain, obj, mesh_in_main);
+  obj->data = mesh_in_main;
   BKE_collection_object_add(bmain, lc->collection, obj);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Base *base = BKE_view_layer_base_find(view_layer, obj);
@@ -241,7 +240,7 @@ void importer_main(Main *bmain,
   rescale_m4(obmat4x4, scale_vec);
   BKE_object_apply_mat4(obj, obmat4x4, true, false);
 
-  DEG_id_tag_update(&lc->collection->id, ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&lc->collection->id, ID_RECALC_SYNC_TO_EVAL);
   int flags = ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_ANIMATION |
               ID_RECALC_BASE_FLAGS;
   DEG_id_tag_update_ex(bmain, &obj->id, flags);

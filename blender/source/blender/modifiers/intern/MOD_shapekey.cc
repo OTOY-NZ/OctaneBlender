@@ -9,16 +9,13 @@
 #include "BLI_math_matrix.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_key_types.h"
-#include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 
 #include "BKE_key.hh"
-#include "BKE_particle.h"
 
-#include "RNA_access.hh"
 #include "RNA_prototypes.h"
 
 #include "MOD_modifiertypes.hh"
@@ -72,7 +69,7 @@ static void deform_matrices(ModifierData *md,
 
 static void deform_verts_EM(ModifierData *md,
                             const ModifierEvalContext *ctx,
-                            BMEditMesh * /*em*/,
+                            const BMEditMesh * /*em*/,
                             Mesh *mesh,
                             blender::MutableSpan<blender::float3> positions)
 {
@@ -85,7 +82,7 @@ static void deform_verts_EM(ModifierData *md,
 
 static void deform_matrices_EM(ModifierData * /*md*/,
                                const ModifierEvalContext *ctx,
-                               BMEditMesh * /*em*/,
+                               const BMEditMesh * /*em*/,
                                Mesh * /*mesh*/,
                                blender::MutableSpan<blender::float3> /*positions*/,
                                blender::MutableSpan<blender::float3x3> matrices)

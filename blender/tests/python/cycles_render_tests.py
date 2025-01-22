@@ -69,7 +69,6 @@ def get_arguments(filepath, output_filepath):
 
     args = [
         "--background",
-        "-noaudio",
         "--factory-startup",
         "--enable-autoexec",
         "--debug-memory",
@@ -146,7 +145,7 @@ def main():
     # underwater_caustics.blend gives quite different results on Linux and Intel macOS compared to
     # Windows and Arm macOS.
     test_dir_name = Path(test_dir).name
-    if test_dir_name in ('motion_blur', 'integrator', ):
+    if test_dir_name in {'motion_blur', 'integrator'}:
         report.set_fail_threshold(0.032)
 
     ok = report.run(test_dir, blender, get_arguments, batch=args.batch)

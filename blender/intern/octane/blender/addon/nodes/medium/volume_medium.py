@@ -366,17 +366,18 @@ class OctaneVolumeMedium(bpy.types.Node, OctaneBaseNode):
     octane_min_version = 0
     octane_node_type = consts.NodeType.NT_MED_VOLUME
     octane_socket_list = ["Density", "Volume step %", "Vol. shadow ray step %", "Use Vol. step for Vol. shadow ray step", "Single scatter amount", "Sample position displacement", "Volume padding", "Absorption", "Absorption ramp", "Invert absorption", "Scattering", "Scattering ramp", "Phase", "Emission", "Emission ramp", "[Deprecated]Lock step length pins", "[Deprecated]Volume step length", "[Deprecated]Vol. shadow ray step length", ]
-    octane_attribute_list = ["a_compatibility_version", ]
-    octane_attribute_config = {"a_compatibility_version": [consts.AttributeID.A_COMPATIBILITY_VERSION, "compatibilityVersion", consts.AttributeType.AT_INT], }
+    octane_attribute_list = ["a_compatibility_version", "a_volume_use_percentage_step", ]
+    octane_attribute_config = {"a_compatibility_version": [consts.AttributeID.A_COMPATIBILITY_VERSION, "compatibilityVersion", consts.AttributeType.AT_INT], "a_volume_use_percentage_step": [consts.AttributeID.A_VOLUME_USE_PERCENTAGE_STEP, "volumeUsePercentageStep", consts.AttributeType.AT_BOOL], }
     octane_static_pin_count = 15
 
     compatibility_mode_infos = [
         ("Latest (2024.1)", "Latest (2024.1)", """(null)""", 14000000),
         ("2023.1 compatibility mode", "2023.1 compatibility mode", """The volume ray marching step length is an absolute length and the voxel size is ignored.""", 0),
     ]
-    a_compatibility_version_enum: EnumProperty(name="Compatibility version", default="Latest (2024.1)", update=OctaneBaseNode.update_compatibility_mode, description="The Octane version that the behavior of this node should match", items=compatibility_mode_infos)
+    a_compatibility_version_enum: EnumProperty(name="Compatibility version", default="Latest (2024.1)", update=OctaneBaseNode.update_compatibility_mode_to_int, description="The Octane version that the behavior of this node should match", items=compatibility_mode_infos)
 
-    a_compatibility_version: IntProperty(name="Compatibility version", default=14000005, update=OctaneBaseNode.update_node_tree, description="The Octane version that the behavior of this node should match")
+    a_compatibility_version: IntProperty(name="Compatibility version", default=14000007, update=OctaneBaseNode.update_compatibility_mode_to_enum, description="The Octane version that the behavior of this node should match")
+    a_volume_use_percentage_step: BoolProperty(name="Volume use percentage step", default=True, update=OctaneBaseNode.update_node_tree, description="The flag indicating if the step length is stored in percentage")
 
     def init(self, context):  # noqa
         self.inputs.new("OctaneVolumeMediumScale", OctaneVolumeMediumScale.bl_label).init()
