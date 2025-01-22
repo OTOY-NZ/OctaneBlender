@@ -153,7 +153,7 @@ void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph)
       if (can_have_geometry || is_light) {
         const bool updated_geometry = b_update.is_updated_geometry();
         // In Blender 4.2, we don't need to check updated_shading for material changes.
-        // Otherwise, it will create many redandunt updates.
+        // Otherwise, it will create many redundant updates.
         const bool updated_shading = false;
 
         /* Geometry (mesh, hair, volume). */

@@ -29,7 +29,7 @@ class OctaneOSLBaseSocket(base_socket.OctaneBaseSocket):
     def get_osl_value(self):
         if "value" in self:
             return self["value"]
-        return ""
+        return 0
 
     def set_osl_vector_value(self, vector_value):
         self["value"] = vector_value

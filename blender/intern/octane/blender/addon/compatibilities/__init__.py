@@ -3,7 +3,7 @@ import bpy
 from bpy.app.handlers import persistent
 from octane.utils import logger, utility
 
-OCTANE_BLENDER_VERSION = "29.13.1"
+OCTANE_BLENDER_VERSION = "29.15.1"
 OCTANE_VERSION = 14000011
 OCTANE_VERSION_STR = "2024.1"
 

@@ -669,6 +669,7 @@ def check_compatibility_octane_node_tree(file_version):
     check_compatibility_octane_node_tree_28_0(file_version)
     check_compatibility_octane_node_tree_28_5(file_version)
     check_compatibility_octane_node_tree_29_10(file_version)
+    check_compatibility_octane_node_tree_29_15_1(file_version)
 
 
 # node tree
@@ -924,6 +925,18 @@ def _check_compatibility_octane_node_tree_28_0(node_tree):
                 node.inputs["Saturation"].default_value *= 100.0
 
 
+def _check_compatibility_octane_node_tree_29_15_1(node_tree):
+    for node in node_tree.nodes:
+        octane_node_type = getattr(node, "octane_node_type", consts.NodeType.NT_UNKNOWN)
+        # Update of the "Percentage" socket
+        if octane_node_type == consts.NodeType.NT_TEX_COMPOSITE_LAYER_ADJUST_SATURATION:
+            node.inputs["Saturation"].default_value *= 100.0
+        if octane_node_type == consts.NodeType.NT_TEX_COMPOSITE_LAYER_ADJUST_BRIGHTNESS:
+            node.inputs["Luminance"].default_value *= 100.0
+        if octane_node_type == consts.NodeType.NT_TEX_COLORCORRECTION:
+            node.inputs["Brightness"].default_value *= 100.0
+
+
 def check_compatibility_octane_node_tree_28_0(file_version):
     if not check_update(file_version, '28.0'):
         return
@@ -938,6 +951,22 @@ def check_compatibility_octane_node_tree_28_0(file_version):
             _check_compatibility_octane_node_tree_28_0(light.node_tree)
     for node_group in bpy.data.node_groups:
         _check_compatibility_octane_node_tree_28_0(node_group)
+
+
+def check_compatibility_octane_node_tree_29_15_1(file_version):
+    if not check_update(file_version, '29.15.1'):
+        return
+    for material in bpy.data.materials:
+        if material.use_nodes:
+            _check_compatibility_octane_node_tree_29_15_1(material.node_tree)
+    for world in bpy.data.worlds:
+        if world.use_nodes:
+            _check_compatibility_octane_node_tree_29_15_1(world.node_tree)
+    for light in bpy.data.lights:
+        if light.use_nodes:
+            _check_compatibility_octane_node_tree_29_15_1(light.node_tree)
+    for node_group in bpy.data.node_groups:
+        _check_compatibility_octane_node_tree_29_15_1(node_group)
 
 
 def _check_compatibility_octane_node_tree_28_5(node_tree):

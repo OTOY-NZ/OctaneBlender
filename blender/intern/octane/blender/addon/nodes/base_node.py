@@ -389,6 +389,9 @@ class OctaneBaseNode(object):
                             legacy_data_raw_value = [0, 0, 0, 0]
                     if socket.is_linked:
                         legacy_data_link = socket.links[0]
+                else:
+                    # This legacy socket does not contain in the legacy node
+                    pass
             else:
                 if legacy_data_type == consts.LegacyDTOType.DTO_ENUM:
                     legacy_data_raw_value = utility.get_enum_int_value(legacy_node, legacy_data_name, 0)
@@ -398,6 +401,9 @@ class OctaneBaseNode(object):
                 else:
                     legacy_data_raw_value = getattr(legacy_node, legacy_data_name)
                     legacy_data_path = self.resolve_node_property_data_path(legacy_node) + "." + legacy_data_name
+            if legacy_data_raw_value is None:
+                # No value for this legacy data, skip it
+                continue
             if legacy_data_type == consts.LegacyDTOType.DTO_BOOL:
                 legacy_data_value = [legacy_data_raw_value, 0, 0, 0]
             elif legacy_data_type == consts.LegacyDTOType.DTO_FLOAT:

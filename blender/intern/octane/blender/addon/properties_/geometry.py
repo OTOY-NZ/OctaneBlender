@@ -173,7 +173,7 @@ class OctaneGeoNodeCollection(bpy.types.PropertyGroup):
     def is_octane_geo_used(self):
         return len(self.node_graph_tree) and len(self.osl_geo_node)
 
-    def is_octane_scatter_tool_used(self):
+    def is_object_layer_applicable(self):
         if self.is_octane_geo_used():
             if self.node_graph_tree in bpy.data.materials:
                 mat = bpy.data.materials[self.node_graph_tree]
@@ -181,9 +181,10 @@ class OctaneGeoNodeCollection(bpy.types.PropertyGroup):
                     node_tree = mat.node_tree
                     if self.osl_geo_node in node_tree.nodes:
                         node = node_tree.nodes[self.osl_geo_node]
-                        if node.bl_idname in ("OctaneScatterOnSurface", "OctaneScatterInVolume"):
-                            return True
-        return False
+                        if node.bl_idname in ("OctaneScatterOnSurface", "OctaneScatterInVolume",
+                                              "OctaneSDFDomainTransform"):
+                            return False
+        return True
 
     def get_octane_geo_name(self):
         if self.is_octane_geo_used():

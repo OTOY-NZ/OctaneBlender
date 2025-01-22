@@ -778,13 +778,6 @@ class ObjectCache(OctaneNodeCache):
             else:
                 area_light_geo_name = object_data_name + "[AreaLightGeo]"
                 linked_name = area_light_geo_name
-        elif light.type == "SUN":
-            if octane_property.octane_directional_light_type == "Analytical":
-                offset_matrix = utility.compose_matrix((0, 0, 0),
-                                                       (0, 180, 0),
-                                                       (1, 1, 1),
-                                                       "XYZ")
-                scatter_node.offset_matrix = offset_matrix
         if not need_full_update:
             return linked_name
         # Full update
@@ -945,14 +938,13 @@ class ObjectCache(OctaneNodeCache):
                                                                              origin_object)
         self.session.set_status_msg("Uploading and evaluating object[%s] and data[%s] in Octane..."
                                     % (object_name, object_data_name), update_now)
-        octane_scatter_node.offset_matrix = None
         if eval_object.type == "MESH":
             # Mesh Data
             is_infinite_plane = getattr(object_data_octane_property, "infinite_plane", "")
             imported_orbx_file_path = getattr(object_data_octane_property, "imported_orbx_file_path", "")
             geometry_node_data = object_data_octane_property.octane_geo_node_collections
             is_octane_geo_used = geometry_node_data.is_octane_geo_used()
-            is_octane_scatter_tool_used = geometry_node_data.is_octane_scatter_tool_used()
+            is_object_layer_applicable = geometry_node_data.is_object_layer_applicable()
             domain_modifier = utility.find_smoke_domain_modifier(eval_object)
             if is_infinite_plane:
                 # Infinite plane
@@ -972,7 +964,7 @@ class ObjectCache(OctaneNodeCache):
                 use_multiple_objectlayers = True
             elif is_octane_geo_used:
                 # OSL Geometry or Surface/Volume Scatter
-                if is_octane_scatter_tool_used:
+                if not is_object_layer_applicable:
                     object_mesh_data_name = octane_name.resolve_object_mesh_data_octane_name(eval_object,
                                                                                              scene, is_viewport)
                     self.update_mesh(object_mesh_data_name, depsgraph, eval_object, object_data_octane_property,
@@ -1079,8 +1071,18 @@ class ObjectCache(OctaneNodeCache):
             octane_scatter_id = self.resolve_octane_scatter_id(eval_object_name, instance_object.persistent_id)
             # we have to make a copy here, otherwise we get an identity matrix when passing to C++
             object_matrix = instance_object.matrix_world.copy()
-            if getattr(octane_scatter_node, "offset_matrix", None) is not None:
-                object_matrix = object_matrix @ octane_scatter_node.offset_matrix
+            if eval_object.type == "LIGHT":
+                light = eval_object.data
+                light_octane_property = getattr(light, "octane", None)
+                if light.type == "SUN" and light_octane_property is not None:
+                    if light_octane_property.octane_directional_light_type == "Analytical":
+                        offset_matrix = utility.compose_matrix((0, 0, 0),
+                                                               (0, 180, 0),
+                                                               (1, 1, 1),
+                                                               "XYZ")
+                        object_matrix = object_matrix @ offset_matrix
+                    elif light_octane_property.octane_directional_light_type == "Directional":
+                        object_matrix = mathutils.Matrix.Identity(4)
             if ob_octane.enable_octane_offset_transform:
                 offset_matrix = utility.compose_matrix(ob_octane.octane_offset_translation,
                                                        ob_octane.octane_offset_rotation,

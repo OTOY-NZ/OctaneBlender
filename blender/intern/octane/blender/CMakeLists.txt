@@ -769,15 +769,16 @@ set(ADDON_NODES_NODE_TREES_FILES
 
 set(ADDON_NODES_UTIL_FILES
   addon/utils/__init__.py
-  addon/utils/runtime_globals.py
-  addon/utils/utility.py
   addon/utils/consts.py
   addon/utils/curve.py
+  addon/utils/legacy_octane_node.py
   addon/utils/logger.py
   addon/utils/ocio.py
-  addon/utils/octaneid.py
   addon/utils/octane_name.py
-  addon/utils/legacy_octane_node.py
+  addon/utils/octaneid.py
+  addon/utils/osl.py
+  addon/utils/runtime_globals.py
+  addon/utils/utility.py
 )
 
 set(ADDON_NODES_UTIL_CONVERTER_FILES

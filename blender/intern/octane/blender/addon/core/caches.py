@@ -664,6 +664,7 @@ class SceneCache(OctaneNodeCache):
         self.render_settings = RenderSettings()
         self.camera_node = self.add_node(consts.OctanePresetNodeNames.CAMERA, consts.NodeType.NT_UNKNOWN)
         self.camera_border_box = None
+        self.use_camera_dimension_as_preview_resolution = False
         self.imager_node = self.add_node(consts.OctanePresetNodeNames.IMAGER, consts.NodeType.NT_IMAGER_CAMERA)
         self.post_processing_node = self.add_node(consts.OctanePresetNodeNames.POST_PROCESSING,
                                                   consts.NodeType.NT_POSTPROCESSING)
@@ -737,6 +738,8 @@ class SceneCache(OctaneNodeCache):
         else:
             camera_data.sync_data(self.camera_node, scene=scene, session_type=self.session.session_type)
         self.camera_border_box = getattr(self.camera_node, "border", None)
+        self.use_camera_dimension_as_preview_resolution = getattr(self.camera_node,
+                                                                  "use_camera_dimension_as_preview_resolution", False)
         if self.camera_node.need_update:
             need_update = True
             self.camera_node.update_to_engine(update_now)

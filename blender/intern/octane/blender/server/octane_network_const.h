@@ -3,8 +3,4 @@
 
 #define SEND_CHUNK_SIZE 67108864
 
-const int RENDER_SERVER_PORT = 5130;
-const int OCTANEDB_SERVER_PORT = 5131;
-const int HEART_BEAT_SERVER_PORT = 5132;
-
 #endif

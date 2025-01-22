@@ -1,5 +1,6 @@
 #include "octane_client.h"
 #include "octane_network.h"
+#include "BKE_global.hh"
 #include <chrono>
 
 namespace OctaneEngine {
@@ -224,10 +225,10 @@ bool OctaneClient::connectToServer(const char *szAddr, int port)
 
   UNLOCK_MUTEX(m_SocketMutex);
 
-  if (port == RENDER_SERVER_PORT && !initOctaneApi())
+  if (port == G.octane_server_port && !initOctaneApi())
     return false;
 
-  if (port == RENDER_SERVER_PORT && !checkServerVersion())
+  if (port == G.octane_server_port && !checkServerVersion())
     return false;
 
   LOCK_MUTEX(m_SocketMutex);

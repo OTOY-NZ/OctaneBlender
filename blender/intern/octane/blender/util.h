@@ -1651,19 +1651,14 @@ static bool osl_node_configuration(Main *main,
   bool removed;
 
   do {
-    BL::Node::inputs_iterator b_input;
-    BL::Node::outputs_iterator b_output;
-
     removed = false;
-
-    for (b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
-      if (used_sockets.find(b_input->ptr.data) == used_sockets.end()) {
-        b_node.inputs.remove(main, *b_input);
+    for (BL::NodeSocket &b_input : b_node.inputs) {
+      if (used_sockets.find(b_input.ptr.data) == used_sockets.end()) {
+        b_node.inputs.remove(main, b_input);
         removed = true;
         break;
       }
     }
-
   } while (removed);
 
   return true;

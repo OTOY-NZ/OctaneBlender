@@ -134,7 +134,7 @@ class OctaneClient {
   /// Connects to the given Octane server.
   /// @param [in] szAddr - server address
   /// @return **true** if connection has been successful, **false** otherwise.
-  bool connectToServer(const char *szAddr, int port = RENDER_SERVER_PORT);
+  bool connectToServer(const char *szAddr, int port);
   /// Disconnects from the currently connected Octane server. Safe to call when not connected.
   /// @return **true** if disconnection has been successful, **false** otherwise.
   bool disconnectFromServer();

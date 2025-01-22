@@ -50,23 +50,36 @@ class ViewportDrawData(object):
         self.render_result_update_time = 0
 
     def init(self):
+        self.update_vertex_data(False, 0, 0, 0, 0)
+
+    def update_vertex_data(self, use_offset, region_width, region_height, camera_border_width, camera_border_height):
         frame_buffer = self.frame_buffer
         width = frame_buffer.width
         height = frame_buffer.height
+        if use_offset:
+            self.offset_x = (region_width - camera_border_width) // 2
+            self.offset_y = (region_height - camera_border_height) // 2
+            display_region_width = camera_border_width
+            display_region_height = camera_border_height
+        else:
+            self.offset_x = 0
+            self.offset_y = 0
+            display_region_width = width
+            display_region_height = height
         if frame_buffer.use_shared_surface:
             data = [
                 self.offset_x, self.offset_y, 0.0, 1.0,
-                self.offset_x + width, self.offset_y, 1.0, 1.0,
-                self.offset_x + width, self.offset_y + height, 1.0, 0.0,
-                self.offset_x, self.offset_y + height, 0.0, 0.0,
+                self.offset_x + display_region_width, self.offset_y, 1.0, 1.0,
+                self.offset_x + display_region_width, self.offset_y + display_region_height, 1.0, 0.0,
+                self.offset_x, self.offset_y + display_region_height, 0.0, 0.0,
             ]
-            self.frame_buffer.init(data)
+            self.frame_buffer.update_vertex_data(data)
         else:
             position = [
                 (self.offset_x, self.offset_y),
-                (self.offset_x + width, self.offset_y),
-                (self.offset_x + width, self.offset_y + height),
-                (self.offset_x, self.offset_y + height)
+                (self.offset_x + display_region_width, self.offset_y),
+                (self.offset_x + display_region_width, self.offset_y + display_region_height),
+                (self.offset_x, self.offset_y + display_region_height)
             ]
             self.shader = gpu.shader.from_builtin("IMAGE")
             self.batch = batch_for_shader(

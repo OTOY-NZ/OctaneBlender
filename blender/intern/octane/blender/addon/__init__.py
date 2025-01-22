@@ -2,9 +2,9 @@
 
 
 bl_info = {
-    "name": "OctaneBlender (v. 29.14)",
+    "name": "OctaneBlender (v. 29.15.1)",
     "author": "OTOY Inc.",
-    "version": (29, 13, 0),
+    "version": (29, 15, 1),
     "blender": (4, 2, 1),
     "location": "Info header, render engine menu",
     "description": "OctaneBlender",
@@ -265,8 +265,9 @@ class OctaneRender(bpy.types.RenderEngine):
         if core.ENABLE_OCTANE_ADDON_CLIENT:
             self.session.view_draw(self, depsgraph, context)
             region = context.region
+            region_data = context.region_data
             scene = depsgraph.scene
-            self.draw_render_result(context.view_layer, region, scene)
+            self.draw_render_result(context.view_layer, region, region_data, scene)
         else:
             engine.draw(self, depsgraph, context.region, context.space_data, context.region_data)
 
@@ -285,7 +286,7 @@ class OctaneRender(bpy.types.RenderEngine):
         if self.draw_data is not None:
             self.draw_data.tag_immediate_fetch(True)
 
-    def draw_render_result(self, view_layer, region, scene):
+    def draw_render_result(self, view_layer, region, region_data, scene):
         if not self.session.is_render_started:
             return
         is_demo = self.session.is_demo_version()
@@ -297,14 +298,17 @@ class OctaneRender(bpy.types.RenderEngine):
                                        and is_render_pass_shared_surface_supported)
         use_shared_surface = (self.session.use_shared_surface and is_shared_surface_supported)
         is_draw_data_just_created = False
-        if region:
-            # Get viewport dimensions
-            if not self.draw_data or self.draw_data.needs_replacement(region.width, region.height, use_shared_surface):
-                self.free_draw_data()
-                self.draw_data = ViewportDrawData(is_demo, render_pass_id, region.width, region.height, self, scene,
-                                                  use_shared_surface)
-                is_draw_data_just_created = True
+        # Get viewport dimensions
+        width, height, region_width, region_height, camera_border_width, camera_border_height = \
+            self.session.frame_buffer_resolution(scene, region, region_data)
+        if not self.draw_data or self.draw_data.needs_replacement(width, height, use_shared_surface):
+            self.free_draw_data()
+            self.draw_data = ViewportDrawData(is_demo, render_pass_id, width, height, self, scene,
+                                              use_shared_surface)
+            is_draw_data_just_created = True
         if self.draw_data:
+            self.draw_data.update_vertex_data(camera_border_width > 0 and camera_border_height > 0,
+                                              region_width, region_height, camera_border_width, camera_border_height)
             self.draw_data.update(render_pass_id)
             if not is_draw_data_just_created:
                 self.draw_data.draw(self, scene)

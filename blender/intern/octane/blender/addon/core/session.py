@@ -298,6 +298,21 @@ class RenderSession(object):
             engine.immediate_fetch_draw_data()
             engine.tag_redraw()
 
+    def frame_buffer_resolution(self, scene, region, region_data):
+        if self.scene_cache.use_camera_dimension_as_preview_resolution:
+            frame_buffer_width = utility.render_resolution_x(scene)
+            frame_buffer_height = utility.render_resolution_y(scene)
+            camera_border_width, camera_border_height = utility.view3d_camera_border_resolution(scene,
+                                                                                                region,
+                                                                                                region_data)
+        else:
+            frame_buffer_width = region.width
+            frame_buffer_height = region.height
+            camera_border_width = 0
+            camera_border_height = 0
+        return frame_buffer_width, frame_buffer_height, \
+            region.width, region.height, camera_border_width, camera_border_height
+
     def view_draw(self, engine, depsgraph, context):
         if not self.is_render_started:
             return
@@ -310,11 +325,14 @@ class RenderSession(object):
             scene = depsgraph.scene_eval
             view_layer = depsgraph.view_layer_eval
             region = context.region
+            region_data = context.region_data
             if self.scene_cache.update_camera(depsgraph, scene, view_layer, context, update_now):
                 need_redraw = True
             if self.scene_cache.is_active_camera_changed:
                 engine.tag_update()
-            self.set_resolution(region.width, region.height, update_now)
+            width, height, region_width, region_height, camera_border_width, camera_border_height = \
+                self.frame_buffer_resolution(scene, region, region_data)
+            self.set_resolution(width, height, update_now)
             OctaneBlender().update_change_manager(False, True)
             # update render target
             if self.rendertarget_cache.diff(depsgraph, scene, view_layer, context):

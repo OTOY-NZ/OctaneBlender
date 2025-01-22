@@ -152,6 +152,9 @@ class BoundBox2D(object):
     def multiple(a, b):
         return BoundBox2D(a.left * b.left, a.right * b.right, a.bottom * b.bottom, a.top * b.top)
 
+    def __repr__(self):
+        return "BoundBox2D(left=%f, right=%f, bottom=%f, top=%f)" % (self.left, self.right, self.bottom, self.top)
+
 
 class BlenderCamera(object):
     def __init__(self):
@@ -189,6 +192,7 @@ class BlenderCamera(object):
         self.octane_position = None
         self.octane_up = None
         self.octane_target = None
+        self.use_camera_dimension_as_preview_resolution = False
 
     def init(self, cur_scene):
         self.type = BlenderCameraType.PERSPECTIVE
@@ -287,7 +291,7 @@ class BlenderCamera(object):
             if lens > 0:
                 self.lens = lens
 
-    def setup_camera_border(self, cur_scene, _width, _height, is_viewport=False, v3d=None, rv3d=None):
+    def setup_camera_border(self, cur_scene, is_viewport=False, v3d=None, rv3d=None):
         is_camera_view = rv3d.view_perspective == "CAMERA" if is_viewport else True
         if is_camera_view:
             # Object camera
@@ -310,9 +314,17 @@ class BlenderCamera(object):
         self.border.top = border_max_y
         self.use_border = use_border
 
-    def setup_camera_viewplane(self, _scene, width, height):
-        x_ratio = width * self.pixel_aspect[0]
-        y_ratio = height * self.pixel_aspect[1]
+    def setup_camera_viewplane(self, _scene, width, height, use_camera_dimension_as_preview_resolution):
+        if self.camera_from_object and not self.use_border:
+            self.use_camera_dimension_as_preview_resolution = use_camera_dimension_as_preview_resolution
+        else:
+            self.use_camera_dimension_as_preview_resolution = False
+        if self.use_camera_dimension_as_preview_resolution:
+            x_ratio = self.full_width * self.pixel_aspect[0]
+            y_ratio = self.full_height * self.pixel_aspect[1]
+        else:
+            x_ratio = width * self.pixel_aspect[0]
+            y_ratio = height * self.pixel_aspect[1]
         if self.sensor_fit == BlenderCameraSensorFitType.AUTO:
             horizontal_fit = x_ratio > y_ratio
             self.sensor_size = self.sensor_width
@@ -331,9 +343,7 @@ class BlenderCamera(object):
             x_aspect = 1.0
             y_aspect = self.aspect_ratio
         if not horizontal_fit:
-            base_sensor_size = self.sensor_width \
-                if self.sensor_fit == BlenderCameraSensorFitType.HORIZONTAL else self.sensor_height
-            self.sensor_size = base_sensor_size * x_aspect / y_aspect
+            self.sensor_size = self.sensor_size * x_aspect / y_aspect
         if self.type == BlenderCameraType.PANORAMA:
             self.viewplane = self.pano_viewplane
         else:
@@ -349,7 +359,7 @@ class BlenderCamera(object):
             self.viewplane.bottom += dy
             self.viewplane.top += dy
 
-    def setup_from_view(self, cur_scene, v3d, rv3d, _width, _height, skip_panorama):
+    def setup_from_view(self, cur_scene, v3d, rv3d, skip_panorama):
         self.near_clip = v3d.clip_start
         self.far_clip = v3d.clip_end
         self.lens = v3d.lens
@@ -1203,8 +1213,9 @@ class OctaneBaseCameraPropertyGroup(OctanePropertyGroup):
 
     def sync_octane_camera_viewing_angle(self, blender_camera, _octane_node, camera_node, width, height, _is_viewport):
         camera_node_type = camera_node.node_type
-        if camera_node_type in (
-                consts.NodeType.NT_CAM_BAKING, consts.NodeType.NT_CAM_OSL, consts.NodeType.NT_CAM_OSL_BAKING,):
+        if camera_node_type in (consts.NodeType.NT_CAM_BAKING,
+                                consts.NodeType.NT_CAM_OSL,
+                                consts.NodeType.NT_CAM_OSL_BAKING,):
             return
         # Lens camera
         fov = 0.0
@@ -1497,6 +1508,12 @@ class OctaneBaseCameraPropertyGroup(OctanePropertyGroup):
             camera_node.set_pin_id(consts.PinID.P_FSTOP, False, "", fstop)
         else:
             camera_node.set_pin_id(consts.PinID.P_FSTOP, True, "", fstop)
+        # Border & Use Camera Dimension As Preview Resolution
+        octane_node.border = border
+        octane_node.use_camera_dimension_as_preview_resolution = \
+            getattr(self, "use_camera_dimension_as_preview_resolution", False)
+        if octane_node.use_camera_dimension_as_preview_resolution:
+            blender_camera.zoom = 1.0
         # Viewing angle
         self.sync_octane_camera_viewing_angle(blender_camera, octane_node, camera_node, width, height, is_viewport)
         # Clipping
@@ -1538,14 +1555,14 @@ class OctaneBaseCameraPropertyGroup(OctanePropertyGroup):
             subnode = octane_node.get_subnode(consts.OCTANE_BLENDER_STATIC_FRONT_PROJECTION_TRANSFORM,
                                               consts.NodeType.NT_TRANSFORM_VALUE)
             subnode.set_attribute_id(consts.AttributeID.A_TRANSFORM, matrix)
-        octane_node.border = border
 
     def sync_view(self, octane_node, cur_scene, region, v3d, rv3d):
         view_camera = BlenderCamera()
         view_camera.init(cur_scene)
-        view_camera.setup_from_view(cur_scene, v3d, rv3d, region.width, region.height, False)
-        view_camera.setup_camera_viewplane(cur_scene, region.width, region.height)
-        view_camera.setup_camera_border(cur_scene, region.width, region.height, True, v3d, rv3d)
+        view_camera.setup_from_view(cur_scene, v3d, rv3d, False)
+        view_camera.setup_camera_border(cur_scene, True, v3d, rv3d)
+        view_camera.setup_camera_viewplane(cur_scene, region.width, region.height,
+                                           getattr(self, "use_camera_dimension_as_preview_resolution", False))
         if view_camera.use_border:
             if rv3d.view_perspective == "CAMERA":
                 view_camera_box = BoundBox2D.scale(view_camera.viewplane, 1.0 / view_camera.aspect_ratio)
@@ -1553,7 +1570,8 @@ class OctaneBaseCameraPropertyGroup(OctanePropertyGroup):
                 object_camera = BlenderCamera()
                 object_camera.init(cur_scene)
                 object_camera.setup_from_camera_object(camera_object, True)
-                object_camera.setup_camera_viewplane(cur_scene, object_camera.full_width, object_camera.full_height)
+                object_camera.setup_camera_viewplane(cur_scene, object_camera.full_width, object_camera.full_height,
+                                                     getattr(self, "use_camera_dimension_as_preview_resolution", False))
                 object_camera_box = BoundBox2D.scale(object_camera.viewplane, 1.0 / object_camera.aspect_ratio)
                 object_camera_box = BoundBox2D.make_relative_to(object_camera_box, view_camera_box)
                 border_box = BoundBox2D.subset(object_camera_box, view_camera.border)
@@ -1571,8 +1589,9 @@ class OctaneBaseCameraPropertyGroup(OctanePropertyGroup):
         object_camera.pixel_aspect[1] = cur_scene.render.pixel_aspect_y
         camera_object = cur_scene.camera
         object_camera.setup_from_camera_object(camera_object, False)
-        object_camera.setup_camera_viewplane(cur_scene, width, height)
-        object_camera.setup_camera_border(cur_scene, width, height, False)
+        object_camera.setup_camera_border(cur_scene, False)
+        object_camera.setup_camera_viewplane(cur_scene, width, height,
+                                             getattr(self, "use_camera_dimension_as_preview_resolution", False))
         object_camera.matrix = camera_object.matrix_world
         if object_camera.use_border:
             border_box = object_camera.border

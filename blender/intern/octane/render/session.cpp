@@ -31,6 +31,8 @@
 #include "util/opengl.h"
 #include "util/time.h"
 
+#include "BKE_global.hh"
+
 OCT_NAMESPACE_BEGIN
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -432,7 +434,7 @@ void Session::set_server_address(const std::string &address)
   if (!this->address.length())
     fprintf(stderr, "Octane: no server address set.\n");
   else {
-    if (!server->connectToServer(this->address.c_str())) {
+    if (!server->connectToServer(this->address.c_str(), G.octane_server_port)) {
       if (server->getFailReason() == ::OctaneEngine::FailReasons::NOT_ACTIVATED)
         fprintf(stdout, "Octane: current server activation state is: not activated.\n");
       else if (server->getFailReason() == ::OctaneEngine::FailReasons::NO_CONNECTION)

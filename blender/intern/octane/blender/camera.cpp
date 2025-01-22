@@ -276,9 +276,7 @@ static void blender_camera_viewplane(BlenderCamera *bcam,
 
   if (sensor_size != NULL) {
     if (!horizontal_fit) {
-      float base_sensor_size = bcam->sensor_fit == BlenderCamera::HORIZONTAL ? bcam->sensor_width :
-                                                                               bcam->sensor_height;
-      *sensor_size = base_sensor_size * xaspect / yaspect;
+      *sensor_size = (*sensor_size) * xaspect / yaspect;
     }
   }
 
@@ -344,7 +342,13 @@ static void blender_camera_sync(Camera *cam,
   float aspectratio, sensor_size;
 
   /* viewplane */
-  blender_camera_viewplane(bcam, width, height, &cam->viewplane, &aspectratio, &sensor_size);
+  if (cam && cam->oct_node.bUseCameraDimensionAsPreviewResolution) {
+    blender_camera_viewplane(
+        bcam, bcam->full_width, bcam->full_height, &cam->viewplane, &aspectratio, &sensor_size);
+  }
+  else {
+    blender_camera_viewplane(bcam, width, height, &cam->viewplane, &aspectratio, &sensor_size);
+  }
 
   // cam->width = bcam->full_width;
   // cam->height = bcam->full_height;
@@ -413,7 +417,7 @@ static void blender_camera_sync(Camera *cam,
 
   if (cam->oct_node.bUseCameraDimensionAsPreviewResolution) {
     zoom = 1.f;
-    // offset.x = offset.y = 0.f;
+    offset.x = offset.y = 0.f;
   }
 
   if (cam->oct_node.bOrtho) {
@@ -866,8 +870,8 @@ void BlenderSync::update_octane_camera_properties(
     cam->oct_node.bUseUniversalCamera = (get_enum_identifier(oct_camera, "octane_camera_type") ==
                                          "Universal");
     cam->oct_node.bUseCameraDimensionAsPreviewResolution =
-        preview && RNA_boolean_get(&oct_camera, "use_camera_dimension_as_preview_resolution") 
-        && !bcam->use_border;
+        preview && RNA_boolean_get(&oct_camera, "use_camera_dimension_as_preview_resolution") &&
+        !bcam->use_border;
 
     cam->oct_node.panCamMode = static_cast<::Octane::PanoramicCameraMode>(
         RNA_enum_get(&oct_camera, "pan_mode"));

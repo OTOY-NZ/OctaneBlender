@@ -2,6 +2,7 @@
 
 from bpy.props import (
     BoolProperty,
+    IntProperty,
     EnumProperty,
     FloatProperty,
     StringProperty,
@@ -10,7 +11,7 @@ from bpy.props import (
 
 import bpy
 from octane.core.client import OctaneBlender
-from octane.utils import logger, ocio, runtime_globals, utility
+from octane.utils import consts, logger, ocio, runtime_globals, utility
 
 default_material_orders = (
     ("0", "Diffuse", "OctaneDiffuseMaterial", 0),
@@ -103,13 +104,18 @@ def update_octane_server_address():
     try:
         preferences = utility.get_preferences()
         octane_server_address = str(preferences.octane_server_address)
+        octane_server_port = preferences.octane_server_port
+        octane_db_server_port = preferences.octane_db_server_port
         enable_release_octane_license_when_exiting = bool(preferences.enable_relese_octane_license_when_exiting)
     except Exception as e:
         octane_server_address = ""
+        octane_server_port = consts.DEFAULT_SERVER_PORT
+        octane_db_server_port = consts.DEFAULT_DB_SERVER_PORT
         enable_release_octane_license_when_exiting = False
         logger.exception(e)
     import _octane
-    _octane.update_octane_server_address(octane_server_address, enable_release_octane_license_when_exiting)
+    _octane.update_octane_server_address(octane_server_address, octane_server_port, octane_db_server_port,
+                                         enable_release_octane_license_when_exiting)
 
 
 def update_octane_params():
@@ -248,7 +254,18 @@ class OctanePreferences(bpy.types.AddonPreferences):
         default="127.0.0.1",
         maxlen=255,
     )
-
+    octane_server_port: IntProperty(
+        name="Octane server port",
+        description="Octane render-server port",
+        default=consts.DEFAULT_SERVER_PORT,
+        min=1, max=2147483647,
+    )
+    octane_db_server_port: IntProperty(
+        name="OctaneDB server port",
+        description="OctaneDB server port",
+        default=consts.DEFAULT_DB_SERVER_PORT,
+        min=1, max=2147483647,
+    )
     use_factor_subtype_for_property: BoolProperty(
         name="Use 'Factor' subtype for properties",
         description="Use 'Factor' subtype for properties if possible(like Cycles). Or, do not use subtype for "
@@ -347,7 +364,11 @@ class OctanePreferences(bpy.types.AddonPreferences):
                 box.row().label(text="Shared surface is not supported")
         else:
             layout = self.layout
-            layout.row().prop(self, "octane_server_address", expand=False)
+            row = layout.row()
+            row.prop(self, "octane_server_address", expand=False)
+            row = layout.row()
+            row.column().prop(self, "octane_server_port", expand=False)
+            row.column().prop(self, "octane_db_server_port", expand=False)
             # noinspection SpellCheckingInspection
             layout.row().prop(self, "enable_relese_octane_license_when_exiting", expand=False)
             layout.row().prop(self, "octane_localdb_path", expand=False)

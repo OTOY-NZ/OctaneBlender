@@ -14,6 +14,7 @@ from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, F
     IntVectorProperty
 
 import bpy
+from bpy_extras.view3d_utils import location_3d_to_region_2d
 from octane.utils import consts, legacy_octane_node, logger, runtime_globals
 
 
@@ -913,6 +914,24 @@ def is_viewport_post_process_used(scene, context=None):
     return not is_viewport_in_camera_view(context)
 
 
+def view3d_camera_border(scene, region, region_data):
+    obj = scene.camera
+    cam = obj.data
+    frame = cam.view_frame(scene=scene)
+    # move from object-space into world-space
+    frame = [obj.matrix_world @ v for v in frame]
+    # move into pixel space
+    frame_coordinates = [location_3d_to_region_2d(region, region_data, v) for v in frame]
+    return frame_coordinates
+
+
+def view3d_camera_border_resolution(scene, region, region_data):
+    frame_coordinates = view3d_camera_border(scene, region, region_data)
+    p1 = frame_coordinates[0]
+    p2 = frame_coordinates[2]
+    return p1[0] - p2[0], p1[1] - p2[1]
+
+
 def get_split_panel_ui_layout(layout):
     # Simulate the use_property_split feature
     row = layout.row(align=True)
@@ -1231,9 +1250,12 @@ def set_all_viewport_shading_type(shading_type="SOLID", tag_redraw=False):
                 for space in area.spaces:
                     if space.type == "VIEW_3D":
                         view_shading = space.shading
+                        oct_view_shading = view_shading.octane
                         if view_shading.type != shading_type:
                             view_shading.type = shading_type
-                            oct_view_shading = view_shading.octane
+                            oct_view_shading["shading_type"] = shading_type_mapper[view_shading.type]
+                        if "shading_type" in oct_view_shading and \
+                                oct_view_shading["shading_type"] != shading_type_mapper[view_shading.type]:
                             oct_view_shading["shading_type"] = shading_type_mapper[view_shading.type]
                 if tag_redraw:
                     for region in area.regions:
@@ -1675,6 +1697,11 @@ def use_octane_coordinate(_object):
         if getattr(octane_data, "infinite_plane", False):
             return True
         return getattr(octane_data, "primitive_coordinate_mode", None) == "Octane"
+    elif _object.type == "LIGHT":
+        origin_object = _object.original
+        if origin_object.data.type == "SUN":
+            octane_data = getattr(origin_object.data, "octane", None)
+            return getattr(octane_data, "octane_directional_light_type", None) == "Directional"
     return False
 
 

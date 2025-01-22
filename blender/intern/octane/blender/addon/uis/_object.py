@@ -39,8 +39,19 @@ class OCTANE_OBJECT_PT_object_properties_object_layer(OctanePropertyPanel, Panel
         octane_object = ob.octane
         if ob.data is not None:
             orbx_path = getattr(ob.data.octane, "imported_orbx_file_path", "")
+            try:
+                is_object_layer_applicable = ob.data.octane.octane_geo_node_collections.is_object_layer_applicable()
+            except:  # noqa
+                is_object_layer_applicable = False
         else:
             orbx_path = ""
+            is_object_layer_applicable = False
+        if not is_object_layer_applicable:
+            sub = layout.row(align=True)
+            sub.label(text="This object is used as Octane Scatter or SDF Domain.")
+            sub = layout.row(align=True)
+            sub.label(text="Object Layer Data is not applicable in this case.")
+            return
         is_used_as_orbx_proxy = len(orbx_path) > 0
         if is_used_as_orbx_proxy:
             sub = layout.row(align=True)

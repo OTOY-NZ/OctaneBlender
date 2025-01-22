@@ -178,6 +178,8 @@ struct Global {
   char export_path[256];
 
   char octane_server_address[1024];
+  int octane_server_port;
+  int octane_db_server_port;
   bool release_octane_license_after_exiting;
   char octane_localdb_path[1024];
   char octane_texture_cache_path[1024];

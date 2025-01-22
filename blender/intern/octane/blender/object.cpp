@@ -177,6 +177,10 @@ static void update_light_transform(Light *light,
         Transform octane_tfm = tfm * transform_rotate(M_PI_F, make_float3(1, 0, 0));
         light->update_transform(octane_tfm, motion_time);
       }
+      else if (octane_directional_light_type == 1) {
+        Transform octane_tfm = transform_identity();
+        light->update_transform(octane_tfm, motion_time);
+      }
       else {
         light->update_transform(tfm, motion_time);
       }

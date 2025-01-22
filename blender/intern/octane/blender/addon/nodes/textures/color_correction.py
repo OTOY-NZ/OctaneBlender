@@ -45,7 +45,7 @@ class OctaneColorCorrectionBrightness(OctaneBaseSocket):
     octane_pin_type = consts.PinType.PT_TEXTURE
     octane_pin_index = 1
     octane_socket_type = consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Brightness or color correction", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=100.000000, subtype=runtime_globals.FACTOR_PROPERTY_SUBTYPE)
+    default_value: FloatProperty(default=100.000000, update=OctaneBaseSocket.update_node_tree, description="Brightness or color correction", min=-34028234663852885981170418348451692544000.000000, max=34028234663852885981170418348451692544000.000000, soft_min=0.000000, soft_max=10000.000000, subtype="PERCENTAGE")
     octane_hide_value = False
     octane_min_version = 0
     octane_end_version = 4294967295

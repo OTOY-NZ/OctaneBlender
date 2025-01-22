@@ -121,14 +121,14 @@ void Scene::server_update(::OctaneEngine::OctaneClient *server_,
     if (progress.get_cancel())
       break;
 
-    progress.set_status("Updating Shaders");
-    shader_manager->server_update(server, this, progress);
+    progress.set_status("Updating Camera");
+    camera->server_update(server, this, frame_idx, total_frames);
 
     if (progress.get_cancel())
       break;
 
-    progress.set_status("Updating Camera");
-    camera->server_update(server, this, frame_idx, total_frames);
+    progress.set_status("Updating Shaders");
+    shader_manager->server_update(server, this, progress);
 
     if (progress.get_cancel())
       break;

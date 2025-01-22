@@ -563,19 +563,14 @@ static PyObject *osl_update_node_func(PyObject * /*self*/, PyObject *args)
     bool removed;
 
     do {
-      BL::Node::inputs_iterator b_input;
-      BL::Node::outputs_iterator b_output;
-
       removed = false;
-
-      for (b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
-        if (used_sockets.find(b_input->ptr.data) == used_sockets.end()) {
-          b_node.inputs.remove(b_data, *b_input);
+      for (BL::NodeSocket &b_input : b_node.inputs) {
+        if (used_sockets.find(b_input.ptr.data) == used_sockets.end()) {
+          b_node.inputs.remove(b_data, b_input);
           removed = true;
           break;
         }
       }
-
     } while (removed);
 
     Py_RETURN_TRUE;
@@ -717,8 +712,16 @@ static PyObject *set_octane_params_func(PyObject *self, PyObject *args)
 static PyObject *update_octane_server_address_func(PyObject *self, PyObject *args)
 {
   PyObject *address;
+  int octane_server_port;
+  int octane_db_server_port;
   int release_octane_license_after_exiting;
-  if (!PyArg_ParseTuple(args, "Oi", &address, &release_octane_license_after_exiting)) {
+  if (!PyArg_ParseTuple(args,
+                        "Oiii",
+                        &address,
+                        &octane_server_port,
+                        &octane_db_server_port,
+                        &release_octane_license_after_exiting))
+  {
     return PyBool_FromLong(0);
   }
 
@@ -727,6 +730,8 @@ static PyObject *update_octane_server_address_func(PyObject *self, PyObject *arg
   Py_XDECREF(path_coerce);
 
   std::strcpy(G.octane_server_address, cur_addr.c_str());
+  G.octane_server_port = octane_server_port;
+  G.octane_db_server_port = octane_db_server_port;
   G.release_octane_license_after_exiting = release_octane_license_after_exiting;
   Py_RETURN_NONE;
 }

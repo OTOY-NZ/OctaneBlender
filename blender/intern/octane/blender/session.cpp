@@ -178,7 +178,7 @@ void BlenderSession::create_session()
   session->set_pause(session_pause);
   PointerRNA oct_scene = RNA_pointer_get(&b_scene.ptr, "octane");
   this->server_address = G.octane_server_address;
-  BlenderSession::connect_to_server(this->server_address, RENDER_SERVER_PORT, session->server);
+  BlenderSession::connect_to_server(this->server_address, G.octane_server_port, session->server);
 
   /* create scene */
   scene = new Scene(session,
@@ -968,7 +968,7 @@ void BlenderSession::get_progress(float &progress, double &total_time, double &r
 
 bool BlenderSession::connect_to_render_server(::OctaneEngine::OctaneClient *server)
 {
-  return connect_to_server(G.octane_server_address, RENDER_SERVER_PORT, server);
+  return connect_to_server(G.octane_server_address, G.octane_server_port, server);
 }
 
 bool BlenderSession::connect_to_server(std::string server_address,
@@ -1010,7 +1010,7 @@ bool BlenderSession::command_to_octane(std::string server_address,
                                        const std::vector<std::string> &sParams)
 {
   ::OctaneEngine::OctaneClient *server = new ::OctaneEngine::OctaneClient;
-  bool ret = BlenderSession::connect_to_server(server_address, RENDER_SERVER_PORT, server);
+  bool ret = BlenderSession::connect_to_server(server_address, G.octane_server_port, server);
   if (ret && !server->commandToOctane(cmd_type, iParams, fParams, sParams)) {
     ret = false;
   }
@@ -1022,7 +1022,7 @@ bool BlenderSession::activate_license(bool activate)
 {
   std::string server_address = G.octane_server_address;
   ::OctaneEngine::OctaneClient *server = new ::OctaneEngine::OctaneClient;
-  bool ret = BlenderSession::connect_to_server(server_address, RENDER_SERVER_PORT, server);
+  bool ret = BlenderSession::connect_to_server(server_address, G.octane_server_port, server);
   if (ret) {
     if (!activate) {
       server->ReleaseOctaneApi();
@@ -1040,7 +1040,7 @@ bool BlenderSession::osl_compile(const std::string server_address,
                                  std::string &info)
 {
   ::OctaneEngine::OctaneClient *server = new ::OctaneEngine::OctaneClient;
-  bool ret = BlenderSession::connect_to_server(server_address, RENDER_SERVER_PORT, server);
+  bool ret = BlenderSession::connect_to_server(server_address, G.octane_server_port, server);
   OctaneDataTransferObject::OSLNodeInfo oslNodeInfo;
   if (ret) {
     BL::ShaderNode b_node(node_ptr);
@@ -1074,7 +1074,7 @@ bool BlenderSession::generate_orbx_proxy_preview(const std::string server_addres
                                                  const float fps)
 {
   ::OctaneEngine::OctaneClient *server = new ::OctaneEngine::OctaneClient;
-  bool ret = BlenderSession::connect_to_server(server_address, RENDER_SERVER_PORT, server);
+  bool ret = BlenderSession::connect_to_server(server_address, G.octane_server_port, server);
   if (ret) {
     OctaneDataTransferObject::OctaneNodeBase *cur_node =
         OctaneDataTransferObject::GlobalOctaneNodeFactory.CreateOctaneNode(
@@ -1110,7 +1110,7 @@ bool BlenderSession::resolve_octane_vdb_info(const std::string server_address,
     return true;
   }
   ::OctaneEngine::OctaneClient *server = new ::OctaneEngine::OctaneClient;
-  bool ret = BlenderSession::connect_to_server(server_address, RENDER_SERVER_PORT, server);
+  bool ret = BlenderSession::connect_to_server(server_address, G.octane_server_port, server);
   if (ret) {
     OctaneDataTransferObject::OctaneNodeBase *cur_node =
         OctaneDataTransferObject::GlobalOctaneNodeFactory.CreateOctaneNode(Octane::ENT_VDB_INFO);
@@ -1145,7 +1145,7 @@ bool BlenderSession::resolve_octane_ocio_info(const std::string server_address,
                                               std::vector<std::vector<std::string>> &results)
 {
   ::OctaneEngine::OctaneClient *server = new ::OctaneEngine::OctaneClient;
-  bool ret = BlenderSession::connect_to_server(server_address, RENDER_SERVER_PORT, server);
+  bool ret = BlenderSession::connect_to_server(server_address, G.octane_server_port, server);
   if (ret) {
     OctaneDataTransferObject::OctaneNodeBase *cur_node =
         OctaneDataTransferObject::GlobalOctaneNodeFactory.CreateOctaneNode(Octane::ENT_OCIO_INFO);
@@ -1207,7 +1207,7 @@ bool BlenderSession::update_octane_custom_node(const std::string server_address,
                                                std::string &result)
 {
   ::OctaneEngine::OctaneClient *server = new ::OctaneEngine::OctaneClient;
-  bool ret = BlenderSession::connect_to_server(server_address, RENDER_SERVER_PORT, server);
+  bool ret = BlenderSession::connect_to_server(server_address, G.octane_server_port, server);
   if (ret) {
     OctaneDataTransferObject::OctaneNodeBase *cur_node =
         OctaneDataTransferObject::GlobalOctaneNodeFactory.CreateOctaneNode(
@@ -1492,11 +1492,11 @@ bool BlenderSession::heart_beat(std::string server_address)
   if (!heart_beat_server) {
     heart_beat_server = new ::OctaneEngine::OctaneClient();
     ret = BlenderSession::connect_to_server(
-        server_address, HEART_BEAT_SERVER_PORT, heart_beat_server);
+        server_address, G.octane_server_port, heart_beat_server);
   }
   if (heart_beat_server->getServerAdress() != server_address) {
     ret = BlenderSession::connect_to_server(
-        server_address, HEART_BEAT_SERVER_PORT, heart_beat_server);
+        server_address, G.octane_server_port, heart_beat_server);
   }
   if (!ret) {
     delete heart_beat_server;
@@ -1516,7 +1516,7 @@ static void get_octanedb_startjob(void *customdata, wmJobWorkerStatus *worker_st
 
   worker_status->progress = 0.0f;
   ::OctaneEngine::OctaneClient *server = new ::OctaneEngine::OctaneClient;
-  bool ret = BlenderSession::connect_to_server(data->server_address, OCTANEDB_SERVER_PORT, server);
+  bool ret = BlenderSession::connect_to_server(data->server_address, G.octane_db_server_port, server);
   if (!ret) {
     WM_report(RPT_ERROR, "Fail to connect to OctaneDB!");
     return;
